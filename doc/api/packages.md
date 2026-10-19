@@ -710,6 +710,11 @@ specific to least specific as conditions should be defined:
   `import()` or `require()`. The format is expected to be ES modules that does
   not contain top-level await in its module graph - if it does,
   `ERR_REQUIRE_ASYNC_MODULE` will be thrown when the module is `require()`-ed.
+* `"worker"` - matches when the package is loaded within a [Web Worker][]
+  thread, including the worker entry point and all of its dependencies,
+  `import()`, `require()`, and `import.meta.resolve()`. Does not apply to
+  threads created with [`node:worker_threads`][], including those created
+  from within a Web Worker.
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
@@ -1386,6 +1391,7 @@ Node.js allows type stripping for:
 [Runtime Keys]: https://runtime-keys.proposal.wintercg.org/
 [Syntax detection]: #syntax-detection
 [TypeScript]: typescript.md
+[Web Worker]: globals.md#class-worker
 [WebAssembly modules]: esm.md#wasm-modules
 [WinterCG]: https://wintercg.org/
 [`"exports"`]: #exports
@@ -1403,6 +1409,7 @@ Node.js allows type stripping for:
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`URL`]: url.md#the-whatwg-url-api
+[`node:worker_threads`]: worker_threads.md
 [`package.json`]: #nodejs-packagejson-field-definitions
 [customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points

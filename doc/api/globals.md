@@ -1378,6 +1378,12 @@ accepted and how failures are reported:
 `file:` URLs. The `type` option, not the file extension, decides how an entry is
 run, so a `.cts` entry is still evaluated as an ES module.
 
+Package resolution within a Web Worker, including the entry point, its
+dependencies, `import()`, `require()`, and `import.meta.resolve()`, applies
+the `"worker"` [package condition][] in addition to the usual conditions.
+Threads created through [`node:worker_threads`][] from within a Web Worker do
+not apply it.
+
 ### Differences from the HTML Standard
 
 Besides script loading, mentioned above:
@@ -1545,6 +1551,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
+[package condition]: packages.md#conditional-exports
 [timers]: timers.md
 [type stripping]: typescript.md#type-stripping
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
