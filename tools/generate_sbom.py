@@ -523,7 +523,7 @@ def build_sbom(node_version, components, lib_files):
     'name': 'nodejs',
     'version': node_version,
     'description': 'Node.js JavaScript runtime',
-    'purl': f'pkg:github/nodejs/node@{node_version}',
+    'purl': f'pkg:generic/nodejs/node@{node_version}',
   }
 
   return {
