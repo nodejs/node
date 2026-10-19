@@ -1460,10 +1460,26 @@ in the registry. Also include a change to the registry in your commit to
 reflect the newly used value. Ensure that the release commit removes the
 `-pre` suffix for the major version being prepared.
 
-It is current TSC policy to bump major version when ABI changes. If you
-see a need to bump `NODE_MODULE_VERSION` outside of a major release then
-you should consult the TSC. Commits may need to be reverted or a major
-version bump may need to happen.
+Starting with Node.js 27, changes that break the native addon ABI and require
+a `NODE_MODULE_VERSION` bump, such as V8 updates, may land during the Alpha and
+Current phases of a release line. Such changes should still be labeled as
+semver-major on the default branch. When they are promoted to the release line,
+they may land in semver-minor releases as long as the ABI change is clearly
+documented in the release notes.
+
+Once a release line enters LTS, ABI-breaking changes are strongly discouraged.
+They should only land when they are necessary, such as for security fixes, and
+when there is no way to make the change without breaking the ABI. Breaking
+changes that are not necessary for an LTS line, such as adding fields to a
+struct to expose more information in a diagnostic API, do not meet this bar,
+and should be reworked as non-breaking changes before they could land. In
+practice, this means V8 is generally stable on a release line after it enters
+LTS, and no ABI or API breaking changes
+are expected unless in exceptional circumstances.
+
+This policy applies to addons that depend on V8, Node.js, or other non-Node-API
+native interfaces. Node-API remains the recommended interface for native addons
+that require ABI stability across Node.js versions.
 
 ##### Changelogs
 
