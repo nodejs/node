@@ -53,7 +53,8 @@ diagnosticsChannel.channel('undici:request:bodySent').subscribe(({ request }) =>
 
 ## `undici:request:headers`
 
-This message is published after the response headers have been received.
+This message is published after the response headers have been received. This includes a successful CONNECT or
+protocol upgrade response.
 
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
@@ -82,6 +83,7 @@ diagnosticsChannel.channel('undici:request:bodyChunkReceived').subscribe(({ requ
 ## `undici:request:trailers`
 
 This message is published after the response body and trailers have been received, i.e. the response has been completed.
+After an upgraded socket is passed to the request handler, this message is published with an empty `trailers` array.
 
 ```js
 import diagnosticsChannel from 'diagnostics_channel'

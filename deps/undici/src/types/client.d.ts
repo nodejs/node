@@ -109,6 +109,8 @@ export declare namespace Client {
     pingInterval?: number;
     /** WebSocket-specific configuration options. */
     webSocket?: WebSocketOptions;
+    /** EventSource-specific configuration options. */
+    eventSource?: EventSourceOptions;
   }
   export interface SocketInfo {
     localAddress?: string
@@ -133,6 +135,18 @@ export declare namespace Client {
      * @default 134217728 (128 MB)
      */
     maxPayloadSize?: number;
+  }
+  export interface EventSourceOptions {
+    /**
+     * Maximum total bytes of data and metadata field values retained for a
+     * pending EventSource event. Each unfinished line is separately bounded
+     * to this value plus seven syntax bytes. The number of data lines per
+     * event and buffered input chunks are each limited to
+     * min(131072, max(1024, floor(maxEventSize / 128))).
+     * Set to 0 to disable these limits.
+     * @default buffer.kStringMaxLength
+     */
+    maxEventSize?: number;
   }
 }
 

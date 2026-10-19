@@ -10,6 +10,7 @@ const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
 const { kEnumerableProperty } = require('../../core/util')
 const { environmentSettingsObject } = require('../fetch/util')
+const { getGlobalDispatcher } = require('../../global')
 
 let experimentalWarned = false
 
@@ -292,6 +293,7 @@ class EventSource extends EventTarget {
 
       const eventSourceStream = new EventSourceStream({
         eventSourceSettings: this.#state,
+        maxEventSize: this.#dispatcher.eventSourceOptions?.maxEventSize,
         push: (event) => {
           this.dispatchEvent(createFastMessageEvent(
             event.type,
@@ -476,7 +478,8 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   },
   {
     key: 'dispatcher', // undici only
-    converter: webidl.converters.any
+    converter: webidl.converters.any,
+    defaultValue: () => getGlobalDispatcher()
   },
   {
     key: 'node', // undici only

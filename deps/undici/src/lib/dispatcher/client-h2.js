@@ -293,8 +293,6 @@ function onHttp2SendPing (session) {
 }
 
 function onHttp2SessionError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
   this[kSocket][kError] = err
   this[kClient][kOnError](err)
 }
@@ -436,8 +434,6 @@ function onHttp2SocketClose () {
 }
 
 function onHttp2SocketError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
   this[kError] = err
 
   this[kClient][kOnError](err)
@@ -575,13 +571,17 @@ function writeH2 (client, request) {
 
       stream = session.request(headers, { endStream: false, signal })
       stream[kHTTP2Stream] = true
+      ++session[kOpenStreams]
 
       stream.once('response', (headers, _flags) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
 
-        request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
-
-        ++session[kOpenStreams]
+        try {
+          request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
+        } catch (err) {
+          abort(err)
+          return
+        }
         completeRequest(client, request)
       })
 
@@ -610,11 +610,16 @@ function writeH2 (client, request) {
     // We disabled endStream to allow the user to write to the stream
     stream = session.request(headers, { endStream: false, signal })
     stream[kHTTP2Stream] = true
+    ++session[kOpenStreams]
     stream.on('response', headers => {
       const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
 
-      request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
-      ++session[kOpenStreams]
+      try {
+        request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
+      } catch (err) {
+        abort(err)
+        return
+      }
       completeRequest(client, request)
     })
     stream.on('error', abort)

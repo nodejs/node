@@ -1153,6 +1153,7 @@ The `decompress` interceptor automatically decompresses response bodies that are
 
 - `skipErrorResponses` - Whether to skip decompression for error responses (status codes >= 400). Default: `true`.
 - `skipStatusCodes` - Array of status codes to skip decompression for. Default: `[204, 304]`.
+- `maxSize` - Maximum decompressed response size in bytes for each decompression stage. Set to `0` to disable the limit. Default: `0`.
 
 **Example - Basic Decompress Interceptor**
 
