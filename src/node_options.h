@@ -298,6 +298,8 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(tls_max_v1_2) = false;
   DEFINE_BOOL_FIELD(tls_max_v1_3) = false;
   DEFINE_BOOL_FIELD(strip_types) = HAVE_AMARO;
+  DEFINE_BOOL_FIELD(experimental_strip_private_modules) =
+      EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(report_exclude_env) = false;
   DEFINE_BOOL_FIELD(report_exclude_network) = false;
 #if HAVE_INSPECTOR
