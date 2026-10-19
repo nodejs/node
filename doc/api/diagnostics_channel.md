@@ -1646,19 +1646,34 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Each `node:fs` operation publishes to its own [`TracingChannel`][] named
-`fs.<operation>`, for example `tracing:fs.stat:start`. The synchronous,
-callback, and promise forms of an operation share the same channel.
+Each `node:fs` operation has a [`TracingChannel`][] named `fs.<operation>`.
+The callback, synchronous, and promise forms of an operation all publish to
+that channel. For example, `fs.stat()`, `fs.statSync()`, and `fsPromises.stat()`
+all publish to `tracing:fs.stat:start`, `tracing:fs.stat:end`, and so on.
+
+The form decides which events a call publishes. The synchronous form publishes
+`start` and `end`. The callback and promise forms publish `start` and `end`
+when the call returns, then `asyncStart` and `asyncEnd` when the callback runs
+or the promise settles. A call that fails also publishes `error`. See
+[TracingChannel Channels][] for the order and contents of the events.
 
 * `event` {Object} containing the following properties
-  * `api` {string} The form of the function: `'sync'`, `'callback'`, or
-    `'promise'`.
-  * `args` {Array} The arguments as passed by the caller.
-  * The leading arguments of the operation, by name, as listed in the table
-    below. For `FileHandle` methods, `fd` is the descriptor of the handle and
-    `args` holds the arguments of the method.
+  * `api` {string} The form of the function that was called: `'callback'`,
+    `'sync'`, or `'promise'`.
+  * `args` {Array} The arguments the function was called with. For a
+    `FileHandle` method, the arguments of the method.
+  * `result` {any} The result of the operation. For the callback form, this is
+    the first callback argument after the error, so for `fs.read` and
+    `fs.write` it is the number of bytes.
+  * One property for each leading argument, named as in the table below. For
+    `FileHandle` methods, `fd` is the file descriptor of the handle.
 
-| Channel         | Functions                                                        | Named properties         |
+The table lists the functions that publish to each channel and the properties
+for their leading arguments. A function name without a prefix stands for all
+of its forms: `stat` means `fs.stat()`, `fs.statSync()`, and
+`fsPromises.stat()`.
+
+| Channel         | Functions                                                        | Properties               |
 | --------------- | ---------------------------------------------------------------- | ------------------------ |
 | `fs.access`     | `access`                                                         | `path`                   |
 | `fs.appendFile` | `appendFile`                                                     | `path`, `data`           |
@@ -1706,21 +1721,17 @@ callback, and promise forms of an operation share the same channel.
 | `fs.writeFile`  | `writeFile`, `filehandle.writeFile()`, `filehandle.appendFile()` | `path`, `data`           |
 | `fs.writev`     | `writev`, `filehandle.writev()`                                  | `fd`, `buffers`          |
 
-A function name such as `stat` means `fs.stat()`, `fs.statSync()`, and
-`fsPromises.stat()`, where these exist. For `fs.readFile`, `fs.writeFile`, and
-`fs.appendFile`, `path` is the value as passed, so it can also be a file
-descriptor or a {FileHandle}. For `fs.write` with a string, `buffer` is the
-string. For callback forms, `result` is the first callback argument after the
-error, so for `fs.read` and `fs.write` it is the number of bytes.
+`fs.readFile`, `fs.writeFile`, and `fs.appendFile` accept a file descriptor or
+a {FileHandle} in place of a path. `path` then holds that descriptor or handle.
+When `fs.write` is called with a string, `buffer` holds that string.
 
-An operation that uses other `fs` operations also publishes those, inside its
-own events. For example, `fs.readFileSync()` without an encoding publishes to
-`fs.open`, `fs.read`, and `fs.close`. Streams from `fs.createReadStream()` and
-`fs.createWriteStream()` publish the `fs.open`, `fs.read`, `fs.write`,
-`fs.writev`, and `fs.close` operations they use.
-
-`fsPromises.glob()`, `fs.watch()`, `fs.watchFile()`, and `dir.read()` do not
-publish events.
+An operation that is implemented with other `fs` operations publishes those
+too, between its own `start` and `end`. For example, `fs.readFileSync()` without
+an encoding calls `fs.openSync()`, `fs.readSync()`, and `fs.closeSync()`, so it
+publishes `fs.open`, `fs.read`, and `fs.close` events inside its `fs.readFile`
+events. The streams from `fs.createReadStream()` and `fs.createWriteStream()`
+call `fs.open()`, `fs.read()`, `fs.write()`, `fs.writev()`, and `fs.close()`,
+which publish as usual.
 
 #### HTTP
 
