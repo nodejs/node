@@ -376,6 +376,7 @@ signatures as their [`node:fs`][] counterparts:
 * `utimesSync(path, atime, mtime)`
 * `lutimesSync(path, atime, mtime)`
 * `mkdtempSync(prefix)`
+* `mkstempSync(prefix)`
 * `opendirSync(path[, options])`
 * `openAsBlob(path[, options])`
 * File-descriptor ops: `openSync`, `closeSync`, `readSync`, `writeSync`,
@@ -387,8 +388,8 @@ signatures as their [`node:fs`][] counterparts:
 
 `readFile`, `writeFile`, `stat`, `lstat`, `readdir`, `realpath`, `readlink`,
 `access`, `open`, `close`, `read`, `write`, `rm`, `fstat`, `truncate`,
-`ftruncate`, `link`, `mkdtemp`, `opendir`. Each takes a Node.js-style
-callback `(err, ...result) => {}`.
+`ftruncate`, `link`, `mkdtemp`, `mkstemp`, `opendir`. Each takes a
+Node.js-style callback `(err, ...result) => {}`.
 
 #### Promise API
 
@@ -409,8 +410,8 @@ example();
 The promise namespace mirrors `fs.promises` and includes `readFile`,
 `writeFile`, `appendFile`, `stat`, `lstat`, `readdir`, `mkdir`, `rmdir`,
 `unlink`, `rename`, `copyFile`, `realpath`, `readlink`, `symlink`,
-`access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
-`utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
+`access`, `rm`, `truncate`, `link`, `mkdtemp`, `mkstemp`, `chmod`, `chown`,
+`lchown`, `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
 
 ## The reserved root directory
 

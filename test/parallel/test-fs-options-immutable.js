@@ -63,6 +63,14 @@ if (!common.isIBMi) { // IBMi does not support fs.watch()
 }
 
 {
+  const tempFileName = tmpdir.resolve('mkstemp-');
+  fs.closeSync(fs.mkstempSync(tempFileName, options).fd);
+  fs.mkstemp(tempFileName, options, common.mustSucceed(({ fd }) => {
+    fs.closeSync(fd);
+  }));
+}
+
+{
   const fileName = tmpdir.resolve('streams');
   fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
     fs.ReadStream(fileName, options).destroy();
