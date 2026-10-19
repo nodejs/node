@@ -490,10 +490,10 @@ class StringBuiltinsReducer : public Next {
     GOTO_IF(__ IsGetString(name), done, 1);
     GOTO_IF(__ IsThenString(name), done, 1);
     GOTO_IF_NOT(__ IsSymbolMap(__ LoadMapField(name)), done, 0);
-    GOTO_IF(
-        __ template IsSetWord32<Symbol::IsInterestingSymbolBit>(V<Word32>::Cast(
-            __ LoadField(name, AccessBuilderTS::ForSymbolFlags()))),
-        done, 1);
+    GOTO_IF(__ template IsSetWord32<Symbol::Flags::IsInterestingSymbolBit>(
+                V<Word32>::Cast(
+                    __ LoadField(name, AccessBuilderTS::ForSymbolFlags()))),
+            done, 1);
     GOTO(done, 0);
 
     BIND(done, result);

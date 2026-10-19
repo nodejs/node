@@ -66,7 +66,7 @@ transitioning javascript builtin TypedArrayPrototypeForEach(
   } label NotCallable deferred {
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameForEach);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation,

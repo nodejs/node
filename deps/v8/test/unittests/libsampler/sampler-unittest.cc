@@ -219,6 +219,31 @@ TEST_F(SamplerTest, AtomicGuard_GetBlockingSuccess) {
   CHECK(guard.is_success());
 }
 
+TEST_F(SamplerTest, StopSamplerWhileSignalPendingDoesNotCrash) {
+  class SampleAndStopThread : public base::Thread {
+   public:
+    explicit SampleAndStopThread(Sampler* sampler)
+        : Thread(base::Thread::Options("SampleAndStopThread")),
+          sampler_(sampler) {}
+
+    void Run() override {
+      sampler_->DoSample();
+      sampler_->Stop();
+    }
+
+   private:
+    Sampler* sampler_;
+  };
+
+  for (int i = 0; i < 100; ++i) {
+    CountingSampler sampler(isolate());
+    sampler.Start();
+    SampleAndStopThread thread(&sampler);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+}
+
 #endif  // USE_SIGNALS
 
 }  // namespace sampler

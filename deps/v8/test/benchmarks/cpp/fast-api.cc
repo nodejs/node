@@ -53,7 +53,7 @@ class FastApiBenchmark : public v8::benchmarking::BenchmarkWithIsolate {
     auto proxy_template_function = v8::FunctionTemplate::New(isolate);
     auto object_template = proxy_template_function->InstanceTemplate();
     {
-      v8::CFunction fast_callback =
+      static v8::CFunction fast_callback =
           v8::CFunction::Make(FastApiBenchmark::FastCallback);
 
       object_template->Set(
@@ -70,7 +70,7 @@ class FastApiBenchmark : public v8::benchmarking::BenchmarkWithIsolate {
                                isolate, FastApiBenchmark::RegularCallback));
     }
     {
-      v8::CFunction fast_callback =
+      static v8::CFunction fast_callback =
           v8::CFunction::Make(FastApiBenchmark::FastOneByteString);
 
       object_template->Set(
@@ -81,7 +81,7 @@ class FastApiBenchmark : public v8::benchmarking::BenchmarkWithIsolate {
               v8::SideEffectType::kHasSideEffect, &fast_callback));
     }
     {
-      v8::CFunction fast_callback =
+      static v8::CFunction fast_callback =
           v8::CFunction::Make(FastApiBenchmark::FastStringValueView);
 
       object_template->Set(

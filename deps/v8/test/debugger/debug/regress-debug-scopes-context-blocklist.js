@@ -43,14 +43,15 @@ function outer() {
 let f = outer();
 
 listener_delegate = function(exec_state) {
-  // exec_state.frame(0).scope(1) is 'outer's closure scope.
+  // exec_state.frame(0).scope(2) is 'outer's closure scope (scope(1) is
+  // 'intermediate's contextless closure scope).
   // We evaluate 'x' inside 'outer's scope.
   // It should return 'global_x' because 'outer' does not have an 'x'.
   // But due to the defect, 'intermediate's stack variable 'x' leaks
   // into 'outer's context blocklist, causing a ReferenceError.
   let val;
   try {
-    val = exec_state.frame(0).scope(1).evaluate('x').value();
+    val = exec_state.frame(0).scope(2).evaluate('x').value();
   } catch (e) {
     throw new Error('Spurious error: ' + e.message);
   }

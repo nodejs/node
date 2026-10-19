@@ -61,7 +61,7 @@ bool JSRegExp::has_data() const { return !data_.is_empty(); }
 bool JSRegExp::has_data_unpublished(IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(JSRegExp, data_),
-      kRegExpDataIndirectPointerTag, isolate);
+      kRegExpDataTrustedPointerTag, isolate);
 }
 void JSRegExp::clear_data() { data_.clear(this); }
 
@@ -74,7 +74,7 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
   REGEXP_FLAG_LIST(V)
 #undef V
   buffer[cursor++] = '\0';
-  return buffer.begin();
+  return buffer.data();
 }
 
 RegExpData::Type RegExpData::type_tag() const {
@@ -162,6 +162,9 @@ int RegExpData::capture_count() const {
   }
   UNREACHABLE();
 }
+
+RegExpDataWrapper::RegExpDataWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().regexp_data_wrapper_map()) {}
 
 Tagged<RegExpData> RegExpDataWrapper::data(IsolateForSandbox isolate) const {
   return data_.load(isolate);

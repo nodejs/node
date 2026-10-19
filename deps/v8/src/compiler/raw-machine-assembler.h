@@ -217,7 +217,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
             object, value);
   }
   void OptimizedStoreIndirectPointerField(Node* object, int offset,
-                                          IndirectPointerTag tag, Node* value,
+                                          TrustedPointerTag tag, Node* value,
                                           WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
     DCHECK(write_barrier == WriteBarrierKind::kNoWriteBarrier ||

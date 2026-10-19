@@ -5,14 +5,16 @@
 #ifndef V8_BASE_NUMBERS_STRTOD_H_
 #define V8_BASE_NUMBERS_STRTOD_H_
 
-#include "src/base/vector.h"
+#include <string_view>
+
+#include "src/base/base-export.h"
 
 namespace v8 {
 namespace base {
 
 // The buffer must only contain digits in the range [0-9]. It must not
 // contain a dot or a sign. It must not start with '0', and must not be empty.
-V8_BASE_EXPORT double Strtod(Vector<const char> buffer, int exponent);
+V8_BASE_EXPORT double Strtod(std::string_view buffer, int exponent);
 
 }  // namespace base
 }  // namespace v8

@@ -7,13 +7,18 @@ let {session, contextGroup, Protocol} = InspectorTest.start('crbug.com/736302');
 InspectorTest.runAsyncTestSuite([
   async function testThrowException() {
     await Protocol.Runtime.enable();
-    Protocol.Runtime.evaluate({expression: `
-    console.count({
-      get [Symbol.toStringTag]() {
-        throw new Error();
-      }
-    });`});
-    InspectorTest.logMessage(await Protocol.Runtime.onceConsoleAPICalled());
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression: `
+    try {
+      console.count({
+        get [Symbol.toStringTag]() {
+          throw new Error('Thrown from Symbol.toStringTag getter');
+        }
+      });
+    } catch (e) {
+      e.message;
+    }`
+    }));
     await Protocol.Runtime.disable();
   },
 

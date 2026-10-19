@@ -9,6 +9,7 @@
 #include "include/cppgc/member.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-container.h"
+#include "include/v8-cpp-heap-external.h"
 #include "include/v8-external.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
@@ -31,13 +32,12 @@ class V8InspectorImpl;
 
 // Console API
 // https://console.spec.whatwg.org/#console-namespace
-class V8Console final : public v8::Object::Wrappable,
+class V8Console final : public cppgc::GarbageCollected<V8Console>,
                         public v8::debug::ConsoleDelegate {
  public:
   static constexpr v8::CppHeapPointerTag kPointerTag =
       v8::internal::kInspectorV8ConsoleTag;
 
-  v8::Local<v8::Object> wrapConsole(v8::Local<v8::Context> context);
   void Trace(cppgc::Visitor* visitor) const override;
 
   v8::Local<v8::Object> createCommandLineAPI(v8::Local<v8::Context> context,
@@ -82,13 +82,29 @@ class V8Console final : public v8::Object::Wrappable,
   void clearInspector() {
     m_inspector = nullptr;
     m_taskTemplate.Reset();
-    m_consoleTemplate.Reset();
-    m_consoleWrapper.Reset();
-    m_consoleContext.Reset();
   }
 
  private:
   friend class TaskInfo;
+
+  class CommandLineAPIData
+      : public cppgc::GarbageCollected<CommandLineAPIData> {
+   public:
+    static constexpr v8::CppHeapPointerTag kPointerTag =
+        v8::internal::kInspectorCommandLineAPIDataTag;
+
+    CommandLineAPIData(V8Console* console, int sessionId)
+        : m_console(console), m_sessionId(sessionId) {}
+
+    void Trace(cppgc::Visitor* visitor) const;
+
+    V8Console* console() const { return m_console.Get(); }
+    int sessionId() const { return m_sessionId; }
+
+   private:
+    cppgc::Member<V8Console> m_console;
+    int m_sessionId;
+  };
 
   void Debug(const v8::debug::ConsoleCallArguments&,
              const v8::debug::ConsoleContext& consoleContext) override;
@@ -137,8 +153,9 @@ class V8Console final : public v8::Object::Wrappable,
 
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    V8Console* console = v8::Object::Unwrap<kPointerTag, V8Console>(
-        info.GetIsolate(), info.DataV2().As<v8::Value>().As<v8::Object>());
+    V8Console* console =
+        info.DataV2().As<v8::CppHeapExternal>()->Value<V8Console>(
+            info.GetIsolate(), {kPointerTag, kPointerTag});
     CHECK_NOT_NULL(console);
     CHECK_NOT_NULL(console->m_inspector);
     (console->*func)(info);
@@ -146,38 +163,24 @@ class V8Console final : public v8::Object::Wrappable,
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&,
                                     int)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
-    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-    v8::Local<v8::Value> console_value;
-    if (!data->Get(context, 0).ToLocal(&console_value) ||
-        !console_value->IsObject()) {
-      return;
-    }
-    V8Console* console = v8::Object::Unwrap<kPointerTag, V8Console>(
-        info.GetIsolate(), console_value.As<v8::Object>());
+    CommandLineAPIData* data =
+        info.DataV2().As<v8::CppHeapExternal>()->Value<CommandLineAPIData>(
+            info.GetIsolate(),
+            {CommandLineAPIData::kPointerTag, CommandLineAPIData::kPointerTag});
+    CHECK_NOT_NULL(data);
+    V8Console* console = data->console();
     CHECK_NOT_NULL(console);
-    v8::Local<v8::Value> session_value;
-    if (!data->Get(context, 1).ToLocal(&session_value) ||
-        !session_value->IsInt32()) {
-      return;
-    }
-    int sessionId = session_value.As<v8::Int32>()->Value();
-    (console->*func)(info, sessionId);
+    CHECK_NOT_NULL(console->m_inspector);
+    (console->*func)(info, data->sessionId());
   }
-
   template <void (V8Console::*func)(const v8::debug::ConsoleCallArguments&,
                                     const v8::debug::ConsoleContext&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
-    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-    v8::Local<v8::Value> console_value;
-    if (!data->Get(context, 0).ToLocal(&console_value) ||
-        !console_value->IsObject()) {
-      return;
-    }
-    V8Console* console = v8::Object::Unwrap<kPointerTag, V8Console>(
-        info.GetIsolate(), console_value.As<v8::Object>());
+    V8Console* console =
+        info.DataV2().As<v8::CppHeapExternal>()->Value<V8Console>(
+            info.GetIsolate(), {kPointerTag, kPointerTag});
     CHECK_NOT_NULL(console);
+    CHECK_NOT_NULL(console->m_inspector);
     v8::debug::ConsoleCallArguments args(info);
     (console->*func)(args, v8::debug::ConsoleContext());
   }
@@ -242,16 +245,6 @@ class V8Console final : public v8::Object::Wrappable,
   // instantiation. Use `taskTemplate()` to retrieve the lazily created
   // template.
   v8::TracedReference<v8::ObjectTemplate> m_taskTemplate;
-  v8::TracedReference<v8::ObjectTemplate> m_consoleTemplate;
-
-  // Weak references:
-  //
-  // We cache the V8Console wrapper object for the current context in
-  // `m_consoleWrapper`. `m_consoleContext` holds a weak reference to the
-  // context for which `m_consoleWrapper` was created, ensuring we only reuse
-  // the cached wrapper if the context remains the same.
-  v8::Global<v8::Object> m_consoleWrapper;
-  v8::Global<v8::Context> m_consoleContext;
 };
 
 /**

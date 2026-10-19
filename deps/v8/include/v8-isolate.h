@@ -267,6 +267,12 @@ class V8_EXPORT IsolateGroup {
    */
   bool SandboxContains(void* pointer) const;
   VirtualAddressSpace* GetSandboxAddressSpace();
+
+  /**
+   * Sets the allocator used for allocations inside this group's sandbox.
+   * This must be called before the first Isolate is created in the group.
+   */
+  void SetInSandboxAllocator(std::shared_ptr<Allocator> allocator);
 #else
   V8_INLINE bool SandboxContains(void* pointer) const { return true; }
 #endif
@@ -670,6 +676,7 @@ class V8_EXPORT Isolate {
     kRegExpMatcherFlagsMismatch = 188,
     kRegExpCustomSpecies = 189,
     kWasmWideArithmetic = 190,
+    kBigInt = 191,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -1733,6 +1740,14 @@ class V8_EXPORT Isolate {
       ModifyCodeGenerationFromStringsCallback2 callback);
 
   /**
+   * Set the callback to invoke when a dynamic script (e.g. eval or Function) is
+   * compiled from the embedder without a calling user JavaScript script on the
+   * stack.
+   */
+  void SetDynamicScriptCompiledFromEmbedderCallback(
+      DynamicScriptCompiledFromEmbedderCallback callback);
+
+  /**
    * Set the callback to invoke to check if wasm code generation should
    * be allowed.
    */
@@ -1743,7 +1758,11 @@ class V8_EXPORT Isolate {
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
    * is that the embedder sets them at most once.
    */
+  void SetWasmModuleCallback(WasmModuleCallback callback);
+  V8_DEPRECATE_SOON("Use the WasmModuleCallback overload instead")
   void SetWasmModuleCallback(ExtensionCallback callback);
+  void SetWasmInstanceCallback(WasmInstanceCallback callback);
+  V8_DEPRECATE_SOON("Use the WasmInstanceCallback overload instead")
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);

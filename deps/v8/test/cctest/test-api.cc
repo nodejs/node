@@ -63,6 +63,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
 #include "src/compiler/globals.h"
@@ -231,8 +232,8 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "for (var i = 0; i < 10; i++) {"
                      "  %s"
                      "}",
@@ -241,7 +242,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(10, signature_callback_count);
@@ -258,8 +259,8 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "function test() {"
                      "  %s"
                      "};"
@@ -273,7 +274,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(3, signature_callback_count);
@@ -382,10 +383,10 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-    v8::base::SNPrintF(source.as_vector(), "var test_object = %s; test_object",
+    std::array<char, 200> source;
+    v8::base::SNPrintF(source, "var test_object = %s; test_object",
                        test_objects[i]);
-    Local<Value> test_object = CompileRun(source.begin());
+    Local<Value> test_object = CompileRun(source.data());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
     TestSignature("test_object[accessor_key];", test_object, isolate);
@@ -3274,10 +3275,9 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
-    v8::base::SNPrintF(source.as_vector(), "(function() { return %s })()",
-                       sources[i]);
-    v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
+    std::array<char, 128> source;
+    v8::base::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::Local<v8::Object> obj = CompileRun(source.data()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
 }
@@ -4427,10 +4427,10 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(40);
-    v8::base::SNPrintF(buffer.as_vector(), "%p", static_cast<void*>(this));
+    std::array<char, 40> buffer;
+    v8::base::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
-        v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
+        v8::String::NewFromUtf8(isolate, buffer.data()).ToLocalChecked();
     cell_.Reset(isolate, string);
     metadata_->instance_counter++;
   }
@@ -4552,7 +4552,7 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
-  auto source = v8::base::OwnedVector<uint8_t>::NewForOverwrite(200000);
+  auto source = v8::base::UniqueArray<uint8_t>::NewForOverwrite(200000);
 
   // In the rest of this test, we need to invoke GC without stack, otherwise the
   // weak references may not be cleared because of conservative stack scanning.
@@ -7732,12 +7732,12 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    auto extension_name = v8::base::OwnedVector<char>::NewForOverwrite(32);
-    v8::base::SNPrintF(extension_name.as_vector(), "ext #%d", source_len);
-    v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
+    std::array<char, 32> extension_name;
+    v8::base::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::RegisterExtension(std::make_unique<Extension>(extension_name.data(),
                                                       kEmbeddedExtensionSource,
                                                       0, nullptr, source_len));
-    const char* extension_names[1] = {extension_name.begin()};
+    const char* extension_names[1] = {extension_name.data()};
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
@@ -11306,10 +11306,10 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  auto name_buf = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  std::array<char, 1024> name_buf;
   for (int i = 1; i <= 1000; i++) {
-    v8::base::SNPrintF(name_buf.as_vector(), "sdf%d", i);
-    t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
+    v8::base::SNPrintF(name_buf, "sdf%d", i);
+    t2->InstanceTemplate()->Set(v8_str(name_buf.data()), v8_num(2));
   }
 
   Local<v8::Object> o1 = t1->GetFunction(context.local())
@@ -13626,6 +13626,59 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
 
 #ifdef V8_ENABLE_SANDBOX
 
+class CustomInSandboxAllocator : public v8::Allocator {
+ public:
+  explicit CustomInSandboxAllocator(v8::IsolateGroup& group)
+      : address_space_(group.GetSandboxAddressSpace()) {}
+
+  void* Allocate(size_t size) override { return AllocateUninitialized(size); }
+
+  void* AllocateUninitialized(size_t size) override {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
+  void* AllocateUninitializedOrCrash(size_t size) override {
+    void* allocation = AllocateUninitialized(size);
+    CHECK_NOT_NULL(allocation);
+    return allocation;
+  }
+
+  void Free(void* allocation) override {
+    if (!allocation) return;
+    address_space_->FreePages(reinterpret_cast<uintptr_t>(allocation), kSIZE);
+  }
+
+  void* allocated_address() const { return allocated_address_; }
+
+ private:
+  static constexpr int kSIZE = 1 << 20;
+  static constexpr int kALIGN = 64 << 10;
+  v8::VirtualAddressSpace* address_space_;
+  void* allocated_address_ = nullptr;
+};
+
+UNINITIALIZED_TEST(SetInSandboxAllocator) {
+  v8::IsolateGroup group = v8::IsolateGroup::GetDefault();
+  auto allocator = std::make_shared<CustomInSandboxAllocator>(group);
+  group.SetInSandboxAllocator(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+
+  v8::Isolate* isolate = v8::Isolate::New(group, create_params);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 200);
+  CHECK_EQ(backing_store->Data(), allocator->allocated_address());
+
+  backing_store.reset();
+  isolate->Dispose();
+}
+
 class CustomArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   explicit CustomArrayBufferAllocator(v8::IsolateGroup& group)
@@ -15527,159 +15580,6 @@ TEST(ObjectClone) {
                      clone->Get(env.local(), v8_str("beta")).ToLocalChecked())
             .FromJust());
 }
-
-
-class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
-      : data_(vector) {}
-  ~OneByteVectorResource() override = default;
-  size_t length() const override { return data_.length(); }
-  const char* data() const override { return data_.begin(); }
-  void Dispose() override {}
-
- private:
-  v8::base::Vector<const char> data_;
-};
-
-
-class UC16VectorResource : public v8::String::ExternalStringResource {
- public:
-  explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
-      : data_(vector) {}
-  ~UC16VectorResource() override = default;
-  size_t length() const override { return data_.length(); }
-  const v8::base::uc16* data() const override { return data_.begin(); }
-  void Dispose() override {}
-
- private:
-  v8::base::Vector<const v8::base::uc16> data_;
-};
-
-static void MorphAString(i::Tagged<i::String> string,
-                         OneByteVectorResource* one_byte_resource,
-                         UC16VectorResource* uc16_resource) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  CHECK(i::StringShape(string).IsExternal());
-  i::ReadOnlyRoots roots(CcTest::heap());
-  if (string->IsOneByteRepresentation()) {
-    // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_one_byte_string_map());
-    // Morph external string to be TwoByte string.
-    string->set_map(isolate, roots.external_two_byte_string_map());
-    i::Tagged<i::ExternalTwoByteString> morphed =
-        i::Cast<i::ExternalTwoByteString>(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, uc16_resource);
-  } else {
-    // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_two_byte_string_map());
-    // Morph external string to be one-byte string.
-    string->set_map(isolate, roots.external_one_byte_string_map());
-    i::Tagged<i::ExternalOneByteString> morphed =
-        i::Cast<i::ExternalOneByteString>(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, one_byte_resource);
-  }
-}
-
-// Test that we can still flatten a string if the components it is built up
-// from have been turned into 16 bit strings in the mean time.
-THREADED_TEST(MorphCompositeStringTest) {
-  char utf_buffer[129];
-  const char* c_string = "Now is the time for all good men"
-                         " to come to the aid of the party";
-  uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
-  {
-    LocalContext env;
-    i::Factory* factory = CcTest::i_isolate()->factory();
-    v8::Isolate* isolate = env.isolate();
-    i::Isolate* i_isolate = CcTest::i_isolate();
-    v8::HandleScope scope(isolate);
-    OneByteVectorResource one_byte_resource(
-        v8::base::Vector<const char>(c_string, strlen(c_string)));
-    UC16VectorResource uc16_resource(
-        v8::base::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
-
-    Local<String> lhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromOneByte(&one_byte_resource)
-            .ToHandleChecked()));
-    Local<String> rhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromOneByte(&one_byte_resource)
-            .ToHandleChecked()));
-
-    CHECK(env->Global()->Set(env.local(), v8_str("lhs"), lhs).FromJust());
-    CHECK(env->Global()->Set(env.local(), v8_str("rhs"), rhs).FromJust());
-
-    CompileRun(
-        "var cons = lhs + rhs;"
-        "var slice = lhs.substring(1, lhs.length - 1);"
-        "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
-
-    CHECK(lhs->IsOneByte());
-    CHECK(rhs->IsOneByte());
-
-    i::DirectHandle<i::String> ilhs = v8::Utils::OpenDirectHandle(*lhs);
-    i::DirectHandle<i::String> irhs = v8::Utils::OpenDirectHandle(*rhs);
-    MorphAString(*ilhs, &one_byte_resource, &uc16_resource);
-    MorphAString(*irhs, &one_byte_resource, &uc16_resource);
-
-    // This should UTF-8 without flattening, since everything is ASCII.
-    Local<String> cons =
-        v8_compile("cons")->Run(env.local()).ToLocalChecked().As<String>();
-    CHECK_EQ(128, cons->Utf8Length(isolate));
-    CHECK_EQ(129, cons->WriteUtf8(isolate, utf_buffer, sizeof(utf_buffer),
-                                  String::WriteFlags::kNullTerminate));
-    CHECK_EQ(0, strcmp(
-        utf_buffer,
-        "Now is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the party"));
-
-    // Now do some stuff to make sure the strings are flattened, etc.
-    CompileRun(
-        "/[^a-z]/.test(cons);"
-        "/[^a-z]/.test(slice);"
-        "/[^a-z]/.test(slice_on_cons);");
-    const char* expected_cons =
-        "Now is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the party";
-    const char* expected_slice =
-        "ow is the time for all good men to come to the aid of the part";
-    const char* expected_slice_on_cons =
-        "ow is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the part";
-    CHECK(v8_str(expected_cons)
-              ->Equals(env.local(), env->Global()
-                                        ->Get(env.local(), v8_str("cons"))
-                                        .ToLocalChecked())
-              .FromJust());
-    CHECK(v8_str(expected_slice)
-              ->Equals(env.local(), env->Global()
-                                        ->Get(env.local(), v8_str("slice"))
-                                        .ToLocalChecked())
-              .FromJust());
-    CHECK(v8_str(expected_slice_on_cons)
-              ->Equals(env.local(),
-                       env->Global()
-                           ->Get(env.local(), v8_str("slice_on_cons"))
-                           .ToLocalChecked())
-              .FromJust());
-
-    // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalOneByteString(*ilhs)) {
-      i::Cast<i::ExternalOneByteString>(*ilhs)->SetResource(i_isolate, nullptr);
-    } else {
-      i::Cast<i::ExternalTwoByteString>(*ilhs)->SetResource(i_isolate, nullptr);
-    }
-    if (IsExternalOneByteString(*irhs)) {
-      i::Cast<i::ExternalOneByteString>(*irhs)->SetResource(i_isolate, nullptr);
-    } else {
-      i::Cast<i::ExternalTwoByteString>(*irhs)->SetResource(i_isolate, nullptr);
-    }
-  }
-  i::DeleteArray(two_byte_string);
-}
-
 
 TEST(CompileExternalTwoByteSource) {
   LocalContext context;
@@ -19406,15 +19306,15 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(),
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code,
                      "function fib(n) {"
                      "  if (n <= 2) return 1;"
                      "  return fib(n-1) + fib(n-2);"
                      "}"
                      "fib(%d)",
                      limit);
-  Local<Value> value = CompileRun(code.begin());
+  Local<Value> value = CompileRun(code.data());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
@@ -19781,17 +19681,25 @@ TEST(RegExp) {
     ExpectTrue("ex instanceof SyntaxError");
   }
 
-  // RegExp::Exec.
+  // RegExp::Exec / RegExp::ExecV2.
   {
     v8::Local<v8::RegExp> regexp =
         v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
-    v8::Local<v8::Object> result0 =
-        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    v8::Local<v8::Value> result0 =
+        regexp->ExecV2(context.local(), v8_str("abc")).ToLocalChecked();
     CHECK(result0->IsArray());
-    v8::Local<v8::Object> result1 =
-        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
-    // TODO(jgruber): Fix the API; `v8::Null` is not a valid `v8::Object`.
+    v8::Local<v8::Value> result1 =
+        regexp->ExecV2(context.local(), v8_str("abd")).ToLocalChecked();
     CHECK(result1->IsNull());
+
+    START_ALLOW_USE_DEPRECATED();
+    v8::Local<v8::Object> deprecated_result0 =
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    CHECK(deprecated_result0->IsArray());
+    v8::Local<v8::Object> deprecated_result1 =
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    CHECK(deprecated_result1->IsNull());
+    END_ALLOW_USE_DEPRECATED();
   }
 }
 
@@ -21994,10 +21902,9 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(source.as_vector(),
-                     "try { %s; } catch (e) { catcher(e); }", script);
-  CompileRun(source.begin());
+  std::array<char, 1024> source;
+  v8::base::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  CompileRun(source.data());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
 
@@ -22896,24 +22803,24 @@ class ApiCallOptimizationChecker {
       }
     }
     // build wrap_function
-    auto wrap_function = v8::base::OwnedVector<char>::NewForOverwrite(200);
+    std::array<char, 200> wrap_function;
     if (global) {
-      v8::base::SNPrintF(wrap_function.as_vector(),
+      v8::base::SNPrintF(wrap_function,
                          "function wrap_f_%d() { var f = g_f; return f(); }\n"
                          "function wrap_get_%d() { return this.g_acc; }\n"
                          "function wrap_set_%d() { return this.g_acc = 1; }\n",
                          key, key, key);
     } else {
       v8::base::SNPrintF(
-          wrap_function.as_vector(),
+          wrap_function,
           "function wrap_f_%d() { return receiver_subclass.f(); }\n"
           "function wrap_get_%d() { return receiver_subclass.acc; }\n"
           "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
           key, key, key);
     }
     // build source string
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(1000);
-    v8::base::SNPrintF(source.as_vector(),
+    std::array<char, 1000> source;
+    v8::base::SNPrintF(source,
                        "%s\n"  // wrap functions
                        "function wrap_f() { return wrap_f_%d(); }\n"
                        "function wrap_get() { return wrap_get_%d(); }\n"
@@ -22942,10 +22849,10 @@ class ApiCallOptimizationChecker {
                        "check(wrap_set());\n"
                        "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
                        "check(wrap_set());\n",
-                       wrap_function.begin(), key, key, key, key, key, key, key,
+                       wrap_function.data(), key, key, key, key, key, key, key,
                        key, key);
     v8::TryCatch try_catch(isolate);
-    CompileRun(source.begin());
+    CompileRun(source.data());
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
 
@@ -25783,7 +25690,7 @@ TEST(ModuleEvaluateImportTerminateExecution) {
   // The exception thrown by terminate execution is not catchable by JavaScript
   // so the promise can not be settled.
   CHECK_EQ(promise->State(), v8::Promise::kPending);
-  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
   CHECK(try_catch.HasTerminated());
 }
@@ -26809,29 +26716,29 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    auto test_string = v8::base::OwnedVector<char>::NewForOverwrite(64);
+    std::array<char, 64> test_string;
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "function");
+    ExpectString(test_string.data(), "function");
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectTrue(test_string.begin());
+    ExpectTrue(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s = 42",
+    v8::base::SNPrintF(test_string, "obj1.%s = 42",
                        intrinsics_comparisons[i].object_property_name);
-    CompileRun(test_string.begin());
+    CompileRun(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectFalse(test_string.begin());
+    ExpectFalse(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "number");
+    ExpectString(test_string.data(), "number");
   }
 }
 
@@ -32617,3 +32524,60 @@ TEST(IsolateFree) {
   v8::Isolate::Free(isolate1);
   v8::Isolate::Free(isolate2);
 }
+
+#ifdef V8_ENABLE_MAGLEV
+TEST(MaglevFastProxyCheckTrapResultLazyDeopt) {
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+  if (!i::v8_flags.maglev) return;
+
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.fast_proxy_ic = true;
+  i::v8_flags.optimize_on_next_call_optimizes_to_maglev = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetNativeDataProperty(
+      v8_str("prop"), [](v8::Local<v8::Name> name,
+                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Local<v8::Context> ctx = info.GetIsolate()->GetCurrentContext();
+        v8::Local<v8::Value> trigger =
+            ctx->Global()->Get(ctx, v8_str("trigger_deopt")).ToLocalChecked();
+        if (trigger->BooleanValue(info.GetIsolate())) {
+          CHECK(ctx->Global()
+                    ->Set(ctx, v8_str("global_dep"), v8_num(2))
+                    .FromJust());
+        }
+        info.GetReturnValue().Set(v8_num(100));
+      });
+
+  v8::Local<v8::Object> target = templ->NewInstance(context).ToLocalChecked();
+  v8::Local<v8::Object> target2 = templ->NewInstance(context).ToLocalChecked();
+  CHECK(target2->Set(context, v8_str("extra"), v8_num(1)).FromJust());
+  CHECK(context->Global()->Set(context, v8_str("target"), target).FromJust());
+
+  ExpectInt32(
+      "var global_dep = 1;"
+      "var trigger_deopt = false;"
+      "var mutate_target = false;"
+      "function get_trap(t, p, r) {"
+      "  if (mutate_target) { t.extra = 1; trigger_deopt = true; }"
+      "  return 42;"
+      "}"
+      "%NeverOptimizeFunction(get_trap);"
+      "const handler = { get: get_trap };"
+      "const proxy = new Proxy(target, handler);"
+      "function f(p) { return p.prop + global_dep - global_dep; }"
+      "%PrepareFunctionForOptimization(f);"
+      "f(proxy);"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f(proxy);"
+      "mutate_target = true;"
+      "f(proxy);",
+      42);
+}
+#endif  // V8_ENABLE_MAGLEV

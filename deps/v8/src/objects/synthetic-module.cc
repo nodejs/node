@@ -70,9 +70,9 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 
 // Implements Synthetic Module Record's Instantiate concrete method :
 // https://heycam.github.io/webidl/#smr-instantiate
-bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
-                                         DirectHandle<SyntheticModule> module,
-                                         v8::Local<v8::Context> context) {
+bool SyntheticModule::PrepareInstantiate(
+    Isolate* isolate, DirectHandle<InState<kPreLinking>> module,
+    v8::Local<v8::Context> context) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   DirectHandle<FixedArray> export_names(module->export_names(), isolate);
   // Spec step 7: For each export_name in module->export_names...
@@ -93,13 +93,13 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 // as there are no imports or indirect exports to resolve;
 // just update status.
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
-                                        DirectHandle<SyntheticModule> module) {
-  module->SetStatus(kLinked);
+                                        Handle<InState<kPreLinking>> module) {
+  Handle<InState<kLinked>> linked = TransitionStatus<kLinked>(module);
 
   // Ensure that if the namespace binding was created it is not empty.
-  if (!IsUndefined(module->module_namespace())) {
-    Module::GetModuleNamespace(isolate, handle(*module, isolate));
-    DCHECK(!IsUndefined(Cast<Cell>(module->module_namespace())->value()));
+  if (!IsUndefined(linked->module_namespace())) {
+    Module::GetModuleNamespace(isolate, linked);
+    DCHECK(!IsUndefined(Cast<Cell>(linked->module_namespace())->value()));
   }
 
   return true;
@@ -117,28 +117,33 @@ bool SyntheticModule::FinishInstantiate(Isolate* isolate,
 // deprecated overload is gone.
 DISABLE_CFI_ICALL
 MaybeDirectHandle<JSPromise> SyntheticModule::Evaluate(
-    Isolate* isolate, DirectHandle<SyntheticModule> module) {
-  module->SetStatus(kEvaluating);
+    Isolate* isolate, DirectHandle<InState<kLinked>> module) {
+  // Module::Evaluate returns the top-level capability of an already evaluated
+  // or errored synthetic module.
+  DirectHandle<InState<kEvaluating>> evaluating =
+      TransitionStatus<kEvaluating>(module);
 
   v8::Module::SyntheticModuleEvaluationSteps evaluation_steps =
       FUNCTION_CAST<v8::Module::SyntheticModuleEvaluationSteps>(
-          module->evaluation_steps()->foreign_address<kSyntheticModuleTag>());
+          evaluating->evaluation_steps()
+              ->foreign_address<kSyntheticModuleTag>());
   // Deliberately received as a v8::Local<v8::Value>: the deprecated callback
   // signature only promises a Promise, it doesn't guarantee one.
   v8::Local<v8::Value> result;
   if (!evaluation_steps(Utils::ToLocal(isolate->native_context()),
-                        Utils::ToLocal(Cast<Module>(module)))
+                        Utils::ToLocal(DirectHandle<Module>(evaluating)))
            .ToLocal(&result)) {
-    module->RecordError(isolate, isolate->exception());
+    RecordError(isolate, evaluating,
+                direct_handle(isolate->exception(), isolate));
     return MaybeDirectHandle<JSPromise>();
   }
-
-  module->SetStatus(kEvaluated);
 
   DirectHandle<Object> result_from_callback = Utils::OpenDirectHandle(*result);
   CHECK(IsJSPromise(*result_from_callback));
   DirectHandle<JSPromise> capability = Cast<JSPromise>(result_from_callback);
-  module->set_top_level_capability(*capability);
+  DirectHandle<InState<kEvaluated>> evaluated =
+      TransitionStatus<kEvaluated>(evaluating);
+  evaluated->set_top_level_capability(*capability);
   return capability;
 }
 

@@ -169,23 +169,29 @@ void SampleRecorder<T>::PushDead(T* sample) {
 template <typename T>
 template <typename... Targs>
 T* SampleRecorder<T>::PopDead(Targs... args) {
-  absl::ReleasableMutexLock graveyard_lock(graveyard_.init_mu);
+  T* sample;
+  {
+    absl::MutexLock graveyard_lock(graveyard_.init_mu);
 
-  // The list is circular, so eventually it collapses down to
-  //   graveyard_.dead == &graveyard_
-  // when it is empty.
-  T* sample = graveyard_.dead;
-  if (sample == &graveyard_) return nullptr;
+    // The list is circular, so eventually it collapses down to
+    //   graveyard_.dead == &graveyard_
+    // when it is empty.
+    sample = graveyard_.dead;
+    if (sample == &graveyard_) return nullptr;
 
+    graveyard_.dead = ABSL_TS_UNCHECKED_READ(sample->dead);
+    // Release the global graveyard lock early, before the potentially slow
+    // preparation.
+  }
+  // `sample` is detached from the graveyard and will not be used in PopDead.
+  // SampleRecorder<T>::Iterate will acquire per sample lock, so there will be
+  // no data race either.
   absl::MutexLock sample_lock(sample->init_mu);
-  graveyard_.dead = sample->dead;
-  // Release the global graveyard lock early, before the potentially slow
-  // preparation.
-  graveyard_lock.Release();
-  // Prepare the sample while still holding the per-sample lock.
-  // `Iterate` will wait for the lock to be released.
-  sample->dead = nullptr;
+  // Note: consider PrepareForSampling out of the lock.
+  // Currently many clients have PrepareForSampling marked as
+  // ABSL_EXCLUSIVE_LOCKS_REQUIRED.
   sample->PrepareForSampling(std::forward<Targs>(args)...);
+  sample->dead = nullptr;
   return sample;
 }
 

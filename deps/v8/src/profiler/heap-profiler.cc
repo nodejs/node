@@ -339,6 +339,10 @@ DirectHandle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (ids_->FindEntry(obj.address()) == id) {
+      if (IsInaccessible(obj)) {
+        DCHECK(IsWasmNull(obj));  // Currently the only inaccessible object.
+        return isolate()->factory()->null_value();
+      }
       return DirectHandle<HeapObject>(obj, isolate());
     }
   }

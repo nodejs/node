@@ -44,7 +44,8 @@ struct VariableLookupResult {
   int initializer_position;
 };
 
-// LINT.IfChange(ScopeInfoStructs)
+// Layout of the function_variable_info / module_variables sections of the
+// ScopeInfo tail (see the layout comment at the end of the class).
 struct FunctionVariableInfo {
   TaggedMember<Object> name;
   TaggedMember<Smi> context_or_stack_slot_index;
@@ -55,7 +56,6 @@ struct ModuleVariableInfo {
   TaggedMember<Smi> index;
   TaggedMember<Smi> properties;
 };
-// LINT.ThenChange(src/objects/scope-info.tq)
 
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
@@ -553,18 +553,52 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
  public:
   // Relaxed-atomic flags word (ScopeFlags bit layout).
-  std::atomic<uint32_t> flags_;
+  V8_TQ_CONST V8_TQ_RELAXED std::atomic<uint32_t> flags_ V8_TQ_TYPE(ScopeFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
   // TODO(jgruber): Consider plain uint32_t (or similar) for these.
   TaggedMember<Smi> parameter_count_;
-  TaggedMember<Smi> context_local_count_;
-  TaggedMember<Smi> position_info_start_;
-  TaggedMember<Smi> position_info_end_;
+  V8_TQ_CONST TaggedMember<Smi> context_local_count_;
+  // Match the Torque PositionInfo struct as one struct-typed field.
+  struct PositionInfo {
+    TaggedMember<Smi> start_;
+    TaggedMember<Smi> end_;
+  };
+  PositionInfo position_info_;
   // Variable-length tagged tail. The presence and position of each
-  // sub-section is determined by flags and by header counts; see the
-  // Foo...Offset() accessors below.
+  // sub-section is determined by flags and by header counts; the layout is
+  // defined by the Foo...Offset() accessors above (scope-info-inl.h). In
+  // order:
+  //
+  //   module_variable_count      [scope_type == MODULE_SCOPE]: Smi
+  //   context_local_names        [context_local_count < kMax ? count : 0]:
+  //                              String
+  //   context_local_names_hashtable [kMax <= context_local_count]:
+  //                              NameToIndexHashTable
+  //   context_local_infos        [context_local_count]:
+  //                              SmiTagged<VariableProperties>
+  //   saved_class_variable_info  [has_saved_class_variable]: Smi|Name
+  //   function_variable_info     [function_variable != NONE]:
+  //                              {name: String|Zero, slot_index: Smi}
+  //   inferred_function_name     [has_inferred_function_name]:
+  //                              String|Undefined
+  //   outer_scope_info           [has_outer_scope_info]: ScopeInfo
+  //   module_info                [scope_type == MODULE_SCOPE]:
+  //                              SourceTextModuleInfo
+  //   module_variables           [module_variable_count]:
+  //                              {name: String, index: Smi,
+  //                               properties: SmiTagged<VariableProperties>}
+  //   module_variables_hashtable [MODULE_SCOPE && kMax <= module_var_count]:
+  //                              NameToIndexHashTable
+  //   dependent_code             [sloppy_eval_can_extend_vars]: DependentCode
+  //   unused_parameter_bits      [scope_type == FUNCTION_SCOPE]: Smi
+  //
+  // where kMax is kScopeInfoMaxInlinedLocalNamesSize. Torque only sees the
+  // fixed header; CSA reaches context_local_names / _hashtable /
+  // context_local_infos through CodeStubAssembler::IndexOfLocalName and
+  // GetFunctionContextSlotInitialValue.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data);
 } V8_OBJECT_END;
 

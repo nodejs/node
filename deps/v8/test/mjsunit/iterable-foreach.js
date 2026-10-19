@@ -406,6 +406,35 @@ if (typeof Float16Array !== 'undefined') {
   assertEquals(i, 1);
 })();
 
+// JSArrayIterator with replaced prototype (crbug.com/566974983)
+(function TestArrayIteratorPrototypeReplaced() {
+  let arr = [1, 2, 3];
+  let it = arr.values();
+  let done = false;
+  Object.setPrototypeOf(it, {
+    [Symbol.iterator]() { return this; },
+    next() {
+      if (!done) {
+        done = true;
+        return { value: 99, done: false };
+      }
+      return { value: undefined, done: true };
+    }
+  });
+  let result = [];
+  %IterableForEach(it, (val) => result.push(val));
+  assertEquals([99], result);
+})();
+
+// Empty array iterator exhausted by IterableForEach (crbug.com/572143990)
+(function TestEmptyArrayIteratorExhausted() {
+  let arr = [];
+  let it = arr.values();
+  %IterableForEach(it, () => {});
+  arr.push(1);
+  assertEquals({ value: undefined, done: true }, it.next());
+})();
+
 // Modified Array Iterator -> Slow path
 (function TestModifiedArrayIterator() {
   let result = [];

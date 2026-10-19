@@ -70,6 +70,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::base
     absl::bits
     absl::charset
@@ -400,6 +401,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::algorithm_container
     absl::btree
     absl::core_headers
     absl::dynamic_annotations

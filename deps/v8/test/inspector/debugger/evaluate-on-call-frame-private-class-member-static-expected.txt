@@ -13,6 +13,24 @@ debugger;
 
 Running test: evaluatePrivateMembers
 Checking private fields
+Debugger.evaluateOnCallFrame: `#field in Klass`
+{
+    type : boolean
+    value : true
+}
+Debugger.evaluateOnCallFrame: `#nonExistent in Klass`
+{
+    type : boolean
+    value : false
+}
+Debugger.evaluateOnCallFrame: `#field in 1`
+{
+    className : TypeError
+    description : TypeError: Cannot use 'in' operator to search for '#field' in 1     at eval (eval at <anonymous> (:11:1), <anonymous>:1:11)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Debugger.evaluateOnCallFrame: `Klass.#field`
 {
     type : string
@@ -67,6 +85,11 @@ Debugger.evaluateOnCallFrame: `Klass.#field`
     value : 0
 }
 Checking private getter-only accessors
+Debugger.evaluateOnCallFrame: `#getterOnly in Klass`
+{
+    type : boolean
+    value : true
+}
 Debugger.evaluateOnCallFrame: `Klass.#getterOnly`
 {
     type : string
@@ -102,6 +125,11 @@ Debugger.evaluateOnCallFrame: `Klass.#getterOnly`
     value : getterOnly
 }
 Checking private setter-only accessors
+Debugger.evaluateOnCallFrame: `#setterOnly in Klass`
+{
+    type : boolean
+    value : true
+}
 Debugger.evaluateOnCallFrame: `Klass.#setterOnly`
 {
     className : Error
@@ -138,6 +166,11 @@ Debugger.evaluateOnCallFrame: `Klass.#field`
     value : setterOnlyCalled
 }
 Checking private accessors
+Debugger.evaluateOnCallFrame: `#accessor in Klass`
+{
+    type : boolean
+    value : true
+}
 Debugger.evaluateOnCallFrame: `Klass.#accessor`
 {
     type : string
@@ -190,6 +223,11 @@ Debugger.evaluateOnCallFrame: `Klass.#field`
     value : 0
 }
 Checking private methods
+Debugger.evaluateOnCallFrame: `#method in Klass`
+{
+    type : boolean
+    value : true
+}
 Debugger.evaluateOnCallFrame: `Klass.#method`
 {
     className : Function

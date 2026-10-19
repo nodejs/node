@@ -16,5 +16,5 @@ Object.defineProperty(Promise, Symbol.species, {
 async function foo() { }
 
 assertPromiseResult(Promise.all([foo()]), () => {
-  assertEquals(3, speciesCounter);
+  assertEquals(2, speciesCounter);
 });

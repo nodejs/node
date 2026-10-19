@@ -415,7 +415,7 @@ namespace internal {
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \
-  T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
+  T(InvalidAtomicAccessIndex, "Invalid atomic access index: %")                \
   T(InvalidCalendar, "Invalid calendar specified: %")                          \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value: %")                               \
@@ -424,7 +424,7 @@ namespace internal {
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
-  T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
+  T(InvalidIndex, "Invalid value %: not (convertible to) a safe integer")      \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \

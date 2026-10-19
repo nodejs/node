@@ -271,12 +271,12 @@ class V8_BASE_EXPORT OS {
 
   // Safe formatting print. Ensures that str is always null-terminated.
   // Returns the number of chars written, or -1 if output was truncated.
-  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, int length,
+  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, size_t length,
                                           const char* format, ...);
-  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
+  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, size_t length,
                                            const char* format, va_list args);
 
-  static void StrNCpy(char* dest, int length, const char* src, size_t n);
+  static void StrNCpy(char* dest, size_t length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks
   // occurring in shared libraries will not be properly accounted for.
@@ -363,6 +363,13 @@ class V8_BASE_EXPORT OS {
 
   // Make part of the process's data memory read-only.
   static void SetDataReadOnly(void* address, size_t size);
+
+  // Returns the address untag mask for the current process (~0ULL if disabled).
+#if defined(V8_OS_LINUX)
+  static uint64_t GetAddressUntagMask();
+#else
+  static uint64_t GetAddressUntagMask() { return ~uint64_t{0}; }
+#endif  // defined(V8_OS_LINUX)
 
  private:
   // Assign a name to a memory region.

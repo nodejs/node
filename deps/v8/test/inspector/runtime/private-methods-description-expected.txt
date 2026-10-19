@@ -1,0 +1,26 @@
+Checks that mutating private method wrapper does not crash descriptionForPrivateMethod
+Found [[PrivateMethods]]: true
+Method wrapper found: true
+Mutating wrapper.value to non-function...
+Re-inspecting private methods list:
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 
+                    objectId : <objectId>
+                    subtype : internal#privateMethod
+                    type : object
+                }
+                writable : true
+            }
+        ]
+    }
+}

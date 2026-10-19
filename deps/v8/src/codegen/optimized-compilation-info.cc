@@ -61,20 +61,21 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   }
 }
 
-OptimizedCompilationInfo::OptimizedCompilationInfo(
-    base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind,
-    Builtin builtin)
+OptimizedCompilationInfo::OptimizedCompilationInfo(std::string_view debug_name,
+                                                   Zone* zone,
+                                                   CodeKind code_kind,
+                                                   Builtin builtin)
     : isolate_unsafe_(nullptr),
       code_kind_(code_kind),
       builtin_(builtin),
       zone_(zone),
       optimization_id_(kNoOptimizationId),
-      debug_name_(debug_name.begin(), debug_name.end()) {
+      debug_name_(debug_name) {
   DCHECK_IMPLIES(builtin_ != Builtin::kNoBuiltinId,
                  (code_kind_ == CodeKind::BUILTIN ||
                   code_kind_ == CodeKind::BYTECODE_HANDLER));
   SetTracingFlags(
-      PassesFilter(debug_name, base::CStrVector(v8_flags.trace_turbo_filter)));
+      PassesFilter(debug_name, v8_flags.trace_turbo_filter.value()));
   ConfigureFlags();
   DCHECK(!has_shared_info());
 }

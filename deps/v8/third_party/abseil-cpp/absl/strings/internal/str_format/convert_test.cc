@@ -213,7 +213,7 @@ void StrAppendV(std::string *dst, const char *format, va_list ap) {
   delete[] buf;
 }
 
-void StrAppend(std::string *, const char *, ...) ABSL_PRINTF_ATTRIBUTE(2, 3);
+ABSL_PRINTF_ATTRIBUTE(2, 3) void StrAppend(std::string*, const char*, ...);
 void StrAppend(std::string *out, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -221,7 +221,7 @@ void StrAppend(std::string *out, const char *format, ...) {
   va_end(ap);
 }
 
-std::string StrPrint(const char *, ...) ABSL_PRINTF_ATTRIBUTE(1, 2);
+ABSL_PRINTF_ATTRIBUTE(1, 2) std::string StrPrint(const char*, ...);
 std::string StrPrint(const char *format, ...) {
   va_list ap;
   va_start(ap, format);

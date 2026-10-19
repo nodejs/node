@@ -234,6 +234,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   // on a table (not) supporting compaction.
   static constexpr bool kSupportsCompaction = false;
 
+  static constexpr uint64_t kTagAndMarkBitMask = Entry::kTagAndMarkBitMask;
+
   // Initializes the table by reserving the backing memory, allocating an
   // initial segment, and populating the freelist.
   void Initialize();

@@ -873,6 +873,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::random_internal_platform
     absl::random_internal_randen_hwaes_impl
 )

@@ -8,6 +8,8 @@
 #include "src/objects/hash-table.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <bit>
+
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
@@ -88,7 +90,7 @@ constexpr uint32_t HashTableBase::ComputeCapacity(uint32_t at_least_space_for) {
   // See matching computation in HashTable::HasSufficientCapacityToAdd().
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
   uint32_t raw_cap = at_least_space_for + (at_least_space_for >> 1);
-  uint32_t capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
+  uint32_t capacity = std::bit_ceil(raw_cap);
   return std::max({capacity, kMinCapacity});
 }
 

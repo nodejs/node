@@ -8,10 +8,21 @@ extern class Name extends PrimitiveHeapObject {
   raw_hash_field: NameHash;
 }
 
+@cppScope('Name::Hash')
 bitfield struct NameHash extends uint32 {
   hash_field_type: HashFieldType: 2 bit;
-  array_index_value: uint32: 24 bit;
+
+  // hash_field_type: kHash
+  hash: uint32: 30 bit at 2;
+
+  // hash_field_type: kIntegerIndex
+  array_index_value: uint32: 24 bit at 2;
   array_index_length: uint32: 6 bit;
+
+  // hash_field_type: kForwardingIndex
+  is_internalized_forwarding_index: bool: 1 bit at 2;
+  is_external_forwarding_index: bool: 1 bit;
+  forwarding_index_value: uint32: 28 bit;
 }
 
 // This is the same as Name, but with the information that there are no other
@@ -25,7 +36,7 @@ extern enum PrivateSymbolKind extends uint8 {
   kBrand
 }
 
-@cppScope('Symbol')
+@cppScope('Symbol::Flags')
 bitfield struct SymbolFlags extends uint32 {
   private_symbol_kind: PrivateSymbolKind: 2 bit;
   is_well_known_symbol: bool: 1 bit;
@@ -52,11 +63,8 @@ const kArrayIndexValueBits: constexpr int31
     generates 'Name::kArrayIndexValueBits';
 const kDoesNotContainCachedArrayIndexMask: constexpr uint32
     generates 'Name::kDoesNotContainCachedArrayIndexMask';
-const kNameEmptyHashField: NameHash = NameHash{
-  hash_field_type: HashFieldType::kEmpty,
-  array_index_value: 0,
-  array_index_length: 0
-};
+const kNameEmptyHashField: NameHash =
+NameHash{hash_field_type: HashFieldType::kEmpty};
 
 macro ContainsCachedArrayIndex(hash: uint32): bool {
   return (hash & kDoesNotContainCachedArrayIndexMask) == 0;

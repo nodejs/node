@@ -7,8 +7,8 @@
 
 #include "src/common/globals.h"
 #include "src/objects/objects.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ class TrustedPointerPublishingScope;
 // does so through a pointer table indirection. Indirect pointers are used when
 // the sandbox is enabled to reference objects _outside_ of the sandbox in a
 // memory-safe way. For that, each indirect pointer has an associated
-// IndirectPointerTag which encodes the type of the referenced object. The
+// TrustedPointerTag which encodes the type of the referenced object. The
 // pointer table indirection then ensures that the tag of the entry in the
 // table matches the type of the referenced object, or else the pointer will be
 // invalid (it cannot be dereferenced).
@@ -32,32 +32,31 @@ class TrustedPointerPublishingScope;
 // this will allocate an entry in the trusted pointer table.
 //
 // Only available when the sandbox is enabled.
-V8_INLINE void InitSelfIndirectPointerField(
+V8_INLINE void InitSelfTrustedPointerField(
     Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
-    IndirectPointerTag tag,
-    TrustedPointerPublishingScope* opt_publishing_scope);
+    TrustedPointerTag tag, TrustedPointerPublishingScope* opt_publishing_scope);
 
-// Reads the IndirectPointerHandle from the field and loads the Object
+// Reads the TrustedPointerHandle from the field and loads the Object
 // referenced by this handle from the appropriate pointer table. The given
-// IndirectPointerTag specifies the expected type of object and determines
+// TrustedPointerTag specifies the expected type of object and determines
 // which pointer table is used: the code pointer table for Code objects and the
 // trusted pointer table for all other trusted objects.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTagRange tag_range>
-V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
-                                                  IsolateForSandbox isolate,
-                                                  AcquireLoadTag);
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerField(Address field_address,
+                                                 IsolateForSandbox isolate,
+                                                 AcquireLoadTag);
 
-// Loads the 'self' IndirectPointerHandle from the given object and stores it
+// Loads the 'self' TrustedPointerHandle from the given object and stores it
 // into the indirect pointer field. In this way, the field becomes a (indirect)
 // reference to the given object.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTagRange tag_range>
-V8_INLINE void WriteIndirectPointerField(Address field_address,
-                                         Tagged<ExposedTrustedObject> value,
-                                         ReleaseStoreTag);
+template <TrustedPointerTagRange tag_range>
+V8_INLINE void WriteTrustedPointerField(Address field_address,
+                                        Tagged<ExposedTrustedObject> value,
+                                        ReleaseStoreTag);
 
 }  // namespace internal
 }  // namespace v8

@@ -14,6 +14,8 @@
 
 #include <inttypes.h>
 
+#include <bit>
+
 #include "src/base/bounds.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -208,6 +210,18 @@ V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
 
 namespace value_type_reader {
 
+#ifdef V8_ENABLE_DRUMBRAKE
+template <typename ValidationTag>
+bool IsExnRefUnsupportedByDrumBrake(Decoder* decoder, const uint8_t* pc) {
+  if (!VALIDATE(!v8_flags.wasm_jitless || v8_flags.drumbrake_exnref)) {
+    DecodeError<ValidationTag>(decoder, pc,
+                               "exnref not supported by the Wasm interpreter");
+    return true;
+  }
+  return false;
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 template <typename ValidationTag>
 std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                              const uint8_t* pc,
@@ -261,6 +275,11 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
         return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
+#ifdef V8_ENABLE_DRUMBRAKE
+        if (IsExnRefUnsupportedByDrumBrake<ValidationTag>(decoder, pc)) {
+          return {kWasmBottom, 0};
+        }
+#endif  // V8_ENABLE_DRUMBRAKE
         if (!VALIDATE(!detected->has_legacy_eh() ||
                       v8_flags.wasm_allow_mixed_eh_for_testing)) {
           DecodeError<ValidationTag>(
@@ -390,6 +409,11 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
               1};
     case kNoExnCode:
     case kExnRefCode:
+#ifdef V8_ENABLE_DRUMBRAKE
+      if (IsExnRefUnsupportedByDrumBrake<ValidationTag>(decoder, pc)) {
+        return {kWasmBottom, 0};
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
       if (!VALIDATE(!detected->has_legacy_eh() ||
                     v8_flags.wasm_allow_mixed_eh_for_testing)) {
         DecodeError<ValidationTag>(
@@ -427,7 +451,8 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, SharedFlag{false}).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {ValueType::Ref(HeapType::from_code(code, SharedFlag{false})), 1};
+      return {ValueType::RefNull(HeapType::from_code(code, SharedFlag{false})),
+              1};
     }
     case kContRefCode:
     case kNoContCode:
@@ -1803,8 +1828,8 @@ class FastZoneVector {
 
  private:
   V8_NOINLINE V8_PRESERVE_MOST void Grow(int slots_needed, Zone* zone) {
-    size_t new_capacity = std::max(
-        size_t{8}, base::bits::RoundUpToPowerOfTwo(size() + slots_needed));
+    size_t new_capacity =
+        std::max(size_t{8}, std::bit_ceil(size_t{size()} + slots_needed));
     CHECK_GE(kMaxUInt32, new_capacity);
     DCHECK_LT(capacity_end_ - begin_, new_capacity);
     T* new_begin = zone->template AllocateArray<T>(new_capacity);
@@ -3794,6 +3819,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(TryTable) {
+#ifdef V8_ENABLE_DRUMBRAKE
+    if (value_type_reader::IsExnRefUnsupportedByDrumBrake<ValidationTag>(
+            this, this->pc_)) {
+      return 0;
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
     this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
@@ -3877,6 +3908,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(ThrowRef) {
+#ifdef V8_ENABLE_DRUMBRAKE
+    if (value_type_reader::IsExnRefUnsupportedByDrumBrake<ValidationTag>(
+            this, this->pc_)) {
+      return 0;
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
     this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
@@ -5010,14 +5047,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     const base::Vector<const ValueType> cont_args = cont_sig->parameters();
 
     if (!VALIDATE(cont_args.size() >= 1 &&
-                  IsSubtypeOf(cont_args.last(), kWasmContRef, this->module_))) {
+                  IsSubtypeOf(cont_args.back(), kWasmContRef, this->module_))) {
       this->DecodeError(
           "expecting a (ref null? cont) as last parameter of type %d",
           contimm.index.index);
       return 0;
     }
 
-    const ValueType return_type = cont_args.last();
+    const ValueType return_type = cont_args.back();
 
     if (!VALIDATE(return_type.has_index() &&
                   this->module_->has_cont_type(return_type.ref_index()))) {
@@ -5035,7 +5072,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError(
           "tag %d's return types should be a subtype of return continuation "
           "%d's return types",
-          tagimm.index, cont_args.last().ref_index().index);
+          tagimm.index, return_type.ref_index().index);
       return 0;
     }
 
@@ -7867,7 +7904,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "invalid numeric opcode: 0x%x, enable with --wasm-fp16", opcode);
           return 0;
         }
-        return DecodeLoadMem(LoadType::kF32LoadF16, 2);
+        return DecodeLoadMem(LoadType::kF32LoadF16, opcode_length);
       }
       case kExprF32StoreMemF16: {
         if (!this->enabled_.has_fp16()) {
@@ -7875,7 +7912,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "invalid numeric opcode: 0x%x, enable with --wasm-fp16", opcode);
           return 0;
         }
-        return DecodeStoreMem(StoreType::kF32StoreF16, 2);
+        return DecodeStoreMem(StoreType::kF32StoreF16, opcode_length);
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);

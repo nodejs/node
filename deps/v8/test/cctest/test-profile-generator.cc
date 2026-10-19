@@ -27,6 +27,8 @@
 //
 // Tests of profiles generator and utilities.
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -801,20 +803,16 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  base::EmbeddedVector<char*, CpuProfilesCollection::kMaxSimultaneousProfiles>
+  std::array<std::array<char, 16>,
+             CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    base::Vector<char> title = v8::base::Vector<char>::New(16);
-    base::SNPrintF(title, "%d", i);
+    base::SNPrintF(titles[i], "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
-             collection.StartProfiling(title.begin()).status);
-    titles[i] = title.begin();
+             collection.StartProfiling(titles[i].data()).status);
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);
-  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    i::DeleteArray(titles[i]);
-  }
 }
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,

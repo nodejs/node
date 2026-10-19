@@ -50,6 +50,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 //<cfenv> is banned in Google style due to inconsistent compiler
 // support and potential interference with floating-point optimizations.
 // However, RISC-V only uses fenv.h in simulator on x64.
@@ -57,6 +58,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/constants-arch.h"
@@ -1236,18 +1238,29 @@ struct type_sew_t<128> {
     Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), 0, true) = vd_0; \
   }
 
-#define RVV_VI_VFP_VV_LOOP_REDUCTION(BODY16, BODY32, BODY64) \
-  if (rvv_vsew() == E16) {                                   \
-    UNIMPLEMENTED();                                         \
-  } else if (rvv_vsew() == E32) {                            \
-    VI_VFP_LOOP_REDUCTION_BASE(32)                           \
-    BODY32;                                                  \
-    VI_VFP_LOOP_REDUCTION_END(32)                            \
-  } else if (rvv_vsew() == E64) {                            \
-    VI_VFP_LOOP_REDUCTION_BASE(64)                           \
-    BODY64;                                                  \
-    VI_VFP_LOOP_REDUCTION_END(64)                            \
-  }                                                          \
+#define RVV_VI_VFP_VV_LOOP_REDUCTION(BODY16, BODY32, BODY64)               \
+  if (rvv_vsew() == E16) {                                                 \
+    uint16_t vd_0 = Rvvelt<uint16_t>(rvv_vd_reg(), 0);                     \
+    uint16_t vs1_0 = Rvvelt<uint16_t>(rvv_vs1_reg(), 0);                   \
+    vd_0 = vs1_0;                                                          \
+    for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {                      \
+      RVV_VI_LOOP_MASK_SKIP();                                             \
+      Float16 vs2 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs2_reg(), i)); \
+      BODY16;                                                              \
+    }                                                                      \
+    set_rvv_vstart(0);                                                     \
+    if (rvv_vl() > 0) {                                                    \
+      Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) = vd_0;                      \
+    }                                                                      \
+  } else if (rvv_vsew() == E32) {                                          \
+    VI_VFP_LOOP_REDUCTION_BASE(32)                                         \
+    BODY32;                                                                \
+    VI_VFP_LOOP_REDUCTION_END(32)                                          \
+  } else if (rvv_vsew() == E64) {                                          \
+    VI_VFP_LOOP_REDUCTION_BASE(64)                                         \
+    BODY64;                                                                \
+    VI_VFP_LOOP_REDUCTION_END(64)                                          \
+  }                                                                        \
   rvv_trace_vd();
 
 // reduction loop - unsgied
@@ -1327,10 +1340,10 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
-             "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
-             "]",                                                              \
-             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
+    SNPrintF(                                                                  \
+        base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
+        "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT "]", \
+        icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));               \
   }
 
 #define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
@@ -1354,10 +1367,10 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
-             "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
-             "]",                                                              \
-             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
+    SNPrintF(                                                                  \
+        base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
+        "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT "]", \
+        icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));               \
   }
 
 #define VI_VFP_LOOP_SCALE_BASE                      \
@@ -1727,13 +1740,13 @@ class RiscvDebugger {
 };
 
 #define UNSUPPORTED()                                                  \
-  v8::base::EmbeddedVector<char, 256> buffer;                          \
+  std::array<char, 256> buffer;                                        \
   disasm::NameConverter converter;                                     \
   disasm::Disassembler dasm(converter);                                \
   dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_)); \
   printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, \
          __FUNCTION__, __LINE__, get_pc());                            \
-  PrintF(" %-44s\n", buffer.begin());                                  \
+  PrintF(" %-44s\n", buffer.data());                                   \
   base::OS::Abort();
 
 sreg_t RiscvDebugger::GetRegisterValue(int regnum) {
@@ -1805,21 +1818,21 @@ bool RiscvDebugger::GetValue(const char* desc, sreg_t* value) {
 
 void RiscvDebugger::PrintRegs(char name_prefix, int start_index,
                               int end_index) {
-  base::EmbeddedVector<char, 10> name1, name2;
+  std::array<char, 10> name1, name2;
   DCHECK(name_prefix == 'a' || name_prefix == 't' || name_prefix == 's');
   DCHECK(start_index >= 0 && end_index <= 99);
   int num_registers = (end_index - start_index) + 1;
   for (int i = 0; i < num_registers / 2; i++) {
-    SNPrintF(name1, "%c%d", name_prefix, start_index + 2 * i);
-    SNPrintF(name2, "%c%d", name_prefix, start_index + 2 * i + 1);
+    base::SNPrintF(name1, "%c%d", name_prefix, start_index + 2 * i);
+    base::SNPrintF(name2, "%c%d", name_prefix, start_index + 2 * i + 1);
     PrintF("%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT
            " \t%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT " \n",
-           REG_INFO(name1.begin()), REG_INFO(name2.begin()));
+           REG_INFO(name1.data()), REG_INFO(name2.data()));
   }
   if (num_registers % 2 == 1) {
-    SNPrintF(name1, "%c%d", name_prefix, end_index);
+    base::SNPrintF(name1, "%c%d", name_prefix, end_index);
     PrintF("%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT " \n",
-           REG_INFO(name1.begin()));
+           REG_INFO(name1.data()));
   }
 }
 
@@ -1887,14 +1900,14 @@ void RiscvDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       const char* name = sim_->builtins_.Lookup((Address)sim_->get_pc());
       if (name != nullptr) {
         PrintF("Call builtin:  %s\n", name);
       }
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%016" REGIx_FORMAT "   %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%016" REGIx_FORMAT "   %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -2113,7 +2126,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -2152,7 +2165,7 @@ void RiscvDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -2234,7 +2247,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -2261,7 +2274,7 @@ void RiscvDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -2838,6 +2851,36 @@ T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
   return result;
 }
 
+uint16_t Simulator::F16FmaHelper(Float16 a, Float16 b, Float16 c) {
+  float fa = a.ToFloat32();
+  float fb = b.ToFloat32();
+  float fc = c.ToFloat32();
+  // Any NaN operand yields the canonical quiet NaN; a signaling NaN raises
+  // the invalid operation flag.
+  if (std::isnan(fa) || std::isnan(fb) || std::isnan(fc)) {
+    if (isSnan(fa) || isSnan(fb) || isSnan(fc)) {
+      set_fflags(kInvalidOperation);
+    }
+    return kFP16DefaultNaN;
+  }
+  // Compute the exact product-sum in double precision and round once to
+  // Float16. This avoids the double rounding that a float intermediate would
+  // cause (see the declaration for the precision argument).
+  double result = std::fma(static_cast<double>(fa), static_cast<double>(fb),
+                           static_cast<double>(fc));
+  if (std::isnan(result)) {  // e.g. Inf * 0.
+    set_fflags(kInvalidOperation);
+    return kFP16DefaultNaN;
+  }
+  return DoubleToFloat16(result);
+}
+
+namespace {
+inline Float16 NegateF16(Float16 value) {
+  return Float16::FromBits(static_cast<uint16_t>(value.get_bits() ^ 0x8000));
+}
+}  // namespace
+
 // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
 // Like Fmax/Fmin except that if either input is NaN, the result
 // is the canonical NaN.
@@ -2904,24 +2947,26 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int64:%" REGId_FORMAT
-                 " uint64:%" PRIu64,
-                 value, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64
+                       ")    int64:%" REGId_FORMAT " uint64:%" PRIu64,
+                       value, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -2946,18 +2991,20 @@ void Simulator::TraceRegWr(T value, TraceType t) {
     }
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" REGId_FORMAT
-                 " uint32:%" PRIu32,
-                 v.fmt_int32, icount_, v.fmt_int32, v.fmt_int32);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64
+                       ")    int32:%" REGId_FORMAT " uint32:%" PRIu32,
+                       v.fmt_int32, icount_, v.fmt_int32, v.fmt_int32);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int32, icount_, v.fmt_float);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int32, icount_, v.fmt_float);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
-                 static_cast<int64_t>(v.fmt_double), icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
+                       static_cast<int64_t>(v.fmt_double), icount_,
+                       v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -2973,46 +3020,49 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
     if (std::is_integral_v<T>) {
       switch (sizeof(T)) {
         case 1:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int8:%" PRId8
-                   " uint8:%" PRIu8 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int8_t>(value),
-                   static_cast<uint8_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64 ")    int8:%" PRId8
+                         " uint8:%" PRIu8 " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int8_t>(value),
+                         static_cast<uint8_t>(value), addr);
           break;
         case 2:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int16:%" PRId16
-                   " uint16:%" PRIu16 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int16_t>(value),
-                   static_cast<uint16_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int16:%" PRId16 " uint16:%" PRIu16
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int16_t>(value),
+                         static_cast<uint16_t>(value), addr);
           break;
         case 4:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
-                   " uint32:%" PRIu32 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int32_t>(value),
-                   static_cast<uint32_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int32:%" PRId32 " uint32:%" PRIu32
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int32_t>(value),
+                         static_cast<uint32_t>(value), addr);
           break;
         case 8:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int64:%" PRId64
-                   " uint64:%" PRIu64 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int64_t>(value),
-                   static_cast<uint64_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int64:%" PRId64 " uint64:%" PRIu64
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int64_t>(value),
+                         static_cast<uint64_t>(value), addr);
           break;
         default:
           UNREACHABLE();
       }
     } else if (std::is_same_v<float, T>) {
-      SNPrintF(trace_buf_,
-               "%016" REGIx_FORMAT "    (%" PRId64
-               ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
-               reg_value, icount_, static_cast<float>(value), addr);
+      base::SNPrintF(trace_buf_,
+                     "%016" REGIx_FORMAT "    (%" PRId64
+                     ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
+                     reg_value, icount_, static_cast<float>(value), addr);
     } else if (std::is_same_v<double, T>) {
-      SNPrintF(trace_buf_,
-               "%016" REGIx_FORMAT "    (%" PRId64
-               ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-               reg_value, icount_, static_cast<double>(value), addr);
+      base::SNPrintF(trace_buf_,
+                     "%016" REGIx_FORMAT "    (%" PRId64
+                     ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                     reg_value, icount_, static_cast<double>(value), addr);
     } else {
       UNREACHABLE();
     }
@@ -3021,29 +3071,31 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
 
 void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<float>(value.get_scalar()), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<float>(value.get_scalar()),
+                   addr);
   }
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<double>(value), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<double>(value), addr);
   }
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
                                  int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<double>(value.get_scalar()), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<double>(value.get_scalar()),
+                   addr);
   }
 }
 
@@ -3052,47 +3104,48 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
   if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "                    (%" PRIu64 ")    int8:%" PRId8
-                 " uint8:%" PRIu8 " --> [addr: %" REGIx_FORMAT "]",
-                 icount_, static_cast<int8_t>(value),
-                 static_cast<uint8_t>(value), addr);
+        base::SNPrintF(trace_buf_,
+                       "                    (%" PRIu64 ")    int8:%" PRId8
+                       " uint8:%" PRIu8 " --> [addr: %" REGIx_FORMAT "]",
+                       icount_, static_cast<int8_t>(value),
+                       static_cast<uint8_t>(value), addr);
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "                    (%" PRIu64 ")    int16:%" PRId16
-                 " uint16:%" PRIu16 " --> [addr: %" REGIx_FORMAT "]",
-                 icount_, static_cast<int16_t>(value),
-                 static_cast<uint16_t>(value), addr);
+        base::SNPrintF(trace_buf_,
+                       "                    (%" PRIu64 ")    int16:%" PRId16
+                       " uint16:%" PRIu16 " --> [addr: %" REGIx_FORMAT "]",
+                       icount_, static_cast<int16_t>(value),
+                       static_cast<uint16_t>(value), addr);
         break;
       case 4:
         if (std::is_integral_v<T>) {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    int32:%" PRId32
-                   " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<int32_t>(value),
-                   static_cast<uint32_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64 ")    int32:%" PRId32
+                         " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<int32_t>(value),
+                         static_cast<uint32_t>(value), addr);
         } else {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64
-                   ")    flt:%e bit:%x --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<float>(value),
-                   base::bit_cast<int32_t, float>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64
+                         ")    flt:%e bit:%x --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<float>(value),
+                         base::bit_cast<int32_t, float>(value), addr);
         }
         break;
       case 8:
         if (std::is_integral_v<T>) {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    int64:%" PRId64
-                   " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<int64_t>(value),
-                   static_cast<uint64_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64 ")    int64:%" PRId64
+                         " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<int64_t>(value),
+                         static_cast<uint64_t>(value), addr);
         } else {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
-                   " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<double>(value),
-                   base::bit_cast<int64_t, double>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64
+                         ")    dbl:%e bit:%" PRIx64 " --> [addr: %" REGIx_FORMAT
+                         "]",
+                         icount_, static_cast<double>(value),
+                         base::bit_cast<int64_t, double>(value), addr);
         }
         break;
       default:
@@ -3103,10 +3156,11 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
 
 void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
-             "--> [addr: %" REGIx_FORMAT "]",
-             icount_, value, base::bit_cast<int64_t, double>(value), addr);
+    base::SNPrintF(trace_buf_,
+                   "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
+                   "--> [addr: %" REGIx_FORMAT "]",
+                   icount_, value, base::bit_cast<int64_t, double>(value),
+                   addr);
   }
 }
 // RISCV Memory Read/Write functions
@@ -7226,15 +7280,15 @@ void Simulator::DecodeRvvIVV() {
       break;
     }
     default:
-      // v8::base::EmbeddedVector<char, 256> buffer;
-      // SNPrintF(trace_buf_, " ");
+      // std::array<char, 256> buffer;
+      // base::SNPrintF(trace_buf_, " ");
       // disasm::NameConverter converter;
       // disasm::Disassembler dasm(converter);
       // // Use a reasonably large buffer.
       // dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
 
       // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-      //        reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      //        reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -7813,12 +7867,12 @@ void Simulator::DecodeRvvMVV() {
         set_register(rd_reg(), index);
         rvv_trace_vd();
       } else {
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
         PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-               reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+               reinterpret_cast<intptr_t>(&instr_), buffer.data());
         UNIMPLEMENTED_RISCV();
       }
     } break;
@@ -7909,12 +7963,12 @@ void Simulator::DecodeRvvMVV() {
       rvv_trace_vd();
     } break;
     default:
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+             reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -8018,12 +8072,12 @@ void Simulator::DecodeRvvMVX() {
       rvv_trace_vd();
     } break;
     default:
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+             reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -8481,8 +8535,10 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFMAX_VV: {
       RVV_VI_VFP_VV_LOOP(
           {
-            vd = FMaxMinHelper(vs2.ToFloat32(), vs1.ToFloat32(),
-                               MaxMinKind::kMax);
+            vd = Float16::FromFloat32(FMaxMinHelper(vs2.ToFloat32(),
+                                                    vs1.ToFloat32(),
+                                                    MaxMinKind::kMax))
+                     .get_bits();
           },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); })
@@ -8490,7 +8546,12 @@ void Simulator::DecodeRvvFVV() {
     }
     case RO_V_VFREDMAX_VV: {
       RVV_VI_VFP_VV_LOOP_REDUCTION(
-          { UNIMPLEMENTED(); },
+          {
+            vd_0 = Float16::FromFloat32(
+                       FMaxMinHelper(Float16::FromBits(vd_0).ToFloat32(),
+                                     vs2.ToFloat32(), MaxMinKind::kMax))
+                       .get_bits();
+          },
           { vd_0 = FMaxMinHelper(vd_0, vs2, MaxMinKind::kMax); },
           { vd_0 = FMaxMinHelper(vd_0, vs2, MaxMinKind::kMax); })
       break;
@@ -8498,8 +8559,10 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFMIN_VV: {
       RVV_VI_VFP_VV_LOOP(
           {
-            vd = FMaxMinHelper(vs2.ToFloat32(), vs1.ToFloat32(),
-                               MaxMinKind::kMin);
+            vd = Float16::FromFloat32(FMaxMinHelper(vs2.ToFloat32(),
+                                                    vs1.ToFloat32(),
+                                                    MaxMinKind::kMin))
+                     .get_bits();
           },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); })
@@ -8744,15 +8807,41 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFWREDOSUM_VS:
       RVV_VI_CHECK_DSS(true);
       switch (rvv_vsew()) {
-        case E16:
+        case E16: {
+          float vs1 = Rvvelt<float>(rvv_vs1_reg(), 0);
+          float alu_out = vs1;
+          for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
+            RVV_VI_LOOP_MASK_SKIP();
+            float vs2 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs2_reg(), i))
+                            .ToFloat32();
+            if (is_invalid_fadd(alu_out, vs2)) {
+              set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+              break;
+            }
+            alu_out = alu_out + vs2;
+            if (std::isnan(alu_out) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(vs2)) set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+              break;
+            }
+          }
+          // Only update the destination when at least one element is active,
+          // matching the RVV reduction semantics.
+          if (rvv_vl() > 0) {
+            Rvvelt<float>(rvv_vd_reg(), 0, true) = alu_out;
+          }
+          break;
+        }
         case E64: {
           UNIMPLEMENTED();
         }
         case E32: {
-          double& vd = Rvvelt<double>(rvv_vd_reg(), 0, true);
           double vs1 = Rvvelt<double>(rvv_vs1_reg(), 0);
           double alu_out = vs1;
           for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
+            RVV_VI_LOOP_MASK_SKIP();
             double vs2 = static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i));
             if (is_invalid_fadd(alu_out, vs2)) {
               set_fflags(kInvalidOperation);
@@ -8767,7 +8856,9 @@ void Simulator::DecodeRvvFVV() {
               break;
             }
           }
-          vd = alu_out;
+          if (rvv_vl() > 0) {
+            Rvvelt<double>(rvv_vd_reg(), 0, true) = alu_out;
+          }
           break;
         }
         default:
@@ -8778,56 +8869,28 @@ void Simulator::DecodeRvvFVV() {
       break;
     case RO_V_VFMADD_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            float src1 = vs1.ToFloat32();
-            float src2 = vs2.ToFloat32();
-            float dst = Float16::FromBits(vd).ToFloat32();
-            float alu_out = std::fma(dst, src1, src2);
-
-            if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
-                std::isnan(dst)) {
-              // signaling_nan sets kInvalidOperation bit
-              if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) ||
-                  isSnan(dst)) {
-                set_fflags(kInvalidOperation);
-              }
-              alu_out = std::numeric_limits<float>::quiet_NaN();
-            }
-            vd = Float16::FromFloat32(alu_out).get_bits();
-          },
+          { vd = F16FmaHelper(Float16::FromBits(vd), vs1, vs2); },
           {RVV_VI_VFP_FMA(float, vd, vs1, vs2)},
           {RVV_VI_VFP_FMA(double, vd, vs1, vs2)})
       break;
     case RO_V_VFNMADD_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
           {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
+            vd = F16FmaHelper(NegateF16(Float16::FromBits(vd)), vs1,
+                              NegateF16(vs2));
           },
           {RVV_VI_VFP_FMA(float, -vd, vs1, -vs2)},
           {RVV_VI_VFP_FMA(double, -vd, vs1, -vs2)})
       break;
     case RO_V_VFMSUB_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(Float16::FromBits(vd), vs1, NegateF16(vs2)); },
           {RVV_VI_VFP_FMA(float, vd, vs1, -vs2)},
           {RVV_VI_VFP_FMA(double, vd, vs1, -vs2)})
       break;
     case RO_V_VFNMSUB_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(NegateF16(Float16::FromBits(vd)), vs1, vs2); },
           {
             float alu_out = std::fma(-vd, vs1, +vs2);
 
@@ -8844,45 +8907,28 @@ void Simulator::DecodeRvvFVV() {
       break;
     case RO_V_VFMACC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(vs2, vs1, Float16::FromBits(vd)); },
           {RVV_VI_VFP_FMA(float, vs2, vs1, vd)},
           {RVV_VI_VFP_FMA(double, vs2, vs1, vd)})
       break;
     case RO_V_VFNMACC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
           {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
+            vd = F16FmaHelper(NegateF16(vs2), vs1,
+                              NegateF16(Float16::FromBits(vd)));
           },
           {RVV_VI_VFP_FMA(float, -vs2, vs1, -vd)},
           {RVV_VI_VFP_FMA(double, -vs2, vs1, -vd)})
       break;
     case RO_V_VFMSAC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(vs2, vs1, NegateF16(Float16::FromBits(vd))); },
           {RVV_VI_VFP_FMA(float, vs2, vs1, -vd)},
           {RVV_VI_VFP_FMA(double, vs2, vs1, -vd)})
       break;
     case RO_V_VFNMSAC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(NegateF16(vs2), vs1, Float16::FromBits(vd)); },
           {RVV_VI_VFP_FMA(float, -vs2, vs1, +vd)},
           {RVV_VI_VFP_FMA(double, -vs2, vs1, +vd)})
       break;
@@ -9362,17 +9408,17 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
   pc_modified_ = false;
 
-  v8::base::EmbeddedVector<char, 256> buffer;
+  std::array<char, 256> buffer;
 
   if (v8_flags.trace_sim || v8_flags.debug_sim) {
-    SNPrintF(trace_buf_, " ");
+    base::SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
     dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
 
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-    //        reinterpret_cast<intptr_t>(instr), buffer.begin());
+    //        reinterpret_cast<intptr_t>(instr), buffer.data());
   }
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   set_vill_ignore(false);
@@ -9436,15 +9482,14 @@ void Simulator::InstructionDecode(Instruction* instr) {
       if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex
                   << registers_[pc] << "]: 0x" << instr->InstructionBits()
-                  << std::endl;
+                  << std::dec << std::endl;
       }
       UNSUPPORTED();
   }
 
   if (v8_flags.trace_sim) {
     PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.begin(),
-           trace_buf_.begin());
+           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
   }
 
   if (!pc_modified_) {
@@ -9581,10 +9626,10 @@ void Simulator::PushShadowStack(uintptr_t value) {
     size_t old_size = shadow_stack_.size();
     size_t new_size = old_size * 2;
     size_t new_ssp = new_size - old_size;
-    auto new_stack = base::Vector<uintptr_t>::New(new_size);
-    new_stack.SubVectorFrom(new_ssp).OverwriteWith(shadow_stack_);
-    shadow_stack_.Dispose();
-    shadow_stack_ = new_stack;
+    auto new_stack = base::UniqueArray<uintptr_t>::New(new_size);
+    std::copy(shadow_stack_.begin(), shadow_stack_.end(),
+              new_stack.subspan(new_ssp).begin());
+    shadow_stack_ = std::move(new_stack);
     csr_ssp_ = new_ssp;
   }
   csr_ssp_ = csr_ssp_ - 1;
@@ -9594,8 +9639,8 @@ void Simulator::PushShadowStack(uintptr_t value) {
            ")    ssp:%zu\n",
            value, icount_, csr_ssp_);
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
-           value, icount_, csr_ssp_);
+  base::SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+                 value, icount_, csr_ssp_);
   return;
 }
 
@@ -9620,8 +9665,8 @@ uintptr_t Simulator::PopShadowStack(uintptr_t value) {
     PrintF("PopShadowStack  %016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu\n",
            temp, icount_, csr_ssp_ - 1);
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu", temp,
-           icount_, csr_ssp_ - 1);
+  base::SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+                 temp, icount_, csr_ssp_ - 1);
   return temp;
 }
 
@@ -9666,7 +9711,7 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
               << " fa3 = 0x" << get_fpu_register(fa3) << " fa4 = 0x"
               << get_fpu_register(fa4) << " fa5 = 0x" << get_fpu_register(fa5)
               << " fa6 = 0x" << get_fpu_register(fa6) << " fa7 = 0x"
-              << get_fpu_register(fa7) << std::endl;
+              << get_fpu_register(fa7) << std::dec << std::endl;
   }
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
@@ -9709,7 +9754,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
               << " a2 (func/target) = 0x" << get_register(a2)
               << " a3 (receiver) = 0x" << get_register(a3) << " a4 (argc) = 0x"
               << get_register(a4) << " a5 (argv) = 0x" << get_register(a5)
-              << std::endl;
+              << std::dec << std::endl;
   }
   // Remaining arguments passed on stack.
   sreg_t original_stack = get_register(sp);

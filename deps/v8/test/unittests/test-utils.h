@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_TEST_UTILS_H_
 #define V8_UNITTESTS_TEST_UTILS_H_
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -204,9 +205,9 @@ class WithIsolateScopeMixin : public TMixin {
   }
 
   i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.begin());
+    return MakeString(buffer.data());
   }
 
   i::Handle<i::String> MakeString(const char* str) {

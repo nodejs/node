@@ -17,23 +17,23 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitSelfIndirectPointerField(
+V8_INLINE void InitSelfTrustedPointerField(
     Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
-    IndirectPointerTag tag,
+    TrustedPointerTag tag,
     TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kIndirectPointerNullTag);
+  DCHECK_NE(tag, kTrustedPointerNullTag);
 
   TrustedPointerTable::Space* space =
       isolate.GetTrustedPointerTableSpaceFor(tag, host.address());
-  IndirectPointerHandle handle =
+  TrustedPointerHandle handle =
       isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
           space, host.ptr(), tag, opt_publishing_scope);
 
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads
   // may access an uninitialized table entry and crash.
-  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
   base::AsAtomic32::Release_Store(location, handle);
 #else
   UNREACHABLE();
@@ -41,48 +41,48 @@ V8_INLINE void InitSelfIndirectPointerField(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerTagRange tag_range>
-V8_INLINE Tagged<Object> ResolveIndirectPointerHandle(
-    IndirectPointerHandle handle, IsolateForSandbox isolate) {
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
+    TrustedPointerHandle handle, IsolateForSandbox isolate) {
   const TrustedPointerTable& table =
       isolate.GetTrustedPointerTableFor(tag_range);
   return Tagged<Object>(table.Get(handle, tag_range));
 }
 
-template <IndirectPointerTagRange tag_range>
-V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
-                                                   IsolateForSandbox isolate) {
-  return ResolveIndirectPointerHandle<tag_range>(handle, isolate);
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerHandle(TrustedPointerHandle handle,
+                                                  IsolateForSandbox isolate) {
+  return ResolveTrustedPointerHandle<tag_range>(handle, isolate);
 }
 
 #endif  // V8_ENABLE_SANDBOX
 
-template <IndirectPointerTagRange tag_range>
-V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
-                                                  IsolateForSandbox isolate,
-                                                  AcquireLoadTag) {
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerField(Address field_address,
+                                                 IsolateForSandbox isolate,
+                                                 AcquireLoadTag) {
 #ifdef V8_ENABLE_SANDBOX
   // Load the indirect pointer handle from the object.
   // Technically, we could use memory_order_consume here as the loads are
   // dependent, but that appears to be deprecated in favor of acquire ordering.
-  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
-  IndirectPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
-  if (handle == kNullIndirectPointerHandle) return Smi::zero();
-  return ReadIndirectPointerHandle<tag_range>(handle, isolate);
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
+  TrustedPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
+  if (handle == kNullTrustedPointerHandle) return Smi::zero();
+  return ReadTrustedPointerHandle<tag_range>(handle, isolate);
 #else
   return Tagged<Object>(*reinterpret_cast<Address*>(field_address));
 #endif
 }
 
-template <IndirectPointerTagRange tag_range>
-V8_INLINE void WriteIndirectPointerField(Address field_address,
-                                         Tagged<ExposedTrustedObject> value,
-                                         ReleaseStoreTag) {
+template <TrustedPointerTagRange tag_range>
+V8_INLINE void WriteTrustedPointerField(Address field_address,
+                                        Tagged<ExposedTrustedObject> value,
+                                        ReleaseStoreTag) {
 #ifdef V8_ENABLE_SANDBOX
   static_assert(!tag_range.IsEmpty());
-  IndirectPointerHandle handle = value->self_indirect_pointer_handle();
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
-  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
+  TrustedPointerHandle handle = value->self_trusted_pointer_handle();
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
   base::AsAtomic32::Release_Store(location, handle);
 #else
   UNREACHABLE();

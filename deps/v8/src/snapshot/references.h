@@ -27,6 +27,7 @@ class SerializerReference {
  private:
   enum SpecialValueType {
     kBackReference,
+    kFixedBackReference,
     kAttachedReference,
     kOffHeapBackingStore,
     kBuiltinReference,
@@ -53,12 +54,36 @@ class SerializerReference {
   }
 
   bool is_back_reference() const {
-    return TypeBits::decode(bit_field_) == kBackReference;
+    SpecialValueType type = TypeBits::decode(bit_field_);
+    return type == kBackReference || type == kFixedBackReference;
   }
 
   uint32_t back_ref_index() const {
     DCHECK(is_back_reference());
-    return ValueBits::decode(bit_field_);
+    return is_fixed_back_reference() ? FixedBackrefValueBits::decode(bit_field_)
+                                     : ValueBits::decode(bit_field_);
+  }
+
+  static constexpr bool CanBeFixedBackReference(uint32_t back_ref_index) {
+    return FixedBackrefValueBits::is_valid(back_ref_index);
+  }
+
+  bool is_fixed_back_reference() const {
+    return TypeBits::decode(bit_field_) == kFixedBackReference;
+  }
+
+  uint32_t fixed_back_ref_index() const {
+    DCHECK(is_fixed_back_reference());
+    return FixedBackrefIndexBits::decode(bit_field_);
+  }
+
+  void set_fixed_back_ref_index(uint32_t index) {
+    DCHECK_EQ(TypeBits::decode(bit_field_), kBackReference);
+    uint32_t back_ref = ValueBits::decode(bit_field_);
+    DCHECK(CanBeFixedBackReference(back_ref));
+    bit_field_ = TypeBits::encode(kFixedBackReference) |
+                 FixedBackrefIndexBits::encode(index) |
+                 FixedBackrefValueBits::encode(back_ref);
   }
 
   bool is_off_heap_backing_store_reference() const {
@@ -89,8 +114,12 @@ class SerializerReference {
   }
 
  private:
-  using TypeBits = base::BitField<SpecialValueType, 0, 2>;
+  using TypeBits = base::BitField<SpecialValueType, 0, 3>;
   using ValueBits = TypeBits::Next<uint32_t, 32 - TypeBits::kSize>;
+  using FixedBackrefIndexBits = TypeBits::Next<uint32_t, 6>;
+  using FixedBackrefValueBits =
+      FixedBackrefIndexBits::Next<uint32_t, 32 - TypeBits::kSize -
+                                                FixedBackrefIndexBits::kSize>;
 
   uint32_t bit_field_;
 
@@ -105,12 +134,11 @@ class SerializerReferenceMap {
   explicit SerializerReferenceMap(Isolate* isolate)
       : map_(isolate->heap()), attached_reference_index_(0) {}
 
-  const SerializerReference* LookupReference(Tagged<HeapObject> object) const {
+  SerializerReference* LookupReference(Tagged<HeapObject> object) const {
     return map_.Find(object);
   }
 
-  const SerializerReference* LookupReference(
-      DirectHandle<HeapObject> object) const {
+  SerializerReference* LookupReference(DirectHandle<HeapObject> object) const {
     return map_.Find(object);
   }
 

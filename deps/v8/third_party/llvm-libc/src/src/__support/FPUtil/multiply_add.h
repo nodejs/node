@@ -1,9 +1,14 @@
-//===-- Common header for multiply-add implementations ----------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Common header for multiply-add implementations.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_MULTIPLY_ADD_H
@@ -25,13 +30,15 @@ namespace fputil {
 template <typename T>
 LIBC_INLINE constexpr cpp::enable_if_t<(sizeof(T) > sizeof(void *)), T>
 multiply_add(const T &x, const T &y, const T &z) {
-  return x * y + z;
+  T prod = x * y;
+  return prod + z;
 }
 
 template <typename T>
 LIBC_INLINE constexpr cpp::enable_if_t<(sizeof(T) <= sizeof(void *)), T>
 multiply_add(T x, T y, T z) {
-  return x * y + z;
+  T prod = x * y;
+  return prod + z;
 }
 
 } // namespace fputil

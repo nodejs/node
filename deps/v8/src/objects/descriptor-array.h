@@ -9,6 +9,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
@@ -38,6 +39,9 @@ class StructBodyDescriptor;
 // An EnumCache is a pair used to hold keys and indices caches.
 V8_OBJECT class EnumCache : public Struct {
  public:
+  inline EnumCache(const AllocationWitness& witness, Tagged<FixedArray> keys,
+                   Tagged<FixedArray> indices);
+
   inline Tagged<FixedArray> keys() const;
   inline void set_keys(Tagged<FixedArray> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -95,8 +99,6 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   inline void set_number_of_all_descriptors(int16_t value, ReleaseStoreTag);
   inline int16_t number_of_descriptors() const;
   inline void set_number_of_descriptors(int16_t value);
-  inline uint32_t flags(RelaxedLoadTag) const;
-  inline void set_flags(uint32_t value, RelaxedStoreTag);
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
 
@@ -113,8 +115,16 @@ V8_OBJECT class DescriptorArray : public HeapObject {
     kUnknown = 0b11
   };
 
-  using FastIterableBits =
-      base::BitField<DescriptorArray::FastIterableState, 0, 2, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using FastIterableBits = First<FastIterableState, 2>;
+
+    BIT_FIELD_GROUP_ACCESSORS(fast_iterable, FastIterableBits)
+  };
+
+  inline Flags flags(RelaxedLoadTag) const;
+  inline void set_flags(Flags value, RelaxedStoreTag);
 
   inline FastIterableState fast_iterable() const;
   inline void set_fast_iterable(FastIterableState value);
@@ -312,11 +322,12 @@ V8_OBJECT class DescriptorArray : public HeapObject {
 
   // Declared atomic so that concurrent readers (e.g. from the marker) see a
   // consistent value during trimming in mark-compact.
-  std::atomic<uint16_t> number_of_all_descriptors_;
+  V8_TQ_CONST std::atomic<uint16_t> number_of_all_descriptors_;
   std::atomic<uint16_t> number_of_descriptors_;
-  std::atomic<uint32_t> flags_;
+  std::atomic<Flags> flags_;
   TaggedMember<EnumCache> enum_cache_;
-  FLEXIBLE_ARRAY_MEMBER(Entry, entries);
+  V8_TQ_TAIL_LENGTH(number_of_all_descriptors);
+  FLEXIBLE_ARRAY_MEMBER(Entry, entries, V8_TQ_TYPE(DescriptorEntry));
 } V8_OBJECT_END;
 
 static_assert(sizeof(DescriptorArray::Entry) ==

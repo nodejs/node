@@ -1377,6 +1377,22 @@ void InstanceBuilder::Build_Phase1_Infallible() {
     WasmDispatchTable::AddUse(isolate_, dispatch_table_handle, trusted_data_,
                               i);
   }
+
+  //--------------------------------------------------------------------------
+  // Insert the new instance into the script's weak list of instances. This
+  // list is used for breakpoints affecting all instances belonging to the
+  // script.
+  //--------------------------------------------------------------------------
+  DCHECK_EQ(untrusted_module_object_->script()->type(), Script::Type::kWasm);
+  DirectHandle<WeakArrayList> weak_instance_list(
+      untrusted_module_object_->script()->wasm_weak_instance_list(), isolate_);
+  DirectHandle<WasmInstanceObject> instance_object(
+      trusted_data_->instance_object(), isolate_);
+  weak_instance_list =
+      WeakArrayList::Append(isolate_, weak_instance_list,
+                            MaybeObjectDirectHandle::Weak(instance_object));
+  untrusted_module_object_->script()->set_wasm_weak_instance_list(
+      *weak_instance_list);
 }
 
 Maybe<bool> InstanceBuilder::Build_Phase2() {
@@ -1599,7 +1615,7 @@ DirectHandle<JSFunction> CreateFunctionForCompileTimeImport(
   auto [name, builtin, length] = NameBuiltinLength(wki);
   Factory* factory = isolate->factory();
   DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<Map> map = isolate->strict_function_without_prototype_map();
+  DirectHandle<Map> map = isolate->function_without_prototype_map();
   DirectHandle<String> name_str = factory->InternalizeUtf8String(name);
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name_str, builtin, length,
@@ -2145,12 +2161,14 @@ bool InstanceBuilder::ProcessImportedMemories(
         TryCast(memory_object->array_buffer(), &buffer)) {
       DCHECK_EQ(backing_store, buffer->GetBackingStore());
       DCHECK_EQ(backing_store->is_shared(), buffer->is_shared());
+      size_t buffer_byte_length = buffer->GetByteLength();
       if (backing_store->is_shared()) {
         // Note: For shared memory, the backing store might have just grown in
-        // another thread.
-        DCHECK_GE(backing_store->byte_length(), buffer->GetByteLength());
+        // another thread. Read the buffer's byte length first in case it is a
+        // growable SharedArrayBuffer (which also reads from the backing store).
+        DCHECK_GE(backing_store->byte_length(), buffer_byte_length);
       } else {
-        DCHECK_EQ(backing_store->byte_length(), buffer->GetByteLength());
+        DCHECK_EQ(backing_store->byte_length(), buffer_byte_length);
       }
     }
 #endif  // DEBUG

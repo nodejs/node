@@ -60,9 +60,7 @@ class V8_EXPORT Uint8Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(uint8_t);
   static_assert(sizeof(uint8_t) == 1);
 
-  static Local<Uint8Array> New(Local<ArrayBuffer> array_buffer,
-                               size_t byte_offset, size_t length);
-  static Local<Uint8Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Uint8Array> New(Local<ArrayBufferBase> array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Uint8Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -88,11 +86,8 @@ class V8_EXPORT Uint8ClampedArray : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(uint8_t);
   static_assert(sizeof(uint8_t) == 1);
 
-  static Local<Uint8ClampedArray> New(Local<ArrayBuffer> array_buffer,
+  static Local<Uint8ClampedArray> New(Local<ArrayBufferBase> array_buffer,
                                       size_t byte_offset, size_t length);
-  static Local<Uint8ClampedArray> New(
-      Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
-      size_t length);
   V8_INLINE static Uint8ClampedArray* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
@@ -117,9 +112,7 @@ class V8_EXPORT Int8Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(int8_t);
   static_assert(sizeof(int8_t) == 1);
 
-  static Local<Int8Array> New(Local<ArrayBuffer> array_buffer,
-                              size_t byte_offset, size_t length);
-  static Local<Int8Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Int8Array> New(Local<ArrayBufferBase> array_buffer,
                               size_t byte_offset, size_t length);
   V8_INLINE static Int8Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -145,9 +138,7 @@ class V8_EXPORT Uint16Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(uint16_t);
   static_assert(sizeof(uint16_t) == 2);
 
-  static Local<Uint16Array> New(Local<ArrayBuffer> array_buffer,
-                                size_t byte_offset, size_t length);
-  static Local<Uint16Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Uint16Array> New(Local<ArrayBufferBase> array_buffer,
                                 size_t byte_offset, size_t length);
   V8_INLINE static Uint16Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -173,9 +164,7 @@ class V8_EXPORT Int16Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(int16_t);
   static_assert(sizeof(int16_t) == 2);
 
-  static Local<Int16Array> New(Local<ArrayBuffer> array_buffer,
-                               size_t byte_offset, size_t length);
-  static Local<Int16Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Int16Array> New(Local<ArrayBufferBase> array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int16Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -201,9 +190,7 @@ class V8_EXPORT Uint32Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(uint32_t);
   static_assert(sizeof(uint32_t) == 4);
 
-  static Local<Uint32Array> New(Local<ArrayBuffer> array_buffer,
-                                size_t byte_offset, size_t length);
-  static Local<Uint32Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Uint32Array> New(Local<ArrayBufferBase> array_buffer,
                                 size_t byte_offset, size_t length);
   V8_INLINE static Uint32Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -229,9 +216,7 @@ class V8_EXPORT Int32Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(int32_t);
   static_assert(sizeof(int32_t) == 4);
 
-  static Local<Int32Array> New(Local<ArrayBuffer> array_buffer,
-                               size_t byte_offset, size_t length);
-  static Local<Int32Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Int32Array> New(Local<ArrayBufferBase> array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int32Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -253,9 +238,7 @@ class V8_EXPORT Float16Array : public TypedArray {
   static constexpr size_t kMaxLength =
       TypedArray::kMaxByteLength / sizeof(uint16_t);
 
-  static Local<Float16Array> New(Local<ArrayBuffer> array_buffer,
-                                 size_t byte_offset, size_t length);
-  static Local<Float16Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Float16Array> New(Local<ArrayBufferBase> array_buffer,
                                  size_t byte_offset, size_t length);
   V8_INLINE static Float16Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -281,9 +264,7 @@ class V8_EXPORT Float32Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(float);
   static_assert(sizeof(float) == 4);
 
-  static Local<Float32Array> New(Local<ArrayBuffer> array_buffer,
-                                 size_t byte_offset, size_t length);
-  static Local<Float32Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Float32Array> New(Local<ArrayBufferBase> array_buffer,
                                  size_t byte_offset, size_t length);
   V8_INLINE static Float32Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -309,9 +290,7 @@ class V8_EXPORT Float64Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(double);
   static_assert(sizeof(double) == 8);
 
-  static Local<Float64Array> New(Local<ArrayBuffer> array_buffer,
-                                 size_t byte_offset, size_t length);
-  static Local<Float64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<Float64Array> New(Local<ArrayBufferBase> array_buffer,
                                  size_t byte_offset, size_t length);
   V8_INLINE static Float64Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -337,9 +316,7 @@ class V8_EXPORT BigInt64Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(int64_t);
   static_assert(sizeof(int64_t) == 8);
 
-  static Local<BigInt64Array> New(Local<ArrayBuffer> array_buffer,
-                                  size_t byte_offset, size_t length);
-  static Local<BigInt64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<BigInt64Array> New(Local<ArrayBufferBase> array_buffer,
                                   size_t byte_offset, size_t length);
   V8_INLINE static BigInt64Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -365,9 +342,7 @@ class V8_EXPORT BigUint64Array : public TypedArray {
       TypedArray::kMaxByteLength / sizeof(uint64_t);
   static_assert(sizeof(uint64_t) == 8);
 
-  static Local<BigUint64Array> New(Local<ArrayBuffer> array_buffer,
-                                   size_t byte_offset, size_t length);
-  static Local<BigUint64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+  static Local<BigUint64Array> New(Local<ArrayBufferBase> array_buffer,
                                    size_t byte_offset, size_t length);
   V8_INLINE static BigUint64Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

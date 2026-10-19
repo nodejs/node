@@ -10,7 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/string.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::compiler {
@@ -242,55 +242,6 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
-    Node* handle, IndirectPointerTagRange tag_range) {
-#if V8_ENABLE_SANDBOX
-  Node* index = Word32Shr(handle, Int32Constant(kTrustedPointerHandleShift));
-  Node* offset = ChangeUint32ToUint64(
-      Word32Shl(index, Int32Constant(kTrustedPointerTableEntrySizeLog2)));
-  Node* table = Load(MachineType::Pointer(), LoadRootRegister(),
-                     IsolateData::trusted_pointer_table_offset() +
-                         Internals::kExternalEntityTableBasePointerOffset);
-  Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
-
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
-    decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(mask));
-  } else {
-    Node* tag =
-        WordShr(decoded_ptr, IntPtrConstant(kTrustedPointerTableTagShift));
-
-    auto ok = MakeLabel();
-    if (tag_range.Size() == 1) {
-      // The common and simple case: we expect exactly one tag.
-      Node* expected_tag = IntPtrConstant(tag_range.first);
-      GotoIf(WordEqual(tag, expected_tag), &ok, BranchHint::kTrue);
-      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
-      Goto(&ok);  // Unreachable, but needed for graph coherency.
-    } else {
-      // Range check.
-      Node* diff = IntPtrSub(tag, IntPtrConstant(tag_range.first));
-      GotoIf(Uint64LessThanOrEqual(
-                 diff, IntPtrConstant(tag_range.last - tag_range.first)),
-             &ok, BranchHint::kTrue);
-      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
-      Goto(&ok);  // Unreachable, but needed for graph coherency.
-    }
-
-    Bind(&ok);
-    decoded_ptr =
-        WordAnd(decoded_ptr, IntPtrConstant(kTrustedPointerTablePayloadMask));
-  }
-
-  // We have to change the type of the result value to Tagged, so if the value
-  // gets spilled on the stack, it will get processed by the GC.
-  decoded_ptr = BitcastWordToTagged(decoded_ptr);
-  return decoded_ptr;
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
 Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
     Node* object, int field_offset, ExternalPointerTagRange tag_range,
     Node* isolate_root) {
@@ -408,38 +359,14 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
   return LoadFromObject(type, byte_array, offset);
 }
 
-Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
-  Node* offset = IntPtrConstant(field_offset);
-#ifdef V8_ENABLE_SANDBOX
-  Node* handle = LoadImmutableFromObject(MachineType::Uint32(), object, offset);
-  return BuildDecodeTrustedPointer(handle, tag);
-#else
-  return LoadImmutableFromObject(MachineType::TaggedPointer(), object, offset);
-#endif
-}
-
 Node* WasmGraphAssembler::LoadTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
-  Node* offset = IntPtrConstant(field_offset);
+    Node* object, int field_offset, TrustedPointerTagRange tag) {
 #ifdef V8_ENABLE_SANDBOX
-  Node* handle = LoadFromObject(MachineType::Uint32(), object, offset);
-  return BuildDecodeTrustedPointer(handle, tag);
+  return AddNode(graph()->NewNode(common_.LoadTrustedPointer(field_offset, tag),
+                                  object, effect(), control()));
 #else
+  Node* offset = IntPtrConstant(field_offset);
   return LoadFromObject(MachineType::TaggedPointer(), object, offset);
-#endif
-}
-
-std::pair<Node*, Node*>
-WasmGraphAssembler::LoadTrustedPointerFromObjectTrapOnNull(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
-  Node* offset = IntPtrConstant(field_offset);
-#ifdef V8_ENABLE_SANDBOX
-  Node* handle = LoadTrapOnNull(MachineType::Uint32(), object, offset);
-  return {handle, BuildDecodeTrustedPointer(handle, tag)};
-#else
-  Node* value = LoadTrapOnNull(MachineType::TaggedPointer(), object, offset);
-  return {value, value};
 #endif
 }
 
@@ -465,18 +392,10 @@ Node* WasmGraphAssembler::LoadContextNoCellFromJSFunction(Node* js_function) {
 
 Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   Node* shared = LoadSharedFunctionInfo(js_function);
-  return LoadImmutableTrustedPointerFromObject(
+  return LoadTrustedPointerFromObject(
       shared,
       offsetof(SharedFunctionInfo, trusted_function_data_) - kHeapObjectTag,
-      kWasmExportedFunctionDataIndirectPointerTag);
-}
-
-Node* WasmGraphAssembler::LoadExportedFunctionInstanceData(
-    Node* exported_function_data) {
-  return LoadImmutableProtectedPointerFromObject(
-      exported_function_data,
-      offsetof(WasmExportedFunctionData, protected_instance_data_) -
-          kHeapObjectTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
 }
 
 // JavaScript objects.
@@ -490,17 +409,18 @@ Node* WasmGraphAssembler::LoadJSArrayElements(Node* js_array) {
 
 Node* WasmGraphAssembler::FieldOffset(const wasm::StructType* type,
                                       uint32_t field_index) {
-  return IntPtrConstant(WasmStruct::kHeaderSize +
-                        type->field_offset(field_index) - kHeapObjectTag);
+  return IntPtrConstant(WasmStruct::FieldOffset(type, field_index) -
+                        kHeapObjectTag);
 }
 
 Node* WasmGraphAssembler::WasmArrayElementOffset(Node* index,
-                                                 wasm::ValueType element_type) {
+                                                 const wasm::ArrayType* type) {
   Node* index_intptr =
       mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(index) : index;
   return IntAdd(
-      IntPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag),
-      IntMul(index_intptr, IntPtrConstant(element_type.value_kind_size())));
+      IntPtrConstant(WasmArray::HeaderSize(type->is_shared()) - kHeapObjectTag),
+      IntMul(index_intptr,
+             IntPtrConstant(type->element_type().value_kind_size())));
 }
 
 Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
@@ -509,9 +429,15 @@ Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
   // unsigned comparison.
   Node* comparison_value =
       Int32Sub(instance_type, Int32Constant(FIRST_WASM_OBJECT_TYPE));
-  return Uint32LessThanOrEqual(
-      comparison_value,
-      Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE));
+  // Computing both conditions and OR-ing them isn't the most efficient
+  // approach, but this code is deprecated anyway (only used for Wasm-into-JS
+  // inlining currently, slated to be replaced by Turboshaft).
+  return Word32Or(
+      Uint32LessThanOrEqual(
+          comparison_value,
+          Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE)),
+      Word32Equal(comparison_value, Int32Constant(WASM_CUSTOM_MAP_TYPE -
+                                                  FIRST_WASM_OBJECT_TYPE)));
 }
 
 Node* WasmGraphAssembler::WasmTypeCheck(Node* object, Node* rtt,
@@ -624,10 +550,10 @@ Node* WasmGraphAssembler::StringPrepareForGetCodeunit(Node* string) {
 
 Node* WasmGraphAssembler::LoadTrustedDataFromInstanceObject(
     Node* instance_object) {
-  return LoadImmutableTrustedPointerFromObject(
+  return LoadTrustedPointerFromObject(
       instance_object,
       offsetof(WasmInstanceObject, trusted_data_) - kHeapObjectTag,
-      kWasmTrustedInstanceDataIndirectPointerTag);
+      kWasmTrustedInstanceDataTrustedPointerTag);
 }
 
 // Generic HeapObject helpers.

@@ -142,9 +142,13 @@ SOURCE_FILE_TEMPLATE = """
 
 FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
 
-# The number of hex digits used from the hash of the original source file path.
+# The number of hex digits used from the hash of the original source label.
 # Keep the number small to avoid duplicate explosion.
 SOURCE_HASH_LENGTH = 2
+
+# Keep regexp-fuzzer failures in a distinct ClusterFuzz key namespace.
+REGEXP_FUZZER_SOURCE_PREFIX = 'regexp-fuzzer:'
+REGEXP_FUZZER_KEY_PREFIX = 'regexp-'
 
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
@@ -443,7 +447,7 @@ def cluster_failures(source, known_failures=None):
   """Returns a string key for clustering duplicate failures.
 
   Args:
-    source: The original source path where the failure happened.
+    source: The source label preceding the failure.
     known_failures: Mapping from original source path to failure key.
   """
   known_failures = known_failures or KNOWN_FAILURES
@@ -463,8 +467,11 @@ def cluster_failures(source, known_failures=None):
     return 'smoke test failed'
 
   # We map all remaining failures to a short hash of the original source.
+  key_prefix = (
+      REGEXP_FUZZER_KEY_PREFIX
+      if source.startswith(REGEXP_FUZZER_SOURCE_PREFIX) else '')
   long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
-  return long_key[:SOURCE_HASH_LENGTH]
+  return key_prefix + long_key[:SOURCE_HASH_LENGTH]
 
 
 class RepeatedRuns(object):

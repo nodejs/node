@@ -1,0 +1,15 @@
+header: libintl.h
+standards:
+  - posix
+macros: []
+types:
+  - type_name: locale_t
+enums: []
+objects: []
+functions:
+  - name: textdomain
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *

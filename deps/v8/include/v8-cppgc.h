@@ -19,6 +19,7 @@
 
 namespace cppgc {
 class AllocationHandle;
+class AllocationSampler;
 class HeapHandle;
 }  // namespace cppgc
 
@@ -58,6 +59,10 @@ struct V8_EXPORT CppHeapCreateParams {
    * heap.
    */
   std::optional<cppgc::StackStartMarker> stack_start_marker = std::nullopt;
+  /**
+   * Optional allocation sampler.
+   */
+  cppgc::AllocationSampler* allocation_sampler = nullptr;
 };
 
 /**

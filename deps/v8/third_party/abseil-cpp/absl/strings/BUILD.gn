@@ -61,6 +61,7 @@ absl_source_set("strings") {
     ":internal",
     ":resize_and_overwrite",
     ":string_view",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -733,6 +734,7 @@ absl_test("str_split_test") {
   deps = [
     ":string_view",
     ":strings",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
     "//third_party/abseil-cpp/absl/container:btree",

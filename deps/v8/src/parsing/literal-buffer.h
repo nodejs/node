@@ -7,6 +7,7 @@
 
 #include "include/v8config.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/utils/memcopy.h"
@@ -18,7 +19,7 @@ namespace internal {
 class LiteralBuffer final {
  public:
   LiteralBuffer() = default;
-  ~LiteralBuffer() { backing_store_.Dispose(); }
+  ~LiteralBuffer() = default;
 
   LiteralBuffer(const LiteralBuffer&) = delete;
   LiteralBuffer& operator=(const LiteralBuffer&) = delete;
@@ -135,7 +136,7 @@ class LiteralBuffer final {
       uint8_t one_byte_char);
   void ConvertToTwoByte();
 
-  base::Vector<uint8_t> backing_store_;
+  base::UniqueArray<uint8_t> backing_store_;
   size_t position_ = 0;
   bool is_one_byte_ = true;
 };

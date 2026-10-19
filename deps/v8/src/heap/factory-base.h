@@ -19,8 +19,14 @@
 #ifndef V8_METAGEN_GENERATION_PASS
 // Forward declarations only, and generated after the metagen harvest
 // parses this header. The harvest reads class definitions, so nothing
-// it collects comes from here.
-#include "torque-generated/class-forward-declarations.h"
+// it collects comes from here. The checked-in copy under src/gen/ if
+// v8_use_checked_in_generated_headers, the generated header otherwise.
+// See src/gen/README.md.
+#ifdef V8_USE_CHECKED_IN_GENERATED_HEADERS
+#include "src/gen/intl-wasm/class-forward-declarations.h"  // IWYU pragma: export
+#else
+#include "torque-generated/class-forward-declarations.h"  // IWYU pragma: export, nogncheck
+#endif
 #endif
 
 namespace v8 {
@@ -98,6 +104,11 @@ struct NewCodeOptions {
 template <typename Impl>
 class FactoryBase {
  public:
+  template <typename T, typename... Args>
+  inline DirectHandle<T> New(AllocationType allocation, Args&&... args);
+  template <typename T, AllocationType kAllocation, typename... Args>
+  inline DirectHandle<T> New(Args&&... args);
+
   Handle<Code> NewCode(const NewCodeOptions& options);
 
   DirectHandle<CodeWrapper> NewCodeWrapper();
@@ -129,17 +140,12 @@ class FactoryBase {
   inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
-  template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapInt32(int32_t value);
 
-  template <AllocationType allocation>
-  Handle<HeapNumber> NewHeapNumber();
-
-  Handle<Struct> NewStruct(InstanceType type,
-                           AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
@@ -381,9 +387,9 @@ class FactoryBase {
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
-      int length);
+      uint32_t length);
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawSharedTwoByteString(
-      int length);
+      uint32_t length);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
@@ -403,11 +409,11 @@ class FactoryBase {
   Handle<ClassPositions> NewClassPositions(int start, int end);
 
   Handle<SwissNameDictionary> NewSwissNameDictionary(
-      int at_least_space_for = kSwissNameDictionaryInitialCapacity,
+      uint32_t at_least_space_for = kSwissNameDictionaryInitialCapacity,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
-      int capacity, AllocationType allocation);
+      uint32_t capacity, AllocationType allocation);
 
   DirectHandle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
@@ -435,13 +441,10 @@ class FactoryBase {
   Tagged<HeapObject> AllocateRawWeakArrayList(uint32_t length,
                                               AllocationType allocation);
 
-  template <typename StructType>
-  inline Tagged<StructType> NewStructInternal(InstanceType type,
-                                              AllocationType allocation,
-                                              bool initialize_fields = true);
-  inline Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
-                                          int size, AllocationType allocation,
-                                          bool initialize_fields);
+  AllocationWitness AllocateWithWitness(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
 
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,
@@ -466,7 +469,7 @@ class FactoryBase {
 
   template <typename SeqStringT>
   MaybeHandle<SeqStringT> NewRawStringWithMap(
-      int length, Tagged<Map> map, AllocationType allocation,
+      uint32_t length, Tagged<Map> map, AllocationType allocation,
       AllocationHint hint = AllocationHint());
 
  private:

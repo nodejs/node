@@ -26,12 +26,14 @@ namespace internal {
 // JSArrayBuffer.
 //
 
-Tagged<MaybeObject> JSArrayBuffer::views_or_detach_key() const {
+Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+JSArrayBuffer::views_or_detach_key() const {
   return views_or_detach_key_.load();
 }
 
-void JSArrayBuffer::set_views_or_detach_key(Tagged<MaybeObject> value,
-                                            WriteBarrierMode mode) {
+void JSArrayBuffer::set_views_or_detach_key(
+    Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+    WriteBarrierMode mode) {
   views_or_detach_key_.store(this, value, mode);
 }
 
@@ -204,7 +206,8 @@ void JSArrayBuffer::set_views(Tagged<MaybeObject> value,
                               WriteBarrierMode mode) {
   DCHECK(!has_detach_key());
   DCHECK(value.IsWeak() || value == kNoView || value == kManyViews);
-  set_views_or_detach_key(value, mode);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(value), mode);
 }
 
 Tagged<Cell> JSArrayBuffer::detach_key() const {
@@ -241,35 +244,33 @@ inline void JSArrayBuffer::AttachView(Tagged<JSArrayBufferView> new_view) {
   set_views(kManyViews);
 }
 
-void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  base::AsAtomic32::Relaxed_Store(&bit_field_, bits);
+void JSArrayBuffer::set_bit_field(Bits bits) {
+  bit_field_.store(bits, std::memory_order_relaxed);
 }
 
-uint32_t JSArrayBuffer::bit_field() const {
-  return base::AsAtomic32::Relaxed_Load(&bit_field_);
+JSArrayBuffer::Bits JSArrayBuffer::bit_field() const {
+  return bit_field_.load(std::memory_order_relaxed);
 }
 
 // |bit_field| fields.
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_external,
-                    JSArrayBuffer::IsExternalBit)
+                    JSArrayBuffer::Bits::IsExternalBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
-                    JSArrayBuffer::IsDetachableBit)
+                    JSArrayBuffer::Bits::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
-                    JSArrayBuffer::WasDetachedBit)
-SharedFlag JSArrayBuffer::is_shared() const {
-  return IsSharedBit::decode(bit_field());
-}
+                    JSArrayBuffer::Bits::WasDetachedBit)
+SharedFlag JSArrayBuffer::is_shared() const { return bit_field().is_shared(); }
 
 void JSArrayBuffer::set_is_shared(SharedFlag value) {
-  set_bit_field(IsSharedBit::update(bit_field(), value));
+  set_bit_field(bit_field().with_is_shared(value));
 }
 
 ResizableFlag JSArrayBuffer::is_resizable_by_js() const {
-  return IsResizableByJsBit::decode(bit_field());
+  return bit_field().is_resizable_by_js();
 }
 
 void JSArrayBuffer::set_is_resizable_by_js(ResizableFlag value) {
-  set_bit_field(IsResizableByJsBit::update(bit_field(), value));
+  set_bit_field(bit_field().with_is_resizable_by_js(value));
 
   if (ArrayBufferExtension* extension = this->extension()) {
     extension->set_is_resizable_by_js(value);
@@ -277,22 +278,20 @@ void JSArrayBuffer::set_is_resizable_by_js(ResizableFlag value) {
 }
 
 bool JSArrayBuffer::is_immutable() const {
-  return IsImmutableBit::decode(bit_field()).value();
+  return bit_field().is_immutable().value();
 }
 
 void JSArrayBuffer::set_is_immutable(ImmutableFlag value) {
-  set_bit_field(IsImmutableBit::update(bit_field(), value));
+  set_bit_field(bit_field().with_is_immutable(value));
 }
 
 bool JSArrayBuffer::was_detached(AcquireLoadTag) const {
-  uint32_t bits = base::AsAtomic32::Acquire_Load(&bit_field_);
-  return WasDetachedBit::decode(bits);
+  return bit_field_.load(std::memory_order_acquire).was_detached();
 }
 
 void JSArrayBuffer::set_was_detached(bool value, ReleaseStoreTag) {
-  uint32_t bits = bit_field();
-  bits = WasDetachedBit::update(bits, value);
-  base::AsAtomic32::Release_Store(&bit_field_, bits);
+  bit_field_.store(bit_field().with_was_detached(value),
+                   std::memory_order_release);
 }
 
 bool JSArrayBuffer::IsEmpty() const {
@@ -315,12 +314,12 @@ void JSArrayBufferView::set_buffer(Tagged<JSArrayBuffer> value,
   buffer_.store(this, value, mode);
 }
 
-uint32_t JSArrayBufferView::bit_field() const {
-  return base::AsAtomic32::Relaxed_Load(&bit_field_);
+JSArrayBufferView::Bits JSArrayBufferView::bit_field() const {
+  return bit_field_.load(std::memory_order_relaxed);
 }
 
-void JSArrayBufferView::set_bit_field(uint32_t value) {
-  base::AsAtomic32::Relaxed_Store(&bit_field_, value);
+void JSArrayBufferView::set_bit_field(Bits value) {
+  bit_field_.store(value, std::memory_order_relaxed);
 }
 
 size_t JSArrayBufferView::byte_offset() const {
@@ -360,9 +359,9 @@ bool JSArrayBufferView::IsDetachedOrOutOfBounds() const {
 }
 
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
-                    JSArrayBufferView::IsLengthTrackingBit)
+                    JSArrayBufferView::Bits::IsLengthTrackingBit)
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
-                    JSArrayBufferView::IsBackedByRabBit)
+                    JSArrayBufferView::Bits::IsBackedByRabBit)
 
 bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
@@ -397,21 +396,22 @@ void JSTypedArray::set_length(size_t value) {
   WriteBoundedSizeField(offsetof(JSTypedArray, raw_length_), value);
 }
 
-Tagged<Object> JSTypedArray::base_pointer() const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer() const {
   return base_pointer_.load();
 }
 
-Tagged<Object> JSTypedArray::base_pointer(AcquireLoadTag) const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer(
+    AcquireLoadTag) const {
   return base_pointer_.Acquire_Load();
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value,
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                     WriteBarrierMode mode) {
   base_pointer_.store(this, value, mode);
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
-                                    WriteBarrierMode mode) {
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                                    ReleaseStoreTag, WriteBarrierMode mode) {
   base_pointer_.Release_Store(this, value, mode);
 }
 

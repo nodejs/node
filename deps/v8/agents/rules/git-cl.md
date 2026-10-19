@@ -22,13 +22,38 @@ to the **`git-cl-helper`** skill
   exist.
 - **Upload Script**: In V8, all initial and patchset uploads MUST be performed
   using
-  `agents/scripts/upload_cl.sh <new|cur> <check|nocheck> [patchset_message] [additional flags...]`.
+  `agents/scripts/upload_cl.sh <new|cur> <check|nocheck> [patchset_message] [--wip|--ready] [additional flags...]`.
   This script enforces formatting checks, performs non-interactive uploads, runs
-  release test checks, and validates commit description line lengths.
-  - **Initial Upload**: For a new CL without an existing issue association,
-    execute `agents/scripts/upload_cl.sh new check`.
-  - **Subsequent Uploads**: For updating an existing patchset, run
-    `agents/scripts/upload_cl.sh cur check "Brief patchset description"`.
+  release test checks, validates commit description line lengths, and manages
+  WIP vs. Ready-for-Review states and CQ dry-runs.
+  - **Always Run as a Background Task**: Because `upload_cl.sh` blocks during
+    local `check` test runs and during `--ready` CQ dry-run polling, **ALWAYS**
+    launch `upload_cl.sh` asynchronously as a background task (and wait for the
+    automatic completion wakeup rather than polling in a loop).
+  - **Initial Upload (Always WIP)**: For a new CL without an existing issue
+    association, execute `agents/scripts/upload_cl.sh new check`. Initial
+    uploads always start in **WIP** (`-o wip`) mode; passing `--ready` with
+    `new` is rejected.
+  - **Subsequent Uploads (Default)**: While iterating on a CL, running
+    self-reviews, fixing bugs/tests, or addressing review comments, run
+    `agents/scripts/upload_cl.sh cur check "Brief patchset description"`
+    (without `--wip` or `--ready`). This lets Gerrit preserve the CL's existing
+    WIP or Ready-for-Review state without switching a CL that is already in
+    review back to WIP. Only pass `--wip` if explicitly switching a CL back to
+    WIP.
+  - **Ready for Review (Non-WIP + Mandatory Dry-Run)**: **ALWAYS obtain explicit
+    user confirmation before setting a CL to ready (non-WIP) or passing
+    `--ready`.** Only switch a CL to non-WIP once confirmed by the user and
+    ready for review by passing `--ready`:
+    `agents/scripts/upload_cl.sh cur check "Ready for review" --ready`. Passing
+    `--ready` automatically triggers a CQ dry-run (`--cq-dry-run`), waits for
+    the dry-run to finish, and **only switches the CL to non-WIP (Ready for
+    Review) if the dry-run passes**. If the dry-run fails, `upload_cl.sh` does
+    not mark the CL ready and exits non-zero. In this case, investigate the
+    failing bots (inspecting logs via `gerrit_cq`), determine the root cause,
+    and ask the user about next steps; upload subsequent fixes without `--ready`
+    until the failure is fixed, then re-run with `--ready` after user
+    confirmation.
   - **Checks**: The "check" flag runs all mjsunit tests. When no code was
     updated, or tests were already successfully run, "nocheck" can be passed.
 - **Updating Description**: If the changes in a new patchset make the existing
@@ -50,8 +75,10 @@ to the **`git-cl-helper`** skill
     must carefully evaluate them: preserve any human-authored background
     context, rationale, or formatting, while surgically updating only the
     outdated technical statements resulting from the new patchset.
-- **Wrap Commit Message**: Ensure commit message descriptions are strictly
-  wrapped at 78 characters. `upload_cl.sh` automatically enforces this limit.
+- **Commit Message Length Limits**: Keep the commit title at most 64 characters
+  and wrap description body lines at 72 characters. `upload_cl.sh` and
+  `edit_cl_description.sh` automatically enforce these limits via
+  `validate_cl_description.py`.
 - Verify `git diff` is not empty before uploading.
 
 ## Safeguards & Code Quality
@@ -99,16 +126,21 @@ to the **`git-cl-helper`** skill
 
 - **Proactive Alert Handling**: After uploading, check the presubmit and tryjob
   status. Choose the approach based on your situation:
-  - **Immediate Check (Default)**: Run `git cl status` immediately after
-    uploading to verify branch alignment and quickly check high-level issue
-    status.
-  - **When Waiting for Trybots**: If the user explicitly asks to monitor or wait
-    for tryjobs to complete, or if you need detailed Buildbucket failure logs to
-    debug presubmit build errors, run the polling script from the
-    `git-cl-helper` skill:
-    `vpython3 agents/shared/skills/git-cl-helper/scripts/git_cl_helper.py poll --gerrit_url <URL>`
-    If you identify failing checks or try jobs, proactively suggest addressing
-    these alerts to the user.
+  - **Regular Uploads (without `--ready`)**: Run `git cl status` after uploading
+    to verify branch alignment and issue status. When a CQ dry-run is triggered
+    (`-d` / `--cq-dry-run`), periodically monitor bot status using `gerrit_cq`.
+    If any builds fail, zoom into the failure logs
+    (`gerrit_cq(builder="<name>")`), triage whether it is an infrastructure
+    issue, a known flake, or a real regression, and ask the user about next
+    steps with proposed fixes.
+  - **Ready for Review (`--ready`) Uploads**: **ALWAYS obtain explicit user
+    confirmation before setting a CL to ready (non-WIP) or passing `--ready`.**
+    `upload_cl.sh ... --ready` automatically triggers a CQ dry-run, polls
+    `git cl status` and `git cl try-results` until completion, and switches the
+    CL to Ready for Review (non-WIP) only if the dry-run passes. Always run it
+    as a background task. If the dry-run fails, investigate the failing bots
+    using `gerrit_cq`, analyze the root cause, and ask the user about next steps
+    before re-running with `--ready`.
 - **Post-Upload**: Provide the `chromium-review.googlesource.com` link to the
   user.
 

@@ -459,6 +459,21 @@ struct runtime : CallDescriptorBuilder {
     static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
+
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmExternConvertAny : public Descriptor<WasmExternConvertAny> {
+    static constexpr auto kFunction = Runtime::kWasmExternConvertAny;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, object)
+    };
+    using returns_t = V<JSObject>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        OpEffects().CanAllocate().CanReadHeapMemory().CanWriteHeapMemory();
+  };
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace v8::internal::compiler::turboshaft

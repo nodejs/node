@@ -140,6 +140,18 @@ namespace internal {
   HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
+  HT(compile_deserialize_module, V8.CompileDeserializeMicroSeconds.Module,    \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_classic, V8.CompileDeserializeMicroSeconds.Classic,  \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_main_thread,                                         \
+     V8.CompileDeserializeMicroSeconds.MainThread, 1000000, MICROSECOND)      \
+  HT(compile_deserialize_main_thread_module,                                  \
+     V8.CompileDeserializeMicroSeconds.MainThread.Module, 1000000,            \
+     MICROSECOND)                                                             \
+  HT(compile_deserialize_main_thread_classic,                                 \
+     V8.CompileDeserializeMicroSeconds.MainThread.Classic, 1000000,           \
+     MICROSECOND)                                                             \
   /* Snapshot. */                                                             \
   HT(snapshot_decompress, V8.SnapshotDecompressMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
@@ -151,7 +163,17 @@ namespace internal {
      1000000, MICROSECOND)                                                    \
   /* ... and also see compile_deserialize above. */                           \
   /* Total compilation time incl. caching/parsing. */                         \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  HT(compile_script_module, V8.CompileScriptMicroSeconds.Module, 1000000,     \
+     MICROSECOND)                                                             \
+  HT(compile_script_classic, V8.CompileScriptMicroSeconds.Classic, 1000000,   \
+     MICROSECOND)                                                             \
+  HT(compile_script_main_thread, V8.CompileScriptMicroSeconds.MainThread,     \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_script_main_thread_module,                                       \
+     V8.CompileScriptMicroSeconds.MainThread.Module, 1000000, MICROSECOND)    \
+  HT(compile_script_main_thread_classic,                                      \
+     V8.CompileScriptMicroSeconds.MainThread.Classic, 1000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                                \
   /* Total V8 time (including JS and runtime calls, exluding callbacks). */ \
@@ -269,8 +291,6 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
-  HT(wasm_deserialization_time, V8.WasmDeserializationTimeMilliSeconds, 10000, \
-     MILLISECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
@@ -283,8 +303,6 @@ namespace internal {
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
      MICROSECOND)                                                              \
-  HT(wasm_compile_after_deserialize,                                           \
-     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)         \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
@@ -307,11 +325,23 @@ namespace internal {
      V8.CompileScriptMicroSeconds.StreamingFinalization, 1000000, MICROSECOND) \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(compile_script_on_background_module,                                      \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Module, 1000000,            \
+     MICROSECOND)                                                              \
+  HT(compile_script_on_background_classic,                                     \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Classic, 1000000,           \
+     MICROSECOND)                                                              \
   HT(compile_function_on_background,                                           \
      V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(deserialize_script_on_background,                                         \
      V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
-     MICROSECOND)
+     MICROSECOND)                                                              \
+  HT(deserialize_script_on_background_module,                                  \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Module,        \
+     1000000, MICROSECOND)                                                     \
+  HT(deserialize_script_on_background_classic,                                 \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Classic,       \
+     1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

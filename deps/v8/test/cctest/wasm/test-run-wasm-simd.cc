@@ -1118,6 +1118,42 @@ WASM_EXEC_TEST(I64x2Mul) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2Mul, base::MulWithWraparound);
 }
 
+struct I64x2MulTestCase {
+  std::array<int64_t, 2> lhs;
+  std::array<int64_t, 2> rhs;
+};
+
+const I64x2MulTestCase i64x2_mul_test_cases[] = {
+    {{1, 2}, {3, 4}},
+    {{INT64_C(0x100000001), INT64_C(0x100000002)},
+     {INT64_C(0x100000003), INT64_C(0x100000004)}},
+    {{INT64_MAX, INT64_MIN}, {2, -1}},
+    {{0, -1}, {INT64_MIN, 1}},
+};
+
+WASM_EXEC_TEST(I64x2MulDistinctLanes) {
+  WasmRunner<int32_t> r(execution_tier);
+  // Distinct lanes to detect lane mix-ups.
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g2 = r.builder().AddGlobal(kWasmS128);
+  r.Build({WASM_GLOBAL_SET(2, WASM_SIMD_BINOP(kExprI64x2Mul, WASM_GLOBAL_GET(0),
+                                              WASM_GLOBAL_GET(1))),
+           WASM_ONE});
+
+  for (const I64x2MulTestCase& test : i64x2_mul_test_cases) {
+    r.builder().WriteGlobal(*g0, WasmValue(SimdForGlobal(test.lhs)));
+    r.builder().WriteGlobal(*g1, WasmValue(SimdForGlobal(test.rhs)));
+
+    CHECK_EQ(1, r.Call());
+    Simd128 actual = r.builder().ReadGlobal(*g2).to_s128();
+    CHECK_EQ(base::MulWithWraparound(test.lhs[0], test.rhs[0]),
+             LANE(actual.to_i64x2(), 0));
+    CHECK_EQ(base::MulWithWraparound(test.lhs[1], test.rhs[1]),
+             LANE(actual.to_i64x2(), 1));
+  }
+}
+
 WASM_EXEC_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Set up a global to hold output vector.

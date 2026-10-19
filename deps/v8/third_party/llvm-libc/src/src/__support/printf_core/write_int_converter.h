@@ -9,9 +9,9 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_PRINTF_CORE_WRITE_INT_CONVERTER_H
 #define LLVM_LIBC_SRC___SUPPORT_PRINTF_CORE_WRITE_INT_CONVERTER_H
 
+#include "hdr/types/size_t.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/printf_core/core_structs.h"
-#include "src/__support/printf_core/writer.h"
 
 #include <inttypes.h>
 #include <stddef.h>
@@ -19,49 +19,46 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_write_int(Writer<mode> *writer,
-                                  const FormatSection &to_conv) {
+LIBC_INLINE int convert_write_int(size_t written,
+                                  LengthModifier conv_length_modifier,
+                                  void *conv_val_ptr) {
 
 #ifndef LIBC_COPT_PRINTF_NO_NULLPTR_CHECKS
   // This is an additional check added by LLVM-libc.
-  if (to_conv.conv_val_ptr == nullptr)
+  if (conv_val_ptr == nullptr)
     return NULLPTR_WRITE_ERROR;
 #endif // LIBC_COPT_PRINTF_NO_NULLPTR_CHECKS
 
-  size_t written = writer->get_chars_written();
-
-  switch (to_conv.length_modifier) {
+  switch (conv_length_modifier) {
   case LengthModifier::none:
-    *reinterpret_cast<int *>(to_conv.conv_val_ptr) = static_cast<int>(written);
+    *reinterpret_cast<int *>(conv_val_ptr) = static_cast<int>(written);
     break;
   case LengthModifier::l:
-    *reinterpret_cast<long *>(to_conv.conv_val_ptr) = written;
+    *reinterpret_cast<long *>(conv_val_ptr) = written;
     break;
   case LengthModifier::ll:
   case LengthModifier::L:
-    *reinterpret_cast<long long *>(to_conv.conv_val_ptr) = written;
+    *reinterpret_cast<long long *>(conv_val_ptr) = written;
     break;
   case LengthModifier::h:
-    *reinterpret_cast<short *>(to_conv.conv_val_ptr) =
-        static_cast<short>(written);
+    *reinterpret_cast<short *>(conv_val_ptr) = static_cast<short>(written);
     break;
   case LengthModifier::hh:
-    *reinterpret_cast<signed char *>(to_conv.conv_val_ptr) =
+    *reinterpret_cast<signed char *>(conv_val_ptr) =
         static_cast<signed char>(written);
     break;
   case LengthModifier::z:
-    *reinterpret_cast<size_t *>(to_conv.conv_val_ptr) = written;
+    *reinterpret_cast<size_t *>(conv_val_ptr) = written;
     break;
   case LengthModifier::t:
-    *reinterpret_cast<ptrdiff_t *>(to_conv.conv_val_ptr) = written;
+    *reinterpret_cast<ptrdiff_t *>(conv_val_ptr) = written;
     break;
   case LengthModifier::j:
 #ifndef LIBC_COPT_PRINTF_DISABLE_BITINT
   case LengthModifier::w:
   case LengthModifier::wf:
 #endif // LIBC_COPT_PRINTF_DISABLE_BITINT
-    *reinterpret_cast<uintmax_t *>(to_conv.conv_val_ptr) = written;
+    *reinterpret_cast<uintmax_t *>(conv_val_ptr) = written;
     break;
 #if defined(LIBC_TYPES_HAS_NATIVE_FLOAT128)
   case (LengthModifier::Q): // 'Q' is not valid for integer format; this case

@@ -219,6 +219,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kArrayBufferDetach:
       case Runtime::kDeoptimizeFunction:
       case Runtime::kDeoptimizeNow:
+      case Runtime::kDisableEagerInlining:
       case Runtime::kDisableOptimizationFinalization:
       case Runtime::kEnableCodeLoggingForTesting:
       case Runtime::kFinalizeOptimization:

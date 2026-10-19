@@ -92,6 +92,8 @@ class ValueMirror {
       bool accessorPropertiesOnly);
 };
 
+static constexpr uint32_t kMaxArrayLength = 10'000'000;
+
 protocol::Response toProtocolValue(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value, int maxDepth,
                                    std::unique_ptr<protocol::Value>* result);

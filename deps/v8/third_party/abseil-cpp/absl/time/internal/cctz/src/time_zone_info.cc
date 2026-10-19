@@ -415,6 +415,9 @@ inline FilePtr FOpen(const char* path) {
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 0
+#endif
   const int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
   if (fd >= 0) {
 #if defined(__APPLE__)
@@ -787,8 +790,8 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
   for (std::size_t i = 0; i != hdr.typecnt; ++i) {
     transition_types_[i].utc_offset =
         static_cast<std::int_least32_t>(Decode32(bp));
-    if (transition_types_[i].utc_offset >= kSecsPerDay ||
-        transition_types_[i].utc_offset <= -kSecsPerDay)
+    if (transition_types_[i].utc_offset >= 26 * 60 * 60 ||
+        transition_types_[i].utc_offset <= -25 * 60 * 60)
       return false;
     bp += 4;
     transition_types_[i].is_dst = (Decode8(bp++) != 0);

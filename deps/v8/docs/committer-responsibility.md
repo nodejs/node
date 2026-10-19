@@ -5,9 +5,8 @@ description: 'This document lists guidelines for V8 contributors.'
 When you’re committing to the V8 repositories, ensure that you follow these guidelines (adapted from <https://dev.chromium.org/developers/committers-responsibility>):
 
 1. Find the right reviewer for your changes and for patches you’re asked to review.
-1. Be available on IM and/or email before and after you land the change.
-1. Watch the [waterfall](https://ci.chromium.org/p/v8/g/main/console) until all bots turn green after your change.
-1. When landing a TBR change (To Be Reviewed), make sure to notify the people whose code you’re changing. Usually just send the review e-mail.
+1. Use the [Commit Queue](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/infra/cq.md) to commit your change (by setting Commit-Queue +2 on the code review page). For exceptional cases where you might not use the CQ, see [Directly committing code](https://www.chromium.org/developers/contributing-code/direct-commit).
+1. If you need to revert your change, use the *Revert* button on the code review page.
 
 In short, do the right thing for the project, not the easiest thing to get code committed, and above all: use your best judgement.
 

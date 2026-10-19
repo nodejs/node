@@ -38,6 +38,19 @@ template <typename T>
 GlobalHandleVector<T>::GlobalHandleVector(Heap* heap)
     : locations_(StrongRootAllocator<Address>(heap)) {}
 
+template <typename T>
+Tagged<T> GlobalHandleCircularQueue<T>::Dequeue() {
+  return Cast<T>(Tagged<Object>(locations_.Dequeue()));
+}
+
+template <typename T>
+GlobalHandleCircularQueue<T>::GlobalHandleCircularQueue(LocalHeap* local_heap)
+    : GlobalHandleCircularQueue(local_heap->AsHeap()) {}
+
+template <typename T>
+GlobalHandleCircularQueue<T>::GlobalHandleCircularQueue(Heap* heap)
+    : locations_(StrongRootAllocator<Address>(heap)) {}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -18,7 +18,7 @@
 #include "src/execution/isolate-data.h"
 #include "src/objects/contexts.h"
 #include "src/objects/tagged-index.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +55,15 @@ class StackArgumentsAccessor {
   const Register argc_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
+};
+
+// When generating a TSAN-aware load, we sometimes pass the register of the base
+// object of the load, if the object is shared. If the register holds the
+// compressed object value, we must decompress it before passing it to the
+// runtime function.
+struct SharedBaseTsanArgument {
+  Register reg;
+  bool must_decompress_reg;
 };
 
 class V8_EXPORT_PRIVATE MacroAssembler
@@ -294,6 +303,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void I16x8SConvertF16x8(YMMRegister dst, XMMRegister src, YMMRegister tmp,
                           Register scratch);
   void I16x8TruncF16x8U(YMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8SConvertI16x8(XMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8UConvertI16x8(XMMRegister dst, XMMRegister src, YMMRegister tmp);
   void F16x8Qfma(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
   void F16x8Qfms(YMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -321,6 +332,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void F64x4Splat(YMMRegister dst, XMMRegister src);
   void F32x8Splat(YMMRegister dst, XMMRegister src);
+  void F16x8Splat(XMMRegister dst, XMMRegister src);
 
   void F32x8Qfma(YMMRegister dst, YMMRegister src1, YMMRegister src2,
                  YMMRegister src3, YMMRegister tmp);
@@ -581,7 +593,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -714,7 +727,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Wrapper around CheckStackAlignment. This is used at call sites
   // to enforce rsp is correctly aligned and thus rbp is aligned within
   // the callee. This function can be removed and usages replaced with
-  // CheckStackAlignment when --enforce-x64-16byte-alignment is enabled
+  // CheckStackAlignment when V8_X64_16BYTE_STACK_ALIGNMENT_BOOL is enabled
   // by default.
   void AssertSpAlignedForCall() NOOP_UNLESS_DEBUG_CODE;
 
@@ -757,9 +770,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Register slot_address,
-                                  SaveFPRegsMode fp_mode,
-                                  IndirectPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Register slot_address,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
@@ -773,17 +785,18 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
-  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+  void CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
       Register object, Register value, SaveFPRegsMode fp_mode);
-  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                 Register value);
+  void CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                Register value);
 
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,
                          std::memory_order order);
-  void CallTSANRelaxedLoadStub(Register address, SaveFPRegsMode fp_mode,
-                               int size, StubCallMode mode);
+  void CallTSANRelaxedLoadStub(
+      Register address, std::optional<SharedBaseTsanArgument> opt_shared_base,
+      SaveFPRegsMode fp_mode, int size, StubCallMode mode);
 #endif  // V8_IS_TSAN
 
   void MoveNumber(Register dst, double value);
@@ -929,9 +942,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, Operand field_operand,
-                               IndirectPointerTagRange tag_range,
+                               TrustedPointerTagRange tag_range,
                                Register scratch);
-  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+  // As above, but for kUnknownTrustedPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
   // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
@@ -953,7 +966,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // enabled, reference code objects through the code pointer table.
   void LoadCodePointerField(Register destination, Operand field_operand,
                             Register scratch) {
-    LoadTrustedPointerField(destination, field_operand, kCodeIndirectPointerTag,
+    LoadTrustedPointerField(destination, field_operand, kCodeTrustedPointerTag,
                             scratch);
   }
   // Store a code pointer field.
@@ -965,7 +978,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
   void LoadIndirectPointerField(Register destination, Operand field_operand,
-                                IndirectPointerTagRange tag_range,
+                                TrustedPointerTagRange tag_range,
                                 Register scratch);
 
   // Store an indirect pointer field.
@@ -975,8 +988,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle.
-  void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    IndirectPointerTagRange tag_range);
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   TrustedPointerTagRange tag_range);
 #endif  // V8_ENABLE_SANDBOX
 
   void LoadEntrypointFromJSDispatchTable(Register destination,

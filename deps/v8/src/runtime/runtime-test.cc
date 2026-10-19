@@ -157,6 +157,14 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
   return isolate->heap()->ToBoolean(s->IsFlat());
 }
 
+RUNTIME_FUNCTION(Runtime_StringIsOneByteRepresentation) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsOneByteRepresentation());
+}
+
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 2);
@@ -391,8 +399,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     DirectHandle<Object> type = args.at(1);
     CHECK_UNLESS_FUZZING(IsString(*type));
-    if (Cast<String>(type)->IsOneByteEqualTo(
-            base::StaticCharVector("concurrent")) &&
+    if (Cast<String>(type)->IsOneByteEqualTo("concurrent") &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -871,6 +878,18 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DisableEagerInlining) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  Handle<Object> function_object = args.at(0);
+  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
+  auto function = Cast<JSFunction>(function_object);
+
+  ManualOptimizationTable::MarkFunctionForDisabledEagerInlining(isolate,
+                                                                function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -878,6 +897,9 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK_UNLESS_FUZZING(!sfi->HasWasmFunctionData(isolate));
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:

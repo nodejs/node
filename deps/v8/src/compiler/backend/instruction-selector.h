@@ -783,6 +783,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     }
     bool is_trapping() const { return kind().with_trap_handler; }
     bool is_atomic() const { return kind().is_atomic; }
+    bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
       if (load_) return load_->base();
@@ -899,8 +900,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     turboshaft::OpIndex base() const { return op_->base(); }
     turboshaft::OptionalOpIndex index() const { return op_->index(); }
     turboshaft::OpIndex value() const { return op_->value(); }
-    IndirectPointerTag indirect_pointer_tag() const {
-      return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
+    TrustedPointerTag trusted_pointer_tag() const {
+      return static_cast<TrustedPointerTag>(op_->trusted_pointer_tag());
     }
     int32_t displacement() const {
       static_assert(

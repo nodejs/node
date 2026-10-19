@@ -11,3 +11,10 @@ extern class Tuple2 extends Struct;
 extern class ClassPositions extends Struct;
 
 extern class AccessorPair extends Struct;
+
+extern class ForInEnumeratorHolder extends Struct {
+  enum_cache_map: Map;
+  named_keys: FixedArray;
+  elements_length: Smi;
+  cache_length: Smi;
+}

@@ -950,8 +950,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
                                       value);
     } else {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }
@@ -966,8 +965,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     if ((attributes & READ_ONLY) == 0) {
       Context::Set(holder_context, index, value, isolate);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }

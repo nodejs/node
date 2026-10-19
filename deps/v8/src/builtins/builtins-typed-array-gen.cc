@@ -63,8 +63,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kOptionalPaddingOffset,
                                  Int32Constant(0));
 #endif
-  int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
-                           (1 << JSArrayBuffer::IsDetachableBit::kShift);
+  int32_t bitfield_value = (1 << JSArrayBuffer::Bits::IsExternalBit::kShift) |
+                           (1 << JSArrayBuffer::Bits::IsDetachableBit::kShift);
   StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArrayBuffer, bit_field_),
                                  Int32Constant(bitfield_value));
 

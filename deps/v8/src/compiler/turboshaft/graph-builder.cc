@@ -1434,6 +1434,14 @@ OpIndex GraphBuilder::Process(
       return __ Load(Map(node->InputAt(0)), Map(node->InputAt(1)),
                      LoadOp::Kind::Trapping(), loaded_rep);
     }
+#if V8_ENABLE_SANDBOX
+    case IrOpcode::kLoadTrustedPointer: {
+      auto params = OpParameter<LoadTrustedPointerParameters>(op);
+      return __ LoadTrustedPointer(Map(node->InputAt(0)),
+                                   LoadOp::Kind::TaggedBase(), params.tag,
+                                   params.offset + kHeapObjectTag);
+    }
+#endif
 
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore: {
@@ -1769,7 +1777,7 @@ OpIndex GraphBuilder::Process(
 
       __ Store(object, final_value, kind, final_rep, final_write_barrier,
                access.offset, initializing_transitioning,
-               access.indirect_pointer_tag);
+               access.trusted_pointer_tag);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:

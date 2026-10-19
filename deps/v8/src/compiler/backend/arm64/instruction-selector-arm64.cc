@@ -67,6 +67,9 @@ class Arm64OperandGenerator final : public OperandGenerator {
             selector()->Get(node).TryCast<ConstantOp>()) {
       if (constant->IsRelocatable()) return false;
       if (constant->IsIntegral() && constant->integral() == 0) return true;
+      if (constant->kind == ConstantOp::Kind::kSmi) {
+        return constant->smi().value() == 0;
+      }
       if (constant->kind == ConstantOp::Kind::kFloat32) {
         return constant->float32().get_bits() == 0;
       }
@@ -249,6 +252,85 @@ void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
                    g.UseImmediate(op.lane));
   }
 }
+
+bool TryEmitShiftLeftLong(InstructionSelector* selector, OpIndex node,
+                          const Simd128ShiftOp& shift_op, LaneSize lane_size,
+                          int shift_amount) {
+  using Kind = Simd128UnaryOp::Kind;
+
+  if (auto* extension = selector->TryCast<Simd128UnaryOp>(shift_op.input())) {
+    const Kind kind = extension->kind;
+    const int source_lane_bits = LaneSizeBits(lane_size) / 2;
+    if (shift_amount <= source_lane_bits &&
+        ElementSizeInBits(Simd128UnaryOp::InputElementRep(kind)) ==
+            source_lane_bits &&
+        selector->CanCover(node, shift_op.input())) {
+      const bool is_full_width_shift = shift_amount == source_lane_bits;
+      ArchOpcode opcode;
+      if (is_full_width_shift) {
+        switch (kind) {
+          case Kind::kI16x8SConvertI8x16Low:
+          case Kind::kI32x4SConvertI16x8Low:
+          case Kind::kI64x2SConvertI32x4Low:
+          case Kind::kI16x8UConvertI8x16Low:
+          case Kind::kI32x4UConvertI16x8Low:
+          case Kind::kI64x2UConvertI32x4Low:
+            opcode = kArm64IShll;
+            break;
+          case Kind::kI16x8SConvertI8x16High:
+          case Kind::kI32x4SConvertI16x8High:
+          case Kind::kI64x2SConvertI32x4High:
+          case Kind::kI16x8UConvertI8x16High:
+          case Kind::kI32x4UConvertI16x8High:
+          case Kind::kI64x2UConvertI32x4High:
+            opcode = kArm64IShll2;
+            break;
+          default:
+            return false;
+        }
+      } else {
+        switch (kind) {
+          case Kind::kI16x8SConvertI8x16Low:
+          case Kind::kI32x4SConvertI16x8Low:
+          case Kind::kI64x2SConvertI32x4Low:
+            opcode = kArm64Sshll;
+            break;
+          case Kind::kI16x8SConvertI8x16High:
+          case Kind::kI32x4SConvertI16x8High:
+          case Kind::kI64x2SConvertI32x4High:
+            opcode = kArm64Sshll2;
+            break;
+          case Kind::kI16x8UConvertI8x16Low:
+          case Kind::kI32x4UConvertI16x8Low:
+          case Kind::kI64x2UConvertI32x4Low:
+            opcode = kArm64Ushll;
+            break;
+          case Kind::kI16x8UConvertI8x16High:
+          case Kind::kI32x4UConvertI16x8High:
+          case Kind::kI64x2UConvertI32x4High:
+            opcode = kArm64Ushll2;
+            break;
+          default:
+            return false;
+        }
+      }
+
+      Arm64OperandGenerator g(selector);
+      const InstructionCode code = opcode | LaneSizeField::encode(lane_size);
+      if (is_full_width_shift) {
+        selector->Emit(code, g.DefineAsRegister(node),
+                       g.UseRegister(extension->input()));
+      } else {
+        selector->Emit(code, g.DefineAsRegister(node),
+                       g.UseRegister(extension->input()),
+                       g.UseImmediate(shift_amount));
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // If shift value is an immediate, we can call Shl, taking the shift
 // value modulo 2^width. Otherwise, emit code to perform the modulus
 // operation, and call Sshl.
@@ -262,7 +344,12 @@ void VisitSimdShl(InstructionSelector* selector, OpIndex node,
         static_cast<int>(constant & (LaneSizeBits(lane_size) - 1));
     if (amount == 0) {
       selector->EmitIdentity(node);
-    } else if (amount == 1) {
+      return;
+    }
+    if (TryEmitShiftLeftLong(selector, node, op, lane_size, amount)) {
+      return;
+    }
+    if (amount == 1) {
       selector->Emit(kArm64IAdd | LaneSizeField::encode(lane_size),
                      g.DefineAsRegister(node), g.UseRegister(op.input()),
                      g.UseRegister(op.input()));
@@ -1480,13 +1567,13 @@ void InstructionSelector::VisitStore(OpIndex node) {
     if (store_rep == MemoryRepresentation::IndirectPointer()) {
       DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
                  ? kArchStoreIndirectSkippedWriteBarrier
                  : kArchStoreIndirectWithWriteBarrier;
       code |= RecordWriteModeField::encode(
           RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      TrustedPointerTag tag = store_view.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
@@ -2456,7 +2543,7 @@ void InstructionSelector::VisitWord64Ror(OpIndex node) {
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
   V(Float64Min, kArm64Float64Min) \
-  IF_SIMD128(V, I8x16Swizzle, kArm64I8x16Swizzle)
+  IF_SIMD128(V, I8x16Swizzle, kArm64S128Tbl1)
 
 #define RR_VISITOR(Name, opcode)                        \
   void InstructionSelector::Visit##Name(OpIndex node) { \
@@ -3175,6 +3262,16 @@ void InstructionSelector::EmitPrepareArguments(
     }
   }
 
+  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
+  // register, but only for non-FP parameters: the code generator dispatches
+  // FP pokes on the operand being an FP register.
+  auto poke_value = [&](const PushParameter& input) {
+    if (IsFloatingPoint(input.location.GetType().representation())) {
+      return g.UseRegister(input.node);
+    }
+    return g.UseRegisterOrImmediateZero(input.node);
+  };
+
   // Poke the arguments into the stack.
   while (slot >= 0) {
     PushParameter input0 = (*arguments)[slot];
@@ -3189,12 +3286,11 @@ void InstructionSelector::EmitPrepareArguments(
     // TODO(arm): Support consecutive Simd128 parameters.
     if (input1.node.valid() &&
         input0.location.GetType() == input1.location.GetType()) {
-      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
-           g.UseRegister(input1.node), g.TempImmediate(slot));
+      Emit(kArm64PokePair, g.NoOutput(), poke_value(input0), poke_value(input1),
+           g.TempImmediate(slot));
       slot -= 2;
     } else {
-      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
-           g.TempImmediate(slot));
+      Emit(kArm64Poke, g.NoOutput(), poke_value(input0), g.TempImmediate(slot));
       slot--;
     }
   }
@@ -5009,6 +5105,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(F32x4RelaxedMax, kArm64FMax, LaneSize::kL32)                   \
   V(F16x8Add, kArm64FAdd, LaneSize::kL16)                          \
   V(F16x8Sub, kArm64FSub, LaneSize::kL16)                          \
+  V(F16x8Mul, kArm64FMul, LaneSize::kL16)                          \
   V(F16x8Div, kArm64FDiv, LaneSize::kL16)                          \
   V(F16x8Min, kArm64FMin, LaneSize::kL16)                          \
   V(F16x8Max, kArm64FMax, LaneSize::kL16)                          \
@@ -5445,10 +5542,110 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
+namespace {
+
+struct AddSubHNMatch {
+  OpIndex left;
+  OpIndex right;
+  LaneSize lane_size;
+  InstructionCode low_opcode;
+  InstructionCode high_opcode;
+};
+
+std::optional<AddSubHNMatch> TryMatchAddSubHN(InstructionSelector* selector,
+                                              const Simd128ShiftOp& shift) {
+  using ShiftKind = Simd128ShiftOp::Kind;
+  using BinopKind = Simd128BinopOp::Kind;
+
+  if (shift.kind == any_of(ShiftKind::kI16x8ShrS, ShiftKind::kI16x8ShrU,
+                           ShiftKind::kI32x4ShrS, ShiftKind::kI32x4ShrU,
+                           ShiftKind::kI64x2ShrS, ShiftKind::kI64x2ShrU)) {
+    if (const auto* binop = selector->TryCast<Simd128BinopOp>(shift.input())) {
+      const bool is_add =
+          binop->kind == any_of(BinopKind::kI16x8Add, BinopKind::kI32x4Add,
+                                BinopKind::kI64x2Add);
+      const bool is_sub =
+          binop->kind == any_of(BinopKind::kI16x8Sub, BinopKind::kI32x4Sub,
+                                BinopKind::kI64x2Sub);
+
+      if ((is_add || is_sub) &&
+          binop->input_element_rep() == shift.input_element_rep()) {
+        const int lane_bits = ElementSizeInBits(shift.input_element_rep());
+        const int narrow_lane_bits = lane_bits / 2;
+
+        int32_t amount;
+        if (selector->MatchIntegralWord32Constant(shift.shift(), &amount) &&
+            (amount & (lane_bits - 1)) == narrow_lane_bits) {
+          const LaneSize lane_size = LaneSizeFromBits(lane_bits);
+          const InstructionCode lane_size_field =
+              LaneSizeField::encode(lane_size);
+
+          return AddSubHNMatch{
+              binop->left(), binop->right(), lane_size,
+              (is_add ? kArm64Addhn : kArm64Subhn) | lane_size_field,
+              (is_add ? kArm64Addhn2 : kArm64Subhn2) | lane_size_field};
+        }
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
+bool TryEmitAddSubHNFromNarrow(InstructionSelector* selector, OpIndex node,
+                               const Simd128BinopOp& op) {
+  DCHECK(op.kind == any_of(Simd128BinopOp::Kind::kI8x16SConvertI16x8,
+                           Simd128BinopOp::Kind::kI8x16UConvertI16x8,
+                           Simd128BinopOp::Kind::kI16x8SConvertI32x4,
+                           Simd128BinopOp::Kind::kI16x8UConvertI32x4));
+  if (!selector->CanCover(node, op.left()) ||
+      !selector->CanCover(node, op.right())) {
+    return false;
+  }
+  const auto* low_shift = selector->TryCast<Simd128ShiftOp>(op.left());
+  const auto* high_shift = selector->TryCast<Simd128ShiftOp>(op.right());
+  if (!low_shift || !high_shift || high_shift->kind != low_shift->kind) {
+    return false;
+  }
+  const bool is_signed =
+      op.kind == any_of(Simd128BinopOp::Kind::kI8x16SConvertI16x8,
+                        Simd128BinopOp::Kind::kI16x8SConvertI32x4);
+  if (low_shift->IsArithmeticShiftRight() != is_signed ||
+      low_shift->input_element_rep() != op.input_element_rep()) {
+    return false;
+  }
+  if (!selector->CanCover(op.left(), low_shift->input()) ||
+      !selector->CanCover(op.right(), high_shift->input())) {
+    return false;
+  }
+
+  std::optional<AddSubHNMatch> low = TryMatchAddSubHN(selector, *low_shift);
+  if (!low) {
+    return false;
+  }
+  std::optional<AddSubHNMatch> high = TryMatchAddSubHN(selector, *high_shift);
+  if (!high) {
+    return false;
+  }
+
+  Arm64OperandGenerator g(selector);
+  InstructionOperand temp = g.TempSimd128Register();
+  selector->Emit(low->low_opcode, temp, g.UseRegister(low->left),
+                 g.UseRegister(low->right));
+  selector->Emit(high->high_opcode, g.DefineSameAsFirst(node), temp,
+                 g.UseRegister(high->left), g.UseRegister(high->right));
+  return true;
+}
+
+}  // namespace
+
 #define SIMD_VISIT_INT_NARROWING(Name, Instr, LaneSize)                \
   void InstructionSelector::Visit##Name(OpIndex node) {                \
-    Arm64OperandGenerator g(this);                                     \
     const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);             \
+    if (TryEmitAddSubHNFromNarrow(this, node, op)) {                   \
+      return;                                                          \
+    }                                                                  \
+    Arm64OperandGenerator g(this);                                     \
     const InstructionCode lane_size = LaneSizeField::encode(LaneSize); \
     const InstructionOperand low = g.TempSimd128Register();            \
     Emit(kArm64##Instr | lane_size, low, g.UseRegister(op.left()));    \
@@ -5495,6 +5692,7 @@ struct MulWithDup {
 
 template <int LANES>
 MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
+  static_assert(LANES == 4 || LANES == 2);
   // Pattern match:
   //   f32x4.mul(x, shuffle(x, y, indices)) => f32x4.mul(x, y, laneidx)
   //   f64x2.mul(x, shuffle(x, y, indices)) => f64x2.mul(x, y, laneidx)
@@ -5533,19 +5731,61 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
 
   return {input, dup_node, index};
 }
-}  // namespace
 
-void InstructionSelector::VisitF16x8Mul(OpIndex node) {
-  if (MulWithDup result = TryMatchMulWithDup<8>(this, node)) {
-    Arm64OperandGenerator g(this);
-    Emit(kArm64FMulElement | LaneSizeField::encode(LaneSize::kL16),
-         g.DefineAsRegister(node), g.UseRegister(result.input),
-         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
-  } else {
-    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(LaneSize::kL16),
-                    node);
+bool TryEmitI64x2MixedSignExtMul(InstructionSelector* selector, OpIndex node) {
+  const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
+  using Kind = Simd128UnaryOp::Kind;
+  const auto* signed_ext = selector->TryCast<Simd128UnaryOp>(op.left());
+  const auto* unsigned_ext = selector->TryCast<Simd128UnaryOp>(op.right());
+  if (signed_ext && unsigned_ext && selector->CanCover(node, op.left()) &&
+      selector->CanCover(node, op.right())) {
+    if (signed_ext->kind ==
+        any_of(Kind::kI64x2UConvertI32x4Low, Kind::kI64x2UConvertI32x4High)) {
+      std::swap(signed_ext, unsigned_ext);
+    }
+    const bool low = signed_ext->kind == Kind::kI64x2SConvertI32x4Low &&
+                     unsigned_ext->kind == Kind::kI64x2UConvertI32x4Low;
+    const bool high = signed_ext->kind == Kind::kI64x2SConvertI32x4High &&
+                      unsigned_ext->kind == Kind::kI64x2UConvertI32x4High;
+    if (low || high) {
+      Arm64OperandGenerator g(selector);
+
+      // Let a and b be the original signed and unsigned 32-bit lanes.
+      InstructionOperand signed_input = g.UseRegister(signed_ext->input());
+      InstructionOperand unsigned_input = g.UseRegister(unsigned_ext->input());
+
+      // Replicate b's top bit across each 32-bit lane.
+      //   mask = b[31] ? 0xffffffff : 0
+      InstructionOperand sign_mask = g.TempSimd128Register();
+      selector->Emit(kArm64IShrS | LaneSizeField::encode(LaneSize::kL32),
+                     sign_mask, unsigned_input, g.TempImmediate(31));
+
+      // Select a where b would be negative if interpreted as signed.
+      //   correction_lanes = b[31] ? a : 0
+      InstructionOperand correction_lanes = g.TempSimd128Register();
+      selector->Emit(kArm64S128And, correction_lanes, sign_mask, signed_input);
+
+      // Shift the selected low or high lanes into the upper 32 bits.
+      //   correction = correction_lanes * 2^32
+      InstructionOperand correction = g.TempSimd128Register();
+      selector->Emit((high ? kArm64IShll2 : kArm64IShll) |
+                         LaneSizeField::encode(LaneSize::kL64),
+                     correction, correction_lanes);
+
+      // Multiply the lanes as signed and accumulate the correction.
+      // If b < 2^31, signed32(b) = b and correction = 0.
+      // If b >= 2^31, signed32(b) = b - 2^32 and correction = a * 2^32.
+      //   result = a * signed32(b) + correction = a * b
+      selector->Emit((high ? kArm64Smlal2 : kArm64Smlal) |
+                         LaneSizeField::encode(LaneSize::kL64),
+                     g.DefineSameAsFirst(node), correction, signed_input,
+                     unsigned_input);
+      return true;
+    }
   }
+  return false;
 }
+}  // namespace
 
 void InstructionSelector::VisitF32x4Mul(OpIndex node) {
   if (MulWithDup result = TryMatchMulWithDup<4>(this, node)) {
@@ -5572,10 +5812,18 @@ void InstructionSelector::VisitF64x2Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitI64x2Mul(OpIndex node) {
+  if (TryEmitI64x2MixedSignExtMul(this, node)) return;
+
   Arm64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
   OpIndex left = op.left();
   OpIndex right = op.right();
+
+  // Call unpredicated SVE2 mul if supported.
+  if (IsSupported(SVE2) && CpuFeatures::svevlen() == kSimd128Size) {
+    return VisitRRR(this, kArm64IMul | LaneSizeField::encode(LaneSize::kL64),
+                    node);
+  }
 
   // This 2x64-bit multiplication is performed with several 32-bit
   // multiplications.
@@ -5683,6 +5931,29 @@ bool ShraHelper(InstructionSelector* selector, OpIndex node, LaneSize lane_size,
   int64_t constant;
   if (!selector->MatchSignedIntegralConstant(shiftop.shift(), &constant)) {
     return false;
+  }
+
+  // Matches (a & b) + ((a ^ b) >> 1) or (a & b) + ((b ^ a) >> 1)
+  // Since a + b = 2 x (a & b) + (a ^ b), right shift for a half-add
+  // floor((a + b) / 2) = (a & b) + ((a ^ b) >> 1)
+  if (lane_size != LaneSize::kL64 &&
+      (constant & (LaneSizeBits(lane_size) - 1)) == 1 &&
+      selector->Get(m.other_input()).Is<turboshaft::Opmask::kSimd128And>() &&
+      selector->Get(shiftop.input()).Is<turboshaft::Opmask::kSimd128Xor>() &&
+      selector->CanCover(node, m.other_input()) &&
+      selector->CanCover(m.matched_input(), shiftop.input())) {
+    const auto& and_op = selector->Get(m.other_input()).Cast<Simd128BinopOp>();
+    const auto& xor_op = selector->Get(shiftop.input()).Cast<Simd128BinopOp>();
+
+    if ((and_op.left() == xor_op.left() && and_op.right() == xor_op.right()) ||
+        (and_op.left() == xor_op.right() && and_op.right() == xor_op.left())) {
+      const InstructionCode half_add_code =
+          shra_code == kArm64Ssra ? kArm64Shadd : kArm64Uhadd;
+      selector->Emit(half_add_code | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(and_op.left()),
+                     g.UseRegister(and_op.right()));
+      return true;
+    }
   }
 
   // If shifting by zero, just do the addition
@@ -6615,6 +6886,119 @@ void EmitShuffle2(InstructionSelector* selector, OpIndex node, OpIndex input0,
   }
 }
 
+template <int32_t lane_size>
+void EmitShuffle4(InstructionSelector* selector, OpIndex node, OpIndex input0,
+                  OpIndex input1, std::array<uint8_t, 4> shuffle) {
+  Arm64OperandGenerator g(selector);
+
+  // Find first duplicate lane, if any.
+  std::array<unsigned, 32> lane_counts = {0};
+  for (uint8_t lane : shuffle) {
+    DCHECK_LT(lane, lane_counts.size());
+    ++lane_counts[lane];
+  }
+  int32_t duplicate_lane = -1;
+  for (size_t lane = 0; lane < lane_counts.size(); ++lane) {
+    if (lane_counts[lane] > 1) {
+      duplicate_lane = static_cast<int32_t>(lane);
+      break;
+    }
+  }
+
+  if (duplicate_lane == -1) {
+    // If no duplicate lane is found, then use a TBL if we've got a single
+    // source.
+    if (input0 == input1) {
+      if constexpr (lane_size == 8) {
+        uint32_t mask = SimdShuffle::Pack4Lanes(&shuffle[0]);
+        InstructionOperand mask_vector = g.TempSimd128Register();
+        selector->Emit(kArm64S128Const, mask_vector, g.UseImmediate(mask),
+                       g.UseImmediate(mask), g.UseImmediate(mask),
+                       g.UseImmediate(mask));
+        selector->Emit(kArm64S128Tbl1, g.DefineAsRegister(node),
+                       g.UseRegister(input0), mask_vector);
+        return;
+      } else if constexpr (lane_size == 16) {
+        std::array<uint8_t, kSimd128HalfSize> mask;
+        for (size_t i = 0; i < shuffle.size(); ++i) {
+          uint8_t lane = shuffle[i];
+          DCHECK_LT(lane, kSimd128HalfSize);
+          mask[i * 2] = static_cast<uint8_t>(lane * 2);
+          mask[i * 2 + 1] = static_cast<uint8_t>(lane * 2 + 1);
+        }
+        uint32_t mask_lo = SimdShuffle::Pack4Lanes(&mask[0]);
+        uint32_t mask_hi = SimdShuffle::Pack4Lanes(&mask[4]);
+        InstructionOperand mask_vector = g.TempSimd128Register();
+        selector->Emit(kArm64S128Const, mask_vector, g.UseImmediate(mask_lo),
+                       g.UseImmediate(mask_hi), g.UseImmediate(mask_lo),
+                       g.UseImmediate(mask_hi));
+        selector->Emit(kArm64S128Tbl1, g.DefineAsRegister(node),
+                       g.UseRegister(input0), mask_vector);
+        return;
+      }
+    }
+    // If none is found, we'll just duplicate the first lane.
+    duplicate_lane = shuffle[0];
+  }
+
+  bool is_only_dup = true;
+  for (uint8_t lane : shuffle) {
+    if (lane != duplicate_lane) {
+      is_only_dup = false;
+      break;
+    }
+  }
+
+  // Insert the dup.
+  OpIndex input = GetInput<lane_size>(input0, input1, duplicate_lane);
+  InstructionOperand dup_output =
+      is_only_dup ? g.DefineAsRegister(node) : g.TempSimd128Register();
+  selector->Emit(
+      kArm64S128Dup | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+      dup_output, g.UseUniqueRegister(input),
+      g.UseImmediate(AdjustLane<lane_size>(duplicate_lane)));
+
+  if (is_only_dup) return;
+
+  // We have to ensure that node has a definition and we would like to do
+  // that with the last operation that is emitted, so discover the greatest
+  // index at which we could do it.
+  uint32_t define_at_index = 0;
+  for (int i = shuffle.size() - 1; i >= 0; --i) {
+    if (shuffle[i] != duplicate_lane) {
+      define_at_index = i;
+      break;
+    }
+  }
+
+  // Populate the remaining lanes with MoveLane.
+  InstructionOperand current = dup_output;
+  for (unsigned i = 0; i < shuffle.size(); ++i) {
+    int32_t lane = shuffle[i];
+    if (lane == duplicate_lane) continue;
+
+    OpIndex input = GetInput<lane_size>(input0, input1, lane);
+    lane = AdjustLane<lane_size>(lane);
+
+    if (define_at_index == i) {
+      selector->Emit(kArm64S128MoveLane |
+                         LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+                     g.DefineSameAsFirst(node), current,
+                     g.UseUniqueRegister(input), g.UseImmediate(lane),
+                     g.UseImmediate(i));
+    } else {
+      InstructionOperand next = g.TempSimd128Register();
+      int next_vreg = UnallocatedOperand::cast(next).virtual_register();
+      selector->Emit(kArm64S128MoveLane |
+                         LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+                     g.DefineSameAsFirstForVreg(next_vreg), current,
+                     g.UseUniqueRegister(input), g.UseImmediate(lane),
+                     g.UseImmediate(i));
+      current = g.UseRegisterForVreg(next_vreg);
+    }
+  }
+}
+
 }  // namespace
 
 void InstructionSelector::VisitI8x1Shuffle(OpIndex node) {
@@ -6667,11 +7051,7 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
   if (SimdShuffle::TryMatch16x2Shuffle(shuffle.data(), shuffle16x2.data())) {
     EmitShuffle2<16>(this, node, input0, input1, shuffle16x2);
   } else {
-    InstructionOperand src0, src1;
-    ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
-    Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
-         g.UseImmediate(SimdShuffle::Pack4Lanes(&shuffle[0])),
-         g.UseImmediate(0), g.UseImmediate(0), g.UseImmediate(0));
+    EmitShuffle4<8>(this, node, input0, input1, shuffle);
   }
 }
 
@@ -6713,6 +7093,9 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
       Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL16),
            g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(index));
+      return;
+    } else {
+      EmitShuffle4<16>(this, node, input0, input1, shuffle16x4);
       return;
     }
   }
@@ -6796,9 +7179,7 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
              g.UseImmediate(from), g.UseImmediate(to));
       }
     } else {
-      Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1),
-           g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle32x4.data())));
+      EmitShuffle4<32>(this, node, input0, input1, shuffle32x4);
     }
     return;
   }

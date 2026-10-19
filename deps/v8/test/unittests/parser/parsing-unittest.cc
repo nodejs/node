@@ -15,6 +15,7 @@
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -422,9 +423,9 @@ class ParsingTest : public TestWithContextAndZone {
 
         // Plug the source code pieces together.
         auto program =
-            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+            base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
-            base::SNPrintF(program.as_vector(), "%s%s%s", context_data[i][0],
+            base::SNPrintF(program.as_span(), "%s%s%s", context_data[i][0],
                            statement_data[j], context_data[i][1]);
         PrintF("%s\n", program.begin());
         CHECK_EQ(length, kProgramSize);
@@ -1420,8 +1421,8 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
       auto program =
-          base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
-      base::SNPrintF(program.as_vector(), "%s%s%s", surroundings[j].prefix,
+          base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
+      base::SNPrintF(program.as_span(), "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
       i::DirectHandle<i::String> source =
           factory->NewStringFromUtf8(base::CStrVector(program.begin()))
@@ -1751,8 +1752,8 @@ TEST_F(ParsingTest, ScopePositions) {
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     auto program =
-        base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
-    base::SNPrintF(program.as_vector(), "%s%s%s", source_data[i].outer_prefix,
+        base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
+    base::SNPrintF(program.as_span(), "%s%s%s", source_data[i].outer_prefix,
                    source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
@@ -1919,9 +1920,9 @@ TEST_F(ParsingTest, ParserSync) {
 
         // Plug the source code pieces together.
         auto program =
-            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+            base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
-            base::SNPrintF(program.as_vector(), "label: for (;;) { %s%s%s%s }",
+            base::SNPrintF(program.as_span(), "label: for (;;) { %s%s%s%s }",
                            context_data[i][0], statement_data[j],
                            termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
@@ -3115,17 +3116,22 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
   const char* postfix_context_data[][2] = {
       {"", "++;"}, {"\"use strict\"; ", "++;"}, {nullptr, nullptr}};
 
+  const char* sloppy_call_context_data[][2] = {
+      {"", " = 1;"}, {"++", ";"}, {"", "++;"}, {nullptr, nullptr}};
+
+  const char* strict_call_context_data[][2] = {{"\"use strict\"; ", " = 1;"},
+                                               {"\"use strict\"; ++", ";"},
+                                               {"\"use strict\"; ", "++;"},
+                                               {nullptr, nullptr}};
+
   // Good left hand sides for assigment or prefix / postfix operations.
-  const char* good_statement_data[] = {"foo",
-                                       "foo.bar",
-                                       "foo[bar]",
-                                       "foo()[bar]",
-                                       "foo().bar",
-                                       "this.foo",
-                                       "this[foo]",
-                                       "new foo()[bar]",
-                                       "new foo().bar",
-                                       "foo()",
+  const char* good_statement_data[] = {
+      "foo",      "foo.bar",   "foo[bar]",       "foo()[bar]",    "foo().bar",
+      "this.foo", "this[foo]", "new foo()[bar]", "new foo().bar", nullptr};
+
+  // Call expressions are accepted as left hand sides only in sloppy mode for
+  // legacy web compatibility.
+  const char* call_statement_data[] = {"foo()",
                                        "foo(bar)",
                                        "foo[bar]()",
                                        "foo.bar()",
@@ -3164,6 +3170,9 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
 
   RunParserSyncTest(postfix_context_data, good_statement_data, kSuccess);
   RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
+
+  RunParserSyncTest(sloppy_call_context_data, call_statement_data, kSuccess);
+  RunParserSyncTest(strict_call_context_data, call_statement_data, kError);
 }
 
 TEST_F(ParsingTest, FuncNameInferrerBasic) {
@@ -3270,8 +3279,8 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
       "h();";
 
   auto program =
-      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program.as_vector(), "%s", src);
+      base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program.as_span(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3318,8 +3327,8 @@ TEST_F(ParsingTest, IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "f(0);";
 
   auto program =
-      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program.as_vector(), "%s", src);
+      base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program.as_span(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3370,16 +3379,27 @@ TEST_F(ParsingTest, InnerAssignment) {
       {"var x = {a: 4, b: (x = 5)};", true, false},
       {"var {x=1} = {a: 4, b: (x = 5)};", true, false},
       {"var {x} = {x: 4, b: (x = 5)};", true, false},
+      {"var [x = (x = 2)] = [];", true, false},
+      {"'use strict'; let [x = (x = 2)] = [];", true, true},
+      {"'use strict'; let {x = (x = 2)} = {};", true, true},
       // Actual non-assignments.
       {"var x;", false, false},
       {"var x = 5;", false, false},
+      {"var [x = 5] = [];", false, false},
+      {"var {x = 5} = {};", false, false},
+      {"var {a: x = 5} = {};", false, false},
       {"'use strict'; let x;", false, true},
       {"'use strict'; let x = 6;", false, true},
+      {"'use strict'; let [x = 6] = [];", false, true},
+      {"'use strict'; let {x = 6} = {};", false, true},
+      {"'use strict'; let {a: x = 6} = {};", false, true},
       {"'use strict'; var x = 0; { let x = 6; }", false, true},
       {"'use strict'; var x = 0; { let x; x = 6; }", false, true},
       {"'use strict'; let x = 0; { let x = 6; }", false, true},
       {"'use strict'; let x = 0; { let x; x = 6; }", false, true},
       {"var x; try {} catch (x) { x = 5; }", false, false},
+      {"var x; try {} catch ([x = 1]) { x = 5; }", false, false},
+      {"var x; try {} catch ({x = 1}) { x = 5; }", false, false},
       {"function x() {}", false, false},
       // Eval approximation.
       {"var x; eval('');", true, false},
@@ -3424,22 +3444,39 @@ TEST_F(ParsingTest, InnerAssignment) {
       {"for (x of [1,2,3]) {}", true, false, false},
       {"for (x in {a: 1}) {}", true, false, false},
       {"for ([x] of [[1],[2],[3]]) {}", true, false, false},
+      {"for ([x = 1] of [[]]) {}", true, false, false},
+      {"for ({x = 1} of [{}]) {}", true, false, false},
       {"for ([x] in {ab: 1}) {}", true, false, false},
       {"for ([...x] in {ab: 1}) {}", true, false, false},
       {"[x] = [1]", true, false, false},
+      {"[x = 1] = []", true, false, false},
+      {"({x = 1} = {})", true, false, false},
+      {"({a: x = 1} = {})", true, false, false},
+      {"let [y = (x = 1)] = [];", true, false, false},
+      {"let {y = (x = 1)} = {};", true, false, false},
       // Actual non-assignments.
       {"", false, false, false},
       {"x;", false, false, false},
       {"var x;", false, false, false},
       {"var x = 8;", false, false, false},
+      {"var [x = 8] = [];", false, false, false},
+      {"var {x = 8} = {};", false, false, false},
+      {"var {a: x = 8} = {};", false, false, false},
       {"var x; x = 8;", false, false, false},
       {"'use strict'; let x;", false, false, false},
       {"'use strict'; let x = 8;", false, false, false},
+      {"'use strict'; let [x = 8] = [];", false, false, false},
+      {"'use strict'; let {x = 8} = {};", false, false, false},
+      {"'use strict'; let {a: x = 8} = {};", false, false, false},
       {"'use strict'; let x; x = 8;", false, false, false},
       {"'use strict'; const x = 8;", false, false, false},
       {"function x() {}", false, false, false},
       {"function x() { x = 0; }", false, false, true},
       {"function h(x) { x = 0; }", false, false, false},
+      {"function h([x = 1]) { x = 0; }", false, false, false},
+      {"function h({x = 1}) { x = 0; }", false, false, false},
+      {"([x = 1]) => { x = 0; };", false, false, false},
+      {"({x = 1}) => { x = 0; };", false, false, false},
       {"'use strict'; { let x; x = 0; }", false, false, false},
       {"{ var x; }; x = 0;", false, false, false},
       {"with ({}) {}", false, true, false},
@@ -3471,9 +3508,9 @@ TEST_F(ParsingTest, InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
+        auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
 
-        base::SNPrintF(program.as_vector(), "%s%s%s%s%s", prefix, outer, midfix,
+        base::SNPrintF(program.as_span(), "%s%s%s%s%s", prefix, outer, midfix,
                        inner, suffix);
 
         UnoptimizedCompileState compile_state;
@@ -3583,9 +3620,21 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
       {false, "function f({x:arg = 1}) {}"},
       {true, "function f({x:arg = 1}, {y:b=(arg=2)}) {}"},
       {true, "function f({x:arg = (arg = 2)}) {}"},
+      {false, "function f({arg = 1}) {}"},
+      {true, "function f({arg = 1}, {b=(arg=2)}) {}"},
+      {true, "function f({arg = (arg = 2)}) {}"},
+      {false, "function f([arg = 1]) {}"},
+      {true, "function f([arg = 1], [b=(arg=2)]) {}"},
+      {true, "function f([arg = (arg = 2)]) {}"},
       {false, "var f = ({x:arg = 1}) => {}"},
       {true, "var f = ({x:arg = 1}, {y:b=(arg=2)}) => {}"},
       {true, "var f = ({x:arg = (arg = 2)}) => {}"},
+      {false, "var f = ({arg = 1}) => {}"},
+      {true, "var f = ({arg = 1}, {b=(arg=2)}) => {}"},
+      {true, "var f = ({arg = (arg = 2)}) => {}"},
+      {false, "var f = ([arg = 1]) => {}"},
+      {true, "var f = ([arg = 1], [b=(arg=2)]) => {}"},
+      {true, "var f = ([arg = (arg = 2)]) => {}"},
   };
 
   const char* suffix = "; f";
@@ -3594,9 +3643,9 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      auto program = base::OwnedVector<char>::NewForOverwrite(
+      auto program = base::UniqueArray<char>::NewForOverwrite(
           Utf8LengthHelper(source) + Utf8LengthHelper(suffix) + 1);
-      base::SNPrintF(program.as_vector(), "%s%s", source, suffix);
+      base::SNPrintF(program.as_span(), "%s%s", source, suffix);
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = RunJS(program.begin());
       i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
@@ -3653,6 +3702,8 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (j=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0}},
       {false, "for (j=x; j<10; ++j) { let foo = j }", {0}},
       {false, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (j=x; j<10; ++j) { let [foo = j] = [] }", {0}},
+      {false, "for (j=x; j<10; ++j) { let {foo = j} = {} }", {0}},
       {false, "for (j=x; j<10; ++j) { const foo = j }", {0}},
       {false, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
       {false, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
@@ -12350,12 +12401,12 @@ TEST_F(ParsingTest, NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
-      base::SNPrintF(program.as_vector(), "%s", prefix);
-      base::SNPrintF(program.as_vector() + prefix_len, inner_function,
+      auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
+      base::SNPrintF(program.as_span(), "%s", prefix);
+      base::SNPrintF(program.as_span().subspan(prefix_len), inner_function,
                      inners[i].params, inners[i].source);
-      base::SNPrintF(program.as_vector() + prefix_len + inner_function_len +
-                         params_len + source_len,
+      base::SNPrintF(program.as_span().subspan(prefix_len + inner_function_len +
+                                               params_len + source_len),
                      "%s", suffix);
 
       i::DirectHandle<i::String> source =

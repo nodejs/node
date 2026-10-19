@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <span>
 
 #include "include/v8-function.h"
@@ -746,11 +747,11 @@ TEST(SourceURLInStackTrace) {
       "}\n"
       "eval('(' + outer +')()%s');";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=eval_url");
-  CHECK(CompileRun(code.begin())->IsUndefined());
-  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=eval_url");
-  CHECK(CompileRun(code.begin())->IsUndefined());
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code, source, "//# sourceURL=eval_url");
+  CHECK(CompileRun(code.data())->IsUndefined());
+  v8::base::SNPrintF(code, source, "//@ sourceURL=eval_url");
+  CHECK(CompileRun(code.data())->IsUndefined());
 }
 
 static int scriptIdInStack[2];
@@ -1609,6 +1610,112 @@ TEST(CurrentScriptData_Wasm) {
   CHECK_EQ(capturedFramesScriptData[1].function, main_func);
 }
 
+struct DynamicScriptCompiledEvent {
+  v8::Global<v8::Context> context;
+  int script_id;
+};
+
+static std::vector<DynamicScriptCompiledEvent> dynamicScriptCompiledEvents;
+
+void RecordDynamicScriptCompiled(v8::Local<v8::Context> context,
+                                 int script_id) {
+  dynamicScriptCompiledEvents.push_back(
+      {v8::Global<v8::Context>(CcTest::isolate(), context), script_id});
+}
+
+struct DynamicScriptCallbackScope {
+  explicit DynamicScriptCallbackScope(v8::Isolate* isolate)
+      : isolate_(isolate) {
+    dynamicScriptCompiledEvents.clear();
+    isolate_->SetDynamicScriptCompiledFromEmbedderCallback(
+        RecordDynamicScriptCompiled);
+  }
+  ~DynamicScriptCallbackScope() {
+    isolate_->SetDynamicScriptCompiledFromEmbedderCallback(nullptr);
+    dynamicScriptCompiledEvents.clear();
+  }
+  v8::Isolate* isolate_;
+};
+
+TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_Eval) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  CapturedFramesScope captured_frames_scope;
+  DynamicScriptCallbackScope callback_scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureScriptData));
+  LocalContext context(nullptr, templ);
+
+  v8::Local<v8::Function> eval_fn = context->Global()
+                                        ->Get(context.local(), v8_str("eval"))
+                                        .ToLocalChecked()
+                                        .As<v8::Function>();
+  v8::Local<v8::Value> arg = v8_str("CaptureStack()");
+  eval_fn->Call(context.local(), context->Global(), 1, &arg).ToLocalChecked();
+
+  CHECK_EQ(dynamicScriptCompiledEvents.size(), 1);
+  CHECK_EQ(dynamicScriptCompiledEvents[0].context, context.local());
+  int script_id = dynamicScriptCompiledEvents[0].script_id;
+  CHECK_NE(script_id, v8::UnboundScript::kNoScriptId);
+
+  CHECK_EQ(capturedFramesScriptData.size(), 1);
+  CHECK_EQ(capturedFramesScriptData[0].id, script_id);
+  CHECK_EQ(capturedFramesScriptData[0].context, context.local());
+  CHECK(!capturedFramesScriptData[0].function.IsEmpty());
+
+  // When eval is called from a normal JS script with a JS caller on the stack,
+  // DynamicScriptCompiledFromEmbedderCallback should not be called.
+  dynamicScriptCompiledEvents.clear();
+  CompileRun("eval('CaptureStack();');");
+  CHECK(dynamicScriptCompiledEvents.empty());
+}
+
+TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_FunctionConstructor) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  CapturedFramesScope captured_frames_scope;
+  DynamicScriptCallbackScope callback_scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureScriptData));
+  LocalContext context(nullptr, templ);
+
+  v8::Local<v8::Function> func_ctor =
+      context->Global()
+          ->Get(context.local(), v8_str("Function"))
+          .ToLocalChecked()
+          .As<v8::Function>();
+  v8::Local<v8::Value> arg = v8_str("CaptureStack()");
+  v8::Local<v8::Function> created_fn =
+      func_ctor->CallAsConstructor(context.local(), 1, &arg)
+          .ToLocalChecked()
+          .As<v8::Function>();
+
+  CHECK_EQ(dynamicScriptCompiledEvents.size(), 1);
+  CHECK_EQ(dynamicScriptCompiledEvents[0].context, context.local());
+  int script_id = dynamicScriptCompiledEvents[0].script_id;
+  CHECK_NE(script_id, v8::UnboundScript::kNoScriptId);
+
+  created_fn->Call(context.local(), context->Global(), 0, nullptr)
+      .ToLocalChecked();
+
+  CHECK_EQ(dynamicScriptCompiledEvents.size(), 1);
+  CHECK_EQ(capturedFramesScriptData.size(), 1);
+  CHECK_EQ(capturedFramesScriptData[0].id, script_id);
+  CHECK_EQ(capturedFramesScriptData[0].function, created_fn);
+  CHECK_EQ(capturedFramesScriptData[0].context, context.local());
+
+  // When Function constructor is called from a normal JS script with a JS
+  // caller on the stack, DynamicScriptCompiledFromEmbedderCallback should not
+  // be called.
+  dynamicScriptCompiledEvents.clear();
+  CompileRun("new Function('CaptureStack();')();");
+  CHECK(dynamicScriptCompiledEvents.empty());
+}
+
 void AnalyzeStackOfInlineScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
@@ -1647,11 +1754,11 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
-  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.data(), "url", 0, 1)->IsUndefined());
+  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.data(), "url", 0, 1)->IsUndefined());
 }
 
 void AnalyzeStackOfDynamicScriptWithSourceURL(
@@ -1692,11 +1799,11 @@ TEST(DynamicWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
-  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.data(), "url", 0, 0)->IsUndefined());
+  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.data(), "url", 0, 0)->IsUndefined());
 }
 
 TEST(DynamicWithSourceURLInStackTraceString) {
@@ -1712,10 +1819,10 @@ TEST(DynamicWithSourceURLInStackTraceString) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
   v8::TryCatch try_catch(context.isolate());
-  CompileRunWithOrigin(code.begin(), "", 0, 0);
+  CompileRunWithOrigin(code.data(), "", 0, 0);
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
       context.isolate(),

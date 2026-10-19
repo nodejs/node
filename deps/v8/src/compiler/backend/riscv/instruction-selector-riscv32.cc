@@ -274,10 +274,10 @@ void InstructionSelector::VisitStore(OpIndex node) {
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       if (rep == MachineRepresentation::kIndirectPointer) {
         DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-        // In this case we need to add the IndirectPointerTag as additional
+        // In this case we need to add the TrustedPointerTag as additional
         // input.
         code = kArchStoreIndirectWithWriteBarrier;
-        IndirectPointerTag tag = store_view.indirect_pointer_tag();
+        TrustedPointerTag tag = store_view.trusted_pointer_tag();
         inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
       } else {
         code = kArchStoreWithWriteBarrier;

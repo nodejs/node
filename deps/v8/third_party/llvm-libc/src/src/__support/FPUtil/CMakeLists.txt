@@ -160,6 +160,7 @@ add_header_library(
     nearest_integer.h
   DEPENDS
     libc.src.__support.common
+    libc.src.__support.CPP.type_traits
     libc.src.__support.macros.optimization
     libc.src.__support.macros.properties.cpu_features
   FLAGS

@@ -87,8 +87,8 @@
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -1384,12 +1384,12 @@ class RecordMigratedSlotVisitor
   inline void VisitExternalPointer(Tagged<HeapObject> host,
                                    ExternalPointerSlot slot) final {}
 
-  inline void VisitIndirectPointer(Tagged<HeapObject> host,
-                                   IndirectPointerSlot slot,
-                                   IndirectPointerMode mode) final {}
+  inline void VisitTrustedPointer(Tagged<HeapObject> host,
+                                  TrustedPointerSlot slot,
+                                  TrustedPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                            IndirectPointerSlot slot) final {}
+                                            TrustedPointerSlot slot) final {}
 
   inline void VisitProtectedPointer(Tagged<TrustedObject> host,
                                     ProtectedPointerSlot slot) final {
@@ -1611,7 +1611,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (V8_LIKELY(dest != CODE_SPACE)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      Heap::CopyBlock(dst_addr, src_addr, object_size);
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
@@ -2539,17 +2539,7 @@ void MarkCompactCollector::RetainMaps() {
                 MarkingHelper::WorklistTarget::kRegular, map);
           }
         }
-        Tagged<Object> prototype = map->prototype();
-        if (age > 0 && IsHeapObject(prototype) &&
-            MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                heap_, marking_state_, Cast<HeapObject>(prototype))) {
-          // The prototype is not marked, age the map.
-          new_age = age - 1;
-        } else {
-          // The prototype and the constructor are marked, this map keeps only
-          // transition tree alive, not JSObjects. Do not age the map.
-          new_age = age;
-        }
+        new_age = age > 0 ? age - 1 : 0;
       } else {
         new_age = v8_flags.retain_maps_for_n_gc;
       }
@@ -3720,7 +3710,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the new entry in the trusted pointer table as alive.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  table.Mark(space, uncompiled_data->self_indirect_pointer_handle());
+  table.Mark(space, uncompiled_data->self_trusted_pointer_handle());
 #endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
@@ -3762,13 +3752,13 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     bool is_unpublished =
         flushing_candidate->HasUnpublishedTrustedData(isolate);
     if (is_unpublished) {
-      IndirectPointerHandle handle =
-          flushing_candidate->Relaxed_ReadField<IndirectPointerHandle>(
+      TrustedPointerHandle handle =
+          flushing_candidate->Relaxed_ReadField<TrustedPointerHandle>(
               offsetof(SharedFunctionInfo, trusted_function_data_));
 
       // Read the object from the table. It is now an UncompiledData.
       Address obj_addr = isolate->trusted_pointer_table().GetMaybeUnpublished(
-          handle, kBytecodeArrayIndirectPointerTag);
+          handle, kBytecodeArrayTrustedPointerTag);
       Tagged<TrustedObject> trusted_obj =
           UncheckedCast<TrustedObject>(Tagged<Object>(obj_addr));
       Tagged<UncompiledData> uncompiled_data =
@@ -4133,6 +4123,10 @@ void MarkCompactCollector::TrimDescriptorArray(
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    } else {
+      MemsetTagged(descriptors->GetDescriptorSlot(number_of_own_descriptors),
+                   ReadOnlyRoots(heap_).undefined_value(),
+                   to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
     descriptors->Sort();
@@ -5964,7 +5958,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
                                             Address content) {
       Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
       if (relocated_object.is_null()) return;
-      DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+      DCHECK_EQ(handle, relocated_object->self_trusted_pointer_handle());
       table.Update(handle, relocated_object.ptr());
     });
   };

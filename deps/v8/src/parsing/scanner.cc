@@ -277,6 +277,27 @@ void ProcessPerFunctionCompileHints(const base::Vector<const uint8_t>& data,
 
 }  // namespace
 
+template <typename CharCallback>
+Scanner::Location Scanner::ScanMagicCommentValue(CharCallback on_char) {
+  DCHECK_EQ(c0_, '=');
+  Advance();
+  while (IsWhiteSpace(c0_)) {
+    Advance();
+  }
+  int value_beg_pos = source_pos();
+  while (c0_ != kEndOfInput && !IsWhiteSpaceOrLineTerminator(c0_)) {
+    on_char(c0_);
+    Advance();
+  }
+  Location value_location(value_beg_pos, source_pos());
+  // Allow whitespace at the end.
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
+    if (!IsWhiteSpace(c0_)) return Location::invalid();
+    Advance();
+  }
+  return value_location;
+}
+
 void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
@@ -293,7 +314,7 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   }
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
-  LiteralBuffer* value;
+  LiteralBuffer* value = nullptr;
   LiteralBuffer per_function_compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value = &source_url_;
@@ -320,24 +341,9 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     return;
   }
   value->Start();
-  Advance();
-  while (IsWhiteSpace(c0_)) {
-    Advance();
-  }
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (IsWhiteSpace(c0_)) {
-      break;
-    }
-    value->AddChar(c0_);
-    Advance();
-  }
-  // Allow whitespace at the end.
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (!IsWhiteSpace(c0_)) {
-      value->Start();
-      break;
-    }
-    Advance();
+  if (!ScanMagicCommentValue([value](base::uc32 c) { value->AddChar(c); })
+           .IsValid()) {
+    value->Start();
   }
   if (value == &per_function_compile_hints_value &&
       per_function_compile_hints_value.is_one_byte()) {
@@ -457,7 +463,7 @@ void Scanner::SeekForward(int pos) {
   int current_pos = source_pos();
   DCHECK_EQ(next().location.end_pos, current_pos);
   // Positions inside the lookahead token aren't supported.
-  DCHECK(pos >= current_pos);
+  CHECK_GE(pos, current_pos);
   if (pos != current_pos) {
     source_->Seek(pos);
     Advance();

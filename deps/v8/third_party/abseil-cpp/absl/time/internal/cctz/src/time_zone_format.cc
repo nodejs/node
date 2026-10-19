@@ -34,6 +34,7 @@
 // declare strptime.
 #include <time.h>
 
+#include <cassert>
 #include <cctype>
 #include <chrono>
 #include <cstddef>
@@ -197,7 +198,7 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
   // as the result of a failed load_time_zone().
   char sign = '+';
   if (offset < 0) {
-    offset = -offset;  // bounded by 24h so no overflow
+    offset = -offset;  // bounded by -25h so no overflow
     sign = '-';
   }
   const int seconds = offset % 60;
@@ -218,7 +219,7 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
     ep = Format02d(ep, minutes);
     if (sep != '\0') *--ep = sep;
   }
-  ep = Format02d(ep, hours);
+  ep = Format02d(ep, hours);  // bounded by 26h so fits in two digits
   *--ep = sign;
   return ep;
 }
@@ -708,6 +709,14 @@ bool FromWeek(int week_num, weekday week_start, year_t* year, std::tm* tm) {
 bool parse(const std::string& format, const std::string& input,
            const time_zone& tz, time_point<seconds>* sec,
            detail::femtoseconds* fs, std::string* err) {
+#if __cplusplus < 202002L
+  // Assert that the std::chrono::system_clock epoch is the Unix epoch.
+  // This is required by C++20, but was also ubiquitous before that.
+  // We use this in join_seconds() to simplify overflow detection.
+  assert(std::chrono::system_clock::from_time_t(0).time_since_epoch() ==
+         std::chrono::system_clock::duration::zero());
+#endif
+
   // The unparsed input.  Even though we allow NULs in input, and
   // match them against corresponding NULs in format, we depend on
   // *edata being a NUL so that we can call strptime().  This also

@@ -9,15 +9,15 @@
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #ifdef V8_INTL_SUPPORT
-#include "src/roots/static-roots-intl-wasm.h"  // IWYU pragma: export
+#include "src/gen/intl-wasm/static-roots.h"  // IWYU pragma: export
 #else
-#include "src/roots/static-roots-nointl-wasm.h"  // IWYU pragma: export
+#include "src/gen/nointl-wasm/static-roots.h"  // IWYU pragma: export
 #endif
 #else
 #ifdef V8_INTL_SUPPORT
-#include "src/roots/static-roots-intl-nowasm.h"  // IWYU pragma: export
+#include "src/gen/intl-nowasm/static-roots.h"  // IWYU pragma: export
 #else
-#include "src/roots/static-roots-nointl-nowasm.h"  // IWYU pragma: export
+#include "src/gen/nointl-nowasm/static-roots.h"  // IWYU pragma: export
 #endif
 #endif
 

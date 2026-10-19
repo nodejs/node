@@ -322,6 +322,11 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value Next();
   // Returns the token following peek()
   Token::Value PeekAhead();
+  // Checks the character after peek(); declines if lookahead is buffered.
+  bool HasImmediateCommaOrRightBracket() const {
+    return next_next().token == Token::kUninitialized &&
+           (c0_ == ',' || c0_ == ']');
+  }
   // Returns the token following PeekAhead()
   Token::Value PeekAheadAhead();
   // Returns the current token again.
@@ -717,6 +722,12 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value SkipSingleLineComment();
   Token::Value SkipMagicComment(base::uc32 hash_or_at_sign);
   void TryToParseMagicComment(base::uc32 hash_or_at_sign);
+  // Scans the value of a magic comment, starting at the '=', calling on_char
+  // for each value character. Returns the value's location, or
+  // Location::invalid() if anything but whitespace follows the value on the
+  // line.
+  template <typename CharCallback>
+  Location ScanMagicCommentValue(CharCallback on_char);
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();

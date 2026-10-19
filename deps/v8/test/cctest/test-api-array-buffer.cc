@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <span>
 
 #include "include/cppgc/allocation.h"
@@ -45,12 +46,11 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  std::array<char, 1024> source;
   v8::base::SNPrintF(
-      source.as_vector(),
-      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,
-      name);
-  CHECK(CompileRun(source.begin())->IsTrue());
+      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
+      name, name, name);
+  CHECK(CompileRun(source.data())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
 }
@@ -543,10 +543,10 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
 
   Local<v8::Uint8Array> u8a = v8::Uint8Array::New(ab, 0, 0);
-  // Calling Buffer() will materialize the ArrayBuffer (transitioning it from
+  // Calling GetBuffer() will materialize the ArrayBuffer (transitioning it from
   // on-heap to off-heap if need be). This should not affect whether it is
   // marked as is_external or not.
-  USE(u8a->Buffer());
+  USE(u8a->GetBuffer());
 
   CHECK_EQ(2, backing_store->ByteLength());
 }
@@ -1409,4 +1409,52 @@ TEST(ArrayBuffer_DetachCallback_Wrapped) {
   CHECK_EQ(1, wrapper->detach_count);
 
   isolate->SetArrayBufferDetachCallback(nullptr);
+}
+
+TEST(ArrayBufferBase_Methods) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ArrayBufferBase> ab = v8::ArrayBuffer::New(isolate, 8);
+  v8::Local<v8::ArrayBufferBase> sab = v8::SharedArrayBuffer::New(isolate, 8);
+
+  CHECK(ab->IsArrayBufferBase());
+  CHECK(ab->IsArrayBuffer());
+  CHECK(!ab->IsSharedArrayBuffer());
+  CHECK(!ab->IsShared());
+  CHECK(ab->IsDetachable());
+  CHECK(!ab->WasDetached());
+  CHECK(!ab->IsImmutable());
+  CHECK(!ab->IsResizableByUserJavaScript());
+  CHECK_EQ(8u, ab->ByteLength());
+  CHECK_EQ(8u, ab->MaxByteLength());
+
+  CHECK(sab->IsArrayBufferBase());
+  CHECK(!sab->IsArrayBuffer());
+  CHECK(sab->IsSharedArrayBuffer());
+  CHECK(sab->IsShared());
+  CHECK(!sab->IsDetachable());
+  CHECK(!sab->WasDetached());
+  CHECK(!sab->IsImmutable());
+  CHECK(!sab->IsResizableByUserJavaScript());
+  CHECK_EQ(8u, sab->ByteLength());
+  CHECK_EQ(8u, sab->MaxByteLength());
+
+  CHECK(!v8::Undefined(isolate)->IsArrayBufferBase());
+  CHECK(!ab->GetBackingStore()->IsShared());
+  CHECK(sab->GetBackingStore()->IsShared());
+
+  std::memcpy(ab->Data(), "12345678", 8);
+  CHECK_EQ(8u, ab->CopyArrayBufferBytes(0, 8, sab, 0));
+  CHECK_EQ(0, std::memcmp(sab->Data(), "12345678", 8));
+
+  std::memcpy(sab->Data(), "abcdefgh", 8);
+  CHECK_EQ(8u, sab->CopyArrayBufferBytes(0, 8, ab, 0));
+  CHECK_EQ(0, std::memcmp(ab->Data(), "abcdefgh", 8));
+
+  ab.As<v8::ArrayBuffer>()->Detach({}).Check();
+  CHECK(ab->WasDetached());
+  CHECK_EQ(0u, sab->CopyArrayBufferBytes(0, 8, ab, 0));
+  CHECK_EQ(0u, ab->CopyArrayBufferBytes(0, 8, sab, 0));
 }

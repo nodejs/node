@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-kna-map.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
 
@@ -30,7 +31,7 @@ using UpdateTypeOnContradiction =
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
 #ifdef DEBUG
-bool IsStringRootIndex(RootIndex index);
+V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index);
 
 inline bool IsInternalizedStringConstant(ValueNode* node) {
   if (auto constant = node->TryCast<HeapConstant>()) {
@@ -56,20 +57,6 @@ inline bool IsNonInternalizedStringConstant(ValueNode* node) {
 class NodeInfo {
  public:
   NodeInfo() = default;
-
-  struct ClearUnstableMapsOnCopy {
-    const NodeInfo& val;
-  };
-  explicit NodeInfo(ClearUnstableMapsOnCopy other) V8_NOEXCEPT {
-    type_ = other.val.type_;
-    alternative_ = other.val.alternative_;
-    if (other.val.possible_maps_are_known_) {
-      possible_maps_ = other.val.possible_maps_;
-      possible_maps_are_known_ = true;
-      any_map_is_unstable_ = other.val.any_map_is_unstable_;
-      OnSideEffect();
-    }
-  }
 
   NodeType type() const { return type_; }
   void set_type(NodeType type) { type_ = type; }
@@ -378,7 +365,7 @@ class NodeInfo {
 class KnownNodeAspects {
  public:
   // Permanently valid if checked in a dominator.
-  using NodeInfos = ZoneMap<ValueNode*, NodeInfo>;
+  using NodeInfos = KnaMap<ValueNode*, NodeInfo>;
 
   // Copy constructor is defaulted but private so that we explicitly call the
   // Clone method.
@@ -407,6 +394,8 @@ class KnownNodeAspects {
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
+  void ClearUnstableNodeAspectsForMigration(Node* node,
+                                            bool is_tracing_enabled);
   void ClearUnstableNodeAspectsForElementsTransition(
       const ZoneVector<compiler::MapRef>& transition_sources,
       bool is_tracing_enabled);
@@ -426,9 +415,8 @@ class KnownNodeAspects {
     // same map. Unstable maps can also transition to stable ones, so we have to
     // clear _all_ maps for a node if it had _any_ unstable map.
     if (!side_effects_require_invalidation_) return;
-    for (auto& it : node_infos_) {
-      it.second.OnSideEffect();
-    }
+    node_infos_.MutateValues(
+        [](ValueNode*, NodeInfo& info) { info.OnSideEffect(); });
     side_effects_require_invalidation_ = false;
   }
 
@@ -436,9 +424,9 @@ class KnownNodeAspects {
   bool MarkMapsStaleIfAny(const Function& condition) {
     if (!side_effects_require_invalidation_) return false;
     bool any_stale = false;
-    for (auto& it : node_infos_) {
-      any_stale |= it.second.MarkMapsStaleIfAny(condition);
-    }
+    node_infos_.MutateValues([&](ValueNode*, NodeInfo& info) {
+      any_stale |= info.MarkMapsStaleIfAny(condition);
+    });
     return any_stale;
   }
 
@@ -585,11 +573,11 @@ class KnownNodeAspects {
 
   // Maps key->object->value, so that stores to a key can invalidate all loads
   // of that key (in case the objects are aliasing).
-  using LoadedPropertyMap =
-      ZoneMap<PropertyKey, ZoneMap<ValueNode*, ValueNode*>>;
+  using PropertyObjectMap = KnaMap<ValueNode*, ValueNode*>;
+  using LoadedPropertyMap = KnaMap<PropertyKey, PropertyObjectMap>;
 
   using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
-  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
+  using LoadedContextSlots = KnaMap<LoadedContextSlotsKey, ValueNode*>;
 
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
                                    PropertyKey name) {
@@ -601,20 +589,24 @@ class KnownNodeAspects {
                                  lookup_start_object, name);
   }
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   PropertyKey name, bool is_const) {
-    if (is_const) {
-      return TryFindLoadedConstantProperty(lookup_start_object, name);
+                                   PropertyKey name,
+                                   PropertyConstness constness) {
+    switch (constness) {
+      case PropertyConstness::kConst:
+        return TryFindLoadedConstantProperty(lookup_start_object, name);
+      case PropertyConstness::kMutable:
+        return TryFindLoadedProperty(lookup_start_object, name);
     }
-    return TryFindLoadedProperty(lookup_start_object, name);
   }
 
-  ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(Zone* zone,
-                                                             bool is_const,
-                                                             PropertyKey key) {
-    LoadedPropertyMap& properties =
-        is_const ? loaded_constant_properties_ : loaded_properties_;
+  PropertyObjectMap& GetLoadedPropertiesForKey(Zone* zone,
+                                               PropertyConstness constness,
+                                               PropertyKey key) {
+    LoadedPropertyMap& properties = constness == PropertyConstness::kConst
+                                        ? loaded_constant_properties_
+                                        : loaded_properties_;
     // Try to get loaded_properties[key] if it already exists, otherwise
-    // construct loaded_properties[key] = ZoneMap{zone()}.
+    // construct loaded_properties[key] = PropertyObjectMap{zone}.
     return properties.try_emplace(key, zone).first->second;
   }
 
@@ -824,8 +816,7 @@ class KnownNodeAspects {
                          std::is_same_v<NodeT,
                                         CheckMapsWithMigrationAndDeopt> ||
                          std::is_same_v<NodeT, MigrateMapIfNeeded>) {
-      // These instructions only migrate representations of values, not the
-      // values themselves, so cached values are still valid.
+      ClearUnstableNodeAspectsForMigration(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
       ClearUnstableNodeAspectsForStoreMap(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, TransitionElementsKind> ||
@@ -910,6 +901,8 @@ class KnownNodeAspects {
   SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
       Graph* graph, ValueNode* context, int offset, ValueNode* value);
 
+  bool MarkSingleMapAsStale(ValueNode* node, bool is_tracing_enabled);
+
   static constexpr uint32_t kEffectEpochForPureInstructions =
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kEffectEpochOverflow =
@@ -919,6 +912,9 @@ class KnownNodeAspects {
     NodeBase* node;
     uint32_t effect_epoch;
   };
+  using AvailableExpressionsMap = KnaMap<uint32_t, AvailableExpression>;
+  using TaggedKeyedPropertiesMap =
+      KnaMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>;
 
   // These can call GetTypeUnchecked directly. Other uses should ideally go
   // through MaglevReducer::GetType or similar and add type assertions if
@@ -971,14 +967,13 @@ class KnownNodeAspects {
   // does not pass PreservesTaggedKeyedProperties. Bounded by
   // kMaxTaggedKeyedProperties, since the map is copied at every clone.
   static constexpr size_t kMaxTaggedKeyedProperties = 100;
-  ZoneMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>
-      loaded_tagged_keyed_properties_;
+  TaggedKeyedPropertiesMap loaded_tagged_keyed_properties_;
   // Unconditionally valid across side-effecting calls.
-  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants_;
+  LoadedContextSlots loaded_context_constants_;
   // Flushed after side-effecting calls.
   LoadedContextSlots loaded_context_slots_;
   // For CSE.
-  ZoneMap<uint32_t, AvailableExpression> available_expressions_;
+  AvailableExpressionsMap available_expressions_;
   // This is an optimization. We track whether any NodeInfos require work on
   // side effects. If not, we don't even iterate over NodeInfos.
   bool side_effects_require_invalidation_;

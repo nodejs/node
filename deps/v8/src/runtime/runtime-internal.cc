@@ -161,7 +161,8 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
   DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
   while (num_message_args < kMaxMessageArgs &&
-         args.length() > num_message_args + 1) {
+         args.length() > num_message_args + 1 &&
+         !IsTheHole(args[num_message_args + 1])) {
     message_args[num_message_args] = args.at(num_message_args + 1);
     ++num_message_args;
   }
@@ -298,11 +299,10 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   int template_index = args.smi_value_at(0);
-  Handle<Object> arg0 = args.at(1);
   MessageTemplate message_template = MessageTemplateFromInt(template_index);
-  return *isolate->factory()->NewReferenceError(message_template, arg0);
+  return *isolate->factory()->NewReferenceError(message_template);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {

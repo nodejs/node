@@ -22,3 +22,11 @@
   assertThrows(() => Math.sumPrecise(it2), TypeError);
   assertEquals(-0, Math.sumPrecise(it2));
 })();
+
+(function TestEmptyArrayIteratorExhausted() {
+  let a = [];
+  let it = a.values();
+  assertEquals(-0, Math.sumPrecise(it));
+  a.push(1);
+  assertEquals({value: undefined, done: true}, it.next());
+})();

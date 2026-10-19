@@ -41,7 +41,7 @@ class WasmInterpreterRuntime {
   // Every public method of WasmInterpreterRuntime that ultimately calls
   // wasm_trusted_instance_data() must be invoked while an InstanceScope is
   // active on this runtime (debug DCHECKs enforce this).
-  class V8_NODISCARD InstanceScope final {
+  class V8_EXPORT_PRIVATE V8_NODISCARD InstanceScope final {
    public:
     InstanceScope(WasmInterpreterRuntime* runtime,
                   DirectHandle<WasmTrustedInstanceData> trusted_data);
@@ -133,6 +133,17 @@ class WasmInterpreterRuntime {
   }
   DirectHandle<WasmExceptionPackage> CreateWasmExceptionPackage(
       uint32_t tag_index) const;
+
+  // Read a WasmExceptionPackage's tag/values fields directly from their
+  // in-object slots, mirroring WasmExceptionPackage::New. Unlike the shared
+  // WasmExceptionPackage::GetExceptionTag/GetExceptionValues helpers, these
+  // don't do a generic property lookup, so a rewritten accessor descriptor
+  // can't run JS while the interpreter builds or handles an exception.
+  static DirectHandle<Object> GetExceptionTagField(
+      Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
+  static DirectHandle<FixedArray> GetExceptionValuesField(
+      Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
+
   void UnpackException(uint32_t* sp, const WasmTag& tag,
                        DirectHandle<Object> exception_object,
                        uint32_t first_param_slot_index,
@@ -372,7 +383,7 @@ class WasmInterpreterRuntime {
   // (which the GC scans), so the runtime never keeps a global handle to it.
   // All trusted-data accesses (see wasm_trusted_instance_data()) read this
   // off-cage, validated value instead of re-loading the in-cage
-  // WasmInstanceObject::trusted_data_ IndirectPointerHandle on every call,
+  // WasmInstanceObject::trusted_data_ TrustedPointerHandle on every call,
   // which would let a sandbox attacker same-tag swap it mid-execution. The
   // WasmInstanceObject (needed only for stack traces) is reached on demand via
   // the trusted `instance_object()` back-link.
@@ -429,8 +440,8 @@ class WasmInterpreterRuntime {
                       CanonicalTypeIndex sig_index)
         : mode(mode), func_index(func_index_), sig_index(sig_index) {
       DCHECK_NE(mode, Mode::kInvalid);
-      // Exactly the external calls carry no function index; internal calls
-      // always carry a valid one.
+      // External calls carry no function index; internal calls always carry a
+      // valid one.
       DCHECK_EQ(mode == Mode::kExternalCall,
                 func_index_ == kInvalidFunctionIndex);
     }

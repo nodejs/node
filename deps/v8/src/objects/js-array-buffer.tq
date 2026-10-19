@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppScope('JSArrayBuffer')
-bitfield struct JSArrayBufferFlags extends uint32 {
+@cppScope('JSArrayBuffer::Bits')
+bitfield struct JSArrayBufferBits extends uint32 {
   is_external: bool: 1 bit;
   is_detachable: bool: 1 bit;
   was_detached: bool: 1 bit;
@@ -25,7 +25,7 @@ extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
   // A SandboxedPtr if the sandbox is enabled
   backing_store: RawPtr;
   extension: ExternalPointer;
-  bit_field: JSArrayBufferFlags;
+  bit_field: JSArrayBufferBits;
   // Pads header size to be a multiple of kTaggedSize on 64-bit targets.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
@@ -64,8 +64,8 @@ macro IsImmutableArrayBuffer(buffer: JSArrayBuffer): bool {
 // 2) Non-length tracking backed by RAB (can go oob once constructed)
 // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
 // 4) Length-tracking backed by GSAB (BackingStore stores the length)
-@cppScope('JSArrayBufferView')
-bitfield struct JSArrayBufferViewFlags extends uint32 {
+@cppScope('JSArrayBufferView::Bits')
+bitfield struct JSArrayBufferViewBits extends uint32 {
   is_length_tracking: bool: 1 bit;
   is_backed_by_rab: bool: 1 bit;
 }
@@ -74,7 +74,7 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 @cppObjectLayoutDefinition
 extern class JSArrayBufferView extends JSAPIObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
-  bit_field: JSArrayBufferViewFlags;  // 32bit
+  bit_field: JSArrayBufferViewBits;  // 32bit
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   // A BoundedSize if the sandbox is enabled
   raw_byte_offset: uintptr;

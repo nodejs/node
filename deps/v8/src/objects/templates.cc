@@ -292,12 +292,9 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
         if (details.representation().Equals(Representation::Double())) {
           // We allowed coercion in `FitsRepresentation` above which means that
           // we may deal with a Smi here.
-          double value_as_double = Object::NumberValue(Cast<Number>(*value));
-          if (std::isnan(value_as_double)) {
-            value_as_double = std::numeric_limits<double>::quiet_NaN();
-          }
-          property_values[i] = ToApiHandle<v8::Object>(
-              isolate->factory()->NewHeapNumber(value_as_double));
+          property_values[i] =
+              ToApiHandle<v8::Number>(isolate->factory()->NewHeapNumber(
+                  Object::NumberValue(Cast<Number>(*value))));
         }
       }
       if (V8_LIKELY(can_use_cached_map)) {

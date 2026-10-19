@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_INTERNAL_OBJECT_ALLOCATOR_H_
 #define V8_HEAP_CPPGC_INTERNAL_OBJECT_ALLOCATOR_H_
 
+#include <atomic>
 #include <optional>
 
 #include "include/cppgc/internal/gc-info.h"
@@ -19,6 +20,8 @@
 #include "src/heap/cppgc-internal/raw-heap.h"
 
 namespace cppgc {
+
+class AllocationSampler;
 
 namespace internal {
 class ObjectAllocator;
@@ -47,17 +50,21 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   static constexpr size_t kSmallestSpaceSize = 32;
 
   ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,
-                  FatalOutOfMemoryHandler&, GarbageCollector&);
+                  FatalOutOfMemoryHandler&, GarbageCollector&,
+                  cppgc::AllocationSampler* = nullptr);
 
-  inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
-                              MayContainMixins);
-  inline void* AllocateObject(size_t size, AlignVal alignment,
-                              GCInfoIndex gcinfo, MayContainMixins);
-  inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
-                              CustomSpaceIndex space_index, MayContainMixins);
-  inline void* AllocateObject(size_t size, AlignVal alignment,
-                              GCInfoIndex gcinfo, CustomSpaceIndex space_index,
-                              MayContainMixins);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObject(size_t size, GCInfoIndex gcinfo);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObject(size_t size, AlignVal alignment,
+                                 GCInfoIndex gcinfo);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObject(size_t size, GCInfoIndex gcinfo,
+                                 CustomSpaceIndex space_index);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObject(size_t size, AlignVal alignment,
+                                 GCInfoIndex gcinfo,
+                                 CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
   void MarkAllPagesAsYoung();
@@ -74,15 +81,16 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
   // on. Returns the largest regular object size bucket for large objects.
-  inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
+  V8_INLINE static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
 
-  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, GCInfoIndex,
-                                     MayContainMixins);
-  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, AlignVal,
-                                     GCInfoIndex, MayContainMixins);
-  inline void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal,
-                                 GCInfoIndex, MayContainMixins);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObjectOnSpace(NormalPageSpace&, size_t, GCInfoIndex);
+  template <MayContainMixins>
+  V8_INLINE void* AllocateObjectOnSpace(NormalPageSpace&, size_t, AlignVal,
+                                        GCInfoIndex);
+  V8_INLINE void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal,
+                                    GCInfoIndex, MayContainMixins);
 
   // Called from the fast path LAB allocation when the LAB capacity cannot fit
   // the allocation or a large object is requested. Use out parameter as
@@ -98,7 +106,9 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   bool TryRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
   bool TryRefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
-  bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&);
+  bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
+  void ClampAndReplaceLinearAllocationBuffer(NormalPageSpace&, Address, size_t,
+                                             size_t);
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void TriggerGCOnAllocationTimeoutIfNeeded();
@@ -110,6 +120,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   PreFinalizerHandler& prefinalizer_handler_;
   FatalOutOfMemoryHandler& oom_handler_;
   GarbageCollector& garbage_collector_;
+  cppgc::AllocationSampler* allocation_sampler_ = nullptr;
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until triggering a
   // garbage collection.
@@ -117,63 +128,87 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
-void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
-                                      MayContainMixins may_contain_mixins) {
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
+void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
   DCHECK(!in_disallow_gc_scope());
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   TriggerGCOnAllocationTimeoutIfNeeded();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
-  return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_.Space(type)),
-                               allocation_size, gcinfo, may_contain_mixins);
+  return AllocateObjectOnSpace<may_contain_mixins>(
+      NormalPageSpace::From(*raw_heap_.Space(type)), allocation_size, gcinfo);
 }
 
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
 void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
-                                      GCInfoIndex gcinfo,
-                                      MayContainMixins may_contain_mixins) {
+                                      GCInfoIndex gcinfo) {
   DCHECK(!in_disallow_gc_scope());
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   TriggerGCOnAllocationTimeoutIfNeeded();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
-  return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_.Space(type)),
-                               allocation_size, alignment, gcinfo,
-                               may_contain_mixins);
+  return AllocateObjectOnSpace<may_contain_mixins>(
+      NormalPageSpace::From(*raw_heap_.Space(type)), allocation_size, alignment,
+      gcinfo);
 }
 
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
-                                      CustomSpaceIndex space_index,
-                                      MayContainMixins may_contain_mixins) {
+                                      CustomSpaceIndex space_index) {
   DCHECK(!in_disallow_gc_scope());
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   TriggerGCOnAllocationTimeoutIfNeeded();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
-  return AllocateObjectOnSpace(
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
+  return AllocateObjectOnSpace<may_contain_mixins>(
       NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
-      allocation_size, gcinfo, may_contain_mixins);
+      allocation_size, gcinfo);
 }
 
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
 void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
                                       GCInfoIndex gcinfo,
-                                      CustomSpaceIndex space_index,
-                                      MayContainMixins may_contain_mixins) {
+                                      CustomSpaceIndex space_index) {
   DCHECK(!in_disallow_gc_scope());
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   TriggerGCOnAllocationTimeoutIfNeeded();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
-  return AllocateObjectOnSpace(
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
+  return AllocateObjectOnSpace<may_contain_mixins>(
       NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
-      allocation_size, alignment, gcinfo, may_contain_mixins);
+      allocation_size, alignment, gcinfo);
 }
 
 // static
@@ -198,9 +233,10 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
   return object;
 }
 
-void* ObjectAllocator::AllocateObjectOnSpace(
-    NormalPageSpace& space, size_t size, AlignVal alignment, GCInfoIndex gcinfo,
-    MayContainMixins may_contain_mixins) {
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
+void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
+                                             size_t size, AlignVal alignment,
+                                             GCInfoIndex gcinfo) {
   // The APIs are set up to support general alignment. Since we want to keep
   // track of the actual usage there the alignment support currently only covers
   // double-world alignment (8 bytes on 32bit and 16 bytes on 64bit
@@ -238,15 +274,15 @@ void* ObjectAllocator::AllocateObjectOnSpace(
     return OutOfLineAllocate(space, size, alignment, gcinfo,
                              may_contain_mixins);
   }
-  void* object = AllocateObjectOnSpace(space, size, gcinfo, may_contain_mixins);
+  void* object = AllocateObjectOnSpace<may_contain_mixins>(space, size, gcinfo);
   DCHECK_NOT_NULL(object);
   DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(object) & kAlignmentMask);
   return object;
 }
 
-void* ObjectAllocator::AllocateObjectOnSpace(
-    NormalPageSpace& space, size_t size, GCInfoIndex gcinfo,
-    MayContainMixins may_contain_mixins) {
+template <ObjectAllocator::MayContainMixins may_contain_mixins>
+void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
+                                             size_t size, GCInfoIndex gcinfo) {
   DCHECK_LT(0u, gcinfo);
 
   NormalPageSpace::LinearAllocationBuffer& current_lab =
@@ -268,12 +304,24 @@ void* ObjectAllocator::AllocateObjectOnSpace(
 #endif
   auto* header = new (raw) HeapObjectHeader(size, gcinfo);
 
-  if (may_contain_mixins == MayContainMixins::kYes) {
+  if constexpr (may_contain_mixins == MayContainMixins::kYes) {
     // Only set the bit for mixins to make sure the concurrent marker may find
     // them.
     NormalPage::From(BasePage::FromPayload(header))
         ->object_start_bitmap()
         .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
+    // Ensure that the header and object start bit writes are visible before the
+    // object is visible to other threads. "Publication" here may happen via
+    // relaxed stores (on e.g. `Member`) which otherwise can move around.
+#if (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_ARM)) && \
+    (defined(__clang__) || defined(V8_CC_GNU)) && !defined(THREAD_SANITIZER)
+    // On ARM/ARM64 we only need a Store-Store fence (`dmb ishst`) to order the
+    // header and bitmap stores before subsequent publishing stores, avoiding
+    // draining prior loads as a full `dmb ish` would.
+    __asm__ __volatile__("dmb ishst" ::: "memory");
+#else
+    std::atomic_thread_fence(std::memory_order_release);
+#endif
   }
 
   return header->ObjectStart();

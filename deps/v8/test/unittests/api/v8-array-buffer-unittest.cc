@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <span>
 
+#include "src/objects/backing-store.h"
+#include "src/utils/allocation.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -58,6 +61,17 @@ TEST_F(ArrayBufferTest, BackingStoreByteSpan) {
   for (size_t i = 0; i < kByteLength; ++i) {
     EXPECT_EQ(uint8_t{0xAB}, data[i]);
   }
+}
+
+TEST_F(ArrayBufferTest, TryAllocateAndPartiallyCommitMemoryNullIsolate) {
+  size_t page_size = i::AllocatePageSize();
+  size_t max_pages = std::numeric_limits<size_t>::max() / page_size;
+  size_t max_byte_length = max_pages * page_size;
+  std::unique_ptr<i::BackingStore> backing_store =
+      i::BackingStore::TryAllocateAndPartiallyCommitMemory(
+          nullptr, 0, max_byte_length, page_size, 0, max_pages,
+          i::WasmMemoryFlag::kNotWasm, i::SharedFlag{false});
+  EXPECT_EQ(backing_store, nullptr);
 }
 
 }  // namespace

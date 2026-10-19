@@ -29,14 +29,14 @@ class JSContextSpecialization;
 // represented in a Smi (small integer).
 V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
  public:
+  inline HeapNumber(const AllocationWitness& witness, double value);
+  inline HeapNumber(const AllocationWitness& witness, Float64 value);
+
   inline double value() const;
   inline void set_value(double value);
 
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
-
-  // Returns true if the heap number contains the hole NaN bit pattern.
-  inline bool is_the_hole() const;
 
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
@@ -76,6 +76,37 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;
 
+// Represents mutable HeapNumber in uninitialized state.
+V8_OBJECT class UninitializedHeapNumber : public HeapObject {
+ public:
+  static constexpr int kSize = sizeof(HeapNumber);
+
+  inline explicit UninitializedHeapNumber(const AllocationWitness& witness);
+
+  inline double value() const { return value_.value(); }
+  inline void set_value(double value) { value_.set_value(value); }
+
+  inline uint64_t value_as_bits() const {
+    return base::bit_cast<uint64_t>(value_.value());
+  }
+  inline void set_value_as_bits(uint64_t bits) {
+    value_.set_value(base::bit_cast<double>(bits));
+  }
+
+  DECL_PRINTER(UninitializedHeapNumber)
+  DECL_VERIFIER(UninitializedHeapNumber)
+
+  class BodyDescriptor;
+
+ private:
+  friend struct OffsetsForDebug;
+  friend class TorqueGeneratedHeapNumberAsserts;
+  friend AllocationAlignment HeapObject::RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
+
+ public:
+  UnalignedDoubleMember value_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

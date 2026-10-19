@@ -919,7 +919,8 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
   DCHECK(!AreAliased(feedback_vector, scratch));
   __ Lbu(scratch, FieldMemOperand(feedback_vector,
                                   offsetof(FeedbackVector, osr_state_)));
-  __ And(scratch, scratch, Operand(~FeedbackVector::OsrUrgencyBits::kMask));
+  __ And(scratch, scratch,
+         Operand(~FeedbackVector::OsrState::OsrUrgencyBits::kMask));
   __ Sb(scratch,
         FieldMemOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)));
 }
@@ -1147,9 +1148,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size (word) from the BytecodeArray object.
     __ Lw(a5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                               offsetof(BytecodeArray, frame_size_)));
+    __ Lhu(a7, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                               offsetof(BytecodeArray, max_arguments_)));
+    __ Dlsa(a7, a5, a7, kSystemPointerSizeLog2);
 
     // Do a stack check to ensure we don't go over the limit.
-    __ Dsubu(a6, sp, Operand(a5));
+    __ Dsubu(a6, sp, Operand(a7));
     __ LoadStackLimit(a2, MacroAssembler::StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, lo, a6, Operand(a2));
 
@@ -3037,7 +3041,12 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
     Register scratch = temps.Acquire();
 
     // Save all parameter registers. They might hold live values, we restore
-    // them after the runtime call.
+    // them after the runtime call (for kBreak), or allow DevTools to inspect
+    // them at trap sites (for kTrap).
+    // Note: For non-debug execution, saving registers and creating a
+    // WASM_DEBUG_BREAK frame for trap handler traps might be redundant, but
+    // traps are cold exceptional paths so this negligible overhead is fine to
+    // keep the landing pad and trap handling unified.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     {
       // Check if machine has simd enabled, if so push vector registers. If not
@@ -3115,7 +3124,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kBreak);
 }
 
-void Builtins::Generate_WasmDebugTrap(MacroAssembler* masm) {
+void Builtins::Generate_WasmTrapHandlerThrowTrap(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kTrap);
 }
 
@@ -3320,6 +3329,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
+  __ Trap();
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
   __ Trap();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

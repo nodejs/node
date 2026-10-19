@@ -21,6 +21,7 @@
 namespace v8 {
 
 class ArrayBuffer;
+class ArrayBufferBase;
 class Promise;
 
 namespace internal::wasm {
@@ -77,7 +78,12 @@ class V8_EXPORT WasmMemoryObject : public Object {
   /**
    * Returns underlying ArrayBuffer.
    */
+  V8_DEPRECATE_SOON("Use GetBuffer instead")
   Local<ArrayBuffer> Buffer();
+  /**
+   * Returns underlying ArrayBuffer or SharedArrayBuffer.
+   */
+  Local<ArrayBufferBase> GetBuffer();
 
   V8_INLINE static WasmMemoryObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -130,9 +136,8 @@ class V8_EXPORT WasmModuleObject : public Object {
     // remain valid for the duration of the compile call.
     const char* imported_string_constants_module = nullptr;
     // If non-empty, associated with the module's script as its source URL, for
-    // use in stack traces and developer tooling. If a script already exists in
-    // the isolate for the same module, its existing URL is retained. The
-    // string must remain valid for the duration of the compile call.
+    // use in stack traces and developer tooling. The string must remain valid
+    // for the duration of the compile call.
     std::string_view source_url = {};
   };
 

@@ -103,7 +103,7 @@ transitioning javascript builtin TypedArrayPrototypeWith(
   } label IndexOutOfBounds deferred {
     ThrowRangeError(MessageTemplate::kInvalidTypedArrayIndex);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameWith);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameWith);

@@ -15,12 +15,14 @@
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/virtual-address-space-page-allocator.h"
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
 #include "src/objects/js-objects.h"
+#include "src/sandbox/code-entrypoint-tag.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandboxed-pointer.h"
 #include "src/sandbox/testing.h"
@@ -412,6 +414,8 @@ void Sandbox::Initialize(v8::Platform* platform, v8::VirtualAddressSpace* vas) {
         nullptr,
         "Failed to reserve the virtual address space for the V8 sandbox");
   }
+
+  CHECK(IsTaggingMaskCompatible(kCodeEntrypointTagMask));
 
   if (v8_flags.sandbox_prohibit_insecure_mode) {
     if (is_partially_reserved() || !smi_address_range_is_inaccessible()) {

@@ -6,7 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Script to non-interactively edit/update the Gerrit CL description for the current branch.
-# It enforces commit description line-length formatting (max 78 chars) and code formatting.
+# It enforces commit description line-length formatting (max 64-char title, max 72-char body lines) and code formatting.
 
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Usage: edit_cl_description.sh <\"New description string\" | -f <file> | + | ->"

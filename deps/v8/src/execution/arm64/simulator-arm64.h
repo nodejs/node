@@ -12,9 +12,11 @@
 
 #include <stdarg.h>
 
+#include <atomic>
 #include <vector>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/arm64/decoder-arm64.h"
 #include "src/codegen/assembler.h"
@@ -253,10 +255,30 @@ class SimMemory {
 
   template <typename T, typename A>
     requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8)
+  static T AcquireRead(A address) {
+    address = AddressUntag(address);
+    DCHECK(IsAligned(base::bit_cast<uintptr_t>(address), sizeof(T)));
+    return std::atomic_ref<T>(*reinterpret_cast<T*>(address))
+        .load(std::memory_order_acquire);
+  }
+
+  template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
              sizeof(T) == 8 || sizeof(T) == 16)
   static void Write(A address, T value) {
     address = AddressUntag(address);
     memcpy(reinterpret_cast<char*>(address), &value, sizeof(value));
+  }
+
+  template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8)
+  static void ReleaseWrite(A address, T value) {
+    address = AddressUntag(address);
+    DCHECK(IsAligned(base::bit_cast<uintptr_t>(address), sizeof(T)));
+    std::atomic_ref<T>(*reinterpret_cast<T*>(address))
+        .store(value, std::memory_order_release);
   }
 };
 
@@ -1570,7 +1592,9 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   void LogicalHelper(Instruction* instr, T op2);
   template <typename T>
   void ConditionalCompareHelper(Instruction* instr, T op2);
-  void LoadStoreHelper(Instruction* instr, int64_t offset, AddrMode addrmode);
+  using AcquireRelease = base::StrongAlias<struct AcquireReleaseTag, bool>;
+  void LoadStoreHelper(Instruction* instr, int64_t offset, AddrMode addrmode,
+                       AcquireRelease acquire_release = AcquireRelease(false));
   void LoadStorePairHelper(Instruction* instr, AddrMode addrmode);
   template <typename T>
   void CompareAndSwapHelper(const Instruction* instr);
@@ -1609,12 +1633,31 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     return SimMemory::Read<T>(address);
   }
 
+  template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8)
+  T MemoryRead(A address, AcquireRelease acquire_release) {
+    return acquire_release ? SimMemory::AcquireRead<T>(address)
+                           : SimMemory::Read<T>(address);
+  }
+
   // Memory write helpers.
   template <typename T, typename A>
     requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
              sizeof(T) == 8 || sizeof(T) == 16)
   void MemoryWrite(A address, T value) {
     SimMemory::Write<T>(address, value);
+  }
+
+  template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8)
+  void MemoryWrite(A address, T value, AcquireRelease acquire_release) {
+    if (acquire_release) {
+      SimMemory::ReleaseWrite<T>(address, value);
+    } else {
+      SimMemory::Write<T>(address, value);
+    }
   }
 
   template <typename T>

@@ -33,10 +33,10 @@ uint32_t TrustedPointerTable::Sweep(Space* space, Counters* counters) {
 void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
   IterateEntriesIn(space, [&](uint32_t index) {
     auto& entry = at(index);
-    IndirectPointerTag tag = entry.GetTag();
-    if (tag == kIndirectPointerNullTag || tag == kIndirectPointerFreeEntryTag ||
-        tag == kIndirectPointerZappedEntryTag ||
-        tag == kUnpublishedIndirectPointerTag) {
+    TrustedPointerTag tag = entry.GetTag();
+    if (tag == kTrustedPointerNullTag || tag == kTrustedPointerFreeEntryTag ||
+        tag == kTrustedPointerZappedEntryTag ||
+        tag == kUnpublishedTrustedPointerTag) {
       return;
     }
 
@@ -45,8 +45,8 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
     // 1. The pointer must point outside of the sandbox or be write-protected in
     // Read-Only space.
     if (ReadOnlyHeap::Contains(pointer)) {
-      CHECK(tag == kCodeIndirectPointerTag ||
-            tag == kUncompiledDataIndirectPointerTag);
+      CHECK(tag == kCodeTrustedPointerTag ||
+            tag == kUncompiledDataTrustedPointerTag);
     } else {
       CHECK(OutsideSandbox(pointer) ||
             IsTrustedSpaceMigrationInProgressForObjectsWithTag(tag));
@@ -63,7 +63,7 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
     // 3. The tag must match the object's instance type.
     SharedFlag is_shared =
         SharedFlag(this == &isolate->shared_trusted_pointer_table());
-    IndirectPointerTag expected_tag = IndirectPointerTagFromInstanceType(
+    TrustedPointerTag expected_tag = TrustedPointerTagFromInstanceType(
         obj->map()->instance_type(), is_shared);
     CHECK_EQ(tag, expected_tag);
   });

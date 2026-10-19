@@ -529,6 +529,15 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       }
       return WriteJSReceiver(view);
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      // Like WASM_STRUCT_TYPE in WriteJSReceiver: possibly shared, otherwise
+      // not serializable.
+      if (HeapLayout::InAnySharedSpace(Cast<HeapObject>(*object))) {
+        return WriteSharedObject(Cast<HeapObject>(object));
+      }
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         WriteString(Cast<String>(object));
@@ -1171,17 +1180,17 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
     return Nothing<bool>();
   }
 
-  if (name->IsOneByteEqualTo(base::CStrVector("EvalError"))) {
+  if (name->IsOneByteEqualTo("EvalError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("RangeError"))) {
+  } else if (name->IsOneByteEqualTo("RangeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("ReferenceError"))) {
+  } else if (name->IsOneByteEqualTo("ReferenceError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
+  } else if (name->IsOneByteEqualTo("SyntaxError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
+  } else if (name->IsOneByteEqualTo("TypeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
+  } else if (name->IsOneByteEqualTo("URIError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
@@ -1365,14 +1374,15 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(
     MessageTemplate template_index) {
-  return ThrowDataCloneError(template_index,
-                             isolate_->factory()->empty_string());
+  return ThrowDataCloneError(template_index, {});
 }
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  DirectHandle<Object> arg0) {
-  DirectHandle<String> message =
-      MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
+  DirectHandle<String> message = MessageFormatter::Format(
+      isolate_, index,
+      arg0.is_null() ? base::Vector<const DirectHandle<Object>>{}
+                     : base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {
@@ -1875,7 +1885,7 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
   return string;
 }
 
@@ -2542,6 +2552,11 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
     return {};
   }
 
+  // A shared JSArrayBuffer is required and can only be deserialized via a
+  // delegate. Check this before allocating an incomplete WasmMemoryObject and
+  // adding it to the ID map.
+  if (delegate_ == nullptr) return {};
+
   // To break a cycle on deserialization, we first allocate the
   // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.
   DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
@@ -2729,8 +2744,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           }
         } else if (tag == SerializationTag::kUtf8String) {
           base::Vector<const uint8_t> key_chars;
-          if (ReadRawBytes(byte_length).To(&key_chars) &&
-              String::IsAscii(key_chars.begin(), key_chars.length())) {
+          // For ASCII strings, the UTF-8 byte length equals the character
+          // length, so an ASCII string cannot exceed String::kMaxLength.
+          // Non-ASCII or overly long strings fall back to ReadObject() below.
+          if (byte_length <= String::kMaxLength &&
+              ReadRawBytes(byte_length).To(&key_chars) &&
+              String::IsAscii(key_chars.begin(), byte_length)) {
             expected_transition = transitions.ExpectedTransition(key_chars);
           }
         }

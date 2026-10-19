@@ -31,6 +31,7 @@
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
 
@@ -42,6 +43,18 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
+
+PreparseData::PreparseData(const AllocationWitness& witness, int data_length,
+                           int children_length)
+    : HeapObject(witness.roots().preparse_data_map()),
+      data_length_(data_length),
+      children_length_(children_length) {
+  DCHECK_LE(0, data_length);
+  DCHECK_LE(0, children_length);
+  MemsetTagged(ObjectSlot(children()), witness.roots().null_value(),
+               children_length);
+  clear_padding();
+}
 
 // static
 int PreparseData::SizeFor(int data_length, int children_length) {
@@ -202,9 +215,9 @@ bool SharedFunctionInfo::HasUnpublishedTrustedData(
 
 bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 
-template <typename T, IndirectPointerTagRange tag_range>
+template <typename T, TrustedPointerTagRange tag_range>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
-  static_assert(tag_range != kAllIndirectPointerTags);
+  static_assert(tag_range != kAllTrustedPointerTags);
   return Cast<T>(TrustedPointerField::ReadTrustedPointerField<tag_range>(
       Tagged<HeapObject>(this),
       offsetof(SharedFunctionInfo, trusted_function_data_), isolate,
@@ -511,6 +524,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_hoisted_in_context,
                     SharedFunctionInfo::IsHoistedInContextBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
+                    class_initializer_allows_await,
+                    SharedFunctionInfo::ClassInitializerAllowsAwaitBit)
 
 bool SharedFunctionInfo::optimization_disabled(CodeKind kind) const {
   switch (kind) {
@@ -544,7 +560,6 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   int hints = flags(kRelaxedLoad);
   hints = IsStrictBit::update(hints, is_strict(language_mode));
   set_flags(hints, kRelaxedStore);
-  UpdateFunctionMapIndex();
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
@@ -622,8 +637,7 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
-  int map_index =
-      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
+  int map_index = Context::FunctionMapIndex(kind(), HasSharedName());
   set_function_map_index(map_index);
 }
 
@@ -1043,7 +1057,7 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
   DCHECK(HasBaselineCode());
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  auto code = GetTrustedData<Code, kCodeIndirectPointerTag>(isolate);
+  auto code = GetTrustedData<Code, kCodeTrustedPointerTag>(isolate);
   SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
   return code;
 }
@@ -1088,7 +1102,7 @@ DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   DCHECK(HasWasmFunctionData(isolate));
   return GetTrustedData<WasmFunctionData,
-                        kWasmFunctionDataIndirectPointerTagRange>(isolate);
+                        kWasmFunctionDataTrustedPointerTagRange>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
@@ -1096,7 +1110,7 @@ DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   DCHECK(HasWasmExportedFunctionData(isolate));
   return GetTrustedData<WasmExportedFunctionData,
-                        kWasmExportedFunctionDataIndirectPointerTag>(isolate);
+                        kWasmExportedFunctionDataTrustedPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
@@ -1104,7 +1118,7 @@ DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   DCHECK(HasWasmCapiFunctionData(isolate));
   return GetTrustedData<WasmCapiFunctionData,
-                        kWasmCapiFunctionDataIndirectPointerTag>(isolate);
+                        kWasmCapiFunctionDataTrustedPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {
@@ -1141,7 +1155,7 @@ bool SharedFunctionInfo::HasUncompiledData(IsolateForSandbox isolate) const {
 Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(
     IsolateForSandbox isolate) const {
   DCHECK(HasUncompiledData(isolate));
-  return GetTrustedData<UncompiledData, kUncompiledDataIndirectPointerTag>(
+  return GetTrustedData<UncompiledData, kUncompiledDataTrustedPointerTag>(
       isolate);
 }
 

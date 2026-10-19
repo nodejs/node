@@ -137,7 +137,7 @@ inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
   if (src.is_reg()) {
     liftoff::StoreToMemory(assm, dst, src.reg(), src.kind());
   } else if (src.is_const()) {
-    if (src.kind() == kI32) {
+    if (src.kind() == kI32 || src.kind() == kF32) {
       assm->movl(dst, Immediate(src.i32_const()));
     } else {
       assm->MacroAssembler::Move(dst, static_cast<int64_t>(src.i32_const()));
@@ -230,25 +230,31 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 }
 
 void LiftoffAssembler::AlignFrameSize() {
-  int alignment = v8_flags.enforce_x64_16byte_alignment ? 2 * kSystemPointerSize
-                                                        : kSystemPointerSize;
+  int alignment = V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kSystemPointerSize
+                                                     : kSystemPointerSize;
   max_used_spill_offset_ = RoundUp(max_used_spill_offset_, alignment);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
-  // The frame setup builtin also pushes the feedback vector.
   if (feedback_vector_slot) {
-    frame_size -= kSystemPointerSize;
+    // WasmLiftoffFrameSetup also pushes the feedback vector, and (with 16-byte
+    // alignment) a zero into the OSR target slot so that sp stays aligned.
+    static_assert(kOSRTargetOffset == 4 * kSystemPointerSize);
+    frame_size -= V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kSystemPointerSize
+                                                     : kSystemPointerSize;
   }
+  DCHECK_GE(frame_size, 0);
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
-  DCHECK_IMPLIES(v8_flags.enforce_x64_16byte_alignment,
-                 GetTotalFrameSize() % (2 * kSystemPointerSize) == 0);
+#if V8_X64_16BYTE_STACK_ALIGNMENT
+  DCHECK_EQ(0, frame_size % (2 * kSystemPointerSize));
+#endif
 
   // We can't run out of space when patching, just pass anything big enough to
   // not cause the assembler to try to grow the buffer.
@@ -308,6 +314,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     LiftoffRegList regs_to_save;
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    regs_to_save.set(
+        WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
@@ -316,12 +324,16 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
     addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
          Immediate(static_cast<int32_t>(
-             stack_param_slots * kSystemPointerSize +
+             (stack_param_slots + stack_return_slots) * kSystemPointerSize +
              CommonFrameConstants::kFixedFrameSizeAboveFp)));
+    movq(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+         Immediate(
+             static_cast<int32_t>(stack_param_slots * kSystemPointerSize)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
+    AssertSpAlignedForCall();
     near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
               RelocInfo::WASM_STUB_CALL);
     // The call will not return; just define an empty safepoint.
@@ -378,53 +390,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   j(negative, ool_label);
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() {
-  if (!v8_flags.wasm_growable_stacks) {
-    return rbp;
-  }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
-  FreezeCacheState frozen(*this);
-  Label done, call_runtime;
-  cmpq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
-       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  j(equal, &call_runtime);
-  movq(old_fp.gp(), rbp);
-  jmp(&done);
-
-  bind(&call_runtime);
-  LiftoffRegList regs_to_save = cache_state()->used_registers;
-  PushRegisters(regs_to_save);
-  PrepareCallCFunction(1);
-  LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
-  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
-  if (old_fp.gp() != kReturnRegister0) {
-    movq(old_fp.gp(), kReturnRegister0);
-  }
-  PopRegisters(regs_to_save);
-
-  bind(&done);
-  return old_fp.gp();
-}
-
-void LiftoffAssembler::CheckStackShrink() {
-  cmpq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
-       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  Label done;
-  j(not_equal, &done);
-  LiftoffRegList regs_to_save;
-  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
-  PushRegisters(regs_to_save);
-  PrepareCallCFunction(1);
-  LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
-  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-  // Restore old FP. We don't need to restore old SP explicitly, because
-  // it will be restored from FP in LeaveFrame before return.
-  movq(rbp, kReturnRegister0);
-  PopRegisters(regs_to_save);
-  bind(&done);
-}
-
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
@@ -457,7 +422,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   LoadTrustedPointerField(dst, Operand{src_addr, offset}, tag,
                           kScratchRegister);
 }
@@ -735,11 +700,13 @@ void LiftoffAssembler::StoreConst(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
+    case StoreType::kF32Store:
       movl(dst_op, Immediate(value));
       break;
     case StoreType::kI64Store:
-      // The 32-bit immediate is sign-extended, matching how Liftoff keeps i64
-      // constants.
+    case StoreType::kF64Store:
+      // The 32-bit immediate is sign-extended, matching how Liftoff keeps
+      // 64-bit constants.
       movq(dst_op, Immediate(value));
       break;
     default:
@@ -1218,9 +1185,8 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
-  Operand dst(frame_pointer, kSystemPointerSize * (caller_slot_idx + 1));
+                                            ValueKind kind) {
+  Operand dst(rbp, kSystemPointerSize * (caller_slot_idx + 1));
   liftoff::StoreToMemory(this, dst, src, kind);
 }
 
@@ -1311,22 +1277,28 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     case kI32:
       movl(dst, Immediate(value.to_i32()));
       break;
-    case kI64: {
-      if (is_int32(value.to_i64())) {
+    case kF32:
+      movl(dst, Immediate(value.to_f32_boxed().get_bits()));
+      break;
+    case kI64:
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      if (is_int32(val64)) {
         // Sign extend low word.
-        movq(dst, Immediate(static_cast<int32_t>(value.to_i64())));
-      } else if (is_uint32(value.to_i64())) {
+        movq(dst, Immediate(static_cast<int32_t>(val64)));
+      } else if (is_uint32(val64)) {
         // Zero extend low word.
-        movl(kScratchRegister, Immediate(static_cast<int32_t>(value.to_i64())));
+        movl(kScratchRegister, Immediate(static_cast<int32_t>(val64)));
         movq(dst, kScratchRegister);
       } else {
-        movq(kScratchRegister, value.to_i64());
+        movq(kScratchRegister, val64);
         movq(dst, kScratchRegister);
       }
       break;
     }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
@@ -4701,13 +4673,8 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
-  CpuFeatureScope f16c_scope(this, F16C);
-  CpuFeatureScope avx2_scope(this, AVX2);
-  vcvtps2ph(dst.fp(), src.fp(), 0);
-  vpbroadcastw(dst.fp(), dst.fp());
+  if (!CpuFeatures::IsSupported(F16C)) return false;
+  F16x8Splat(dst.fp(), src.fp());
   return true;
 }
 
@@ -4833,16 +4800,12 @@ bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
 template <void (Assembler::*avx_op)(YMMRegister, YMMRegister, YMMRegister)>
 bool F16x8CmpOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
                       LiftoffRegister lhs, LiftoffRegister rhs) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX) ||
-      !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
   CpuFeatureScope f16c_scope(assm, F16C);
   CpuFeatureScope avx_scope(assm, AVX);
-  CpuFeatureScope avx2_scope(assm, AVX2);
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  assm->vcvtph2ps(ydst, lhs.fp());
   assm->vcvtph2ps(kScratchSimd256Reg, rhs.fp());
+  assm->vcvtph2ps(ydst, lhs.fp());
   (assm->*avx_op)(ydst, ydst, kScratchSimd256Reg);
   assm->vextractf128(kScratchDoubleReg, ydst, 1);
   assm->vpackssdw(dst.fp(), dst.fp(), kScratchDoubleReg);
@@ -4892,6 +4855,11 @@ bool F16x8BinOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vaddph(dst.fp(), lhs.fp(), rhs.fp());
+    return true;
+  }
   return F16x8BinOpViaF32<&Assembler::vaddps>(this, dst, lhs, rhs);
 }
 
@@ -4912,9 +4880,7 @@ bool LiftoffAssembler::emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
   static constexpr RegClass res_rc = reg_class_for(kS128);
   LiftoffRegister tmp =
       GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
@@ -4926,9 +4892,7 @@ bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
   static constexpr RegClass res_rc = reg_class_for(kS128);
   LiftoffRegister tmp =
       GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
@@ -4952,14 +4916,7 @@ bool LiftoffAssembler::emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX) ||
-      !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
-
-  CpuFeatureScope f16c_scope(this, F16C);
-  CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
   I16x8SConvertF16x8(ydst, src.fp(), kScratchSimd256Reg, kScratchRegister);
@@ -4968,14 +4925,7 @@ bool LiftoffAssembler::emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_i16x8_uconvert_f16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX) ||
-      !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
-
-  CpuFeatureScope f16c_scope(this, F16C);
-  CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
   I16x8TruncF16x8U(ydst, src.fp(), kScratchSimd256Reg);
@@ -4984,35 +4934,17 @@ bool LiftoffAssembler::emit_i16x8_uconvert_f16x8(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX) ||
-      !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
-  CpuFeatureScope f16c_scope(this, F16C);
-  CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
-  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  vpmovsxwd(ydst, src.fp());
-  vcvtdq2ps(ydst, ydst);
-  vcvtps2ph(dst.fp(), ydst, 0);
+  F16x8SConvertI16x8(dst.fp(), src.fp(), kScratchSimd256Reg);
   return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX) ||
-      !CpuFeatures::IsSupported(AVX2)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
-  CpuFeatureScope f16c_scope(this, F16C);
-  CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
-  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  vpmovzxwd(ydst, src.fp());
-  vcvtdq2ps(ydst, ydst);
-  vcvtps2ph(dst.fp(), ydst, 0);
+  F16x8UConvertI16x8(dst.fp(), src.fp(), kScratchSimd256Reg);
   return true;
 }
 
@@ -5022,8 +4954,7 @@ bool LiftoffAssembler::emit_f16x8_demote_f32x4_zero(LiftoffRegister dst,
     return false;
   }
   CpuFeatureScope f16c_scope(this, F16C);
-  YMMRegister ysrc = YMMRegister::from_code(src.fp().code());
-  vcvtps2ph(dst.fp(), ysrc, 0);
+  vcvtps2ph(dst.fp(), src.fp(), 0);
   return true;
 }
 
@@ -5065,8 +4996,7 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
     return false;
   }
   CpuFeatureScope f16c_scope(this, F16C);
-  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  vcvtph2ps(ydst, src.fp());
+  vcvtph2ps(dst.fp(), src.fp());
   return true;
 }
 
@@ -5074,9 +5004,7 @@ bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(FMA3)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
   YMMRegister tmp = YMMRegister::from_code(kScratchDoubleReg.code());
@@ -5089,9 +5017,7 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(FMA3)) {
-    return false;
-  }
+  if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
   YMMRegister tmp = YMMRegister::from_code(kScratchDoubleReg.code());
@@ -5132,6 +5058,10 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+      (gp_regs.GetNumRegsSet() & 1) != 0) {
+    pushq(Immediate(0));
+  }
   while (!gp_regs.is_empty()) {
     LiftoffRegister reg = gp_regs.GetFirstRegSet();
     pushq(reg.gp());
@@ -5163,10 +5093,15 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   }
   if (fp_offset) addq(rsp, Immediate(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  bool pad_gp =
+      V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && (gp_regs.GetNumRegsSet() & 1) != 0;
   while (!gp_regs.is_empty()) {
     LiftoffRegister reg = gp_regs.GetLastRegSet();
     popq(reg.gp());
     gp_regs.clear(reg);
+  }
+  if (pad_gp) {
+    addq(rsp, Immediate(kSystemPointerSize));
   }
 }
 
@@ -5176,6 +5111,11 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
   int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+      (gp_spills.GetNumRegsSet() & 1) != 0) {
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
@@ -5291,17 +5231,29 @@ void LiftoffAssembler::TailCallIndirect(
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  if (builtin != Builtin::kWasmLiftoffFrameSetup) {
+    // {kWasmLiftoffFrameSetup} is called at function entry before {rbp} is
+    // pushed, while {rsp} still points to the caller's return address
+    // ({rsp % 16 == 8}).
+    AssertSpAlignedForCall();
+  }
   // A direct call to a builtin. Just encode the builtin index. This will be
   // patched at relocation.
   near_call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    size = RoundUp(size, 2 * kSystemPointerSize);
+  }
   AllocateStackSpace(size);
   movq(addr, rsp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    size = RoundUp(size, 2 * kSystemPointerSize);
+  }
   addq(rsp, Immediate(size));
 }
 

@@ -738,7 +738,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   MacroAssembler::Move(dst, i);
 }
 
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   MacroAssembler::Move(dst, i);
 }
 

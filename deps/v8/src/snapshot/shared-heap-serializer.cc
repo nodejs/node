@@ -167,7 +167,6 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
   if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;

@@ -434,101 +434,115 @@ check_exceptional_cases(double &x, double &y, double &e_x, uint64_t &x_mant,
   FPBits x_abs = xbits.abs();
   FPBits y_abs = ybits.abs();
 
-  uint64_t x_u = xbits.uintval();
   uint64_t y_mant = ybits.get_mantissa();
   uint64_t x_a = x_abs.uintval();
   uint64_t y_a = y_abs.uintval();
 
-  if (LIBC_UNLIKELY(y_a <= Y_LOWER_BOUND || y_a >= Y_UPPER_BOUND ||
-                    x_u >= FPBits::inf().uintval() ||
-                    x_u < FPBits::min_normal().uintval())) {
-    // If x or y is signaling NaN
-    if (x_abs.is_signaling_nan() || y_abs.is_signaling_nan()) {
+  // If x or y is signaling NaN
+  if (x_abs.is_signaling_nan() || y_abs.is_signaling_nan()) {
+    fputil::raise_except_if_required(FE_INVALID);
+    return FPBits::quiet_nan().get_val();
+  }
+
+#ifdef LIBC_MATH_HAS_SMALL_TABLES
+  if (x == 1.0 || y == 0.0)
+    return 1.0;
+#endif // LIBC_MATH_HAS_SMALL_TABLES
+
+  // |y| > |1075 / log2(1 - 2^-53)|.
+  if (y_a > Y_UPPER_BOUND) {
+    if (y_a >= FPBits::inf().uintval()) {
+      // y is inf or nan
+      if (y_mant != 0) {
+        // y is NaN
+        // pow(1, NaN) = 1 is already dealt with.
+        // pow(x, NaN) = NaN
+        return y;
+      }
+
+      // Now y is +-Inf
+      if (x_abs.is_nan()) {
+        // pow(NaN, +-Inf) = NaN
+        return x;
+      }
+
+      if (x_a == FPBits::one().uintval()) {
+        // pow(+-1, +-Inf) = 1.0
+        return 1.0;
+      }
+
+      // pow (|x| < 1, -inf) = +inf
+      // pow (|x| < 1, +inf) = 0.0
+      // pow (|x| > 1, -inf) = 0.0
+      // pow (|x| > 1, +inf) = +inf
+      return ((x_a < FPBits::one().uintval()) == y_sign)
+                 ? FPBits::inf().get_val()
+                 : 0.0;
+    }
+    // x^y will overflow / underflow in double precision.  Set y to a
+    // large enough exponent but not too large, so that the computations
+    // won't overflow in double precision.
+    y = y_sign ? -0x1.0p100 : 0x1.0p100;
+  }
+
+  // y is finite and non-zero.
+  if (x_a > FPBits::inf().uintval()) {
+    // x is NaN.
+    // pow (aNaN, 0) is already taken care above.
+    return x;
+  }
+
+  if (x_sign) {
+    if (is_integer(y)) {
+      x = -x;
+      if (is_odd_integer(y)) {
+        is_neg = true;
+        sign_d = -1.0;
+      }
+    } else if (x != 0.0 && x_a < FPBits::inf().uintval()) {
+      // pow( negative, non-integer ) = NaN
+      fputil::set_errno_if_required(EDOM);
       fputil::raise_except_if_required(FE_INVALID);
       return FPBits::quiet_nan().get_val();
     }
+  }
 
-    // |y| > |1075 / log2(1 - 2^-53)|.
-    if (y_a > 0x43d7'4910'd52d'3052) {
-      if (y_a >= 0x7ff0'0000'0000'0000) {
-        // y is inf or nan
-        if (y_mant != 0) {
-          // y is NaN
-          // pow(1, NaN) = 1 is already dealt with.
-          // pow(x, NaN) = NaN
-          return y;
-        }
-
-        // Now y is +-Inf
-        if (x_abs.is_nan()) {
-          // pow(NaN, +-Inf) = NaN
-          return x;
-        }
-
-        if (x_a == 0x3ff0'0000'0000'0000) {
-          // pow(+-1, +-Inf) = 1.0
-          return 1.0;
-        }
-
-        // pow (|x| < 1, -inf) = +inf
-        // pow (|x| < 1, +inf) = 0.0
-        // pow (|x| > 1, -inf) = 0.0
-        // pow (|x| > 1, +inf) = +inf
-        return ((x_a < FPBits::one().uintval()) == y_sign)
-                   ? FPBits::inf().get_val()
-                   : 0.0;
-      }
-      // x^y will overflow / underflow in double precision.  Set y to a
-      // large enough exponent but not too large, so that the computations
-      // won't overflow in double precision.
-      y = y_sign ? -0x1.0p100 : 0x1.0p100;
+#ifdef LIBC_MATH_HAS_SMALL_TABLES
+  if (x == 0.0) {
+    if (y_sign) {
+      // pow(0, negative number) = inf
+      fputil::set_errno_if_required(EDOM);
+      fputil::raise_except_if_required(FE_DIVBYZERO);
+      return is_neg ? -FPBits::inf().get_val() : FPBits::inf().get_val();
     }
+    // pow(0, positive number) = 0
+    return is_neg ? -0.0 : 0.0;
+  }
+#endif // LIBC_MATH_HAS_SMALL_TABLES
 
-    // y is finite and non-zero.
+  if (x_a == FPBits::inf().uintval()) {
+    if (y_sign)
+      return is_neg ? -0.0 : 0.0;
+    return is_neg ? -FPBits::inf().get_val() : FPBits::inf().get_val();
+  }
 
-    if (x_a == FPBits::inf().uintval()) {
-      bool out_is_neg = x_sign && is_odd_integer(y);
-      Sign out_sign = out_is_neg ? Sign::NEG : Sign::POS;
-      return y_sign ? FPBits::zero(out_sign).get_val()
-                    : FPBits::inf(out_sign).get_val();
-    }
+  if (y_a <= Y_LOWER_BOUND) {
+#if defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                        \
+    defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY)
+    return 1.0;
+#else
+    volatile double one = 1.0;
+    volatile double eps =
+        ((x_a < FPBits::one().uintval()) == !y_sign) ? -0x1.0p-100 : 0x1.0p-100;
+    return one + eps;
+#endif // LIBC_MATH_HAS_NO_EXCEPT && LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+  }
 
-    if (x_a > FPBits::inf().uintval()) {
-      // x is NaN.
-      // pow (aNaN, 0) is already taken care above.
-      return x;
-    }
-
-    // Normalize denormal inputs.
-    if (x_a < FPBits::min_normal().uintval()) {
-      FPBits x_norm(x * 0x1.0p64);
-      e_x = static_cast<double>(x_norm.get_exponent()) - 64.0;
-      x_mant = x_norm.get_mantissa();
-    }
-
-    // x is finite and negative, and y is a finite integer.
-    if (x_sign) {
-      if (is_integer(y)) {
-        x = -x;
-        if (is_odd_integer(y)) {
-          is_neg = true;
-          sign_d = -1.0;
-        }
-      } else {
-        // pow( negative, non-integer ) = NaN
-        fputil::set_errno_if_required(EDOM);
-        fputil::raise_except_if_required(FE_INVALID);
-        return FPBits::quiet_nan().get_val();
-      }
-    }
-
-    if (y_a <= Y_LOWER_BOUND) {
-      volatile double one = 1.0;
-      volatile double eps = ((x_a < FPBits::one().uintval()) == !y_sign)
-                                ? -0x1.0p-100
-                                : 0x1.0p-100;
-      return one + eps;
-    }
+  // Normalize denormal inputs.
+  if (x_a < FPBits::min_normal().uintval()) {
+    FPBits x_norm(x * 0x1.0p64);
+    e_x = static_cast<double>(x_norm.get_exponent()) - 64.0;
+    x_mant = x_norm.get_mantissa();
   }
 
   return cpp::nullopt;

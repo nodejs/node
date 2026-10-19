@@ -111,13 +111,14 @@ listenerDelegate = function(exec_state) {
 listenerDelegate = function(exec_state) {
   const frame = exec_state.frame(0);
 
-  assertEquals(5, frame.scopeCount());
+  assertEquals(6, frame.scopeCount());
 
   CheckScope(frame.scope(0), {}, ScopeType.Local);
   CheckScope(frame.scope(1), { visible2: 20 }, ScopeType.Closure);
-  CheckScope(frame.scope(2), { visible1: 10 }, ScopeType.Closure);
-  CheckScope(frame.scope(3), {}, ScopeType.Script);
-  CheckScope(frame.scope(4), {}, ScopeType.Global);
+  CheckScope(frame.scope(2), { invisible2: undefined }, ScopeType.Closure);
+  CheckScope(frame.scope(3), { visible1: 10, invisible1: undefined }, ScopeType.Closure);
+  CheckScope(frame.scope(4), {}, ScopeType.Script);
+  CheckScope(frame.scope(5), {}, ScopeType.Global);
 };
 
 (function F1(invisible_parameter) {
@@ -137,13 +138,14 @@ listenerDelegate = function(exec_state) {
 listenerDelegate = function(exec_state) {
   const frame = exec_state.frame(0);
 
-  assertEquals(5, frame.scopeCount());
+  assertEquals(6, frame.scopeCount());
 
   CheckScope(frame.scope(0), {}, ScopeType.Local);
   CheckScope(frame.scope(1), { e2: "I'm error 2" }, ScopeType.Catch);
   CheckScope(frame.scope(2), { e1: "I'm error 1" }, ScopeType.Catch);
-  CheckScope(frame.scope(3), {}, ScopeType.Script);
-  CheckScope(frame.scope(4), {}, ScopeType.Global);
+  CheckScope(frame.scope(3), {}, ScopeType.Closure);
+  CheckScope(frame.scope(4), {}, ScopeType.Script);
+  CheckScope(frame.scope(5), {}, ScopeType.Global);
 };
 
 (function One() {

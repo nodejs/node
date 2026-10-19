@@ -984,7 +984,7 @@ TNode<Word32T> JSGraphAssembler::ArrayBufferDetachedBit(
       LoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(), buffer),
       UseInfo::TruncatingWord32());
   return Word32And(bitfield,
-                   Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+                   Uint32Constant(JSArrayBuffer::Bits::WasDetachedBit::kMask));
 }
 
 TNode<Word32T> JSGraphAssembler::ArrayBufferViewDetachedBit(

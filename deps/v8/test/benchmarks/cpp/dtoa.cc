@@ -4,13 +4,11 @@
 
 #include "src/base/macros.h"
 #include "src/base/numbers/fast-dtoa.h"
-#include "src/base/vector.h"
 #include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 using v8::base::FAST_DTOA_PRECISION;
 using v8::base::FAST_DTOA_SHORTEST;
 using v8::base::kFastDtoaMaximalLength;
-using v8::base::Vector;
 
 // This is a dump from a benchmark (MotionMark suits).
 // It contains a large number of nontrivial doubles,
@@ -1043,24 +1041,22 @@ constexpr const double kTestDoubles[4096] = {
 
 static void BM_DtoaShortest(benchmark::State& state) {
   char output[kFastDtoaMaximalLength + 10];
-  Vector<char> buffer(output, sizeof(output));
   int length, decimal_point;
   unsigned idx = 0;
   for (auto _ : state) {
     bool ok = FastDtoa(kTestDoubles[idx++ % 4096], FAST_DTOA_SHORTEST, 0,
-                       buffer, &length, &decimal_point);
+                       output, &length, &decimal_point);
     USE(ok);
   }
 }
 
 static void BM_DtoaSixDigits(benchmark::State& state) {
   char output[kFastDtoaMaximalLength + 10];
-  Vector<char> buffer(output, sizeof(output));
   int length, decimal_point;
   unsigned idx = 0;
   for (auto _ : state) {
     bool ok = FastDtoa(kTestDoubles[idx++ % 4096], FAST_DTOA_PRECISION, 6,
-                       buffer, &length, &decimal_point);
+                       output, &length, &decimal_point);
     USE(ok);
   }
 }

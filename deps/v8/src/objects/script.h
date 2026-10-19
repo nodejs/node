@@ -36,6 +36,16 @@ class NativeModule;
 // Script describes a script which has been added to the VM.
 V8_OBJECT class Script : public Struct {
  public:
+  inline Script(const AllocationWitness& witness,
+                Tagged<UnionOf<String, Undefined>> source, int script_id);
+  inline Script(const AllocationWitness& witness, Tagged<Script> old_script,
+                Tagged<String> source, int script_id
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+                ,
+                Tagged<ArrayList> script_or_modules
+#endif
+  );
+
   // Script ID used for temporary scripts, which shouldn't be added to the
   // script list.
   static constexpr int kTemporaryScriptId = -2;
@@ -100,13 +110,15 @@ V8_OBJECT class Script : public Struct {
   inline int id() const;
   inline void set_id(int value);
 
-  inline Tagged<Object> eval_from_shared_or_wrapped_arguments() const;
+  inline Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+  eval_from_shared_or_wrapped_arguments() const;
   inline void set_eval_from_shared_or_wrapped_arguments(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  Tagged<SharedFunctionInfo> eval_from_shared() const;
+  V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> eval_from_shared() const;
   void set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -387,12 +399,13 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<Smi> script_type_;
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
-  TaggedMember<Object> eval_from_shared_or_wrapped_arguments_;
+  TaggedMember<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+      eval_from_shared_or_wrapped_arguments_;
   TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ScriptFlags>);
   TaggedMember<UnionOf<String, Undefined>> source_url_;
   TaggedMember<Object> source_mapping_url_;
   TaggedMember<UnionOf<String, Undefined>> debug_id_;

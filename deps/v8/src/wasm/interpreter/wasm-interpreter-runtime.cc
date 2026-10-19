@@ -650,10 +650,8 @@ bool WasmInterpreterRuntime::MemoryFill(const uint8_t*& current_code,
 void WasmInterpreterRuntime::UnpackException(
     uint32_t* sp, const WasmTag& tag, DirectHandle<Object> exception_object,
     uint32_t first_param_slot_index, uint32_t first_param_ref_stack_index) {
-  DirectHandle<Object> values_obj = WasmExceptionPackage::GetExceptionValues(
+  DirectHandle<FixedArray> encoded_values = GetExceptionValuesField(
       isolate_, TrustedCast<WasmExceptionPackage>(exception_object));
-  SBXCHECK(IsFixedArray(*values_obj));
-  DirectHandle<FixedArray> encoded_values = Cast<FixedArray>(values_obj);
   SBXCHECK_LE(WasmExceptionPackage::GetEncodedSize(module_, &tag),
               static_cast<uint32_t>(encoded_values->length()));
   // Decode the exception values from the given exception package and push
@@ -717,9 +715,14 @@ void WasmInterpreterRuntime::UnpackException(
       case kRefNull: {
         DirectHandle<Object> ref(encoded_values->get(encoded_index++),
                                  isolate_);
-        if (sig->GetParam(i).value_type_code() == wasm::kFuncRefCode &&
-            i::IsNull(*ref)) {
-          ref = isolate_->factory()->wasm_null();
+        // Exception payloads use the same null representation as Wasm values
+        // (WasmNull for internal types, JS null for extern types). The
+        // encoded values live in the sandbox, so fail closed on a mismatch:
+        // a wrong null would bypass the interpreter's typed null checks.
+        if (sig->GetParam(i).use_wasm_null()) {
+          SBXCHECK(!i::IsNull(*ref));
+        } else {
+          SBXCHECK(!i::IsWasmNull(*ref));
         }
         StoreWasmRef(first_param_ref_stack_index++, ref);
         base::WriteUnalignedValue<WasmRef>(reinterpret_cast<Address>(p), ref);
@@ -739,6 +742,15 @@ void RedirectCodeToUnwindHandler(const uint8_t*& code) {
   // Resume execution from s2s_Unwind, which unwinds the Wasm stack frames
   code = reinterpret_cast<uint8_t*>(&s_unwind_code);
 }
+
+// Invalidates the caller's published reentry frame pointer on every return path
+// from a callout. A legitimate reentry re-publishes its own frame geometry
+// before calling out; one that does not fails BeginExecution's range check
+// instead of reusing a stale pointer.
+struct InvalidateActivationFrameOnReturn {
+  WasmInterpreterThread* thread;
+  ~InvalidateActivationFrameOnReturn() { thread->InvalidateActivationFrame(); }
+};
 }  // namespace
 
 // Allocate a new exception.
@@ -754,6 +766,31 @@ WasmInterpreterRuntime::CreateWasmExceptionPackage(uint32_t tag_index) const {
   DirectHandle<WasmExceptionPackage> exception_object =
       WasmExceptionPackage::New(isolate_, exception_tag, encoded_size);
   return exception_object;
+}
+
+// static
+DirectHandle<Object> WasmInterpreterRuntime::GetExceptionTagField(
+    Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package) {
+  // Read the in-object field directly instead of through a property lookup, so
+  // a rewritten accessor descriptor can't run JS during exception handling.
+  // WasmExceptionPackage::New stores this field the same way.
+  Tagged<JSObject> object = Cast<JSObject>(*exception_package);
+  return direct_handle(
+      object->InObjectPropertyAtOffset(
+          object->GetInObjectPropertyOffset(WasmExceptionPackage::kTagIndex)),
+      isolate);
+}
+
+// static
+DirectHandle<FixedArray> WasmInterpreterRuntime::GetExceptionValuesField(
+    Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package) {
+  Tagged<JSObject> object = Cast<JSObject>(*exception_package);
+  Tagged<Object> values = object->InObjectPropertyAtOffset(
+      object->GetInObjectPropertyOffset(WasmExceptionPackage::kValuesIndex));
+  // The slot offset comes from the map, so check the type before the callers
+  // encode or decode payload values through it.
+  SBXCHECK(IsFixedArray(values));
+  return direct_handle(Cast<FixedArray>(values), isolate);
 }
 
 // Throw a Wasm exception.
@@ -823,9 +860,8 @@ WasmInterpreterRuntime::HandleException(uint32_t* sp,
         } else if (IsWasmExceptionPackage(*exception)) {
           // The exception was thrown by Wasm code and it's wrapped in a
           // WasmExceptionPackage.
-          DirectHandle<Object> caught_tag =
-              WasmExceptionPackage::GetExceptionTag(
-                  isolate_, TrustedCast<WasmExceptionPackage>(exception));
+          DirectHandle<Object> caught_tag = GetExceptionTagField(
+              isolate_, TrustedCast<WasmExceptionPackage>(exception));
           DirectHandle<Object> expected_tag(
               trusted_data->tags_table()->get(catch_handler.tag_index),
               isolate_);
@@ -973,6 +1009,28 @@ int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
   return result.ToSmi().value();
 }
 
+void WasmInterpreterThread::Activation::CheckReentryStackFramePointer(
+    uint8_t* interpreter_fp) const {
+  // `interpreter_fp` (== NextFrameAddress()) is where a reentrant JS->Wasm call
+  // starts its native frame. A legitimate reentry publishes its geometry from
+  // the live caller frame, so it starts at or above that frame's base and
+  // within this thread's interpreter stack reservation. Reject anything
+  // outside that range: BeginExecution computes `stack_limit - interpreter_fp`,
+  // which is only defined for a pointer inside the allocation.
+  const Address reentry = reinterpret_cast<Address>(interpreter_fp);
+  const Address stack_base = reinterpret_cast<Address>(thread_->stack_mem());
+  const Address stack_end =
+      stack_base + static_cast<Address>(kInterpreterStackReservationSize);
+  // Lower bound: live caller frame base, or the stack base if this activation
+  // has no bytecode frame (e.g. entered through an imported function).
+  const Address lower_bound =
+      current_frame_state_.current_function_ != nullptr
+          ? reinterpret_cast<Address>(current_frame_state_.current_sp_)
+          : stack_base;
+  SBXCHECK_LE(lower_bound, reentry);
+  SBXCHECK_LE(reentry, stack_end);
+}
+
 void WasmInterpreterRuntime::BeginExecution(
     WasmInterpreterThread* thread, uint32_t func_index, Address frame_pointer,
     uint8_t* interpreter_fp, uint32_t ref_stack_offset,
@@ -980,7 +1038,11 @@ void WasmInterpreterRuntime::BeginExecution(
   current_thread_ = thread;
   start_function_index_ = func_index;
 
-  thread->StartActivation(this, frame_pointer, interpreter_fp, current_frame_);
+  // Validate the published reentry frame pointer stays within the top caller
+  // activation's live frame before we write arguments and slots there.
+  thread->ValidateReentrantStackFramePointer(interpreter_fp);
+
+  thread->StartActivation(this, frame_pointer, current_frame_);
 
   current_frame_.current_function_ = nullptr;
   current_frame_.previous_frame_ = nullptr;
@@ -2455,6 +2517,9 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     DirectHandle<Object> object_ref, const FunctionSig* callsite_sig,
     uint32_t* sp, uint32_t return_slot_offset,
     const CanonicalSig* callee_canonical_sig) {
+  // Invalidate the published reentry frame pointer on every return path.
+  InvalidateActivationFrameOnReturn invalidate_on_return{current_thread_};
+
   // TODO(paolosev@microsoft.com) Cache IsJSCompatibleSignature result?
   if (!IsJSCompatibleSignature(
           reinterpret_cast<const wasm::CanonicalSig*>(callsite_sig))) {
@@ -2656,20 +2721,9 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
           continue;
         }
         DirectHandle<Object>& ref = ref_returns[ref_idx++];
-        // Normalize JS null -> wasm_null for funcref returns (funcref uses
-        // wasm_null, not JS null).
-        bool is_funcref =
-            callee_canonical_sig
-                ? callee_canonical_sig->GetReturn(i).value_type_code() ==
-                      wasm::kFuncRefCode
-                : callsite_sig->GetReturn(i).value_type_code() ==
-                      wasm::kFuncRefCode;
-        if (is_funcref && i::IsNull(*ref)) {
-          ref = isolate_->factory()->wasm_null();
-        }
-
         // Coerce against the callee's declared type when available,
-        // otherwise fall back to the callsite type.
+        // otherwise fall back to the callsite type. {ref} is a JS value here;
+        // JSToWasmObject() itself maps JS null to wasm_null where needed.
         if (callee_canonical_sig) {
           ref = JSToWasmObject(ref, callee_canonical_sig->GetReturn(i));
         } else {
@@ -2716,8 +2770,8 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
           case kRefNull:
             packer
                 .Pop<Address>();  // Advance offset to stay in sync with PASS 1
-            *reinterpret_cast<DirectHandle<Object>*>(sp) =
-                ref_returns[ref_idx++];
+            base::WriteUnalignedValue<WasmRef>(reinterpret_cast<Address>(sp),
+                                               ref_returns[ref_idx++]);
             sp += sizeof(WasmRef) / kSlotSize;
             break;
           case kS128:
@@ -2748,6 +2802,9 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
     uint32_t target_function_index, DirectHandle<Object> object_ref,
     const FunctionSig* sig, uint32_t* sp, uint32_t return_slot_offset,
     uint32_t ref_stack_fp_offset) {
+  // Invalidate the published reentry frame pointer on every return path.
+  InvalidateActivationFrameOnReturn invalidate_on_return{current_thread_};
+
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   if (v8_flags.trace_drumbrake_execution) {
     Trace("  => Calling external wasm function\n");
@@ -2984,6 +3041,8 @@ WasmRef WasmInterpreterRuntime::WasmJSToWasmObject(
 
 WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
                                                ValueType type) const {
+  // {extern_ref} must be a JS value.
+  DCHECK(!IsWasmNull(*extern_ref));
   DirectHandle<Object> result;
   const char* error_message;
   if (wasm::JSToWasmObject(isolate_, module_, extern_ref, type, &error_message)
@@ -3003,6 +3062,7 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
 
 WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
                                                CanonicalValueType type) const {
+  DCHECK(!IsWasmNull(*extern_ref));
   DirectHandle<Object> result;
   const char* error_message;
   if (wasm::JSToWasmObject(isolate_, extern_ref, type, &error_message)

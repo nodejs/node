@@ -649,6 +649,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
+  TNode<UintPtrT> UniqueUintPtrConstant(uintptr_t value) {
+    return Unsigned(UniqueIntPtrConstant(base::bit_cast<intptr_t>(value)));
+  }
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
     return ReinterpretCast<RawPtrT>(
@@ -1012,10 +1015,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
   void OptimizedStoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                          IndirectPointerTag tag, Node* value);
+                                          TrustedPointerTag tag, Node* value);
   void OptimizedStoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      Node* value);
+      TNode<HeapObject> object, int offset, TrustedPointerTag tag, Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
                                                TNode<HeapObject> object,
                                                int offset, Node* value);

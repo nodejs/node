@@ -35,6 +35,29 @@
 __attribute__((target("arch=+v"))) static unsigned vlen_intrinsic() {
   return static_cast<unsigned>(__riscv_vlenb() * 8);
 }
+
+#if V8_OS_LINUX
+// Checks whether the given feature appears as a whole underscore-separated
+// item in a RISC-V "isa" string (e.g. "rv64imafdcv_zba_zbb").
+static bool IsaHasFeature(const char* isa, const char* feature) {
+  if (isa == nullptr) {
+    return false;
+  }
+  size_t feature_len = strlen(feature);
+  const char* p = isa;
+  while (*p != '\0') {
+    while (*p == '_') ++p;
+    const char* q = p;
+    while (*q != '\0' && *q != '_') ++q;
+    if (static_cast<size_t>(q - p) == feature_len &&
+        memcmp(p, feature, feature_len) == 0) {
+      return true;
+    }
+    p = q;
+  }
+  return false;
+}
+#endif  // V8_OS_LINUX
 #endif
 
 namespace v8::base {
@@ -71,6 +94,21 @@ void CPU::DetectFeatures() {
     }
     if (pairs[0].value & RISCV_HWPROBE_IMA_C) {
       has_rvc_ = true;
+    }
+  } else {
+    // The riscv_hwprobe syscall was introduced in Linux 6.4. On older
+    // kernels (e.g. vendor BSP kernels that backport RVV 1.0 but not
+    // hwprobe), fall back to the "isa" line of /proc/cpuinfo. This restores
+    // the fallback that src/base/cpu.cc had before the split into
+    // per-architecture files (89ad1535).
+    char* isa = cpu_info.ExtractField("isa");
+
+    if (IsaHasFeature(isa, "rv64imafdc")) {
+      has_fpu_ = true;
+    }
+    if (IsaHasFeature(isa, "rv64imafdcv")) {
+      has_fpu_ = true;
+      has_rvv_ = true;
     }
   }
 

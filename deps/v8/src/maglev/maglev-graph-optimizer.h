@@ -150,6 +150,12 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
       ValueNode* node, UseRepresentation repr,
       std::optional<NodeType> assumed_input_type);
 
+  // Returns true if reusing the cached conversion 'alt' safely preserves all
+  // required type checks for 'node'.
+  bool CanReuseAlternative(ValueNode* node, ValueNode* alt,
+                           UseRepresentation repr,
+                           std::optional<NodeType> assumed_input_type);
+
   // Records the untagged input of a tagging conversion as the matching
   // untagged alternative of `tagged`, so a later untagging use can reuse it.
   template <ValueRepresentation kRepresentation>
@@ -170,8 +176,7 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
 
-  template <typename FixedArrayT, typename NodeT>
-  MaybeReduceResult AbortIfInvalidFixedArrayIndex(NodeT* node);
+  ProcessResult OverwriteWith(Opcode opcode);
 
   ProcessResult ReplaceWith(ValueNode* node);
 

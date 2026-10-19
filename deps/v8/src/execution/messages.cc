@@ -189,8 +189,10 @@ DirectHandle<String> MessageHandler::GetMessage(Isolate* isolate,
                                                 DirectHandle<Object> data) {
   DirectHandle<JSMessageObject> message = Cast<JSMessageObject>(data);
   DirectHandle<Object> arg{message->argument(), isolate};
-  return MessageFormatter::Format(isolate, message->type(),
-                                  base::VectorOf({arg}));
+  return MessageFormatter::Format(
+      isolate, message->type(),
+      IsTheHole(*arg) ? base::Vector<const DirectHandle<Object>>{}
+                      : base::VectorOf({arg}));
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -451,52 +453,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
 
   IncrementalStringBuilder builder(isolate);
 
-  // TODO(14386): Get this list empty.
-  static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
-      MessageTemplate::kConstAssign,
-      MessageTemplate::kConstructorNotReceiver,
-      MessageTemplate::kDataCloneErrorDetachedArrayBuffer,
-      MessageTemplate::kDataCloneErrorOutOfMemory,
-      MessageTemplate::kIncompatibleMethodReceiver,
-      MessageTemplate::kInvalidArgument,
-      MessageTemplate::kInvalidArrayLength,
-      MessageTemplate::kInvalidAtomicAccessIndex,
-      MessageTemplate::kInvalidDataViewLength,
-      MessageTemplate::kInvalidIndex,
-      MessageTemplate::kInvalidLhsInAssignment,
-      MessageTemplate::kInvalidLhsInFor,
-      MessageTemplate::kInvalidLhsInPostfixOp,
-      MessageTemplate::kInvalidLhsInPrefixOp,
-      MessageTemplate::kInvalidPrivateBrandReinitialization,
-      MessageTemplate::kInvalidPrivateFieldReinitialization,
-      MessageTemplate::kInvalidPrivateMemberWrite,
-      MessageTemplate::kInvalidRegExpExecResult,
-      MessageTemplate::kInvalidTimeValue,
-      MessageTemplate::kInvalidWeakMapKey,
-      MessageTemplate::kInvalidWeakSetValue,
-      MessageTemplate::kIteratorReduceNoInitial,
-      MessageTemplate::kJsonParseShortString,
-      MessageTemplate::kJsonParseUnexpectedEOS,
-      MessageTemplate::kJsonParseUnexpectedTokenEndStringWithContext,
-      MessageTemplate::kJsonParseUnexpectedTokenShortString,
-      MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext,
-      MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext,
-      MessageTemplate::kMustBePositive,
-      MessageTemplate::kNotIterable,
-      MessageTemplate::kNotTypedArray,
-      MessageTemplate::kProxyNonObject,
-      MessageTemplate::kProxyPrivate,
-      MessageTemplate::kProxyRevoked,
-      MessageTemplate::kProxyTrapReturnedFalsishFor,
-      MessageTemplate::kReduceNoInitial,
-      MessageTemplate::kSpreadIteratorSymbolNonCallable,
-      MessageTemplate::kSymbolIteratorInvalid,
-      MessageTemplate::kTopLevelAwaitStalled,
-      MessageTemplate::kUndefinedOrNullToObject,
-      MessageTemplate::kUnexpectedStrictReserved,
-      MessageTemplate::kUnexpectedTokenIdentifier,
-      MessageTemplate::kWeakRefsCleanupMustBeCallable};
-
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
@@ -504,29 +460,19 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       if (*(c + 1) == '%') {
         c++;
         builder.AppendCharacter('%');
+      } else if (remaining_args.empty()) {
+        FATAL("Missing argument to template (got %zu): %s", args.size(),
+              template_string);
       } else {
-        // TODO(14386): Remove this fallback.
-        if (remaining_args.empty()) {
-          if (std::count(std::begin(kTemplatesWithMismatchedArguments),
-                         std::end(kTemplatesWithMismatchedArguments), index)) {
-            builder.AppendCString("undefined");
-          } else {
-            FATAL("Missing argument to template (got %zu): %s", args.size(),
-                  template_string);
-          }
-        } else {
-          DirectHandle<String> arg = remaining_args[0];
-          remaining_args += 1;
-          builder.AppendString(arg);
-        }
+        DirectHandle<String> arg = remaining_args[0];
+        remaining_args += 1;
+        builder.AppendString(arg);
       }
     } else {
       builder.AppendCharacter(*c);
     }
   }
-  if (!remaining_args.empty() &&
-      std::count(std::begin(kTemplatesWithMismatchedArguments),
-                 std::end(kTemplatesWithMismatchedArguments), index) == 0) {
+  if (!remaining_args.empty()) {
     FATAL("Too many arguments to template (expected %zu, got %zu): %s",
           args.size() - remaining_args.size(), args.size(), template_string);
   }
@@ -839,6 +785,13 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     FrameSummaries summaries = it.frame()->Summarize();
+#if V8_ENABLE_WEBASSEMBLY
+    if (summaries.size() == 0) {
+      DCHECK_EQ(it.frame()->function()->shared()->builtin_id(),
+                Builtin::kWasmMethodWrapper);
+      return false;
+    }
+#endif
     auto& summary = summaries.frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
@@ -979,8 +932,12 @@ Tagged<Object> ErrorUtils::ThrowSpreadArgError(Isolate* isolate,
     }
   }
 
-  isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
-                   &location);
+  if (id == MessageTemplate::kSpreadIteratorSymbolNonCallable) {
+    isolate->ThrowAt(isolate->factory()->NewTypeError(id), &location);
+  } else {
+    isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
+                     &location);
+  }
   return ReadOnlyRoots(isolate).exception();
 }
 
@@ -1151,6 +1108,13 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
               perfetto::StaticString(__func__));
 
+  if (IsAccessCheckNeeded(*maybe_error_object) &&
+      !isolate->MayAccess(isolate->native_context(), maybe_error_object)) {
+    RETURN_ON_EXCEPTION(isolate,
+                        isolate->ReportFailedAccessCheck(maybe_error_object));
+    UNREACHABLE();
+  }
+
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 
@@ -1197,6 +1161,12 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
 void ErrorUtils::SetFormattedStack(Isolate* isolate,
                                    DirectHandle<JSObject> maybe_error_object,
                                    DirectHandle<JSAny> formatted_stack) {
+  if (IsAccessCheckNeeded(*maybe_error_object) &&
+      !isolate->MayAccess(isolate->native_context(), maybe_error_object)) {
+    USE(isolate->ReportFailedAccessCheck(maybe_error_object));
+    return;
+  }
+
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 

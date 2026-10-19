@@ -9,8 +9,8 @@
 #include <stdint.h>
 
 #include <array>
+#include <atomic>
 
-#include "include/cppgc/internal/write-barrier.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
@@ -40,21 +40,21 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
     return kReservedForBitmap * kBitsPerCell;
   }
 
-  inline ObjectStartBitmap();
+  V8_INLINE ObjectStartBitmap();
 
   // Finds an object header based on an
   // address_maybe_pointing_to_the_middle_of_object. Will search for an object
   // start in decreasing address order.
   template <AccessMode = AccessMode::kNonAtomic>
-  inline HeapObjectHeader* FindHeader(
+  V8_INLINE HeapObjectHeader* FindHeader(
       ConstAddress address_maybe_pointing_to_the_middle_of_object) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
-  inline void SetBit(ConstAddress);
+  V8_INLINE void SetBit(ConstAddress);
   template <AccessMode = AccessMode::kNonAtomic>
-  inline void ClearBit(ConstAddress);
+  V8_INLINE void ClearBit(ConstAddress);
   template <AccessMode = AccessMode::kNonAtomic>
-  inline bool CheckBit(ConstAddress) const;
+  V8_INLINE bool CheckBit(ConstAddress) const;
 
   // Iterates all object starts recorded in the bitmap.
   //
@@ -74,9 +74,9 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
  private:
   template <AccessMode = AccessMode::kNonAtomic>
-  inline void store(size_t cell_index, uint8_t value);
+  V8_INLINE void store(size_t cell_index, uint8_t value);
   template <AccessMode = AccessMode::kNonAtomic>
-  inline uint8_t load(size_t cell_index) const;
+  V8_INLINE uint8_t load(size_t cell_index) const;
 
   static constexpr size_t kBitsPerCell = sizeof(uint8_t) * CHAR_BIT;
   static constexpr size_t kCellMask = kBitsPerCell - 1;
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   static constexpr size_t kReservedForBitmap =
       ((kBitmapSize + kAllocationMask) & ~kAllocationMask);
 
-  inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
+  V8_INLINE void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
   // `fully_populated_` is used to denote that the bitmap is populated with all
   // currently allocated objects on the page and is in a consistent state. It is
@@ -170,12 +170,21 @@ void ObjectStartBitmap::store(size_t cell_index, uint8_t value) {
     object_start_bit_map_[cell_index] = value;
     return;
   }
-  // Use acq rel rmw here to avoid a situation when a pointer write may be
-  // reordered before the setting of the mark bit, which may lead to the
-  // concurrent marker missing the right object (because the bit is not yet
-  // propagated).
+#if defined(THREAD_SANITIZER)
+  // In non-TSAN builds, ordering is guaranteed by the release fence after
+  // setting the bit during mixin allocation and the address dependency chain on
+  // the concurrent marker (Member -> bitmap cell -> HeapObjectHeader). TSAN
+  // does not model hardware address dependencies (so the release fence paired
+  // with a relaxed Member load does not establish happens-before in TSAN), and
+  // still requires release/acquire here to avoid reporting races on
+  // HeapObjectHeader memory that was previously written non-atomically (e.g.
+  // during lazy sweeping or freelist unlinking).
+  constexpr auto kMemoryOrder = std::memory_order_release;
+#else
+  constexpr auto kMemoryOrder = std::memory_order_relaxed;
+#endif  // defined(THREAD_SANITIZER)
   std::atomic_ref<uint8_t>(object_start_bit_map_[cell_index])
-      .exchange(value, std::memory_order_acq_rel);
+      .store(value, kMemoryOrder);
 }
 
 template <AccessMode mode>
@@ -183,9 +192,15 @@ uint8_t ObjectStartBitmap::load(size_t cell_index) const {
   if (mode == AccessMode::kNonAtomic) {
     return object_start_bit_map_[cell_index];
   }
+#if defined(THREAD_SANITIZER)
+  // See comment in store().
+  constexpr auto kMemoryOrder = std::memory_order_acquire;
+#else
+  constexpr auto kMemoryOrder = std::memory_order_relaxed;
+#endif  // defined(THREAD_SANITIZER)
   return std::atomic_ref<uint8_t>(
              const_cast<uint8_t&>(object_start_bit_map_[cell_index]))
-      .load(std::memory_order_acquire);
+      .load(kMemoryOrder);
 }
 
 void ObjectStartBitmap::ObjectStartIndexAndBit(ConstAddress header_address,
@@ -229,51 +244,6 @@ void ObjectStartBitmap::MarkAsFullyPopulated() {
 void ObjectStartBitmap::Clear() {
   fully_populated_ = false;
   std::fill(object_start_bit_map_.begin(), object_start_bit_map_.end(), 0);
-}
-
-// A platform aware version of ObjectStartBitmap to provide platform specific
-// optimizations (e.g. Use non-atomic stores on ARMv7 when not marking).
-class V8_EXPORT_PRIVATE PlatformAwareObjectStartBitmap
-    : public ObjectStartBitmap {
- public:
-  template <AccessMode = AccessMode::kNonAtomic>
-  inline void SetBit(ConstAddress);
-  template <AccessMode = AccessMode::kNonAtomic>
-  inline void ClearBit(ConstAddress);
-
- private:
-  template <AccessMode>
-  static bool ShouldForceNonAtomic();
-};
-
-// static
-template <AccessMode mode>
-bool PlatformAwareObjectStartBitmap::ShouldForceNonAtomic() {
-#if defined(V8_HOST_ARCH_ARM)
-  // Use non-atomic accesses on ARMv7 when marking is not active.
-  if (mode == AccessMode::kAtomic) {
-    if (V8_LIKELY(!WriteBarrier::IsEnabled())) return true;
-  }
-#endif  // defined(V8_HOST_ARCH_ARM)
-  return false;
-}
-
-template <AccessMode mode>
-void PlatformAwareObjectStartBitmap::SetBit(ConstAddress header_address) {
-  if (ShouldForceNonAtomic<mode>()) {
-    ObjectStartBitmap::SetBit<AccessMode::kNonAtomic>(header_address);
-    return;
-  }
-  ObjectStartBitmap::SetBit<mode>(header_address);
-}
-
-template <AccessMode mode>
-void PlatformAwareObjectStartBitmap::ClearBit(ConstAddress header_address) {
-  if (ShouldForceNonAtomic<mode>()) {
-    ObjectStartBitmap::ClearBit<AccessMode::kNonAtomic>(header_address);
-    return;
-  }
-  ObjectStartBitmap::ClearBit<mode>(header_address);
 }
 
 }  // namespace internal

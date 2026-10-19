@@ -16,8 +16,15 @@
 #define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)
 #define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V)
 #else
-#include "builtins-generated/bytecodes-builtins-list.h"
-#include "torque-generated/builtin-definitions.h"
+#include "src/builtins/bytecodes-builtins-list.h"
+// Torque's builtin definitions: the checked-in copy under src/gen/ if
+// v8_use_checked_in_generated_headers, the generated header otherwise. See
+// src/gen/README.md.
+#ifdef V8_USE_CHECKED_IN_GENERATED_HEADERS
+#include "src/gen/intl-wasm/builtin-definitions.h"  // IWYU pragma: export
+#else
+#include "torque-generated/builtin-definitions.h"  // IWYU pragma: export, nogncheck
+#endif
 #endif
 #include "src/base/strong-alias.h"
 #include "src/common/globals.h"
@@ -227,8 +234,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
                                 ASM)                                           \
   /* GC write barriers */                                                      \
-  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
-  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
+  TFC(TrustedPointerBarrierSaveFP, TrustedPointerWriteBarrier)                 \
+  TFC(TrustedPointerBarrierIgnoreFP, TrustedPointerWriteBarrier)               \
                                                                                \
   /* Adaptors for CPP builtins with various formal parameter counts. */        \
   /* We split these versions for simplicity (not all architectures have */     \
@@ -534,6 +541,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(SetDataProperties, NeedsContext{true}, kTarget, kSource)                 \
   TFS(ProxyGetPropertyFastPath, NeedsContext{true}, kProxy, kName, kReceiver,  \
       kHandler)                                                                \
+  TFC(ProxyGetPropertyTrapResultLazyDeoptContinuation,                         \
+      ProxyGetPropertyTrapResultLazyDeoptContinuation)                         \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \
@@ -798,14 +807,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(TFJ, WasmMethodWrapper, kDontAdaptArgumentsSentinel)                 \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   CPP(FunctionPrototypeToString, kDontAdaptArgumentsSentinel)                  \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))        \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyArgumentsSetter, JSParameterCount(1))        \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyCallerGetter, JSParameterCount(0))           \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyCallerSetter, JSParameterCount(1))           \
+  CPP(FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))             \
+  CPP(FunctionPrototypeLegacyArgumentsSetter, JSParameterCount(1))             \
+  CPP(FunctionPrototypeLegacyCallerGetter, JSParameterCount(0))                \
+  CPP(FunctionPrototypeLegacyCallerSetter, JSParameterCount(1))                \
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
   TFS(CreateIterResultObject, NeedsContext{true}, kValue, kDone)               \
@@ -1497,9 +1502,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
   IF_WASM(ASM, WasmLiftoffFrameSetup, WasmDummy)                               \
   IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
-  IF_WASM(ASM, WasmDebugTrap, WasmDummy)                                       \
+  IF_WASM(ASM, WasmTrapHandlerThrowTrap, WasmDummy)                            \
   IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
   IF_WASM(ASM, WasmHandleStackOverflow, WasmHandleStackOverflow)               \
+  IF_WASM(ASM, WasmReturnFromSegment, WasmDummy)                               \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, WasmFloat64ToString, WasmFloat64ToTagged)                       \

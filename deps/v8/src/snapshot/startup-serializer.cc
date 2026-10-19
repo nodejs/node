@@ -120,7 +120,6 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
     DCHECK(!IsInstructionStream(raw));
-    if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
 
@@ -191,7 +190,8 @@ void StartupSerializer::SerializeStrongReferences(
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
-                                    SkipRoot::kTracedHandles});
+                                    SkipRoot::kTracedHandles,
+                                    SkipRoot::kReadOnlyBuiltins});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(

@@ -19,7 +19,7 @@ struct DescriptorEntry {
 type FastIterableState extends uint8
     constexpr 'DescriptorArray::FastIterableState';
 
-@cppScope('DescriptorArray')
+@cppScope('DescriptorArray::Flags')
 bitfield struct DescriptorArrayFlags extends uint32 {
   fast_iterable: FastIterableState: 2 bit;
 }
@@ -30,5 +30,5 @@ extern class DescriptorArray extends HeapObject {
   number_of_descriptors: uint16;
   flags: DescriptorArrayFlags;
   enum_cache: EnumCache;
-  descriptors[number_of_all_descriptors]: DescriptorEntry;
+  entries[number_of_all_descriptors]: DescriptorEntry;
 }

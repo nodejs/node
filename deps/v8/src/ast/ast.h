@@ -3471,10 +3471,6 @@ class AstNodeFactory final {
     DCHECK_NOT_NULL(target);
     DCHECK_NOT_NULL(value);
 
-    if (op != Token::kInit && target->IsVariableProxy()) {
-      target->AsVariableProxy()->set_is_assigned();
-    }
-
     if (op == Token::kAssign || op == Token::kInit) {
       return zone_->New<Assignment>(AstNode::kAssignment, op, target, value,
                                     pos);

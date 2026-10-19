@@ -279,7 +279,6 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol() ||
          name == roots.detached_symbol();
 }
 
@@ -435,8 +434,8 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
 
   const uint32_t header = TransitionArray::kProtoTransitionHeaderSize;
 
-  DirectHandle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map),
-                                     isolate);
+  DirectHandle<WeakFixedArray> cache(
+      TransitionsAccessor(isolate, *map).GetPrototypeTransitions(), isolate);
   const uint32_t cache_len = cache->ulength().value();
   const uint32_t capacity = cache_len >= header ? cache_len - header : 0;
   const uint32_t transitions =
@@ -477,11 +476,13 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   return true;
 }
 
-// static
 std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
-    Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
+    Tagged<Object> prototype) {
   DisallowGarbageCollection no_gc;
-  Tagged<WeakFixedArray> cache = GetPrototypeTransitions(isolate, map);
+  if (encoding() != kFullTransitionArray) return {};
+  base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                           concurrent_access_);
+  Tagged<WeakFixedArray> cache = GetPrototypeTransitions();
   const uint32_t length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (uint32_t i = 0; i < length; i++) {
     Tagged<MaybeObject> target =
@@ -498,19 +499,11 @@ std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
   return {};
 }
 
-// static
-Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions(
-    Isolate* isolate, Tagged<Map> map) {
-  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
-  if (GetEncoding(isolate, raw_transitions) != kFullTransitionArray) {
-    return ReadOnlyRoots(isolate).empty_weak_fixed_array();
+Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions() {
+  if (!HasPrototypeTransitions()) {
+    return ReadOnlyRoots(isolate_).empty_weak_fixed_array();
   }
-  Tagged<TransitionArray> transition_array =
-      GetTransitionArray(isolate, raw_transitions);
-  if (!transition_array->HasPrototypeTransitions()) {
-    return ReadOnlyRoots(isolate).empty_weak_fixed_array();
-  }
-  return transition_array->GetPrototypeTransitions();
+  return transitions()->GetPrototypeTransitions();
 }
 
 // static
