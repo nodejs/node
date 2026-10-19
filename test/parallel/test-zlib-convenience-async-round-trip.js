@@ -1,7 +1,8 @@
 'use strict';
 // The asynchronous convenience methods know the whole input up front, so they
 // process it with the finish flush in a single write. Check that a call whose
-// output fits in one output buffer takes exactly one threadpool round trip.
+// output fits in one output buffer takes exactly one threadpool round trip,
+// and that larger results need few round trips.
 
 const common = require('../common');
 const assert = require('assert');
@@ -71,4 +72,17 @@ function callAsync(method, buffer, options = {}) {
   });
   assert.deepStrictEqual(roundTrips, [1]);
   assert.strictEqual(error.code, 'Z_DATA_ERROR');
+
+  // The output buffer doubles from the 16 KiB default up to 1 MiB, so 4 MiB of
+  // output takes 6 + 4 round trips instead of 256.
+  {
+    const large = Buffer.alloc(4 * 1024 * 1024, input);
+    const compressed = zlib.deflateSync(large);
+    let result;
+    const roundTrips = await countRoundTrips(async () => {
+      result = await callAsync('inflate', compressed);
+    });
+    assert.deepStrictEqual(roundTrips, [10]);
+    assert.deepStrictEqual(result, large);
+  }
 })().then(common.mustCall());
