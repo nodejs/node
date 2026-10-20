@@ -1,13 +1,9 @@
 'use strict';
 
-// Measures symbol resolution rather than call throughput. Creating a callable
-// for a fast-eligible signature emits a native trampoline, so this benchmark
-// covers the trampoline allocation path that the call benchmarks never reach.
-//
-// The `fast` variant is eligible for a generated trampoline; `slow` exceeds the
-// x86_64 register budget and falls back, so it resolves without allocating one.
-// Comparing the two isolates trampoline creation cost from the rest of symbol
-// resolution.
+// Measures repeated getFunction() calls with a cached callable rather than
+// call throughput. The warmup populates the cache for the measured symbol.
+// See get-function-cache-miss.js for first-time resolution, including trampoline
+// creation for fast-eligible signatures on supported platforms.
 
 const common = require('../common.js');
 const { DynamicLibrary } = require('node:ffi');
@@ -33,8 +29,7 @@ function main({ n, signature }) {
   const { name, ...definition } = signatures[signature];
   const lib = new DynamicLibrary(libraryPath);
 
-  // Warm up one-time initialization (libffi setup, executable memory probe) so
-  // it is not attributed to the measured resolutions.
+  // Populate the callable cache before measuring repeated lookups.
   lib.getFunction(name, definition);
 
   bench.start();
