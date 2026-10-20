@@ -132,6 +132,21 @@ ares_bool_t ares_dns_rec_allow_name_comp(ares_dns_rec_type_t type)
   return ARES_FALSE;
 }
 
+ares_bool_t ares_dns_rec_allow_name_comp_read(ares_dns_rec_type_t type)
+{
+  /* RFC3597 section 4 recommends decompressing these older RR types on
+   * receipt, even though their RDATA names must not be compressed on write.
+   * The other listed types (RP, AFSDB, RT, PX, NXT) are not implemented. */
+  switch (type) {
+    case ARES_REC_TYPE_SIG:
+    case ARES_REC_TYPE_SRV:
+    case ARES_REC_TYPE_NAPTR:
+      return ARES_TRUE;
+    default:
+      return ares_dns_rec_allow_name_comp(type);
+  }
+}
+
 ares_bool_t ares_dns_class_isvalid(ares_dns_class_t    qclass,
                                    ares_dns_rec_type_t type,
                                    ares_bool_t         is_query)

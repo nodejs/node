@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.8" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.9" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "21:7:19")
+SET (CARES_LIB_VERSIONINFO "21:8:19")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -328,9 +328,20 @@ ENDIF ()
 SET (ORIG_CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEEFINITIONS})
 SET (ORIG_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 SET (ORIG_CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES})
+SET (ORIG_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
 
 SET (CMAKE_REQUIRED_DEFINITIONS ${SYSFLAGS})
 LIST (APPEND CMAKE_REQUIRED_LIBRARIES ${CARES_DEPENDENT_LIBS})
+
+# Apple SDKs declare functions newer than the deployment target.  The build
+# rejects calls to them with -Werror=partial-availability, so the symbol
+# checks must too, or they report functions the build cannot use.
+IF (APPLE)
+	CHECK_C_COMPILER_FLAG (-Werror=partial-availability HAVE_WERROR_PARTIAL_AVAILABILITY)
+	IF (HAVE_WERROR_PARTIAL_AVAILABILITY)
+		SET (CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror=partial-availability")
+	ENDIF ()
+ENDIF ()
 
 MACRO (CARES_EXTRAINCLUDE_IFSET var include)
 	IF (${var})
@@ -494,6 +505,7 @@ CHECK_FUNCTION_EXISTS (__system_property_get HAVE___SYSTEM_PROPERTY_GET)
 SET (CMAKE_REQUIRED_DEFINITIONS ${ORIG_CMAKE_REQUIRED_DEEFINITIONS})
 SET (CMAKE_REQUIRED_LIBRARIES ${ORIG_CMAKE_REQUIRED_LIBRARIES})
 SET (CMAKE_EXTRA_INCLUDE_FILES ${ORIG_CMAKE_EXTRA_INCLUDE_FILES})
+SET (CMAKE_REQUIRED_FLAGS ${ORIG_CMAKE_REQUIRED_FLAGS})
 
 
 ################################################################################

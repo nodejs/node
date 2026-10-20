@@ -762,7 +762,12 @@ void ares_getaddrinfo(ares_channel_t *channel, const char *name,
     return;
   }
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
   ares_getaddrinfo_int(channel, name, service, hints, callback, arg);
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 }
 
