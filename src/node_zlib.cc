@@ -34,6 +34,7 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
+#include "absl/crc/crc32c.h"
 #include "node_debug.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -2127,6 +2128,36 @@ static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
 
 static CFunction fast_crc32_(CFunction::Make(FastCRC32));
 
+static inline uint32_t CRC32CImpl(Isolate* isolate,
+                                  Local<Value> data,
+                                  uint32_t value) {
+  return CallOnSequence<uint32_t>(
+      isolate, data, [&](const char* ptr, size_t size) -> uint32_t {
+        return static_cast<uint32_t>(absl::ExtendCrc32c(
+            absl::crc32c_t{value}, std::string_view(ptr, size)));
+      });
+}
+
+static void CRC32C(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
+  CHECK(args[1]->IsUint32());
+  uint32_t value = args[1].As<v8::Uint32>()->Value();
+  args.GetReturnValue().Set(CRC32CImpl(args.GetIsolate(), args[0], value));
+}
+
+static uint32_t FastCRC32C(v8::Local<v8::Value> receiver,
+                           v8::Local<v8::Value> data,
+                           uint32_t value,
+                           // NOLINTNEXTLINE(runtime/references)
+                           v8::FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("zlib.crc32c");
+  v8::HandleScope handle_scope(options.isolate);
+  CHECK(data->IsArrayBufferView() || data->IsString());
+  return CRC32CImpl(options.isolate, data, value);
+}
+
+static CFunction fast_crc32c_(CFunction::Make(FastCRC32C));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -2140,6 +2171,7 @@ void Initialize(Local<Object> target,
   MakeClass<ZstdDecompressStream>::Make(env, target, "ZstdDecompress");
 
   SetFastMethodNoSideEffect(context, target, "crc32", CRC32, &fast_crc32_);
+  SetFastMethodNoSideEffect(context, target, "crc32c", CRC32C, &fast_crc32c_);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
@@ -2153,6 +2185,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   MakeClass<ZstdDecompressStream>::Make(registry);
   registry->Register(CRC32);
   registry->Register(fast_crc32_);
+  registry->Register(CRC32C);
+  registry->Register(fast_crc32c_);
 }
 
 }  // anonymous namespace
