@@ -86,6 +86,36 @@ Error: Cannot load native addon because loading addons is disabled.
 }
 .Ed
 .
+.It Fl -allow-async-hooks
+Allow use of \fBasync_hooks.createHook()\fR. This flag is required to enable
+the \fBcreateHook\fR API, which is disabled by default.
+Example:
+.Bd -literal
+import { createHook } from 'node:async_hooks';
+
+createHook({ init() {} }).enable();
+.Ed
+.Bd -literal
+const { createHook } = require('node:async_hooks');
+
+createHook({ init() {} }).enable();
+.Ed
+.Bd -literal
+$ node index.js
+node:async_hooks:160
+    throw new ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED();
+    ^
+
+Error [ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED]: async_hooks.createHook() is disabled. Use --allow-async-hooks to enable it.
+    at createHook (node:async_hooks:160:11)
+    at Object.<anonymous> (/home/user/index.js:3:1)
+    ...
+.Ed
+.Bd -literal
+$ node --allow-async-hooks index.js
+# Works without error
+.Ed
+.
 .It Fl -allow-child-process
 When using the Permission Model, the process will not be able to spawn any
 child process by default.
@@ -2180,6 +2210,8 @@ one is included in the list below.
 .Bl -bullet
 .It
 \fB--allow-addons\fR
+.It
+\fB--allow-async-hooks\fR
 .It
 \fB--allow-child-process\fR
 .It

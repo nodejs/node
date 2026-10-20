@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_gc
+// Flags: --allow-async-hooks --expose_gc
 
 // This test ensures that userland-only AsyncResources cause a destroy event to
 // be emitted when they get gced.

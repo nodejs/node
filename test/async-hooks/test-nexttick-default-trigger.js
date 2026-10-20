@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 const common = require('../common');
 
 // This tests ensures that the triggerId of the nextTick function sets the

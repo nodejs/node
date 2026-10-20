@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 
 // This tests that using falsy values in createHook throws an error.
 

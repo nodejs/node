@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
