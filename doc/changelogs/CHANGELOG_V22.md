@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.4">22.23.4</a><br/>
 <a href="#22.23.3">22.23.3</a><br/>
 <a href="#22.23.2">22.23.2</a><br/>
 <a href="#22.23.1">22.23.1</a><br/>
@@ -78,6 +79,56 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.4"></a>
+
+## 2026-10-21, Version 22.23.4 'Jod' (LTS), @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-105481) http: ensure agent data guard works without I/O (James M Snell)
+* (CVE-2026-105482) dns: validate resolve inputs for null bytes (James M Snell)
+* (CVE-2026-106069) tls: reject non-canonical IP addresses (Matteo Collina)
+* (CVE-2026-106073) permission: check permission model in realpathSync (RafaelGSS)
+* (CVE-2026-106074) crypto: reset random caches across snapshots (Filip Skokan)
+* (CVE-2026-111497) src: expose `BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` (Antoine du Hamel)
+* (CVE-2026-111497) deps: brotli: cherry-pick 0ed4268a4401abcb44720963 (Evgenii Kliuchnikov)
+* crypto: update root certificates to NSS 3.131.1 (Antoine du Hamel)
+* deps: update c-ares to 1.34.9 (Node.js GitHub Bot)
+* deps: update timezone to 2026e (Node.js GitHub Bot)
+* deps: upgrade openssl sources to openssl-3.5.9 (Node.js GitHub Bot)
+* deps: update sqlite to 3.53.4 (Node.js GitHub Bot)
+* deps: update undici to 6.29.1 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`68fa0df6d6`](https://github.com/nodejs/node/commit/68fa0df6d6)] - **crypto**: update root certificates to NSS 3.131.1 (Antoine du Hamel) [#66877](https://github.com/nodejs/node/pull/66877)
+* \[[`dd6b47573b`](https://github.com/nodejs/node/commit/dd6b47573b)] - **crypto**: reset random caches across snapshots (Filip Skokan) [nodejs-private/node-private#987](https://github.com/nodejs-private/node-private/pull/987)
+* \[[`a62b7d5362`](https://github.com/nodejs/node/commit/a62b7d5362)] - **crypto**: harden X.509 conversion and formatting (Filip Skokan) [nodejs-private/node-private#966](https://github.com/nodejs-private/node-private/pull/966)
+* \[[`ec9e5e4a3e`](https://github.com/nodejs/node/commit/ec9e5e4a3e)] - **crypto**: update root certificates to NSS 3.129 (Node.js GitHub Bot) [#66496](https://github.com/nodejs/node/pull/66496)
+* \[[`a538a9515d`](https://github.com/nodejs/node/commit/a538a9515d)] - **deps**: update c-ares to 1.34.9 (Node.js GitHub Bot) [#66868](https://github.com/nodejs/node/pull/66868)
+* \[[`67d294739f`](https://github.com/nodejs/node/commit/67d294739f)] - **deps**: brotli: cherry-pick 0ed4268a4401abcb44720963 (Evgenii Kliuchnikov) [nodejs-private/node-private#1002](https://github.com/nodejs-private/node-private/pull/1002)
+* \[[`1ab9db8a74`](https://github.com/nodejs/node/commit/1ab9db8a74)] - **deps**: update timezone to 2026e (Node.js GitHub Bot) [#66419](https://github.com/nodejs/node/pull/66419)
+* \[[`52b4bcab03`](https://github.com/nodejs/node/commit/52b4bcab03)] - **deps**: update timezone to 2026d (Node.js GitHub Bot) [#66333](https://github.com/nodejs/node/pull/66333)
+* \[[`60f4833d41`](https://github.com/nodejs/node/commit/60f4833d41)] - **deps**: update archs files for openssl-3.5.9 (Node.js GitHub Bot) [#66396](https://github.com/nodejs/node/pull/66396)
+* \[[`05470dc308`](https://github.com/nodejs/node/commit/05470dc308)] - **deps**: upgrade openssl sources to openssl-3.5.9 (Node.js GitHub Bot) [#66396](https://github.com/nodejs/node/pull/66396)
+* \[[`47333fe4f4`](https://github.com/nodejs/node/commit/47333fe4f4)] - **deps**: update sqlite to 3.53.4 (Node.js GitHub Bot) [#64745](https://github.com/nodejs/node/pull/64745)
+* \[[`98258b855f`](https://github.com/nodejs/node/commit/98258b855f)] - **deps**: update sqlite to 3.53.3 (Node.js GitHub Bot) [#64180](https://github.com/nodejs/node/pull/64180)
+* \[[`a8349b6408`](https://github.com/nodejs/node/commit/a8349b6408)] - **deps**: update sqlite to 3.53.2 (Node.js GitHub Bot) [#63774](https://github.com/nodejs/node/pull/63774)
+* \[[`e9e295bcc1`](https://github.com/nodejs/node/commit/e9e295bcc1)] - **deps**: cherry-pick e807d4e379 from SQLite (Junsu Han) [#63525](https://github.com/nodejs/node/pull/63525)
+* \[[`512a9b61f0`](https://github.com/nodejs/node/commit/512a9b61f0)] - **deps**: update sqlite to 3.53.1 (Node.js GitHub Bot) [#63217](https://github.com/nodejs/node/pull/63217)
+* \[[`e708247254`](https://github.com/nodejs/node/commit/e708247254)] - **deps**: update sqlite to 3.53.0 (Node.js GitHub Bot) [#62699](https://github.com/nodejs/node/pull/62699)
+* \[[`857be5afa3`](https://github.com/nodejs/node/commit/857be5afa3)] - **deps**: update undici to 6.29.1 (Node.js GitHub Bot) [#66765](https://github.com/nodejs/node/pull/66765)
+* \[[`19c5056002`](https://github.com/nodejs/node/commit/19c5056002)] - **dns**: validate resolve inputs for null bytes (James M Snell) [nodejs-private/node-private#984](https://github.com/nodejs-private/node-private/pull/984)
+* \[[`e7b2985d59`](https://github.com/nodejs/node/commit/e7b2985d59)] - **http**: ensure agent data guard works without I/O (James M Snell) [nodejs-private/node-private#983](https://github.com/nodejs-private/node-private/pull/983)
+* \[[`50ab804edc`](https://github.com/nodejs/node/commit/50ab804edc)] - **permission**: check permission model in realpathSync (RafaelGSS) [nodejs-private/node-private#973](https://github.com/nodejs-private/node-private/pull/973)
+* \[[`a18ec92752`](https://github.com/nodejs/node/commit/a18ec92752)] - **src**: expose `BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` (Antoine du Hamel) [nodejs-private/node-private#1002](https://github.com/nodejs-private/node-private/pull/1002)
+* \[[`4342503fd8`](https://github.com/nodejs/node/commit/4342503fd8)] - **tls**: reject chains containing blocked public keys (Ulises Gascon) [#66871](https://github.com/nodejs/node/pull/66871)
+* \[[`d7663560ac`](https://github.com/nodejs/node/commit/d7663560ac)] - **tls**: reject non-canonical IP addresses (Matteo Collina) [nodejs-private/node-private#982](https://github.com/nodejs-private/node-private/pull/982)
+* \[[`beb4cd4cd3`](https://github.com/nodejs/node/commit/beb4cd4cd3)] - **tls**: match IPv6 hosts against IP-Address SANs (Pascal Garber) [#64145](https://github.com/nodejs/node/pull/64145)
+* \[[`4b42e56aaf`](https://github.com/nodejs/node/commit/4b42e56aaf)] - **tools**: retry Gatekeeper check and stapling after notarization (Ryan Aslett) [#66855](https://github.com/nodejs/node/pull/66855)
 
 <a id="22.23.3"></a>
 
