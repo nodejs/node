@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <optional>
 #include <unordered_map>
 #include "base_object.h"
 #include "node_mem.h"
@@ -41,7 +42,12 @@ class Storage : public BaseObject {
   v8::MaybeLocal<v8::Value> LoadKey(const int index);
   v8::Maybe<void> Remove(v8::Local<v8::Name> key);
   v8::Maybe<void> Store(v8::Local<v8::Name> key, v8::Local<v8::Value> value);
-  std::unordered_map<std::u16string, std::u16string> GetAll();
+  // Returns nothing if the backing store could not be read, e.g. because it
+  // holds values of an unexpected type. Opening the store can also throw, so
+  // the caller must hold a v8::TryCatch: an empty return does not say which of
+  // the two happened, and a pending exception is left for the caller to
+  // handle.
+  std::optional<std::unordered_map<std::u16string, std::u16string>> GetAll();
 
   SET_MEMORY_INFO_NAME(Storage)
   SET_SELF_SIZE(Storage)

@@ -1,6 +1,8 @@
 // META: title=WebCryptoAPI: deriveKey() Using ECDH with CFRG Elliptic Curves
 // META: script=../util/helpers.js
 // META: script=cfrg_curves_bits_fixtures.js
+// META: script=derive.js
+// META: script=cfrg_curves.js
 // META: script=cfrg_curves_keys.js
 
 // Define subtests from a `promise_test` to ensure the harness does not

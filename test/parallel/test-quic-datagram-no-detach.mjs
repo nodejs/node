@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, deepStrictEqual, notStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -40,21 +38,19 @@ await clientSession.opened;
 const source = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
 
 const firstId = await clientSession.sendDatagram(source);
-notStrictEqual(firstId, 0n);
-strictEqual(source.buffer.detached, false,
-            'source ArrayBuffer must not be detached after sendDatagram');
+assert.notStrictEqual(firstId, 0n);
+assert.strictEqual(source.buffer.detached, false); // source ArrayBuffer must not be detached after sendDatagram
 
 const secondId = await clientSession.sendDatagram(source);
-notStrictEqual(secondId, 0n);
-strictEqual(source.buffer.detached, false,
-            'source ArrayBuffer must remain live after second sendDatagram');
+assert.notStrictEqual(secondId, 0n);
+assert.strictEqual(source.buffer.detached, false); // source ArrayBuffer must remain live after second sendDatagram
 
 // Mutating the source after the previous sendDatagram returned must
 // not affect what the peer ultimately receives — the bytes have
 // already been copied into the QUIC layer's internal buffer.
 source[0] = 99;
 const thirdId = await clientSession.sendDatagram(source);
-notStrictEqual(thirdId, 0n);
+assert.notStrictEqual(thirdId, 0n);
 
 await allReceived.promise;
 
@@ -66,7 +62,7 @@ const expected = [
   Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]).toString('hex'),
   Buffer.from([99, 2, 3, 4, 5, 6, 7, 8]).toString('hex'),
 ].sort();
-deepStrictEqual(sorted, expected);
+assert.deepStrictEqual(sorted, expected);
 
 await clientSession.closed;
 await serverEndpoint.close();

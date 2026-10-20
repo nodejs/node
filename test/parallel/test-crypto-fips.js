@@ -4,16 +4,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasOpenSSL } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support FIPS');
 
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 const { testFipsCrypto } = internalBinding('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
@@ -21,7 +23,14 @@ const FIPS_ERROR_STRING2 =
   'Error [ERR_CRYPTO_FIPS_FORCED]: Cannot set FIPS mode, it was forced with ' +
   '--force-fips at startup.';
 const FIPS_UNSUPPORTED_ERROR_STRING = 'fips mode not supported';
-const FIPS_ENABLE_ERROR_STRING = 'OpenSSL error when trying to enable FIPS:';
+const FIPS_ENABLE_ERROR_STRING =
+  hasOpenSSL(3) ?
+    '--enable-fips requires an active OpenSSL provider named "fips"' :
+    'OpenSSL error when trying to enable FIPS:';
+const FIPS_FORCE_ERROR_STRING =
+  hasOpenSSL(3) ?
+    '--force-fips requires an active OpenSSL provider named "fips"' :
+    'OpenSSL error when trying to enable FIPS:';
 
 const CNF_FIPS_ON = fixtures.path('openssl_fips_enabled.cnf');
 const CNF_FIPS_OFF = fixtures.path('openssl_fips_disabled.cnf');
@@ -75,7 +84,7 @@ testHelper(
   ['--enable-fips'],
   testFipsCrypto() ? kNoFailure : kGenericUserError,
   testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
-  'process.versions',
+  'require("crypto").getFips()',
   process.env);
 
 // --force-fips should raise an error if OpenSSL is not FIPS enabled.
@@ -83,9 +92,48 @@ testHelper(
   testFipsCrypto() ? 'stdout' : 'stderr',
   ['--force-fips'],
   testFipsCrypto() ? kNoFailure : kGenericUserError,
-  testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
-  'process.versions',
+  testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+  'require("crypto").getFips()',
   process.env);
+
+// Explicit provider mode should preserve the behavior of bare --force-fips.
+testHelper(
+  testFipsCrypto() ? 'stdout' : 'stderr',
+  ['--force-fips=provider'],
+  testFipsCrypto() ? kNoFailure : kGenericUserError,
+  testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+  'require("crypto").getFips()',
+  process.env);
+
+{
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=invalid', '-e', '0'], {
+      status: 9,
+      stderr: /invalid value for --force-fips; expected 'provider' or 'strict'/,
+    });
+}
+
+if (hasOpenSSL(3, 4)) {
+  testHelper(
+    testFipsCrypto() ? 'stdout' : 'stderr',
+    ['--force-fips=strict'],
+    testFipsCrypto() ? kNoFailure : kGenericUserError,
+    testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+    'require("crypto").getFips()',
+    process.env);
+} else {
+  spawnSyncAndAssert(
+    process.execPath, ['--enable-fips-indicator-events', '-e', '0'], {
+      status: 9,
+      stderr: /--enable-fips-indicator-events requires OpenSSL 3\.4 or later/,
+    });
+
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=strict', '-e', '0'], {
+      status: 9,
+      stderr: /--force-fips=strict requires OpenSSL 3\.4 or later/,
+    });
+}
 
 // By default FIPS should be off in both FIPS and non-FIPS builds
 // unless Node.js was configured using --shared-openssl in
@@ -98,6 +146,24 @@ if (!sharedOpenSSL()) {
     FIPS_DISABLED,
     'require("crypto").getFips()',
     { ...process.env, 'OPENSSL_CONF': ' ' });
+
+  if (hasOpenSSL(3)) {
+    // Disabling FIPS mode should not throw after OpenSSL updates the default
+    // property query.
+    testHelper(
+      'stdout',
+      [],
+      kNoFailure,
+      FIPS_DISABLED,
+      '(() => {' +
+      'const crypto = require("crypto");' +
+      'crypto.setFips(true);' +
+      'require("assert").strictEqual(crypto.getFips(), 1);' +
+      'crypto.setFips(false);' +
+      'return crypto.getFips();' +
+      '})()',
+      { ...process.env, 'OPENSSL_CONF': ' ' });
+  }
 }
 
 // Toggling fips with setFips should not be allowed from a worker thread
@@ -126,7 +192,7 @@ assert.ok(test_result === 1 || test_result === 0);
 // ("Error: Cannot set FIPS mode in a non-FIPS build.").
 // Due to this uncertainty the following tests are skipped when configured
 // with --shared-openssl.
-if (!sharedOpenSSL() && !hasOpenSSL3) {
+if (!sharedOpenSSL() && !hasOpenSSL(3)) {
   // OpenSSL config file should be able to turn on FIPS mode
   testHelper(
     'stdout',
@@ -159,7 +225,7 @@ if (!sharedOpenSSL() && !hasOpenSSL3) {
 // will not work as expected with that version.
 // TODO(danbev) Revisit these test once FIPS support is available in
 // OpenSSL 3.x.
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   testHelper(
     'stdout',
     [`--openssl-config=${CNF_FIPS_OFF}`],

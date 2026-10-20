@@ -490,10 +490,9 @@ if (isGitPresent) {
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
     function makeDirectoryReadOnly(dir, allowExecute) {
-      let accessErrorCode = 'EACCES';
-      if (common.isMacOS && allowExecute) {
-        accessErrorCode = 'ENOTEMPTY';
-      }
+      // With libc++ before LLVM 23 remove_all() reports the parent's ENOTEMPTY
+      // over the child's EACCES: https://github.com/llvm/llvm-project/pull/197104
+      let accessErrorCode = allowExecute ? /^(EACCES|ENOTEMPTY)$/ : 'EACCES';
       if (common.isWindows) {
         accessErrorCode = 'EPERM';
         const permissions = ['DE', 'DC'];
@@ -567,5 +566,94 @@ if (isGitPresent) {
         makeDirectoryWritable(middle);
       }
     }
+
+    if (common.isWindows) {
+      // On Windows, EPERM from rmdir on a directory that cannot be deleted
+      // due to permissions must not be treated as ENOTEMPTY (which would
+      // cause rimraf to recurse into and delete the directory's children).
+      const dirname = nextDirPath();
+      const parent = path.join(dirname, 'parent');
+      const child = path.join(parent, 'child');
+      const childFile = path.join(child, 'childFile.txt');
+      fs.mkdirSync(child, common.mustNotMutateObjectDeep({ recursive: true }));
+      fs.writeFileSync(childFile, 'hello');
+
+      // (DC) denies deleting children; (DE) denies deleting the directory
+      // itself. Combined denies on each layer guarantee rmdir returns EPERM.
+      execSync(`icacls "${dirname}" /deny "everyone:(DC)"`);
+      execSync(`icacls "${parent}" /deny "everyone:(DE,DC)"`);
+      execSync(`icacls "${child}" /deny "everyone:(DE)"`);
+
+      const cleanup = () => {
+        try {
+          execSync(`icacls "${child}" /remove:d "everyone"`);
+        } catch {
+          // Best-effort cleanup; ignore failures (e.g. already cleared).
+        }
+        try {
+          execSync(`icacls "${parent}" /remove:d "everyone"`);
+        } catch {
+          // Best-effort cleanup; ignore failures.
+        }
+        try {
+          execSync(`icacls "${dirname}" /remove:d "everyone"`);
+        } catch {
+          // Best-effort cleanup; ignore failures.
+        }
+        try {
+          fs.rmSync(dirname, common.mustNotMutateObjectDeep({
+            recursive: true,
+            force: true,
+          }));
+        } catch {
+          // Best-effort cleanup; ignore failures.
+        }
+      };
+      process.on('exit', cleanup);
+
+      fs.rm(dirname, common.mustNotMutateObjectDeep({ recursive: true }),
+            common.mustCall((err) => {
+              try {
+                assert.ok(err, 'expected EPERM error');
+                assert.strictEqual(err.code, 'EPERM');
+                assert.strictEqual(err.syscall, 'rmdir');
+                assert.ok(err.path.endsWith('\\parent'));
+                assert.ok(
+                  fs.existsSync(child),
+                  'EPERM from rmdir must propagate without recursing into children',
+                );
+              } finally {
+                process.removeListener('exit', cleanup);
+                cleanup();
+              }
+            }));
+    }
   }
+}
+
+{
+  // Test that rmSync can delete read-only files (and directories containing read-only files recursively)
+  const dirname = nextDirPath();
+  const filePath = path.join(dirname, 'readonly-file.txt');
+  const recursiveDir = path.join(dirname, 'subdir');
+  const recursiveFilePath = path.join(recursiveDir, 'readonly-nested.txt');
+
+  fs.mkdirSync(recursiveDir, { recursive: true });
+  fs.writeFileSync(filePath, 'hello');
+  fs.writeFileSync(recursiveFilePath, 'world');
+
+  // Make files read-only
+  fs.chmodSync(filePath, 0o444);
+  fs.chmodSync(recursiveFilePath, 0o444);
+
+  // rmSync without recursive option on a file
+  fs.rmSync(filePath);
+  assert.strictEqual(fs.existsSync(filePath), false);
+
+  // rmSync with recursive option on a directory containing a read-only file
+  fs.rmSync(recursiveDir, { recursive: true });
+  assert.strictEqual(fs.existsSync(recursiveDir), false);
+
+  // Clean up parent directory
+  fs.rmSync(dirname, { recursive: true, force: true });
 }

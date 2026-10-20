@@ -9,52 +9,67 @@
 #include "v8.h"
 
 #include <cmath>
+#include <string_view>
 
 namespace node {
 
 using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
-using v8::Int32;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-// NidKeyPairGenJob input arguments:
+// NamedKeyPairGenJob input arguments:
 //   1. CryptoJobMode
-//   2. NID
+//   2. Algorithm name
 //   3. Public Format
 //   4. Public Type
 //   5. Private Format
 //   6. Private Type
 //   7. Cipher
 //   8. Passphrase
-Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
+Maybe<void> NamedKeyPairGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
-    NidKeyPairGenConfig* params) {
-  CHECK(args[*offset]->IsInt32());
-  params->params.id = args[*offset].As<Int32>()->Value();
+    NamedKeyPairGenConfig* params) {
+  CHECK(args[*offset]->IsString());
+  Utf8Value name(args.GetIsolate(), args[*offset]);
+  const auto* algorithm = ncrypto::KeyAlgorithm::FromName(*name);
+  // Traditional key generation accepts lowercase key types; Web Crypto passes
+  // normalized algorithm names and checks availability during normalization.
+  if (algorithm == nullptr || (!algorithm->isOkp() && !algorithm->isPqc()) ||
+      (mode != kCryptoJobWebCrypto &&
+       (std::string_view(*name, name.length()) != algorithm->keyTypeName() ||
+        !algorithm->isAvailable()))) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        Environment::GetCurrent(args),
+        "The argument 'type' must be a supported key type. Received '%s'",
+        *name);
+    return Nothing<void>();
+  }
+  params->params.algorithm = algorithm;
 
   *offset += 1;
 
   return JustVoid();
 }
 
-EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
-  auto ctx = EVPKeyCtxPointer::NewFromID(params->params.id);
+EVPKeyCtxPointer NamedKeyPairGenTraits::Setup(NamedKeyPairGenConfig* params) {
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(*params->params.algorithm);
   if (!ctx || !ctx.initForKeygen()) return {};
   return ctx;
 }
 
 void SecretKeyGenConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (out) tracker->TrackFieldWithSize("out", length);
+  tracker->TraitTrackInline(out, "out");
 }
 
 Maybe<void> SecretKeyGenTraits::AdditionalConfig(
@@ -64,7 +79,13 @@ Maybe<void> SecretKeyGenTraits::AdditionalConfig(
     SecretKeyGenConfig* params) {
   CHECK(args[*offset]->IsUint32());
   uint32_t bits = args[*offset].As<Uint32>()->Value();
-  params->length = bits / CHAR_BIT;
+  params->length_bits = bits;
+  if (mode == kCryptoJobWebCrypto) {
+    params->length = NumBitsToBytes(static_cast<size_t>(bits));
+    params->truncate_to_bit_length = bits % CHAR_BIT != 0;
+  } else {
+    params->length = bits / CHAR_BIT;
+  }
   *offset += 1;
   return JustVoid();
 }
@@ -77,6 +98,8 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
     return KeyGenJobStatus::FAILED;
   }
   params->out = ByteSource::Allocated(bytes.release());
+  if (params->truncate_to_bit_length)
+    TruncateToBitLength(params->length_bits, &params->out);
   return KeyGenJobStatus::OK;
 }
 
@@ -88,12 +111,12 @@ MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
 
 namespace Keygen {
 void Initialize(Environment* env, Local<Object> target) {
-  NidKeyPairGenJob::Initialize(env, target);
+  NamedKeyPairGenJob::Initialize(env, target);
   SecretKeyGenJob::Initialize(env, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  NidKeyPairGenJob::RegisterExternalReferences(registry);
+  NamedKeyPairGenJob::RegisterExternalReferences(registry);
   SecretKeyGenJob::RegisterExternalReferences(registry);
 }
 }  // namespace Keygen

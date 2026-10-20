@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -25,7 +24,7 @@ const allReceived = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const data = await bytes(stream);
-    strictEqual(data.byteLength, 5);
+    assert.strictEqual(data.byteLength, 5);
     stream.writer.endSync();
     await stream.closed;
     if (++serverReceived === streamCount) {
@@ -49,7 +48,7 @@ for (let i = 0; i < streamCount; i++) {
 
 // Wait for all client streams to close.
 await Promise.all(streams.map(async (stream) => {
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }));
 

@@ -21,26 +21,63 @@ npm i undici
 
 ## Benchmarks
 
-The benchmark is a simple getting data [example](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark.js) using a
-50 TCP connections with a pipelining depth of 10 running on Node 22.11.0.
+The benchmark is a simple getting data [example](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark.js) using
+50 TCP connections with a pipelining depth of 10 running on Node 24.14.1.
+
+### HTTP/1.1
 
 ```
 ┌────────────────────────┬─────────┬────────────────────┬────────────┬─────────────────────────┐
 │  Tests                 │ Samples │ Result             │ Tolerance  │ Difference with slowest │
 ├────────────────────────┼─────────┼────────────────────┼────────────┼─────────────────────────┤
-│  'axios'               │ 15      │ '5708.26 req/sec'  │ '± 2.91 %' │ '-'                     │
-│  'http - no keepalive' │ 10      │ '5809.80 req/sec'  │ '± 2.30 %' │ '+ 1.78 %'              │
-│  'request'             │ 30      │ '5828.80 req/sec'  │ '± 2.91 %' │ '+ 2.11 %'              │
-│  'undici - fetch'      │ 40      │ '5903.78 req/sec'  │ '± 2.87 %' │ '+ 3.43 %'              │
-│  'node-fetch'          │ 10      │ '5945.40 req/sec'  │ '± 2.13 %' │ '+ 4.15 %'              │
-│  'got'                 │ 35      │ '6511.45 req/sec'  │ '± 2.84 %' │ '+ 14.07 %'             │
-│  'http - keepalive'    │ 65      │ '9193.24 req/sec'  │ '± 2.92 %' │ '+ 61.05 %'             │
-│  'superagent'          │ 35      │ '9339.43 req/sec'  │ '± 2.95 %' │ '+ 63.61 %'             │
-│  'undici - pipeline'   │ 50      │ '13364.62 req/sec' │ '± 2.93 %' │ '+ 134.13 %'            │
-│  'undici - stream'     │ 95      │ '18245.36 req/sec' │ '± 2.99 %' │ '+ 219.63 %'            │
-│  'undici - request'    │ 50      │ '18340.17 req/sec' │ '± 2.84 %' │ '+ 221.29 %'            │
-│  'undici - dispatch'   │ 40      │ '22234.42 req/sec' │ '± 2.94 %' │ '+ 289.51 %'            │
+│  'node-fetch'          │ 50      │ '4711.86 req/sec'  │ '± 2.92 %' │ '-'                     │
+│  'undici - fetch'      │ 75      │ '5438.50 req/sec'  │ '± 2.97 %' │ '+ 15.42 %'             │
+│  'axios'               │ 45      │ '5448.08 req/sec'  │ '± 2.98 %' │ '+ 15.62 %'             │
+│  'request'             │ 65      │ '5809.63 req/sec'  │ '± 2.90 %' │ '+ 23.30 %'             │
+│  'http - no keepalive' │ 35      │ '5910.77 req/sec'  │ '± 2.87 %' │ '+ 25.44 %'             │
+│  'got'                 │ 50      │ '6047.80 req/sec'  │ '± 2.91 %' │ '+ 28.35 %'             │
+│  'superagent'          │ 60      │ '7534.53 req/sec'  │ '± 2.97 %' │ '+ 59.91 %'             │
+│  'http - keepalive'    │ 75      │ '9343.41 req/sec'  │ '± 2.90 %' │ '+ 98.30 %'             │
+│  'undici - pipeline'   │ 65      │ '13470.70 req/sec' │ '± 2.93 %' │ '+ 185.89 %'            │
+│  'undici - request'    │ 80      │ '16850.87 req/sec' │ '± 2.93 %' │ '+ 257.63 %'            │
+│  'undici - stream'     │ 101     │ '18488.56 req/sec' │ '± 3.81 %' │ '+ 292.38 %'            │
+│  'undici - dispatch'   │ 101     │ '20786.44 req/sec' │ '± 3.08 %' │ '+ 341.15 %'            │
 └────────────────────────┴─────────┴────────────────────┴────────────┴─────────────────────────┘
+```
+
+### HTTP/1.1 over HTTPS
+
+Using [benchmark-https.js](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark-https.js) against an h1-over-TLS server (50 connections, pipelining depth 10, Node 24.14.1).
+
+```
+┌────────────────────────┬─────────┬───────────────────┬────────────┬─────────────────────────┐
+│  Tests                 │ Samples │ Result            │ Tolerance  │ Difference with slowest │
+├────────────────────────┼─────────┼───────────────────┼────────────┼─────────────────────────┤
+│  'https - no keepalive'│ 10      │ '1358.40 req/sec' │ '± 1.99 %' │ '-'                     │
+│  'undici - fetch'      │ 30      │ '3721.76 req/sec' │ '± 2.97 %' │ '+ 173.98 %'            │
+│  'https - keepalive'   │ 35      │ '5633.91 req/sec' │ '± 2.84 %' │ '+ 314.75 %'            │
+│  'undici - pipeline'   │ 15      │ '6254.05 req/sec' │ '± 2.80 %' │ '+ 360.40 %'            │
+│  'undici - request'    │ 25      │ '6669.80 req/sec' │ '± 2.73 %' │ '+ 391.01 %'            │
+│  'undici - stream'     │ 25      │ '7019.04 req/sec' │ '± 2.77 %' │ '+ 416.71 %'            │
+│  'undici - dispatch'   │ 20      │ '7361.85 req/sec' │ '± 2.90 %' │ '+ 441.95 %'            │
+└────────────────────────┴─────────┴───────────────────┴────────────┴─────────────────────────┘
+```
+
+### HTTP/2
+
+Using [benchmark-http2.js](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark-http2.js) against an h2 server (50 connections, pipelining depth 10, Node 24.14.1).
+
+```
+┌────────────────────────┬─────────┬───────────────────┬────────────┬─────────────────────────┐
+│  Tests                 │ Samples │ Result            │ Tolerance  │ Difference with slowest │
+├────────────────────────┼─────────┼───────────────────┼────────────┼─────────────────────────┤
+│  'undici - fetch'      │ 45      │ '3499.03 req/sec' │ '± 2.93 %' │ '-'                     │
+│  'native - http2'      │ 25      │ '4904.58 req/sec' │ '± 2.81 %' │ '+ 40.17 %'             │
+│  'undici - pipeline'   │ 60      │ '5836.82 req/sec' │ '± 2.99 %' │ '+ 66.81 %'             │
+│  'undici - request'    │ 65      │ '6831.25 req/sec' │ '± 2.83 %' │ '+ 95.23 %'             │
+│  'undici - stream'     │ 55      │ '6874.30 req/sec' │ '± 2.91 %' │ '+ 96.46 %'             │
+│  'undici - dispatch'   │ 55      │ '7791.23 req/sec' │ '± 2.96 %' │ '+ 122.67 %'            │
+└────────────────────────┴─────────┴───────────────────┴────────────┴─────────────────────────┘
 ```
 
 ## Undici vs. Fetch
@@ -48,6 +85,24 @@ The benchmark is a simple getting data [example](https://github.com/nodejs/undic
 ### Overview
 
 Node.js includes a built-in `fetch()` implementation powered by undici starting from Node.js v18. However, there are important differences between using the built-in fetch and installing undici as a separate module.
+
+### WebAssembly requirement
+
+Undici's HTTP/1 parser requires WebAssembly. There is no alternative parser when
+WebAssembly is unavailable, for example in Node.js configurations where
+`--jitless` disables it. The existence of `fetch` does not imply that it can make
+HTTP/1 requests in that environment.
+
+When the HTTP/1 parser is needed without WebAssembly, Client and dispatcher
+requests fail with an `Error` whose code is `ERR_WEBASSEMBLY_NOT_SUPPORTED`.
+`fetch` rejects with a `TypeError` carrying that error in `error.cause`. Importing
+Undici, accessing `fetch`, and using `Headers`, `FormData`, `Request`, or `Response`
+do not themselves require the HTTP/1 parser.
+
+The error is defined locally in Undici and does not depend on Node.js providing
+that error code. For built-in fetch, this behavior depends on the bundled Undici
+version. Node.js receives upstream fixes through its normal vendored Undici
+update, rather than changes to the generated bundle alone.
 
 ### Built-in Fetch (Node.js v18+)
 
@@ -200,7 +255,9 @@ await fetch('https://example.com', {
 ```
 
 `install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
-`FormData` implementations with undici's versions, so they all match.
+`FormData` implementations with undici's versions, so they all match. It also
+installs undici's `WebSocket`, `CloseEvent`, `ErrorEvent`, `MessageEvent`, and
+`EventSource` globals.
 
 Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
 with the built-in global `fetch()`.
@@ -283,12 +340,12 @@ const data2 = await getData();
 
 ## Global Installation
 
-Undici provides an `install()` function to add all WHATWG fetch classes to `globalThis`, making them available globally:
+Undici provides an `install()` function to add fetch-related and other web API classes to `globalThis`, making them available globally:
 
 ```js
 import { install } from 'undici'
 
-// Install all WHATWG fetch classes globally
+// Install undici's global web APIs
 install()
 
 // Now you can use fetch classes globally without importing
@@ -316,8 +373,9 @@ The `install()` function adds the following classes to `globalThis`:
 
 When you call `install()`, these globals come from the same undici
 implementation. For example, global `fetch` and global `FormData` will both be
-undici's versions, which is the recommended setup if you want to use undici
-through globals.
+undici's versions, and `WebSocket` and `EventSource` will also come from
+undici, which is the recommended setup if you want to use undici through
+globals.
 
 This is useful for:
 - Polyfilling environments that don't have fetch
@@ -336,6 +394,18 @@ The `body` mixins are the most common way to format the request/response body. M
 
 > [!NOTE]
 > The body returned from `undici.request` does not implement `.formData()`.
+
+> [!WARNING]
+> The body mixins `.arrayBuffer()`, `.blob()`, `.bytes()`, `.json()`, `.text()`,
+> and `.formData()` buffer the entire body in memory before returning. Where
+> applicable, they also decode or parse the payload and retain that
+> representation in memory. Calling these methods therefore means trusting that
+> the response body is small enough to fit in the available memory. Do not use
+> them for responses from untrusted or user-controlled sources. Instead, consume
+> the response body as a stream and enforce an application-specific size limit:
+> use `response.body` for fetch responses or the `body` returned by
+> `undici.request()`. For streaming decoded text, use `body.textStream()` on a
+> fetch `Request` or `Response`.
 
 Example usage:
 
@@ -364,6 +434,11 @@ For more information about their behavior, please reference the body mixin from 
 ## Common API Methods
 
 This section documents our most commonly used API methods. Additional APIs are documented in their own files within the [docs](./docs/) folder and are accessible via the navigation list on the left side of the docs site.
+
+For the top-level APIs below, the `url` argument supplies the request origin and
+path. Do not pass `origin` or `path` in the second `options` argument. The linked
+`Dispatcher` option types include those fields because dispatcher methods are
+lower-level APIs that do not receive a separate `url` argument.
 
 ### `undici.request([url, options]): Promise`
 
@@ -674,8 +749,9 @@ Refs: https://tools.ietf.org/html/rfc7231#section-5.1.1
 #### Pipelining
 
 Undici will only use pipelining if configured with a `pipelining` factor
-greater than `1`. Also it is important to pass `blocking: false` to the
-request options to properly pipeline requests.
+greater than `1`. Only enable pipelining when the remote server is trusted.
+Also it is important to pass `blocking: false` to the request options to
+properly pipeline requests.
 
 Undici always assumes that connections are persistent and will immediately
 pipeline requests, without checking whether the connection is persistent.
@@ -715,14 +791,18 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 
 ## Collaborators
 
-* [__Daniele Belardi__](https://github.com/dnlup), <https://www.npmjs.com/~dnlup>
-* [__Ethan Arrowood__](https://github.com/ethan-arrowood), <https://www.npmjs.com/~ethan_arrowood>
+* [__Aras Abbasi__](https://github.com/Uzlopak)
+* [__Carlos Fuentes__](https://github.com/metcoder95), <https://www.npmjs.com/~metcoder95>
+* [__Ethan Arrowood__](https://github.com/Ethan-Arrowood), <https://www.npmjs.com/~ethan_arrowood>
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
 * [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
+* [__Mert Can Altin__](https://github.com/mertcanaltin), <https://www.npmjs.com/~mertcanaltin>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
-* [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
+* [__Trivikram Kamat__](https://github.com/trivikr), <https://www.npmjs.com/~trivikr>
+* [__tsctx__](https://github.com/tsctx)
 
 ## Past Collaborators
+* [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
 * [__Tomas Della Vedova__](https://github.com/delvedor), <https://www.npmjs.com/~delvedor>
 
 ### Releasers
@@ -737,10 +817,11 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
 
 | Undici Version | Bundled in Node.js | Node.js Versions Supported | End of Life |
-|----------------|-------------------|----------------------------|-------------|
-| 5.x           | 18.x              | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
-| 6.x           | 20.x, 22.x       | ≥18.17 (tested: 18, 20, 21, 22) | 2026-04-30  |
-| 7.x           | 24.x              | ≥20.18.1 (tested: 20, 22, 24) | 2027-04-30  |
+|----------------|--------------------|----------------------------|-------------|
+| 5.x            | 18.x               | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
+| 6.x            | 20.x, 22.x         | ≥18.17 (tested: 18, 20, 21, 22) | 2027-04-30  |
+| 7.x            | 24.x               | ≥20.18.1 (tested: 20, 22, 24) | 2028-04-30  |
+| 8.x            | 26.x               | ≥22.19.0 (tested: 22, 24, 26) | 2029-04-30  |
 
 ## License
 

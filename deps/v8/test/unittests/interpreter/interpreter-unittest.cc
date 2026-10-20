@@ -241,12 +241,7 @@ TEST_F(InterpreterTest, InterpreterShiftOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kShiftOperators); o++) {
         Factory* factory = i_isolate()->factory();
-        FeedbackVectorSpec feedback_spec(zone());
-        BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-        FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-        Handle<i::FeedbackMetadata> metadata =
-            FeedbackMetadata::New(i_isolate(), &feedback_spec);
+        BytecodeArrayBuilder builder(zone(), 1, 1);
 
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -254,12 +249,12 @@ TEST_F(InterpreterTest, InterpreterShiftOpsSmi) {
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kShiftOperators[o], reg, GetIndex(slot))
+            .BinaryOperation(kShiftOperators[o], reg, kFeedbackIsEmbedded)
             .Return();
         Handle<BytecodeArray> bytecode_array =
             builder.ToBytecodeArray(i_isolate());
 
-        InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+        InterpreterTester tester(i_isolate(), bytecode_array);
         auto callable = tester.GetCallable<>();
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         DirectHandle<Object> expected_value =
@@ -277,12 +272,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         Factory* factory = i_isolate()->factory();
-        FeedbackVectorSpec feedback_spec(zone());
-        BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-        FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-        Handle<i::FeedbackMetadata> metadata =
-            FeedbackMetadata::New(i_isolate(), &feedback_spec);
+        BytecodeArrayBuilder builder(zone(), 1, 1);
 
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -290,12 +280,12 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsSmi) {
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg, GetIndex(slot))
+            .BinaryOperation(kArithmeticOperators[o], reg, kFeedbackIsEmbedded)
             .Return();
         Handle<BytecodeArray> bytecode_array =
             builder.ToBytecodeArray(i_isolate());
 
-        InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+        InterpreterTester tester(i_isolate(), bytecode_array);
         auto callable = tester.GetCallable<>();
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         DirectHandle<Object> expected_value =
@@ -314,12 +304,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsHeapNumber) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         Factory* factory = i_isolate()->factory();
-        FeedbackVectorSpec feedback_spec(zone());
-        BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-        FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-        Handle<i::FeedbackMetadata> metadata =
-            FeedbackMetadata::New(i_isolate(), &feedback_spec);
+        BytecodeArrayBuilder builder(zone(), 1, 1);
 
         Register reg(0);
         double lhs = lhs_inputs[l];
@@ -327,12 +312,12 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsHeapNumber) {
         builder.LoadLiteral(lhs)
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(rhs)
-            .BinaryOperation(kArithmeticOperators[o], reg, GetIndex(slot))
+            .BinaryOperation(kArithmeticOperators[o], reg, kFeedbackIsEmbedded)
             .Return();
         Handle<BytecodeArray> bytecode_array =
             builder.ToBytecodeArray(i_isolate());
 
-        InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+        InterpreterTester tester(i_isolate(), bytecode_array);
         auto callable = tester.GetCallable<>();
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         DirectHandle<Object> expected_value =
@@ -352,36 +337,32 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsBigInt) {
         // Skip over unsigned right shift.
         if (kArithmeticOperators[o] == Token::kShr) continue;
 
-        FeedbackVectorSpec feedback_spec(zone());
-        BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-        FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-        Handle<i::FeedbackMetadata> metadata =
-            FeedbackMetadata::New(i_isolate(), &feedback_spec);
+        BytecodeArrayBuilder builder(zone(), 1, 1);
 
         Register reg(0);
         auto lhs = inputs[l];
         auto rhs = inputs[r];
-        builder.LoadLiteral(lhs)
-            .StoreAccumulatorInRegister(reg)
-            .LoadLiteral(rhs)
-            .BinaryOperation(kArithmeticOperators[o], reg, GetIndex(slot))
+        size_t bytecode_offset;
+        builder.LoadLiteral(lhs).StoreAccumulatorInRegister(reg).LoadLiteral(
+            rhs);
+        bytecode_offset = builder.current_bytecode_size();
+        builder
+            .BinaryOperation(kArithmeticOperators[o], reg, kFeedbackIsEmbedded)
             .Return();
         Handle<BytecodeArray> bytecode_array =
             builder.ToBytecodeArray(i_isolate());
 
-        InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+        InterpreterTester tester(i_isolate(), bytecode_array);
         auto callable = tester.GetCallable<>();
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBigInt(*return_value));
-        if (tester.HasFeedbackMetadata()) {
-          Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
-          CHECK(IsSmi(feedback));
-          // TODO(panq): Create a standalone unit test for kBigInt64.
-          CHECK(BinaryOperationFeedback::kBigInt64 ==
-                    feedback.ToSmi().value() ||
-                BinaryOperationFeedback::kBigInt == feedback.ToSmi().value());
-        }
+        auto embedded_feedback =
+            tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+                kArithmeticOperators[o], bytecode_offset,
+                /*feedback_value_offset=*/2);
+        // TODO(panq): Create a standalone unit test for kBigInt64.
+        CHECK(BinaryOperationFeedback::kBigInt64 == embedded_feedback ||
+              BinaryOperationFeedback::kBigInt == embedded_feedback);
       }
     }
   }
@@ -479,28 +460,24 @@ TEST_F(InterpreterTest, InterpreterStringAdd) {
   ast_factory.Internalize(i_isolate());
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
-    FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-    FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-    Handle<i::FeedbackMetadata> metadata =
-        FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 1, 1);
 
     Register reg(0);
     builder.LoadLiteral(test_cases[i].lhs).StoreAccumulatorInRegister(reg);
     LoadLiteralForTest(&builder, test_cases[i].rhs);
-    builder.BinaryOperation(Token::kAdd, reg, GetIndex(slot)).Return();
+    size_t bytecode_offset = builder.current_bytecode_size();
+    builder.BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    InterpreterTester tester(i_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
     DirectHandle<Object> return_value = callable().ToHandleChecked();
     CHECK(Object::SameValue(*return_value, *test_cases[i].expected_value));
 
-    if (tester.HasFeedbackMetadata()) {
-      Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
-      CHECK(IsSmi(feedback));
-      CHECK_EQ(test_cases[i].expected_feedback, feedback.ToSmi().value());
-    }
+    auto embedded_feedback =
+        tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+            Token::kAdd, bytecode_offset, /*feedback_value_offset=*/2);
+    CHECK_EQ(test_cases[i].expected_feedback, embedded_feedback);
   }
 }
 
@@ -542,33 +519,21 @@ TEST_F(InterpreterTest, InterpreterParameter0) {
 TEST_F(InterpreterTest, InterpreterParameter8) {
   AstValueFactory ast_factory(zone(), i_isolate()->ast_string_constants(),
                               HashSeed(i_isolate()));
-  FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(zone(), 8, 0, &feedback_spec);
-
-  FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot3 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot4 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot5 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot6 = feedback_spec.AddBinaryOpICSlot();
-
-  Handle<i::FeedbackMetadata> metadata =
-      FeedbackMetadata::New(i_isolate(), &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 8, 0);
 
   builder.LoadAccumulatorWithRegister(builder.Receiver())
-      .BinaryOperation(Token::kAdd, builder.Parameter(0), GetIndex(slot))
-      .BinaryOperation(Token::kAdd, builder.Parameter(1), GetIndex(slot1))
-      .BinaryOperation(Token::kAdd, builder.Parameter(2), GetIndex(slot2))
-      .BinaryOperation(Token::kAdd, builder.Parameter(3), GetIndex(slot3))
-      .BinaryOperation(Token::kAdd, builder.Parameter(4), GetIndex(slot4))
-      .BinaryOperation(Token::kAdd, builder.Parameter(5), GetIndex(slot5))
-      .BinaryOperation(Token::kAdd, builder.Parameter(6), GetIndex(slot6))
+      .BinaryOperation(Token::kAdd, builder.Parameter(0), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(1), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(2), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(3), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(4), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(5), kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kAdd, builder.Parameter(6), kFeedbackIsEmbedded)
       .Return();
   ast_factory.Internalize(i_isolate());
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+  InterpreterTester tester(i_isolate(), bytecode_array);
   using H = Handle<Object>;
   auto callable = tester.GetCallableWithReceiver<H, H, H, H, H, H, H>();
 
@@ -695,29 +660,25 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
   ast_factory.Internalize(i_isolate());
 
   for (const BinaryOpExpectation& test_case : kTestCases) {
-    i::FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-    i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
-
-    Handle<i::FeedbackMetadata> metadata =
-        i::FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 1, 1);
 
     Register reg(0);
     LoadLiteralForTest(&builder, test_case.arg1);
     builder.StoreAccumulatorInRegister(reg);
     LoadLiteralForTest(&builder, test_case.arg2);
-    builder.BinaryOperation(test_case.op, reg, GetIndex(slot0)).Return();
+    size_t bytecode_offset = builder.current_bytecode_size();
+    builder.BinaryOperation(test_case.op, reg, kFeedbackIsEmbedded).Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    InterpreterTester tester(i_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
 
     DirectHandle<Object> return_val = callable().ToHandleChecked();
-    Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
-    CHECK(IsSmi(feedback0));
-    CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
+    auto embedded_feedback =
+        tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+            test_case.op, bytecode_offset, /*feedback_value_offset=*/2);
+    CHECK_EQ(test_case.feedback, embedded_feedback);
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
   }
@@ -804,30 +765,25 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
   ast_factory.Internalize(i_isolate());
 
   for (const BinaryOpExpectation& test_case : kTestCases) {
-    i::FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
-
-    i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
-
-    Handle<i::FeedbackMetadata> metadata =
-        i::FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 1, 1);
 
     Register reg(0);
     LoadLiteralForTest(&builder, test_case.arg1);
-    builder.StoreAccumulatorInRegister(reg)
-        .LoadLiteral(Smi::FromInt(test_case.arg2))
-        .BinaryOperation(test_case.op, reg, GetIndex(slot0))
-        .Return();
+    builder.StoreAccumulatorInRegister(reg).LoadLiteral(
+        Smi::FromInt(test_case.arg2));
+    size_t bytecode_offset = builder.current_bytecode_size();
+    builder.BinaryOperation(test_case.op, reg, kFeedbackIsEmbedded).Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    InterpreterTester tester(i_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
 
     DirectHandle<Object> return_val = callable().ToHandleChecked();
-    Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
-    CHECK(IsSmi(feedback0));
-    CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
+    auto embedded_feedback =
+        tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+            test_case.op, bytecode_offset, /*feedback_value_offset=*/2);
+    CHECK_EQ(test_case.feedback, embedded_feedback);
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
   }
@@ -856,33 +812,37 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
       {Token::kInc, smi_one, smi_max, number, bigint, str},
       {Token::kDec, smi_one, smi_min, number, bigint, str}};
   for (TestCase const& test_case : kTestCases) {
-    i::FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 6, 0, &feedback_spec);
-
-    i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot3 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot4 = feedback_spec.AddBinaryOpICSlot();
-
-    Handle<i::FeedbackMetadata> metadata =
-        i::FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 6, 0);
 
     builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .UnaryOperation(test_case.op, GetIndex(slot0))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(1))
-        .UnaryOperation(test_case.op, GetIndex(slot1))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(2))
-        .UnaryOperation(test_case.op, GetIndex(slot2))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(3))
-        .UnaryOperation(test_case.op, GetIndex(slot3))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(4))
-        .UnaryOperation(test_case.op, GetIndex(slot4))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    // Walk the built bytecode array to recover the exact unary-op offsets;
+    // the register optimizer may defer Ldar emissions so
+    // `current_bytecode_size()` at build time doesn't always match the final
+    // layout.
+    size_t unary_bytecode_offsets[5];
+    int unary_bytecode_count = 0;
+    for (BytecodeArrayIterator it(bytecode_array); !it.done(); it.Advance()) {
+      if (Bytecodes::IsUnaryOpWithEmbeddedFeedback(it.current_bytecode())) {
+        CHECK_LT(unary_bytecode_count, 5);
+        unary_bytecode_offsets[unary_bytecode_count++] = it.current_offset();
+      }
+    }
+    CHECK_EQ(unary_bytecode_count, 5);
+
+    InterpreterTester tester(i_isolate(), bytecode_array);
     using H = Handle<Object>;
     auto callable = tester.GetCallable<H, H, H, H, H>();
 
@@ -893,25 +853,25 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
                  test_case.bigint_feedback_value, test_case.any_feedback_value)
             .ToHandleChecked();
     USE(return_val);
-    Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
-    CHECK(IsSmi(feedback0));
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0.ToSmi().value());
+    auto feedback0 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[0], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0);
 
-    Tagged<MaybeObject> feedback1 = callable.vector()->Get(slot1);
-    CHECK(IsSmi(feedback1));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1.ToSmi().value());
+    auto feedback1 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[1], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1);
 
-    Tagged<MaybeObject> feedback2 = callable.vector()->Get(slot2);
-    CHECK(IsSmi(feedback2));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2.ToSmi().value());
+    auto feedback2 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[2], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2);
 
-    Tagged<MaybeObject> feedback3 = callable.vector()->Get(slot3);
-    CHECK(IsSmi(feedback3));
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3.ToSmi().value());
+    auto feedback3 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[3], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3);
 
-    Tagged<MaybeObject> feedback4 = callable.vector()->Get(slot4);
-    CHECK(IsSmi(feedback4));
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4.ToSmi().value());
+    auto feedback4 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[4], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4);
   }
 }
 
@@ -921,25 +881,30 @@ TEST_F(InterpreterTest, InterpreterBitwiseTypeFeedback) {
       Token::kShl,   Token::kShr,    Token::kSar};
 
   for (Token::Value op : kBitwiseBinaryOperators) {
-    i::FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 5, 0, &feedback_spec);
-
-    i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-
-    Handle<i::FeedbackMetadata> metadata =
-        i::FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 5, 0);
 
     builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .BinaryOperation(op, builder.Parameter(1), GetIndex(slot0))
-        .BinaryOperation(op, builder.Parameter(2), GetIndex(slot1))
-        .BinaryOperation(op, builder.Parameter(3), GetIndex(slot2))
+        .BinaryOperation(op, builder.Parameter(1), kFeedbackIsEmbedded)
+        .BinaryOperation(op, builder.Parameter(2), kFeedbackIsEmbedded)
+        .BinaryOperation(op, builder.Parameter(3), kFeedbackIsEmbedded)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    // Walk the built bytecode array to recover the exact binop offsets; the
+    // register optimizer may defer Ldar emissions so `current_bytecode_size()`
+    // at build time doesn't always match the final layout.
+    size_t offsets[3];
+    int found = 0;
+    for (BytecodeArrayIterator it(bytecode_array); !it.done(); it.Advance()) {
+      if (Bytecodes::IsBinaryOpWithEmbeddedFeedback(it.current_bytecode())) {
+        CHECK_LT(found, 3);
+        offsets[found++] = it.current_offset();
+      }
+    }
+    CHECK_EQ(found, 3);
+
+    InterpreterTester tester(i_isolate(), bytecode_array);
     using H = Handle<Object>;
     auto callable = tester.GetCallable<H, H, H, H>();
 
@@ -952,17 +917,17 @@ TEST_F(InterpreterTest, InterpreterBitwiseTypeFeedback) {
     Handle<Object> return_val =
         callable(arg1, arg2, arg3, arg4).ToHandleChecked();
     USE(return_val);
-    Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
-    CHECK(IsSmi(feedback0));
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0.ToSmi().value());
+    auto feedback0 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        op, offsets[0], /*feedback_value_offset=*/2);
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0);
 
-    Tagged<MaybeObject> feedback1 = callable.vector()->Get(slot1);
-    CHECK(IsSmi(feedback1));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1.ToSmi().value());
+    auto feedback1 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        op, offsets[1], /*feedback_value_offset=*/2);
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1);
 
-    Tagged<MaybeObject> feedback2 = callable.vector()->Get(slot2);
-    CHECK(IsSmi(feedback2));
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2.ToSmi().value());
+    auto feedback2 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        op, offsets[2], /*feedback_value_offset=*/2);
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2);
   }
 }
 
@@ -1449,11 +1414,10 @@ static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder* builder,
 
 static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder* builder,
                                                Register reg, int value,
-                                               Register scratch,
-                                               int slot_index) {
+                                               Register scratch) {
   return builder->StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
-      .BinaryOperation(Token::kAdd, reg, slot_index)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg)
       .LoadAccumulatorWithRegister(scratch);
 }
@@ -1462,8 +1426,6 @@ TEST_F(InterpreterTest, InterpreterJumps) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 2, &feedback_spec);
 
-  FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot2 = feedback_spec.AddJumpLoopSlot();
 
   Handle<i::FeedbackMetadata> metadata =
@@ -1477,11 +1439,11 @@ TEST_F(InterpreterTest, InterpreterJumps) {
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[0]);
   SetRegister(&builder, reg, 1024, scratch).Bind(&label[0]).Bind(&loop_header);
-  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
+  IncrementRegister(&builder, reg, 1, scratch).Jump(&label[1]);
   SetRegister(&builder, reg, 2048, scratch)
       .JumpLoop(&loop_header, 0, 0, slot2.ToInt());
   SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
-  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
+  IncrementRegister(&builder, reg, 2, scratch)
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -1491,17 +1453,7 @@ TEST_F(InterpreterTest, InterpreterJumps) {
 }
 
 TEST_F(InterpreterTest, InterpreterConditionalJumps) {
-  FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(zone(), 1, 2, &feedback_spec);
-
-  FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot3 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot4 = feedback_spec.AddBinaryOpICSlot();
-
-  Handle<i::FeedbackMetadata> metadata =
-      FeedbackMetadata::New(i_isolate(), &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 1, 2);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1511,43 +1463,32 @@ TEST_F(InterpreterTest, InterpreterConditionalJumps) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
-  IncrementRegister(&builder, reg, 1024, scratch, GetIndex(slot))
+  IncrementRegister(&builder, reg, 1024, scratch)
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done);
-  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot1))
+  IncrementRegister(&builder, reg, 1, scratch)
       .LoadTrue()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &label[1]);
-  IncrementRegister(&builder, reg, 2048, scratch, GetIndex(slot2))
-      .Bind(&label[1]);
-  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot3))
+  IncrementRegister(&builder, reg, 2048, scratch).Bind(&label[1]);
+  IncrementRegister(&builder, reg, 2, scratch)
       .LoadFalse()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &done1);
-  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot4))
+  IncrementRegister(&builder, reg, 4, scratch)
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
       .Return();
 
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
-  DirectHandle<Object> return_value = RunBytecode(bytecode_array, metadata);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array);
   CHECK_EQ(Smi::ToInt(*return_value), 7);
 }
 
 TEST_F(InterpreterTest, InterpreterConditionalJumps2) {
   // TODO(oth): Add tests for all conditional jumps near and far.
 
-  FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(zone(), 1, 2, &feedback_spec);
-
-  FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot3 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot4 = feedback_spec.AddBinaryOpICSlot();
-
-  Handle<i::FeedbackMetadata> metadata =
-      FeedbackMetadata::New(i_isolate(), &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 1, 2);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1557,38 +1498,32 @@ TEST_F(InterpreterTest, InterpreterConditionalJumps2) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
-  IncrementRegister(&builder, reg, 1024, scratch, GetIndex(slot))
+  IncrementRegister(&builder, reg, 1024, scratch)
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done);
-  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot1))
+  IncrementRegister(&builder, reg, 1, scratch)
       .LoadTrue()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &label[1]);
-  IncrementRegister(&builder, reg, 2048, scratch, GetIndex(slot2))
-      .Bind(&label[1]);
-  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot3))
+  IncrementRegister(&builder, reg, 2048, scratch).Bind(&label[1]);
+  IncrementRegister(&builder, reg, 2, scratch)
       .LoadFalse()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &done1);
-  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot4))
+  IncrementRegister(&builder, reg, 4, scratch)
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
       .Return();
 
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
-  DirectHandle<Object> return_value = RunBytecode(bytecode_array, metadata);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array);
   CHECK_EQ(Smi::ToInt(*return_value), 7);
 }
 
 TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
   AstValueFactory ast_factory(zone(), i_isolate()->ast_string_constants(),
                               HashSeed(i_isolate()));
-  FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(zone(), 1, 257, &feedback_spec);
-
-  FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
-  Handle<i::FeedbackMetadata> metadata =
-      FeedbackMetadata::New(i_isolate(), &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 1, 257);
 
   Register reg(0), scratch(256);
   BytecodeLabel done, fake;
@@ -1600,7 +1535,7 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
     builder.LoadLiteral(i + 0.5);
-    builder.BinaryOperation(Token::kAdd, reg, GetIndex(slot));
+    builder.BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded);
     builder.StoreAccumulatorInRegister(reg);
   }
   builder.Jump(&done);
@@ -1610,9 +1545,9 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
   for (int i = 0; i < 6600; i++) {
     builder.LoadLiteral(Smi::zero());  // 1-byte
     builder.BinaryOperation(Token::kAdd, scratch,
-                            GetIndex(slot));      // 6-bytes
-    builder.StoreAccumulatorInRegister(scratch);  // 4-bytes
-    builder.MoveRegister(scratch, reg);           // 6-bytes
+                            kFeedbackIsEmbedded);  // 4-bytes
+    builder.StoreAccumulatorInRegister(scratch);   // 4-bytes
+    builder.MoveRegister(scratch, reg);            // 6-bytes
   }
   builder.Bind(&done);
   builder.LoadAccumulatorWithRegister(reg);
@@ -1635,7 +1570,7 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
     CHECK(found_16bit_constant_jump);
   }
 
-  DirectHandle<Object> return_value = RunBytecode(bytecode_array, metadata);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array);
   CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 256.0 / 2 * (1.5 + 256.5));
 }
 
@@ -1749,7 +1684,7 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
 
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kSignedSmall == embedded_feedback);
@@ -1795,7 +1730,7 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kNumber == embedded_feedback);
@@ -1835,7 +1770,7 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kBigInt == embedded_feedback ||
@@ -1878,7 +1813,7 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         int const expected_feedback =
@@ -1893,15 +1828,14 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
 
 static void LoadStringAndAddSpace(BytecodeArrayBuilder* builder,
                                   AstValueFactory* ast_factory,
-                                  const char* cstr,
-                                  FeedbackSlot string_add_slot) {
+                                  const char* cstr) {
   Register string_reg = builder->register_allocator()->NewRegister();
 
   (*builder)
       .LoadLiteral(ast_factory->GetOneByteString(cstr))
       .StoreAccumulatorInRegister(string_reg)
       .LoadLiteral(ast_factory->GetOneByteString(" "))
-      .BinaryOperation(Token::kAdd, string_reg, GetIndex(string_add_slot));
+      .BinaryOperation(Token::kAdd, string_reg, kFeedbackIsEmbedded);
 }
 
 TEST_F(InterpreterTest, InterpreterMixedComparisons) {
@@ -1932,13 +1866,9 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             AstValueFactory ast_factory(zone(),
                                         i_isolate()->ast_string_constants(),
                                         HashSeed(i_isolate()));
-            FeedbackVectorSpec feedback_spec(zone());
-            BytecodeArrayBuilder builder(zone(), 1, 0, &feedback_spec);
+            BytecodeArrayBuilder builder(zone(), 1, 0);
 
-            FeedbackSlot string_add_slot = feedback_spec.AddBinaryOpICSlot();
             size_t comparison_bytecode_offset;
-            Handle<i::FeedbackMetadata> metadata =
-                FeedbackMetadata::New(i_isolate(), &feedback_spec);
 
             // lhs is in a register, rhs is in the accumulator.
             Register lhs_reg = builder.register_allocator()->NewRegister();
@@ -1954,8 +1884,7 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
               } else {
                 CHECK_EQ(string_type, kComputedString);
                 // rhs string is not internalized (append a space to the end).
-                LoadStringAndAddSpace(&builder, &ast_factory, rhs_cstr,
-                                      string_add_slot);
+                LoadStringAndAddSpace(&builder, &ast_factory, rhs_cstr);
               }
             } else {
               CHECK_EQ(which_side, kLhsIsString);
@@ -1967,8 +1896,7 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
               } else {
                 CHECK_EQ(string_type, kComputedString);
                 // lhs string is not internalized (append a space to the end).
-                LoadStringAndAddSpace(&builder, &ast_factory, lhs_cstr,
-                                      string_add_slot);
+                LoadStringAndAddSpace(&builder, &ast_factory, lhs_cstr);
               }
               builder.StoreAccumulatorInRegister(lhs_reg);
 
@@ -1981,27 +1909,18 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             ast_factory.Internalize(i_isolate());
             Handle<BytecodeArray> bytecode_array =
                 builder.ToBytecodeArray(i_isolate());
-            InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+            InterpreterTester tester(i_isolate(), bytecode_array);
             auto callable = tester.GetCallable<>();
             DirectHandle<Object> return_value = callable().ToHandleChecked();
             CHECK(IsBoolean(*return_value));
             CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                      CompareC(comparison, lhs, rhs, true));
             auto embedded_feedback =
-                tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                     comparison, comparison_bytecode_offset,
                     /*feedback_value_offset=*/2);
-            if (kComparisonTypes[c] == Token::kEq) {
-              // For sloppy equality, we have more precise feedback.
-              CHECK_EQ(CompareOperationFeedback::kNumber |
-                           (string_type == kInternalizedStringConstant
-                                ? CompareOperationFeedback::kInternalizedString
-                                : CompareOperationFeedback::kString),
-                       embedded_feedback);
-            } else {
-              // Comparison with a number and string collects kAny feedback.
-              CHECK_EQ(CompareOperationFeedback::kAny, embedded_feedback);
-            }
+            // Comparison with a number and string collects kAny feedback.
+            CHECK_EQ(CompareOperationFeedback::kAny, embedded_feedback);
           }
         }
       }
@@ -4818,7 +4737,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
@@ -4848,14 +4767,14 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(!bytecode_array->HasSourcePositionTable());
-  CHECK_EQ(source_position_table->length(), 0);
+  CHECK_EQ(source_position_table->length().value(), 0u);
 
   // Reset the stack limit and try again.
   i_isolate()->stack_guard()->SetStackLimit(previous_limit);
   Compiler::CollectSourcePositions(i_isolate(), sfi);
   source_position_table = bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
@@ -4979,7 +4898,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   CHECK(bytecode_array->HasSourcePositionTable());
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {

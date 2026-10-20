@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { deepStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,8 +30,8 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
 
-    deepStrictEqual(received, expected);
-    strictEqual(decoder.decode(received), message);
+    assert.deepStrictEqual(received, expected);
+    assert.strictEqual(decoder.decode(received), message);
 
     // Close the server's write side of the bidi stream (FIN with no data)
     // so the stream is fully closed on both directions.

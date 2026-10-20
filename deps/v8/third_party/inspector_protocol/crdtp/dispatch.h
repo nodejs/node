@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
+
 #include "export.h"
 #include "serializable.h"
 #include "span.h"
@@ -55,6 +57,7 @@ class DispatchResponse {
 
   static DispatchResponse Success();
   static DispatchResponse FallThrough();
+  static DispatchResponse FallThrough(std::string associated_data);
 
   // Indicates that a message could not be parsed. E.g., malformed JSON.
   static DispatchResponse ParseError(std::string message);
@@ -84,8 +87,19 @@ class DispatchResponse {
  private:
   DispatchResponse() = default;
   DispatchCode code_;
+  // For error responses, a message describing the error.
+  // For fall-through responses, fall-through associated message.
   std::string message_;
 };
+
+// This callback is invoked if the command was not dispatched due to handler
+// not being found. The caller has an opportunity to dispatch the command
+// to a different layer then.
+using FallthroughCallback =
+    std::function<void(int call_id,
+                       span<uint8_t> method,
+                       span<uint8_t> serialized_message,
+                       std::string_view associated_data)>;
 
 // =============================================================================
 // Dispatchable - a shallow parser for CBOR encoded DevTools messages
@@ -100,7 +114,16 @@ class Dispatchable {
   // |Params()| can be used to access, the extracted contents. Otherwise,
   // |ok()| will yield |false|, and |DispatchError()| can be
   // used to send a response or notification to the client.
-  explicit Dispatchable(span<uint8_t> serialized);
+  // |associated_data| would be passed as is to handler methods that were
+  // configured as those willing to receive it.
+  // |fallthrough_callback|, if non-empty, will be invoked by the dispatcher
+  // if no handler was found or if the handler chose to fall through,
+  // and can be used to pass command to be handled elsewhere.
+  // Note that in case of an async command, fallthrough_callback may be invoked
+  // asynchronously.
+  Dispatchable(span<uint8_t> serialized,
+               std::string_view associated_data,
+               FallthroughCallback fallthrough_callback);
 
   // The serialized message that we just parsed.
   span<uint8_t> Serialized() const { return serialized_; }
@@ -127,6 +150,17 @@ class Dispatchable {
   // not parse into this; it only provides access to its raw contents here.
   span<uint8_t> Params() const { return params_; }
 
+  std::string_view AssociatedData() const { return associated_data_; }
+
+  // Takes the fallthrough callback, if any.
+  FallthroughCallback TakeFallthroughCallback();
+  // Takes the fallthrough callback and dispatches it with stored
+  // call/method/message. The associated_data is passed through to
+  // the other handling layer (not to be confused with the member
+  // associated_data which is the one to be passed to handlers
+  // during current dispatch).
+  void DispatchFallThrough(const std::string& associated_data);
+
  private:
   bool MaybeParseProperty(cbor::CBORTokenizer* tokenizer);
   bool MaybeParseCallId(cbor::CBORTokenizer* tokenizer);
@@ -144,6 +178,8 @@ class Dispatchable {
   bool params_seen_ = false;
   span<uint8_t> params_;
   span<uint8_t> session_id_;
+  std::string_view associated_data_;
+  FallthroughCallback fallthrough_callback_;
 };
 
 // =============================================================================
@@ -197,10 +233,7 @@ class DomainDispatcher {
 
    protected:
     // |method| must point at static storage (a C++ string literal in practice).
-    Callback(std::unique_ptr<WeakPtr> backend_impl,
-             int call_id,
-             span<uint8_t> method,
-             span<uint8_t> message);
+    Callback(std::unique_ptr<WeakPtr> backend_impl, Dispatchable& dispatchable);
 
     void sendIfActive(std::unique_ptr<Serializable> partialMessage,
                       const DispatchResponse& response);
@@ -214,20 +247,19 @@ class DomainDispatcher {
     // storage for |method| is the binary of the running process.
     span<uint8_t> method_;
     std::vector<uint8_t> message_;
+    FallthroughCallback fallthrough_callback_;
   };
 
   explicit DomainDispatcher(FrontendChannel*);
   virtual ~DomainDispatcher();
 
   // Given a |command_name| without domain qualification, looks up the
-  // corresponding method. If the method is not found, returns nullptr.
-  // Otherwise, Returns a closure that will parse the provided
-  // Dispatchable.params() to a protocol object and execute the
-  // apprpropriate method. If the parsing fails it will issue an
-  // error response on the frontend channel, otherwise it will execute the
-  // command.
-  virtual std::function<void(const Dispatchable&)> Dispatch(
-      span<uint8_t> command_name) = 0;
+  // corresponding method and attempeds to parse and execute it.
+  // If the command is not found, returns false. Otherwise and possible
+  // result, whether a response or error, is send using underlying
+  // frontend_channel_.
+  virtual bool Dispatch(span<uint8_t> command_name,
+                        Dispatchable& dispatchable) = 0;
 
   // Sends a response to the client via the channel.
   void sendResponse(int call_id,
@@ -253,25 +285,6 @@ class DomainDispatcher {
 // =============================================================================
 class UberDispatcher {
  public:
-  // Return type for ::Dispatch.
-  class DispatchResult {
-   public:
-    DispatchResult(bool method_found, std::function<void()> runnable);
-
-    // Indicates whether the method was found, that is, it could be dispatched
-    // to a backend registered with this dispatcher.
-    bool MethodFound() const { return method_found_; }
-
-    // Runs the dispatched result. This will send the appropriate error
-    // responses if the method wasn't found or if something went wrong during
-    // parameter parsing.
-    void Run();
-
-   private:
-    bool method_found_;
-    std::function<void()> runnable_;
-  };
-
   // |frontend_hannel| can't be nullptr.
   explicit UberDispatcher(FrontendChannel* frontend_channel);
   virtual ~UberDispatcher();
@@ -280,7 +293,9 @@ class UberDispatcher {
   // handlers registered with this uber dispatcher. Also see |DispatchResult|.
   // |dispatchable.ok()| must hold - callers must check this separately and
   // deal with errors.
-  DispatchResult Dispatch(const Dispatchable& dispatchable) const;
+  void Dispatch(Dispatchable& dispatchable);
+
+  void SendMethodNotFound(int call_id, span<uint8_t> method);
 
   // Invoked from generated code for wiring domain backends; that is,
   // connecting domain handlers to an uber dispatcher.
@@ -308,6 +323,7 @@ class UberDispatcher {
   std::vector<std::pair<span<uint8_t>, std::unique_ptr<DomainDispatcher>>>
       dispatchers_;
 };
+
 }  // namespace v8_crdtp
 
 #endif  // V8_CRDTP_DISPATCH_H_

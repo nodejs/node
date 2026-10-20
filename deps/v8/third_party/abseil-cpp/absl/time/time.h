@@ -62,19 +62,6 @@
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
 
-#if !defined(_MSC_VER)
-#include <sys/time.h>
-#else
-// We don't include `winsock2.h` because it drags in `windows.h` and friends,
-// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
-// potential to break Abseil users.
-//
-// Instead we only forward declare `timeval` and require Windows users include
-// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
-// including 'windows.h' so we are picking the lesser of two evils here.
-struct timeval;
-#endif
-
 #include "absl/base/config.h"
 
 // For feature testing and determining which headers can be included.
@@ -101,6 +88,19 @@ struct timeval;
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+#if !defined(_MSC_VER)
+#include <sys/time.h>
+#else
+// We don't include `winsock2.h` because it drags in `windows.h` and friends,
+// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
+// potential to break Abseil users.
+//
+// Instead we only forward declare `timeval` and require Windows users include
+// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
+// including 'windows.h' so we are picking the lesser of two evils here.
+struct timeval;
+#endif
 
 #if defined(__cpp_impl_three_way_comparison) && \
     defined(__cpp_lib_three_way_comparison)
@@ -134,11 +134,10 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
                                                            std::ratio<3600>);
 template <typename T>
-using EnableIfIntegral = typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, int>::type;
+using EnableIfIntegral =
+    std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T>, int>;
 template <typename T>
-using EnableIfFloat =
-    typename std::enable_if<std::is_floating_point<T>::value, int>::type;
+using EnableIfFloat = std::enable_if_t<std::is_floating_point_v<T>, int>;
 }  // namespace time_internal
 
 // Duration
@@ -738,9 +737,9 @@ bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
 // the format specified by `absl::ParseDuration()`.
 std::string AbslUnparseFlag(Duration d);
 
-ABSL_DEPRECATED("Use AbslParseFlag() instead.")
+[[deprecated("Use AbslParseFlag() instead.")]]
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
-ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
+[[deprecated("Use AbslUnparseFlag() instead.")]]
 std::string UnparseFlag(Duration d);
 
 // Time
@@ -825,7 +824,7 @@ class Time {
   // `absl::TimeZone`.
   //
   // Deprecated. Use `absl::TimeZone::CivilInfo`.
-  struct ABSL_DEPRECATED("Use `absl::TimeZone::CivilInfo`.") Breakdown {
+  struct [[deprecated("Use `absl::TimeZone::CivilInfo`.")]] Breakdown {
     int64_t year;        // year (e.g., 2013)
     int month;           // month of year [1:12]
     int day;             // day of month [1:31]
@@ -852,7 +851,7 @@ class Time {
   //
   // Deprecated. Use `absl::TimeZone::At(Time)`.
   ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
-  ABSL_DEPRECATED("Use `absl::TimeZone::At(Time)`.")
+  [[deprecated("Use `absl::TimeZone::At(Time)`.")]]
   Breakdown In(TimeZone tz) const;
   ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 
@@ -1064,11 +1063,6 @@ bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
 // Unparses a Time value into a command-line string representation using
 // the format specified by `absl::ParseTime()`.
 std::string AbslUnparseFlag(Time t);
-
-ABSL_DEPRECATED("Use AbslParseFlag() instead.")
-bool ParseFlag(const std::string& text, Time* t, std::string* error);
-ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
-std::string UnparseFlag(Time t);
 
 // TimeZone
 //
@@ -1362,7 +1356,7 @@ ABSL_ATTRIBUTE_PURE_FUNCTION inline Time FromCivil(CivilSecond ct,
 // `absl::ConvertDateTime()`. Legacy version of `absl::TimeZone::TimeInfo`.
 //
 // Deprecated. Use `absl::TimeZone::TimeInfo`.
-struct ABSL_DEPRECATED("Use `absl::TimeZone::TimeInfo`.") TimeConversion {
+struct [[deprecated("Use `absl::TimeZone::TimeInfo`.")]] TimeConversion {
   Time pre;    // time calculated using the pre-transition offset
   Time trans;  // when the civil-time discontinuity occurred
   Time post;   // time calculated using the post-transition offset
@@ -1397,7 +1391,7 @@ struct ABSL_DEPRECATED("Use `absl::TimeZone::TimeInfo`.") TimeConversion {
 //
 // Deprecated. Use `absl::TimeZone::At(CivilSecond)`.
 ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
-ABSL_DEPRECATED("Use `absl::TimeZone::At(CivilSecond)`.")
+[[deprecated("Use `absl::TimeZone::At(CivilSecond)`.")]]
 TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
                                int min, int sec, TimeZone tz);
 ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
@@ -1417,7 +1411,7 @@ ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 // Deprecated. Use `absl::FromCivil(CivilSecond, TimeZone)`. Note that the
 // behavior of `FromCivil()` differs from `FromDateTime()` for skipped civil
 // times. If you care about that see `absl::TimeZone::At(absl::CivilSecond)`.
-ABSL_DEPRECATED("Use `absl::FromCivil(CivilSecond, TimeZone)`.")
+[[deprecated("Use `absl::FromCivil(CivilSecond, TimeZone)`.")]]
 inline Time FromDateTime(int64_t year, int mon, int day, int hour, int min,
                          int sec, TimeZone tz) {
   ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING

@@ -6,7 +6,10 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { getFips } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const rejectsSha1Signing = hasFIPS(3) && !hasFIPS(3, 5);
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
@@ -50,7 +53,7 @@ async function testVerify({ name,
     subtle.generateKey(
       {
         name: 'RSA-PSS',
-        modulusLength: 1024,
+        modulusLength: getFips() === 1 ? 2048 : 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
       },
@@ -173,7 +176,7 @@ async function testSign({ name,
     subtle.generateKey(
       {
         name: 'RSA-PSS',
-        modulusLength: 1024,
+        modulusLength: getFips() === 1 ? 2048 : 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
       },
@@ -229,6 +232,32 @@ async function testSign({ name,
 
   for (let i = 0; i < vectors.length; ++i) {
     const vector = vectors[i];
+    if (rejectsSha1Signing && vector.hash === 'SHA-1') {
+      const publicKey = await subtle.importKey(
+        'spki',
+        vector.publicKeyBuffer,
+        { name: vector.name, namedCurve: vector.namedCurve },
+        false,
+        ['verify']);
+      const privateKey = await subtle.importKey(
+        'pkcs8',
+        vector.privateKeyBuffer,
+        { name: vector.name, namedCurve: vector.namedCurve },
+        false,
+        ['sign']);
+      assert(await subtle.verify(
+        { name: vector.name, hash: vector.hash },
+        publicKey,
+        vector.signature,
+        vector.plaintext));
+      await assert.rejects(
+        subtle.sign(
+          { name: vector.name, hash: vector.hash },
+          privateKey,
+          vector.plaintext),
+        { name: 'OperationError' });
+      continue;
+    }
     variations.push(testVerify(vector));
     variations.push(testSign(vector));
   }

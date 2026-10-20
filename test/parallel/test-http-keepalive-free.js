@@ -10,7 +10,7 @@ for (const method of ['abort', 'destroy']) {
     res.end(req.url);
   }));
   server.listen(0, common.mustCall(() => {
-    const agent = http.Agent({ keepAlive: true });
+    const agent = new http.Agent({ keepAlive: true });
 
     const req = http
       .request({

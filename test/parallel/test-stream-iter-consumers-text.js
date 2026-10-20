@@ -96,10 +96,8 @@ async function testTextEmpty() {
 
 // text() with abort signal
 async function testTextWithSignal() {
-  const ac = new AbortController();
-  ac.abort();
   await assert.rejects(
-    () => text(from('data'), { signal: ac.signal }),
+    () => text(from('data'), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 }
@@ -145,6 +143,20 @@ function testTextSyncUnsupportedEncodingThrowsRangeError() {
   );
 }
 
+async function testTextConvertedEncodingThrowsRangeError() {
+  await assert.rejects(
+    () => text(from('hello'), { encoding: 1 }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
+function testTextSyncConvertedEncodingThrowsRangeError() {
+  assert.throws(
+    () => textSync(fromSync('hello'), { encoding: 1 }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
 Promise.all([
   testTextSyncBasic(),
   testTextAsync(),
@@ -161,4 +173,6 @@ Promise.all([
   testTextSyncBOMStripped(),
   testTextUnsupportedEncodingThrowsRangeError(),
   testTextSyncUnsupportedEncodingThrowsRangeError(),
+  testTextConvertedEncodingThrowsRangeError(),
+  testTextSyncConvertedEncodingThrowsRangeError(),
 ]).then(common.mustCall());

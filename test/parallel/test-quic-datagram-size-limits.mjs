@@ -15,8 +15,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual, notStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,7 +30,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 }), {
   transportParams: { maxDatagramFrameSize: 200 },
   ondatagram: mustCall((data) => {
-    ok(data instanceof Uint8Array);
+    assert.ok(data instanceof Uint8Array);
     serverGot.resolve();
   }),
 });
@@ -46,19 +44,19 @@ const maxSize = clientSession.maxDatagramSize;
 
 // maxDatagramSize should be less than maxDatagramFrameSize due to
 // the DATAGRAM frame overhead (1 byte type + varint length encoding).
-ok(maxSize > 0);
-ok(maxSize < 200);
+assert.ok(maxSize > 0);
+assert.ok(maxSize < 200);
 
 // DGRAM-03 / DGIMP-10: Datagram too large — returns 0n.
 const oversized = new Uint8Array(maxSize + 1);
 const tooLargeId = await clientSession.sendDatagram(oversized);
-strictEqual(tooLargeId, 0n);
+assert.strictEqual(tooLargeId, 0n);
 
 // Datagram at exactly maxDatagramSize — accepted and delivered.
 const exactMax = new Uint8Array(maxSize);
 exactMax[0] = 42;
 const exactId = await clientSession.sendDatagram(exactMax);
-notStrictEqual(exactId, 0n);
+assert.notStrictEqual(exactId, 0n);
 
 await Promise.all([serverGot.promise, clientSession.closed]);
 await serverEndpoint.close();

@@ -7,8 +7,8 @@ const {
 
 const bench = common.createBenchmark(main, {
   n: [5e5],
-  highWaterMarkR: [512, 1024, 2048, 4096],
-  highWaterMarkW: [512, 1024, 2048, 4096],
+  highWaterMarkR: [1, 1024, 4096],
+  highWaterMarkW: [1, 1024, 4096],
 });
 
 
@@ -16,7 +16,6 @@ async function main({ n, highWaterMarkR, highWaterMarkW }) {
   const b = Buffer.alloc(1024);
   let i = 0;
   const rs = new ReadableStream({
-    highWaterMark: highWaterMarkR,
     pull: function(controller) {
       if (i++ < n) {
         controller.enqueue(b);
@@ -24,12 +23,11 @@ async function main({ n, highWaterMarkR, highWaterMarkW }) {
         controller.close();
       }
     },
-  });
+  }, { highWaterMark: highWaterMarkR });
   const ws = new WritableStream({
-    highWaterMark: highWaterMarkW,
     write(chunk, controller) {},
     close() { bench.end(n); },
-  });
+  }, { highWaterMark: highWaterMarkW });
 
   bench.start();
   rs.pipeTo(ws);

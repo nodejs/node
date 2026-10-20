@@ -6,7 +6,7 @@ const common = require('../common.js');
 const { Readable, Writable, pipeline } = require('stream');
 
 const bench = common.createBenchmark(main, {
-  api: ['classic', 'webstream', 'iter', 'iter-sync'],
+  api: ['classic', 'webstream', 'iter', 'iter-sync-source', 'iter-sync'],
   datasize: [1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024],
   n: [5],
 }, {
@@ -26,6 +26,8 @@ function main({ api, datasize, n }) {
       return benchWebStream(chunk, datasize, n, totalOps);
     case 'iter':
       return benchIter(chunk, datasize, n, totalOps);
+    case 'iter-sync-source':
+      return benchIterSyncSource(chunk, datasize, n, totalOps);
     case 'iter-sync':
       return benchIterSync(chunk, datasize, n, totalOps);
   }
@@ -90,6 +92,29 @@ function benchIter(chunk, datasize, n, totalOps) {
       }
     }
     // Provide writeSync for the sync fast path in pipeTo
+    const writer = { write() {}, writeSync() { return true; } };
+    await pipeTo(source(), writer);
+  }
+
+  (async () => {
+    bench.start();
+    for (let i = 0; i < n; i++) await run();
+    bench.end(totalOps);
+  })();
+}
+
+function benchIterSyncSource(chunk, datasize, n, totalOps) {
+  const { pipeTo } = require('stream/iter');
+
+  async function run() {
+    let remaining = datasize;
+    function* source() {
+      while (remaining > 0) {
+        const size = Math.min(remaining, chunk.length);
+        remaining -= size;
+        yield size === chunk.length ? chunk : chunk.subarray(0, size);
+      }
+    }
     const writer = { write() {}, writeSync() { return true; } };
     await pipeTo(source(), writer);
   }

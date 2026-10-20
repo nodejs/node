@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<title>Service Worker: FetchEvent for css image</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+var SCOPE = 'resources/fetch-request-resources-iframe.https.html';
+var SCRIPT = 'resources/fetch-request-resources-worker.js';
+var host_info = get_host_info();
+var LOCAL_URL =
+  host_info['HTTPS_ORIGIN'] + base_path() + 'resources/sample?test';
+var REMOTE_URL =
+  host_info['HTTPS_REMOTE_ORIGIN'] + base_path() + 'resources/sample?test';
+
+function css_image_test(expected_results, frame, url, type,
+                        expected_mode, expected_credentials) {
+  expected_results[url] = {
+      url: url,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      message: 'CSSImage load (url:' + url + ' type:' + type + ')'
+    };
+  return frame.contentWindow.load_css_image(url, type);
+}
+
+function css_image_set_test(expected_results, frame, url, type,
+                            expected_mode, expected_credentials) {
+  expected_results[url] = {
+      url: url,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      message: 'CSSImageSet load (url:' + url + ' type:' + type + ')'
+    };
+  return frame.contentWindow.load_css_image_set(url, type);
+}
+
+function waitForWorker(worker) {
+  return new Promise(function(resolve) {
+    var channel = new MessageChannel();
+    channel.port1.addEventListener('message', function(msg) {
+      if (msg.data.ready) {
+        resolve(channel);
+      }
+    });
+    channel.port1.start();
+    worker.postMessage({port: channel.port2}, [channel.port2]);
+  });
+}
+
+function create_message_promise(channel, expected_results, worker, scope) {
+  return new Promise(function(resolve) {
+    channel.port1.addEventListener('message', function(msg) {
+      var result = msg.data;
+      if (!expected_results[result.url]) {
+        return;
+      }
+      resolve(result);
+    });
+  }).then(function(result) {
+      var expected = expected_results[result.url];
+      assert_equals(
+          result.mode, expected.mode,
+          'mode of ' + expected.message +  ' must be ' +
+          expected.mode + '.');
+      assert_equals(
+          result.credentials, expected.credentials,
+          'credentials of ' + expected.message +  ' must be ' +
+          expected.credentials + '.');
+      delete expected_results[result.url];
+    });
+}
+
+promise_test(function(t) {
+    var scope = SCOPE + "?img=backgroundImage";
+    var expected_results = {};
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();
+            });
+          frame = f;
+          return waitForWorker(worker);
+        })
+      .then(function(channel) {
+          css_image_test(expected_results, frame, LOCAL_URL + Date.now(),
+                         'backgroundImage', 'no-cors', 'include');
+          css_image_test(expected_results, frame, REMOTE_URL + Date.now(),
+                        'backgroundImage', 'no-cors', 'include');
+
+          return Promise.all([
+              create_message_promise(channel, expected_results, worker, scope),
+              create_message_promise(channel, expected_results, worker, scope)
+            ]);
+        });
+  }, 'Verify FetchEvent for css image (backgroundImage).');
+
+promise_test(function(t) {
+    var scope = SCOPE + "?img=shapeOutside";
+    var expected_results = {};
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();
+            });
+          frame = f;
+          return waitForWorker(worker);
+        })
+      .then(function(channel) {
+          css_image_test(expected_results, frame, LOCAL_URL + Date.now(),
+                         'shapeOutside', 'cors', 'same-origin');
+          css_image_test(expected_results, frame, REMOTE_URL + Date.now(),
+                         'shapeOutside', 'cors', 'same-origin');
+
+          return Promise.all([
+              create_message_promise(channel, expected_results, worker, scope),
+              create_message_promise(channel, expected_results, worker, scope)
+            ]);
+      });
+  }, 'Verify FetchEvent for css image (shapeOutside).');
+
+promise_test(function(t) {
+    var scope = SCOPE + "?img_set=backgroundImage";
+    var expected_results = {};
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();;
+            });
+          frame = f;
+          return waitForWorker(worker);
+        })
+      .then(function(channel) {
+          css_image_set_test(expected_results, frame, LOCAL_URL + Date.now(),
+                            'backgroundImage', 'no-cors', 'include');
+          css_image_set_test(expected_results, frame, REMOTE_URL + Date.now(),
+                            'backgroundImage', 'no-cors', 'include');
+
+          return Promise.all([
+              create_message_promise(channel, expected_results, worker, scope),
+              create_message_promise(channel, expected_results, worker, scope)
+            ]);
+      });
+  }, 'Verify FetchEvent for css image-set (backgroundImage).');
+
+promise_test(function(t) {
+    var scope = SCOPE + "?img_set=shapeOutside";
+    var expected_results = {};
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();
+            });
+          frame = f;
+          return waitForWorker(worker);
+        })
+      .then(function(channel) {
+          css_image_set_test(expected_results, frame, LOCAL_URL + Date.now(),
+                             'shapeOutside', 'cors', 'same-origin');
+          css_image_set_test(expected_results, frame, REMOTE_URL + Date.now(),
+                            'shapeOutside', 'cors', 'same-origin');
+
+          return Promise.all([
+              create_message_promise(channel, expected_results, worker, scope),
+              create_message_promise(channel, expected_results, worker, scope)
+            ]);
+        });
+  }, 'Verify FetchEvent for css image-set (shapeOutside).');
+
+</script>

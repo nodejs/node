@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --wasm-stringref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -248,6 +248,9 @@ function assertInvalid(fn, message) {
                TypeError,
                "WebAssembly.Table(): " +
                "Missing initial value when creating stringref table");
+
+  let t_zero = new WebAssembly.Table({ element: 'stringref', initial: 0 });
+  assertEquals(0, t_zero.length);
 
   let kSig_w_v = makeSig([], [kWasmStringRef]);
   let kSig_v_w = makeSig([kWasmStringRef], []);

@@ -7,6 +7,8 @@ import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
 
+// Evaluating while the target is running can trigger a V8 scope assertion.
+// Keep it paused for these formatting checks.
 const cli = startCLI([fixtures.path('debugger', 'three-lines.js')]);
 
 try {
@@ -29,5 +31,5 @@ try {
   await cli.command('exec a = function * func() {}; a;');
   assert.match(cli.output, /\[GeneratorFunction\]/);
 } finally {
-  cli.quit();
+  await cli.quit();
 }

@@ -5,12 +5,13 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (process.features.openssl_is_boringssl) {
+const { isBoringSSL, hasOpenSSL } = require('../common/crypto');
+
+if (isBoringSSL) {
   require('../common/boringssl').testPskTls13Unsupported();
   return;
 }
 
-const { hasOpenSSL } = require('../common/crypto');
 const assert = require('assert');
 const tls = require('tls');
 
@@ -69,9 +70,12 @@ test({ psk: USERS.UserA, identity: 'UserA' }, { minVersion: 'TLSv1.3' });
 test({ psk: USERS.UserB, identity: 'UserB' });
 test({ psk: USERS.UserB, identity: 'UserB' }, { minVersion: 'TLSv1.3' });
 // Unrecognized user should fail handshake
-const expectedHandshakeErr = hasOpenSSL(4, 0) ?
-  'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
-    'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
+// OpenSSL 4.1 uses the same alert as for an invalid binder when no certificate
+// is available: https://github.com/openssl/openssl/pull/31026
+const expectedHandshakeErr = hasOpenSSL(4, 1) ?
+  'ERR_SSL_TLSV1_ALERT_DECRYPT_ERROR' : hasOpenSSL(4, 0) ?
+    'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
+      'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
 test({ psk: USERS.UserB, identity: 'UserC' }, {}, expectedHandshakeErr);
 // Recognized user but incorrect secret should fail handshake
 const expectedIllegalParameterErr = hasOpenSSL(3, 4) ? 'ERR_SSL_TLSV1_ALERT_DECRYPT_ERROR' :

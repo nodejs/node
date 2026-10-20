@@ -12,6 +12,11 @@ const {
 } = require('./mock-symbols')
 const { InvalidArgumentError } = require('../core/errors')
 const { serializePathWithQuery } = require('../core/util')
+const {
+  types: {
+    isPromise
+  }
+} = require('node:util')
 
 /**
  * Defines the scope API for an interceptor reply
@@ -117,13 +122,9 @@ class MockInterceptor {
     // Values of reply aren't available right now as they
     // can only be available when the reply callback is invoked.
     if (typeof replyOptionsCallbackOrStatusCode === 'function') {
-      // We'll first wrap the provided callback in another function,
-      // this function will properly resolve the data from the callback
-      // when invoked.
-      const wrappedDefaultsCallback = (opts) => {
-        // Our reply options callback contains the parameter for statusCode, data and options.
-        const resolvedData = replyOptionsCallbackOrStatusCode(opts)
-
+      // Resolves the data returned by a reply options callback into
+      // dispatch data, validating its format along the way.
+      const resolveReplyCallbackData = (resolvedData) => {
         // Check if it is in the right format
         if (typeof resolvedData !== 'object' || resolvedData === null) {
           throw new InvalidArgumentError('reply options callback must return an object')
@@ -136,6 +137,23 @@ class MockInterceptor {
         return {
           ...this.createMockScopeDispatchData(replyParameters)
         }
+      }
+
+      // We'll first wrap the provided callback in another function,
+      // this function will properly resolve the data from the callback
+      // when invoked.
+      const wrappedDefaultsCallback = (opts) => {
+        // Our reply options callback contains the parameter for statusCode, data and options.
+        const resolvedData = replyOptionsCallbackOrStatusCode(opts)
+
+        // An asynchronous reply options callback resolves to the reply
+        // parameters, so the dispatch data can only be resolved once the
+        // returned promise settles.
+        if (isPromise(resolvedData)) {
+          return resolvedData.then(resolveReplyCallbackData)
+        }
+
+        return resolveReplyCallbackData(resolvedData)
       }
 
       // Add usual dispatch data, but this time set the data parameter to function that will eventually provide data.

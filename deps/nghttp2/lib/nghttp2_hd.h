@@ -364,10 +364,10 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
 
 /* For unittesting purpose */
 int nghttp2_hd_emit_indname_block(nghttp2_bufs *bufs, size_t index,
-                                  nghttp2_nv *nv, int indexing_mode);
+                                  const nghttp2_nv *nv, int indexing_mode);
 
 /* For unittesting purpose */
-int nghttp2_hd_emit_newname_block(nghttp2_bufs *bufs, nghttp2_nv *nv,
+int nghttp2_hd_emit_newname_block(nghttp2_bufs *bufs, const nghttp2_nv *nv,
                                   int indexing_mode);
 
 /* For unittesting purpose */

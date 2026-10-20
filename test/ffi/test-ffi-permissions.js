@@ -1,4 +1,4 @@
-// Flags: --permission --experimental-ffi --allow-fs-read=*
+// Flags: --permission --allow-fs-read=*
 'use strict';
 const common = require('../common');
 const assert = require('node:assert');
@@ -71,6 +71,10 @@ test('permission model blocks ffi memory and helper APIs', () => {
   }, denied);
 
   assert.throws(() => {
-    ffi.dlclose({ close() {} });
+    ffi.getCurrentEventLoop();
   }, denied);
+
+  // Like handle.close() and handle.getSymbol(), these do not check permissions.
+  ffi.dlclose({ close() {} });
+  assert.strictEqual(ffi.dlsym({ getSymbol: () => 1n }, 'x'), 1n);
 });

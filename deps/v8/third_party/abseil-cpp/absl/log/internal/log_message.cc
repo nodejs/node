@@ -20,10 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#include <unistd.h>
-#endif
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -32,7 +28,6 @@
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <tuple>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -54,12 +49,15 @@
 #include "absl/log/log_entry.h"
 #include "absl/log/log_sink.h"
 #include "absl/log/log_sink_registry.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/internal/utf8.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 extern "C" ABSL_ATTRIBUTE_WEAK void ABSL_INTERNAL_C_SYMBOL(
     AbslInternalOnFatalLogMessage)(const absl::LogEntry&) {
@@ -221,13 +219,15 @@ LogMessage::LogMessageData::LogMessageData(absl::string_view file,
 void LogMessage::LogMessageData::InitializeEncodingAndFormat() {
   EncodeStringTruncate(EventTag::kFileName, entry.source_filename(),
                        &encoded_remaining());
-  EncodeVarint(EventTag::kFileLine, entry.source_line(), &encoded_remaining());
+  EncodeVarint(EventTag::kFileLine, static_cast<int32_t>(entry.source_line()),
+               &encoded_remaining());
   EncodeVarint(EventTag::kTimeNsecs, absl::ToUnixNanos(entry.timestamp()),
                &encoded_remaining());
   EncodeVarint(EventTag::kSeverity,
                ProtoSeverity(entry.log_severity(), entry.verbosity()),
                &encoded_remaining());
-  EncodeVarint(EventTag::kThreadId, entry.tid(), &encoded_remaining());
+  EncodeVarint(EventTag::kThreadId, static_cast<uint64_t>(entry.tid()),
+               &encoded_remaining());
 }
 
 void LogMessage::LogMessageData::FinalizeEncodingAndFormat() {
@@ -278,8 +278,8 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line,
   : LogMessage(absl::string_view(file), line, severity) {}
 LogMessage::LogMessage(absl::string_view file, int line,
                        absl::LogSeverity severity)
-    : data_(absl::make_unique<LogMessageData>(file, line, severity,
-                                              absl::Now())) {
+    : data_(
+          std::make_unique<LogMessageData>(file, line, severity, absl::Now())) {
   data_->first_fatal = false;
   data_->is_perror = false;
   data_->fail_quietly = false;
@@ -720,7 +720,7 @@ void LogMessage::CopyToEncodedBufferWithStructuredProtoField(
   }
 
   // Write the string, truncating if necessary.
-  if (!EncodeStringTruncate(ValueTag::kString, str, &encoded_remaining_copy)) {
+  if (!EncodeStringTruncate(tag_value, str, &encoded_remaining_copy)) {
     // The length of the string itself did not fit; zero `encoded_remaining()`
     // so the value is not encoded at all.
     data_->encoded_remaining().remove_suffix(data_->encoded_remaining().size());

@@ -81,6 +81,7 @@ template("node_gn_build") {
       "src/inspector:*",
     ]
     configs = [ ":node_external_config" ]
+    include_dirs = [ get_label_info(node_simdutf_path, "dir") ]
     libs = []
     cflags = [ "-Wno-microsoft-include" ]
     cflags_cc = [
@@ -104,7 +105,7 @@ template("node_gn_build") {
       "-Wno-unused-function",
     ]
 
-    if (current_cpu == "x86") {
+    if (target_cpu == "x86") {
       node_arch = "ia32"
     } else {
       node_arch = target_cpu
@@ -337,7 +338,10 @@ template("node_gn_build") {
       "src/builtin_info.cc",
       "src/builtin_info.h",
     ]
-    include_dirs = [ "src" ]
+    include_dirs = [
+      "src",
+      get_label_info(node_simdutf_path, "dir"),
+    ]
   }
 
   action("run_node_js2c") {

@@ -308,6 +308,92 @@ t.test('ls', async t => {
     t.matchSnapshot(cleanCwd(result()), 'should contain overridden output')
   })
 
+  const packageExtensionsPrefix = {
+    'package.json': JSON.stringify({
+      name: 'test-package-extensions',
+      version: '1.0.0',
+      dependencies: { foo: '^1.0.0' },
+      packageExtensions: { 'foo@1': { dependencies: { bar: '^1.0.0' } } },
+    }),
+    node_modules: {
+      '.package-lock.json': JSON.stringify({
+        packages: {
+          'node_modules/foo': {
+            version: '1.0.0',
+            dependencies: { bar: '^1.0.0' },
+            packageExtensionsApplied: { selector: 'foo@1', dependencies: ['bar'] },
+          },
+          'node_modules/bar': { version: '1.0.0' },
+        },
+      }),
+      foo: {
+        'package.json': JSON.stringify({ name: 'foo', version: '1.0.0', dependencies: { bar: '^1.0.0' } }),
+      },
+      bar: { 'package.json': JSON.stringify({ name: 'bar', version: '1.0.0' }) },
+    },
+  }
+
+  t.test('packageExtensions dep', async t => {
+    const { npm, result, ls } = await mockLs(t, { config: {}, prefixDir: packageExtensionsPrefix })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    t.matchSnapshot(cleanCwd(result()), 'human output annotates the extended node')
+  })
+
+  t.test('packageExtensions dep --json', async t => {
+    const { npm, result, ls } = await mockLs(t, {
+      config: { json: true },
+      prefixDir: packageExtensionsPrefix,
+    })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    const applied = JSON.parse(result()).dependencies.foo.packageExtensionsApplied
+    t.match(applied, { selector: 'foo@1', dependencies: ['bar'] }, 'json output includes provenance')
+  })
+
+  const npmExtensionPrefix = {
+    'package.json': JSON.stringify({
+      name: 'test-npm-extension',
+      version: '1.0.0',
+      dependencies: { foo: '^1.0.0' },
+    }),
+    node_modules: {
+      '.package-lock.json': JSON.stringify({
+        packages: {
+          'node_modules/foo': {
+            version: '1.0.0',
+            dependencies: { bar: '^1.0.0' },
+            npmExtensionApplied: { extensionPoint: 'transformManifest', dependencies: ['bar'] },
+          },
+          'node_modules/bar': { version: '1.0.0' },
+        },
+      }),
+      foo: {
+        'package.json': JSON.stringify({ name: 'foo', version: '1.0.0', dependencies: { bar: '^1.0.0' } }),
+      },
+      bar: { 'package.json': JSON.stringify({ name: 'bar', version: '1.0.0' }) },
+    },
+  }
+
+  t.test('.npm-extension dep', async t => {
+    const { npm, result, ls } = await mockLs(t, { config: {}, prefixDir: npmExtensionPrefix })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    t.matchSnapshot(cleanCwd(result()), 'human output annotates the transformed node')
+  })
+
+  t.test('.npm-extension dep --json', async t => {
+    const { npm, result, ls } = await mockLs(t, {
+      config: { json: true },
+      prefixDir: npmExtensionPrefix,
+    })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    const applied = JSON.parse(result()).dependencies.foo.npmExtensionApplied
+    t.match(applied, { extensionPoint: 'transformManifest', dependencies: ['bar'] },
+      'json output includes provenance')
+  })
+
   t.test('with filter arg', async t => {
     const config = {
       color: 'always',
@@ -4225,7 +4311,7 @@ t.test('ls --json', async t => {
           abbrev: {
             version: '1.1.1',
             overridden: false,
-            resolved: 'git+ssh://git@github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
+            resolved: 'git+https://github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
           },
         },
       },
@@ -5339,6 +5425,7 @@ t.test('ls --install-strategy=linked', async t => {
     const output = cleanCwd(result())
     t.notMatch(output, /UNMET DEPENDENCY/, 'should not report undeclared workspace as UNMET DEPENDENCY')
     t.match(output, /workspace-a/, 'should list declared workspace')
+    t.match(output, /workspace-b/, 'should list undeclared workspace (npm/cli#9618)')
   })
 
   t.test('should not report devDeps of store packages as UNMET DEPENDENCY', async t => {
@@ -5376,6 +5463,37 @@ t.test('ls --install-strategy=linked', async t => {
     t.match(output, /nopt/, 'should list the dependency')
   })
 
+  t.test('should not report devDeps of linked transitive packages as UNMET DEPENDENCY', async t => {
+    const { result, ls } = await mockLs(t, {
+      config: {
+        'install-strategy': 'linked',
+        all: true,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'test-linked-transitive',
+          version: '1.0.0',
+          dependencies: { 'pkg-a': 'file:./pkg-a' },
+        }),
+        'pkg-a': {
+          'package.json': JSON.stringify({
+            name: 'pkg-a',
+            version: '1.0.0',
+            devDependencies: { tap: '^16.0.0' },
+          }),
+        },
+        node_modules: {
+          'pkg-a': t.fixture('symlink', '../pkg-a'),
+        },
+      },
+    })
+    await ls.exec([])
+    const output = cleanCwd(result())
+    t.notMatch(output, /UNMET DEPENDENCY/, 'should not report devDeps of linked transitive packages')
+    t.notMatch(output, /tap/, 'should not traverse devDeps of linked transitive packages')
+    t.match(output, /pkg-a/, 'should list the dependency')
+  })
+
   t.test('should still report declared workspace as UNMET DEPENDENCY when missing', async t => {
     const { ls } = await mockLs(t, {
       config: {
@@ -5403,5 +5521,49 @@ t.test('ls --install-strategy=linked', async t => {
     })
     await t.rejects(ls.exec([]), { code: 'ELSPROBLEMS' },
       'should report declared workspace as UNMET DEPENDENCY')
+  })
+})
+
+t.test('patched dependency annotation', async t => {
+  const patchedLock = {
+    name: 'test-npm-ls',
+    version: '1.0.0',
+    lockfileVersion: 4,
+    requires: true,
+    packages: {
+      '': { name: 'test-npm-ls', version: '1.0.0', dependencies: { foo: '^1.0.0' } },
+      'node_modules/foo': {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/foo/-/foo-1.0.0.tgz',
+        integrity: 'sha512-deadbeef',
+        patched: { path: 'patches/foo@1.0.0.patch', integrity: 'sha512-abc' },
+      },
+    },
+  }
+  const prefixDir = {
+    'package.json': JSON.stringify({
+      name: 'test-npm-ls',
+      version: '1.0.0',
+      dependencies: { foo: '^1.0.0' },
+      patchedDependencies: { 'foo@1.0.0': 'patches/foo@1.0.0.patch' },
+    }),
+    node_modules: {
+      '.package-lock.json': JSON.stringify(patchedLock),
+      foo: { 'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }) },
+    },
+  }
+
+  t.test('human output annotates the patched dependency', async t => {
+    const { npm, result, ls } = await mockLs(t, { config: {}, prefixDir })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    t.match(result(), /foo@1\.0\.0 \[patched: patches\/foo@1\.0\.0\.patch\]/)
+  })
+
+  t.test('json output records the patch path', async t => {
+    const { npm, result, ls } = await mockLs(t, { config: { json: true }, prefixDir })
+    touchHiddenPackageLock(npm.prefix)
+    await ls.exec([])
+    t.equal(JSON.parse(result()).dependencies.foo.patched, 'patches/foo@1.0.0.patch')
   })
 })

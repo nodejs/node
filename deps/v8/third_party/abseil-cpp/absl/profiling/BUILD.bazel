@@ -59,6 +59,7 @@ cc_test(
     ],
     deps = [
         ":sample_recorder",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/random",
         "//absl/synchronization",
@@ -93,6 +94,8 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":exponential_biased",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -106,11 +109,11 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        # TODO(b/304670045): remove after periodic_sampler moves to //spanner/common.
         "//absl:__subpackages__",
     ],
     deps = [
         ":exponential_biased",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -124,6 +127,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":periodic_sampler",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -140,6 +144,7 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":periodic_sampler",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@google_benchmark//:benchmark_main",
     ],
@@ -160,8 +165,10 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/container:btree",
         "//absl/container:flat_hash_map",
+        "//absl/container:hash_container_defaults",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
@@ -177,6 +184,7 @@ cc_library(
     ],
     deps = [
         ":profile_builder",
+        "//absl/base",
         "//absl/base:config",
         "//absl/container:hashtablez_sampler",
         "//absl/status:statusor",

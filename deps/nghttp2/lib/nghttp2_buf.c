@@ -29,13 +29,7 @@
 #include "nghttp2_helper.h"
 #include "nghttp2_debug.h"
 
-void nghttp2_buf_init(nghttp2_buf *buf) {
-  buf->begin = NULL;
-  buf->end = NULL;
-  buf->pos = NULL;
-  buf->last = NULL;
-  buf->mark = NULL;
-}
+void nghttp2_buf_init(nghttp2_buf *buf) { *buf = (nghttp2_buf){0}; }
 
 int nghttp2_buf_init2(nghttp2_buf *buf, size_t initial, nghttp2_mem *mem) {
   nghttp2_buf_init(buf);
@@ -212,16 +206,15 @@ int nghttp2_bufs_wrap_init(nghttp2_bufs *bufs, uint8_t *begin, size_t len,
 
   nghttp2_buf_wrap_init(&chain->buf, begin, len);
 
-  bufs->mem = mem;
-  bufs->offset = 0;
-
-  bufs->head = chain;
-  bufs->cur = bufs->head;
-
-  bufs->chunk_length = len;
-  bufs->chunk_used = 1;
-  bufs->max_chunk = 1;
-  bufs->chunk_keep = 1;
+  *bufs = (nghttp2_bufs){
+    .head = chain,
+    .cur = chain,
+    .mem = mem,
+    .chunk_length = len,
+    .max_chunk = 1,
+    .chunk_used = 1,
+    .chunk_keep = 1,
+  };
 
   return 0;
 }
@@ -251,17 +244,15 @@ int nghttp2_bufs_wrap_init2(nghttp2_bufs *bufs, const nghttp2_vec *vec,
     dst_chain = &cur_chain->next;
   }
 
-  bufs->mem = mem;
-  bufs->offset = 0;
-
-  bufs->head = head_chain;
-  bufs->cur = bufs->head;
-
-  /* We don't use chunk_length since no allocation is expected. */
-  bufs->chunk_length = 0;
-  bufs->chunk_used = veclen;
-  bufs->max_chunk = veclen;
-  bufs->chunk_keep = veclen;
+  *bufs = (nghttp2_bufs){
+    .head = head_chain,
+    .cur = head_chain,
+    .mem = mem,
+    /* We don't use chunk_length since no allocation is expected. */
+    .max_chunk = veclen,
+    .chunk_used = veclen,
+    .chunk_keep = veclen,
+  };
 
   return 0;
 }

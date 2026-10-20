@@ -6,6 +6,8 @@
 #include "node_file.h"
 #include "req_wrap-inl.h"
 
+#include <algorithm>
+
 namespace node {
 namespace fs {
 
@@ -25,6 +27,15 @@ void FSContinuationData::MaybeSetFirstPath(const std::string& path) {
   if (first_path_.empty()) {
     first_path_ = path;
   }
+}
+
+bool FSContinuationData::ShouldRetryENOENT(const std::string& path) {
+  if (std::find(enoent_paths_.begin(), enoent_paths_.end(), path) !=
+      enoent_paths_.end()) {
+    return false;
+  }
+  enoent_paths_.push_back(path);
+  return true;
 }
 
 std::string FSContinuationData::PopPath() {
@@ -209,13 +220,7 @@ FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
                                            v8::Local<v8::Object> obj,
                                            bool use_bigint)
     : FSReqBase(
-          binding_data, obj, AsyncWrap::PROVIDER_FSREQPROMISE, use_bigint),
-      stats_field_array_(
-          env()->isolate(),
-          static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber)),
-      statfs_field_array_(
-          env()->isolate(),
-          static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber)) {}
+          binding_data, obj, AsyncWrap::PROVIDER_FSREQPROMISE, use_bigint) {}
 
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
@@ -253,14 +258,24 @@ void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
 
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::ResolveStat(const uv_stat_t* stat) {
-  FillStatsArray(&stats_field_array_, stat);
-  Resolve(stats_field_array_.GetJSArray());
+  if (!stats_field_array_.has_value()) {
+    stats_field_array_.emplace(
+        env()->isolate(),
+        static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber));
+  }
+  FillStatsArray(&stats_field_array_.value(), stat);
+  Resolve(stats_field_array_->GetJSArray());
 }
 
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::ResolveStatFs(const uv_statfs_t* stat) {
-  FillStatFsArray(&statfs_field_array_, stat);
-  Resolve(statfs_field_array_.GetJSArray());
+  if (!statfs_field_array_.has_value()) {
+    statfs_field_array_.emplace(
+        env()->isolate(),
+        static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber));
+  }
+  FillStatFsArray(&statfs_field_array_.value(), stat);
+  Resolve(statfs_field_array_->GetJSArray());
 }
 
 template <typename AliasedBufferT>
@@ -280,8 +295,12 @@ void FSReqPromise<AliasedBufferT>::SetReturnValue(
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::MemoryInfo(MemoryTracker* tracker) const {
   FSReqBase::MemoryInfo(tracker);
-  tracker->TrackField("stats_field_array", stats_field_array_);
-  tracker->TrackField("statfs_field_array", statfs_field_array_);
+  if (stats_field_array_.has_value()) {
+    tracker->TrackField("stats_field_array", stats_field_array_.value());
+  }
+  if (statfs_field_array_.has_value()) {
+    tracker->TrackField("statfs_field_array", statfs_field_array_.value());
+  }
 }
 
 FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -403,6 +422,70 @@ int SyncCallAndThrowOnError(Environment* env,
                             Func fn,
                             Args... args) {
   return SyncCallAndThrowIf(is_uv_error, env, req_wrap, fn, args...);
+}
+
+// Closes a file created by mkstemp() whose descriptor cannot be handed to JS.
+inline void CloseMkstempFd(int fd) {
+  uv_fs_t close_req;
+  uv_fs_close(nullptr, &close_req, fd, nullptr);
+  uv_fs_req_cleanup(&close_req);
+}
+
+// The descriptor is handed to JS as a number, like the one of fs.open().
+inline v8::MaybeLocal<v8::Value> MkstempFd(Environment* env, int fd) {
+  env->AddUnmanagedFd(fd);
+  return v8::Integer::New(env->isolate(), fd);
+}
+
+// The descriptor is owned by the FileHandle that `new_handle` creates.
+template <typename NewHandle>
+v8::MaybeLocal<v8::Value> MkstempFileHandle(NewHandle&& new_handle) {
+  FileHandle* handle = new_handle();
+  if (handle == nullptr) return {};
+  return handle->object();
+}
+
+// Builds the [path, file] result for a file created by mkstemp(). `make_file`
+// takes ownership of the descriptor. If a step fails, the file is closed and
+// the exception is left pending.
+template <typename EncodePath, typename MakeFile>
+v8::MaybeLocal<v8::Value> MkstempResult(v8::Isolate* isolate,
+                                        int fd,
+                                        EncodePath&& encode_path,
+                                        MakeFile&& make_file) {
+  v8::Local<v8::Value> path;
+  v8::Local<v8::Value> file;
+  if (!encode_path().ToLocal(&path) || !make_file().ToLocal(&file)) {
+    CloseMkstempFd(fd);
+    return {};
+  }
+  v8::Local<v8::Value> result[] = {path, file};
+  return v8::Array::New(isolate, result, arraysize(result));
+}
+
+// Resolves `req_wrap` with the result of mkstemp(), or rejects it with the
+// exception thrown while building it. The TryCatch is left before calling
+// into JS.
+template <typename EncodePath, typename MakeFile>
+void ResolveMkstemp(FSReqBase* req_wrap,
+                    int fd,
+                    EncodePath&& encode_path,
+                    MakeFile&& make_file) {
+  v8::Isolate* isolate = req_wrap->env()->isolate();
+  v8::Local<v8::Value> result;
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(isolate);
+    if (!MkstempResult(isolate, fd, encode_path, make_file).ToLocal(&result)) {
+      CHECK(try_catch.CanContinue());
+      error = try_catch.Exception();
+    }
+  }
+  if (error.IsEmpty()) {
+    req_wrap->Resolve(result);
+  } else {
+    req_wrap->Reject(error);
+  }
 }
 
 }  // namespace fs

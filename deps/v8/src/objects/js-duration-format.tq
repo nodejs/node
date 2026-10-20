@@ -12,6 +12,7 @@ type JSDurationFormatFieldStyle extends int32
     constexpr 'JSDurationFormat::FieldStyle';
 type JSDurationFormatDisplay extends int32
     constexpr 'JSDurationFormat::Display';
+@cppScope('JSDurationFormat')
 bitfield struct JSDurationFormatStyleFlags extends uint31 {
   style: JSDurationFormatStyle: 2 bit;
   years_style: JSDurationFormatFieldStyle: 2 bit;
@@ -26,6 +27,7 @@ bitfield struct JSDurationFormatStyleFlags extends uint31 {
   nanoseconds_style: JSDurationFormatFieldStyle: 3 bit;
   separator: JSDurationFormatSeparator: 2 bit;
 }
+@cppScope('JSDurationFormat')
 bitfield struct JSDurationFormatDisplayFlags extends uint31 {
   years_display: JSDurationFormatDisplay: 1 bit;
   months_display: JSDurationFormatDisplay: 1 bit;
@@ -40,6 +42,7 @@ bitfield struct JSDurationFormatDisplayFlags extends uint31 {
   fractional_digits: int32: 4 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDurationFormat extends JSObject {
   style_flags: SmiTagged<JSDurationFormatStyleFlags>;
   display_flags: SmiTagged<JSDurationFormatDisplayFlags>;

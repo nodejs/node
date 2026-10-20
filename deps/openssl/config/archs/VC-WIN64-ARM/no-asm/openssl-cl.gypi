@@ -3,6 +3,9 @@
     'openssl_defines_VC-WIN64-ARM': [
       'NDEBUG',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_SYS_WIN32',
       'WIN32_LEAN_AND_MEAN',
       'UNICODE',
@@ -15,7 +18,7 @@
     ],
     'openssl_cflags_VC-WIN64-ARM': [
       '/W3 /wd4090 /nologo /O2',
-      '/Gs0 /GF /Gy',
+      '/GF /Gy',
       '/W3 /wd4090 /nologo /O2',
     ],
     'openssl_ex_libs_VC-WIN64-ARM': [

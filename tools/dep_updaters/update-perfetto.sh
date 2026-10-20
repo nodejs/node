@@ -57,7 +57,7 @@ echo "$NEW_VERSION" > perfetto/VERSION
 curl -sL -o "perfetto/LICENSE" "https://raw.githubusercontent.com/google/perfetto/refs/tags/$PERFETTO_REF/LICENSE"
 
 # Remove C API headers. Only keep C++ API headers.
-rm perfetto/sdk/perfetto_c.h perfetto/sdk/perfetto_c.cc
+rm -f perfetto/sdk/perfetto_c.h perfetto/sdk/perfetto_c.cc
 
 echo "Copying existing gyp files"
 cp "$DEPS_DIR/perfetto/perfetto.gyp" "$WORKSPACE/perfetto"

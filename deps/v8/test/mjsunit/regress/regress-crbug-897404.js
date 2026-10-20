@@ -4,7 +4,7 @@
 
 function TestError() {}
 
-const a = new Array(2**32 - 1);
+const a = new Array(2**16 - 1);
 
 // Force early exit to avoid an unreasonably long test.
 a[0] = {

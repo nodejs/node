@@ -79,12 +79,19 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       return HashTableHoleConstant();
     case HoleType::kPromiseHole:
       return PromiseHoleConstant();
+#ifdef V8_ENABLE_TDZ_HOLE
+    case HoleType::kTdzHole:
+      return TdzHoleConstant();
+#endif
     case HoleType::kOptimizedOut:
       return OptimizedOutConstant();
     case HoleType::kStaleRegister:
       return StaleRegisterConstant();
     case HoleType::kUninitializedHole:
       return UninitializedConstant();
+#ifndef V8_ENABLE_TDZ_HOLE
+    case HoleType::kDisabledTdzHole:
+#endif
     case HoleType::kExceptionHole:
     case HoleType::kTerminationException:
     case HoleType::kArgumentsMarker:
@@ -97,16 +104,16 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       ref.AsHeapObject().GetHeapObjectType(broker).oddball_type();
   ReadOnlyRoots roots(isolate());
   if (oddball_type == OddballType::kUndefined) {
-    DCHECK(IsUndefined(*ref.object(), roots));
+    DCHECK(IsUndefined(*ref.object()));
     return UndefinedConstant();
   } else if (oddball_type == OddballType::kNull) {
-    DCHECK(IsNull(*ref.object(), roots));
+    DCHECK(IsNull(*ref.object()));
     return NullConstant();
   } else if (oddball_type == OddballType::kBoolean) {
-    if (IsTrue(*ref.object(), roots)) {
+    if (IsTrue(*ref.object())) {
       return TrueConstant();
     } else {
-      DCHECK(IsFalse(*ref.object(), roots));
+      DCHECK(IsFalse(*ref.object()));
       return FalseConstant();
     }
   } else {
@@ -260,6 +267,9 @@ DEFINE_GETTER(HashTableHoleConstant, Hole,
 
 DEFINE_GETTER(PromiseHoleConstant, Hole,
               HeapConstantHole(factory()->promise_hole_value()))
+
+DEFINE_GETTER(TdzHoleConstant, Hole,
+              HeapConstantHole(factory()->tdz_hole_value()))
 
 DEFINE_GETTER(UninitializedConstant, Hole,
               HeapConstantHole(factory()->uninitialized_value()))

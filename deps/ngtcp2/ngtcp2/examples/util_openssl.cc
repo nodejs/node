@@ -25,10 +25,10 @@
 #include "util.h"
 
 #include <cassert>
-#include <iostream>
 #include <array>
 #include <algorithm>
 #include <expected>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -58,10 +58,10 @@ std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
 }
 
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename) {
-  auto f = BIO_new_file(filename.data(), "r");
+read_hpke_private_key_pem(const std::filesystem::path &path) {
+  auto f = BIO_new_file(path.c_str(), "r");
   if (f == nullptr) {
-    std::println(stderr, "Could not open file {}", filename);
+    std::println(stderr, "Could not open file {}", path.native());
     return std::unexpected{Error::IO};
   }
 
@@ -98,12 +98,12 @@ read_hpke_private_key_pem(std::string_view filename) {
   return res;
 }
 
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type) {
-  auto f = BIO_new_file(filename.data(), "r");
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
+  auto f = BIO_new_file(path.c_str(), "r");
   if (f == nullptr) {
-    std::println(stderr, "Could not open {} file {}", name, filename);
+    std::println(stderr, "Could not open {} file {}", name, path.native());
     return std::unexpected{Error::IO};
   }
 
@@ -115,7 +115,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
     long datalen;
 
     if (PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-      std::println(stderr, "Could not read {} file {}", name, filename);
+      std::println(stderr, "Could not read {} file {}", name, path.native());
       return std::unexpected{Error::IO};
     }
 
@@ -133,13 +133,13 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   }
 }
 
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data) {
-  auto f = BIO_new_file(filename.data(), "w");
+  auto f = BIO_new_file(path.c_str(), "w");
   if (f == nullptr) {
-    std::println(stderr, "Could not write {} in {}", name, filename);
+    std::println(stderr, "Could not write {} in {}", name, path.native());
     return std::unexpected{Error::IO};
   }
 
@@ -165,9 +165,11 @@ const char *crypto_default_ciphers() {
 
 const char *crypto_default_groups() {
   return "X25519:P-256:P-384:P-521"
-#if defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL)
+#if defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL) ||           \
+  defined(LIBRESSL_VERSION_NUMBER)
          ":X25519MLKEM768"
-#endif // defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL)
+#endif // defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL) ||
+       // defined(LIBRESSL_VERSION_NUMBER)
     ;
 }
 

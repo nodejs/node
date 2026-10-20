@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1461,10 +1461,7 @@ static STRINT_PAIR callback_types[] = {
     { "Signature Algorithm mask", SSL_SECOP_SIGALG_MASK },
     { "Certificate chain EE key", SSL_SECOP_EE_KEY },
     { "Certificate chain CA key", SSL_SECOP_CA_KEY },
-    { "Peer Chain EE key", SSL_SECOP_PEER_EE_KEY },
-    { "Peer Chain CA key", SSL_SECOP_PEER_CA_KEY },
     { "Certificate chain CA digest", SSL_SECOP_CA_MD },
-    { "Peer chain CA digest", SSL_SECOP_PEER_CA_MD },
     { "SSL compression", SSL_SECOP_COMPRESSION },
     { "Session ticket", SSL_SECOP_TICKET },
     { NULL }
@@ -1498,7 +1495,6 @@ static int security_callback_debug(const SSL *s, const SSL_CTX *ctx,
         show_nm = 0;
         break;
     case SSL_SECOP_CA_MD:
-    case SSL_SECOP_PEER_CA_MD:
         cert_md = 1;
         break;
     case SSL_SECOP_SIGALG_SUPPORTED:

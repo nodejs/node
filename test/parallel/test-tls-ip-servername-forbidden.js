@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 
 const tls = require('tls');
 
-// Verify that passing an IP address the the servername option
+// Verify that passing an IP address to the servername option
 // throws an error.
 assert.throws(() => tls.connect({
   port: 1234,

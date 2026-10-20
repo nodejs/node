@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const { hasOpenSSL } = require('../../test/common/crypto.js');
+const { hasOpenSSL, isBoringSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -26,6 +26,8 @@ const keyFixtures = {
 
 if (hasOpenSSL(3, 5)) {
   keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private');
+} else if (isBoringSSL) {
+  keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private_seed_only');
 }
 
 const bench = common.createBenchmark(main, {

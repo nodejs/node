@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
 
 #include "absl/crc/crc32c.h"
@@ -144,7 +147,7 @@ void BM_Memcpy(benchmark::State& state) {
   int string_len = state.range(0);
 
   std::string source = TestString(string_len);
-  auto dest = absl::make_unique<char[]>(string_len);
+  auto dest = std::make_unique<char[]>(string_len);
 
   for (auto s : state) {
     benchmark::DoNotOptimize(source);

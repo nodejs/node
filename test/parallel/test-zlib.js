@@ -234,8 +234,9 @@ testKeys.forEach(common.mustCall((file) => {
 }, testKeys.length));
 
 {
-  // Test instantiation without 'new'
-  common.expectWarning('DeprecationWarning', `Instantiating Gzip without the 'new' keyword has been deprecated.`, 'DEP0184');
-  const gzip = zlib.Gzip();
-  assert.ok(gzip instanceof zlib.Gzip);
+  // Instantiating without `new` is End-of-Life (DEP0184).
+  assert.throws(() => zlib.Gzip(), {
+    name: 'TypeError',
+    message: /Class constructor Gzip cannot be invoked without 'new'/,
+  });
 }

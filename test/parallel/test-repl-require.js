@@ -6,6 +6,8 @@ const assert = require('assert');
 const net = require('net');
 const { isMainThread } = require('worker_threads');
 
+common.skipIfInspectorDisabled();
+
 if (!isMainThread) {
   common.skip('process.chdir is not available in Workers');
 }

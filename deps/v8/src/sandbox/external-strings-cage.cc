@@ -44,6 +44,10 @@ void ExternalStringsCage::TearDown() {
 }
 
 void ExternalStringsCage::Seal(void* ptr, size_t size) {
+  if (!ptr) {
+    CHECK_EQ(size, 0);
+    return;
+  }
   size_t alloc_size = GetAllocSize(size);
   vm_cage_.page_allocator()->SetPermissions(ptr, alloc_size,
                                             PageAllocator::kRead);
@@ -57,7 +61,7 @@ ExternalStringsCage::ExternalStringsCage()
 
   VirtualMemoryCage::ReservationParams params = {
       .page_allocator = GetPlatformPageAllocator(),
-      .reservation_size = kMaxContentsSize + kGuardRegionSize,
+      .reservation_size = kMaxContentsSize + 2 * kGuardRegionSize,
       .base_alignment = VirtualMemoryCage::ReservationParams::kAnyBaseAlignment,
       .page_size = page_size_,
       .requested_start_hint = kNullAddress,
@@ -71,9 +75,14 @@ ExternalStringsCage::ExternalStringsCage()
         nullptr, "Failed to reserve virtual memory for ExternalStringsCage");
   }
 
-  Address guard_region_begin = vm_cage_.base() + kMaxContentsSize;
+  allocation_region_ =
+      base::AddressRegion(vm_cage_.base() + kGuardRegionSize, kMaxContentsSize);
+
+  // Reserve the front and back guard regions.
   CHECK(vm_cage_.page_allocator()->AllocatePagesAt(
-      guard_region_begin, kGuardRegionSize, PageAllocator::kNoAccess));
+      vm_cage_.base(), kGuardRegionSize, PageAllocator::kNoAccess));
+  CHECK(vm_cage_.page_allocator()->AllocatePagesAt(
+      allocation_region_.end(), kGuardRegionSize, PageAllocator::kNoAccess));
 
   SandboxTesting::RegisterSafeMemoryRegion(
       vm_cage_.base(), vm_cage_.size(), SandboxTesting::kOnlyReadAccessIsSafe);
@@ -99,8 +108,7 @@ void* ExternalStringsCage::AllocateRaw(size_t size) {
   void* ptr = vm_cage_.page_allocator()->AllocatePages(
       nullptr, alloc_size, page_size_, PageAllocator::kReadWrite);
   CHECK(ptr);
-  CHECK_LE(reinterpret_cast<Address>(ptr) + size,
-           vm_cage_.base() + kMaxContentsSize);
+  CHECK(allocation_region_.contains(reinterpret_cast<Address>(ptr), size));
 #if defined(V8_USE_MEMORY_SANITIZER)
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(ptr, alloc_size);
 #elif defined(V8_USE_ADDRESS_SANITIZER)

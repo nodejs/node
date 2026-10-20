@@ -1,0 +1,13 @@
+Tests that functions created via the Function constructor do not expose a self-binding named "anonymous" to the debugger.
+
+Running test: setUp
+
+Running test: testDirect
+Paused in '':
+  [0] local: a
+  anonymous = string: global anonymous
+
+Running test: testNested
+Paused in 'inner':
+  [0] local: 
+  anonymous = string: global anonymous

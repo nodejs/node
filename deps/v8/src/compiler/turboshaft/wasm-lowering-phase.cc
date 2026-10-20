@@ -4,14 +4,13 @@
 
 #include "src/compiler/turboshaft/wasm-lowering-phase.h"
 
-#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
-#include "src/compiler/turboshaft/required-optimization-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/turboshaft/wasm-lowering-reducer.h"
+#include "src/handles/handles-inl.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 

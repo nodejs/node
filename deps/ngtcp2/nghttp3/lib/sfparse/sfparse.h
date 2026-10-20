@@ -130,7 +130,7 @@ typedef struct sfparse_vec {
  *
  * :macro:`SFPARSE_VALUE_FLAG_NONE` indicates no flag set.
  */
-#define SFPARSE_VALUE_FLAG_NONE 0x0u
+#define SFPARSE_VALUE_FLAG_NONE 0x0U
 
 /**
  * @macro
@@ -138,7 +138,7 @@ typedef struct sfparse_vec {
  * :macro:`SFPARSE_VALUE_FLAG_ESCAPED_STRING` indicates that a string
  * contains escaped character(s).
  */
-#define SFPARSE_VALUE_FLAG_ESCAPED_STRING 0x1u
+#define SFPARSE_VALUE_FLAG_ESCAPED_STRING 0x1U
 
 /**
  * @struct

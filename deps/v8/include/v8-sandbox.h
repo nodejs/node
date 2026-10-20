@@ -29,6 +29,10 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstTag = 0,
   kNullTag = 0,
 
+  // Subtypes of v8::Object::Wrappable [0x0001 .. 0x6fff]
+  kFirstObjectWrappableTag = 1,
+  kFirstEmbedderWrappableTag = kFirstObjectWrappableTag,
+
   /**
    * The lower type ids are reserved for the embedder to assign. For that, the
    * main requirement is that all (transitive) child classes of a given parent
@@ -52,8 +56,32 @@ enum class CppHeapPointerTag : uint16_t {
    * the type check to use even fewer instructions (essentially replace a AND +
    * SUB with a single AND).
    */
+  kLastEmbedderWrappableTag = 0x6eff,
 
-  kDefaultTag = 0x7000,
+  // V8-internal Oilpan objects that inherit from v8::Object::Wrappable.
+  kFirstV8InternalWrappableTag = 0x6f00,
+  // Kept temporarily for backwards compatibility with Chromium's
+  // wrapper_type_info.h across the V8 roll.
+  kFirstV8InternalTag = kFirstV8InternalWrappableTag,
+  kLastV8InternalWrappableTag = 0x6fff,
+
+  kLastObjectWrappableTag = kLastV8InternalWrappableTag,
+
+  // Non-v8::Object::Wrappable CppHeap objects [0x7000 .. 0x7ffc]
+  kFirstNonWrappableTag = 0x7000,
+
+  kFirstV8InternalNonWrappableTag = kFirstNonWrappableTag,
+  kLastV8InternalNonWrappableTag = 0x70ff,
+
+  kFirstEmbedderNonWrappableTag = 0x7100,
+  kLastEmbedderNonWrappableTag = 0x7ffc,
+
+  kLastNonWrappableTag = kLastEmbedderNonWrappableTag,
+
+#if !V8_ENABLE_SANDBOX
+  // Embedders that use the sandbox should use specific tags for each type.
+  kDefaultTag = kFirstEmbedderWrappableTag,
+#endif  // !V8_ENABLE_SANDBOX
 
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
@@ -65,7 +93,36 @@ enum class CppHeapPointerTag : uint16_t {
 using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 
 constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
-    CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kLastTag);
+    CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kZappedEntryTag);
+
+// All tags that are used with v8::Object::Wrappable have to be within this
+// tag range. The reason is that in some cases, an APIWrapper object has to be
+// unwrapped to access the v8::Object::Wrappable base class, e.g. to get type
+// information.
+constexpr CppHeapPointerTagRange kObjectWrappableTagRange(
+    CppHeapPointerTag::kFirstObjectWrappableTag,
+    CppHeapPointerTag::kLastObjectWrappableTag);
+
+// The tag range that embedders can use for their own types that inherit from
+// v8::Object::Wrappable.
+constexpr CppHeapPointerTagRange kEmbedderWrappableTagRange(
+    CppHeapPointerTag::kFirstEmbedderWrappableTag,
+    CppHeapPointerTag::kLastEmbedderWrappableTag);
+
+// The tag range for all non-v8::Object::Wrappable CppHeap objects, both
+// V8-internal and embedder-owned.
+constexpr CppHeapPointerTagRange kNonWrappableTagRange(
+    CppHeapPointerTag::kFirstNonWrappableTag,
+    CppHeapPointerTag::kLastNonWrappableTag);
+
+// The tag range that embedders can use for their own types that do not inherit
+// from v8::Object::Wrappable.
+constexpr CppHeapPointerTagRange kEmbedderNonWrappableTagRange(
+    CppHeapPointerTag::kFirstEmbedderNonWrappableTag,
+    CppHeapPointerTag::kLastEmbedderNonWrappableTag);
+
+static_assert(kObjectWrappableTagRange.Contains(kEmbedderWrappableTagRange));
+static_assert(kNonWrappableTagRange.Contains(kEmbedderNonWrappableTagRange));
 
 /**
  * Hardware support for the V8 Sandbox.
@@ -98,7 +155,7 @@ template <typename T>
 V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
                                             Address heap_object_ptr, int offset,
                                             CppHeapPointerTagRange tag_range) {
-  // This is a specialized version of the the CppHeapPointerTable accessors
+  // This is a specialized version of the CppHeapPointerTable accessors
   // which (1) allows the code to be inlined into the callers for performance
   // and (2) is optimized for code size as there are a huge number of callers
   // from auto-generated bindings code.
@@ -125,8 +182,10 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   constexpr int kTagShift = internal::kCppHeapPointerTagShift;
   uint32_t first_tag = static_cast<uint32_t>(tag_range.first) << kTagShift;
   uint32_t last_tag = (static_cast<uint32_t>(tag_range.last) << kTagShift) + 1;
-  if (V8_LIKELY(actual_tag >= first_tag && actual_tag <= last_tag)) {
-    entry = entry >> kCppHeapPointerPayloadShift;
+  // Avoid DCE of the entry logic using volatile.
+  volatile Address safe_entry;
+  if (actual_tag >= first_tag && actual_tag <= last_tag) [[likely]] {
+    safe_entry = entry >> kCppHeapPointerPayloadShift;
   } else {
     // If the type check failed, we simply return nullptr here. That way:
     //  1. The null handle always results in nullptr being returned here, which
@@ -147,9 +206,9 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
     //     `csel x0, x10, x8, lo` instruction.
     //  3. The machine code sequence ends up being pretty short, which is
     //     important here as this code will be inlined into a lot of functions.
-    entry = 0;
+    safe_entry = 0;
   }
-  return reinterpret_cast<T*>(entry);
+  return reinterpret_cast<T*>(safe_entry);
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(
       Internals::ReadRawField<Address>(heap_object_ptr, offset));

@@ -21,6 +21,9 @@ export interface BufferBinding {
 
   isUtf8(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
   isAscii(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
+  isLatin1(input: string): boolean;
+
+  mask(source: ArrayBufferView, destination: ArrayBufferView, offset: number, length: number, mask: number): boolean;
 
   kMaxLength: number;
   kStringMaxLength: number;

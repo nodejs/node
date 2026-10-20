@@ -271,6 +271,35 @@ t.test('Display.clean', async (t) => {
   }
 })
 
+t.test('json output redacts by default', async t => {
+  // Do not set redact: false globally in the json flush path of display.js.
+  // If a command needs unredacted output (e.g. UUIDs), pass
+  // { [META]: true, redact: false } at the call site via output.standard().
+  const { META } = require('proc-log')
+  const { output, outputs, clearOutput } = await mockDisplay(t)
+
+  output.buffer({
+    url: 'https://registry.npmjs.org/',
+    id: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  output.flush({ [META]: true, json: true })
+
+  t.equal(outputs.length, 1, 'one output')
+  const parsed = JSON.parse(outputs[0])
+  t.equal(parsed.id, '***', 'uuid values are redacted in json output')
+
+  // commands that need unredacted output should use output.standard
+  // with redact: false at the call site instead of disabling globally
+  clearOutput()
+  output.standard(
+    JSON.stringify({ id: '550e8400-e29b-41d4-a716-446655440000' }, null, 2),
+    { [META]: true, redact: false }
+  )
+  const inlineParsed = JSON.parse(outputs[0])
+  t.equal(inlineParsed.id, '550e8400-e29b-41d4-a716-446655440000',
+    'inline redact: false preserves uuid values')
+})
+
 t.test('prompt functionality', async t => {
   t.test('regular prompt completion works', async t => {
     const { input } = await mockDisplay(t)

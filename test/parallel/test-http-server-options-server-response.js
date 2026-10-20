@@ -16,7 +16,7 @@ class MyServerResponse extends http.ServerResponse {
   }
 }
 
-const server = http.Server({
+const server = new http.Server({
   ServerResponse: MyServerResponse
 }, common.mustCall(function(req, res) {
   res.status(200);

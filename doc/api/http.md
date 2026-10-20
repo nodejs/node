@@ -70,6 +70,14 @@ over the same connection, in which case the connection will have to be
 remade for every request and cannot be pooled. The `Agent` will still make
 the requests to that server, but each one will occur over a new connection.
 
+### Response ordering with connection reuse
+
+On a reused HTTP/1.1 keep-alive connection, responses are associated with
+requests by their order on that connection. HTTP/1.1 keep-alive does not provide
+per-request response attribution beyond that ordering. Applications that require
+per-request connection isolation can use a separate `Agent`, disable keep-alive,
+or pass `agent: false`.
+
 When a connection is closed by the client or the server, it is removed
 from the pool. Any unused sockets in the pool will be unrefed so as not
 to keep the Node.js process running when there are no outstanding requests.
@@ -108,6 +116,8 @@ http.get({
   // Do stuff with response
 });
 ```
+
+Use `agent: false` to avoid connection reuse for a request.
 
 ### `new Agent([options])`
 
@@ -276,15 +286,14 @@ added: v8.1.0
 -->
 
 * `socket` {stream.Duplex}
+* Returns: {boolean}
 
 Called when `socket` is detached from a request and could be persisted by the
-`Agent`. Default behavior is to:
+`Agent`. The `Agent` calls this method only when `keepAlive` is enabled.
 
-```js
-socket.setKeepAlive(true, this.keepAliveMsecs);
-socket.unref();
-return true;
-```
+By default, TCP keep-alive is enabled and the socket is unrefed. A server
+keep-alive timeout hint may adjust the socket timeout or cause this method to
+return `false`; otherwise, it returns `true`.
 
 This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
@@ -1117,9 +1126,11 @@ const hasContentType = request.hasHeader('content-type');
 
 ### `request.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
-Limits maximum response headers count. If set to 0, no limit will be applied.
+Limits the maximum response headers count. Responses exceeding this limit are
+rejected with an [`HPE_HEADER_OVERFLOW`][] error. If set to `0`, no limit will
+be applied.
 
 ### `request.path`
 
@@ -1179,58 +1190,57 @@ added:
  - v12.16.0
 -->
 
-* Type: {boolean} Whether the request is send through a reused socket.
+* Type: {boolean} Whether the request is sent through a reused socket.
 
-When sending request through a keep-alive enabled agent, the underlying socket
-might be reused. But if server closes connection at unfortunate time, client
-may run into a 'ECONNRESET' error.
+When sending a request through a keep-alive-enabled agent, the underlying socket
+might be reused. If the server closes the connection at the same time that the
+agent reuses it, the request may encounter an `ECONNRESET` error.
+
+The following example sends requests near the server's keep-alive timeout to
+make this race easier to reproduce. It sets
+[`server.keepAliveTimeoutBuffer`][] to `0` so the internal socket timeout
+matches [`server.keepAliveTimeout`][].
 
 ```mjs
 import http from 'node:http';
 const agent = new http.Agent({ keepAlive: true });
-
-// Server has a 5 seconds keep-alive timeout by default
-http
-  .createServer((req, res) => {
+const server = http.createServer(
+  { keepAliveTimeout: 3000, keepAliveTimeoutBuffer: 0 },
+  (req, res) => {
     res.write('hello\n');
     res.end();
-  })
-  .listen(3000);
+  },
+);
+server.listen(3000);
 
 setInterval(() => {
-  // Adapting a keep-alive agent
   http.get('http://localhost:3000', { agent }, (res) => {
-    res.on('data', (data) => {
-      // Do nothing
-    });
+    res.resume();
   });
-}, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
+}, 3000);
 ```
 
 ```cjs
 const http = require('node:http');
 const agent = new http.Agent({ keepAlive: true });
-
-// Server has a 5 seconds keep-alive timeout by default
-http
-  .createServer((req, res) => {
+const server = http.createServer(
+  { keepAliveTimeout: 3000, keepAliveTimeoutBuffer: 0 },
+  (req, res) => {
     res.write('hello\n');
     res.end();
-  })
-  .listen(3000);
+  },
+);
+server.listen(3000);
 
 setInterval(() => {
-  // Adapting a keep-alive agent
   http.get('http://localhost:3000', { agent }, (res) => {
-    res.on('data', (data) => {
-      // Do nothing
-    });
+    res.resume();
   });
-}, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
+}, 3000);
 ```
 
-By marking a request whether it reused socket or not, we can do
-automatic error retry base on it.
+By checking `request.reusedSocket`, an application can retry idempotent requests
+that fail because a reused connection was reset.
 
 ```mjs
 import http from 'node:http';
@@ -1516,7 +1526,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25605
     description: The default behavior will return a 431 Request Header
-                 Fields Too Large if a HPE_HEADER_OVERFLOW error occurs.
+                 Fields Too Large if an HPE_HEADER_OVERFLOW error occurs.
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/17672
     description: The `rawPacket` is the current buffer that just parsed. Adding
@@ -1542,8 +1552,8 @@ This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
-Default behavior is to try close the socket with a HTTP '400 Bad Request',
-or a HTTP '431 Request Header Fields Too Large' in the case of a
+Default behavior is to try close the socket with an HTTP '400 Bad Request',
+or an HTTP '431 Request Header Fields Too Large' in the case of an
 [`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable or headers
 of the current attached [`http.ServerResponse`][] has been sent, it is
 immediately destroyed.
@@ -1904,7 +1914,7 @@ added: v5.7.0
 added: v0.7.0
 -->
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
@@ -2700,13 +2710,44 @@ been transmitted are equal or not.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
+### `response.writeInformation(statusCode[, headers][, callback])`
+
+<!-- YAML
+added:
+  - v26.2.0
+  - v24.18.0
+-->
+
+* `statusCode` {number} An HTTP 1xx informational status code, between `100`
+  and `199` inclusive, excluding `101` (Switching Protocols) which is only
+  available through the [`'upgrade'`][] event.
+* `headers` {Object|Array} An optional set of headers to send with the
+  informational response. Accepts the same shapes as
+  [`response.writeHead()`][].
+* `callback` {Function} Optional, called once the message has been written
+  to the socket.
+
+Sends an arbitrary HTTP/1.1 1xx informational response to the client. This
+is a generic equivalent of [`response.writeContinue()`][],
+[`response.writeProcessing()`][] and [`response.writeEarlyHints()`][], and
+can be called multiple times before the final response. After the final
+response headers have been sent (via [`response.writeHead()`][] or an
+implicit header), calling this method throws `ERR_HTTP_HEADERS_SENT`.
+
+Clients receive these responses via the [`'information'`][information event]
+event on `http.ClientRequest`.
+
+```js
+response.writeInformation(110, { 'X-Progress': '50%' });
+```
+
 ### `response.writeProcessing()`
 
 <!-- YAML
 added: v10.0.0
 -->
 
-Sends a HTTP/1.1 102 Processing message to the client, indicating that
+Sends an HTTP/1.1 102 Processing message to the client, indicating that
 the request body should be sent.
 
 ## Class: `http.IncomingMessage`
@@ -3001,14 +3042,25 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 ### `message.signal`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
+changes:
+  - version:
+     - v26.7.0
+     - v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64392
+    description: The signal is no longer aborted after the message
+                 completes normally.
 -->
 
 * Type: {AbortSignal}
 
-An {AbortSignal} that is aborted when the underlying socket closes or the
-request is destroyed. The signal is created lazily on first access — no
-{AbortController} is allocated for requests that never use this property.
+An {AbortSignal} that is aborted when the message is destroyed before
+completion or when its underlying socket closes before request handling or
+response reading completes.
+The signal is created lazily on first access — no {AbortController} is allocated
+for requests that never use this property.
 
 This is useful for cancelling downstream asynchronous work such as database
 queries or `fetch` calls when a client disconnects mid-request.
@@ -3650,6 +3702,11 @@ Found'`.
 added: v0.1.13
 changes:
   - version:
+     - v26.3.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/61597
+    description: The `httpValidation` option is supported now.
+  - version:
       - v25.1.0
       - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59778
@@ -3659,6 +3716,11 @@ changes:
      - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
+  - version:
+      - v24.6.0
+      - v22.19.0
+    pr-url: https://github.com/nodejs/node/pull/59243
+    description: The `keepAliveTimeoutBuffer` option is supported now.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3705,7 +3767,17 @@ changes:
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
-  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+  * `httpValidation` {string} Controls HTTP header value validation strictness
+    for incoming requests. Accepted values are:
+    * `'strict'`: Strictest validation; rejects any non-ASCII or control
+      characters in header values.
+    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
+      values, aligning with the
+      [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Disables all header value validation (equivalent to
+      `insecureHTTPParser: true`).
+      Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
     **Default:** `false`.
@@ -3719,7 +3791,7 @@ changes:
     **Default:** `false`.
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
-    similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
+    similarly on what is done in [`socket.setKeepAlive()`][].
     **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
@@ -3728,7 +3800,11 @@ changes:
     needs to wait for additional incoming data, after it has finished writing
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
-    **Default:** `5000`.
+    **Default:** `65000`.
+  * `keepAliveTimeoutBuffer`: An additional buffer time in milliseconds added
+    to `keepAliveTimeout` to extend the internal socket timeout.
+    See [`server.keepAliveTimeoutBuffer`][] for more information.
+    **Default:** `1000`.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
@@ -3962,6 +4038,11 @@ This can be overridden for servers and client requests by passing the
 added: v0.3.6
 changes:
   - version:
+     - v26.3.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/61597
+    description: The `httpValidation` option is supported now.
+  - version:
       - v16.7.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39310
@@ -4016,7 +4097,17 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
-  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+  * `httpValidation` {string} Controls HTTP header value validation strictness
+    for outgoing requests. Accepted values are:
+    * `'strict'`: Strictest validation; rejects any non-ASCII or control
+      characters in header values.
+    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
+      values, aligning with the
+      [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Disables all header value validation (equivalent to
+      `insecureHTTPParser: true`).
+      Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
     **Default:** `false`
@@ -4037,6 +4128,18 @@ changes:
     E.G. `'/index.html?page=12'`. An exception is thrown when the request path
     contains illegal characters. Currently, only spaces are rejected but that
     may change in the future. **Default:** `'/'`.
+    The content in `path` is sent as the [request target][] in the HTTP 1.1 message.
+    When `path` is an absolute URL, this means the request target in the message in [absolute form][].
+    If the receiving server is a proxy, the server typically forwards the request to the
+    destination specified in the request target, and ignores the `Host` header.
+    The user needs to make sure that `path`, `host` and the Host headers conform to the
+    requirement of the [request target][] in the HTTP specification.
+    When the receiving server is known to be a proxy because the request is routed through
+    [Built-in Proxy Support][], `http.request` will additionally perform a best-effort
+    check to see that the `host` option or `Host` in `headers` agrees with the authority
+    in `path` during the initial construction of the request. It gives up rewriting the
+    request target for proxying and throws an error if they don't match at request
+    construction time, though there won't be checks for later header mutations done by the user.
   * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
     else `80`.
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
@@ -4229,6 +4332,13 @@ the following events will be emitted in the following order:
   `'Error: aborted'` and code `'ECONNRESET'`
 * `'close'` on the `res` object
 
+If a socket error (such as a TLS error) causes the premature close, that error
+is emitted on the request before the close. The error emitted on the incomplete
+response retains the message `'aborted'` and code `'ECONNRESET'`, with the original
+socket error available as its `cause`. This also applies when the original socket
+error has code `'ECONNRESET'`. If no underlying error is available, the response
+error has no `cause` property.
+
 If `req.destroy()` is called before a socket is assigned, the following
 events will be emitted in the following order:
 
@@ -4256,7 +4366,8 @@ events will be emitted in the following order:
 * `'aborted'` on the `res` object
 * `'close'`
 * `'error'` on the `res` object with an error with message `'Error: aborted'`
-  and code `'ECONNRESET'`, or the error with which `req.destroy()` was called
+  and code `'ECONNRESET'`. If an error was passed to `req.destroy()`, it is
+  available as the response error's `cause`.
 * `'close'` on the `res` object
 
 If `req.abort()` is called before a socket is assigned, the following
@@ -4298,6 +4409,89 @@ Passing an `AbortSignal` and then calling `abort()` on the corresponding
 request. Specifically, the `'error'` event will be emitted with an error with
 the message `'AbortError: The operation was aborted'`, the code `'ABORT_ERR'`
 and the `cause`, if one was provided.
+
+## `http.isValidHeaderName(name)`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+* `name` {any}
+* Returns: {boolean}
+
+Returns `true` if `name` is a valid HTTP header name (a non-empty string that
+is an HTTP [token][]), and `false` otherwise. This is the same check that
+[`http.validateHeaderName()`][] performs, but the result is returned instead of
+an error being thrown, so it is suitable for use in hot paths where invalid
+input is expected.
+
+HTTP methods are also tokens, so this function can validate them as well.
+
+```mjs
+import { isValidHeaderName } from 'node:http';
+
+console.log(isValidHeaderName('content-type')); // true
+console.log(isValidHeaderName('X-Request-Id')); // true
+console.log(isValidHeaderName('')); // false
+console.log(isValidHeaderName('bad header')); // false
+console.log(isValidHeaderName(42)); // false
+```
+
+```cjs
+const { isValidHeaderName } = require('node:http');
+
+console.log(isValidHeaderName('content-type')); // true
+console.log(isValidHeaderName('X-Request-Id')); // true
+console.log(isValidHeaderName('')); // false
+console.log(isValidHeaderName('bad header')); // false
+console.log(isValidHeaderName(42)); // false
+```
+
+## `http.isValidHeaderValue(value[, options])`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+* `value` {any}
+* `options` {Object}
+  * `httpValidation` {string} Validation strictness, one of `'strict'` or
+    `'relaxed'`. These have the same meaning as the `httpValidation` option of
+    [`http.createServer()`][] and [`http.request()`][]. **Default:** `'strict'`.
+* Returns: {boolean}
+
+Returns `true` if `value` is a valid HTTP header value, and `false` otherwise.
+With the default options this is the same check that
+[`http.validateHeaderValue()`][] performs, but the result is returned instead
+of an error being thrown.
+
+`undefined` and symbols are never valid header values. Other non-string
+values are converted to strings before being checked, as they are when passed
+to [`outgoingMessage.setHeader(name, value)`][].
+
+Passing an invalid `options` argument throws.
+
+```mjs
+import { isValidHeaderValue } from 'node:http';
+
+console.log(isValidHeaderValue('text/html')); // true
+console.log(isValidHeaderValue(123)); // true
+console.log(isValidHeaderValue(undefined)); // false
+console.log(isValidHeaderValue('a\r\nb')); // false
+console.log(isValidHeaderValue('a\x01b')); // false
+console.log(isValidHeaderValue('a\x01b', { httpValidation: 'relaxed' })); // true
+```
+
+```cjs
+const { isValidHeaderValue } = require('node:http');
+
+console.log(isValidHeaderValue('text/html')); // true
+console.log(isValidHeaderValue(123)); // true
+console.log(isValidHeaderValue(undefined)); // false
+console.log(isValidHeaderValue('a\r\nb')); // false
+console.log(isValidHeaderValue('a\x01b')); // false
+console.log(isValidHeaderValue('a\x01b', { httpValidation: 'relaxed' })); // true
+```
 
 ## `http.validateHeaderName(name[, label])`
 
@@ -4450,6 +4644,92 @@ requests are made and avoid invoking it in the middle of any requests.
 See [Built-in Proxy Support][] for details on proxy URL formats and `NO_PROXY`
 syntax.
 
+## `http.websocketMask(source, mask, output, offset, length)`
+
+<!-- YAML
+added: v26.12.0
+-->
+
+* `source` {Buffer|TypedArray|DataView} The data to mask.
+* `mask` {Buffer|TypedArray|DataView} The 4-byte masking key.
+* `output` {Buffer|TypedArray|DataView} Where to write the masked data.
+* `offset` {integer} Byte offset in `output` at which to start writing.
+* `length` {integer} Number of bytes of `source` to mask.
+
+XORs the first `length` bytes of `source` with `mask`, repeated, and writes the
+result to `output` starting at `offset`: byte `i` of `source` is XORed with
+byte `i % 4` of `mask`. This is the masking operation that WebSocket clients
+apply to every frame payload they send ([RFC 6455, Section 5.3][]), and that
+servers undo on every frame they receive. Applying it twice with the same
+`mask` restores the original data. `source` is not modified, unless it shares
+memory with `output`.
+
+All arguments are treated as raw bytes, whatever the view type. `source` and
+`output` may be the same view or overlapping views over the same memory; the
+result is the same as if `source` had been copied first.
+
+An error is thrown if `mask` is not exactly 4 bytes long, if `length` is
+greater than `source.byteLength`, if `offset + length` is greater than
+`output.byteLength`, or if `output` is backed by an immutable `ArrayBuffer`.
+Nothing is written in that case. `source` and `mask` may be backed by an
+immutable `ArrayBuffer`.
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { websocketMask, websocketUnmask } from 'node:http';
+
+const key = Buffer.from([0x37, 0xfa, 0x21, 0x3d]);
+const payload = Buffer.from('Hello');
+
+// Write a masked copy of the payload after a 6-byte frame header.
+const frame = Buffer.alloc(6 + payload.length);
+websocketMask(payload, key, frame, 6, payload.length);
+console.log(frame.subarray(6));
+// Prints: <Buffer 7f 9f 4d 51 58>
+
+const received = frame.subarray(6);
+websocketUnmask(received, key);
+console.log(received.toString());
+// Prints: Hello
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+const { websocketMask, websocketUnmask } = require('node:http');
+
+const key = Buffer.from([0x37, 0xfa, 0x21, 0x3d]);
+const payload = Buffer.from('Hello');
+
+// Write a masked copy of the payload after a 6-byte frame header.
+const frame = Buffer.alloc(6 + payload.length);
+websocketMask(payload, key, frame, 6, payload.length);
+console.log(frame.subarray(6));
+// Prints: <Buffer 7f 9f 4d 51 58>
+
+const received = frame.subarray(6);
+websocketUnmask(received, key);
+console.log(received.toString());
+// Prints: Hello
+```
+
+## `http.websocketUnmask(buffer, mask)`
+
+<!-- YAML
+added: v26.12.0
+-->
+
+* `buffer` {Buffer|TypedArray|DataView} The data to unmask, in place.
+* `mask` {Buffer|TypedArray|DataView} The 4-byte masking key.
+
+XORs every byte of `buffer` with `mask`, repeated, in place: byte `i` is XORed
+with byte `i % 4` of `mask`. This is equivalent to
+`http.websocketMask(buffer, mask, buffer, 0, buffer.byteLength)`, and is
+typically used to unmask a received WebSocket frame payload
+([RFC 6455, Section 5.3][]). See [`http.websocketMask()`][] for an example.
+
+An error is thrown, and nothing is written, if `mask` is not exactly 4 bytes
+long or if `buffer` is backed by an immutable `ArrayBuffer`.
+
 ## Class: `WebSocket`
 
 <!-- YAML
@@ -4491,6 +4771,22 @@ support.
   `no_proxy` takes precedence.
 
 If the request is made to a Unix domain socket, the proxy settings will be ignored.
+
+### Proxy security considerations
+
+Built-in proxy support routes outbound requests through an HTTP(S) proxy, often
+because a firewall requires one to access external networks. It is not an
+anonymity or traffic-hiding feature and does not attempt to hide traffic from
+the proxy, the local network, network operators, or authorities that govern the
+deployment.
+
+Configure only proxies that are trusted and authorized for the deployment. A
+proxy can observe connection metadata; for plain HTTP requests, or when TLS is
+terminated or intercepted by the proxy, it can also observe request and response
+contents. Node.js does not support treating an untrusted proxy as a privacy
+boundary. Deployment operators are responsible for controlling proxy
+configuration and for meeting deployment-specific network policy and legal
+requirements.
 
 ### Proxy URL Format
 
@@ -4642,6 +4938,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 ```
 
 [Built-in Proxy Support]: #built-in-proxy-support
+[RFC 6455, Section 5.3]: https://datatracker.ietf.org/doc/html/rfc6455#section-5.3
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
@@ -4675,6 +4972,9 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
 [`http.setGlobalProxyFromEnv()`]: #httpsetglobalproxyfromenvproxyenv
+[`http.validateHeaderName()`]: #httpvalidateheadernamename-label
+[`http.validateHeaderValue()`]: #httpvalidateheadervaluename-value
+[`http.websocketMask()`]: #httpwebsocketmasksource-mask-output-offset-length
 [`message.headers`]: #messageheaders
 [`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket
@@ -4710,7 +5010,9 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`response.write()`]: #responsewritechunk-encoding-callback
 [`response.write(data, encoding)`]: #responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
+[`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`response.writeProcessing()`]: #responsewriteprocessing
 [`server.close()`]: #serverclosecallback
 [`server.headersTimeout`]: #serverheaderstimeout
 [`server.keepAliveTimeoutBuffer`]: #serverkeepalivetimeoutbuffer
@@ -4720,7 +5022,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`server.timeout`]: #servertimeout
 [`setHeader(name, value)`]: #requestsetheadername-value
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
-[`socket.setKeepAlive()`]: net.md#socketsetkeepaliveenable-initialdelay
+[`socket.setKeepAlive()`]: net.md#socketsetkeepalive
 [`socket.setNoDelay()`]: net.md#socketsetnodelaynodelay
 [`socket.setTimeout()`]: net.md#socketsettimeouttimeout-callback
 [`socket.unref()`]: net.md#socketunref
@@ -4731,4 +5033,8 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
-[initial delay]: net.md#socketsetkeepaliveenable-initialdelay
+[absolute form]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2.2
+[information event]: #event-information
+[initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count
+[request target]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
+[token]: https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2

@@ -34,8 +34,8 @@ function onAttachToWorker({ params: { sessionId } }) {
       session.once('NodeWorker.receivedMessageFromWorker', onMessageReceived);
       return;
     }
-    // Force a call to node::inspector::Agent::ToggleAsyncHook by changing the
-    // async call stack depth
+    // Force a call to node::inspector::Agent::SyncAsyncHookState by changing
+    // the async call stack depth
     postToWorkerInspector('Debugger.setAsyncCallStackDepth', { maxDepth: 1 });
     // This is were the original crash happened
     session.post('NodeWorker.detach', { sessionId }, () => {

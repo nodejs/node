@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,7 @@
 #include <openssl/ssl.h>
 #include "internal/quic_record_rx.h"
 #include "quic_record_shared.h"
+#include "quic_record_rx_local.h"
 #include "internal/common.h"
 #include "internal/list.h"
 #include "../ssl_local.h"
@@ -30,61 +31,6 @@ static ossl_inline int pkt_is_marked(const uint64_t *bitf, size_t pkt_idx)
 {
     assert(pkt_idx < QUIC_MAX_PKT_PER_URXE);
     return (*bitf & (((uint64_t)1) << pkt_idx)) != 0;
-}
-
-/*
- * RXE
- * ===
- *
- * RX Entries (RXEs) store processed (i.e., decrypted) data received from the
- * network. One RXE is used per received QUIC packet.
- */
-typedef struct rxe_st RXE;
-
-struct rxe_st {
-    OSSL_QRX_PKT pkt;
-    OSSL_LIST_MEMBER(rxe, RXE);
-    size_t data_len, alloc_len, refcount;
-
-    /* Extra fields for per-packet information. */
-    QUIC_PKT_HDR hdr; /* data/len are decrypted payload */
-
-    /* Decoded packet number. */
-    QUIC_PN pn;
-
-    /* Addresses copied from URXE. */
-    BIO_ADDR peer, local;
-
-    /* Time we received the packet (not when we processed it). */
-    OSSL_TIME time;
-
-    /* Total length of the datagram which contained this packet. */
-    size_t datagram_len;
-
-    /*
-     * The key epoch the packet was received with. Always 0 for non-1-RTT
-     * packets.
-     */
-    uint64_t key_epoch;
-
-    /*
-     * Monotonically increases with each datagram received.
-     * For diagnostic use only.
-     */
-    uint64_t datagram_id;
-
-    /*
-     * alloc_len allocated bytes (of which data_len bytes are valid) follow this
-     * structure.
-     */
-};
-
-DEFINE_LIST_OF(rxe, RXE);
-typedef OSSL_LIST(rxe) RXE_LIST;
-
-static ossl_inline unsigned char *rxe_data(const RXE *e)
-{
-    return (unsigned char *)(e + 1);
 }
 
 /*
@@ -171,6 +117,8 @@ struct ossl_qrx_st {
     ossl_msg_cb msg_callback;
     void *msg_callback_arg;
     SSL *msg_callback_ssl;
+
+    uint32_t refcount;
 };
 
 static RXE *qrx_ensure_free_rxe(OSSL_QRX *qrx, size_t alloc_len);
@@ -212,6 +160,7 @@ OSSL_QRX *ossl_qrx_new(const OSSL_QRX_ARGS *args)
     qrx->short_conn_id_len = args->short_conn_id_len;
     qrx->init_key_phase_bit = args->init_key_phase_bit;
     qrx->max_deferred = args->max_deferred;
+    qrx->refcount = 1;
     return qrx;
 }
 
@@ -247,12 +196,9 @@ void ossl_qrx_update_pn_space(OSSL_QRX *src, OSSL_QRX *dst)
     return;
 }
 
-void ossl_qrx_free(OSSL_QRX *qrx)
+static void qrx_destroy(OSSL_QRX *qrx)
 {
     uint32_t i;
-
-    if (qrx == NULL)
-        return;
 
     /* Free RXE queue data. */
     qrx_cleanup_rxl(&qrx->rx_free);
@@ -265,6 +211,30 @@ void ossl_qrx_free(OSSL_QRX *qrx)
         ossl_qrl_enc_level_set_discard(&qrx->el_set, i);
 
     OPENSSL_free(qrx);
+}
+
+void ossl_qrx_free(OSSL_QRX *qrx)
+{
+    if (qrx == NULL)
+        return;
+
+    qrx->refcount--;
+    if (qrx->refcount == 0)
+        qrx_destroy(qrx);
+}
+
+OSSL_QRX *ossl_qrx_newref(OSSL_QRX *qrx)
+{
+    OSSL_QRX *rv_qrx;
+
+    if (qrx != NULL && qrx->refcount != (uint32_t)~0) {
+        qrx->refcount++;
+        rv_qrx = qrx;
+    } else {
+        rv_qrx = NULL;
+    }
+
+    return rv_qrx;
 }
 
 void ossl_qrx_inject_urxe(OSSL_QRX *qrx, QUIC_URXE *urxe)
@@ -1024,6 +994,7 @@ static int qrx_process_pkt(OSSL_QRX *qrx, QUIC_URXE *urxe,
     uint32_t pn_space, enc_level;
     OSSL_QRL_ENC_LEVEL *el = NULL;
     uint64_t rx_key_epoch = UINT64_MAX;
+    const unsigned char *token = NULL;
 
     /*
      * Get a free RXE. If we need to allocate a new one, use the packet length
@@ -1031,7 +1002,13 @@ static int qrx_process_pkt(OSSL_QRX *qrx, QUIC_URXE *urxe,
      */
     rxe = qrx_ensure_free_rxe(qrx, PACKET_remaining(pkt));
     if (rxe == NULL)
-        return 0;
+        /*
+         * Allocation failure, treat as malformed as we cannot process this
+         * packet. The header has not been read yet so we do not know the
+         * packet size and cannot skip just this packet, so we drop the rest of
+         * the datagram instead.
+         */
+        goto malformed;
 
     /* Have we already processed this packet? */
     if (pkt_is_marked(&urxe->processed, pkt_idx))
@@ -1151,7 +1128,7 @@ static int qrx_process_pkt(OSSL_QRX *qrx, QUIC_URXE *urxe,
      * Relocate token buffer and fix pointer.
      */
     if (rxe->hdr.type == QUIC_PKT_TYPE_INITIAL) {
-        const unsigned char *token = rxe->hdr.token;
+        token = rxe->hdr.token;
 
         /*
          * This may change the value of rxe and change the value of the token
@@ -1185,6 +1162,12 @@ static int qrx_process_pkt(OSSL_QRX *qrx, QUIC_URXE *urxe,
                 0, 0, &rxe->hdr, NULL, NULL)
             != 1)
             goto malformed;
+        /*
+         * Restore the relocated token value here, since the above decode reset it
+         * to be within the packet
+         */
+        if (token != NULL)
+            rxe->hdr.token = token;
     }
 
     /* Validate header and decode PN. */

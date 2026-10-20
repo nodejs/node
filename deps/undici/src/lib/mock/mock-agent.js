@@ -55,6 +55,17 @@ class MockAgent extends Dispatcher {
     }
   }
 
+  // WebSocket and EventSource read their receive limits from the dispatcher
+  // they are given, so report the settings of the agent that makes real
+  // connections.
+  get webSocketOptions () {
+    return this[kAgent].webSocketOptions
+  }
+
+  get eventSourceOptions () {
+    return this[kAgent].eventSourceOptions
+  }
+
   get (origin) {
     // Normalize origin to handle URL objects and case-insensitive hostnames
     const normalizedOrigin = normalizeOrigin(origin)
@@ -73,13 +84,25 @@ class MockAgent extends Dispatcher {
     opts.origin = normalizeOrigin(opts.origin)
 
     // Call MockAgent.get to perform additional setup before dispatching as normal
-    this.get(opts.origin)
+    const mockDispatcher = this.get(opts.origin)
 
     this[kMockAgentAddCallHistoryLog](opts)
 
     const acceptNonStandardSearchParameters = this[kMockAgentAcceptsNonStandardSearchParameters]
 
     const dispatchOpts = { ...opts }
+
+    // Agent keeps HTTP/1.1-only dispatchers under a separate key. Legacy
+    // global dispatcher consumers use that path, so mirror the mock dispatches
+    // before delegating to the internal Agent.
+    if (dispatchOpts.allowH2 === false) {
+      const http1OnlyKey = `${dispatchOpts.origin}#http1-only`
+      if (!this[kClients].has(http1OnlyKey)) {
+        const http1OnlyDispatcher = this[kFactory](dispatchOpts.origin)
+        http1OnlyDispatcher[kDispatches] = mockDispatcher[kDispatches]
+        this[kMockAgentSet](http1OnlyKey, http1OnlyDispatcher)
+      }
+    }
 
     if (acceptNonStandardSearchParameters && dispatchOpts.path) {
       const [path, searchParams] = dispatchOpts.path.split('?')

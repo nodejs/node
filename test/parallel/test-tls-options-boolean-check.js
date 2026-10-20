@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+
+const { isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
@@ -41,7 +43,7 @@ const certDataView = toDataView(certBuff);
 const caArrDataView = toDataView(caCert);
 
 function filterBoringSSLKeyCertArrayCases(options, setName) {
-  if (!process.features.openssl_is_boringssl)
+  if (!isBoringSSL)
     return options;
 
   // The array-valued cases exercise multi-identity key/cert handling.

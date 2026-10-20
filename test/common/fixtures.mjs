@@ -1,5 +1,6 @@
 import fixtures from './fixtures.js';
 
+// eslint-disable-next-line no-restricted-syntax
 const {
   fixturesDir,
   path,

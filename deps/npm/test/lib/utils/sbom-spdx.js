@@ -223,6 +223,17 @@ t.test('single node - from git url', t => {
   t.end()
 })
 
+t.test('git url with special chars is encoded into the vcs_url qualifier', t => {
+  const node = { ...root, type: 'git', resolved: 'https://github.com/foo/bar.git?a=b&c=d#1234' }
+  const res = spdxOutput({ npm, nodes: [node] })
+  const purl = res.packages
+    .find(p => p.SPDXID === 'SPDXRef-Package-root-1.0.0')
+    .externalRefs.find(r => r.referenceType === 'purl').referenceLocator
+  t.equal(purl, 'pkg:npm/root@1.0.0?vcs_url=https%3A%2F%2Fgithub.com%2Ffoo%2Fbar.git%3Fa%3Db%26c%3Dd%231234')
+  t.notMatch(purl.split('vcs_url=')[1], /[#&]/)
+  t.end()
+})
+
 t.test('single node - linked', t => {
   const node = { ...root, isLink: true, target: { edgesOut: [] } }
   const res = spdxOutput({ npm, nodes: [node] })
@@ -252,6 +263,27 @@ t.test('node - with duplicate deps', t => {
       { to: dep2 },
     ] }
   const res = spdxOutput({ npm, nodes: [node, dep1, dep2, dep1, dep2] })
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
+t.test('node - with duplicate edges to same dep', t => {
+  // A node can have multiple outgoing edges resolving to the same
+  // `name@version` of the same edge type (e.g. a direct `dep1: ^1` plus an
+  // alias `dep1-aliased: npm:dep1@^1`). The resulting relationships must
+  // still be unique per (source, target, type) triple.
+  const node = { ...root,
+    edgesOut: [
+      { to: dep1 },
+      { to: dep1 },
+    ] }
+  const res = spdxOutput({ npm, nodes: [node, dep1] })
+  const depRels = res.relationships.filter(
+    r => r.spdxElementId === 'SPDXRef-Package-dep1-0.0.1'
+      && r.relatedSpdxElement === 'SPDXRef-Package-root-1.0.0'
+      && r.relationshipType === 'DEPENDENCY_OF'
+  )
+  t.equal(depRels.length, 1)
   t.matchSnapshot(JSON.stringify(res))
   t.end()
 })

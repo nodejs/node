@@ -122,16 +122,22 @@ describe('when there is a long-lived signal', () => {
     }, true);
   });
 
-  it('does not keep retained dependent signals without listeners', (t, done) => {
+  it('propagates abort to retained dependent signals without listeners', (t, done) => {
     const ac = new AbortController();
     const retainedSignals = [];
-    const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
-      (s) => s.toString() === 'Symbol(kDependantSignals)'
-    );
 
     function run(iteration) {
       if (iteration > limit) {
-        t.assert.strictEqual(ac.signal[kDependantSignals]?.size ?? 0, 0);
+        const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
+          (s) => s.toString() === 'Symbol(kDependantSignals)'
+        );
+        t.assert.strictEqual(ac.signal[kDependantSignals].size, limit);
+        ac.abort('stop');
+        for (const signal of retainedSignals) {
+          t.assert.strictEqual(signal.aborted, true);
+          t.assert.strictEqual(signal.reason, 'stop');
+          t.assert.throws(() => signal.throwIfAborted(), (err) => err === 'stop');
+        }
         done();
         return;
       }
@@ -141,6 +147,55 @@ describe('when there is a long-lived signal', () => {
     }
 
     run(1);
+  });
+
+  it('drops unreachable dependent signals without listeners', async () => {
+    const ac = new AbortController();
+    const size = () => {
+      const sym = Object.getOwnPropertySymbols(ac.signal).find(
+        (s) => s.toString() === 'Symbol(kDependantSignals)'
+      );
+      return ac.signal[sym]?.size ?? 0;
+    };
+
+    // Reuse a long-lived source across batches to catch accumulating WeakRefs.
+    for (let batch = 0; batch < 3; batch++) {
+      for (let i = 0; i < limit; i++) {
+        AbortSignal.any([ac.signal]);
+      }
+      await gcUntil('unreachable dependents are dropped', () => size() === 0);
+    }
+  });
+
+  it('drops observed dependent signals once they are transitively aborted', async () => {
+    const longLived = new AbortController();
+    const handler = () => {};
+    const size = () => {
+      const sym = Object.getOwnPropertySymbols(longLived.signal).find(
+        (s) => s.toString() === 'Symbol(kDependantSignals)'
+      );
+      return sym ? longLived.signal[sym].size : 0;
+    };
+
+    // Each composite observes the long-lived source and a per-request source,
+    // then is aborted through the per-request source without ever removing its
+    // listener. The aborted composites can never fire again, so the long-lived
+    // source's dependant set must not accumulate them. Using a helper keeps the
+    // last iteration's signals from lingering on the stack for the assertion.
+    const createObservedAbortedComposite = () => {
+      const perReq = new AbortController();
+      const composite = AbortSignal.any([perReq.signal, longLived.signal]);
+      composite.addEventListener('abort', handler);
+      perReq.abort();
+    };
+    for (let i = 0; i < limit; i++) {
+      createObservedAbortedComposite();
+    }
+
+    await gcUntil(
+      'observed dependents are dropped after transitive abort',
+      () => size() === 0,
+    );
   });
 });
 
@@ -189,6 +244,31 @@ it('drops settled dependent signals when signal is composite', (t, done) => {
       done();
     }).then(mustCall());
   }));
+});
+
+it('drops an observed composite of a composite once its sources are collected', async (t) => {
+  let controllers = [new AbortController(), new AbortController()];
+
+  // Only the outer composite is observed, so the inner one is unreachable and
+  // is collected while the sources are still alive.
+  const outerRef = (() => {
+    const outer = AbortSignal.any([
+      controllers[0].signal,
+      AbortSignal.any([controllers[1].signal]),
+    ]);
+    outer.addEventListener('abort', () => {});
+    return new WeakRef(outer);
+  })();
+
+  const kDependantSignals = Object.getOwnPropertySymbols(controllers[1].signal).find(
+    (s) => s.toString() === 'Symbol(kDependantSignals)'
+  );
+  t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 2);
+
+  await gcUntil('inner composite is collected', () => controllers[1].signal[kDependantSignals].size === 1);
+
+  controllers = null;
+  await gcUntil('outer composite is collected', () => outerRef.deref() === undefined);
 });
 
 it('drops settled signals even when there are listeners', (t, done) => {

@@ -23,7 +23,7 @@ EvacuationAllocator::EvacuationAllocator(
                                MainAllocator::kInGC);
   code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
                                 MainAllocator::kInGC);
-  if (heap_->isolate()->has_shared_space()) {
+  if (Isolate::FromHeap(heap_)->has_shared_space()) {
     shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
                                     MainAllocator::kInGC);
   }

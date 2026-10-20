@@ -276,6 +276,14 @@ class V8_EXPORT TryCatch {
 
   void ResetInternal();
 
+  /**
+   * Set whether or not this TryCatch is internal.
+   * Internal TryCatch blocks are not treated as external handlers for the
+   * purposes of the debugger.
+   */
+  void SetIsInternal(bool value);
+  bool IsInternal() const;
+
   // Helper methods for internal::Isolate.
   bool capture_message() const;
   void set_can_continue(bool value);

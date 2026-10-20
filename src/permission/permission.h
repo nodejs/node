@@ -5,20 +5,11 @@
 
 #include "debug_utils.h"
 #include "node_diagnostics_channel.h"
-#include "node_options.h"
-#include "permission/addon_permission.h"
-#include "permission/child_process_permission.h"
-#include "permission/ffi_permission.h"
-#include "permission/fs_permission.h"
-#include "permission/inspector_permission.h"
-#include "permission/net_permission.h"
+#include "permission/env_permission.h"
 #include "permission/permission_base.h"
-#include "permission/wasi_permission.h"
-#include "permission/worker_permission.h"
-#include "v8.h"
 
+#include <array>
 #include <string_view>
-#include <unordered_map>
 
 namespace node {
 
@@ -37,9 +28,11 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      node::permission::Permission::ThrowAccessDenied(                         \
-          env__, perm__, resource__);                                          \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
+      if (!env__->permission()->warning_only()) {                              \
+        node::permission::Permission::ThrowAccessDenied(                       \
+            env__, perm__, resource__);                                        \
+        return __VA_ARGS__;                                                    \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -51,9 +44,11 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      node::permission::Permission::AsyncThrowAccessDenied(                    \
-          env__, (wrap), perm__, resource__);                                  \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
+      if (!env__->permission()->warning_only()) {                              \
+        node::permission::Permission::AsyncThrowAccessDenied(                  \
+            env__, (wrap), perm__, resource__);                                \
+        return __VA_ARGS__;                                                    \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -65,14 +60,17 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      Local<Value> err_access;                                                 \
-      if (node::permission::CreateAccessDeniedError(env__, perm__, resource__) \
-              .ToLocal(&err_access)) {                                         \
-        args.GetReturnValue().Set(err_access);                                 \
-      } else {                                                                 \
-        args.GetReturnValue().Set(UV_EACCES);                                  \
+      if (!env__->permission()->warning_only()) {                              \
+        Local<Value> err_access;                                               \
+        if (node::permission::CreateAccessDeniedError(                         \
+                env__, perm__, resource__)                                     \
+                .ToLocal(&err_access)) {                                       \
+          args.GetReturnValue().Set(err_access);                               \
+        } else {                                                               \
+          args.GetReturnValue().Set(UV_EACCES);                                \
+        }                                                                      \
+        return __VA_ARGS__;                                                    \
       }                                                                        \
-      return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
 
@@ -92,57 +90,82 @@ class Permission {
   Permission();
 
   FORCE_INLINE bool is_granted(Environment* env,
-                               const PermissionScope permission,
-                               const std::string_view& res = "") const {
+                               PermissionScope permission,
+                               std::string_view res = "") const {
     if (!enabled_) [[likely]] {
       return true;
     }
     return is_scope_granted(env, permission, res);
   }
 
+  // The check alone, without the diagnostics channel message a denial
+  // publishes: for threads other than the one that owns `env`, which
+  // report their denials from that thread with PublishDenied(). Only the
+  // file system scopes may be checked this way.
+  bool is_granted_quiet(Environment* env,
+                        PermissionScope permission,
+                        std::string_view res = "") const;
+  // Publishes the diagnostics channel message for a denied check of `res`
+  void PublishDenied(Environment* env,
+                     PermissionScope permission,
+                     std::string_view res) const;
+
   FORCE_INLINE bool enabled() const { return enabled_; }
 
   FORCE_INLINE bool warning_only() const { return warning_only_; }
 
-  static PermissionScope StringToPermission(const std::string& perm);
-  static const char* PermissionToString(PermissionScope perm);
+  static PermissionScope StringToPermission(std::string_view perm);
+  static v8::Local<v8::String> PermissionToString(Environment* env,
+                                                  PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
                                 PermissionScope perm,
-                                const std::string_view& res);
+                                std::string_view res);
   static void AsyncThrowAccessDenied(Environment* env,
                                      fs::FSReqBase* req_wrap,
                                      PermissionScope perm,
-                                     const std::string_view& res);
+                                     std::string_view res);
 
   // CLI Call
   void Apply(Environment* env,
-             const std::vector<std::string>& allow,
+             std::span<const std::string> allow,
              PermissionScope scope);
+  // Runtime Call
+  void Drop(Environment* env, PermissionScope scope, std::string_view param);
   void EnablePermissions();
   void EnableWarningOnly();
 
  private:
   COLD_NOINLINE bool is_scope_granted(Environment* env,
-                                      const PermissionScope permission,
-                                      const std::string_view& res = "") const;
+                                      PermissionScope permission,
+                                      std::string_view res = "") const;
 
   BaseObjectPtr<diagnostics_channel::Channel> GetOrCreateChannel(
       Environment* env, PermissionScope scope) const;
+  // Publishes a denial (or a drop) of `res` to the scope's channel
+  void Publish(Environment* env,
+               PermissionScope scope,
+               std::string_view res,
+               bool dropped) const;
 
-  std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
+  static constexpr size_t kPermissionCount =
+      static_cast<size_t>(PermissionScope::kPermissionsCount);
+
+  std::array<std::shared_ptr<PermissionBase>, kPermissionCount> nodes_;
+  // Also stored in nodes_, kept here for the file system scope to consult.
+  std::shared_ptr<EnvPermission> env_permission_;
   bool enabled_;
   bool warning_only_;
   mutable bool publishing_ = false;
   // Weak refs: BindingData (via BaseObjectPtr) is the sole owner of Channels.
   // Using weak refs here avoids keeping Channels alive past Realm teardown.
-  mutable std::unordered_map<PermissionScope,
-                             BaseObjectWeakPtr<diagnostics_channel::Channel>>
+  mutable std::array<BaseObjectWeakPtr<diagnostics_channel::Channel>,
+                     kPermissionCount>
       channels_;
 };
 
 v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,
                                                   PermissionScope perm,
-                                                  const std::string_view& res);
+                                                  std::string_view res);
 
 }  // namespace permission
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "internal/quic_channel.h"
 #include "internal/quic_cfq.h"
 #include "internal/numbers.h"
 
@@ -305,6 +306,20 @@ void ossl_quic_cfq_mark_lost(QUIC_CFQ *cfq, QUIC_CFQ_ITEM *item,
         assert(0); /* invalid state (e.g. in free state) */
         break;
     }
+}
+
+int ossl_quic_cfq_discard_unreliable(QUIC_CFQ *cfq, QUIC_CFQ_ITEM *item)
+{
+    int discarded;
+
+    if (ossl_quic_cfq_item_is_unreliable(item)) {
+        ossl_quic_cfq_release(cfq, item);
+        discarded = 1;
+    } else {
+        discarded = 0;
+    }
+
+    return discarded;
 }
 
 /*

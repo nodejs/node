@@ -1174,6 +1174,7 @@ static ares_status_t ares_uri_parse_hostport(ares_uri_t *uri, ares_buf_t *buf)
   unsigned char b;
   char          host[256];
   char          port[6];
+  unsigned short parsed_port;
   size_t        len;
   ares_status_t status;
 
@@ -1242,11 +1243,11 @@ static ares_status_t ares_uri_parse_hostport(ares_uri_t *uri, ares_buf_t *buf)
   }
   port[len] = 0;
 
-  if (!ares_str_isnum(port)) {
+  if (!ares_parse_port(port, &parsed_port, ARES_TRUE)) {
     return ARES_EBADSTR;
   }
 
-  status = ares_uri_set_port(uri, (unsigned short)atoi(port));
+  status = ares_uri_set_port(uri, parsed_port);
   if (status != ARES_SUCCESS) {
     return status;
   }

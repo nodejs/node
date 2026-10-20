@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -932,6 +932,9 @@ int ossl_ml_dsa_sig_encode(const ML_DSA_SIG *sig, const ML_DSA_PARAMS *params,
     ret = 1;
 err:
     WPACKET_finish(&pkt);
+    /* Erase any partial signature output on failure */
+    if (ret == 0)
+        OPENSSL_cleanse(out, params->sig_len);
     return ret;
 }
 

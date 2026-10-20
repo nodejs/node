@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,34 +22,30 @@
 #include "LIEF/MachO/BuildVersion.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 BuildVersion::BuildVersion(const details::build_version_command& ver) :
   LoadCommand::LoadCommand{LoadCommand::TYPE(ver.cmd), ver.cmdsize},
   platform_{PLATFORMS(ver.platform)},
-  minos_{{
-    static_cast<uint32_t>((ver.minos >> 16) & 0xFFFF),
-    static_cast<uint32_t>((ver.minos >>  8) & 0xFF),
-    static_cast<uint32_t>((ver.minos >>  0) & 0xFF)
-  }},
-  sdk_{{
-    static_cast<uint32_t>((ver.sdk >> 16) & 0xFFFF),
-    static_cast<uint32_t>((ver.sdk >>  8) & 0xFF),
-    static_cast<uint32_t>((ver.sdk >>  0) & 0xFF)
-  }}
-{
-}
+  minos_{{static_cast<uint32_t>((ver.minos >> 16) & 0xFFFF),
+          static_cast<uint32_t>((ver.minos >> 8) & 0xFF),
+          static_cast<uint32_t>((ver.minos >> 0) & 0xFF)}},
+  sdk_{{static_cast<uint32_t>((ver.sdk >> 16) & 0xFFFF),
+        static_cast<uint32_t>((ver.sdk >> 8) & 0xFF),
+        static_cast<uint32_t>((ver.sdk >> 0) & 0xFF)}} {}
 
-BuildVersion::BuildVersion(const PLATFORMS platform,
-                           const version_t &minos,
-                           const version_t &sdk,
-                           const tools_list_t &tools) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE::BUILD_VERSION,
-                           static_cast<uint32_t>(sizeof(details::build_version_command) +
-                           sizeof(details::build_tool_version) * tools.size())},
-  platform_{platform}, minos_{minos}, sdk_{sdk}, tools_{tools}
-{
+BuildVersion::BuildVersion(const PLATFORMS platform, const version_t& minos,
+                           const version_t& sdk, const tools_list_t& tools) :
+  LoadCommand::LoadCommand{
+      LoadCommand::TYPE::BUILD_VERSION,
+      static_cast<uint32_t>(sizeof(details::build_version_command) +
+                            sizeof(details::build_tool_version) * tools.size())
+  },
+  platform_{platform},
+  minos_{minos},
+  sdk_{sdk},
+  tools_{tools} {
   original_data_.resize(size());
 }
 
@@ -69,37 +65,37 @@ std::ostream& BuildVersion::print(std::ostream& os) const {
 }
 
 const char* to_string(BuildVersion::PLATFORMS e) {
-  #define ENTRY(X) std::pair(BuildVersion::PLATFORMS::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(MACOS),
-    ENTRY(IOS),
-    ENTRY(TVOS),
-    ENTRY(WATCHOS),
-    ENTRY(BRIDGEOS),
-    ENTRY(MAC_CATALYST),
-    ENTRY(IOS_SIMULATOR),
-    ENTRY(TVOS_SIMULATOR),
-    ENTRY(WATCHOS_SIMULATOR),
-    ENTRY(DRIVERKIT),
-    ENTRY(VISIONOS),
-    ENTRY(VISIONOS_SIMULATOR),
-    ENTRY(FIRMWARE),
-    ENTRY(SEPOS),
-    ENTRY(MACOS_EXCLAVE_CORE),
-    ENTRY(MACOS_EXCLAVE_KIT),
-    ENTRY(IOS_EXCLAVE_CORE),
-    ENTRY(IOS_EXCLAVE_KIT),
-    ENTRY(TVOS_EXCLAVE_CORE),
-    ENTRY(TVOS_EXCLAVE_KIT),
-    ENTRY(WATCHOS_EXCLAVE_CORE),
-    ENTRY(WATCHOS_EXCLAVE_KIT),
-    ENTRY(VISIONOS_EXCLAVE_CORE),
-    ENTRY(VISIONOS_EXCLAVE_KIT),
+#define ENTRY(X) std::pair(BuildVersion::PLATFORMS::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),
+      ENTRY(MACOS),
+      ENTRY(IOS),
+      ENTRY(TVOS),
+      ENTRY(WATCHOS),
+      ENTRY(BRIDGEOS),
+      ENTRY(MAC_CATALYST),
+      ENTRY(IOS_SIMULATOR),
+      ENTRY(TVOS_SIMULATOR),
+      ENTRY(WATCHOS_SIMULATOR),
+      ENTRY(DRIVERKIT),
+      ENTRY(VISIONOS),
+      ENTRY(VISIONOS_SIMULATOR),
+      ENTRY(FIRMWARE),
+      ENTRY(SEPOS),
+      ENTRY(MACOS_EXCLAVE_CORE),
+      ENTRY(MACOS_EXCLAVE_KIT),
+      ENTRY(IOS_EXCLAVE_CORE),
+      ENTRY(IOS_EXCLAVE_KIT),
+      ENTRY(TVOS_EXCLAVE_CORE),
+      ENTRY(TVOS_EXCLAVE_KIT),
+      ENTRY(WATCHOS_EXCLAVE_CORE),
+      ENTRY(WATCHOS_EXCLAVE_KIT),
+      ENTRY(VISIONOS_EXCLAVE_CORE),
+      ENTRY(VISIONOS_EXCLAVE_KIT),
 
-    ENTRY(ANY),
+      ENTRY(ANY),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -107,5 +103,4 @@ const char* to_string(BuildVersion::PLATFORMS e) {
   return "UNKNOWN";
 }
 
-}
 }

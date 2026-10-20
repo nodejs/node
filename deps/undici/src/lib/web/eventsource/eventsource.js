@@ -2,14 +2,19 @@
 
 const { pipeline } = require('node:stream')
 const { fetching } = require('../fetch')
-const { makeRequest } = require('../fetch/request')
 const { webidl } = require('../webidl')
 const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
 const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
-const { kEnumerableProperty } = require('../../core/util')
+const { cloneRequest } = require('../fetch/request')
+const { isValidHeaderValue, kEnumerableProperty } = require('../../core/util')
 const { environmentSettingsObject } = require('../fetch/util')
+const { createPotentialCORSRequest } = require('./util')
+const { getGlobalDispatcher } = require('../../global')
+const { isomorphicDecode } = require('../infra')
+
+const textEncoder = new TextEncoder()
 
 let experimentalWarned = false
 
@@ -24,6 +29,14 @@ let experimentalWarned = false
  * @type {3000}
  */
 const defaultReconnectionTime = 3000
+
+/**
+ * The largest delay setTimeout supports. Larger values (including Infinity)
+ * make Node.js fire the timer after 1 ms instead, which would turn a large
+ * reconnection time into a reconnect storm.
+ * @type {number}
+ */
+const maxReconnectionTime = 2 ** 31 - 1
 
 /**
  * The readyState attribute represents the state of the connection.
@@ -160,33 +173,22 @@ class EventSource extends EventTarget {
 
     // 8. Let request be the result of creating a potential-CORS request given
     // urlRecord, the empty string, and corsAttributeState.
-    const initRequest = {
-      redirect: 'follow',
-      keepalive: true,
-      // @see https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes
-      mode: 'cors',
-      credentials: corsAttributeState === 'anonymous'
-        ? 'same-origin'
-        : 'omit',
-      referrer: 'no-referrer'
-    }
+    const request = createPotentialCORSRequest(urlRecord, '', corsAttributeState)
 
     // 9. Set request's client to settings.
-    initRequest.client = environmentSettingsObject.settingsObject
+    request.client = environmentSettingsObject.settingsObject
 
     // 10. User agents may set (`Accept`, `text/event-stream`) in request's header list.
-    initRequest.headersList = [['accept', { name: 'accept', value: 'text/event-stream' }]]
+    request.headersList.set('Accept', 'text/event-stream')
 
     // 11. Set request's cache mode to "no-store".
-    initRequest.cache = 'no-store'
+    request.cache = 'no-store'
 
     // 12. Set request's initiator type to "other".
-    initRequest.initiator = 'other'
-
-    initRequest.urlList = [new URL(this.#url)]
+    request.initiator = 'other'
 
     // 13. Set ev's request to request.
-    this.#request = makeRequest(initRequest)
+    this.#request = request
 
     this.#connect()
   }
@@ -198,6 +200,8 @@ class EventSource extends EventTarget {
    * @readonly
    */
   get readyState () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#readyState
   }
 
@@ -207,6 +211,8 @@ class EventSource extends EventTarget {
    * @returns {string}
    */
   get url () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#url
   }
 
@@ -215,6 +221,8 @@ class EventSource extends EventTarget {
    * instantiated with CORS credentials set (true), or not (false, the default).
    */
   get withCredentials () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#withCredentials
   }
 
@@ -223,8 +231,22 @@ class EventSource extends EventTarget {
 
     this.#readyState = CONNECTING
 
+    // Fetch a copy of the request so that every connection starts from the
+    // original request. Fetch mutates the request it is given (URL list,
+    // redirect count, response tainting and, on cross-origin redirects,
+    // headers), so reusing it makes reconnects go to the last redirect
+    // target and, after 20 redirects in total, fail forever.
+    // cloneRequest() shares the URL list, so copy it as well.
+    // 301/308 permanent redirects are handled the same as 302/307 temporary
+    // redirects. While the original EventSource spec required that permanent
+    // redirects be handled, WHATWG removed that requirement and has not
+    // yet opted to restore it... therefore all redirects gets handled the
+    // same.
+    const request = cloneRequest(this.#request)
+    request.urlList = [...this.#request.urlList]
+
     const fetchParams = {
-      request: this.#request,
+      request,
       dispatcher: this.#dispatcher
     }
 
@@ -292,6 +314,7 @@ class EventSource extends EventTarget {
 
       const eventSourceStream = new EventSourceStream({
         eventSourceSettings: this.#state,
+        maxEventSize: this.#dispatcher.eventSourceOptions?.maxEventSize,
         push: (event) => {
           this.dispatchEvent(createFastMessageEvent(
             event.type,
@@ -351,13 +374,17 @@ class EventSource extends EventTarget {
       //         string, encoded as UTF-8.
       //      2. Set (`Last-Event-ID`, lastEventIDValue) in request's header
       //         list.
+      this.#request.headersList.delete('last-event-id', true)
       if (this.#state.lastEventId.length) {
-        this.#request.headersList.set('last-event-id', this.#state.lastEventId, true)
+        const lastEventId = isomorphicDecode(textEncoder.encode(this.#state.lastEventId))
+        if (isValidHeaderValue(lastEventId)) {
+          this.#request.headersList.set('last-event-id', lastEventId, true)
+        }
       }
 
       //   4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
       this.#connect()
-    }, this.#state.reconnectionTime)?.unref()
+    }, Math.min(this.#state.reconnectionTime, maxReconnectionTime))?.unref()
   }
 
   /**
@@ -365,7 +392,7 @@ class EventSource extends EventTarget {
    * CLOSED.
    */
   close () {
-    webidl.brandCheck(this, EventSource)
+    webidl.brandCheck(this, webidl.is.EventSource)
 
     if (this.#readyState === CLOSED) return
     this.#readyState = CLOSED
@@ -374,10 +401,14 @@ class EventSource extends EventTarget {
   }
 
   get onopen () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#events.open
   }
 
   set onopen (fn) {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     if (this.#events.open) {
       this.removeEventListener('open', this.#events.open)
     }
@@ -393,10 +424,14 @@ class EventSource extends EventTarget {
   }
 
   get onmessage () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#events.message
   }
 
   set onmessage (fn) {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     if (this.#events.message) {
       this.removeEventListener('message', this.#events.message)
     }
@@ -412,10 +447,14 @@ class EventSource extends EventTarget {
   }
 
   get onerror () {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     return this.#events.error
   }
 
   set onerror (fn) {
+    webidl.brandCheck(this, webidl.is.EventSource)
+
     if (this.#events.error) {
       this.removeEventListener('error', this.#events.error)
     }
@@ -427,6 +466,12 @@ class EventSource extends EventTarget {
       this.#events.error = fn
     } else {
       this.#events.error = null
+    }
+  }
+
+  static {
+    webidl.is.EventSource = (arg) => {
+      return arg != null && typeof arg === 'object' && #events in arg
     }
   }
 }
@@ -476,7 +521,8 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   },
   {
     key: 'dispatcher', // undici only
-    converter: webidl.converters.any
+    converter: webidl.converters.any,
+    defaultValue: () => getGlobalDispatcher()
   },
   {
     key: 'node', // undici only

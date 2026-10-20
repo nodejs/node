@@ -15,10 +15,14 @@ const { once } = require('events');
   const kTransfer = Object.getOwnPropertySymbols(Object.getPrototypeOf(fh))
     .find((symbol) => symbol.description === 'messaging_transfer_symbol');
   assert.strictEqual(typeof kTransfer, 'symbol');
+  // Use a module:export pair that is not a registered transferable. net.Socket
+  // and net.Server are real transferables now, so they would be constructed (and
+  // then safely reject the bogus data); a nonexistent export keeps exercising
+  // the "Unknown deserialize spec" allowlist rejection.
   fh[kTransfer] = () => {
     return {
       data: '✨',
-      deserializeInfo: 'net:Socket'
+      deserializeInfo: 'net:NotARealTransferable'
     };
   };
 
@@ -28,6 +32,7 @@ const { once } = require('events');
 
   const [ exception ] = await once(port2, 'messageerror');
 
-  assert.strictEqual(exception.message, 'Unknown deserialize spec net:Socket');
+  assert.strictEqual(exception.message,
+                     'Unknown deserialize spec net:NotARealTransferable');
   port2.close();
 })().then(common.mustCall());

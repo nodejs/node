@@ -93,6 +93,14 @@ const invalidArgValueError = {
   assert.throws(() => {
     validateArray([], 'foo', 1);
   }, invalidArgValueError);
+
+  validateArray([1, 2, 3], 'foo', 3);
+  assert.throws(() => {
+    validateArray([1, 2], 'foo', 3);
+  }, (err) => {
+    assert.ok(err.message.includes('at least 3'), `Expected "at least 3" in: ${err.message}`);
+    return true;
+  });
 }
 
 {

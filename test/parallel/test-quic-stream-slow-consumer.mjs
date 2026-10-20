@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { ok, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -23,7 +22,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(received.byteLength, dataLength);
+    assert.strictEqual(received.byteLength, dataLength);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -48,11 +47,11 @@ stream.onblocked = mustCallAtLeast(() => {
 
 stream.setBody(new Uint8Array(dataLength));
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 
 // The sender should have been blocked multiple times.
-ok(blockedCount > 0, `Expected blocking, got ${blockedCount}`);
+assert.ok(blockedCount > 0, `Expected blocking, got ${blockedCount}`);
 
 await clientSession.closed;
 await serverEndpoint.close();

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #include "LIEF/MachO/RelocationDyld.hpp"
 #include "LIEF/MachO/DyldInfo.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 bool RelocationDyld::is_pc_relative() const {
   return DyldInfo::REBASE_TYPE(type()) == DyldInfo::REBASE_TYPE::TEXT_PCREL32;
@@ -59,5 +59,4 @@ bool RelocationDyld::operator>(const RelocationDyld& rhs) const {
   return address() > rhs.address();
 }
 
-}
 }

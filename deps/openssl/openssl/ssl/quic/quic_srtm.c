@@ -485,8 +485,8 @@ static void check_mark(SRTM_ITEM *item, void *arg)
 {
     struct check_args *arg_ = arg;
     uint32_t token = arg_->token;
-    uint64_t prev_seq_num = 0;
-    void *prev_opaque = NULL;
+    ossl_unused uint64_t prev_seq_num = 0;
+    ossl_unused void *prev_opaque = NULL;
     int have_prev = 0;
 
     assert(item != NULL);
@@ -514,7 +514,7 @@ static void check_mark(SRTM_ITEM *item, void *arg)
 static void check_count(SRTM_ITEM *item, void *arg)
 {
     struct check_args *arg_ = arg;
-    uint32_t token = arg_->token;
+    ossl_unused uint32_t token = arg_->token;
 
     assert(item != NULL);
 
@@ -535,7 +535,8 @@ void ossl_quic_srtm_check(const QUIC_SRTM *srtm)
 {
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     struct check_args args = { 0 };
-    size_t tokens_expected, tokens_expected_old;
+    size_t tokens_expected;
+    ossl_unused size_t tokens_expected_old;
 
     args.token = token_next;
     ++token_next;

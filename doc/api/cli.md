@@ -191,6 +191,51 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process starts without the environment
+variables it has not been granted access to. At startup, every variable that
+`--allow-env` does not match is removed from the process environment. Removed
+variables are absent from `process.env`, from diagnostic reports, from native
+code calling `getenv()`, and from the environment of child processes and worker
+threads.
+
+The valid values are:
+
+* `*` - Grants access to every environment variable.
+* A variable name, for example `--allow-env=DATABASE_URL`.
+* A variable name prefix followed by `*`, for example `--allow-env=APP_*`.
+
+Multiple values can be passed by repeating the flag, or by separating them with
+commas: `--allow-env=PORT,APP_*`. Variable names are case-insensitive on
+Windows.
+
+Example:
+
+```js
+console.log(process.env.DATABASE_URL);
+console.log(process.env.AWS_SECRET_ACCESS_KEY);
+```
+
+```console
+$ node --permission --allow-fs-read=* --allow-env=DATABASE_URL index.js
+postgres://localhost/app
+undefined
+(node:1234) Warning: The permission model removed the environment variable "AWS_SECRET_ACCESS_KEY" at startup. Use --allow-env to manage permissions.
+```
+
+The variables that Node.js and its bundled dependencies read, such as
+`NODE_OPTIONS`, `PATH`, `HOME`, `TZ`, and `SSL_CERT_FILE`, are always kept, as
+are the variables defined in [`--env-file`][] files. `NODE_ENV` is not kept
+by default, so applications and libraries that read it need
+`--allow-env=NODE_ENV`. See [Environment variable permissions][] for details.
+
 ### `--allow-ffi`
 
 <!-- YAML
@@ -202,18 +247,18 @@ added: v26.1.0
 When using the [Permission Model][], the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an `ERR_ACCESS_DENIED`
 exception unless the user explicitly passes the `--allow-ffi` flag when
-starting Node.js. The [`node:ffi`][] module also requires the
-`--experimental-ffi` flag and is only available in builds with FFI support.
+starting Node.js. The [`node:ffi`][] module is only available in builds with
+FFI support.
 
 Example:
 
 ```js
-const { DynamicLibrary } = require('node:ffi');
-const lib = new DynamicLibrary('mylib.so');
+const { DynamicLibrary, suffix } = require('node:ffi');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ```console
-$ node --permission --experimental-ffi index.js
+$ node --permission index.js
 Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -248,7 +293,7 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 * `*` - To allow all `FileSystemRead` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
-  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder2/`
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -266,6 +311,28 @@ $ node --permission -r custom-require.js -r custom-require-2.js index.js
 process.permission.has('fs.read', 'index.js'); // true
 process.permission.has('fs.read', 'custom-require.js'); // true
 process.permission.has('fs.read', 'custom-require-2.js'); // true
+```
+
+### `--allow-fs-vfs`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], a [virtual file system][] cannot be
+mounted by default: [`vfs.mount()`][] throws `ERR_INVALID_STATE` unless the
+user explicitly passes the `--allow-fs-vfs` flag when starting Node.js.
+In audit mode ([`--permission-audit`](#--permission-audit)), mounting is not
+refused and no message is published to the diagnostics channel.
+
+A mounted VFS serves paths that the file system permissions do not describe,
+so mounting one is gated on its own flag rather than on `--allow-fs-read` or
+`--allow-fs-write`.
+
+```console
+$ node --permission --allow-fs-vfs app.js
 ```
 
 ### `--allow-fs-write`
@@ -290,7 +357,7 @@ The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-write` flags.
-  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder1/`
+  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder2/`
 
 Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
@@ -360,6 +427,32 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
   code: 'ERR_ACCESS_DENIED',
 }
 ```
+
+### `--allow-openssl-store`
+
+<!-- YAML
+added:
+ - v26.7.0
+ - v24.21.0
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use
+OpenSSL STORE loaders by default, for example to load a private key from a
+{URL} passed to [`crypto.createPrivateKey()`][]. Attempts to do so will throw
+an `ERR_ACCESS_DENIED` unless the user explicitly passes the
+`--allow-openssl-store` flag. This permission can be dropped at runtime via
+[`permission.drop()`][].
+
+This flag grants broad authority to configured OpenSSL STORE loaders. A loader
+may access files, devices, tokens, or the network. Access performed by a loader
+is not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
+
+Loaders and the modules they load are subject to [`--allow-env`][], however.
+Environment variables they rely on, such as `SOFTHSM2_CONF` for SoftHSM, are
+removed at startup unless they are granted explicitly with `--allow-env`. See
+[Environment variable permissions][] for details.
 
 ### `--allow-wasi`
 
@@ -431,6 +524,117 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--bench`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Starts the Node.js command-line benchmark runner. At least one explicit file or
+glob pattern is required:
+
+```console
+node --experimental-bench --bench benchmark.mjs
+node --experimental-bench --bench 'benchmarks/**/*.js'
+```
+
+The `--experimental-bench` flag is required to use this flag or any other
+`--bench-*` option.
+
+Quote glob patterns to prevent expansion by the shell. Matching files are
+sorted and executed serially. By default, each file runs in a separate child
+process. Benchmark files declare benchmarks using `node:bench`; they must not
+call `run()` themselves. See the [benchmark runner][] documentation for more
+details.
+
+This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
+`--check`, `--eval`, or `--interactive`.
+
+### `--bench-isolation=mode`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Configures benchmark file isolation. When `mode` is `'process'`, each matching
+file runs in a separate child process. This is the default. Files are still run
+serially so their measured work does not overlap.
+
+When `mode` is `'none'`, all matching files and benchmarks run serially in the
+benchmark runner process. This reduces startup overhead but allows module,
+heap, and process state to carry between files. User writes to stdout or stderr
+also share destinations with benchmark reporters in this mode.
+
+The supported modes are `'process'` and `'none'`.
+
+### `--bench-name-pattern=pattern`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Only runs benchmarks whose full hierarchical name matches the JavaScript
+regular expression `pattern`. Non-matching benchmarks are reported as skipped.
+
+### `--bench-reporter-destination=destination`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Specifies the destination for the corresponding benchmark reporter. The value
+can be `stdout`, `stderr`, or a file path. A single reporter defaults to
+`stdout` when no destination is specified.
+
+### `--bench-reporter=reporter`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Specifies a benchmark reporter. The built-in reporters are `spec` and `json`.
+The `json` reporter emits newline-delimited JSON. A custom reporter can be
+specified using a module specifier resolved from the current working directory.
+
+This option can be repeated. When multiple reporters are specified, each must
+have a corresponding `--bench-reporter-destination`. The default reporter is
+`spec`.
+
+### `--bench-samples=count`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the maximum number of measured callback invocations for every
+selected benchmark. A benchmark may finish earlier by calling
+`context.done()`. `count` must be an integer between `1` and `4294967295`.
+
+### `--bench-warmup=count`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the number of unreported warmup callback invocations for every
+selected benchmark. `count` must be an integer between `0` and `4294967295`.
+Without this option, each benchmark uses its own `warmup` value, which defaults
+to `10`.
+
 ### `--build-sea=config`
 
 <!-- YAML
@@ -495,7 +699,7 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-The snapshot currently only supports loding a single entrypoint during the
+The snapshot currently only supports loading a single entrypoint during the
 snapshot building process, which can load built-in modules, but not additional user-land modules.
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
@@ -598,6 +802,163 @@ For example, to run a module with "development" resolutions:
 ```bash
 node -C development app.js
 ```
+
+### `--config-file=path`, `--config-file`
+
+<!-- YAML
+added:
+ - v23.10.0
+ - v22.16.0
+changes:
+  - version: v26.12.0
+    pr-url: https://github.com/nodejs/node/pull/66431
+    description: This flag was renamed from `--experimental-config-file` to
+                 `--config-file` and is now stable. `--experimental-config-file`
+                 and `--experimental-default-config-file` are kept as aliases.
+  - version: v26.7.0
+    pr-url: https://github.com/nodejs/node/pull/64516
+    description: Marked as release candidate.
+-->
+
+If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a `node.config.json` file
+in the current working directory.
+To specify a custom path, use the `--config-file=path` form.
+The space-separated `--config-file path` form is not supported.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. `vX.Y.Z`
+in the `$schema` must be replaced with the version of Node.js you are using or
+`latest-vX.x` for the latest version of that major release line.
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "nodeOptions": {
+    "import": [
+      "amaro/strip"
+    ],
+    "watch-path": "src",
+    "watch-preserve-output": true
+  },
+  "test": {
+    "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
+  }
+}
+```
+
+The configuration file supports namespace-specific options:
+
+* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
+
+* Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
+
+The configuration file can target a specific Node.js major version with
+`nodeVersion`:
+
+```json
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+```
+
+To keep multiple version-specific configurations in the same file, use the
+`configs` array. Node.js will use the first entry whose `nodeVersion` matches
+the current Node.js major version:
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+```
+
+When `configs` is used, the top level may only contain `$schema` and
+`configs`. Each `configs` item must define an integer `nodeVersion` and an
+object `config`. A single top-level config does not require `nodeVersion`, but
+if present it must match the current Node.js major version.
+
+When a namespace is present in the
+configuration file, Node.js automatically enables the corresponding flag
+(e.g., `--test`, `--watch`, `--permission`). This allows you to configure
+subsystem-specific options without explicitly passing the flag on the command line.
+
+For example:
+
+```json
+{
+  "test": {
+    "test-isolation": "process"
+  }
+}
+```
+
+is equivalent to:
+
+```bash
+node --test --test-isolation=process
+```
+
+To disable the automatic flag while still using namespace options, you can
+explicitly set the flag to `false` within the namespace:
+
+```json
+{
+  "test": {
+    "test": false,
+    "test-isolation": "process"
+  }
+}
+```
+
+No-op flags are not supported.
+Not all V8 flags are currently supported.
+
+It is possible to use the [official JSON schema](../node-config-schema.json)
+to validate the configuration file, which may vary depending on the Node.js version.
+Each key in the configuration file corresponds to a flag that can be passed
+as a command-line argument. The value of the key is the value that would be
+passed to the flag.
+
+For example, the configuration file above is equivalent to
+the following command-line arguments:
+
+```bash
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
+```
+
+The priority in configuration is as follows:
+
+1. NODE\_OPTIONS and command-line options
+2. Dotenv NODE\_OPTIONS
+3. Configuration file
+
+Values in the configuration file will not override the values in the environment
+variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
+`--env-file` flag.
+
+Keys cannot be duplicated within the same or different namespaces.
+
+The configuration parser will throw an error if the configuration file contains
+unknown keys or keys that cannot be used in a namespace.
+
+Node.js will not sanitize or perform validation on the user-provided configuration,
+so **NEVER** use untrusted configuration files.
 
 ### `--cpu-prof`
 
@@ -731,9 +1092,15 @@ Disable the ability of starting a debugging session by sending a
 added:
   - v21.3.0
   - v20.11.0
+changes:
+  - version:
+     - v26.7.0
+     - v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64742
+    description: The `--disable-warning` flag is now stable.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Disable specific process warnings by `code` or `type`.
 
@@ -786,7 +1153,8 @@ added:
 - v20.15.0
 changes:
   - version:
-    - v26.0.0
+     - v26.0.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/62132
     description: Node.js now automatically disables the trap handler when there is not
                  enough virtual memory available at startup to allocate one cage.
@@ -858,8 +1226,22 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
-against FIPS-compatible OpenSSL.)
+Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
+`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
+
+### `--enable-fips-indicator-events`
+
+<!-- YAML
+added:
+  - v26.9.0
+  - v24.22.0
+-->
+
+Publish OpenSSL FIPS indicator results to the
+[`'crypto.fips.indicator'`][] diagnostics channel. This option requires OpenSSL
+3.4 or later. It does not enable [FIPS mode][] or change whether an operation
+is permitted.
 
 ### `--enable-source-maps`
 
@@ -1039,178 +1421,38 @@ It is possible to run code containing inline types unless the
 added:
   - v23.6.0
   - v22.20.0
+changes:
+  - version:
+     - v26.5.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/64221
+    description: This is enabled by default.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 Enable experimental import support for `.node` addons.
 
-### `--experimental-config-file=path`, `--experimental-config-file`
+### `--experimental-bench`
 
 <!-- YAML
-added:
- - v23.10.0
- - v22.16.0
+added: v26.9.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1 - Experimental
 
-If present, Node.js will look for a configuration file at the specified path.
-If the path is not specified, Node.js will look for a `node.config.json` file
-in the current working directory.
-To specify a custom path, use the `--experimental-config-file=path` form.
-The space-separated `--experimental-config-file path` form is not supported.
-The alias `--experimental-default-config-file` is equivalent to
-`--experimental-config-file` without an argument.
-Node.js will read the configuration file and apply the settings. The
-configuration file should be a JSON file with the following structure. `vX.Y.Z`
-in the `$schema` must be replaced with the version of Node.js you are using or
-`latest-vX.x` for the latest version of that major release line.
+Enable the experimental `node:bench` module and command-line benchmark runner.
 
-```json
-{
-  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
-  "nodeOptions": {
-    "import": [
-      "amaro/strip"
-    ],
-    "watch-path": "src",
-    "watch-preserve-output": true
-  },
-  "test": {
-    "test-isolation": "process"
-  },
-  "watch": {
-    "watch-preserve-output": true
-  }
-}
-```
-
-The configuration file supports namespace-specific options:
-
-* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
-
-* Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
-
-The configuration file can target a specific Node.js major version with
-`nodeVersion`:
-
-```json
-{
-  "nodeVersion": 25,
-  "nodeOptions": {
-    "watch-path": "src"
-  }
-}
-```
-
-To keep multiple version-specific configurations in the same file, use the
-`configs` array. Node.js will use the first entry whose `nodeVersion` matches
-the current Node.js major version:
-
-```json
-{
-  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
-  "configs": [
-    {
-      "nodeVersion": 25,
-      "config": {
-        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
-        "nodeOptions": {
-          "watch-path": "src"
-        }
-      }
-    }
-  ]
-}
-```
-
-When `configs` is used, the top level may only contain `$schema` and
-`configs`. Each `configs` item must define an integer `nodeVersion` and an
-object `config`. A single top-level config does not require `nodeVersion`, but
-if present it must match the current Node.js major version.
-
-When a namespace is present in the
-configuration file, Node.js automatically enables the corresponding flag
-(e.g., `--test`, `--watch`, `--permission`). This allows you to configure
-subsystem-specific options without explicitly passing the flag on the command line.
-
-For example:
-
-```json
-{
-  "test": {
-    "test-isolation": "process"
-  }
-}
-```
-
-is equivalent to:
-
-```bash
-node --test --test-isolation=process
-```
-
-To disable the automatic flag while still using namespace options, you can
-explicitly set the flag to `false` within the namespace:
-
-```json
-{
-  "test": {
-    "test": false,
-    "test-isolation": "process"
-  }
-}
-```
-
-No-op flags are not supported.
-Not all V8 flags are currently supported.
-
-It is possible to use the [official JSON schema](../node-config-schema.json)
-to validate the configuration file, which may vary depending on the Node.js version.
-Each key in the configuration file corresponds to a flag that can be passed
-as a command-line argument. The value of the key is the value that would be
-passed to the flag.
-
-For example, the configuration file above is equivalent to
-the following command-line arguments:
-
-```bash
-node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
-```
-
-The priority in configuration is as follows:
-
-1. NODE\_OPTIONS and command-line options
-2. Dotenv NODE\_OPTIONS
-3. Configuration file
-
-Values in the configuration file will not override the values in the environment
-variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
-`--env-file` flag.
-
-Keys cannot be duplicated within the same or different namespaces.
-
-The configuration parser will throw an error if the configuration file contains
-unknown keys or keys that cannot be used in a namespace.
-
-Node.js will not sanitize or perform validation on the user-provided configuration,
-so **NEVER** use untrusted configuration files.
-
-### `--experimental-default-config-file`
+### `--experimental-dtls`
 
 <!-- YAML
-added:
- - v23.10.0
- - v22.16.0
+added: v26.9.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1 - Experimental
 
-This flag is an alias for `--experimental-config-file` without an argument.
-If present, Node.js will look for a
-`node.config.json` file in the current working directory and load it as a
-configuration file.
+Enable experimental support for the DTLS protocol. See the
+[dtls documentation][] for details.
 
 ### `--experimental-eventsource`
 
@@ -1221,18 +1463,6 @@ added:
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
-
-### `--experimental-ffi`
-
-<!-- YAML
-added: v26.1.0
--->
-
-> Stability: 1 - Experimental
-
-Enable the experimental [`node:ffi`][] module.
-
-This flag is only available in builds with FFI support.
 
 ### `--experimental-import-meta-resolve`
 
@@ -1254,6 +1484,19 @@ Enable experimental `import.meta.resolve()` parent URL support, which allows
 passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
+
+### `--experimental-import-text`
+
+<!-- YAML
+added:
+  - v26.5.0
+  - v24.19.0
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for importing modules with
+`with { type: 'text' }`.
 
 ### `--experimental-inspector-network-resource`
 
@@ -1306,22 +1549,52 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
+### `--experimental-package-map=<path>`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental package map resolution. The `path` argument specifies the
+location of a JSON configuration file that defines package resolution mappings.
+
+```bash
+node --experimental-package-map=./package-map.json app.js
+```
+
+When enabled, bare specifier resolution consults the package map for resolution.
+This allows explicit control over which packages can import which dependencies.
+
+See [Package maps][] for details on the configuration file format and
+resolution algorithm.
+
 ### `--experimental-print-required-tla`
 
 <!-- YAML
 added:
   - v22.0.0
   - v20.17.0
+changes:
+  - version:
+     - v26.5.0
+     - v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64154
+    description: Print the top-level awaits without evaluating the modules.
 -->
 
-If the ES module being `require()`'d contains top-level `await`, this flag
-allows Node.js to evaluate the module, try to locate the
-top-level awaits, and print their location to help users find them.
+If the ES module graph cannot be `require()`'d because it contains any top-level `await`,
+this flag allows Node.js to locate and print their locations.
 
 ### `--experimental-quic`
 
 <!-- YAML
-added: v25.0.0
+added:
+ - v25.0.0
+ - v24.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1355,6 +1628,7 @@ Use this flag to enable [ShadowRealm][] support.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1366,11 +1640,31 @@ Enable experimental support for storage inspection
 <!-- YAML
 added:
  - v25.9.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
 
 Enable the experimental [`node:stream/iter`][] module.
+
+### `--experimental-strip-private-modules`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+By default, Node.js refuses to strip types from TypeScript files inside
+folders under a `node_modules` path. This flag enables type stripping for
+such files when they belong to a package whose `package.json` contains
+`"private": true`. Files belonging to non-private packages still throw
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][].
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
 
 ### `--experimental-test-coverage`
 
@@ -1413,22 +1707,30 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-vm-modules`
 
@@ -1459,6 +1761,14 @@ changes:
 
 Enable experimental WebAssembly System Interface (WASI) support.
 
+### `--experimental-web-worker`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+Enable experimental support for the Web Worker API.
+
 ### `--experimental-worker-inspection`
 
 <!-- YAML
@@ -1471,25 +1781,6 @@ added:
 
 Enable experimental support for the worker inspection with Chrome DevTools.
 
-### `--expose-gc`
-
-<!-- YAML
-added:
-  - v22.3.0
-  - v20.18.0
--->
-
-> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
-> change upstream.
-
-This flag will expose the gc extension from V8.
-
-```js
-if (globalThis.gc) {
-  globalThis.gc();
-}
-```
-
 ### `--force-context-aware`
 
 <!-- YAML
@@ -1498,14 +1789,33 @@ added: v12.12.0
 
 Disable loading native addons that are not [context-aware][].
 
-### `--force-fips`
+### `--force-fips[=mode]`
 
 <!-- YAML
 added: v6.0.0
+changes:
+  - version:
+    - v26.9.0
+    - v24.22.0
+    pr-url: https://github.com/nodejs/node/pull/65645
+    description: Added the optional `provider` and `strict` modes.
 -->
 
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`.)
+Enable [FIPS mode][] at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as [`--enable-fips`][] apply.
+
+An optional mode can be specified using `--force-fips=mode`:
+
+* `provider`: Preserve the OpenSSL FIPS provider's configured handling of
+  non-approved operations. This is the current default when the mode is
+  omitted.
+* `strict`: Reject non-approved operations reported through the OpenSSL FIPS
+  indicator callback. This mode requires OpenSSL 3.4 or later.
+
+The `strict` mode only covers operations reported through the callback for
+OpenSSL's default library context. It does not cover native addons that use
+another `OSSL_LIB_CTX` or another copy of `libcrypto`, nor operation-specific
+indicators that do not invoke the callback.
 
 ### `--force-node-api-uncaught-exceptions-policy`
 
@@ -1902,6 +2212,16 @@ Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
 
+When WebAssembly is unavailable in this mode, TypeScript parsing and WebAssembly
+module imports throw [`ERR_WEBASSEMBLY_NOT_SUPPORTED`][]. Node.js does not
+guarantee alternative implementations of features that require WebAssembly or
+runtime allocation of executable memory when those capabilities are unavailable.
+
+This flag controls V8's runtime code generation. It does not impose an
+operating-system restriction on executable memory allocated by native addons or
+[`node:ffi`][]. FFI operations that require unavailable executable memory can
+throw [`ERR_RX_MEMORY_NOT_SUPPORTED`][].
+
 ### `--localstorage-file=file`
 
 <!-- YAML
@@ -1947,14 +2267,6 @@ node --max-old-space-size-percentage=50 index.js
 node --max-old-space-size-percentage=75 index.js
 ```
 
-### `--napi-modules`
-
-<!-- YAML
-added: v7.10.0
--->
-
-This option is a no-op. It is kept for compatibility.
-
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
@@ -1977,17 +2289,6 @@ added:
 Disable the `node-addons` exports condition as well as disable loading
 native addons. When `--no-addons` is specified, calling `process.dlopen` or
 requiring a native C++ addon will fail and throw an exception.
-
-### `--no-async-context-frame`
-
-<!-- YAML
-added: v24.0.0
--->
-
-Disables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` and
-uses the prior implementation which relied on async\_hooks. The previous model
-is retained for compatibility with Electron and for cases where the context
-flow may differ. However, if a difference in flow is found please report it.
 
 ### `--no-deprecation`
 
@@ -2013,6 +2314,18 @@ changes:
 
 Disable using [syntax detection][] to determine module type.
 
+### `--no-experimental-ffi`
+
+<!-- YAML
+added: v26.1.0
+-->
+
+> Stability: 1 - Experimental
+
+Disable the experimental [`node:ffi`][] module.
+
+This flag is only available in builds with FFI support.
+
 ### `--no-experimental-global-navigator`
 
 <!-- YAML
@@ -2022,14 +2335,6 @@ added: v21.2.0
 > Stability: 1 - Experimental
 
 Disable exposition of [Navigator API][] on the global scope.
-
-### `--no-experimental-repl-await`
-
-<!-- YAML
-added: v16.6.0
--->
-
-Use this flag to disable top-level await in REPL.
 
 ### `--no-experimental-require-module`
 
@@ -2070,13 +2375,17 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
-### `--no-experimental-websocket`
+### `--no-experimental-vfs`
 
 <!-- YAML
-added: v22.0.0
+added: v26.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66318
+    description: VFS is unflagged but still experimental.
 -->
 
-Disable exposition of {WebSocket} on the global scope.
+Disable the experimental [`node:vfs`][] module and `--vfs-load`.
 
 ### `--no-experimental-webstorage`
 
@@ -2194,6 +2503,17 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--no-worker-snapshot`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1 - Experimental
+
+Start worker threads by running the internal bootstrap from scratch instead of
+deserializing the bootstrapped context from the built-in startup snapshot.
+
 ### `--node-memory-debug`
 
 <!-- YAML
@@ -2211,9 +2531,11 @@ usually only useful for developers debugging Node.js itself.
 added: v6.9.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built
-against FIPS-enabled OpenSSL.
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+[FIPS mode][].
+
+This option takes precedence over the `OPENSSL_CONF` environment variable.
 
 ### `--openssl-legacy-provider`
 
@@ -2274,24 +2596,44 @@ changes:
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
+> See also [`--permission-audit`](#--permission-audit) for an audit-only mode
+> that logs violations without denying access.
+
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Network - manageable through [`--allow-net`][] flag
+* Environment variables - manageable through [`--allow-env`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
 * FFI - manageable through [`--allow-ffi`](#--allow-ffi) flag
+* OpenSSL STORE loaders - manageable through [`--allow-openssl-store`][] flag
 
 ### `--permission-audit`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.20.0
 -->
 
-Enable audit only for the permission model. When enabled, permission checks
-are performed but access is not denied. Instead, a warning is emitted for
-each permission violation via diagnostics channel.
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is **not** denied — no `ERR_ACCESS_DENIED` error is
+thrown. Instead, each permission violation is published through the
+`node:diagnostics_channel` module, and execution continues normally.
+
+This flag does not require [`--permission`](#--permission) to be specified. The
+`--allow-*` flags are not needed in audit mode, since no
+access is denied.
+
+Audit mode is useful for discovering what permissions your application
+requires before deploying with [`--permission`](#--permission). See the
+[Permission Model][] documentation for the list of diagnostics channel names
+and the message format.
+
+If both [`--permission`](#--permission) and `--permission-audit` are specified,
+`--permission` takes precedence and the Permission Model runs in enforce mode.
 
 ### `--preserve-symlinks`
 
@@ -2369,6 +2711,59 @@ changes:
 -->
 
 Identical to `-e` but prints the result.
+
+### `--process-timeout=duration`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+> Stability: 1.1 - Active development
+
+Exits the process with code `124` if it is still running after `duration`,
+measured from the start of the process. `duration` is a positive integer
+followed by a unit: `ms`, `s`, `m`, or `h`, for example `500ms`, `30s`, `5m`, or
+`1h`. The exit code matches the one used by the `timeout(1)` command.
+
+Before exiting, Node.js prints what the main thread was doing and which
+resources were keeping the event loop alive to stderr:
+
+```console
+$ node --process-timeout=5s server.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    TCPServerWrap (listening on [::]:3000, fd 20)
+    Timeout x2 (next due in 2931ms)
+```
+
+If the main thread was executing JavaScript, its stack trace is printed instead.
+Use [`--report-on-process-timeout`][] to also generate a [diagnostic report][].
+
+The process exits without emitting the `'beforeExit'` and `'exit'` events, as
+the JavaScript code may be what keeps the process running. Code coverage and
+profiles, such as those enabled with [`NODE_V8_COVERAGE=dir`][] or
+[`--cpu-prof`][], are still written.
+
+If the main thread does not respond within two seconds, for example because it
+is blocked in a synchronous operation such as [`child_process.execSync()`][],
+Node.js exits immediately without printing the stack trace and resources.
+
+This option is not allowed in [`NODE_OPTIONS`][], and it cannot be combined
+with the options that enable the inspector, such as `--inspect`,
+`--inspect-brk`, `--inspect-wait`, `--inspect-port`, and
+`--inspect-publish-uid`, nor with `node inspect`, `--run`, or
+`--build-snapshot`. While it is in effect, [`inspector.open()`][] and
+[`session.connectToMainThread()`][] throw, and requests to activate the
+inspector with `SIGUSR1` are ignored.
+
+Child processes that inherit `process.execArgv`, such as those created with
+[`child_process.fork()`][], apply the timeout from their own start. With
+[`--watch`][], the timeout applies to each run of the application rather than
+to the process that watches for changes. When
+[running tests from the command line][], the test runner process applies the
+timeout to the whole run, and each test file that runs in its own process
+applies it as well.
 
 ### `--prof`
 
@@ -2497,6 +2892,23 @@ application. Useful to inspect various diagnostic data elements such as heap,
 stack, event loop state, resource consumption etc. to reason about the fatal
 error.
 
+### `--report-on-process-timeout`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+> Stability: 1.1 - Active development
+
+Enables the report to be generated when [`--process-timeout`][] expires, in
+addition to the summary printed to stderr. Useful to inspect the JavaScript
+and native stacks, the event loop state, and resource consumption to reason
+about why the process did not exit. Requires [`--process-timeout`][].
+
+Worker threads that do not provide their part of the report within two
+seconds, for example because they are blocked in a synchronous operation such
+as [`child_process.execSync()`][], are left out of it.
+
 ### `--report-on-signal`
 
 <!-- YAML
@@ -2589,6 +3001,11 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version:
+    - v26.9.0
+    - v24.22.0
+    pr-url: https://github.com/nodejs/node/pull/64606
+    description: Passing `--run` without a command lists the available scripts.
   - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53032
     description: NODE_RUN_SCRIPT_NAME environment variable is added.
@@ -2604,6 +3021,15 @@ changes:
 
 This runs a specified command from a package.json's `"scripts"` object.
 If a missing `"command"` is provided, it will list the available scripts.
+
+Passing `--run` without a command lists the available scripts and exits
+with a non-zero exit code:
+
+```console
+$ node --run
+Available scripts are:
+  test: node --test
+```
 
 `--run` will traverse up to the root directory and finds a `package.json`
 file to run the command from.
@@ -2649,6 +3075,9 @@ The following environment variables are set when running a script with `--run`:
   `--run` is used to run `test`, the value of this variable will be `test`.
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
+
+Environment variables loaded from a file with [`--env-file`][] are not applied
+to the command executed by `--run`.
 
 ### `--secure-heap-min=n`
 
@@ -2806,6 +3235,21 @@ This option may be specified multiple times to include multiple glob patterns.
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
 
+### `--test-coverage-include-all`
+
+<!-- YAML
+added: v26.7.0
+-->
+
+> Stability: 1 - Experimental
+
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+
+Candidate files are searched for in the current working directory, and are
+subject to the same `--test-coverage-include` and `--test-coverage-exclude`
+filtering as the rest of the report.
+
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
@@ -2893,7 +3337,9 @@ option set. This flag is not necessary when test isolation is disabled.
 ### `--test-random-seed`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Set the seed used to randomize test execution order. This applies to both test
@@ -2907,7 +3353,9 @@ This flag cannot be used with `--watch` or `--test-rerun-failures`.
 ### `--test-randomize`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Randomize test execution order. This applies to both test file execution order
@@ -3351,8 +3799,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
 When both are set, `--use-env-proxy` takes precedence.
@@ -3363,19 +3816,21 @@ When both are set, `--use-env-proxy` takes precedence.
 added:
  - v13.6.0
  - v12.17.0
+changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65389
+    description: This option is now a no-op.
 -->
 
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
+This option is no longer supported and a no-op. It used to re-map the Node.js
+static code to large memory pages at startup.
 
-The following values are valid for `mode`:
+It still accepts the following values for compatibility:
 
 * `off`: No mapping will be attempted. This is the default.
-* `on`: If supported by the OS, mapping will be attempted. Failure to map will
-  be ignored and a message will be printed to standard error.
-* `silent`: If supported by the OS, mapping will be attempted. Failure to map
-  will be ignored and will not be reported.
+* `on`: No mapping will be attempted and a message will be printed to
+  standard error stating it's no longer supported.
+* `silent`: Same as `off`.
 
 ### `--use-system-ca`
 
@@ -3466,6 +3921,68 @@ added: v0.1.3
 -->
 
 Print node's version.
+
+### `--vfs-load=source`
+
+<!-- YAML
+added: v26.10.0
+-->
+
+* `source` {string} A directory or an archive file to mount and run.
+
+May be given at most once.
+
+Mounts `source` as a virtual file system ([`node:vfs`][]), and runs the entry
+point and all subsequent `require()`/`import` resolution against that mount
+rather than the real file system. This option is unavailable when
+`--no-experimental-vfs` disables [`node:vfs`][]. The mount is placed at a
+reserved mount point
+assigned by Node.js, so it never shadows real paths and no target can be
+chosen. The entry point is taken from the mount the same way `node <directory>`
+takes one: the mount's own `package.json` `"main"`, or `index.js`. Any
+positional command-line argument is the program's own (available from
+`process.argv[2]` onward), never an entry-point override.
+
+`process.argv[1]` reports `source` rather than the reserved mount point, since
+the mount point is an opaque implementation detail.
+
+The provider backing a source is chosen from the source itself rather than from
+its file name:
+
+* A directory is mounted with a [`RealFSProvider`][] rooted there.
+* A file whose bytes are a ZIP archive is mounted with a [`ZipProvider`][], so
+  an archive can carry any name.
+
+Providers registered with `vfs.registerProvider()` (typically from a module
+preloaded with [`--require`][] or [`--import`][]) are consulted first, in
+reverse registration order, and may claim directories as well as files. If no
+provider claims the source, Node.js exits with an error.
+
+In worker threads `--vfs-load` mounts but does not load: a worker inherits the
+mount and runs its own entry point, which may itself live in the mount.
+
+The source is mounted at the same reserved mount point in every thread that
+mounts it, whatever else that thread mounts, so a path into the mount means the
+same thing in all of them.
+
+A worker created with its own `execArgv` inherits none of the parent's options,
+and so does not mount the source at all. To run a script from the mount, such a
+worker must be given `--vfs-load` again; without it, that thread has no mount
+for the script to come from, and the worker fails to load it. [`node:vfs`][] is
+available to worker code without an experimental flag. A worker whose script
+comes from anywhere else, such as the real file system, needs nothing added.
+
+`--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
+the command line's decision, and the environment must not be able to redirect
+it.
+
+A [single executable application][] built with `"vfsArchive"` mounts that
+archive at the mount point reserved for `--vfs-load`, so `--vfs-load` cannot be
+used in it.
+
+```console
+$ node --vfs-load=app.zip
+```
 
 ### `--watch`
 
@@ -3611,8 +4128,18 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
-When set to 1, the [module compile cache][]  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the [module compile cache][] can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
+
+### `NODE_COMPILE_CACHE_READONLY=1`
+
+<!-- YAML
+added: v26.8.0
+-->
+
+When set to 1, the [module compile cache][] only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
 
 ### `NODE_DEBUG=module[,…]`
 
@@ -3728,13 +4255,22 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-env`
 * `--allow-ffi`
 * `--allow-fs-read`
+* `--allow-fs-vfs`
 * `--allow-fs-write`
 * `--allow-inspector`
 * `--allow-net`
+* `--allow-openssl-store`
 * `--allow-wasi`
 * `--allow-worker`
+* `--bench-isolation`
+* `--bench-name-pattern`
+* `--bench-reporter-destination`
+* `--bench-reporter`
+* `--bench-samples`
+* `--bench-warmup`
 * `--conditions`, `-C`
 * `--cpu-prof-dir`
 * `--cpu-prof-interval`
@@ -3746,29 +4282,37 @@ one is included in the list below.
 * `--disable-warning`
 * `--disable-wasm-trap-handler`
 * `--dns-result-order`
+* `--enable-fips-indicator-events`
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--entry-url`
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
+* `--experimental-bench`
 * `--experimental-detect-module`
+* `--experimental-dtls`
 * `--experimental-eventsource`
-* `--experimental-ffi`
 * `--experimental-import-meta-resolve`
+* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
+* `--experimental-repl-await`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
+* `--experimental-strip-private-modules`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
+* `--experimental-web-worker`
+* `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -3792,16 +4336,14 @@ one is included in the list below.
 * `--localstorage-file`
 * `--max-http-header-size`
 * `--max-old-space-size-percentage`
-* `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
-* `--no-async-context-frame`
 * `--no-deprecation`
+* `--no-experimental-ffi`
 * `--no-experimental-global-navigator`
-* `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
-* `--no-experimental-websocket`
+* `--no-experimental-vfs`
 * `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -3810,6 +4352,7 @@ one is included in the list below.
 * `--no-strip-types`
 * `--no-warnings`
 * `--no-webstorage`
+* `--no-worker-snapshot`
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
@@ -3838,6 +4381,7 @@ one is included in the list below.
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
+* `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
 * `--test-global-setup`
@@ -4034,8 +4578,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
@@ -4141,12 +4690,18 @@ environment variable is arbitrary.
 added: v6.11.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a [FIPS mode][] configuration.
+
+If the variable is set to an empty value, Node.js starts without loading any
+OpenSSL configuration file. This is a way past a default configuration file
+that exists but cannot be read, for example when `/etc/ssl` is not accessible
+to the user Node.js runs as, which is otherwise fatal at startup. No
+configuration is applied in that case, including any [FIPS mode][] setup the
+file would have performed.
 
 If the [`--openssl-config`][] command-line option is used, the environment
-variable is ignored.
+variable is ignored, and an empty value has no effect.
 
 ### `SSL_CERT_DIR=dir`
 
@@ -4342,19 +4897,23 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 <!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
+[Built-in Proxy Support]: http.md#built-in-proxy-support
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
 [CommonJS module]: modules.md
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
+[Environment variable permissions]: permissions.md#environment-variable-permissions
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
+[FIPS mode]: crypto.md#fips-mode
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[Package maps]: packages.md#package-maps
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
@@ -4365,17 +4924,22 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [`"type"`]: packages.md#type
+[`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
+[`--allow-env`]: #--allow-env
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-net`]: #--allow-net
+[`--allow-openssl-store`]: #--allow-openssl-store
 [`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
+[`--cpu-prof`]: #--cpu-prof
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
+[`--enable-fips`]: #--enable-fips
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
@@ -4386,46 +4950,65 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
+[`--process-timeout`]: #--process-timeoutduration
 [`--redirect-warnings`]: #--redirect-warningsfile
+[`--report-on-process-timeout`]: #--report-on-process-timeout
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
-[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
+[`--watch`]: #--watch
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
+[`ERR_RX_MEMORY_NOT_SUPPORTED`]: errors.md#err_rx_memory_not_supported
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
+[`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
+[`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
 [`NO_COLOR`]: https://no-color.org
+[`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
+[`ZipProvider`]: vfs.md#class-zipprovider
+[`child_process.execSync()`]: child_process.md#child_processexecsynccommand-options
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
+[`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
+[`node:vfs`]: vfs.md
+[`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
 [`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[`vfs.mount()`]: vfs.md#vfsmount
 [asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
+[benchmark runner]: bench.md#command-line-runner
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
-[debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
+[debugging security implications]: https://nodejs.org/learn/getting-started/debugging#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[diagnostic report]: report.md
+[dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
-[environment_variables]: #environment-variables_1
+[environment_variables]: #environment-variables-1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless
@@ -4437,7 +5020,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [running tests from the command line]: test.md#running-tests-from-the-command-line
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
-[semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
+[semi-space]: https://v8.dev/blog/trash-talk#minor-gc
 [single executable application]: single-executable-applications.md
 [snapshot testing]: test.md#snapshot-testing
 [syntax detection]: packages.md#syntax-detection
@@ -4446,4 +5029,5 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [test runner execution model]: test.md#test-runner-execution-model
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
+[virtual file system]: vfs.md
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

@@ -16,6 +16,7 @@ const { failWebsocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
 const { PerMessageDeflate } = require('./permessage-deflate')
 const { MessageSizeExceededError } = require('../../core/errors')
+const { defaultWebSocketMaxFragments, defaultWebSocketMaxPayloadSize } = require('../../core/constants')
 
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -40,22 +41,33 @@ class ByteParser extends Writable {
   #handler
 
   /** @type {number} */
+  #maxFragments
+
+  /** @type {number} */
   #maxPayloadSize
 
   /**
    * @param {import('./websocket').Handler} handler
    * @param {Map<string, string>|null} extensions
-   * @param {{ maxPayloadSize?: number }} [options]
+   * @param {{ maxFragments?: number, maxPayloadSize?: number }} [options]
+   *   A missing value uses the default limit; `0` disables the limit.
    */
   constructor (handler, extensions, options = {}) {
     super()
 
     this.#handler = handler
     this.#extensions = extensions == null ? new Map() : extensions
-    this.#maxPayloadSize = options.maxPayloadSize ?? 0
+    // Options come from the dispatcher's `webSocketOptions`, which only
+    // DispatcherBase provides. Fall back to the defaults rather than to no
+    // limit, so RetryAgent, MockAgent or a custom dispatcher can't turn off
+    // the payload and decompression limits by accident.
+    this.#maxFragments = options.maxFragments ?? defaultWebSocketMaxFragments
+    this.#maxPayloadSize = options.maxPayloadSize ?? defaultWebSocketMaxPayloadSize
 
     if (this.#extensions.has('permessage-deflate')) {
-      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions, options))
+      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions, {
+        maxPayloadSize: this.#maxPayloadSize
+      }))
     }
   }
 
@@ -75,7 +87,7 @@ class ByteParser extends Writable {
     if (
       this.#maxPayloadSize > 0 &&
       !isControlFrame(this.#info.opcode) &&
-      this.#info.payloadLength > this.#maxPayloadSize
+      this.#info.payloadLength + this.#fragmentsBytes > this.#maxPayloadSize
     ) {
       failWebsocketConnection(this.#handler, 1009, 'Payload size exceeds maximum allowed size')
       return false
@@ -240,9 +252,24 @@ class ByteParser extends Writable {
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
           this.#state = parserStates.INFO
+
+          // If the automatic PONG/CLOSE reply filled the socket's write buffer,
+          // stop parsing and resume on drain so a PING flood cannot grow the
+          // outbound queue without bound.
+          if (this.#loop && this.#handler.socket.writableNeedDrain) {
+            this.#loop = false
+            this.#handler.socket.once('drain', () => {
+              if (this.destroyed) return
+              this.#loop = true
+              this.run(callback)
+            })
+            return
+          }
         } else {
           if (!this.#info.compressed) {
-            this.writeFragments(body)
+            if (!this.writeFragments(body)) {
+              return
+            }
 
             // If the frame is not fragmented, a message has been received.
             // If the frame is fragmented, it will terminate with a fin bit set
@@ -264,7 +291,9 @@ class ByteParser extends Writable {
                   return
                 }
 
-                this.writeFragments(data)
+                if (!this.writeFragments(data)) {
+                  return
+                }
 
                 // Check cumulative fragment size
                 if (this.#maxPayloadSize > 0 && this.#fragmentsBytes > this.#maxPayloadSize) {
@@ -345,12 +374,23 @@ class ByteParser extends Writable {
   }
 
   writeFragments (fragment) {
+    if (
+      this.#maxFragments > 0 &&
+      this.#fragments.length === this.#maxFragments
+    ) {
+      failWebsocketConnection(this.#handler, 1008, 'Too many message fragments')
+      return false
+    }
+
     this.#fragmentsBytes += fragment.length
     this.#fragments.push(fragment)
+    return true
   }
 
   consumeFragments () {
     const fragments = this.#fragments
+
+    this.#info.compressed = false
 
     if (fragments.length === 1) {
       // single fragment

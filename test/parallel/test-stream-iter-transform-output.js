@@ -7,12 +7,13 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  pull,
-  pullSync,
   bytes,
   bytesSync,
+  dump,
   from,
   fromSync,
+  pull,
+  pullSync,
 } = require('stream/iter');
 
 // Stateless transform returns ArrayBuffer (async)
@@ -57,6 +58,36 @@ async function testSyncTransformReturnsFloat32Array() {
   };
   const data = bytesSync(pullSync(fromSync('x'), tx));
   assert.strictEqual(data.byteLength, 4);
+}
+
+// Consecutive stateless transforms normalize intermediate output (async)
+async function testConsecutiveTransformsNormalizeIntermediateOutput() {
+  const first = (chunks) => {
+    return chunks === null ? null : new Uint8Array([65]);
+  };
+  let receivedBatch = false;
+  const second = (chunks) => {
+    if (chunks !== null) receivedBatch = Array.isArray(chunks);
+    return chunks;
+  };
+  const data = await bytes(pull(from('x'), first, second));
+  assert.ok(receivedBatch);
+  assert.deepStrictEqual(data, new Uint8Array([65]));
+}
+
+// Consecutive stateless transforms normalize intermediate output (sync)
+async function testConsecutiveSyncTransformsNormalizeIntermediateOutput() {
+  const first = (chunks) => {
+    return chunks === null ? null : new Uint8Array([65]);
+  };
+  let receivedBatch = false;
+  const second = (chunks) => {
+    if (chunks !== null) receivedBatch = Array.isArray(chunks);
+    return chunks;
+  };
+  const data = bytesSync(pullSync(fromSync('x'), first, second));
+  assert.ok(receivedBatch);
+  assert.deepStrictEqual(data, new Uint8Array([65]));
 }
 
 // Stateless transform returns a sync generator (iterable)
@@ -142,6 +173,28 @@ async function testStatefulSyncTransformYieldsString() {
   assert.deepStrictEqual(data, new TextEncoder().encode('world'));
 }
 
+// Stateful async transform yields null (no output)
+async function testStatefulTransformYieldsNull() {
+  const tx = {
+    async *transform() {
+      yield null;
+    },
+  };
+  const data = await bytes(pull(from('x'), tx));
+  assert.deepStrictEqual(data, new Uint8Array());
+}
+
+// Stateful sync transform yields null (no output)
+async function testStatefulSyncTransformYieldsNull() {
+  const tx = {
+    *transform() {
+      yield null;
+    },
+  };
+  const data = bytesSync(pullSync(fromSync('x'), tx));
+  assert.deepStrictEqual(data, new Uint8Array());
+}
+
 // Flush returns single Uint8Array (not batch)
 async function testFlushReturnsSingleUint8Array() {
   const tx = (chunks) => {
@@ -184,8 +237,7 @@ async function testTransformReturnsInvalidType() {
   };
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const batch of pull(from('x'), tx)) { /* consume */ }
+      await dump(pull(from('x'), tx));
     },
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
@@ -211,12 +263,16 @@ Promise.all([
   testSyncTransformReturnsArrayBuffer(),
   testTransformReturnsFloat32Array(),
   testSyncTransformReturnsFloat32Array(),
+  testConsecutiveTransformsNormalizeIntermediateOutput(),
+  testConsecutiveSyncTransformsNormalizeIntermediateOutput(),
   testTransformReturnsGenerator(),
   testSyncTransformReturnsGenerator(),
   testTransformReturnsAsyncGenerator(),
   testStatefulTransformYieldsString(),
   testStatefulTransformYieldsArrayBuffer(),
   testStatefulSyncTransformYieldsString(),
+  testStatefulTransformYieldsNull(),
+  testStatefulSyncTransformYieldsNull(),
   testFlushReturnsSingleUint8Array(),
   testFlushReturnsString(),
   testSyncFlushReturnsSingleUint8Array(),

@@ -20,7 +20,7 @@ Consider using the [`deprecate`](/commands/npm-deprecate) command instead, if yo
 
 This removes a package version from the registry, deleting its entry and removing the tarball.
 
-The npm registry will return an error if you are not [logged in](/commands/npm-adduser).
+The npm registry will return an error if you are not [logged in](/commands/npm-login).
 
 If you do not specify a package name at all, the name and version to be unpublished will be pulled from the project in the current directory.
 
@@ -121,6 +121,5 @@ This value is not exported to the environment for child processes.
 * [npm deprecate](/commands/npm-deprecate)
 * [npm publish](/commands/npm-publish)
 * [npm registry](/using-npm/registry)
-* [npm adduser](/commands/npm-adduser)
 * [npm owner](/commands/npm-owner)
-* [npm login](/commands/npm-adduser)
+* [npm login](/commands/npm-login)

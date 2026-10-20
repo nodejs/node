@@ -302,6 +302,7 @@ changes:
 * Returns: {boolean} Whether or not the `path` matched the `pattern`.
 
 The `path.matchesGlob()` method determines if `path` matches the `pattern`.
+See [Glob patterns][] for the syntax `pattern` accepts.
 
 For example:
 
@@ -657,6 +658,7 @@ of the `path` methods.
 
 The API is accessible via `require('node:path').win32` or `require('node:path/win32')`.
 
+[Glob patterns]: fs.md#glob-patterns
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [`TypeError`]: errors.md#class-typeerror
 [`path.parse()`]: #pathparsepath

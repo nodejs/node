@@ -8,10 +8,11 @@
 #include "src/objects/free-space.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

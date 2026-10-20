@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -31,9 +29,9 @@ const cs = await connect(serverEndpoint.address);
 const info = await cs.opened;
 
 // The cipher and protocol should be negotiated.
-strictEqual(typeof info.cipher, 'string');
-strictEqual(info.cipherVersion, 'TLSv1.3');
-strictEqual(info.protocol, 'quic-test');
+assert.strictEqual(typeof info.cipher, 'string');
+assert.strictEqual(info.cipherVersion, 'TLSv1.3');
+assert.strictEqual(info.protocol, 'quic-test');
 
 // Both V1 and V2 are in preferred/available versions
 // (configured in Session::Config). The compatible version negotiation

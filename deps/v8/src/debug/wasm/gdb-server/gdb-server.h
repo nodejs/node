@@ -155,7 +155,7 @@ class GdbServer {
     ~DebugDelegate();
 
     // debug::DebugDelegate
-    void ScriptCompiled(Local<debug::Script> script, bool is_live_edited,
+    void ScriptCompiled(Local<debug::Script> script,
                         bool has_compile_error) override;
     void BreakProgramRequested(
         Local<v8::Context> paused_context,

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 #include "ART/Structures.hpp"
 
-namespace LIEF {
-namespace ART {
+
+namespace LIEF::ART {
 
 constexpr art_version_t details::ART17::art_version;
 constexpr art_version_t details::ART29::art_version;
@@ -32,5 +32,4 @@ constexpr uint32_t details::ART44::nb_image_roots;
 constexpr uint32_t details::ART46::nb_image_roots;
 constexpr uint32_t details::ART56::nb_image_roots;
 
-} // Namespace ART
-} // Namespace LIEF
+} // namespace LIEF::ART

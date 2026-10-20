@@ -11,7 +11,7 @@ const {
   getCurves,
 } = require('crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 // This test creates EC key pairs on curves without associated OIDs.
 // Specifying a key encoding should not crash.
@@ -22,7 +22,8 @@ const { hasOpenSSL3 } = require('../common/crypto');
         continue;
 
       const expectedErrorCode =
-        hasOpenSSL3 ? 'ERR_OSSL_MISSING_OID' : 'ERR_OSSL_EC_MISSING_OID';
+        hasFIPS(3) ? 'ERR_OSSL_EC_UNKNOWN_GROUP' :
+          hasOpenSSL(3) ? 'ERR_OSSL_MISSING_OID' : 'ERR_OSSL_EC_MISSING_OID';
       const params = {
         namedCurve,
         publicKeyEncoding: {

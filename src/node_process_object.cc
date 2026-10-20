@@ -12,6 +12,7 @@
 #include <climits>  // PATH_MAX
 
 namespace node {
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -40,7 +41,7 @@ static void ProcessTitleGetter(Local<Name> property,
 
 static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
-                               const PropertyCallbackInfo<void>& info) {
+                               const PropertyCallbackInfo<Boolean>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
   TRACE_EVENT_METADATA1(
       "__metadata", "process_name", "name", TRACE_STR_COPY(*title));
@@ -57,7 +58,7 @@ static void DebugPortGetter(Local<Name> property,
 
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
-                            const PropertyCallbackInfo<void>& info) {
+                            const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   int32_t port = value->Int32Value(env->context()).FromMaybe(0);
 

@@ -5,12 +5,10 @@ const ffi = require('node:ffi');
 
 const bench = common.createBenchmark(main, {
   n: [1e7],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 const { lib, functions } = ffi.dlopen(null, {
-  uv_os_getpid: { result: 'i32', parameters: [] },
+  uv_os_getpid: { return: 'i32', arguments: [] },
 });
 
 const getpid = functions.uv_os_getpid;

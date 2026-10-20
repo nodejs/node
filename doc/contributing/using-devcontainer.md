@@ -2,7 +2,7 @@
 
 Node.js publishes a [nightly image on DockerHub](https://hub.docker.com/r/nodejs/devcontainer) for
 [Dev Containers](https://containers.dev/) that can be used to spin up a
-development container that comes with pre-installed build dependencies and pre-genreated build cache.
+development container that comes with pre-installed build dependencies and pre-generated build cache.
 
 When you need to test a few changes in the main branch and do not need
 to change the V8 headers (which is rare), using the nightly image will allow you to compile your

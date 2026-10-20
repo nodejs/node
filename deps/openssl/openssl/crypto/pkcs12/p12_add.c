@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -222,6 +222,6 @@ STACK_OF(PKCS7) *PKCS12_unpack_authsafes(const PKCS12 *p12)
     }
     return p7s;
 err:
-    sk_PKCS7_free(p7s);
+    sk_PKCS7_pop_free(p7s, PKCS7_free);
     return NULL;
 }

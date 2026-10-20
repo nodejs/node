@@ -226,7 +226,8 @@ export function pMapIterable(
 					trySpawn();
 
 					try {
-						const returnValue = await mapper(await value, index++);
+						const currentIndex = index++;
+						const returnValue = await mapper(await value, currentIndex);
 
 						pendingPromisesCount--;
 

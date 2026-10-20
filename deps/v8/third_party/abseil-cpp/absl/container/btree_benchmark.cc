@@ -15,8 +15,11 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <functional>
 #include <map>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <set>
@@ -24,9 +27,11 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
@@ -668,15 +673,13 @@ BIG_TYPE_BENCHMARKS(32, 32);
 template <int Size>
 struct BigTypePtr {
   BigTypePtr() : BigTypePtr(0) {}
-  explicit BigTypePtr(int x) {
-    ptr = absl::make_unique<BigType<Size, Size>>(x);
-  }
+  explicit BigTypePtr(int x) { ptr = std::make_unique<BigType<Size, Size>>(x); }
   BigTypePtr(const BigTypePtr& other) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
+    ptr = std::make_unique<BigType<Size, Size>>(*other.ptr);
   }
   BigTypePtr(BigTypePtr&& other) noexcept = default;
   BigTypePtr& operator=(const BigTypePtr& other) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
+    ptr = std::make_unique<BigType<Size, Size>>(*other.ptr);
   }
   BigTypePtr& operator=(BigTypePtr&& other) noexcept = default;
 

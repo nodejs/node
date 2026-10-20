@@ -19,9 +19,10 @@ function expectsError(code) {
 server.on('stream', common.mustCall((stream) => {
 
   // Anything lower than 100 and greater than 599 is rejected
-  [ 99, 700, 1000 ].forEach((i) => {
+  const testCases = [ 99, 700, 1000 ];
+  for (const i of testCases) {
     assert.throws(() => stream.respond({ ':status': i }), expectsError(i));
-  });
+  }
 
   stream.respond();
   stream.end();

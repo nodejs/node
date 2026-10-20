@@ -72,6 +72,14 @@ assert.throws(() => {
 }, expectedError);
 
 assert.throws(() => {
+  fs.mkstemp(testPath, options, common.mustNotCall());
+}, expectedError);
+
+assert.throws(() => {
+  fs.mkstempSync(testPath, options);
+}, expectedError);
+
+assert.throws(() => {
   fs.ReadStream(testPath, options);
 }, expectedError);
 

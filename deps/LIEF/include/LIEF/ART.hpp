@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 #include "LIEF/config.h"
 
 #if defined(LIEF_ART_SUPPORT)
-#include "LIEF/ART/Parser.hpp"
-#include "LIEF/ART/utils.hpp"
-#include "LIEF/ART/File.hpp"
-#include "LIEF/ART/EnumToString.hpp"
+  #include "LIEF/ART/Parser.hpp"
+  #include "LIEF/ART/utils.hpp"
+  #include "LIEF/ART/File.hpp"
+  #include "LIEF/ART/EnumToString.hpp"
 #endif
 
 #endif

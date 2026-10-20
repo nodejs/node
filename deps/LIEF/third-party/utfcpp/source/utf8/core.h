@@ -43,9 +43,12 @@ DEALINGS IN THE SOFTWARE.
 #if UTF_CPP_CPLUSPLUS >= 201103L // C++ 11 or later
     #define UTF_CPP_OVERRIDE override
     #define UTF_CPP_NOEXCEPT noexcept
+    #define UTF_CPP_STATIC_ASSERT(condition) static_assert(condition, "UTFCPP static assert");
 #else // C++ 98/03
     #define UTF_CPP_OVERRIDE
     #define UTF_CPP_NOEXCEPT throw()
+    // Not worth simulating static_assert:
+    #define UTF_CPP_STATIC_ASSERT(condition) (void)(condition);
 #endif // C++ 11 or later
 
 
@@ -87,6 +90,7 @@ namespace internal
     {
         return static_cast<utfchar8_t>(0xff & oc);
     }
+
     template<typename u16_type>
     inline utfchar16_t mask16(u16_type oc)
     {
@@ -101,17 +105,17 @@ namespace internal
 
     inline bool is_lead_surrogate(utfchar32_t cp)
     {
-        return (cp >= LEAD_SURROGATE_MIN && cp <= LEAD_SURROGATE_MAX);
+        return (cp >= static_cast<utfchar32_t>(LEAD_SURROGATE_MIN) && cp <= static_cast<utfchar32_t>(LEAD_SURROGATE_MAX));
     }
 
     inline bool is_trail_surrogate(utfchar32_t cp)
     {
-        return (cp >= TRAIL_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+        return (cp >= static_cast<utfchar32_t>(TRAIL_SURROGATE_MIN) && cp <= static_cast<utfchar32_t>(TRAIL_SURROGATE_MAX));
     }
 
     inline bool is_surrogate(utfchar32_t cp)
     {
-        return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+        return (cp >= static_cast<utfchar32_t>(LEAD_SURROGATE_MIN) && cp <= static_cast<utfchar32_t>(TRAIL_SURROGATE_MAX));
     }
 
     inline bool is_code_point_valid(utfchar32_t cp)
@@ -143,15 +147,15 @@ namespace internal
     inline bool is_overlong_sequence(utfchar32_t cp, int length)
     {
         if (cp < 0x80) {
-            if (length != 1) 
+            if (length != 1)
                 return true;
         }
         else if (cp < 0x800) {
-            if (length != 2) 
+            if (length != 2)
                 return true;
         }
         else if (cp < 0x10000) {
-            if (length != 3) 
+            if (length != 3)
                 return true;
         }
         return false;
@@ -181,7 +185,7 @@ namespace internal
         if (it == end)
             return NOT_ENOUGH_ROOM;
 
-        code_point = utf8::internal::mask8(*it);
+        code_point = static_cast<utfchar32_t>(utf8::internal::mask8(*it));
 
         return UTF8_OK;
     }
@@ -189,10 +193,10 @@ namespace internal
     template <typename octet_iterator>
     utf_error get_sequence_2(octet_iterator& it, octet_iterator end, utfchar32_t& code_point)
     {
-        if (it == end) 
+        if (it == end)
             return NOT_ENOUGH_ROOM;
 
-        code_point = utf8::internal::mask8(*it);
+        code_point = static_cast<utfchar32_t>(utf8::internal::mask8(*it));
 
         UTF8_CPP_INCREASE_AND_RETURN_ON_ERROR(it, end)
 
@@ -206,8 +210,8 @@ namespace internal
     {
         if (it == end)
             return NOT_ENOUGH_ROOM;
-            
-        code_point = utf8::internal::mask8(*it);
+
+        code_point = static_cast<utfchar32_t>(utf8::internal::mask8(*it));
 
         UTF8_CPP_INCREASE_AND_RETURN_ON_ERROR(it, end)
 
@@ -226,7 +230,7 @@ namespace internal
         if (it == end)
            return NOT_ENOUGH_ROOM;
 
-        code_point = utf8::internal::mask8(*it);
+        code_point = static_cast<utfchar32_t>(utf8::internal::mask8(*it));
 
         UTF8_CPP_INCREASE_AND_RETURN_ON_ERROR(it, end)
 
@@ -290,7 +294,7 @@ namespace internal
                 else
                     err = OVERLONG_SEQUENCE;
             }
-            else 
+            else
                 err = INVALID_CODE_POINT;
         }
 
@@ -308,6 +312,10 @@ namespace internal
     template <typename word_iterator>
     utf_error validate_next16(word_iterator& it, word_iterator end, utfchar32_t& code_point)
     {
+        // Make sure the iterator dereferences a large enough type
+        typedef typename std::iterator_traits<word_iterator>::value_type word_type;
+        UTF_CPP_STATIC_ASSERT(sizeof(word_type) >= sizeof(utfchar16_t));
+        // Check the edge case:
         if (it == end)
             return NOT_ENOUGH_ROOM;
         // Save the original value of it so we can go back in case of failure
@@ -326,14 +334,14 @@ namespace internal
                 err = NOT_ENOUGH_ROOM;
             else if (is_lead_surrogate(first_word)) {
                 const utfchar16_t second_word = *it++;
-                if (is_trail_surrogate(second_word)) {
-                    code_point = static_cast<utfchar32_t>(first_word << 10) + second_word + SURROGATE_OFFSET;
+                if (is_trail_surrogate(static_cast<utfchar32_t>(second_word))) {
+                    code_point = static_cast<utfchar32_t>(first_word << 10) +  static_cast<utfchar32_t>(second_word) + SURROGATE_OFFSET;
                     return UTF8_OK;
-                } else 
-                    err = INCOMPLETE_SEQUENCE; 
-                
+                } else
+                    err = INCOMPLETE_SEQUENCE;
+
             } else {
-                err = INVALID_LEAD;               
+                err = INVALID_LEAD;
             }
         }
         // error branch
@@ -365,7 +373,7 @@ namespace internal
         }
         return result;
     }
-    
+
     // One of the following overloads will be invoked from the API calls
 
     // A simple (but dangerous) case: the caller appends byte(s) to a char array
@@ -395,6 +403,7 @@ namespace internal
     // the word_type.
     template <typename word_iterator, typename word_type>
     word_iterator append16(utfchar32_t cp, word_iterator result) {
+        UTF_CPP_STATIC_ASSERT(sizeof(word_type) >= sizeof(utfchar16_t));
         if (is_in_bmp(cp))
             *(result++) = static_cast<word_type>(cp);
         else {
@@ -444,7 +453,7 @@ namespace internal
     inline const char* find_invalid(const char* str)
     {
         const char* end = str + std::strlen(str);
-        return find_invalid(str, end); 
+        return find_invalid(str, end);
     }
 
     inline std::size_t find_invalid(const std::string& s)
@@ -484,9 +493,8 @@ namespace internal
     inline bool starts_with_bom(const std::string& s)
     {
         return starts_with_bom(s.begin(), s.end());
-    } 
+    }
 } // namespace utf8
 
 #endif // header guard
-
 

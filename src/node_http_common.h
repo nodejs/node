@@ -6,6 +6,7 @@
 #include "v8.h"
 #include "node_mem.h"
 
+#include <memory>
 #include <string>
 
 namespace node {
@@ -439,11 +440,10 @@ class NgRcBufPointer : public MemoryRetainer {
       }
 
       allocator->StopTrackingMemory(ptr.get());
-      External* h_str = new External(std::move(ptr));
+      auto h_str = std::make_unique<External>(std::move(ptr));
       v8::MaybeLocal<v8::String> str =
-          v8::String::NewExternalOneByte(env->isolate(), h_str);
-      if (str.IsEmpty())
-        delete h_str;
+          v8::String::NewExternalOneByte(env->isolate(), h_str.get());
+      if (!str.IsEmpty()) h_str.release();
 
       return str;
     }

@@ -25,9 +25,10 @@ function getTime(diff) {
 // A run is an item in the job queue: { binary, filename, iter }
 // A config is an item in the subqueue: { binary, filename, iter, configs }
 class BenchmarkProgress {
-  constructor(queue, benchmarks) {
+  constructor(queue, benchmarks, options = {}) {
     this.queue = queue;  // Scheduled runs.
     this.benchmarks = benchmarks;  // Filenames of scheduled benchmarks.
+    this.analyze = !!options.analyze;  // stdout is not piped, but unused.
     this.completedRuns = 0;  // Number of completed runs.
     this.scheduledRuns = queue.length;  // Number of scheduled runs.
     // Time when starting to run benchmarks.
@@ -107,7 +108,10 @@ class BenchmarkProgress {
   }
 
   updateProgress() {
-    if (!process.stderr.isTTY || process.stdout.isTTY) {
+    // Progress renders on stderr when stdout is piped (not a TTY).
+    // In --analyze mode, stdout is the terminal but is unused during
+    // the run, so treat it the same as piped.
+    if (!process.stderr.isTTY || (process.stdout.isTTY && !this.analyze)) {
       return;
     }
     readline.clearLine(process.stderr);

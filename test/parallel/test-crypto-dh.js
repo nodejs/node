@@ -7,11 +7,14 @@ if (!common.hasCrypto) {
 const assert = require('assert');
 const crypto = require('crypto');
 const {
-  hasOpenSSL3,
+  hasOpenSSL,
+  hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 {
-  const size = crypto.getFips() || hasOpenSSL3 ? 1024 : 256;
+  const size = hasFIPS(3) ?
+    2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
   const dh1 = crypto.createDiffieHellman(size);
   const p1 = dh1.getPrime('buffer');
   const dh2 = crypto.createDiffieHellman(p1, 'buffer');
@@ -57,7 +60,7 @@ const {
   assert.strictEqual(secret1, secret4);
 
   let wrongBlockLength;
-  if (hasOpenSSL3) {
+  if (hasOpenSSL(3)) {
     wrongBlockLength = {
       message: /wrong[\s_]final[\s_]block[\s_]length/i,
       code: /ERR_OSSL_(EVP_)?WRONG_FINAL_BLOCK_LENGTH/,
@@ -91,16 +94,14 @@ const {
   {
     assert.throws(() => {
       dh3.computeSecret('');
-    }, { message: process.features.openssl_is_boringssl ?
-      'Supplied key is invalid' :
-      'Supplied key is too small' });
+    }, { message: 'Supplied key is too small' });
   }
 }
 
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
 {
   const g = 0;
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     assert.throws(() => crypto.createDiffieHellman('abcdef', g), {
       code: 'ERR_CRYPTO_OPERATION_FAILED',
       name: 'Error'
@@ -112,7 +113,7 @@ const {
 }
 
 {
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     assert.throws(() => crypto.createDiffieHellman('abcdef', Buffer.from([2])), {
       code: 'ERR_CRYPTO_OPERATION_FAILED',
       name: 'Error'

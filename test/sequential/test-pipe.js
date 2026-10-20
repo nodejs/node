@@ -41,7 +41,7 @@ for (let i = 0; i < buffer.length; i++) {
 }
 
 
-const web = http.Server(common.mustCall((req, res) => {
+const web = new http.Server(common.mustCall((req, res) => {
   web.close();
 
   const socket = net.Stream();
@@ -93,7 +93,10 @@ function startClient() {
     port: common.PORT,
     method: 'GET',
     path: '/',
-    headers: { 'content-length': buffer.length },
+    headers: {
+      'connection': 'close',
+      'content-length': buffer.length,
+    },
   }, common.mustCall((res) => {
     res.setEncoding('utf8');
     res.on('data', common.mustCall((string) => {

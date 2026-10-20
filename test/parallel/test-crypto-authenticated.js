@@ -29,9 +29,10 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
-const isFipsEnabled = crypto.getFips();
+const isFipsEnabled = crypto.getFips() === 1;
+const fips3 = hasFIPS(3);
 
 //
 // Test authenticated encryption modes.
@@ -43,6 +44,10 @@ const TEST_CASES = require(fixtures.path('aead-vectors.js'));
 
 const errMessages = {
   auth: / auth/,
+  // OpenSSL 4.1 adds a provider error for AEAD tag mismatches.
+  // https://github.com/openssl/openssl/pull/32587
+  badDecrypt: hasOpenSSL(4, 1) ?
+    { code: 'ERR_OSSL_BAD_DECRYPT' } : /Unsupported state or unable to authenticate data/,
   state: / state/,
   FIPS: /not supported in FIPS mode/,
   length: /Invalid initialization vector/,
@@ -62,8 +67,9 @@ for (const test of TEST_CASES) {
     continue;
   }
 
-  const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
+  const isCCM = /^(?:aes-(?:128|192|256)|sm4)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
+  const isSIV = /^aes-(128|192|256)-siv$/.test(test.algo);
 
   let options;
   if (isCCM || isOCB)
@@ -77,6 +83,7 @@ for (const test of TEST_CASES) {
       plaintextLength: Buffer.from(test.plain, inputEncoding).length
     };
   }
+  const aads = test.aads ?? (test.aad === undefined ? [] : [test.aad]);
 
   {
     const encrypt = crypto.createCipheriv(test.algo,
@@ -84,8 +91,9 @@ for (const test of TEST_CASES) {
                                           Buffer.from(test.iv, 'hex'),
                                           options);
 
-    if (test.aad)
-      encrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
+    for (const aad of aads) {
+      encrypt.setAAD(Buffer.from(aad, 'hex'), aadOptions);
+    }
 
     let hex = encrypt.update(test.plain, inputEncoding, 'hex');
     hex += encrypt.final('hex');
@@ -112,8 +120,9 @@ for (const test of TEST_CASES) {
                                               Buffer.from(test.iv, 'hex'),
                                               options);
       decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
-      if (test.aad)
-        decrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
+      for (const aad of aads) {
+        decrypt.setAAD(Buffer.from(aad, 'hex'), aadOptions);
+      }
 
       const outputEncoding = test.plainIsHex ? 'hex' : 'ascii';
 
@@ -123,7 +132,8 @@ for (const test of TEST_CASES) {
         assert.strictEqual(msg, test.plain);
       } else {
         // Assert that final throws if input data could not be verified!
-        assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
+        assert.throws(function() { decrypt.final('hex'); },
+                      isCCM || isSIV ? errMessages.auth : errMessages.badDecrypt);
       }
     }
   }
@@ -144,7 +154,7 @@ for (const test of TEST_CASES) {
       crypto.createCipheriv(
         test.algo,
         Buffer.from(test.key, 'hex'),
-        Buffer.alloc(0)
+        isSIV ? Buffer.alloc(1) : Buffer.alloc(0)
       );
     }, errMessages.length);
   }
@@ -200,6 +210,162 @@ for (const test of TEST_CASES) {
       name: 'TypeError',
       message: /Invalid authentication tag length/
     });
+  }
+}
+
+// SIV and GCM-SIV use fixed 16-byte authentication tags.
+{
+  for (const { algo, key, iv } of [
+    {
+      algo: 'aes-128-siv',
+      key: Buffer.alloc(32),
+      iv: null
+    },
+    {
+      algo: 'aes-128-gcm-siv',
+      key: Buffer.alloc(16),
+      iv: Buffer.alloc(12)
+    },
+  ]) {
+    if (!ciphers.includes(algo)) {
+      common.printSkipMessage(`unsupported ${algo} test`);
+      continue;
+    }
+
+    // OpenSSL 3.5 added support for zero-length SIV messages.
+    const supportsEmptyPlaintext = hasOpenSSL(3, 5);
+
+    for (const authTagLength of [1, 15, 17]) {
+      assert.throws(() => {
+        crypto.createCipheriv(algo, key, iv, { authTagLength });
+      }, errMessages.authTagLength);
+
+      assert.throws(() => {
+        crypto.createDecipheriv(algo, key, iv, { authTagLength });
+      }, errMessages.authTagLength);
+    }
+
+    if (algo === 'aes-128-siv') {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      for (let i = 0; i < 126; i++) {
+        cipher.setAAD(Buffer.alloc(0));
+      }
+      assert.throws(() => {
+        cipher.setAAD(Buffer.alloc(0));
+      }, errMessages.state);
+      cipher.update(Buffer.alloc(1));
+      cipher.final();
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      cipher.update('a');
+      assert.throws(() => {
+        cipher.update('b');
+      }, /Trying to add data in unsupported state/);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = cipher.update('authenticated plaintext');
+      assert.throws(() => {
+        cipher.setAAD(Buffer.from('too late'));
+      }, errMessages.state);
+      cipher.final();
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      const plaintext = decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.setAAD(Buffer.from('too late'));
+      }, errMessages.state);
+      assert.strictEqual(
+        Buffer.concat([plaintext, decipher.final()]).toString(),
+        'authenticated plaintext');
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = cipher.update('authenticated plaintext');
+      cipher.final();
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.setAuthTag(cipher.getAuthTag());
+      }, errMessages.state);
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.auth);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      assert.throws(() => {
+        cipher.final();
+      }, errMessages.auth);
+      assert.throws(() => {
+        cipher.update('too late');
+      }, errMessages.state);
+      assert.throws(() => {
+        cipher.final();
+      }, errMessages.state);
+    }
+
+    if (supportsEmptyPlaintext) {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.alloc(0)),
+        cipher.final(),
+      ]);
+      assert.strictEqual(ciphertext.length, 0);
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.auth);
+      assert.throws(() => {
+        decipher.update(Buffer.alloc(0));
+      }, errMessages.state);
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.state);
+    }
+
+    if (supportsEmptyPlaintext) {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.alloc(0)),
+        cipher.final(),
+      ]);
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      const plaintext = Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final(),
+      ]);
+      assert.strictEqual(plaintext.length, 0);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update('authenticated plaintext'),
+        cipher.final(),
+      ]);
+      const authTag = cipher.getAuthTag();
+      authTag[0] ^= 1;
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(authTag);
+      decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.final();
+      }, algo === 'aes-128-siv' ?
+        /Unsupported state or unable to authenticate data/ : errMessages.badDecrypt);
+    }
   }
 }
 
@@ -559,6 +725,14 @@ for (const test of TEST_CASES) {
     const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
     const tag = cipher.getAuthTag();
 
+    if (fips3 && mode === 'ccm') {
+      assert.throws(() => crypto.createDecipheriv(
+        `aes-128-${mode}`, key, iv, opts), {
+        code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+      });
+      continue;
+    }
+
     const decipher = crypto.createDecipheriv(`aes-128-${mode}`, key, iv, opts);
     decipher.setAuthTag(tag);
     assert.throws(() => {
@@ -633,18 +807,40 @@ for (const test of TEST_CASES) {
     const iv = Buffer.alloc(12);
     const opts = { authTagLength: 10 };
 
+    const control = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
+    control.update(Buffer.alloc(0));
+    control.final();
+    const expectedTag = control.getAuthTag();
+
     const cipher = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
-    assert.throws(() => {
-      cipher.final();
-    }, hasOpenSSL3 ? {
-      code: 'ERR_OSSL_TAG_NOT_SET'
-    } : {
-      message: /Unsupported state/
-    });
+    let output;
+    try {
+      output = cipher.final();
+    } catch (err) {
+      // OpenSSL without https://github.com/openssl/openssl/pull/32427
+      // cannot finalize an empty CCM message unless update() was called.
+      if (hasOpenSSL(3)) {
+        assert.strictEqual(err.code, 'ERR_OSSL_TAG_NOT_SET');
+      } else {
+        assert.match(err.message, /Unsupported state/);
+      }
+    }
+
+    if (output !== undefined) {
+      assert.deepStrictEqual(output, Buffer.alloc(0));
+      assert.deepStrictEqual(cipher.getAuthTag(), expectedTag);
+    }
   }
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (fips3) {
+  assert.throws(() => crypto.createCipheriv(
+    'chacha20-poly1305', Buffer.alloc(32), Buffer.alloc(12), {
+      authTagLength: 16,
+    }), {
+    code: 'ERR_OSSL_EVP_UNSUPPORTED',
+  });
+} else if (!isBoringSSL) {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
@@ -662,7 +858,7 @@ if (!process.features.openssl_is_boringssl) {
 
 // ChaCha20-Poly1305 should respect the authTagLength option and should not
 // require the authentication tag before calls to update() during decryption.
-if (!process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
@@ -713,7 +909,7 @@ if (!process.features.openssl_is_boringssl) {
 // shorter tags as long as their length was valid according to NIST SP 800-38D.
 // For ChaCha20-Poly1305, we intentionally deviate from that because there are
 // no recommended or approved authentication tag lengths below 16 bytes.
-if (!process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });
@@ -752,7 +948,7 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 // https://github.com/nodejs/node/issues/45874
-if (!process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });
@@ -779,7 +975,7 @@ if (!process.features.openssl_is_boringssl) {
 
   assert.throws(() => {
     decipher.final();
-  }, /Unsupported state or unable to authenticate data/);
+  }, errMessages.badDecrypt);
 } else {
   common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
 }
@@ -788,6 +984,7 @@ if (!process.features.openssl_is_boringssl) {
 if (ciphers.includes('aes-128-ccm')) {
   const key = crypto.randomBytes(16);
   const nonce = crypto.randomBytes(13);
+  const authError = /Unsupported state or unable to authenticate data/;
 
   const cipher = crypto.createCipheriv('aes-128-ccm', key, nonce, {
     authTagLength: 16,
@@ -798,13 +995,61 @@ if (ciphers.includes('aes-128-ccm')) {
   const tag = cipher.getAuthTag();
   assert.strictEqual(tag.length, 16);
 
-  const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
-    authTagLength: 16,
-  });
-  decipher.setAuthTag(tag);
-  decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
-  decipher.update(new DataView(new ArrayBuffer(0)));
-  decipher.final();
+  if (fips3) {
+    assert.throws(() => crypto.createDecipheriv(
+      'aes-128-ccm', key, nonce, { authTagLength: 16 }), {
+      code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+    });
+  } else {
+    const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+      authTagLength: 16,
+    });
+    decipher.setAuthTag(tag);
+    decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+    decipher.update(new DataView(new ArrayBuffer(0)));
+    decipher.final();
+
+    const invalidTag = Buffer.from(tag);
+    invalidTag[0] ^= 0xff;
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(invalidTag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.update(Buffer.alloc(0)), errMessages.state);
+      decipher.final();
+    }
+  }
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-ccm test');
 }

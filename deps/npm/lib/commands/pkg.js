@@ -1,3 +1,4 @@
+const { inspect } = require('node:util')
 const { output } = require('proc-log')
 const PackageJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
@@ -56,25 +57,40 @@ class Pkg extends BaseCommand {
   }
 
   async get (args, { path, workspace }) {
-    this.npm.config.set('json', true)
     const pkgJson = await PackageJson.load(path)
+    const json = this.npm.config.get('json')
 
-    let result = pkgJson.content
+    // filter out the newline/indent symbols from the package-json object
+    let result = JSON.parse(JSON.stringify(pkgJson.content))
 
     if (args.length) {
-      result = new Queryable(result).query(args)
-      // in case there's only a single argument and a single result from the query just prints that one element to stdout.
-      // TODO(BREAKING_CHANGE): much like other places where we unwrap single item arrays this should go away.
-      // it makes the behavior unknown for users who don't already know the shape of the data.
-      if (Object.keys(result).length === 1 && args.length === 1) {
-        result = result[args]
+      result = new Queryable(result).query(args, { unwrapSingleItemArrays: false })
+      if (args.length === 1 && !json && args[0] in result) {
+        if (workspace) {
+          return output.standard(`${workspace} ${result[args[0]]}`)
+        }
+        return output.standard(result[args[0]])
       }
     }
 
-    // The display layer is responsible for calling JSON.stringify on the result
-    // TODO: https://github.com/npm/cli/issues/5508 a raw mode has been requested similar to jq -r.
-    // If that was added then this method should no longer set `json:true` all the time
-    output.buffer(workspace ? { [workspace]: result } : result)
+    if (json) {
+      output.buffer(workspace ? { [workspace]: result } : result)
+    } else {
+      for (let [f, d] of Object.entries(result)) {
+        d = inspect(d, {
+          showHidden: false,
+          depth: 5,
+          colors: this.npm.color,
+          maxArrayLength: null,
+        })
+
+        if (workspace) {
+          output.standard(`${workspace} ${f} = ${d}`)
+        } else {
+          output.standard(`${f} = ${d}`)
+        }
+      }
+    }
   }
 
   async set (args, { path }) {

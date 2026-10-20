@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+function send_message_to_worker_and_wait_for_response(worker, message) {
+  return new Promise(resolve => {
+    // Use a dedicated channel for every request to avoid race conditions on
+    // concurrent requests.
+    const channel = new MessageChannel();
+    worker.postMessage(channel.port1, [channel.port1]);
+
+    let messageReceived = false;
+    channel.port2.onmessage = event => {
+      assert_false(messageReceived, 'Already received response for ' + message);
+      messageReceived = true;
+      resolve(event.data);
+    };
+    channel.port2.postMessage(message);
+  });
+}
+
+async function ensure_install_event_fired(worker) {
+  const response = await send_message_to_worker_and_wait_for_response(worker, 'awaitInstallEvent');
+  assert_equals('installEventFired', response);
+  assert_equals('installing', worker.state, 'Expected worker to be installing.');
+}
+
+async function finish_install(worker) {
+  await ensure_install_event_fired(worker);
+  const response = await send_message_to_worker_and_wait_for_response(worker, 'finishInstall');
+  assert_equals('installFinished', response);
+}
+
+async function activate_service_worker(t, worker) {
+  await finish_install(worker);
+  // By waiting for both states at the same time, the test fails
+  // quickly if the installation fails, avoiding a timeout.
+  await Promise.race([wait_for_state(t, worker, 'activated'),
+                      wait_for_state(t, worker, 'redundant')]);
+  assert_equals('activated', worker.state, 'Service worker should be activated.');
+}
+
+async function update_within_service_worker(worker) {
+  // This function returns a Promise that resolves when update()
+  // has been called but is not necessarily finished yet.
+  // Call finish() on the returned object to wait for update() settle.
+  const port = await send_message_to_worker_and_wait_for_response(worker, 'callUpdate');
+  let messageReceived = false;
+  return {
+    finish: () => {
+      return new Promise(resolve => {
+        port.onmessage = event => {
+          assert_false(messageReceived, 'Update already finished.');
+          messageReceived = true;
+          resolve(event.data);
+        };
+      });
+    },
+  };
+}
+
+async function update_from_client_and_await_installing_version(test, registration) {
+  const updatefound = wait_for_update(test, registration);
+  registration.update();
+  await updatefound;
+  return registration.installing;
+}
+
+async function spin_up_service_worker(test) {
+  const script = 'resources/update-during-installation-worker.py';
+  const scope = 'resources/blank.html';
+
+  const registration = await service_worker_unregister_and_register(test, script, scope);
+  test.add_cleanup(async () => {
+    if (registration.installing) {
+      // If there is an installing worker, we need to finish installing it.
+      // Otherwise, the tests fails with an timeout because unregister() blocks
+      // until the install-event-handler finishes.
+      const worker = registration.installing;
+      await send_message_to_worker_and_wait_for_response(worker, 'awaitInstallEvent');
+      await send_message_to_worker_and_wait_for_response(worker, 'finishInstall');
+    }
+    return registration.unregister();
+  });
+
+  return registration;
+}
+
+promise_test(async t => {
+  const registration = await spin_up_service_worker(t);
+  const worker = registration.installing;
+  await ensure_install_event_fired(worker);
+
+  const result = registration.update();
+  await activate_service_worker(t, worker);
+  return result;
+}, 'ServiceWorkerRegistration.update() from client succeeds while installing service worker.');
+
+promise_test(async t => {
+  const registration = await spin_up_service_worker(t);
+  const worker = registration.installing;
+  await ensure_install_event_fired(worker);
+
+  // Add event listener to fail the test if update() succeeds.
+  const updatefound = t.step_func(async () => {
+    registration.removeEventListener('updatefound', updatefound);
+    // Activate new worker so non-compliant browsers don't fail with timeout.
+    await activate_service_worker(t, registration.installing);
+    assert_unreached("update() should have failed");
+  });
+  registration.addEventListener('updatefound', updatefound);
+
+  const update = await update_within_service_worker(worker);
+  // Activate worker to ensure update() finishes and the test doesn't timeout
+  // in non-compliant browsers.
+  await activate_service_worker(t, worker);
+
+  const response = await update.finish();
+  assert_false(response.success, 'update() should have failed.');
+  assert_equals('InvalidStateError', response.exception, 'update() should have thrown InvalidStateError.');
+}, 'ServiceWorkerRegistration.update() from installing service worker throws.');
+
+promise_test(async t => {
+  const registration = await spin_up_service_worker(t);
+  const worker1 = registration.installing;
+  await activate_service_worker(t, worker1);
+
+  const worker2 = await update_from_client_and_await_installing_version(t, registration);
+  await ensure_install_event_fired(worker2);
+
+  const update = await update_within_service_worker(worker1);
+  // Activate the new version so that update() finishes and the test doesn't timeout.
+  await activate_service_worker(t, worker2);
+  const response = await update.finish();
+  assert_true(response.success, 'update() from active service worker should have succeeded.');
+}, 'ServiceWorkerRegistration.update() from active service worker succeeds while installing service worker.');
+</script>

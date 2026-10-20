@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.Server(common.mustCall(function(req, res) {
+const server = new http.Server(common.mustCall(function(req, res) {
   res.on('error', common.expectsError({
     code: 'ERR_STREAM_WRITE_AFTER_END',
     name: 'Error'

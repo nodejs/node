@@ -53,18 +53,41 @@ int main(int argc, char* argv[]) {
   return BuildSnapshot(argc, argv);
 }
 
+static const char kBaseBlobFlag[] = "--v8-snapshot-blob=";
+
 int BuildSnapshot(int argc, char* argv[]) {
-  if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " <path/to/output.cc>\n";
-    std::cerr << "       " << argv[0] << " --build-snapshot "
+  std::vector<std::string> args(argv, argv + argc);
+  // --v8-snapshot-blob=<file>: build on top of this V8 startup blob (for
+  // hosts whose V8 uses external startup data) instead of from scratch.
+  std::string base_blob_bytes;
+  v8::StartupData base_blob{nullptr, 0};
+  for (auto it = args.begin(); it != args.end(); ++it) {
+    if (it->starts_with(kBaseBlobFlag)) {
+      std::string path = it->substr(sizeof(kBaseBlobFlag) - 1);
+      args.erase(it);
+      if (node::ReadFileSync(path.c_str(), &base_blob_bytes) != 0) {
+        std::cerr << "Cannot read V8 snapshot blob " << path << "\n";
+        return 1;
+      }
+      base_blob = {base_blob_bytes.data(),
+                   static_cast<int>(base_blob_bytes.size())};
+      break;
+    }
+  }
+
+  if (args.size() < 2) {
+    std::cerr
+        << "Usage: " << argv[0]
+        << " [--v8-snapshot-blob=<path/to/blob.bin>] <path/to/output.cc>\n";
+    std::cerr << "       " << argv[0]
+              << " [--v8-snapshot-blob=<path/to/blob.bin>] --build-snapshot "
               << "<path/to/script.js> <path/to/output.cc>\n";
     return 1;
   }
 
   std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
-          std::vector<std::string>(argv, argv + argc),
-          node::ProcessInitializationFlags::kGeneratePredictableSnapshot);
+          args, node::ProcessInitializationFlags::kGeneratePredictableSnapshot);
 
   if (result->exit_code() != 0) {
     for (const std::string& error : result->errors()) {
@@ -94,6 +117,7 @@ int BuildSnapshot(int argc, char* argv[]) {
 
   node::SnapshotConfig snapshot_config;
   snapshot_config.builder_script_path = builder_script_path;
+  if (base_blob.data != nullptr) snapshot_config.base_blob = &base_blob;
 
 #ifdef NODE_USE_NODE_CODE_CACHE
   snapshot_config.flags = node::SnapshotFlags::kDefault;

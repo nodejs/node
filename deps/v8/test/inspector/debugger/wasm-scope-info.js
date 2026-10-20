@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --experimental-wasm-type-reflection
-
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
@@ -25,7 +23,7 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.log(
         'Setting breakpoint on line 2 (first instruction) of third function');
     let breakpoint = await Protocol.Debugger.setBreakpoint(
-        {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
+        {'location': {'scriptId': scriptIds[1], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
     printIfFailure(breakpoint);
     InspectorTest.logMessage(breakpoint.result.actualLocation);
 
@@ -63,6 +61,13 @@ async function printPauseLocationsAndContinue(msg) {
 }
 
 async function instantiateWasm() {
+  // Provide two functions that can be added to a function table.
+  var funcs_builder = new WasmModuleBuilder();
+  let f0 = funcs_builder.addImport('', 'js_func', kSig_i_v);
+  funcs_builder.addExport('jsfunc', f0);
+  let f1 = funcs_builder.addImport('', '', kSig_i_v);
+  funcs_builder.addExport('anonymousfunc', f1);
+
   var builder = new WasmModuleBuilder();
   // Add a global, memory and exports to populate the module scope.
   builder.addGlobal(kWasmI32, true, false).exportAs('exported_global');
@@ -121,16 +126,17 @@ async function instantiateWasm() {
 
 
   function addWasmJSToTable() {
-    // Create WasmJS functions to test the function tables output.
-    const js_func = function js_func() { return 7; };
-    const wasmjs_func = new WebAssembly.Function({parameters:[], results:['i32']}, js_func);
-    const wasmjs_anonymous_func = new WebAssembly.Function({parameters:[], results:['i32']}, _ => 7);
-
-    instance.exports.exported_table.set(0, wasmjs_func);
-    instance.exports.exported_table.set(1, wasmjs_anonymous_func);
+    // Test the function tables output.
+    instance.exports.exported_table.set(0, funcs.exports.jsfunc);
+    instance.exports.exported_table.set(1, funcs.exports.anonymousfunc);
   }
 
   InspectorTest.log('Calling instantiate function.');
+  let imports = `{'' : {
+      'js_func': function ignored_name() { return 7; },
+      '': _ => 7,
+    }}`;
+  await WasmInspectorTest.instantiate(funcs_builder.toArray(), 'funcs', imports);
   await WasmInspectorTest.instantiate(module_bytes);
   await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`, 'populateTable');
 }
@@ -145,7 +151,7 @@ function printIfFailure(message) {
 async function waitForWasmScripts() {
   InspectorTest.log('Waiting for wasm script to be parsed.');
   let wasm_script_ids = [];
-  while (wasm_script_ids.length < 1) {
+  while (wasm_script_ids.length < 2) {
     let script_msg = await Protocol.Debugger.onceScriptParsed();
     let url = script_msg.params.url;
     if (url.startsWith('wasm://')) {

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<title>ServiceWorkerGlobalScope: unregister</title>
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+<script src='../resources/test-helpers.sub.js'></script>
+<script>
+
+promise_test(function(t) {
+    var script = 'resources/unregister-worker.js?evaluation';
+    var scope = 'resources/scope/unregister-on-script-evaluation';
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'redundant');
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            undefined,
+            'After unregister(), the registration should not found');
+        });
+  }, 'Unregister on script evaluation');
+
+promise_test(function(t) {
+    var script = 'resources/unregister-worker.js?install';
+    var scope = 'resources/scope/unregister-on-install-event';
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'redundant');
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            undefined,
+            'After unregister(), the registration should not found');
+        });
+  }, 'Unregister on installing event');
+
+promise_test(function(t) {
+    var script = 'resources/unregister-worker.js?activate';
+    var scope = 'resources/scope/unregister-on-activate-event';
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'redundant');
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            undefined,
+            'After unregister(), the registration should not found');
+        });
+  }, 'Unregister on activate event');
+
+promise_test(function(t) {
+    var script = 'resources/unregister-worker.js';
+    var scope = 'resources/unregister-controlling-worker.html';
+
+    var controller;
+    var frame;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          frame = f;
+          controller = frame.contentWindow.navigator.serviceWorker.controller;
+
+          assert_equals(
+            controller.scriptURL,
+            normalizeURL(script),
+            'Service worker should control a new document')
+
+          // Wait for the completion of unregister() on the worker.
+          var channel = new MessageChannel();
+          var promise = new Promise(function(resolve) {
+              channel.port1.onmessage = t.step_func(function(e) {
+                  assert_true(e.data.result,
+                              'unregister() should successfully finish');
+                  resolve();
+                });
+            });
+          controller.postMessage({port: channel.port2}, [channel.port2]);
+          return promise;
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            undefined,
+            'After unregister(), the registration should not found');
+          assert_equals(
+            frame.contentWindow.navigator.serviceWorker.controller,
+            controller,
+            'After unregister(), the worker should still control the document');
+          return with_iframe(scope);
+        })
+      .then(function(new_frame) {
+          assert_equals(
+            new_frame.contentWindow.navigator.serviceWorker.controller,
+            null,
+            'After unregister(), the worker should not control a new document');
+
+          frame.remove();
+          new_frame.remove();
+        })
+  }, 'Unregister controlling service worker');
+
+</script>

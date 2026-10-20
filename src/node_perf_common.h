@@ -62,6 +62,8 @@ class PerformanceState {
     AliasedBufferIndex root;
     AliasedBufferIndex milestones;
     AliasedBufferIndex observers;
+    AliasedBufferIndex uv_metrics;
+    AliasedBufferIndex uv_metrics_bigint;
   };
 
   explicit PerformanceState(v8::Isolate* isolate,
@@ -78,9 +80,14 @@ class PerformanceState {
   AliasedUint8Array root;
   AliasedFloat64Array milestones;
   AliasedUint32Array observers;
+  AliasedFloat64Array uv_metrics;
+  AliasedBigUint64Array uv_metrics_bigint;
 
   uint64_t performance_last_gc_start_mark = 0;
   uint16_t current_gc_type = 0;
+  // Whether MarkGarbageCollectionStart/End are registered with V8. This is
+  // not serialized, as V8 GC callbacks do not survive a snapshot.
+  bool gc_tracking_installed = false;
 
   void Mark(enum PerformanceMilestone milestone,
             uint64_t ts = PERFORMANCE_NOW());
@@ -89,8 +96,10 @@ class PerformanceState {
   void Initialize(uint64_t time_origin, double time_origin_timestamp);
   void ResetMilestones();
   struct performance_state_internal {
-    // doubles first so that they are always sizeof(double)-aligned
+    // 64-bit fields first so that they are always 8-byte aligned
     double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
+    double uv_metrics[3];
+    uint64_t uv_metrics_bigint[3];
     uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
   };
 };

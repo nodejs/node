@@ -24,14 +24,14 @@
 #ifndef ABSL_BASE_INTERNAL_SYSINFO_H_
 #define ABSL_BASE_INTERNAL_SYSINFO_H_
 
-#ifndef _WIN32
-#include <sys/types.h>
-#endif
-
 #include <cstdint>
 
 #include "absl/base/config.h"
 #include "absl/base/port.h"
+
+#ifndef _WIN32
+#include <sys/types.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

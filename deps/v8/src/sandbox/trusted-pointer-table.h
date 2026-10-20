@@ -20,6 +20,7 @@ namespace internal {
 
 class Counters;
 class Isolate;
+class ReadOnlyArtifacts;
 class TrustedPointerPublishingScope;
 
 /**
@@ -51,6 +52,13 @@ struct TrustedPointerTableEntry {
 
   // Returns true if this entry contains a pointer with the given tag.
   inline bool HasPointer(IndirectPointerTagRange tag_range) const;
+
+  // Returns the payload if the tag matches either {tag_range} or
+  // {kUnpublishedIndirectPointerTag}.
+  inline Address GetMaybeUnpublished(IndirectPointerTagRange tag_range) const;
+
+  // Returns the tag of this entry.
+  inline IndirectPointerTag GetTag() const;
 
   // Unpublish this entry by setting its tag to kUnpublishedIndirectPointerTag.
   // This way, the entry (and the object referenced by it) will not be
@@ -134,6 +142,10 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   using Space = ExternalEntityTable<TrustedPointerTableEntry,
                                     kTrustedPointerTableReservationSize>::Space;
 
+  // Initializes all slots in the RO space from pre-existing artifacts.
+  void SetUpFromReadOnlyArtifacts(Space* read_only_space,
+                                  const ReadOnlyArtifacts* artifacts);
+
   // Retrieves the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
@@ -149,6 +161,12 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // This method is atomic and can be called from background threads.
   inline void Set(TrustedPointerHandle handle, Address pointer,
                   IndirectPointerTag tag);
+
+  // Sets the content of the entry referenced by the given handle. Will preserve
+  // the currently set tag.
+  //
+  // This method is atomic and can be called from background threads.
+  inline void Update(TrustedPointerHandle handle, Address pointer);
 
   // Allocates a new entry in the table and initialize it.
   //
@@ -182,6 +200,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // entry accessible.
   inline void Publish(TrustedPointerHandle handle, IndirectPointerTag tag);
 
+  // Undo earlier publishing, making the entry inaccessible.
+  inline void Unpublish(TrustedPointerHandle handle);
+
   // Checks whether the given entry currently has the "unpublished" tag.
   inline bool IsUnpublished(TrustedPointerHandle handle) const;
 
@@ -195,6 +216,14 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
 
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
+
+  // Verifies that all entries in the given space are valid.
+  //
+  // In practice, this means that every active entry must point to a valid
+  // (e.g. not freed or corrupted) object of the expected type. As a general
+  // rule, the table must be in a consistent state (and so pass verification)
+  // whenever we can execute JS or Wasm code.
+  void Verify(Isolate* isolate, Space* space);
 
  private:
   inline uint32_t HandleToIndex(TrustedPointerHandle handle) const;

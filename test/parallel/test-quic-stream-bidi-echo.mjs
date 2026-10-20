@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -47,7 +45,7 @@ const stream = await clientSession.createBidirectionalStream({ body });
 
 // Read the echoed response from the server.
 const echoed = await bytes(stream);
-strictEqual(decoder.decode(echoed), message);
+assert.strictEqual(decoder.decode(echoed), message);
 
 await Promise.all([stream.closed, done.promise]);
 await clientSession.close();

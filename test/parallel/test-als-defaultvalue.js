@@ -1,4 +1,3 @@
-// Flags: --async-context-frame
 'use strict';
 
 require('../common');

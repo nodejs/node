@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<script>
+
+const fetchURL = new URL('sample.js', window.location).href;
+
+const frameControllerText =
+`<script>
+  let t = null;
+  try {
+    if (navigator.serviceWorker.controller) {
+      t = navigator.serviceWorker.controller.scriptURL;
+    }
+  } catch (e) {
+    t = e.message;
+  } finally {
+    parent.postMessage({ data: t }, '*');
+  }
+</` + `script>`;
+
+const frameFetchText =
+`<script>
+  fetch('${fetchURL}', { mode: 'no-cors' }).then(response => {
+    return response.text();
+  }).then(text => {
+    parent.postMessage({ data: text }, '*');
+  }).catch(e => {
+    parent.postMessage({ data: e.message }, '*');
+  });
+</` + `script>`;
+
+const workerControllerText =
+`let t = navigator.serviceWorker.controller
+       ? navigator.serviceWorker.controller.scriptURL
+       : null;
+self.postMessage(t);`;
+
+const workerFetchText =
+`fetch('${fetchURL}', { mode: 'no-cors' }).then(response => {
+  return response.text();
+}).then(text => {
+  self.postMessage(text);
+}).catch(e => {
+  self.postMessage(e.message);
+});`;
+
+const sharedWorkerControllerText =
+`const ports = [];
+self.onconnect = evt => {
+  const port = evt.ports[0];
+  ports.push(port);
+  const t = navigator.serviceWorker.controller
+        ? navigator.serviceWorker.controller.scriptURL
+        : null;
+  port.postMessage(t);
+};
+self.onerror = msg => {
+  ports.forEach(port => {port.postMessage(msg);});
+};`;
+
+const sharedWorkerFetchText =
+`self.onconnect = evt => {
+  const port = evt.ports[0];
+  fetch('${fetchURL}', { mode: 'no-cors' }).then(response => {
+    return response.text();
+  }).then(text => {
+    port.postMessage(text);
+  }).catch(e => {
+    port.postMessage(e.message);
+  });
+};`;
+
+function getChildText(opts) {
+  if (opts.child === 'iframe') {
+    if (opts.check === 'controller') {
+      return frameControllerText;
+    }
+
+    if (opts.check === 'fetch') {
+      return frameFetchText;
+    }
+
+    throw('unexpected feature to check: ' + opts.check);
+  }
+
+  if (opts.child === 'worker') {
+    if (opts.check === 'controller') {
+      return workerControllerText;
+    }
+
+    if (opts.check === 'fetch') {
+      return workerFetchText;
+    }
+
+    throw('unexpected feature to check: ' + opts.check);
+  }
+
+  if (opts.child === 'sharedworker') {
+    if (opts.check === 'controller') {
+      return sharedWorkerControllerText;
+    }
+
+    if (opts.check === 'fetch') {
+      return sharedWorkerFetchText;
+    }
+
+    throw('unexpected feature to check: ' + opts.check);
+  }
+
+  throw('unexpected child type ' + opts.child);
+}
+
+function makeURL(opts) {
+  let mimetype = opts.child === 'iframe' ? 'text/html'
+                                         : 'text/javascript';
+
+  if (opts.scheme === 'blob') {
+    let blob = new Blob([getChildText(opts)], { type: mimetype });
+    return URL.createObjectURL(blob);
+  }
+
+  if (opts.scheme === 'data') {
+    return `data:${mimetype},${getChildText(opts)}`;
+  }
+
+  throw(`unexpected URL scheme ${opts.scheme}`);
+}
+
+function testWorkerChild(url) {
+  let w = new Worker(url);
+  return new Promise((resolve, reject) => {
+    w.onmessage = resolve;
+    w.onerror = evt => {
+      reject(evt.message);
+    }
+  });
+}
+
+function testSharedWorkerChild(url) {
+  let w = new SharedWorker(url);
+  return new Promise((resolve, reject) => {
+    w.port.onmessage = m => {
+      // (null is a valid value when the SharedWorker is not controlled)
+      if (m.data?.includes("Error")) {
+        reject(m.data);
+        return;
+      }
+      resolve(m);
+    }
+    w.onerror = evt => {
+      reject(evt.message);
+    }
+  });
+}
+
+function testIframeChild(url) {
+  let frame = document.createElement('iframe');
+  frame.src = url;
+  document.body.appendChild(frame);
+
+  return new Promise(resolve => {
+    addEventListener('message', evt => {
+      resolve(evt.data);
+    }, { once: true });
+  });
+}
+
+function testURL(opts, url) {
+  if (opts.child === 'worker') {
+    return testWorkerChild(url);
+  }
+
+  if (opts.child === 'sharedworker') {
+    return testSharedWorkerChild(url);
+  }
+
+  if (opts.child === 'iframe') {
+    return testIframeChild(url);
+  }
+
+  throw(`unexpected child type ${opts.child}`);
+}
+
+function checkChildController(opts) {
+  let url = makeURL(opts);
+  return testURL(opts, url);
+}
+</script>
+</html>

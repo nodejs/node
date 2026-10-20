@@ -1,16 +1,35 @@
+import { generateKeyPairSync, getFips } from 'node:crypto';
+
 const { subtle } = globalThis.crypto;
+const RSA_MINIMUM_MODULUS_LENGTH = getFips() === 1 ? 2048 : 512;
 
 const RSA_KEY_GEN = {
   modulusLength: 2048,
   publicExponent: new Uint8Array([1, 0, 1])
 };
 
-const [ECDH, X25519] = await Promise.all([
-  subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits', 'deriveKey']),
-  subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']),
-]);
+// Determine availability through traditional crypto, independently of supports().
+export function generateNamedKeyPair(name) {
+  let pair;
+  try {
+    pair = generateKeyPairSync(name.toLowerCase());
+  } catch (err) {
+    if (err.code !== 'ERR_INVALID_ARG_VALUE') throw err;
+    return;
+  }
+  const derive = name.startsWith('X');
+  return {
+    publicKey: pair.publicKey.toCryptoKey(name, true, derive ? [] : ['verify']),
+    privateKey: pair.privateKey.toCryptoKey(name, false, derive ? ['deriveBits', 'deriveKey'] : ['sign']),
+  };
+}
 
-const boringSSL = process.features.openssl_is_boringssl;
+export const ECDH = await subtle.generateKey(
+  { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits', 'deriveKey']);
+export const X25519 = generateNamedKeyPair('X25519');
+export const Ed25519 = generateNamedKeyPair('Ed25519');
+const hasX25519 = X25519 !== undefined;
+const hasEd25519 = Ed25519 !== undefined;
 
 export const vectors = {
   'encrypt': [
@@ -31,7 +50,7 @@ export const vectors = {
     [false, 'Invalid'],
     [false, 'SHA-1'],
 
-    [true, 'Ed25519'],
+    [hasEd25519, 'Ed25519'],
 
     [true, 'RSASSA-PKCS1-v1_5'],
 
@@ -58,14 +77,38 @@ export const vectors = {
     [false, 'Invalid'],
     [false, 'HKDF'],
     [false, 'PBKDF2'],
-    [true, 'X25519'],
-    [true, 'Ed25519'],
+    [hasX25519, 'X25519'],
+    [hasEd25519, 'Ed25519'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [true, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-PSS', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-OAEP', hash: 'SHA-256', ...RSA_KEY_GEN }],
+    [true, {
+      name: 'RSA-PSS',
+      hash: 'SHA-256',
+      modulusLength: RSA_MINIMUM_MODULUS_LENGTH,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    }],
+    [false, {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+      modulusLength: RSA_MINIMUM_MODULUS_LENGTH - 1,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    }],
+    [false, {
+      name: 'RSA-PSS',
+      hash: 'SHA-256',
+      ...RSA_KEY_GEN,
+      publicExponent: new Uint8Array([2]),
+    }],
+    [false, {
+      name: 'RSA-OAEP',
+      hash: 'SHA-256',
+      ...RSA_KEY_GEN,
+      publicExponent: new Uint8Array([1, 0, 0, 0, 1]),
+    }],
     [true, { name: 'ECDSA', namedCurve: 'P-256' }],
     [false, { name: 'ECDSA', namedCurve: 'X25519' }],
     [true, { name: 'AES-CTR', length: 128 }],
@@ -74,11 +117,11 @@ export const vectors = {
     [false, { name: 'AES-CBC', length: 25 }],
     [true, { name: 'AES-GCM', length: 128 }],
     [false, { name: 'AES-GCM', length: 25 }],
-    [!boringSSL, { name: 'AES-KW', length: 128 }],
+    [true, { name: 'AES-KW', length: 128 }],
     [false, { name: 'AES-KW', length: 25 }],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 0 }],
   ],
   'deriveKey': [
@@ -98,22 +141,25 @@ export const vectors = {
      { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 },
      { name: 'HMAC', hash: 'SHA-256' }],
     [false,
+     { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 2 ** 31 },
+     { name: 'AES-CBC', length: 128 }],
+    [false,
      { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 },
      'HKDF'],
-    [true,
-     { name: 'X25519', public: X25519.publicKey },
+    [hasX25519,
+     { name: 'X25519', public: X25519?.publicKey },
      { name: 'AES-CBC', length: 128 }],
     [false,
-     { name: 'X25519', public: X25519.publicKey },
+     { name: 'X25519', public: X25519?.publicKey },
      { name: 'HMAC', hash: 'SHA-256' }],
-    [true,
-     { name: 'X25519', public: X25519.publicKey },
+    [hasX25519,
+     { name: 'X25519', public: X25519?.publicKey },
      { name: 'HMAC', hash: 'SHA-256', length: 256 }],
     [false,
-     { name: 'X25519', public: X25519.publicKey },
+     { name: 'X25519', public: X25519?.publicKey },
      { name: 'HMAC', hash: 'SHA-256', length: 257 }],
-    [true,
-     { name: 'X25519', public: X25519.publicKey },
+    [hasX25519,
+     { name: 'X25519', public: X25519?.publicKey },
      'HKDF'],
     [true,
      { name: 'ECDH', public: ECDH.publicKey },
@@ -121,7 +167,7 @@ export const vectors = {
     [false,
      { name: 'ECDH', public: ECDH.publicKey },
      { name: 'HMAC', hash: 'SHA-256' }],
-    [false,
+    [true,
      { name: 'ECDH', public: ECDH.publicKey },
      { name: 'HMAC', hash: 'SHA-256', length: 255 }],
     [true,
@@ -137,15 +183,17 @@ export const vectors = {
      { name: 'ECDH', public: ECDH.publicKey },
      'HKDF'],
     [false,
-      { name: 'X25519', public: X25519.publicKey },
+      { name: 'X25519', public: X25519?.publicKey },
       'SHA-256'],
     [false,
-      { name: 'X25519', public: X25519.publicKey },
+      { name: 'X25519', public: X25519?.publicKey },
       'AES-CBC'],
   ],
   'deriveBits': [
     [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 8],
     [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 0],
+    [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 65280],
+    [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 65288],
     [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, null],
     [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 7],
     [false, { name: 'HKDF', hash: 'Invalid', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 8],
@@ -154,6 +202,7 @@ export const vectors = {
     [true, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 }, 8],
     [true, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 }, 0],
     [false, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 0 }, 8],
+    [false, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 2 ** 31 }, 8],
     [false, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 }, null],
     [false, { name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.alloc(0), iterations: 1 }, 7],
     [false, { name: 'PBKDF2', hash: 'Invalid', salt: Buffer.alloc(0), iterations: 1 }, 8],
@@ -170,20 +219,20 @@ export const vectors = {
     [false, { name: 'ECDH', public: ECDH.privateKey }],
     [false, 'ECDH'],
 
-    [true, { name: 'X25519', public: X25519.publicKey }],
-    [true, { name: 'X25519', public: X25519.publicKey }, 256],
-    [false, { name: 'X25519', public: X25519.publicKey }, 257],
-    [false, { name: 'X25519', public: X25519.privateKey }],
+    [hasX25519, { name: 'X25519', public: X25519?.publicKey }],
+    [hasX25519, { name: 'X25519', public: X25519?.publicKey }, 256],
+    [false, { name: 'X25519', public: X25519?.publicKey }, 257],
+    [false, { name: 'X25519', public: X25519?.privateKey }],
     [false, 'X25519'],
   ],
   'importKey': [
     [false, 'SHA-1'],
     [false, 'Invalid'],
-    [true, 'X25519'],
-    [true, 'Ed25519'],
+    [hasX25519, 'X25519'],
+    [hasEd25519, 'Ed25519'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [true, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-PSS', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-OAEP', hash: 'SHA-256', ...RSA_KEY_GEN }],
@@ -192,10 +241,10 @@ export const vectors = {
     [true, 'AES-CTR'],
     [true, 'AES-CBC'],
     [true, 'AES-GCM'],
-    [!boringSSL, 'AES-KW'],
+    [true, 'AES-KW'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 0 }],
     [true, 'HKDF'],
     [true, 'PBKDF2'],
@@ -214,18 +263,18 @@ export const vectors = {
     [true, 'AES-CTR'],
     [true, 'AES-CBC'],
     [true, 'AES-GCM'],
-    [!boringSSL, 'AES-KW'],
-    [true, 'Ed25519'],
-    [true, 'X25519'],
+    [true, 'AES-KW'],
+    [hasEd25519, 'Ed25519'],
+    [hasX25519, 'X25519'],
   ],
   'wrapKey': [
-    [false, 'AES-KW'],
-    [!boringSSL, 'AES-KW', 'AES-CTR'],
-    [!boringSSL, 'AES-KW', 'HMAC'],
+    [true, 'AES-KW'],
+    [true, 'AES-KW', 'AES-CTR'],
+    [true, 'AES-KW', 'HMAC'],
   ],
   'unwrapKey': [
-    [false, 'AES-KW'],
-    [!boringSSL, 'AES-KW', 'AES-CTR'],
+    [true, 'AES-KW'],
+    [true, 'AES-KW', 'AES-CTR'],
   ],
   'unsupported operation': [
     [false, ''],
@@ -233,5 +282,8 @@ export const vectors = {
   ],
   'get key length': [
     [false, { name: 'HMAC', hash: 'SHA-256' }],
+  ],
+  'get shared key length': [
+    [false, 'ML-KEM-768'],
   ],
 };

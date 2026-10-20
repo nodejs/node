@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -82,10 +82,15 @@ void *ASN1_item_dup(const ASN1_ITEM *it, const void *x)
     p = b;
     ret = ASN1_item_d2i_ex(NULL, &p, i, it, libctx, propq);
     OPENSSL_free(b);
+    if (ret == NULL)
+        return NULL;
 
     if (asn1_cb != NULL
-        && !asn1_cb(ASN1_OP_DUP_POST, &ret, it, (void *)x))
-        goto auxerr;
+        && !asn1_cb(ASN1_OP_DUP_POST, &ret, it, (void *)x)) {
+        ASN1_item_free(ret, it);
+        ERR_raise_data(ERR_LIB_ASN1, ASN1_R_AUX_ERROR, "Type=%s", it->sname);
+        return NULL;
+    }
 
     return ret;
 

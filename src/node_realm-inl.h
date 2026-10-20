@@ -92,10 +92,8 @@ inline T* Realm::GetBindingData() {
   return result;
 }
 
-template <typename T, typename... Args>
+template <std::derived_from<BaseObject> T, typename... Args>
 inline T* Realm::AddBindingData(v8::Local<v8::Object> target, Args&&... args) {
-  // This won't compile if T is not a BaseObject subclass.
-  static_assert(std::is_base_of_v<BaseObject, T>);
   // The binding data must be weak so that it won't keep the realm reachable
   // from strong GC roots indefinitely. The wrapper object of binding data
   // should be referenced from JavaScript, thus the binding data should be
@@ -135,11 +133,13 @@ void Realm::TrackBaseObject(BaseObject* bo) {
   ++base_object_count_;
 }
 
-CppgcWrapperListNode::CppgcWrapperListNode(CppgcMixin* ptr) : persistent(ptr) {}
+CppgcWrapperListNode::CppgcWrapperListNode(Realm* realm, CppgcMixin* wrapper)
+    : realm(realm), persistent(wrapper) {}
 
-void Realm::TrackCppgcWrapper(CppgcMixin* handle) {
-  DCHECK_EQ(handle->realm(), this);
-  cppgc_wrapper_list_.PushFront(new CppgcWrapperListNode(handle));
+CppgcWrapperListNode* Realm::TrackCppgcWrapper(CppgcMixin* handle) {
+  CppgcWrapperListNode* node = new CppgcWrapperListNode(this, handle);
+  cppgc_wrapper_list_.PushFront(node);
+  return node;
 }
 
 void Realm::UntrackBaseObject(BaseObject* bo) {
@@ -148,7 +148,7 @@ void Realm::UntrackBaseObject(BaseObject* bo) {
 }
 
 bool Realm::PendingCleanup() const {
-  return !base_object_list_.IsEmpty();
+  return !base_object_list_.IsEmpty() || !cppgc_wrapper_list_.IsEmpty();
 }
 
 }  // namespace node

@@ -8,8 +8,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
-
-const { rejects, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -26,12 +25,12 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     const iter1 = stream[Symbol.asyncIterator]();
     // Advance the first iterator so the lock is set.
     const first = await iter1.next();
-    strictEqual(first.done, false);
+    assert.strictEqual(first.done, false);
 
     // A second iterator can be created (generator object), but
     // advancing it should reject because the lock is held.
     const iter2 = stream[Symbol.asyncIterator]();
-    await rejects(iter2.next(), {
+    await assert.rejects(iter2.next(), {
       code: 'ERR_INVALID_STATE',
     });
 
@@ -54,6 +53,7 @@ await clientSession.opened;
 const stream = await clientSession.createBidirectionalStream({
   body: encoder.encode('double iter test'),
 });
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
+await serverEndpoint.close();

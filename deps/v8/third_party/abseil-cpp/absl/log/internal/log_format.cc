@@ -17,12 +17,6 @@
 
 #include <string.h>
 
-#ifdef _MSC_VER
-#include <winsock2.h>  // For timeval
-#else
-#include <sys/time.h>
-#endif
-
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -42,34 +36,36 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 
+#ifdef _MSC_VER
+#include <winsock2.h>  // For timeval
+#else
+#include <sys/time.h>
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 namespace {
 
-// This templated function avoids compiler warnings about tautological
-// comparisons when log_internal::Tid is unsigned. It can be replaced with a
-// constexpr if once the minimum C++ version Abseil supports is C++17.
+// The `if constexpr` avoids compiler warnings about tautological comparisons
+// when log_internal::Tid is unsigned.
 template <typename T>
-inline std::enable_if_t<!std::is_signed<T>::value>
-PutLeadingWhitespace(T tid, char*& p) {
-  if (tid < 10) *p++ = ' ';
-  if (tid < 100) *p++ = ' ';
-  if (tid < 1000) *p++ = ' ';
-  if (tid < 10000) *p++ = ' ';
-  if (tid < 100000) *p++ = ' ';
-  if (tid < 1000000) *p++ = ' ';
-}
-
-template <typename T>
-inline std::enable_if_t<std::is_signed<T>::value>
-PutLeadingWhitespace(T tid, char*& p) {
-  if (tid >= 0 && tid < 10) *p++ = ' ';
-  if (tid > -10 && tid < 100) *p++ = ' ';
-  if (tid > -100 && tid < 1000) *p++ = ' ';
-  if (tid > -1000 && tid < 10000) *p++ = ' ';
-  if (tid > -10000 && tid < 100000) *p++ = ' ';
-  if (tid > -100000 && tid < 1000000) *p++ = ' ';
+inline void PutLeadingWhitespace(T tid, char*& p) {
+  if constexpr (std::is_signed_v<T>) {
+    if (tid >= 0 && tid < 10) *p++ = ' ';
+    if (tid > -10 && tid < 100) *p++ = ' ';
+    if (tid > -100 && tid < 1000) *p++ = ' ';
+    if (tid > -1000 && tid < 10000) *p++ = ' ';
+    if (tid > -10000 && tid < 100000) *p++ = ' ';
+    if (tid > -100000 && tid < 1000000) *p++ = ' ';
+  } else {
+    if (tid < 10) *p++ = ' ';
+    if (tid < 100) *p++ = ' ';
+    if (tid < 1000) *p++ = ' ';
+    if (tid < 10000) *p++ = ' ';
+    if (tid < 100000) *p++ = ' ';
+    if (tid < 1000000) *p++ = ' ';
+  }
 }
 
 // The fields before the filename are all fixed-width except for the thread ID,

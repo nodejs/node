@@ -2,10 +2,12 @@
 # that don't appear in lib*.num -- because they are define's, in
 # assembly language, etc.
 #
+OPENSSL_armcap                          environment
 OPENSSL_ia32cap                         environment
 OPENSSL_ppccap                          environment
-OPENSSL_s390xcap                        environment
 OPENSSL_riscvcap                        environment
+OPENSSL_s390xcap                        environment
+OPENSSL_sparcv9cap                      environment
 OPENSSL_MALLOC_FD                       environment
 OPENSSL_MALLOC_FAILURES                 environment
 OPENSSL_instrument_bus                  assembler
@@ -783,6 +785,7 @@ SSL_VALUE_CLASS_FEATURE_REQUEST         define
 SSL_VALUE_CLASS_FEATURE_PEER_REQUEST    define
 SSL_VALUE_CLASS_FEATURE_NEGOTIATED      define
 SSL_VALUE_QUIC_IDLE_TIMEOUT             define
+SSL_VALUE_QUIC_MAX_PENDING_CONNS        define
 SSL_VALUE_QUIC_STREAM_BIDI_LOCAL_AVAIL  define
 SSL_VALUE_QUIC_STREAM_BIDI_REMOTE_AVAIL define
 SSL_VALUE_QUIC_STREAM_UNI_LOCAL_AVAIL   define

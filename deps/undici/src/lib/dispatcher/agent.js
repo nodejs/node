@@ -1,7 +1,7 @@
 'use strict'
 
 const { InvalidArgumentError, MaxOriginsReachedError } = require('../core/errors')
-const { kBusy, kClients, kConnected, kRunning, kClose, kDestroy, kDispatch, kUrl } = require('../core/symbols')
+const { kBusy, kClients, kConnected, kRunning, kPending, kClose, kDestroy, kDispatch, kUrl } = require('../core/symbols')
 const DispatcherBase = require('./dispatcher-base')
 const Pool = require('./pool')
 const Client = require('./client')
@@ -22,7 +22,7 @@ function defaultFactory (origin, opts) {
 }
 
 class Agent extends DispatcherBase {
-  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, ...options } = {}) {
+  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, tls, ...options } = {}) {
     if (typeof factory !== 'function') {
       throw new InvalidArgumentError('factory must be a function.')
     }
@@ -41,7 +41,11 @@ class Agent extends DispatcherBase {
       connect = { ...connect }
     }
 
-    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect }
+    if (tls && typeof tls !== 'function') {
+      tls = { ...tls }
+    }
+
+    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect, tls }
     this[kFactory] = factory
     this[kClients] = new Map()
     this[kOrigins] = new Set()
@@ -97,7 +101,12 @@ class Agent extends DispatcherBase {
           return
         }
 
-        if (dispatcher[kConnected] > 0 || dispatcher[kBusy]) {
+        // A GOAWAY detaches the HTTP/2 session before requeued requests are
+        // dispatched on a replacement connection. At that point the pool has
+        // no connected clients and is not busy, but it still has pending work.
+        // Closing it here lets the replacement Client finish those requests
+        // and then destroys that new connection with ClientDestroyedError.
+        if (dispatcher[kConnected] > 0 || dispatcher[kBusy] || dispatcher[kPending] > 0) {
           return
         }
 
@@ -107,15 +116,15 @@ class Agent extends DispatcherBase {
         }
 
         let hasOrigin = false
-        for (const client of this[kClients].values()) {
-          if (client[kUrl].origin === dispatcher[kUrl].origin) {
+        for (const k of this[kClients].keys()) {
+          if (k === origin || k === `${origin}#http1-only`) {
             hasOrigin = true
             break
           }
         }
 
         if (!hasOrigin) {
-          this[kOrigins].delete(dispatcher[kUrl].origin)
+          this[kOrigins].delete(origin)
         }
       }
 

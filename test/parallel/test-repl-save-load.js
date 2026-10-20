@@ -32,7 +32,7 @@ tmpdir.refresh();
 
 // Tests that a REPL session data can be saved to and loaded from a file
 
-const { replServer, input } = startNewREPLServer({ terminal: false });
+const { replServer, run } = startNewREPLServer({ terminal: false });
 
 const filePath = path.resolve(tmpdir.path, 'test.save.js');
 
@@ -42,37 +42,43 @@ const testFileContents = [
   '})()',
 ];
 
-input.run(testFileContents);
-input.run([`.save ${filePath}`]);
-
-assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
-                   testFileContents.join('\n'));
-
 const innerOCompletions = [['inner.one'], 'inner.o'];
 
-// Double check that the data is still present in the repl after the save
-replServer.completer('inner.o', common.mustSucceed((data) => {
-  assert.deepStrictEqual(data, innerOCompletions);
-}));
+// Evaluation is asynchronous (the REPL now drives the inspector), so completion
+// must be awaited as well.
+function complete(text) {
+  return new Promise((resolve) => {
+    replServer.completer(text, common.mustSucceed(resolve));
+  });
+}
 
-// Clear the repl context
-input.run(['.clear']);
+async function main() {
+  await run(testFileContents);
+  await run([`.save ${filePath}`]);
 
-// Double check that the data is no longer present in the repl
-replServer.completer('inner.o', common.mustSucceed((data) => {
-  assert.deepStrictEqual(data, [[], 'inner.o']);
-}));
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
+                     testFileContents.join('\n'));
 
-// Load the file back in.
-input.run([`.load ${filePath}`]);
+  // Double check that the data is still present in the repl after the save
+  assert.deepStrictEqual(await complete('inner.o'), innerOCompletions);
 
-// Make sure loading doesn't insert extra indentation
-// https://github.com/nodejs/node/issues/47673
-assert.strictEqual(replServer.line, '');
+  // Clear the repl context
+  await run(['.clear']);
 
-// Make sure that the loaded data is present
-replServer.complete('inner.o', common.mustSucceed((data) => {
-  assert.deepStrictEqual(data, innerOCompletions);
-}));
+  // Double check that the data is no longer present in the repl
+  assert.deepStrictEqual(await complete('inner.o'), [[], 'inner.o']);
 
-replServer.close();
+  // Load the file back in.
+  await run([`.load ${filePath}`]);
+
+  // Make sure loading doesn't insert extra indentation
+  // https://github.com/nodejs/node/issues/47673
+  assert.strictEqual(replServer.line, '');
+
+  // Make sure that the loaded data is present
+  assert.deepStrictEqual(await complete('inner.o'), innerOCompletions);
+
+  replServer.close();
+}
+
+main().then(common.mustCall());

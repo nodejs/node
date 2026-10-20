@@ -8,6 +8,7 @@
 #endif
 
 #include "node_options.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <cstddef>
@@ -90,8 +91,7 @@ class Agent {
   void RegisterAsyncHook(v8::Isolate* isolate,
     v8::Local<v8::Function> enable_function,
     v8::Local<v8::Function> disable_function);
-  void EnableAsyncHook();
-  void DisableAsyncHook();
+  void SetAsyncHookTrackingEnabled(bool enabled);
 
   void SetParentHandle(std::unique_ptr<ParentInspectorHandle> parent_handle);
   std::unique_ptr<ParentInspectorHandle> GetParentHandle(uint64_t thread_id,
@@ -118,7 +118,8 @@ class Agent {
   // Can only be called from the main thread.
   bool StartIoThread();
 
-  // Calls StartIoThread() from off the main thread.
+  // Calls StartIoThread() from off the main thread. Only valid while the
+  // Environment owns the inspector and has not started cleanup.
   void RequestIoThreadStart();
 
   const DebugOptions& options() { return debug_options_; }
@@ -132,7 +133,7 @@ class Agent {
   std::shared_ptr<NetworkResourceManager> GetNetworkResourceManager();
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
+  void SyncAsyncHookState();
   void ToggleNetworkTracking(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
@@ -150,8 +151,18 @@ class Agent {
   DebugOptions debug_options_;
   std::shared_ptr<ExclusiveAccess<HostPort>> host_port_;
 
-  bool pending_enable_async_hook_ = false;
-  bool pending_disable_async_hook_ = false;
+  // The state of the async hook used for async stack traces that the protocol
+  // last requested, and the state JS currently has. SyncAsyncHookState()
+  // reconciles the two when it is possible and safe to call into JS.
+  bool async_hook_wanted_ = false;
+  bool async_hook_enabled_ = false;
+  bool syncing_async_hook_state_ = false;
+
+  // Woken by the SIGUSR1 watchdog; closed by the cleanup hook or ~Agent(),
+  // whichever runs first, and freed by its close callback.
+  uv_async_t* start_io_thread_async_ = nullptr;
+  void StopAcceptingIoThreadStarts();
+  static void StopAcceptingIoThreadStartsHook(void* agent);
 
   bool network_tracking_enabled_ = false;
   bool pending_enable_network_tracking = false;

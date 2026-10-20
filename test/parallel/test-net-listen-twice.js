@@ -11,28 +11,12 @@ if (cluster.isPrimary) {
   }));
 } else {
   const server = net.createServer();
-  server.listen();
-  try {
-    // Currently, we can call `listen` twice in cluster worker,
-    // if we can not call `listen` twice in the future,
-    // just skip this test.
-    server.listen();
-  } catch (e) {
-    console.error(e);
-    return;
-  }
-  let i = 0;
-  process.on('internalMessage', (msg) => {
-    if (msg.cmd === 'NODE_CLUSTER') {
-      if (++i === 2) {
-        setImmediate(() => {
-          server.close(() => {
-            process.disconnect();
-          });
-        });
-      }
-    }
+  server.listen(common.mustCall(() => {
+    server.close(() => process.disconnect());
+  }));
+
+  assert.throws(() => server.listen(), {
+    code: 'ERR_SERVER_ALREADY_LISTEN',
+    name: 'Error'
   });
-  // Must only call once
-  server.on('listening', common.mustCall());
 }

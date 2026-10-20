@@ -25,9 +25,11 @@
 #ifndef ABSL_CRC_CRC32C_H_
 #define ABSL_CRC_CRC32C_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <ostream>
 
+#include "absl/base/config.h"
 #include "absl/crc/internal/crc32c_inline.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"

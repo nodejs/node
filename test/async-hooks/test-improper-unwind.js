@@ -58,7 +58,7 @@ if (process.argv[2] === 'child') {
   child.on('close', common.mustCall((code, signal) => {
     if ((common.isAIX ||
          (common.isLinux && process.arch === 'x64')) &&
-         signal === 'SIGABRT') {
+        common.nodeProcessAborted(code, signal)) {
       // XXX: The child process could be aborted due to unknown reasons. Work around it.
     } else {
       assert.strictEqual(signal, null);

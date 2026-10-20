@@ -52,7 +52,7 @@ namespace meta_internal {
 // code like the following is _not_ valid in C++17:
 //
 //  template <typename T,
-//            typename = std::enable_if_t<gtl::Requires<T>(
+//            typename = std::enable_if_t<Requires<T>(
 //              [] (auto&& v) -> decltype(<expr>) {})>>
 //
 template <typename... T, typename F>

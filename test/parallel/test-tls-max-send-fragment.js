@@ -20,7 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
@@ -64,7 +66,7 @@ const server = tls.createServer({
   // both out-of-range values and reports success, so assert that difference
   // explicitly instead of using a truthiness shortcut.
   const acceptsOutOfRangeFragmentSize =
-    process.features.openssl_is_boringssl;
+    isBoringSSL;
   assert.strictEqual(c.setMaxSendFragment(511),
                      acceptsOutOfRangeFragmentSize);
   assert.strictEqual(c.setMaxSendFragment(16385),

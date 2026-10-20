@@ -32,7 +32,7 @@ let rounds = 1;
 let reqs = 0;
 
 let port;
-const server = net.createServer().listen(0, common.mustCall(() => {
+const server = net.createServer().listen(0, common.localhostIPv4, common.mustCall(() => {
   port = server.address().port;
   server.close(common.mustCall(pummel));
 }));
@@ -40,17 +40,14 @@ const server = net.createServer().listen(0, common.mustCall(() => {
 function pummel() {
   let pending;
   for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
-    net.createConnection({ port, autoSelectFamily: false }).on('error', common.mustCallAtLeast((error) => {
-      // Family autoselection might be skipped if only a single address is returned by DNS.
-      const actualError = Array.isArray(error.errors) ? error.errors[0] : error;
-
+    net.createConnection({ host: common.localhostIPv4, port }).on('error', common.mustCall((error) => {
       console.log('pending', pending, 'rounds', rounds);
-      assert.strictEqual(actualError.code, 'ECONNREFUSED');
+      assert.strictEqual(error.code, 'ECONNREFUSED');
       if (--pending > 0) return;
       if (rounds === ROUNDS) return check();
       rounds++;
       pummel();
-    }, 0));
+    }));
     reqs++;
   }
 }

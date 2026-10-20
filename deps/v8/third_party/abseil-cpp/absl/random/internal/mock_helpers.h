@@ -16,11 +16,12 @@
 #ifndef ABSL_RANDOM_INTERNAL_MOCK_HELPERS_H_
 #define ABSL_RANDOM_INTERNAL_MOCK_HELPERS_H_
 
+#include <optional>
 #include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/fast_type_id.h"
-#include "absl/types/optional.h"
+#include "absl/random/mocking_access.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -49,6 +50,7 @@ struct NoOpValidator {
 //
 class MockHelpers {
   using IdType = ::absl::FastTypeIdType;
+  using RandomMockingAccess = ::absl::RandomMockingAccess;
 
   // Given a key signature type used to index the mock, extract the components.
   // KeyT is expected to have the form:
@@ -63,39 +65,7 @@ class MockHelpers {
     using arg_tuple_type = ArgTupleT;
   };
 
-  // Detector for InvokeMock.
-  template <class T>
-  using invoke_mock_t = decltype(std::declval<T*>()->InvokeMock(
-      std::declval<IdType>(), std::declval<void*>(), std::declval<void*>()));
-
-  // Empty implementation of InvokeMock.
-  template <typename KeyT, typename ReturnT, typename ArgTupleT, typename URBG,
-            typename... Args>
-  static absl::optional<ReturnT> InvokeMockImpl(char, URBG*, Args&&...) {
-    return absl::nullopt;
-  }
-
-  // Non-empty implementation of InvokeMock.
-  template <typename KeyT, typename ReturnT, typename ArgTupleT, typename URBG,
-            typename = invoke_mock_t<URBG>, typename... Args>
-  static absl::optional<ReturnT> InvokeMockImpl(int, URBG* urbg,
-                                                Args&&... args) {
-    ArgTupleT arg_tuple(std::forward<Args>(args)...);
-    ReturnT result;
-    if (urbg->InvokeMock(FastTypeId<KeyT>(), &arg_tuple, &result)) {
-      return result;
-    }
-    return absl::nullopt;
-  }
-
  public:
-  // InvokeMock is private; this provides access for some specialized use cases.
-  template <typename URBG>
-  static inline bool PrivateInvokeMock(URBG* urbg, IdType key_id,
-                                       void* args_tuple, void* result) {
-    return urbg->InvokeMock(key_id, args_tuple, result);
-  }
-
   // Invoke a mock for the KeyT (may or may not be a signature).
   //
   // KeyT is used to generate a typeid-based lookup key for the mock.
@@ -108,13 +78,17 @@ class MockHelpers {
   // the underlying mechanism requires a pointer to an argument tuple.
   template <typename KeyT, typename URBG, typename... Args>
   static auto MaybeInvokeMock(URBG* urbg, Args&&... args)
-      -> absl::optional<typename KeySignature<KeyT>::result_type> {
-    // Use function overloading to dispatch to the implementation since
-    // more modern patterns (e.g. require + constexpr) are not supported in all
-    // compiler configurations.
-    return InvokeMockImpl<KeyT, typename KeySignature<KeyT>::result_type,
-                          typename KeySignature<KeyT>::arg_tuple_type, URBG>(
-        0, urbg, std::forward<Args>(args)...);
+      -> std::optional<typename KeySignature<KeyT>::result_type> {
+    if constexpr (RandomMockingAccess::HasInvokeMock<URBG>::value) {
+      typename KeySignature<KeyT>::arg_tuple_type arg_tuple(
+          std::forward<Args>(args)...);
+      typename KeySignature<KeyT>::result_type result;
+      if (RandomMockingAccess::InvokeMock(urbg, FastTypeId<KeyT>(), &arg_tuple,
+                                          &result)) {
+        return result;
+      }
+    }
+    return std::nullopt;
   }
 
   // Acquire a mock for the KeyT (may or may not be a signature), set up to use

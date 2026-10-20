@@ -5,7 +5,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pipeTo, pipeToSync } = require('stream/iter');
+const { setImmediate: setImmediatePromise } = require('timers/promises');
+const { pipeTo, pipeToSync, push, text } = require('stream/iter');
 
 // Multi-chunk batch with writevSync (sync success path)
 async function testWritevSyncSuccess() {
@@ -43,6 +44,26 @@ async function testWritevAsyncFallback() {
   await pipeTo(source(), writer);
   assert.ok(batches.length > 0);
   assert.ok(batches.some((b) => b.length > 1));
+}
+
+// Multi-chunk batch with synchronous writev success (returns undefined)
+async function testWritevSyncUndefinedSuccess() {
+  const chunks = [];
+  const writer = {
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    writev(batch) {
+      chunks.push(...batch);
+    },
+    end() {},
+  };
+  async function* source() {
+    yield [new Uint8Array([65]), new Uint8Array([66])];
+  }
+  const total = await pipeTo(source(), writer);
+  assert.strictEqual(total, 2);
+  assert.strictEqual(Buffer.concat(chunks).toString(), 'AB');
 }
 
 // writevSync returns false — falls through to async writev
@@ -104,6 +125,67 @@ async function testWriteSyncAlwaysFails() {
   assert.strictEqual(total, 2);
 }
 
+// PushWriter block mode accepts sync writes even when returning false for
+// backpressure. pipeTo must wait for drain, not retry the same write.
+async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
+  const { writer, readable } = push({
+    budget: 16384,
+    backpressure: 'unbounded',
+  });
+
+  const pipe = pipeTo(source, writer);
+  await setImmediatePromise();
+  const data = await text(readable);
+  const total = await pipe;
+
+  assert.strictEqual(data, expected);
+  assert.strictEqual(total, expectedTotal);
+}
+
+async function testPushWriterBlockSyncFalseAccepted() {
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97])];
+    yield [new Uint8Array([98])];
+  })(), 'ab', 2);
+
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97, 98])];
+    yield [new Uint8Array([99]), new Uint8Array([100])];
+  })(), 'abcd', 4);
+}
+
+async function testPipeToSyncPushWriterStrictFalseRejected() {
+  const kChunk = new Uint8Array(16384);
+  const { writer } = push({ budget: 16384 });
+
+  // Pre-fill the buffer so it's at capacity
+  writer.writeSync(kChunk);
+
+  // pipeToSync should throw when writeSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync([kChunk], writer,
+                     { preventClose: true, preventFail: true }),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
+}
+
+async function testPipeToSyncWritevFalseNotCounted() {
+  const writer = {
+    writevSync() { return false; },
+    writeSync: common.mustNotCall(),
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield [new Uint8Array([1]), new Uint8Array([2])];
+  }
+
+  // pipeToSync throws when writevSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync(source(), writer),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
+}
+
 // pipeToSync with writevSync
 async function testPipeToSyncWritev() {
   const batches = [];
@@ -119,6 +201,27 @@ async function testPipeToSyncWritev() {
   pipeToSync(source(), writer);
   // Multi-chunk batch should have used writevSync
   assert.ok(batches.some((b) => b.length > 1));
+}
+
+// pipeToSync batches plain Uint8Array chunks for writevSync
+async function testPipeToSyncPlainChunksWritev() {
+  const batches = [];
+  const writes = [];
+  const writer = {
+    writevSync(chunks) { batches.push(chunks); },
+    writeSync(chunk) { writes.push(chunk); return true; },
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield new Uint8Array([1]);
+    yield new Uint8Array([2]);
+    yield new Uint8Array([3]);
+  }
+  const total = pipeToSync(source(), writer);
+  assert.strictEqual(total, 3);
+  assert.strictEqual(batches.length, 1);
+  assert.strictEqual(batches[0].length, 3);
+  assert.strictEqual(writes.length, 0);
 }
 
 // pipeToSync with writer that has write() and writeSync() — writeSync preferred
@@ -139,9 +242,14 @@ async function testPipeToSyncWriteFallback() {
 Promise.all([
   testWritevSyncSuccess(),
   testWritevAsyncFallback(),
+  testWritevSyncUndefinedSuccess(),
   testWritevSyncFails(),
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
+  testPushWriterBlockSyncFalseAccepted(),
+  testPipeToSyncPushWriterStrictFalseRejected(),
+  testPipeToSyncWritevFalseNotCounted(),
   testPipeToSyncWritev(),
+  testPipeToSyncPlainChunksWritev(),
   testPipeToSyncWriteFallback(),
 ]).then(common.mustCall());

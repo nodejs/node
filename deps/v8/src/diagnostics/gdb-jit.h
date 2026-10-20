@@ -5,6 +5,9 @@
 #ifndef V8_DIAGNOSTICS_GDB_JIT_H_
 #define V8_DIAGNOSTICS_GDB_JIT_H_
 
+#include <string>
+#include <vector>
+
 #include "src/base/address-region.h"
 
 //
@@ -29,8 +32,25 @@ namespace v8 {
 struct JitCodeEvent;
 
 namespace internal {
+
+namespace maglev {
+struct MaglevVariableInfo {
+  int node_id;
+  int spill_slot_index;
+  int start_pc;
+};
+}  // namespace maglev
+
+inline std::string GetMaglevGraphFilename(const std::string& func_name,
+                                          int opt_id) {
+  return "maglev-" + func_name + "-" + std::to_string(opt_id) + ".mgl";
+}
+
 namespace GDBJITInterface {
 #ifdef ENABLE_GDB_JIT_INTERFACE
+
+V8_EXPORT_PRIVATE void RegisterMaglevVariableLocations(
+    uintptr_t code_start, const std::vector<maglev::MaglevVariableInfo>& vars);
 
 // JitCodeEventHandler that creates ELF/Mach-O objects and registers them with
 // GDB.

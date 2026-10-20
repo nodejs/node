@@ -5,6 +5,9 @@
       'OPENSSL_USE_NODELETE',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'ECP_NISTZ256_ASM',
       'KECCAK1600_ASM',
@@ -25,7 +28,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux-ppc64le': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'openssl_cli_srcs_linux-ppc64le': [
       'openssl/apps/lib/cmp_mock_srv.c',

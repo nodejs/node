@@ -1,9 +1,14 @@
 import { URL } from 'node:url'
+import { SessionOptions } from 'node:http2'
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 import TClientStats from './client-stats'
 
-type ClientConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
+type ClientConnectOptions<TOpaque = null> = Omit<Dispatcher.ConnectOptions<TOpaque>, 'origin'>
+
+// TODO: Pendings
+// 1. Reflect this on Client instantiation
+// 2. Client H2 should use this namespaced options instead.
 
 /**
  * A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
@@ -20,12 +25,12 @@ export class Client extends Dispatcher {
   readonly stats: TClientStats
 
   // Override dispatcher APIs.
-  override connect (
-    options: ClientConnectOptions
-  ): Promise<Dispatcher.ConnectData>
-  override connect (
-    options: ClientConnectOptions,
-    callback: (err: Error | null, data: Dispatcher.ConnectData) => void
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>
+  ): Promise<Dispatcher.ConnectData<TOpaque>>
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>,
+    callback: (err: Error | null, data: Dispatcher.ConnectData<TOpaque>) => void
   ): void
 }
 
@@ -33,7 +38,7 @@ export declare namespace Client {
   export interface Options {
     /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
-    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
+    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     headersTimeout?: number;
     /** @deprecated unsupported socketTimeout, use headersTimeout & bodyTimeout instead */
     socketTimeout?: never;
@@ -41,7 +46,7 @@ export declare namespace Client {
     requestTimeout?: never;
     /** The timeout for establishing a socket connection, in milliseconds. Use `0` to disable it entirely. Default: `10e3` milliseconds (10s). */
     connectTimeout?: number;
-    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). */
+    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     bodyTimeout?: number;
     /** @deprecated unsupported idleTimeout, use keepAliveTimeout instead */
     idleTimeout?: never;
@@ -57,7 +62,7 @@ export declare namespace Client {
     keepAliveTimeoutThreshold?: number;
     /** An IPC endpoint, either a Unix domain socket or Windows named pipe. Default: `null`. */
     socketPath?: string;
-    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
+    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Only enable values greater than `1` when the remote server is trusted. Default: `1`. */
     pipelining?: number;
     /** @deprecated use the connect option instead */
     tls?: never;
@@ -75,6 +80,8 @@ export declare namespace Client {
     maxResponseSize?: number;
     /** WebSocket-specific options */
     webSocket?: Client.WebSocketOptions;
+    /** EventSource-specific options */
+    eventSource?: Client.EventSourceOptions;
     /** Enables a family autodetection algorithm that loosely implements section 5 of RFC 8305. */
     autoSelectFamily?: boolean;
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
@@ -85,25 +92,35 @@ export declare namespace Client {
      */
     allowH2?: boolean;
     /**
-     * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. The server's SETTINGS_MAX_CONCURRENT_STREAMS can lower it, but not raise it.
      * @default 100
+     * @deprecated Use h2Options.maxConcurrentStreams instead
      */
     maxConcurrentStreams?: number;
     /**
      * @description Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE).
      * @default 262144
+     * @deprecated Use h2Options.settings.initialWindowSize instead
      */
     initialWindowSize?: number;
     /**
      * @description Sets the HTTP/2 connection-level flow-control window size (ClientHttp2Session.setLocalWindowSize).
      * @default 524288
+     * @deprecated Use h2Options.connectionWindowSize instead
      */
     connectionWindowSize?: number;
     /**
      * @description Time interval between PING frames dispatch
      * @default 60000
+     * @deprecated Use h2Options.connectionWindowSize instead
      */
     pingInterval?: number;
+    /**
+     * @description HTTP/2 configuration options
+     */
+    h2Options?: Client.H2Options;
+    /** @experimental Enables the experimental Milo HTTP/1 parser for this client. Defaults to the `UNDICI_USE_MILO` environment variable. */
+    useMilo?: boolean;
   }
   export interface SocketInfo {
     localAddress?: string
@@ -117,12 +134,56 @@ export declare namespace Client {
   }
   export interface WebSocketOptions {
     /**
+     * Maximum number of fragments in a message. Set to 0 to disable the limit.
+     * @default 131072
+     */
+    maxFragments?: number;
+    /**
      * Maximum allowed payload size in bytes for WebSocket messages.
      * Applied to uncompressed messages, compressed frame payloads, and decompressed (permessage-deflate) messages.
      * Set to 0 to disable the limit.
      * @default 134217728 (128 MB)
      */
     maxPayloadSize?: number;
+  }
+
+  export interface H2Options extends Omit<SessionOptions, keyof buildConnector.BuildOptions> {
+    /**
+     * @description Sets the HTTP/2 connection-level flow-control window size (ClientHttp2Session.setLocalWindowSize).
+     * @default 524288
+     */
+    connectionWindowSize?: number;
+    /**
+     * @description Time interval between PING frames dispatch
+     * @default 60000
+     */
+    pingInterval?: number;
+    /**
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. The server's SETTINGS_MAX_CONCURRENT_STREAMS can lower it, but not raise it.
+     * @default 100
+    */
+    maxConcurrentStreams?: number;
+    /**
+     * @description Enable support for H2C (plain text)
+     * @default false
+     */
+    useH2c?: boolean;
+    /**
+     * @description SETTINGS frame object. Default to 'node:http2' defaults
+     */
+    settings?: Omit<SessionOptions['settings'], 'enablePush' | 'maxConcurrentStreams' | 'enableConnectProtocol'>
+  }
+  export interface EventSourceOptions {
+    /**
+     * Maximum total bytes of data and metadata field values retained for a
+     * pending EventSource event. Each unfinished line is separately bounded
+     * to this value plus seven syntax bytes. The number of data lines per
+     * event and buffered input chunks are each limited to
+     * min(131072, max(1024, floor(maxEventSize / 128))).
+     * Set to 0 to disable these limits.
+     * @default buffer.kStringMaxLength
+     */
+    maxEventSize?: number;
   }
 }
 

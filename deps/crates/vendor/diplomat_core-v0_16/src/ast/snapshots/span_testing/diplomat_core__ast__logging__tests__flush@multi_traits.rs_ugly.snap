@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Implementing multiple traits currently unsupported
+In src/ast/snapshots/span_testing/multi_traits.rs:3:41:
+...() + FnMut()) {}...
+        ^^^^^^^
+Suggestion: remove extra trait bound

@@ -81,8 +81,6 @@ class Interpreter {
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Tagged<Code> handler);
 
-  V8_EXPORT_PRIVATE DirectHandle<JSObject> GetDispatchCountersObject();
-
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 
   void Initialize();
@@ -91,10 +89,6 @@ class Interpreter {
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
-  }
-
-  Address bytecode_dispatch_counters_table() {
-    return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
   Address address_of_interpreter_entry_trampoline_instruction_start() const {
@@ -107,10 +101,6 @@ class Interpreter {
   friend class v8::internal::SetupIsolateDelegate;
   friend class v8::internal::IgnitionStatisticsTester;
 
-  V8_EXPORT_PRIVATE void InitDispatchCounters();
-  V8_EXPORT_PRIVATE uintptr_t GetDispatchCounter(Bytecode from,
-                                                 Bytecode to) const;
-
   // Get dispatch table index of bytecode.
   static size_t GetDispatchTableIndex(Bytecode bytecode,
                                       OperandScale operand_scale);
@@ -121,15 +111,8 @@ class Interpreter {
 
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
-  std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
   Address interpreter_entry_trampoline_instruction_start_;
 };
-
-#ifdef V8_IGNITION_DISPATCH_COUNTING
-#define V8_IGNITION_DISPATCH_COUNTING_BOOL true
-#else
-#define V8_IGNITION_DISPATCH_COUNTING_BOOL false
-#endif
 
 }  // namespace interpreter
 }  // namespace internal

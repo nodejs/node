@@ -1,616 +1,361 @@
 # SnapshotAgent
 
-The `SnapshotAgent` provides a powerful way to record and replay HTTP requests for testing purposes. It extends `MockAgent` to enable automatic snapshot testing, eliminating the need to manually define mock responses.
+<!--introduced_in=v7.13.0-->
+<!--type=module-->
+<!-- source_link=lib/mock/snapshot-agent.js -->
 
-## Use Cases
+> Stability: 1 - Experimental
 
-- **Integration Testing**: Record real API interactions and replay them in tests
-- **Offline Development**: Work with APIs without network connectivity
-- **Consistent Test Data**: Ensure tests use the same responses across runs
-- **API Contract Testing**: Capture and validate API behavior over time
+`SnapshotAgent` records real HTTP responses and replays them on later requests,
+allowing tests to run against deterministic, captured data instead of a live
+network. It extends [`MockAgent`][], so it can be installed with
+[`setGlobalDispatcher()`][] or passed explicitly through the `dispatcher`
+option, and it works with every undici API (`fetch`, `request`, `stream`,
+`pipeline`, and so on).
 
-## Constructor
+A `SnapshotAgent` operates in one of three modes. In `'record'` mode it performs
+real requests and writes the responses to a snapshot file. In `'playback'` mode
+it serves responses from the snapshot file without touching the network. In
+`'update'` mode it replays existing snapshots and records any request that has no
+matching snapshot.
 
-```javascript
-new SnapshotAgent([options])
-```
+```mjs
+import { SnapshotAgent, setGlobalDispatcher, fetch } from 'undici'
 
-### Parameters
-
-- **options** `Object` (optional)
-  - **mode** `String` - The snapshot mode: `'record'`, `'playback'`, or `'update'`. Default: `'record'`
-  - **snapshotPath** `String` - Path to the snapshot file for loading/saving
-  - **maxSnapshots** `Number` - Maximum number of snapshots to keep in memory. Default: `Infinity`
-  - **autoFlush** `Boolean` - Whether to automatically save snapshots to disk. Default: `false`
-  - **flushInterval** `Number` - Interval in milliseconds for auto-flush. Default: `30000`
-  - **matchHeaders** `Array<String>` - Specific headers to include in request matching. Default: all headers
-  - **ignoreHeaders** `Array<String>` - Headers to ignore during request matching
-  - **excludeHeaders** `Array<String>` - Headers to exclude from snapshots (for security)
-  - **matchBody** `Boolean` - Whether to include request body in matching. Default: `true`
-  - **matchQuery** `Boolean` - Whether to include query parameters in matching. Default: `true`
-  - **caseSensitive** `Boolean` - Whether header matching is case-sensitive. Default: `false`
-  - **shouldRecord** `Function` - Callback to determine if a request should be recorded
-  - **shouldPlayback** `Function` - Callback to determine if a request should be played back
-  - **excludeUrls** `Array` - URL patterns (strings or RegExp) to exclude from recording/playback
-  - All other options from `MockAgent` are supported
-
-### Modes
-
-#### Record Mode (`'record'`)
-Makes real HTTP requests and saves the responses to snapshots.
-
-```javascript
-import { SnapshotAgent, setGlobalDispatcher } from 'undici'
-
-const agent = new SnapshotAgent({ 
+const agent = new SnapshotAgent({
   mode: 'record',
-  snapshotPath: './test/snapshots/api-calls.json'
+  snapshotPath: './snapshots/api.json'
 })
 setGlobalDispatcher(agent)
 
-// Makes real requests and records them
 const response = await fetch('https://api.example.com/users')
 const users = await response.json()
 
-// Save recorded snapshots
-await agent.saveSnapshots()
+await agent.close()
 ```
 
-#### Playback Mode (`'playback'`)
-Replays recorded responses without making real HTTP requests.
+Constructing a `SnapshotAgent` emits an `ExperimentalWarning` once per process.
 
-```javascript
+## Class: `SnapshotAgent`
+
+<!-- YAML
+added: v7.13.0
+-->
+
+* Extends: {MockAgent}
+
+The captured interactions are managed by an internal `SnapshotRecorder`, which
+is accessible through [`agent.getRecorder()`][]. Because `SnapshotAgent` extends
+[`MockAgent`][], all `MockAgent` and [`Dispatcher`][] methods and events are also
+available.
+
+### `new SnapshotAgent([options])`
+
+<!-- YAML
+added: v7.13.0
+-->
+
+* `options` {Object} (optional) Accepts all [`MockAgent`][] options plus the
+  following snapshot-specific options.
+  * `mode` {string} The snapshot mode. One of `'record'`, `'playback'`, or
+    `'update'`. **Default:** `'record'`.
+  * `snapshotPath` {string} Path to the snapshot file used for loading and
+    saving. Required when `mode` is `'playback'` or `'update'`. **Default:**
+    `null`.
+  * `maxSnapshots` {number} Maximum number of snapshots to keep in memory.
+    **Default:** `Infinity`.
+  * `autoFlush` {boolean} When `true`, snapshots are written to `snapshotPath`
+    automatically as they are recorded. **Default:** `false`.
+  * `flushInterval` {number} Interval, in milliseconds, between automatic flushes
+    when `autoFlush` is enabled. **Default:** `30000`.
+  * `matchHeaders` {string[]} Names of the only headers to include when matching
+    a request against a snapshot. When omitted, all headers are matched.
+  * `ignoreHeaders` {string[]} Header names to ignore when matching a request.
+  * `excludeHeaders` {string[]} Header names to strip from snapshots entirely,
+    so that sensitive values are never written to disk.
+  * `matchBody` {boolean} When `true`, the request body is included in request
+    matching. **Default:** `true`.
+  * `normalizeBody` {Function} Normalizes the request body before it is matched
+    or stored, for example to strip volatile fields such as timestamps. Only
+    applied when `matchBody` is `true`.
+    * `body` {string|Buffer|null|undefined} The raw request body.
+    * Returns: {string} The normalized body used for matching.
+  * `matchQuery` {boolean} When `true`, query parameters are included in request
+    matching. **Default:** `true`.
+  * `normalizeQuery` {Function} Normalizes the query string before it is matched,
+    for example to strip cache-busting parameters. Only applied when `matchQuery`
+    is `true`.
+    * `query` {URLSearchParams} The parsed query parameters.
+    * Returns: {string} The normalized query string used for matching.
+  * `caseSensitive` {boolean} When `true`, header matching is case-sensitive.
+    **Default:** `false`.
+  * `shouldRecord` {Function} Decides whether a given request is recorded. Only
+    used in `'record'` and `'update'` modes.
+    * `requestOpts` {Object} The dispatch options of the request.
+    * Returns: {boolean} `true` to record the request.
+  * `shouldPlayback` {Function} Decides whether a given request is served from a
+    snapshot. Only used in `'playback'` and `'update'` modes.
+    * `requestOpts` {Object} The dispatch options of the request.
+    * Returns: {boolean} `true` to play the request back from a snapshot.
+  * `excludeUrls` {Array<string|RegExp>} URL patterns that are excluded from
+    recording and playback. String patterns match case-insensitively as
+    substrings of the URL; `RegExp` patterns are tested against the URL. Matching
+    requests are passed through to a real [`Agent`][] instead.
+
+Creates a new `SnapshotAgent`. Throws an [`InvalidArgumentError`][] when `mode`
+is `'playback'` or `'update'` and `snapshotPath` is not provided, and throws an
+`InvalidArgumentError` when `mode` is not one of the supported values.
+
+When `mode` is `'playback'` or `'update'` and `snapshotPath` is set, snapshots
+are loaded from the file automatically; a missing file is ignored until the first
+request requires it.
+
+```mjs
 import { SnapshotAgent, setGlobalDispatcher } from 'undici'
 
 const agent = new SnapshotAgent({
   mode: 'playback',
-  snapshotPath: './test/snapshots/api-calls.json'
+  snapshotPath: './snapshots/api.json'
 })
 setGlobalDispatcher(agent)
-
-// Uses recorded response instead of real request
-const response = await fetch('https://api.example.com/users')
 ```
 
-#### Update Mode (`'update'`)
-Uses existing snapshots when available, but records new ones for missing requests.
+The mode controls how requests are handled:
 
-```javascript
-import { SnapshotAgent, setGlobalDispatcher } from 'undici'
+* `'record'` performs the real request and stores the response.
 
-const agent = new SnapshotAgent({
-  mode: 'update',
-  snapshotPath: './test/snapshots/api-calls.json'
-})
-setGlobalDispatcher(agent)
+  ```mjs
+  import { SnapshotAgent, setGlobalDispatcher, fetch } from 'undici'
 
-// Uses snapshot if exists, otherwise makes real request and records it
-const response = await fetch('https://api.example.com/new-endpoint')
-```
+  const agent = new SnapshotAgent({
+    mode: 'record',
+    snapshotPath: './snapshots/api.json'
+  })
+  setGlobalDispatcher(agent)
 
-## Instance Methods
+  await fetch('https://api.example.com/users')
+  await agent.saveSnapshots()
+  ```
 
-### `agent.saveSnapshots([filePath])`
+* `'playback'` serves the recorded response without any network access. A
+  request with no matching snapshot rejects with an [`UndiciError`][] whose
+  message begins with `No snapshot found`.
 
-Saves all recorded snapshots to a file.
+  ```mjs
+  import { SnapshotAgent, setGlobalDispatcher, fetch } from 'undici'
 
-#### Parameters
+  const agent = new SnapshotAgent({
+    mode: 'playback',
+    snapshotPath: './snapshots/api.json'
+  })
+  setGlobalDispatcher(agent)
 
-- **filePath** `String` (optional) - Path to save snapshots. Uses constructor `snapshotPath` if not provided.
+  const response = await fetch('https://api.example.com/users')
+  ```
 
-#### Returns
+* `'update'` replays an existing snapshot when one is found and otherwise records
+  the request like `'record'` mode.
 
-`Promise<void>`
+  ```mjs
+  import { SnapshotAgent, setGlobalDispatcher, fetch } from 'undici'
 
-```javascript
-await agent.saveSnapshots('./custom-snapshots.json')
-```
+  const agent = new SnapshotAgent({
+    mode: 'update',
+    snapshotPath: './snapshots/api.json'
+  })
+  setGlobalDispatcher(agent)
 
-## Advanced Configuration
-
-### Header Filtering
-
-Control which headers are used for request matching and what gets stored in snapshots:
-
-```javascript
-const agent = new SnapshotAgent({
-  mode: 'record',
-  snapshotPath: './snapshots.json',
-  
-  // Only match these specific headers
-  matchHeaders: ['content-type', 'accept'],
-  
-  // Ignore these headers during matching (but still store them)
-  ignoreHeaders: ['user-agent', 'date'],
-  
-  // Exclude sensitive headers from snapshots entirely
-  excludeHeaders: ['authorization', 'x-api-key', 'cookie']
-})
-```
-
-### Custom Request/Response Filtering
-
-Use callback functions to determine what gets recorded or played back:
-
-```javascript
-const agent = new SnapshotAgent({
-  mode: 'record',
-  snapshotPath: './snapshots.json',
-  
-  // Only record GET requests to specific endpoints
-  shouldRecord: (requestOpts) => {
-    const url = new URL(requestOpts.path, requestOpts.origin)
-    return requestOpts.method === 'GET' && url.pathname.startsWith('/api/v1/')
-  },
-  
-  // Skip authentication endpoints during playback
-  shouldPlayback: (requestOpts) => {
-    const url = new URL(requestOpts.path, requestOpts.origin)
-    return !url.pathname.includes('/auth/')
-  }
-})
-```
-
-### URL Pattern Exclusion
-
-Exclude specific URLs from recording/playback using patterns:
-
-```javascript
-const agent = new SnapshotAgent({
-  mode: 'record',
-  snapshotPath: './snapshots.json',
-  
-  excludeUrls: [
-    'https://analytics.example.com',  // String match
-    /\/api\/v\d+\/health/,           // Regex pattern
-    'telemetry'                      // Substring match
-  ]
-})
-```
-
-### Memory Management
-
-Configure automatic memory and disk management:
-
-```javascript
-const agent = new SnapshotAgent({
-  mode: 'record',
-  snapshotPath: './snapshots.json',
-  
-  // Keep only 1000 snapshots in memory
-  maxSnapshots: 1000,
-  
-  // Automatically save to disk every 30 seconds
-  autoFlush: true,
-  flushInterval: 30000
-})
-```
-
-### Sequential Response Handling
-
-Handle multiple responses for the same request (similar to nock):
-
-```javascript
-// In record mode, multiple identical requests get recorded as separate responses
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './sequential.json' })
-
-// First call returns response A
-await fetch('https://api.example.com/random')
-
-// Second call returns response B  
-await fetch('https://api.example.com/random')
-
-await agent.saveSnapshots()
-
-// In playback mode, calls return responses in sequence
-const playbackAgent = new SnapshotAgent({ mode: 'playback', snapshotPath: './sequential.json' })
-
-// Returns response A
-const first = await fetch('https://api.example.com/random')
-
-// Returns response B
-const second = await fetch('https://api.example.com/random')
-
-// Third call repeats the last response (B)
-const third = await fetch('https://api.example.com/random')
-```
-
-## Managing Snapshots
-
-### Replacing Existing Snapshots
-
-```javascript
-// Load existing snapshots
-await agent.loadSnapshots('./old-snapshots.json')
-
-// Get snapshot data
-const recorder = agent.getRecorder()
-const snapshots = recorder.getSnapshots()
-
-// Modify or filter snapshots
-const filteredSnapshots = snapshots.filter(s => 
-  !s.request.url.includes('deprecated')
-)
-
-// Replace all snapshots
-agent.replaceSnapshots(filteredSnapshots.map((snapshot, index) => ({
-  hash: `new-hash-${index}`,
-  snapshot
-})))
-
-// Save updated snapshots
-await agent.saveSnapshots('./updated-snapshots.json')
-```
+  await fetch('https://api.example.com/new-endpoint')
+  ```
 
 ### `agent.loadSnapshots([filePath])`
 
-Loads snapshots from a file.
+<!-- YAML
+added: v7.13.0
+-->
 
-#### Parameters
+* `filePath` {string} (optional) Path to read snapshots from. **Default:** the
+  `snapshotPath` given to the constructor.
+* Returns: {Promise<void>} Resolves when the snapshots have been loaded.
 
-- **filePath** `String` (optional) - Path to load snapshots from. Uses constructor `snapshotPath` if not provided.
+Loads snapshots from disk into memory. In `'playback'` mode this also installs
+the corresponding [`MockAgent`][] interceptors so that subsequent requests are
+matched against the loaded snapshots.
 
-#### Returns
+```mjs
+await agent.loadSnapshots('./snapshots/api.json')
+```
 
-`Promise<void>`
+### `agent.saveSnapshots([filePath])`
 
-```javascript
-await agent.loadSnapshots('./existing-snapshots.json')
+<!-- YAML
+added: v7.13.0
+-->
+
+* `filePath` {string} (optional) Path to write snapshots to. **Default:** the
+  `snapshotPath` given to the constructor.
+* Returns: {Promise<void>} Resolves when the snapshots have been written.
+
+Writes all recorded snapshots to disk.
+
+```mjs
+await agent.saveSnapshots('./snapshots/api.json')
 ```
 
 ### `agent.getRecorder()`
 
-Gets the underlying `SnapshotRecorder` instance.
+<!-- YAML
+added: v7.13.0
+-->
 
-#### Returns
+* Returns: {SnapshotRecorder} The internal recorder that stores the captured
+  interactions.
 
-`SnapshotRecorder`
+Returns the underlying `SnapshotRecorder`. The recorder exposes lower-level
+operations over the captured data, including `record()`, `findSnapshot()`,
+`getSnapshots()`, `size()`, and `clear()`. The recorder is an internal type
+returned for inspection; it is not exported from the package root.
 
-```javascript
+```mjs
 const recorder = agent.getRecorder()
 console.log(`Recorded ${recorder.size()} interactions`)
 ```
 
 ### `agent.getMode()`
 
-Gets the current snapshot mode.
+<!-- YAML
+added: v7.13.0
+-->
 
-#### Returns
+* Returns: {string} The current mode: `'record'`, `'playback'`, or `'update'`.
 
-`String` - The current mode (`'record'`, `'playback'`, or `'update'`)
+Returns the mode the agent was constructed with.
 
 ### `agent.clearSnapshots()`
 
-Clears all recorded snapshots from memory.
+<!-- YAML
+added: v7.13.0
+-->
 
-```javascript
+* Returns: {undefined}
+
+Removes all snapshots from memory.
+
+```mjs
 agent.clearSnapshots()
 ```
 
-## Working with Different Request Types
+### `agent.resetCallCounts()`
 
-### GET Requests
+<!-- YAML
+added: v7.13.0
+-->
 
-```javascript
-// Record mode
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './get-snapshots.json' })
-setGlobalDispatcher(agent)
+* Returns: {undefined}
 
-const response = await fetch('https://jsonplaceholder.typicode.com/posts/1')
-const post = await response.json()
+Resets the call count of every snapshot to zero. Useful between tests when the
+same agent is reused, since matching a snapshot in `'playback'` mode increments
+its call count.
 
-await agent.saveSnapshots()
+```mjs
+agent.resetCallCounts()
 ```
 
-### POST Requests with Body
+### `agent.deleteSnapshot(requestOpts)`
 
-```javascript
-// Record mode
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './post-snapshots.json' })
-setGlobalDispatcher(agent)
+<!-- YAML
+added: v7.13.0
+-->
 
-const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ title: 'Test Post', body: 'Content' })
-})
+* `requestOpts` {Object} Dispatch options identifying the snapshot to remove.
+* Returns: {boolean} `true` if a matching snapshot was deleted, `false` if none
+  was found.
 
-await agent.saveSnapshots()
-```
+Deletes a single snapshot that matches the given request options.
 
-### Using with `undici.request`
-
-SnapshotAgent works with all undici APIs, not just fetch:
-
-```javascript
-import { SnapshotAgent, request, setGlobalDispatcher } from 'undici'
-
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './request-snapshots.json' })
-setGlobalDispatcher(agent)
-
-const { statusCode, headers, body } = await request('https://api.example.com/data')
-const data = await body.json()
-
-await agent.saveSnapshots()
-```
-
-## Test Integration
-
-### Basic Test Setup
-
-```javascript
-import { test } from 'node:test'
-import { SnapshotAgent, setGlobalDispatcher, getGlobalDispatcher } from 'undici'
-
-test('API integration test', async (t) => {
-  const originalDispatcher = getGlobalDispatcher()
-  
-  const agent = new SnapshotAgent({
-    mode: 'playback',
-    snapshotPath: './test/snapshots/api-test.json'
-  })
-  setGlobalDispatcher(agent)
-  
-  t.after(() => setGlobalDispatcher(originalDispatcher))
-  
-  // This will use recorded data
-  const response = await fetch('https://api.example.com/users')
-  const users = await response.json()
-  
-  assert(Array.isArray(users))
-  assert(users.length > 0)
+```mjs
+const deleted = agent.deleteSnapshot({
+  method: 'GET',
+  origin: 'https://api.example.com',
+  path: '/users'
 })
 ```
 
-### Environment-Based Mode Selection
+### `agent.getSnapshotInfo(requestOpts)`
 
-```javascript
-const mode = process.env.SNAPSHOT_MODE || 'playback'
+<!-- YAML
+added: v7.13.0
+-->
 
-const agent = new SnapshotAgent({
-  mode,
-  snapshotPath: './test/snapshots/integration.json'
-})
+* `requestOpts` {Object} Dispatch options identifying the snapshot to inspect.
+* Returns: {Object|null} Information about the matching snapshot, or `null` when
+  none is found.
+  * `hash` {string} The hash used to key the snapshot.
+  * `request` {Object} The recorded request.
+    * `method` {string} The request method.
+    * `url` {string} The request URL.
+    * `headers` {Record<string, string>} The recorded request headers.
+    * `body` {string} The recorded request body, when present.
+  * `responseCount` {number} The number of recorded responses for the request.
+  * `callCount` {number} The number of times the snapshot has been matched.
+  * `timestamp` {string} The ISO timestamp at which the snapshot was recorded.
 
-// Run with: SNAPSHOT_MODE=record npm test (to record)
-// Run with: npm test (to playback)
-```
+Returns metadata about a snapshot without returning the response payload.
 
-### Test Helper Function
-
-```javascript
-function createSnapshotAgent(testName, mode = 'playback') {
-  return new SnapshotAgent({
-    mode,
-    snapshotPath: `./test/snapshots/${testName}.json`
-  })
-}
-
-test('user API test', async (t) => {
-  const agent = createSnapshotAgent('user-api')
-  setGlobalDispatcher(agent)
-  
-  // Test implementation...
+```mjs
+const info = agent.getSnapshotInfo({
+  method: 'GET',
+  origin: 'https://api.example.com',
+  path: '/users'
 })
 ```
 
-## Snapshot File Format
+### `agent.replaceSnapshots(snapshotData)`
 
-Snapshots are stored as JSON with the following structure:
+<!-- YAML
+added: v7.13.0
+-->
 
-```json
-[
-  {
-    "hash": "dGVzdC1oYXNo...",
-    "snapshot": {
-      "request": {
-        "method": "GET",
-        "url": "https://api.example.com/users",
-        "headers": {
-          "authorization": "Bearer token"
-        },
-        "body": undefined
-      },
-      "response": {
-        "statusCode": 200,
-        "headers": {
-          "content-type": "application/json"
-        },
-        "body": "eyJkYXRhIjoidGVzdCJ9", // base64 encoded
-        "trailers": {}
-      },
-      "timestamp": "2024-01-01T00:00:00.000Z"
-    }
-  }
-]
+* `snapshotData` {Array} The snapshot data to load, replacing any existing
+  snapshots.
+  * `hash` {string} The hash used to key the snapshot.
+  * `snapshot` {Object} The snapshot entry.
+* Returns: {undefined}
+
+Replaces all in-memory snapshots with the provided data.
+
+```mjs
+const recorder = agent.getRecorder()
+const snapshots = recorder.getSnapshots()
+
+agent.replaceSnapshots(snapshots.map((snapshot, index) => ({
+  hash: `snapshot-${index}`,
+  snapshot
+})))
 ```
 
-## Security Considerations
+### `agent.close()`
 
-### Sensitive Data in Snapshots
+<!-- YAML
+added: v7.13.0
+-->
 
-By default, SnapshotAgent records all headers and request/response data. For production use, always exclude sensitive information:
+* Returns: {Promise<void>} Resolves once the agent and its resources are closed.
 
-```javascript
-const agent = new SnapshotAgent({
-  mode: 'record',
-  snapshotPath: './snapshots.json',
-  
-  // Exclude sensitive headers from snapshots
-  excludeHeaders: [
-    'authorization',
-    'x-api-key', 
-    'cookie',
-    'set-cookie',
-    'x-auth-token',
-    'x-csrf-token'
-  ],
-  
-  // Filter out requests with sensitive data
-  shouldRecord: (requestOpts) => {
-    const url = new URL(requestOpts.path, requestOpts.origin)
-    
-    // Don't record authentication endpoints
-    if (url.pathname.includes('/auth/') || url.pathname.includes('/login')) {
-      return false
-    }
-    
-    // Don't record if request contains sensitive body data
-    if (requestOpts.body && typeof requestOpts.body === 'string') {
-      const body = requestOpts.body.toLowerCase()
-      if (body.includes('password') || body.includes('secret')) {
-        return false
-      }
-    }
-    
-    return true
-  }
-})
+Closes the agent and releases its resources. In `'record'` and `'update'` modes
+the recorder is flushed to disk first. In `'playback'` mode nothing is written,
+because matching a snapshot mutates its call count and saving would needlessly
+rewrite the snapshot file. The real [`Agent`][], when one was created, and the
+underlying [`MockAgent`][] are closed as well.
+
+```mjs
+await agent.close()
 ```
 
-### Snapshot File Security
-
-**Important**: Snapshot files may contain sensitive data. Handle them securely:
-
-- ✅ Add snapshot files to `.gitignore` if they contain real API data
-- ✅ Use environment-specific snapshots (dev/staging/prod)
-- ✅ Regularly review snapshot contents for sensitive information
-- ✅ Use the `excludeHeaders` option for production snapshots
-- ❌ Never commit snapshots with real authentication tokens
-- ❌ Don't share snapshot files containing personal data
-
-```gitignore
-# Exclude snapshots with real data
-/test/snapshots/production-*.json
-/test/snapshots/*-real-data.json
-
-# Include sanitized test snapshots
-!/test/snapshots/mock-*.json
-```
-
-## Error Handling
-
-### Missing Snapshots in Playback Mode
-
-```javascript
-try {
-  const response = await fetch('https://api.example.com/nonexistent')
-} catch (error) {
-  if (error.message.includes('No snapshot found')) {
-    // Handle missing snapshot
-    console.log('Snapshot not found for this request')
-  }
-}
-```
-
-### Handling Network Errors in Record Mode
-
-```javascript
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './snapshots.json' })
-
-try {
-  const response = await fetch('https://nonexistent-api.example.com/data')
-} catch (error) {
-  // Network errors are not recorded as snapshots
-  console.log('Network error:', error.message)
-}
-```
-
-## Best Practices
-
-### 1. Organize Snapshots by Test Suite
-
-```javascript
-// Use descriptive snapshot file names
-const agent = new SnapshotAgent({
-  mode: 'playback',
-  snapshotPath: `./test/snapshots/${testSuiteName}-${testName}.json`
-})
-```
-
-### 2. Version Control Snapshots
-
-Add snapshot files to version control to ensure consistent test behavior across environments:
-
-```gitignore
-# Include snapshots in version control
-!/test/snapshots/*.json
-```
-
-### 3. Clean Up Test Data
-
-```javascript
-test('API test', async (t) => {
-  const agent = new SnapshotAgent({
-    mode: 'playback',
-    snapshotPath: './test/snapshots/temp-test.json'
-  })
-  
-  // Clean up after test
-  t.after(() => {
-    agent.clearSnapshots()
-  })
-})
-```
-
-### 4. Snapshot Validation
-
-```javascript
-test('validate snapshot contents', async (t) => {
-  const agent = new SnapshotAgent({
-    mode: 'playback',
-    snapshotPath: './test/snapshots/validation.json'
-  })
-  
-  const recorder = agent.getRecorder()
-  const snapshots = recorder.getSnapshots()
-  
-  // Validate snapshot structure
-  assert(snapshots.length > 0, 'Should have recorded snapshots')
-  assert(snapshots[0].request.url.startsWith('https://'), 'Should use HTTPS')
-})
-```
-
-## Comparison with Other Tools
-
-### vs Manual MockAgent Setup
-
-**Manual MockAgent:**
-```javascript
-const mockAgent = new MockAgent()
-const mockPool = mockAgent.get('https://api.example.com')
-
-mockPool.intercept({
-  path: '/users',
-  method: 'GET'
-}).reply(200, [
-  { id: 1, name: 'User 1' },
-  { id: 2, name: 'User 2' }
-])
-```
-
-**SnapshotAgent:**
-```javascript
-// Record once
-const agent = new SnapshotAgent({ mode: 'record', snapshotPath: './snapshots.json' })
-// Real API call gets recorded automatically
-
-// Use in tests
-const agent = new SnapshotAgent({ mode: 'playback', snapshotPath: './snapshots.json' })
-// Automatically replays recorded response
-```
-
-### vs nock
-
-SnapshotAgent provides similar functionality to nock but is specifically designed for undici:
-
-- ✅ Works with all undici APIs (`request`, `stream`, `pipeline`, etc.)
-- ✅ Supports undici-specific features (RetryAgent, connection pooling)
-- ✅ Better TypeScript integration
-- ✅ More efficient for high-performance scenarios
-
-## See Also
-
-- [MockAgent](./MockAgent.md) - Manual mocking for more control
-- [MockCallHistory](./MockCallHistory.md) - Inspecting request history
-- [Testing Best Practices](../best-practices/writing-tests.md) - General testing guidance
+[`Agent`]: Agent.md#class-agent
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`InvalidArgumentError`]: Errors.md#undicierrorsundiciinvalidargumenterror
+[`MockAgent`]: MockAgent.md#class-mockagent
+[`UndiciError`]: Errors.md#undicierrorsundicierror
+[`agent.getRecorder()`]: #agentgetrecorder
+[`setGlobalDispatcher()`]: Dispatcher.md#setglobaldispatcherdispatcher

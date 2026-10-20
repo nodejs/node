@@ -54,6 +54,12 @@ assert(isSea());
 const textAssetOnDisk = readFileSync(process.env.__TEST_UTF8_TEXT_PATH, 'utf8');
 const binaryAssetOnDisk = readFileSync(process.env.__TEST_PERSON_JPG);
 
+// Check asset keys containing NUL.
+{
+  assert.strictEqual(getAsset('a', 'utf8'), textAssetOnDisk);
+  assert.deepStrictEqual(Buffer.from(getAsset('a\0b')), binaryAssetOnDisk);
+}
+
 // Check getAsset() buffer copies.
 {
   // Check that the asset embedded is the same as the original.

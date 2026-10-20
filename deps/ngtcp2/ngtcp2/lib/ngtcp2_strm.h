@@ -89,6 +89,18 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_ANY_SENT indicates that any STREAM frame,
    including empty one, has been sent. */
 #define NGTCP2_STRM_FLAG_ANY_SENT 0x1000U
+/* NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING is set when
+   ngtcp2_strm_stop_buffering_reordered_data is called. */
+#define NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING 0x2000U
+/* NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.rx.app_error_code is set. */
+#define NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET 0x4000U
+/* NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.tx.reset_stream_app_error_code is set. */
+#define NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET 0x8000U
+/* NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.tx.stop_sending_app_error_code is set. */
+#define NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET 0x10000U
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -138,10 +150,18 @@ struct ngtcp2_strm {
            multiple STREAM frames in one lost packet. */
         int64_t last_lost_pkt_num;
         /* stop_sending_app_error_code is the application specific
-           error code that is sent along with STOP_SENDING. */
+           error code that is sent along with STOP_SENDING.  If this
+           field is set,
+           NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set.
+           This field is eventually passed to ngtcp2_stream_close2
+           callback as rx_app_error_code parameter. */
         uint64_t stop_sending_app_error_code;
         /* reset_stream_app_error_code is the application specific
-           error code that is sent along with RESET_STREAM. */
+           error code that is sent along with RESET_STREAM.  If this
+           field is set,
+           NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET is set.
+           This field is eventually passed to ngtcp2_stream_close2
+           callback as tx_app_error_code parameter. */
         uint64_t reset_stream_app_error_code;
       } tx;
 
@@ -166,6 +186,12 @@ struct ngtcp2_strm {
         uint64_t unsent_max_offset;
         /* window is the stream-level flow control window size. */
         uint64_t window;
+        /* app_error_code is the application error code that is
+           received in RESET_STREAM frame.  If this field is set,
+           NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET is set.  This field
+           is eventually passed to ngtcp2_stream_close2 callback as
+           rx_app_error_code parameter. */
+        uint64_t app_error_code;
       } rx;
 
       const ngtcp2_mem *mem;
@@ -208,6 +234,10 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
  *
+ * If ngtcp2_strm_stop_buffering_reordered_data has been called, this
+ * function only records the range of the reordered data.  The actual
+ * data is not buffered.
+ *
  * It returns the number of bytes newly buffered if it succeeds, or
  * one of the following negative error codes:
  *
@@ -222,12 +252,6 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
  * are received in order.
  */
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
-
-/*
- * ngtcp2_strm_discard_reordered_data discards all buffered reordered
- * data.
- */
-void ngtcp2_strm_discard_reordered_data(ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be one of
@@ -357,5 +381,20 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
  */
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
+
+/*
+ * ngtcp2_strm_discard_ordered_data discards the ordered data starting
+ * at |rx_offset|.  It stops when it finds a gap, which means that a
+ * portion of the data has not been received yet.  It returns the size
+ * of the buffered bytes discarded.
+ */
+uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
+                                          uint64_t rx_offset);
+
+/*
+ * ngtcp2_strm_stop_buffering_reordered_data discards the buffered
+ * reordered data, and stops buffering data any further.
+ */
+void ngtcp2_strm_stop_buffering_reordered_data(ngtcp2_strm *strm);
 
 #endif /* !defined(NGTCP2_STRM_H) */

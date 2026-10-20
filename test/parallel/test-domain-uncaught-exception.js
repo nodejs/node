@@ -31,7 +31,7 @@ tests.push({
 });
 
 function test2() {
-  // Throwing from from within a domain that doesn't have an error handler must
+  // Throwing from within a domain that doesn't have an error handler must
   // result in emitting the process' uncaughtException event.
   const d2 = domain.create();
   d2.run(function() {

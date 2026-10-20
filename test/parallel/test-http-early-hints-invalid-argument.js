@@ -38,7 +38,7 @@ const testResBody = 'response content\n';
 
   server.listen(0, common.mustCall(() => {
     const req = http.request({
-      port: server.address().port, path: '/'
+      port: server.address().port, path: '/', agent: false
     });
 
     req.end();
@@ -79,7 +79,7 @@ const testResBody = 'response content\n';
 
   server.listen(0, common.mustCall(() => {
     const req = http.request({
-      port: server.address().port, path: '/'
+      port: server.address().port, path: '/', agent: false
     });
 
     req.end();

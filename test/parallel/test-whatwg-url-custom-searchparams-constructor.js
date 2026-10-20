@@ -28,8 +28,14 @@ function makeIterableFunc(array) {
   let params;
   params = new URLSearchParams(undefined);
   assert.strictEqual(params.toString(), '');
+  // Per WebIDL union resolution, null is coerced to the USVString "null".
+  // Refs: https://url.spec.whatwg.org/#interface-urlsearchparams
   params = new URLSearchParams(null);
-  assert.strictEqual(params.toString(), '');
+  assert.strictEqual(params.toString(), 'null=');
+  params = new URLSearchParams(false);
+  assert.strictEqual(params.toString(), 'false=');
+  params = new URLSearchParams(0);
+  assert.strictEqual(params.toString(), '0=');
   params = new URLSearchParams(
     makeIterableFunc([['key', 'val'], ['key2', 'val2']])
   );
@@ -41,6 +47,19 @@ function makeIterableFunc(array) {
   params = new URLSearchParams({ hasOwnProperty: 1 });
   assert.strictEqual(params.get('hasOwnProperty'), '1');
   assert.strictEqual(params.toString(), 'hasOwnProperty=1');
+  // A malformed key can collide with a valid key collected before the map
+  // exists.
+  params = new URLSearchParams({
+    'before': '0',
+    '\uFFFDx': 'first',
+    '\uD835x': 'last',
+    'after': '3'
+  });
+  assert.deepStrictEqual([...params], [
+    ['before', '0'],
+    ['\uFFFDx', 'last'],
+    ['after', '3'],
+  ]);
   assert.throws(() => new URLSearchParams([[1]]), tupleError);
   assert.throws(() => new URLSearchParams([[1, 2, 3]]), tupleError);
   assert.throws(() => new URLSearchParams({ [Symbol('test')]: 42 }),

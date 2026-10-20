@@ -14,15 +14,20 @@
 
 #include "absl/random/internal/distribution_test_util.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <limits>
+#include <ostream>
 #include <string>
-#include <vector>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

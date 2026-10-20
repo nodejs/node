@@ -33,7 +33,7 @@ const cluster = require('cluster');
 
 if (cluster.isWorker) {
   const http = require('http');
-  const server = http.Server(() => { });
+  const server = new http.Server(() => { });
 
   server.once('listening', common.mustCall());
   server.listen(0, '127.0.0.1');

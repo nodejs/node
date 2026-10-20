@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { rejects, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -28,7 +27,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(received.byteLength, 5);
+      assert.strictEqual(received.byteLength, 5);
       stream.writer.endSync();
       await stream.closed;
       serverDone.resolve();
@@ -51,13 +50,13 @@ const encoder = new TextEncoder();
 
   // Wait for the stream to complete normally.
   await serverDone.promise;
-  for await (const batch of stream) { /* drain server FIN */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 
   // Now the closed promise should resolve.
   await closePromise;
-  strictEqual(closedResolved, true);
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(closedResolved, true);
+  assert.strictEqual(clientSession.destroyed, true);
 
   await serverEndpoint.close();
 }
@@ -76,7 +75,7 @@ const encoder = new TextEncoder();
   clientSession.close();
 
   // Attempting to create a stream after close() should reject.
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({
       body: encoder.encode('too late'),
     }),

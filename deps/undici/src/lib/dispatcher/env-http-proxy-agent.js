@@ -16,7 +16,7 @@ class EnvHttpProxyAgent extends DispatcherBase {
   #opts = null
 
   constructor (opts = {}) {
-    super()
+    super(opts)
     this.#opts = opts
 
     const { httpProxy, httpsProxy, noProxy, ...agentOpts } = opts
@@ -65,9 +65,17 @@ class EnvHttpProxyAgent extends DispatcherBase {
   #getProxyAgentForUrl (url) {
     let { protocol, host: hostname, port } = url
 
-    // Stripping ports in this way instead of using parsedUrl.hostname to make
-    // sure that the brackets around IPv6 addresses are kept.
-    hostname = hostname.replace(/:\d*$/, '').toLowerCase()
+    // Remove the port suffix (e.g. ":8080") and then strip surrounding
+    // brackets from IPv6 literals (e.g. "[::1]" -> "::1") so that the
+    // result matches the unbracketed form stored by #parseNoProxy.
+    hostname = hostname.replace(/:\d*$/, '').replace(/^\[(.+)\]$/, '$1').toLowerCase()
+    // Drop a trailing dot: it only marks the fully qualified form of a domain
+    // name ("example.com." and "example.com" are the same name, RFC 1034 root
+    // label). This runs on every dispatch, so it is a charCode check rather
+    // than a third regex. `length > 1` leaves the degenerate host "." alone.
+    if (hostname.length > 1 && hostname.charCodeAt(hostname.length - 1) === 46) {
+      hostname = hostname.slice(0, -1)
+    }
     port = Number.parseInt(port, 10) || DEFAULT_PORTS[protocol] || 0
     if (!this.#shouldProxy(hostname, port)) {
       return this[kNoProxyAgent]
@@ -86,17 +94,25 @@ class EnvHttpProxyAgent extends DispatcherBase {
     if (this.#noProxyEntries.length === 0) {
       return true // Always proxy if NO_PROXY is not set or empty.
     }
-    if (this.#noProxyValue === '*') {
-      return false // Never proxy if wildcard is set.
-    }
 
     for (let i = 0; i < this.#noProxyEntries.length; i++) {
       const entry = this.#noProxyEntries[i]
+      // A bare `*` entry matches all hosts regardless of its position or the
+      // surrounding whitespace (e.g. ` * ` or `none.invalid,*`). If a port is
+      // attached (`*:80`) it only bypasses that port.
+      if (entry.hostname === '*') {
+        if (entry.port && entry.port !== port) {
+          continue
+        }
+        return false // Never proxy if a wildcard entry is present.
+      }
       if (entry.port && entry.port !== port) {
         continue // Skip if ports don't match.
       }
-      // Don't proxy if the hostname is equal with the no_proxy host.
-      if (hostname === entry.hostname) {
+      // Don't proxy if the hostname is equal with the no_proxy host. A
+      // `*.example.com` wildcard matches subdomains only, not the apex
+      // `example.com`, so exact matches are skipped for wildcard entries.
+      if (!entry.wildcard && hostname === entry.hostname) {
         return false
       }
       // Don't proxy if the hostname is the subdomain of the no_proxy host.
@@ -119,11 +135,39 @@ class EnvHttpProxyAgent extends DispatcherBase {
       if (!entry) {
         continue
       }
-      const parsed = entry.match(/^(.+):(\d+)$/)
+
+      // An IPv6 entry with a port must be bracketed: [::1]:443.
+      // A bare IPv6 address like ::1 contains colons that must not be
+      // confused with a host:port separator, so we handle it separately.
+      let hostname, port
+      const ipv6WithPort = entry.match(/^\[(.+)\]:(\d+)$/)
+      if (ipv6WithPort) {
+        hostname = ipv6WithPort[1]
+        port = Number.parseInt(ipv6WithPort[2], 10)
+      } else {
+        // Bracketed IPv6 without port, or plain hostname[:port], or bare IPv6.
+        // Strip optional brackets first.
+        const unbracketed = entry.replace(/^\[(.+)\]$/, '$1')
+        // A bare IPv6 address contains multiple colons; a hostname:port entry
+        // has exactly one colon followed by digits. Only attempt host:port
+        // splitting when that is unambiguously the case.
+        const colonCount = (unbracketed.match(/:/g) || []).length
+        const parsed = colonCount === 1 && unbracketed.match(/^(.+):(\d+)$/)
+        hostname = parsed ? parsed[1] : unbracketed
+        port = parsed ? Number.parseInt(parsed[2], 10) : 0
+      }
+
+      // A leading `*` marks a subdomain wildcard (`*.example.com`), distinct
+      // from a plain or leading-dot suffix (`example.com` / `.example.com`)
+      // which also matches the apex. `*.example.com` must only match
+      // subdomains, never the apex `example.com` itself.
+      const wildcard = entry.charCodeAt(0) === 42 /* '*' */
+
       noProxyEntries.push({
-        // strip leading dot or asterisk with dot
-        hostname: (parsed ? parsed[1] : entry).replace(/^\*?\./, '').toLowerCase(),
-        port: parsed ? Number.parseInt(parsed[2], 10) : 0
+        // strip leading dot or asterisk with dot, and any trailing dot
+        hostname: hostname.replace(/^\*?\./, '').replace(/^(.+)\.$/, '$1').toLowerCase(),
+        port,
+        wildcard
       })
     }
 

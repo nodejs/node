@@ -18,13 +18,19 @@
 
 namespace v8::internal::compiler {
 
-using RunUnwindingInfoTest = TestWithContext;
+using RunUnwindingInfoTest = TestWithPlatform;
 
 TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
+  SaveFlags save_flags;
   v8_flags.perf_prof_unwinding_info = true;
   v8_flags.jit_fuzzing = true;
+  v8_flags.concurrent_recompilation = false;
+  FlagList::EnforceFlagImplications();
 
-  FunctionTester tester(i_isolate(),
+  IsolateWithContextWrapper isolate_wrapper;
+  i::Isolate* i_isolate = isolate_wrapper.isolate();
+
+  FunctionTester tester(i_isolate,
                         "(function (x) {\n"
                         "  function f(x) { return x*x; }\n"
                         "  return x > 0 ? x+1 : f(x);\n"
@@ -34,7 +40,7 @@ TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
     tester.Call(tester.NewNumber(-1));
   }
 
-  EXPECT_TRUE(tester.function->code(i_isolate())->has_unwinding_info());
+  EXPECT_TRUE(tester.function->code(i_isolate)->has_unwinding_info());
 }
 
 // TODO(ssanfilippo) Build low-level graph and check that state is correctly

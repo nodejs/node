@@ -63,7 +63,9 @@ function isMustCallOrMustCallAtLeast(str) {
 }
 
 function isMustCallOrTest(str) {
-  return str === 'test' || str === 'it' || isMustCallOrMustCallAtLeast(str);
+  return str === 'test' || str === 'it' || str === 'describe' || str === 'suite' ||
+    str === 'before' || str === 'after' || str === 'beforeEach' || str === 'afterEach' ||
+    isMustCallOrMustCallAtLeast(str);
 }
 
 module.exports = {
@@ -133,10 +135,11 @@ module.exports = {
         });
       },
 
-      [`CallExpression[callee.property.name="then"][arguments.length=1]>CallExpression:matches(${[
+      // Check the call chain before searching descendants for a return.
+      [`:matches(CallExpression[callee.property.name="then"][arguments.length=1]>CallExpression:matches(${[
         '[callee.name="mustCall"]',
         '[callee.object.name="common"][callee.property.name="mustCall"]',
-      ].join(',')})[arguments.length=1]>:has(ReturnStatement)`]: (node) => {
+      ].join(',')})[arguments.length=1]>*):has(ReturnStatement)`]: (node) => {
         context.report({
           node,
           message: 'Cannot mix `common.mustCall` and return statement inside a `.then` chain',

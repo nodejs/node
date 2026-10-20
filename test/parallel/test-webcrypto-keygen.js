@@ -6,15 +6,19 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
   createSecretKey,
+  getFips,
   KeyObject,
 } = require('crypto');
 const { subtle } = globalThis.crypto;
+const fips3 = hasFIPS(3);
+const fips35 = hasFIPS(3, 5);
+const rsaMinimumModulusLength = getFips() === 1 ? 2048 : 512;
 
 const { bigIntArrayToUnsignedBigInt } = require('internal/crypto/util');
 
@@ -69,7 +73,7 @@ const vectors = {
   },
   'RSASSA-PKCS1-v1_5': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -81,7 +85,7 @@ const vectors = {
   },
   'RSA-PSS': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -93,7 +97,7 @@ const vectors = {
   },
   'RSA-OAEP': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -135,9 +139,26 @@ const vectors = {
       'deriveBits',
     ],
   },
+  'AES-KW': {
+    algorithm: { length: 256 },
+    result: 'CryptoKey',
+    usages: [
+      'wrapKey',
+      'unwrapKey',
+    ],
+  },
+  'ChaCha20-Poly1305': {
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  },
 };
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   vectors.Ed448 = {
     result: 'CryptoKeyPair',
     usages: [
@@ -150,23 +171,6 @@ if (!process.features.openssl_is_boringssl) {
     usages: [
       'deriveKey',
       'deriveBits',
-    ],
-  };
-  vectors['AES-KW'] = {
-    algorithm: { length: 256 },
-    result: 'CryptoKey',
-    usages: [
-      'wrapKey',
-      'unwrapKey',
-    ],
-  };
-  vectors['ChaCha20-Poly1305'] = {
-    result: 'CryptoKey',
-    usages: [
-      'encrypt',
-      'decrypt',
-      'wrapKey',
-      'unwrapKey',
     ],
   };
 } else {
@@ -196,7 +200,7 @@ if (hasOpenSSL(3)) {
   }
 }
 
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     vectors[name] = {
       result: 'CryptoKeyPair',
@@ -247,6 +251,20 @@ if (hasOpenSSL(3, 5)) {
 // Test bad usages
 {
   async function test(name) {
+    if (fips3 && (name === 'ChaCha20-Poly1305' || name === 'AES-OCB')) {
+      await assert.rejects(
+        subtle.generateKey({ name }, true, []),
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
+      return;
+    }
+
+    if (fips35 && (name === 'X25519' || name === 'X448')) {
+      await assert.rejects(
+        subtle.generateKey({ name }, true, ['deriveBits']),
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
+      return;
+    }
+
     await assert.rejects(
       subtle.generateKey(
         {
@@ -295,6 +313,17 @@ if (hasOpenSSL(3, 5)) {
   const tests = Object.keys(vectors).map(test);
 
   Promise.all(tests).then(common.mustCall());
+}
+
+// Test CryptoKeyPair prototype
+{
+  subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'])
+    .then(common.mustCall((pair) => {
+      assert.strictEqual(Object.getPrototypeOf(pair), Object.prototype);
+    }));
 }
 
 // Test RSA key generation
@@ -403,7 +432,7 @@ if (hasOpenSSL(3, 5)) {
       subtle.generateKey(
         { name, modulusLength, publicExponent: new Uint8Array([1, 1, 1, 1, 1]), hash }, true, usages),
       {
-        message: /The publicExponent must be equivalent to an unsigned 32-bit value/,
+        message: 'algorithm.publicExponent must fit in an unsigned 32-bit integer',
         name: 'OperationError',
       });
 
@@ -427,22 +456,36 @@ if (hasOpenSSL(3, 5)) {
       });
     }));
 
-    await Promise.all([[1], [1, 0, 0]].map((publicExponent) => {
+    await Promise.all([
+      [[1], 'algorithm.publicExponent must be at least 3'],
+      [[1, 0, 0], 'algorithm.publicExponent must be odd'],
+    ].map(({ 0: publicExponent, 1: message }) => {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
         publicExponent: new Uint8Array(publicExponent),
         hash
       }, true, usages), {
+        message,
         name: 'OperationError',
       });
     }));
+
+    await assert.rejects(subtle.generateKey({
+      name,
+      modulusLength: rsaMinimumModulusLength - 1,
+      publicExponent: new Uint8Array([3]),
+      hash,
+    }, true, usages), {
+      message: `algorithm.modulusLength must be at least ${rsaMinimumModulusLength}`,
+      name: 'OperationError',
+    });
   }
 
   const kTests = [
     [
       'RSASSA-PKCS1-v1_5',
-      1024,
+      getFips() === 1 ? 2048 : 1024,
       Buffer.from([1, 0, 1]),
       'SHA-1',
       ['sign'],
@@ -450,7 +493,7 @@ if (hasOpenSSL(3, 5)) {
     ],
     [
       'RSA-PSS',
-      1024,
+      getFips() === 1 ? 2048 : 1024,
       Buffer.from([1, 0, 1]),
       'SHA-256',
       ['sign'],
@@ -459,22 +502,37 @@ if (hasOpenSSL(3, 5)) {
   ];
 
 
-  if (!process.features.openssl_is_boringssl) {
-    kTests.push(
-      [
-        'RSA-OAEP',
-        1024,
-        Buffer.from([3]),
-        'SHA3-256',
-        ['decrypt', 'unwrapKey'],
-        ['encrypt', 'wrapKey'],
-      ],
-    );
+  let fipsExponentTest;
+  if (!isBoringSSL) {
+    if (fips3) {
+      fipsExponentTest = assert.rejects(
+        subtle.generateKey({
+          name: 'RSA-OAEP',
+          modulusLength: 2048,
+          publicExponent: Buffer.from([3]),
+          hash: 'SHA3-256',
+        }, true, ['decrypt', 'unwrapKey', 'encrypt', 'wrapKey']),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_RSA_PUB_EXPONENT_OUT_OF_RANGE');
+    } else {
+      kTests.push(
+        [
+          'RSA-OAEP',
+          1024,
+          Buffer.from([3]),
+          'SHA3-256',
+          ['decrypt', 'unwrapKey'],
+          ['encrypt', 'wrapKey'],
+        ],
+      );
+    }
   } else {
     common.printSkipMessage('Skipping unsupported SHA-3 test case');
   }
 
   const tests = kTests.map((args) => test(...args));
+  if (fipsExponentTest !== undefined)
+    tests.push(fipsExponentTest);
 
   Promise.all(tests).then(common.mustCall());
 }
@@ -606,16 +664,9 @@ if (hasOpenSSL(3, 5)) {
     [ 'AES-CBC', 256, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 128, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 256, ['encrypt', 'decrypt']],
+    [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
+    [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
   ];
-
-  if (!process.features.openssl_is_boringssl) {
-    kTests.push(
-      [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
-      [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
-    );
-  } else {
-    common.printSkipMessage('Skipping unsupported AES-KW test cases');
-  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -670,7 +721,7 @@ if (hasOpenSSL(3, 5)) {
     [1024, 'SHA-512', ['sign', 'verify']],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       [256, 'SHA3-256', ['sign', 'verify']],
       [384, 'SHA3-384', ['sign', 'verify']],
@@ -702,6 +753,12 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 
 // Test OKP Key Generation
 {
+  async function testFipsUnsupported(name) {
+    await assert.rejects(
+      subtle.generateKey({ name }, true, ['deriveKey', 'deriveBits']),
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
+  }
+
   async function test(
     name,
     privateUsages,
@@ -749,7 +806,7 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
     ],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       [
         'Ed448',
@@ -766,13 +823,18 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
     common.printSkipMessage('Skipping unsupported Curve448 test cases');
   }
 
-  const tests = kTests.map((args) => test(...args));
+  const tests = kTests.map((args) => {
+    const [name] = args;
+    if (fips35 && (name === 'X25519' || name === 'X448'))
+      return testFipsUnsupported(name);
+    return test(...args);
+  });
 
   Promise.all(tests).then(common.mustCall());
 }
 
 // Test ML-DSA Key Generation
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   async function test(
     name,
     privateUsages,
@@ -815,7 +877,7 @@ if (hasOpenSSL(3, 5)) {
 }
 
 // Test ML-KEM Key Generation
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   async function test(
     name,
     privateUsages,
@@ -850,7 +912,13 @@ if (hasOpenSSL(3, 5)) {
     assert.strictEqual(publicKey.usages, publicKey.usages);
   }
 
-  const kTests = ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024'];
+  const kTests = ['ML-KEM-768', 'ML-KEM-1024'];
+
+  if (!isBoringSSL) {
+    kTests.unshift('ML-KEM-512');
+  } else {
+    common.printSkipMessage('Skipping unsupported ML-KEM-512 test');
+  }
 
   const tests = kTests.map((name) => test(name,
                                           ['decapsulateKey', 'decapsulateBits'],

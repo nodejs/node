@@ -1,5 +1,7 @@
 'use strict';
 
+const { isBoringSSL } = require('../../common/crypto');
+
 module.exports = function() {
   const pkcs8 = Buffer.from(
     '308204bf020100300d06092a864886f70d0101010500048204a9308204a5020100028' +
@@ -150,7 +152,7 @@ module.exports = function() {
       'b68c04bfe452c3adc6c10066a915231b7b404727eb6201b4921eb96d9407de2b963' +
       '3879ceb71d759d9828d7b4d062f6ef100757d8328187caf57dfb859d1555345207c' +
       '1cce7905c3564c08fec78867a53d5a2cf84810e1ffa', 'hex'),
-    ...(!process.features.openssl_is_boringssl ? {
+    ...(!isBoringSSL ? {
       'sha3-512, no salt': Buffer.from(
         'd2430dc87abeaa7d13f7cec8510f1a296e1c608f44b1696829c59a99e8eefe9b2ee' +
         '6ee8ad6fdc93c24fcba2f04d1da195924b6209717e1992c10ed9f4783478765fe34' +
@@ -255,7 +257,7 @@ module.exports = function() {
       plaintext,
       signature: signatures['sha-512, salted']
     },
-    ...(!process.features.openssl_is_boringssl ? [
+    ...(!isBoringSSL ? [
       {
         publicKeyBuffer: spki,
         privateKeyBuffer: pkcs8,

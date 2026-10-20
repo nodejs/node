@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<title>Service Worker: Tainting of responses fetched via SW.</title>
+<!-- This test makes a large number of requests sequentially. -->
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var host_info = get_host_info();
+var BASE_ORIGIN = host_info.HTTPS_ORIGIN;
+var OTHER_ORIGIN = host_info.HTTPS_REMOTE_ORIGIN;
+var BASE_URL = BASE_ORIGIN + base_path() +
+               'resources/fetch-access-control.py?';
+var OTHER_BASE_URL = OTHER_ORIGIN + base_path() +
+                     'resources/fetch-access-control.py?';
+
+function frame_fetch(frame, url, mode, credentials) {
+  var foreignPromise = frame.contentWindow.fetch(
+      new Request(url, {mode: mode, credentials: credentials}))
+
+  // Event loops should be shared between contexts of similar origin, not all
+  // browsers adhere to this expectation at the time of this writing. Incorrect
+  // behavior in this regard can interfere with test execution when the
+  // provided iframe is removed from the document.
+  //
+  // WPT maintains a test dedicated the expected treatment of event loops, so
+  // the following workaround is acceptable in this context.
+  return Promise.resolve(foreignPromise);
+}
+
+var login_and_register;
+promise_test(function(t) {
+    var SCOPE = 'resources/fetch-response-taint-iframe.html';
+    var SCRIPT = 'resources/fetch-rewrite-worker.js';
+    var registration;
+
+    login_and_register = login_https(t, host_info.HTTPS_ORIGIN, host_info.HTTPS_REMOTE_ORIGIN)
+      .then(function() {
+          return service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+        })
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(SCOPE); })
+      .then(function(f) {
+          // This test should not be considered complete until after the
+          // service worker has been unregistered. Currently, `testharness.js`
+          // does not support asynchronous global "tear down" logic, so this
+          // must be expressed using a dedicated `promise_test`. Because the
+          // other sub-tests in this file are declared synchronously, this
+          // test will be the final test executed.
+          promise_test(function(t) {
+              f.remove();
+              return registration.unregister();
+            }, 'restore global state');
+
+          return f;
+        });
+    return login_and_register;
+  }, 'initialize global state');
+
+function ng_test(url, mode, credentials) {
+  promise_test(function(t) {
+      return login_and_register
+        .then(function(frame) {
+            var fetchRequest = frame_fetch(frame, url, mode, credentials);
+            return promise_rejects_js(t, frame.contentWindow.TypeError, fetchRequest);
+          });
+    }, 'url:\"' + url + '\" mode:\"' + mode +
+       '\" credentials:\"' + credentials + '\" should fail.');
+}
+
+function ok_test(url, mode, credentials, expected_type, expected_username) {
+  promise_test(function() {
+      return login_and_register.then(function(frame) {
+            return frame_fetch(frame, url, mode, credentials)
+          })
+        .then(function(res) {
+            assert_equals(res.type, expected_type, 'response type');
+            return res.text();
+          })
+        .then(function(text) {
+            if (expected_type == 'opaque') {
+              assert_equals(text, '');
+            } else {
+              return new Promise(function(resolve) {
+                    var report = resolve;
+                    // text must contain report() call.
+                    eval(text);
+                  })
+                .then(function(result) {
+                    assert_equals(result.username, expected_username);
+                  });
+            }
+          });
+    }, 'fetching url:\"' + url + '\" mode:\"' + mode +
+                        '\" credentials:\"' + credentials + '\" should ' +
+                        'succeed.');
+}
+
+function build_rewrite_url(origin, url, mode, credentials) {
+  return origin + '/?url=' + encodeURIComponent(url) + '&mode=' + mode +
+      '&credentials=' + credentials + '&';
+}
+
+function for_each_origin_mode_credentials(callback) {
+  [BASE_ORIGIN, OTHER_ORIGIN].forEach(function(origin) {
+      ['same-origin', 'no-cors', 'cors'].forEach(function(mode) {
+          ['omit', 'same-origin', 'include'].forEach(function(credentials) {
+              callback(origin, mode, credentials);
+            });
+        });
+    });
+}
+
+ok_test(BASE_URL, 'same-origin', 'omit', 'basic', 'undefined');
+ok_test(BASE_URL, 'same-origin', 'same-origin', 'basic', 'username2s');
+ok_test(BASE_URL, 'same-origin', 'include', 'basic', 'username2s');
+ok_test(BASE_URL, 'no-cors', 'omit', 'basic', 'undefined');
+ok_test(BASE_URL, 'no-cors', 'same-origin', 'basic', 'username2s');
+ok_test(BASE_URL, 'no-cors', 'include', 'basic', 'username2s');
+ok_test(BASE_URL, 'cors', 'omit', 'basic', 'undefined');
+ok_test(BASE_URL, 'cors', 'same-origin', 'basic', 'username2s');
+ok_test(BASE_URL, 'cors', 'include', 'basic', 'username2s');
+ng_test(OTHER_BASE_URL, 'same-origin', 'omit');
+ng_test(OTHER_BASE_URL, 'same-origin', 'same-origin');
+ng_test(OTHER_BASE_URL, 'same-origin', 'include');
+ok_test(OTHER_BASE_URL, 'no-cors', 'omit', 'opaque');
+ok_test(OTHER_BASE_URL, 'no-cors', 'same-origin', 'opaque');
+ok_test(OTHER_BASE_URL, 'no-cors', 'include', 'opaque');
+ng_test(OTHER_BASE_URL, 'cors', 'omit');
+ng_test(OTHER_BASE_URL, 'cors', 'same-origin');
+ng_test(OTHER_BASE_URL, 'cors', 'include');
+ok_test(OTHER_BASE_URL + 'ACAOrigin=*', 'cors', 'omit', 'cors', 'undefined');
+ok_test(OTHER_BASE_URL + 'ACAOrigin=*', 'cors', 'same-origin', 'cors',
+        'undefined');
+ng_test(OTHER_BASE_URL + 'ACAOrigin=*', 'cors', 'include');
+ok_test(OTHER_BASE_URL + 'ACAOrigin=' + BASE_ORIGIN + '&ACACredentials=true',
+        'cors', 'include', 'cors', 'username1s')
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin, BASE_URL, 'same-origin', 'omit');
+  // Fetch to the other origin with same-origin mode should fail.
+  if (origin == OTHER_ORIGIN && mode == 'same-origin') {
+    ng_test(url, mode, credentials);
+  } else {
+    // The response type from the SW should be basic
+    ok_test(url, mode, credentials, 'basic', 'undefined');
+  }
+});
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin, BASE_URL, 'same-origin', 'same-origin');
+
+  // Fetch to the other origin with same-origin mode should fail.
+  if (origin == OTHER_ORIGIN && mode == 'same-origin') {
+    ng_test(url, mode, credentials);
+  } else {
+    // The response type from the SW should be basic.
+    ok_test(url, mode, credentials, 'basic', 'username2s');
+  }
+});
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin, OTHER_BASE_URL, 'same-origin', 'omit');
+  // The response from the SW should be an error.
+  ng_test(url, mode, credentials);
+});
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin, OTHER_BASE_URL, 'no-cors', 'omit');
+
+  // SW can respond only to no-cors requests.
+  if (mode != 'no-cors') {
+    ng_test(url, mode, credentials);
+  } else {
+    // The response type from the SW should be opaque.
+    ok_test(url, mode, credentials, 'opaque');
+  }
+});
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin, OTHER_BASE_URL + 'ACAOrigin=*', 'cors', 'omit');
+
+  // Fetch to the other origin with same-origin mode should fail.
+  if (origin == OTHER_ORIGIN && mode == 'same-origin') {
+    ng_test(url, mode, credentials);
+  } else if (origin == BASE_ORIGIN && mode == 'same-origin') {
+    // Cors type response to a same-origin mode request should fail
+    ng_test(url, mode, credentials);
+  } else {
+    // The response from the SW should be cors.
+    ok_test(url, mode, credentials, 'cors', 'undefined');
+  }
+});
+
+for_each_origin_mode_credentials(function(origin, mode, credentials) {
+  var url = build_rewrite_url(
+      origin,
+      OTHER_BASE_URL + 'ACAOrigin=' + BASE_ORIGIN +
+      '&ACACredentials=true',
+      'cors', 'include');
+  // Fetch to the other origin with same-origin mode should fail.
+  if (origin == OTHER_ORIGIN && mode == 'same-origin') {
+    ng_test(url, mode, credentials);
+  } else if (origin == BASE_ORIGIN && mode == 'same-origin') {
+    // Cors type response to a same-origin mode request should fail
+    ng_test(url, mode, credentials);
+  } else {
+    // The response from the SW should be cors.
+    ok_test(url, mode, credentials, 'cors', 'username1s');
+  }
+});
+</script>
+</body>

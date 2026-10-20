@@ -9,8 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 
-const { strictEqual, notStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,11 +30,11 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // Zero-length ArrayBufferView
   const zeroId = await clientSession.sendDatagram(new Uint8Array(0));
-  strictEqual(zeroId, 0n);
+  assert.strictEqual(zeroId, 0n);
 
   // Zero-length string
   const emptyStringId = await clientSession.sendDatagram('');
-  strictEqual(emptyStringId, 0n);
+  assert.strictEqual(emptyStringId, 0n);
 
   await clientSession.close();
   await serverEndpoint.close();
@@ -57,11 +55,11 @@ const { listen, connect } = await import('../common/quic.mjs');
   await clientSession.opened;
 
   // maxDatagramSize reflects the peer's (server's) transport param.
-  strictEqual(clientSession.maxDatagramSize, 0);
+  assert.strictEqual(clientSession.maxDatagramSize, 0);
 
   // Sending returns 0n immediately — datagram not sent.
   const id = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
-  strictEqual(id, 0n);
+  assert.strictEqual(id, 0n);
 
   await clientSession.close();
   await serverEndpoint.close();
@@ -86,7 +84,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // Send a datagram even though the server has no ondatagram handler.
   const id = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
-  notStrictEqual(id, 0n);
+  assert.notStrictEqual(id, 0n);
 
   await clientSession.closed;
   await serverEndpoint.close();

@@ -8,7 +8,9 @@ const { styleText } = require('node:util');
 const DEFAULT_RUNS = 30;        // Number of runs for each n value
 const CV_THRESHOLD = 0.05;      // 5% coefficient of variation threshold
 const MAX_N_INCREASE = 6;       // Maximum number of times to increase n (10**6)
+const MAX_CV_THRESHOLD = 0.10;  // 10% coefficient of variation threshold for individual configurations
 const INCREASE_FACTOR = 10;     // Factor by which to increase n
+const START_N = 10;             // Starting n value (10 iterations)
 
 const args = process.argv.slice(2);
 if (args.length === 0) {
@@ -19,7 +21,7 @@ Options:
   --runs=N           Number of runs for each n value (default: ${DEFAULT_RUNS})
   --cv-threshold=N   Target coefficient of variation threshold (default: ${CV_THRESHOLD})
   --max-increases=N  Maximum number of n increases to try (default: ${MAX_N_INCREASE})
-  --start-n=N        Initial n value to start with (default: autodetect)
+  --start-n=N        Initial n value to start with (default: ${START_N})
   --increase=N       Factor by which to increase n (default: ${INCREASE_FACTOR})
 
 Example:
@@ -34,16 +36,24 @@ let benchmarkPath;
 let runs = DEFAULT_RUNS;
 let cvThreshold = CV_THRESHOLD;
 let maxIncreases = MAX_N_INCREASE;
-let startN = 10;
+let startN = START_N;
 let increaseFactor = INCREASE_FACTOR;
 
 for (const arg of args) {
   if (arg.startsWith('--runs=')) {
     runs = parseInt(arg.substring(7), 10);
+    if (isNaN(runs)) {
+      console.error(`Error: Invalid value for --runs. Using default: ${DEFAULT_RUNS}`);
+      runs = DEFAULT_RUNS;
+    }
   } else if (arg.startsWith('--cv-threshold=')) {
-    cvThreshold = parseFloat(arg.substring(14));
+    cvThreshold = parseFloat(arg.substring(15));
+    if (isNaN(cvThreshold)) {
+      console.error(`Error: Invalid value for --cv-threshold. Using default: ${CV_THRESHOLD}`);
+      cvThreshold = CV_THRESHOLD;
+    }
   } else if (arg.startsWith('--max-increases=')) {
-    maxIncreases = parseInt(arg.substring(15), 10);
+    maxIncreases = parseInt(arg.substring(16), 10);
     if (isNaN(maxIncreases)) {
       console.error(`Error: Invalid value for --max-increases. Using default: ${MAX_N_INCREASE}`);
       maxIncreases = MAX_N_INCREASE;
@@ -51,8 +61,8 @@ for (const arg of args) {
   } else if (arg.startsWith('--start-n=')) {
     startN = parseInt(arg.substring(10), 10);
     if (isNaN(startN)) {
-      console.error(`Error: Invalid value for --start-n. Using default: 10`);
-      startN = 10;
+      console.error(`Error: Invalid value for --start-n. Using default: ${START_N}`);
+      startN = START_N;
     }
   } else if (arg.startsWith('--increase=')) {
     increaseFactor = parseInt(arg.substring(11), 10);
@@ -125,6 +135,7 @@ async function main(n = startN) {
   let bestN = n;
   let bestCV = Infinity;
   let bestGroupStats = null;
+  const cvThresholdPercentage = (cvThreshold * 100).toFixed(2);
 
   console.log(`
 --------------------------------------------------------
@@ -136,12 +147,12 @@ that produces consistent benchmark results without wasting time.
 How it works:
 1. Run the benchmark multiple times with a specific n value
 2. Group results by configuration
-3. If overall CV is above 5% or any configuration has CV above 10%, increase n and try again
+3. If overall CV is above ${cvThresholdPercentage}% or any configuration has CV above ${MAX_CV_THRESHOLD * 100}%, increase n and try again
 
 Configuration:
 - Starting n: ${n.toLocaleString()} iterations
 - Runs per n value: ${runs}
-- Target CV threshold: ${cvThreshold * 100}% (lower CV = more stable results)
+- Target CV threshold: ${cvThresholdPercentage}% (lower CV = more stable results)
 - Max increases: ${maxIncreases}
 - Increase factor: ${increaseFactor}x`);
 
@@ -195,23 +206,23 @@ Configuration:
 
     if (groupStats.length > 0) {
       // Check if any configuration has CV > 10% (too unstable)
-      const tooUnstableConfigs = groupStats.filter((g) => g.stats.cv > 0.10);
+      const tooUnstableConfigs = groupStats.filter((g) => g.stats.cv > MAX_CV_THRESHOLD);
 
       const avgCV = groupStats.reduce((sum, g) => sum + g.stats.cv, 0) / groupStats.length;
       console.log(`\nOverall average CV: ${(avgCV * 100).toFixed(2)}%`);
 
-      const isOverallStable = avgCV < CV_THRESHOLD;
+      const isOverallStable = avgCV < cvThreshold;
       const hasVeryUnstableConfigs = tooUnstableConfigs.length > 0;
 
-      // Check if overall CV is below CV_THRESHOLD and no configuration has CV > 10%
+      // Check if overall CV is below cvThreshold and no configuration has CV > MAX_CV_THRESHOLD
       if (isOverallStable && !hasVeryUnstableConfigs) {
-        console.log(styleText(['bold', 'green'], `  ✓ Overall CV is below 5% and no configuration has CV above 10%`));
+        console.log(styleText(['bold', 'green'], `  ✓ Overall CV is below ${cvThresholdPercentage}% and no configuration has CV above ${MAX_CV_THRESHOLD * 100}%`));
       } else {
         if (!isOverallStable) {
-          console.log(styleText(['bold', 'red'], `  ✗ Overall CV (${(avgCV * 100).toFixed(2)}%) is above 5%`));
+          console.log(styleText(['bold', 'red'], `  ✗ Overall CV (${(avgCV * 100).toFixed(2)}%) is above ${cvThresholdPercentage}%`));
         }
         if (hasVeryUnstableConfigs) {
-          console.log(styleText(['bold', 'red'], `  ✗ ${tooUnstableConfigs.length} configuration(s) have CV above 10%`));
+          console.log(styleText(['bold', 'red'], `  ✗ ${tooUnstableConfigs.length} configuration(s) have CV above ${MAX_CV_THRESHOLD * 100}%`));
         }
       }
 
@@ -226,7 +237,7 @@ Configuration:
             bestGroupStats.push({
               conf: group.conf,
               stats: stats,
-              isStable: stats.cv <= 0.10,
+              isStable: stats.cv <= MAX_CV_THRESHOLD,
             });
           }
         }
@@ -237,15 +248,15 @@ Configuration:
     }
 
     // Check if we've reached acceptable stability based on new criteria
-    // 1. Overall CV should be below CV_THRESHOLD
-    // 2. No configuration should have a CV greater than 10%
+    // 1. Overall CV should be below cvThreshold
+    // 2. No configuration should have a CV greater than MAX_CV_THRESHOLD
     const avgCV = groupStats.length > 0 ?
       groupStats.reduce((sum, g) => sum + g.stats.cv, 0) / groupStats.length : Infinity;
-    const hasUnstableConfig = groupStats.some((g) => g.stats.cv > 0.10);
-    const isOverallStable = avgCV < CV_THRESHOLD;
+    const hasUnstableConfig = groupStats.some((g) => g.stats.cv > MAX_CV_THRESHOLD);
+    const isOverallStable = avgCV < cvThreshold;
 
     if (isOverallStable && !hasUnstableConfig) {
-      console.log(`\n✓ Found optimal n=${n} (Overall CV=${(avgCV * 100).toFixed(2)}% < 5% and no configuration has CV > 10%)`);
+      console.log(`\n✓ Found optimal n=${n} (Overall CV=${(avgCV * 100).toFixed(2)}% < ${cvThresholdPercentage}% and no configuration has CV > ${MAX_CV_THRESHOLD * 100}%)`);
       console.log('\nFinal CV for each configuration:');
       groupStats.forEach((g) => {
         console.log(`  ${JSON.stringify(groupedResults[g.confKey].conf)}: ${(g.stats.cv * 100).toFixed(2)}%`);
@@ -271,7 +282,7 @@ Configuration:
         if (g.conf) {
           console.log(`  ${JSON.stringify(g.conf)}: ${(g.stats.cv * 100).toFixed(2)}%`);
           if (g.stats.cv > cvThreshold) {
-            console.log(`    ⚠️ This configuration is above the target threshold of ${cvThreshold * 100}%`);
+            console.log(`    ⚠️ This configuration is above the target threshold of ${cvThresholdPercentage}%`);
           }
         }
       });

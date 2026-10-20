@@ -50,6 +50,7 @@
 
 #include "hwy/highway_export.h"
 #include "hwy/timer.h"  // IWYU pragma: export
+#include "hwy/base.h"
 
 namespace hwy {
 
@@ -114,6 +115,14 @@ struct Result {
   float variability;
 };
 
+// Returns a Params struct with customized configuration for benchmarks.
+// Specifically limits `max_evals` to prevent timeout in tests.
+static inline Params DefaultBenchmarkParams() {
+  Params p;
+  p.max_evals = HWY_IS_DEBUG_BUILD ? 3 : 4;
+  return p;
+}
+
 // Precisely measures the number of ticks elapsed when calling "func" with the
 // given inputs, shuffled to ensure realistic branch prediction hit rates.
 //
@@ -132,8 +141,8 @@ HWY_DLLEXPORT size_t Measure(Func func, const uint8_t* arg,
 
 // Calls operator() of the given closure (lambda function).
 template <class Closure>
-static FuncOutput CallClosure(const Closure* f, const FuncInput input) {
-  return (*f)(input);
+static FuncOutput CallClosure(const void* f, const FuncInput input) {
+  return (*reinterpret_cast<const Closure*>(f))(input);
 }
 
 // Same as Measure, except "closure" is typically a lambda function of
@@ -143,7 +152,7 @@ static inline size_t MeasureClosure(const Closure& closure,
                                     const FuncInput* inputs,
                                     const size_t num_inputs, Result* results,
                                     const Params& p = Params()) {
-  return Measure(reinterpret_cast<Func>(&CallClosure<Closure>),
+  return Measure(static_cast<Func>(&CallClosure<Closure>),
                  reinterpret_cast<const uint8_t*>(&closure), inputs, num_inputs,
                  results, p);
 }

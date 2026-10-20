@@ -16,6 +16,7 @@
 #include "src/compiler/turbofan-graph.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/execution/simulator.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
@@ -136,7 +137,7 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
-  auto module = std::make_shared<wasm::WasmModule>(wasm::kWasmOrigin);
+  auto module = std::make_shared<wasm::WasmModule>();
   module->num_declared_functions = 1;
 
   // We have to add the code object to a NativeModule, because the
@@ -246,18 +247,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"), &zone,
-                                CodeKind::FOR_TESTING);
-  DirectHandle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
-                                       AssemblerOptions::Default(i_isolate),
-                                       callee.ExportForTest())
-          .ToHandleChecked();
+                                CodeKind::WASM_FUNCTION);
+  wasm::WasmCompilationResult wasm_result =
+      Pipeline::GenerateWasmCodeForTesting(
+          &info, i_isolate, desc, callee.graph(),
+          AssemblerOptions::Default(i_isolate), callee.ExportForTest());
+  CHECK(wasm_result.succeeded());
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(i_isolate, code->instruction_size());
+      AllocateNativeModule(i_isolate, wasm_result.code_desc.instr_size);
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
-      module->AddCodeForTesting(code, desc->signature_hash());
+      module->AddCodeForTesting(wasm_result, desc->signature_hash());
   WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
@@ -267,8 +268,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   MachineSignature::Builder sig_builder(&zone, 1, 0);
   sig_builder.AddReturn(MachineType::Int32());
 
-  CallDescriptor* wrapper_desc =
-      Linkage::GetSimplifiedCDescriptor(&zone, sig_builder.Get());
+  // The wrapper is called from C++ and calls an off-heap WasmCode function.
+  // Initialize the root register so runtime calls or traps can access the
+  // isolate.
+  CallDescriptor* wrapper_desc = Linkage::GetSimplifiedCDescriptor(
+      &zone, sig_builder.Get(), CallDescriptor::kInitializeRootRegister);
   RawMachineAssembler caller(
       i_isolate, zone.New<TFGraph>(&zone), wrapper_desc,
       MachineType::PointerRepresentation(),

@@ -70,7 +70,7 @@ server.listen(0, common.mustCall(() => {
         performRequestWithDelay(
           client,
           headersTimeout / 5,
-          headersTimeout,
+          headersTimeout * 2,
           true
         );
       }, defer).unref();

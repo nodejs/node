@@ -9,6 +9,7 @@ const {
   generateKeyPairSync,
   KeyObject,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 const { createContext } = require('vm');
 const {
@@ -45,10 +46,10 @@ process.env.HAS_STARTED_WORKER = 1;
   // The main thread generates keys and passes them to worker threads.
   const secretKey = generateKeySync('aes', { length: 128 });
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 1024
+    modulusLength: hasFIPS(3) ? 2048 : 1024
   });
   const cryptoKey = await subtle.generateKey(
-    { name: 'AES-CBC', length: 128 }, false, ['encrypt']);
+    { name: 'AES-CBC', length: 128 }, true, ['encrypt']);
 
   // Get immutable representations of all keys.
   const keys = [secretKey, publicKey, privateKey, cryptoKey]

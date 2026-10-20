@@ -38,6 +38,7 @@
         ],
       }],
     ],
+    'perfetto_gyp_file': '../../deps/perfetto/perfetto.gyp',
   },
   'includes': ['toolchain.gypi', 'features.gypi'],
   'target_defaults': {
@@ -61,7 +62,9 @@
           'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
         ]
       }],
-      ['node_shared=="true"', {
+      # The V8 static libraries get linked into libv8_debug_helper too, and
+      # the local-exec TLS model is only valid in an executable.
+      ['node_shared=="true" or node_enable_v8debughelper=="true"', {
         'defines': [
           'V8_TLS_USED_IN_LIBRARY',  # Enable V8_TLS_LIBRARY_MODE.
         ],
@@ -117,6 +120,7 @@
       'actions': [
         {
           'action_name': 'run_torque_action',
+          'msvs_quote_cmd': 0,
           'inputs': [  # Order matters.
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
             '<@(torque_files)',
@@ -127,21 +131,16 @@
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-reader-classes-list.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-type-checker-lists.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/visitor-lists.h",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
             '<@(torque_outputs_inl_inc)',
@@ -149,6 +148,7 @@
             '<@(torque_outputs_inc)',
           ],
           'action': [
+            '<@(emulator)',
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
             '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated',
             '-v8-root', '<(V8_ROOT)',
@@ -223,10 +223,6 @@
       'direct_dependent_settings': {
         'sources': [
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h',
-          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc',
-          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h',
-          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc',
-          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc',
           '<@(torque_outputs_inl_inc)',
           '<@(torque_outputs_cc)',
           '<@(torque_outputs_inc)',
@@ -269,6 +265,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
@@ -285,10 +282,19 @@
         'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
-        'abseil.gyp:abseil',
       ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
+      ],
+      'conditions': [
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_init
     {
@@ -300,7 +306,6 @@
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
-        'abseil.gyp:abseil',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
@@ -310,6 +315,11 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['v8_enable_webassembly==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
@@ -340,12 +350,12 @@
             '<(V8_ROOT)/src/builtins/arm64/builtins-arm64.cc',
           ],
         }],
-        ['v8_target_arch=="riscv64" or v8_target_arch=="riscv64"', {
+        ['v8_target_arch=="riscv64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/riscv/builtins-riscv.cc',
           ],
         }],
-        ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
+        ['v8_target_arch=="loong64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
           ],
@@ -375,6 +385,9 @@
              '<(V8_ROOT)/src/builtins/builtins-intl-gen.cc',
            ],
          }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_initializers
     {
@@ -470,12 +483,18 @@
             }],
           ],
           'action': [
+            '<@(emulator)',
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
           ],
         },
       ],
       'conditions': [
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'dependencies': [
             'generate_bytecode_builtins_list',
@@ -487,7 +506,6 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
-            'abseil.gyp:abseil',
           ]
         }, {
           'dependencies': [
@@ -500,8 +518,10 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
-            'abseil.gyp:abseil',
           ]
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
         ['OS=="win" and clang==1', {
           'actions': [
@@ -615,8 +635,17 @@
         'run_torque',
         'v8_libbase',
         'fp16',
-        'highway',
-        'abseil.gyp:abseil',
+      ],
+      'conditions': [
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
+        ['node_shared_highway=="false"', {
+          'dependencies': ['highway.gyp:highway'],
+        }],
+        ['node_shared_simdutf=="false"', {
+          'dependencies': ['simdutf.gyp:simdutf'],
+        }],
       ],
       'direct_dependent_settings': {
         'sources': [
@@ -668,6 +697,19 @@
                   '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
                 ],
               }],
+              ['v8_target_arch=="riscv64"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+                ],
+              }],
+            ],
+          }],
+          ['v8_use_perfetto==1', {
+            'sources!': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_use_perfetto.*?sources \\-= ")',
+            ],
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_use_perfetto.*?sources \\+= ")',
             ],
           }],
           ['v8_enable_webassembly==1', {
@@ -949,9 +991,13 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_pch',
-        'abseil.gyp:abseil',
       ],
       'conditions': [
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['v8_enable_maglev==0', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
@@ -961,6 +1007,9 @@
           'dependencies': ['v8_compiler_sources'],
         }, {
           'sources': ['<(V8_ROOT)/src/compiler/turbofan-disabled.cc'],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },  # v8_compiler
@@ -1064,8 +1113,6 @@
         'v8_maybe_icu',
         'v8_zlib',
         'v8_pch',
-        'simdutf',
-        'abseil.gyp:abseil',
       ],
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -1082,6 +1129,18 @@
         '<@(inspector_all_sources)',
       ],
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_use_perfetto.*?sources \\+= ")',
+          ],
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                '<(perfetto_gyp_file):perfetto_sdk',
+              ],
+            }],
+          ],
+        }],
         ['v8_enable_snapshot_compression==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
@@ -1092,6 +1151,11 @@
             ['node_shared_temporal_capi=="false"', {
               'dependencies': [
                 '../../deps/crates/crates.gyp:temporal_capi',
+              ],
+            }],
+            ['v8_enable_i18n_support==0', {
+              'dependencies': [
+                '../../deps/crates/crates.gyp:temporal_zoneinfo64_data',
               ],
             }],
           ],
@@ -1132,6 +1196,11 @@
             ['v8_target_arch=="ppc64"', {
               'sources': [
                 '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="riscv64"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
               ],
             }],
           ],
@@ -1309,13 +1378,7 @@
             ['icu_use_data_file_flag', {
               'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
             }, {
-               'conditions': [
-                 ['OS=="win"', {
-                   'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
-                 }, {
-                    'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
-                  }],
-               ],
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
              }],
             ['OS=="win"', {
               'dependencies': [
@@ -1345,6 +1408,9 @@
             'libraries': ['<!@(clang++ -print-file-name=libatomic.a)', ],
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_base_without_compiler
     {
@@ -1366,7 +1432,6 @@
       'dependencies': [
         'v8_shared_internal_headers',
         'v8_libbase',
-        'abseil.gyp:abseil',
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1391,6 +1456,9 @@
           'cflags': ['-O1'],
           'cflags!': ['-O3'],
           'sources': ['<(V8_ROOT)/src/torque/implementation-visitor.cc'],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },  # torque_base
@@ -1431,10 +1499,45 @@
 
       'dependencies': [
         'v8_headers',
-        'abseil.gyp:abseil',
+        'llvm-libc-headers',
       ],
 
       'conditions': [
+        ['v8_target_arch=="ia32" or v8_target_arch=="x64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-x86.cc',
+          ],
+        }],
+        ['v8_target_arch=="arm" or v8_target_arch=="arm64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-arm.cc',
+          ],
+        }],
+        ['v8_target_arch=="riscv64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-riscv.cc',
+          ],
+        }],
+        ['v8_target_arch=="loong64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-loong64.cc',
+          ],
+        }],
+        ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-mips64.cc',
+          ],
+        }],
+        ['v8_target_arch=="ppc64"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-ppc.cc',
+          ],
+        }],
+        ['v8_target_arch=="s390x"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/cpu/cpu-s390.cc',
+          ],
+        }],
         ['is_component_build', {
           'defines': ["BUILDING_V8_BASE_SHARED"],
         }],
@@ -1672,6 +1775,9 @@
           ],
         }
          ],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_libbase
     {
@@ -1680,10 +1786,9 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
-        'abseil.gyp:abseil',
       ],
       'sources': [
-        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?sources = ")',
+        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?sources = ")',
       ],
       'conditions': [
         ['component=="shared_library"', {
@@ -1694,14 +1799,17 @@
         }],
         ['v8_use_perfetto==1', {
           'sources!': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources -= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?v8_use_perfetto.*?sources \\-= ")',
           ],
           'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources += ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?v8_use_perfetto.*?sources \\+= ")',
           ],
-          'dependencies': [
-            '<(V8_ROOT)/third_party/perfetto:libperfetto',
-            '<(V8_ROOT)/third_party/perfetto/protos/perfetto/trace:lite',
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                '<(perfetto_gyp_file):perfetto_sdk',
+              ],
+            }],
           ],
         }],
         ['v8_enable_system_instrumentation==1 and is_win', {
@@ -1715,6 +1823,9 @@
             '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
             '<(V8_ROOT)/src/libplatform/tracing/recorder-mac.cc',
           ],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'direct_dependent_settings': {
@@ -1756,6 +1867,9 @@
             },
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1763,7 +1877,6 @@
       ],
       'dependencies': [
         'v8_libbase',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1786,7 +1899,6 @@
         'v8_libplatform',
         'v8_maybe_icu',
         'v8_pch',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1811,6 +1923,11 @@
         },
       },
       'conditions': [
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
@@ -1828,6 +1945,9 @@
             },
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1835,7 +1955,6 @@
       'type': 'executable',
       'dependencies': [
         'torque_base',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'conditions': [
@@ -1855,6 +1974,9 @@
               'AdditionalOptions': ['-fno-lto'],
             },
           },
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'defines!': [
@@ -1933,7 +2055,6 @@
         'v8_libbase',
         # "build/win:default_exe_manifest",
         'v8_maybe_icu',
-        'abseil.gyp:abseil',
       ],
       'conditions': [
         ['want_separate_host_toolset', {
@@ -1952,6 +2073,9 @@
               'AdditionalOptions': ['-fno-lto'],
             },
           },
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'sources': [
@@ -1996,6 +2120,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
@@ -2018,7 +2143,14 @@
       'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_cluster_source_set.\\"cppgc_base.*?sources = ")',
+        ],
+        'conditions': [
+          ['v8_use_perfetto==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_cluster_source_set.\\"cppgc_base.*?if .v8_use_perfetto.*?sources \\+= ")',
+            ],
+          }],
         ],
       },
     },  # cppgc_base
@@ -2215,6 +2347,9 @@
           '<(V8_ROOT)/src/objects/casting-inl.h',
           '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-external-object.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-object-wrapper.h',
+          '<(V8_ROOT)/src/objects/cpp-heap-object-wrapper-inl.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
           '<(V8_ROOT)/src/objects/data-handler-inl.h',
           '<(V8_ROOT)/src/objects/deoptimization-data.h',
@@ -2266,9 +2401,9 @@
           '<(V8_ROOT)/src/objects/oddball.h',
           '<(V8_ROOT)/src/objects/oddball-inl.h',
           '<(V8_ROOT)/src/objects/primitive-heap-object.h',
-          '<(V8_ROOT)/src/objects/primitive-heap-object-inl.h',
           '<(V8_ROOT)/src/objects/scope-info.h',
           '<(V8_ROOT)/src/objects/scope-info-inl.h',
+          '<(V8_ROOT)/src/objects/script.cc',
           '<(V8_ROOT)/src/objects/script.h',
           '<(V8_ROOT)/src/objects/script-inl.h',
           '<(V8_ROOT)/src/objects/shared-function-info.cc',
@@ -2282,6 +2417,7 @@
           '<(V8_ROOT)/src/objects/struct.h',
           '<(V8_ROOT)/src/objects/struct-inl.h',
           '<(V8_ROOT)/src/objects/tagged.h',
+          '<(V8_ROOT)/src/objects/union.h',
         ],
       },
       'actions': [
@@ -2383,68 +2519,17 @@
       },
     },  # fp16
     {
-      'target_name': 'highway',
-      'type': 'static_library',
-      'toolsets': ['host', 'target'],
-      'variables': {
-        'HIGHWAY_ROOT': '../../deps/v8/third_party/highway',
-      },
-      'all_dependent_settings': {
-        'include_dirs': [
-          '<(HIGHWAY_ROOT)/src',
-        ],
-        'conditions': [
-          ['v8_target_arch=="ia32"', {
-            'defines': ['HWY_BROKEN_TARGETS=(HWY_AVX2|HWY_AVX3)',],
-          }],
-          ['v8_target_arch=="arm64"', {
-            'defines': ['HWY_BROKEN_TARGETS=HWY_ALL_SVE',],
-          }],
-          ['v8_target_arch=="ppc64" or v8_target_arch=="s390x"', {
-            'defines': ['TOOLCHAIN_MISS_ASM_HWCAP_H',],
-          }],
-          ['v8_target_arch=="s390x"', {
-            'defines': ['HWY_BROKEN_EMU128=0',],
-          }],
-          ['OS in "aix os400"', {
-            'defines': ['HWY_BROKEN_EMU128=0',],
-          }],
-          ['v8_target_arch=="arm" and arm_version==7', {
-            'defines': ['HWY_BROKEN_EMU128=0',],
-          }],
-        ],
-      },
-      'include_dirs': [
-        '<(HIGHWAY_ROOT)/src',
-      ],
-      'conditions': [
-        ['v8_target_arch=="ia32"', {
-          'defines': ['HWY_BROKEN_TARGETS=(HWY_AVX2|HWY_AVX3)',],
-        }],
-        ['v8_target_arch=="arm64"', {
-          'defines': ['HWY_BROKEN_TARGETS=HWY_ALL_SVE',],
-        }],
-        ['v8_target_arch=="ppc64" or v8_target_arch=="s390x"', {
-          'defines': ['TOOLCHAIN_MISS_ASM_HWCAP_H',],
-        }],
-      ],
-      'sources': [
-        '<!@pymod_do_main(GN-scraper "<(HIGHWAY_ROOT)/BUILD.gn"  "source_set.\\"libhwy.*?sources = ")',
-      ],
-    },  # highway
-    {
-      'target_name': 'simdutf',
-      'type': 'static_library',
+      'target_name': 'llvm-libc-headers',
+      'type': 'none',
       'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(V8_ROOT)/third_party/simdutf',
+          '<(V8_ROOT)/third_party/llvm-libc/src',
+        ],
+        'defines': [
+          'LIBC_NAMESPACE=__llvm_libc_cr',
         ],
       },
-      'include_dirs': ['.'],
-      'sources': [
-        '<(V8_ROOT)/third_party/simdutf/simdutf.cpp',
-      ],
-    },  # simdutf
+    }
   ],
 }

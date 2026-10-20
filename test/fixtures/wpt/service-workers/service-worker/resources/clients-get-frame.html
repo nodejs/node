@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script>
+
+  fetch("clientId")
+    .then(function(response) {
+        return response.text();
+      })
+    .then(function(text) {
+        parent.postMessage({clientId: text}, "*");
+      });
+
+</script>

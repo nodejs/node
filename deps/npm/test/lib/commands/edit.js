@@ -22,6 +22,11 @@ const spawk = tspawk(t)
 const npmConfig = {
   config: {
     'ignore-scripts': false,
+    // Phase 2 gates dependency install scripts by default. `npm edit`
+    // rebuilds the edited package via `npm rebuild`, which honors the
+    // allowScripts gate, so opt every script in for these tests to exercise
+    // the editor -> rebuild -> install-script flow.
+    'dangerously-allow-all-scripts': true,
     editor: 'testeditor',
     'script-shell': process.platform === 'win32' ? process.env.COMSPEC : 'sh',
   },
@@ -58,8 +63,14 @@ t.test('npm edit', async t => {
     : ['-c', 'testinstall']
   spawk.spawn(scriptShell, scriptArgs, { cwd: semverPath })
 
+  const inputEvents = []
+  const inputListener = (level) => inputEvents.push(level)
+  process.on('input', inputListener)
+  t.teardown(() => process.off('input', inputListener))
+
   await npm.exec('edit', ['semver'])
   t.match(joinedOutput(), 'rebuilt dependencies successfully')
+  t.same(inputEvents.slice(0, 2), ['start', 'end'], 'progress paused and resumed around editor')
 })
 
 t.test('rebuild failure', async t => {

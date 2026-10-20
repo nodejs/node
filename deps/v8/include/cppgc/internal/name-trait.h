@@ -99,8 +99,9 @@ class NameTrait final : public NameTraitBase {
 
   static HeapObjectName GetNameFor(
       const void*, HeapObjectNameForUnnamedObject name_retrieval_mode) {
-    if (name_retrieval_mode == HeapObjectNameForUnnamedObject::kUseHiddenName)
+    if (name_retrieval_mode == HeapObjectNameForUnnamedObject::kUseHiddenName) {
       return {NameProvider::kHiddenName, true};
+    }
 
 #if CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME
     return {GetTypename<T>(), false};

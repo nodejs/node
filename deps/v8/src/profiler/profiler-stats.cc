@@ -49,6 +49,7 @@ const char* ProfilerStats::ReasonToString(Reason reason) {
     case kNumberOfReasons:
       return "kNumberOfReasons";
   }
+  UNREACHABLE();
 }
 
 }  // namespace internal

@@ -43,7 +43,8 @@ class NodeOrigin {
   OriginKind origin_kind() const { return origin_kind_; }
 
   bool operator==(const NodeOrigin& o) const {
-    return reducer_name_ == o.reducer_name_ && created_from_ == o.created_from_;
+    return phase_name_ == o.phase_name_ && reducer_name_ == o.reducer_name_ &&
+           created_from_ == o.created_from_;
   }
 
   void PrintJson(std::ostream& out) const;
@@ -91,18 +92,8 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
 
   class V8_NODISCARD PhaseScope final {
    public:
-    PhaseScope(NodeOriginTable* origins, const char* phase_name)
-        : origins_(origins) {
-      if (origins != nullptr) {
-        prev_phase_name_ = origins->current_phase_name_;
-        origins->current_phase_name_ =
-            phase_name == nullptr ? "unnamed" : phase_name;
-      }
-    }
-
-    ~PhaseScope() {
-      if (origins_) origins_->current_phase_name_ = prev_phase_name_;
-    }
+    PhaseScope(NodeOriginTable* origins, const char* phase_name);
+    ~PhaseScope();
 
     PhaseScope(const PhaseScope&) = delete;
     PhaseScope& operator=(const PhaseScope&) = delete;
@@ -124,6 +115,7 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   NodeOrigin GetNodeOrigin(NodeId id) const;
   void SetNodeOrigin(Node* node, const NodeOrigin& no);
   void SetNodeOrigin(NodeId id, NodeId origin);
+  void SetNodeOrigin(NodeId id, NodeId origin, const char* phase_name);
   void SetNodeOrigin(NodeId id, NodeOrigin::OriginKind kind, NodeId origin);
 
   void SetCurrentPosition(const NodeOrigin& no) { current_origin_ = no; }
@@ -133,6 +125,8 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   }
 
   int GetCurrentBytecodePosition() { return current_bytecode_position_; }
+
+  const char* previous_phase_name() const { return previous_phase_name_; }
 
   void PrintJson(std::ostream& os) const;
 
@@ -145,6 +139,7 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   int current_bytecode_position_;
 
   const char* current_phase_name_;
+  const char* previous_phase_name_;
   static NodeOrigin UnknownNodeOrigin(Zone* zone) {
     return NodeOrigin::Unknown();
   }

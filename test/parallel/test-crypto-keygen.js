@@ -14,8 +14,11 @@ const {
 } = require('crypto');
 const { inspect } = require('util');
 
-const { hasOpenSSL3 } = require('../common/crypto');
-const isBoringSSL = process.features.openssl_is_boringssl;
+const {
+  hasOpenSSL,
+  isBoringSSL: commonIsBoringSSL,
+} = require('../common/crypto');
+const isBoringSSL = commonIsBoringSSL;
 
 // Test invalid parameter encoding.
 {
@@ -89,6 +92,21 @@ const isBoringSSL = process.features.openssl_is_boringssl;
     message: 'The "options" argument must be of type object. ' +
       'Received type number (0)'
   });
+
+  for (const type of ['rsa', 'ed25519']) {
+    assert.throws(() => generateKeyPairSync(type, null), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be of type object. ' +
+        'Received null'
+    });
+    assert.throws(() => generateKeyPair(type, null, common.mustNotCall()), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be of type object. ' +
+        'Received null'
+    });
+  }
 }
 
 {
@@ -361,25 +379,20 @@ const isBoringSSL = process.features.openssl_is_boringssl;
   }
 
   // Test invalid exponents. (caught by OpenSSL)
+  let invalidExponentError = /bad e value/;
+  if (isBoringSSL) {
+    invalidExponentError = /BAD_E_VALUE/;
+  } else if (hasOpenSSL(3)) {
+    invalidExponentError = /exponent/;
+  }
   for (const publicExponent of [1, 1 + 0x10001]) {
-    if (isBoringSSL) {
-      assert.throws(() => generateKeyPair('rsa', {
-        modulusLength: 4096,
-        publicExponent
-      }, common.mustNotCall()), {
-        name: 'RangeError',
-        code: 'ERR_OUT_OF_RANGE',
-        message: 'publicExponent is invalid',
-      });
-    } else {
-      generateKeyPair('rsa', {
-        modulusLength: 4096,
-        publicExponent
-      }, common.mustCall((err) => {
-        assert.strictEqual(err.name, 'Error');
-        assert.match(err.message, hasOpenSSL3 ? /exponent/ : /bad e value/);
-      }));
-    }
+    generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustCall((err) => {
+      assert.strictEqual(err.name, 'Error');
+      assert.match(err.message, invalidExponentError);
+    }));
   }
 }
 

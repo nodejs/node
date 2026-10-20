@@ -15,7 +15,8 @@ server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${port}`);
   const req = client.request({ ':path': '/' });
   req.on('response', common.mustNotCall('head after close should not be sent'));
-  req.on('end', common.mustCall(() => {
+  req.on('error', () => {});
+  req.on('close', common.mustCall(() => {
     client.close();
     server.close();
   }));

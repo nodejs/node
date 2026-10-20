@@ -4,31 +4,45 @@ const assert = require('assert');
 const dgram = require('dgram');
 const dns = require('dns');
 
+const originalLookup = dns.lookup;
+
 {
   // Verify that the provided lookup function is called.
   const lookup = common.mustCall((host, family, callback) => {
-    dns.lookup(host, family, callback);
+    assert.strictEqual(host, 'example.invalid');
+    callback(null, '127.0.0.1', 4);
   });
 
   const socket = dgram.createSocket({ type: 'udp4', lookup });
 
-  socket.bind(common.mustCall(() => {
+  socket.bind(0, 'example.invalid', common.mustCall(() => {
+    socket.close();
+  }));
+}
+
+{
+  // IPs resolve to themselves, so a custom lookup is not called.
+  const lookup = common.mustNotCall('lookup ran for a literal IP address');
+
+  const socket = dgram.createSocket({ type: 'udp4', lookup });
+
+  socket.bind(0, '127.0.0.1', common.mustCall(() => {
     socket.close();
   }));
 }
 
 {
   // Verify that lookup defaults to dns.lookup().
-  const originalLookup = dns.lookup;
-
   dns.lookup = common.mustCall((host, family, callback) => {
     dns.lookup = originalLookup;
-    originalLookup(host, family, callback);
+    assert.strictEqual(host, 'example.invalid');
+    assert.strictEqual(family, 4);
+    callback(null, '127.0.0.1', 4);
   });
 
   const socket = dgram.createSocket({ type: 'udp4' });
 
-  socket.bind(common.mustCall(() => {
+  socket.bind(0, 'example.invalid', common.mustCall(() => {
     socket.close();
   }));
 }

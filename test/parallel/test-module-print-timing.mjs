@@ -1,4 +1,4 @@
-import { isWindows } from '../common/index.mjs';
+import { isWindows, skipIfPerfettoEnabled } from '../common/index.mjs';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -7,6 +7,9 @@ import tmpdir from '../common/tmpdir.js';
 import { spawnSyncAndAssert } from '../common/child_process.js';
 import fixtures from '../common/fixtures.js';
 
+// The dynamic tracing case below records nothing on a perfetto build: a
+// category enabled after the tracing session started stays off.
+skipIfPerfettoEnabled();
 tmpdir.refresh();
 
 it('should print the timing information for cjs', () => {

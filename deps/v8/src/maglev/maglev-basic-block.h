@@ -62,6 +62,10 @@ class BasicBlock {
     DCHECK(!is_dead());
     return nodes_;
   }
+  const ZoneVector<Node*>& nodes() const {
+    DCHECK(!is_dead());
+    return nodes_;
+  }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {
@@ -153,17 +157,14 @@ class BasicBlock {
     state_->phis()->Add(phi);
   }
 
-  ExceptionHandlerInfo::List& exception_handlers() {
-    return exception_handlers_;
-  }
-
-  void AddExceptionHandler(ExceptionHandlerInfo* handler) {
-    exception_handlers_.Add(handler);
-  }
-
   int predecessor_count() const {
-    DCHECK(has_state());
-    return state()->predecessor_count();
+    if (type_ == kEdgeSplit || type_ == kOther) {
+      DCHECK_NOT_NULL(predecessor());
+      return 1;
+    } else {
+      DCHECK(has_state());
+      return state()->predecessor_count();
+    }
   }
 
   bool IsUnreachable() const {
@@ -176,9 +177,27 @@ class BasicBlock {
     return state_->predecessor_at(i);
   }
 
+  // Only loop headers of non-resumable loops are guaranteed to have a forward
+  // edge; a resumable loop can be entered through its resume edges alone.
+  BasicBlock* forward_predecessor() const {
+    DCHECK(is_loop());
+    DCHECK_EQ(predecessor_count(), 2);
+    return predecessor_at(0);
+  }
+
   BasicBlock* backedge_predecessor() const {
     DCHECK(is_loop());
     return predecessor_at(predecessor_count() - 1);
+  }
+
+  int get_predecessor_index(BasicBlock* pred) const {
+    DCHECK(has_state());
+    for (int i = 0; i < predecessor_count(); ++i) {
+      if (predecessor_at(i) == pred) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   int predecessor_id() const {
@@ -245,6 +264,21 @@ class BasicBlock {
   void ForEachSuccessor(Func&& functor) const {
     ControlNode* control = control_node();
     ForEachSuccessorFollowing(control, functor);
+  }
+
+  // Invokes `f` on every NodeBase in the block: each phi (if any), then each
+  // (non-null) node, then the control node. Avoids repeating the
+  // phi/node/control walk at call sites. The block must not be dead.
+  template <typename Func>
+  void ForEachNodeAndControl(Func&& f) {
+    if (has_phi()) {
+      for (Phi* phi : *phis()) f(phi);
+    }
+    for (Node* node : nodes()) {
+      if (node != nullptr) f(node);
+    }
+    DCHECK_NOT_NULL(control_node());
+    f(control_node());
   }
 
   Label* label() {
@@ -331,7 +365,7 @@ class BasicBlock {
     }
     bool has_register_merge = false;
 #ifdef V8_ENABLE_MAGLEV
-    if (!state()->register_state().is_initialized()) {
+    if (!state()->has_register_state()) {
       // This can happen when the graph has disconnected blocks; bail out and
       // don't jump thread them.
       return true;
@@ -366,7 +400,6 @@ class BasicBlock {
 
   ZoneVector<Node*> nodes_;
   ControlNode* control_node_;
-  ExceptionHandlerInfo::List exception_handlers_;
 
   union {
     MergePointInterpreterFrameState* state_;

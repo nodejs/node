@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Failed to parse diplomat::cfg
+In src/ast/snapshots/span_testing/malformed_cfg.rs:3:21:
+...:cfg(;)]...
+        ^
+CFG portion of #[diplomat::attr] fails to parse

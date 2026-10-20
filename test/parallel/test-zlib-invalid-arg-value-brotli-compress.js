@@ -15,6 +15,6 @@ const opts = {
   }
 };
 
-assert.throws(() => BrotliCompress(opts), {
+assert.throws(() => new BrotliCompress(opts), {
   code: 'ERR_INVALID_ARG_TYPE'
 });

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>Service Worker: WebSocket handshake channel is not intercepted</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+
+promise_test(function(t) {
+    var path = new URL(".", window.location).pathname
+    var url = 'resources/websocket.js';
+    var scope = 'resources/blank.html?websocket';
+    var host_info = get_host_info();
+    var frameURL = host_info['HTTPS_ORIGIN'] + path + scope;
+    var frame;
+
+    return service_worker_unregister_and_register(t, url, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(frameURL); })
+      .then(function(f) {
+          frame = f;
+          return websocket(t, frame);
+        })
+      .then(function() {
+          var channel = new MessageChannel();
+          return new Promise(function(resolve) {
+            channel.port1.onmessage = resolve;
+            frame.contentWindow.navigator.serviceWorker.controller.postMessage({port: channel.port2}, [channel.port2]);
+          });
+        })
+      .then(function(e) {
+          for (var url in e.data.urls) {
+            assert_equals(url.indexOf(get_websocket_url()), -1,
+                          "Observed an unexpected FetchEvent for the WebSocket handshake");
+          }
+          frame.remove();
+        });
+  }, 'Verify WebSocket handshake channel does not get intercepted');
+</script>

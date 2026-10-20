@@ -186,7 +186,7 @@ struct BenchmarkDelta : public TwoArray {
     for (; i < num_items; i += N) {
       const auto a = Load(df, &a_[i]);
       const auto shifted = LoadU(df, &a_[i - 1]);
-      Store(a - shifted, df, &b_[i]);
+      Store(Sub(a, shifted), df, &b_[i]);
     }
 #else  // 128-bit
     // Slightly better than unaligned loads

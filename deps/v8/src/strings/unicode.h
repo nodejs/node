@@ -273,7 +273,7 @@ struct V8_EXPORT_PRIVATE WhiteSpace {
 #endif  // !V8_INTL_SUPPORT
 
 // LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
+// https://tc39.es/ecma262/#sec-line-terminators lists exactly 4 code points:
 // LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
 V8_INLINE bool IsLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D || c == 0x2028 || c == 0x2029;
@@ -316,5 +316,65 @@ struct V8_EXPORT_PRIVATE CanonicalizationRange {
 #endif  // !V8_INTL_SUPPORT
 
 }  // namespace unibrow
+
+namespace v8::internal {
+
+class UnicodeConfig {
+ public:
+  constexpr explicit UnicodeConfig(unibrow::Utf8Variant variant)
+      : UnicodeConfig(variant, SharedFlag{false}, SharedFlag{false}) {}
+
+  constexpr UnicodeConfig(unibrow::Utf8Variant variant,
+                          SharedFlag source_shared, SharedFlag dest_shared)
+      : flags_(VariantField::encode(variant) |
+               SourceSharedField::encode(source_shared.value()) |
+               DestSharedField::encode(dest_shared.value())) {}
+
+  constexpr UnicodeConfig(SharedFlag source_shared, SharedFlag dest_shared)
+      : flags_(SourceSharedField::encode(source_shared.value()) |
+               DestSharedField::encode(dest_shared.value())) {}
+
+  explicit constexpr UnicodeConfig(uint32_t raw_flags) : flags_(raw_flags) {}
+
+  // Predefined convenience constants.
+  static constexpr UnicodeConfig kLossyUtf8Unshared() {
+    return UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8, SharedFlag{false},
+                         SharedFlag{false});
+  }
+  static constexpr UnicodeConfig kLossyUtf8Shared() {
+    return UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8, SharedFlag{true},
+                         SharedFlag{true});
+  }
+  static constexpr UnicodeConfig kWtf16Unshared() {
+    return UnicodeConfig(SharedFlag{false}, SharedFlag{false});
+  }
+  static constexpr UnicodeConfig kWtf16Shared() {
+    return UnicodeConfig(SharedFlag{true}, SharedFlag{true});
+  }
+
+  constexpr unibrow::Utf8Variant variant() const {
+    return VariantField::decode(flags_);
+  }
+  constexpr bool source_shared() const {
+    return SourceSharedField::decode(flags_);
+  }
+  constexpr bool dest_shared() const { return DestSharedField::decode(flags_); }
+  constexpr int32_t raw_as_int() const { return static_cast<int32_t>(flags_); }
+
+ private:
+  // When used for WTF16 operations, this field is unused/ignored.
+  using VariantField = base::BitField<unibrow::Utf8Variant, 0, 3>;
+  // "source shared" indicates whether the source data/array can be concurrently
+  // modified and should hence be copied before multiple passes over it can
+  // rely on seeing the same bits.
+  using SourceSharedField = VariantField::Next<bool, 1>;
+  // "dest shared" controls whether the result of the operation should be
+  // allocated in shared space.
+  using DestSharedField = SourceSharedField::Next<bool, 1>;
+
+  uint32_t flags_ = 0;
+};
+
+}  // namespace v8::internal
 
 #endif  // V8_STRINGS_UNICODE_H_

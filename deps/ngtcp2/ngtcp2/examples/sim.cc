@@ -31,7 +31,6 @@
 #include <cmath>
 #include <utility>
 #include <string_view>
-#include <iostream>
 
 #include "ngtcp2/ngtcp2_crypto_wolfssl.h"
 
@@ -42,11 +41,12 @@ using namespace std::literals;
 
 namespace ngtcp2 {
 
-namespace {
 constexpr auto ALPN_LIST = "ngtcp2-sim"sv;
-constexpr size_t CIDLEN = 10;
+constexpr auto CIDLEN = 10UZ;
 constexpr uint8_t SERVER_SECRET[] = "server_secret";
+constexpr std::array<uint8_t, 32> static_secret{0xCA, 0xCE, 0xCA, 0xFE};
 
+namespace {
 std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (wolfSSL_RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
     return std::unexpected{Error::CRYPTO};
@@ -78,14 +78,6 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
   return 0;
 }
 } // namespace
-
-ngtcp2_tstamp to_ngtcp2_tstamp(const Timestamp &ts) {
-  return static_cast<ngtcp2_tstamp>(ts.time_since_epoch().count());
-}
-
-Timestamp to_timestamp(ngtcp2_tstamp ts) {
-  return Timestamp{Timestamp::duration{ts}};
-}
 
 uint64_t LinkConfig::compute_expected_goodput(Timestamp::duration rtt) const {
   // Assume 80% usage ratio.
@@ -155,7 +147,7 @@ ngtcp2_settings default_client_settings() {
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
 
-  settings.log_printf = debug::log_printf;
+  settings.log_write = debug::log_write;
 
   return settings;
 }
@@ -164,7 +156,7 @@ ngtcp2_settings default_server_settings() {
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
 
-  settings.log_printf = debug::log_printf;
+  settings.log_write = debug::log_write;
 
   return settings;
 }
@@ -261,30 +253,33 @@ Endpoint::Endpoint(Endpoint &&other) noexcept
     conn_{std::exchange(other.conn_, nullptr)},
     conn_ref_{ngtcp2::get_conn, this},
     channel_{std::exchange(other.channel_, {})},
-    initialized_{std::exchange(other.initialized_, false)} {}
-
-Endpoint::~Endpoint() {
-  ngtcp2_conn_del(conn_);
-
+    initialized_{std::exchange(other.initialized_, false)} {
   if (ssl_) {
-    wolfSSL_free(ssl_);
-  }
-
-  if (ssl_ctx_) {
-    wolfSSL_CTX_free(ssl_ctx_);
+    wolfSSL_set_app_data(ssl_, &conn_ref_);
   }
 }
 
-Endpoint &Endpoint::operator=(Endpoint &&other) noexcept {
+Endpoint::~Endpoint() { reset(); }
+
+void Endpoint::reset() {
   ngtcp2_conn_del(conn_);
+  conn_ = nullptr;
 
   if (ssl_) {
     wolfSSL_free(ssl_);
+    ssl_ = nullptr;
   }
 
   if (ssl_ctx_) {
     wolfSSL_CTX_free(ssl_ctx_);
+    ssl_ctx_ = nullptr;
   }
+
+  initialized_ = false;
+}
+
+Endpoint &Endpoint::operator=(Endpoint &&other) noexcept {
+  reset();
 
   config_ = std::exchange(other.config_, {});
   ssl_ctx_ = std::exchange(other.ssl_ctx_, nullptr);
@@ -301,7 +296,6 @@ Endpoint &Endpoint::operator=(Endpoint &&other) noexcept {
   return *this;
 }
 
-namespace {
 constexpr auto tls_key = R"(-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgwEvkGGgXAcRaG7Z8
 gA7C6+W2RsW9gcjV9e5ybr0ikaahRANCAASCo35bDi+Q/q/CzHI1e5QaBrbqbFhW
@@ -323,12 +317,12 @@ MAMBAf8wCgYIKoZIzj0EAwIDSAAwRQIhAO4tnDNRAcooz62vf2m7vTyDqFCjcaIv
 SJ9Gq0lvEXEcAiBwWBNUASBqLaje3hmtgwxcF7EIqqiGo5j8f9Ufgu6SRg==
 -----END CERTIFICATE-----
 )"sv;
-} // namespace
 
 std::expected<void, Error>
 Endpoint::setup_server(std::span<const uint8_t> original_dcid,
                        std::span<const uint8_t> client_scid, uint32_t version,
-                       const ngtcp2_addr *remote_addr) {
+                       const ngtcp2_addr *remote_addr,
+                       std::optional<const TokenParams> token_params) {
   ngtcp2_cid scid{
     .datalen = CIDLEN,
   };
@@ -341,8 +335,21 @@ Endpoint::setup_server(std::span<const uint8_t> original_dcid,
   ngtcp2_cid_init(&dcid, client_scid.data(), client_scid.size());
 
   auto params = config_.params;
-  ngtcp2_cid_init(&params.original_dcid, original_dcid.data(),
-                  original_dcid.size());
+  auto settings = config_.settings;
+
+  if (token_params) {
+    params.original_dcid = *token_params->original_dcid;
+    params.retry_scid = *token_params->retry_scid;
+    params.retry_scid_present = 1;
+
+    settings.token = token_params->token.data();
+    settings.tokenlen = token_params->token.size();
+    settings.token_type = NGTCP2_TOKEN_TYPE_RETRY;
+  } else {
+    ngtcp2_cid_init(&params.original_dcid, original_dcid.data(),
+                    original_dcid.size());
+  }
+
   params.original_dcid_present = 1;
 
   if (ngtcp2_crypto_generate_stateless_reset_token(
@@ -357,8 +364,8 @@ Endpoint::setup_server(std::span<const uint8_t> original_dcid,
   };
 
   if (ngtcp2_conn_server_new(&conn_, &dcid, &scid, &path, version,
-                             &config_.callbacks, &config_.settings, &params,
-                             nullptr, config_.user_data) != 0) {
+                             &config_.callbacks, &settings, &params, nullptr,
+                             config_.user_data) != 0) {
     return std::unexpected{Error::QUIC};
   }
 
@@ -473,11 +480,73 @@ std::expected<void, Error> Endpoint::on_read(const NetworkPath &path,
   auto rv =
     ngtcp2_conn_read_pkt(conn_, &cpath, nullptr, pkt.data(), pkt.size(), ts);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
+    if (rv == NGTCP2_ERR_RETRY) {
+      assert(ngtcp2_conn_is_server(conn_));
+
+      reset();
+
+      ngtcp2_version_cid vcid;
+
+      auto rv =
+        ngtcp2_pkt_decode_version_cid(&vcid, pkt.data(), pkt.size(), CIDLEN);
+      if (rv != 0) {
+        return std::unexpected{Error::QUIC};
+      }
+
+      return send_retry(path, vcid);
+    }
+
+    std::println(stderr, "ngtcp2_conn_read_pkt: {}", ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
   ctx.endpoint->get_channel().schedule_timeout(ctx.ts);
+
+  return {};
+}
+
+std::expected<void, Error>
+Endpoint::send_retry(const NetworkPath &path, const ngtcp2_version_cid &vcid) {
+  ngtcp2_cid dcid, odcid;
+
+  assert(vcid.scidlen <= NGTCP2_MAX_CIDLEN);
+  assert(vcid.dcidlen <= NGTCP2_MAX_CIDLEN);
+
+  ngtcp2_cid_init(&dcid, vcid.scid, vcid.scidlen);
+  ngtcp2_cid_init(&odcid, vcid.dcid, vcid.dcidlen);
+
+  ngtcp2_cid scid;
+
+  scid.datalen = CIDLEN;
+
+  if (auto rv = generate_secure_random({scid.data, scid.datalen}); !rv) {
+    return rv;
+  }
+
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2> token;
+
+  auto cpath = to_ngtcp2_path(path);
+
+  auto tokenlen = ngtcp2_crypto_generate_retry_token2(
+    token.data(), static_secret.data(), static_secret.size(), vcid.version,
+    cpath.remote.addr, cpath.remote.addrlen, &scid, &odcid,
+    to_ngtcp2_tstamp(channel_.get_timestamp()));
+  if (tokenlen < 0) {
+    return std::unexpected{Error::QUIC};
+  }
+
+  std::array<uint8_t, MAX_UDP_PAYLOAD_SIZE> buf;
+
+  auto nwrite = ngtcp2_crypto_write_retry(buf.data(), buf.size(), vcid.version,
+                                          &dcid, &scid, &odcid, token.data(),
+                                          as_unsigned(tokenlen));
+  if (nwrite < 0) {
+    return std::unexpected{Error::QUIC};
+  }
+
+  if (nwrite) {
+    channel_.send_pkt(path, {buf.data(), as_unsigned(nwrite)});
+  }
 
   return {};
 }
@@ -487,9 +556,13 @@ std::expected<void, Error> Endpoint::on_write(const Context &ctx) {
     return rv;
   }
 
-  auto next_expiry_ts = ngtcp2_conn_get_expiry(conn_);
+  auto next_expiry_ts = ngtcp2_conn_get_expiry2(conn_);
   if (next_expiry_ts == UINT64_MAX) {
     return {};
+  }
+
+  if (to_ngtcp2_tstamp(Timestamp::max()) < next_expiry_ts) {
+    return std::unexpected{Error::INTERNAL};
   }
 
   ctx.endpoint->get_channel().schedule_timeout(to_timestamp(next_expiry_ts));
@@ -500,8 +573,7 @@ std::expected<void, Error> Endpoint::on_write(const Context &ctx) {
 std::expected<void, Error> Endpoint::on_timeout(const Context &ctx) {
   auto rv = ngtcp2_conn_handle_expiry(conn_, to_ngtcp2_tstamp(ctx.ts));
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_handle_expiry: {}", ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -524,7 +596,7 @@ ngtcp2_path to_ngtcp2_path(const NetworkPath &path) {
   };
 }
 
-NetworkPath NetworkPath::invert() {
+NetworkPath NetworkPath::invert() const {
   auto path = *this;
 
   std::swap(path.local, path.remote);
@@ -558,7 +630,7 @@ Channel &Channel::operator=(Channel &&other) noexcept {
   return *this;
 }
 
-void Channel::send_pkt(const NetworkPath &path, std::span<uint8_t> pkt) {
+void Channel::send_pkt(const NetworkPath &path, std::span<const uint8_t> pkt) {
   auto rate = link_config_.rate / 8;
 
   if (rate == 0) {
@@ -794,9 +866,33 @@ std::expected<void, Error> Simulator::deliver_pkt(Endpoint &remote_ep,
       return {};
     }
 
+    ngtcp2_cid odcid;
+    std::optional<TokenParams> token_params;
+
+    if (hd.tokenlen) {
+      auto cpath = to_ngtcp2_path(path);
+      auto delay = local_ep.get_endpoint_config().link.delay;
+      auto timeout = delay * 2 * 2;
+
+      auto rv = ngtcp2_crypto_verify_retry_token2(
+        &odcid, hd.token, hd.tokenlen, static_secret.data(),
+        static_secret.size(), vcid.version, cpath.remote.addr,
+        cpath.remote.addrlen, &hd.dcid, to_ngtcp2_duration(timeout),
+        to_ngtcp2_tstamp(ts));
+      if (rv != 0) {
+        return std::unexpected{Error::QUIC};
+      }
+
+      token_params = TokenParams{
+        .original_dcid = &odcid,
+        .retry_scid = &hd.dcid,
+        .token = {hd.token, hd.tokenlen},
+      };
+    }
+
     if (auto rv = local_ep.setup_server(
           {vcid.dcid, vcid.dcidlen}, {vcid.scid, vcid.scidlen}, vcid.version,
-          &remote_ep.get_endpoint_config().local_addr);
+          &remote_ep.get_endpoint_config().local_addr, token_params);
         !rv) {
       return rv;
     }
@@ -838,8 +934,8 @@ void HandshakeApp::configure(EndpointConfig &config) {
     auto nwrite = ngtcp2_conn_write_pkt(conn, &ps.path, nullptr, buf.data(),
                                         buf.size(), ts);
     if (nwrite < 0) {
-      std::cerr << "ngtcp2_conn_write_pkt: "
-                << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+      std::println(stderr, "ngtcp2_conn_write_pkt: {}",
+                   ngtcp2_strerror(static_cast<int>(nwrite)));
       return std::unexpected{Error::QUIC};
     }
 
@@ -924,8 +1020,8 @@ UniStreamApp::extend_max_local_streams_uni(ngtcp2_conn *conn) {
 
   auto rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, nullptr);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_open_uni_stream: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -974,8 +1070,8 @@ std::expected<void, Error> UniStreamApp::on_write(ngtcp2_conn *conn,
       return {};
     }
 
-    std::cerr << "ngtcp2_conn_writev_stream: "
-              << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+    std::println(stderr, "ngtcp2_conn_writev_stream: {}",
+                 ngtcp2_strerror(static_cast<int>(nwrite)));
 
     return std::unexpected{Error::QUIC};
   }

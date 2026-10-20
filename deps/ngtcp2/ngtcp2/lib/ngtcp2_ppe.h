@@ -125,7 +125,9 @@ size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe);
  * of a UDP datagram payload is at least |n| bytes long.  If it is
  * unable to add PADDING in that way, this function still adds PADDING
  * frame as much as possible.  This function should be called just
- * before calling ngtcp2_ppe_final().
+ * before calling ngtcp2_ppe_final().  This function also ensures that
+ * the packet has enough space for header protection sample by
+ * possibly adding extra padding more than |n|.
  *
  * This function returns the number of bytes added as padding.
  */
@@ -138,20 +140,11 @@ size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n);
  * PADDING at least |n| bytes, this function still adds PADDING frames
  * as much as possible.  This function also adds PADDING frames so
  * that the minimum padding requirement of header protection is met.
- * Those padding may be larger than |n| bytes.  It is recommended to
- * make sure that ngtcp2_ppe_ensure_hp_sample succeeds after writing
- * QUIC packet header.  This function should be called just before
- * calling ngtcp2_ppe_final().
+ * Those padding may be larger than |n| bytes.  This function should
+ * be called just before calling ngtcp2_ppe_final().
  *
  * This function returns the number of bytes added as padding.
  */
 size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n);
-
-/*
- * ngtcp2_ppe_ensure_hp_sample returns nonzero if the buffer has
- * enough space for header protection sample.  This should be called
- * right after packet header is written.
- */
-int ngtcp2_ppe_ensure_hp_sample(ngtcp2_ppe *ppe);
 
 #endif /* !defined(NGTCP2_PPE_H) */

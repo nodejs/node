@@ -4,26 +4,39 @@
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
+import("../../node.gni")
+
 template("llhttp_gn_build") {
-  config("llhttp_config") {
-    include_dirs = [ "include" ]
-  }
+  if (node_shared_http_parser) {
+    import("//build/config/linux/pkg_config.gni")
+    pkg_config("llhttp_config") {
+      packages = [ "libllhttp" ]
+    }
+    group(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":llhttp_config" ]
+    }
+  } else {
+    config("llhttp_config") {
+      include_dirs = [ "include" ]
+    }
 
-  gypi_values = exec_script("../../tools/gypi_to_gn.py",
-                            [ rebase_path("llhttp.gyp") ],
-                            "scope",
-                            [ "llhttp.gyp" ])
+    gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                              [ rebase_path("llhttp.gyp") ],
+                              "scope",
+                              [ "llhttp.gyp" ])
 
-  source_set(target_name) {
-    forward_variables_from(invoker, "*")
-    public_configs = [ ":llhttp_config" ]
-    include_dirs = [ "include" ]
-    sources = gypi_values.llhttp_sources
-    if (is_clang || !is_win) {
-      cflags_c = [
-        "-Wno-implicit-fallthrough",
-        "-Wno-unreachable-code",
-      ]
+    source_set(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":llhttp_config" ]
+      include_dirs = [ "include" ]
+      sources = gypi_values.llhttp_sources
+      if (is_clang || !is_win) {
+        cflags_c = [
+          "-Wno-implicit-fallthrough",
+          "-Wno-unreachable-code",
+        ]
+      }
     }
   }
 }

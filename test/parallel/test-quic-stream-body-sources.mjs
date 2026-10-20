@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
-
-const { strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -47,7 +46,7 @@ await clientSession.opened;
   const buf = encoder.encode(message);
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   const stream = await clientSession.createBidirectionalStream({ body: ab });
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -59,7 +58,7 @@ await clientSession.opened;
   fullView.set(expectedBytes, offset);
   const view = new Uint8Array(backing, offset, expectedBytes.byteLength);
   const stream = await clientSession.createBidirectionalStream({ body: view });
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -70,8 +69,8 @@ await clientSession.opened;
   sabView.set(expectedBytes);
   const stream = await clientSession.createBidirectionalStream({ body: sabView });
   // The SharedArrayBuffer should still be usable (copied, not transferred).
-  strictEqual(sab.byteLength, expectedBytes.byteLength);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  assert.strictEqual(sab.byteLength, expectedBytes.byteLength);
+  await dump(stream);
   await stream.closed;
 }
 
@@ -79,7 +78,7 @@ await clientSession.opened;
 {
   const blob = new Blob([expectedBytes]);
   const stream = await clientSession.createBidirectionalStream({ body: blob });
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 

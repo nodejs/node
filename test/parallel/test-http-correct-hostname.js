@@ -15,7 +15,7 @@ if (common.hasCrypto) {
   modules.https = https;
 }
 
-Object.keys(modules).forEach((module) => {
+for (const module of Object.keys(modules)) {
   const doNotCall = common.mustNotCall(
     `${module}.request should not connect to ${module}://example.com%60x.example.com`
   );
@@ -25,4 +25,4 @@ Object.keys(modules).forEach((module) => {
     'example.com`x.example.com',
   ]);
   req.abort();
-});
+};

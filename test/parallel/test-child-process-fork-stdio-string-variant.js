@@ -29,4 +29,7 @@ function test(stringVariant) {
   child.on('exit', common.mustCall((code) => assert.strictEqual(code, 0)));
 }
 
-['pipe', 'inherit', 'ignore'].forEach(test);
+const testCases = ['pipe', 'inherit', 'ignore'];
+for (const value of testCases) {
+  test(value);
+}

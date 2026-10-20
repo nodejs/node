@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -272,7 +272,7 @@ static void ossl_unused ossl_ht_strcase(char *tgt, const char *src, int len)
     if (src == NULL)
         return;
 
-    for (i = 0; src[i] != '\0' && i < len; i++)
+    for (i = 0; i < len && src[i] != '\0'; i++)
         tgt[i] = case_adjust & src[i];
 }
 

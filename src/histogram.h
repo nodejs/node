@@ -11,14 +11,17 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <functional>
 #include <limits>
-#include <map>
-#include <string>
+#include <vector>
 
 namespace node {
 
 class ExternalReferenceRegistry;
+
+template <typename T>
+void StartHandleHistogram(v8::Local<v8::Value> receiver, bool reset);
+template <typename T>
+void StopHandleHistogram(v8::Local<v8::Value> receiver);
 
 constexpr int kDefaultHistogramFigures = 3;
 
@@ -28,9 +31,58 @@ class Histogram : public MemoryRetainer {
     int64_t lowest = 1;
     int64_t highest = std::numeric_limits<int64_t>::max();
     int figures = kDefaultHistogramFigures;
+    double half_life = 0;   // EWMA half-life in number of samples (0 = off)
+    int64_t threshold = 0;  // SLO threshold (0 = off). When set with
+                            // half_life, tracks EWMA error rate for values
+                            // exceeding this threshold.
   };
 
-  explicit Histogram(const Options& options);
+  struct RecordedBucket {
+    double value;
+    double resolution;
+    int64_t count;
+    int64_t cumulative_count;
+  };
+
+  struct RecordedSnapshot {
+    std::vector<RecordedBucket> buckets;
+    int64_t total_count = 0;
+  };
+
+  using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
+
+  struct RecordedSnapshotSource {
+    HistogramPointer histogram;
+    std::shared_ptr<const RecordedSnapshot> snapshot;
+    uint64_t generation = 0;
+    bool cache_hit = false;
+  };
+
+  // Factory method that returns nullptr on hdr_init failure.
+  static std::shared_ptr<Histogram> Create(const Options& options);
+
+  // Returns an independent copy of this histogram's current state, or nullptr
+  // if the copy cannot be allocated.
+  std::shared_ptr<Histogram> Clone() const;
+
+  enum class DiffError {
+    kNone,
+    kOutOfMemory,
+    // `other` has a different layout.
+    kIncompatible,
+    // Values were removed from this histogram after `other` was taken.
+    kReset,
+    // `other` contains values that this histogram does not.
+    kNotEarlier,
+  };
+
+  // Returns a new histogram containing the values recorded in this histogram
+  // after `other`, an earlier copy of it, was taken. Returns nullptr and sets
+  // `error` if the difference cannot be computed.
+  std::shared_ptr<Histogram> Diff(const Histogram& other,
+                                  DiffError* error) const;
+
+  Histogram(HistogramPointer histogram, const Options& options);
   virtual ~Histogram() = default;
 
   inline bool Record(int64_t value);
@@ -39,9 +91,13 @@ class Histogram : public MemoryRetainer {
   inline int64_t Max() const;
   inline double Mean() const;
   inline double Stddev() const;
+  inline double EwmaMean() const;
+  inline double EwmaStddev() const;
+  inline double EwmaErrorRate() const;
   inline int64_t Percentile(double percentile) const;
-  inline size_t Exceeds() const { return exceeds_; }
+  inline size_t Exceeds() const;
   inline size_t Count() const;
+  inline uint64_t ResetCount() const;
 
   inline uint64_t RecordDelta();
 
@@ -50,21 +106,105 @@ class Histogram : public MemoryRetainer {
   // Iterator is a function type that takes two doubles as argument, one for
   // percentile and one for the value at that percentile.
   template <typename Iterator>
-  inline void Percentiles(Iterator&& fn);
+  inline void Percentiles(Iterator&& fn) const;
 
   inline size_t GetMemorySize() const;
+
+  // Analysis methods
+  inline int64_t CountAt(int64_t value) const;
+  double Cdf(int64_t value) const;
+  double Skewness() const;
+  double Kurtosis() const;
+  double KsTest(const Histogram& other) const;
+  double Subtract(const Histogram& other);
+  void PercentilesAt(const double* percentiles,
+                     int64_t* values,
+                     size_t length) const;
+
+  // Statistical analysis
+  struct MeanCIResult {
+    double mean;
+    double lower;
+    double upper;
+  };
+
+  struct WelchTestResult {
+    double t_statistic;
+    double degrees_of_freedom;
+    double p_value;
+    double ci_lower;
+    double ci_upper;
+  };
+
+  struct MannWhitneyResult {
+    double u_statistic;
+    double z_score;
+    double p_value;
+  };
+
+  struct PercentileCIResult {
+    int64_t value;
+    int64_t lower;
+    int64_t upper;
+  };
+
+  MeanCIResult MeanCI(double confidence = 0.95) const;
+  WelchTestResult WelchTest(const Histogram& other,
+                            double confidence = 0.95) const;
+  MannWhitneyResult MannWhitneyTest(const Histogram& other) const;
+  double CohensD(const Histogram& other) const;
+  double CliffsD(const Histogram& other) const;
+  PercentileCIResult PercentileCI(double percentile,
+                                  double confidence = 0.95) const;
+
+  // CBOR-encoded export/import for histogram exchange.
+  std::vector<uint8_t> Export() const;
+  static std::shared_ptr<Histogram> Import(const uint8_t* data, size_t len);
+
+  inline bool RecordCorrected(int64_t value, int64_t expected_interval);
+
+  template <typename Iterator>
+  void LinearBuckets(int64_t step_size, Iterator&& fn) const;
+
+  template <typename Iterator>
+  void LogBuckets(int64_t first_bucket, double log_base, Iterator&& fn) const;
+
+  bool IsCompatible(const Histogram& other) const;
+  RecordedSnapshotSource GetRecordedSnapshotSource(bool use_cache) const;
+  static RecordedSnapshot BuildRecordedSnapshot(const hdr_histogram* histogram);
+  void CacheRecordedSnapshot(uint64_t generation,
+                             std::shared_ptr<const RecordedSnapshot> snapshot);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Histogram)
   SET_SELF_SIZE(Histogram)
 
  private:
-  using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
+  inline void UpdateEwma(double value);
+  inline void InvalidateRecordedSnapshot();
+  size_t GetCachedRecordedSnapshotMemorySize() const;
+  std::shared_ptr<Histogram> CreateWithSameLayout() const;
+
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
-  size_t count_ = 0;
-  Mutex mutex_;
+  // Incremented whenever recorded values are removed by Reset() or Subtract().
+  uint64_t reset_count_ = 0;
+
+  // EWMA state (active when ewma_alpha_ > 0)
+  double ewma_alpha_ = 0;
+  double ewma_mean_ = 0;
+  double ewma_variance_ = 0;
+  bool ewma_initialized_ = false;
+
+  // SLO error rate EWMA (active when threshold_ > 0 and ewma_alpha_ > 0)
+  int64_t threshold_ = 0;
+  double ewma_error_rate_ = 0;
+
+  uint64_t mutation_generation_ = 0;
+  std::shared_ptr<const RecordedSnapshot> recorded_snapshot_cache_;
+
+  RwLock mutex_;
 };
 
 class HistogramImpl {
@@ -101,6 +241,31 @@ class HistogramImpl {
   static void GetPercentilesBigInt(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void GetSkewness(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetKurtosis(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCdf(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCountAt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetKsTest(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentilesAt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetLinearBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetLogBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMeanCI(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetWelchTest(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMannWhitneyTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCohensD(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCliffsD(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentileCI(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetQrde(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaMean(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoExport(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoImport(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoDiff(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetResetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void FastReset(v8::Local<v8::Value> receiver);
   static double FastGetCount(v8::Local<v8::Value> receiver);
   static double FastGetMin(v8::Local<v8::Value> receiver);
@@ -110,6 +275,14 @@ class HistogramImpl {
   static double FastGetStddev(v8::Local<v8::Value> receiver);
   static double FastGetPercentile(v8::Local<v8::Value> receiver,
                                   const double percentile);
+  static double FastGetSkewness(v8::Local<v8::Value> receiver);
+  static double FastGetKurtosis(v8::Local<v8::Value> receiver);
+  static double FastGetCdf(v8::Local<v8::Value> receiver, const int64_t value);
+  static double FastGetCountAt(v8::Local<v8::Value> receiver,
+                               const int64_t value);
+  static double FastGetEwmaMean(v8::Local<v8::Value> receiver);
+  static double FastGetEwmaStddev(v8::Local<v8::Value> receiver);
+  static double FastGetEwmaErrorRate(v8::Local<v8::Value> receiver);
 
   static void AddMethods(v8::Isolate* isolate,
                          v8::Local<v8::FunctionTemplate> tmpl);
@@ -129,6 +302,13 @@ class HistogramImpl {
   static v8::CFunction fast_get_exceeds_;
   static v8::CFunction fast_get_stddev_;
   static v8::CFunction fast_get_percentile_;
+  static v8::CFunction fast_get_skewness_;
+  static v8::CFunction fast_get_kurtosis_;
+  static v8::CFunction fast_get_cdf_;
+  static v8::CFunction fast_get_count_at_;
+  static v8::CFunction fast_get_ewma_mean_;
+  static v8::CFunction fast_get_ewma_stddev_;
+  static v8::CFunction fast_get_ewma_error_rate_;
 };
 
 class HistogramBase final : public BaseObject, public HistogramImpl {
@@ -160,7 +340,9 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
 
   static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RecordCorrected(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Subtract(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void FastRecord(v8::Local<v8::Value> receiver, const int64_t value);
   static void FastRecordDelta(v8::Local<v8::Value> receiver);
@@ -174,6 +356,8 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
       Environment* env,
       v8::Local<v8::Object> wrap,
       std::shared_ptr<Histogram> histogram);
+
+  ~HistogramBase() override;
 
   BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
@@ -202,21 +386,111 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   };
 
  private:
+  void ReportExternalMemory();
+
+  // The native memory reported to V8 while this object is alive.
+  size_t external_memory_ = 0;
+
   static v8::CFunction fast_record_;
   static v8::CFunction fast_record_delta_;
 };
 
-class IntervalHistogram final : public HandleWrap, public HistogramImpl {
+// BaseObject disallows cloning and transfer, so ring state is confined to the
+// owning Environment's thread.
+class SlidingWindowHistogram final : public BaseObject {
+ public:
+  static void Initialize(IsolateData* isolate_data,
+                         v8::Local<v8::ObjectTemplate> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SlidingWindowHistogram)
+  SET_SELF_SIZE(SlidingWindowHistogram)
+
+ private:
+  static constexpr uint64_t kNoGeneration =
+      std::numeric_limits<uint64_t>::max();
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRecord(v8::Local<v8::Value> receiver,
+                         int64_t value,
+                         v8::FastApiCallbackOptions& options);
+  static void Snapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Reset(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SlidingWindowHistogram(Environment* env,
+                         v8::Local<v8::Object> wrap,
+                         const Histogram::Options& options,
+                         size_t chunk_count,
+                         bool time_based,
+                         uint64_t rotate_at,
+                         std::shared_ptr<Histogram> spare);
+  ~SlidingWindowHistogram() override;
+
+  Histogram* GetChunk(uint64_t generation);
+  bool RecordValue(int64_t value);
+  std::shared_ptr<Histogram> CreateSnapshot() const;
+  void ResetWindow();
+  uint64_t CurrentTimeGeneration() const;
+
+  Histogram::Options options_;
+  std::vector<std::shared_ptr<Histogram>> chunks_;
+  std::vector<uint64_t> generations_;
+  std::shared_ptr<Histogram> spare_;
+  bool time_based_;
+  uint64_t rotate_at_;
+  uint64_t origin_;
+  uint64_t current_generation_ = 0;
+  uint64_t records_in_current_chunk_ = 0;
+  size_t external_memory_ = 0;
+  bool has_count_records_ = false;
+
+  static v8::CFunction fast_record_;
+};
+
+// CRTP mixin for HandleWrap-based histograms with start/stop support.
+// Provides: StartFlags enum, Start/Stop slow-path handlers, enabled_ flag,
+// and InitTemplate (shared GetConstructorTemplate body).
+// Derived must provide: fast_start_, fast_stop_ (static CFunction),
+//   FastStart, FastStop, OnStart, OnStop.
+template <typename Derived>
+class HandleHistogramMixin {
+ public:
+  enum class StartFlags { NONE, RESET };
+
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    StartHandleHistogram<Derived>(args.This(), args[0]->IsTrue());
+  }
+
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    StopHandleHistogram<Derived>(args.This());
+  }
+
+ protected:
+  static void InitTemplate(v8::Isolate* isolate,
+                           v8::Local<v8::FunctionTemplate> tmpl,
+                           uint32_t internal_field_count) {
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(internal_field_count);
+    HistogramImpl::AddMethods(isolate, tmpl);
+    SetFastMethod(isolate, instance, "start", Start, &Derived::fast_start_);
+    SetFastMethod(isolate, instance, "stop", Stop, &Derived::fast_stop_);
+  }
+
+  bool enabled_ = false;
+};
+
+class IntervalHistogram final : public HandleWrap,
+                                public HistogramImpl,
+                                public HandleHistogramMixin<IntervalHistogram> {
  public:
   enum InternalFields {
     kInternalFieldCount = std::max<uint32_t>(
         HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
   };
 
-  enum class StartFlags {
-    NONE,
-    RESET
-  };
+  using OnInterval = void (*)(Histogram&);
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
@@ -225,20 +499,17 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
 
   static BaseObjectPtr<IntervalHistogram> Create(
       Environment* env,
-      int32_t interval,
-      std::function<void(Histogram&)> on_interval,
-      const Histogram::Options& options);
+      uint64_t interval,
+      OnInterval on_interval,
+      std::shared_ptr<Histogram> histogram,
+      AsyncWrap::ProviderType type = AsyncWrap::PROVIDER_ELDHISTOGRAM);
 
-  IntervalHistogram(
-      Environment* env,
-      v8::Local<v8::Object> wrap,
-      AsyncWrap::ProviderType type,
-      int32_t interval,
-      std::function<void(Histogram&)> on_interval,
-      const Histogram::Options& options = Histogram::Options {});
-
-  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  IntervalHistogram(Environment* env,
+                    v8::Local<v8::Object> wrap,
+                    AsyncWrap::ProviderType type,
+                    uint64_t interval,
+                    OnInterval on_interval,
+                    std::shared_ptr<Histogram> histogram);
 
   static void FastStart(v8::Local<v8::Value> receiver, bool reset);
   static void FastStop(v8::Local<v8::Value> receiver);
@@ -257,10 +528,77 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   void OnStart(StartFlags flags = StartFlags::RESET);
   void OnStop();
 
-  bool enabled_ = false;
-  int32_t interval_ = 0;
-  std::function<void(Histogram&)> on_interval_;
+  friend class HandleHistogramMixin<IntervalHistogram>;
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
+
+  uint64_t interval_ = 0;
+  OnInterval on_interval_ = nullptr;
   uv_timer_t timer_;
+
+  static v8::CFunction fast_start_;
+  static v8::CFunction fast_stop_;
+};
+
+class IterationHistogram final
+    : public HandleWrap,
+      public HistogramImpl,
+      public HandleHistogramMixin<IterationHistogram> {
+ public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(
+        HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
+  };
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static BaseObjectPtr<IterationHistogram> Create(
+      Environment* env,
+      std::shared_ptr<Histogram> histogram,
+      AsyncWrap::ProviderType type = AsyncWrap::PROVIDER_ELDHISTOGRAM);
+
+  IterationHistogram(Environment* env,
+                     v8::Local<v8::Object> wrap,
+                     AsyncWrap::ProviderType type,
+                     std::shared_ptr<Histogram> histogram);
+
+  static void FastStart(v8::Local<v8::Value> receiver, bool reset);
+  static void FastStop(v8::Local<v8::Value> receiver);
+
+  BaseObject::TransferMode GetTransferMode() const override {
+    return TransferMode::kCloneable;
+  }
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+  void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(IterationHistogram)
+  SET_SELF_SIZE(IterationHistogram)
+
+ private:
+  static void PrepareCB(uv_prepare_t* handle);
+  static void CheckCB(uv_check_t* handle);
+  void OnStart(StartFlags flags = StartFlags::RESET);
+  void OnStop();
+
+  friend class HandleHistogramMixin<IterationHistogram>;
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
+
+  uv_prepare_t prepare_handle_;
+  uv_check_t check_handle_;
+  uint64_t prepare_time_ = 0;
+  uint64_t check_time_ = 0;
+  int64_t timeout_ = 0;
 
   static v8::CFunction fast_start_;
   static v8::CFunction fast_stop_;

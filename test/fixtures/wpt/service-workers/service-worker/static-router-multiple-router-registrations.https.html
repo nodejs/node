@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are registered multiple times.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY_MULTIPLE_RULES = 'multiple-router-rules';
+const ROUTER_KEY_1 = 'condition-urlpattern-string-source-network';
+const ROUTER_KEY_2 = 'condition-request-method-post-network';
+
+const REGISTERED_ROUTE_1 = 'resources/direct.txt';
+const REGISTERED_ROUTE_2 = 'resources/direct.html';
+const REGISTERED_ROUTE_3 = 'direct.py';
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_KEY_MULTIPLE_RULES);
+
+  // Matched with the first rule.
+  const iframe = await createIframe(t, REGISTERED_ROUTE_1);
+  assert_equals(iframe.contentWindow.document.body.innerText, "Network\n");
+
+  // Matched with the second rule.
+  const second_iframe = await createIframe(t, REGISTERED_ROUTE_2);
+  assert_equals(second_iframe.contentWindow.document.body.innerText, "Here's a direct html from network.");
+
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+}, 'Main reosurce load matched with the service worker having multiple rules');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t,
+    `${ROUTER_KEY_1}&imported-sw-router-key=${ROUTER_KEY_2}`);
+
+  // Matched with the first rule.
+  const iframe = await createIframe(t, REGISTERED_ROUTE_1);
+  assert_equals(iframe.contentWindow.document.body.innerText, "Network\n");
+  let info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 0);
+
+  // Matched with the second rule, which is registered in the service worker
+  // loaded via `import` by the main script.
+  const response = await iframe.contentWindow.fetch(REGISTERED_ROUTE_3, {method: 'POST'});
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "Network with POST request");
+  info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 0);
+}, 'Resource load matched with the rule registered in the imported service worker');
+</script>
+</body>

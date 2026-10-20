@@ -5,6 +5,11 @@ const fixture = require('../../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../../common/crypto');
+
+if (hasOpenSSL(4))
+  common.skip('OpenSSL 4 does not support engines');
+
 const fs = require('fs');
 const path = require('path');
 
@@ -20,6 +25,12 @@ const https = require('https');
 const agentKey = fs.readFileSync(fixture.path('/keys/agent1-key.pem'));
 const agentCert = fs.readFileSync(fixture.path('/keys/agent1-cert.pem'));
 const agentCa = fs.readFileSync(fixture.path('/keys/ca1-cert.pem'));
+
+common.expectWarning({
+  DeprecationWarning: {
+    DEP0183: 'OpenSSL engine-based APIs are deprecated.',
+  },
+});
 
 const serverOptions = {
   key: agentKey,

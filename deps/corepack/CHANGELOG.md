@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.36.0](https://github.com/nodejs/corepack/compare/v0.35.0...v0.36.0) (2026-08-28)
+
+
+### Features
+
+* add `COREPACK_ON_UNVERIFIED_DOWNLOAD` env variable ([#856](https://github.com/nodejs/corepack/issues/856)) ([0125d89](https://github.com/nodejs/corepack/commit/0125d89ac904672bb42bc48bb6612d137beeccda))
+* fall back to package-root metadata when dist.signatures is missing on the version endpoint ([#870](https://github.com/nodejs/corepack/issues/870)) ([b26c9d5](https://github.com/nodejs/corepack/commit/b26c9d52fdbc5db326e631de3f6557f7e1b7e55d))
+* only load closest env file, for every commands ([#891](https://github.com/nodejs/corepack/issues/891)) ([b856c51](https://github.com/nodejs/corepack/commit/b856c516c3d0a92ded6b3f9cbbaa0d3f3eb094f1))
+* update package manager versions ([#852](https://github.com/nodejs/corepack/issues/852)) ([7e613b8](https://github.com/nodejs/corepack/commit/7e613b84b079411cb9eab1f90b254597fb9ef70c))
+* use range from `devEngines` when no `packageManager` is set ([#892](https://github.com/nodejs/corepack/issues/892)) ([dec830b](https://github.com/nodejs/corepack/commit/dec830b035f540d1b4ebc516e81fbf43c5e0ffcf))
+
+
+### Bug Fixes
+
+* **npmRegistryUtils:** env vars names in integrity check fail error message ([#854](https://github.com/nodejs/corepack/issues/854)) ([8ca01c3](https://github.com/nodejs/corepack/commit/8ca01c3fbeed6c8b5d1bb94df1aacb3fe6cff846))
+* strip trailing slashes from COREPACK_NPM_REGISTRY ([#871](https://github.com/nodejs/corepack/issues/871)) ([b81e92c](https://github.com/nodejs/corepack/commit/b81e92c2338ed6c4c38cfe1239002a261e47e6d5))
+
+## [0.35.0](https://github.com/nodejs/corepack/compare/v0.34.7...v0.35.0) (2026-05-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop support for Node.js 20 and Node.js 25.
+* Switching to Node.js built-in proxy support, meaning that proxy support is now
+  gated by having `NODE_USE_ENV_PROXY` set as an environment variable.
+
+### Features
+
+* update package manager versions ([#820](https://github.com/nodejs/corepack/issues/820)) ([fdbd751](https://github.com/nodejs/corepack/commit/fdbd751d9851a50730925de053e9722963c2e135))
+
+
+### Bug Fixes
+
+* target node 22.22.2 in esbuild ([#845](https://github.com/nodejs/corepack/issues/845)) ([0f01502](https://github.com/nodejs/corepack/commit/0f01502fd8832649a573bc68e1851128f547646d))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump engine support matrix ([88c602a](https://github.com/nodejs/corepack/commit/88c602a6ea3f75bf30dc1d071bdb488fae2c8276))
+* **deps:** drop Undici and `proxy-from-env` ([8167b0d](https://github.com/nodejs/corepack/commit/8167b0d65acc091af464ead019f7485cb512082f))
+
 ## [0.34.7](https://github.com/nodejs/corepack/compare/v0.34.6...v0.34.7) (2026-04-17)
 
 

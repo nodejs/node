@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,7 +32,7 @@ await clientSession.opened;
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(encoder.encode('first'));
 
-  throws(() => stream.setBody(encoder.encode('second')), {
+  assert.throws(() => stream.setBody(encoder.encode('second')), {
     code: 'ERR_INVALID_STATE',
     message: /outbound already configured/,
   });
@@ -50,12 +48,18 @@ await clientSession.opened;
   const w = stream.writer;
   w.endSync();
 
-  throws(() => stream.setBody(encoder.encode('data')), {
+  assert.throws(() => stream.setBody(encoder.encode('data')), {
     code: 'ERR_INVALID_STATE',
     message: /writer already accessed/,
   });
 
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  // The server handles only the first stream and then closes its session, so
+  // this stream is never answered and never receives a FIN. Reading it
+  // therefore surfaces the truncation rather than ending cleanly.
+  await assert.rejects((async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream) { /* drain */ }
+  })(), { code: 'ERR_QUIC_STREAM_ABORTED' });
   await stream.closed;
 }
 

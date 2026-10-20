@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,6 +17,7 @@
 #include "prov/der_slh_dsa.h"
 #include "crypto/slh_dsa.h"
 #include "internal/sizes.h"
+#include "fips/fipsindicator.h"
 
 #define SLH_DSA_MAX_ADD_RANDOM_LEN 32
 
@@ -61,7 +62,7 @@ static void slh_dsa_freectx(void *vctx)
 
     ossl_slh_dsa_hash_ctx_free(ctx->hash_ctx);
     OPENSSL_free(ctx->propq);
-    OPENSSL_cleanse(ctx->add_random, ctx->add_random_len);
+    OPENSSL_cleanse(ctx->add_random, sizeof(ctx->add_random));
     OPENSSL_free(ctx);
 }
 
@@ -222,8 +223,9 @@ static int slh_dsa_sign(void *vctx, unsigned char *sig, size_t *siglen,
         ctx->context_string, ctx->context_string_len,
         opt_rand, ctx->msg_encode,
         sig, siglen, sigsize);
-    if (opt_rand != add_rand)
-        OPENSSL_cleanse(opt_rand, n);
+    /* Only cleanse the temporary buffer generated for this signature. */
+    if (opt_rand == add_rand)
+        OPENSSL_cleanse(add_rand, sizeof(add_rand));
     return ret;
 }
 
@@ -313,7 +315,8 @@ static const OSSL_PARAM *slh_dsa_settable_ctx_params(void *vctx,
 
 static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
-    OSSL_PARAM_END
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
 };
 
 static const OSSL_PARAM *slh_dsa_gettable_ctx_params(ossl_unused void *vctx,
@@ -337,7 +340,12 @@ static int slh_dsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
             ctx->aid_len))
         return 0;
 
+#ifdef FIPS_MODULE
+    return ossl_FIPS_IND_get_ctx_param_conditional(NULL, params,
+        ctx->add_random_len == 0);
+#else
     return 1;
+#endif
 }
 
 #define MAKE_SIGNATURE_FUNCTIONS(alg, fn)                                               \

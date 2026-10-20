@@ -34,7 +34,7 @@ const server = http.createServer(function(req, res) {
   res.end(req.url);
 });
 server.listen(0, common.mustCall(() => {
-  const agent = http.Agent({
+  const agent = new http.Agent({
     keepAlive: true,
     maxSockets: 5,
     maxFreeSockets: 2,

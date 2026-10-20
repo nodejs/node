@@ -46,9 +46,9 @@ namespace v8::internal::trap_handler {
 constexpr size_t kInitialCodeObjectSize = 1024;
 constexpr size_t kCodeObjectGrowthFactor = 2;
 
-constexpr size_t HandlerDataSize(size_t num_protected_instructions) {
+constexpr size_t HandlerDataSize(size_t num_trapping_instructions) {
   return offsetof(CodeProtectionInfo, instructions) +
-         num_protected_instructions * sizeof(ProtectedInstructionData);
+         num_trapping_instructions * sizeof(TrappingInstructionData);
 }
 
 namespace {
@@ -76,8 +76,8 @@ void ValidateCodeObjects() {
 
     if (data == nullptr) continue;
 
-    // Do some sanity checks on the protected instruction data
-    for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
+    // Do some sanity checks on the trapping instruction data
+    for (unsigned j = 0; j < data->num_trapping_instructions; ++j) {
       TH_DCHECK(data->instructions[j].instr_offset >= 0);
       TH_DCHECK(data->instructions[j].instr_offset < data->size);
     }
@@ -107,9 +107,9 @@ void ValidateCodeObjects() {
 }  // namespace
 
 CodeProtectionInfo* CreateHandlerData(
-    uintptr_t base, size_t size, size_t num_protected_instructions,
-    const ProtectedInstructionData* protected_instructions) {
-  const size_t alloc_size = HandlerDataSize(num_protected_instructions);
+    uintptr_t base, size_t size, size_t num_trapping_instructions,
+    const TrappingInstructionData* trapping_instructions) {
+  const size_t alloc_size = HandlerDataSize(num_trapping_instructions);
   CodeProtectionInfo* data =
       reinterpret_cast<CodeProtectionInfo*>(malloc(alloc_size));
 
@@ -119,21 +119,21 @@ CodeProtectionInfo* CreateHandlerData(
 
   data->base = base;
   data->size = size;
-  data->num_protected_instructions = num_protected_instructions;
+  data->num_trapping_instructions = num_trapping_instructions;
 
-  if (num_protected_instructions > 0) {
-    memcpy(data->instructions, protected_instructions,
-           num_protected_instructions * sizeof(ProtectedInstructionData));
+  if (num_trapping_instructions > 0) {
+    memcpy(data->instructions, trapping_instructions,
+           num_trapping_instructions * sizeof(TrappingInstructionData));
   }
 
   return data;
 }
 
-int RegisterHandlerData(
-    uintptr_t base, size_t size, size_t num_protected_instructions,
-    const ProtectedInstructionData* protected_instructions) {
+int RegisterHandlerData(uintptr_t base, size_t size,
+                        size_t num_trapping_instructions,
+                        const TrappingInstructionData* trapping_instructions) {
   CodeProtectionInfo* data = CreateHandlerData(
-      base, size, num_protected_instructions, protected_instructions);
+      base, size, num_trapping_instructions, trapping_instructions);
 
   if (data == nullptr) {
     abort();
@@ -278,6 +278,70 @@ void UnregisterV8Sandbox(uintptr_t base, size_t size) {
     previous->next = current->next;
   } else {
     gSandboxRecordsHead = current->next;
+  }
+  free(current);
+}
+
+bool RegisterCoveredMemory(uintptr_t base, size_t reserved_size) {
+  TrapHandlerGuard active_guard;
+
+  TH_CHECK(base + reserved_size > base);
+
+  // First validity check: the memory must be within the sandbox (if enabled).
+  {
+    SandboxRecordsLock sandbox_lock;
+    if (gSandboxRecordsHead != nullptr) {
+      bool within_sandbox = false;
+      for (const SandboxRecord* s = gSandboxRecordsHead;
+           s != nullptr && !within_sandbox; s = s->next) {
+        within_sandbox =
+            base >= s->base && base + reserved_size <= s->base + s->size;
+      }
+      TH_CHECK(within_sandbox);
+    }
+  }
+
+  CoveredMemoryRecordsLock lock;
+
+  // Second validity check: the memory must not overlap with any existing
+  // memory.
+  for (CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
+       current != nullptr; current = current->next) {
+    bool disjoint = (base >= current->base + current->size) ||
+                    (base + reserved_size <= current->base);
+    TH_CHECK(disjoint);
+  }
+
+  // Now allocate and register the new record.
+  CoveredMemoryRecord* new_record = reinterpret_cast<CoveredMemoryRecord*>(
+      malloc(sizeof(CoveredMemoryRecord)));
+  if (new_record == nullptr) return false;
+
+  new_record->base = base;
+  new_record->size = reserved_size;
+  new_record->next = gCoveredMemoryRecordsHead;
+  gCoveredMemoryRecordsHead = new_record;
+  return true;
+}
+
+void UnregisterCoveredMemory(uintptr_t base, size_t reserved_size) {
+  TrapHandlerGuard active_guard;
+  CoveredMemoryRecordsLock lock;
+
+  CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
+  CoveredMemoryRecord* previous = nullptr;
+  while (current != nullptr && current->base != base) {
+    previous = current;
+    current = current->next;
+  }
+
+  // The unregistered memory must match an existing record exactly.
+  TH_CHECK(current != nullptr);
+  TH_CHECK(current->size == reserved_size);
+  if (previous) {
+    previous->next = current->next;
+  } else {
+    gCoveredMemoryRecordsHead = current->next;
   }
   free(current);
 }

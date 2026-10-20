@@ -48,8 +48,11 @@ struct EphemeronPair {
   WeakMember<K> key;
   Member<V> value;
 
-  void ClearValueIfKeyIsDead(const LivenessBroker& broker) {
-    if (!broker.IsHeapObjectAlive(key)) value = nullptr;
+  void ClearKeyAndValueIfKeyIsDead(const LivenessBroker& broker) {
+    if (!broker.IsHeapObjectAlive(key)) {
+      key = nullptr;
+      value = nullptr;
+    }
   }
 
   void Trace(Visitor* visitor) const;
@@ -218,8 +221,8 @@ class V8_EXPORT Visitor {
   template <typename K, typename V>
   void Trace(const EphemeronPair<K, V>& ephemeron_pair) {
     TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value);
-    RegisterWeakCallbackMethod<EphemeronPair<K, V>,
-                               &EphemeronPair<K, V>::ClearValueIfKeyIsDead>(
+    RegisterWeakCallbackMethod<
+        EphemeronPair<K, V>, &EphemeronPair<K, V>::ClearKeyAndValueIfKeyIsDead>(
         &ephemeron_pair);
   }
 
@@ -484,7 +487,7 @@ class V8_EXPORT RootVisitor {
       return;
     }
     VisitRoot(object, TraceTrait<PointeeType>::GetTraceDescriptor(object),
-              p.Location());
+              ExtractLocation(p));
   }
 
   template <typename AnyWeakPersistentType,
@@ -499,7 +502,7 @@ class V8_EXPORT RootVisitor {
       return;
     }
     VisitWeakRoot(object, TraceTrait<PointeeType>::GetTraceDescriptor(object),
-                  &HandleWeak<AnyWeakPersistentType>, &p, p.Location());
+                  &HandleWeak<AnyWeakPersistentType>, &p, ExtractLocation(p));
   }
 
  protected:
@@ -517,6 +520,19 @@ class V8_EXPORT RootVisitor {
                   "Persistent's pointee type must be GarbageCollected or "
                   "GarbageCollectedMixin");
     return p.GetFromGC();
+  }
+
+  template <typename AnyPersistentType>
+  static SourceLocation ExtractLocation(AnyPersistentType& p) {
+    return p.Location();
+  }
+
+  template <typename T, typename WeaknessPolicy, typename LocationPolicy,
+            typename CheckingPolicy>
+  static SourceLocation ExtractLocation(
+      const internal::BasicCrossThreadPersistent<
+          T, WeaknessPolicy, LocationPolicy, CheckingPolicy>& p) {
+    return p.LocationFromGC();
   }
 
   template <typename PointerType>

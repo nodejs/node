@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>Service Worker: download FetchEvent only fires for in-scope URLs (crbug.com/40410035)</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script src="../resources/fetch-event-download-helpers.js"></script>
+<body>
+<script>
+'use strict';
+
+// A download whose URL falls outside the SW's registration scope must NOT
+// dispatch a FetchEvent on that SW. We register the worker with scope
+// resources/ and then trigger a download against a URL outside that path.
+//
+// Verifying a *negative* (no message) requires a timeout. To avoid spurious
+// failures we first prove the SW is healthy by issuing an in-scope download
+// and observing its FetchEvent on the same channel; only after that do we
+// expect silence for the out-of-scope click.
+
+const WORKER = 'resources/fetch-event-download-worker.js';
+const SCOPE = 'resources/';
+const QUIET_TIMEOUT_MS = 500;
+
+promise_test(async (t) => {
+  const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Sanity: in-scope download dispatches a FetchEvent.
+  {
+    const channelId = uniqueChannelId();
+    const inScopeUrl = SCOPE + 'in-scope.txt?channel=' + channelId;
+    const message = nextChannelMessage(t, channelId);
+    await clickDownloadAnchor(t, inScopeUrl);
+    const data = await message;
+    assert_equals(data.type, 'fetch',
+        'In-scope sanity check: SW saw the fetch event.');
+  }
+
+  // Out-of-scope: same origin, but URL not under SCOPE → no FetchEvent.
+  {
+    const channelId = uniqueChannelId();
+    // 'out-of-scope.txt' has no leading 'resources/' segment, so it is not
+    // covered by the worker's scope.
+    const outOfScopeUrl = 'out-of-scope.txt?channel=' + channelId;
+    const sawMessage = awaitChannelSilence(t, channelId, QUIET_TIMEOUT_MS);
+    await clickDownloadAnchor(t, outOfScopeUrl);
+    const received = await sawMessage;
+    assert_false(received,
+        'SW must not receive a FetchEvent for an out-of-scope download URL.');
+  }
+}, 'Download FetchEvent fires only for URLs within the SW registration scope.');
+</script>
+</body>

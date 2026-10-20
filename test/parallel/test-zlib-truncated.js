@@ -22,6 +22,12 @@ const errMessage = /unexpected end of file/;
   { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
   { comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync' },
   { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' },
+  {
+    comp: 'zstdCompress',
+    decomp: 'zstdDecompress',
+    decompSync: 'zstdDecompressSync',
+    partialFlush: zlib.constants.ZSTD_e_flush,
+  },
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, common.mustSucceed((compressed) => {
     const truncated = compressed.slice(0, compressed.length / 2);
@@ -46,16 +52,59 @@ const errMessage = /unexpected end of file/;
       assert.match(err.message, errMessage);
     }));
 
-    const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
+    const partialFlushOpt = {
+      finishFlush: methods.partialFlush ?? zlib.constants.Z_SYNC_FLUSH,
+    };
 
-    // Sync truncated input test, finishFlush = Z_SYNC_FLUSH
-    const result = toUTF8(zlib[methods.decompSync](truncated, syncFlushOpt));
+    // Sync truncated input test with a non-finalizing finish flush.
+    const result = toUTF8(zlib[methods.decompSync](truncated, partialFlushOpt));
     assert.strictEqual(result, inputString.slice(0, result.length));
 
-    // Async truncated input test, finishFlush = Z_SYNC_FLUSH
-    zlib[methods.decomp](truncated, syncFlushOpt, common.mustSucceed((decompressed) => {
+    // Async truncated input test with a non-finalizing finish flush.
+    zlib[methods.decomp](truncated, partialFlushOpt, common.mustSucceed((decompressed) => {
       const result = toUTF8(decompressed);
       assert.strictEqual(result, inputString.slice(0, result.length));
     }));
   }));
 });
+
+// A non-zero return from ZSTD_decompressStream() can also mean that the
+// output buffer is full. Make sure that is drained before treating the return
+// value as truncated input.
+{
+  const input = Buffer.alloc(zlib.constants.Z_DEFAULT_CHUNK * 2, 0x61);
+  const compressed = zlib.zstdCompressSync(input);
+  const decompressed = zlib.zstdDecompressSync(compressed, {
+    chunkSize: zlib.constants.Z_MIN_CHUNK,
+  });
+  assert.deepStrictEqual(decompressed, input);
+}
+
+// Ending a stream after a previous write completed a frame must not be
+// mistaken for an empty, truncated frame.
+{
+  const input = Buffer.from(inputString);
+  const compressed = zlib.zstdCompressSync(input);
+  const decompressor = zlib.createZstdDecompress();
+  const output = [];
+
+  decompressor.on('data', (chunk) => output.push(chunk));
+  decompressor.on('end', common.mustCall(() => {
+    assert.deepStrictEqual(Buffer.concat(output), input);
+  }));
+  decompressor.write(compressed, common.mustCall(() => decompressor.end()));
+}
+
+// Conversely, ending after a previous write supplied only part of a frame
+// must report that the frame is incomplete.
+{
+  const compressed = zlib.zstdCompressSync(inputString);
+  const truncated = compressed.subarray(0, compressed.length / 2);
+  const decompressor = zlib.createZstdDecompress();
+
+  decompressor.on('error', common.mustCall((error) => {
+    assert.match(error.message, errMessage);
+  }));
+  decompressor.write(truncated, common.mustCall(() => decompressor.end()));
+  decompressor.resume();
+}

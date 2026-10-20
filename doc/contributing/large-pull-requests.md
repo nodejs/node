@@ -8,16 +8,12 @@
   * [Review guide](#review-guide)
   * [Approval requirements](#approval-requirements)
   * [Dependency changes](#dependency-changes)
-* [Splitting large pull requests](#splitting-large-pull-requests)
+* [Avoiding large pull requests](#avoiding-large-pull-requests)
   * [Feature forks and branches](#feature-forks-and-branches)
 * [Guidance for reviewers](#guidance-for-reviewers)
 
 ## Overview
 
-Large pull requests are difficult to review or sometimes impossible to review in the GitHub UI. They are likely to sit
-for a long time without receiving adequate review, and when they do get reviewed,
-the quality of that review is often lower due to reviewer fatigue. Contributors
-should avoid creating large pull requests except in those cases where it is
 Large pull requests are difficult to review or sometimes impossible to review
 in the GitHub UI. They are likely to sit for a long time without receiving
 adequate review, and when they do get reviewed, the quality of that review is

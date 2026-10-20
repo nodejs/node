@@ -14,29 +14,57 @@ const {
   privateDecrypt,
 } = require('crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const {
+  hasOpenSSL,
+  hasFIPS,
+} = require('../common/crypto');
 
-const pair = generateKeyPairSync('rsa', { modulusLength: 512 });
+const fips3 = hasFIPS(3);
+const fips4 = hasFIPS(4);
+const pair = generateKeyPairSync('rsa', {
+  modulusLength: fips3 ? 2048 : 512,
+});
 
 const expected = Buffer.from('shibboleth');
-const encrypted = publicEncrypt(pair.publicKey, expected);
+const options = fips3 ? { oaepHash: 'sha256' } : {};
+const encrypted = publicEncrypt({ key: pair.publicKey, ...options }, expected);
 
 const pkey = pair.privateKey.export({ type: 'pkcs1', format: 'pem' });
-const pkeyEncrypted =
-  pair.privateKey.export({
+if (fips3) {
+  assert.throws(() => pair.privateKey.export({
     type: 'pkcs1',
     format: 'pem',
     cipher: 'aes-128-cbc',
     passphrase: 'secret',
+  }), {
+    code: 'ERR_OSSL_EVP_UNSUPPORTED',
+  });
+}
+if (fips4) {
+  assert.throws(() => pair.privateKey.export({
+    type: 'pkcs8',
+    format: 'pem',
+    cipher: 'aes-256-cbc',
+    passphrase: 'secret',
+  }), {
+    code: 'ERR_OSSL_PASSWORD_STRENGTH_TOO_WEAK',
+  });
+}
+const pkeyEncrypted =
+  pair.privateKey.export({
+    type: fips3 ? 'pkcs8' : 'pkcs1',
+    format: 'pem',
+    cipher: fips3 ? 'aes-256-cbc' : 'aes-128-cbc',
+    passphrase: 'password',
   });
 
 function decrypt(key) {
-  const decrypted = privateDecrypt(key, encrypted);
+  const decrypted = privateDecrypt({ key, ...options }, encrypted);
   assert.deepStrictEqual(decrypted, expected);
 }
 
 decrypt(pkey);
-assert.throws(() => decrypt(pkeyEncrypted), hasOpenSSL3 ?
+assert.throws(() => decrypt(pkeyEncrypted), hasOpenSSL(3) ?
   { message: 'error:07880109:common libcrypto routines::interrupted or ' +
              'cancelled' } :
   { code: 'ERR_MISSING_PASSPHRASE' });

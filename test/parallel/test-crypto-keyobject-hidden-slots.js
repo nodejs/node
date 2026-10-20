@@ -29,6 +29,7 @@ const {
   X509Certificate,
 } = require('node:crypto');
 const { readFileSync } = require('node:fs');
+const { hasFIPS } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 function updateFinal(cipher, data = Buffer.alloc(16)) {
@@ -110,12 +111,13 @@ function updateFinal(cipher, data = Buffer.alloc(16)) {
 }
 
 {
+  const modulusLength = hasFIPS(3) ? 2048 : 1024;
   const { publicKey } = generateKeyPairSync('rsa', {
-    modulusLength: 1024,
+    modulusLength,
   });
 
   const details = publicKey.asymmetricKeyDetails;
-  assert.strictEqual(details.modulusLength, 1024);
+  assert.strictEqual(details.modulusLength, modulusLength);
   assert.strictEqual(details.publicExponent, 65537n);
 
   details.modulusLength = 1;
@@ -124,7 +126,7 @@ function updateFinal(cipher, data = Buffer.alloc(16)) {
 
   const freshDetails = publicKey.asymmetricKeyDetails;
   assert.notStrictEqual(freshDetails, details);
-  assert.strictEqual(freshDetails.modulusLength, 1024);
+  assert.strictEqual(freshDetails.modulusLength, modulusLength);
   assert.strictEqual(freshDetails.publicExponent, 65537n);
   assert.strictEqual(freshDetails.extra, undefined);
 }
@@ -150,7 +152,7 @@ function updateFinal(cipher, data = Buffer.alloc(16)) {
 
 {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {
-    modulusLength: 1024,
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
   });
   const originalType =
     Object.getOwnPropertyDescriptor(KeyObject.prototype, 'type');
@@ -175,8 +177,10 @@ function updateFinal(cipher, data = Buffer.alloc(16)) {
     verifier.update(data);
     assert.strictEqual(verifier.verify(publicKey, streamSignature), true);
 
-    const ciphertext = publicEncrypt(publicKey, data);
-    assert.deepStrictEqual(privateDecrypt(privateKey, ciphertext), data);
+    const options = hasFIPS(3) ? { oaepHash: 'sha256' } : {};
+    const ciphertext = publicEncrypt({ key: publicKey, ...options }, data);
+    assert.deepStrictEqual(
+      privateDecrypt({ key: privateKey, ...options }, ciphertext), data);
 
     assert.strictEqual(publicKey.equals(createPublicKey(privateKey)), true);
 

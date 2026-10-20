@@ -9,6 +9,7 @@
     {
       'target_name': 'perfetto_sdk',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'include_dirs': [ 'sdk' ],
       'direct_dependent_settings': {
         # Use like `#include "perfetto.h"`

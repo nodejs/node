@@ -74,13 +74,20 @@ assert.strictEqual(isUtf8(Buffer.from([])), true);
 });
 
 {
-  // Test with detached array buffers
-  const arrayBuffer = new ArrayBuffer(1024);
+  // Detached array buffers and views are treated as empty.
+  const arrayBuffer = new ArrayBuffer(1);
+  const typedArray = new Uint8Array(arrayBuffer);
+  typedArray[0] = 0xff;
+  const inputs = [
+    arrayBuffer,
+    typedArray,
+    Buffer.from(arrayBuffer),
+  ];
+  for (const input of inputs) {
+    assert.strictEqual(isUtf8(input), false);
+  }
   structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
-  assert.throws(
-    () => { isUtf8(arrayBuffer); },
-    {
-      code: 'ERR_INVALID_STATE'
-    }
-  );
+  for (const input of inputs) {
+    assert.strictEqual(isUtf8(input), true);
+  }
 }

@@ -101,6 +101,40 @@ async function syncRejectedSupport() {
   }
 }
 
+async function syncRejectedAfterResolvedSupport() {
+  const expectedError = new Error('later rejection');
+  const finallyMustCall = mustCall();
+  const bodyMustCall = mustCall((chunk) => {
+    assert.strictEqual(chunk, 'a');
+  });
+  const catchMustCall = mustCall((error) => {
+    assert.strictEqual(error, expectedError);
+  });
+  const thirdNextMustNotCall = mustNotCall();
+
+  function* generate() {
+    try {
+      yield Promise.resolve('a');
+      yield Promise.reject(expectedError);
+      thirdNextMustNotCall();
+    } finally {
+      finallyMustCall();
+    }
+  }
+
+  const stream = Readable.from(generate());
+
+  try {
+    for await (const chunk of stream) {
+      bodyMustCall(chunk);
+    }
+  } catch (error) {
+    catchMustCall(error);
+  }
+
+  assert.strictEqual(stream.destroyed, true);
+}
+
 async function noReturnAfterThrow() {
   const returnMustNotCall = mustNotCall();
   const bodyMustNotCall = mustNotCall();
@@ -187,6 +221,7 @@ Promise.all([
   syncSupport(),
   syncPromiseSupport(),
   syncRejectedSupport(),
+  syncRejectedAfterResolvedSupport(),
   noReturnAfterThrow(),
   closeStreamWhileNextIsPending(),
   closeAfterNullYielded(),

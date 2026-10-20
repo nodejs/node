@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 // Tests that we do not define two safepoints at the same offset.
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -13,7 +11,7 @@ builder.startRecGroup();
 builder.addStruct([]);
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
 builder.endRecGroup();
 builder.startRecGroup();
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));

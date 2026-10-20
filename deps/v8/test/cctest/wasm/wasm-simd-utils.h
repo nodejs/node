@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_
+#define V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -343,8 +346,8 @@ void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
 template <typename IntType>
 void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode);
 template <typename NarrowIntType, typename WideIntType>
-void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
-                                  WasmOpcode splat_op);
+void RunIntExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                              WasmOpcode splat_op);
 template <typename S, typename T>
 void RunIntToIntNarrowingRevecTest(WasmOpcode opcode);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
@@ -352,3 +355,5 @@ void RunIntToIntNarrowingRevecTest(WasmOpcode opcode);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_

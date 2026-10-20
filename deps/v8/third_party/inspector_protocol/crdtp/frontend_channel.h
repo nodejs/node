@@ -30,14 +30,6 @@ class FrontendChannel {
   virtual void SendProtocolNotification(
       std::unique_ptr<Serializable> message) = 0;
 
-  // FallThrough indicates that |message| should be handled in another layer.
-  // Usually this means the layer responding to the message didn't handle it,
-  // but in some cases messages are handled by multiple layers (e.g. both
-  // the embedder and the content layer in Chromium).
-  virtual void FallThrough(int call_id,
-                           span<uint8_t> method,
-                           span<uint8_t> message) = 0;
-
   // Session implementations may queue notifications for performance or
   // other considerations; this is a hook for domain handlers to manually flush.
   virtual void FlushProtocolNotifications() = 0;

@@ -297,11 +297,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
     return from_space_.CommittedMemory() + to_space_.CommittedMemory();
   }
 
-  size_t MaximumCommittedMemory() const final {
-    return from_space_.MaximumCommittedMemory() +
-           to_space_.MaximumCommittedMemory();
-  }
-
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() const final;
 
@@ -610,10 +605,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   // Committed memory for PagedNewSpace.
   size_t CommittedMemory() const final {
     return paged_space_.CommittedMemory();
-  }
-
-  size_t MaximumCommittedMemory() const final {
-    return paged_space_.MaximumCommittedMemory();
   }
 
   // Approximate amount of physical memory committed for this space.

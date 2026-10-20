@@ -23,7 +23,7 @@ Note that nested packages will *also* show the paths to the specified packages.
 For example, running `npm ls promzard` in npm's source tree will show:
 
 ```bash
-npm@11.13.0 /path/to/npm
+npm@12.1.0 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 ```
@@ -43,9 +43,10 @@ When run as `ll` or `la`, it shows extended information by default.
 * Default: false
 * Type: Boolean
 
-When running `npm outdated` and `npm ls`, setting `--all` will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.
+Show or act on all packages, not just the ones your project directly depends
+on. For `npm outdated` and `npm ls` this lists every outdated or installed
+package. For `npm approve-scripts` and `npm deny-scripts` it selects every
+package with pending install scripts.
 
 
 
@@ -119,8 +120,7 @@ project. If `--all` is set, then npm will show all dependencies by default.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.

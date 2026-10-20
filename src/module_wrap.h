@@ -35,7 +35,8 @@ enum HostDefinedOptions : int {
 
 enum ModulePhase : int {
   kSourcePhase = 1,
-  kEvaluationPhase = 2,
+  kDeferPhase = 2,
+  kEvaluationPhase = 3,
 };
 
 /**

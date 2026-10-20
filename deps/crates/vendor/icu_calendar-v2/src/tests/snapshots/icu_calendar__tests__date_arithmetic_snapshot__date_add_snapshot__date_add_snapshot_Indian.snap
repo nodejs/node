@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(1944-10-11, shaka era, for calendar Indian))
+    +10d → Date(1944-10-21, shaka era, for calendar Indian)
+    +2m → Date(1944-12-11, shaka era, for calendar Indian)
+    +1y → Date(1945-10-11, shaka era, for calendar Indian)
+    +1y 3m 15d → Date(1946-1-26, shaka era, for calendar Indian)
+
+2024-6-15
+  (start: Date(1946-3-25, shaka era, for calendar Indian))
+    +10d → Date(1946-4-4, shaka era, for calendar Indian)
+    +2m → Date(1946-5-25, shaka era, for calendar Indian)
+    +1y → Date(1947-3-25, shaka era, for calendar Indian)
+    +1y 3m 15d → Date(1947-7-9, shaka era, for calendar Indian)
+
+2025-12-31
+  (start: Date(1947-10-10, shaka era, for calendar Indian))
+    +10d → Date(1947-10-20, shaka era, for calendar Indian)
+    +2m → Date(1947-12-10, shaka era, for calendar Indian)
+    +1y → Date(1948-10-10, shaka era, for calendar Indian)
+    +1y 3m 15d → Date(1949-1-25, shaka era, for calendar Indian)

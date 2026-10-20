@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const { hasOpenSSL } = require('../../test/common/crypto.js');
+const { hasOpenSSL, isBoringSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -24,6 +24,9 @@ if (hasOpenSSL(3, 5)) {
   keyFixtures['ml-kem-512'] = readKeyPair('ml_kem_512_public', 'ml_kem_512_private');
   keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private');
   keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private');
+} else if (isBoringSSL) {
+  keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private_seed_only');
+  keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private_seed_only');
 }
 if (hasOpenSSL(3, 2)) {
   keyFixtures['p-256'] = readKeyPair('ec_p256_public', 'ec_p256_private');
@@ -42,7 +45,8 @@ if (Object.keys(keyFixtures).length === 0) {
 }
 
 const bench = common.createBenchmark(main, {
-  keyType: Object.keys(keyFixtures),
+  // Keep one size per family by default; other fixtures remain available via keyType.
+  keyType: ['rsa', 'p-256', 'x25519', 'ml-kem-768'].filter((type) => keyFixtures[type]),
   mode: ['sync', 'async', 'async-parallel'],
   keyFormat: ['keyObject', 'keyObject.unique', 'pem', 'der', 'jwk',
               'raw-public', 'raw-private', 'raw-seed'],
@@ -54,6 +58,9 @@ const bench = common.createBenchmark(main, {
     // assess whether mutexes over the key material impact the operation
     if (p.keyFormat === 'keyObject.unique')
       return p.mode === 'async-parallel';
+    // Compare execution modes with pre-imported keys; measure parsing synchronously.
+    if (p.mode !== 'sync' && p.keyFormat !== 'keyObject')
+      return false;
     // raw-public is only supported for encapsulate, not rsa
     if (p.keyFormat === 'raw-public')
       return p.keyType !== 'rsa' && p.op === 'encapsulate';
@@ -124,7 +131,8 @@ function main({ n, mode, keyFormat, keyType, op }) {
     keyFixtures[keyType].publicKey :
     keyFixtures[keyType].privateKey;
   const createKeyFn = isEncapsulate ? crypto.createPublicKey : crypto.createPrivateKey;
-  const pems = [...Buffer.alloc(n)].map(() => pemSource);
+  const count = keyFormat === 'keyObject.unique' ? n : 1;
+  const pems = Array(count).fill(pemSource);
   const keyObjects = pems.map(createKeyFn);
 
   // Warm up OpenSSL's provider operation cache for each key object

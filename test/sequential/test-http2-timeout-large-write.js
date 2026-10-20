@@ -23,7 +23,6 @@ const minReadSize = 500000;
 const serverTimeout = common.platformTimeout(500);
 let offsetTimeout = common.platformTimeout(100);
 let didReceiveData = false;
-
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
@@ -49,8 +48,10 @@ server.setTimeout(serverTimeout);
 server.on('timeout', onTimeout);
 
 server.listen(0, common.mustCall(() => {
-  const client = http2.connect(`https://localhost:${server.address().port}`,
-                               { rejectUnauthorized: false });
+  const client = http2.connect(`https://localhost:${server.address().port}`, {
+    rejectUnauthorized: false,
+    settings: { initialWindowSize: 65535 },
+  });
 
   const req = client.request({ ':path': '/' });
   req.end();

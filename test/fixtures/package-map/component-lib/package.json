@@ -1,0 +1,7 @@
+{
+  "name": "component-lib",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

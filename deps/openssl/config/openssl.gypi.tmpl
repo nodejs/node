@@ -27,6 +27,22 @@ foreach $src (@libcrypto_srcs) {
     foreach $define (@{$config{lib_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
+    'openssl_defines_exported_%%-$arch-%%': [
+%%- foreach $define (@config_defines_exported) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@lib_cppflags) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@target_defines_exported) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{lib_defines}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$config{lib_defines}}) {
+  $OUT .= "      '$define',\n";
+} -%%    ],
     'openssl_cflags_%%-$arch-%%': [
 %%- foreach $cflag (@cflags) {
       $OUT .= "      '$cflag',\n";
@@ -50,6 +66,6 @@ foreach $src (@libcrypto_srcs) {
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_%%-$arch-%%)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],
-    'defines': ['<@(openssl_defines_%%-$arch-%%)'],
+    'defines': ['<@(openssl_defines_exported_%%-$arch-%%)'],
   },
 }

@@ -83,6 +83,7 @@ function buildAbort (acRef) {
 }
 
 let patchMethodWarning = false
+let setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState, removeRequestAbortListener
 
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
@@ -96,6 +97,13 @@ class Request {
   #headers
 
   #state
+
+  /**
+   * Removes the `abort` listener that makes this request's signal follow the
+   * passed signal. `null` when no such listener was registered.
+   * @type {(() => void) | null}
+   */
+  #abortCleanup = null
 
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = undefined) {
@@ -436,12 +444,23 @@ class Request {
           setMaxListeners(1500, signal)
         }
 
-        util.addAbortListener(signal, abort)
+        const removeAbortListener = util.addAbortListener(signal, abort)
         // The third argument must be a registry key to be unregistered.
         // Without it, you cannot unregister.
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
         // abort is used as the unregister key. (because it is unique)
         requestFinalizer.register(ac, { signal, abort }, abort)
+
+        // Allow the listener to be removed deterministically once the fetch
+        // that owns this request has settled, instead of relying solely on the
+        // FinalizationRegistry (i.e. garbage collection). Reusing a single
+        // signal across many requests would otherwise leak listeners.
+        // See https://github.com/nodejs/undici/issues/5285
+        this.#abortCleanup = () => {
+          requestFinalizer.unregister(abort)
+          removeAbortListener()
+          this.#abortCleanup = null
+        }
       }
     }
 
@@ -582,7 +601,7 @@ class Request {
 
   // Returns request’s HTTP method, which is "GET" by default.
   get method () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The method getter steps are to return this’s request’s method.
     return this.#state.method
@@ -590,7 +609,7 @@ class Request {
 
   // Returns the URL of request as a string.
   get url () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The url getter steps are to return this’s request’s URL, serialized.
     return URLSerializer(this.#state.url)
@@ -600,7 +619,7 @@ class Request {
   // Note that headers added in the network layer by the user agent will not
   // be accounted for in this object, e.g., the "Host" header.
   get headers () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The headers getter steps are to return this’s headers.
     return this.#headers
@@ -609,7 +628,7 @@ class Request {
   // Returns the kind of resource requested by request, e.g., "document"
   // or "script".
   get destination () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The destination getter are to return this’s request’s destination.
     return this.#state.destination
@@ -621,7 +640,7 @@ class Request {
   // during fetching to determine the value of the `Referer` header of the
   // request being made.
   get referrer () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // 1. If this’s request’s referrer is "no-referrer", then return the
     // empty string.
@@ -643,7 +662,7 @@ class Request {
   // This is used during fetching to compute the value of the request’s
   // referrer.
   get referrerPolicy () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The referrerPolicy getter steps are to return this’s request’s referrer policy.
     return this.#state.referrerPolicy
@@ -653,7 +672,7 @@ class Request {
   // whether the request will use CORS, or will be restricted to same-origin
   // URLs.
   get mode () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The mode getter steps are to return this’s request’s mode.
     return this.#state.mode
@@ -663,7 +682,7 @@ class Request {
   // which is a string indicating whether credentials will be sent with the
   // request always, never, or only when sent to a same-origin URL.
   get credentials () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The credentials getter steps are to return this’s request’s credentials mode.
     return this.#state.credentials
@@ -673,7 +692,7 @@ class Request {
   // which is a string indicating how the request will
   // interact with the browser’s cache when fetching.
   get cache () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The cache getter steps are to return this’s request’s cache mode.
     return this.#state.cache
@@ -684,7 +703,7 @@ class Request {
   // request will be handled during fetching. A request
   // will follow redirects by default.
   get redirect () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The redirect getter steps are to return this’s request’s redirect mode.
     return this.#state.redirect
@@ -694,7 +713,7 @@ class Request {
   // cryptographic hash of the resource being fetched. Its value
   // consists of multiple hashes separated by whitespace. [SRI]
   get integrity () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The integrity getter steps are to return this’s request’s integrity
     // metadata.
@@ -704,7 +723,7 @@ class Request {
   // Returns a boolean indicating whether or not request can outlive the
   // global in which it was created.
   get keepalive () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The keepalive getter steps are to return this’s request’s keepalive.
     return this.#state.keepalive
@@ -713,7 +732,7 @@ class Request {
   // Returns a boolean indicating whether or not request is for a reload
   // navigation.
   get isReloadNavigation () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The isReloadNavigation getter steps are to return true if this’s
     // request’s reload-navigation flag is set; otherwise false.
@@ -723,7 +742,7 @@ class Request {
   // Returns a boolean indicating whether or not request is for a history
   // navigation (a.k.a. back-forward navigation).
   get isHistoryNavigation () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The isHistoryNavigation getter steps are to return true if this’s request’s
     // history-navigation flag is set; otherwise false.
@@ -734,33 +753,33 @@ class Request {
   // object indicating whether or not request has been aborted, and its
   // abort event handler.
   get signal () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // The signal getter steps are to return this’s signal.
     return this.#signal
   }
 
   get body () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     return this.#state.body ? this.#state.body.stream : null
   }
 
   get bodyUsed () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     return !!this.#state.body && util.isDisturbed(this.#state.body.stream)
   }
 
   get duplex () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     return 'half'
   }
 
   // Returns a clone of request.
   clone () {
-    webidl.brandCheck(this, Request)
+    webidl.brandCheck(this, webidl.is.Request)
 
     // 1. If this is unusable, then throw a TypeError.
     if (bodyUnusable(this.#state)) {
@@ -822,63 +841,69 @@ class Request {
     return `Request ${nodeUtil.formatWithOptions(options, properties)}`
   }
 
-  /**
-   * @param {Request} request
-   * @param {AbortSignal} newSignal
-   */
-  static setRequestSignal (request, newSignal) {
-    request.#signal = newSignal
-    return request
-  }
+  static {
+    /**
+     * @param {Request} request
+     * @param {AbortSignal} newSignal
+     */
+    setRequestSignal = (request, newSignal) => {
+      request.#signal = newSignal
+    }
 
-  /**
-   * @param {Request} request
-   */
-  static getRequestDispatcher (request) {
-    return request.#dispatcher
-  }
+    /**
+     * @param {Request} request
+     */
+    getRequestDispatcher = (request) => {
+      return request.#dispatcher
+    }
 
-  /**
-   * @param {Request} request
-   * @param {import('../../dispatcher/dispatcher')} newDispatcher
-   */
-  static setRequestDispatcher (request, newDispatcher) {
-    request.#dispatcher = newDispatcher
-  }
+    /**
+     * @param {Request} request
+     * @param {import('../../dispatcher/dispatcher')} newDispatcher
+     */
+    setRequestDispatcher = (request, newDispatcher) => {
+      request.#dispatcher = newDispatcher
+    }
 
-  /**
-   * @param {Request} request
-   * @param {Headers} newHeaders
-   */
-  static setRequestHeaders (request, newHeaders) {
-    request.#headers = newHeaders
-  }
+    /**
+     * @param {Request} request
+     * @param {Headers} newHeaders
+     */
+    setRequestHeaders = (request, newHeaders) => {
+      request.#headers = newHeaders
+    }
 
-  /**
-   * @param {Request} request
-   */
-  static getRequestState (request) {
-    return request.#state
-  }
+    /**
+     * @param {Request} request
+     */
+    getRequestState = (request) => {
+      return request.#state
+    }
 
-  /**
-   * @param {Request} request
-   * @param {any} newState
-   */
-  static setRequestState (request, newState) {
-    request.#state = newState
+    /**
+     * @param {Request} request
+     * @param {any} newState
+     */
+    setRequestState = (request, newState) => {
+      request.#state = newState
+    }
+
+    /**
+     * Removes the `abort` listener that makes this request's signal follow the
+     * signal passed to its constructor, if any. Idempotent.
+     * @param {Request} request
+     */
+    removeRequestAbortListener = (request) => {
+      request.#abortCleanup?.()
+    }
+
+    webidl.is.Request = (arg) => {
+      return arg != null && typeof arg === 'object' && #state in arg
+    }
   }
 }
 
-const { setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState } = Request
-Reflect.deleteProperty(Request, 'setRequestSignal')
-Reflect.deleteProperty(Request, 'getRequestDispatcher')
-Reflect.deleteProperty(Request, 'setRequestDispatcher')
-Reflect.deleteProperty(Request, 'setRequestHeaders')
-Reflect.deleteProperty(Request, 'getRequestState')
-Reflect.deleteProperty(Request, 'setRequestState')
-
-mixinBody(Request, getRequestState)
+mixinBody(Request, getRequestState, webidl.is.Request)
 
 // https://fetch.spec.whatwg.org/#requests
 function makeRequest (init) {
@@ -895,13 +920,14 @@ function makeRequest (init) {
     serviceWorkers: init.serviceWorkers ?? 'all',
     initiator: init.initiator ?? '',
     destination: init.destination ?? '',
-    priority: init.priority ?? null,
+    priority: init.priority ?? 'auto',
     origin: init.origin ?? 'client',
     policyContainer: init.policyContainer ?? 'client',
     referrer: init.referrer ?? 'client',
     referrerPolicy: init.referrerPolicy ?? '',
     mode: init.mode ?? 'no-cors',
     useCORSPreflightFlag: init.useCORSPreflightFlag ?? false,
+    // TODO: is this credentials mode? https://fetch.spec.whatwg.org/#concept-request-credentials-mode
     credentials: init.credentials ?? 'same-origin',
     useCredentials: init.useCredentials ?? false,
     cache: init.cache ?? 'default',
@@ -991,8 +1017,6 @@ Object.defineProperties(Request.prototype, {
     configurable: true
   }
 })
-
-webidl.is.Request = webidl.util.MakeTypeAssertion(Request)
 
 /**
  * @param {*} V
@@ -1100,8 +1124,7 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'priority',
     converter: webidl.converters.DOMString,
-    allowedValues: ['high', 'low', 'auto'],
-    defaultValue: () => 'auto'
+    allowedValues: ['high', 'low', 'auto']
   }
 ])
 
@@ -1111,5 +1134,6 @@ module.exports = {
   fromInnerRequest,
   cloneRequest,
   getRequestDispatcher,
-  getRequestState
+  getRequestState,
+  removeRequestAbortListener
 }

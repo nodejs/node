@@ -33,12 +33,12 @@ namespace compiler {
 // computations and reorganize the operands for more efficient code generation.
 //
 // Many addresses will be computed in the form like this:
-// - ProtectedLoad (IntPtrAdd (base_reg, immediate_offset), register_offset)
-// - ProtectedStore (IntPtrAdd (base_reg, immediate_offset), register_offset)
+// - TrappingLoad (IntPtrAdd (base_reg, immediate_offset), register_offset)
+// - TrappingStore (IntPtrAdd (base_reg, immediate_offset), register_offset)
 
 // And this pass aims to transform this into:
-// - ProtectedLoad (IntPtrAdd (base_reg, register_offset), immediate_offset)
-// - ProtectedStore (IntPtrAdd (base_reg, register_offset), immediate_offset)
+// - TrappingLoad (IntPtrAdd (base_reg, register_offset), immediate_offset)
+// - TrappingStore (IntPtrAdd (base_reg, register_offset), immediate_offset)
 //
 // This allows the reuse of a base pointer across multiple instructions, each of
 // which then has the opportunity to use an immediate offset.
@@ -98,10 +98,10 @@ void WasmAddressReassociation::ReplaceInputs(Node* mem_op, Node* base,
   mem_op->ReplaceInput(1, offset);
 }
 
-void WasmAddressReassociation::VisitProtectedMemOp(Node* node,
-                                                   NodeId effect_chain) {
-  DCHECK(node->opcode() == IrOpcode::kProtectedLoad ||
-         node->opcode() == IrOpcode::kProtectedStore);
+void WasmAddressReassociation::VisitTrappingMemOp(Node* node,
+                                                  NodeId effect_chain) {
+  DCHECK(node->opcode() == IrOpcode::kTrappingLoad ||
+         node->opcode() == IrOpcode::kTrappingStore);
 
   Node* base(node->InputAt(0));
   Node* offset(node->InputAt(1));
@@ -168,8 +168,8 @@ bool WasmAddressReassociation::HasCandidateBaseAddr(
 
 void WasmAddressReassociation::CandidateMemOps::AddCandidate(
     Node* mem_op, int64_t imm_offset) {
-  DCHECK(mem_op->opcode() == IrOpcode::kProtectedLoad ||
-         mem_op->opcode() == IrOpcode::kProtectedStore);
+  DCHECK(mem_op->opcode() == IrOpcode::kTrappingLoad ||
+         mem_op->opcode() == IrOpcode::kTrappingStore);
   mem_ops_.push_back(mem_op);
   imm_offsets_.push_back(imm_offset);
 }

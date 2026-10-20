@@ -46,7 +46,7 @@ const referrerPolicyTokensSet = new Set(referrerPolicyTokens)
 
 const requestRedirect = /** @type {const} */ (['follow', 'manual', 'error'])
 
-const safeMethods = /** @type {const} */ (['GET', 'HEAD', 'OPTIONS', 'TRACE'])
+const safeMethods = /** @type {const} */ (['GET', 'HEAD', 'OPTIONS', 'TRACE', 'QUERY'])
 const safeMethodsSet = new Set(safeMethods)
 
 const requestMode = /** @type {const} */ (['navigate', 'same-origin', 'no-cors', 'cors'])

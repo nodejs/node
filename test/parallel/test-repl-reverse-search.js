@@ -13,6 +13,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 common.allowGlobals('aaaa');
 
 const tmpdir = require('../common/tmpdir');
@@ -190,7 +192,6 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     showEscapeCodes: true,
-    skip: !process.features.inspector,
     checkTotal: true,
     useColors: false,
     test: [
@@ -287,13 +288,7 @@ function runTest() {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  const { expected, skip } = opts;
-
-  // Test unsupported on platform.
-  if (skip) {
-    setImmediate(runTestWrap, true);
-    return;
-  }
+  const { expected } = opts;
 
   const lastChunks = [];
   let i = 0;
@@ -329,7 +324,9 @@ function runTest() {
     }),
     completer: opts.completer,
     prompt,
-    useColors: opts.useColors || false,
+    // Keep syntax highlighting out of the reverse-search transcript. Result
+    // colors are enabled below after readline has been initialized.
+    useColors: false,
     terminal: true
   }, common.mustCall((err, repl) => {
     if (err) {
@@ -350,6 +347,11 @@ function runTest() {
 
       setImmediate(runTestWrap, true);
     }));
+
+    if (opts.useColors) {
+      repl.useColors = true;
+      repl.writer.options.colors = true;
+    }
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {

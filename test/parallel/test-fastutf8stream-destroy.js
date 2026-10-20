@@ -34,8 +34,11 @@ function getTempFile() {
 
   assert.throws(() => stream.write('hello world\n'), Error);
 
-  readFile(dest, 'utf8', common.mustSucceed((data) => {
-    assert.strictEqual(data, 'hello world\n');
+  // Reading now would race the fs.write() still in flight.
+  stream.once('write', common.mustCall(() => {
+    readFile(dest, 'utf8', common.mustSucceed((data) => {
+      assert.strictEqual(data, 'hello world\n');
+    }));
   }));
 
   stream.on('finish', common.mustNotCall());

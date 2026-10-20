@@ -1,4 +1,4 @@
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1288,11 +1288,13 @@ sub __decorate_cmd {
 
     my $display_cmd = "$cmdstr$stdin$stdout$stderr";
 
-    # VMS program output escapes TAP::Parser
-    if ($^O eq 'VMS') {
-        $stderr=" 2> ".$null
-            unless $stderr || !$ENV{HARNESS_ACTIVE} || $ENV{HARNESS_VERBOSE};
-    }
+    # Under a non-verbose harness nothing drains the command's stderr, so a
+    # chatty command can fill the pipe buffer and then block forever waiting
+    # for a reader that never comes.  Send it to the null device unless the
+    # recipe asked for a specific redirection.  On VMS this also keeps
+    # program output from escaping TAP::Parser.
+    $stderr=" 2> ".$null
+        unless $stderr || !$ENV{HARNESS_ACTIVE} || $ENV{HARNESS_VERBOSE};
 
     $cmdstr .= "$stdin$stdout$stderr";
 

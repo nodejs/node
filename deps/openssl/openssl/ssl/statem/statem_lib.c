@@ -1071,7 +1071,7 @@ static int ssl_add_cert_chain(SSL_CONNECTION *s, WPACKET *pkt, CERT_PKEY *cpk, i
         /* Don't leave errors in the queue */
         ERR_clear_error();
         chain = X509_STORE_CTX_get0_chain(xs_ctx);
-        i = ssl_security_cert_chain(s, chain, NULL, 0);
+        i = ssl_security_cert_chain(s, chain, NULL);
         if (i != 1) {
 #if 0
             /* Dummy error calls so mkerr generates them */
@@ -1096,7 +1096,7 @@ static int ssl_add_cert_chain(SSL_CONNECTION *s, WPACKET *pkt, CERT_PKEY *cpk, i
         }
         X509_STORE_CTX_free(xs_ctx);
     } else {
-        i = ssl_security_cert_chain(s, extra_certs, x, 0);
+        i = ssl_security_cert_chain(s, extra_certs, x);
         if (i != 1) {
             if (!for_comp)
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, i);
@@ -1661,9 +1661,25 @@ int tls_get_message_header(SSL_CONNECTION *s, int *mt)
     return 1;
 }
 
+static int grow_init_buf(SSL_CONNECTION *s, size_t size)
+{
+
+    size_t msg_offset = (char *)s->init_msg - s->init_buf->data;
+
+    if (!BUF_MEM_grow_clean(s->init_buf, size))
+        return 0;
+
+    if (size < msg_offset)
+        return 0;
+
+    s->init_msg = s->init_buf->data + msg_offset;
+
+    return 1;
+}
+
 int tls_get_message_body(SSL_CONNECTION *s, size_t *len)
 {
-    size_t n, readbytes;
+    size_t toread, readbytes;
     unsigned char *p;
     int i;
     SSL *ssl = SSL_CONNECTION_GET_SSL(s);
@@ -1675,18 +1691,30 @@ int tls_get_message_body(SSL_CONNECTION *s, size_t *len)
         return 1;
     }
 
-    p = s->init_msg;
-    n = s->s3.tmp.message_size - s->init_num;
-    while (n > 0) {
+    toread = s->s3.tmp.message_size - s->init_num;
+    while (toread > 0) {
+        size_t chunk = toread > SSL3_RT_MAX_PLAIN_LENGTH ? SSL3_RT_MAX_PLAIN_LENGTH : toread;
+
+        /*
+         * We incrementally allocate the buffer to guard against the peer
+         * claiming a very large message size and then not sending it.
+         */
+        if (!grow_init_buf(s, s->init_num + chunk + SSL3_HM_HEADER_LENGTH)) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_BUF_LIB);
+            return 0;
+        }
+
+        /* init_msg location can change after grow_init_buf */
+        p = s->init_msg;
         i = ssl->method->ssl_read_bytes(ssl, SSL3_RT_HANDSHAKE, NULL,
-            &p[s->init_num], n, 0, &readbytes);
+            &p[s->init_num], chunk, 0, &readbytes);
         if (i <= 0) {
             s->rwstate = SSL_READING;
             *len = 0;
             return 0;
         }
         s->init_num += readbytes;
-        n -= readbytes;
+        toread -= readbytes;
     }
 
     /*

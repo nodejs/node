@@ -13,11 +13,11 @@ const v1 = new String();
 foo(v0, v1);
 %OptimizeMaglevOnNextCall(foo);
 foo(v0, v1);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // This will invalidate the StringWrapperToPrimitive protector.
 Reflect.construct(v1.constructor, v1, Int16Array);
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);
 
 v1.valueOf = () => ' 2';
 assertEquals('1 2', foo(v0, v1));

@@ -43,6 +43,7 @@ async function testStreamNamespaceAsyncConsumers() {
   assert.strictEqual(typeof Stream.text, 'function');
   assert.strictEqual(typeof Stream.arrayBuffer, 'function');
   assert.strictEqual(typeof Stream.array, 'function');
+  assert.strictEqual(typeof Stream.dump, 'function');
 }
 
 async function testStreamNamespaceSyncConsumers() {
@@ -52,6 +53,7 @@ async function testStreamNamespaceSyncConsumers() {
   assert.strictEqual(typeof Stream.textSync, 'function');
   assert.strictEqual(typeof Stream.arrayBufferSync, 'function');
   assert.strictEqual(typeof Stream.arraySync, 'function');
+  assert.strictEqual(typeof Stream.dumpSync, 'function');
 }
 
 async function testStreamNamespaceCombining() {
@@ -108,6 +110,8 @@ async function testIndividualExports() {
   assert.strictEqual(typeof streamNew.arrayBufferSync, 'function');
   assert.strictEqual(typeof streamNew.array, 'function');
   assert.strictEqual(typeof streamNew.arraySync, 'function');
+  assert.strictEqual(typeof streamNew.dump, 'function');
+  assert.strictEqual(typeof streamNew.dumpSync, 'function');
 
   // Combining
   assert.strictEqual(typeof streamNew.merge, 'function');
@@ -163,6 +167,8 @@ async function testNamespaceMatchesExports() {
   assert.strictEqual(Stream.textSync, streamNew.textSync);
   assert.strictEqual(Stream.arrayBufferSync, streamNew.arrayBufferSync);
   assert.strictEqual(Stream.arraySync, streamNew.arraySync);
+  assert.strictEqual(Stream.dump, streamNew.dump);
+  assert.strictEqual(Stream.dumpSync, streamNew.dumpSync);
   assert.strictEqual(Stream.merge, streamNew.merge);
   assert.strictEqual(Stream.broadcast, streamNew.broadcast);
   assert.strictEqual(Stream.share, streamNew.share);

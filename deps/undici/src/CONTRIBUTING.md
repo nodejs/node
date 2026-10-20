@@ -2,6 +2,7 @@
 
 * [Guides](#guides)
   * [Update `llhttp`](#update-llhttp)
+  * [Update `milo`](#update-milo)
   * [Lint](#lint)
   * [Test](#test)
   * [Coverage](#coverage)
@@ -10,6 +11,7 @@
   * [Building for externally shared node builtins](#external-builds)
   *  [Benchmarks](#benchmarks)
   *  [Documentation](#documentation)
+  *  [Reproduction](#reproduction)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
   * [Moderation Policy](#moderation-policy)
 
@@ -82,12 +84,93 @@ cp src/native/api.h build/llhttp.h <your-path-to-undici>/deps/llhttp/include/
 ```bash
 cd <your-path-to-undici>
 
-npm run build:wasm
+npm run build:llhttp
 ```
 
 #### Commit the contents of lib/llhttp
 
 Create a commit which includes all of the updated files in lib/llhttp.
+
+<a id="update-milo"></a>
+### Update `milo`
+
+Milo is built from the upstream sources vendored in `deps/milo`, using its own
+Dockerfile rather than a prebuilt npm package. Updating it is manual, like llhttp.
+The standalone release CommonJS modules and their license are saved in `lib/milo`.
+
+The current vendored release is 0.8.5 at commit
+`2ec4642184f20cd1803e30650becc54bbd575c6c`.
+
+#### Clone milo and checkout a release
+
+```sh
+git clone https://github.com/ShogunPanda/milo.git
+cd milo
+git checkout v0.8.5
+```
+
+#### Copy the sources into Undici
+
+Replace the previous contents of `deps/milo` with the following files and
+directories from the selected release, preserving their layout:
+
+```sh
+cp Dockerfile Makefile.toml rust-toolchain.toml LICENSE.md README.md CODE_OF_CONDUCT.md <your-path-to-undici>/deps/milo/
+cp -R macros scripts <your-path-to-undici>/deps/milo/
+mkdir -p <your-path-to-undici>/deps/milo/parser
+cp parser/*.toml parser/*.lock parser/*.md <your-path-to-undici>/deps/milo/parser/
+cp -R parser/src <your-path-to-undici>/deps/milo/parser/
+```
+
+Keep the Cargo manifests and all three lockfiles (`macros/Cargo.lock`,
+`parser/Cargo.lock` and `scripts/Cargo.lock`), Rust binding generators and JavaScript
+template. Preserve Undici's build adjustments: the Docker image digest, pinned
+cargo-make version, Binaryen checksums and `--locked` Cargo builds. Update the
+checksums for both Linux architectures whenever Binaryen is updated.
+Do not copy `parser/tests`, `parser/examples`, `.git`, upstream workflows,
+`target`, `dist`, or prebuilt npm packages. Use a clean checkout so no local build
+outputs are included. When selecting a newer release, update the version and
+full commit recorded above.
+
+#### Build and copy the release artifacts
+
+Docker is the only build tool required on the host. The upstream image installs
+Rust, cargo-make and Binaryen, then runs `makers wasm` in an internal copy of the
+read-only source checkout. See [milo's Docker build instructions](https://github.com/ShogunPanda/milo#building-webassembly-with-docker).
+
+From Undici, build the vendored sources:
+
+```sh
+cd <your-path-to-undici>
+npm run build:milo
+```
+
+`build/milo.js` follows those instructions, mounts `deps/milo` read-only, and
+copies only these release artifacts:
+
+```text
+release/package-cjs/src/simd/index.js    -> lib/milo/simd.js
+release/package-cjs/src/no-simd/index.js -> lib/milo/no-simd.js
+release/package-cjs/LICENSE.md          -> lib/milo/LICENSE.md
+```
+
+Each JavaScript module already embeds its WASM binary in base64. Separate `.wasm`
+files, unbundled modules, debug packages and package metadata are not copied.
+Temporary Docker outputs are removed when the script finishes. The script does
+not download or update milo's sources; Docker still downloads the image and build
+dependencies as needed.
+
+The shared-builtin CI job removes the bundled Milo modules and rebuilds them
+before compiling Node.js, so that it cannot silently reuse prebuilt artifacts.
+The npm package contains only the license and the two bundled JavaScript modules;
+`lib/milo/binary`, `lib/milo/src` and separate WASM files are excluded.
+
+#### Submit the update
+
+Include the updated sources in `deps/milo`, generated files in `lib/milo` and
+the documentation update in a manually prepared PR. This step prepares milo's
+build inputs; it does not modify
+the runtime parser, llhttp's build script or any workflows.
 
 <a id="update-wpts"></a>
 ### Update `WPTs`
@@ -175,9 +258,9 @@ Use the "Create release PR" github action to generate a release PR.
 If you are packaging `undici` for a distro, this might help if you would like to use
 an unbundled version instead of bundling one in `libnode.so`.
 
-To enable this, pass `EXTERNAL_PATH=/path/to/global/node_modules/undici` to `build/wasm.js`.
+To enable this, pass `EXTERNAL_PATH=/path/to/global/node_modules/undici` to `build/llhttp.js`.
 Pass this path with `loader.js` appended to `--shared-builtin-undici/undici-path` in Node.js's `configure.py`.
-If building on a non-Alpine Linux distribution, you may need to also set the `WASM_CC`, `WASM_CFLAGS`, `WASM_LDFLAGS` and `WASM_LDLIBS` environment variables before running `build/wasm.js`.
+If building on a non-Alpine Linux distribution, you may need to also set the `WASM_CC`, `WASM_CFLAGS`, `WASM_LDFLAGS` and `WASM_LDLIBS` environment variables before running `build/llhttp.js`.
 Similarly, you can set the `WASM_OPT` environment variable to utilize your own `wasm-opt` optimizer.
 
 <a id="benchmarks"></a>
@@ -197,6 +280,157 @@ cd docs && npm i && npm run serve
 ```
 
 The documentation will be available at `http://localhost:3000`.
+
+<a id="reproduction"></a>
+### Reproduction
+
+When reporting a bug, a high-quality reproduction helps maintainers diagnose and fix the issue quickly. Follow the guidelines below to create a minimal, standalone reproduction script.
+
+#### What Makes a Good Reproduction
+
+- **Standalone**: The script must be self-contained and run without external dependencies beyond `undici` and Node.js built-in modules.
+- **Minimal**: Strip everything unrelated to the bug — no production configs, no frameworks, no unnecessary middleware.
+- **Reproducible**: Run the script and confirm the bug occurs before submitting.
+- **Specific**: Include the exact `undici` API call that triggers the issue (e.g., `Client`, `Pool`, `Agent`, `fetch`, `request`, `stream`, `pipeline`).
+- **Run with Node's test runner**: Use `node --test` (Node 20+) or `node test/your-repro.js`.
+
+#### Standalone Server Pattern
+
+Use `createServer` from `node:http` (or `node:https` for TLS-related bugs) to run a local server inside the same script. This avoids external service dependencies and keeps the reproduction fully self-contained.
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { Client } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('short description of the bug', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  // 1. Start a local HTTP server that reproduces the scenario
+  const server = createServer({ joinDuplicateHeaders: true }, async (req, res) => {
+    // Simulate the bug-triggering response
+    res.statusCode = 200
+    res.setHeader('content-length', 100)
+    res.end('hello'.repeat(20))
+  })
+  t.after(() => { server.closeAllConnections?.(); server.close() })
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  // 2. Create the undici client pointing to the local server
+  const client = new Client(`http://localhost:${server.address().port}`)
+  t.after(() => client.close())
+
+  // 3. Perform the request that triggers the bug
+  const { body } = await client.request({ path: '/', method: 'GET' })
+
+  let responseBody = ''
+  for await (const chunk of body) {
+    responseBody += chunk
+  }
+
+  t.assert.strictEqual(responseBody, 'hello'.repeat(20))
+})
+```
+
+Save the script as `test/repro-XXXX.js` and run it:
+
+```bash
+node --test test/repro-XXXX.js
+```
+
+#### Fetch-Based Reproduction
+
+For bugs involving `fetch`, use the same standalone server pattern:
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { fetch, Agent } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('short description of the fetch bug', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  const server = createServer({ joinDuplicateHeaders: true }, async (req, res) => {
+    res.statusCode = 200
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify({ ok: true }))
+  })
+  t.after(() => server.close())
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  const agent = new Agent({ keepAliveTimeout: 1 })
+  t.after(() => agent.close())
+
+  const response = await fetch(`http://localhost:${server.address().port}/`, {
+    dispatcher: agent
+  })
+
+  await response.body.cancel()
+
+  t.assert.strictEqual(response.status, 200)
+})
+```
+
+#### Using Pool or Agent
+
+For bugs involving connection pooling or agent behavior:
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { Pool } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('Pool bug reproduction', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  const server = createServer({ joinDuplicateHeaders: true }, (req, res) => {
+    res.end('ok')
+  })
+  t.after(() => server.close())
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  const pool = new Pool(`http://localhost:${server.address().port}`)
+  t.after(() => pool.close())
+
+  const data = await pool.request({ path: '/', method: 'GET' })
+  await data.body.dump()
+
+  t.assert.strictEqual(data.statusCode, 200)
+})
+```
+
+#### Adding the Reproduction to the Repository
+
+If you are submitting a bug fix via a pull request, include a test file `test/issue-XXXX.js` that reproduces the bug and passes with the fix.
+
+#### Checklist for Submitting a Bug Report
+
+1. [ ] Write a standalone reproduction script.
+2. [ ] Run it locally to confirm the bug is reproducible.
+3. [ ] Attach the script (or a gist link) in the bug report.
+4. [ ] Include the exact undici version and Node.js version.
+5. [ ] Describe the expected vs. actual behavior.
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1

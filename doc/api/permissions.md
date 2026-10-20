@@ -48,11 +48,22 @@ will restrict access to all available permissions.
 The available permissions are documented by the [`--permission`][]
 flag.
 
+The Permission Model has two operational modes:
+
+* **Enforce mode** (default when using [`--permission`][]): Access is denied and
+  an `ERR_ACCESS_DENIED` error is thrown for any operation the process has not
+  been granted permission to perform.
+* **Audit mode** (when using [`--permission-audit`][]): Permission checks are
+  performed and violations are published through the diagnostics channel, but
+  access is **not** denied. Execution continues normally. This mode is useful
+  for discovering what permissions your application requires before deploying
+  with enforce mode.
+
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
-spawn processes, use `node:worker_threads`, use native addons, use WASI, use
-FFI, and enable the runtime inspector will be restricted (the listener for
-SIGUSR1 won't be created).
+access environment variables, spawn processes, use `node:worker_threads`, use
+native addons, use WASI, use FFI, and enable the runtime inspector will be
+restricted (the listener for SIGUSR1 won't be created).
 
 ```console
 $ node --permission index.js
@@ -68,17 +79,26 @@ Error: Access to this API has been restricted
 Allowing access to spawning a process and creating worker threads can be done
 using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
+To grant access to environment variables, use [`--allow-env`][].
+
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
 flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
-[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
-`--experimental-ffi` flag and is only available in builds with FFI support.
+[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module is only available in
+builds with FFI support.
+
+To allow use of OpenSSL STORE loaders, for example to load a private key
+from a {URL} passed to [`crypto.createPrivateKey()`][], use the
+[`--allow-openssl-store`][] flag.
+This flag grants broad authority to configured OpenSSL STORE loaders, which may
+access files, devices, tokens, or the network. Access performed by a loader is
+not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
 
 #### Runtime API
 
 When enabling the Permission Model through the [`--permission`][]
-flag a new property `permission` is added to the `process` object.
-This property contains one function:
+or [`--permission-audit`][] flags, a new property `permission` is added to the
+`process` object. This property contains the following functions:
 
 ##### `permission.has(scope[, reference])`
 
@@ -91,6 +111,96 @@ process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
 process.permission.has('fs.read'); // true
 process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
 ```
+
+##### `permission.drop(scope[, reference])`
+
+API call to drop permissions at runtime. This operation is **irreversible**.
+
+When called without a reference, the entire scope is dropped. When called
+with a reference, only the permission for that specific resource is revoked.
+Dropping a permission only affects future access checks. It does not close or
+revoke access to resources that are already open, such as file descriptors,
+network sockets, child processes, or worker threads. Applications are
+responsible for closing or terminating those resources when they are no longer
+needed.
+
+You can only drop the exact resource that was explicitly granted. The
+reference passed to `drop()` must match the original grant. If a permission
+was granted using a wildcard (`*`), only the entire scope can be dropped
+(by calling `drop()` without a reference). If a directory was granted
+(e.g. `--allow-fs-read=/my/folder`), you cannot drop individual files
+inside it - you must drop the same directory that was originally granted.
+
+```js
+const fs = require('node:fs');
+
+// Read config at startup while we still have permission
+const config = fs.readFileSync('/etc/myapp/config.json', 'utf8');
+
+// Drop read access to /etc/myapp after initialization
+process.permission.drop('fs.read', '/etc/myapp');
+
+// This will now return false
+process.permission.has('fs.read', '/etc/myapp/config.json'); // false
+
+// Drop child process permission entirely
+process.permission.drop('child');
+```
+
+#### Audit Mode
+
+The [`--permission-audit`][] flag enables audit mode for the Permission Model.
+In audit mode, permission checks are performed but access is **not** denied —
+no `ERR_ACCESS_DENIED` error is thrown. Instead, each permission violation is
+published through the `node:diagnostics_channel` module, allowing the
+application to observe and log which operations would be denied under enforce
+mode. Execution continues normally.
+
+Audit mode is useful for discovering what permissions your application
+requires before deploying with [`--permission`][]. It can also be combined
+with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-net`][],
+[`--allow-env`][], [`--allow-child-process`][], [`--allow-worker`][],
+[`--allow-addons`][], [`--allow-wasi`][], [`--allow-ffi`][],
+[`--allow-inspector`][], and [`--allow-openssl-store`][] flags to audit a subset
+of permissions while granting others.
+
+When a permission check fails in audit mode, a message is published to the
+diagnostics channel corresponding to the denied scope. The channel names are:
+
+* `node:permission-model:fs` — File System (read and write)
+* `node:permission-model:net` — Network
+* `node:permission-model:child` — Child Process
+* `node:permission-model:worker` — Worker Threads
+* `node:permission-model:inspector` — Inspector
+* `node:permission-model:wasi` — WASI
+* `node:permission-model:addon` — Native Addons
+* `node:permission-model:ffi` — FFI
+* `node:permission-model:openssl-store` — OpenSSL STORE loaders
+* `node:permission-model:env` — Environment variables
+
+Each message is an object with the following properties:
+
+* `permission` {string} The name of the denied permission scope.
+* `resource` {string} The resource that access was denied to (e.g. a file path
+  or host).
+* `drop` {boolean|undefined} `true` when the message was published by
+  [`permission.drop()`][] rather than by a failed permission check.
+
+```js
+const diagnostics_channel = require('node:diagnostics_channel');
+
+diagnostics_channel.channel('node:permission-model:fs').subscribe((msg) => {
+  console.log(`Permission denied: ${msg.permission} on ${msg.resource}`);
+});
+
+// Running with --permission-audit, this publishes a diagnostics channel
+// message but does not throw
+const fs = require('node:fs');
+fs.readFileSync('/etc/passwd');
+```
+
+If both [`--permission`][] and [`--permission-audit`][] are specified,
+`--permission` takes precedence and the Permission Model runs in enforce mode.
 
 #### File System Permissions
 
@@ -116,7 +226,7 @@ $ node --permission index.js
 * `index.js` will be included in the allowed file system read list
 
 ```console
-$ node -r /path/to/custom-require.js --permission index.js.
+$ node -r /path/to/custom-require.js --permission index.js
 ```
 
 * `/path/to/custom-require.js` will be included in the allowed file system read
@@ -155,12 +265,123 @@ does not exist, the wildcard will not be added, and access will be limited to
 yet, make sure to explicitly include the wildcard:
 `/my-path/folder-do-not-exist/*`.
 
+Some `node:fs` operations act on an already-open file descriptor rather than a
+path, so they cannot be tied to a `--allow-fs-read` or `--allow-fs-write` grant.
+When the permission model is enabled these operations are disabled and throw
+`ERR_ACCESS_DENIED`, regardless of how the descriptor was obtained. This applies
+both to the top-level `node:fs` functions and to the equivalent
+`FileHandle` methods, and currently includes `fsync`/`fdatasync`,
+`fchmod`, `fchown`, and `futimes` (and their synchronous variants).
+
+#### Environment variable permissions
+
+When the Permission Model is enforced, the process only has access to the
+environment variables that [`--allow-env`][] grants access to.
+
+Instead of checking each access, Node.js removes every other variable from the
+process environment at startup, before any JavaScript code runs and before
+Node.js starts any other thread. Removed variables are absent from everything
+that exposes the environment of the process: `process.env`, diagnostic reports,
+native code calling `getenv()`, worker threads, and the environment inherited by
+child processes.
+
+```console
+$ node --permission --allow-env=PORT --allow-env=APP_* index.js
+```
+
+The valid arguments for the flag are:
+
+* `*` - Grants access to every environment variable. Nothing is removed.
+* A variable name, such as `PORT`.
+* A variable name prefix followed by `*`, such as `APP_*`.
+
+Some variables are always kept:
+
+* The variables that Node.js and its bundled dependencies read after startup,
+  such as `NODE_OPTIONS`, `NODE_EXTRA_CA_CERTS`, `PATH`, `HOME`, `TMPDIR`, `TZ`,
+  `LANG`, `SSL_CERT_FILE`, and the variables that terminal color detection
+  reads. Other variables whose names start with `NODE_`, such as
+  `NODE_AUTH_TOKEN`, are not kept.
+* The variables defined in the files passed to [`--env-file`][] and
+  [`--env-file-if-exists`][]. If a variable is defined in such a file and also
+  inherited from the parent process, and `--allow-env` does not grant access to
+  it, the inherited value is removed and the value from the file is used.
+
+`NODE_ENV` is not kept either. Node.js does not read it, but many applications
+and libraries do, and treat it being unset as a development environment. Grant
+access to it explicitly:
+
+```console
+$ node --permission --allow-env=NODE_ENV index.js
+```
+
+Proxy URLs often contain credentials, so the `HTTP_PROXY`, `HTTPS_PROXY`, and
+`NO_PROXY` variables, and their lowercase forms, are not kept. Grant access to
+them explicitly when using [`--use-env-proxy`][]. When `--use-env-proxy` is
+enabled and any of them were removed at startup, a warning naming them is
+emitted.
+
+Native code that Node.js loads on behalf of the application, such as addons,
+OpenSSL providers and STORE loaders, and the libraries they load in turn, sees
+the same reduced environment. Only the variables that OpenSSL itself reads are
+kept, not those read by third-party modules it loads. For example, a PKCS#11
+provider backed by SoftHSM needs `SOFTHSM2_CONF` to find its token, and fails to
+initialize without it. Grant access to such variables explicitly:
+
+```console
+$ node --permission --allow-openssl-store --allow-env=SOFTHSM2_CONF index.js
+```
+
+Reading a variable that was removed at startup returns `undefined`, emits a
+warning the first time, and publishes a message to the
+`node:permission-model:env` diagnostics channel.
+
+Variables set at runtime, for example with `process.env.KEY = 'value'` or
+[`process.loadEnvFile()`][], are not restricted, as they cannot reveal what was
+removed.
+
+Dropping a variable with [`permission.drop()`][] removes it from the
+environment. Dropping the whole `env` scope removes every variable except the
+ones Node.js reads itself. This makes it possible to read a secret during
+initialization, and then remove it:
+
+```js
+const databaseUrl = process.env.DATABASE_URL;
+process.permission.drop('env', 'DATABASE_URL');
+```
+
+When a process that enforces the Permission Model spawns a child process, the
+child is started with `--allow-env=*`: the environment it inherits only contains
+variables that the parent had access to. The child can still read its own
+`/proc/<pid>/environ` on Linux, but not that of any other process, see below.
+
+In audit mode, nothing is removed. Accesses to variables that `--allow-env`
+does not grant access to are published to the `node:permission-model:env`
+diagnostics channel instead.
+
+On Linux, `/proc/<pid>/environ` exposes the environment a process was started
+with. When the Permission Model is enforced, reading the `/proc/<pid>/environ`
+file of any other process, including the parent process and its ancestors, is
+denied regardless of [`--allow-fs-read`][]. Reading the process's own file is
+only allowed with `--allow-env=*`. Symbolic links are resolved before the
+check, so paths that reach these files indirectly, such as
+`/dev/fd/../environ`, are denied as well.
+
+In addition, the removed variables are overwritten in the initial environment
+block of the process, so that other processes do not find them in its
+`/proc/<pid>/environ` either. Variables removed later with
+[`permission.drop()`][] are overwritten there as well.
+
+These measures do not change the environment of other processes. A process
+granted [`--allow-child-process`][] can read their environment through other
+programs.
+
 #### Configuration file support
 
 In addition to passing permission flags on the command line, they can also be
-declared in a Node.js configuration file when using the experimental
-\[`--experimental-config-file`]\[] flag. Permission options must be placed inside
-the `permission` top-level object.
+declared in a Node.js configuration file when using the [`--config-file`][]
+flag. Permission options must be placed inside the `permission` top-level
+object.
 
 Example `node.config.json`:
 
@@ -173,7 +394,8 @@ Example `node.config.json`:
     "allow-worker": true,
     "allow-net": true,
     "allow-addons": false,
-    "allow-ffi": false
+    "allow-ffi": false,
+    "allow-openssl-store": false
   }
 }
 ```
@@ -182,8 +404,22 @@ When the `permission` namespace is present in the configuration file, Node.js
 automatically enables the `--permission` flag. Run with:
 
 ```console
-$ node --experimental-default-config-file app.js
+$ node --config-file app.js
 ```
+
+A configuration file, like the `NODE_OPTIONS` defined in an [`--env-file`][]
+file, may be controlled by the project being run rather than by whoever starts
+Node.js. When the command line or the `NODE_OPTIONS` environment variable
+enable the Permission Model, the `allow-env` values these files define can only
+narrow the access that [`--allow-env`][] grants, and never widen it:
+
+```console
+$ node --permission --allow-env=APP_* --config-file=node.config.json app.js
+```
+
+With `"allow-env": ["*"]` in `node.config.json`, only the variables starting with
+`APP_` are kept. With `"allow-env": ["APP_DATABASE_URL", "OTHER"]`, only
+`APP_DATABASE_URL` is.
 
 #### Using the Permission Model with `npx`
 
@@ -226,21 +462,37 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a worker thread.
+* The model does not inherit to a worker thread. A default
+  `worker_threads.Worker` (no `execArgv` option) still receives the parent
+  process CLI flags, including `--permission` and `--allow-*` if those were
+  passed to the parent. Setting `execArgv` explicitly, including
+  `execArgv: []`, replaces the inherited flags. The worker then does not keep
+  the parent's Permission Model grants unless those flags are listed again in
+  `execArgv`. That difference is intended, not a bypass.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Network
+  * Environment variables
   * Child process
   * Worker Threads
   * Inspector protocol
   * File system access
   * WASI
   * FFI
+  * OpenSSL STORE loaders
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
   not subject to the rules of the Permission Model. The same applies for V8
   flags that can be set via runtime through `v8.setFlagsFromString`.
+* Files that Node.js itself creates, writes, or reads at a location selected
+  by an operator flag may not be consistently checked against the Permission
+  Model, in particular when the flag accepts a template or pattern that
+  expands to several paths. For example, trace files rotated by
+  `--trace-event-file-pattern` (`${rotation}`) can be written even when the
+  expanded path is not covered by `--allow-fs-write`. Because the location is
+  chosen by the operator, gaps like this are treated as regular bugs rather
+  than vulnerabilities. Please report them through the regular issue tracker.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
@@ -283,12 +535,23 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-env`]: cli.md#--allow-env
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-inspector`]: cli.md#--allow-inspector
 [`--allow-net`]: cli.md#--allow-net
+[`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
+[`--config-file`]: cli.md#--config-filepath---config-file
+[`--env-file-if-exists`]: cli.md#--env-file-if-existsfile
+[`--env-file`]: cli.md#--env-filefile
+[`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
+[`--use-env-proxy`]: cli.md#--use-env-proxy
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
+[`permission.drop()`]: process.md#processpermissiondropscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
+[`process.loadEnvFile()`]: process.md#processloadenvfilepath

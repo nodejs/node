@@ -69,7 +69,7 @@ ares_status_t ares_expand_name_validated(const unsigned char *encoded,
   }
 
   start_len = ares_buf_len(buf);
-  status    = ares_dns_name_parse(buf, s, is_hostname);
+  status    = ares_dns_name_parse(buf, s, is_hostname, ARES_TRUE);
   if (status != ARES_SUCCESS) {
     goto done;
   }

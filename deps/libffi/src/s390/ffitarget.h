@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 2012  Anthony Green
+   ffitarget.h - Copyright (c) 2012, 2026  Anthony Green
                  Copyright (c) 1996-2003  Red Hat, Inc.
    Target configuration macros for S390.
 
@@ -54,6 +54,7 @@ typedef enum ffi_abi {
 
 #define FFI_TARGET_SPECIFIC_STACK_SPACE_ALLOCATION
 #define FFI_TARGET_HAS_COMPLEX_TYPE
+#define FFI_TARGET_HAS_INT128
 
 /* ---- Definitions for closures ----------------------------------------- */
 

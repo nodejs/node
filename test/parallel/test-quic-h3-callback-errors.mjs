@@ -11,9 +11,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -21,8 +18,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 
 async function makeServer(onheadersHandler, extraOpts = {}) {
@@ -56,6 +53,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -72,11 +70,11 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   });
 
-  await rejects(s.closed, mustCall((err) => {
-    strictEqual(err.message, 'onheaders sync error');
+  await assert.rejects(s.closed, mustCall((err) => {
+    assert.strictEqual(err.message, 'onheaders sync error');
     return true;
   }));
-  strictEqual(s.destroyed, true);
+  assert.strictEqual(s.destroyed, true);
 
   c.close();
   await done.promise;
@@ -95,6 +93,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -111,11 +110,11 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   });
 
-  await rejects(s.closed, mustCall((err) => {
-    strictEqual(err.message, 'onheaders async error');
+  await assert.rejects(s.closed, mustCall((err) => {
+    assert.strictEqual(err.message, 'onheaders async error');
     return true;
   }));
-  strictEqual(s.destroyed, true);
+  assert.strictEqual(s.destroyed, true);
 
   c.close();
   await done.promise;
@@ -139,6 +138,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -151,18 +151,18 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
     ontrailers: mustCall(function() {
       throw new Error('ontrailers sync error');
     }),
   });
 
-  await rejects(s.closed, mustCall((err) => {
-    strictEqual(err.message, 'ontrailers sync error');
+  await assert.rejects(s.closed, mustCall((err) => {
+    assert.strictEqual(err.message, 'ontrailers sync error');
     return true;
   }));
-  strictEqual(s.destroyed, true);
+  assert.strictEqual(s.destroyed, true);
 
   c.close();
   await done.promise;
@@ -187,12 +187,13 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'example.com',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
     onorigin: mustCall(function() {
       throw new Error('onorigin error');
     }),
     onerror: mustCall(function(error) {
-      strictEqual(error.message, 'onorigin error');
+      assert.strictEqual(error.message, 'onorigin error');
     }),
   });
   await clientSession.opened;
@@ -208,12 +209,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   // The session is destroyed by the callback error, which
   // destroys the stream with the same error.
-  await rejects(stream.closed, mustCall((err) => {
-    strictEqual(err.message, 'onorigin error');
+  await assert.rejects(stream.closed, mustCall((err) => {
+    assert.strictEqual(err.message, 'onorigin error');
     return true;
   }));
 
-  await rejects(clientSession.closed, mustCall(() => true));
+  await assert.rejects(clientSession.closed, mustCall(() => true));
 
   serverEndpoint.close();
 }
@@ -228,8 +229,8 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       // The server stream rejects because onwanttrailers threw.
-      await rejects(stream.closed, mustCall((err) => {
-        strictEqual(err.message, 'onwanttrailers error');
+      await assert.rejects(stream.closed, mustCall((err) => {
+        assert.strictEqual(err.message, 'onwanttrailers error');
         serverStreamRejected.resolve();
         return true;
       }));
@@ -251,6 +252,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await clientSession.opened;
@@ -263,7 +265,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 

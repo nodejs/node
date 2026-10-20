@@ -29,7 +29,20 @@ function getReplRunOutput(inputStr, replOptions) {
 
     input.emit('data', inputStr);
 
-    input.run(['']);
+    if (!replOptions.preview) {
+      input.run(['']);
+      return;
+    }
+
+    const afterEcho = output.accumulator;
+    let attempts = 0;
+    (function waitForPreview() {
+      if (output.accumulator !== afterEcho || ++attempts > 100) {
+        input.run(['']);
+        return;
+      }
+      setImmediate(waitForPreview);
+    })();
   });
 }
 

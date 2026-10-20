@@ -60,8 +60,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        code_flushing_increase_(code_flushing_increase),
-        isolate_in_background_(heap->isolate()->is_backgrounded())
+        code_flushing_increase_(code_flushing_increase)
 #ifdef V8_COMPRESS_POINTERS
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
@@ -80,9 +79,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   {
   }
 
-  V8_INLINE size_t VisitDescriptorArrayStrongly(Tagged<Map> map,
-                                                Tagged<DescriptorArray> object,
-                                                MaybeObjectSize);
   V8_INLINE size_t VisitDescriptorArray(Tagged<Map> map,
                                         Tagged<DescriptorArray> object,
                                         MaybeObjectSize);
@@ -93,6 +89,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                    MaybeObjectSize);
   V8_INLINE size_t VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object,
                                    MaybeObjectSize);
+  V8_INLINE size_t VisitJSGlobalProxy(Tagged<Map> map,
+                                      Tagged<JSGlobalProxy> object,
+                                      MaybeObjectSize);
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
                                   MaybeObjectSize);
   V8_INLINE size_t VisitMap(Tagged<Map> map, Tagged<Map> object,
@@ -108,7 +107,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
-    Tagged<Map> map = host->map(ObjectVisitorWithCageBases::cage_base());
+    Tagged<Map> map = host->map();
     ProcessStrongHeapObject(host, host->map_slot(), map);
   }
   V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
@@ -152,6 +151,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                      IndirectPointerSlot slot) final;
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
+  void VisitJSDispatchTableEntry(Tagged<InstructionStream> host,
                                  JSDispatchHandle handle) override;
 
   V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
@@ -211,8 +212,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   template <typename TSlot>
   V8_INLINE void VisitStrongPointerImpl(Tagged<HeapObject> host, TSlot slot);
 
-  V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
-
   V8_INLINE size_t
   VisitFixedArrayWithProgressTracker(Tagged<Map> map, Tagged<FixedArray> object,
                                      MarkingProgressTracker& progress_tracker);
@@ -233,7 +232,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool should_keep_ages_unchanged_;
   const uint16_t code_flushing_increase_;
-  const bool isolate_in_background_;
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;

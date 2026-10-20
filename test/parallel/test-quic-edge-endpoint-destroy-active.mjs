@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -43,8 +41,8 @@ await stream.closed;
 // Close the endpoint while the server session is still active
 // (the session is open but the stream is done).
 serverEndpoint.close();
-strictEqual(serverEndpoint.closing, true);
-strictEqual(serverEndpoint.destroyed, false);
+assert.strictEqual(serverEndpoint.closing, true);
+assert.strictEqual(serverEndpoint.destroyed, false);
 
 // The endpoint is waiting for the server session. Close the
 // client session to trigger the server session to close.
@@ -52,4 +50,4 @@ await clientSession.close();
 
 // The server session should close from the CONNECTION_CLOSE.
 await Promise.all([serverDone.promise, serverEndpoint.closed]);
-strictEqual(serverEndpoint.destroyed, true);
+assert.strictEqual(serverEndpoint.destroyed, true);

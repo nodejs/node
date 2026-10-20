@@ -32,12 +32,22 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 for (const name of ['modp1', 'modp2', 'modp5', 'modp14', 'modp15', 'modp16', 'modp17']) {
   // modp1 is 768 bits, FIPS requires >= 1024.
   // BoringSSL does not support modp1 or modp2.
-  if ((name === 'modp1' && crypto.getFips()) ||
-      (process.features.openssl_is_boringssl &&
+  if (hasFIPS(3) && ['modp1', 'modp2', 'modp5'].includes(name)) {
+    const parameters = crypto.getDiffieHellman(name);
+    const group = crypto.createDiffieHellman(
+      parameters.getPrime(), parameters.getGenerator());
+    assert.throws(() => group.generateKeys(), {
+      code: 'ERR_CRYPTO_OPERATION_FAILED',
+    });
+    continue;
+  }
+  if ((name === 'modp1' && crypto.getFips() === 1) ||
+      (isBoringSSL &&
        (name === 'modp1' || name === 'modp2'))) {
     common.printSkipMessage(`Skipping unsupported ${name} test case`);
     continue;

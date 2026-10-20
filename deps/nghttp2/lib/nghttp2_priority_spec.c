@@ -27,15 +27,17 @@
 void nghttp2_priority_spec_init(nghttp2_priority_spec *pri_spec,
                                 int32_t stream_id, int32_t weight,
                                 int exclusive) {
-  pri_spec->stream_id = stream_id;
-  pri_spec->weight = weight;
-  pri_spec->exclusive = exclusive != 0;
+  *pri_spec = (nghttp2_priority_spec){
+    .stream_id = stream_id,
+    .weight = weight,
+    .exclusive = exclusive != 0,
+  };
 }
 
 void nghttp2_priority_spec_default_init(nghttp2_priority_spec *pri_spec) {
-  pri_spec->stream_id = 0;
-  pri_spec->weight = NGHTTP2_DEFAULT_WEIGHT;
-  pri_spec->exclusive = 0;
+  *pri_spec = (nghttp2_priority_spec){
+    .weight = NGHTTP2_DEFAULT_WEIGHT,
+  };
 }
 
 int nghttp2_priority_spec_check_default(const nghttp2_priority_spec *pri_spec) {

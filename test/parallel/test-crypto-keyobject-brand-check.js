@@ -15,6 +15,7 @@ const {
   generateKeyPairSync,
   KeyObject,
 } = require('node:crypto');
+const { hasFIPS } = require('../common/crypto');
 const { types: { isKeyObject } } = require('node:util');
 
 const invalidThis = { code: 'ERR_INVALID_THIS', name: 'TypeError' };
@@ -25,7 +26,9 @@ function getter(proto, name) {
 
 {
   const secret = createSecretKey(Buffer.alloc(16));
-  const { publicKey } = generateKeyPairSync('rsa', { modulusLength: 1024 });
+  const { publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
+  });
 
   const type = getter(KeyObject.prototype, 'type');
   const symmetricKeySize =

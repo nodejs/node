@@ -47,7 +47,7 @@ if (!isSunOS) {
   );
 }
 
-// Test argument validaton
+// Test argument validation
 {
   assert.throws(
     () => process.threadCpuUsage(123),

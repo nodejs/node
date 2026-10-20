@@ -12,7 +12,7 @@ const assert = require('assert');
 const { inspect } = require('util');
 const vm = require('vm');
 
-// The promise _synchronously_ resolves to undefined, because for a synthethic module,
+// The promise _synchronously_ resolves to undefined, because for a synthetic module,
 // the evaluation operation can only either resolve or reject immediately.
 // In this case, the asynchronously rejected promise can't be handled from the outside,
 // so we'll catch it with the isolate-level unhandledRejection handler.

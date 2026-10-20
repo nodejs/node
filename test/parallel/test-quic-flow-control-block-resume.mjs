@@ -8,8 +8,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -28,7 +27,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // Read all data — this extends the flow control window.
     const received = await bytes(stream);
-    strictEqual(received.byteLength, dataLength);
+    assert.strictEqual(received.byteLength, dataLength);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -45,7 +44,7 @@ await clientSession.opened;
 const stream = await clientSession.createBidirectionalStream();
 stream.setBody(data);
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 
 await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
 

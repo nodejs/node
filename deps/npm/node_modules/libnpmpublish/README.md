@@ -44,8 +44,13 @@ A couple of options of note:
   defaults to `latest`.
 
 * `opts.access` - tells the registry whether this package should be
-  published as `public` or `restricted`. Only applies to scoped
-  packages.  Defaults to `public`.
+  published as `'public'` or `'restricted'`. May also be `null`, which
+  preserves the existing access level on already-published packages and
+  defers to the registry's default for new packages (the registry treats
+  scoped packages as `restricted` and unscoped packages as `public` by
+  default). Only `'restricted'` and `null` are meaningful for scoped
+  packages; `'restricted'` is rejected for unscoped packages. Defaults to
+  `null`.
 
 * `opts.token` - can be passed in and will be used as the authentication
   token for the registry. For other ways to pass in auth details, see the
@@ -53,14 +58,25 @@ A couple of options of note:
 
 * `opts.provenance` - when running in a supported CI environment, will trigger
   the generation of a signed provenance statement to be published alongside
-  the package. Mutually exclusive with the `provenanceFile` option.
+  the package. Mutually exclusive with the `provenanceFile` option; providing
+  both will throw an `EUSAGE` error. In the npm CLI's trusted
+  publishing flows, automatic provenance generation is skipped when
+  `provenanceFile` is supplied.
 
 * `opts.provenanceFile` - specifies the path to an externally-generated
   provenance statement to be published alongside the package. Mutually
-  exclusive with the `provenance` option. The specified file should be a
+  exclusive with the `provenance` option; providing both will throw an
+  `EUSAGE` error. The specified file should be a
   [Sigstore Bundle](https://github.com/sigstore/protobuf-specs/blob/main/protos/sigstore_bundle.proto)
   containing a [DSSE](https://github.com/secure-systems-lab/dsse)-packaged
   provenance statement.
+
+* `opts.stage` - when `true`, publishes the package to a staging area instead
+  of making it immediately available. The registry response will include a
+  `stageId` (UUID) that can be used to approve or reject the staged version
+  later. Changes the request method to `POST` and the endpoint to
+  `/-/stage/package/<name>`. The returned Response object will have a
+  `stageId` property.
 
 #### <a name="publish"></a> `> libpub.publish(manifest, tarData, [opts]) -> Promise`
 

@@ -9,9 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { strictEqual } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -21,8 +18,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -43,14 +40,14 @@ const decoder = new TextDecoder();
     // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
     application: { maxHeaderPairs: 5 },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':method'], 'GET');
-      strictEqual(headers[':path'], '/limited');
-      strictEqual(headers[':scheme'], 'https');
-      strictEqual(headers[':authority'], 'localhost');
+      assert.strictEqual(headers[':method'], 'GET');
+      assert.strictEqual(headers[':path'], '/limited');
+      assert.strictEqual(headers[':scheme'], 'https');
+      assert.strictEqual(headers[':authority'], 'localhost');
       // x-first is the 5th pair — accepted.
-      strictEqual(headers['x-first'], 'one');
+      assert.strictEqual(headers['x-first'], 'one');
       // x-second would be the 6th pair — dropped.
-      strictEqual(headers['x-second'], undefined);
+      assert.strictEqual(headers['x-second'], undefined);
 
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode('ok'));
@@ -60,6 +57,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -73,15 +71,16 @@ const decoder = new TextDecoder();
       'x-second': 'two',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await stream.closed;
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // maxHeaderLength enforcement.
@@ -104,10 +103,10 @@ const decoder = new TextDecoder();
     // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
     application: { maxHeaderLength: 100 },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':method'], 'GET');
-      strictEqual(headers[':path'], '/length-limited');
+      assert.strictEqual(headers[':method'], 'GET');
+      assert.strictEqual(headers[':path'], '/length-limited');
       // x-long should be dropped — would push total over 100 bytes.
-      strictEqual(headers['x-long'], undefined);
+      assert.strictEqual(headers['x-long'], undefined);
 
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode('ok'));
@@ -117,6 +116,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -129,14 +129,15 @@ const decoder = new TextDecoder();
       'x-long': longValue,
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // enableConnectProtocol and enableDatagrams settings.
@@ -158,11 +159,21 @@ const decoder = new TextDecoder();
       this.writer.writeSync(encoder.encode('settings-ok'));
       this.writer.endSync();
     }),
+    onapplication: mustCall((appopt) => {
+      assert.strictEqual(appopt.enableDatagrams, true);
+      assert.strictEqual(appopt.enableConnectProtocol, false);
+      // Must be false, as this is only sent from server side
+    })
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { enableConnectProtocol: true, enableDatagrams: true },
+  });
+  clientSession.onapplication = mustCall((appopt) => {
+    assert.strictEqual(appopt.enableConnectProtocol, true);
+    assert.strictEqual(appopt.enableDatagrams, true);
   });
   await clientSession.opened;
 
@@ -174,12 +185,13 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'settings-ok');
+  assert.strictEqual(decoder.decode(body), 'settings-ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

@@ -3,6 +3,7 @@
 // This tests error recovery and fallback behavior for tls.setDefaultCACertificates()
 
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 if (!common.hasCrypto) common.skip('missing crypto');
 
 const assert = require('assert');
@@ -27,7 +28,7 @@ function testRecovery(expectedCerts) {
   {
     const invalidCert = '-----BEGIN CERTIFICATE-----\nvalid cert content\n-----END CERTIFICATE-----';
     assert.throws(() => tls.setDefaultCACertificates([fixtureCert, invalidCert]), {
-      code: process.features.openssl_is_boringssl ?
+      code: isBoringSSL ?
         'ERR_OSSL_PEM_ASN.1_ENCODING_ROUTINES' :
         'ERR_OSSL_PEM_ASN1_LIB',
     });

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<title>Accessing navigator.serviceWorker in sandboxed iframe.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var lastCallbackId = 0;
+var callbacks = {};
+function postMessageAndWaitResult(frame) {
+  return new Promise(function(resolve, reject) {
+    var id = ++lastCallbackId;
+    callbacks[id] = resolve;
+    frame.contentWindow.postMessage({id:id}, '*');
+    const timeout = 1000;
+    step_timeout(() => reject("no msg back after " + timeout + "ms"), timeout);
+  });
+}
+
+window.onmessage = function(e) {
+  message = e.data;
+  var id = message['id'];
+  var callback = callbacks[id];
+  delete callbacks[id];
+  callback(message.result);
+};
+
+promise_test(function(t) {
+    var url = 'resources/sandboxed-iframe-navigator-serviceworker-iframe.html';
+    var frame;
+    return with_iframe(url)
+      .then(function(f) {
+          frame = f;
+          add_result_callback(() => { frame.remove(); });
+          return postMessageAndWaitResult(f);
+        })
+      .then(function(result) {
+          assert_equals(result, 'ok');
+        });
+  }, 'Accessing navigator.serviceWorker in normal iframe should not throw.');
+
+promise_test(function(t) {
+    var url = 'resources/sandboxed-iframe-navigator-serviceworker-iframe.html';
+    var frame;
+    return with_sandboxed_iframe(url, 'allow-scripts')
+      .then(function(f) {
+          frame = f;
+          add_result_callback(() => { frame.remove(); });
+          return postMessageAndWaitResult(f);
+        })
+      .then(function(result) {
+          assert_equals(
+              result,
+              'navigator.serviceWorker failed: SecurityError');
+        });
+  }, 'Accessing navigator.serviceWorker in sandboxed iframe should throw.');
+
+promise_test(function(t) {
+    var url = 'resources/sandboxed-iframe-navigator-serviceworker-iframe.html';
+    var frame;
+    return with_sandboxed_iframe(url, 'allow-scripts allow-same-origin')
+      .then(function(f) {
+          frame = f;
+          add_result_callback(() => { frame.remove(); });
+          return postMessageAndWaitResult(f);
+        })
+      .then(function(result) {
+          assert_equals(result, 'ok');
+        });
+  },
+  'Accessing navigator.serviceWorker in sandboxed iframe with ' +
+  'allow-same-origin flag should not throw.');
+
+promise_test(function(t) {
+    var url = 'resources/sandboxed-iframe-navigator-serviceworker-iframe.html';
+    var frame;
+    return new Promise(function(resolve) {
+          frame = document.createElement('iframe');
+          add_result_callback(() => { frame.remove(); });
+          frame.sandbox = '';
+          frame.src = url;
+          frame.onload = resolve;
+          document.body.appendChild(frame);
+          // Switch the sandbox attribute while loading the iframe.
+          frame.sandbox = 'allow-scripts allow-same-origin';
+        })
+      .then(function() {
+          return postMessageAndWaitResult(frame)
+        })
+      .then(function(result) {
+          // The HTML spec seems to say that changing the sandbox attribute
+          // after the iframe is inserted into its parent document does not
+          // affect the sandboxing. If that's true, the frame should still
+          // act as if it still doesn't have
+          // 'allow-scripts allow-same-origin' set and throw a SecurityError.
+          //
+          // 1) From Section 4.8.5 "The iframe element":
+          // "When an iframe element is inserted into a document that has a
+          // browsing context, the user agent must create a new browsing
+          // context..."
+          // 2) "Create a new browsing context" expands to Section 7.1
+          // "Browsing contexts", which includes creating a Document and
+          // "Implement the sandboxing for document."
+          // 3) "Implement the sandboxing" expands to Section 7.6 "Sandboxing",
+          // which includes "populate document's active sandboxing flag set".
+          //
+          // It's not clear whether navigation subsequently creates a new
+          // Document, but I'm assuming it wouldn't.
+          // https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-sandbox
+          assert_true(
+              false,
+              'should NOT get message back from a sandboxed frame where scripts are not allowed to execute');
+        })
+      .catch(msg => {
+        assert_true(msg.startsWith('no msg back'), 'expecting error message "no msg back"');
+      });
+  }, 'Switching iframe sandbox attribute while loading the iframe');
+
+</script>
+</body>

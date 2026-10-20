@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -310,7 +310,7 @@ int OCSP_resp_find_status(OCSP_BASICRESP *bs, OCSP_CERTID *id, int *status,
 int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
     ASN1_GENERALIZEDTIME *nextupd, long nsec, long maxsec)
 {
-    int ret = 1;
+    int ret = 1, cmp;
     time_t t_now, t_tmp;
 
     time(&t_now);
@@ -320,16 +320,20 @@ int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
         ret = 0;
     } else {
         t_tmp = t_now + nsec;
-        if (X509_cmp_time(thisupd, &t_tmp) > 0) {
+        cmp = X509_cmp_time(thisupd, &t_tmp);
+        if (cmp == 0) {
+            ERR_raise(ERR_LIB_OCSP, OCSP_R_ERROR_IN_THISUPDATE_FIELD);
+            ret = 0;
+        } else if (cmp > 0) {
             ERR_raise(ERR_LIB_OCSP, OCSP_R_STATUS_NOT_YET_VALID);
             ret = 0;
         }
 
         /*
          * If maxsec specified check thisUpdate is not more than maxsec in
-         * the past
+         * the past. Skip this check if thisUpdate could not be compared above.
          */
-        if (maxsec >= 0) {
+        if (cmp != 0 && maxsec >= 0) {
             t_tmp = t_now - maxsec;
             if (X509_cmp_time(thisupd, &t_tmp) < 0) {
                 ERR_raise(ERR_LIB_OCSP, OCSP_R_STATUS_TOO_OLD);
@@ -347,7 +351,11 @@ int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
         ret = 0;
     } else {
         t_tmp = t_now - nsec;
-        if (X509_cmp_time(nextupd, &t_tmp) < 0) {
+        cmp = X509_cmp_time(nextupd, &t_tmp);
+        if (cmp == 0) {
+            ERR_raise(ERR_LIB_OCSP, OCSP_R_ERROR_IN_NEXTUPDATE_FIELD);
+            ret = 0;
+        } else if (cmp < 0) {
             ERR_raise(ERR_LIB_OCSP, OCSP_R_STATUS_EXPIRED);
             ret = 0;
         }

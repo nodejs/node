@@ -1,8 +1,8 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_tls_certificates.h>
 #include <crypto/crypto_util.h>
 #include <debug_utils-inl.h>
 #include <env-inl.h>
@@ -12,6 +12,9 @@
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+#include <openssl/comp.h>
+#endif
 #include <util-inl.h>
 #include <v8.h>
 #include "application.h"
@@ -29,14 +32,16 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
-using ncrypto::X509Pointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::String;
 using v8::Undefined;
 using v8::Value;
 
@@ -47,7 +52,7 @@ namespace quic {
 namespace {
 
 // Temporarily wraps an SSL pointer but does not take ownership.
-// Use by a few of the TLSSession methods that need access to the SSL*
+// Used by a few of the TLSSession methods that need access to the SSL*
 // pointer held by the OSSLContext but cannot take ownership of it.
 class SSLPointerRef final {
  public:
@@ -95,7 +100,7 @@ template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
-               const Local<v8::String>& name) {
+               const Local<String>& name) {
   Local<Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
 
@@ -105,7 +110,7 @@ bool SetOption(Environment* env,
 
   if (value->IsArray()) {
     auto context = env->context();
-    auto values = value.As<v8::Array>();
+    auto values = value.As<Array>();
     uint32_t count = values->Length();
     for (uint32_t n = 0; n < count; n++) {
       Local<Value> item;
@@ -125,7 +130,7 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          Store store = Store::CopyFrom(item.As<v8::ArrayBufferView>());
+          Store store = Store::CopyFrom(item.As<ArrayBufferView>());
           (options->*member).push_back(std::move(store));
         } else if (item->IsArrayBuffer()) {
           Store store = Store::CopyFrom(item.As<ArrayBuffer>());
@@ -154,7 +159,7 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        Store store = Store::CopyFrom(value.As<v8::ArrayBufferView>());
+        Store store = Store::CopyFrom(value.As<ArrayBufferView>());
         (options->*member).push_back(std::move(store));
       } else if (value->IsArrayBuffer()) {
         Store store = Store::CopyFrom(value.As<ArrayBuffer>());
@@ -185,7 +190,7 @@ void OSSLContext::reset() {
   if (ctx_) {
     // The SSL object inside the ngtcp2 ctx may not have been set if
     // SSL creation failed. Guard against null before clearing app data.
-    if (SSL* ssl = ngtcp2_crypto_ossl_ctx_get_ssl(ctx_); ssl != nullptr) {
+    if (SSL* ssl = *this; ssl != nullptr) {
       SSL_set_app_data(ssl, nullptr);
     }
     // connection_ is set during Initialize(). If Initialize() was
@@ -222,7 +227,7 @@ void OSSLContext::Initialize(SSL* ssl,
   connection_ = connection;
 }
 
-std::string OSSLContext::get_cipher_name() const {
+std::string_view OSSLContext::get_cipher_name() const {
   return SSL_get_cipher_name(*this);
 }
 
@@ -256,6 +261,18 @@ bool OSSLContext::set_hostname(std::string_view hostname) const {
                   SSL_CTRL_SET_TLSEXT_HOSTNAME,
                   TLSEXT_NAMETYPE_host_name,
                   const_cast<char*>(name.c_str())) == 1;
+}
+
+bool OSSLContext::set_verify_hostname(std::string_view hostname) const {
+  // SSL_set1_host tells OpenSSL to verify the peer certificate's
+  // subject name (SAN/CN) matches this hostname. This is separate
+  // from SSL_set_tlsext_host_name which only sets the SNI extension.
+  static const char* kDefaultHostname = "localhost";
+  if (hostname.empty()) {
+    return SSL_set1_host(*this, kDefaultHostname) == 1;
+  } else {
+    return SSL_set1_host(*this, hostname.data()) == 1;
+  }
 }
 
 bool OSSLContext::set_early_data_enabled() const {
@@ -316,51 +333,100 @@ TLSContext::operator SSL_CTX*() const {
   return ctx_.get();
 }
 
+crypto::ClientHelloResult TLSContext::OnClientHello(
+    const crypto::ClientHelloContext& hello) {
+  auto& tls_session = TLSSession::From(hello.ssl());
+  auto& session = tls_session.session();
+
+  using EarlySelection = TLSSession::EarlySelection;
+  switch (tls_session.early_selection()) {
+    case EarlySelection::kPending:
+      break;
+    case EarlySelection::kSelected:
+      // Selected already, but the Session has not been surfaced yet, so
+      // the handshake must stay where it is.
+      return crypto::ClientHelloResult::kRetry;
+    case EarlySelection::kComplete: {
+      // Don't let HelloRetryRequests change SNI:
+      auto name = hello.servername();
+      if (!name.has_value() || *name != tls_session.servername()) {
+        Debug(&session, "ClientHello changed the requested servername");
+        hello.set_alert(SSL_AD_ILLEGAL_PARAMETER);
+        return crypto::ClientHelloResult::kFail;
+      }
+      // Everything else the TLS library needs from here on is cached on the
+      // TLSSession, so just let the handshake run.
+      return crypto::ClientHelloResult::kContinue;
+    }
+  }
+
+  auto requested = hello.servername();
+  if (!requested.has_value()) {
+    Debug(&session, "Unusable servername in ClientHello");
+    hello.set_alert(SSL_AD_DECODE_ERROR);
+    return crypto::ClientHelloResult::kFail;
+  }
+  const std::string_view servername = *requested;
+
+  auto* selected = tls_session.context().SelectSNIContext(servername);
+  if (selected == nullptr) {
+    Debug(&session, "No TLS context for servername %s", servername);
+    hello.set_alert(SSL_AD_UNRECOGNIZED_NAME);
+    return crypto::ClientHelloResult::kFail;
+  }
+  if (selected != &tls_session.context()) {
+    SSL_set_SSL_CTX(hello.ssl(), *selected);
+  }
+  tls_session.set_servername(servername);
+
+  // The client's QUIC transport parameters travel in the ClientHello, but
+  // the TLS stack does not hand them to ngtcp2 until it parses extensions,
+  // which is after this callback.
+  auto params = hello.extension(TLSEXT_TYPE_quic_transport_parameters);
+  if (params.has_value()) session.SetEarlyRemoteTransportParams(*params);
+
+  const auto& supported = selected->options().alpn;
+  auto negotiated = crypto::SelectNextProtocol(
+      {reinterpret_cast<const uint8_t*>(supported.data()), supported.size()},
+      hello.alpn_protocols());
+  if (!negotiated.has_value()) {
+    Debug(&session, "ALPN negotiation failed");
+    hello.set_alert(SSL_AD_NO_APPLICATION_PROTOCOL);
+    return crypto::ClientHelloResult::kFail;
+  }
+  Debug(&session, "ALPN negotiation succeeded: %s", *negotiated);
+  tls_session.set_alpn(*negotiated);
+
+  // Install the Application while the handshake is still stopped, so that
+  // it is in place before a session ticket can be accepted and early data
+  // can start arriving.
+  session.InstallApplicationForAlpn(*negotiated);
+  session.set_hello_processed();
+
+  // Stop here. Session::AfterNgtcp2Read surfaces the server session to
+  // JavaScript and then resumes the handshake, at which point this callback
+  // runs again and takes the kComplete path.
+  tls_session.set_early_selection(EarlySelection::kSelected);
+  return crypto::ClientHelloResult::kRetry;
+}
+
 int TLSContext::OnSelectAlpn(SSL* ssl,
                              const unsigned char** out,
                              unsigned char* outlen,
                              const unsigned char* in,
                              unsigned int inlen,
                              void* arg) {
-  auto& tls_session = TLSSession::From(ssl);
-
-  const auto& requested = tls_session.context().options().alpn;
-  if (requested.empty()) return SSL_TLSEXT_ERR_NOACK;
-
-  // The requested ALPN string is in wire format (one or more
-  // length-prefixed protocol names). SSL_select_next_proto finds the
-  // first match between the server's list and the client's list.
-  if (SSL_select_next_proto(
-          const_cast<unsigned char**>(out),
-          outlen,
-          reinterpret_cast<const unsigned char*>(requested.data()),
-          requested.length(),
-          in,
-          inlen) == OPENSSL_NPN_NO_OVERLAP) {
-    Debug(&tls_session.session(), "ALPN negotiation failed");
-    return SSL_TLSEXT_ERR_NOACK;
+  // The protocol was already chosen from the ClientHello. OpenSSL still
+  // requires it to be handed back here for the ALPN extension to be sent.
+  const auto& negotiated = TLSSession::From(ssl).alpn();
+  if (negotiated.empty()) return SSL_TLSEXT_ERR_NOACK;
+  // The list offered here should be the one the choice was made from, but
+  // a peer can send a second ClientHello after HelloRetryRequest; never
+  // answer with a protocol this one does not offer.
+  if (!crypto::AlpnListContains({in, inlen}, negotiated)) {
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
-
-  // ALPN negotiated successfully. *out/*outlen point to the selected
-  // protocol name (without the length prefix). Select the Application
-  // implementation based on the negotiated ALPN. This must happen now
-  // because early data (0-RTT) may arrive in the same ngtcp2_conn_read_pkt
-  // call and needs the Application to be ready.
-  std::string_view negotiated(reinterpret_cast<const char*>(*out), *outlen);
-  Debug(&tls_session.session(),
-        "ALPN negotiation succeeded: %s",
-        std::string(negotiated).c_str());
-
-  auto& session = tls_session.session();
-  auto app = session.SelectApplicationFromAlpn(negotiated);
-  if (!app) {
-    Debug(&session,
-          "Failed to create Application for ALPN %s",
-          std::string(negotiated).c_str());
-    return SSL_TLSEXT_ERR_NOACK;
-  }
-  session.SetApplication(std::move(app));
-
+  crypto::SetSelectedProtocol(out, outlen, negotiated);
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -467,6 +533,7 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
 
       SSL_CTX_set_mode(ctx.get(), SSL_MODE_RELEASE_BUFFERS);
       SSL_CTX_set_alpn_select_cb(ctx.get(), OnSelectAlpn, this);
+      crypto::SetClientHelloCallback<OnClientHello>(ctx.get());
 
       if (SSL_CTX_set_session_id_context(
               ctx.get(), kSidCtx, sizeof(kSidCtx) - 1) != 1) {
@@ -487,8 +554,9 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
                                              nullptr),
                1);
 
+      // The SNI context is selected from the ClientHello; this callback
+      // exists only so that OpenSSL acknowledges the extension.
       SSL_CTX_set_tlsext_servername_callback(ctx.get(), OnSNI);
-      SSL_CTX_set_tlsext_servername_arg(ctx.get(), this);
       break;
     }
     case Side::CLIENT: {
@@ -497,16 +565,18 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
       SSL_CTX_set_session_cache_mode(
           ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
       SSL_CTX_sess_set_new_cb(ctx.get(), OnNewSession);
+
+      // In strict mode, set SSL_VERIFY_PEER so OpenSSL aborts the
+      // handshake if the server's certificate fails validation. In
+      // non-strict modes, verification still occurs but the handshake
+      // completes regardless — the result is surfaced to JS.
+      if (options_.verify_peer_strict) {
+        SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
+      }
       break;
     }
   }
 
-  // Only load system CA certificates if no custom CAs are provided.
-  // SSL_CTX_set_default_verify_paths involves filesystem I/O to read
-  // the system CA bundle.
-  if (options_.ca.empty()) {
-    SSL_CTX_set_default_verify_paths(ctx.get());
-  }
   if (options_.keylog) {
     SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
   }
@@ -524,30 +594,16 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   {
     ClearErrorOnReturn clear_error_on_return;
     if (options_.ca.empty()) {
-      auto store = crypto::GetOrCreateRootCertStore(env);
-      X509_STORE_up_ref(store);
-      SSL_CTX_set_cert_store(ctx.get(), store);
+      crypto::UseDefaultRootCertStore(env, ctx.get());
     } else {
       for (const auto& ca : options_.ca) {
         uv_buf_t buf = ca;
         if (buf.len == 0) {
-          auto store = crypto::GetOrCreateRootCertStore(env);
-          X509_STORE_up_ref(store);
-          SSL_CTX_set_cert_store(ctx.get(), store);
+          crypto::UseDefaultRootCertStore(env, ctx.get());
         } else {
           BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
           CHECK(bio);
-          X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-          while (
-              auto x509 = X509Pointer(PEM_read_bio_X509_AUX(
-                  bio.get(), nullptr, crypto::NoPasswordCallback, nullptr))) {
-            if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-              cert_store = crypto::NewRootCertStore(env);
-              SSL_CTX_set_cert_store(ctx.get(), cert_store);
-            }
-            CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
-            CHECK_EQ(1, SSL_CTX_add_client_CA(ctx.get(), x509.get()));
-          }
+          crypto::AddCACertificates(env, ctx.get(), bio);
         }
       }
     }
@@ -571,14 +627,52 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
+  // TLS certificate compression (RFC 8879). OpenSSL enables all available
+  // algorithms by default once compression libraries are linked, so we
+  // always clear the preference first to keep certificate compression
+  // opt-in (matching the behavior of node:tls). When the
+  // certificateCompression option is set, apply the requested algorithms
+  // and pre-compress the certificate(s) loaded above. QUIC always uses
+  // TLS 1.3, which is the minimum required for certificate compression.
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  {
+    ClearErrorOnReturn clear_error_on_return;
+    SSL_CTX_set1_cert_comp_preference(ctx.get(), nullptr, 0);
+
+    // The JS layer packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a
+    // single uint32. IDs match TLSEXT_comp_cert_zlib (1), _brotli (2),
+    // _zstd (3).
+    const uint32_t packed = options_.certificate_compression;
+    const size_t len = packed & 0xff;
+    if (len > 0) {
+      // TLSEXT_comp_cert_limit bounds the zero-terminated algs array; the
+      // number of usable algorithms is one fewer.
+      constexpr size_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+      if (len > kMaxCompAlgs) {
+        validation_error_ = "Invalid certificate compression preference";
+        return SSLCtxPointer();
+      }
+      int algs[kMaxCompAlgs];
+      for (size_t i = 0; i < len; i++) {
+        algs[i] = (packed >> (8 * (i + 1))) & 0xff;
+      }
+      if (!SSL_CTX_set1_cert_comp_preference(ctx.get(), algs, len)) {
+        validation_error_ = "Failed to set certificate compression preference";
+        return SSLCtxPointer();
+      }
+      // Pre-compress the loaded certificate(s) for the preferred algorithms.
+      // Returns 0 when no certificate is loaded (e.g. a client context) or
+      // when compression did not reduce the size; both are non-fatal.
+      constexpr int kCompressAllAlgs = 0;
+      SSL_CTX_compress_certs(ctx.get(), kCompressAllAlgs);
+    }
+  }
+#endif  // NODE_OPENSSL_HAS_CERT_COMP
+
   {
     ClearErrorOnReturn clear_error_on_return;
     for (const auto& key : options_.keys) {
-      if (key.GetKeyType() != crypto::KeyType::kKeyTypePrivate) {
-        validation_error_ = "Invalid key";
-        return SSLCtxPointer();
-      }
-      if (!SSL_CTX_use_PrivateKey(ctx.get(), key.GetAsymmetricKey().get())) {
+      if (!crypto::UsePrivateKey(ctx.get(), key)) {
         validation_error_ = "Invalid key";
         return SSLCtxPointer();
       }
@@ -590,25 +684,10 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     for (const auto& crl : options_.crl) {
       uv_buf_t buf = crl;
       BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
-      DeleteFnPtr<X509_CRL, X509_CRL_free> crlptr(PEM_read_bio_X509_CRL(
-          bio.get(), nullptr, crypto::NoPasswordCallback, nullptr));
-
-      if (!crlptr) {
+      if (!crypto::AddCRL(env, ctx.get(), bio)) {
         validation_error_ = "Invalid CRL";
         return SSLCtxPointer();
       }
-
-      X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-      if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-        cert_store = crypto::NewRootCertStore(env);
-        SSL_CTX_set_cert_store(ctx.get(), cert_store);
-      }
-
-      CHECK_EQ(1, X509_STORE_add_crl(cert_store, crlptr.get()));
-      CHECK_EQ(
-          1,
-          X509_STORE_set_flags(
-              cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
     }
   }
 
@@ -624,23 +703,22 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   return ctx;
 }
 
+TLSContext* TLSContext::SelectSNIContext(std::string_view servername) {
+  DCHECK_EQ(side_, Side::SERVER);
+  if (!servername.empty()) {
+    auto it = sni_contexts_.find(servername);
+    if (it != sni_contexts_.end()) return it->second.get();
+  }
+  // No matching hostname. If this context has a certificate (from the
+  // sni['*'] wildcard identity), fall back to it. Otherwise there is no
+  // identity that can serve this connection.
+  if (SSL_CTX_get0_certificate(ctx_.get()) == nullptr) return nullptr;
+  return this;
+}
+
 int TLSContext::OnSNI(SSL* ssl, int* ad, void* arg) {
-  auto* default_ctx = static_cast<TLSContext*>(arg);
-  const char* servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
-  if (servername != nullptr) {
-    auto it = default_ctx->sni_contexts_.find(servername);
-    if (it != default_ctx->sni_contexts_.end()) {
-      SSL_set_SSL_CTX(ssl, it->second->ctx_.get());
-      return SSL_TLSEXT_ERR_OK;
-    }
-  }
-  // No matching hostname found. If the default context has a certificate
-  // (from the sni['*'] wildcard identity), fall through to use it.
-  // Otherwise, reject the connection with an unrecognized_name alert.
-  if (SSL_CTX_get0_certificate(default_ctx->ctx_.get()) == nullptr) {
-    *ad = SSL_AD_UNRECOGNIZED_NAME;
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
+  // The context for this host name was already selected and applied from
+  // the ClientHello. OpenSSL only needs the extension acknowledged here.
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -657,7 +735,7 @@ bool TLSContext::AddSNIContext(Environment* env,
 bool TLSContext::SetSNIContexts(
     Environment* env, const std::unordered_map<std::string, Options>& entries) {
   DCHECK_EQ(side_, Side::SERVER);
-  std::unordered_map<std::string, std::shared_ptr<TLSContext>> new_contexts;
+  decltype(sni_contexts_) new_contexts;
   for (const auto& [hostname, options] : entries) {
     auto ctx = std::make_shared<TLSContext>(env, Side::SERVER, options);
     if (!*ctx) return false;
@@ -703,12 +781,13 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
+      !SET(verify_hostname) || !SET(verify_peer_strict) ||
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
-      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
-      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
-      !SET_VECTOR(Store, crl)) {
+      !SET(certificate_compression) || !SET(authoritative) ||
+      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
+      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -727,6 +806,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_client ? std::string("yes") : std::string("no"));
   res += prefix + "reject unauthorized: " +
          (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "verify peer strict: " +
+         (verify_peer_strict ? std::string("yes") : std::string("no"));
   res += prefix + "enable early data: " +
          (enable_early_data ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +
@@ -735,6 +816,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_private_key ? std::string("yes") : std::string("no"));
   res += prefix + "ciphers: " + ciphers;
   res += prefix + "groups: " + groups;
+  res += prefix +
+         "certificate compression: " + std::to_string(certificate_compression);
   res += prefix + "keys: " + std::to_string(keys.size());
   res += prefix + "certs: " + std::to_string(certs.size());
   res += prefix + "ca: " + std::to_string(ca.size());
@@ -754,7 +837,7 @@ const TLSContext::Options TLSContext::Options::kDefault = {};
 
 // ============================================================================
 
-const TLSSession& TLSSession::From(const SSL* ssl) {
+TLSSession& TLSSession::From(const SSL* ssl) {
   auto ref = static_cast<ngtcp2_crypto_conn_ref*>(SSL_get_app_data(ssl));
   CHECK_NOT_NULL(ref);
   return *static_cast<TLSSession*>(ref->user_data);
@@ -839,6 +922,14 @@ void TLSSession::Initialize(
         validation_error_ = "Failed to set server name";
         ossl_context_.reset();
         return;
+      }
+
+      if (options.verify_hostname) {
+        if (!ossl_context_.set_verify_hostname(options.servername)) {
+          validation_error_ = "Failed to set verify hostname";
+          ossl_context_.reset();
+          return;
+        }
       }
 
       if (maybeSessionTicket.has_value()) {
@@ -947,12 +1038,19 @@ MaybeLocal<Value> TLSSession::cipher_version(Environment* env) const {
 }
 
 const std::string_view TLSSession::servername() const {
+  // A server caches the name from the ClientHello, which is available
+  // earlier than SSL_get_servername() and stays available while the
+  // handshake is paused. A client just reports what it asked for.
+  if (context_->side() == Side::SERVER) return servername_;
   SSLPointerRef ssl(ossl_context_);
   return ssl->getServerName().value_or(std::string_view());
 }
 
 const std::string TLSSession::protocol() const {
   CHECK(ossl_context_);
+  // As with servername(), a server has the answer cached from the
+  // ClientHello; a client learns it from the ServerHello.
+  if (context_->side() == Side::SERVER) return alpn_;
   return ossl_context_.get_selected_alpn();
 }
 
@@ -975,4 +1073,3 @@ void TLSSession::MemoryInfo(MemoryTracker* tracker) const {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

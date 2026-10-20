@@ -378,7 +378,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  ngtcp2_crypto_picotls_ctx *cptls = ngtcp2_conn_get_tls_native_handle(conn);
+  ngtcp2_crypto_picotls_ctx *cptls = ngtcp2_conn_get_tls_native_handle2(conn);
   ptls_buffer_t sendbuf;
   size_t epoch_offsets[5] = {0};
   size_t epoch =
@@ -402,7 +402,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     goto fin;
   }
 
-  if (!ngtcp2_conn_is_server(conn) &&
+  if (!ngtcp2_conn_is_server2(conn) &&
       cptls->handshake_properties.client.early_data_acceptance ==
         PTLS_EARLY_DATA_REJECTED) {
     rv = ngtcp2_conn_tls_early_data_rejected(conn);
@@ -540,7 +540,7 @@ static int set_additional_extensions(ptls_handshake_properties_t *hsprops,
     return -1;
   }
 
-  nwrite = ngtcp2_conn_encode_local_transport_params(conn, buf, buflen);
+  nwrite = ngtcp2_conn_encode_local_transport_params2(conn, buf, buflen);
   if (nwrite < 0) {
     goto fail;
   }
@@ -620,7 +620,7 @@ static int update_traffic_key_server_cb(ptls_update_traffic_key_t *self,
        * wait for the key to get the correct local transport
        * parameters from ngtcp2_conn.
        */
-      cptls = ngtcp2_conn_get_tls_native_handle(conn);
+      cptls = ngtcp2_conn_get_tls_native_handle2(conn);
 
       if (set_additional_extensions(&cptls->handshake_properties, conn) != 0) {
         return -1;

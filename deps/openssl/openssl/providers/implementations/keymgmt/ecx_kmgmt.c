@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,6 +26,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/ecx.h"
 #include "prov/securitycheck.h"
+#include "fips/fipsindicator.h"
 #ifdef S390X_EC_ASM
 #include "s390x_arch.h"
 #include <openssl/sha.h> /* For SHA512_DIGEST_LENGTH */
@@ -35,6 +36,7 @@ static OSSL_FUNC_keymgmt_new_fn x25519_new_key;
 static OSSL_FUNC_keymgmt_new_fn x448_new_key;
 static OSSL_FUNC_keymgmt_new_fn ed25519_new_key;
 static OSSL_FUNC_keymgmt_new_fn ed448_new_key;
+static OSSL_FUNC_keymgmt_free_fn ecx_free_key;
 static OSSL_FUNC_keymgmt_gen_init_fn x25519_gen_init;
 static OSSL_FUNC_keymgmt_gen_init_fn x448_gen_init;
 static OSSL_FUNC_keymgmt_gen_init_fn ed25519_gen_init;
@@ -101,6 +103,19 @@ static ossl_inline int ecx_key_type_is_ed(ECX_KEY_TYPE type)
 {
     return type == ECX_KEY_TYPE_ED25519 || type == ECX_KEY_TYPE_ED448;
 }
+
+#ifdef FIPS_MODULE
+static int ecx_gen_get_params(void *genctx, OSSL_PARAM params[])
+{
+    struct ecx_gen_ctx *gctx = genctx;
+    OSSL_PARAM *p;
+
+    if (gctx == NULL)
+        return 0;
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR);
+    return p == NULL || OSSL_PARAM_set_int(p, ecx_key_type_is_ed(gctx->type));
+}
+#endif
 
 static void *x25519_new_key(void *provctx)
 {
@@ -810,7 +825,6 @@ static void *ed25519_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (!key || ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0))
         return key;
     if (ecd_fips140_pairwise_test(key, ECX_KEY_TYPE_ED25519, 1) != 1) {
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
         ossl_ecx_key_free(key);
         return NULL;
     }
@@ -843,7 +857,6 @@ static void *ed448_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (!key || ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0))
         return key;
     if (ecd_fips140_pairwise_test(key, ECX_KEY_TYPE_ED448, 1) != 1) {
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
         ossl_ecx_key_free(key);
         return NULL;
     }
@@ -1007,10 +1020,15 @@ static int ed448_validate(const void *keydata, int selection, int checktype)
     return ecx_validate(keydata, selection, ECX_KEY_TYPE_ED448, ED448_KEYLEN);
 }
 
+static void ecx_free_key(void *keydata)
+{
+    ossl_ecx_key_free((ECX_KEY *)keydata);
+}
+
 #define MAKE_KEYMGMT_FUNCTIONS(alg)                                                   \
     const OSSL_DISPATCH ossl_##alg##_keymgmt_functions[] = {                          \
         { OSSL_FUNC_KEYMGMT_NEW, (void (*)(void))alg##_new_key },                     \
-        { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))ossl_ecx_key_free },                \
+        { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))ecx_free_key },                     \
         { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*)(void))alg##_get_params },           \
         { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*)(void))alg##_gettable_params }, \
         { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*)(void))alg##_set_params },           \
@@ -1030,7 +1048,9 @@ static int ed448_validate(const void *keydata, int selection, int checktype)
         { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))ecx_gen_cleanup },           \
         { OSSL_FUNC_KEYMGMT_LOAD, (void (*)(void))ecx_load },                         \
         { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))ecx_dup },                           \
-        OSSL_DISPATCH_END                                                             \
+        OSSL_FIPS_IND_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,                      \
+            OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS, ecx_gen_get_params)                \
+            OSSL_DISPATCH_END                                                         \
     };
 
 MAKE_KEYMGMT_FUNCTIONS(x25519)
@@ -1160,38 +1180,10 @@ static void *s390x_ecd_keygen25519(struct ecx_gen_ctx *gctx)
         0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21
     };
     static const unsigned char generator_y[] = {
-        0x58,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
-        0x66,
+        0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+        0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+        0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+        0x66, 0x66
     };
     unsigned char x_dst[32], buff[SHA512_DIGEST_LENGTH];
     ECX_KEY *key = ossl_ecx_key_new(gctx->libctx, ECX_KEY_TYPE_ED25519, 1,

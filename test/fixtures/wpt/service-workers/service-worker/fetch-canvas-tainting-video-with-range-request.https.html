@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas tainting due to video whose responses are fetched via a service worker including range requests</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<body>
+<script>
+// These tests try to test canvas tainting due to a <video> element. The video
+// src URL is same-origin as the page, but the response is fetched via a service
+// worker that does tricky things like returning opaque responses from another
+// origin. Furthermore, this tests range requests so there are multiple
+// responses.
+//
+// We test range requests by having the server return 206 Partial Content to the
+// first request (which doesn't necessarily have a "Range" header or one with a
+// byte range). Then the <video> element automatically makes ranged requests
+// (the "Range" HTTP request header specifies a byte range). The server responds
+// to these with 206 Partial Content for the given range.
+let unique = 0; // See https://bugzilla.mozilla.org/show_bug.cgi?id=1129121
+function range_request_test(script, expected, description,
+                            {remote_origin_src} = {}) {
+  promise_test(t => {
+      let frame;
+      let registration;
+      add_result_callback(() => {
+          if (frame) frame.remove();
+          if (registration) registration.unregister();
+        });
+
+      const scope = 'resources/fetch-canvas-tainting-iframe.html';
+      return service_worker_unregister_and_register(t, script, scope)
+        .then(r => {
+            registration = r;
+            return wait_for_state(t, registration.installing, 'activated');
+          })
+        .then(() => {
+            return with_iframe(scope);
+          })
+        .then(f => {
+            frame = f;
+            // Add "?PartialContent&VIDEO" to get a video resource from the
+            // server using range requests.
+            let video_url =
+              'fetch-access-control.py?PartialContent&VIDEO=' + unique++;
+            if (remote_origin_src) {
+              video_url = get_host_info().HTTPS_REMOTE_ORIGIN +
+                base_path() + 'resources/' + video_url;
+            }
+            return frame.contentWindow.create_test_case_promise(video_url);
+          })
+        .then(result => {
+            assert_equals(result, expected);
+          });
+    }, description);
+}
+
+// We want to consider a number of scenarios:
+// (1) Range responses come from a single origin, the same-origin as the page.
+//     The canvas should not be tainted.
+range_request_test(
+  'resources/fetch-event-network-fallback-worker.js',
+  'NOT_TAINTED',
+  'range responses from single origin (same-origin)');
+
+// (2) Range responses come from a single origin, cross-origin from the page
+//     (and without CORS sharing). This is not possible to test, since service
+//     worker can't make a request with a "Range" HTTP header in no-cors mode.
+
+// (3) Range responses come from multiple origins. The first response comes from
+//     cross-origin (and without CORS sharing, so is opaque). Subsequent
+//     responses come from same-origin. This should result in a load error, as regardless of canvas
+//     loading range requests from multiple opaque origins can reveal information across those origins.
+range_request_test(
+  'resources/range-request-to-different-origins-worker.js',
+  'LOAD_ERROR',
+  'range responses from multiple origins (cross-origin first)');
+
+// (4) Range responses come from multiple origins. The first response comes from
+//     same-origin. Subsequent responses come from cross-origin (and without
+//     CORS sharing). Like (2) this is not possible since the service worker
+//     cannot make range requests cross-origin.
+
+// (5) Range responses come from a single origin, with a mix of opaque and
+//     non-opaque responses. The first request uses 'no-cors' mode to
+//     receive an opaque response, and subsequent range requests use 'cors'
+//     to receive non-opaque responses. The canvas should be tainted.
+range_request_test(
+  'resources/range-request-with-different-cors-modes-worker.js',
+  'TAINTED',
+  'range responses from single origin with both opaque and non-opaque responses');
+
+// (6) Range responses come from a single origin, with a mix of opaque and
+//     non-opaque responses. The first request uses 'cors' mode to
+//     receive an non-opaque response, and subsequent range requests use
+//     'no-cors' to receive non-opaque responses. Like (2) this is not possible.
+
+// (7) The first Range response is synthesized using the Response constructor.
+//     Subsequent responses are same-origin, not handled by the service worker.
+range_request_test(
+  'resources/range-request-with-synth-head-worker.js',
+  'NOT_TAINTED',
+  'synth and same-origin fallback range responses');
+
+// (8) The first Range response is synthesized using the Response constructor.
+//     Subsequent responses are cross-origin, not handled by the service worker,
+//     no-cors and opaque.
+range_request_test(
+  'resources/range-request-with-synth-head-worker.js',
+  'LOAD_ERROR',
+  'synth and cross-origin fallback range responses',
+  {remote_origin_src: true});
+</script>
+</body>

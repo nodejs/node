@@ -101,7 +101,7 @@ inline constexpr auto H3_ALPN_V1 = span_from_lit(RAW_H3_ALPN);
 
 inline constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
 
-inline constexpr size_t MAX_RECV_PKTS = 64;
+inline constexpr auto MAX_RECV_PKTS = 64UZ;
 
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.
@@ -187,7 +187,8 @@ void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa);
 
 template <>
 struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
-  auto format(ngtcp2::Error e, format_context &ctx) const {
+  template <typename FormatContext>
+  auto format(ngtcp2::Error e, FormatContext &ctx) const {
     auto s = "unknown"sv;
 
     switch (e) {

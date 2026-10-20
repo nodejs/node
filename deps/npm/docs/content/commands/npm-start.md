@@ -55,6 +55,9 @@ Note that commands explicitly intended to run a particular script, such as
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
 
+Setting `ignore-scripts` also disables `.npm-extension` execution, as if
+`ignore-extension` were set.
+
 
 
 #### `script-shell`

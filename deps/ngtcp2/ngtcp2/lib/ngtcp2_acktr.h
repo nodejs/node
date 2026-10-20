@@ -35,59 +35,17 @@
 #include "ngtcp2_ringbuf.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pkt.h"
-#include "ngtcp2_objalloc.h"
 
-/* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
+/* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_pkt_range
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT (NGTCP2_MAX_ACK_RANGES + 1)
 
 typedef struct ngtcp2_log ngtcp2_log;
 
-/*
- * ngtcp2_acktr_entry is a range of packets which need to be acked.
- */
-typedef struct ngtcp2_acktr_entry {
-  union {
-    struct {
-      /* pkt_num is the largest packet number to acknowledge in this
-         range. */
-      int64_t pkt_num;
-      /* len is the consecutive packets started from pkt_num which
-         includes pkt_num itself counting in decreasing order.  So pkt_num
-         = 987 and len = 2, this entry includes packet 987 and 986. */
-      size_t len;
-      /* tstamp is the timestamp when a packet denoted by pkt_num is
-         received. */
-      ngtcp2_tstamp tstamp;
-    };
-
-    ngtcp2_opl_entry oplent;
-  };
-} ngtcp2_acktr_entry;
-
-ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent)
-
-/*
- * ngtcp2_acktr_entry_objalloc_new allocates memory for ent, and
- * initializes it with the given parameters.  The pointer to the
- * allocated object is stored to |*ent|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                                    ngtcp2_tstamp tstamp,
-                                    ngtcp2_objalloc *objalloc);
-
-/*
- * ngtcp2_acktr_entry_objalloc_del deallocates memory allocated for
- * |ent|.
- */
-void ngtcp2_acktr_entry_objalloc_del(ngtcp2_acktr_entry *ent,
-                                     ngtcp2_objalloc *objalloc);
+typedef struct ngtcp2_pkt_range {
+  int64_t pkt_num;
+  size_t len;
+} ngtcp2_pkt_range;
 
 typedef struct ngtcp2_acktr_ack_entry {
   /* largest_ack is the largest packet number in outgoing ACK frame */
@@ -114,14 +72,13 @@ ngtcp2_static_ringbuf_def(acks, 32, sizeof(ngtcp2_acktr_ack_entry))
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
 typedef struct ngtcp2_acktr {
-  ngtcp2_objalloc objalloc;
   ngtcp2_static_ringbuf_acks acks;
-  /* ents includes ngtcp2_acktr_entry sorted by decreasing order of
-     packet number. */
+  /* ents includes ngtcp2_pkt_range as key sorted by decreasing order
+     of packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
-     first time after the last outgoing ACK frame. */
+  /* first_unacked_ts is timestamp when a packet to acknowledge is
+     added first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
   /* rx_npkt is the number of ACK eliciting packets received without
      sending ACK. */
@@ -158,8 +115,7 @@ void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
                        const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees
- * any ngtcp2_acktr_entry added to |acktr|.
+ * ngtcp2_acktr_free frees resources allocated for |acktr|.
  */
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
 
@@ -180,10 +136,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 
 /*
  * ngtcp2_acktr_forget removes all entries which have the packet
- * number that is equal to or less than ent->pkt_num.  This function
- * assumes that |acktr| includes |ent|.
+ * number that is equal to or less than |pkt_num|.  This function
+ * assumes that |acktr| includes the entry whose key is |pkt_num|.
  */
-void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, int64_t pkt_num);
 
 /*
  * ngtcp2_acktr_get returns the iterator to pointer to the entry which
@@ -211,7 +167,7 @@ ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, int64_t pkt_num, int64_t largest_ack);
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
  * |pkt_num| is a packet number which includes |fr|.  If we receive
  * ACK which acknowledges the ACKs added by ngtcp2_acktr_add_ack,
- * ngtcp2_acktr_entry which the outgoing ACK acknowledges is removed.
+ * ngtcp2_pkt_range which the outgoing ACK acknowledges is removed.
  */
 void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr);
 

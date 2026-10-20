@@ -161,6 +161,9 @@
     'v8_enable_pointer_compression_shared_cage%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
+    # Size of the contiguous read-only space reservation in the shared cage.
+    'v8_contiguous_compressed_ro_space_size_mb%': 16,
+
     # Sets -dV8_SHORT_BUILTIN_CALLS
     'v8_enable_short_builtin_calls%': 0,
 
@@ -200,8 +203,7 @@
     # Enable seeded array index hash.
     'v8_enable_seeded_array_index_hash%': 1,
 
-    # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
-    # currently implemented.
+    # Use Perfetto (https://perfetto.dev) as the default TracingController.
     'v8_use_perfetto%': 0,
 
     # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
@@ -235,9 +237,6 @@
     # Enable the experimental V8 sandbox.
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
-
-    # Enable leaptiering
-    'v8_enable_leaptiering%': 1,
 
     # Enable support for external code range relative to the pointer compression
     # cage.
@@ -292,6 +291,9 @@
     # ReadOnlySpace.
     'v8_enable_extensible_ro_snapshot%': 1,
 
+    # Use the encoding of undefined in double values.
+    'v8_enable_undefined_double%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -301,6 +303,11 @@
     # Enable Temporal API. Enabling this feature will
     # add a dependency on the temporal_rs library.
     'v8_enable_temporal_support%': 0,
+    # Enable Temporal even with system-icu.
+    # This will use an improved codepath which does not
+    # depend on internal ICU headers.
+    # This option can be on unconditionally.
+    'v8_enable_temporal_systemicu%': 1,
 
     # Lite mode disables a number of performance optimizations to reduce memory
     # at the cost of performance.
@@ -366,7 +373,11 @@
         'defines': ['V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES'],
       }],
       ['v8_enable_pointer_compression_shared_cage==1', {
-        'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
+        'defines': [
+          'V8_COMPRESS_POINTERS_IN_SHARED_CAGE',
+          'V8_CONTIGUOUS_COMPRESSED_RO_SPACE',
+          'V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=<(v8_contiguous_compressed_ro_space_size_mb)',
+        ],
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
@@ -420,6 +431,9 @@
       ['v8_enable_temporal_support==1', {
         'defines': ['V8_TEMPORAL_SUPPORT',],
       }],
+       ['v8_enable_temporal_systemicu==1', {
+        'defines': ['V8_ENABLE_TEMPORAL_SYSTEMICU',],
+      }],
       # Refs: https://github.com/nodejs/node/pull/23801
       # ['v8_enable_handle_zapping==1', {
       #  'defines': ['ENABLE_HANDLE_ZAPPING',],
@@ -455,15 +469,30 @@
         'defines': ['V8_ENABLE_SEEDED_ARRAY_INDEX_HASH',],
       }],
       ['dcheck_always_on!=0', {
-        'defines': ['DEBUG',],
+        'defines': [
+          'DEBUG',
+          'V8_LOGGING_LEVEL=2',  # Print file, line, message on fatal checks
+        ],
       }, {
         'defines': ['NDEBUG',],
+        'configurations': {
+          'Debug': {
+            'defines': ['V8_LOGGING_LEVEL=2',],
+          },
+          'Release': {
+            # Only log message (without file or line) on fatal checks
+            'defines': ['V8_LOGGING_LEVEL=1',],
+          },
+        },
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
       }],
       ['v8_use_perfetto==1', {
-        'defines': ['V8_USE_PERFETTO',],
+        'defines': [
+          'V8_USE_PERFETTO',
+          'V8_USE_PERFETTO_SDK',
+        ],
       }],
       ['v8_enable_map_packing==1', {
         'defines': ['V8_MAP_PACKING',],
@@ -495,8 +524,8 @@
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
       }],
-      ['v8_enable_leaptiering==1', {
-        'defines': ['V8_ENABLE_LEAPTIERING',],
+      ['v8_enable_undefined_double==1', {
+        'defines': ['V8_ENABLE_UNDEFINED_DOUBLE',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
@@ -550,6 +579,9 @@
     'defines': [
       'V8_GYP_BUILD',
       'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=<(v8_typed_array_max_size_in_heap)',
+      # See deps/v8/src/objects/instance-types-gen.h and
+      # https://github.com/nodejs/build/issues/4350
+      'V8_USE_METAGEN_INSTANCE_TYPES=0',
     ],  # defines
   },  # target_defaults
 }

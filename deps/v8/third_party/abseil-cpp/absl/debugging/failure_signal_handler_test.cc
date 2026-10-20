@@ -21,9 +21,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"

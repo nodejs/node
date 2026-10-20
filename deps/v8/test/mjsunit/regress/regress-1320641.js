@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --mock-arraybuffer-allocator
 
 function foo(){
   const xs = new Uint16Array(3775336418);

@@ -1,0 +1,22 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatResult<(), MyLocalStruct> },\nNone, &SpanLocation::None)"
+---
+Result:
+  - Unit
+  - Named:
+      path:
+        elements:
+          - - MyLocalStruct
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+      lifetimes: []
+  - Diplomat

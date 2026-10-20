@@ -11,6 +11,7 @@
 #else  // defined(DEBUG)
 #include "LIEF/LIEF.hpp"
 #endif  // defined(DEBUG)
+#include "LIEF/version.h"
 #endif  // HAVE_LIEF
 
 #include "debug_utils-inl.h"
@@ -126,6 +127,16 @@ InjectOutput InjectIntoELF(const std::vector<uint8_t>& executable,
             {},
             SPrintF("Failed to create new ELF note %s", note_name)};
   }
+  // Left to itself LIEF moves a non-PIE executable's program headers into
+  // the largest gap between two PT_LOADs and extends the earlier one over it,
+  // which can leave that segment sharing a page with the next; kernels that
+  // map segments with MAP_FIXED_NOREPLACE (Linux < 5.4, RHEL 8) then refuse
+  // to run the file. After .bss every segment keeps its own pages.
+  if (binary->header().file_type() == LIEF::ELF::Header::FILE_TYPE::EXEC &&
+      binary->relocate_phdr_table(LIEF::ELF::Binary::PHDR_RELOC::BSS_END) ==
+          0) {
+    return {InjectResult::kError, {}, "Failed to relocate ELF program headers"};
+  }
   binary->add(*new_note);
 
   LIEF::ELF::Builder::config_t cfg;
@@ -165,8 +176,13 @@ InjectOutput InjectIntoMachO(const std::vector<uint8_t>& executable,
           LIEF::MachO::SegmentCommand::VM_PROTECTIONS::READ));
       new_segment.init_protection(static_cast<uint32_t>(
           LIEF::MachO::SegmentCommand::VM_PROTECTIONS::READ));
+#if LIEF_VERSION_MAJOR >= 1
+      auto section = LIEF::MachO::Section::create(section_name, data);
+      new_segment.add_section(*section);
+#else
       LIEF::MachO::Section section(section_name, data);
       new_segment.add_section(section);
+#endif
       binary.add(new_segment);
     } else {
       // Check if the section exists
@@ -181,8 +197,13 @@ InjectOutput InjectIntoMachO(const std::vector<uint8_t>& executable,
                         segment_name,
                         section_name)};
       }
+#if LIEF_VERSION_MAJOR >= 1
+      auto section = LIEF::MachO::Section::create(section_name, data);
+      binary.add_section(*segment, *section);
+#else
       LIEF::MachO::Section section(section_name, data);
       binary.add_section(*segment, section);
+#endif
     }
 
     // It will need to be signed again anyway, so remove the signature
@@ -285,7 +306,15 @@ InjectOutput InjectIntoPE(const std::vector<uint8_t>& executable,
   cfg.resources = true;
   cfg.rsrc_section = ".rsrc";  // ensure section name
   LIEF::PE::Builder builder(*binary, cfg);
+#if LIEF_VERSION_MAJOR >= 1
+  // LIEF 1.0.0 does not export the result's bool conversion in shared builds.
+  // TODO(inoway46): Remove this workaround once the upstream issue is fixed.
+  // https://github.com/lief-project/LIEF/issues/1387
+  builder.build();
+  if (builder.get_build().empty()) {
+#else
   if (!builder.build()) {
+#endif
     return {InjectResult::kError, {}, "Failed to build modified PE binary"};
   }
 

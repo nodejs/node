@@ -24,8 +24,6 @@
       'src/inspector/protocol_helper.h',
       'src/inspector/runtime_agent.cc',
       'src/inspector/runtime_agent.h',
-      'src/inspector/tracing_agent.cc',
-      'src/inspector/tracing_agent.h',
       'src/inspector/worker_agent.cc',
       'src/inspector/worker_agent.h',
       'src/inspector/network_inspector.cc',
@@ -50,6 +48,10 @@
       'src/inspector/storage_agent.cc',
       'src/inspector/notification_emitter.h',
       'src/inspector/notification_emitter.cc',
+    ],
+    'node_inspector_without_perfetto_sources': [
+      'src/inspector/tracing_agent.cc',
+      'src/inspector/tracing_agent.h',
     ],
     'node_inspector_generated_sources': [
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
@@ -184,5 +186,12 @@
         '<@(_outputs)',
       ],
     },
+  ],
+  'conditions': [
+    ['v8_use_perfetto!=1', {
+      'sources': [
+        '<@(node_inspector_without_perfetto_sources)',
+      ],
+    }],
   ],
 }

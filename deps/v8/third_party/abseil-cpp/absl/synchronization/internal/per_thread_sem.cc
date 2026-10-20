@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file is a no-op if the required LowLevelAlloc support is missing.
-#include "absl/base/internal/low_level_alloc.h"
-#ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
+#include "absl/base/internal/low_level_alloc.h"  // IWYU pragma: keep
 
-#include "absl/synchronization/internal/per_thread_sem.h"
+// This file is a no-op if the required LowLevelAlloc support is missing.
+#ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/thread_identity.h"
+#include "absl/synchronization/internal/create_thread_identity.h"
+#include "absl/synchronization/internal/kernel_timeout.h"
+#include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/synchronization/internal/waiter.h"
 
 namespace absl {

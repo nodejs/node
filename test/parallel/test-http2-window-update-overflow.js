@@ -64,8 +64,8 @@ server.listen(0, common.mustCall(() => {
         conn.write(ack);
 
         // WINDOW_UPDATE on stream 0 (connection level) with increment 2^31-1.
-        // Default connection window is 65535, so the new total would be
-        // 65535 + 2147483647 = 2147549182 > 2^31-1, triggering
+        // Default connection window is now 33554432, so the new total would be
+        // 33554432 + 2147483647 = 2181038079 > 2^31-1, triggering
         // NGHTTP2_ERR_FLOW_CONTROL inside nghttp2.
         const windowUpdate = Buffer.alloc(13);
         windowUpdate.writeUIntBE(4, 0, 3);          // length = 4

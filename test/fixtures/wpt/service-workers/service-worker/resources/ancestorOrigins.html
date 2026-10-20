@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>WindowClient ancestorOrigins helper</title>
+<script>
+(async function() {
+  const registration =
+    await navigator.serviceWorker.register("ancestorOrigins.js", { scope: './' });
+
+  const worker =
+    registration.installing || registration.waiting || registration.active;
+
+  if (!worker) {
+    throw new Error("No service worker on registration");
+  }
+
+  if (worker.state !== "activated") {
+    await new Promise(resolve => {
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "activated") {
+          resolve();
+        }
+      });
+    });
+  }
+
+  async function gimmeAncestorOrigins() {
+    worker.postMessage("gimme!");
+    const msgEvt = await new Promise(resolve => {
+      navigator.serviceWorker.addEventListener("message", resolve, { once: true });
+    });
+    return msgEvt.data;
+  }
+
+  const { ancestorOrigins, sameObject } = await gimmeAncestorOrigins();
+  const locationAO = Array.from(location.ancestorOrigins ?? []);
+
+  await registration.unregister();
+
+  parent.postMessage({ id: window.name, swAO: ancestorOrigins, sameObject, locationAO }, '*');
+})();
+</script>

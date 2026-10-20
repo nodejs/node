@@ -45,7 +45,7 @@ transitioning macro FindIndexAllElements(
   return -1;
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.findIndex
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.findIndex
 transitioning javascript builtin TypedArrayPrototypeFindIndex(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = predicate

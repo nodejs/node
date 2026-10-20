@@ -1,0 +1,8 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in IncludeDef::test: Error parsing `custom_extra_code (a = "" , location = "unknown")`: Unrecognized include ident `a`
+Lowering error in IncludeDef::test: Expected `source=`, `file=`, `location=`. Got: Source: None Location: None
+Lowering error in IncludeDef::test: Include location `unknown` unsupported.
+Lowering error in IncludeDef::test: Expected `source=`, `file=`, `location=`. Got: Source: Some(Source("test")) Location: None

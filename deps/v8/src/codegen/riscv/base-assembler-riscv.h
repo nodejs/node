@@ -181,6 +181,8 @@ class AssemblerRiscvBase {
                   uint8_t uimm8);
   void GenInstrCBA(uint8_t funct3, uint8_t funct2, BaseOpcode opcode,
                    Register rs1, int8_t imm6);
+  void GenInstrCU(uint8_t funct3, uint8_t funct2, BaseOpcode opcode,
+                  Register rd, uint8_t nzuimm);
 
   // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
   void GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,

@@ -49,10 +49,7 @@ struct ToStringHelper {
     return value.ToStringView();
   }
 
-  template <typename T,
-            typename test_for_number = typename std::
-                enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>, bool>,
-            typename dummy = bool>
+  template <NumericOrEnum T>
   static std::string Convert(const T& value) {
     return std::to_string(value);
   }
@@ -81,9 +78,7 @@ struct ToStringHelper {
     return utf8_value.ToString();
   }
 
-  template <unsigned BASE_BITS,
-            typename T,
-            typename = std::enable_if_t<std::is_integral_v<T>>>
+  template <unsigned BASE_BITS, std::integral T>
   static std::string BaseConvert(const T& value) {
     auto v = static_cast<uint64_t>(value);
     char ret[3 * sizeof(T)];
@@ -96,9 +91,8 @@ struct ToStringHelper {
     } while ((v >>= BASE_BITS) != 0);
     return ptr;
   }
-  template <unsigned BASE_BITS,
-            typename T,
-            typename = std::enable_if_t<!std::is_integral_v<T>>>
+  template <unsigned BASE_BITS, typename T>
+    requires(!std::integral<T>)
   static auto BaseConvert(T&& value) {
     return Convert(std::forward<T>(value));
   }

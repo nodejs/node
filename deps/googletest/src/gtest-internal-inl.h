@@ -587,7 +587,7 @@ class GTEST_API_ UnitTestImpl {
   // total_test_suite_count() - 1. If i is not in that range, returns NULL.
   const TestSuite* GetTestSuite(int i) const {
     const int index = GetElementOr(test_suite_indices_, i, -1);
-    return index < 0 ? nullptr : test_suites_[static_cast<size_t>(i)];
+    return index < 0 ? nullptr : test_suites_[static_cast<size_t>(index)];
   }
 
   //  Legacy API is deprecated but still available
@@ -980,26 +980,7 @@ inline UnitTestImpl* GetUnitTestImpl() {
   return UnitTest::GetInstance()->impl();
 }
 
-#ifdef GTEST_USES_SIMPLE_RE
 
-// Internal helper functions for implementing the simple regular
-// expression matcher.
-GTEST_API_ bool IsInSet(char ch, const char* str);
-GTEST_API_ bool IsAsciiDigit(char ch);
-GTEST_API_ bool IsAsciiPunct(char ch);
-GTEST_API_ bool IsRepeat(char ch);
-GTEST_API_ bool IsAsciiWhiteSpace(char ch);
-GTEST_API_ bool IsAsciiWordChar(char ch);
-GTEST_API_ bool IsValidEscape(char ch);
-GTEST_API_ bool AtomMatchesChar(bool escaped, char pattern, char ch);
-GTEST_API_ bool ValidateRegex(const char* regex);
-GTEST_API_ bool MatchRegexAtHead(const char* regex, const char* str);
-GTEST_API_ bool MatchRepetitionAndRegexAtHead(bool escaped, char ch,
-                                              char repeat, const char* regex,
-                                              const char* str);
-GTEST_API_ bool MatchRegexAnywhere(const char* regex, const char* str);
-
-#endif  // GTEST_USES_SIMPLE_RE
 
 // Parses the command line for Google Test flags, without initializing
 // other parts of Google Test.
@@ -1106,7 +1087,7 @@ class StreamingListener : public EmptyTestEventListener {
       GTEST_CHECK_(sockfd_ != -1)
           << "Send() can be called only when there is a connection.";
 
-      const auto len = static_cast<size_t>(message.length());
+      const size_t len = message.length();
       if (write(sockfd_, message.c_str(), len) != static_cast<ssize_t>(len)) {
         GTEST_LOG_(WARNING) << "stream_result_to: failed to stream to "
                             << host_name_ << ":" << port_num_;

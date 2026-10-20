@@ -112,6 +112,27 @@ async function validateReadLength(len) {
   }
 }
 
+async function validateReadLengthCoercedFromString() {
+  // Align with fs.read / fs.readSync (`length |= 0`). A non-number length
+  // must not reach node::fs::Read (CHECK args[3]->IsInt32()).
+  const buf = Buffer.alloc(4);
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  try {
+    const { bytesRead } = await fileHandle.read(buf, 0, '1', 0);
+    assert.strictEqual(bytesRead, 1);
+    const { bytesRead: bytesReadOptions } = await fileHandle.read({
+      buffer: buf,
+      offset: 0,
+      length: '1',
+      position: 0,
+    });
+    assert.strictEqual(bytesReadOptions, 1);
+  } finally {
+    await fileHandle.close();
+  }
+}
+
 async function validateReadWithNoOptions(byte) {
   const buf = Buffer.alloc(byte);
   const filePath = fixtures.path('x.txt');
@@ -144,6 +165,7 @@ async function validateReadWithNoOptions(byte) {
   await validateReadWithPositionZero();
   await validateReadLength(0);
   await validateReadLength(1);
+  await validateReadLengthCoercedFromString();
   await validateReadWithNoOptions(0);
   await validateReadWithNoOptions(1);
 })().then(common.mustCall());

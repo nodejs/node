@@ -1,6 +1,6 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
+#include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -13,15 +13,21 @@
 #include <node_realm-inl.h>
 #include <node_sockaddr-inl.h>
 #include <v8.h>
+#include "application.h"
 #include "bindingdata.h"
 #include "session.h"
 #include "session_manager.h"
+#include "streams.h"
 
 namespace node {
 
 using mem::kReserveSizeAndAlign;
+using v8::Array;
+using v8::DictionaryTemplate;
 using v8::Function;
 using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -30,33 +36,30 @@ using v8::Value;
 namespace quic {
 
 // ============================================================================
-// Thread-local QUIC allocator.
+// QUIC allocator.
 //
-// Both ngtcp2 and nghttp3 take an allocator struct (ngtcp2_mem /
-// nghttp3_mem) whose pointer is stored inside every object they
-// allocate. Some of those objects — notably nghttp3 rcbufs backing
-// V8 external strings — can outlive the BindingData that created them
-// (freed during V8 isolate teardown, after Environment cleanup).
-//
-// To handle this safely, both allocators live in a thread-local static
-// struct that is never destroyed. Memory tracking goes through the
-// BindingData pointer when it is alive and is silently skipped during
-// teardown (after ~BindingData nulls the pointer).
+// ngtcp2 and nghttp3 keep a pointer to their allocator struct in every object
+// they allocate, and nghttp3 rcbufs backing V8 external strings can be freed
+// after the BindingData is gone. A QuicAllocState is therefore deleted only
+// once its BindingData has been destroyed and its last allocation freed.
 //
 // The allocation functions use the same prepended-size-header scheme as
 // NgLibMemoryManager (node_mem-inl.h) so that frees always know the
 // allocation size regardless of whether BindingData is still around.
 
-namespace {
 struct QuicAllocState {
-  BindingData* binding = nullptr;
+  BindingData* binding;
+  size_t live_allocations = 0;
   ngtcp2_mem ngtcp2 = {};
   nghttp3_mem nghttp3 = {};
-};
-thread_local QuicAllocState quic_alloc_state;
 
-// Core allocation functions shared by both ngtcp2 and nghttp3.
-// user_data always points to the thread-local QuicAllocState.
+  void OnFreed() {
+    CHECK_GT(live_allocations, 0);
+    if (--live_allocations == 0 && binding == nullptr) delete this;
+  }
+};
+
+namespace {
 
 void* QuicRealloc(void* ptr, size_t size, void* user_data) {
   auto* state = static_cast<QuicAllocState*>(user_data);
@@ -71,6 +74,10 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
     previous_size = *reinterpret_cast<size_t*>(original_ptr);
     if (previous_size == 0) {
       char* ret = UncheckedRealloc(original_ptr, size);
+      if (size == 0) {
+        state->OnFreed();
+        return nullptr;
+      }
       if (ret != nullptr) ret += kReserveSizeAndAlign;
       return ret;
     }
@@ -89,6 +96,7 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
       state->binding->env()->external_memory_accounter()->Update(
           state->binding->env()->isolate(), new_size);
     }
+    if (ptr == nullptr) state->live_allocations++;
     *reinterpret_cast<size_t*>(mem) = size;
     mem += kReserveSizeAndAlign;
   } else if (size == 0) {
@@ -97,6 +105,7 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
       state->binding->env()->external_memory_accounter()->Decrease(
           state->binding->env()->isolate(), previous_size);
     }
+    if (ptr != nullptr) state->OnFreed();
   }
   return mem;
 }
@@ -148,36 +157,97 @@ void* Nghttp3Realloc(void* ptr, size_t size, void* ud) {
 }
 }  // namespace
 
+// ============================================================================
+// CheckWrap / CheckWrapHandle
+
+void CheckWrap::Start() {
+  if (check_.data == nullptr) return;
+  uv_check_start(&check_, OnCheck);
+}
+
+void CheckWrap::Stop() {
+  if (check_.data == nullptr) return;
+  uv_check_stop(&check_);
+}
+
+void CheckWrap::Close() {
+  check_.data = nullptr;
+  env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&check_), CheckClosedCb);
+}
+
+void CheckWrap::Ref() {
+  if (check_.data == nullptr) return;
+  uv_ref(reinterpret_cast<uv_handle_t*>(&check_));
+}
+
+void CheckWrap::Unref() {
+  if (check_.data == nullptr) return;
+  uv_unref(reinterpret_cast<uv_handle_t*>(&check_));
+}
+
+void CheckWrap::OnCheck(uv_check_t* check) {
+  CheckWrap* wrap = ContainerOf(&CheckWrap::check_, check);
+  wrap->fn_();
+}
+
+void CheckWrap::CheckClosedCb(uv_handle_t* handle) {
+  std::unique_ptr<CheckWrap> ptr(
+      ContainerOf(&CheckWrap::check_, reinterpret_cast<uv_check_t*>(handle)));
+}
+
+void CheckWrapHandle::Start() {
+  if (check_ != nullptr) check_->Start();
+}
+
+void CheckWrapHandle::Stop() {
+  if (check_ != nullptr) check_->Stop();
+}
+
+void CheckWrapHandle::Close() {
+  if (check_ != nullptr) {
+    check_->env()->RemoveCleanupHook(CleanupHook, this);
+    check_->Close();
+  }
+  check_ = nullptr;
+}
+
+void CheckWrapHandle::Ref() {
+  if (check_ != nullptr) check_->Ref();
+}
+
+void CheckWrapHandle::Unref() {
+  if (check_ != nullptr) check_->Unref();
+}
+
+void CheckWrapHandle::MemoryInfo(MemoryTracker* tracker) const {
+  if (check_ != nullptr) tracker->TrackField("check", *check_);
+}
+
+void CheckWrapHandle::CleanupHook(void* data) {
+  static_cast<CheckWrapHandle*>(data)->Close();
+}
+
+// ============================================================================
+
 BindingData& BindingData::Get(Environment* env) {
   return *(env->principal_realm()->GetBindingData<BindingData>());
 }
 
 BindingData::~BindingData() {
-  quic_alloc_state.binding = nullptr;
+  alloc_state_->binding = nullptr;
+  if (alloc_state_->live_allocations == 0) delete alloc_state_;
+  // flush_check_ is cleaned up by ~CheckWrapHandle() after the destructor
+  // body completes. The inner CheckWrap (and its uv_check_t) will be freed
+  // later by the uv_close callback, after CleanupHandles() runs uv_run().
+  pending_flush_sessions_.clear();
 }
 
 ngtcp2_mem* BindingData::ngtcp2_allocator() {
-  quic_alloc_state.binding = this;
-  quic_alloc_state.ngtcp2 = {
-      &quic_alloc_state,
-      Ngtcp2Malloc,
-      Ngtcp2Free,
-      Ngtcp2Calloc,
-      Ngtcp2Realloc,
-  };
-  return &quic_alloc_state.ngtcp2;
+  return &alloc_state_->ngtcp2;
 }
 
 nghttp3_mem* BindingData::nghttp3_allocator() {
-  quic_alloc_state.binding = this;
-  quic_alloc_state.nghttp3 = {
-      &quic_alloc_state,
-      Nghttp3Malloc,
-      Nghttp3Free,
-      Nghttp3Calloc,
-      Nghttp3Realloc,
-  };
-  return &quic_alloc_state.nghttp3;
+  return &alloc_state_->nghttp3;
 }
 
 void BindingData::CheckAllocatedSize(size_t previous_size) const {
@@ -197,7 +267,7 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 // Forwards detailed(verbose) debugging information from nghttp3. Enabled using
 // the NODE_DEBUG_NATIVE=NGHTTP3 category.
 void nghttp3_debug_log(const char* fmt, va_list args) {
-  auto isolate = v8::Isolate::GetCurrent();
+  auto isolate = Isolate::GetCurrent();
   if (isolate == nullptr) return;
   auto env = Environment::GetCurrent(isolate);
   if (env->enabled_debug_list()->enabled(DebugCategory::NGHTTP3)) {
@@ -209,6 +279,26 @@ void nghttp3_debug_log(const char* fmt, va_list args) {
 void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   nghttp3_set_debug_vprintf_callback(nghttp3_debug_log);
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
+  SetMethod(realm->context(), target, "sendHeaders", SendHeaders);
+  SetMethod(realm->context(), target, "setHeadersInterest", SetHeadersInterest);
+
+  constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
+      static_cast<uint8_t>(HeadersKind::HINTS);
+  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
+      static_cast<uint8_t>(HeadersKind::INITIAL);
+  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
+      static_cast<uint8_t>(HeadersKind::TRAILING);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
+      static_cast<uint8_t>(HeadersFlags::NONE);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
+      static_cast<uint8_t>(HeadersFlags::TERMINAL);
+
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
 
@@ -216,11 +306,53 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IllegalConstructor);
   registry->Register(SetCallbacks);
+  registry->Register(SendHeaders);
+  registry->Register(SetHeadersInterest);
+}
+
+JS_METHOD_IMPL(BindingData::SendHeaders) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsUint32());  // Kind
+  CHECK(args[2]->IsArray());   // Headers
+  CHECK(args[3]->IsUint32());  // Flags
+
+  HeadersKind kind = FromV8Value<HeadersKind>(args[1]);
+  Local<Array> headers = args[2].As<Array>();
+  HeadersFlags flags = FromV8Value<HeadersFlags>(args[3]);
+
+  args.GetReturnValue().Set(stream->session().application().SendHeaders(
+      *stream, kind, headers, flags));
+}
+
+JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsBoolean());
+  CHECK(args[2]->IsBoolean());
+  stream->session().application().SetHeadersInterest(
+      *stream, args[1]->IsTrue(), args[2]->IsTrue());
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
-    : BaseObject(realm, object) {
+    : BaseObject(realm, object),
+      alloc_state_(new QuicAllocState{this}),
+      flush_check_(env(), [this]() { OnFlushCheck(); }) {
+  alloc_state_->ngtcp2 = {
+      alloc_state_, Ngtcp2Malloc, Ngtcp2Free, Ngtcp2Calloc, Ngtcp2Realloc};
+  alloc_state_->nghttp3 = {
+      alloc_state_, Nghttp3Malloc, Nghttp3Free, Nghttp3Calloc, Nghttp3Realloc};
   MakeWeak();
+  // Unref so the check handle doesn't keep the event loop alive on its own.
+  flush_check_.Unref();
+  // Ensure Clean() below is called before the tearing anything down.
+  env()->cleanable_queue()->PushFront(this);
+}
+
+void BindingData::Clean() {
+  // Make sure sessions are always properly destroyed. This does nothing in
+  // a clean shutdown, but is required for cases like worker.terminate().
+  if (session_manager_) session_manager_->DestroyAllSessions();
 }
 
 SessionManager& BindingData::session_manager() {
@@ -228,6 +360,44 @@ SessionManager& BindingData::session_manager() {
     session_manager_ = std::make_unique<SessionManager>();
   }
   return *session_manager_;
+}
+
+void BindingData::ScheduleSessionFlush(const BaseObjectPtr<Session>& session) {
+  pending_flush_sessions_.push_back(session);
+  if (!flush_check_started_) {
+    flush_check_.Start();
+    flush_check_started_ = true;
+  }
+}
+
+void BindingData::OnFlushCheck() {
+  if (pending_flush_sessions_.empty()) {
+    flush_check_.Stop();
+    flush_check_started_ = false;
+    return;
+  }
+
+  HandleScope scope(env()->isolate());
+
+  // Swap to a local vector before iterating. SendPendingData may trigger
+  // MakeCallback which runs JS that could cause more packet receives via
+  // re-entry (e.g., a stream data callback that synchronously writes to
+  // another session). Any sessions added during the flush remain in
+  // pending_flush_sessions_ and are picked up on the next check tick.
+  auto sessions = std::move(pending_flush_sessions_);
+  for (auto& session : sessions) {
+    session->flags_.pending_flush = false;
+    if (!session->is_destroyed()) {
+      session->FlushPendingData();
+    }
+  }
+
+  // If no new sessions were added during the flush, stop the check
+  // to avoid per-tick callback overhead when idle.
+  if (pending_flush_sessions_.empty()) {
+    flush_check_.Stop();
+    flush_check_started_ = false;
+  }
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
@@ -257,6 +427,26 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 QUIC_CONSTRUCTORS(V)
 
 #undef V
+
+void BindingData::set_transport_params_template(
+    Local<DictionaryTemplate> tmpl) {
+  transport_params_template_.Reset(env()->isolate(), tmpl);
+}
+
+Local<DictionaryTemplate> BindingData::transport_params_template() const {
+  return PersistentToLocal::Default(env()->isolate(),
+                                    transport_params_template_);
+}
+
+void BindingData::set_application_options_template(
+    Local<DictionaryTemplate> tmpl) {
+  application_options_template_.Reset(env()->isolate(), tmpl);
+}
+
+Local<DictionaryTemplate> BindingData::application_options_template() const {
+  return PersistentToLocal::Default(env()->isolate(),
+                                    application_options_template_);
+}
 
 #define V(name, _)                                                             \
   void BindingData::set_##name##_callback(Local<Function> fn) {                \
@@ -295,6 +485,14 @@ QUIC_JS_CALLBACKS(V)
 
 #undef V
 
+Local<String> BindingData::error_name_string(const char* name) {
+  auto& slot = error_name_strings_[name];
+  if (slot.IsEmpty()) {
+    slot.Set(env()->isolate(), OneByteString(env()->isolate(), name));
+  }
+  return slot.Get(env()->isolate());
+}
+
 JS_METHOD_IMPL(BindingData::SetCallbacks) {
   auto env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
@@ -318,28 +516,28 @@ JS_METHOD_IMPL(BindingData::SetCallbacks) {
 }
 
 NgTcp2CallbackScope::NgTcp2CallbackScope(Session* session) : session(session) {
-  CHECK(!session->in_ngtcp2_callback_scope_);
-  session->in_ngtcp2_callback_scope_ = true;
+  CHECK(!session->flags_.in_ngtcp2_callback_scope);
+  session->flags_.in_ngtcp2_callback_scope = true;
 }
 
 NgTcp2CallbackScope::~NgTcp2CallbackScope() {
-  session->in_ngtcp2_callback_scope_ = false;
-  if (session->destroy_deferred_) {
-    session->destroy_deferred_ = false;
+  session->flags_.in_ngtcp2_callback_scope = false;
+  if (session->flags_.destroy_deferred) {
+    session->flags_.destroy_deferred = false;
     session->Destroy();
   }
 }
 
 NgHttp3CallbackScope::NgHttp3CallbackScope(Session* session)
     : session(session) {
-  CHECK(!session->in_nghttp3_callback_scope_);
-  session->in_nghttp3_callback_scope_ = true;
+  CHECK(!session->flags_.in_nghttp3_callback_scope);
+  session->flags_.in_nghttp3_callback_scope = true;
 }
 
 NgHttp3CallbackScope::~NgHttp3CallbackScope() {
-  session->in_nghttp3_callback_scope_ = false;
-  if (session->destroy_deferred_) {
-    session->destroy_deferred_ = false;
+  session->flags_.in_nghttp3_callback_scope = false;
+  if (session->flags_.destroy_deferred) {
+    session->flags_.destroy_deferred = false;
     session->Destroy();
   }
 }
@@ -365,4 +563,3 @@ JS_METHOD_IMPL(IllegalConstructor) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

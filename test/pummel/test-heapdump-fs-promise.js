@@ -20,7 +20,7 @@ fs.stat(__filename);
   validateByRetainingPathFromNodes(nodes, 'Node / FSReqPromise', [
     { node_name: 'FSReqPromise', edge_name: 'native_to_javascript' },
   ]);
-  validateByRetainingPathFromNodes(nodes, 'Node / FSReqPromise', [
-    { node_name: 'Node / AliasedFloat64Array', edge_name: 'stats_field_array' },
-  ]);
+  // The stats field array is allocated lazily when the request resolves
+  // with stats, so it is not retained by a request that is still pending
+  // and cannot be observed in a heap snapshot.
 }

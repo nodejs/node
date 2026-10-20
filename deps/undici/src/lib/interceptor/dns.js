@@ -3,6 +3,7 @@ const { isIP } = require('node:net')
 const { lookup } = require('node:dns')
 const DecoratorHandler = require('../handler/decorator-handler')
 const { InvalidArgumentError, InformationalError } = require('../core/errors')
+const { kRequestOrigin } = require('../core/symbols')
 const maxInt = Math.pow(2, 31) - 1
 
 function hasSafeIterator (headers) {
@@ -189,6 +190,16 @@ class DNSInstance {
           newOpts.affinity
         )
 
+        // The lookup succeeded, but nothing it returned is usable here: with
+        // dualStack disabled and an affinity set, records of the other family
+        // cannot be picked. Running the lookup again would return the same
+        // records, so report it the way an empty result is reported.
+        if (ip == null) {
+          this.storage.delete(origin.hostname)
+          cb(new InformationalError('No DNS entries found'))
+          return
+        }
+
         let port
         if (typeof ip.port === 'number') {
           port = `:${ip.port}`
@@ -345,6 +356,7 @@ class DNSInstance {
       // We delete expired records
       // It is possible that they have different TTL, so we manage them individually
       family.ips.splice(position, 1)
+      return this.pickFamily(origin, ipFamily)
     }
 
     return ip
@@ -434,6 +446,9 @@ class DNSDispatchHandler extends DecoratorHandler {
             origin: `${this.#origin.protocol}//${
               ip.family === 6 ? `[${ip.address}]` : ip.address
             }${port}`,
+            [kRequestOrigin]: this.#opts[kRequestOrigin] === undefined
+              ? this.#origin
+              : this.#opts[kRequestOrigin],
             headers: withHostHeader(this.#origin.host, this.#opts.headers)
           }
           this.#dispatch(dispatchOpts, this)
@@ -535,6 +550,10 @@ module.exports = interceptorOpts => {
 
   return dispatch => {
     return function dnsInterceptor (origDispatchOpts, handler) {
+      if (origDispatchOpts.origin == null) {
+        return dispatch(origDispatchOpts, handler)
+      }
+
       const origin =
         origDispatchOpts.origin.constructor === URL
           ? origDispatchOpts.origin
@@ -553,6 +572,9 @@ module.exports = interceptorOpts => {
           ...origDispatchOpts,
           servername: origin.hostname, // For SNI on TLS
           origin: newOrigin.origin,
+          [kRequestOrigin]: origDispatchOpts[kRequestOrigin] === undefined
+            ? origin
+            : origDispatchOpts[kRequestOrigin],
           headers: withHostHeader(origin.host, origDispatchOpts.headers)
         }
 

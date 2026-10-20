@@ -111,15 +111,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 # define NODE_DEPRECATED(message, declarator) declarator
 #else  // NODE_WANT_INTERNALS
-# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __attribute__((deprecated(message))) declarator
-# elif defined(_MSC_VER)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __declspec(deprecated) declarator
-# else
-#  define NODE_DEPRECATED(message, declarator) declarator
-# endif
+#define NODE_DEPRECATED(message, declarator) [[deprecated(message)]] declarator
 #endif
 
 // Forward-declare libuv loop
@@ -218,8 +210,10 @@ enum Flags : uint32_t {
   kNoICU = 1 << 3,
   // Do not modify stdio file descriptor or TTY state.
   kNoStdioInitialization = 1 << 4,
-  // Do not register Node.js-specific signal handlers
-  // and reset other signal handlers to default state.
+  // Do not register Node.js-specific signal handlers, reset other signal
+  // handlers to default state, or replace the calling thread's signal mask
+  // (without this flag, POSIX builds with the inspector set it to block
+  // SIGUSR1 and nothing else).
   kNoDefaultSignalHandling = 1 << 5,
   // Do not perform V8 initialization.
   kNoInitializeV8 = 1 << 6,
@@ -231,7 +225,8 @@ enum Flags : uint32_t {
   kNoParseGlobalDebugVariables = 1 << 9,
   // Do not adjust OS resource limits for this process.
   kNoAdjustResourceLimits = 1 << 10,
-  // Do not map code segments into large pages for this process.
+  // Legacy flag for not mapping code segments into large pages for this
+  // process. The feature is no longer supported so this is just a no-op.
   kNoUseLargePages = 1 << 11,
   // Skip printing output for --help, --version, --v8-options.
   kNoPrintHelpOrVersionOutput = 1 << 12,
@@ -241,6 +236,11 @@ enum Flags : uint32_t {
   kNoInitializeCppgc = 1 << 13,
   // Initialize the process for predictable snapshot generation.
   kGeneratePredictableSnapshot = 1 << 14,
+  // Do not serialize a code cache for builtins that had to be compiled without
+  // one. By default such caches are kept so that worker threads created later
+  // start faster; an embedder that supplies an EmbedderBuiltinCodeCache or
+  // never creates workers only pays for the serialization.
+  kNoHarvestBuiltinCodeCache = 1 << 15,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
@@ -323,6 +323,42 @@ inline std::shared_ptr<InitializationResult> InitializeOncePerProcess(
   return InitializeOncePerProcess(
       args, static_cast<ProcessInitializationFlags::Flags>(flags_accum));
 }
+
+struct ProcessEnvironmentScrubOptions {
+  // The environment variables to keep. Each entry is `*`, a variable name, or
+  // a variable name prefix followed by `*`. Names are case-insensitive on
+  // Windows.
+  std::vector<std::string> allow;
+  // Whether to also keep the variables that Node.js and its bundled
+  // dependencies read after startup, see GetRuntimeEnvironmentDefaults().
+  bool keep_runtime_defaults = true;
+  // Whether to overwrite the removed variables in the environment block the
+  // process was started with, which /proc/<pid>/environ exposes. Only
+  // implemented on Linux.
+  bool wipe_initial_block = true;
+};
+
+// Removes every variable that `options` does not keep from the process
+// environment, and returns the names of the removed variables.
+//
+// node::Start() does this automatically when the permission model restricts
+// access to environment variables. When `args` passed to
+// InitializeOncePerProcess() enable the permission model without
+// `--allow-env=*`, the embedder must remove the variables that `--allow-env`
+// does not grant access to first: InitializeOncePerProcess() fails if the
+// process environment contains any of them.
+//
+// This modifies the process environment without any locking that native code
+// calling getenv() participates in. It must be called before starting any
+// thread that may read the environment, and before
+// InitializeOncePerProcess(). Returns Nothing() if `options.allow` contains an
+// invalid entry, or if InitializeOncePerProcess() has already completed.
+NODE_EXTERN v8::Maybe<std::vector<std::string>> ScrubProcessEnvironment(
+    const ProcessEnvironmentScrubOptions& options);
+
+// Returns the names, and name prefixes followed by `*`, of the environment
+// variables that Node.js and its bundled dependencies read after startup.
+NODE_EXTERN std::vector<std::string> GetRuntimeEnvironmentDefaults();
 
 enum OptionEnvvarSettings {
   // Allow the options to be set via the environment variable, like
@@ -427,6 +463,7 @@ enum IsolateSettingsFlags {
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
   SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
+  SHOULD_NOT_SET_WASM_STREAMING_CALLBACK = 1 << 4,
   ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 0, /* legacy no-op */
 };
 
@@ -563,6 +600,8 @@ NODE_EXTERN v8::Isolate* NewIsolate(
     const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
+// Call `RegisterContext` after the context been created to register
+// the context with Node.js specific setups like the inspector.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Isolate* isolate,
     v8::Local<v8::ObjectTemplate> object_template =
@@ -571,6 +610,18 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
 NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
+
+// Associate the context with the given Environment. This registers the context
+// as known to Node.js, makes it available to the inspector. This also registers
+// Node.js promise hooks on the context.
+NODE_EXTERN void RegisterContext(Environment* env,
+                                 v8::Local<v8::Context> context,
+                                 std::string_view name = "",
+                                 std::string_view origin = "");
+// Unregister the context. Call this when the embedder finished all work with
+// this context.
+NODE_EXTERN void UnregisterContext(Environment* env,
+                                   v8::Local<v8::Context> context);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
@@ -637,7 +688,12 @@ enum Flags : uint64_t {
   // Controls whether the InspectorAgent created for this Environment waits for
   // Inspector frontend events during the Environment creation. It's used to
   // call node::Stop(env) on a Worker thread that is waiting for the events.
-  kNoWaitForInspectorFrontend = 1 << 11
+  kNoWaitForInspectorFrontend = 1 << 11,
+  // Set this flag to exempt process._linkedBinding() from the permission
+  // model's addon scope (--allow-addons): linked bindings are compiled into
+  // the executable by the embedder, unlike addons loaded from the file system
+  // through process.dlopen(), which stays gated. Inherited by worker threads.
+  kNoAddonPermissionForLinkedBindings = 1 << 12
 };
 }  // namespace EnvironmentFlags
 
@@ -666,11 +722,55 @@ struct SnapshotConfig {
   // the snapshot builder can execute asynchronous operations as long as they
   // are run to completion when the snapshot is taken.
   std::optional<std::string> builder_script_path;
+
+  // A V8 startup blob (as produced by V8's mksnapshot) to build the snapshot
+  // on top of, instead of setting up the V8 heap from scratch. Needed when
+  // the V8 that Node.js is linked against can only deserialize (external
+  // startup data), and to keep the result on the same read-only heap lineage
+  // as the embedder's other isolates. Caller-owned; must outlive the setup.
+  const v8::StartupData* base_blob = nullptr;
 };
 
 struct InspectorParentHandle {
   virtual ~InspectorParentHandle() = default;
 };
+
+// Code cache for the built-in JavaScript of Environments that are bootstrapped
+// rather than deserialized from a snapshot; see SetBuiltinCodeCache().
+class NODE_EXTERN EmbedderBuiltinCodeCache {
+ public:
+  struct Entry {
+    std::string id;  // e.g. "internal/bootstrap/node"
+    std::unique_ptr<v8::ScriptCompiler::CachedData> data;
+  };
+  explicit EmbedderBuiltinCodeCache(std::vector<Entry> entries);
+  ~EmbedderBuiltinCodeCache();
+
+  // Compiles every built-in module in `context`, which must come from
+  // NewContext(), and returns their code caches; empty on failure.
+  static std::vector<Entry> Generate(v8::Local<v8::Context> context);
+
+  v8::ScriptCompiler::CachedData::CompatibilityCheckResult CompatibilityCheck(
+      v8::Isolate* isolate) const;
+
+  EmbedderBuiltinCodeCache(const EmbedderBuiltinCodeCache&) = delete;
+  EmbedderBuiltinCodeCache& operator=(const EmbedderBuiltinCodeCache&) = delete;
+
+  struct Impl;
+
+ private:
+  std::unique_ptr<Impl> impl_;
+  friend NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+  SetBuiltinCodeCache(IsolateData*, const EmbedderBuiltinCodeCache*);
+};
+
+// Environments created from `isolate_data` afterwards start with `cache`'s
+// entries (they share its buffers; `cache` itself may be freed after the call);
+// nullptr clears it. Returns the result of `cache->CompatibilityCheck()` and
+// leaves `isolate_data` unchanged unless that is kSuccess.
+NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+SetBuiltinCodeCache(IsolateData* isolate_data,
+                    const EmbedderBuiltinCodeCache* cache);
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
@@ -684,17 +784,8 @@ NODE_EXTERN Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
     ThreadId thread_id = {} /* allocates a thread id automatically */,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
-
-NODE_EXTERN Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    v8::Local<v8::Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
-    std::string_view thread_name);
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {},
+    std::string_view thread_name = {});
 
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
@@ -833,6 +924,9 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     const ModuleData* entry_point,
     EmbedderPreloadCallback preload = nullptr);
 
+// Runs `env`'s event loop until its handles have closed, with JavaScript
+// execution disallowed for `env`; see doc/api/embedding.md if that loop is
+// shared with other Environments.
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -846,6 +940,16 @@ NODE_EXTERN void SetProcessExitHandler(
     Environment* env,
     std::function<void(Environment*, int)>&& handler);
 NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
+
+// Sets a process-global handler invoked when Node.js programmatically aborts.
+// Nullable strings representing the location and reason for the abort may or
+// may not be passed as a parameter to the handler. The handler should not
+// return, but node will ensure that the process exits after the handler is
+// called regardless of whether or not it returns. Passing nullptr restores the
+// default handler. This is process-global and may be invoked before any Isolate
+// or Environment exists.
+using AbortHandler = void (*)(const char* location, const char* message);
+NODE_EXTERN void SetAbortHandler(AbortHandler handler);
 
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
@@ -947,6 +1051,9 @@ class NODE_EXTERN CommonEnvironmentSetup {
   // will be empty.
   // env_args will be passed through as arguments to CreateEnvironment(), after
   // `isolate_data` and `context`.
+  // `snapshot_data` has to stay alive as long as the setup created from it,
+  // and every setup in a process has to use the same snapshot: all isolates
+  // are created from the blob the first one used.
   template <typename... EnvironmentArgs>
   static std::unique_ptr<CommonEnvironmentSetup> Create(
       MultiIsolatePlatform* platform,

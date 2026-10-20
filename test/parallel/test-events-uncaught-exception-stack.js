@@ -8,9 +8,9 @@ const EventEmitter = require('events');
 process.on('uncaughtException', common.mustCall((err) => {
   const [firstLine, ...lines] = err.stack.split('\n');
   assert.strictEqual(firstLine, 'Error');
-  lines.forEach((line) => {
+  for (const line of lines) {
     assert.match(line, /^ {4}at/);
-  });
+  }
 }));
 
 new EventEmitter().emit('error', new Error());

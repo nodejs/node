@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
@@ -111,8 +110,9 @@ Packet::Ptr Packet::CreateConnectionClosePacket(
   if (!packet) return packet;
   ngtcp2_vec vec = *packet;
 
+  ngtcp2_ccerr wire_error = error.ToNgtcp2ConnectionCloseError();
   ssize_t nwrite = ngtcp2_conn_write_connection_close(
-      conn, nullptr, nullptr, vec.base, vec.len, error, uv_hrtime());
+      conn, nullptr, nullptr, vec.base, vec.len, &wire_error, uv_hrtime());
   if (nwrite < 0) return Ptr();
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
@@ -231,4 +231,3 @@ Packet::Ptr Packet::CreateVersionNegotiationPacket(
 }  // namespace node::quic
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

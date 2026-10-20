@@ -147,8 +147,9 @@ Builtin* DeclarationVisitor::CreateBuiltin(
   }
 
   Builtin::Flags flags = Builtin::Flag::kNone;
-  if (has_custom_interface_descriptor)
+  if (has_custom_interface_descriptor) {
     flags |= Builtin::Flag::kCustomInterfaceDescriptor;
+  }
   if (supports_tsa) flags |= Builtin::Flag::kSupportsTSA;
   Builtin* builtin = Declarations::CreateBuiltin(
       std::move(external_name), std::move(readable_name), kind, flags,

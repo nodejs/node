@@ -7,9 +7,13 @@ import("//build/dotfile_settings.gni")
 # The location of the build configuration file.
 buildconfig = "//build/config/BUILDCONFIG.gn"
 
-# The python interpreter to use by default. On Windows, this will look
-# for python3.exe and python3.bat.
-script_executable = "python3"
+# The hermetic Python interpreter to use by default. Platforms without a
+# hermetic CPython CIPD package fallback to the system python3 on $PATH.
+if (host_cpu == "s390x" || host_cpu == "ppc64" || host_os == "zos") {
+  script_executable = "python3"
+} else {
+  script_executable = "//third_party/cpython3/host/bin/python3"
+}
 
 # These are the targets to check headers for by default. The files in targets
 # matching these patterns (see "gn help label_pattern" for format) will have
@@ -43,6 +47,8 @@ default_args = {
 
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
-# discouraged except for gypi_to_gn calls.
-exec_script_allowlist = build_dotfile_settings.exec_script_allowlist +
-                        [ "//build_overrides/build.gni" ]
+# discouraged.
+exec_script_allowlist = build_dotfile_settings.exec_script_allowlist + [
+                          "//build_overrides/build.gni",
+                          "//gni/cluster_build.gni",
+                        ]

@@ -26,7 +26,9 @@ if (!common.hasCrypto) {
 }
 const {
   hasOpenSSL,
+  hasFIPS,
   opensslCli,
+  isBoringSSL: commonIsBoringSSL,
 } = require('../common/crypto');
 
 if (!opensslCli) {
@@ -37,7 +39,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 const { spawn } = require('child_process');
-const isBoringSSL = process.features.openssl_is_boringssl;
+const isBoringSSL = commonIsBoringSSL;
 
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {
@@ -59,7 +61,8 @@ function doTest(testOptions, callback) {
     secureProtocol: 'TLS_method',
     // BoringSSL supports the RSA cipher selector, but not OpenSSL's
     // cipher-string policy command syntax.
-    ciphers: isBoringSSL ? 'RSA' : 'RSA@SECLEVEL=0'
+    ciphers: hasFIPS(3) ? 'ECDHE-RSA-AES256-GCM-SHA384' :
+      (isBoringSSL ? 'RSA' : 'RSA@SECLEVEL=0')
   };
   let requestCount = 0;
   let resumeCount = 0;
@@ -108,8 +111,9 @@ function doTest(testOptions, callback) {
   server.listen(0, common.mustCall(function() {
     const args = [
       's_client',
-      isBoringSSL ? '-tls1_2' : '-tls1',
-      '-cipher', (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
+      isBoringSSL || hasFIPS(3) ? '-tls1_2' : '-tls1',
+      '-cipher', hasFIPS(3) ? 'ECDHE-RSA-AES256-GCM-SHA384' :
+        (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
       '-connect', `localhost:${this.address().port}`,
       '-servername', 'ohgod',
       '-key', fixtures.path('keys/rsa_private.pem'),

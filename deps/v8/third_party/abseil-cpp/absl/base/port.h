@@ -15,6 +15,8 @@
 // This files is a forwarding header for other headers containing various
 // portability macros and functions.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_PORT_H_
 #define ABSL_BASE_PORT_H_
 

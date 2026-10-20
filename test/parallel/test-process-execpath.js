@@ -4,7 +4,7 @@ if (common.isWindows)
   common.skip('symlinks are weird on windows');
 
 const assert = require('assert');
-const child_process = require('child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const fs = require('fs');
 
 assert.strictEqual(process.execPath, fs.realpathSync(process.execPath));
@@ -19,8 +19,8 @@ if (process.argv[2] === 'child') {
   const symlinkedNode = tmpdir.resolve('symlinked-node');
   fs.symlinkSync(process.execPath, symlinkedNode);
 
-  const proc = child_process.spawnSync(symlinkedNode, [__filename, 'child']);
-  assert.strictEqual(proc.stderr.toString(), '');
-  assert.strictEqual(proc.stdout.toString(), `${process.execPath}\n`);
-  assert.strictEqual(proc.status, 0);
+  spawnSyncAndAssert(symlinkedNode, [__filename, 'child'], {
+    stdout: `${process.execPath}\n`,
+    stderr: ''
+  });
 }

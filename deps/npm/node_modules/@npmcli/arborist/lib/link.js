@@ -109,6 +109,17 @@ class Link extends Node {
   // so this is a no-op
   [_loadDeps] () {}
 
+  // Forward overrides to the target only when a rule names a dep it needs, directly or transitively (npm/cli#9357, #9619).
+  recalculateOutEdgesOverrides () {
+    if (!this.target || !this.overrides) {
+      return
+    }
+    if (!overrideMatchesSubtree(this.overrides, this.target)) {
+      return
+    }
+    this.target.updateOverridesEdgeInAdded(this.overrides)
+  }
+
   // links can't have children, only their targets can
   // fix it to an empty list so that we can still call
   // things that iterate over them, just as a no-op
@@ -121,6 +132,31 @@ class Link extends Node {
   get isLink () {
     return true
   }
+}
+
+// True when an override rule applies to an edge reachable from the target at any depth.
+// getEdgeRule matches on name and spec, returning the set itself when nothing applies, so a non-applicable version-qualified rule doesn't flip an intermediate node to "has overrides" (npm/cli#9357).
+// Not a method: runs from the Node super-constructor, before subclass private methods exist.
+const overrideMatchesSubtree = (overrides, target) => {
+  const seen = new Set()
+  const stack = [target]
+  while (stack.length) {
+    const node = stack.pop()
+    const resolved = node.isLink ? node.target : node
+    if (seen.has(resolved)) {
+      continue
+    }
+    seen.add(resolved)
+    for (const edge of resolved.edgesOut.values()) {
+      if (overrides.getEdgeRule(edge).name === edge.name) {
+        return true
+      }
+      if (edge.to) {
+        stack.push(edge.to)
+      }
+    }
+  }
+  return false
 }
 
 module.exports = Link

@@ -51,8 +51,9 @@ class InnerPointerResolutionTest
   InnerPointerResolutionTest() = default;
 
   ~InnerPointerResolutionTest() override {
-    for (auto [id, page] : pages_)
+    for (auto [id, page] : pages_) {
       allocator()->Free(MemoryAllocator::FreeMode::kImmediately, page);
+    }
   }
 
   InnerPointerResolutionTest(const InnerPointerResolutionTest&) = delete;
@@ -207,7 +208,8 @@ class InnerPointerResolutionTest
                                               roots.unchecked_fixed_array_map(),
                                               SKIP_WRITE_BARRIER);
         Tagged<FixedArray> arr(Cast<FixedArray>(heap_object));
-        arr->set_length((object.size - FixedArray::SizeFor(0)) / kTaggedSize);
+        arr->set_length(static_cast<uint32_t>(
+            (object.size - FixedArray::SizeFor(0)) / kTaggedSize));
         DCHECK_EQ(object.size, arr->AllocatedSize());
         break;
       }
@@ -241,10 +243,11 @@ class InnerPointerResolutionTest
     Address base_ptr = ResolveInnerPointer(object.address + offset);
     bool should_return_null =
         !IsPageAlive(object.page_id) || object.type == ObjectRequest::FREE;
-    if (should_return_null)
+    if (should_return_null) {
       EXPECT_EQ(kNullAddress, base_ptr);
-    else
+    } else {
       EXPECT_EQ(object.address, base_ptr);
+    }
   }
 
   // This must be called with an address not contained in any created object.
@@ -613,7 +616,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   auto allocator = heap()->memory_allocator();
 
   {
-    PtrComprCageBase cage_base{isolate()};
     HandleScope handle_scope(isolate());
 
     // Allocate two objects, large enough that they fall in two different young
@@ -753,7 +755,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
   Address inner_ptr;
 
   {
-    PtrComprCageBase cage_base{isolate()};
     HandleScope scope(isolate());
 
     // Allocate a large object in the young generation.

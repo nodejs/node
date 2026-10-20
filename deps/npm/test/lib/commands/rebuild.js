@@ -221,3 +221,182 @@ t.test('completion', async t => {
   const res = await rebuild.completion({ conf: { argv: { remain: ['npm', 'rebuild'] } } })
   t.type(res, Array)
 })
+
+t.test('emits blocked warning for unreviewed install scripts', async t => {
+  const { npm, logs } = await setupMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+      node_modules: {
+        canvas: {
+          'package.json': JSON.stringify({
+            name: 'canvas',
+            version: '1.0.0',
+            scripts: { install: 'echo install' },
+          }),
+        },
+      },
+    },
+  })
+  await npm.exec('rebuild', [])
+  t.match(
+    logs.warn.byTitle('rebuild'),
+    [/install scripts blocked because they are not covered by allowScripts/]
+  )
+})
+
+t.test('global advisory warning points at npm config set, not approve-scripts', async t => {
+  const { npm, logs } = await setupMockNpm(t, {
+    config: {
+      global: true,
+    },
+    globalPrefixDir: {
+      node_modules: {
+        canvas: {
+          'index.js': '',
+          'package.json': JSON.stringify({
+            name: 'canvas',
+            version: '1.0.0',
+            scripts: { install: 'echo install' },
+          }),
+        },
+      },
+    },
+  })
+  await npm.exec('rebuild', [])
+  const warn = logs.warn.byTitle('rebuild').join('\n')
+  t.match(warn, /install scripts blocked because they are not covered by allowScripts/)
+  t.match(warn, /npm config set allow-scripts=canvas/)
+  t.notMatch(warn, /approve-scripts/)
+})
+
+t.test('no advisory warning when allowScripts covers the package', async t => {
+  const { npm, logs } = await setupMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        dependencies: { canvas: '1.0.0' },
+        allowScripts: { canvas: true },
+      }),
+      'package-lock.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: {
+          '': { name: 'host', version: '1.0.0', dependencies: { canvas: '1.0.0' } },
+          'node_modules/canvas': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/canvas/-/canvas-1.0.0.tgz',
+            hasInstallScript: true,
+          },
+        },
+      }),
+      node_modules: {
+        canvas: {
+          'package.json': JSON.stringify({
+            name: 'canvas',
+            version: '1.0.0',
+            scripts: { install: 'echo install' },
+          }),
+        },
+      },
+    },
+  })
+  await npm.exec('rebuild', [])
+  t.strictSame(logs.warn.byTitle('rebuild'), [])
+})
+
+t.test('rebuild <pkg> honors the gate for an unreviewed package', async t => {
+  const { npm, logs, prefix: path } = await setupMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        dependencies: { canvas: '1.0.0' },
+      }),
+      'package-lock.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: {
+          '': { name: 'host', version: '1.0.0', dependencies: { canvas: '1.0.0' } },
+          'node_modules/canvas': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/canvas/-/canvas-1.0.0.tgz',
+            hasInstallScript: true,
+          },
+        },
+      }),
+      node_modules: {
+        canvas: {
+          'package.json': JSON.stringify({
+            name: 'canvas',
+            version: '1.0.0',
+            scripts: {
+              install: "node -e \"require('fs').writeFileSync('ran', '')\"",
+            },
+          }),
+        },
+      },
+    },
+  })
+
+  const ranFile = resolve(path, 'node_modules/canvas/ran')
+  t.throws(() => fs.statSync(ranFile))
+
+  await npm.exec('rebuild', ['canvas'])
+
+  t.throws(() => fs.statSync(ranFile), 'unreviewed install script must not run')
+  t.match(
+    logs.warn.byTitle('rebuild'),
+    [/install scripts blocked because they are not covered by allowScripts/]
+  )
+})
+
+t.test('rebuild <name> never targets a bundled dependency', async t => {
+  const { npm, prefix: path } = await setupMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        dependencies: { parent: '1.0.0' },
+      }),
+      node_modules: {
+        parent: {
+          'index.js': '',
+          'package.json': JSON.stringify({
+            name: 'parent',
+            version: '1.0.0',
+            bundleDependencies: ['bcrypt'],
+            dependencies: { bcrypt: '1.0.0' },
+          }),
+          node_modules: {
+            bcrypt: {
+              'index.js': '',
+              'package.json': JSON.stringify({
+                name: 'bcrypt',
+                version: '1.0.0',
+                bin: 'index.js',
+                scripts: {
+                  install: "node -e \"require('fs').writeFileSync('ran', '')\"",
+                },
+              }),
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const ranFile = resolve(path, 'node_modules/parent/node_modules/bcrypt/ran')
+  t.throws(() => fs.statSync(ranFile))
+
+  await npm.exec('rebuild', ['bcrypt'])
+
+  t.throws(
+    () => fs.statSync(ranFile),
+    'bundled bcrypt install script must not run'
+  )
+})

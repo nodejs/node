@@ -92,8 +92,8 @@
         ['target_arch == "loong64"', {
           'variables': {
             'libffi_arch_sources': [
-              'src/loongarch64/ffi.c',
-              'src/loongarch64/sysv.S',
+              'src/loongarch/ffi.c',
+              'src/loongarch/sysv.S',
             ],
           },
         }],
@@ -180,7 +180,7 @@
             'include/ffi.h.in',
             'src/aarch64/ffitarget.h',
             'src/arm/ffitarget.h',
-            'src/loongarch64/ffitarget.h',
+            'src/loongarch/ffitarget.h',
             'src/mips/ffitarget.h',
             'src/powerpc/ffitarget.h',
             'src/riscv/ffitarget.h',

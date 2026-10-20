@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@
 #include "prov/ciphercommon.h"
 #include "prov/ciphercommon_ccm.h"
 #include "prov/providercommon.h"
+#include "fips/fipsindicator.h"
 
 static int ccm_cipher_internal(PROV_CCM_CTX *ctx, unsigned char *out,
     size_t *padlen, const unsigned char *in,
@@ -219,7 +220,7 @@ int ossl_ccm_get_ctx_params(void *vctx, OSSL_PARAM params[])
         ctx->iv_set = 0;
         ctx->len_set = 0;
     }
-    return 1;
+    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params);
 }
 
 static int ccm_init(void *vctx, const unsigned char *key, size_t keylen,
@@ -288,13 +289,19 @@ int ossl_ccm_stream_final(void *vctx, unsigned char *out, size_t *outl,
     size_t outsize)
 {
     PROV_CCM_CTX *ctx = (PROV_CCM_CTX *)vctx;
-    int i;
+    unsigned char dummy_in = 0, dummy_out = 0;
 
     if (!ossl_prov_is_running())
         return 0;
 
-    i = ccm_cipher_internal(ctx, out, outl, NULL, 0);
-    if (i <= 0)
+    /*
+     * Encryption sets tag_set after processing the payload, while successful
+     * decryption clears iv_set. Use those transitions to avoid processing an
+     * operation twice.
+     */
+    if (!ctx->key_set
+        || (ctx->iv_set && (!ctx->enc || !ctx->tag_set)
+            && ccm_cipher_internal(ctx, &dummy_out, outl, &dummy_in, 0) <= 0))
         return 0;
 
     *outl = 0;
@@ -308,6 +315,9 @@ int ossl_ccm_cipher(void *vctx, unsigned char *out, size_t *outl, size_t outsize
 
     if (!ossl_prov_is_running())
         return 0;
+
+    if (in == NULL)
+        return ossl_ccm_stream_final(vctx, out, outl, outsize);
 
     if (outsize < inl) {
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);

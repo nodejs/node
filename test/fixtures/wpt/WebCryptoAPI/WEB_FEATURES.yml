@@ -1,3 +1,2 @@
-features:
-- name: web-cryptography
-  files: '**'
+rules:
+- "**": [web-cryptography]

@@ -33,6 +33,25 @@ describe('events.addAbortListener', () => {
     assert.strictEqual(typeof disposable[Symbol.dispose], 'function');
   });
 
+  it('should pass an abort event to the listener for aborted runners', async () => {
+    const signal = AbortSignal.abort();
+    const { promise, resolve } = Promise.withResolvers();
+    events.addAbortListener(signal, (e) => resolve([e, e?.currentTarget]));
+
+    const [event, currentTarget] = await promise;
+    assert.strictEqual(event.type, 'abort');
+    assert.strictEqual(event.target, signal);
+    assert.strictEqual(event.isTrusted, true);
+    assert.strictEqual(currentTarget, signal);
+  });
+
+  it('should not execute the listener for aborted runners when disposed', async () => {
+    const disposable = events.addAbortListener(AbortSignal.abort(), common.mustNotCall());
+    disposable[Symbol.dispose]();
+
+    await new Promise(setImmediate);
+  });
+
   it('should execute the listener even when event propagation stopped', () => {
     const controller = new AbortController();
     const { signal } = controller;

@@ -36,15 +36,32 @@
 #include <regex>  // NOLINT(build/c++11)
 #endif            // _WIN32
 
-#define CHAR_TEST(bits, name, expr)                                           \
-  template <typename T>                                                       \
-  bool name(const T ch) {                                                     \
-    static_assert(sizeof(ch) >= (bits) / 8,                                   \
-                  "Character must be wider than " #bits " bits");             \
-    return (expr);                                                            \
+#define CHAR_TEST(bits, name, expr)                                            \
+  template <typename T>                                                        \
+  constexpr bool name(const T ch) {                                            \
+    static_assert(sizeof(ch) >= (bits) / 8,                                    \
+                  "Character must be wider than " #bits " bits");              \
+    return (expr);                                                             \
   }
 
 namespace node {
+
+// If a UTF-16 character is a high/leading surrogate.
+CHAR_TEST(16, IsUnicodeLead, (ch & 0xFC00) == 0xD800)
+
+// If a UTF-16 character is a low/trailing surrogate.
+CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
+
+// If a UTF-16 character is a surrogate.
+CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
+
+// If a UTF-16 surrogate is a low/trailing one.
+CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
+
+// The code point encoded by a valid surrogate pair.
+constexpr uint32_t CombineSurrogates(uint32_t lead, uint32_t trail) {
+  return 0x10000 + ((lead - 0xD800) << 10) + (trail - 0xDC00);
+}
 
 template <typename T>
 ListNode<T>::ListNode() : prev_(this), next_(this) {}
@@ -195,7 +212,7 @@ char ToLower(char c) {
   return std::tolower(c, std::locale::classic());
 }
 
-template <typename T>
+template <std::ranges::range T>
 std::string ToLower(const T& in) {
   auto it = std::cbegin(in);
   auto end = std::cend(in);
@@ -210,7 +227,7 @@ char ToUpper(char c) {
   return std::toupper(c, std::locale::classic());
 }
 
-template <typename T>
+template <std::ranges::range T>
 std::string ToUpper(const T& in) {
   auto it = std::cbegin(in);
   auto end = std::cend(in);
@@ -239,7 +256,7 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
-template <typename T>
+template <std::integral T>
 inline T MultiplyWithOverflowCheck(T a, T b) {
   auto ret = a * b;
   if (a != 0)
@@ -342,22 +359,6 @@ v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
 }
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    std::string_view str,
-                                    v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
-  if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
-    // V8 only has a TODO comment about adding an exception when the maximum
-    // string size is exceeded.
-    ThrowErrStringTooLong(isolate);
-    return v8::MaybeLocal<v8::Value>();
-  }
-
-  return v8::String::NewFromUtf8(
-             isolate, str.data(), v8::NewStringType::kNormal, str.size())
-      .FromMaybe(v8::Local<v8::String>());
-}
-
-v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::u16string_view str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
@@ -410,14 +411,13 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
-  arr.SetLength(vec.size());
+  MaybeStackBuffer<v8::Value, 128> arr(isolate, vec.size());
   for (size_t i = 0; i < vec.size(); ++i) {
     if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
       return v8::MaybeLocal<v8::Value>();
   }
 
-  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+  return handle_scope.Escape(arr.ToArray());
 }
 
 template <typename T>
@@ -446,8 +446,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
-  arr.SetLength(vec.size());
+  MaybeStackBuffer<v8::Value, 128> arr(isolate, vec.size());
   auto it = vec.begin();
   for (size_t i = 0; i < vec.size(); ++i) {
     if (!ToV8Value(context, *it, isolate).ToLocal(&arr[i]))
@@ -455,7 +454,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
     std::advance(it, 1);
   }
 
-  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+  return handle_scope.Escape(arr.ToArray());
 }
 
 template <typename T, typename U>
@@ -501,7 +500,7 @@ v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
   return v8::Number::New(isolate, static_cast<double>(number));
 }
 
-template <typename T, typename>
+template <NumericValue T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const T& number,
                                     v8::Isolate* isolate) {
@@ -510,14 +509,10 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 }
 
 template <typename T>
+  requires std::is_arithmetic_v<T>
 v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
                                              const std::vector<T>& vec,
                                              v8::Isolate* isolate) {
-  static_assert(
-      std::is_same_v<T, bool> || std::is_integral_v<T> ||
-          std::is_floating_point_v<T>,
-      "Only primitive types (bool, integral, floating-point) are supported.");
-
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
@@ -539,7 +534,14 @@ v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
 }
 
 SlicedArguments::SlicedArguments(
-    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start)
+    : SlicedArguments(args.GetIsolate(), args, start) {}
+
+SlicedArguments::SlicedArguments(
+    v8::Isolate* isolate,
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    size_t start)
+    : MaybeStackBuffer<v8::Value>(isolate) {
   const size_t length = static_cast<size_t>(args.Length());
   if (start >= length) return;
   const size_t size = length - start;
@@ -565,7 +567,29 @@ void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
   length_ = storage;
 }
 
+template <V8Type T, size_t kStackStorageSize>
+void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
+    size_t storage) {
+  CHECK(!IsInvalidated());
+  if (storage > capacity()) {
+    if (!local_vector_.has_value()) {
+      local_vector_.emplace(isolate_, storage);
+      // Copy existing stack data into the LocalVector.
+      for (size_t i = 0; i < length_; i++) {
+        (*local_vector_)[i] = buf_st_[i];
+      }
+    } else {
+      local_vector_->resize(storage);
+    }
+    buf_ = local_vector_->data();
+    capacity_ = storage;
+  }
+
+  length_ = storage;
+}
+
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Value> value) {
   DCHECK(value->IsArrayBufferView() || value->IsSharedArrayBuffer() ||
@@ -574,6 +598,7 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Object> value) {
   CHECK(value->IsArrayBufferView());
@@ -581,14 +606,16 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::ArrayBufferView> abv) {
   Read(abv);
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
-  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
+  was_detached_ = abv->Buffer()->WasDetached();
   length_ = abv->ByteLength();
   if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
     auto buf_data = abv->Buffer()->Data();
@@ -601,8 +628,8 @@ void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
-  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
   DCHECK(buf->IsArrayBufferView() || buf->IsSharedArrayBuffer() ||
          buf->IsArrayBuffer());
 
@@ -665,10 +692,7 @@ constexpr std::string_view FastStringKey::as_string_view() const {
 }
 
 // Converts a V8 numeric value to a corresponding C++ primitive or enum type.
-template <typename T,
-          bool loose = false,
-          typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
-                                      std::is_enum_v<T>>>
+template <NumericOrEnum T, bool loose = false>
 T FromV8Value(v8::Local<v8::Value> value) {
   if constexpr (std::is_enum_v<T>) {
     using Underlying = std::underlying_type_t<T>;
@@ -811,7 +835,7 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
   }
   v8::Local<v8::Object> obj = tmpl->NewInstance(context, property_values);
-  if (obj->SetPrototypeV2(context, v8::Null(v8::Isolate::GetCurrent()))
+  if (obj->SetPrototype(context, v8::Null(v8::Isolate::GetCurrent()))
           .IsNothing()) {
     return v8::MaybeLocal<v8::Object>();
   }

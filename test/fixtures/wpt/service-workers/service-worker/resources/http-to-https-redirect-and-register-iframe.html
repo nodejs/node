@@ -1,0 +1,25 @@
+<!doctype html>
+<title>register, unregister, and report result to opener</title>
+<body>
+<script>
+'use strict';
+
+if (!navigator.serviceWorker) {
+  window.opener.postMessage('FAIL: navigator.serviceWorker is undefined', '*');
+} else {
+  navigator.serviceWorker.register('empty-worker.js', {scope: 'scope-register'})
+    .then(
+      registration => {
+          registration.unregister().then(() => {
+              window.opener.postMessage('OK', '*');
+            });
+        },
+      error => {
+          window.opener.postMessage('FAIL: ' + error.name, '*');
+        })
+    .catch(error => {
+        window.opener.postMessage('ERROR: ' + error.name, '*');
+      });
+}
+</script>
+</body>

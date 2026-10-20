@@ -17,10 +17,14 @@ const vectors = require('../fixtures/crypto/kmac')();
 
 async function testVerify({ algorithm,
                             key,
+                            keyLength,
                             data,
                             customization,
                             outputLength,
                             expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     verifyKey,
     noVerifyKey,
@@ -29,13 +33,13 @@ async function testVerify({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['sign']),
     subtle.generateKey(
@@ -119,10 +123,14 @@ async function testVerify({ algorithm,
 
 async function testSign({ algorithm,
                           key,
+                          keyLength,
                           data,
                           customization,
                           outputLength,
                           expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     signKey,
     noSignKey,
@@ -131,13 +139,13 @@ async function testSign({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify', 'sign']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.generateKey(
@@ -190,4 +198,65 @@ async function testSign({ algorithm,
   }
 
   await Promise.all(variations);
+})().then(common.mustCall());
+
+(async function() {
+  const key = await subtle.importKey(
+    'raw-secret',
+    new Uint8Array(16),
+    { name: 'KMAC128' },
+    false,
+    ['sign', 'verify']);
+  const algorithm = {
+    name: 'KMAC128',
+    outputLength: 16,
+    customization: new Uint8Array(),
+  };
+  const data = new Uint8Array([1, 2, 3]);
+
+  const signature = await subtle.sign(algorithm, key, data);
+  assert.strictEqual(signature.byteLength, 2);
+  assert(await subtle.verify(algorithm, key, signature, data));
+
+  const signature128 = await subtle.sign({
+    ...algorithm,
+    outputLength: 128,
+  }, key, data);
+  assert.strictEqual(signature128.byteLength, 16);
+  assert(await subtle.verify({
+    ...algorithm,
+    outputLength: 128,
+  }, key, signature128, data));
+
+  const invalidSignature = new Uint8Array(signature);
+  invalidSignature[0] ^= 0b00000001;
+  assert(!(await subtle.verify(algorithm, key, invalidSignature, data)));
+
+  const nonByteOutput = { ...algorithm, outputLength: 9 };
+  await assert.rejects(
+    subtle.sign(nonByteOutput, key, data),
+    { name: 'NotSupportedError', message: 'Invalid KmacParams outputLength' });
+  await assert.rejects(
+    subtle.verify(nonByteOutput, key, signature, data),
+    { name: 'NotSupportedError', message: 'Invalid KmacParams outputLength' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'raw-secret',
+      new Uint8Array([0xff, 0xff, 0xff, 0xff]),
+      { name: 'KMAC128', length: 25 },
+      false,
+      ['sign', 'verify']),
+    { name: 'NotSupportedError', message: 'Invalid key length' });
+})().then(common.mustCall());
+
+(async function() {
+  for (const name of ['KMAC128', 'KMAC256']) {
+    for (const byteLength of [0, 1, 2, 3]) {
+      await assert.rejects(
+        subtle.importKey(
+          'raw-secret', new Uint8Array(byteLength), name, true, ['sign', 'verify']),
+        { name: 'NotSupportedError', message: 'Invalid key length' });
+    }
+  }
 })().then(common.mustCall());

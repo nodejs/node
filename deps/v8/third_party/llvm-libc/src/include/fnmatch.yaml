@@ -1,0 +1,28 @@
+header: fnmatch.h
+standards:
+  - posix
+macros:
+  - macro_name: FNM_NOMATCH
+    macro_header: fnmatch-macros.h
+  - macro_name: FNM_PATHNAME
+    macro_header: fnmatch-macros.h
+  - macro_name: FNM_PERIOD
+    macro_header: fnmatch-macros.h
+  - macro_name: FNM_NOESCAPE
+    macro_header: fnmatch-macros.h
+  - macro_name: FNM_CASEFOLD
+    macro_header: fnmatch-macros.h
+  - macro_name: FNM_IGNORECASE
+    macro_header: fnmatch-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: fnmatch
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: int

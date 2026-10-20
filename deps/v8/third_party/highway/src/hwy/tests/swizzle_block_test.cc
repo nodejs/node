@@ -23,6 +23,10 @@
 #include "hwy/highway.h"
 #include "hwy/tests/test_util-inl.h"
 
+#ifndef HWY_NATIVE_INTERLEAVE_WHOLE
+#error "HWY_NATIVE_INTERLEAVE_WHOLE should be defined by set_macros-inl.h"
+#endif
+
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
@@ -71,7 +75,7 @@ HWY_NOINLINE void TestAllSwapAdjacentBlocks() {
   ForAllTypes(ForGEVectors<128, TestSwapAdjacentBlocks>());
 }
 
-struct TestInterleaveBlocks {
+struct TestInterleaveBlocksEO {
   template <class T, class D>
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
     const size_t N = Lanes(d);
@@ -100,8 +104,55 @@ struct TestInterleaveBlocks {
   }
 };
 
-HWY_NOINLINE void TestAllInterleaveBlocks() {
-  ForAllTypes(ForGEVectors<128, TestInterleaveBlocks>());
+HWY_NOINLINE void TestAllInterleaveBlocksEO() {
+  ForAllTypes(ForGEVectors<128, TestInterleaveBlocksEO>());
+}
+
+struct TestInterleaveBlocksLU {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    const size_t N = Lanes(d);
+    constexpr size_t kLanesPerBlock = 16 / sizeof(T);
+    if (N < 2 * kLanesPerBlock) return;
+    const VFromD<D> va = Iota(d, 1);
+    const VFromD<D> vb = Iota(d, N + 1);
+    auto expected_lower = AllocateAligned<T>(N);
+    auto expected_upper = AllocateAligned<T>(N);
+    HWY_ASSERT(expected_lower && expected_upper);
+
+    const size_t num_blocks = N / kLanesPerBlock;
+    const size_t num_blocks_div2 = num_blocks / 2;
+
+    for (size_t i = 0; i < N; ++i) {
+      const size_t out_block_idx = i / kLanesPerBlock;
+      const size_t mod = i % kLanesPerBlock;
+
+      const size_t src_block_lower = out_block_idx / 2;
+      const size_t src_block_upper = src_block_lower + num_blocks_div2;
+
+      const size_t val_lower = 1 + (src_block_lower * kLanesPerBlock) + mod;
+      const size_t val_upper = 1 + (src_block_upper * kLanesPerBlock) + mod;
+
+      if (out_block_idx % 2 == 0) {
+        // Even output blocks come from A
+        expected_lower[i] = ConvertScalarTo<T>(val_lower);
+        expected_upper[i] = ConvertScalarTo<T>(val_upper);
+      } else {
+        // Odd output blocks come from B (add N offset for B's values)
+        expected_lower[i] = ConvertScalarTo<T>(val_lower + N);
+        expected_upper[i] = ConvertScalarTo<T>(val_upper + N);
+      }
+    }
+
+    HWY_ASSERT_VEC_EQ(d, expected_lower.get(),
+                      InterleaveLowerBlocks(d, va, vb));
+    HWY_ASSERT_VEC_EQ(d, expected_upper.get(),
+                      InterleaveUpperBlocks(d, va, vb));
+  }
+};
+
+HWY_NOINLINE void TestAllInterleaveBlocksLU() {
+  ForAllTypes(ForGEVectors<128, TestInterleaveBlocksLU>());
 }
 
 class TestInsertBlock {
@@ -291,7 +342,8 @@ namespace {
 HWY_BEFORE_TEST(HwySwizzleBlockTest);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllOddEvenBlocks);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllSwapAdjacentBlocks);
-HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInterleaveBlocks);
+HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInterleaveBlocksEO);
+HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInterleaveBlocksLU);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInsertBlock);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllExtractBlock);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllBroadcastBlock);

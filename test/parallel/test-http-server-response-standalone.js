@@ -15,18 +15,11 @@ const res = new ServerResponse({
   httpVersionMinor: 1
 });
 
-let firstChunk = true;
-
 const ws = new Writable({
   write: common.mustCall((chunk, encoding, callback) => {
-    if (firstChunk) {
-      assert(chunk.toString().endsWith('hello world'));
-      firstChunk = false;
-    } else {
-      assert.strictEqual(chunk.length, 0);
-    }
+    assert(chunk.toString().endsWith('hello world'));
     setImmediate(callback);
-  }, 2)
+  }, 1)
 });
 
 res.assignSocket(ws);

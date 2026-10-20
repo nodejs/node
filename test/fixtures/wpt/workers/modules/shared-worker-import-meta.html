@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>SharedWorker: import.meta</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+promise_test(() => {
+  const script_url = 'resources/import-meta-url-worker.js';
+  const worker = new SharedWorker(script_url, { type: 'module' });
+  return new Promise((resolve, reject) => {
+        worker.port.onmessage = resolve;
+        worker.onerror = (error) => reject(error && error.message);
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)));
+}, 'Test import.meta.url on the top-level module script.');
+
+promise_test(() => {
+  const script_url = 'import-meta-url-export.js';
+  const worker = new SharedWorker(
+      'resources/dynamic-import-given-url-worker.js',
+      { type: 'module' });
+  worker.port.postMessage('./' + script_url);
+  return new Promise((resolve, reject) => {
+        worker.port.onmessage = resolve;
+        worker.onerror = (error) => reject(error && error.message);
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)));
+}, 'Test import.meta.url on the imported module script.');
+
+promise_test(() => {
+  const script_url = 'import-meta-url-export.js';
+  const worker = new SharedWorker(
+      'resources/dynamic-import-given-url-worker.js',
+      { type: 'module' });
+  worker.port.postMessage('./' + script_url);
+
+  return new Promise((resolve, reject) => {
+        worker.port.onmessage = resolve;
+        worker.onerror = (error) => reject(error && error.message);
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)))
+      .then(() => {
+        worker.port.postMessage('./' + script_url + '#1');
+        return new Promise(resolve => worker.port.onmessage = resolve);
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url + "#1")));
+}, 'Test import.meta.url on the imported module script with a fragment.');
+
+</script>

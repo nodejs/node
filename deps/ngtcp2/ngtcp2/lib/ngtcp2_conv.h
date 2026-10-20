@@ -80,7 +80,15 @@ const uint8_t *ngtcp2_get_uvarint(uint64_t *dest, const uint8_t *p);
  * lost in this cast, because the variable-length integer is 62
  * bits. It returns |p| plus the number of bytes read from |p|.
  */
-const uint8_t *ngtcp2_get_varint(int64_t *dest, const uint8_t *p);
+static inline const uint8_t *ngtcp2_get_varint(int64_t *dest,
+                                               const uint8_t *p) {
+  uint64_t n;
+
+  p = ngtcp2_get_uvarint(&n, p);
+  *dest = (int64_t)n;
+
+  return p;
+}
 
 /*
  * ngtcp2_get_pkt_num reads encoded packet number from |p|.  The

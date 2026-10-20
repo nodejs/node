@@ -15,6 +15,7 @@ const {
   ByteLengthQueuingStrategy,
   CountQueuingStrategy,
   ReadableStream,
+  ReadableStreamTee,
   ReadableStreamDefaultReader,
   ReadableStreamDefaultController,
   ReadableByteStreamController,
@@ -36,7 +37,8 @@ const {
 } = require('internal/webstreams/readablestream');
 
 const {
-  kState
+  kState,
+  Queue,
 } = require('internal/webstreams/util');
 
 const {
@@ -1528,6 +1530,28 @@ class Source {
 }
 
 {
+  // Test public ReadableStreamTee() cloneForBranch2 argument
+  assert.strictEqual(typeof ReadableStreamTee, 'function');
+  const chunk = new Uint8Array([65]);
+  const readable = new ReadableStream({
+    start(controller) {
+      controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  const [r1, r2] = ReadableStreamTee(readable, true);
+
+  (async () => {
+    const { value: value1 } = await r1.getReader().read();
+    assert.strictEqual(value1[0], 65);
+    value1[0] = 66;
+
+    const { value: value2 } = await r2.getReader().read();
+    assert.strictEqual(value2[0], 65);
+  })().then(common.mustCall());
+}
+
+{
   // Test tee() cloneForBranch2 argument
   const readable = new ReadableStream({
     start(controller) {
@@ -1558,7 +1582,9 @@ class Source {
     start(c) { controller = c; }
   });
 
-  controller[kState].pendingPullIntos = [{}];
+  const pendingPullIntos = new Queue();
+  pendingPullIntos.push({});
+  controller[kState].pendingPullIntos = pendingPullIntos;
   assert.throws(() => readableByteStreamControllerRespond(controller, 0), {
     code: 'ERR_INVALID_ARG_VALUE',
   });

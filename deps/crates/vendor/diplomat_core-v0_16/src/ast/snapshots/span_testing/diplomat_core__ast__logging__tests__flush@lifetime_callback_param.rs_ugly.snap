@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Lifetimes are not allowed on callback parameters
+In src/ast/snapshots/span_testing/lifetime_callback_param.rs:3:58:
+...Fn(&'a i32)...
+       ^^
+Suggestion: remove lifetime

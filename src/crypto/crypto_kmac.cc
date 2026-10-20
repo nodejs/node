@@ -3,9 +3,10 @@
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_EVP_MAC
 #include <openssl/core_names.h>
 #include <openssl/params.h>
+#include <utility>
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "ncrypto.h"
@@ -27,8 +28,7 @@ using v8::Uint32;
 using v8::Value;
 
 KmacConfig::KmacConfig(KmacConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
+    : mode(other.mode),
       key(std::move(other.key)),
       data(std::move(other.data)),
       signature(std::move(other.signature)),
@@ -44,12 +44,9 @@ KmacConfig& KmacConfig::operator=(KmacConfig&& other) noexcept {
 
 void KmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  // If the job is sync, then the KmacConfig does not own the data.
-  if (job_mode == kCryptoJobAsync) {
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("signature", signature.size());
-    tracker->TrackFieldWithSize("customization", customization.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(signature, "signature");
+  tracker->TraitTrackInline(customization, "customization");
 }
 
 Maybe<void> KmacTraits::AdditionalConfig(
@@ -58,8 +55,6 @@ Maybe<void> KmacTraits::AdditionalConfig(
     unsigned int offset,
     KmacConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // SignConfiguration::Mode
   params->mode =
@@ -90,7 +85,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
       THROW_ERR_OUT_OF_RANGE(env, "customization is too big");
       return Nothing<void>();
     }
-    params->customization = mode == kCryptoJobAsync
+    params->customization = IsCryptoJobAsync(mode)
                                 ? customization.ToCopy()
                                 : customization.ToByteSource();
   }
@@ -104,7 +99,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   if (!args[offset + 6]->IsUndefined()) {
     ArrayBufferOrViewContents<char> signature(args[offset + 6]);
@@ -113,7 +108,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
       return Nothing<void>();
     }
     params->signature =
-        mode == kCryptoJobAsync ? signature.ToCopy() : signature.ToByteSource();
+        IsCryptoJobAsync(mode) ? signature.ToCopy() : signature.ToByteSource();
   }
 
   return JustVoid();
@@ -123,20 +118,13 @@ bool KmacTraits::DeriveBits(Environment* env,
                             const KmacConfig& params,
                             ByteSource* out,
                             CryptoJobMode mode,
-                            CryptoErrorStore* errors) {
-  if (params.length == 0) {
-    *out = ByteSource();
-    return true;
-  }
+                            CryptoErrorStore*) {
+  if (params.length % CHAR_BIT != 0) return false;
+  const size_t length_bytes = params.length / CHAR_BIT;
 
   // Get the key data.
   const void* key_data = params.key.GetSymmetricKey();
   size_t key_size = params.key.GetSymmetricKeySize();
-
-  if (key_size == 0) {
-    errors->Insert(NodeCryptoError::KMAC_FAILED);
-    return false;
-  }
 
   // Fetch the KMAC algorithm
   auto mac = EVPMacPointer::Fetch((params.variant == KmacVariant::KMAC128)
@@ -157,7 +145,7 @@ bool KmacTraits::DeriveBits(Environment* env,
   size_t params_count = 0;
 
   // Set output length (always required for KMAC).
-  size_t outlen = params.length;
+  size_t outlen = length_bytes;
   params_array[params_count++] =
       OSSL_PARAM_construct_size_t(OSSL_MAC_PARAM_SIZE, &outlen);
 
@@ -184,7 +172,7 @@ bool KmacTraits::DeriveBits(Environment* env,
   }
 
   // Finalize and get the result.
-  auto result = mac_ctx.final(params.length);
+  auto result = mac_ctx.final(length_bytes);
   if (!result) {
     return false;
   }
@@ -203,9 +191,10 @@ MaybeLocal<Value> KmacTraits::EncodeOutput(Environment* env,
     case SignConfiguration::Mode::Verify:
       return Boolean::New(
           env->isolate(),
-          out->size() > 0 && out->size() == params.signature.size() &&
-              CRYPTO_memcmp(
-                  out->data(), params.signature.data(), out->size()) == 0);
+          out->size() == params.signature.size() &&
+              (out->size() == 0 ||
+               CRYPTO_memcmp(
+                   out->data(), params.signature.data(), out->size()) == 0));
   }
   UNREACHABLE();
 }
@@ -220,4 +209,4 @@ void Kmac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif
+#endif  // OPENSSL_WITH_EVP_MAC

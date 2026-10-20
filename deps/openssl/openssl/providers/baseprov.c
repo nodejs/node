@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,10 +28,6 @@
 static OSSL_FUNC_provider_gettable_params_fn base_gettable_params;
 static OSSL_FUNC_provider_get_params_fn base_get_params;
 static OSSL_FUNC_provider_query_operation_fn base_query;
-
-/* Functions provided by the core */
-static OSSL_FUNC_core_gettable_params_fn *c_gettable_params = NULL;
-static OSSL_FUNC_core_get_params_fn *c_get_params = NULL;
 
 /* Parameters we provide to the core */
 static const OSSL_PARAM base_param_types[] = {
@@ -139,15 +135,13 @@ int ossl_base_provider_init(const OSSL_CORE_HANDLE *handle,
     void **provctx)
 {
     OSSL_FUNC_core_get_libctx_fn *c_get_libctx = NULL;
+    OSSL_FUNC_core_get_params_fn *c_get_params = NULL;
     BIO_METHOD *corebiometh;
 
     if (!ossl_prov_bio_from_dispatch(in))
         return 0;
     for (; in->function_id != 0; in++) {
         switch (in->function_id) {
-        case OSSL_FUNC_CORE_GETTABLE_PARAMS:
-            c_gettable_params = OSSL_FUNC_core_gettable_params(in);
-            break;
         case OSSL_FUNC_CORE_GET_PARAMS:
             c_get_params = OSSL_FUNC_core_get_params(in);
             break;

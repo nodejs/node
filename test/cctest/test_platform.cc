@@ -128,3 +128,53 @@ TEST_F(PlatformTest, TracingControllerNullptr) {
   node::SetTracingController(orig_controller);
   EXPECT_EQ(node::GetTracingController(), orig_controller);
 }
+
+class RecordingTask : public v8::Task {
+ public:
+  RecordingTask(std::vector<int>* log, int id) : log_(log), id_(id) {}
+  void Run() override { log_->push_back(id_); }
+
+ private:
+  std::vector<int>* log_;
+  int id_;
+};
+
+TEST(TaskQueueTest, HigherPriorityFirstThenPostingOrder) {
+  std::vector<int> log;
+  {
+    node::TaskQueue<v8::Task> queue;
+    for (int i = 0; i < 64; i++) {
+      queue.Lock().Push(std::make_unique<RecordingTask>(&log, i));
+    }
+    for (std::unique_ptr<v8::Task>& task : queue.Lock().PopAll()) task->Run();
+    for (int i = 64; i < 96; i++) {
+      queue.Lock().Push(std::make_unique<RecordingTask>(&log, i));
+    }
+    while (std::unique_ptr<v8::Task> task = queue.Lock().Pop()) task->Run();
+  }
+  ASSERT_EQ(log.size(), 96u);
+  for (int i = 0; i < 96; i++) EXPECT_EQ(log[i], i);
+
+  log.clear();
+  {
+    using v8::TaskPriority;
+    node::TaskQueue<node::TaskQueueEntry> queue;
+    const TaskPriority priorities[] = {TaskPriority::kUserVisible,
+                                       TaskPriority::kBestEffort,
+                                       TaskPriority::kUserBlocking,
+                                       TaskPriority::kUserVisible,
+                                       TaskPriority::kUserBlocking,
+                                       TaskPriority::kBestEffort,
+                                       TaskPriority::kUserVisible};
+    int id = 0;
+    for (TaskPriority priority : priorities) {
+      queue.Lock().Push(std::make_unique<node::TaskQueueEntry>(
+          std::make_unique<RecordingTask>(&log, id++), priority));
+    }
+    for (std::unique_ptr<node::TaskQueueEntry>& entry : queue.Lock().PopAll()) {
+      entry->task->Run();
+    }
+  }
+  const std::vector<int> expected = {2, 4, 0, 3, 6, 1, 5};
+  EXPECT_EQ(log, expected);
+}

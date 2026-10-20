@@ -214,6 +214,7 @@ class UDPWrap final : public HandleWrap,
 
   uv_udp_t handle_;
 
+  bool net_permission_granted_ = false;
   bool current_send_has_callback_;
   v8::Local<v8::Object> current_send_req_wrap_;
 };

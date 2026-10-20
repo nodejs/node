@@ -18,7 +18,7 @@ export interface Cookie {
 export function deleteCookie (
   headers: Headers,
   name: string,
-  attributes?: { name?: string, domain?: string }
+  attributes?: { path?: string, domain?: string }
 ): void
 
 export function getCookies (headers: Headers): Record<string, string>

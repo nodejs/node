@@ -8,13 +8,20 @@ export default Interceptors
 declare namespace Interceptors {
   export type DumpInterceptorOpts = { maxSize?: number }
   export type RetryInterceptorOpts = RetryHandler.RetryOptions
-  export type RedirectInterceptorOpts = { maxRedirections?: number, throwOnMaxRedirect?: boolean }
+  export type RedirectInterceptorOpts = { maxRedirections?: number, throwOnMaxRedirect?: boolean, stripHeadersOnRedirect?: string[], stripHeadersOnCrossOriginRedirect?: string[] }
   export type DecompressInterceptorOpts = {
     skipErrorResponses?: boolean
     skipStatusCodes?: number[]
+    /** Maximum decompressed response size in bytes per stage. 0 disables the limit. @default 0 */
+    maxSize?: number
   }
 
-  export type ResponseErrorInterceptorOpts = { throwOnError: boolean }
+  export type ResponseErrorInterceptorOpts = {
+    /** @deprecated This option is ignored. The interceptor always throws on error responses. */
+    throwOnError?: boolean
+    /** Maximum number of response body bytes to include in the error. 0 disables the limit. @default 1048576 */
+    maxSize?: number
+  }
   export type CacheInterceptorOpts = CacheHandler.CacheOptions
 
   // DNS interceptor

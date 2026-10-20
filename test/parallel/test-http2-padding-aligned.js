@@ -25,18 +25,20 @@ const { duplexPair } = require('stream');
 
   // The lengths of the expected writes... note that this is highly
   // sensitive to how the internals are implemented.
-  const serverLengths = [24, 9, 9, 32];
-  const clientLengths = [9, 9, 48, 9, 1, 21, 1];
+  const serverLengths = [24, 15, 9, 13, 32];
+  const clientLengths = [15, 13, 9, 48, 9, 1, 21, 1];
 
-  // Adjust for the 24-byte preamble and two 9-byte settings frames, and
-  // the result must be equally divisible by 8
+  // Adjust for the 24-byte preamble, 15-byte settings frame (with
+  // initialWindowSize), 13-byte window update frame, and 9-byte settings
+  // ack, and the result must be equally divisible by 8
   assert.strictEqual(
-    (serverLengths.reduce((i, n) => i + n) - 24 - 9 - 9) % 8, 0);
+    (serverLengths.reduce((i, n) => i + n) - 24 - 15 - 13 - 9) % 8, 0);
 
-  // Adjust for two 9-byte settings frames, and the result must be equally
-  // divisible by 8
+  // Adjust for the 15-byte settings frame (with initialWindowSize),
+  // 13-byte window update frame, and 9-byte settings ack, and the result
+  // must be equally divisible by 8
   assert.strictEqual(
-    (clientLengths.reduce((i, n) => i + n) - 9 - 9) % 8, 0);
+    (clientLengths.reduce((i, n) => i + n) - 15 - 13 - 9) % 8, 0);
 
   serverSide.on('data', common.mustCall((chunk) => {
     assert.strictEqual(chunk.length, serverLengths.shift());

@@ -664,12 +664,12 @@ typedef enum {
    * The ALTSVC frame, which is defined in `RFC 7383
    * <https://tools.ietf.org/html/rfc7838#section-4>`_.
    */
-  NGHTTP2_ALTSVC = 0x0a,
+  NGHTTP2_ALTSVC = 0x0A,
   /**
    * The ORIGIN frame, which is defined by `RFC 8336
    * <https://tools.ietf.org/html/rfc8336>`_.
    */
-  NGHTTP2_ORIGIN = 0x0c,
+  NGHTTP2_ORIGIN = 0x0C,
   /**
    * The PRIORITY_UPDATE frame, which is defined by :rfc:`9218`.
    */
@@ -756,7 +756,7 @@ typedef enum {
  *
  * .. warning::
  *
- *   Deprecated.  The initial max concurrent streams is 0xffffffffu.
+ *   Deprecated.  The initial max concurrent streams is 0xFFFFFFFFU.
  *
  * Default maximum number of incoming concurrent streams.  Use
  * `nghttp2_submit_settings()` with
@@ -818,19 +818,19 @@ typedef enum {
   /**
    * CONNECT_ERROR
    */
-  NGHTTP2_CONNECT_ERROR = 0x0a,
+  NGHTTP2_CONNECT_ERROR = 0x0A,
   /**
    * ENHANCE_YOUR_CALM
    */
-  NGHTTP2_ENHANCE_YOUR_CALM = 0x0b,
+  NGHTTP2_ENHANCE_YOUR_CALM = 0x0B,
   /**
    * INADEQUATE_SECURITY
    */
-  NGHTTP2_INADEQUATE_SECURITY = 0x0c,
+  NGHTTP2_INADEQUATE_SECURITY = 0x0C,
   /**
    * HTTP_1_1_REQUIRED
    */
-  NGHTTP2_HTTP_1_1_REQUIRED = 0x0d
+  NGHTTP2_HTTP_1_1_REQUIRED = 0x0D
 } nghttp2_error_code;
 
 /**

@@ -1,5 +1,5 @@
 /* inffast_chunk.c -- fast decoding
- * Copyright (C) 1995-2017 Mark Adler
+ * Copyright (C) 1995-2026 Mark Adler
  * Copyright 2023 The Chromium Authors
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
@@ -132,12 +132,14 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
     } while (0)
 #endif
 
+#ifdef INFLATE_CHUNK_READ_64LE
+    REFILL();
+#endif
+
     /* decode literals and length/distances until end-of-block or not enough
        input data or output space */
     do {
-#ifdef INFLATE_CHUNK_READ_64LE
-        REFILL();
-#else
+#ifndef INFLATE_CHUNK_READ_64LE
         if (bits < 15) {
             hold += (unsigned long)(*in++) << bits;
             bits += 8;
@@ -145,15 +147,20 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
             bits += 8;
         }
 #endif
+        /* Worst case: previous iteration had 3 literals (56 - 20 (lits) - 15 (lit) = 21 bits)
+           or a match (56 - 15 (dist) - 13 (extra) = 28 bits), leaving bits >= lenbits (<= 10). */
+        Assert(bits >= state->lenbits, "inflate_fast: short lit/len index");
         here = lcode + (hold & lmask);
 #ifdef INFLATE_CHUNK_READ_64LE
-        if (here->op == 0) {                    /* literal */
+        REFILL();
+        if (here->op == 0) {                          /* literal */
             Tracevv((stderr, here->val >= 0x20 && here->val < 0x7f ?
                     "inflate:         literal '%c'\n" :
                     "inflate:         literal 0x%02x\n", here->val));
             *out++ = (unsigned char)(here->val);
             hold >>= here->bits;
             bits -= here->bits;
+            Assert(bits >= state->lenbits, "inflate_fast: short 2nd lit/len index");
             here = lcode + (hold & lmask);
             if (here->op == 0) {                /* literal */
                 Tracevv((stderr, here->val >= 0x20 && here->val < 0x7f ?
@@ -162,6 +169,7 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
                 *out++ = (unsigned char)(here->val);
                 hold >>= here->bits;
                 bits -= here->bits;
+                Assert(bits >= state->lenbits, "inflate_fast: short 3rd lit/len index");
                 here = lcode + (hold & lmask);
             }
         }
@@ -187,6 +195,7 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
                     bits += 8;
                 }
 #endif
+                Assert(bits >= op, "inflate_fast: short length extra bits");
                 len += (unsigned)hold & ((1U << op) - 1);
                 hold >>= op;
                 bits -= op;
@@ -200,7 +209,14 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
                 bits += 8;
             }
 #endif
+            /* Worst case: 56 - 20 (lits) - 15 (len) - 5 (extra) = 16 bits remain for distbits <= 9. */
+            Assert(bits >= state->distbits, "inflate_fast: short dist index");
             here = dcode + (hold & dmask);
+#ifdef INFLATE_CHUNK_READ_64LE
+            /* Refill after the table load so the two can overlap, and so the
+               distance code and its extra bits start from a full 56 bits. */
+            REFILL();
+#endif
           dodist:
             op = (unsigned)(here->bits);
             hold >>= op;
@@ -209,24 +225,21 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
             if (op & 16) {                      /* distance base */
                 dist = (unsigned)(here->val);
                 op &= 15;                       /* number of extra bits */
-                /* we have two fast-path loads: 10+10 + 15+5 + 15 = 55,
-                   but we may need to refill here in the worst case */
+#ifndef INFLATE_CHUNK_READ_64LE
                 if (bits < op) {
-#ifdef INFLATE_CHUNK_READ_64LE
-                    REFILL();
-#else
                     hold += (unsigned long)(*in++) << bits;
                     bits += 8;
                     if (bits < op) {
                         hold += (unsigned long)(*in++) << bits;
                         bits += 8;
                     }
-#endif
                 }
+#endif
+                Assert(bits >= op, "inflate_fast: short distance extra bits");
                 dist += (unsigned)hold & ((1U << op) - 1);
 #ifdef INFLATE_STRICT
                 if (dist > dmax) {
-                    strm->msg = (char *)"invalid distance too far back";
+                    strm->msg = (z_const char *)"invalid distance too far back";
                     state->mode = BAD;
                     break;
                 }
@@ -240,7 +253,7 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
                     if (op > whave) {
                         if (state->sane) {
                             strm->msg =
-                                (char *)"invalid distance too far back";
+                                (z_const char *)"invalid distance too far back";
                             state->mode = BAD;
                             break;
                         }
@@ -313,16 +326,18 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */
+                Assert(bits >= op, "inflate_fast: short 2nd level dist index");
                 here = dcode + here->val + (hold & ((1U << op) - 1));
                 goto dodist;
             }
             else {
-                strm->msg = (char *)"invalid distance code";
+                strm->msg = (z_const char *)"invalid distance code";
                 state->mode = BAD;
                 break;
             }
         }
         else if ((op & 64) == 0) {              /* 2nd level length code */
+            Assert(bits >= op, "inflate_fast: short 2nd level lit/len index");
             here = lcode + here->val + (hold & ((1U << op) - 1));
             goto dolen;
         }
@@ -332,7 +347,7 @@ void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start) {
             break;
         }
         else {
-            strm->msg = (char *)"invalid literal/length code";
+            strm->msg = (z_const char *)"invalid literal/length code";
             state->mode = BAD;
             break;
         }

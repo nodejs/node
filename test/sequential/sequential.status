@@ -5,26 +5,12 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/27611#issuecomment-613100468
-test-cpu-prof-dir-worker: PASS, FLAKY
-# https://github.com/nodejs/node/issues/44898
-test-watch-mode: PASS, FLAKY
-test-watch-mode-inspect: PASS, FLAKY
-# https://github.com/nodejs/node/issues/47409
-test-http2-large-file: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/47409
-test-http2-large-file: PASS, FLAKY
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/54817
-test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==macos]
-
-# https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 test-worker-prof: PASS, FLAKY

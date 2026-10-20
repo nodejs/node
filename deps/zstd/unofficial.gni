@@ -4,25 +4,38 @@
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
+import("../../node.gni")
+
 template("zstd_gn_build") {
-  config("zstd_config") {
-    include_dirs = [ "./lib" ]
-  }
+  if (node_shared_zstd) {
+    import("//build/config/linux/pkg_config.gni")
+    pkg_config("zstd_config") {
+      packages = [ "libzstd" ]
+    }
+    group(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":zstd_config" ]
+    }
+  } else {
+    config("zstd_config") {
+      include_dirs = [ "./lib" ]
+    }
 
-  gypi_values = exec_script("../../tools/gypi_to_gn.py",
-                            [ rebase_path("zstd.gyp") ],
-                            "scope",
-                            [ "zstd.gyp" ])
+    gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                              [ rebase_path("zstd.gyp") ],
+                              "scope",
+                              [ "zstd.gyp" ])
 
-  source_set(target_name) {
-    forward_variables_from(invoker, "*")
-    public_configs = [ ":zstd_config" ]
-    sources = gypi_values.zstd_sources
-    defines = [ "XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", "ZSTD_DISABLE_ASM" ]
-    cflags_c = [ "-Wno-unused-function" ]
+    source_set(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":zstd_config" ]
+      sources = gypi_values.zstd_sources
+      defines = [ "XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", "ZSTD_DISABLE_ASM" ]
+      cflags_c = [ "-Wno-unused-function" ]
 
-    if (is_posix) {
-      ldflags = [ "-pthread" ]
+      if (is_posix) {
+        ldflags = [ "-pthread" ]
+      }
     }
   }
 }

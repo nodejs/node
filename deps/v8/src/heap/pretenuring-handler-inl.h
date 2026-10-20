@@ -21,7 +21,9 @@ namespace v8::internal {
 // static
 void PretenuringHandler::UpdateAllocationSite(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
-    PretenuringFeedbackMap* pretenuring_feedback) {
+    PretenuringFeedbackMap* pretenuring_feedback,
+    const YoungPendingAllocations::Snapshot*
+        young_pending_allocations_snapshot) {
   DCHECK_NE(pretenuring_feedback,
             &heap->pretenuring_handler()->global_pretenuring_feedback_);
 #ifdef DEBUG
@@ -36,8 +38,8 @@ void PretenuringHandler::UpdateAllocationSite(
       !AllocationSite::CanTrack(map->instance_type())) {
     return;
   }
-  Tagged<AllocationMemento> memento_candidate =
-      FindAllocationMemento<kForGC>(heap, map, object, object_size);
+  Tagged<AllocationMemento> memento_candidate = FindAllocationMemento<kForGC>(
+      heap, map, object, object_size, young_pending_allocations_snapshot);
   if (memento_candidate.is_null()) {
     return;
   }
@@ -54,25 +56,33 @@ void PretenuringHandler::UpdateAllocationSite(
 void PretenuringHandler::UpdateAllocationSite(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
     SafeHeapObjectSize object_size,
-    PretenuringFeedbackMap* pretenuring_feedback) {
+    PretenuringFeedbackMap* pretenuring_feedback,
+    const YoungPendingAllocations::Snapshot*
+        young_pending_allocations_snapshot) {
   // TODO(425150995): We should have uint versions for allocation to avoid
   // introducing OOBs via sign-extended ints along the way.
   UpdateAllocationSite(heap, map, object, object_size.value(),
-                       pretenuring_feedback);
+                       pretenuring_feedback,
+                       young_pending_allocations_snapshot);
 }
 
 // static
 template <PretenuringHandler::FindMementoMode mode>
 Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
-    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object) {
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
+    const YoungPendingAllocations::Snapshot*
+        young_pending_allocations_snapshot) {
   return FindAllocationMemento<mode>(heap, map, object,
-                                     object->SizeFromMap(map));
+                                     object->SizeFromMap(map),
+                                     young_pending_allocations_snapshot);
 }
 
 // static
 template <PretenuringHandler::FindMementoMode mode>
 Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
-    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size) {
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
+    const YoungPendingAllocations::Snapshot*
+        young_pending_allocations_snapshot) {
   // For uses from within the GC, the size here may actually change when e.g.
   // updating mementos during marking in the young generation collector. This is
   // not an issue with Scavenger that stops the mutator.
@@ -93,12 +103,28 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 
   // If the page is being swept, treat it as if the memento was already swept
   // and bail out.
-  if constexpr (mode != FindMementoMode::kForGC) {
+  if constexpr (mode == FindMementoMode::kForRuntime) {
     MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
     NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
     if (!object_page->SweepingDone()) {
       return {};
     }
+  } else {
+    DCHECK_EQ(mode, FindMementoMode::kForGC);
+    DCHECK_IMPLIES(!v8_flags.minor_ms,
+                   young_pending_allocations_snapshot == nullptr);
+    if (young_pending_allocations_snapshot &&
+        young_pending_allocations_snapshot->Contains(memento_address)) {
+      return {};
+    }
+  }
+
+  // Bailout if memento is below the age mark. This is only possible for pinned
+  // pages in the scavenger. Full GC has page promotion but clears the
+  // NEW_SPACE_BELOW_AGE_MARK page flags before checking mementos.
+  if (!v8_flags.minor_ms &&
+      heap->semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
+    return {};
   }
 
   Tagged<HeapObject> candidate = HeapObject::FromAddress(memento_address);
@@ -109,14 +135,6 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
   if (!candidate_map_slot.Relaxed_ContainsMapValue(
           ReadOnlyRoots(heap).allocation_memento_map().ptr())) {
-    return {};
-  }
-
-  // Bailout if memento is below the age mark. This is only possible for pinned
-  // pages in the scavenger. Full GC has page promotion but clears the
-  // NEW_SPACE_BELOW_AGE_MARK page flags before checking mementos.
-  if (!v8_flags.minor_ms &&
-      heap->semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
     return {};
   }
 

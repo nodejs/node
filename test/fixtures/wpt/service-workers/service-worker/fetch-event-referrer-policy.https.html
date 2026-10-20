@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var worker = 'resources/fetch-event-test-worker.js';
+
+function do_test(referrer, value, expected, name)
+{
+    test(() => {
+          assert_equals(value, expected);
+    }, name + (referrer ? " - Custom Referrer" : " - Default Referrer"));
+}
+
+function run_referrer_policy_tests(frame, referrer, href, origin) {
+    return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                     {method: "GET", referrer: referrer})
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer URL when a member of RequestInit is present');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {method: "GET", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with no referrer when a member of RequestInit is present with an HTTP request');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer with ""');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with no referrer with ""');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: origin',
+            'Service Worker should respond to fetch with the referrer origin with "origin" and a same origin request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: origin',
+            'Service Worker should respond to fetch with the referrer origin with "origin" and a cross origin request');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "origin-when-cross-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer URL with "origin-when-cross-origin" and a same origin request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "origin-when-cross-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer origin with "origin-when-cross-origin" and a cross origin request');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "no-referrer-when-downgrade", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: no-referrer-when-downgrade',
+            'Service Worker should respond to fetch with no referrer with "no-referrer-when-downgrade" and a same origin request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "no-referrer-when-downgrade", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: no-referrer-when-downgrade',
+            'Service Worker should respond to fetch with no referrer with "no-referrer-when-downgrade" and an HTTP request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url, {referrerPolicy: "unsafe-url", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: unsafe-url',
+            'Service Worker should respond to fetch with no referrer with "unsafe-url"');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "no-referrer", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: no-referrer',
+            'Service Worker should respond to fetch with no referrer URL with "no-referrer"');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "same-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: same-origin',
+            'Service Worker should respond to fetch with referrer URL with "same-origin" and a same origin request');
+          var http_url = get_host_info()['HTTPS_REMOTE_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "same-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: same-origin',
+            'Service Worker should respond to fetch with no referrer with "same-origin" and cross origin request');
+          var http_url = get_host_info()['HTTPS_REMOTE_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "strict-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: strict-origin',
+            'Service Worker should respond to fetch with the referrer origin  with "strict-origin" and a HTTPS cross origin request');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "strict-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: strict-origin',
+            'Service Worker should respond to fetch with the referrer origin with "strict-origin" and a same origin request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "strict-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: strict-origin',
+            'Service Worker should respond to fetch with no referrer with "strict-origin" and a HTTP request');
+          return frame.contentWindow.fetch('resources/simple.html?referrerFull',
+                                           {referrerPolicy: "strict-origin-when-cross-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + href + '\n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer URL with "strict-origin-when-cross-origin" and a same origin request');
+          var http_url = get_host_info()['HTTPS_REMOTE_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "strict-origin-when-cross-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: ' + origin + '/' + '\n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with the referrer origin with "strict-origin-when-cross-origin" and a HTTPS cross origin request');
+          var http_url = get_host_info()['HTTP_ORIGIN'] + base_path() +
+                         '/resources/simple.html?referrerFull';
+          return frame.contentWindow.fetch(http_url,
+                                           {referrerPolicy: "strict-origin-when-cross-origin", referrer: referrer});
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          do_test(referrer,
+            response_text,
+            'Referrer: \n' +
+            'ReferrerPolicy: strict-origin-when-cross-origin',
+            'Service Worker should respond to fetch with no referrer with "strict-origin-when-cross-origin" and a HTTP request');
+        });
+}
+
+promise_test(function(t) {
+    var scope = 'resources/simple.html?referrerPolicy';
+    var frame;
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          frame = f;
+          test(() => {
+            assert_equals(frame.contentDocument.body.textContent, 'ReferrerPolicy: strict-origin-when-cross-origin');
+          }, 'Service Worker should respond to fetch with the default referrer policy');
+          // First, run the referrer policy tests without passing a referrer in RequestInit.
+          return run_referrer_policy_tests(frame, undefined, frame.contentDocument.location.href,
+                                           frame.contentDocument.location.origin);
+        })
+      .then(function() {
+          // Now, run the referrer policy tests while passing a referrer in RequestInit.
+          var referrer = get_host_info()['HTTPS_ORIGIN'] + base_path() + 'resources/fake-referrer';
+          return run_referrer_policy_tests(frame, 'fake-referrer', referrer,
+                                           frame.contentDocument.location.origin);
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Service Worker responds to fetch event with the referrer policy');
+
+</script>
+</body>

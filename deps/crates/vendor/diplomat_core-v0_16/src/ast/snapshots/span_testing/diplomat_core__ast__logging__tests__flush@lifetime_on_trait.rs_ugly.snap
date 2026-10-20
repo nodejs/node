@@ -1,0 +1,8 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Diplomat traits are not allowed to have any lifetime parameters.
+In src/ast/snapshots/span_testing/lifetime_on_trait.rs:3:15:
+...rait Trait<'a>...
+        ^^^^^

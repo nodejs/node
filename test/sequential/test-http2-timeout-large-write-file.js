@@ -27,7 +27,6 @@ const minReadSize = 500000;
 const serverTimeout = common.platformTimeout(500);
 let offsetTimeout = common.platformTimeout(100);
 let didReceiveData = false;
-
 const content = Buffer.alloc(writeSize, 0x44);
 const filepath = tmpdir.resolve('http2-large-write.tmp');
 fs.writeFileSync(filepath, content, 'binary');
@@ -52,8 +51,10 @@ server.on('timeout', common.mustCallAtLeast(() => {
 }, 0));
 
 server.listen(0, common.mustCall(() => {
-  const client = http2.connect(`https://localhost:${server.address().port}`,
-                               { rejectUnauthorized: false });
+  const client = http2.connect(`https://localhost:${server.address().port}`, {
+    rejectUnauthorized: false,
+    settings: { initialWindowSize: 65535 },
+  });
 
   const req = client.request({ ':path': '/' });
   req.end();

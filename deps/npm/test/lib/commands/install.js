@@ -101,6 +101,118 @@ t.test('exec commands', async t => {
     t.strictSame(lifecycleScripts, runOrder, 'all script ran in the correct order')
   })
 
+  // Regression test: root `preinstall` must run before any dependency is fetched/unpacked, while `install` and `postinstall` run after reify has populated node_modules.
+  await t.test('preinstall runs before reify, post-reify scripts run after', async t => {
+    const events = []
+    const { npm, registry } = await loadMockNpm(t, {
+      config: { audit: false },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          ...packageJson,
+          scripts: {
+            preinstall: 'echo preinstall',
+            install: 'echo install',
+            postinstall: 'echo postinstall',
+          },
+        }),
+        abbrev,
+      },
+      mocks: {
+        '@npmcli/run-script': async (opts) => {
+          // Only record scripts targeted at the project root, not any that arborist may run for dependencies during reify.
+          if (opts.path === npm.prefix) {
+            const abbrevPkg = path.join(npm.prefix, 'node_modules', 'abbrev', 'package.json')
+            events.push({ event: opts.event, depInstalled: fs.existsSync(abbrevPkg) })
+          }
+        },
+      },
+    })
+    const manifest = registry.manifest({ name: 'abbrev' })
+    await registry.package({ manifest })
+    await registry.tarball({
+      manifest: manifest.versions['1.0.0'],
+      tarball: path.join(npm.prefix, 'abbrev'),
+    })
+
+    await npm.exec('install')
+
+    const pre = events.find(e => e.event === 'preinstall')
+    const post = events.find(e => e.event === 'postinstall')
+    t.ok(pre, 'preinstall ran')
+    t.ok(post, 'postinstall ran')
+    t.equal(pre.depInstalled, false, 'preinstall runs before dependencies are installed')
+    t.equal(post.depInstalled, true, 'postinstall runs after dependencies are installed')
+  })
+
+  await t.test('without args, --ignore-scripts skips preinstall entirely', async t => {
+    const events = []
+    const { npm, registry } = await loadMockNpm(t, {
+      config: { audit: false, 'ignore-scripts': true },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          ...packageJson,
+          scripts: {
+            preinstall: 'echo preinstall',
+            postinstall: 'echo postinstall',
+          },
+        }),
+        abbrev,
+      },
+      mocks: {
+        '@npmcli/run-script': async (opts) => {
+          if (opts.path === npm.prefix) {
+            events.push(opts.event)
+          }
+        },
+      },
+    })
+    const manifest = registry.manifest({ name: 'abbrev' })
+    await registry.package({ manifest })
+    await registry.tarball({
+      manifest: manifest.versions['1.0.0'],
+      tarball: path.join(npm.prefix, 'abbrev'),
+    })
+
+    await npm.exec('install')
+    t.strictSame(events, [], 'no root lifecycle scripts run when --ignore-scripts is set')
+  })
+
+  // Regression test: a failing root `preinstall` must short-circuit before reify runs, so dependencies never reach disk on failure. This is the cleaner failure mode the PR was motivated by; future refactors that swallow the rejection and still call reify must fail here.
+  await t.test('a failing preinstall prevents reify', async t => {
+    const events = []
+    const { npm } = await loadMockNpm(t, {
+      config: { audit: false },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          ...packageJson,
+          scripts: {
+            preinstall: 'exit 1',
+            postinstall: 'echo postinstall',
+          },
+        }),
+        abbrev,
+      },
+      mocks: {
+        '@npmcli/run-script': async (opts) => {
+          if (opts.path === npm.prefix) {
+            events.push(opts.event)
+            if (opts.event === 'preinstall') {
+              throw Object.assign(new Error('preinstall failed'), { code: 'ELIFECYCLE' })
+            }
+          }
+        },
+      },
+    })
+
+    await t.rejects(npm.exec('install'), /preinstall failed/, 'install rejects when preinstall fails')
+    t.strictSame(events, ['preinstall'], 'only preinstall ran; no post-reify scripts')
+    t.equal(
+      fs.existsSync(path.join(npm.prefix, 'node_modules', 'abbrev', 'package.json')),
+      false,
+      'no dependency reached disk after preinstall failure'
+    )
+  })
+
   await t.test('should ignore scripts with --ignore-scripts', async t => {
     const { npm, registry } = await loadMockNpm(t, {
       config: {
@@ -242,6 +354,7 @@ t.test('exec commands', async t => {
     const { npm } = await loadMockNpm(t, {
       config: {
         'allow-git': 'none',
+        audit: false,
       },
     })
     await t.rejects(
@@ -254,10 +367,25 @@ t.test('exec commands', async t => {
     )
   })
 
+  t.test('allow-git default rejects git deps', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: { audit: false },
+    })
+    await t.rejects(
+      npm.exec('install', ['npm/npm']),
+      {
+        code: 'EALLOWGIT',
+        package: 'github:npm/npm',
+      },
+      'no explicit allow-git config still blocks git installs'
+    )
+  })
+
   t.test('allow-git=root refuses non-root git dependency', async t => {
     const { npm } = await loadMockNpm(t, {
       config: {
-        'allow-git': 'none',
+        'allow-git': 'root',
+        audit: false,
       },
       prefixDir: {
         'package.json': JSON.stringify({ name: '@npmcli/test-package', version: '1.0.0' }),
@@ -268,7 +396,147 @@ t.test('exec commands', async t => {
     })
     await t.rejects(
       npm.exec('install', ['./abbrev']),
-      /Fetching packages of type "git" have been disabled/
+      /Fetching non-root packages of type "git" have been disabled/
+    )
+  })
+
+  t.test('allow-directory=none blocks default symlink install', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-directory': 'none',
+        audit: false,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: '@npmcli/test-package',
+          version: '1.0.0',
+          dependencies: { 'dir-dep': 'file:./dir-dep' },
+        }),
+        'dir-dep': {
+          'package.json': JSON.stringify({ name: 'dir-dep', version: '1.0.0' }),
+        },
+      },
+    })
+    await t.rejects(
+      npm.exec('install', []),
+      {
+        code: 'EALLOWDIRECTORY',
+        message: 'Fetching packages of type "directory" have been disabled',
+      }
+    )
+  })
+
+  t.test('allow-directory=root permits top-level directory dependency', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-directory': 'root',
+        audit: false,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: '@npmcli/test-package',
+          version: '1.0.0',
+          dependencies: { 'dir-dep': 'file:./dir-dep' },
+        }),
+        'dir-dep': {
+          'package.json': JSON.stringify({ name: 'dir-dep', version: '1.0.0' }),
+        },
+      },
+    })
+    await npm.exec('install', [])
+    const installedPkg = require(path.join(npm.prefix, 'node_modules', 'dir-dep', 'package.json'))
+    t.equal(installedPkg.name, 'dir-dep', 'dir-dep is installed and readable through node_modules')
+  })
+
+  t.test('allow-git=root soft-skips transitive optional git dependency', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-git': 'root',
+        audit: false,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({ name: '@npmcli/test-package', version: '1.0.0' }),
+        abbrev: {
+          'package.json': JSON.stringify({
+            name: 'abbrev',
+            version: '1.0.0',
+            optionalDependencies: { npm: 'npm/npm' },
+          }),
+        },
+      },
+    })
+    await npm.exec('install', ['./abbrev'])
+    t.ok(
+      fs.existsSync(path.join(npm.prefix, 'node_modules', 'abbrev', 'package.json')),
+      'abbrev (the legitimate parent) is installed'
+    )
+    t.notOk(
+      fs.existsSync(path.join(npm.prefix, 'node_modules', 'npm')),
+      'optional transitive git dep is silently skipped'
+    )
+  })
+
+  t.test('allow-remote=none does not block registry tarballs', async t => {
+    const { npm, registry } = await loadMockNpm(t, {
+      config: {
+        'allow-remote': 'none',
+        audit: false,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          ...packageJson,
+          dependencies: { abbrev: '^1.0.0' },
+        }),
+        abbrev,
+      },
+    })
+    const manifest = registry.manifest({ name: 'abbrev' })
+    await registry.package({ manifest })
+    await registry.tarball({
+      manifest: manifest.versions['1.0.0'],
+      tarball: path.join(npm.prefix, 'abbrev'),
+    })
+    await npm.exec('install', [])
+    const installed = require(path.join(npm.prefix, 'node_modules', 'abbrev', 'package.json'))
+    t.equal(installed.name, 'abbrev', 'registry dep is installed despite allow-remote=none')
+  })
+
+  t.test('allow-remote=none still blocks a user-supplied remote URL', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'allow-remote': 'none',
+        audit: false,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: '@npmcli/test-package',
+          version: '1.0.0',
+          dependencies: { abbrev: 'https://registry.npmjs.org/abbrev/-/abbrev-2.0.0.tgz' },
+        }),
+      },
+    })
+    await t.rejects(
+      npm.exec('install', []),
+      { code: 'EALLOWREMOTE' },
+      'user-supplied remote URL is still blocked'
+    )
+  })
+
+  t.test('allow-remote default rejects a user-supplied remote URL', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: { audit: false },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: '@npmcli/test-package',
+          version: '1.0.0',
+          dependencies: { abbrev: 'https://registry.npmjs.org/abbrev/-/abbrev-2.0.0.tgz' },
+        }),
+      },
+    })
+    await t.rejects(
+      npm.exec('install', []),
+      { code: 'EALLOWREMOTE' },
+      'no explicit allow-remote config still blocks user-supplied tarball URLs'
     )
   })
 })

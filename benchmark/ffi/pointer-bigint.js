@@ -6,14 +6,12 @@ const { libraryPath, ensureFixtureLibrary } = require('./common.js');
 
 const bench = common.createBenchmark(main, {
   n: [1e7],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  pointer_to_usize: { result: 'u64', parameters: ['pointer'] },
+  pointer_to_usize: { return: 'u64', arguments: ['pointer'] },
 });
 
 const fn = functions.pointer_to_usize;

@@ -16,14 +16,18 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -61,9 +65,10 @@ constexpr bool ShouldExerciseLongDoubleTests() {
 #endif
 }
 
-using RealTypes = std::conditional<ShouldExerciseLongDoubleTests(),
-                                   ::testing::Types<float, double, long double>,
-                                   ::testing::Types<float, double>>::type;
+using RealTypes =
+    std::conditional_t<ShouldExerciseLongDoubleTests(),
+                       ::testing::Types<float, double, long double>,
+                       ::testing::Types<float, double>>;
 TYPED_TEST_SUITE(BetaDistributionInterfaceTest, RealTypes);
 
 TYPED_TEST(BetaDistributionInterfaceTest, SerializeTest) {

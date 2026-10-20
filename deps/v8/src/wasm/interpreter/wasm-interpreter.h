@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -56,6 +57,7 @@ namespace internal {
 class Cell;
 class FixedArray;
 class WasmInstanceObject;
+class WasmTrustedInstanceData;
 
 namespace wasm {
 
@@ -182,7 +184,7 @@ static_assert(sizeof(WasmRef) == kSystemPointerSize);
 class WasmBytecode {
  public:
   WasmBytecode(int func_index, const uint8_t* code_data, size_t code_length,
-               uint32_t stack_frame_size, const FunctionSig* signature,
+               size_t stack_frame_size, const FunctionSig* signature,
                const CanonicalSig* canonical_signature,
                const InterpreterCode* interpreter_code, size_t blocks_count,
                const uint8_t* const_slots_data, size_t const_slots_length,
@@ -228,7 +230,7 @@ class WasmBytecode {
     return ref_slots_count_ - ref_rets_count_ - ref_args_count_;
   }
 
-  inline uint32_t frame_size() { return total_frame_size_in_bytes_; }
+  inline size_t frame_size() { return total_frame_size_in_bytes_; }
 
   static inline uint32_t ArgsSizeInSlots(const FunctionSig* sig);
   static inline uint32_t RetsSizeInSlots(const FunctionSig* sig);
@@ -272,7 +274,7 @@ class WasmBytecode {
   uint32_t rets_slots_size_;
   uint32_t locals_count_;
   uint32_t locals_slots_size_;
-  uint32_t total_frame_size_in_bytes_;
+  size_t total_frame_size_in_bytes_;
   uint32_t ref_args_count_;
   uint32_t ref_rets_count_;
   uint32_t ref_locals_count_;
@@ -397,7 +399,12 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   void NotifyIsolateDisposal(Isolate* isolate);
 
  private:
-  typedef absl::flat_hash_map<int, std::unique_ptr<WasmInterpreterThread>>
+  // The map is process-global and shared by all isolates. A single OS thread
+  // can be time-shared by multiple isolates (e.g. an embedder that multiplexes
+  // isolates on one thread via v8::Locker), so entries must be keyed by both
+  // the OS thread id and the isolate.
+  typedef absl::flat_hash_map<std::pair<int, Isolate*>,
+                              std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
   base::Mutex mutex_;
@@ -520,6 +527,14 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
     void SetCurrentFrame(const FrameState& frame_state) {
       current_frame_state_ = frame_state;
+      // The thread's copy is a non-owning bookmark used for stack traces and
+      // frame restoration on reentrant calls.  It must never hold a
+      // caught_exceptions_ GlobalHandle: a reentrant activation saves and
+      // restores this bookmark, and the interpreter requires that no suspended
+      // frame carries caught_exceptions_. ExecuteImportedFunction preserves the
+      // caller's caught_exceptions_ across the JS call on the C++ stack
+      // instead.
+      current_frame_state_.caught_exceptions_ = Handle<FixedArray>::null();
     }
     const FrameState& GetCurrentFrame() const { return current_frame_state_; }
 
@@ -596,6 +611,48 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
     uint32_t current_stack_size_;
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
   };
+
+  // The interpreter dedicates a per-thread stack to Wasm frames, distinct from
+  // the C++ stack. Its memory layout is:
+  //
+  //   stack_mem_ -> +------------------------------+
+  //                 | committed region             |   grows in
+  //                 | ([0, current_stack_size_))   |   kStackSizeIncrement
+  //                 | readable/writable            |   chunks via
+  //                 |                              |   ExpandStack(), up to
+  //                 |                              |   kMaxStackSize.
+  //                 +------------------------------+
+  //                 | reserved-but-uncommitted     |   permanently kNoAccess;
+  //                 | growth region                |   the ExpandStack path
+  //                 | ([current_stack_size_,       |   commits pages out of
+  //                 |   kMaxStackSize))            |   this region on demand.
+  //                 +------------------------------+
+  //                 | guard region                 |   permanently kNoAccess.
+  //                 | ([kMaxStackSize,             |   Defense in depth: see
+  //                 |  kInterpreterStackReservationSize))  the comment on
+  //                 |                              | kInterpreterStackGuardSize
+  //                 |                              |   below.
+  //                 +------------------------------+
+  static constexpr uint32_t kInitialStackSize = 1 * MB;
+  static constexpr uint32_t kStackSizeIncrement = 1 * MB;
+  static constexpr uint32_t kMaxStackSize = 32 * MB;
+
+  // Tail guard region appended to the reservation, kept permanently kNoAccess.
+  //
+  // Defense in depth against bugs where the stack-overflow check undercounts
+  // the callee frame: if such a check ever lets a frame execute when it doesn't
+  // fit in the committed region, the callee's frame writes (args copy, slot
+  // initialization, etc.) progress sequentially from low to high addresses,
+  // so the very first byte that crosses into kNoAccess memory raises an access
+  // violation. The remaining bytes of the would-be write never happen. A single
+  // page is therefore sufficient; we use kStackSizeIncrement for a generous
+  // margin (still essentially free on 64-bit, since the tail is reserved-only
+  // and never committed).
+  static constexpr uint32_t kInterpreterStackGuardSize = kStackSizeIncrement;
+  static constexpr uint32_t kInterpreterStackReservationSize =
+      kMaxStackSize + kInterpreterStackGuardSize;
+  static_assert(kInterpreterStackReservationSize > kMaxStackSize,
+                "Reservation must leave a non-empty guard region.");
 
   explicit WasmInterpreterThread(Isolate* isolate);
   ~WasmInterpreterThread();
@@ -770,9 +827,6 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   // used to access the stack.
   Address fuzzer_entry_frame_pointer_;
 
-  static constexpr uint32_t kInitialStackSize = 1 * MB;
-  static constexpr uint32_t kStackSizeIncrement = 1 * MB;
-  static constexpr uint32_t kMaxStackSize = 32 * MB;
   uint32_t current_stack_size_;
   void* stack_mem_;
 
@@ -833,7 +887,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
                   const ModuleWireBytes& wire_bytes,
-                  DirectHandle<WasmInstanceObject> instance);
+                  DirectHandle<WasmTrustedInstanceData> trusted_data);
 
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -870,7 +924,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // {InterpreterCode} vector in the {CodeMap}. It is also passed to
   // {WasmDecoder} used to parse the 'locals' in a Wasm function.
   Zone zone_;
-  IndirectHandle<WasmInstanceObject> instance_object_;
 
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
@@ -1337,12 +1390,52 @@ struct WasmInstruction {
       uint32_t dst_table_index;
       uint32_t src_table_index;
     } table_copy;
-    uint8_t simd_lane : 4;
+    struct SimdLane {
+      using LaneField = base::BitField<uint8_t, 0, 4, uint8_t>;
+
+      SimdLane() : value_(0) {}
+
+      uint8_t lane() const { return LaneField::decode(value_); }
+      void set_lane(uint8_t v) { value_ = LaneField::encode(v); }
+
+      uint8_t value_;
+    } simd_lane;
     struct SimdLaneLoad {
-      uint8_t lane : 4;
-      uint8_t : 0;
-      uint64_t offset : 48;
+      using LaneField = base::BitField<uint8_t, 0, 4, uint32_t>;
+      using MemoryIndexField = LaneField::Next<uint32_t, 28>;
+      using OffsetField = base::BitField64<uint64_t, 0, 48>;
+
+      SimdLaneLoad() : lane_and_memory_index_(0), offset_field_(0) {}
+
+      uint8_t lane() const { return LaneField::decode(lane_and_memory_index_); }
+      uint32_t memory_index() const {
+        return MemoryIndexField::decode(lane_and_memory_index_);
+      }
+      uint64_t offset() const { return OffsetField::decode(offset_field_); }
+      void set_lane(uint8_t v) {
+        lane_and_memory_index_ = LaneField::update(lane_and_memory_index_, v);
+      }
+      void set_memory_index(uint32_t v) {
+        lane_and_memory_index_ =
+            MemoryIndexField::update(lane_and_memory_index_, v);
+      }
+      void set_offset(uint64_t v) { offset_field_ = OffsetField::encode(v); }
+
+      uint32_t lane_and_memory_index_;
+      uint64_t offset_field_;
     } simd_loadstore_lane;
+    struct MemoryInit {
+      uint32_t memory_index;
+      uint32_t data_segment_index;
+    } memory_init;
+    struct MemoryCopy {
+      uint32_t dst_memory_index;
+      uint32_t src_memory_index;
+    } memory_copy;
+    struct MemoryAccess {
+      uint64_t offset;
+      uint32_t memory_index;
+    } memory_access;
     struct GC_FieldImmediate {
       uint32_t struct_index;
       uint32_t field_index;
@@ -1352,7 +1445,6 @@ struct WasmInstruction {
       uint32_t length;
     } gc_memory_immediate;
     struct GC_HeapTypeImmediate {
-      uint32_t length;
       uint32_t heap_type_bit_field;
       constexpr HeapType type() const {
         return HeapType::FromBits(heap_type_bit_field);
@@ -1557,7 +1649,9 @@ class WasmBytecodeGenerator {
     return rets_slots_size_ + args_slots_size_;
   }
 
-  inline uint32_t GetStackFrameSize() const { return slot_offset_; }
+  inline uint32_t GetStackFrameSize() const {
+    return static_cast<uint32_t>(slot_offset_);
+  }
 
   uint32_t CurrentCodePos() const {
     return static_cast<uint32_t>(code_.size());
@@ -1599,7 +1693,7 @@ class WasmBytecodeGenerator {
 
   inline void I32Push(bool emit = true);
   inline void I64Push(bool emit = true);
-  inline void MemIndexPush(bool emit = true) { (this->*int_mem_push_)(emit); }
+  inline void MemIndexPush(bool is_memory64, bool emit = true);
   inline void ITableIndexPush(bool is_table64, bool emit = true);
   inline void F32Push(bool emit = true);
   inline void F64Push(bool emit = true);
@@ -1609,7 +1703,13 @@ class WasmBytecodeGenerator {
 
   inline void I32Pop(bool emit = true) { Pop(kI32, emit); }
   inline void I64Pop(bool emit = true) { Pop(kI64, emit); }
-  inline void MemIndexPop(bool emit = true) { (this->*int_mem_pop_)(emit); }
+  inline void MemIndexPop(bool is_memory64, bool emit = true) {
+    if (V8_UNLIKELY(is_memory64)) {
+      I64Pop(emit);
+    } else {
+      I32Pop(emit);
+    }
+  }
   inline void F32Pop(bool emit = true) { Pop(kF32, emit); }
   inline void F64Pop(bool emit = true) { Pop(kF64, emit); }
   inline void S128Pop(bool emit = true) { Pop(kS128, emit); }
@@ -1689,6 +1789,13 @@ class WasmBytecodeGenerator {
     } else {
       DCHECK_EQ(handler_size_, InstrHandlerSize::Large);
       Emit(&value, sizeof(value));
+    }
+  }
+  inline void EmitMemoryIndex(int32_t value) {
+    if (V8_UNLIKELY(is_multi_memory_)) {
+      EmitI32Const(value);
+    } else {
+      DCHECK_EQ(value, 0);
     }
   }
 
@@ -1814,13 +1921,14 @@ class WasmBytecodeGenerator {
       return CreateWasmRefSlot(value_type);
     }
     uint32_t slot_index = static_cast<uint32_t>(slots_.size());
-    slots_.push_back({value_type, slot_offset_, 0});
+    slots_.push_back({value_type, static_cast<uint32_t>(slot_offset_), 0});
     slot_offset_ += sizeof(T) / kSlotSize;
     return slot_index;
   }
   inline uint32_t CreateWasmRefSlot(ValueType value_type) {
     uint32_t slot_index = static_cast<uint32_t>(slots_.size());
-    slots_.push_back({value_type, slot_offset_, ref_slots_count_});
+    slots_.push_back(
+        {value_type, static_cast<uint32_t>(slot_offset_), ref_slots_count_});
     slot_offset_ += sizeof(WasmRef) / kSlotSize;
     ref_slots_count_++;
     return slot_index;
@@ -2021,10 +2129,6 @@ class WasmBytecodeGenerator {
   static bool HasSideEffects(WasmOpcode opcode);
 #endif  // DEBUG
 
-  MemIndexPushFunc int_mem_push_;
-  MemIndexPopFunc int_mem_pop_;
-  bool is_memory64_;
-
   std::vector<uint8_t> const_slots_values_;
   uint32_t const_slot_offset_;
   absl::flat_hash_map<int32_t, uint32_t> i32_const_cache_;
@@ -2040,7 +2144,12 @@ class WasmBytecodeGenerator {
   absl::flat_hash_map<Simd128, uint32_t, Simd128Hash> s128_const_cache_;
 
   std::vector<Simd128> simd_immediates_;
-  uint32_t slot_offset_;  // TODO(paolosev@microsoft.com): manage holes
+  // 64-bit so the running frame size cannot wrap for a pathologically large
+  // frame; such a frame then traps as a stack overflow at invocation (see
+  // WasmBytecode::InitializeSlots).
+  //
+  // TODO(paolosev@microsoft.com): manage holes
+  size_t slot_offset_;
 
   class RollbackStack {
    public:
@@ -2103,6 +2212,8 @@ class WasmBytecodeGenerator {
 
   std::vector<BlockData> blocks_;
   int32_t current_block_index_;
+
+  const bool is_multi_memory_;
 
   bool is_instruction_reachable_;
   uint32_t unreachable_block_count_;

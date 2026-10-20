@@ -458,11 +458,8 @@ async function testWriteWithAbortedSignalRejects() {
   const fh = await open(filePath, 'w');
   const w = fh.writer();
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.write(Buffer.from('data'), { signal: ac.signal }),
+    w.write(Buffer.from('data'), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -479,11 +476,8 @@ async function testWritevWithAbortedSignalRejects() {
   const fh = await open(filePath, 'w');
   const w = fh.writer();
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.writev([Buffer.from('a'), Buffer.from('b')], { signal: ac.signal }),
+    w.writev([Buffer.from('a'), Buffer.from('b')], { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -501,11 +495,8 @@ async function testEndWithAbortedSignalRejects() {
 
   await w.write(Buffer.from('data'));
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.end({ signal: ac.signal }),
+    w.end({ signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -773,8 +764,12 @@ async function testEndSyncReturnsFalseDuringAsync() {
   const p = w.write(Buffer.from('data'));
   assert.strictEqual(w.endSync(), -1);
 
+  const ending = w.end();
+  assert.strictEqual(w.writeSync(Buffer.from('more')), false);
+  assert.strictEqual(w.endSync(), -1);
+  await assert.rejects(w.write('more'), { code: 'ERR_INVALID_STATE' });
   await p;
-  const totalBytes = await w.end();
+  const totalBytes = await ending;
   await fh.close();
 
   assert.strictEqual(totalBytes, 4);
@@ -859,6 +854,50 @@ async function testEndRejectsOnErrored() {
   await fh.close();
 }
 
+async function testFailPreservesReason() {
+  for (const reason of [undefined, null, false, 0, '', 'failure']) {
+    const suffix = String(reason).replaceAll(' ', '-');
+    const filePath = path.join(tmpDir, `writer-fail-${suffix}.txt`);
+    const fh = await open(filePath, 'w');
+    const w = fh.writer();
+
+    w.fail(reason);
+
+    await assert.rejects(w.write('data'), (error) => error === reason);
+    await assert.rejects(w.end(), (error) => error === reason);
+    await fh.close();
+  }
+}
+
+async function testFailRejectsPendingWriteWithReason() {
+  const filePath = path.join(tmpDir, 'writer-fail-pending.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = null;
+  const pending = w.write(Buffer.alloc(1024 * 1024));
+
+  w.fail(reason);
+
+  await assert.rejects(pending, (error) => error === reason);
+  await fh.close();
+}
+
+async function testFailWhileClosingPreservesReason() {
+  const filePath = path.join(tmpDir, 'writer-fail-closing.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = false;
+  const pendingWrite = w.write(Buffer.alloc(1024 * 1024));
+  const pendingEnd = w.end();
+
+  w.fail(reason);
+
+  for (const promise of [pendingWrite, pendingEnd]) {
+    await assert.rejects(promise, (error) => error === reason);
+  }
+  await fh.close();
+}
+
 // =============================================================================
 // end() is idempotent when closing/closed
 // =============================================================================
@@ -923,7 +962,7 @@ async function testAsyncDisposeCallsFail() {
   // Writer should be in errored state - write should reject
   await assert.rejects(
     w.write(Buffer.from('more')),
-    (err) => err instanceof Error,
+    (reason) => reason === undefined,
   );
 
   // Handle should be unlocked and reusable
@@ -1069,9 +1108,93 @@ async function testWriterArgumentValidation() {
   }
 }
 
+async function testWriterWebIDLConversion() {
+  const filePath = path.join(tmpDir, 'writer-webidl.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+
+  await w.write(42, null);
+  await w.writev(new Set([true, { toString: () => 'object' }]));
+  assert.throws(
+    () => w.write(Symbol('invalid')),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.throws(
+    () => w.write('invalid options', 1),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.strictEqual(await w.end(null), 12);
+  await fh.close();
+
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'), '42trueobject');
+}
+
 // =============================================================================
 // Run all tests
 // =============================================================================
+
+// =============================================================================
+// Overlapping (un-awaited) writes must land in call order
+// =============================================================================
+
+function makeTestData(size) {
+  const data = Buffer.allocUnsafe(size);
+  let seed = 0x9e3779b9;
+  for (let i = 0; i < size; i++) {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    data[i] = seed & 0xff;
+  }
+  return data;
+}
+
+async function testConcurrentWritesPreserveOrder() {
+  const data = makeTestData(512 * 1024);
+  for (const options of [{}, { start: 0 }]) {
+    for (const useWritev of [false, true]) {
+      const filePath = path.join(
+        tmpDir,
+        `writer-concurrent-${options.start ?? 'none'}-${useWritev}.bin`);
+      const fh = await open(filePath, 'w');
+      const w = fh.writer(options);
+      const writes = [];
+      let offset = 0;
+      let i = 0;
+      while (offset < data.length) {
+        const size = 1 + ((i++ * 7919) % 9000);
+        const end = Math.min(offset + size, data.length);
+        const chunk = data.subarray(offset, end);
+        writes.push(useWritev ?
+          w.writev([chunk.subarray(0, 1), chunk.subarray(1)]) :
+          w.write(chunk));
+        offset = end;
+      }
+      await Promise.all(writes);
+      assert.strictEqual(await w.end(), data.length);
+      await fh.close();
+      assert.deepStrictEqual(fs.readFileSync(filePath), data);
+    }
+  }
+}
+
+async function testFailStopsQueuedWrites() {
+  const filePath = path.join(tmpDir, 'writer-fail-queued.bin');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = new Error('stop');
+  const writes = [];
+  for (let i = 0; i < 10; i++) {
+    writes.push(w.write(Buffer.alloc(1024, i)));
+  }
+  w.fail(reason);
+  const results = await Promise.allSettled(writes);
+  for (const result of results) {
+    assert.strictEqual(result.status, 'rejected');
+    assert.strictEqual(result.reason, reason);
+  }
+  await fh.close();
+  // None of the queued writes may reach the file after fail().
+  assert.strictEqual(fs.statSync(filePath).size, 0);
+}
 
 Promise.all([
   testBasicWrite(),
@@ -1113,6 +1236,9 @@ Promise.all([
   testEndSyncAutoClose(),
   testFullSyncPipeline(),
   testEndRejectsOnErrored(),
+  testFailPreservesReason(),
+  testFailRejectsPendingWriteWithReason(),
+  testFailWhileClosingPreservesReason(),
   testEndIdempotent(),
   testAsyncDisposeWhileClosing(),
   testAsyncDisposeCallsFail(),
@@ -1123,4 +1249,7 @@ Promise.all([
   testWriterLimitWritevSync(),
   testWriterLimitAndStart(),
   testWriterArgumentValidation(),
+  testWriterWebIDLConversion(),
+  testConcurrentWritesPreserveOrder(),
+  testFailStopsQueuedWrites(),
 ]).then(common.mustCall());

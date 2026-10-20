@@ -15,18 +15,6 @@
 
 #include "absl/log/internal/log_sink_set.h"
 
-#ifndef ABSL_HAVE_THREAD_LOCAL
-#include <pthread.h>
-#endif
-
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <algorithm>
 #include <vector>
 
@@ -46,6 +34,18 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
+
+#ifndef ABSL_HAVE_THREAD_LOCAL
+#include <pthread.h>
+#endif
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

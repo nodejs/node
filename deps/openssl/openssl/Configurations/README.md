@@ -502,7 +502,7 @@ The build-file template is processed with the perl module
 Text::Template, using `{-` and `-}` as delimiters that enclose the
 perl code fragments that generate configuration-dependent content.
 Those perl fragments have access to all the hash variables from
-configdata.pem.
+configdata.pm.
 
 The build-file template is expected to define at least the following
 perl functions in a perl code fragment enclosed with `{-` and `-}`.

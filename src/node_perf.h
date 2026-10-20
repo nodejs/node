@@ -63,6 +63,7 @@ inline PerformanceEntryType ToPerformanceEntryTypeEnum(
 enum PerformanceGCKind {
   NODE_PERFORMANCE_GC_MAJOR = v8::GCType::kGCTypeMarkSweepCompact,
   NODE_PERFORMANCE_GC_MINOR = v8::GCType::kGCTypeScavenge,
+  NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP = v8::GCType::kGCTypeMinorMarkSweep,
   NODE_PERFORMANCE_GC_INCREMENTAL = v8::GCType::kGCTypeIncrementalMarking,
   NODE_PERFORMANCE_GC_WEAKCB = v8::GCType::kGCTypeProcessWeakCallbacks
 };

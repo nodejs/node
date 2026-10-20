@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
@@ -34,6 +35,19 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace substitute_internal {
+
+// Checked addition to avoid overflow on 32-bit. (In 64-bit the callers wouldn't
+// get anywhere close to the limit given that 2^64 bytes of memory is beyond
+// anything physically possible.)
+// Note that we don't declare the parameters as size_t in order to avoid
+// accidental implicit conversions.
+template <int&..., typename T>
+[[nodiscard]] std::enable_if_t<std::is_same_v<T, size_t>, T> CheckedAdd(T a,
+                                                                        T b) {
+  ABSL_INTERNAL_CHECK(b <= (std::numeric_limits<T>::max)() - a,
+                      "unsigned integer overflow");
+  return a + b;
+}
 
 void SubstituteAndAppendArray(std::string* absl_nonnull output,
                               absl::string_view format,
@@ -64,10 +78,10 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
 #endif
           return;
         }
-        size += args_array[index].size();
+        size = CheckedAdd(size, args_array[index].size());
         ++i;  // Skip next char.
       } else if (format[i + 1] == '$') {
-        ++size;
+        size = CheckedAdd(size, size_t{1});
         ++i;  // Skip next char.
       } else {
 #ifndef NDEBUG
@@ -78,7 +92,7 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
         return;
       }
     } else {
-      ++size;
+      size = CheckedAdd(size, size_t{1});
     }
   }
 

@@ -1,7 +1,6 @@
 'use strict'
 
 const {
-  mkdir,
   readFile,
   rm,
   stat,
@@ -12,6 +11,7 @@ const contentPath = require('./content/path')
 const fsm = require('fs-minipass')
 const glob = require('./util/glob.js')
 const index = require('./entry-index')
+const cacheDir = require('./util/cache-dir')
 const path = require('path')
 const ssri = require('ssri')
 
@@ -77,7 +77,7 @@ async function markEndTime () {
 
 async function fixPerms (cache, opts) {
   opts.log.silly('verify', 'fixing cache permissions')
-  await mkdir(cache, { recursive: true })
+  await cacheDir.mkdir(cache)
   return null
 }
 

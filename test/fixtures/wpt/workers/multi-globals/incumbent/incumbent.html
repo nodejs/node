@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Incumbent page</title>
+
+<iframe src="../current/current.html" id="c"></iframe>
+
+<script>
+  const current = document.querySelector("#c").contentWindow;
+
+  window.hello = () => {
+    const worker = new current.Worker('worker.js');
+    worker.onmessage = e => { parent.postMessage(e.data, '*'); }
+  };
+</script>

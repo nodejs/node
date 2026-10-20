@@ -61,6 +61,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   options.record_reloc_info_for_serialization = serializer;
   options.enable_root_relative_access =
       !serializer && !generating_embedded_builtin;
+  options.generating_embedded_builtin = generating_embedded_builtin;
 #ifdef USE_SIMULATOR
   // Even though the simulator is enabled, we may still need to generate code
   // that may need to run on both the simulator and real hardware. For example,
@@ -195,6 +196,25 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
 
 AssemblerBase::~AssemblerBase() = default;
 
+int AssemblerBase::ComputeNewBufferSize(BufferGrowthStrategy strategy) {
+  int old_size = buffer_size();
+  int64_t new_size_64;
+
+  if (strategy == BufferGrowthStrategy::kDouble) {
+    new_size_64 = 2LL * old_size;
+  } else {
+    DCHECK_EQ(strategy, BufferGrowthStrategy::kDoubleCapped1MB);
+    new_size_64 = std::min<int64_t>(2LL * old_size,
+                                    static_cast<int64_t>(old_size) + 1 * MB);
+  }
+
+  if (new_size_64 > kMaximalBufferSize) {
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
+  }
+  DCHECK_LE(new_size_64, kMaxInt);
+  return static_cast<int>(new_size_64);
+}
+
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;
   v8::internal::Disassembler::Decode(isolate, os, buffer_start_, pc_);
@@ -218,7 +238,7 @@ CpuFeatureScope::~CpuFeatureScope() {
 #endif
 
 bool CpuFeatures::initialized_ = false;
-bool CpuFeatures::supports_wasm_simd_128_ = false;
+bool CpuFeatures::supports_simd_128_ = false;
 bool CpuFeatures::supports_cetss_ = false;
 CpuFeatureSet CpuFeatures::supported_ = {};
 unsigned CpuFeatures::icache_line_size_ = 0;
@@ -346,9 +366,6 @@ void AssemblerBase::RecordJSDispatchHandle(JSDispatchHandle handle,
 }
 
 int Assembler::WriteCodeComments() {
-  if (!v8_flags.code_comments) return 0;
-  CHECK_IMPLIES(code_comments_writer_.entry_count() > 0,
-                options().emit_code_comments);
   if (code_comments_writer_.entry_count() == 0) return 0;
   int offset = pc_offset();
   code_comments_writer_.Emit(this);

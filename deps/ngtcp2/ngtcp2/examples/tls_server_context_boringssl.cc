@@ -25,7 +25,6 @@
 #include "tls_server_context_boringssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 #include <algorithm>
 
@@ -56,7 +55,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -95,7 +94,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -137,7 +136,7 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
                                                   const char *cert_file,
                                                   AppProtocol app_proto) {
-  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+  static constexpr unsigned char sid_ctx[] = "ngtcp2 server";
 
   ssl_ctx_ = SSL_CTX_new(TLS_server_method());
   if (!ssl_ctx_) {
@@ -213,7 +212,7 @@ std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
   }
 #endif // defined(HAVE_LIBBROTLI)
 
-  if (!config.ech_config.ech_config.empty()) {
+  if (!config.ech_config.ech_config_list.empty()) {
     const auto &echconf = config.ech_config;
 
     auto pkey = EVP_HPKE_KEY_new();
@@ -232,11 +231,13 @@ std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
     auto keys = SSL_ECH_KEYS_new();
     auto keys_d = defer([keys] { SSL_ECH_KEYS_free(keys); });
 
-    if (SSL_ECH_KEYS_add(keys, 1, echconf.ech_config.data(),
-                         echconf.ech_config.size(), pkey) != 1) {
-      std::println(stderr, "SSL_ECH_KEYS_add failed: {}",
-                   ERR_error_string(ERR_get_error(), nullptr));
-      return std::unexpected{Error::CRYPTO};
+    for (const auto &ech_config : echconf.ech_config_list) {
+      if (SSL_ECH_KEYS_add(keys, 1, ech_config.data(), ech_config.size(),
+                           pkey) != 1) {
+        std::println(stderr, "SSL_ECH_KEYS_add failed: {}",
+                     ERR_error_string(ERR_get_error(), nullptr));
+        return std::unexpected{Error::CRYPTO};
+      }
     }
 
     if (SSL_CTX_set1_ech_keys(ssl_ctx_, keys) != 1) {

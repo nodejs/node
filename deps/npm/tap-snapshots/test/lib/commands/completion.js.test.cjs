@@ -61,11 +61,10 @@ exports[`test/lib/commands/completion.js TAP completion multiple command names >
 Array [
   String(
     access
-    adduser
+    approve-scripts
     audit
     author
     add
-    add-user
   ),
 ]
 `
@@ -105,10 +104,16 @@ Array [
     --repo
     --environment
     --env
+    --allow-publish
+    --allow-stage-publish
+    --allow-staged-publish
     --dry-run
     --json
     --registry
     --yes
+    --no-allow-publish
+    --no-allow-stage-publish
+    --no-allow-staged-publish
     --no-dry-run
     --no-json
     --no-yes
@@ -123,10 +128,16 @@ Array [
     --project
     --environment
     --env
+    --allow-publish
+    --allow-stage-publish
+    --allow-staged-publish
     --dry-run
     --json
     --registry
     --yes
+    --no-allow-publish
+    --no-allow-stage-publish
+    --no-allow-staged-publish
     --no-dry-run
     --no-json
     --no-yes

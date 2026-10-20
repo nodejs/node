@@ -90,8 +90,8 @@ class LogEventListener {
   virtual void SetterCallbackEvent(DirectHandle<Name> name,
                                    Address entry_point) = 0;
   virtual void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                     DirectHandle<String> source,
-                                     RegExpFlags flags) = 0;
+                                     DirectHandle<String> escaped_source,
+                                     regexp::Flags flags) = 0;
   // Not handlified as this happens during GC. No allocation allowed.
   virtual void CodeMoveEvent(Tagged<InstructionStream> from,
                              Tagged<InstructionStream> to) = 0;
@@ -105,10 +105,12 @@ class LogEventListener {
   virtual void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                               Address pc, int fp_to_sp_delta) = 0;
   // These events can happen when 1. an assumption made by optimized code fails
-  // or 2. a weakly embedded object dies.
-  virtual void CodeDependencyChangeEvent(
-      DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> shared,
-      const char* reason) = 0;
+  // or 2. a weakly embedded object dies. The latter happens during GC, possibly
+  // on a background thread without a LocalHeap. Therefore this event is not
+  // handlified and no allocation is allowed.
+  virtual void CodeDependencyChangeEvent(Tagged<Code> code,
+                                         Tagged<SharedFunctionInfo> shared,
+                                         const char* reason) = 0;
   // Called during GC shortly after any weak references to code objects are
   // cleared.
   virtual void WeakCodeClearEvent() = 0;
@@ -228,10 +230,11 @@ class Logger {
   }
 
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source, RegExpFlags flags) {
+                             DirectHandle<String> escaped_source,
+                             regexp::Flags flags) {
     base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
-      listener->RegExpCodeCreateEvent(code, source, flags);
+      listener->RegExpCodeCreateEvent(code, escaped_source, flags);
     }
   }
 
@@ -287,8 +290,8 @@ class Logger {
     }
   }
 
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) {
     base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {

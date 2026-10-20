@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Test that we can eliminate type checks based on narrowed argument types
@@ -11,18 +9,20 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function WasmTypedOptimizationsTest() {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  let top = builder.addStruct([makeField(kWasmI32, true)]);
-  let middle = builder.addStruct([makeField(kWasmI32, true),
-                                  makeField(kWasmI64, false)],
-                                 top);
-  let bottom1 = builder.addStruct([makeField(kWasmI32, true),
-                                   makeField(kWasmI64, false),
-                                   makeField(kWasmI32, true)],
-                                  middle);
-  let bottom2 = builder.addStruct([makeField(kWasmI32, true),
-                                   makeField(kWasmI64, false),
-                                   makeField(kWasmI64, false)],
-                                  middle);
+  let top = builder.addStruct({fields: [makeField(kWasmI32, true)]});
+  let middle = builder.addStruct(
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI64, false)],
+       supertype: top});
+  let bottom1 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true),
+                makeField(kWasmI64, false),
+                makeField(kWasmI32, true)],
+       supertype: middle});
+  let bottom2 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true),
+                makeField(kWasmI64, false),
+                makeField(kWasmI64, false)],
+       supertype: middle});
   builder.endRecGroup();
 
   builder.addFunction("main", makeSig(

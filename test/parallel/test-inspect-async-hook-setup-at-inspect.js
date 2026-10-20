@@ -25,6 +25,17 @@ async function waitForInitialSetup(session) {
   await session.waitForBreakOnLine(2, '[eval]');
 }
 
+// Sent only once the target is paused. While the target runs JS the command
+// is dispatched from a V8 interrupt, where Agent::SyncAsyncHookState() cannot
+// call into JS and defers enabling the async hook to an immediate that the
+// pause then blocks, answering the command anyway. Dispatching from the paused
+// message loop enables the hook inline, so the response is a real barrier.
+async function enableAsyncStackTraces(session) {
+  console.error('[test]', 'Enabling async stack traces');
+  await session.send({ 'method': 'Debugger.setAsyncCallStackDepth',
+                       'params': { 'maxDepth': 10 } });
+}
+
 async function setupTimeoutForStackTrace(session) {
   console.error('[test]', 'Setting up timeout for async stack trace');
   await session.send([
@@ -50,13 +61,12 @@ async function runTests() {
   await session.send([
     { 'method': 'Runtime.enable' },
     { 'method': 'Debugger.enable' },
-    { 'method': 'Debugger.setAsyncCallStackDepth',
-      'params': { 'maxDepth': 10 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
   ]);
 
   await waitForInitialSetup(session);
+  await enableAsyncStackTraces(session);
   await setupTimeoutForStackTrace(session);
   await checkAsyncStackTrace(session);
 

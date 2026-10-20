@@ -149,26 +149,50 @@ function VerifyBoundsCheck(func, memtype_size) {
 // O(2^n), but takes 213 steps to reach 2^32.
 const inc = i => i + Math.floor(i/10) + 1;
 
+function LEArray(buffer, size) {
+  let view = new DataView(buffer);
+  let get, set;
+  switch (size) {
+    case kMemtypeSize8:
+      get = i => view.getUint8(i);
+      set = (i, v) => view.setUint8(i, v);
+      break;
+    case kMemtypeSize16:
+      get = i => view.getUint16(i * size, true);
+      set = (i, v) => view.setUint16(i * size, v, true);
+      break;
+    case kMemtypeSize32:
+      get = i => view.getUint32(i * size, true);
+      set = (i, v) => view.setUint32(i * size, v, true);
+      break;
+    case kMemtypeSize64:
+      get = i => view.getBigUint64(i * size, true);
+      set = (i, v) => view.setBigUint64(i * size, v, true);
+      break;
+  }
+  return {length: buffer.byteLength / size, get, set};
+}
+
 function Test32Op(operation, func) {
-  let i32 = new Uint32Array(memory.buffer);
+  let i32 = LEArray(memory.buffer, kMemtypeSize32);
   for (let i = 0; i < i32.length; i = inc(i)) {
     let expected = 0x9cedf00d;
     let value = 0x11111111;
-    i32[i] = expected;
+    i32.set(i, expected);
     assertEquals(expected, func(i * kMemtypeSize32, value) >>> 0);
-    assertEquals(operation(expected, value) >>> 0, i32[i]);
+    assertEquals(operation(expected, value) >>> 0, i32.get(i));
   }
   VerifyBoundsCheck(func, kMemtypeSize32);
 }
 
 function Test16Op(operation, func) {
-  let i16 = new Uint16Array(memory.buffer);
+  let i16 = LEArray(memory.buffer, kMemtypeSize16);
   for (let i = 0; i < i16.length; i = inc(i)) {
     let expected = 0xd00d;
     let value = 0x1111;
-    i16[i] = expected;
+    i16.set(i, expected);
     assertEquals(expected, func(i * kMemtypeSize16, value));
-    assertEquals(operation(expected, value), i16[i]);
+    assertEquals(operation(expected, value), i16.get(i));
   }
   VerifyBoundsCheck(func, kMemtypeSize16);
 }
@@ -186,37 +210,37 @@ function Test8Op(operation, func) {
 }
 
 function Test64Op(operation, func) {
-  let i64 = new BigUint64Array(memory.buffer);
+  let i64 = LEArray(memory.buffer, kMemtypeSize64);
   for (let i = 0; i < i64.length; i = inc(i)) {
     let expected = 987659876543210n;
     let value = 111111111111111n;
-    i64[i] = expected;
+    i64.set(i, expected);
     assertEquals(expected, func(i * kMemtypeSize64, value));
-    assertEquals(operation(expected, value), i64[i]);
+    assertEquals(operation(expected, value), i64.get(i));
   }
   VerifyBoundsCheck64(func, kMemtypeSize64);
 }
 
 function Test32Op64(operation, func) {
-  let i32 = new Uint32Array(memory.buffer);
+  let i32 = LEArray(memory.buffer, kMemtypeSize32);
   for (let i = 0; i < i32.length; i = inc(i)) {
     let expected = 123456;
     let value = 111111n;
-    i32[i] = expected;
+    i32.set(i, expected);
     assertEquals(expected, Number(func(i * kMemtypeSize32, value)));
-    assertEquals(operation(expected, Number(value)), i32[i]);
+    assertEquals(operation(expected, Number(value)), i32.get(i));
   }
   VerifyBoundsCheck64(func, kMemtypeSize32);
 }
 
 function Test16Op64(operation, func) {
-  let i16 = new Uint16Array(memory.buffer);
+  let i16 = LEArray(memory.buffer, kMemtypeSize16);
   for (let i = 0; i < i16.length; i = inc(i)) {
     let expected = 0xd00d;
     let value = 0x1111n;
-    i16[i] = expected;
+    i16.set(i, expected);
     assertEquals(expected, Number(func(i * kMemtypeSize16, value)));
-    assertEquals(operation(expected, Number(value)), i16[i]);
+    assertEquals(operation(expected, Number(value)), i16.get(i));
   }
   VerifyBoundsCheck64(func, kMemtypeSize16);
 }
@@ -490,11 +514,11 @@ function TestCmpExchange(func, buffer, params, size, offset = 0) {
   for (let i = 0; i + (offset / size) < buffer.length; i = inc(i)) {
     for (let j = 0; j < params.length; j++) {
       for (let k = 0; k < params.length; k++) {
-        buffer[i + (offset / size)] = params[j];
+        buffer.set(i + (offset / size), params[j]);
         let loaded = func(i * size, params[k], params[j]) >>> 0;
         let expected = (params[k] == loaded) ? params[j] : loaded;
         assertEquals(loaded, params[j]);
-        assertEquals(expected, buffer[i + (offset / size)]);
+        assertEquals(expected, buffer.get(i + (offset / size)));
       }
     }
   }
@@ -508,7 +532,7 @@ function TestCmpExchange(func, buffer, params, size, offset = 0) {
   const offset = 0x1234;
   let wasmCmpExchange =
       GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange, 2, offset);
-  let i32 = new Uint32Array(memory.buffer);
+  let i32 = LEArray(memory.buffer, kMemtypeSize32);
   let params = [0x00000001, 0x00000555, 0x00099999, 0xffffffff];
   TestCmpExchange(wasmCmpExchange, i32, params, kMemtypeSize32, offset);
 })();
@@ -517,7 +541,7 @@ function TestCmpExchange(func, buffer, params, size, offset = 0) {
   print(arguments.callee.name);
   let wasmCmpExchange =
       GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange16U, 1, 0);
-  let i16 = new Uint16Array(memory.buffer);
+  let i16 = LEArray(memory.buffer, kMemtypeSize16);
   let params = [0x0001, 0x0555, 0x9999];
   TestCmpExchange(wasmCmpExchange, i16, params, kMemtypeSize16);
 })();
@@ -526,14 +550,14 @@ function TestCmpExchange(func, buffer, params, size, offset = 0) {
   print(arguments.callee.name);
   let wasmCmpExchange =
       GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange8U, 0, 0);
-  let i8 = new Uint8Array(memory.buffer);
+  let i8 = LEArray(memory.buffer, kMemtypeSize8);
   let params = [0x01, 0x0d, 0xf9];
   TestCmpExchange(wasmCmpExchange, i8, params, kMemtypeSize8);
 })();
 
 function TestLoad(func, buffer, value, size) {
   for (let i = 0; i < buffer.length; i = inc(i)) {
-    buffer[i] = value;
+    buffer.set(i, value);
     assertEquals(value, func(i * size) >>> 0);
   }
   VerifyBoundsCheck(func, size);
@@ -542,7 +566,7 @@ function TestLoad(func, buffer, value, size) {
 (function TestAtomicLoad() {
   print(arguments.callee.name);
   let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad, 2, 0);
-  let i32 = new Uint32Array(memory.buffer);
+  let i32 = LEArray(memory.buffer, kMemtypeSize32);
   let value = 0xacedaced;
   TestLoad(wasmLoad, i32, value, kMemtypeSize32);
 })();
@@ -550,7 +574,7 @@ function TestLoad(func, buffer, value, size) {
 (function TestAtomicLoad16U() {
   print(arguments.callee.name);
   let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad16U, 1, 0);
-  let i16 = new Uint16Array(memory.buffer);
+  let i16 = LEArray(memory.buffer, kMemtypeSize16);
   let value = 0xaced;
   TestLoad(wasmLoad, i16, value, kMemtypeSize16);
 })();
@@ -558,7 +582,7 @@ function TestLoad(func, buffer, value, size) {
 (function TestAtomicLoad8U() {
   print(arguments.callee.name);
   let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad8U, 0, 0);
-  let i8 = new Uint8Array(memory.buffer);
+  let i8 = LEArray(memory.buffer, kMemtypeSize8);
   let value = 0xac;
   TestLoad(wasmLoad, i8, value, kMemtypeSize8);
 })();
@@ -566,7 +590,7 @@ function TestLoad(func, buffer, value, size) {
 function TestStore(func, buffer, value, size) {
   for (let i = 0; i < buffer.length; i = inc(i)) {
     func(i * size, value)
-    assertEquals(value, buffer[i]);
+    assertEquals(value, buffer.get(i));
   }
   VerifyBoundsCheck(func, size);
 }
@@ -574,7 +598,7 @@ function TestStore(func, buffer, value, size) {
 (function TestAtomicStore() {
   print(arguments.callee.name);
   let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore, 2, 0);
-  let i32 = new Uint32Array(memory.buffer);
+  let i32 = LEArray(memory.buffer, kMemtypeSize32);
   let value = 0xacedaced;
   TestStore(wasmStore, i32, value, kMemtypeSize32);
 })();
@@ -582,7 +606,7 @@ function TestStore(func, buffer, value, size) {
 (function TestAtomicStore16U() {
   print(arguments.callee.name);
   let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore16U, 1, 0);
-  let i16 = new Uint16Array(memory.buffer);
+  let i16 = LEArray(memory.buffer, kMemtypeSize16);
   let value = 0xaced;
   TestStore(wasmStore, i16, value, kMemtypeSize16);
 })();
@@ -590,9 +614,9 @@ function TestStore(func, buffer, value, size) {
 (function TestAtomicStore8U() {
   print(arguments.callee.name);
   let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore8U, 0, 0);
-  let i8 = new Uint8Array(memory.buffer);
+  let i8 = LEArray(memory.buffer, kMemtypeSize8);
   let value = 0xac;
-  TestCmpExchange(wasmStore, i8, value, kMemtypeSize8);
+  TestStore(wasmStore, i8, value, kMemtypeSize8);
 })();
 
 (function TestAtomicLoadStoreOffset() {

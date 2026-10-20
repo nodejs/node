@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
+#include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api/api.h"
 #include "src/codegen/source-position-table.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/interpreter/bytecode-array-writer.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/utils/utils.h"
+#include "src/interpreter/handler-table-builder.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -156,8 +157,9 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), expected_bytes[i]);
   }
 
-  DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 201, 0, 0, factory()->empty_trusted_byte_array());
+  DirectHandle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 201, kJSArgcReceiverSlots, 0,
+                                factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
@@ -241,8 +243,9 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 8, 0, 0, factory()->empty_trusted_byte_array());
+  DirectHandle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 8, kJSArgcReceiverSlots, 0,
+                                factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -290,8 +293,9 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 21, 0, 0, factory()->empty_trusted_byte_array());
+  DirectHandle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 21, kJSArgcReceiverSlots, 0,
+                                factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -358,8 +362,9 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  DirectHandle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, 0, factory()->empty_trusted_byte_array());
+  DirectHandle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 0, kJSArgcReceiverSlots, 0,
+                                factory()->empty_trusted_byte_array());
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -373,6 +378,25 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
     source_iterator.Advance();
   }
   CHECK(source_iterator.done());
+}
+
+TEST_F(BytecodeArrayWriterUnittest, HandlerTableBuilderOverflowCheck) {
+  HandlerTableBuilder builder(zone());
+  int handler_id = builder.NewHandlerEntry();
+  builder.SetTryRegionStart(handler_id, 0);
+  builder.SetTryRegionEnd(handler_id, 10);
+  builder.SetHandlerTarget(handler_id,
+                           static_cast<size_t>(HandlerTable::kLazyDeopt));
+  DirectHandle<TrustedByteArray> table = builder.ToHandlerTable(isolate());
+  CHECK_GT(table->length().value(), 0u);
+
+  HandlerTableBuilder invalid_builder(zone());
+  int invalid_handler_id = invalid_builder.NewHandlerEntry();
+  invalid_builder.SetTryRegionStart(invalid_handler_id, 0);
+  invalid_builder.SetTryRegionEnd(invalid_handler_id, 10);
+  invalid_builder.SetHandlerTarget(
+      invalid_handler_id, static_cast<size_t>(HandlerTable::kLazyDeopt) + 1);
+  ASSERT_DEATH_IF_SUPPORTED(invalid_builder.ToHandlerTable(isolate()), "");
 }
 
 #undef B

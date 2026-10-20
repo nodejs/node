@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@
 #include "logging.hpp"
 #include "messages.hpp"
 #include "internal_utils.hpp"
+
+// NOLINTBEGIN
 
 namespace LIEF::dsc {
 namespace details {
@@ -62,21 +64,18 @@ bool enable_cache(const std::string&) {
 // ----------------------------------------------------------------------------
 // DyldSharedCache/DyldSharedCache.hpp
 // ----------------------------------------------------------------------------
-DyldSharedCache::DyldSharedCache(std::unique_ptr<details::DyldSharedCache>)
-{}
+DyldSharedCache::DyldSharedCache(std::unique_ptr<details::DyldSharedCache>) {}
 
 DyldSharedCache::~DyldSharedCache() = default;
 
-std::unique_ptr<DyldSharedCache>
-  DyldSharedCache::from_path(const std::string&, const std::string&)
-{
+std::unique_ptr<DyldSharedCache> DyldSharedCache::from_path(const std::string&,
+                                                            const std::string&) {
   LIEF_ERR(DSC_NOT_SUPPORTED);
   return nullptr;
 }
 
 std::unique_ptr<DyldSharedCache>
-  DyldSharedCache::from_files(const std::vector<std::string>&)
-{
+    DyldSharedCache::from_files(const std::vector<std::string>&) {
   LIEF_ERR(DSC_NOT_SUPPORTED);
   return nullptr;
 }
@@ -113,11 +112,13 @@ std::unique_ptr<Dylib> DyldSharedCache::find_lib_from_va(uint64_t) const {
   return nullptr;
 }
 
-std::unique_ptr<Dylib> DyldSharedCache::find_lib_from_path(const std::string&) const {
+std::unique_ptr<Dylib>
+    DyldSharedCache::find_lib_from_path(const std::string&) const {
   return nullptr;
 }
 
-std::unique_ptr<Dylib> DyldSharedCache::find_lib_from_name(const std::string&) const {
+std::unique_ptr<Dylib>
+    DyldSharedCache::find_lib_from_name(const std::string&) const {
   return nullptr;
 }
 
@@ -125,18 +126,21 @@ bool DyldSharedCache::has_subcaches() const {
   return false;
 }
 
-DyldSharedCache::instructions_iterator DyldSharedCache::disassemble(uint64_t/*va*/) const {
+DyldSharedCache::instructions_iterator
+    DyldSharedCache::disassemble(uint64_t /*va*/) const {
   return make_range<assembly::Instruction::Iterator>(
-      assembly::Instruction::Iterator(),
-      assembly::Instruction::Iterator()
+      assembly::Instruction::Iterator(), assembly::Instruction::Iterator()
   );
 }
 
-std::vector<uint8_t> DyldSharedCache::get_content_from_va(uint64_t/*va*/, uint64_t/*size*/) const {
+std::vector<uint8_t>
+    DyldSharedCache::get_content_from_va(uint64_t /*va*/,
+                                         uint64_t /*size*/) const {
   return {};
 }
 
-std::unique_ptr<DyldSharedCache> DyldSharedCache::cache_for_address(uint64_t/*va*/) const {
+std::unique_ptr<DyldSharedCache>
+    DyldSharedCache::cache_for_address(uint64_t /*va*/) const {
   return nullptr;
 }
 
@@ -144,11 +148,12 @@ std::unique_ptr<DyldSharedCache> DyldSharedCache::main_cache() const {
   return nullptr;
 }
 
-std::unique_ptr<DyldSharedCache> DyldSharedCache::find_subcache(const std::string&/*filename*/) const {
+std::unique_ptr<DyldSharedCache>
+    DyldSharedCache::find_subcache(const std::string& /*filename*/) const {
   return nullptr;
 }
 
-result<uint64_t> DyldSharedCache::va_to_offset(uint64_t/*va*/) const {
+result<uint64_t> DyldSharedCache::va_to_offset(uint64_t /*va*/) const {
   return make_error_code(lief_errors::not_implemented);
 }
 
@@ -182,6 +187,7 @@ void DyldSharedCache::flush_cache() const {}
 // ----------------------------------------------------------------------------
 // DyldSharedCache/Dylib.hpp
 // ----------------------------------------------------------------------------
+Dylib::Iterator::Iterator() = default;
 
 Dylib::Dylib::extract_opt_t::extract_opt_t() = default;
 
@@ -219,7 +225,17 @@ bool operator==(const Dylib::Iterator&, const Dylib::Iterator&) {
   return false;
 }
 
-std::unique_ptr<Dylib> Dylib::Iterator::operator*() const {
+void Dylib::Iterator::load() const {}
+
+const Dylib& Dylib::Iterator::operator*() const {
+  return *cached_;
+}
+
+const Dylib* Dylib::Iterator::operator->() const {
+  return nullptr;
+}
+
+std::unique_ptr<Dylib> Dylib::Iterator::yield() {
   return nullptr;
 }
 
@@ -228,7 +244,8 @@ Dylib::Dylib(std::unique_ptr<details::Dylib>) {}
 
 Dylib::~Dylib() = default;
 
-std::unique_ptr<LIEF::MachO::Binary> Dylib::get(const Dylib::extract_opt_t&) const {
+std::unique_ptr<LIEF::MachO::Binary>
+    Dylib::get(const Dylib::extract_opt_t&) const {
   return nullptr;
 }
 
@@ -255,16 +272,20 @@ uint64_t Dylib::padding() const {
 // ----------------------------------------------------------------------------
 // DyldSharedCache/MappingInfo.hpp
 // ----------------------------------------------------------------------------
+MappingInfo::Iterator::Iterator() = default;
+
 MappingInfo::Iterator::Iterator(std::unique_ptr<details::MappingInfoIt>) {}
 
 MappingInfo::Iterator::Iterator(MappingInfo::Iterator&&) noexcept {}
 
-MappingInfo::Iterator& MappingInfo::Iterator::operator=(MappingInfo::Iterator&&) noexcept {
+MappingInfo::Iterator&
+    MappingInfo::Iterator::operator=(MappingInfo::Iterator&&) noexcept {
   return *this;
 }
 
 MappingInfo::Iterator::Iterator(const MappingInfo::Iterator&) {}
-MappingInfo::Iterator& MappingInfo::Iterator::operator=(const MappingInfo::Iterator&) {
+MappingInfo::Iterator&
+    MappingInfo::Iterator::operator=(const MappingInfo::Iterator&) {
   return *this;
 }
 
@@ -289,7 +310,17 @@ bool operator==(const MappingInfo::Iterator&, const MappingInfo::Iterator&) {
   return false;
 }
 
-std::unique_ptr<MappingInfo> MappingInfo::Iterator::operator*() const {
+void MappingInfo::Iterator::load() const {}
+
+const MappingInfo& MappingInfo::Iterator::operator*() const {
+  return *cached_;
+}
+
+const MappingInfo* MappingInfo::Iterator::operator->() const {
+  return nullptr;
+}
+
+std::unique_ptr<MappingInfo> MappingInfo::Iterator::yield() {
   return nullptr;
 }
 
@@ -320,6 +351,8 @@ uint32_t MappingInfo::init_prot() const {
 // ----------------------------------------------------------------------------
 // DyldSharedCache/SubCache.hpp
 // ----------------------------------------------------------------------------
+SubCache::Iterator::Iterator() = default;
+
 SubCache::Iterator::Iterator(std::unique_ptr<details::SubCacheIt>) {}
 
 SubCache::Iterator::Iterator(SubCache::Iterator&&) noexcept {}
@@ -354,7 +387,17 @@ bool operator==(const SubCache::Iterator&, const SubCache::Iterator&) {
   return false;
 }
 
-std::unique_ptr<SubCache> SubCache::Iterator::operator*() const {
+void SubCache::Iterator::load() const {}
+
+const SubCache& SubCache::Iterator::operator*() const {
+  return *cached_;
+}
+
+const SubCache* SubCache::Iterator::operator->() const {
+  return nullptr;
+}
+
+std::unique_ptr<SubCache> SubCache::Iterator::yield() {
   return nullptr;
 }
 
@@ -380,5 +423,7 @@ std::unique_ptr<const DyldSharedCache> SubCache::cache() const {
 std::ostream& operator<<(std::ostream& os, const SubCache&) {
   return os;
 }
+
+// NOLINTEND
 
 }

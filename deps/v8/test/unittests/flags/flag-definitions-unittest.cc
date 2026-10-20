@@ -173,6 +173,14 @@ TEST_F(FlagDefinitionsTest, AssignReadOnlyStringFlag) {
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
+TEST_F(FlagDefinitionsTest, RejectNegativeUnsignedFlagAndKeepDefault) {
+  int argc = 2;
+  const char* argv[] = {"Test", "--cpu-profiler-sampling-interval=-100"};
+  CHECK_EQ(1, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
+                                                true));
+  CHECK_EQ(1000u, v8_flags.cpu_profiler_sampling_interval.value());
+}
+
 TEST_F(FlagDefinitionsTest, FlagsRemoveIncomplete) {
   // Test that processed command line arguments are removed, even
   // if the list of arguments ends unexpectedly.
@@ -193,8 +201,6 @@ TEST_F(FlagDefinitionsTest, FlagsJitlessImplications) {
     CHECK(!v8_flags.maglev);
     CHECK(!v8_flags.sparkplug);
 #if V8_ENABLE_WEBASSEMBLY
-    CHECK(!v8_flags.validate_asm);
-    CHECK(!v8_flags.asm_wasm_lazy_compilation);
     CHECK(!v8_flags.wasm_lazy_compilation);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
@@ -211,7 +217,6 @@ TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     CHECK(!v8_flags.wasm_tier_up);
     CHECK(!v8_flags.wasm_dynamic_tiering);
-    CHECK(!v8_flags.validate_asm);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
@@ -242,22 +247,6 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   CHECK_EQ(42, v8_flags.testing_int_flag);
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
-
-// Stress implications after setting a flag. We only set one flag, as multiple
-// might just lead to known flag contradictions.
-void StressFlagImplications(const std::string& s1) {
-  int result = FlagList::SetFlagsFromString(s1.c_str(), s1.length());
-  // Only process implications if a flag was set successfully (which happens
-  // only in a small portion of fuzz runs).
-  if (result == 0) FlagList::EnforceFlagImplications();
-  // Ensure a clean state in each iteration.
-  for (Flag& flag : Flags()) {
-    if (!flag.IsReadOnly()) flag.Reset();
-  }
-}
-
-V8_FUZZ_TEST(FlagDefinitionsFuzzTest, StressFlagImplications)
-    .WithDomains(fuzztest::InRegexp("^--(\\w|\\-){1,50}(=\\w{1,5})?$"));
 
 struct FlagAndName {
   FlagValue<bool>* value;
@@ -349,19 +338,35 @@ TEST(FlagContradictionsTest, ResolvesContradictions) {
 
 TEST(FlagContradictionsTest, ResolvesNegContradictions) {
 #ifdef V8_ENABLE_MAGLEV
-  int argc = 4;
-  const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
-                        "--always-osr-from-maglev"};
-  FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.turbofan);
-  CHECK(v8_flags.always_osr_from_maglev);
-  CHECK(!v8_flags.osr_from_maglev);
-  FlagList::ResolveContradictionsWhenFuzzing();
-  FlagList::EnforceFlagImplications();
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.turbofan);
-  CHECK(!v8_flags.osr_from_maglev);
+  {
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
+                          "--always-osr-from-maglev"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK(v8_flags.always_osr_from_maglev);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK(!v8_flags.always_osr_from_maglev);
+    CHECK_EQ(v8_flags.osr_from_maglev, 0);
+  }
+  {
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
+                          "--osr-from-maglev=4"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK_EQ(v8_flags.osr_from_maglev, 4);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK_EQ(v8_flags.osr_from_maglev, 0);
+  }
 #endif
 }
 

@@ -3,7 +3,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { from, text, Stream } = require('stream/iter');
+const { bytes, from, text, Stream } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 async function testFromString() {
   const readable = from('hello-async');
@@ -31,6 +32,128 @@ async function testFromAsyncGenerator() {
   assert.deepStrictEqual(batches[1][0], new Uint8Array([30, 40]));
 }
 
+async function testFromAsyncIteratorResultShapes() {
+  const wrappers = [
+    (result) => result,
+    (result) => ({
+      then(resolve) {
+        resolve(result);
+      },
+    }),
+  ];
+
+  for (const wrap of wrappers) {
+    let done = false;
+    const source = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            if (done) return wrap({ done: true });
+            done = true;
+            return wrap({ done: false, value: 'data' });
+          },
+        };
+      },
+    };
+
+    assert.strictEqual(await text(from(source)), 'data');
+  }
+}
+
+async function testFromSourceErrorDoesNotWaitForReturn() {
+  const reason = new Error('source failed');
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          return Promise.reject(reason);
+        },
+        return() {
+          return new Promise(() => {});
+        },
+      };
+    },
+  };
+
+  await assert.rejects(
+    from(source).next(),
+    (error) => error === reason,
+  );
+}
+
+async function testFromBoundsNestedAsyncIterable() {
+  let nestedClosed = false;
+  async function* nested() {
+    try {
+      let value = 0;
+      while (true) yield new Uint8Array([value++]);
+    } finally {
+      nestedClosed = true;
+    }
+  }
+
+  async function* source() {
+    yield nested();
+  }
+
+  const iterator = from(source())[Symbol.asyncIterator]();
+  const first = await iterator.next();
+  assert.strictEqual(first.done, false);
+  assert.ok(first.value.length > 0);
+  assert.ok(first.value.length <= 128);
+
+  await iterator.return();
+  assert.strictEqual(nestedClosed, true);
+}
+
+async function testFromDoesNotHoldBackNestedAsyncIterable() {
+  // Chunks from a nested async iterable must be delivered as they become
+  // available, not held back until the nested iterable produces more data
+  // or ends.
+  const { promise: release, resolve } = Promise.withResolvers();
+  async function* nested() {
+    yield new Uint8Array([1]);
+    await release;
+    yield new Uint8Array([2]);
+  }
+
+  async function* source() {
+    yield nested();
+    yield [new Uint8Array([3]), Promise.resolve(new Uint8Array([4]))];
+  }
+
+  const iterator = from(source())[Symbol.asyncIterator]();
+  assert.deepStrictEqual(await iterator.next(),
+                         { done: false, value: [new Uint8Array([1])] });
+  resolve();
+  const rest = [];
+  for (let r = await iterator.next(); !r.done; r = await iterator.next()) {
+    for (const chunk of r.value) rest.push(chunk[0]);
+  }
+  assert.deepStrictEqual(rest, [2, 3, 4]);
+}
+
+async function testFromBoundsPreBatchedAsyncValues() {
+  // An async source yielding an already-batched Uint8Array[] larger than the
+  // batch bound is split, like the same batch from a sync source.
+  const big = Array.from({ length: 300 }, (_, i) => new Uint8Array([i & 0xff]));
+  async function* source() {
+    yield big;
+  }
+  const sizes = [];
+  for await (const batch of from(source())) sizes.push(batch.length);
+  assert.deepStrictEqual(sizes, [128, 128, 44]);
+
+  // Batches within the bound are still passed through as-is.
+  const small = [new Uint8Array([1]), new Uint8Array([2])];
+  async function* smallSource() {
+    yield small;
+  }
+  for await (const batch of from(smallSource())) {
+    assert.strictEqual(batch, small);
+  }
+}
+
 async function testFromSyncIterableAsAsync() {
   // Sync iterable passed to from() should work
   function* gen() {
@@ -47,6 +170,35 @@ async function testFromSyncIterableAsAsync() {
   assert.strictEqual(batches[0].length, 2);
   assert.deepStrictEqual(batches[0][0], new Uint8Array([1]));
   assert.deepStrictEqual(batches[0][1], new Uint8Array([2]));
+}
+
+async function testFromSyncIterableAwaitsPromiseValues() {
+  const result = await text(from([Promise.resolve('promise-value')]));
+  assert.strictEqual(result, 'promise-value');
+}
+
+async function testFromSyncIterableRejectsNestedAsyncIterable() {
+  async function* asyncGenerator() {
+    yield 'data';
+  }
+
+  await assert.rejects(
+    () => text(from([asyncGenerator()])),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
+async function testFromSyncIterableRejectsNestedToAsyncStreamable() {
+  const obj = {
+    [Symbol.for('Stream.toAsyncStreamable')]() {
+      return 'data';
+    },
+  };
+
+  await assert.rejects(
+    () => text(from([obj])),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
 }
 
 async function testFromToAsyncStreamableProtocol() {
@@ -206,6 +358,133 @@ async function testFromTopLevelProtocolOverIterator() {
   assert.strictEqual(result, 'from-protocol');
 }
 
+async function testFromHandlesProtocolRejectionUntilIteration() {
+  const reason = new Error('protocol failed');
+  const iterable = from({
+    [Symbol.for('Stream.toAsyncStreamable')]: common.mustCall(
+      () => Promise.reject(reason)),
+  });
+
+  await setImmediate();
+  await assert.rejects(
+    iterable[Symbol.asyncIterator]().next(),
+    (error) => error === reason,
+  );
+}
+
+async function testFromReturnCancelsPendingPromises() {
+  const toAsyncStreamable = Symbol.for('Stream.toAsyncStreamable');
+  const createSources = [
+    (promise) => from([promise]),
+    (promise) => from({
+      [Symbol.asyncIterator]() {
+        let done = false;
+        return {
+          next() {
+            if (done) return { done: true };
+            done = true;
+            return { done: false, value: promise };
+          },
+        };
+      },
+    }),
+    (promise) => from({
+      [toAsyncStreamable]() {
+        return promise;
+      },
+    }),
+  ];
+
+  for (const createSource of createSources) {
+    const deferred = Promise.withResolvers();
+    const iterator = createSource(deferred.promise)[Symbol.asyncIterator]();
+    const read = iterator.next();
+    await setImmediate();
+
+    const rejected = assert.rejects(read, { name: 'AbortError' });
+    const closed = iterator.return();
+    const [, result] = await Promise.all([rejected, closed]);
+    assert.strictEqual(result.done, true);
+    deferred.resolve('late value');
+  }
+}
+
+function createPendingNestedSource(
+  returnResult = () => ({ done: true })) {
+  const started = Promise.withResolvers();
+  const pending = Promise.withResolvers();
+  let returned = false;
+  const nested = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          started.resolve();
+          return pending.promise;
+        },
+        return() {
+          returned = true;
+          return returnResult();
+        },
+      };
+    },
+  };
+
+  async function* source() {
+    yield nested;
+  }
+
+  return {
+    source: source(),
+    started: started.promise,
+    resolve: pending.resolve,
+    wasReturned() {
+      return returned;
+    },
+  };
+}
+
+async function testFromReturnClosesPendingNestedIterator() {
+  const fixture = createPendingNestedSource();
+  const iterator = from(fixture.source)[Symbol.asyncIterator]();
+  const read = iterator.next();
+  await fixture.started;
+
+  const rejected = assert.rejects(read, { name: 'AbortError' });
+  const closed = iterator.return();
+  await Promise.all([rejected, closed]);
+  assert.strictEqual(fixture.wasReturned(), true);
+  fixture.resolve({ done: true });
+}
+
+async function testConsumerAbortClosesPendingNestedIterator() {
+  const fixture = createPendingNestedSource();
+  const controller = new AbortController();
+  const reason = new Error('consumer cancelled');
+  const consumed = bytes(fixture.source, { signal: controller.signal });
+  await fixture.started;
+
+  const rejected = assert.rejects(consumed, (error) => error === reason);
+  controller.abort(reason);
+  await rejected;
+  await setImmediate();
+  assert.strictEqual(fixture.wasReturned(), true);
+  fixture.resolve({ done: true });
+}
+
+async function testFromCancellationHandlesCleanupRejection() {
+  const fixture = createPendingNestedSource(
+    () => Promise.reject(new Error('cleanup failed')));
+  const iterator = from(fixture.source)[Symbol.asyncIterator]();
+  const read = iterator.next();
+  await fixture.started;
+
+  const rejected = assert.rejects(read, { name: 'AbortError' });
+  await Promise.all([rejected, iterator.return()]);
+  await setImmediate();
+  assert.strictEqual(fixture.wasReturned(), true);
+  fixture.resolve({ done: true });
+}
+
 // DataView input should be converted to Uint8Array (zero-copy)
 async function testFromDataView() {
   const buf = new ArrayBuffer(5);
@@ -228,10 +507,41 @@ function testFromUndefinedThrows() {
   assert.throws(() => from(undefined), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+async function testFromFunctionWithProtocols() {
+  // Functions are objects and may implement the protocols.
+  function asyncSource() {}
+  asyncSource[Symbol.for('Stream.toAsyncStreamable')] =
+    async () => 'async-function';
+  assert.strictEqual(await text(from(asyncSource)), 'async-function');
+
+  function syncSource() {}
+  syncSource[Symbol.for('Stream.toStreamable')] = () => 'sync-function';
+  assert.strictEqual(await text(from(syncSource)), 'sync-function');
+
+  async function* nested() {
+    yield asyncSource;
+    yield syncSource;
+  }
+  assert.strictEqual(await text(from(nested())),
+                     'async-functionsync-function');
+
+  // A function without a protocol is still rejected.
+  assert.throws(() => from(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
+  testFromAsyncIteratorResultShapes(),
+  testFromSourceErrorDoesNotWaitForReturn(),
+  testFromBoundsNestedAsyncIterable(),
+  testFromFunctionWithProtocols(),
+  testFromDoesNotHoldBackNestedAsyncIterable(),
+  testFromBoundsPreBatchedAsyncValues(),
   testFromSyncIterableAsAsync(),
+  testFromSyncIterableAwaitsPromiseValues(),
+  testFromSyncIterableRejectsNestedAsyncIterable(),
+  testFromSyncIterableRejectsNestedToAsyncStreamable(),
   testFromToAsyncStreamableProtocol(),
   testFromRejectsNonStreamable(),
   testFromEmptyArray(),
@@ -247,5 +557,10 @@ Promise.all([
   testFromTopLevelToStreamable(),
   testFromTopLevelAsyncPrecedence(),
   testFromTopLevelProtocolOverIterator(),
+  testFromHandlesProtocolRejectionUntilIteration(),
+  testFromReturnCancelsPendingPromises(),
+  testFromReturnClosesPendingNestedIterator(),
+  testConsumerAbortClosesPendingNestedIterator(),
+  testFromCancellationHandlesCleanupRejection(),
   testFromDataView(),
 ]).then(common.mustCall());

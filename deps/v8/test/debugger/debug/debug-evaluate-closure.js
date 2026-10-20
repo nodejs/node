@@ -33,6 +33,8 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     assertEquals("goo", exec_state.frame(0).evaluate("goo").value());
+    assertEquals("goo", exec_state.frame(0).scope(1).evaluate("goo").value());
+    assertThrows(() => exec_state.frame(0).scope(1).evaluate("w").value());
     exec_state.frame(0).evaluate("goo = 'goo foo'");
     assertEquals("bar return", exec_state.frame(0).evaluate("bar()").value());
     assertEquals("inner bar", exec_state.frame(0).evaluate("inner").value());

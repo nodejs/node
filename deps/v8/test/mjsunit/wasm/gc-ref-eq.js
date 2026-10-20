@@ -6,7 +6,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestRefEq() {
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(wasmRefType(kWasmEqRef), true);
+  let array = builder.addArray(wasmRefType(kWasmEqRef));
 
   builder.addFunction("equal", makeSig([], [kWasmI32]))
     .addBody([

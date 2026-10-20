@@ -139,6 +139,7 @@ static ares_status_t ares_buf_ensure_space(ares_buf_t *buf, size_t needed_size)
 {
   size_t         remaining_size;
   size_t         alloc_size;
+  size_t         total_required;
   unsigned char *ptr;
 
   if (buf == NULL) {
@@ -151,8 +152,19 @@ static ares_status_t ares_buf_ensure_space(ares_buf_t *buf, size_t needed_size)
 
   /* When calling ares_buf_finish_str() we end up adding a null terminator,
    * so we want to ensure the size is always sufficient for this as we don't
-   * want an ARES_ENOMEM at that point */
+   * want an ARES_ENOMEM at that point.
+   */
+  if (buf->data_len >= SIZE_MAX - 1) {
+    return ARES_ENOMEM;
+  }
+
   needed_size++;
+
+  if (needed_size > SIZE_MAX - buf->data_len) {
+    return ARES_ENOMEM;
+  }
+
+  total_required = buf->data_len + needed_size;
 
   /* No need to do an expensive move operation, we have enough to just append */
   remaining_size = buf->alloc_buf_len - buf->data_len;
@@ -177,9 +189,11 @@ static ares_status_t ares_buf_ensure_space(ares_buf_t *buf, size_t needed_size)
 
   /* Increase allocation by powers of 2 */
   do {
-    alloc_size     <<= 1;
-    remaining_size   = alloc_size - buf->data_len;
-  } while (remaining_size < needed_size);
+    if (alloc_size > SIZE_MAX >> 1) {
+      return ARES_ENOMEM;
+    }
+    alloc_size <<= 1;
+  } while (alloc_size < total_required);
 
   ptr = ares_realloc(buf->alloc_buf, alloc_size);
   if (ptr == NULL) {
@@ -1111,7 +1125,7 @@ ares_status_t ares_buf_replace(ares_buf_t *buf, const unsigned char *srch,
   size_t        processed_len = 0;
   ares_status_t status;
 
-  if (buf->alloc_buf == NULL || srch == NULL || srch_size == 0 ||
+  if (buf == NULL || buf->alloc_buf == NULL || srch == NULL || srch_size == 0 ||
       (rplc == NULL && rplc_size != 0)) {
     return ARES_EFORMERR;
   }
@@ -1131,7 +1145,7 @@ ares_status_t ares_buf_replace(ares_buf_t *buf, const unsigned char *srch,
     /* Store the offset this was found because our actual pointer might be
      * switched out from under us by the call to ensure_space() if the
      * replacement pattern is larger than the search pattern */
-    found_offset   = (size_t)(ptr - (size_t)(buf->alloc_buf + buf->offset));
+    found_offset = (size_t)(ptr - buf->alloc_buf) - buf->offset;
     if (rplc_size > srch_size) {
       status = ares_buf_ensure_space(buf, rplc_size - srch_size);
       if (status != ARES_SUCCESS) {
@@ -1262,17 +1276,15 @@ static ares_status_t
   }
 
 done:
-  if (status != ARES_SUCCESS) {
-    ares_buf_destroy(binbuf);
+  if (status == ARES_SUCCESS && bin != NULL) {
+    size_t mylen = 0;
+    /* NOTE: we use ares_buf_finish_str() here as we guarantee NULL
+     *       Termination even though we are technically returning binary data.
+     */
+    *bin     = (unsigned char *)ares_buf_finish_str(binbuf, &mylen);
+    *bin_len = mylen;
   } else {
-    if (bin != NULL) {
-      size_t mylen = 0;
-      /* NOTE: we use ares_buf_finish_str() here as we guarantee NULL
-       *       Termination even though we are technically returning binary data.
-       */
-      *bin     = (unsigned char *)ares_buf_finish_str(binbuf, &mylen);
-      *bin_len = mylen;
-    }
+    ares_buf_destroy(binbuf);
   }
 
   return status;

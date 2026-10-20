@@ -24,12 +24,20 @@ server.on('dropRequest', common.mustCall((request, socket) => {
 
 server.listen(0, common.mustCall(() => {
   const socket = net.connect(server.address().port);
+  let response = '';
   socket.on('connect', common.mustCall(() => {
     request(socket);
     request(socket);
   }));
-  socket.on('data', common.mustCallAtLeast());
-  socket.on('close', common.mustCall());
+  socket.on('data', common.mustCallAtLeast((chunk) => {
+    response += chunk;
+    if (response.includes('HTTP/1.1 503 Service Unavailable'))
+      socket.end();
+  }));
+  socket.on('close', common.mustCall(() => {
+    assert.match(response, /HTTP\/1\.1 200 OK/);
+    assert.match(response, /HTTP\/1\.1 503 Service Unavailable/);
+  }));
 }));
 
 server.maxRequestsPerSocket = 1;

@@ -27,7 +27,7 @@ const http = require('http');
 const expected = 'This is a unicode text: سلام';
 let result = '';
 
-const server = http.Server((req, res) => {
+const server = new http.Server((req, res) => {
   req.setEncoding('utf8');
   req.on('data', (chunk) => {
     result += chunk;

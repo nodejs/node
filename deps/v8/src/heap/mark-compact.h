@@ -149,9 +149,6 @@ class MarkCompactCollector final {
 
   V8_INLINE void AddTransitionArray(Tagged<TransitionArray> array);
 
-  void RecordStrongDescriptorArraysForWeakening(
-      GlobalHandleVector<DescriptorArray> strong_descriptor_arrays);
-
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
   bool in_use() { return state_ > PREPARE_GC; }
@@ -238,8 +235,7 @@ class MarkCompactCollector final {
   // Update pointers in sandbox-related pointer tables.
   void UpdatePointersInPointerTables();
 
-  // Marks object reachable from harmony weak maps and wrapper tracing.
-  void MarkTransitiveClosure();
+  // Verify that ephemeron marking works as expected.
   void VerifyEphemeronMarking();
 
   // If the call-site of the top optimized code was not prepared for
@@ -256,23 +252,26 @@ class MarkCompactCollector final {
   // this method.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value);
 
-  // Marks the transitive closure by draining the marking worklist iteratively,
-  // applying ephemerons semantics and invoking embedder tracing until a
-  // fixpoint is reached. Returns false if too many iterations have been tried
-  // and the linear approach should be used.
-  bool MarkTransitiveClosureUntilFixpoint();
+  // Drains the cppgc and V8 marking worklists in a loop until ephemeron
+  // processing reaches a fixpoint or a maximum number of iterations is reached.
+  // Returns true if the fixpoint was reached.
+  // It will also make use of parallel marking when enabled.
+  bool MarkTransitiveClosureFixpoint();
 
-  // Marks the transitive closure applying ephemeron semantics and invoking
-  // embedder tracing with a linear algorithm for ephemerons. Only used if
-  // fixpoint iteration doesn't finish within a few iterations.
+  // Runs the linear-time ephemeron processing algorithm. It builds the
+  // key_to_values_ map for ephemeron pairs and uses it when draining the cppgc
+  // and V8 marking worklists. This phase doesn't support parallel marking.
   void MarkTransitiveClosureLinear();
 
-  // Drains ephemeron and marking worklists. Single iteration of the
-  // fixpoint iteration.
-  bool ProcessEphemerons();
+  // Drains marking worklists for both V8 and the embedder in a loop until the
+  // transitive closure is reached. Is used by both the fixpoint and linear-time
+  // algorithms for ephemeron processing.
+  template <MarkingWorklistProcessingMode mode =
+                MarkingWorklistProcessingMode::kDefault>
+  bool ReachTransitiveClosureWithEmbedder();
 
-  // Perform Wrapper Tracing if in use.
-  void PerformWrapperTracing();
+  // Perform wrapper tracing if in use.
+  void ProcessCppHeapWorklist();
 
   // Retain dying maps for `v8_flags.retain_maps_for_n_gc` garbage collections
   // to increase chances of reusing of map transition tree in future.
@@ -320,7 +319,6 @@ class MarkCompactCollector final {
                               Tagged<DescriptorArray> descriptors);
   bool TransitionArrayNeedsCompaction(Tagged<TransitionArray> transitions,
                                       int num_transitions);
-  void WeakenStrongDescriptorArrays();
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -417,9 +415,6 @@ class MarkCompactCollector final {
   std::unique_ptr<WeakObjects::Local> local_weak_objects_;
   NativeContextInferrer native_context_inferrer_;
   NativeContextStats native_context_stats_;
-
-  std::vector<GlobalHandleVector<DescriptorArray>> strong_descriptor_arrays_;
-  base::Mutex strong_descriptor_arrays_mutex_;
 
   // Candidates for pages that should be evacuated.
   std::vector<NormalPage*> evacuation_candidates_;

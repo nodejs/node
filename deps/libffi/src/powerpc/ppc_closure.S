@@ -108,263 +108,137 @@ ENTRY(ffi_closure_SYSV)
 	lwz %r0,148(%r1)
 	add %r3,%r3,%r4		# add contents of table to table address
 	mtctr %r3
+	mtlr %r0
+	.cfi_restore 65
 	bctr			# jump to it
 
 # Each of the ret_typeX code fragments has to be exactly 16 bytes long
 # (4 instructions). For cache effectiveness we align to a 16 byte boundary
 # first.
+
 	.align 4
-# case FFI_TYPE_VOID
 .Lret_type0:
-	mtlr %r0
-	addi %r1,%r1,144
+
+.macro E index
+	.align 4
+.endm
+
+.macro epilogue
+	addi %r1, %r1, 144
 	.cfi_def_cfa_offset 0
 	blr
 	.cfi_def_cfa_offset 144
-	nop
+.endm
 
-# case FFI_TYPE_INT
+E PPC_LD_NONE
+	epilogue
+
+E PPC_LD_R3
 	lwz %r3,112+0(%r1)
-	mtlr %r0
-.Lfinish:
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
+	epilogue
 
-# case FFI_TYPE_FLOAT
-#ifndef __NO_FPRS__
+E PPC_LD_R3R4
+.Lr3r4:
+	lwz %r3,112+0(%r1)
+	lwz %r4,112+4(%r1)
+	epilogue
+
+E PPC_LD_F32
+#ifdef __NO_FPRS__
+	trap
+#else
 	lfs %f1,112+0(%r1)
-#else
-	nop
+	epilogue
 #endif
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
 
-# case FFI_TYPE_DOUBLE
-#ifndef __NO_FPRS__
+E PPC_LD_F64
+#ifdef __NO_FPRS__
+	trap
+#else
 	lfd %f1,112+0(%r1)
-#else
-	nop
+	epilogue
 #endif
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
 
-# case FFI_TYPE_LONGDOUBLE
-#ifndef __NO_FPRS__
+E PPC_LD_F128
+#ifdef __NO_FPRS__
+	trap
+#else
 	lfd %f1,112+0(%r1)
 	lfd %f2,112+8(%r1)
-	mtlr %r0
-	b .Lfinish
-#else
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-	nop
+	epilogue
 #endif
 
-# case FFI_TYPE_UINT8
+E PPC_LD_U8
 #ifdef __LITTLE_ENDIAN__
 	lbz %r3,112+0(%r1)
 #else
 	lbz %r3,112+3(%r1)
 #endif
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
+	epilogue
 
-# case FFI_TYPE_SINT8
+E PPC_LD_S8
 #ifdef __LITTLE_ENDIAN__
 	lbz %r3,112+0(%r1)
 #else
 	lbz %r3,112+3(%r1)
 #endif
 	extsb %r3,%r3
-	mtlr %r0
-	b .Lfinish
+	epilogue
 
-# case FFI_TYPE_UINT16
+E PPC_LD_U16
 #ifdef __LITTLE_ENDIAN__
 	lhz %r3,112+0(%r1)
 #else
 	lhz %r3,112+2(%r1)
 #endif
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
+	epilogue
 
-# case FFI_TYPE_SINT16
+E PPC_LD_S16
 #ifdef __LITTLE_ENDIAN__
 	lha %r3,112+0(%r1)
 #else
 	lha %r3,112+2(%r1)
 #endif
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
+	epilogue
 
-# case FFI_TYPE_UINT32
-	lwz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_TYPE_SINT32
-	lwz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_TYPE_UINT64
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-	mtlr %r0
-	b .Lfinish
-
-# case FFI_TYPE_SINT64
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-	mtlr %r0
-	b .Lfinish
-
-# case FFI_TYPE_STRUCT
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-	nop
-
-# case FFI_TYPE_POINTER
-	lwz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_TYPE_UINT128
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
+E PPC32_LD_R3R6
 	lwz %r5,112+8(%r1)
-	b .Luint128
-
-# The return types below are only used when the ABI type is FFI_SYSV.
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 1. One byte struct.
-	lbz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 2. Two byte struct.
-	lhz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 3. Three byte struct.
-	lwz %r3,112+0(%r1)
-#ifdef __LITTLE_ENDIAN__
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-#else
-	srwi %r3,%r3,8
-	mtlr %r0
-	b .Lfinish
-#endif
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 4. Four byte struct.
-	lwz %r3,112+0(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 5. Five byte struct.
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-#ifdef __LITTLE_ENDIAN__
-	mtlr %r0
-	b .Lfinish
-#else
-	li %r5,24
-	b .Lstruct567
-#endif
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 6. Six byte struct.
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-#ifdef __LITTLE_ENDIAN__
-	mtlr %r0
-	b .Lfinish
-#else
-	li %r5,16
-	b .Lstruct567
-#endif
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 7. Seven byte struct.
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-#ifdef __LITTLE_ENDIAN__
-	mtlr %r0
-	b .Lfinish
-#else
-	li %r5,8
-	b .Lstruct567
-#endif
-
-# case FFI_SYSV_TYPE_SMALL_STRUCT + 8. Eight byte struct.
-	lwz %r3,112+0(%r1)
-	lwz %r4,112+4(%r1)
-	mtlr %r0
-	b .Lfinish
+	lwz %r6,112+12(%r1)
+	b .Lr3r4
 
 #ifndef __LITTLE_ENDIAN__
+E PPC32_SYSV_LD_STRUCT_3
+	lwz %r3,112+0(%r1)
+	srwi %r3,%r3,8
+	epilogue
+
+E PPC32_SYSV_LD_STRUCT_5
+	lwz %r3,112+0(%r1)
+	lwz %r4,112+4(%r1)
+	li %r5,24
+	b .Lstruct567
+
+E PPC32_SYSV_LD_STRUCT_6
+	lwz %r3,112+0(%r1)
+	lwz %r4,112+4(%r1)
+	li %r5,16
+	b .Lstruct567
+
+E PPC32_SYSV_LD_STRUCT_7
+	lwz %r3,112+0(%r1)
+	lwz %r4,112+4(%r1)
+	li %r5,8
+	nop
+
 .Lstruct567:
 	subfic %r6,%r5,32
 	srw %r4,%r4,%r5
 	slw %r6,%r3,%r6
 	srw %r3,%r3,%r5
 	or %r4,%r6,%r4
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
-	.cfi_def_cfa_offset 144
+	epilogue
 #endif
 
-.Luint128:
-	lwz %r6,112+12(%r1)
-	mtlr %r0
-	addi %r1,%r1,144
-	.cfi_def_cfa_offset 0
-	blr
 	.cfi_endproc
 END(ffi_closure_SYSV)
 

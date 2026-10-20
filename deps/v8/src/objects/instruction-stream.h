@@ -33,7 +33,9 @@ class WritableJitAllocation;
 // An InstructionStream is a trusted object as it lives outside of the sandbox
 // and contains trusted content (machine code). However, it is special in that
 // it doesn't live in the trusted space but instead in the code space.
-class InstructionStream : public TrustedObject {
+V8_OBJECT class InstructionStream : public TrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // All InstructionStream objects have the following layout:
   //
@@ -75,7 +77,7 @@ class InstructionStream : public TrustedObject {
   // Set to Smi::zero() during initialization. Heap iterators may see
   // InstructionStream objects in this state.
   inline Tagged<Code> code(AcquireLoadTag tag) const;
-  inline Tagged<Object> raw_code(AcquireLoadTag tag) const;
+  inline Tagged<Union<Smi, Code>> raw_code(AcquireLoadTag tag) const;
   // Use when the InstructionStream may be uninitialized:
   inline bool TryGetCode(Tagged<Code>* code_out, AcquireLoadTag tag) const;
   inline bool TryGetCodeUnchecked(Tagged<Code>* code_out,
@@ -122,8 +124,19 @@ class InstructionStream : public TrustedObject {
                           Heap* heap);
   V8_INLINE bool IsFullyInitialized();
 
+#ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
+  bool IsValidated() const;
+  void SetValidated();
+#endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
+
   DECL_PRINTER(InstructionStream)
   DECL_VERIFIER(InstructionStream)
+
+#ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
+#define ISTREAM_FIELDS_VALIDATION(V) V(kIsValidatedOffset, kUInt8Size)
+#else  // !V8_ENABLE_GENERATED_CODE_VALIDATOR
+#define ISTREAM_FIELDS_VALIDATION(V)
+#endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
 
   // Layout description.
 #define ISTREAM_FIELDS(V)                                                     \
@@ -133,10 +146,12 @@ class InstructionStream : public TrustedObject {
   V(kDataStart, 0)                                                            \
   V(kBodySizeOffset, kUInt32Size)                                             \
   V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
+  ISTREAM_FIELDS_VALIDATION(V)                                                \
   V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
   V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, ISTREAM_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(sizeof(TrustedObject), ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS
+#undef ISTREAM_FIELDS_VALIDATION
 
   static_assert(kCodeAlignment >= kHeaderSize);
   // We do two things to ensure kCodeAlignment of the entry address:
@@ -154,7 +169,7 @@ class InstructionStream : public TrustedObject {
  private:
   friend class Factory;
 
-  class V8_NODISCARD WriteBarrierPromise {
+  V8_OBJECT_INNER_CLASS class V8_NODISCARD WriteBarrierPromise {
    public:
 #ifdef DEBUG
     explicit WriteBarrierPromise(Tagged<InstructionStream> host)
@@ -178,7 +193,7 @@ class InstructionStream : public TrustedObject {
     void RegisterAddress(Address address) {}
     void ResolveAddress(Address address) {}
 #endif
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   // Migrate code from desc without flushing the instruction cache. This
   // function will not trigger any write barriers and the caller needs to call
@@ -198,8 +213,7 @@ class InstructionStream : public TrustedObject {
   // Must be used when loading any of InstructionStream's tagged fields.
   static inline PtrComprCageBase main_cage_base();
 
-  OBJECT_CONSTRUCTORS(InstructionStream, TrustedObject);
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

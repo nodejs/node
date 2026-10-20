@@ -3,18 +3,17 @@ import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 import { inspect } from 'node:util';
 
-const { strictEqual, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
 // Import after the hasQuic check
 const { QuicEndpoint } = await import('node:quic');
+const { BlockList } = await import('node:net');
 
 // Reject invalid options
 ['a', null, false, NaN].forEach((i) => {
-  throws(() => new QuicEndpoint(i), {
+  assert.throws(() => new QuicEndpoint(i), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 });
@@ -53,25 +52,71 @@ const cases = [
     invalid: [-1, 65536, 1.5, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxStatelessResetsPerHost',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
-  },
-  {
     key: 'addressLRUSize',
     valid: [
       1, 10, 100, 1000, 10000, 10000n,
     ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    invalid: [-1, -1n, 0, 0n, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxRetries',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    key: 'retryRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'retryBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'sessionCreationRate',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'sessionCreationBurst',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockList',
+    valid: [new BlockList()],
+    invalid: ['a', 0, null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockListPolicy',
+    valid: ['deny', 'allow'],
+    invalid: ['invalid', 0, null, false, true, {}, [], () => {}]
   },
   {
     key: 'validateAddress',
@@ -149,7 +194,7 @@ for (const { key, valid, invalid } of cases) {
   for (const value of invalid) {
     const options = {};
     options[key] = value;
-    throws(() => new QuicEndpoint(options), {
+    assert.throws(() => new QuicEndpoint(options), {
       message: new RegExp(`${RegExp.escape(key)}`),
     }, value);
   }
@@ -157,7 +202,7 @@ for (const { key, valid, invalid } of cases) {
 
 // It can be inspected
 const endpoint = new QuicEndpoint({});
-strictEqual(typeof inspect(endpoint), 'string');
+assert.strictEqual(typeof inspect(endpoint), 'string');
 endpoint.close();
 await endpoint.closed;
 
@@ -168,6 +213,6 @@ new QuicEndpoint({
 new QuicEndpoint({
   address: '127.0.0.1:0',
 });
-throws(() => new QuicEndpoint({ address: 123 }), {
+assert.throws(() => new QuicEndpoint({ address: 123 }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });

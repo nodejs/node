@@ -4,6 +4,7 @@ const {
   chmod,
   open,
   readFile,
+  stat,
 } = require('fs/promises')
 
 const execMode = 0o777 & (~process.umask())
@@ -35,7 +36,8 @@ const dos2Unix = file =>
   readFile(file, 'utf8').then(content =>
     writeFileAtomic(file, content.replace(/^(#![^\n]+)\r\n/, '$1\n')))
 
-const fixBin = (file, mode = execMode) => chmod(file, mode)
+const fixBin = (file, mode = execMode) => stat(file)
+  .then(st => (st.mode & mode) === mode ? null : chmod(file, mode))
   .then(() => isWindowsHashbangFile(file))
   .then(isWHB => isWHB ? dos2Unix(file) : null)
 

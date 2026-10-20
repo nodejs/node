@@ -27,10 +27,11 @@ const http2 = require('http2');
       client.close();
     }));
 
-    let cnt = 10;
+    let received = 0;
     req.on('data', (data) => {
-      cnt--;
-      if (cnt === 0) rs.destroy();
+      received += data.length;
+      // Use a byte threshold because data event chunking varies by platform.
+      if (received >= 32 * 1024) rs.destroy();
     });
   }));
 }

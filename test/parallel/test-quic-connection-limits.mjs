@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { rejects, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,17 +16,19 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // Create endpoint with maxConnectionsTotal = 1.
 const endpoint = new QuicEndpoint({ maxConnectionsTotal: 1 });
 
 // Verify the limits are readable and mutable.
-strictEqual(endpoint.maxConnectionsTotal, 1);
-strictEqual(endpoint.maxConnectionsPerHost, 0);
-endpoint.maxConnectionsPerHost = 100;
-strictEqual(endpoint.maxConnectionsPerHost, 100);
+assert.strictEqual(endpoint.maxConnectionsTotal, 1);
+// The default maxConnectionsPerHost is 100 — a non-zero default that
+// prevents a single host from exhausting server resources.
+assert.strictEqual(endpoint.maxConnectionsPerHost, 100);
+endpoint.maxConnectionsPerHost = 50;
+assert.strictEqual(endpoint.maxConnectionsPerHost, 50);
 endpoint.maxConnectionsPerHost = 0;
 
 let sessionCount = 0;
@@ -47,6 +46,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 // First connection should succeed.
 const cs1 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 2 },
 });
 await cs1.opened;
@@ -54,23 +54,24 @@ await cs1.opened;
 // Second connection — server rejects with CONNECTION_REFUSED.
 const cs2 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
-    strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+    assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
   }),
 });
 
 await Promise.all([
-  rejects(cs2.opened, {
+  assert.rejects(cs2.opened, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   }),
-  rejects(cs2.closed, {
+  assert.rejects(cs2.closed, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   }),
 ]);
 
 // Only 1 session should have been accepted by the server.
-strictEqual(sessionCount, 1);
+assert.strictEqual(sessionCount, 1);
 
 await cs1.close();
 await serverEndpoint.close();

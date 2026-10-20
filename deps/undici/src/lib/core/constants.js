@@ -114,7 +114,18 @@ for (let i = 0; i < wellknownHeaderNames.length; ++i) {
     lowerCasedKey
 }
 
+/**
+ * Default WebSocket receive limits (see `webSocket` in Client.md). Used by
+ * DispatcherBase#webSocketOptions and by the WebSocket parser when the
+ * dispatcher doesn't provide a value, so a dispatcher without
+ * `webSocketOptions` (a custom one, or a wrapper) doesn't remove the limits.
+ */
+const defaultWebSocketMaxFragments = 131072
+const defaultWebSocketMaxPayloadSize = 128 * 1024 * 1024 // 128 MB
+
 module.exports = {
   wellknownHeaderNames,
-  headerNameLowerCasedRecord
+  headerNameLowerCasedRecord,
+  defaultWebSocketMaxFragments,
+  defaultWebSocketMaxPayloadSize
 }

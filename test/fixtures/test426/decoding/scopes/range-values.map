@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "file": "range-values.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "x",
+    "y",
+    "z",
+    "block",
+    "a",
+    "x_val",
+    "z_val",
+    "a_val"
+  ],
+  "scopes": ["BCAAA,DCCC,BCBAI,DE,CEA,CFA"],
+  "ranges": ["ECAAA,GHAI,ECCAC,GJ,FC,FG"]
+}

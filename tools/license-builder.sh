@@ -91,9 +91,6 @@ licenseText="$(cat "${rootdir}/deps/v8/third_party/simdutf/LICENSE")"
 addlicense "simdutf" "deps/v8/third_party/simdutf" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/ada-url/ada/HEAD/LICENSE-MIT)"
 addlicense "ada" "deps/ada" "$licenseText"
-licenseText="$(cat "${rootdir}/deps/minimatch/LICENSE.md")"
-addlicense "minimatch" "deps/minimatch" "$licenseText"
-
 # npm
 licenseText="$(cat "${rootdir}/deps/npm/LICENSE")"
 addlicense "npm" "deps/npm" "$licenseText"
@@ -119,10 +116,6 @@ addlicense "gtest" "deps/googletest" "$licenseText"
 # nghttp2
 licenseText="$(cat "${rootdir}/deps/nghttp2/COPYING")"
 addlicense "nghttp2" "deps/nghttp2" "$licenseText"
-
-# large_pages
-licenseText="$(sed -e '/SPDX-License-Identifier/,$d' -e 's/^\/\///' "${rootdir}/src/large_pages/node_large_page.h")"
-addlicense "large_pages" "src/large_pages" "$licenseText"
 
 # deep_freeze
 licenseText="$(sed -e '/SPDX-License-Identifier/,$d' -e 's/^\/\///' "${rootdir}/lib/internal/freeze_intrinsics.js")"

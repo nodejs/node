@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@
 namespace LIEF {
 namespace PE {
 
-/// Interface over the structure described by the OID `1.2.840.113549.1.9.16.1.4` (PKCS #9)
+/// Interface over the structure described by the OID `1.2.840.113549.1.9.16.1.4`
+/// (PKCS #9)
 ///
 /// The internal structure is described in the
 /// [RFC #3161](https://tools.ietf.org/html/rfc3161)
@@ -62,8 +63,7 @@ class LIEF_API PKCS9TSTInfo : public ContentInfo::Content {
   public:
   static constexpr auto PKCS9_TSTINFO_OBJID = "1.2.840.113549.1.9.16.1.4";
   PKCS9TSTInfo() :
-    ContentInfo::Content(PKCS9_TSTINFO_OBJID)
-  {}
+    ContentInfo::Content(PKCS9_TSTINFO_OBJID) {}
   PKCS9TSTInfo(const PKCS9TSTInfo&) = default;
   PKCS9TSTInfo& operator=(const PKCS9TSTInfo&) = default;
 

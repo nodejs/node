@@ -36,7 +36,7 @@
  * NGHTTP2_EXTPRI_INC_MASK is a bit mask to retrieve incremental bit
  * from a value produced by nghttp2_extpri_to_uint8.
  */
-#define NGHTTP2_EXTPRI_INC_MASK (1 << 7)
+#define NGHTTP2_EXTPRI_INC_MASK 0x80U
 
 /*
  * nghttp2_extpri_to_uint8 encodes |pri| into uint8_t variable.

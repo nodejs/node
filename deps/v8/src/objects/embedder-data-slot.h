@@ -5,8 +5,12 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_H_
 
+#include <type_traits>
 #include <utility>
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/visitor.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/objects/slots.h"
@@ -22,6 +26,24 @@ class EmbedderDataArray;
 class JSObject;
 class Object;
 
+// A wrapper CppGC object referenced by the CppHeapPointerTable for entries in
+// EmbedderDataSlot that store arbitrary C++ pointers.
+class EmbedderDataSlotWrapper final
+    : public cppgc::GarbageCollected<EmbedderDataSlotWrapper> {
+ public:
+  EmbedderDataSlotWrapper(void* pointer, ExternalPointerTag tag)
+      : pointer_(pointer), tag_(tag) {}
+
+  void* pointer() const { return pointer_; }
+  ExternalPointerTag tag() const { return tag_; }
+
+  void Trace(cppgc::Visitor*) const {}
+
+ private:
+  void* const pointer_;
+  const ExternalPointerTag tag_;
+};
+
 // An EmbedderDataSlot instance describes a kEmbedderDataSlotSize field ("slot")
 // holding an embedder data which may contain raw aligned pointer or a tagged
 // pointer (smi or heap object).
@@ -33,60 +55,22 @@ class Object;
 class EmbedderDataSlot
     : public SlotBase<EmbedderDataSlot, Address, kTaggedSize> {
  public:
-#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, an EmbedderDataSlot always contains a valid
-  // external pointer table index (initially, zero) in it's "raw" part and a
+  // CppHeap pointer table index (initially, zero) in its "raw" part and a
   // valid tagged value in its 32-bit "tagged" part.
+  // When pointer compression is disabled, an EmbedderDataSlot similarly
+  // contains two separate fields: a tagged value in its "tagged" part and a
+  // raw external pointer in its "raw" part.
   //
-  // Layout (sandbox):
+  // Layout (sandbox or no pointer compression):
   // +-----------------------------------+-----------------------------------+
-  // | Tagged (Smi/CompressedPointer)    | External Pointer Table Index      |
-  // +-----------------------------------+-----------------------------------+
-  // ^                                   ^
-  // kTaggedPayloadOffset                kRawPayloadOffset
-  //                                     kExternalPointerOffset
-  static constexpr int kTaggedPayloadOffset = 0;
-  static constexpr int kRawPayloadOffset = kTaggedSize;
-  static constexpr int kExternalPointerOffset = kRawPayloadOffset;
-#elif defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_BIG_ENDIAN)
-  // The raw payload is located in the other "tagged" part of the full pointer
-  // and cotains the upper part of an aligned address. The raw part is not
-  // expected to look like a tagged value.
-  //
-  // Layout (big endian pointer compression):
-  // +-----------------------------------+-----------------------------------+
-  // | External Pointer (high word)      | Tagged (Smi/CompressedPointer)    |
-  // |                                   | OR External Pointer (low word)    |
+  // | Tagged (Smi/Pointer)              | CppHeap Pointer Table Index /     |
+  // |                                   | CppHeap Pointer                   |
   // +-----------------------------------+-----------------------------------+
   // ^                                   ^
-  // kRawPayloadOffset                   kTaggedayloadOffset
-  // kExternalPointerOffset
-  static constexpr int kExternalPointerOffset = 0;
-  static constexpr int kRawPayloadOffset = 0;
-  static constexpr int kTaggedPayloadOffset = kTaggedSize;
-#elif defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_LITTLE_ENDIAN)
-  // Layout (little endian pointer compression):
-  // +-----------------------------------+-----------------------------------+
-  // | Tagged (Smi/CompressedPointer)    | External Pointer (high word)      |
-  // | OR External Pointer (low word)    |                                   |
-  // +-----------------------------------+-----------------------------------+
-  // ^                                   ^
-  // kTaggedPayloadOffset                kRawPayloadOffset
-  // kExternalPointerOffset
-  static constexpr int kExternalPointerOffset = 0;
+  // kTaggedPayloadOffset                kCppHeapPointerOffset
   static constexpr int kTaggedPayloadOffset = 0;
-  static constexpr int kRawPayloadOffset = kTaggedSize;
-#else
-  // Layout (no pointer compression):
-  // +-----------------------------------------------------------------------+
-  // | Tagged (Smi/Pointer) OR External Pointer                              |
-  // +-----------------------------------------------------------------------+
-  // ^
-  // kTaggedPayloadOffset
-  // kExternalPointerOffset
-  static constexpr int kTaggedPayloadOffset = 0;
-  static constexpr int kExternalPointerOffset = 0;
-#endif  // V8_ENABLE_SANDBOX
+  static constexpr int kCppHeapPointerOffset = kTaggedSize;
 
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
@@ -95,7 +79,18 @@ class EmbedderDataSlot
   V8_INLINE EmbedderDataSlot(Tagged<JSObject> object, int embedder_field_index);
 
   // Opaque type used for storing raw embedder data.
-  using RawData = Address;
+#ifdef V8_COMPRESS_POINTERS
+  using RawData = uint64_t;
+#else
+  struct RawData {
+    Address pointer;
+    Address tagged;
+    constexpr RawData() : pointer(0), tagged(0) {}
+    constexpr RawData(Address pointer, Address tagged)
+        : pointer(pointer), tagged(tagged) {}
+    constexpr RawData(Address addr) : pointer(addr), tagged(0) {}
+  };
+#endif
 
   V8_INLINE void Initialize(Tagged<Object> initial_value);
 
@@ -118,41 +113,63 @@ class EmbedderDataSlot
   // When the sandbox is enabled, calling this method when the raw part of the
   // slot does not contain valid external pointer table index is undefined
   // behaviour and most likely result in crashes.
-  V8_INLINE bool ToAlignedPointer(IsolateForSandbox isolate, void** out_result,
+  V8_INLINE bool ToAlignedPointer(IsolateForPointerCompression isolate,
+                                  void** out_result,
                                   ExternalPointerTagRange tag_range) const;
+  V8_INLINE bool ToAlignedPointer(IsolateForPointerCompression isolate,
+                                  void** out_result,
+                                  CppHeapPointerTagRange tag_range) const;
 
-  V8_INLINE bool ToGenericAlignedPointer(IsolateForSandbox isolate,
+  V8_INLINE bool ToGenericAlignedPointer(IsolateForPointerCompression isolate,
                                          void** out_result) const;
 
   // Deprecated, either use ToAlignedPointer with a `tag_range`, or use
   // `ToGenericAlignedPointer to indicate that the read pointer will not be
   // dereferenced.
-  V8_INLINE bool DeprecatedToAlignedPointer(IsolateForSandbox isolate,
-                                            void** out_result) const;
+  V8_INLINE bool DeprecatedToAlignedPointer(
+      IsolateForPointerCompression isolate, void** out_result) const;
 
-  // Returns true if the pointer was successfully stored or false it the pointer
+  // Returns true if the pointer was successfully stored or false if the pointer
   // was improperly aligned.
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
-      IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr,
-      ExternalPointerTag tag);
+      Isolate* isolate, Tagged<HeapObject> host, void* ptr,
+      CppHeapPointerTag tag);
+  template <typename T>
+    requires std::is_same_v<EmbedderDataArray, T> || std::is_same_v<JSObject, T>
+  static V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
+      Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
+      void* ptr, ExternalPointerTag tag);
 
-#ifdef V8_ENABLE_SANDBOX
-  V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle(
-      IsolateForSandbox isolate, Tagged<HeapObject> host,
-      ExternalPointerHandle handle);
-#endif  // V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
+  V8_INLINE void store_tagged_without_barrier(Tagged<Object> value);
+
+  V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle_without_barrier(
+      IsolateForPointerCompression isolate, CppHeapPointerHandle handle);
+#endif  // V8_COMPRESS_POINTERS
 
   V8_INLINE bool MustClearDuringSerialization(
       const DisallowGarbageCollection& no_gc);
-  V8_INLINE RawData load_raw(IsolateForSandbox isolate,
+
+  // IMPORTANT: load_raw and store_raw are strictly intended for temporary
+  // in-place save-and-restore of an object's embedder slots during snapshot
+  // serialization (see ContextSerializer::SerializeObjectWithEmbedderFields).
+  // They must NEVER be used to copy or duplicate embedder slot contents across
+  // different objects or slots, as doing so would duplicate raw
+  // CppHeapPointerHandles without updating the CppHeapPointerTable.
+  V8_INLINE RawData load_raw(IsolateForPointerCompression isolate,
                              const DisallowGarbageCollection& no_gc) const;
-  V8_INLINE void store_raw(IsolateForSandbox isolate, RawData data,
+
+  // IMPORTANT: load_raw and store_raw are strictly intended for temporary
+  // in-place save-and-restore of an object's embedder slots during snapshot
+  // serialization (see ContextSerializer::SerializeObjectWithEmbedderFields).
+  // They must NEVER be used to copy or duplicate embedder slot contents across
+  // different objects or slots, as doing so would duplicate raw
+  // CppHeapPointerHandles without updating the CppHeapPointerTable.
+  V8_INLINE void store_raw(IsolateForPointerCompression isolate, RawData data,
                            const DisallowGarbageCollection& no_gc);
 
  private:
-  // Stores given value to the embedder data slot in a concurrent-marker
-  // friendly manner (tagged part of the slot is written atomically).
-  V8_INLINE void gc_safe_store(IsolateForSandbox isolate, Address value);
+  static V8_INLINE void clear_cpp_heap_pointer_field(Address slot_address);
 };
 
 }  // namespace internal

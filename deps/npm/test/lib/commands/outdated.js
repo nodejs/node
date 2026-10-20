@@ -57,6 +57,24 @@ const packument = spec => {
         },
       },
     },
+    timed: {
+      name: 'timed',
+      'dist-tags': {
+        latest: '2.0.0',
+      },
+      versions: {
+        '1.0.0': {
+          version: '1.0.0',
+        },
+        '2.0.0': {
+          version: '2.0.0',
+        },
+      },
+      time: {
+        '1.0.0': '2020-01-01T00:00:00.000Z',
+        '2.0.0': '2020-06-01T00:00:00.000Z',
+      },
+    },
   }
 
   if (spec.name === 'eta') {
@@ -729,5 +747,59 @@ t.test('dependent location', async t => {
       joinedOutput(),
       'should display dependent location when using --long and --json'
     )
+  })
+})
+
+t.test('min-release-age-exclude', async t => {
+  const prefixDir = {
+    'package.json': JSON.stringify({
+      name: 'project',
+      version: '1.0.0',
+      dependencies: {
+        timed: '^1.0.0',
+      },
+    }, null, 2),
+    node_modules: {
+      timed: {
+        'package.json': JSON.stringify({
+          name: 'timed',
+          version: '1.0.0',
+        }, null, 2),
+      },
+    },
+  }
+
+  await t.test('before hides the newer version', async t => {
+    const { outdated, joinedOutput } = await mockNpm(t, {
+      prefixDir,
+      config: { before: new Date('2020-03-01') },
+    })
+    await outdated.exec([])
+    t.notMatch(joinedOutput(), 'timed', 'newer version filtered out by before')
+  })
+
+  await t.test('exact-name exclude restores the newer version', async t => {
+    const { outdated, joinedOutput } = await mockNpm(t, {
+      prefixDir,
+      config: {
+        before: new Date('2020-03-01'),
+        'min-release-age-exclude': ['timed'],
+      },
+    })
+    await outdated.exec([])
+    t.match(joinedOutput(), 'timed', 'excluded package is reported as outdated')
+    t.match(joinedOutput(), '2.0.0', 'latest 2.0.0 is surfaced')
+  })
+
+  await t.test('glob exclude restores the newer version', async t => {
+    const { outdated, joinedOutput } = await mockNpm(t, {
+      prefixDir,
+      config: {
+        before: new Date('2020-03-01'),
+        'min-release-age-exclude': ['tim*'],
+      },
+    })
+    await outdated.exec([])
+    t.match(joinedOutput(), '2.0.0', 'glob-excluded package shows newer version')
   })
 })

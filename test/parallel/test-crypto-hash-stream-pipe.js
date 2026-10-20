@@ -20,7 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -30,10 +32,10 @@ const crypto = require('crypto');
 
 const stream = require('stream');
 const s = new stream.PassThrough();
-const h = process.features.openssl_is_boringssl ?
+const h = isBoringSSL ?
   crypto.createHash('sha512') :
   crypto.createHash('sha3-512');
-const expect = process.features.openssl_is_boringssl ?
+const expect = isBoringSSL ?
   'fba055c6fd0c5b6645407749ed7a8b41' +
   'b8f629f2163c3ca3701d864adabda1f8' +
   '93c37bf82b22fdd151ba8e357f611da4' +

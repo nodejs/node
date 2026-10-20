@@ -8,11 +8,12 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // Test async elliptic curve key generation with 'jwk' encoding and RSA.
 {
   generateKeyPair('rsa', {
-    modulusLength: 1024,
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
     publicKeyEncoding: {
       format: 'jwk'
     },

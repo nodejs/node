@@ -29,15 +29,13 @@ email: e@example.com (verified)
 two-factor auth: auth-and-writes
 fullname: Example User
 homepage:
-freenode:
-twitter:
 github:
 created: 2015-02-26T01:38:35.892Z
 updated: 2017-10-02T21:29:45.922Z
 ```
 
 * `npm profile set <property> <value>`: Set the value of a profile property.
-You can set the following properties this way: email, fullname, homepage, freenode, twitter, github
+You can set the following properties this way: email, fullname, homepage, github
 
 * `npm profile set password`: Change your password.
 This is interactive, you'll be prompted for your current password and a new password.
@@ -106,7 +104,7 @@ password, npm will prompt on the command line for one.
 
 ### See Also
 
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)
 * [npm registry](/using-npm/registry)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

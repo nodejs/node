@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   sysv.S - Copyright (c) 2017, 2022  Anthony Green
+   sysv.S - Copyright (c) 2017, 2022, 2026  Anthony Green
           - Copyright (c) 2013  The Written Word, Inc.
           - Copyright (c) 1996,1998,2001-2003,2005,2008,2010  Red Hat, Inc.
 
@@ -394,9 +394,7 @@ L(UW24):
 L(UW25):
 	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
-	mov	ecx, [esp+closure_FS-4] 	/* load retaddr */
-	mov	eax, [esp+closure_FS]		/* load closure */
-	mov	[esp+closure_FS], ecx		/* move retaddr */
+	mov	eax, [esp+closure_FS-4] 	/* load closure */
 	jmp	L(do_closure_REGISTER)
 L(UW26):
 	/* cfi_endproc */
@@ -777,6 +775,10 @@ EHFrame0:
 
 #ifdef HAVE_AS_X86_PCREL
 # define PCREL(X)	X - .
+#elif defined(__clang__)
+/* clang's integrated assembler rejects the X@rel variant (#947); the
+   pc-relative label difference works wherever @rel would.  */
+# define PCREL(X)	X - .
 #else
 # define PCREL(X)	X@rel
 #endif
@@ -990,7 +992,7 @@ L(EFDE9):
 #endif /* ifndef _MSC_VER */
 #endif /* ifndef __x86_64__ */
 
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif
 #endif

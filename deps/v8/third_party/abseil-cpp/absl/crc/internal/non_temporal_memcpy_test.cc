@@ -15,6 +15,7 @@
 #include "absl/crc/internal/non_temporal_memcpy.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <vector>

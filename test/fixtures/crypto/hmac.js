@@ -1,5 +1,7 @@
 'use strict';
 
+const { isBoringSSL } = require('../../common/crypto');
+
 module.exports = function () {
   const plaintext = Buffer.from(
     '5f4dba4f320c0ce876725afce5fbd25bf83e5a7125a08cafe73c3ebac421779df9d55d' +
@@ -22,7 +24,7 @@ module.exports = function () {
       '5dcc359443aaf652fa1375d6b3e61fdcf29bb4a28bd5d3dcfa40f82f906bb280' +
       '0455db03b5d31fb972a15a6d0103a24e56d156a119c0e5a1e92a44c3c5657cf9',
       'hex'),
-    ...(!process.features.openssl_is_boringssl ? {
+    ...(!isBoringSSL ? {
       'SHA3-256': Buffer.from(
         'e588ec0811463d767241df1074b47ae4071b51f2ce36537ba69ccdc3fdc2b7a8',
         'hex'),
@@ -48,7 +50,7 @@ module.exports = function () {
       '61fb278c3ffb0cce2bf1cf723ddfd8ef1f931c0c618c25907324605939e3f9a2' +
       'c6f4af690bda3407dc2f5770f6a0a44b954d64a332e3ee0821abf82b7f3e99c1',
       'hex'),
-    ...(!process.features.openssl_is_boringssl ? {
+    ...(!isBoringSSL ? {
       'SHA3-256': Buffer.from(
         'c1ac5e11fcd50c48bf567f6e296632f5801c4eb07a8a47579b41dee971a3099b',
         'hex'),

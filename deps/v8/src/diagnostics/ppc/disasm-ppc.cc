@@ -271,6 +271,15 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return FormatRegister(instr, format);
     }
     case 'D': {
+      if (format[1] == 'i') {
+        int d0 = instr->Bits(15, 6);
+        int d1 = instr->Bits(20, 16);
+        int d2 = instr->Bit(0);
+        int16_t imm_value = static_cast<int16_t>((d0 << 6) | (d1 << 1) | d2);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%hd", imm_value);
+        return 2;
+      }
       return FormatFPRegister(instr, format);
     }
     case 'X': {
@@ -645,6 +654,12 @@ void Decoder::DecodeExt0(Instruction* instr) {
 }
 
 void Decoder::DecodeExt1(Instruction* instr) {
+  switch (EXT1 | (instr->BitField(5, 1))) {
+    case ADDPCIS: {
+      Format(instr, "addpcis 'rt, 'Di");
+      return;
+    }
+  }
   switch (EXT1 | (instr->BitField(10, 1))) {
     case MCRF: {
       UnknownFormat(instr, "mcrf");  // not used by V8

@@ -41,7 +41,7 @@ documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
 ## Node.js support requirements
 
 At any given time Node.js needs to be maintaining a few different V8 branches
-for the various Current, LTS, and nightly releases.
+for the various Alpha, Current, LTS, and nightly releases.
 The versions of V8 used in Node.js may have already been
 abandoned by upstream V8. However, Node.js needs to continue supporting
 these branches for many months (Current branches) or several
@@ -76,6 +76,28 @@ fixed upstream first.
 * Once the bug is fixed it may still need backporting, if it exists in other V8
   branches that are still active or are branches that Node.js cares about.
   Follow the process for backporting below.
+
+### Backporting patches to `main`
+
+As a general rule, do not backport individual V8 patches to the Node.js `main`
+branch. Wait for them to be included in a V8 major version update instead.
+An individual V8 patch adds up audit cost and further delays the pending V8
+update.
+
+A patch may be backported to `main` when at least one of these criteria applies:
+
+* It fixes a build issue on a platform or toolchain supported on `main`.
+* It fixes a security issue.
+* It unblocks a pending V8 update, for example by adjusting how the Node.js code
+  uses a V8 API so that it works with the future update.
+
+If the patch meet the following criteria, it's recommended to backport the patches
+to the release staging branches like `v<MAJOR>.x-staging` (see
+[Criteria for backporting](../backporting-to-release-lines.md#criteria-for-backporting)
+to decide what release line to target), instead of `main`:
+
+* It has demonstrated real-world urgency and impact that justifies landing it
+  before the next V8 major version update.
 
 ### Backporting to active branches
 
@@ -307,6 +329,10 @@ Revision_ from the 5.4 branch that can be useful in the update process above.
 
 We upgrade the version of V8 in Node.js `main` whenever a V8 release goes stable
 upstream, that is, whenever a new release of Chrome comes out.
+
+V8 updates can require a `NODE_MODULE_VERSION` bump if they change the native
+addon ABI. See the release process documentation for when
+`NODE_MODULE_VERSION` may be updated during a release line.
 
 Upgrading major versions would be much harder to do with the patch mechanism
 above. A better strategy is to

@@ -25,6 +25,7 @@ server.listen(0);
 
 server.on('listening', common.mustCall(function() {
   const clientRequest = http.request({
+    agent: false,
     port: server.address().port,
     method: 'GET',
     path: '/'

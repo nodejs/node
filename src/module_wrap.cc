@@ -367,7 +367,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       // For embedder ESM in a SEA, use the bundled code cache if available.
       if (id_symbol == realm->isolate_data()->embedder_module_hdo() &&
           sea::IsSingleExecutable()) {
-        sea::SeaResource sea = sea::FindSingleExecutableResource();
+        const sea::SeaResource& sea = sea::FindSingleExecutableResource();
         if (sea.use_code_cache()) {
           std::string_view data = sea.code_cache.value();
           user_cached_data = new ScriptCompiler::CachedData(
@@ -555,6 +555,8 @@ ModulePhase to_phase_constant(ModuleImportPhase phase) {
   switch (phase) {
     case ModuleImportPhase::kEvaluation:
       return kEvaluationPhase;
+    case ModuleImportPhase::kDefer:
+      return kDeferPhase;
     case ModuleImportPhase::kSource:
       return kSourcePhase;
     default:
@@ -938,23 +940,9 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (obj->HasAsyncGraph()) {
-    CHECK(env->options()->print_required_tla);
-    auto stalled_messages =
-        std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
-    if (stalled_messages.size() != 0) {
-      for (auto& message : stalled_messages) {
-        std::string reason = "Error: unexpected top-level await at ";
-        std::string info =
-            FormatErrorMessage(isolate, context, "", message, true);
-        reason += info;
-        FPrintF(stderr, "%s\n", reason);
-      }
-    }
-    THROW_ERR_REQUIRE_ASYNC_MODULE(env, args[0], args[1]);
-    return;
-  }
-
+  // Graphs with top-level await are rejected by the caller before evaluation
+  // starts, so the promise must have been settled synchronously.
+  CHECK(!obj->HasAsyncGraph());
   CHECK_EQ(promise->State(), Promise::PromiseState::kFulfilled);
 
   args.GetReturnValue().Set(module->GetModuleNamespace());
@@ -1032,7 +1020,7 @@ void ModuleWrap::HasAsyncGraph(Local<Name> property,
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
   ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.HolderV2());
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.Holder());
 
   Local<Module> module = obj->module_.Get(isolate);
   if (module->GetStatus() < Module::kInstantiated) {
@@ -1248,7 +1236,7 @@ void ModuleWrap::SetImportMetaResolveInitializer(
 static void ImportMetaResolveLazyGetter(
     Local<v8::Name> name, const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> receiver_val = info.HolderV2();
+  Local<Value> receiver_val = info.Holder();
   if (!receiver_val->IsObject()) {
     THROW_ERR_INVALID_INVOCATION(isolate);
     return;
@@ -1289,7 +1277,7 @@ static void PathHelpersLazyGetter(Local<v8::Name> name,
   // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
   // returns a nullptr and retrieve the creation context via `this` object and
   // get the creation Realm.
-  Local<Value> receiver_val = info.HolderV2();
+  Local<Value> receiver_val = info.Holder();
   if (!receiver_val->IsObject()) {
     THROW_ERR_INVALID_INVOCATION(isolate);
     return;
@@ -1682,6 +1670,7 @@ void ModuleWrap::CreatePerContextProperties(Local<Object> target,
   V(Module::Status, kErrored);
 
   V(ModulePhase, kEvaluationPhase);
+  V(ModulePhase, kDeferPhase);
   V(ModulePhase, kSourcePhase);
 #undef V
 }

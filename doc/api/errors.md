@@ -397,6 +397,32 @@ error object, such as a {Proxy}.
 Indicates the failure of an assertion. For details, see
 [`Class: assert.AssertionError`][].
 
+## Class: `DOMException`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* Extends: {errors.Error}
+
+The Web IDL {DOMException} class. These errors are thrown by web-platform APIs
+in Node.js such as [`fetch()`][], {AbortController}, {AbortSignal}, and Web
+Streams. For details, see also [`Class: DOMException`][] on the Globals page.
+
+The [`domException.name`][] property identifies the type of the exception (for
+example, `'AbortError'`). Unlike most errors in Node.js, the
+[`domException.code`][] property is a number that corresponds to a
+[legacy error code name][Web IDL error names] (for example, `20` for
+`ABORT_ERR`).
+
+Node.js-specific APIs that support {AbortSignal} (such as
+[`events.once()`][]) throw a Node.js `AbortError` (a native {errors.Error} with
+`name` of `'AbortError'` and `code` of [`'ABORT_ERR'`][ABORT_ERR]) rather than a
+{DOMException}. To identify abort errors in either case, checking
+`err?.name === 'AbortError'` is sufficient.
+
+See also [`ABORT_ERR`][].
+
 ## Class: `RangeError`
 
 * Extends: {errors.Error}
@@ -714,6 +740,14 @@ An attempt was made to register something that is not a function as an
 An operation related to module loading is customized by an asynchronous loader
 hook that never settled the promise before the loader thread exits.
 
+<a id="ERR_ASYNC_RESOURCE_DOMAIN_REMOVED"></a>
+
+### `ERR_ASYNC_RESOURCE_DOMAIN_REMOVED`
+
+The `domain` property on `AsyncResource` has been removed. The domain module
+now uses `AsyncLocalStorage` for context propagation instead of `async_hooks`.
+Use `AsyncLocalStorage` instead for context propagation.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`
@@ -759,12 +793,6 @@ An operation outside the bounds of a `Buffer` was attempted.
 
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
-
-<a id="ERR_CANNOT_WATCH_SIGINT"></a>
-
-### `ERR_CANNOT_WATCH_SIGINT`
-
-Node.js was unable to watch for the `SIGINT` signal.
 
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 
@@ -934,7 +962,7 @@ be called no more than one time per instance of a `Hash` object.
 
 ### `ERR_CRYPTO_HASH_UPDATE_FAILED`
 
-[`hash.update()`][] failed for any reason. This should rarely, if ever, happen.
+[`hash.update()`][] failed for an unspecified reason.
 
 <a id="ERR_CRYPTO_INCOMPATIBLE_KEY"></a>
 
@@ -1050,6 +1078,18 @@ An invalid key type was provided.
 
 The given crypto key object's type is invalid for the attempted operation.
 
+<a id="ERR_CRYPTO_INVALID_MAC"></a>
+
+### `ERR_CRYPTO_INVALID_MAC`
+
+<!-- YAML
+added:
+  - v26.9.0
+  - v24.22.0
+-->
+
+An invalid MAC algorithm was specified.
+
 <a id="ERR_CRYPTO_INVALID_MESSAGELEN"></a>
 
 ### `ERR_CRYPTO_INVALID_MESSAGELEN`
@@ -1122,6 +1162,43 @@ added: v24.7.0
 
 Attempted to use KEM operations while Node.js was not compiled with
 OpenSSL with KEM support.
+
+<a id="ERR_CRYPTO_MAC_FINALIZED"></a>
+
+### `ERR_CRYPTO_MAC_FINALIZED`
+
+<!-- YAML
+added:
+  - v26.9.0
+  - v24.22.0
+-->
+
+An operation was attempted on a `Mac` object after finalization was attempted
+or an underlying MAC update failed.
+
+<a id="ERR_CRYPTO_MAC_NOT_SUPPORTED"></a>
+
+### `ERR_CRYPTO_MAC_NOT_SUPPORTED`
+
+<!-- YAML
+added:
+  - v26.9.0
+  - v24.22.0
+-->
+
+Node.js was built without support for the OpenSSL `EVP_MAC` API.
+
+<a id="ERR_CRYPTO_MAC_UPDATE_FAILED"></a>
+
+### `ERR_CRYPTO_MAC_UPDATE_FAILED`
+
+<!-- YAML
+added:
+  - v26.9.0
+  - v24.22.0
+-->
+
+[`mac.update()`][] failed for an unspecified reason.
 
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 
@@ -1506,7 +1583,7 @@ New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
 
-An additional headers was specified after an HTTP/2 response was initiated.
+Additional headers were specified after an HTTP/2 response was initiated.
 
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 
@@ -1718,6 +1795,15 @@ Use of the `101` Informational status code is forbidden in HTTP/2.
 An invalid HTTP status code has been specified. Status codes must be an integer
 between `100` and `599` (inclusive).
 
+<a id="ERR_HTTP2_STREAM_ABORTED"></a>
+
+### `ERR_HTTP2_STREAM_ABORTED`
+
+The peer reset the `Http2Stream` with a clean error code (`NGHTTP2_NO_ERROR`
+or `NGHTTP2_CANCEL`) before sending `END_STREAM`, so the readable side will
+not be fully delivered. Mirrors HTTP/1's `ECONNRESET` for a peer-side
+`socket.destroy()`.
+
 <a id="ERR_HTTP2_STREAM_CANCEL"></a>
 
 ### `ERR_HTTP2_STREAM_CANCEL`
@@ -1755,6 +1841,20 @@ added: v15.14.0
 
 The limit of acceptable invalid HTTP/2 protocol frames sent by the peer,
 as specified through the `maxSessionInvalidFrames` option, has been exceeded.
+
+<a id="ERR_HTTP2_TOO_MANY_ORIGINS"></a>
+
+### `ERR_HTTP2_TOO_MANY_ORIGINS`
+
+<!-- YAML
+added:
+ - v26.3.1
+ - v24.17.0
+ - v22.23.0
+-->
+
+The number of uniq origin sent by the server has exceeded the value defined in
+`options.maxOriginSetSize`.
 
 <a id="ERR_HTTP2_TRAILERS_ALREADY_SENT"></a>
 
@@ -2113,13 +2213,6 @@ An invalid `options.protocol` was passed to `http.request()`.
 Both `breakEvalOnSigint` and `eval` options were set in the [`REPL`][] config,
 which is not supported.
 
-<a id="ERR_INVALID_REPL_INPUT"></a>
-
-### `ERR_INVALID_REPL_INPUT`
-
-The input may not be used in the [`REPL`][]. The conditions under which this
-error is used are described in the [`REPL`][] documentation.
-
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 
 ### `ERR_INVALID_RETURN_PROPERTY`
@@ -2465,6 +2558,18 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
+<a id="ERR_NO_TEMPORAL"></a>
+
+### `ERR_NO_TEMPORAL`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+An attempt was made to use features that require [`Temporal`][], but Node.js was not
+compiled with `Temporal` support or it has been disabled in the current environment
+(for example, when running with `--no-harmony-temporal`).
+
 <a id="ERR_NO_TYPESCRIPT"></a>
 
 ### `ERR_NO_TYPESCRIPT`
@@ -2513,6 +2618,83 @@ A given value is out of the accepted range.
 
 The `package.json` [`"imports"`][] field does not define the given internal
 package specifier mapping.
+
+<a id="ERR_PACKAGE_MAP_EXTERNAL_FILE"></a>
+
+### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.20.0
+-->
+
+A module attempted to resolve a bare specifier using the [package map][], but
+the importing file is not located within any package defined in the map.
+
+```console
+$ node --experimental-package-map=./package-map.json /tmp/script.js
+Error [ERR_PACKAGE_MAP_EXTERNAL_FILE]: Cannot resolve "dep-a" from "/tmp/script.js": file is not within any package defined in /path/to/package-map.json
+```
+
+To fix this error, ensure the importing file is inside one of the package
+directories listed in the package map, or add a new package entry whose `url`
+covers the importing file.
+
+<a id="ERR_PACKAGE_MAP_INVALID"></a>
+
+### `ERR_PACKAGE_MAP_INVALID`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.20.0
+-->
+
+The [package map][] configuration file is invalid. This can occur when:
+
+* The file does not exist at the specified path.
+* The file contains invalid JSON.
+* The file is missing the required `packages` object.
+* A package entry is missing the required `url` field.
+* Two package entries have the same `url` value.
+
+```console
+$ node --experimental-package-map=./missing.json app.js
+Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file not found
+```
+
+<a id="ERR_PACKAGE_MAP_KEY_NOT_FOUND"></a>
+
+### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.20.0
+-->
+
+A package's `dependencies` object in the [package map][] references a package
+key that is not defined in the `packages` object.
+
+```json
+{
+  "packages": {
+    "app": {
+      "url": "./app",
+      "dependencies": {
+        "foo": "nonexistent"
+      }
+    }
+  }
+}
+```
+
+In this example, `"nonexistent"` is referenced as a dependency target but not
+defined in `packages`, which will throw this error.
+
+To fix this error, ensure all package keys referenced in `dependencies` values
+are defined in the `packages` object.
 
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 
@@ -2656,7 +2838,9 @@ Opening a QUIC stream failed.
 ### `ERR_QUIC_STREAM_ABORTED`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.2.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2669,7 +2853,9 @@ or session with an explicit application or transport error code.
 ### `ERR_QUIC_STREAM_RESET`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.2.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2709,18 +2895,38 @@ A QUIC session failed because version negotiation is required.
 
 ### `ERR_REQUIRE_ASYNC_MODULE`
 
-When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+<!-- YAML
+changes:
+  - version:
+     - v26.5.0
+     - v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64260
+    description: Added the `requireStack` and `topLevelAwaitLocations` properties.
+-->
+
+When trying to `require()` an [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
-To see where the top-level await is, use
-`--experimental-print-required-tla` (this would execute the modules
-before looking for the top-level awaits).
+When uncaught, the flag `--experimental-print-required-tla` prints
+the locations of the top-level awaits in the graph to stderr.
+
+This error has the following additional non-enumerable properties:
+
+* `requireStack` {string\[]} The chain of modules that led to the failing
+  `require()`, starting with the module that required the asynchronous module.
+* `topLevelAwaitLocations` {Object\[]} The locations of the top-level awaits in
+  the graph. Only populated when `--experimental-print-required-tla` is enabled.
+  Each entry has the following properties:
+  * `url` {string} The URL of the module containing the top-level await.
+  * `line` {number} The 1-based line number of the top-level await.
+  * `column` {number} The 1-based column number of the top-level await.
+  * `sourceLine` {string} The source line containing the top-level await.
 
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
 
-When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+When trying to `require()` an [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
 participates in an immediate cycle.
 This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
@@ -2756,13 +2962,31 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1 - Experimental.
 
 An attempt was made to `require()` an [ES Module][] while another `import()` call
 was already in progress to load it asynchronously.
+
+<a id="ERR_RX_MEMORY_NOT_SUPPORTED"></a>
+
+### `ERR_RX_MEMORY_NOT_SUPPORTED`
+
+<!-- YAML
+added: v26.12.0
+-->
+
+A feature requiring runtime allocation of executable memory was used in an
+environment where that capability is unavailable. This includes creating an
+otherwise eligible FFI Fast API function, or allocating an FFI callback when
+libffi cannot provide a closure and executable memory is unavailable.
+
+Node.js does not guarantee a non-generated-code fallback for these operations.
+This error can be caught without terminating the process.
 
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
@@ -2877,6 +3101,15 @@ disconnected socket.
 ### `ERR_SOCKET_DGRAM_NOT_RUNNING`
 
 A call was made and the UDP subsystem was not running.
+
+<a id="ERR_SOCKET_HANDLE_ADOPTED"></a>
+
+### `ERR_SOCKET_HANDLE_ADOPTED`
+
+An operation was attempted on a [`BoundSocket`][] that had already been adopted
+by a [`net.Server`][] or [`net.Socket`][], or transferred to another thread.
+Once a bound socket is adopted or transferred, its `address()` and `close()`
+methods can no longer be used.
 
 <a id="ERR_SOURCE_MAP_CORRUPT"></a>
 
@@ -3030,6 +3263,13 @@ This error represents a failed test. Additional information about the failure
 is available via the `cause` property. The `failureType` property specifies
 what the test was doing when the failure occurred.
 
+<a id="ERR_THROTTLED"></a>
+
+### `ERR_THROTTLED`
+
+A call was dropped because a throttled function could not invoke it immediately
+or its pending queue was full.
+
 <a id="ERR_TLS_ALPN_CALLBACK_INVALID_RESULT"></a>
 
 ### `ERR_TLS_ALPN_CALLBACK_INVALID_RESULT`
@@ -3090,7 +3330,7 @@ The context must be a `SecureContext`.
 
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
-The specified  `secureProtocol` method is invalid. It is  either unknown, or
+The specified `secureProtocol` method is invalid. It is either unknown, or
 disabled because it is insecure.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>
@@ -3172,7 +3412,8 @@ category.
 ### `ERR_TRACE_EVENTS_UNAVAILABLE`
 
 The `node:trace_events` module could not be loaded because Node.js was compiled
-with the `--without-v8-platform` flag.
+with the `--without-v8-platform` flag, or because the process was initialized by
+an embedder that provides its own V8 platform.
 
 <a id="ERR_TRAILING_JUNK_AFTER_STREAM_END"></a>
 
@@ -3299,7 +3540,7 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendant of a `node_modules` directory.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
@@ -3347,6 +3588,13 @@ An attempt was made to use something that was already closed.
 
 While using the Performance Timing API (`perf_hooks`), no valid performance
 entry types are found.
+
+<a id="ERR_VFS_INVALID_TARGET"></a>
+
+### `ERR_VFS_INVALID_TARGET`
+
+A `--vfs-load` source does not exist, is neither a regular file nor a
+directory, or is a source no provider claims.
 
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
@@ -3429,6 +3677,11 @@ A feature requiring WebAssembly was used, but WebAssembly is not supported or
 has been disabled in the current environment (for example, when running with
 `--jitless`).
 
+TypeScript parsing and WebAssembly module imports, including source phase
+imports, report this error when WebAssembly is unavailable. Node.js does not
+provide an alternative implementation for these operations. This error can be
+caught without terminating the process.
+
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
 ### `ERR_WEBASSEMBLY_RESPONSE`
@@ -3439,6 +3692,15 @@ added: v18.1.0
 
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
+
+<a id="ERR_WORKER_HANDLE_NOT_TRANSFERABLE"></a>
+
+### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
+
+An attempt was made to transfer a `net.Socket`, `net.Server` or
+`net.BoundSocket` to another thread via a `worker_threads` `postMessage()` call
+while it was not in a transferable state, for example because it had already
+started reading, had buffered data, or had already been adopted.
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
@@ -3531,6 +3793,58 @@ All attempts at serializing an uncaught exception from a worker thread failed.
 ### `ERR_WORKER_UNSUPPORTED_OPERATION`
 
 The requested functionality is not supported in worker threads.
+
+<a id="ERR_ZIP_ARCHIVE_TOO_LARGE"></a>
+
+### `ERR_ZIP_ARCHIVE_TOO_LARGE`
+
+An archive-level structure exceeds a limit: the archive comment exceeds the
+65,535-byte encoded length that the ZIP format allows, or the archive's
+central directory is too large to buffer in memory.
+
+<a id="ERR_ZIP_ENTRY_CORRUPT"></a>
+
+### `ERR_ZIP_ENTRY_CORRUPT`
+
+A ZIP archive entry failed CRC-32 verification, or produced more or fewer
+bytes than its declared uncompressed size, while being read.
+
+<a id="ERR_ZIP_ENTRY_NOT_FOUND"></a>
+
+### `ERR_ZIP_ENTRY_NOT_FOUND`
+
+A named entry was requested from a [`ZipFile`][] or [`ZipBuffer`][] that does
+not contain an entry with that name.
+
+<a id="ERR_ZIP_ENTRY_TOO_LARGE"></a>
+
+### `ERR_ZIP_ENTRY_TOO_LARGE`
+
+A ZIP archive entry's declared size exceeds the configured limit, or a
+provided entry name or comment exceeds the 65,535-byte encoded length that
+the ZIP format allows.
+
+<a id="ERR_ZIP_INVALID_ARCHIVE"></a>
+
+### `ERR_ZIP_INVALID_ARCHIVE`
+
+Data that was expected to be a ZIP archive, or a structure within one, is
+missing, out of bounds, or otherwise inconsistent with the ZIP format.
+
+<a id="ERR_ZIP_NOT_WRITABLE"></a>
+
+### `ERR_ZIP_NOT_WRITABLE`
+
+A mutating method (such as `zipFile.addEntry()` or `zipFile.delete()`) was
+called on a [`ZipFile`][] that was not opened with `{ writable: true }`.
+
+<a id="ERR_ZIP_UNSUPPORTED_FEATURE"></a>
+
+### `ERR_ZIP_UNSUPPORTED_FEATURE`
+
+A ZIP archive uses a feature outside of what this implementation supports,
+such as entry encryption, an unsupported compression method, or a multi-disk
+archive.
 
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 
@@ -4438,6 +4752,7 @@ The public key in the certificate SubjectPublicKeyInfo could not be read.
 
 An error occurred trying to allocate memory. This should never happen.
 
+[ABORT_ERR]: #abort_err
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
@@ -4451,6 +4766,7 @@ An error occurred trying to allocate memory. This should never happen.
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
+[Web IDL error names]: https://webidl.spec.whatwg.org/#dfn-error-names-table
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -4458,6 +4774,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`ABORT_ERR`]: #abort_err
+[`BoundSocket`]: net.md#class-netboundsocket
+[`Class: DOMException`]: globals.md#class-domexception
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
@@ -4472,7 +4791,10 @@ An error occurred trying to allocate memory. This should never happen.
 [`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
+[`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 [`Writable`]: stream.md#class-streamwritable
+[`ZipBuffer`]: zlib.md#class-zlibzipbuffer
+[`ZipFile`]: zlib.md#class-zlibzipfile
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
 [`crypto.getDiffieHellman()`]: crypto.md#cryptogetdiffiehellmangroupname
@@ -4483,10 +4805,13 @@ An error occurred trying to allocate memory. This should never happen.
 [`dgram.createSocket()`]: dgram.md#dgramcreatesocketoptions-callback
 [`dgram.disconnect()`]: dgram.md#socketdisconnect
 [`dgram.remoteAddress()`]: dgram.md#socketremoteaddress
+[`domException.code`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/code
 [`domException.name`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/name
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
 [`error.code`]: #errorcode
 [`error.message`]: #errormessage
+[`events.once()`]: events.md#eventsonceemitter-name-options
+[`fetch()`]: globals.md#fetch
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.cp()`]: fs.md#fscpsrc-dest-options-callback
 [`fs.readFileSync`]: fs.md#fsreadfilesyncpath-options
@@ -4500,7 +4825,10 @@ An error occurred trying to allocate memory. This should never happen.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`mac.update()`]: crypto.md#macupdatedata-inputencoding
+[`net.Server`]: net.md#class-netserver
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
+[`net.Socket`]: net.md#class-netsocket
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
@@ -4535,6 +4863,7 @@ An error occurred trying to allocate memory. This should never happen.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
 [special scheme]: https://url.spec.whatwg.org/#special-scheme

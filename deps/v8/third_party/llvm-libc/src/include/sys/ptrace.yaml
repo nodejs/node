@@ -1,0 +1,41 @@
+header: sys/ptrace.h
+standards:
+  - linux
+macros:
+  - macro_name: PT_TRACE_ME
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PTRACE_POKEUSER
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PTRACE_PEEKUSER
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_READ_I
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_READ_D
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_WRITE_I
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_WRITE_D
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_CONTINUE
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_STEP
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_KILL
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_ATTACH
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_DETACH
+    macro_header: sys-ptrace-macros.h
+  - macro_name: PT_SYSCALL
+    macro_header: sys-ptrace-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: ptrace
+    standards:
+      - linux
+    return_type: long
+    arguments:
+      - type: int
+      - type: '...'

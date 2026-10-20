@@ -1,229 +1,248 @@
-# Class: ProxyAgent
+# ProxyAgent
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v4.8.2-->
+<!--type=module-->
+<!-- source_link=lib/dispatcher/proxy-agent.js -->
 
-A Proxy Agent class that implements the Agent API. It allows the connection through proxy in a simple way.
+> Stability: 2 - Stable
 
-## `new ProxyAgent([options])`
+A `ProxyAgent` routes every request through an HTTP, HTTPS, or SOCKS5 proxy
+server. It implements the [`Agent`][] API, so it can be used wherever a
+dispatcher is accepted, for example with [`request`][] or [`fetch`][], or
+installed globally with [`setGlobalDispatcher`][].
 
-Arguments:
+For secure (`https:`) endpoints the proxy connection is established through an
+HTTP `CONNECT` tunnel. SOCKS5 proxies (`socks5:` or `socks:` URIs) are handled
+by delegating to a [`Socks5ProxyAgent`][].
 
-* **options** `ProxyAgentOptions` (required) - It extends the `Agent` options.
+```mjs
+import { ProxyAgent, setGlobalDispatcher } from 'undici'
 
-Returns: `ProxyAgent`
+const proxyAgent = new ProxyAgent('http://localhost:8000')
+setGlobalDispatcher(proxyAgent)
+```
 
-### Parameter: `ProxyAgentOptions`
+## Class: `ProxyAgent`
 
-Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
-> It ommits `AgentOptions#connect`.
+<!-- YAML
+added: v4.8.2
+-->
 
-> **Note:** When `AgentOptions#connections` is set, and different from `0`, the non-standard [`proxy-connection` header](https://udger.com/resources/http-request-headers-detail?header=Proxy-Connection) will be set to `keep-alive` in the request.
+* Extends: {Dispatcher}
 
-* **uri** `string | URL` (required) - The URI of the proxy server.  This can be provided as a string, as an instance of the URL class, or as an object with a `uri` property of type string.
-If the `uri` is provided as a string or `uri` is an object with an `uri` property of type string, then it will be parsed into a `URL` object according to the [WHATWG URL Specification](https://url.spec.whatwg.org).
-For detailed information on the parsing process and potential validation errors, please refer to the ["Writing" section](https://url.spec.whatwg.org/#writing) of the WHATWG URL Specification.
-* **token** `string` (optional) - It can be passed by a string of token for authentication.
-* **auth** `string` (**deprecated**) - Use token.
-* **clientFactory** `(origin: URL, opts: Object) => Dispatcher` (optional) - Default: `(origin, opts) => new Pool(origin, opts)`
-* **requestTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the request. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
-* **proxyTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the proxy server. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
-* **proxyTunnel** `boolean` (optional) - For connections involving secure protocols, Undici will always establish a tunnel via the HTTP2  CONNECT extension. If proxyTunnel is set to true, this will occur for unsecured proxy/endpoint connections as well. Currently, there is no way to facilitate HTTP1 IP tunneling as described in https://www.rfc-editor.org/rfc/rfc9484.html#name-http-11-request. If proxyTunnel is set to false (the default), ProxyAgent connections where both the Proxy and Endpoint are unsecured will issue all requests to the Proxy, and prefix the endpoint request path with the endpoint origin address.
+`ProxyAgent` keeps an internal [`Agent`][] that creates per-origin dispatchers
+on demand. The proxy connection is set up lazily when the first request to an
+origin is dispatched, then reused for subsequent requests to the same origin.
 
-Examples:
+### `new ProxyAgent(options)`
 
-```js
+<!-- YAML
+added: v4.8.2
+-->
+
+* `options` {ProxyAgentOptions|string|URL} The proxy URI, or an options object.
+  Required. When a `string` or {URL} is passed it is used as the proxy `uri`.
+  The options object extends {AgentOptions} (omitting `connect`).
+  * `uri` {string} The URI of the proxy server. Required when `options` is an
+    object. Parsed into a {URL} according to the
+    [WHATWG URL Specification][].
+  * `token` {string} A pre-formatted `proxy-authorization` header value sent to
+    the proxy on every request, for example `` `Bearer ${apiKey}` ``.
+  * `auth` {string} A base64-encoded `username:password` credential sent as a
+    `Basic` `proxy-authorization` header. Cannot be combined with `token`.
+  * `headers` {Object} Additional headers sent to the proxy server on the
+    `CONNECT` request (or on every request for an untunneled HTTP proxy).
+    **Default:** `{}`.
+  * `requestTls` {BuildOptions} TLS options for the connection to the request
+    endpoint, passed to the connector builder.
+  * `proxyTls` {BuildOptions} TLS options for the connection to the proxy
+    server, passed to the connector builder.
+  * `clientFactory` {Function} Builds the {Dispatcher} used to talk to the proxy
+    server itself. **Default:** `(origin, opts) => new Pool(origin, opts)`.
+    * `origin` {URL} The proxy origin.
+    * `opts` {Object} The resolved options for the dispatcher.
+    * Returns: {Dispatcher}
+  * `proxyTunnel` {boolean} Forces tunneling through the proxy. By default,
+    Undici detects tunneling based on the request protocol. If the target
+    endpoint uses HTTPS, Undici establishes a `CONNECT` tunnel through the proxy
+    (after the TLS handshake to the proxy itself when the proxy URL is HTTPS).
+    If the target endpoint uses plain HTTP, Undici forwards the request to the
+    proxy using an HTTP/1.1 absolute-form request target (over TLS when the
+    proxy URL is HTTPS), as required by
+    [RFC 9112 §3.2.2](https://www.rfc-editor.org/rfc/rfc9112.html#name-absolute-form).
+    This non-tunneled forwarding path does not negotiate HTTP/2 with the proxy.
+    Set `proxyTunnel` to `true` to force tunneling for plain HTTP requests as
+    well. Currently, there is no way to facilitate HTTP/1.1 IP tunneling as
+    described in
+    [RFC 9484](https://www.rfc-editor.org/rfc/rfc9484.html#name-http-11-request).
+
+Throws an {InvalidArgumentError} when no proxy URI is provided, when
+`clientFactory` is not a function, or when both `auth` and `token` are supplied.
+
+The `proxy-authorization` header is derived, in order of precedence, from
+`token`, then `auth`, then the `username` and `password` embedded in the proxy
+`uri`. Credentials in the URI are URL-decoded before being base64-encoded.
+
+> [!NOTE]
+> Unless {AgentOptions} `connections` is set to `0`, the non-standard
+> `proxy-connection: keep-alive` header is added to the tunnel `CONNECT`
+> request. This includes the default case where `connections` is unset.
+
+The `auth` option is deprecated; use `token` instead.
+
+```mjs
 import { ProxyAgent } from 'undici'
 
-const proxyAgent = new ProxyAgent('my.proxy.server')
-// or
-const proxyAgent = new ProxyAgent(new URL('my.proxy.server'))
-// or
-const proxyAgent = new ProxyAgent({ uri: 'my.proxy.server' })
-// or
-const proxyAgent = new ProxyAgent({
-  uri: new URL('my.proxy.server'),
+// A string or URL is treated as the proxy uri.
+const a = new ProxyAgent('http://localhost:8000')
+const b = new ProxyAgent(new URL('http://localhost:8000'))
+
+// An options object requires a `uri`.
+const c = new ProxyAgent({ uri: 'http://localhost:8000' })
+
+// With proxy TLS settings.
+const d = new ProxyAgent({
+  uri: 'https://secure.proxy.server',
   proxyTls: {
-    signal: AbortSignal.timeout(1000)
-  }
+    signal: AbortSignal.timeout(1000),
+  },
 })
 ```
 
-#### Example - Basic ProxyAgent instantiation
+#### Example - proxy request with the global dispatcher
 
-This will instantiate the ProxyAgent. It will not do anything until registered as the agent to use with requests.
-
-```js
-import { ProxyAgent } from 'undici'
-
-const proxyAgent = new ProxyAgent('my.proxy.server')
-```
-
-#### Example - Basic Proxy Request with global agent dispatcher
-
-```js
+```mjs
 import { setGlobalDispatcher, request, ProxyAgent } from 'undici'
 
-const proxyAgent = new ProxyAgent('my.proxy.server')
+const proxyAgent = new ProxyAgent('http://localhost:8000')
 setGlobalDispatcher(proxyAgent)
 
 const { statusCode, body } = await request('http://localhost:3000/foo')
 
-console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
+console.log('response received', statusCode)
+console.log('data', await body.text())
 ```
 
-#### Example - Basic Proxy Request with local agent dispatcher
+#### Example - proxy request with a local dispatcher
 
-```js
+```mjs
 import { ProxyAgent, request } from 'undici'
 
-const proxyAgent = new ProxyAgent('my.proxy.server')
+const proxyAgent = new ProxyAgent('http://localhost:8000')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo', { dispatcher: proxyAgent })
+const { statusCode, body } = await request('http://localhost:3000/foo', {
+  dispatcher: proxyAgent,
+})
 
-console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
+console.log('response received', statusCode)
+console.log('data', await body.text())
 ```
 
-#### Example - Basic Proxy Request with authentication
+#### Example - proxy request with authentication
 
-```js
-import { setGlobalDispatcher, request, ProxyAgent } from 'undici';
+```mjs
+import { setGlobalDispatcher, request, ProxyAgent } from 'undici'
 
 const proxyAgent = new ProxyAgent({
-  uri: 'my.proxy.server',
-  // token: 'Bearer xxxx'
-  token: `Basic ${Buffer.from('username:password').toString('base64')}`
-});
-setGlobalDispatcher(proxyAgent);
+  uri: 'http://localhost:8000',
+  token: `Basic ${Buffer.from('username:password').toString('base64')}`,
+})
+setGlobalDispatcher(proxyAgent)
 
-const { statusCode, body } = await request('http://localhost:3000/foo');
+const { statusCode } = await request('http://localhost:3000/foo')
 
-console.log('response received', statusCode); // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')); // data foo
-}
+console.log('response received', statusCode)
 ```
 
-### `ProxyAgent.close()`
+### `proxyAgent.dispatch(options, handler)`
 
-Closes the proxy agent and waits for registered pools and clients to also close before resolving.
+<!-- YAML
+added: v4.8.2
+-->
 
-Returns: `Promise<void>`
+* `options` {AgentDispatchOptions} Extends {DispatchOptions}.
+  * `origin` {string|URL} The origin to dispatch the request against. Required.
+* `handler` {DispatchHandler}
+* Returns: {boolean} `false` if the dispatcher is busy and the caller should
+  wait for the [`'drain'`][] event before dispatching again.
 
-#### Example - clean up after tests are complete
+Dispatches the request through the proxy. Throws an {InvalidArgumentError} if
+the request headers contain a `proxy-authorization` header, which must instead
+be supplied through the constructor's `token` or `auth` option. A `host` header
+is derived from `options.origin` when one is not already present. Implements
+[`Dispatcher.dispatch()`][].
 
-```js
+### `proxyAgent.close()`
+
+<!-- YAML
+added: v4.8.2
+changes:
+  - version: v7.10.0
+    pr-url: https://github.com/nodejs/undici/pull/4180
+    description: Untunneled HTTP-to-HTTP proxy connections match `curl` behavior.
+-->
+
+* Returns: {Promise<void>}
+
+Closes the proxy agent and waits for its internal agent and proxy client (when
+present) to close before resolving. Implements [`Dispatcher.close()`][].
+
+```mjs
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 
-const proxyAgent = new ProxyAgent('my.proxy.server')
+const proxyAgent = new ProxyAgent('http://localhost:8000')
 setGlobalDispatcher(proxyAgent)
 
 await proxyAgent.close()
 ```
 
-### `ProxyAgent.dispatch(options, handlers)`
+### `proxyAgent.request(options[, callback])`
 
-Implements [`Agent.dispatch(options, handlers)`](/docs/docs/api/Agent.md#parameter-agentdispatchoptions).
+<!-- YAML
+added: v5.0.0
+-->
 
-### `ProxyAgent.request(options[, callback])`
+See [`Dispatcher.request()`][]. The request is routed through the proxy.
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+#### Example - proxy request with `fetch`
 
+```mjs
+import { ProxyAgent, fetch } from 'undici'
 
-#### Example - ProxyAgent with Fetch
+const proxyAgent = new ProxyAgent('http://localhost:8000')
 
-This example demonstrates how to use `fetch` with a proxy via `ProxyAgent`. It is particularly useful for scenarios requiring proxy tunneling.
-
-```javascript
-import { ProxyAgent, fetch } from 'undici';
-
-// Define the ProxyAgent
-const proxyAgent = new ProxyAgent('http://localhost:8000');
-
-// Make a GET request through the proxy
 const response = await fetch('http://localhost:3000/foo', {
   dispatcher: proxyAgent,
   method: 'GET',
-});
+})
 
-console.log('Response status:', response.status);
-console.log('Response data:', await response.text());
+console.log('response status', response.status)
+console.log('response data', await response.text())
 ```
 
----
+#### Example - HTTPS tunneling
 
-#### Example - ProxyAgent with a Custom Proxy Server
+```mjs
+import { ProxyAgent, fetch } from 'undici'
 
-This example shows how to create a custom proxy server and use it with `ProxyAgent`.
+const proxyAgent = new ProxyAgent('https://secure.proxy.server')
 
-```javascript
-import * as http from 'node:http';
-import { createProxy } from 'proxy';
-import { ProxyAgent, fetch } from 'undici';
-
-// Create a proxy server
-const proxyServer = createProxy(http.createServer());
-proxyServer.listen(8000, () => {
-  console.log('Proxy server running on port 8000');
-});
-
-// Define and use the ProxyAgent
-const proxyAgent = new ProxyAgent('http://localhost:8000');
-
-const response = await fetch('http://example.com', {
-  dispatcher: proxyAgent,
-  method: 'GET',
-});
-
-console.log('Response status:', response.status);
-console.log('Response data:', await response.text());
-```
-
----
-
-#### Example - ProxyAgent with HTTPS Tunneling
-
-This example demonstrates how to perform HTTPS tunneling using a proxy.
-
-```javascript
-import { ProxyAgent, fetch } from 'undici';
-
-// Define a ProxyAgent for HTTPS proxy
-const proxyAgent = new ProxyAgent('https://secure.proxy.server');
-
-// Make a request to an HTTPS endpoint via the proxy
 const response = await fetch('https://secure.endpoint.com/api/data', {
   dispatcher: proxyAgent,
   method: 'GET',
-});
+})
 
-console.log('Response status:', response.status);
-console.log('Response data:', await response.json());
+console.log('response status', response.status)
+console.log('response data', await response.json())
 ```
 
-#### Example - ProxyAgent as a Global Dispatcher
-
-`ProxyAgent` can be configured as a global dispatcher, making it available for all requests without explicitly passing it. This simplifies code and is useful when a single proxy configuration applies to all requests.
-
-```javascript
-import { ProxyAgent, setGlobalDispatcher, fetch } from 'undici';
-
-// Define and configure the ProxyAgent
-const proxyAgent = new ProxyAgent('http://localhost:8000');
-setGlobalDispatcher(proxyAgent);
-
-// Make requests without specifying the dispatcher
-const response = await fetch('http://example.com');
-console.log('Response status:', response.status);
-console.log('Response data:', await response.text());
+[WHATWG URL Specification]: https://url.spec.whatwg.org
+[`'drain'`]: Dispatcher.md#event-drain
+[`Agent`]: Agent.md#class-agent
+[`Dispatcher.close()`]: Dispatcher.md#dispatcherclosecallback-promise
+[`Dispatcher.dispatch()`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`Dispatcher.request()`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`Socks5ProxyAgent`]: Socks5ProxyAgent.md#class-socks5proxyagent
+[`fetch`]: Fetch.md
+[`request`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`setGlobalDispatcher`]: Dispatcher.md#setglobaldispatcherdispatcher

@@ -76,7 +76,8 @@ typedef enum {
 typedef enum {
   ARES_CLASS_IN     = 1,   /*!< Internet */
   ARES_CLASS_CHAOS  = 3,   /*!< CHAOS */
-  ARES_CLASS_HESOID = 4,   /*!< Hesoid [Dyer 87] */
+  ARES_CLASS_HESIOD = 4,   /*!< Hesiod [Dyer 87] */
+  ARES_CLASS_HESOID = 4,   /*!< typo from older c-ares version for Hesiod */
   ARES_CLASS_NONE   = 254, /*!< RFC 2136 */
   ARES_CLASS_ANY    = 255  /*!< Any class (requests only) */
 } ares_dns_class_t;
@@ -1092,7 +1093,7 @@ CARES_EXTERN ares_status_t ares_dns_parse(const unsigned char *buf,
  *
  *  \param[in]  dnsrec   Pointer to initialized and filled DNS record object.
  *  \param[out] buf      Pointer passed by reference to be filled in with with
- *                       DNS message.  Must be ares_free()'d by caller.
+ *                       DNS message.  Must be ares_free_string()'d by caller.
  *  \param[out] buf_len  Length of returned buffer containing DNS message.
  *  \return ARES_SUCCESS on success
  */

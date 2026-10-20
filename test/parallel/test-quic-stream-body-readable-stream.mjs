@@ -4,8 +4,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { deepStrictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -25,7 +24,7 @@ const allDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    deepStrictEqual(received, expected);
+    assert.deepStrictEqual(received, expected);
     stream.writer.endSync();
     await stream.closed;
     if (++serverStreamCount === 2) {
@@ -48,7 +47,7 @@ await clientSession.opened;
   });
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(rs);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -57,7 +56,7 @@ await clientSession.opened;
   const readable = Readable.from([encoder.encode(message)]);
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(readable);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 

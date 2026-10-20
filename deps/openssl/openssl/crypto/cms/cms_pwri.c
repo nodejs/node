@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -200,18 +200,18 @@ static int kek_unwrap_key(unsigned char *out, size_t *outlen,
     const unsigned char *in, size_t inlen,
     EVP_CIPHER_CTX *ctx)
 {
-    size_t blocklen = EVP_CIPHER_CTX_get_block_size(ctx);
+    int blocklen = EVP_CIPHER_CTX_get_block_size(ctx);
     unsigned char *tmp;
     int outl, rv = 0;
 
-    if (blocklen == 0)
+    if (blocklen < 4)
         return 0;
 
-    if (inlen < 2 * blocklen) {
+    if (inlen < 2 * (size_t)blocklen) {
         /* too small */
         return 0;
     }
-    if (inlen % blocklen) {
+    if (inlen > INT_MAX || inlen % blocklen) {
         /* Invalid size */
         return 0;
     }
@@ -315,6 +315,7 @@ int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
     EVP_CIPHER *kekcipher;
     unsigned char *key = NULL;
     size_t keylen;
+    size_t key_alloc_len = 0;
     const CMS_CTX *cms_ctx = ossl_cms_get0_cmsctx(cms);
 
     ec = ossl_cms_get0_env_enc_content(cms);
@@ -367,6 +368,11 @@ int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
 
     /* Finish password based key derivation to setup key in "ctx" */
 
+    if (algtmp == NULL) {
+        ERR_raise_data(ERR_LIB_CMS, CMS_R_INVALID_KEY_ENCRYPTION_PARAMETER,
+            "Missing KeyDerivationAlgorithm");
+        goto err;
+    }
     if (!EVP_PBE_CipherInit_ex(algtmp->algorithm,
             (char *)pwri->pass, (int)pwri->passlen,
             algtmp->parameter, kekctx, en_de,
@@ -386,6 +392,7 @@ int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
 
         if (key == NULL)
             goto err;
+        key_alloc_len = keylen;
 
         if (!kek_wrap_key(key, &keylen, ec->key, ec->keylen, kekctx, cms_ctx))
             goto err;
@@ -395,6 +402,7 @@ int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
         key = OPENSSL_malloc(pwri->encryptedKey->length);
         if (key == NULL)
             goto err;
+        key_alloc_len = (size_t)pwri->encryptedKey->length;
         if (!kek_unwrap_key(key, &keylen,
                 pwri->encryptedKey->data,
                 pwri->encryptedKey->length, kekctx)) {
@@ -414,7 +422,7 @@ err:
     EVP_CIPHER_CTX_free(kekctx);
 
     if (!r)
-        OPENSSL_free(key);
+        OPENSSL_clear_free(key, key_alloc_len);
     X509_ALGOR_free(kekalg);
 
     return r;

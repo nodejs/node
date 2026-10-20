@@ -41,19 +41,21 @@ class StringForwardingTable {
   inline int size() const;
   inline bool empty() const;
   // Returns the index of the added record.
-  int AddForwardString(Tagged<String> string, Tagged<String> forward_to);
+  int AddForwardString(Tagged<String> string,
+                       Tagged<InternalizedString> forward_to);
   template <typename T>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   int AddExternalResourceAndHash(Tagged<String> string, T* resource,
                                  uint32_t raw_hash);
-  void UpdateForwardString(int index, Tagged<String> forward_to);
+  void UpdateForwardString(int index, Tagged<InternalizedString> forward_to);
   // Returns true when the resource was set. When an external resource is
   // already set for the record, false is returned and the resource not stored.
   // The caller is responsible for disposing the resource.
   template <typename T>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   bool TryUpdateExternalResource(int index, T* resource);
-  Tagged<String> GetForwardString(PtrComprCageBase cage_base, int index) const;
+  Tagged<InternalizedString> GetForwardString(PtrComprCageBase cage_base,
+                                              int index) const;
   static Address GetForwardStringAddress(Isolate* isolate, int index);
   V8_EXPORT_PRIVATE uint32_t GetRawHash(PtrComprCageBase cage_base,
                                         int index) const;

@@ -11,7 +11,6 @@ This a list of all the dependencies:
 * [acorn][]
 * [ada][]
 * [amaro][]
-* [base64][]
 * [brotli][]
 * [c-ares][]
 * [merve][]
@@ -23,7 +22,6 @@ This a list of all the dependencies:
 * [libffi][]
 * [libuv][]
 * [llhttp][]
-* [minimatch][]
 * [nghttp2][]
 * [nghttp3][]
 * [ngtcp2][]
@@ -162,12 +160,12 @@ In order to minimize the different number of tools and versions
 used to build WASM components and to document and ensure future
 availability, the project builds and maintains a common
 [wasm-builder](https://github.com/nodejs/wasm-builder) container
-that should be use to build WASM components in Node.js
+that should be used to build WASM components in Node.js
 dependencies.
 
 The container provides a durable copy of the versions of the tools
 used for a specific build which are under the control of the Node.js
-project. In addition, the tools and verions are documented through metadata
+project. In addition, the tools and versions are documented through metadata
 within the container in the `/home/node/metadata directory`.
 
 The available tools can be found by looking at the current version of the
@@ -267,7 +265,7 @@ C++ testing and mocking framework.
 The [histogram](https://github.com/HdrHistogram/HdrHistogram_c) dependency is
 a C port of High Dynamic Range (HDR) Histogram.
 
-### ic
+### icu-small
 
 The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
@@ -296,11 +294,6 @@ It was primarily developed for use by Node.js.
 The [llhttp](https://github.com/nodejs/llhttp) dependency is
 the http parser used by Node.js.
 See [maintaining-http][] for more information.
-
-### minimatch
-
-The [minimatch](https://github.com/isaacs/minimatch) dependency is a
-minimal matching utility.
 
 ### nghttp2
 
@@ -415,7 +408,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
-[base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares
 [corepack]: #corepack
@@ -434,7 +426,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
 [merve]: #merve
-[minimatch]: #minimatch
 [nghttp2]: #nghttp2
 [nghttp3]: #nghttp3
 [ngtcp2]: #ngtcp2

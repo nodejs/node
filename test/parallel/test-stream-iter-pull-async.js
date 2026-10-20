@@ -3,7 +3,20 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pull, from, text, tap } = require('stream/iter');
+const {
+  broadcast,
+  dump,
+  from,
+  pull,
+  push,
+  share,
+  tap,
+  text,
+  toAsyncStreamable,
+} = require('stream/iter');
+
+const { setImmediate } = require('timers/promises');
+const { inspect } = require('util');
 
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
@@ -40,23 +53,130 @@ async function testPullStatefulTransform() {
   assert.strictEqual(data, 'data-ASYNC-END');
 }
 
-async function testPullWithAbortSignal() {
-  const ac = new AbortController();
-  ac.abort();
+async function testPullStatefulTransformReceiver() {
+  const descriptor = {};
+  descriptor.transform = common.mustCall(
+    async function*(source) {
+      assert.strictEqual(this, descriptor);
+      for await (const chunks of source) {
+        yield chunks;
+      }
+    });
 
+  assert.strictEqual(await text(pull(from('receiver'), descriptor)), 'receiver');
+}
+
+async function testPullWithAbortSignal() {
+  let started = false;
   async function* gen() {
+    started = true;
     yield [new Uint8Array([1])];
   }
 
-  const result = pull(gen(), { signal: ac.signal });
-  await assert.rejects(
-    async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of result) {
-        assert.fail('Should not reach here');
+  // An already-aborted signal does not make pull() throw; the returned
+  // iterable rejects instead, without reading from the source.
+  const signal = AbortSignal.abort();
+  const iterator = pull(gen(), { signal })[Symbol.asyncIterator]();
+  await assert.rejects(iterator.next(), (error) => error === signal.reason);
+  await assert.rejects(iterator.next(), (error) => error === signal.reason);
+  assert.strictEqual(started, false);
+  assert.deepStrictEqual({ ...await iterator.return() },
+                         { done: true, value: undefined });
+
+  await assert.rejects(text(pull(gen(), (chunks) => chunks, { signal })),
+                       (error) => error === signal.reason);
+  assert.strictEqual(started, false);
+}
+
+async function testPullKeepsRejectingAfterAbort() {
+  for (const transforms of [[], [(chunks) => chunks]]) {
+    // Abort while a read is pending.
+    {
+      const ac = new AbortController();
+      const reason = new Error('stop');
+      async function* gen() {
+        yield [new Uint8Array([1])];
+        await new Promise(() => {});
       }
+      const iterator =
+        pull(gen(), ...transforms, { signal: ac.signal })[Symbol.asyncIterator]();
+      assert.strictEqual((await iterator.next()).done, false);
+      const pending = iterator.next();
+      ac.abort(reason);
+      await assert.rejects(pending, (error) => error === reason);
+      await assert.rejects(iterator.next(), (error) => error === reason);
+      await assert.rejects(iterator.next(), (error) => error === reason);
+    }
+    // Abort between reads.
+    {
+      const ac = new AbortController();
+      const reason = new Error('stop');
+      async function* gen() {
+        yield [new Uint8Array([1])];
+        yield [new Uint8Array([2])];
+      }
+      const iterator =
+        pull(gen(), ...transforms, { signal: ac.signal })[Symbol.asyncIterator]();
+      assert.strictEqual((await iterator.next()).done, false);
+      ac.abort(reason);
+      await assert.rejects(iterator.next(), (error) => error === reason);
+      await assert.rejects(iterator.next(), (error) => error === reason);
+    }
+    // Aborting after the pipeline completed does not change the result.
+    {
+      const ac = new AbortController();
+      const iterator =
+        pull(from('x'), ...transforms, { signal: ac.signal })[Symbol.asyncIterator]();
+      assert.strictEqual((await iterator.next()).done, false);
+      assert.strictEqual((await iterator.next()).done, true);
+      ac.abort();
+      assert.strictEqual((await iterator.next()).done, true);
+    }
+  }
+}
+
+async function testPullNormalizesSourceAtCallTime() {
+  let protocolCalls = 0;
+  let iteratorCalls = 0;
+  const source = {
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return {
+        async *[Symbol.asyncIterator]() {
+          iteratorCalls++;
+          yield 'data';
+        },
+      };
     },
-    { name: 'AbortError' },
+  };
+
+  const result = pull(source);
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 0);
+  assert.strictEqual(await text(result), 'data');
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 1);
+}
+
+async function testPullPreAbortOrdering() {
+  const reason = new Error('already aborted');
+  let protocolCalls = 0;
+  const source = {
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return from('data');
+    },
+  };
+  const signal = AbortSignal.abort(reason);
+
+  // Source conversion still happens when pull() is called; the abort is
+  // reported when the result is read.
+  const result = pull(source, { signal });
+  assert.strictEqual(protocolCalls, 1);
+  await assert.rejects(text(result), (error) => error === reason);
+  assert.throws(
+    () => pull(null, { signal }),
+    { code: 'ERR_INVALID_ARG_TYPE' },
   );
 }
 
@@ -102,16 +222,13 @@ async function testTransformSignalListenerErrorOnSourceError() {
 
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of pull(failingSource(), throwingTransform)) {
-        // Consume
-      }
+      await dump(pull(failingSource(), throwingTransform));
     },
     { message: 'source error' },
   );
 
   // Give the nextTick rethrow a chance to fire
-  await new Promise(setImmediate);
+  await setImmediate();
   process.removeListener('uncaughtException', handler);
 
   assert.strictEqual(uncaughtErrors.length, 1);
@@ -125,8 +242,7 @@ async function testPullSourceError() {
     throw new Error('source boom');
   }
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(failingSource())) { /* consume */ }
+    await dump(pull(failingSource()));
   }, { message: 'source boom' });
 }
 
@@ -134,8 +250,7 @@ async function testPullSourceError() {
 async function testTapCallbackError() {
   const badTap = tap(() => { throw new Error('tap boom'); });
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badTap)) { /* consume */ }
+    await dump(pull(from('hello'), badTap));
   }, { message: 'tap boom' });
 }
 
@@ -154,6 +269,99 @@ async function testPullSignalAbortMidIteration() {
   assert.strictEqual(first.done, false);
   ac.abort();
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
+}
+
+async function testPullSignalAbortWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(source, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testPullReturnWhileSourceNextPending() {
+  let startNext;
+  const nextStarted = new Promise((resolve) => { startNext = resolve; });
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          startNext();
+          return new Promise(() => {});
+        },
+      };
+    },
+  };
+
+  const iter = pull(source)[Symbol.asyncIterator]();
+  const next = assert.rejects(iter.next(), { name: 'AbortError' });
+  await nextStarted;
+
+  const timeout = {};
+  const result = await Promise.race([
+    iter.return(),
+    setImmediate(timeout),
+  ]);
+
+  assert.notStrictEqual(result, timeout);
+  assert.deepStrictEqual(result, { value: undefined, done: true });
+  await next;
+}
+
+async function testTransformedConsumerReturnBeforeNext() {
+  const identity = (chunks) => chunks;
+  const pushed = push(identity);
+  const { broadcast: bc } = broadcast();
+  const broadcastConsumer = bc.push(identity);
+  const shared = share(from('shared'));
+  const sharedConsumer = shared.pull(identity);
+
+  assert.strictEqual(bc.consumerCount, 1);
+  assert.strictEqual(shared.consumerCount, 1);
+
+  const cases = [
+    [pushed.readable, common.mustCall(
+      () => assert.strictEqual(pushed.writer.canWrite, null))],
+    [broadcastConsumer, common.mustCall(
+      () => assert.strictEqual(bc.consumerCount, 0))],
+    [sharedConsumer, common.mustCall(
+      () => assert.strictEqual(shared.consumerCount, 0))],
+  ];
+
+  for (const [readable, verify] of cases) {
+    await readable[Symbol.asyncIterator]().return();
+    verify();
+  }
+}
+
+async function testPullSignalAbortWithTransformWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(
+    source,
+    (chunks) => chunks,
+    { signal: ac.signal },
+  )[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
 }
 
 // Pull consumer break (return()) cleans up transform signal
@@ -179,7 +387,7 @@ async function testPullConsumerBreakCleanup() {
     break;
   }
   // Give the abort handler a tick to fire
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(signalAborted, true);
 }
 
@@ -200,8 +408,7 @@ async function testPullStatelessTransformError() {
     throw new Error('async stateless boom');
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badTransform)) { /* consume */ }
+    await dump(pull(from('hello'), badTransform));
   }, { message: 'async stateless boom' });
 }
 
@@ -216,8 +423,7 @@ async function testPullStatefulTransformError() {
     },
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badStateful)) { /* consume */ }
+    await dump(pull(from('hello'), badStateful));
   }, { message: 'async stateful boom' });
 }
 
@@ -233,6 +439,19 @@ async function testPullStatelessTransformFlush() {
   assert.strictEqual(data, 'data-TRAILER');
 }
 
+// Consecutive stateless transforms each receive a final flush signal after
+// upstream flush output has been processed.
+async function testPullConsecutiveStatelessTransformFlush() {
+  const enc = new TextEncoder();
+  const addAOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-A')] : chunks);
+  const addBOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-B')] : chunks);
+
+  const data = await text(pull(from('x'), addAOnFlush, addBOnFlush));
+  assert.strictEqual(data, 'x-A-B');
+}
+
 // Stateless transform flush error propagates
 async function testPullStatelessTransformFlushError() {
   const badFlush = (chunks) => {
@@ -242,9 +461,25 @@ async function testPullStatelessTransformFlushError() {
     return chunks;
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badFlush)) { /* consume */ }
+    await dump(pull(from('hello'), badFlush));
   }, { message: 'async flush boom' });
+}
+
+// An abort during an async flush must not be swallowed when the flush resolves
+// to null and therefore produces no final batch.
+async function testPullSignalAbortDuringAsyncFlush() {
+  const ac = new AbortController();
+  const reason = new Error('aborted during flush');
+  const transform = async (chunks) => {
+    if (chunks !== null) return chunks;
+    ac.abort(reason);
+    return null;
+  };
+
+  await assert.rejects(
+    () => text(pull(from('x'), transform, { signal: ac.signal })),
+    (error) => error === reason,
+  );
 }
 
 // Pull with a sync iterable source (not async)
@@ -310,7 +545,7 @@ async function testTransformReturnsArrayBuffer() {
 // pipeTo() accepts a string source directly (normalized via from())
 async function testPipeToStringSource() {
   const { pipeTo, push: pushFn, text: textFn } = require('stream/iter');
-  const { writer, readable } = pushFn({ highWaterMark: 10 });
+  const { writer, readable } = pushFn({ budget: 16384 });
   const consume = (async () => textFn(readable))();
   await pipeTo('hello-pipe', writer);
   const data = await consume;
@@ -339,6 +574,41 @@ async function testTransformOptionsNotShared() {
   assert.strictEqual(seen[1].mutated, undefined);
 }
 
+// Stateless transforms get a new options object for every call, and stateful
+// transforms one for the pipeline. The options object has only `signal`, does
+// not inherit from Object.prototype, and its prototype is frozen, so that a
+// transform cannot pass state to others through it.
+async function testTransformOptionsShape() {
+  const seen = [];
+  const stateless = (chunks, options) => {
+    seen.push(options);
+    return chunks;
+  };
+  const stateful = {
+    async* transform(source, options) {
+      seen.push(options);
+      for await (const chunks of source) yield chunks;
+    },
+  };
+  const ac = new AbortController();
+  await text(pull(from(['a', 'b']), stateless, stateful,
+                  { signal: ac.signal }));
+  // Stateless: one call per batch plus the flush call.
+  assert.strictEqual(seen.length, 4);
+  assert.strictEqual(new Set(seen).size, seen.length);
+  for (const options of seen) {
+    assert.strictEqual(options instanceof Object, false);
+    assert.deepStrictEqual(Object.keys(options), ['signal']);
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.strictEqual(Object.isFrozen(Object.getPrototypeOf(options)), true);
+    assert.match(inspect(options), /^TransformOptions \{ signal: /);
+  }
+  assert.strictEqual(Object.getPrototypeOf(seen[0]),
+                     Object.getPrototypeOf(seen[3]));
+  assert.throws(() => { Object.getPrototypeOf(seen[0]).leak = true; },
+                TypeError);
+}
+
 // Run the uncaughtException test sequentially (it installs a global handler
 // that would interfere with concurrent tests).
 (async () => {
@@ -346,18 +616,28 @@ async function testTransformOptionsNotShared() {
     testPullIdentity(),
     testPullStatelessTransform(),
     testPullStatefulTransform(),
+    testPullStatefulTransformReceiver(),
     testPullWithAbortSignal(),
+    testPullKeepsRejectingAfterAbort(),
+    testPullNormalizesSourceAtCallTime(),
+    testPullPreAbortOrdering(),
     testPullChainedTransforms(),
     testPullSourceError(),
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
+    testPullSignalAbortWhileSourceNextPending(),
+    testPullReturnWhileSourceNextPending(),
+    testTransformedConsumerReturnBeforeNext(),
+    testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
     testPullTransformYieldsStrings(),
     testPullStatelessTransformError(),
     testPullStatefulTransformError(),
     testPullStatelessTransformFlush(),
+    testPullConsecutiveStatelessTransformFlush(),
     testPullStatelessTransformFlushError(),
+    testPullSignalAbortDuringAsyncFlush(),
     testPullWithSyncSource(),
     testPullStringSource(),
     testTransformReturnsSingleUint8Array(),
@@ -365,6 +645,7 @@ async function testTransformOptionsNotShared() {
     testTransformReturnsArrayBuffer(),
     testPipeToStringSource(),
     testTransformOptionsNotShared(),
+    testTransformOptionsShape(),
   ]);
   // Run after all concurrent tests complete to avoid global handler races
   await testTransformSignalListenerErrorOnSourceError();

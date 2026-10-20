@@ -6,7 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles-inl.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc-internal/heap-page.h"
 
 namespace v8::internal {
 

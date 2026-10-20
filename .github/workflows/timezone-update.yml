@@ -21,12 +21,12 @@ jobs:
 
     steps:
       - name: Checkout nodejs/node
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
 
       - name: Checkout unicode-org/icu-data
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           path: icu-data
           persist-credentials: false
@@ -40,14 +40,14 @@ jobs:
 
       - name: Compare versions
         run: |
-          echo "Comparing current version ${{ env.current_version }} to new version ${{ env.new_version }}"
+          echo "Comparing current version $current_version to new version $new_version"
 
       - run: ./tools/dep_updaters/update-timezone.mjs
         if: ${{ env.new_version != env.current_version }}
 
       - name: Update the expected timezone version in test
         if: ${{ env.new_version != env.current_version }}
-        run: echo "${{ env.new_version }}" > test/fixtures/tz-version.txt
+        run: printf '%s\n' "$new_version" > test/fixtures/tz-version.txt
 
       - name: Open Pull Request
         if: ${{ env.new_version != env.current_version }}

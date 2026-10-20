@@ -11,6 +11,7 @@
 #include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
@@ -19,6 +20,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/read-only-heap.h"
@@ -225,7 +227,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (BasePage* metadata : pages_) {
-    if (metadata->Chunk() == chunk) return true;
+    if (metadata->Chunk() == chunk) return metadata->Contains(addr);
   }
   return false;
 }
@@ -250,7 +252,17 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         continue;
       }
       Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-      const int obj_size = obj->Size();
+#if V8_ENABLE_WEBASSEMBLY && \
+    (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
+      if (IsWasmNull(obj)) {
+        cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(WasmNull::kSize);
+        DCHECK_LE(cur_addr_, cur_end_);
+        // For the few specific callers of this function, skipping WasmNull
+        // here makes things simpler.
+        continue;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && ...
+      const uint32_t obj_size = obj->SafeSize().value();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!IsFreeSpaceOrFiller(obj)) {
@@ -258,7 +270,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         return obj;
       }
     }
-    return HeapObject();
+    return {};
   }
 
   Address cur_addr_;  // Current iteration point.
@@ -425,7 +437,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnmappableAllocation(
   int filler_size = base::checked_cast<int>(allocation_start - top_);
   Address filler_address = AllocateRawUnaligned(filler_size).ToAddress();
   heap()->CreateFillerObjectAt(filler_address, filler_size,
-                               ClearFreedMemoryMode::kClearFreedMemory);
+                               ClearFreedMemoryMode{true});
 
   CHECK_EQ(allocation_start, top_);
   CHECK_LE(
@@ -445,10 +457,10 @@ Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
     int size_in_bytes, AllocationAlignment alignment) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = top_;
-  int filler_size = Heap::GetFillToAlign(current_top, alignment);
+  int filler_size = MainAllocator::GetFillToAlign(current_top, alignment);
 
   Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > limit_) return HeapObject();
+  if (new_top > limit_) return {};
 
   // Allocation always occurs in the last chunk for RO_SPACE.
   BasePage* chunk = pages_.back();
@@ -477,7 +489,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
     // We don't know exactly how much filler we need to align until space is
     // allocated, so assume the worst case.
     EnsureSpaceForAllocation(allocation_size +
-                             Heap::GetMaximumFillToAlign(alignment));
+                             MainAllocator::GetMaximumFillToAlign(alignment));
     allocation_size = size_in_bytes;
     object = TryAllocateLinearlyAligned(size_in_bytes, alignment);
     CHECK(!object.is_null());

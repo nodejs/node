@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<script>
+async function onLoad() {
+  const params = new URLSearchParams(self.location.search);
+  const scope = self.origin + params.get('scopepath');
+  const script = './fetch-rewrite-worker.js';
+  const reg = await navigator.serviceWorker.register(script, { scope: scope });
+  // In nested cases we may be impacted by partitioning or not depending on
+  // the browser.  With partitioning we will be installing a new worker here,
+  // but without partitioning the worker will already exist.  Handle both cases.
+  if (reg.installing) {
+    await new Promise(resolve => {
+      const worker = reg.installing;
+      worker.addEventListener('statechange', evt => {
+        if (worker.state === 'activated') {
+          resolve();
+        }
+      });
+    });
+    if (reg.navigationPreload) {
+      await reg.navigationPreload.enable();
+    }
+  }
+  if (window.opener) {
+    window.opener.postMessage({ type: 'SW-REGISTERED' }, '*');
+  } else {
+    window.top.postMessage({ type: 'SW-REGISTERED' }, '*');
+  }
+}
+self.addEventListener('load', onLoad);
+</script>

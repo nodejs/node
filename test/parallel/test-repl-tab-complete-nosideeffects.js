@@ -1,15 +1,9 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const { describe, it } = require('node:test');
 const assert = require('assert');
-const { startNewREPLServer } = require('../common/repl');
-
-function getNoResultsFunction() {
-  return common.mustSucceed((data) => {
-    assert.deepStrictEqual(data[0], []);
-  });
-}
+const { startNewREPLServer, complete } = require('../common/repl');
 
 describe('REPL tab completion without side effects', () => {
   const setup = [
@@ -27,10 +21,11 @@ describe('REPL tab completion without side effects', () => {
     'arr[incCounter()].b',
   ]) {
     it(`does not evaluate with side effects (${code})`, async () => {
-      const { replServer, input } = startNewREPLServer();
-      input.run(setup);
+      const { replServer, run } = startNewREPLServer();
+      await run(setup);
 
-      replServer.complete(code, getNoResultsFunction());
+      const data = await complete(replServer, code);
+      assert.deepStrictEqual(data[0], []);
 
       assert.strictEqual(replServer.context.counter, 0);
       replServer.close();

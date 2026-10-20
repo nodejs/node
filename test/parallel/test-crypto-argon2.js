@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 2))
   common.skip('requires OpenSSL >= 3.2');
@@ -11,13 +11,15 @@ if (!hasOpenSSL(3, 2))
 const assert = require('node:assert');
 const crypto = require('node:crypto');
 
-function runArgon2(algorithm, options) {
+function runArgon2(algorithm, options, testAsync = false) {
   const syncResult = crypto.argon2Sync(algorithm, options);
 
-  crypto.argon2(algorithm, options,
-                common.mustSucceed((asyncResult) => {
-                  assert.deepStrictEqual(asyncResult, syncResult);
-                }));
+  if (testAsync) {
+    crypto.argon2(algorithm, options,
+                  common.mustSucceed((asyncResult) => {
+                    assert.deepStrictEqual(asyncResult, syncResult);
+                  }));
+  }
 
   return syncResult;
 }
@@ -27,6 +29,17 @@ const nonce = Buffer.alloc(16, 0x02);
 const secret = Buffer.alloc(8, 0x03);
 const associatedData = Buffer.alloc(12, 0x04);
 const defaults = { message, nonce, parallelism: 1, tagLength: 64, memory: 8, passes: 3 };
+
+if (hasFIPS(3)) {
+  assert.throws(() => crypto.argon2Sync('argon2id', defaults), {
+    code: 'ERR_OSSL_EVP_UNSUPPORTED',
+  });
+  crypto.argon2('argon2id', defaults, common.mustCall((err, result) => {
+    assert.strictEqual(err?.code, 'ERR_OSSL_EVP_UNSUPPORTED');
+    assert.strictEqual(result, undefined);
+  }));
+  return;
+}
 
 const good = [
   // Test vectors from RFC 9106 https://www.rfc-editor.org/rfc/rfc9106.html#name-test-vectors
@@ -95,7 +108,7 @@ const bad = [
   ['argon2id', { nonce: nonce.subarray(0, 7) }, 'parameters.nonce.byteLength'], // nonce.byteLength < 8
   ['argon2id', { tagLength: 3 }, 'parameters.tagLength'], // tagLength < 4
   ['argon2id', { tagLength: 2 ** 32 }, 'parameters.tagLength'], // tagLength > 2^(32)-1
-  ['argon2id', { passes: 0 }, 'parameters.passes'], // passes < 2
+  ['argon2id', { passes: 0 }, 'parameters.passes'], // passes < 1
   ['argon2id', { passes: 2 ** 32 }, 'parameters.passes'], // passes > 2^(32)-1
   ['argon2id', { parallelism: 0 }, 'parameters.parallelism'], // parallelism < 1
   ['argon2id', { parallelism: 2 ** 24 }, 'parameters.parallelism'], // Parallelism > 2^(24)-1
@@ -103,9 +116,21 @@ const bad = [
   ['argon2id', { memory: 2 ** 32 }, 'parameters.memory'], // memory > 2^(32)-1
 ];
 
-for (const [algorithm, overrides, expected] of good) {
+{
+  const omitted = runArgon2('argon2id', defaults);
+  const explicitEmpty = runArgon2('argon2id', {
+    ...defaults,
+    secret: Buffer.alloc(0),
+    associatedData: Buffer.alloc(0),
+  });
+  assert.deepStrictEqual(omitted, explicitEmpty);
+}
+
+// The RFC vectors exercise both APIs for each Argon2 algorithm. Other vectors
+// check distinct options without repeating the derivation asynchronously.
+for (const [index, [algorithm, overrides, expected]] of good.entries()) {
   const parameters = { ...defaults, ...overrides };
-  const actual = runArgon2(algorithm, parameters);
+  const actual = runArgon2(algorithm, parameters, index < 3);
   assert.strictEqual(actual.toString('hex'), expected);
 }
 
@@ -128,6 +153,18 @@ for (const key of Object.keys(defaults)) {
   delete parameters[key];
   assert.throws(() => crypto.argon2('argon2id', parameters, () => {}), expected);
   assert.throws(() => crypto.argon2Sync('argon2id', parameters), expected);
+}
+
+for (const key of ['secret', 'associatedData']) {
+  const expected = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: new RegExp(`"parameters\\.${key}"`),
+  };
+  for (const value of [123, null, true, {}, []]) {
+    const parameters = { ...defaults, [key]: value };
+    assert.throws(() => crypto.argon2('argon2id', parameters, () => {}), expected);
+    assert.throws(() => crypto.argon2Sync('argon2id', parameters), expected);
+  }
 }
 
 {

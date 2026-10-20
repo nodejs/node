@@ -8,14 +8,20 @@
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
+#include "node_file_utils.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
+#include "node_profiling.h"
 #include "node_shadow_realm.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
+#if HAVE_OPENSSL
+#include "ncrypto.h"
+#endif
 #include "req_wrap-inl.h"
 #include "stream_base.h"
 #include "tracing/agent.h"
@@ -27,12 +33,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <cinttypes>
 #include <cstdio>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 
 namespace node {
@@ -71,12 +79,13 @@ using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
-using v8::TracingController;
 using v8::TryCatch;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
+
+constexpr size_t kManagedBufferCacheSize = 64 * 1024;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
 void* const ContextEmbedderTag::kNodeContextTagPtr = const_cast<void*>(
@@ -124,7 +133,7 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 void AsyncHooks::push_async_context(
     double async_id,
     double trigger_async_id,
-    std::variant<Local<Object>*, Global<Object>*> resource) {
+    const std::variant<Local<Object>*, Global<Object>*>& resource) {
   std::visit([](auto* ptr) { CHECK_IMPLIES(ptr != nullptr, !ptr->IsEmpty()); },
              resource);
 
@@ -152,9 +161,13 @@ void AsyncHooks::push_async_context(
   // False positive: https://github.com/cpplint/cpplint/issues/410
   // NOLINTNEXTLINE(whitespace/newline)
   if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
-    native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
-    native_execution_async_resources_[offset] = resource;
+    if (native_execution_async_resources_.size() == offset) {
+      native_execution_async_resources_.push_back(resource);
+    } else {
+      native_execution_async_resources_.resize(offset + 1);
+      native_execution_async_resources_[offset] = resource;
+    }
   }
 }
 
@@ -187,7 +200,11 @@ bool AsyncHooks::pop_async_context(double async_id) {
                  native_execution_async_resources_[i]);
     }
 #endif
-    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() == offset + 1) {
+      native_execution_async_resources_.pop_back();
+    } else {
+      native_execution_async_resources_.resize(offset);
+    }
     native_execution_async_resources_.shrink_to_fit();
   }
 
@@ -361,6 +378,12 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VS
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  info.primitive_values.push_back(                                             \
+      creator->AddData(Name##_permission_string##_.Get(isolate)));
+  PERMISSIONS(V)
+#undef V
+
   info.primitive_values.reserve(info.primitive_values.size() +
                                 AsyncWrap::PROVIDERS_LENGTH);
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++) {
@@ -419,6 +442,20 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
 #undef VY
 #undef VS
 #undef VP
+
+#define V(Name, label, _, __)                                                  \
+  do {                                                                         \
+    MaybeLocal<String> maybe_field =                                           \
+        isolate_->GetDataFromSnapshotOnce<String>(                             \
+            info->primitive_values[i++]);                                      \
+    Local<String> field;                                                       \
+    if (!maybe_field.ToLocal(&field)) {                                        \
+      fprintf(stderr, "Failed to deserialize " #Name "_permission_string\n");  \
+    }                                                                          \
+    Name##_permission_string##_.Set(isolate_, field);                          \
+  } while (0);
+  PERMISSIONS(V)
+#undef V
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
     MaybeLocal<String> maybe_field =
@@ -521,6 +558,17 @@ void IsolateData::CreateProperties() {
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 
+#define V(Name, label, _, __)                                                  \
+  Name##_permission_string##_.Set(                                             \
+      isolate_,                                                                \
+      String::NewFromOneByte(isolate_,                                         \
+                             reinterpret_cast<const uint8_t*>(#Name),          \
+                             NewStringType::kInternalized,                     \
+                             sizeof(#Name) - 1)                                \
+          .ToLocalChecked());
+  PERMISSIONS(V)
+#undef V
+
   // Create all the provider strings that will be passed to JS. Place them in
   // an array so the array index matches the PROVIDER id offset. This way the
   // strings can be retrieved quickly.
@@ -562,10 +610,8 @@ IsolateData* IsolateData::CreateIsolateData(
     uv_loop_t* loop,
     MultiIsolatePlatform* platform,
     ArrayBufferAllocator* allocator,
-    const EmbedderSnapshotData* embedder_snapshot_data,
+    const SnapshotData* snapshot_data,
     std::shared_ptr<PerIsolateOptions> options) {
-  const SnapshotData* snapshot_data =
-      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
   if (options == nullptr) {
     options = per_process::cli_options->per_isolate->Clone();
   }
@@ -613,7 +659,10 @@ IsolateData::IsolateData(Isolate* isolate,
   }
 }
 
-IsolateData::~IsolateData() {}
+IsolateData::~IsolateData() {
+  // FreeIsolateData() before FreeEnvironment() of an Environment using it.
+  CHECK_EQ(environment_count_, 0);
+}
 
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
@@ -629,6 +678,11 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 
   PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(Name, label, _, __)                                                  \
+  tracker->TrackField(#Name "_permission_string", Name##_permission_string());
+  PERMISSIONS(V)
 #undef V
 
   tracker->TrackField("async_wrap_providers", async_wrap_providers_);
@@ -747,10 +801,16 @@ void Environment::add_refs(int64_t diff) {
 }
 
 uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
-  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-      isolate(),
-      suggested_size,
-      BackingStoreInitializationMode::kUninitialized);
+  std::unique_ptr<BackingStore> bs;
+  if (suggested_size == kManagedBufferCacheSize &&
+      managed_buffer_cache_ != nullptr) {
+    bs = std::move(managed_buffer_cache_);
+  } else {
+    bs = ArrayBuffer::NewBackingStore(
+        isolate(),
+        suggested_size,
+        BackingStoreInitializationMode::kUninitialized);
+  }
   uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
   released_allocated_buffers_.emplace(buf.base, std::move(bs));
   return buf;
@@ -766,6 +826,110 @@ std::unique_ptr<BackingStore> Environment::release_managed_buffer(
     released_allocated_buffers_.erase(it);
   }
   return bs;
+}
+
+void Environment::recycle_managed_buffer(std::unique_ptr<BackingStore> bs) {
+  if (bs != nullptr && bs->ByteLength() == kManagedBufferCacheSize)
+    managed_buffer_cache_ = std::move(bs);
+}
+
+uv_buf_t StreamReadSlab::Allocate(Isolate* isolate, size_t suggested) {
+  DCHECK_GT(suggested, 0);
+  // Reads always get the full `suggested` size: handing out a smaller
+  // remainder would shrink the read() buffer and fragment large reads into
+  // more system calls, which costs more than the slab tail it saves.
+  size_t remaining = current_.bs ? current_.size() - current_.offset : 0;
+  if (remaining < suggested) {
+    // Retire the current slab; it stays alive through `retired_` if reads
+    // are still pending on it, or through JS views over it otherwise.
+    if (current_.bs && current_.pending > 0)
+      retired_.push_back(std::move(current_));
+    current_ = Slab();
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate,
+        std::max(kSlabSize, suggested),
+        BackingStoreInitializationMode::kUninitialized);
+    current_.bs = std::move(bs);
+  }
+  char* base = current_.data() + current_.offset;
+  current_.offset += suggested;
+  current_.last_base = base;
+  current_.last_end = current_.offset;
+  current_.pending++;
+  return uv_buf_init(base, suggested);
+}
+
+StreamReadSlab::Slab* StreamReadSlab::FindSlab(const char* base) {
+  if (current_.Contains(base)) return &current_;
+  for (Slab& slab : retired_)
+    if (slab.Contains(base)) return &slab;
+  return nullptr;
+}
+
+void StreamReadSlab::CompleteReservation(Slab* slab,
+                                         const uv_buf_t& buf,
+                                         size_t used) {
+  DCHECK_GT(slab->pending, 0);
+  slab->pending--;
+  if (buf.base == slab->last_base && slab->offset == slab->last_end) {
+    // This was the most recent reservation and nothing was reserved after
+    // it: rewind the unused remainder so it can be reserved again.
+    slab->offset = (buf.base - slab->data()) + used;
+    slab->last_end = slab->offset;
+  }
+  if (slab != &current_ && slab->pending == 0) {
+    for (auto it = retired_.begin(); it != retired_.end(); ++it) {
+      if (&*it == slab) {
+        retired_.erase(it);
+        break;
+      }
+    }
+  }
+}
+
+bool StreamReadSlab::Commit(Isolate* isolate,
+                            const uv_buf_t& buf,
+                            size_t nread,
+                            Local<ArrayBuffer>* ab,
+                            size_t* offset) {
+  Slab* slab = FindSlab(buf.base);
+  if (slab == nullptr) return false;
+  DCHECK_LE(nread, buf.len);
+
+  // A partial read would leave the rest of its reservation as waste once
+  // the slab retires - memory that counts towards V8's external memory and
+  // drives up GC frequency. If most of the reservation would be wasted,
+  // give the read a right-sized copy instead (as if it had never been read
+  // into the slab) and return its reservation in full. Reads that (mostly)
+  // fill their reservation get a zero-copy view into the slab.
+  if (nread < buf.len - buf.len / 4 && buf.base == slab->last_base &&
+      slab->offset == slab->last_end) {
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), buf.base, nread);
+    *ab = ArrayBuffer::New(isolate, std::move(bs));
+    *offset = 0;
+    CompleteReservation(slab, buf, 0);
+    return true;
+  }
+
+  *offset = buf.base - slab->data();
+  if (slab->ab.IsEmpty()) {
+    *ab = ArrayBuffer::New(isolate, slab->bs);
+    slab->ab.Reset(isolate, *ab);
+  } else {
+    *ab = slab->ab.Get(isolate);
+  }
+  CompleteReservation(slab, buf, nread);
+  return true;
+}
+
+bool StreamReadSlab::Release(const uv_buf_t& buf) {
+  if (buf.base == nullptr) return true;
+  Slab* slab = FindSlab(buf.base);
+  if (slab == nullptr) return false;
+  CompleteReservation(slab, buf, 0);
+  return true;
 }
 
 std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
@@ -803,7 +967,7 @@ Environment::Environment(IsolateData* isolate_data,
                          ThreadId thread_id,
                          std::string_view thread_name)
     : isolate_(isolate),
-      external_memory_accounter_(new ExternalMemoryAccounter()),
+      external_memory_accounter_(std::make_unique<ExternalMemoryAccounter>()),
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
@@ -830,6 +994,15 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id),
       thread_name_(thread_name) {
+  isolate_data->AddEnvironment();
+#if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
+  provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
+  provider_cipher_cache = std::make_unique<ncrypto::CipherCache>();
+#if OPENSSL_WITH_EVP_MAC
+  provider_mac_cache = std::make_unique<ncrypto::MacCache>();
+#endif
+#endif
+
   if (!is_main_thread()) {
     // If this is a Worker thread, we can always safely use the parent's
     // Isolate's code cache because of the shared read-only heap.
@@ -846,6 +1019,9 @@ Environment::Environment(IsolateData* isolate_data,
       builtin_loader()->RefreshCodeCache(
           isolate_data->snapshot_data()->code_cache);
     }
+  }
+  if (is_main_thread() && !isolate_data->builtin_code_cache().empty()) {
+    builtin_loader()->RefreshCodeCache(isolate_data->builtin_code_cache());
   }
 
   // Compile builtins eagerly when building the snapshot so that inner functions
@@ -882,6 +1058,21 @@ Environment::Environment(IsolateData* isolate_data,
   // which may or may not be the system environment variable store.
   enabled_debug_list_.Parse(this);
 
+  if (is_main_thread()) {
+    // setupChildProcessIpcChannel() in lib/internal/process/pre_execution.js
+    // adopts the IPC channel passed by the parent process and then removes
+    // NODE_CHANNEL_FD from the environment. Record the descriptor before any
+    // JavaScript runs, so that later changes to the environment cannot affect
+    // which descriptor is treated as the IPC channel.
+    std::optional<std::string> channel_fd = env_vars()->Get("NODE_CHANNEL_FD");
+    if (channel_fd.has_value()) {
+      int fd;
+      const char* begin = channel_fd->data();
+      auto result = std::from_chars(begin, begin + channel_fd->size(), fd);
+      if (result.ec == std::errc() && fd >= 0) ipc_channel_fd_ = fd;
+    }
+  }
+
   heap_snapshot_near_heap_limit_ =
       static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
 
@@ -894,10 +1085,9 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
 
-  if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
+  if (tracing::Agent* agent = tracing::Agent::GetInstance()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
-    if (TracingController* tracing_controller = writer->GetTracingController())
-      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+    agent->AddTraceStateObserver(trace_state_observer_.get());
   }
 
   destroy_async_id_list_.reserve(512);
@@ -920,6 +1110,7 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
+    static const std::array args = {std::string("*")};
     if (options_->permission_audit) {
       permission()->EnableWarningOnly();
     }
@@ -927,26 +1118,49 @@ Environment::Environment(IsolateData* isolate_data,
     // spawn/worker nor use addons or enable inspector
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
-      options_->allow_native_addons = false;
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
+      // In audit mode addon loading must stay enabled: the denial is
+      // published through the diagnostics channel by the permission
+      // check in DLOpen() instead of being rejected upfront.
+      if (!options_->permission_audit) {
+        options_->allow_native_addons = false;
+      }
+      permission()->Apply(this, args, permission::PermissionScope::kAddon);
     }
     if (!options_->allow_inspector) {
       flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
+      permission()->Apply(this, args, permission::PermissionScope::kInspector);
     }
     if (!options_->allow_child_process) {
       permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kChildProcess);
+          this, args, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_ffi) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
+      permission()->Apply(this, args, permission::PermissionScope::kFFI);
+    }
+    if (!options_->allow_openssl_store) {
+      permission()->Apply(
+          this, args, permission::PermissionScope::kOpenSSLStore);
     }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kWorkerThreads);
+          this, args, permission::PermissionScope::kWorkerThreads);
     }
     if (!options_->allow_wasi) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+      permission()->Apply(this, args, permission::PermissionScope::kWASI);
+    }
+
+    {
+      std::vector<std::string> allow_env =
+          permission::ParseEnvAllowList(options_->allow_env);
+      // Variables defined in env files are allowed. The environment scrub
+      // removed any inherited values they had, so only the files' values
+      // are visible.
+      if (options_->has_env_file_string) {
+        for (std::string& key : per_process::dotenv_file.GetKeys()) {
+          allow_env.push_back(std::move(key));
+        }
+      }
+      permission()->Apply(this, allow_env, permission::PermissionScope::kEnv);
     }
 
     // Implicit allow entrypoint to kFileSystemRead
@@ -981,7 +1195,7 @@ Environment::Environment(IsolateData* isolate_data,
     }
 
     if (options_->allow_net) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kNet);
+      permission()->Apply(this, args, permission::PermissionScope::kNet);
     }
   }
 }
@@ -1049,6 +1263,9 @@ Environment::~Environment() {
   if (heapsnapshot_near_heap_limit_callback_added_) {
     RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
+  if (heap_profile_near_heap_limit_callback_added_) {
+    RemoveHeapProfileNearHeapLimitCallback(0);
+  }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -1064,10 +1281,8 @@ Environment::~Environment() {
   principal_realm_.reset();
 
   if (trace_state_observer_) {
-    tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
-    CHECK_NOT_NULL(writer);
-    if (TracingController* tracing_controller = writer->GetTracingController())
-      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+    if (tracing::Agent* agent = tracing::Agent::GetInstance())
+      agent->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
@@ -1079,13 +1294,21 @@ Environment::~Environment() {
   // Also, since the main thread usually stops just before the process exits,
   // this is far less relevant here.
   if (!is_main_thread()) {
+#if HAVE_OPENSSL
+    // Provider methods can contain callbacks into native addons. Release the
+    // environment-owned methods before unloading any addon DSOs.
+    provider_digest_cache.reset();
+    provider_cipher_cache.reset();
+#if OPENSSL_WITH_EVP_MAC
+    provider_mac_cache.reset();
+#endif
+#endif
     // Dereference all addons that were loaded into this environment.
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
     }
   }
 
-  delete external_memory_accounter_;
   if (cpu_profiler_) {
     for (auto& it : pending_profiles_) {
       cpu_profiler_->Stop(it);
@@ -1093,6 +1316,7 @@ Environment::~Environment() {
     cpu_profiler_->Dispose();
     cpu_profiler_ = nullptr;
   }
+  isolate_data_->RemoveEnvironment();
 }
 
 void Environment::InitializeLibuv() {
@@ -1158,8 +1382,14 @@ void Environment::InitializeCompileCache() {
           DebugCategory::COMPILE_CACHE,
           "[compile cache] using relative path\n");
   }
-  EnableCompileCache(dir_from_env,
-                     portable ? EnableOption::PORTABLE : EnableOption::DEFAULT);
+  std::string read_only_env;
+  bool read_only = credentials::SafeGetenv(
+                       "NODE_COMPILE_CACHE_READONLY", &read_only_env, this) &&
+                   read_only_env == "1";
+  EnableOption option = EnableOption::DEFAULT;
+  if (portable) option = option | EnableOption::PORTABLE;
+  if (read_only) option = option | EnableOption::READ_ONLY;
+  EnableCompileCache(dir_from_env, option);
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
@@ -1250,6 +1480,9 @@ void Environment::ClosePerEnvHandles() {
   close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
+// NOLINTNEXTLINE(runtime/thread_local)
+thread_local int handle_cleanup_depth = 0;
+
 void Environment::CleanupHandles() {
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
@@ -1267,6 +1500,8 @@ void Environment::CleanupHandles() {
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
 
+  handle_cleanup_depth++;
+  auto done = OnScopeLeave([]() { handle_cleanup_depth--; });
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
@@ -1411,9 +1646,19 @@ void Environment::RunAndClearInterrupts() {
   }
 }
 
+bool Environment::HasNativeImmediates() const {
+  return native_immediates_.size() > 0 ||
+         native_immediates_threadsafe_.size() > 0 ||
+         native_immediates_interrupts_.size() > 0;
+}
+
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
                "RunAndClearNativeImmediates");
+  if (!HasNativeImmediates()) {
+    return;
+  }
+
   HandleScope handle_scope(isolate_);
   // In case the Isolate is no longer accessible just use an empty Local. This
   // is not an issue for InternalCallbackScope as this case is already handled
@@ -1502,7 +1747,9 @@ void Environment::RequestInterruptFromV8() {
       return;
     }
     env->interrupt_data_.store(nullptr);
+    env->is_processing_v8_interrupt_ = true;
     env->RunAndClearInterrupts();
+    env->is_processing_v8_interrupt_ = false;
   }, interrupt_data);
 }
 
@@ -1585,6 +1832,9 @@ void Environment::RunTimers(uv_timer_t* handle) {
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "CheckImmediate");
+
+  if (env->immediate_info()->count() == 0 && !env->HasNativeImmediates())
+    return;
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -2089,14 +2339,49 @@ void Environment::TracePromises(PromiseHookType type,
   PrintCurrentStackTrace(isolate);
 }
 
+// V8 only invokes the most recently registered near-heap-limit callback.
+// To allow the snapshot and profile handlers to coexist on the same
+// isolate, both register through this single V8-facing entry point. It fans
+// out to whichever sub-handlers are active and returns the largest requested
+// heap limit.
 size_t Environment::NearHeapLimitCallback(void* data,
                                           size_t current_heap_limit,
                                           size_t initial_heap_limit) {
   auto* env = static_cast<Environment*>(data);
 
+  // Profile and snapshot generation can allocate and invoke this callback
+  // recursively. Only extend the heap for the operation already in progress;
+  // do not start the other diagnostic from the nested invocation.
+  if (env->is_in_heapsnapshot_heap_limit_callback_) {
+    return HeapSnapshotNearHeapLimitCallback(
+        data, current_heap_limit, initial_heap_limit);
+  }
+  if (env->is_in_heap_profile_near_heap_limit_callback_) {
+    return HeapProfileNearHeapLimitCallback(
+        data, current_heap_limit, initial_heap_limit);
+  }
+
+  size_t new_limit = current_heap_limit;
+  if (env->heapsnapshot_near_heap_limit_callback_added_) {
+    new_limit = std::max(new_limit,
+                         HeapSnapshotNearHeapLimitCallback(
+                             data, current_heap_limit, initial_heap_limit));
+  }
+  if (env->heap_profile_near_heap_limit_callback_added_) {
+    new_limit = std::max(new_limit,
+                         HeapProfileNearHeapLimitCallback(
+                             data, current_heap_limit, initial_heap_limit));
+  }
+  return new_limit;
+}
+
+size_t Environment::HeapSnapshotNearHeapLimitCallback(
+    void* data, size_t current_heap_limit, size_t initial_heap_limit) {
+  auto* env = static_cast<Environment*>(data);
+
   Debug(env,
         DebugCategory::DIAGNOSTICS,
-        "Invoked NearHeapLimitCallback, processing=%d, "
+        "Invoked HeapSnapshotNearHeapLimitCallback, processing=%d, "
         "current_limit=%" PRIu64 ", "
         "initial_limit=%" PRIu64 "\n",
         env->is_in_heapsnapshot_heap_limit_callback_,
@@ -2215,6 +2500,85 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   // The new limit must be higher than current_heap_limit or V8 might
   // crash.
+  return new_limit;
+}
+
+size_t Environment::HeapProfileNearHeapLimitCallback(
+    void* data, size_t current_heap_limit, size_t initial_heap_limit) {
+  auto* env = static_cast<Environment*>(data);
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "Invoked HeapProfileNearHeapLimitCallback, processing=%d, "
+        "current_limit=%" PRIu64 ", "
+        "initial_limit=%" PRIu64 "\n",
+        env->is_in_heap_profile_near_heap_limit_callback_,
+        static_cast<uint64_t>(current_heap_limit),
+        static_cast<uint64_t>(initial_heap_limit));
+
+  const size_t max_young_gen_size = env->isolate_data()->max_young_gen_size;
+  const size_t new_limit = current_heap_limit + max_young_gen_size;
+
+  if (env->is_in_heap_profile_near_heap_limit_callback_) {
+    return new_limit;
+  }
+
+  env->is_in_heap_profile_near_heap_limit_callback_ = true;
+  auto reset_in_callback = OnScopeLeave(
+      [env]() { env->is_in_heap_profile_near_heap_limit_callback_ = false; });
+  auto restore_initial_limit = OnScopeLeave(
+      [env]() { env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95); });
+  auto uninstall_callback = [env]() {
+    env->RemoveHeapProfileNearHeapLimitCallback(0);
+  };
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path_);
+  }
+  DiagnosticFilename name(env, "Heap", "heapprofile");
+  std::string filename = dir + kPathSeparator + (*name);
+
+  Debug(env, DebugCategory::DIAGNOSTICS, "Writing %s...\n", *name);
+
+  std::ostringstream out;
+  if (!node::SerializeHeapProfile(env->isolate(), out)) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "No sampling heap profile active; uninstalling callback.\n");
+    uninstall_callback();
+    return new_limit;
+  }
+
+  std::string profile = std::move(out).str();
+  uv_buf_t buffer = uv_buf_init(profile.data(), profile.size());
+  const int err = WriteFileSync(filename.c_str(), buffer);
+  if (err != 0) {
+    FPrintF(stderr,
+            "Failed to write heap profile %s: %s\n",
+            filename,
+            uv_strerror(err));
+    uninstall_callback();
+    return new_limit;
+  }
+
+  env->heap_limit_profile_taken_ += 1;
+  FPrintF(stderr, "Wrote heap profile to %s\n", filename);
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "%" PRIu32 "/%" PRIu32 " heap profiles written.\n",
+        env->heap_limit_profile_taken_,
+        env->heap_profile_near_heap_limit_);
+
+  if (env->heap_limit_profile_taken_ == env->heap_profile_near_heap_limit_) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Removing the near heap limit callback");
+    uninstall_callback();
+  }
+
+  // Returning a larger value is required by V8 even after the final write.
   return new_limit;
 }
 

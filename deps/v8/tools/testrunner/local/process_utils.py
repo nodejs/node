@@ -5,6 +5,7 @@
 """
 Tools for tracking process statistics like memory consumption.
 """
+from __future__ import annotations
 
 import platform
 import time
@@ -163,7 +164,7 @@ try:
   # installed.
   import psutil
   if platform.system() == 'Linux':
-    PROCESS_LOGGER = LinuxPSUtilProcessLogger()
+    PROCESS_LOGGER: EmptyProcessLogger = LinuxPSUtilProcessLogger()
   else:
     PROCESS_LOGGER = PSUtilProcessLogger()
 except:

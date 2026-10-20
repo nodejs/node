@@ -60,7 +60,22 @@ struct CompileCacheEnableResult {
   std::string message;  // Set in case of failure.
 };
 
-enum class EnableOption : uint8_t { DEFAULT, PORTABLE };
+enum class EnableOption : uint8_t {
+  DEFAULT = 0,
+  PORTABLE = 1 << 0,
+  // Only read existing cache entries: nothing is compiled into the in-memory
+  // store for persisting, nothing is written to disk, and the cache directory
+  // is not created if it does not exist.
+  READ_ONLY = 1 << 1,
+};
+
+inline constexpr EnableOption operator|(EnableOption a, EnableOption b) {
+  return static_cast<EnableOption>(static_cast<uint8_t>(a) |
+                                   static_cast<uint8_t>(b));
+}
+inline constexpr bool HasOption(EnableOption value, EnableOption flag) {
+  return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
+}
 
 class CompileCacheHandler {
  public:
@@ -82,6 +97,7 @@ class CompileCacheHandler {
                  bool rejected);
   void MaybeSave(CompileCacheEntry* entry, std::string_view transpiled);
   std::string_view cache_dir() { return compile_cache_dir_; }
+  bool read_only() const { return read_only_; }
 
  private:
   void ReadCacheFile(CompileCacheEntry* entry);
@@ -107,6 +123,7 @@ class CompileCacheHandler {
   std::string compile_cache_dir_;
   std::string normalized_compile_cache_dir_;
   EnableOption portable_ = EnableOption::DEFAULT;
+  bool read_only_ = false;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
 };

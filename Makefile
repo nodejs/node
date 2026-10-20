@@ -2,6 +2,8 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python3
+RUFF ?= tools/pip/site-packages/bin/ruff
+YAMLLINT ?= tools/pip/site-packages/bin/yamllint
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -96,7 +98,7 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
 # Default to quiet/pretty builds.
 # To do verbose builds, run `make V=1` or set the V environment variable.
-V ?= 0
+V ?=
 
 # Use -e to double check in case it's a broken link
 available-node = \
@@ -233,6 +235,7 @@ distclean: ## Remove all build and test artifacts.
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
 	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	$(RM) tools/perfetto/trace_processor_shell
 	$(RM) $(BINARYTAR).* $(TARBALL).*
 
 .PHONY: check
@@ -336,6 +339,18 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
 
+TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
+
+# The downloaded copy has to match the vendored perfetto, so a version bump
+# re-downloads it. An overridden path is a build we do not manage and may not
+# be writable, so it gets no prerequisite and is left alone once it exists.
+ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
+TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
+endif
+
+$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
+	@tools/perfetto/get_trace_processor $@
+
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Run default tests and build docs.
@@ -387,7 +402,12 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
+DOC_KIT ?= tools/doc/node_modules/@doc-kit/cli/bin/cli.mjs
+ifeq ($(V),1)
+DOC_KIT_LOG_LEVEL ?= debug
+else
+DOC_KIT_LOG_LEVEL ?= info
+endif
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
@@ -603,7 +623,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api embedding
+NATIVE_SUITES ?= addons ffi js-native-api node-api embedding
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
@@ -856,7 +876,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -881,6 +901,11 @@ else ifeq ($(OSTYPE),os400)
 # TODO(@nodejs/web-infra): IBMi is currently hanging during HTML minification
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
+else ifeq ($(ARCHTYPE),riscv64)
+# Many riscv64 environments (except qemu) fail on the wasm steps here
+# https://github.com/nodejs/build/issues/4099#issuecomment-4038743335
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+	@echo "Skipping $@ (not currently supported by $(DESTCPU) machines)"
 else
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -888,18 +913,27 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t legacy-html-all \
-			-t legacy-json-all \
-			-i doc/api/*.md \
-			--ignore $(skip_apidoc_files) \
-			-o out/doc/api \
-			-c ./CHANGELOG.md \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/web.doc-kit.config.mjs \
 			-v $(VERSION) \
-			--index doc/api/index.md \
-			--type-map doc/type-map.json \
+			$(if $(JOBS),-p $(JOBS)) \
 		) \
 	fi
 endif
+
+out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/web.doc-kit.config.mjs \
+			-t llms-txt \
+			-o $(@D) \
+			-v $(VERSION) \
+		) \
+	fi
 
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -907,12 +941,27 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t api-links \
-			-i lib/*.js \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/api-links.doc-kit.config.mjs \
 			-o $(@D) \
-			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			--type-map doc/type-map.json \
+		) \
+	fi
+
+doc/node.1:
+	$(error Please use 'make node.1' instead of 'make $@'.)
+
+.PHONY: node.1
+node.1: doc/api/cli.md tools/doc/node_modules
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+			-o doc \
 		) \
 	fi
 
@@ -1085,6 +1134,7 @@ HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || ech
 SKIP_XZ ?= 0
 XZ = $(shell [ $(HAS_XZ) -eq 1 ] && [ $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
 XZ_COMPRESSION ?= 9e
+GZIP_COMPRESSION ?= 9
 PKG=$(TARNAME).pkg
 MACOSOUTDIR=out/macos
 
@@ -1145,16 +1195,6 @@ release-only: check-xz ## Prepare Node.js for release.
 	fi
 
 $(PKG): release-only
-# pkg building is currently only supported on an ARM64 macOS host for
-# ease of compiling fat-binaries for both macOS architectures.
-ifneq ($(OSTYPE),darwin)
-	$(warning Invalid OSTYPE)
-	$(error OSTYPE should be `darwin` currently is $(OSTYPE))
-endif
-ifneq ($(ARCHTYPE),arm64)
-	$(warning Invalid ARCHTYPE)
-	$(error ARCHTYPE should be `arm64` currently is $(ARCHTYPE))
-endif
 	$(RM) -r $(MACOSOUTDIR)
 	mkdir -p $(MACOSOUTDIR)/installer/productbuild
 	cat tools/macos-installer/productbuild/distribution.xml.tmpl  \
@@ -1175,28 +1215,14 @@ endif
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
-	CC_host="cc -arch x86_64" CXX_host="c++ -arch x86_64"  \
-	CC_target="cc -arch x86_64" CXX_target="c++ -arch x86_64" \
-	CC="cc -arch x86_64" CXX="c++ -arch x86_64" $(PYTHON) ./configure \
-		--dest-cpu=x86_64 \
-		--tag=$(TAG) \
-		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	arch -x86_64 $(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/x64/node
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/x64/node/usr/local" sh \
-		tools/osx-codesign.sh
 	$(PYTHON) ./configure \
-		--dest-cpu=arm64 \
+		--dest-cpu=$(ARCHTYPE) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/node
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" sh \
 		tools/osx-codesign.sh
-	lipo $(MACOSOUTDIR)/dist/x64/node/usr/local/bin/node \
-		$(MACOSOUTDIR)/dist/node/usr/local/bin/node \
-		-output $(MACOSOUTDIR)/dist/node/usr/local/bin/node \
-		-create
 	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
 	mkdir -p $(MACOSOUTDIR)/pkgs
 	mv $(MACOSOUTDIR)/dist/node/usr/local/lib/node_modules/npm \
@@ -1256,7 +1282,7 @@ ifneq ($(SKIP_SHARED_DEPS), 1)
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
 endif
-	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
+	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
@@ -1280,10 +1306,14 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/ngtcp2
 	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
 	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
+	$(RM) -r $(TARNAME)/deps/perfetto
 	$(RM) -r $(TARNAME)/deps/simdjson
 	$(RM) -r $(TARNAME)/deps/sqlite
 	$(RM) -r $(TARNAME)/deps/uv
 	$(RM) -r $(TARNAME)/deps/uvwasi
+	$(RM) -r $(TARNAME)/deps/v8/third_party/abseil-cpp
+	$(RM) -r $(TARNAME)/deps/v8/third_party/highway
+	$(RM) -r $(TARNAME)/deps/v8/third_party/simdutf
 	$(RM) -r $(TARNAME)/deps/zlib
 	$(RM) -r $(TARNAME)/deps/zstd
 else
@@ -1313,7 +1343,7 @@ endif
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.xz
 endif
@@ -1358,7 +1388,7 @@ $(TARBALL)-headers: release-only
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.xz
 endif
@@ -1403,7 +1433,7 @@ ifeq ($(OSTYPE),darwin)
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
-	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.xz
 endif
@@ -1417,15 +1447,15 @@ binary: $(BINARYTAR) ## Build release binary tarballs.
 # Note: this is strictly for release builds on release machines only.
 binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz"
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz.done"
+	chmod 664 $(BINARYNAME).tar.gz
+	scp -p $(BINARYNAME).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz
+	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz"
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz.done"
 ifeq ($(XZ), 1)
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz"
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
+	chmod 664 $(BINARYNAME).tar.xz
+	scp -p $(BINARYNAME).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz
+	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz"
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz.done"
 endif
 
 .PHONY: bench-all
@@ -1448,7 +1478,7 @@ else
 LINT_MD_NEWER = -newer tools/.mdlintstamp
 endif
 
-LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md AGENTS.md,$(wildcard *.md))
+LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md,$(wildcard *.md))
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
@@ -1464,8 +1494,27 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@$(call available-node,$(run-lint-md))
 	@touch $@
 
+tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
+	$(info Verifying that $< is up to date...)
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $< verification (no crypto and/or no ICU)"; \
+	else \
+		$(RM) -r tools/doc/.manpagecheck && \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+		) \
+		if ! diff -u $< tools/doc/.manpagecheck/node.1; then \
+			echo '$< is out of date; run `make node.1` to regenerate it.' >&2; \
+			exit 1; \
+		fi; \
+	fi
+	@touch $@
+
 .PHONY: lint-md
-lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+lint-md: lint-js-doc | tools/.mdlintstamp tools/.manpagelintstamp ## Lint the markdown documents maintained by us in the codebase.
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
@@ -1474,11 +1523,12 @@ format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the ma
 	@$(call available-node,$(run-format-md))
 
 
-
+ESLINT_CACHE_FLAGS ?= --cache
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
-	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js $(ESLINT_CACHE_FLAGS) \
+	--max-warnings=0 --report-unused-disable-directives \
+	--concurrency auto $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 tools/eslint/node_modules/eslint/bin/eslint.js: tools/eslint/package-lock.json
@@ -1505,7 +1555,7 @@ jslint: lint-js
 
 run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
   --max-warnings=0 --report-unused-disable-directives -f tap \
-	-o test-eslint.tap $(LINT_JS_TARGETS)
+  --concurrency auto -o test-eslint.tap $(LINT_JS_TARGETS)
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
@@ -1522,7 +1572,7 @@ LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
-LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
+LINT_CPP_EXCLUDE += src/tracing/trace_event_legacy.h src/tracing/trace_event_legacy_inl.h
 
 # deps/ncrypto is included in this list, as it is maintained in
 # this repository, and should be linted. Eventually it should move
@@ -1643,15 +1693,15 @@ lint-py-build: ## Build resources needed to lint python files.
 		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.13.1
 
 .PHONY: lint-py lint-py-fix lint-py-fix-unsafe
-ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
+ifneq ("","$(wildcard $(RUFF))")
 # Lint the Python code with ruff.
 lint-py:
 	$(info Running Python linter...)
-	tools/pip/site-packages/bin/ruff check .
+	$(RUFF) check .
 lint-py-fix:
-	tools/pip/site-packages/bin/ruff check . --fix
+	$(RUFF) check . --fix
 lint-py-fix-unsafe:
-	tools/pip/site-packages/bin/ruff check . --fix --unsafe-fixes
+	$(RUFF) check . --fix --unsafe-fixes
 else
 lint-py lint-py-fix lint-py-fix-unsafe:
 	$(warning Python linting with ruff is not available)
@@ -1667,14 +1717,15 @@ lint-yaml-build: ## Build resources needed to lint YAML files.
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
 
 .PHONY: lint-yaml
+ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
-	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
-			$(info Running YAML linter...) \
-			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
-	else \
-		echo 'YAML linting with yamllint is not available'; \
-		echo "Run 'make lint-yaml-build'"; \
-	fi
+	$(info Running YAML linter...)
+	PYTHONPATH=tools/pip $(YAMLLINT) .
+else
+lint-yaml:
+	$(warning YAML linting with yamllint is not available)
+	$(warning Run 'make lint-yaml-build')
+endif
 
 .PHONY: lint
 .PHONY: lint-ci

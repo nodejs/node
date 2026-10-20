@@ -8,8 +8,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual, ok } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -29,10 +28,10 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     const received = await bytes(stream);
     // Server receives the original 8 bytes in order, regardless of
     // any caller-side mutation that happens after writeSync returns.
-    strictEqual(received.length, sourceCopy.length);
+    assert.strictEqual(received.length, sourceCopy.length);
     for (let i = 0; i < sourceCopy.length; i++) {
-      strictEqual(received[i], sourceCopy[i],
-                  `byte ${i} mismatch: got ${received[i]}, ` +
+      assert.strictEqual(received[i], sourceCopy[i],
+                         `byte ${i} mismatch: got ${received[i]}, ` +
                   `expected ${sourceCopy[i]}`);
     }
     stream.writer.endSync();
@@ -51,25 +50,22 @@ const writer = stream.writer;
 // First half. The underlying ArrayBuffer must stay live after the
 // write so that the caller can build the next view from it.
 writer.writeSync(source.subarray(0, 4));
-strictEqual(source.buffer.detached, false,
-            'source ArrayBuffer must not be detached after writeSync');
-strictEqual(source.byteLength, 8,
-            'source view must remain usable after writeSync');
+assert.strictEqual(source.buffer.detached, false); // source ArrayBuffer must not be detached after writeSync
+assert.strictEqual(source.byteLength, 8); // Source view must remain usable after writeSync
 
 // Second half — slicing into the same backing buffer must succeed.
 writer.writeSync(source.subarray(4, 8));
-strictEqual(source.buffer.detached, false,
-            'source ArrayBuffer must remain live after second writeSync');
+assert.strictEqual(source.buffer.detached, false); // source ArrayBuffer must remain live after second writeSync
 
 // The C++ layer has already copied the bytes by the time writeSync
 // returned. Mutating the source here must not affect the data the
 // peer ultimately observes.
 for (let i = 0; i < source.length; i++) source[i] = 0;
-ok(source.every((b) => b === 0), 'source mutation should succeed');
+assert.ok(source.every((b) => b === 0), 'source mutation should succeed');
 
 writer.endSync();
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
 await serverEndpoint.close();

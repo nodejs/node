@@ -40,7 +40,7 @@ type TypedArrayContentType<T extends TypedArrayConstructor> = InstanceType<T>[nu
  */
 declare namespace primordials {
   export function uncurryThis<T extends (...args: unknown[]) => unknown>(fn: T): UncurryThis<T>;
-  export function makeSafe<T extends NewableFunction>(unsafe: NewableFunction, safe: T): T;
+  export function makeSafe<T extends NewableFunction>(unsafe: NewableFunction, safe: T, next?: Function): T;
 
   export import decodeURI = globalThis.decodeURI;
   export import decodeURIComponent = globalThis.decodeURIComponent;
@@ -168,7 +168,6 @@ declare namespace primordials {
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
-  export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
   export const BigIntAsUintN: typeof BigInt.asUintN
@@ -545,6 +544,37 @@ declare namespace primordials {
   export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
   export const PromiseWithResolvers: typeof Promise.withResolvers
   export import Proxy = globalThis.Proxy
+  export import Iterator = globalThis.Iterator
+  export const IteratorFrom: typeof Iterator.from
+  export const IteratorPrototype: typeof Iterator.prototype
+  export const IteratorPrototypeDrop: UncurryThis<typeof Iterator.prototype.drop>
+  export const IteratorPrototypeEvery: UncurryThis<typeof Iterator.prototype.every>
+  export const IteratorPrototypeFilter: UncurryThis<typeof Iterator.prototype.filter>
+  export const IteratorPrototypeFind: UncurryThis<typeof Iterator.prototype.find>
+  export const IteratorPrototypeFlatMap: UncurryThis<typeof Iterator.prototype.flatMap>
+  export const IteratorPrototypeForEach: UncurryThis<typeof Iterator.prototype.forEach>
+  export const IteratorPrototypeMap: UncurryThis<typeof Iterator.prototype.map>
+  export const IteratorPrototypeReduce: UncurryThis<typeof Iterator.prototype.reduce>
+  export const IteratorPrototypeSome: UncurryThis<typeof Iterator.prototype.some>
+  export const IteratorPrototypeTake: UncurryThis<typeof Iterator.prototype.take>
+  export const IteratorPrototypeToArray: UncurryThis<typeof Iterator.prototype.toArray>
+  export const IteratorPrototypeSymbolIterator: UncurryMethod<typeof Iterator.prototype, typeof Symbol.iterator>
+  export const ArrayIteratorPrototype: ReturnType<typeof Array.prototype[typeof Symbol.iterator]>
+  export const ArrayIteratorPrototypeNext: UncurryThis<typeof ArrayIteratorPrototype.next>
+  export const AsyncFunctionPrototype: Function
+  export const AsyncGeneratorFunctionPrototype: Function
+  export const AsyncIteratorPrototype: AsyncIterable<any>
+  export const GeneratorFunctionPrototype: Function
+  export const IteratorHelperPrototype: ReturnType<typeof Iterator.prototype.drop>
+  export const MapIteratorPrototype: ReturnType<typeof Map.prototype[typeof Symbol.iterator]>
+  export const MapIteratorPrototypeNext: UncurryThis<typeof MapIteratorPrototype.next>
+  export const RegExpStringIteratorPrototype: ReturnType<typeof RegExp.prototype[typeof Symbol.matchAll]>
+  export const RegExpStringIteratorPrototypeNext: UncurryThis<typeof RegExpStringIteratorPrototype.next>
+  export const SetIteratorPrototype: ReturnType<typeof Set.prototype[typeof Symbol.iterator]>
+  export const SetIteratorPrototypeNext: UncurryThis<typeof SetIteratorPrototype.next>
+  export const StringIteratorPrototype: ReturnType<typeof String.prototype[typeof Symbol.iterator]>
+  export const StringIteratorPrototypeNext: UncurryThis<typeof StringIteratorPrototype.next>
+  export const WrapForValidIteratorPrototype: ReturnType<typeof Iterator.from>
   import _globalThis = globalThis
   export { _globalThis as globalThis }
 }

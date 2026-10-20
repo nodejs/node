@@ -12,8 +12,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -35,7 +34,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(received.byteLength, expected.byteLength);
+      assert.strictEqual(received.byteLength, expected.byteLength);
       stream.writer.endSync();
       await stream.closed;
       serverSession.close();
@@ -50,7 +49,7 @@ const encoder = new TextEncoder();
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
-    highWaterMark: 512,
+    budget: 512,
   });
   const w = stream.writer;
 
@@ -65,7 +64,7 @@ const encoder = new TextEncoder();
   }
   w.endSync();
 
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise]);
   await clientSession.close();
   await serverEndpoint.close();

@@ -64,6 +64,7 @@ function main({ n, script, mode }) {
   const warmup = 3;
   const state = { n, finished: -warmup };
   if (mode === 'worker') {
+    // eslint-disable-next-line no-global-assign
     Worker = require('worker_threads').Worker;
     spawnWorker(script, bench, state);
   } else {

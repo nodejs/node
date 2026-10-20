@@ -27,10 +27,6 @@ Intl.NumberFormat-v3
 # https://github.com/tc39/proposal-regexp-legacy-features
 legacy-regexp
 
-# Temporal
-# https://github.com/tc39/proposal-temporal
-Temporal
-
 # ShadowRealm, née Callable Boundary Realms
 # https://github.com/tc39/proposal-realms
 ShadowRealm
@@ -39,58 +35,47 @@ ShadowRealm
 # https://github.com/tc39/proposal-decorators
 decorators
 
-# Duplicate named capturing groups
-# https://github.com/tc39/proposal-duplicate-named-capturing-groups
-regexp-duplicate-named-groups
-
-# https://tc39.es/proposal-array-from-async/
-Array.fromAsync
-
-# JSON.parse with source
-# https://github.com/tc39/proposal-json-parse-with-source
-json-parse-with-source
-
-# Explicit Resource Management
-# https://github.com/tc39/proposal-explicit-resource-management
-explicit-resource-management
-
 # Source Phase Imports
 ## https://github.com/tc39/proposal-source-phase-imports
 source-phase-imports
 ## test262 special specifier
 source-phase-imports-module-source
 
-# Atomics.pause
-# https://github.com/tc39/proposal-atomics-microwait
-Atomics.pause
-
 # Deferred import evaluation
 # https://tc39.es/proposal-defer-import-eval
 import-defer
 
-# Iterator Sequencing
-# https://github.com/tc39/proposal-iterator-sequencing
-iterator-sequencing
+# Deferred re-exports
+# https://tc39.es/proposal-deferred-reexports/
+export-defer
 
-# Time Zone Canonicalization
-# https://github.com/tc39/proposal-canonical-tz
-canonical-tz
-
-# Upsert
-# https://github.com/tc39/proposal-upsert
-upsert
+# Import Text
+# https://github.com/tc39/proposal-import-text
+import-text
 
 # Immutable Array Buffer
 # https://github.com/tc39/proposal-immutable-arraybuffer
 immutable-arraybuffer
 
+# Import Bytes
+# https://github.com/tc39/proposal-import-bytes
+import-bytes
+
 # Non-extensible Applies to Private
 # https://github.com/tc39/proposal-nonextensible-applies-to-private
 nonextensible-applies-to-private
 
-# Joint Iteration
-# https://github.com/tc39/proposal-joint-iteration
-joint-iteration
+# Await Dictionary
+# https://github.com/tc39/proposal-await-dictionary
+await-dictionary
+
+# Error Stack Accessor
+# https://github.com/tc39/proposal-error-stack-accessor
+error-stack-accessor
+
+# Iterator Join
+# https://github.com/tc39/proposal-iterator-join
+Iterator.prototype.join
 
 ## Standard language features
 #
@@ -104,11 +89,13 @@ align-detached-buffer-semantics-with-web-reality  # https://github.com/tc39/ecma
 arbitrary-module-namespace-names  # https://github.com/tc39/ecma262/pull/2154
 ArrayBuffer
 array-find-from-last
+Array.fromAsync
 Array.prototype.at
 Array.prototype.flat
 Array.prototype.flatMap
 Array.prototype.includes
 Array.prototype.values
+Atomics.pause
 Atomics.waitAsync
 array-grouping
 arraybuffer-transfer
@@ -118,6 +105,7 @@ async-functions
 Atomics
 BigInt
 caller
+canonical-tz
 change-array-by-copy
 class
 class-fields-private
@@ -147,6 +135,7 @@ destructuring-binding
 dynamic-import
 error-cause
 Error.isError
+explicit-resource-management
 exponentiation
 export-star-as-namespace-from-module  # https://github.com/tc39/ecma262/pull/1174
 FinalizationRegistry
@@ -160,7 +149,10 @@ globalThis
 hashbang
 import-attributes
 import.meta
+iterator-chunking
 iterator-helpers
+iterator-includes
+iterator-sequencing
 Int8Array
 Int16Array
 Int32Array
@@ -179,7 +171,9 @@ Intl.Locale
 Intl.NumberFormat-unified
 Intl.RelativeTimeFormat
 Intl.Segmenter
+joint-iteration
 json-modules
+json-parse-with-source
 json-superset
 let
 logical-assignment-operators
@@ -207,6 +201,7 @@ Reflect.construct
 Reflect.set
 Reflect.setPrototypeOf
 regexp-dotall
+regexp-duplicate-named-groups
 RegExp.escape
 regexp-lookbehind
 regexp-match-indices
@@ -251,6 +246,7 @@ Symbol.toStringTag
 Symbol.unscopables
 tail-call-optimization
 template
+Temporal
 top-level-await
 TypedArray
 TypedArray.prototype.at
@@ -260,6 +256,7 @@ uint8array-base64
 Uint16Array
 Uint32Array
 Uint8ClampedArray
+upsert
 WeakMap
 WeakRef
 WeakSet

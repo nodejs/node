@@ -2,6 +2,7 @@
 #if HAVE_OPENSSL
 #include "crypto/crypto_util.h"
 #endif  // HAVE_OPENSSL
+#include "env.h"
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -224,7 +225,8 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
 #endif
 }
 
-void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+static void SetIsolateErrorHandlers(v8::Isolate* isolate,
+                                    const IsolateSettings& s) {
   if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
     isolate->AddMessageListenerWithErrorLevel(
             errors::PerIsolateMessageListener,
@@ -267,7 +269,9 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   isolate->SetModifyCodeGenerationFromStringsCallback(
       modify_code_generation_from_strings_callback);
 
-  isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  if ((s.flags & SHOULD_NOT_SET_WASM_STREAMING_CALLBACK) == 0) {
+    isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  }
 
   Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->get_per_isolate_options()
@@ -310,6 +314,34 @@ IsolateGroup GetOrCreateIsolateGroup() {
   return IsolateGroup::GetDefault();
 }
 
+// V8 shares the read-only heap between isolates and requires them all to be
+// created from the same snapshot, so every isolate gets the blob and external
+// references the first NewIsolate() call used. ~SnapshotData() leaves that blob
+// alone because its owner may be gone before the last isolate is created.
+static Mutex first_snapshot_mutex;
+static bool first_snapshot_recorded = false;
+static v8::StartupData first_snapshot_blob{nullptr, 0};
+static const intptr_t* first_external_references = nullptr;
+
+static void UseFirstSnapshot(Isolate::CreateParams* params) {
+  Mutex::ScopedLock lock(first_snapshot_mutex);
+  if (!first_snapshot_recorded) {
+    first_snapshot_recorded = true;
+    if (params->snapshot_blob != nullptr) {
+      first_snapshot_blob = *params->snapshot_blob;
+    }
+    first_external_references = params->external_references;
+  }
+  params->snapshot_blob =
+      first_snapshot_blob.data != nullptr ? &first_snapshot_blob : nullptr;
+  params->external_references = first_external_references;
+}
+
+bool IsFirstSnapshotBlob(const char* data) {
+  Mutex::ScopedLock lock(first_snapshot_mutex);
+  return first_snapshot_recorded && data == first_snapshot_blob.data;
+}
+
 // TODO(joyeecheung): we may want to expose this, but then we need to be
 // careful about what we override in the params.
 Isolate* NewIsolate(Isolate::CreateParams* params,
@@ -325,15 +357,7 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-  {
-    // Because it uses a shared readonly-heap, V8 requires all snapshots used
-    // for creating Isolates to be identical. This isn't really memory-safe
-    // but also otherwise just doesn't work, and the only real alternative
-    // is disabling shared-readonly-heap mode altogether.
-    static Isolate::CreateParams first_params = *params;
-    params->snapshot_blob = first_params.snapshot_blob;
-    params->external_references = first_params.external_references;
-  }
+  UseFirstSnapshot(params);
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
@@ -349,16 +373,7 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
-
-  Isolate::Scope isolate_scope(isolate);
-
-  if (snapshot_data == nullptr) {
-    // If in deserialize mode, delay until after the deserialization is
-    // complete.
-    SetIsolateUpForNode(isolate, settings);
-  } else {
-    SetIsolateMiscHandlers(isolate, settings);
-  }
+  SetIsolateUpForNode(isolate, settings);
 
   return isolate;
 }
@@ -398,7 +413,11 @@ IsolateData* CreateIsolateData(
     ArrayBufferAllocator* allocator,
     const EmbedderSnapshotData* embedder_snapshot_data) {
   return IsolateData::CreateIsolateData(
-      isolate, loop, platform, allocator, embedder_snapshot_data);
+      isolate,
+      loop,
+      platform,
+      allocator,
+      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data));
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
@@ -423,24 +442,6 @@ Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
-  return CreateEnvironment(isolate_data,
-                           context,
-                           args,
-                           exec_args,
-                           flags,
-                           thread_id,
-                           std::move(inspector_parent_handle),
-                           {});
-}
-
-Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    Local<Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
     std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();
@@ -450,6 +451,11 @@ Environment* CreateEnvironment(
 
   const bool use_snapshot = context.IsEmpty();
   const EnvSerializeInfo* env_snapshot_info = nullptr;
+  // A worker thread (its IsolateData knows its Worker) deserializes the same
+  // bootstrapped principal context the main thread uses and then has the
+  // worker-side bootstrap switches applied on top of it (they are written as
+  // overrides of the main-thread setup).
+  const bool for_worker = isolate_data->worker_context() != nullptr;
   if (use_snapshot) {
     CHECK_NOT_NULL(isolate_data->snapshot_data());
     env_snapshot_info = &isolate_data->snapshot_data()->env_info;
@@ -486,11 +492,29 @@ Environment* CreateEnvironment(
       FreeEnvironment(env);
       return nullptr;
     }
-    SetIsolateErrorHandlers(isolate, {});
   }
 
   Context::Scope context_scope(context);
   env->InitializeMainContext(context, env_snapshot_info);
+
+  if (use_snapshot && for_worker) {
+    // The deserialized context went through is_main_thread /
+    // does_own_process_state when the snapshot was built; the worker-side
+    // switches redefine exactly those pieces (stdio getters, signal wiring,
+    // process.abort/chdir/umask/..., debug helpers).
+    if (env->principal_realm()
+            ->ExecuteBootstrapper(
+                "internal/bootstrap/switches/is_not_main_thread")
+            .IsEmpty() ||
+        (!env->owns_process_state() &&
+         env->principal_realm()
+             ->ExecuteBootstrapper(
+                 "internal/bootstrap/switches/does_not_own_process_state")
+             .IsEmpty())) {
+      FreeEnvironment(env);
+      return nullptr;
+    }
+  }
 
 #if HAVE_INSPECTOR
   if (env->should_create_inspector()) {
@@ -516,6 +540,9 @@ void FreeEnvironment(Environment* env) {
   Isolate* isolate = env->isolate();
   Isolate::DisallowJavascriptExecutionScope disallow_js(isolate,
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  // A termination requested by Stop() targets this Environment; if no JS ran
+  // since, it is still pending and must not hit the isolate's next user.
+  isolate->CancelTerminateExecution();
   {
     HandleScope handle_scope(isolate);  // For env->context().
     Context::Scope context_scope(env->context());
@@ -943,7 +970,7 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
 
   Local<Object> private_symbols_object;
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
-      private_symbols_object->SetPrototypeV2(context, Null(isolate))
+      private_symbols_object->SetPrototype(context, Null(isolate))
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -969,7 +996,7 @@ MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
   Local<Object> per_isolate_symbols_object;
   if (!per_isolate_symbols->NewInstance(context).ToLocal(
           &per_isolate_symbols_object) ||
-      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+      per_isolate_symbols_object->SetPrototype(context, Null(isolate))
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -1021,6 +1048,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // in the first place. However, creating BuiltinLoader instances is
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
+  // NOLINTNEXTLINE(runtime/thread_local)
   thread_local builtins::BuiltinLoader builtin_loader;
   // Primordials can always be just eagerly compiled.
   builtin_loader.SetEagerCompile();
@@ -1051,6 +1079,18 @@ Maybe<bool> InitializeContext(Local<Context> context) {
     return Nothing<bool>();
   }
   return Just(true);
+}
+
+void RegisterContext(Environment* env,
+                     v8::Local<v8::Context> context,
+                     std::string_view name,
+                     std::string_view origin) {
+  ContextInfo info{std::string(name), std::string(origin)};
+  env->AssignToContext(context, nullptr, info);
+}
+
+void UnregisterContext(Environment* env, v8::Local<v8::Context> context) {
+  env->UnassignFromContext(context);
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {

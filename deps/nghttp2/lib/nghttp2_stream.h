@@ -66,81 +66,76 @@ typedef enum {
   NGHTTP2_STREAM_IDLE
 } nghttp2_stream_state;
 
-typedef enum {
-  NGHTTP2_SHUT_NONE = 0,
-  /* Indicates further receptions will be disallowed. */
-  NGHTTP2_SHUT_RD = 0x01,
-  /* Indicates further transmissions will be disallowed. */
-  NGHTTP2_SHUT_WR = 0x02,
-  /* Indicates both further receptions and transmissions will be
-     disallowed. */
-  NGHTTP2_SHUT_RDWR = NGHTTP2_SHUT_RD | NGHTTP2_SHUT_WR
-} nghttp2_shut_flag;
+#define NGHTTP2_SHUT_NONE 0x00U
+/* Indicates further receptions will be disallowed. */
+#define NGHTTP2_SHUT_RD 0x01U
+/* Indicates further transmissions will be disallowed. */
+#define NGHTTP2_SHUT_WR 0x02U
+/* Indicates both further receptions and transmissions will be
+   disallowed. */
+#define NGHTTP2_SHUT_RDWR (NGHTTP2_SHUT_RD | NGHTTP2_SHUT_WR)
 
-typedef enum {
-  NGHTTP2_STREAM_FLAG_NONE = 0,
-  /* Indicates that this stream is pushed stream and not opened
-     yet. */
-  NGHTTP2_STREAM_FLAG_PUSH = 0x01,
-  /* Indicates that this stream was closed */
-  NGHTTP2_STREAM_FLAG_CLOSED = 0x02,
-  /* Indicates the item is deferred due to flow control. */
-  NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL = 0x04,
-  /* Indicates the item is deferred by user callback */
-  NGHTTP2_STREAM_FLAG_DEFERRED_USER = 0x08,
-  /* bitwise OR of NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL and
-     NGHTTP2_STREAM_FLAG_DEFERRED_USER. */
-  NGHTTP2_STREAM_FLAG_DEFERRED_ALL = 0x0c,
-  /* Ignore client RFC 9218 priority signal. */
-  NGHTTP2_STREAM_FLAG_IGNORE_CLIENT_PRIORITIES = 0x20,
-  /* Indicates that RFC 9113 leading and trailing white spaces
-     validation against a field value is not performed. */
-  NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 0x40,
-} nghttp2_stream_flag;
+#define NGHTTP2_STREAM_FLAG_NONE 0x00U
+/* Indicates that this stream is pushed stream and not opened yet. */
+#define NGHTTP2_STREAM_FLAG_PUSH 0x01U
+/* Indicates that this stream was closed */
+#define NGHTTP2_STREAM_FLAG_CLOSED 0x02U
+/* Indicates the item is deferred due to flow control. */
+#define NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL 0x04U
+/* Indicates the item is deferred by user callback */
+#define NGHTTP2_STREAM_FLAG_DEFERRED_USER 0x08U
+/* bitwise OR of NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL and
+   NGHTTP2_STREAM_FLAG_DEFERRED_USER. */
+#define NGHTTP2_STREAM_FLAG_DEFERRED_ALL                                       \
+  (NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL |                                 \
+   NGHTTP2_STREAM_FLAG_DEFERRED_USER)
+/* Ignore client RFC 9218 priority signal. */
+#define NGHTTP2_STREAM_FLAG_IGNORE_CLIENT_PRIORITIES 0x20U
+/* Indicates that RFC 9113 leading and trailing white spaces
+   validation against a field value is not performed. */
+#define NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION 0x40U
 
 /* HTTP related flags to enforce HTTP semantics */
-typedef enum {
-  NGHTTP2_HTTP_FLAG_NONE = 0,
-  /* header field seen so far */
-  NGHTTP2_HTTP_FLAG__AUTHORITY = 1,
-  NGHTTP2_HTTP_FLAG__PATH = 1 << 1,
-  NGHTTP2_HTTP_FLAG__METHOD = 1 << 2,
-  NGHTTP2_HTTP_FLAG__SCHEME = 1 << 3,
-  /* host is not pseudo header, but we require either host or
-     :authority */
-  NGHTTP2_HTTP_FLAG_HOST = 1 << 4,
-  NGHTTP2_HTTP_FLAG__STATUS = 1 << 5,
-  /* required header fields for HTTP request except for CONNECT
-     method. */
-  NGHTTP2_HTTP_FLAG_REQ_HEADERS = NGHTTP2_HTTP_FLAG__METHOD |
-                                  NGHTTP2_HTTP_FLAG__PATH |
-                                  NGHTTP2_HTTP_FLAG__SCHEME,
-  NGHTTP2_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED = 1 << 6,
-  /* HTTP method flags */
-  NGHTTP2_HTTP_FLAG_METH_CONNECT = 1 << 7,
-  NGHTTP2_HTTP_FLAG_METH_HEAD = 1 << 8,
-  NGHTTP2_HTTP_FLAG_METH_OPTIONS = 1 << 9,
-  NGHTTP2_HTTP_FLAG_METH_UPGRADE_WORKAROUND = 1 << 10,
-  NGHTTP2_HTTP_FLAG_METH_ALL =
-    NGHTTP2_HTTP_FLAG_METH_CONNECT | NGHTTP2_HTTP_FLAG_METH_HEAD |
-    NGHTTP2_HTTP_FLAG_METH_OPTIONS | NGHTTP2_HTTP_FLAG_METH_UPGRADE_WORKAROUND,
-  /* :path category */
-  /* path starts with "/" */
-  NGHTTP2_HTTP_FLAG_PATH_REGULAR = 1 << 11,
-  /* path "*" */
-  NGHTTP2_HTTP_FLAG_PATH_ASTERISK = 1 << 12,
-  /* scheme */
-  /* "http" or "https" scheme */
-  NGHTTP2_HTTP_FLAG_SCHEME_HTTP = 1 << 13,
-  /* set if final response is expected */
-  NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14,
-  NGHTTP2_HTTP_FLAG__PROTOCOL = 1 << 15,
-  /* set if priority header field is received */
-  NGHTTP2_HTTP_FLAG_PRIORITY = 1 << 16,
-  /* set if an error is encountered while parsing priority header
-     field */
-  NGHTTP2_HTTP_FLAG_BAD_PRIORITY = 1 << 17,
-} nghttp2_http_flag;
+#define NGHTTP2_HTTP_FLAG_NONE 0x00U
+/* header field seen so far */
+#define NGHTTP2_HTTP_FLAG__AUTHORITY 0x01U
+#define NGHTTP2_HTTP_FLAG__PATH 0x02U
+#define NGHTTP2_HTTP_FLAG__METHOD 0x04U
+#define NGHTTP2_HTTP_FLAG__SCHEME 0x08U
+/* host is not pseudo header, but we require either host or
+   :authority */
+#define NGHTTP2_HTTP_FLAG_HOST 0x10U
+#define NGHTTP2_HTTP_FLAG__STATUS 0x20U
+/* required header fields for HTTP request except for CONNECT
+   method. */
+#define NGHTTP2_HTTP_FLAG_REQ_HEADERS                                          \
+  (NGHTTP2_HTTP_FLAG__METHOD | NGHTTP2_HTTP_FLAG__PATH |                       \
+   NGHTTP2_HTTP_FLAG__SCHEME)
+#define NGHTTP2_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED 0x40U
+/* HTTP method flags */
+#define NGHTTP2_HTTP_FLAG_METH_CONNECT 0x80U
+#define NGHTTP2_HTTP_FLAG_METH_HEAD 0x0100U
+#define NGHTTP2_HTTP_FLAG_METH_OPTIONS 0x0200U
+#define NGHTTP2_HTTP_FLAG_METH_UPGRADE_WORKAROUND 0x0400U
+#define NGHTTP2_HTTP_FLAG_METH_ALL                                             \
+  (NGHTTP2_HTTP_FLAG_METH_CONNECT | NGHTTP2_HTTP_FLAG_METH_HEAD |              \
+   NGHTTP2_HTTP_FLAG_METH_OPTIONS | NGHTTP2_HTTP_FLAG_METH_UPGRADE_WORKAROUND)
+/* :path category */
+/* path starts with "/" */
+#define NGHTTP2_HTTP_FLAG_PATH_REGULAR 0x0800U
+/* path "*" */
+#define NGHTTP2_HTTP_FLAG_PATH_ASTERISK 0x1000U
+/* scheme */
+/* "http" or "https" scheme */
+#define NGHTTP2_HTTP_FLAG_SCHEME_HTTP 0x2000U
+/* set if final response is expected */
+#define NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE 0x4000U
+#define NGHTTP2_HTTP_FLAG__PROTOCOL 0x8000U
+/* set if priority header field is received */
+#define NGHTTP2_HTTP_FLAG_PRIORITY 0x010000U
+/* set if an error is encountered while parsing priority header
+   field */
+#define NGHTTP2_HTTP_FLAG_BAD_PRIORITY 0x020000U
 
 struct nghttp2_stream {
   nghttp2_stream_state state;
@@ -184,12 +179,13 @@ struct nghttp2_stream {
   /* This is unpaid penalty (offset) when calculating cycle. */
   uint32_t pending_penalty;
   /* status code from remote server */
-  int16_t status_code;
-  /* Bitwise OR of zero or more nghttp2_http_flag values */
+  int32_t status_code;
+  /* Bitwise OR of zero or more NGHTTP2_HTTP_FLAG_* values */
   uint32_t http_flags;
-  /* This is bitwise-OR of 0 or more of nghttp2_stream_flag. */
+  /* This is bitwise-OR of 0 or more of NGHTTP2_STREAM_FLAG_*
+     values. */
   uint8_t flags;
-  /* Bitwise OR of zero or more nghttp2_shut_flag values */
+  /* Bitwise OR of zero or more NGHTTP2_SHUT_* values. */
   uint8_t shut_flags;
   /* Nonzero if this stream has been queued to stream pointed by
      dep_prev.  We maintain the invariant that if a stream is queued,
@@ -218,9 +214,9 @@ void nghttp2_stream_free(nghttp2_stream *stream);
 
 /*
  * Disallow either further receptions or transmissions, or both.
- * |flag| is bitwise OR of one or more of nghttp2_shut_flag.
+ * |flag| is bitwise OR of one or more of NGHTTP2_SHUT_* values.
  */
-void nghttp2_stream_shutdown(nghttp2_stream *stream, nghttp2_shut_flag flag);
+void nghttp2_stream_shutdown(nghttp2_stream *stream, uint8_t flag);
 
 /*
  * Defer |stream->item|.  We won't call this function in the situation

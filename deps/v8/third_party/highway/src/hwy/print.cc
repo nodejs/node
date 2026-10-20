@@ -72,7 +72,7 @@ HWY_DLLEXPORT void ToString(const TypeInfo& info, const void* ptr,
       float value;
       CopyBytes<4>(ptr, &value);
       // NOLINTNEXTLINE
-      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-6 ? "%.9E" : "%.9f",
+      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-6f ? "%.9E" : "%.9f",
                static_cast<double>(value));
     } else if (info.is_signed) {
       int32_t value;

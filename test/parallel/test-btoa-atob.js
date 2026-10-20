@@ -26,14 +26,17 @@ assert.strictEqual(atob({ toString: () => '' }), '');
 assert.strictEqual(atob({ [Symbol.toPrimitive]: () => '' }), '');
 
 assert.throws(() => atob(Symbol()), /TypeError/);
-[
+const testCases = [
   undefined, false, () => {}, {}, [1],
   0, 1, 0n, 1n, -Infinity,
   'a', 'a\n\n\n', '\ra\r\r', '  a ', '\t\t\ta', 'a\f\f\f', '\ta\r \n\f',
-].forEach((value) =>
-  // See #2 - https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
+];
+
+// See #2 - https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
+for (const value of testCases) {
   assert.throws(() => atob(value), {
     constructor: DOMException,
     name: 'InvalidCharacterError',
     code: 5,
-  }));
+  });
+}

@@ -16,15 +16,18 @@
 #include "src/compiler/linkage.h"
 #include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/common/flag-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -312,7 +315,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate,
   os << ")";
 }
 
-bool TestSimd128Moves() { return CpuFeatures::SupportsWasmSimd128(); }
+bool TestSimd128Moves() { return CpuFeatures::SupportsSimd128(); }
 
 }  // namespace
 
@@ -690,8 +693,9 @@ class TestEnvironment : public HandleAndZoneScope {
   // environment.
   Handle<FixedArray> GenerateInitialState() {
     Handle<FixedArray> state = main_isolate()->factory()->NewFixedArray(
-        static_cast<int>(setup_layout_.size()));
-    for (int i = 0; i < state->length(); i++) {
+        static_cast<uint32_t>(setup_layout_.size()));
+    const uint32_t state_len = state->length().value();
+    for (uint32_t i = 0; i < state_len; i++) {
       switch (setup_layout_[i].representation()) {
         case MachineRepresentation::kTagged:
           state->set(i, Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
@@ -733,7 +737,7 @@ class TestEnvironment : public HandleAndZoneScope {
   DirectHandle<FixedArray> Run(Handle<Code> test, Handle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(TeardownLayout().size()));
+            static_cast<uint32_t>(TeardownLayout().size()));
     {
 #ifdef ENABLE_SLOW_DCHECKS
       // The "setup" and "teardown" functions are relatively big, and with
@@ -754,9 +758,10 @@ class TestEnvironment : public HandleAndZoneScope {
       FunctionTester ft(setup, 2);
       DirectHandle<FixedArray> result =
           ft.CallChecked<FixedArray>(test, state_in);
-      CHECK_EQ(result->length(), state_in->length());
+      const uint32_t result_len = result->length().value();
+      CHECK_EQ(result_len, state_in->length().value());
       FixedArray::CopyElements(main_isolate(), *state_out, 0, *result, 0,
-                               result->length());
+                               result_len);
     }
     return state_out;
   }
@@ -827,11 +832,12 @@ class TestEnvironment : public HandleAndZoneScope {
       ParallelMove* moves, DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(setup_layout_.size()));
+            static_cast<uint32_t>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the moves on a
     // copy.
+    const uint32_t state_in_len = state_in->length().value();
     FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
     DCHECK_EQ(kPreserveLayout, layout_mode_);
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
@@ -848,7 +854,7 @@ class TestEnvironment : public HandleAndZoneScope {
       ParallelMove* moves, DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(teardown_layout_.size()));
+            static_cast<uint32_t>(teardown_layout_.size()));
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
@@ -873,11 +879,12 @@ class TestEnvironment : public HandleAndZoneScope {
                                          DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(setup_layout_.size()));
+            static_cast<uint32_t>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the swaps on a
     // copy.
+    const uint32_t state_in_len = state_in->length().value();
     FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
     for (auto swap : *swaps) {
       int lhs_index = OperandToStatePosition(
           setup_layout_, AllocatedOperand::cast(swap->destination()));
@@ -1181,6 +1188,12 @@ class CodeGeneratorTester {
 
   ~CodeGeneratorTester() { delete generator_; }
 
+  static void AssembleConstructFrameForTest(CodeGenerator* generator) {
+    generator->masm()->CodeEntry();
+    generator->frame_access_state()->MarkHasFrame(true);
+    generator->AssembleConstructFrame();
+  }
+
   std::vector<std::pair<LocationOperand, LocationOperand>>::iterator
   GetSpillSlot(InstructionOperand* op) {
     if (op->IsAnyStackSlot()) {
@@ -1454,15 +1467,16 @@ TEST(FuzzAssembleMoveAndSwap) {
   TestEnvironment env;
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
+  const uint32_t state_in_len = state_in->length().value();
   DirectHandle<FixedArray> expected =
-      env.main_isolate()->factory()->NewFixedArray(state_in->length());
+      env.main_isolate()->factory()->NewFixedArray(state_in_len);
 
   // Test small and potentially large ranges separately.
   for (int extra_space : {0, kExtraSpace}) {
     CodeGeneratorTester c(&env, extra_space);
 
     FixedArray::CopyElements(env.main_isolate(), *expected, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
 
     for (int i = 0; i < 1000; i++) {
       // Randomly alternate between swaps and moves.
@@ -1625,6 +1639,44 @@ TEST(AssembleTailCallGap) {
   }
 }
 
+#if V8_TARGET_ARCH_X64
+TEST(TurboFanFrameSlotAlignment) {
+  FLAG_SCOPE(enforce_x64_16byte_alignment);
+  TestEnvironment env;
+  Isolate* isolate = env.main_isolate();
+  Linkage linkage(env.test_descriptor());
+
+  // Test both odd fixed headers (JSFunction = 5 slots, Stub = 3 slots)
+  // and even fixed headers (CFunction = 2 slots, Wasm = 4 slots).
+  for (int fixed_slots : {2, 3, 4, 5}) {
+    for (int spill_slots : {0, 1, 2, 3, 4}) {
+      for (int return_slots : {0, 1, 2, 3}) {
+        Zone zone(isolate->allocator(), ZONE_NAME);
+        Frame frame(fixed_slots, &zone);
+
+        for (int s = 0; s < spill_slots; ++s) {
+          frame.AllocateSpillSlot(kSystemPointerSize);
+        }
+        frame.EnsureReturnSlots(return_slots);
+
+        OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
+                                      CodeKind::FOR_TESTING);
+        CodeGenerator codegen(
+            &zone, &frame, &linkage, env.instructions(), &info, isolate,
+            std::optional<OsrHelper>(), kNoSourcePosition, nullptr,
+            AssemblerOptions::Default(isolate), Builtin::kNoBuiltinId, 0, 0);
+
+        // FinishFrame() has now run via CodeGenerator's constructor.
+        CHECK_EQ(0, frame.GetTotalFrameSlotCount() % 2);
+        CHECK_EQ(0, frame.GetReturnSlotCount() % 2);
+
+        CodeGeneratorTester::AssembleConstructFrameForTest(&codegen);
+      }
+    }
+  }
+}
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 
@@ -1681,17 +1733,16 @@ TEST(Regress_1171759) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                 handles.main_zone(), CodeKind::WASM_FUNCTION);
-  DirectHandle<Code> code =
-      Pipeline::GenerateCodeForTesting(
-          &info, handles.main_isolate(), desc, m.graph(),
-          AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest())
-          .ToHandleChecked();
+  wasm::WasmCompilationResult result = Pipeline::GenerateWasmCodeForTesting(
+      &info, handles.main_isolate(), desc, m.graph(),
+      AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest());
+  CHECK(result.succeeded());
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+      AllocateNativeModule(handles.main_isolate(), result.code_desc.instr_size);
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
-      module->AddCodeForTesting(code, desc->signature_hash());
+      module->AddCodeForTesting(result, desc->signature_hash());
   WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
@@ -1732,6 +1783,7 @@ TEST(Regress_1171759) {
 
   wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
 }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler

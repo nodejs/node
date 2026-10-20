@@ -1,0 +1,5 @@
+Tests setVariableValue with scopeNumber equal to scopeChain length (off-by-one boundary)
+Paused in test(). Scope chain length: 2
+Calling setVariableValue with scopeNumber = 2
+Received error (expected): Could not find scope with given number
+test() finished executing.

@@ -150,6 +150,9 @@ class TransportParams final {
 
   operator bool() const;
 
+  uint64_t initial_max_streams_bidi() const;
+  uint64_t initial_max_streams_uni() const;
+
   // Returns a Store containing the encoded transport parameters.
   // If an error occurs during encoding, or if the parameters could
   // not be encoded, an empty Store will be returned.
@@ -163,6 +166,9 @@ class TransportParams final {
   ssize_t EncodeInto(uint8_t* buf,
                      size_t len,
                      Version version = Version::V1) const;
+
+  // Returns a JavaScript object representing the transport parameters.
+  v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
 
  private:
   void SetPreferredAddress(const SocketAddress& address);

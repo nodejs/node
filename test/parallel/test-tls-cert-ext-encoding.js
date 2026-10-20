@@ -3,9 +3,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
-if (hasOpenSSL3)
+if (hasOpenSSL(3))
   // TODO(danbev) This test fails with the following error:
   // error:0D00008F:asn1 encoding routines::no matching choice type
   //

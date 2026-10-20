@@ -25,7 +25,6 @@
 #include "tls_server_context_wolfssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 #include <limits>
 #include <algorithm>
@@ -54,7 +53,7 @@ int alpn_select_proto_h3_cb(WOLFSSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -94,7 +93,7 @@ int alpn_select_proto_hq_cb(WOLFSSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -136,7 +135,7 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
                                                   const char *cert_file,
                                                   AppProtocol app_proto) {
-  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+  static constexpr unsigned char sid_ctx[] = "ngtcp2 server";
 
 #ifdef DEBUG_WOLFSSL
   if (!config.quiet) {

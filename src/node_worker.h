@@ -42,6 +42,7 @@ class Worker : public AsyncWrap {
 
   // Run the worker. This is only called from the worker thread.
   void Run();
+  bool UseWorkerContextSnapshot() const;
 
   // Forcibly exit the thread with a specified exit code. This may be called
   // from any thread. `error_code` and `error_message` can be used to create
@@ -65,6 +66,10 @@ class Worker : public AsyncWrap {
   const SnapshotData* snapshot_data() const { return snapshot_data_; }
   bool is_internal() const { return is_internal_; }
   std::string_view name() const { return name_; }
+  uint64_t thread_id() const { return thread_id_.id; }
+  // Whether the Worker keeps the parent's event loop alive, see
+  // `worker.ref()` and `worker.unref()`. Only valid on the parent thread.
+  bool has_ref() const { return has_ref_; }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);

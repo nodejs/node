@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --mock-arraybuffer-allocator
 
 var global = 0;
 
@@ -21,9 +21,9 @@ if (%Is64Bit()) {
   %OptimizeMaglevOnNextCall(foo);
   foo(100);
   assertEquals(100, global);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 
   foo(largeLength);
   assertEquals(largeLength, global);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 }

@@ -1,5 +1,7 @@
 'use strict'
 
+const { makeRequest } = require('../fetch/request')
+
 /**
  * Checks if the given value is a valid LastEventId.
  * @param {string} value
@@ -23,7 +25,36 @@ function isASCIINumber (value) {
   return true
 }
 
+function createPotentialCORSRequest (url, destination, corsAttributeState, sameOriginFallback) {
+  // 1. Let mode be "no-cors" if corsAttributeState is No CORS, and "cors" otherwise.
+  let mode = corsAttributeState === 'no cors' ? 'no-cors' : 'cors'
+
+  // 2. If same-origin fallback flag is set and mode is "no-cors", set mode to "same-origin".
+  if (sameOriginFallback && mode === 'no-cors') {
+    mode = 'same-origin'
+  }
+
+  // 3. Let credentialsMode be "include".
+  let credentialsMode = 'include'
+
+  // 4. If corsAttributeState is Anonymous, set credentialsMode to "same-origin".
+  if (corsAttributeState === 'anonymous') {
+    credentialsMode = 'same-origin'
+  }
+
+  // 5. Return a new request whose URL is url, destination is destination, mode is mode,
+  //    credentials mode is credentialsMode, and whose use-URL-credentials flag is set.
+  return makeRequest({
+    urlList: [url],
+    destination,
+    mode,
+    credentials: credentialsMode,
+    useURLCredentials: true
+  })
+}
+
 module.exports = {
   isValidLastEventId,
-  isASCIINumber
+  isASCIINumber,
+  createPotentialCORSRequest
 }

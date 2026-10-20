@@ -27,6 +27,7 @@
 #include "node.h"
 #include "node_external_reference.h"
 #include "node_profiling.h"
+#include "permission/permission.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
 #include "v8.h"
@@ -200,8 +201,33 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint32_t limit = args[0].As<v8::Uint32>()->Value();
   CHECK_GT(limit, 0);
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path());
+  }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dir);
+
   env->AddHeapSnapshotNearHeapLimitCallback();
   env->set_heap_snapshot_near_heap_limit(limit);
+}
+
+void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  CHECK_GT(limit, 0);
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path());
+  }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dir);
+
+  env->AddHeapProfileNearHeapLimitCallback();
+  env->set_heap_profile_near_heap_limit(limit);
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -300,6 +326,7 @@ void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   std::ostringstream out_stream;
   bool success = node::SerializeHeapProfile(isolate, out_stream);
   if (success) {
+    isolate->GetHeapProfiler()->StopSamplingHeapProfiler();
     Local<Value> result;
     if (ToV8Value(env->context(), out_stream.str(), isolate).ToLocal(&result)) {
       args.GetReturnValue().Set(result);
@@ -336,6 +363,8 @@ static const char* GetGCTypeName(v8::GCType gc_type) {
   switch (gc_type) {
     case v8::GCType::kGCTypeScavenge:
       return "Scavenge";
+    case v8::GCType::kGCTypeMinorMarkSweep:
+      return "MinorMarkSweep";
     case v8::GCType::kGCTypeMarkSweepCompact:
       return "MarkSweepCompact";
     case v8::GCType::kGCTypeIncrementalMarking:
@@ -719,6 +748,10 @@ void Initialize(Local<Object> target,
                         SetHeapSnapshotNearHeapLimit);
   SetMethod(context,
             target,
+            "setHeapProfileNearHeapLimit",
+            SetHeapProfileNearHeapLimit);
+  SetMethod(context,
+            target,
             "updateHeapStatisticsBuffer",
             UpdateHeapStatisticsBuffer);
 
@@ -734,17 +767,17 @@ void Initialize(Local<Object> target,
   // Heap space names are extracted once and exposed to JavaScript to
   // avoid excessive creation of heap space name Strings.
   HeapSpaceStatistics s;
-  MaybeStackBuffer<Local<Value>, 16> heap_spaces(number_of_heap_spaces);
+  MaybeStackBuffer<Value, 16> heap_spaces(env->isolate(),
+                                          number_of_heap_spaces);
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     env->isolate()->GetHeapSpaceStatistics(&s, i);
     heap_spaces[i] = String::NewFromUtf8(env->isolate(), s.space_name())
                                              .ToLocalChecked();
   }
   target
-      ->Set(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-          Array::New(env->isolate(), heap_spaces.out(), number_of_heap_spaces))
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
+            heap_spaces.ToArray())
       .Check();
 
   SetMethod(context,
@@ -828,6 +861,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetFlagsFromString);
   registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
+  registry->Register(SetHeapProfileNearHeapLimit);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);

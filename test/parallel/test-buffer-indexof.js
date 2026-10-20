@@ -309,6 +309,12 @@ assert.strictEqual(Buffer.from('aaaa').indexOf('你好', 'ucs2'), -1);
 assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
 {
+  const buf = Buffer.from('\u6881\u6882\u6881', 'utf16le');
+  assert.strictEqual(buf.indexOf('\u6881', 1, 'utf16le'), 4);
+  assert.strictEqual(buf.indexOf('\u6881', -1, 'utf16le'), -1);
+}
+
+{
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
   const indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
@@ -617,6 +623,32 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   const haystack = Buffer.from('a foo b foo');
   assert.strictEqual(haystack.indexOf(needle), 2);
   assert.strictEqual(haystack.lastIndexOf(needle), haystack.length - 3);
+}
+
+// UTF-8 string search should use the same replacement-character semantics
+// as Buffer.from() for unpaired UTF-16 surrogates.
+{
+  const prefix = 'a'.repeat(16);
+  const suffix = 'b'.repeat(16);
+  const needles = [
+    `${prefix}${String.fromCharCode(0xd800)}${suffix}`,
+    `${prefix}${String.fromCharCode(0xdc00)}${suffix}`,
+    JSON.parse(`{"needle":"${prefix}\\ud800${suffix}"}`).needle,
+  ];
+
+  for (const needle of needles) {
+    const needleBuffer = Buffer.from(needle, 'utf8');
+    const haystack = Buffer.concat([
+      Buffer.from('xx'),
+      needleBuffer,
+      Buffer.from('yy'),
+    ]);
+
+    assert.strictEqual(Buffer.byteLength(needle, 'utf8'), needleBuffer.length);
+    assert.strictEqual(haystack.indexOf(needle, 0, 'utf8'), 2);
+    assert.strictEqual(haystack.lastIndexOf(needle, haystack.length - 1, 'utf8'), 2);
+    assert.strictEqual(haystack.includes(needle, 0, 'utf8'), true);
+  }
 }
 
 // Avoid abort because of invalid usage

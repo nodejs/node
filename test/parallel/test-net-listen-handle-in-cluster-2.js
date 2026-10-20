@@ -14,7 +14,8 @@ if (cluster.isPrimary) {
   const handle = new TCP(TCPConstants.SOCKET);
   const errno = handle.bind('0.0.0.0', 0);
   assert.strictEqual(errno, 0);
-  // Execute _listen2 instead of cluster._getServer in listenInCluster
+  // Set up the listen handle directly instead of going through
+  // cluster._getServer in listenInCluster
   net.createServer().listen(handle, common.mustCall(() => {
     process.exit(0);
   }));

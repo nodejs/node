@@ -1,7 +1,16 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
-const { test, getTestContext, describe, it } = require('node:test');
+const {
+  test,
+  getTestContext,
+  describe,
+  it,
+  before,
+  after,
+  beforeEach,
+  afterEach,
+} = require('node:test');
 
 // Outside a test — must return undefined
 assert.strictEqual(getTestContext(), undefined);
@@ -37,6 +46,63 @@ describe('getTestContext returns SuiteContext in suite', () => {
     // Suite name appears as parent in nested test context
     assert.strictEqual(typeof ctx.signal, 'object');
     assert.strictEqual(typeof ctx.fullName, 'string');
+  });
+});
+
+describe('getTestContext inside hooks', () => {
+  const suiteName = 'getTestContext inside hooks';
+
+  before(common.mustCall((t) => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, suiteName);
+    assert.strictEqual(ctx.name, t.name);
+  }));
+
+  beforeEach(common.mustCall(() => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, suiteName);
+  }));
+
+  afterEach(common.mustCall(() => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, suiteName);
+  }));
+
+  after(common.mustCall((t) => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, suiteName);
+    assert.strictEqual(ctx.name, t.name);
+  }));
+
+  it('runs inside the suite', () => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, 'runs inside the suite');
+  });
+});
+
+test('getTestContext inside test-level hooks returns the parent test', async (t) => {
+  const parentName = t.name;
+  t.beforeEach(common.mustCall(() => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, parentName);
+  }));
+
+  t.afterEach(common.mustCall(() => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, parentName);
+  }));
+
+  await t.test('child', () => {
+    const ctx = getTestContext();
+    assert.ok(ctx !== undefined);
+    assert.strictEqual(ctx.name, 'child');
   });
 });
 

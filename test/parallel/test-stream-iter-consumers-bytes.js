@@ -14,6 +14,7 @@ const {
   arrayBufferSync,
   array,
   arraySync,
+  toAsyncStreamable,
 } = require('stream/iter');
 
 // =============================================================================
@@ -45,12 +46,84 @@ async function testBytesAsyncLimit() {
 }
 
 async function testBytesAsyncAbort() {
-  const ac = new AbortController();
-  ac.abort();
   await assert.rejects(
-    () => bytes(from('data'), { signal: ac.signal }),
+    () => bytes(from('data'), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
+}
+
+async function testAsyncConsumersAbortPendingNext() {
+  const consumers = [
+    ['bytes', bytes],
+    ['text', text],
+    ['arrayBuffer', arrayBuffer],
+    ['array', array],
+  ];
+
+  for (const [name, consumer] of consumers) {
+    const ac = new AbortController();
+    const reason = new Error(`${name} boom`);
+
+    async function* never() {
+      await new Promise(() => {});
+      yield [];
+    }
+
+    const promise = consumer(never(), { __proto__: null, signal: ac.signal });
+    ac.abort(reason);
+
+    await assert.rejects(promise, reason);
+  }
+}
+
+async function testAsyncConsumersAbortPendingNormalization() {
+  const consumers = [
+    ['bytes', bytes],
+    ['text', text],
+    ['arrayBuffer', arrayBuffer],
+    ['array', array],
+  ];
+
+  for (const [name, consumer] of consumers) {
+    const ac = new AbortController();
+    const reason = new Error(`${name} normalization boom`);
+    const source = {
+      __proto__: null,
+      [toAsyncStreamable]() {
+        return new Promise(() => {});
+      },
+    };
+
+    const promise = consumer(source, { __proto__: null, signal: ac.signal });
+    ac.abort(reason);
+
+    await assert.rejects(promise, reason);
+  }
+}
+
+async function testAsyncConsumerSignalPreservesProtocolPrecedence() {
+  let protocolCalls = 0;
+  let iteratorCalls = 0;
+  const source = {
+    __proto__: null,
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return from('protocol');
+    },
+    async *[Symbol.asyncIterator]() {
+      iteratorCalls++;
+      yield 'iterator';
+    },
+  };
+
+  const result = await text(source, {
+    __proto__: null,
+    signal: new AbortController().signal,
+  });
+
+  assert.strictEqual(result, 'protocol');
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 0);
 }
 
 async function testBytesEmpty() {
@@ -205,6 +278,9 @@ Promise.all([
   testBytesAsync(),
   testBytesAsyncLimit(),
   testBytesAsyncAbort(),
+  testAsyncConsumersAbortPendingNext(),
+  testAsyncConsumersAbortPendingNormalization(),
+  testAsyncConsumerSignalPreservesProtocolPrecedence(),
   testBytesEmpty(),
   testArrayBufferSyncBasic(),
   testArrayBufferAsync(),

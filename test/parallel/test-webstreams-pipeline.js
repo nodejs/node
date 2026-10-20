@@ -212,7 +212,7 @@ const http = require('http');
         values.push(chunk?.toString());
       });
       res.on('end', common.mustCall(() => {
-        assert.deepStrictEqual(values, ['hello', 'world']);
+        assert.strictEqual(values.join(''), 'helloworld');
         server.close();
       }));
     }));

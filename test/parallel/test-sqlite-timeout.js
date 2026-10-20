@@ -3,7 +3,7 @@ const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { test } = require('node:test');
 const { once } = require('node:events');
 const { Worker } = require('node:worker_threads');
@@ -17,7 +17,7 @@ function nextDb() {
 
 test('waits to acquire lock', async (t) => {
   const DB_PATH = nextDb();
-  const conn = new DatabaseSync(DB_PATH);
+  const conn = new Database(DB_PATH);
   t.after(() => {
     try {
       conn.close();
@@ -30,9 +30,9 @@ test('waits to acquire lock', async (t) => {
   conn.exec('BEGIN EXCLUSIVE;');
   const worker = new Worker(`
     'use strict';
-    const { DatabaseSync } = require('node:sqlite');
+    const { Database } = require('node:sqlite');
     const { workerData } = require('node:worker_threads');
-    const conn = new DatabaseSync(workerData.database, { timeout: 30000 });
+    const conn = new Database(workerData.database, { timeout: 30000 });
     conn.exec('SELECT * FROM data');
     conn.close();
   `, {
@@ -48,7 +48,7 @@ test('waits to acquire lock', async (t) => {
 
 test('throws if the lock cannot be acquired before timeout', (t) => {
   const DB_PATH = nextDb();
-  const conn1 = new DatabaseSync(DB_PATH);
+  const conn1 = new Database(DB_PATH);
   t.after(() => {
     try {
       conn1.close();
@@ -56,7 +56,7 @@ test('throws if the lock cannot be acquired before timeout', (t) => {
       // Ignore.
     }
   });
-  const conn2 = new DatabaseSync(DB_PATH, { timeout: 1 });
+  const conn2 = new Database(DB_PATH, { timeout: 1 });
   t.after(() => {
     try {
       conn2.close();

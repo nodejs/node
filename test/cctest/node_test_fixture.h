@@ -57,7 +57,8 @@ struct Argv {
 
 using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
       decltype(&node::FreeArrayBufferAllocator)>;
-using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
+using TracingAgentUniquePtr =
+    std::unique_ptr<node::tracing::Agent, node::tracing::Agent::Deleter>;
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
 class NodeTestEnvironment final : public ::testing::Environment {

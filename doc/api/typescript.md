@@ -82,6 +82,11 @@ Node.js will replace TypeScript syntax with whitespace,
 and no type checking is performed.
 To disable this feature, use the flag [`--no-strip-types`][].
 
+The built-in TypeScript parser requires WebAssembly. If WebAssembly is
+unavailable, parsing throws
+[`ERR_WEBASSEMBLY_NOT_SUPPORTED`](errors.md#err_webassembly_not_supported).
+Node.js does not provide a non-WebAssembly parser as a fallback.
+
 Node.js ignores `tsconfig.json` files and therefore
 features that depend on settings within `tsconfig.json`,
 such as paths or converting newer JavaScript syntax to older standards, are
@@ -217,6 +222,15 @@ To discourage package authors from publishing packages written in TypeScript,
 Node.js refuses to handle TypeScript files inside folders under a `node_modules`
 path.
 
+The [`--experimental-strip-private-modules`][] flag relaxes this restriction
+for packages whose `package.json` contains `"private": true`, such as
+workspace packages in a monorepo, which are not published to a registry.
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
+
 ### Paths aliases
 
 [`tsconfig` "paths"][] won't be transformed and therefore produce an error. The closest
@@ -226,6 +240,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`--experimental-strip-private-modules`]: cli.md#--experimental-strip-private-modules
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths

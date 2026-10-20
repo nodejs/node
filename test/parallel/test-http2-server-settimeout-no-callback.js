@@ -11,7 +11,8 @@ const http2 = require('http2');
 const verifyCallbacks = common.mustCall((server) => {
   const testTimeout = 10;
 
-  [true, 1, {}, [], null, 'test'].forEach((notFunction) => {
+  const testCases = [true, 1, {}, [], null, 'test'];
+  for (const notFunction of testCases) {
     assert.throws(
       () => server.setTimeout(testTimeout, notFunction),
       {
@@ -19,7 +20,7 @@ const verifyCallbacks = common.mustCall((server) => {
         code: 'ERR_INVALID_ARG_TYPE',
       }
     );
-  });
+  };
 
   // No callback
   const returnedVal = server.setTimeout(testTimeout);

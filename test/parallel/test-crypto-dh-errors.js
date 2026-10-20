@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 // https://github.com/nodejs/node/issues/32738
 // XXX(bnoordhuis) validateInt32() throwing ERR_OUT_OF_RANGE and RangeError
@@ -25,7 +25,7 @@ assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
 });
 
 for (const bits of [-1, 0, 1]) {
-  if (hasOpenSSL3) {
+  if (hasOpenSSL(3)) {
     assert.throws(() => crypto.createDiffieHellman(bits), {
       code: 'ERR_OSSL_DH_MODULUS_TOO_SMALL',
       name: 'Error',
@@ -99,6 +99,28 @@ assert.throws(
   'crypto.getDiffieHellman(\'unknown-group\') ' +
   'failed to throw the expected error.'
 );
+
+{
+  const group = crypto.getDiffieHellman('modp14');
+  const alice = crypto.createDiffieHellman(
+    group.getPrime(), group.getGenerator());
+  const bob = crypto.createDiffieHellman(
+    group.getPrime(), group.getGenerator());
+  bob.generateKeys();
+
+  assert.throws(
+    () => alice.computeSecret(bob.getPublicKey()),
+    {
+      name: 'Error',
+      code: 'ERR_CRYPTO_INVALID_STATE',
+      message: 'Cannot compute shared secret without a private key'
+    });
+
+  alice.generateKeys();
+  assert.deepStrictEqual(
+    alice.computeSecret(bob.getPublicKey()),
+    bob.computeSecret(alice.getPublicKey()));
+}
 
 assert.throws(
   () => crypto.createDiffieHellman('', true),

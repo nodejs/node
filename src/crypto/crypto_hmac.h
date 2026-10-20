@@ -40,7 +40,6 @@ class Hmac : public BaseObject {
 };
 
 struct HmacConfig final : public MemoryRetainer {
-  CryptoJobMode job_mode;
   SignConfiguration::Mode mode;
   KeyObjectData key;
   ByteSource data;

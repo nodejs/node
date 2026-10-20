@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -142,9 +142,24 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
     const BIGNUM *privkey;
     int off;
 
+    if (dgstlen < 0) {
+        ERR_raise(ERR_LIB_EC, EC_R_INVALID_LENGTH);
+        return NULL;
+    }
+
+    if (eckey == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
+        return NULL;
+    }
+
     group = EC_KEY_get0_group(eckey);
+    if (group == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
+        return NULL;
+    }
+
     privkey = EC_KEY_get0_private_key(eckey);
-    if (group == NULL || privkey == NULL) {
+    if (privkey == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
         return NULL;
     }
@@ -239,9 +254,24 @@ static int ecdsa_s390x_nistp_verify_sig(const unsigned char *dgst, int dgstlen,
     const EC_POINT *pubkey;
     int off;
 
+    if (dgstlen < 0) {
+        ERR_raise(ERR_LIB_EC, EC_R_INVALID_LENGTH);
+        return -1;
+    }
+
+    if (sig == NULL || eckey == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
+        return -1;
+    }
+
     group = EC_KEY_get0_group(eckey);
+    if (group == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
+        return -1;
+    }
+
     pubkey = EC_KEY_get0_public_key(eckey);
-    if (eckey == NULL || group == NULL || pubkey == NULL || sig == NULL) {
+    if (pubkey == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
         return -1;
     }

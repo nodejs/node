@@ -14,9 +14,12 @@
 
 #include "absl/strings/internal/cord_rep_crc.h"
 
+#include <cstdint>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/crc/crc32c.h"
 #include "absl/crc/internal/crc_cord_state.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_test_util.h"

@@ -173,7 +173,7 @@ class Request {
 
     this.method = method
 
-    this.typeOfService = typeOfService ?? 0
+    this.typeOfService = typeOfService
 
     this.abort = null
 
@@ -206,7 +206,12 @@ class Request {
       this.body = body.byteLength ? Buffer.from(body) : null
     } else if (typeof body === 'string') {
       this.body = body.length ? Buffer.from(body) : null
-    } else if (isFormDataLike(body) || isIterable(body) || isBlobLike(body)) {
+    } else if (isFormDataLike(body)) {
+      if (!isUndiciFormData(body)) {
+        throw new InvalidArgumentError('body must be a FormData created by this undici package instance; FormData from other sources, such as the built-in FormData provided by Node.js, is not supported')
+      }
+      this.body = body
+    } else if (isIterable(body) || isBlobLike(body)) {
       this.body = body
     } else {
       throw new InvalidArgumentError('body must be a string, a Buffer, a Readable stream, an iterable, or an async iterable')
@@ -225,7 +230,7 @@ class Request {
     this.protocol = getProtocolFromUrlString(origin)
 
     this.idempotent = idempotent == null
-      ? method === 'HEAD' || method === 'GET'
+      ? method === 'HEAD' || method === 'GET' || method === 'QUERY'
       : idempotent
 
     this.blocking = blocking ?? this.method !== 'HEAD'
@@ -368,9 +373,21 @@ class Request {
     }
   }
 
-  onRequestUpgrade (statusCode, headers, socket) {
+  /**
+   * @param {number} statusCode
+   * @param {Buffer[]|string[]|import('../../types/header.d.ts').IncomingHttpHeaders} headers
+   * @param {import('node:stream').Duplex} socket
+   * @param {string} [statusText]
+   */
+  onRequestUpgrade (statusCode, headers, socket, statusText = '') {
+    this.onFinally()
+
     assert(!this.aborted)
     assert(!this.completed)
+
+    if (channels.headers.hasSubscribers) {
+      channels.headers.publish({ request: this, response: { statusCode, headers, statusText } })
+    }
 
     const controller = this[kController]
     if (controller) {
@@ -379,7 +396,16 @@ class Request {
 
     const parsedHeaders = Array.isArray(headers) ? parseHeaders(headers) : headers
 
-    return this[kHandler].onRequestUpgrade?.(controller, statusCode, parsedHeaders, socket)
+    const result = this[kHandler].onRequestUpgrade?.(controller, statusCode, parsedHeaders, socket)
+
+    if (!this.aborted) {
+      this.completed = true
+      if (channels.trailers.hasSubscribers) {
+        channels.trailers.publish({ request: this, trailers: [] })
+      }
+    }
+
+    return result
   }
 
   onResponseEnd (trailers) {
@@ -472,7 +498,13 @@ function processHeader (request, key, val) {
       } else if (typeof val[i] === 'object') {
         throw new InvalidArgumentError(`invalid ${key} header`)
       } else {
-        arr.push(`${val[i]}`)
+        // Coerce primitives (and reject unsafe coercions such as functions
+        // with a crafted toString/Symbol.toPrimitive).
+        const str = `${val[i]}`
+        if (!isValidHeaderValue(str)) {
+          throw new InvalidArgumentError(`invalid ${key} header`)
+        }
+        arr.push(str)
       }
     }
     val = arr
@@ -483,7 +515,12 @@ function processHeader (request, key, val) {
   } else if (val === null) {
     val = ''
   } else {
+    // Coerce primitives (and reject unsafe coercions such as functions
+    // with a crafted toString/Symbol.toPrimitive).
     val = `${val}`
+    if (!isValidHeaderValue(val)) {
+      throw new InvalidArgumentError(`invalid ${key} header`)
+    }
   }
 
   if (headerName === 'host') {
@@ -530,6 +567,16 @@ function processHeader (request, key, val) {
   } else {
     request.headers.push(key, val)
   }
+}
+
+let isFormData
+
+function isUndiciFormData (body) {
+  if (isFormData === undefined) {
+    require('../web/fetch/formdata')
+    isFormData = require('../web/webidl').webidl.is.FormData
+  }
+  return isFormData(body)
 }
 
 module.exports = Request

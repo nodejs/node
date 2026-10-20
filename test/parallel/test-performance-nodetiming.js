@@ -10,6 +10,26 @@ assert.strictEqual(nodeTiming.name, 'node');
 assert.strictEqual(nodeTiming.entryType, 'node');
 
 assert.strictEqual(nodeTiming.startTime, 0);
+
+// uvMetricsInfoBigInt holds bigint values, which JSON.stringify() cannot
+// serialize, so it must not be part of the JSON representation, nor be copied
+// along with the enumerable properties.
+assert.strictEqual(typeof nodeTiming.uvMetricsInfoBigInt.loopCount, 'bigint');
+assert.strictEqual(
+  Object.getOwnPropertyDescriptor(nodeTiming, 'uvMetricsInfoBigInt').enumerable,
+  false);
+assert.strictEqual(
+  Object.hasOwn(JSON.parse(JSON.stringify(nodeTiming)), 'uvMetricsInfoBigInt'),
+  false);
+assert.strictEqual(
+  Object.hasOwn(JSON.parse(JSON.stringify(performance)).nodeTiming,
+                'uvMetricsInfoBigInt'),
+  false);
+{
+  const copy = { ...nodeTiming };
+  assert.strictEqual(Object.hasOwn(copy, 'uvMetricsInfoBigInt'), false);
+  assert.strictEqual(typeof JSON.stringify(copy), 'string');
+}
 const now = performance.now();
 assert.ok(nodeTiming.duration >= now);
 

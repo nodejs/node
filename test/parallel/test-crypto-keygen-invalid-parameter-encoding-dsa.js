@@ -4,7 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasFIPS } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support DSA key pair generation');
 
 const assert = require('assert');
@@ -12,6 +14,8 @@ const assert = require('assert');
 const {
   generateKeyPairSync,
 } = require('crypto');
+
+const fips3 = hasFIPS(3);
 
 // Test invalid parameter encoding.
 {
@@ -25,7 +29,8 @@ const {
     }
   }), {
     name: 'Error',
-    code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE',
-    message: 'Unsupported JWK Key Type.'
+    code: fips3 ? 'ERR_OSSL_DSA_BAD_FFC_PARAMETERS' :
+      'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE',
+    ...!fips3 && { message: 'Unsupported JWK Key Type.' },
   });
 }

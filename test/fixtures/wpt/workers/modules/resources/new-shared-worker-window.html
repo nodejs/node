@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>SharedWorker: new SharedWorker()</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+let worker;
+
+// Create a new shared worker for a given script url.
+window.onmessage = e => {
+  worker = new SharedWorker(e.data.scriptURL,
+                            { name: e.data.name, type: 'module' });
+  worker.port.onmessage = msg => window.opener.postMessage(msg.data, '*');
+  worker.onerror = err => {
+    window.opener.postMessage(['ERROR'], '*');
+    err.preventDefault();
+  };
+}
+window.opener.postMessage('LOADED', '*');
+</script>

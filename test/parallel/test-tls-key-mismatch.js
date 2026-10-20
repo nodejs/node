@@ -27,13 +27,13 @@ if (!common.hasCrypto) {
 }
 
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const tls = require('tls');
-const errorMessageRegex = process.features.openssl_is_boringssl ?
+const errorMessageRegex = isBoringSSL ?
   /^Error: error:0b000074:X\.509 certificate routines:OPENSSL_internal:KEY_VALUES_MISMATCH$/ :
-  hasOpenSSL3 ?
+  hasOpenSSL(3) ?
     /^Error: error:05800074:x509 certificate routines::key values mismatch$/ :
     /^Error: error:0B080074:x509 certificate routines:X509_check_private_key:key values mismatch$/;
 

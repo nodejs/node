@@ -40,10 +40,15 @@ constexpr int kMaxLoadLiteralRange = 1 * MB;
 
 constexpr int kNumberOfRegisters = 32;
 constexpr int kNumberOfVRegisters = 32;
+constexpr int kNumberOfZRegisters = kNumberOfVRegisters;
 // Callee saved registers are x19-x28.
 constexpr int kNumberOfCalleeSavedRegisters = 10;
 // Callee saved FP registers are d8-d15.
-constexpr int kNumberOfCalleeSavedVRegisters = 8;
+constexpr int kNumberOfCalleeSavedDRegisters = 8;
+// AAPCS64 only requires the callee to preserve the *lower* 64 bits of v8-v15
+// (which are essentially the d8-d15 registers), thus none of the 128-bit
+// V registers are callee-saved.
+constexpr int kNumberOfCalleeSavedVRegisters = 0;
 constexpr int kWRegSizeInBits = 32;
 constexpr int kWRegSizeInBitsLog2 = 5;
 constexpr int kWRegSize = kWRegSizeInBits >> 3;
@@ -531,6 +536,13 @@ constexpr NEONScalarFormatField NEON_B = 0x00000000;
 constexpr NEONScalarFormatField NEON_H = 0x00400000;
 constexpr NEONScalarFormatField NEON_S = 0x00800000;
 constexpr NEONScalarFormatField NEON_D = 0x00C00000;
+
+using SVESizeField = uint32_t;
+constexpr SVESizeField SVESizeFieldMask = 0x00C00000;
+constexpr SVESizeField SVE_B = 0x00000000;
+constexpr SVESizeField SVE_H = 0x00400000;
+constexpr SVESizeField SVE_S = 0x00800000;
+constexpr SVESizeField SVE_D = 0x00C00000;
 
 // PC relative addressing.
 using PCRelAddressingOp = uint32_t;
@@ -2471,6 +2483,7 @@ constexpr NEONSHA3Op NEONSHA3FMask = 0xce000000;
 constexpr NEONSHA3Op NEONSHA3Mask = 0xcee00000;
 constexpr NEONSHA3Op NEON_BCAX = NEONSHA3Fixed | 0x00200000;
 constexpr NEONSHA3Op NEON_EOR3 = NEONSHA3Fixed;
+constexpr NEONSHA3Op NEON_XAR = NEONSHA3Fixed | 0x00800000;
 
 // NEON perm.
 using NEONPermOp = uint32_t;
@@ -2644,6 +2657,13 @@ constexpr NEONScalar3DiffOp NEON_SQDMLSL_scalar =
     NEON_Q | NEONScalar | NEON_SQDMLSL;
 constexpr NEONScalar3DiffOp NEON_SQDMULL_scalar =
     NEON_Q | NEONScalar | NEON_SQDMULL;
+
+// SVE bit permute instructions
+using SVEBitPermOp = uint32_t;
+constexpr SVEBitPermOp SVEBitPermFixed = 0x4500B000;
+constexpr SVEBitPermOp SVEBitPermFMask = 0xFF20F000;
+constexpr SVEBitPermOp SVEBitPermMask = 0xFF20FC00;
+constexpr SVEBitPermOp BEXT = SVEBitPermFixed;
 
 // Unimplemented and unallocated instructions. These are defined to make fixed
 // bit assertion easier.

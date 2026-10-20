@@ -1,0 +1,52 @@
+[package]
+name = "libm"
+version = "0.2.16"
+authors = [
+    "Alex Crichton <alex@alexcrichton.com>",
+    "Amanieu d'Antras <amanieu@gmail.com>",
+    "Jorge Aparicio <japaricious@gmail.com>",
+    "Trevor Gross <tg@trevorgross.com>",
+]
+description = "libm in pure Rust"
+categories = ["no-std"]
+keywords = ["libm", "math"]
+repository = "https://github.com/rust-lang/compiler-builtins"
+license = "MIT"
+edition = "2021"
+rust-version = "1.63"
+
+[features]
+default = ["arch"]
+
+# Enable architecture-specific features such as SIMD or assembly routines.
+arch = []
+
+# This tells the compiler to assume that a Nightly toolchain is being used and
+# that it should activate any useful Nightly things accordingly.
+unstable = ["unstable-intrinsics", "unstable-float"]
+
+# Enable calls to functions in `core::intrinsics`
+unstable-intrinsics = []
+
+# Make some internal things public for testing.
+unstable-public-internals = []
+
+# Enable the nightly-only `f16` and `f128`.
+unstable-float = []
+
+# Used to prevent using any intrinsics or arch-specific code.
+#
+# HACK: this is a negative feature which is generally a bad idea in Cargo, but
+# we need it to be able to forbid other features when this crate is used in
+# Rust dependencies. Setting this overrides all features that may enable
+# hard float operations.
+force-soft-floats = []
+
+[dev-dependencies]
+no-panic = "0.1.35"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  # compiler-builtins sets this feature, but we use it in `libm`
+  'cfg(feature, values("compiler-builtins"))',
+] }

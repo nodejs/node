@@ -1,4 +1,4 @@
-// META: global=window,dedicatedworker,shadowrealm
+// META: global=window,dedicatedworker
 
 test(function() {
     assert_own_property(self, "DOMException", "property of global");

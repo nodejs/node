@@ -7,13 +7,10 @@
 // because the stored transport params are more permissive than
 // the current ones. The connection falls back to 1-RTT.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import * as fixtures from '../common/fixtures.mjs';
-
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -22,15 +19,15 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 const tokenSecret = randomBytes(16);
 
 // quic.session.early.rejected fires when 0-RTT is rejected.
 dc.subscribe('quic.session.early.rejected', mustCall((msg) => {
-  ok(msg.session, 'early.rejected should include session');
+  assert.ok(msg.session, 'early.rejected should include session');
 }));
 
 let savedTicket;
@@ -53,6 +50,7 @@ const ep1 = await listen(async (serverSession) => {
 
 const cs1 = await connect(ep1.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   onsessionticket: mustCall((ticket) => {
     savedTicket = ticket;
     gotTicket.resolve();
@@ -83,14 +81,15 @@ const ep2 = await listen((serverSession) => {
     initialMaxStreamsBidi: 10,
     initialMaxData: 1048576,
   },
-  onerror(err) { ok(err); },
+  onerror: mustNotCall(),
 });
 
 const cs2 = await connect(ep2.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
-  onerror(err) { ok(err); },
+  onerror: mustNotCall(),
   onearlyrejected() {},
 });
 
@@ -102,8 +101,8 @@ await cs2.createBidirectionalStream({
 
 const info2 = await cs2.opened;
 // 0-RTT was attempted but rejected due to changed transport params.
-strictEqual(info2.earlyDataAttempted, true);
-strictEqual(info2.earlyDataAccepted, false);
+assert.strictEqual(info2.earlyDataAttempted, true);
+assert.strictEqual(info2.earlyDataAccepted, false);
 
 // The 0-RTT stream may have been destroyed by EarlyDataRejected.
 // Close from the client side.

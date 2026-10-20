@@ -27,7 +27,7 @@ const url = require('url');
 
 const expectedRequests = ['/hello', '/there', '/world'];
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   assert.strictEqual(expectedRequests.shift(), req.url);
 
   switch (req.url) {

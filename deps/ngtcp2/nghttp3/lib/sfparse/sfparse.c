@@ -34,18 +34,18 @@
 #  include <immintrin.h>
 #endif /* __AVX2__ */
 
-#define SFPARSE_STATE_DICT 0x08u
-#define SFPARSE_STATE_LIST 0x10u
-#define SFPARSE_STATE_ITEM 0x18u
+#define SFPARSE_STATE_DICT 0x08U
+#define SFPARSE_STATE_LIST 0x10U
+#define SFPARSE_STATE_ITEM 0x18U
 
-#define SFPARSE_STATE_INNER_LIST 0x04u
+#define SFPARSE_STATE_INNER_LIST 0x04U
 
-#define SFPARSE_STATE_BEFORE 0x00u
-#define SFPARSE_STATE_BEFORE_PARAMS 0x01u
-#define SFPARSE_STATE_PARAMS 0x02u
-#define SFPARSE_STATE_AFTER 0x03u
+#define SFPARSE_STATE_BEFORE 0x00U
+#define SFPARSE_STATE_BEFORE_PARAMS 0x01U
+#define SFPARSE_STATE_PARAMS 0x02U
+#define SFPARSE_STATE_AFTER 0x03U
 
-#define SFPARSE_STATE_OP_MASK 0x03u
+#define SFPARSE_STATE_OP_MASK 0x03U
 
 #define SFPARSE_SET_STATE_AFTER(NAME)                                          \
   (SFPARSE_STATE_##NAME | SFPARSE_STATE_AFTER)
@@ -69,7 +69,7 @@
 #define SFPARSE_STATE_ITEM_INNER_LIST_BEFORE                                   \
   SFPARSE_SET_STATE_INNER_LIST_BEFORE(ITEM)
 
-#define SFPARSE_STATE_INITIAL 0x00u
+#define SFPARSE_STATE_INITIAL 0x00U
 
 #define LCALPHAS                                                               \
   ['a'] = 1, ['b'] = 1, ['c'] = 1, ['d'] = 1, ['e'] = 1, ['f'] = 1, ['g'] = 1, \
@@ -200,7 +200,7 @@ static int parser_key(sfparse_parser *sfp, sfparse_vec *dest) {
 
 #ifdef __AVX2__
   if (sfp->end - sfp->pos >= 32) {
-    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1fu);
+    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1FU);
 
     sfp->pos = find_char_key(sfp->pos, last);
     if (sfp->pos != last) {
@@ -349,7 +349,7 @@ static const uint8_t *find_char_string(const uint8_t *first,
                                        const uint8_t *last) {
   const __m256i bs = _mm256_set1_epi8('\\');
   const __m256i dq = _mm256_set1_epi8('"');
-  const __m256i del = _mm256_set1_epi8(0x7f);
+  const __m256i del = _mm256_set1_epi8(0x7F);
   const __m256i sp = _mm256_set1_epi8(' ');
   __m256i s, x;
   uint32_t m;
@@ -394,7 +394,7 @@ static int parser_string(sfparse_parser *sfp, sfparse_value *dest) {
 
 #ifdef __AVX2__
   for (; sfp->end - sfp->pos >= 32; ++sfp->pos) {
-    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1fu);
+    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1FU);
 
     sfp->pos = find_char_string(sfp->pos, last);
     if (sfp->pos == last) {
@@ -541,7 +541,7 @@ static int parser_token(sfparse_parser *sfp, sfparse_value *dest) {
 
 #ifdef __AVX2__
   if (sfp->end - sfp->pos >= 32) {
-    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1fu);
+    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1FU);
 
     sfp->pos = find_char_token(sfp->pos, last);
     if (sfp->pos != last) {
@@ -622,7 +622,7 @@ static int parser_byteseq(sfparse_parser *sfp, sfparse_value *dest) {
 
 #ifdef __AVX2__
   if (sfp->end - sfp->pos >= 32) {
-    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1fu);
+    last = sfp->pos + ((sfp->end - sfp->pos) & ~0x1FU);
     sfp->pos = find_char_byteseq(sfp->pos, last);
   }
 #endif /* __AVX2__ */
@@ -1429,8 +1429,8 @@ void sfparse_base64decode(sfparse_vec *dest, const sfparse_vec *src) {
     }
 
     *o++ = (uint8_t)(n >> 16);
-    *o++ = (n >> 8) & 0xffu;
-    *o++ = n & 0xffu;
+    *o++ = (n >> 8) & 0xFFU;
+    *o++ = n & 0xFFU;
   }
 
   switch (left) {
@@ -1467,8 +1467,8 @@ void sfparse_base64decode(sfparse_vec *dest, const sfparse_vec *src) {
     n = (uint32_t)(index_tbl[*p++] << 10);
     n += (uint32_t)(index_tbl[*p++] << 4);
     n += (uint32_t)(index_tbl[*p++] >> 2);
-    *o++ = (n >> 8) & 0xffu;
-    *o++ = n & 0xffu;
+    *o++ = (n >> 8) & 0xFFU;
+    *o++ = n & 0xFFU;
 
     break;
   }

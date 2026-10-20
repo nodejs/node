@@ -12,7 +12,7 @@ assertTrue(descriptor.configurable);
 let segmenterPrototype = Object.getPrototypeOf(seg);
 assertEquals("Intl.Segmenter", segmenterPrototype[Symbol.toStringTag]);
 
-// ecma402 #sec-Intl.Segmenter.prototype
+// https://tc39.es/ecma402/#sec-Intl.Segmenter.prototype
 // Intl.Segmenter.prototype
 // The value of Intl.Segmenter.prototype is %SegmenterPrototype%.
 // This property has the attributes

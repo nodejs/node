@@ -17,10 +17,10 @@
 absl_cc_library(
   NAME
     any_invocable
-  SRCS
-    "internal/any_invocable.h"
   HDRS
     "any_invocable.h"
+  SRCS
+    "internal/any_invocable.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -36,8 +36,11 @@ absl_cc_test(
   NAME
     any_invocable_test
   SRCS
-    "any_invocable_test.cc"
-    "internal/any_invocable.h"
+    "any_invocable_test.h"
+    "any_invocable_test_inst1.cc"
+    "any_invocable_test_inst2.cc"
+    "any_invocable_test_inst3.cc"
+    "any_invocable_test_inst4.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
@@ -52,11 +55,40 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
-    bind_front
+    bind_back
+  HDRS
+    "bind_back.h"
   SRCS
-    "internal/front_binder.h"
+    "internal/back_binder.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::compressed_tuple
+    absl::config
+    absl::utility
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    bind_back_test
+  SRCS
+    "bind_back_test.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::bind_back
+    absl::memory
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    bind_front
   HDRS
     "bind_front.h"
+  SRCS
+    "internal/front_binder.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -80,16 +112,16 @@ absl_cc_test(
 absl_cc_library(
   NAME
     function_ref
-  SRCS
-    "internal/function_ref.h"
   HDRS
     "function_ref.h"
+  SRCS
+    "internal/function_ref.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::any_invocable
     absl::config
     absl::core_headers
-    absl::any_invocable
     absl::meta
     absl::utility
   PUBLIC
@@ -135,6 +167,5 @@ absl_cc_test(
     absl::overload
     absl::string_view
     absl::strings
-    absl::variant
     GTest::gmock_main
 )

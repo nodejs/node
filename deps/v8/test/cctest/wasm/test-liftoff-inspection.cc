@@ -22,8 +22,7 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        wasm_runner_(nullptr, kWasmOrigin, TestExecutionTier::kLiftoff, 0,
-                     isolate_) {
+        wasm_runner_(nullptr, TestExecutionTier::kLiftoff, 0, isolate_) {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.
@@ -153,10 +152,8 @@ class LiftoffCompileEnvironment {
         native_module->wire_bytes().SubVector(function->code.offset(),
                                               function->code.end_offset());
 
-    bool is_shared =
-        native_module->module()->type(function->sig_index).is_shared;
     FunctionBody body{sig, 0, function_wire_bytes.begin(),
-                      function_wire_bytes.end(), is_shared};
+                      function_wire_bytes.end()};
     return {code, body};
   }
 
@@ -373,9 +370,11 @@ TEST(Liftoff_debug_side_table_indirect_call) {
           {1, {Stack(0, kWasmI32)}},
           // OOL stack check, local still spilled.
           {1, {}},
-          // OOL trap (invalid index), local still spilled, stack has {kConst,
-          // kStack}.
-          {3, {Constant(1, kWasmI32, kConst), Stack(2, kWasmI32)}},
+          // OOL trap (invalid index), local 0 and stack slot 2 are in
+          // registers.
+          {3,
+           {Register(0, kWasmI32), Constant(1, kWasmI32, kConst),
+            Register(2, kWasmI32)}},
           // OOL trap (null func), stack unmodified.
           {3, {}},
           // OOL trap (sig mismatch), stack unmodified.
@@ -413,8 +412,14 @@ TEST(Liftoff_debug_side_table_trap) {
           {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
           // OOL stack check, local spilled, stack empty.
           {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
-          // OOL trap (div by zero), stack as before.
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+          // OOL trap (div by zero), locals are spilled because of
+          // SpillDivRegisters on x64 and ia32.
           {2, {}},
+#else
+          // OOL trap (div by zero), locals back in registers.
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
+#endif
           // OOL trap (unrepresentable), stack as before.
           {2, {}},
       },

@@ -5,8 +5,8 @@
 // Flags: --allow-natives-syntax --no-assert-types
 // Flags: --turboshaft-enable-debug-features
 
-// Check that the branch elimination replace the redundant branch condition with
-// a phi node, and then the branch is folded in EffectControlLinearizationPhase.
+// Check that branch elimination correctly simplify the double-diamond
+// introduced by the 2 subsequent conditionals with the same condition.
 function foo(cond, v1, v2) {
   cond = cond | 0;
   var a = cond == 1 ? v1 : v2;

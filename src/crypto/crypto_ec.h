@@ -13,6 +13,8 @@
 #include "node_internals.h"
 #include "v8.h"
 
+#include <string>
+
 namespace node {
 namespace crypto {
 
@@ -48,17 +50,21 @@ class ECDH final : public BaseObject {
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  void MaybeCacheValidKeyPair(uint64_t generation);
   bool IsKeyPairValid();
   bool IsKeyValidForCurve(const ncrypto::BignumPointer& private_key);
 
   ncrypto::ECKeyPointer key_;
   const EC_GROUP* group_;
+  bool has_valid_key_pair_ = false;
+  uint64_t valid_key_pair_generation_ = 0;
 };
 
 struct EcKeyPairParams final : public MemoryRetainer {
-  int curve_nid;
+  const ncrypto::KeyAlgorithm* algorithm = nullptr;
+  std::string curve_name;
   int param_encoding;
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(EcKeyPairParams)
   SET_SELF_SIZE(EcKeyPairParams)
 };
@@ -83,12 +89,6 @@ using ECKeyPairGenJob = KeyGenJob<KeyPairGenTraits<EcKeyGenTraits>>;
 bool ExportJWKEcKey(Environment* env,
                     const KeyObjectData& key,
                     v8::Local<v8::Object> target);
-
-bool ExportJWKEdKey(Environment* env,
-                    const KeyObjectData& key,
-                    v8::Local<v8::Object> target);
-
-KeyObjectData ImportJWKEdKey(Environment* env, v8::Local<v8::Object> jwk);
 
 KeyObjectData ImportJWKEcKey(Environment* env, v8::Local<v8::Object> jwk);
 

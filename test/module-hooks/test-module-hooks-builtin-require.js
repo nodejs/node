@@ -1,3 +1,4 @@
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 // This tests that when builtins that demand the `node:` prefix are
@@ -11,6 +12,8 @@ const assert = require('assert');
 const { registerHooks } = require('module');
 
 const schemelessBlockList = new Set([
+  'bench',
+  'bench/reporters',
   'sea',
   'test',
   'test/reporters',

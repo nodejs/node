@@ -123,6 +123,7 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       const stream = run({
         files,
         coverage: true,
+        coverageExcludeGlobs: '!test/**',
         coverageIncludeGlobs: ['test/fixtures/test-runner/coverage.js', 'test/*/v8-coverage/throw.js'],
       });
       stream.on('test:fail', common.mustNotCall());
@@ -153,11 +154,21 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       for await (const _ of stream);
     });
 
-    await it('should run with coverage and fail when below line threshold', async () => {
+    await it('should run with coverage and fail when below line threshold', async (t) => {
       const thresholdErrors = [];
       const originalExitCode = process.exitCode;
-      assert.notStrictEqual(originalExitCode, 1);
-      const stream = run({ files, coverage: true, lineCoverage: 99, branchCoverage: 99, functionCoverage: 99 });
+      t.after(() => {
+        process.exitCode = originalExitCode;
+      });
+      process.exitCode = undefined;
+      const stream = run({
+        files,
+        coverage: true,
+        coverageExcludeGlobs: '!test/**',
+        lineCoverage: 99,
+        branchCoverage: 99,
+        functionCoverage: 99,
+      });
       stream.on('test:fail', common.mustNotCall());
       stream.on('test:pass', common.mustCall(1));
       stream.on('test:diagnostic', ({ message }) => {
@@ -170,7 +181,6 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       for await (const _ of stream);
       assert.deepStrictEqual(thresholdErrors.sort(), ['branch', 'function', 'line']);
       assert.strictEqual(process.exitCode, 1);
-      process.exitCode = originalExitCode;
     });
   });
 });

@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { ok, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -26,7 +25,7 @@ async function transferAndGetPacketCount(maxPayloadSize) {
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(received.byteLength, dataLength);
+      assert.strictEqual(received.byteLength, dataLength);
       stream.writer.endSync();
       await stream.closed;
       serverSession.close();
@@ -40,7 +39,7 @@ async function transferAndGetPacketCount(maxPayloadSize) {
 
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise]);
 
   const pktSent = clientSession.stats.pktSent;
@@ -54,5 +53,5 @@ const smallPkts = await transferAndGetPacketCount(1200);
 
 // With the same or default payload size, packet counts should be similar.
 // The key assertion: the option is accepted and data transfers correctly.
-ok(defaultPkts > 0n);
-ok(smallPkts > 0n);
+assert.ok(defaultPkts > 0n);
+assert.ok(smallPkts > 0n);

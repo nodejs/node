@@ -198,7 +198,7 @@ t.test('ping exception with code', async t => {
     ...dirs,
   })
   tnock(t, npm.config.get('registry'))
-    .get('/-/ping').replyWithError({ message: 'Test Error', code: 'TEST' })
+    .get('/-/ping').replyWithError(Object.assign(new Error('Test Error'), { code: 'TEST' }))
     .get('/npm').reply(200, npmManifest(npm.version))
   tnock(t, 'https://nodejs.org')
     .get('/dist/index.json').reply(200, nodeVersions)
@@ -214,7 +214,7 @@ t.test('ping exception without code', async t => {
     ...dirs,
   })
   tnock(t, npm.config.get('registry'))
-    .get('/-/ping').replyWithError({ message: 'Test Error', code: false })
+    .get('/-/ping').replyWithError(Object.assign(new Error('Test Error'), { code: false }))
     .get('/npm').reply(200, npmManifest(npm.version))
   tnock(t, 'https://nodejs.org')
     .get('/dist/index.json').reply(200, nodeVersions)

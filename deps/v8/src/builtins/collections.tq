@@ -45,8 +45,8 @@ extern macro CollectionsBuiltinsAssembler::TableHasKey(
 extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
     implicit context: Context)(OrderedHashSet, JSAny): Smi labels NotFound;
 
-extern runtime OrderedHashSetShrink(implicit context: Context)(
-                                    OrderedHashSet): OrderedHashSet;
+extern runtime OrderedHashSetShrink(implicit context: Context)(OrderedHashSet):
+    OrderedHashSet;
 
 // Direct iteration helpers.
 @export
@@ -249,8 +249,8 @@ macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
 }
 
 @export
-transitioning macro LoadKeyValuePair(implicit context: Context)(
-                                     o: JSAny): KeyValuePair {
+transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
+    KeyValuePair {
   try {
     return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
   } label Generic {

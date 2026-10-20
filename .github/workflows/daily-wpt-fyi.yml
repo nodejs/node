@@ -13,6 +13,7 @@ on:
     - cron: 30 0 * * *
 
 env:
+  # WPT's pywebsocket3 still uses CGIHTTPRequestHandler, removed in Python 3.15.
   PYTHON_VERSION: '3.14'
 
 permissions:
@@ -39,12 +40,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
-      - name: Environment Information
-        run: npx envinfo
 
       # install a version and checkout
       - name: Get latest nightly
@@ -52,7 +51,7 @@ jobs:
         run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-arm64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
@@ -64,7 +63,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -80,7 +79,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false
@@ -107,33 +106,15 @@ jobs:
           else
             echo "UNDICI_WPT=legacy" >> $GITHUB_ENV
           fi
-      # Checkout composite actions from the default branch since the
-      # version-specific checkout above overwrites .github/actions/
-      - name: Checkout undici WPT actions
-        if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          sparse-checkout: |
-            .github/actions/undici-wpt-current
-            .github/actions/undici-wpt-legacy
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-          path: _wpt_actions
-          clean: false
-      - name: Place undici WPT actions
-        if: ${{ env.WPT_REPORT != '' }}
-        run: |
-          mkdir -p .github/actions
-          cp -r _wpt_actions/.github/actions/undici-wpt-* .github/actions/
       - name: Run undici WPT (current)
         if: ${{ env.UNDICI_WPT == 'current' }}
-        uses: ./.github/actions/undici-wpt-current
+        uses: $/.github/actions/undici-wpt-current
         with:
           undici-version: ${{ env.UNDICI_VERSION }}
           wpt-report: ${{ env.WPT_REPORT }}
       - name: Run undici WPT (legacy)
         if: ${{ env.UNDICI_WPT == 'legacy' }}
-        uses: ./.github/actions/undici-wpt-legacy
+        uses: $/.github/actions/undici-wpt-legacy
         with:
           undici-version: ${{ env.UNDICI_VERSION }}
           wpt-report: ${{ env.WPT_REPORT }}
@@ -142,7 +123,9 @@ jobs:
       - name: Clone report for upload
         if: ${{ env.WPT_REPORT != '' }}
         working-directory: out/wpt
-        run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
+        run: cp wptreport.json "wptreport-$NODE_VERSION.json"
+        env:
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -153,12 +136,13 @@ jobs:
       - name: Upload WPT Report to wpt.fyi API
         if: ${{ env.WPT_REPORT != '' }}
         env:
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
           WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
           WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
         working-directory: out/wpt
         run: |
           gzip wptreport.json
-          echo "## Node.js ${{ steps.setup-node.outputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Node.js $NODE_VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "WPT Revision: [\`${WPT_REVISION:0:7}\`](https://github.com/web-platform-tests/wpt/commits/$WPT_REVISION)" >> $GITHUB_STEP_SUMMARY
           for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"

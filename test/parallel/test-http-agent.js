@@ -27,7 +27,7 @@ const http = require('http');
 
 const N = 4;
 const M = 4;
-const server = http.Server(common.mustCall(function(req, res) {
+const server = new http.Server(common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 }, (N * M))); // N * M = good requests (the errors will not be counted)

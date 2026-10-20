@@ -35,7 +35,7 @@ const EXIT_CODE = 42;
 
 if (cluster.isWorker) {
   const http = require('http');
-  const server = http.Server(() => { });
+  const server = new http.Server(() => { });
 
   server.once('listening', common.mustCall(() => {
     process.exit(EXIT_CODE);

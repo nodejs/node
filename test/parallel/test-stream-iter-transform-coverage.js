@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setTimeout } = require('timers/promises');
 const {
   from,
   pull,
@@ -53,6 +54,52 @@ async function testEarlyConsumerExit() {
     break; // Early exit — should trigger finally block cleanup
   }
   // If we get here without hanging or crashing, cleanup worked
+}
+
+async function testPrefetchedRejectionIsHandled() {
+  const reason = new Error('prefetched read failed');
+  let reads = 0;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() { return this; },
+    next() {
+      if (reads++ === 0) {
+        return Promise.resolve({
+          __proto__: null,
+          done: false,
+          value: [Buffer.alloc(1024 * 1024, 0x61)],
+        });
+      }
+      return Promise.reject(reason);
+    },
+    return() { return { __proto__: null, done: true }; },
+  };
+  const controller = new AbortController();
+  const transformed = compressGzip().transform(source, {
+    signal: controller.signal,
+  });
+
+  await assert.rejects(bytes(transformed), (error) => error === reason);
+}
+
+async function testReturnDoesNotAwaitPrefetchedRead() {
+  const never = new Promise(() => {});
+  async function* source() {
+    yield [Buffer.alloc(1024 * 1024, 0x61)];
+    await never;
+  }
+  const controller = new AbortController();
+  const iterator = compressGzip().transform(source(), {
+    signal: controller.signal,
+  })[Symbol.asyncIterator]();
+
+  const first = await iterator.next();
+  assert.strictEqual(first.done, false);
+  const returned = await Promise.race([
+    iterator.return().then(() => true),
+    setTimeout(100, false),
+  ]);
+  assert.strictEqual(returned, true);
 }
 
 // Gzip with explicit strategy option
@@ -110,6 +157,8 @@ async function testInvalidChunkSize() {
 Promise.all([
   testAbortMidCompression(),
   testEarlyConsumerExit(),
+  testPrefetchedRejectionIsHandled(),
+  testReturnDoesNotAwaitPrefetchedRead(),
   testGzipWithStrategy(),
   testDeflateWithFixedStrategy(),
   testBrotliWithParams(),

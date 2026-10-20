@@ -6,10 +6,6 @@ import { MockCallHistory } from './mock-call-history'
 
 export default MockAgent
 
-interface PendingInterceptor extends MockDispatch {
-  origin: string;
-}
-
 /** A mocked Agent class that implements the Agent API. It allows one to intercept HTTP requests made through undici and return mocked responses instead. */
 declare class MockAgent<TMockAgentOptions extends MockAgent.Options = MockAgent.Options> extends Dispatcher {
   constructor (options?: TMockAgentOptions)
@@ -40,17 +36,22 @@ declare class MockAgent<TMockAgentOptions extends MockAgent.Options = MockAgent.
   enableCallHistory (): this
   /** Disable call history. Any subsequence calls will then not be registered. */
   disableCallHistory (): this
-  pendingInterceptors (): PendingInterceptor[]
+  pendingInterceptors (): MockAgent.PendingInterceptor[]
   assertNoPendingInterceptors (options?: {
-    pendingInterceptorsFormatter?: PendingInterceptorsFormatter;
+    pendingInterceptorsFormatter?: MockAgent.PendingInterceptorsFormatter;
   }): void
 }
 
-interface PendingInterceptorsFormatter {
-  format(pendingInterceptors: readonly PendingInterceptor[]): string;
-}
-
 declare namespace MockAgent {
+  /** An interceptor that was registered on a mock dispatcher and has not been consumed yet. */
+  export interface PendingInterceptor extends MockDispatch {
+    origin: string;
+  }
+
+  export interface PendingInterceptorsFormatter {
+    format(pendingInterceptors: readonly PendingInterceptor[]): string;
+  }
+
   /** MockAgent options. */
   export interface Options extends Agent.Options {
     /** A custom agent to be encapsulated by the MockAgent. */

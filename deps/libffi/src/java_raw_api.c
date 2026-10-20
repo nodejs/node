@@ -58,7 +58,8 @@ ffi_java_raw_size (ffi_cif *cif)
 	  result += 2 * FFI_SIZEOF_JAVA_RAW;
 	  break;
 	case FFI_TYPE_STRUCT:
-	  /* No structure parameters in Java.	*/
+	case FFI_TYPE_VECTOR:
+	  /* No structure or vector parameters in Java.	*/
 	  abort();
 	case FFI_TYPE_COMPLEX:
 	  /* Not supported yet.  */

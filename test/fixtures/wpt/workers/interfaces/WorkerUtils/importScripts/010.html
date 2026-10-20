@@ -1,0 +1,17 @@
+<!doctype html>
+<title>importScripts(undefined)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var worker = new Worker('010.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, 'undefined');
+    this.done();
+  })
+  worker.onerror = this.step_func(function(e) {
+    assert_unreached(e.message);
+  });
+});
+</script>

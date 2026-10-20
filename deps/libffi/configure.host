@@ -141,8 +141,13 @@ case "${host}" in
 	SOURCES="ffi.c sysv.S"
 	;;
 
-  loongarch64-*-*)
-	TARGET=LOONGARCH64; TARGETDIR=loongarch64
+  loongarch*-*-*)
+	if test $ac_cv_sizeof_size_t = 4; then
+	  TARGET=LOONGARCH32
+	else
+	  TARGET=LOONGARCH64
+	fi
+	TARGETDIR=loongarch
 	SOURCES="ffi.c sysv.S"
 	;;
 

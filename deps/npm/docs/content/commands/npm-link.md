@@ -138,8 +138,16 @@ Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.
+
+We recommend that package authors use `--install-strategy=linked` during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+`import` of a package that was never added to `package.json` can fail
+instead of resolving by accident and shipping broken. See [Catching
+undeclared ("phantom")
+dependencies](/using-npm/developers#catching-undeclared-phantom-dependencies).
 
 
 
@@ -209,8 +217,7 @@ will also prevent _writing_ `package-lock.json` if `save` is true.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.
@@ -246,22 +253,92 @@ Note that commands explicitly intended to run a particular script, such as
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
 
+Setting `ignore-scripts` also disables `.npm-extension` execution, as if
+`ignore-extension` were set.
+
+
+
+#### `allow-directory`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to install dependencies from directories. That
+is, dependencies that point to a directory instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
+
+`all` allows any directories to be installed. `none` prevents any
+directories from being installed. `root` only allows directories defined in
+your project's package.json to be installed. Also allows directory
+dependencies to be used for other commands like `npm view`
+
+
+
+#### `allow-file`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to install dependencies from tarball files. That
+is, dependencies that point to a local tarball file instead of a version or
+semver range. Please note that this could leave your tree incomplete and
+some packages may not function as intended or designed. Changing this
+setting will not remove dependencies that are already installed.
+
+`all` allows any tarball file to be installed. `none` prevents any tarball
+file from being installed. `root` only allows tarball files defined in your
+project's package.json to be installed. Also allows tarball file
+dependencies to be used for other commands like `npm view`
+
 
 
 #### `allow-git`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from git references. That
 is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
-packages may not function as intended or designed.
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Git dependencies run `git` against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in `.npmrc`) or per command (on the CLI) when you
+need git deps.
 
 `all` allows any git dependencies to be fetched and installed. `none`
 prevents any git dependencies from being fetched and installed. `root` only
 allows git dependencies defined in your project's package.json to be fetched
-installed. Also allows git dependencies to be fetched for other commands
+and installed. Also allows git dependencies to be fetched for other commands
+like `npm view`
+
+
+
+#### `allow-remote`
+
+* Default: "none"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to fetch dependencies from urls. That is,
+dependencies that point to a tarball url instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set `replace-registry-host` or
+override this setting. Opt in explicitly per project (in `.npmrc`) or per
+command (on the CLI) when you intentionally install from a URL.
+
+`all` allows any url to be installed. `none` prevents any url from being
+installed. `root` only allows urls defined in your project's package.json to
+be installed. Also allows url dependencies to be used for other commands
 like `npm view`
 
 

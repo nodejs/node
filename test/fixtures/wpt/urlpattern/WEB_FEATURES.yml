@@ -1,3 +1,2 @@
-features:
-- name: urlpattern
-  files: "**"
+rules:
+- "**": [urlpattern]

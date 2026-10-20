@@ -109,7 +109,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+  if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     MaglevAssembler::TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
     int32_t expected_osr_stack_size =
@@ -306,7 +306,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             __ jmp(*done);
           },
           register_snapshot, done, result, char_code, scratch),
-      Ugreater_equal, char_code, Operand(String::kMaxOneByteCharCode));
+      Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
 
   if (char_code_fits_one_byte != nullptr) {
     bind(char_code_fits_one_byte);
@@ -440,6 +440,10 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     Add32(index, index, Operand(offset));
+    // Add32 yields a sign-extended Word32. Normalize it to its unsigned form
+    // so that a (corrupted) negative offset cannot be interpreted as a
+    // negative index by the subsequent address computation.
+    ZeroExtendWord(index, index);
     MacroAssembler::Branch(&loop, Label::kNear);
   }
 
@@ -474,7 +478,12 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
 
-    CalcScaledAddress(result, string, index, 1);
+    // On 64-bit, Maglev Word32 values are kept sign-extended, but the bounds
+    // check compares them as unsigned (zero-extended). Normalize the index to
+    // its unsigned form before using it in address arithmetic, so that a
+    // sign-extended (negative) index cannot reach below the string.
+    ZeroExtendWord(scratch, index);
+    CalcScaledAddress(result, string, scratch, 1);
     Lhu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString) -
                                        kHeapObjectTag));
 
@@ -491,7 +500,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
-      CalcScaledAddress(second_code_point, string, index, 1);
+      ZeroExtendWord(scratch, index);
+      CalcScaledAddress(second_code_point, string, scratch, 1);
       Lhu(second_code_point,
           MemOperand(second_code_point,
                      OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
@@ -551,7 +561,12 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
   }
   TemporaryRegisterScope scope(this);
   Register scratch = scope.AcquireScratch();
-  AddWord(scratch, index,
+  // On 64-bit, Maglev Word32 values are kept sign-extended, but the bounds
+  // check compares them as unsigned (zero-extended). Normalize the index to
+  // its unsigned form before using it in address arithmetic, so that a
+  // sign-extended (negative) index cannot reach below the string.
+  ZeroExtendWord(scratch, index);
+  AddWord(scratch, scratch,
           Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
   AddWord(scratch, string, Operand(scratch));
   Lbu(result, MemOperand(scratch, 0));
@@ -562,6 +577,11 @@ void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fcvtmod_w_d(dst, src);
+    return;
+  }
+
   ZoneLabelRef done(this);
   Label* slow_path = MakeDeferredCode(
       [](MaglevAssembler* masm, DoubleRegister src, Register dst,
@@ -579,7 +599,6 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   TryInlineTruncateDoubleToI(dst, src, *done);
   Jump(slow_path);
   bind(*done);
-  ZeroExtendWord(dst, dst);  // FIXME: is zero extension really needed here?
 }
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,

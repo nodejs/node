@@ -6,7 +6,7 @@ const { WPTRunner } = require('../common/wpt');
 const { join } = require('node:path');
 const runner = new WPTRunner('webstorage', { concurrency: 1 });
 
-tmpdir.refresh();
+if (!runner.isListing) tmpdir.refresh();
 
 runner.setFlags([
   '--localstorage-file', join(tmpdir.path, 'wpt-tests.localstorage'),

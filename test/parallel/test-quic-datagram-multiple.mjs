@@ -10,9 +10,7 @@
 import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-
-const { ok } = assert;
-const { readKey } = fixtures;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -22,8 +20,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const numDatagrams = 5;
 let serverDatagramCount = 0;
@@ -48,7 +46,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   alpn: ['quic-test'],
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagram: mustCallAtLeast((data) => {
-    ok(data instanceof Uint8Array);
+    assert.ok(data instanceof Uint8Array);
     serverDatagramCount++;
     gotSomeDg.resolve();
   }),
@@ -56,6 +54,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxDatagramFrameSize: 1200 },
 });
 
@@ -74,11 +73,11 @@ for (let i = 0; i < numDatagrams; i++) {
 }
 
 // Complete the stream.
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await stream.closed;
 
 // At least some datagrams should have arrived.
-ok(serverDatagramCount > 0, 'Server should have received at least one datagram');
+assert.ok(serverDatagramCount > 0, 'Server should have received at least one datagram');
 
 await clientSession.closed;
 await serverEndpoint.close();

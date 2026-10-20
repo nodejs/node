@@ -17,6 +17,8 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "third_party/rapidhash-v8/rapidhash.h"
+#include "third_party/rapidhash-v8/secret.h"
 
 namespace v8::base {
 
@@ -155,49 +157,61 @@ class Hasher {
   size_t hash_ = 0;
 };
 
-// Thomas Wang, Integer Hash Functions.
-// https://gist.github.com/badboy/6267743
-template <typename T>
-V8_INLINE size_t hash_value_unsigned_impl(T v) {
-  switch (sizeof(T)) {
-    case 4: {
-      // "32 bit Mix Functions"
-      v = ~v + (v << 15);  // v = (v << 15) - v - 1;
-      v = v ^ (v >> 12);
-      v = v + (v << 2);
-      v = v ^ (v >> 4);
-      v = v * 2057;  // v = (v + (v << 3)) + (v << 11);
-      v = v ^ (v >> 16);
-      return static_cast<size_t>(v);
-    }
-    case 8: {
-      switch (sizeof(size_t)) {
-        case 4: {
-          // "64 bit to 32 bit Hash Functions"
-          v = ~v + (v << 18);  // v = (v << 18) - v - 1;
-          v = v ^ (v >> 31);
-          v = v * 21;  // v = (v + (v << 2)) + (v << 4);
-          v = v ^ (v >> 11);
-          v = v + (v << 6);
-          v = v ^ (v >> 22);
-          return static_cast<size_t>(v);
-        }
-        case 8: {
-          // "64 bit Mix Functions"
-          v = ~v + (v << 21);  // v = (v << 21) - v - 1;
-          v = v ^ (v >> 24);
-          v = (v + (v << 3)) + (v << 8);  // v * 265
-          v = v ^ (v >> 14);
-          v = (v + (v << 2)) + (v << 4);  // v * 21
-          v = v ^ (v >> 28);
-          v = v + (v << 31);
-          return static_cast<size_t>(v);
-        }
-      }
-    }
-  }
-  UNREACHABLE();
+// rapidhash "mum" mixer secrets. Shared with the CSA / Turboshaft
+// integer-hash emitters in builtins-collections-gen.cc and
+// machine-lowering-reducer-inl.h; all implementations must agree
+// bit-for-bit per-target so Map/Set and Dictionary lookups stay consistent
+// between C++ and generated code. Aliased from the vendored rapidhash
+// default secret so there is a single source of truth.
+constexpr uint64_t kRapidhashSecret1 = RAPIDHASH_DEFAULT_SECRET[0];
+constexpr uint64_t kRapidhashSecret2 = RAPIDHASH_DEFAULT_SECRET[1];
+
+// Canonical integer hash. Uses the rapidhash "mum" mixer
+// ((key ^ s1) * (key ^ s2) -> high64 ^ low64) on 64-bit targets. On 32-bit
+// targets we fall back to Thomas Wang's integer hash functions to avoid a
+// software 64x64->128 multiply. Distinct names per input width so the
+// caller picks deliberately and no implicit-widening overload binding can
+// silently change the mixer. The CSA mirror in
+// CollectionsBuiltinsAssembler::ComputeUnseededHash and the Turboshaft mirror
+// in MachineLoweringReducer::ComputeUnseededHash must stay in sync with
+// hash32 followed by the kSmiHashMask mask (see SmiHash32 in utils.h).
+V8_INLINE uint64_t hash64(uint64_t key) {
+#if V8_TARGET_ARCH_64_BIT
+  return rapid_mix(key ^ kRapidhashSecret1, key ^ kRapidhashSecret2);
+#else
+  // Thomas Wang, "64 bit to 32 bit Hash Functions".
+  // http://www.concentric.net/~Ttwang/tech/inthash.htm`
+  uint64_t hash = key;
+  hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
+  hash = hash ^ (hash >> 31);
+  hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
+  hash = hash ^ (hash >> 11);
+  hash = hash + (hash << 6);
+  hash = hash ^ (hash >> 22);
+  return hash;
+#endif
 }
+
+V8_INLINE uint32_t hash32(uint32_t key) {
+#if V8_TARGET_ARCH_64_BIT
+  return static_cast<uint32_t>(hash64(key));
+#else
+  // Thomas Wang, "32 bit Mix Functions".
+  // http://www.concentric.net/~Ttwang/tech/inthash.htm`
+  uint32_t hash = key;
+  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
+  hash = hash ^ (hash >> 12);
+  hash = hash + (hash << 2);
+  hash = hash ^ (hash >> 4);
+  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
+  hash = hash ^ (hash >> 16);
+  return hash;
+#endif
+}
+
+// Block implicit narrowing from 64-bit to hash32. Widening into hash64 is
+// fine and stays implicit.
+uint32_t hash32(uint64_t) = delete;
 
 #define V8_BASE_HASH_VALUE_TRIVIAL(type) \
   V8_INLINE size_t hash_value(type v) { return static_cast<size_t>(v); }
@@ -206,16 +220,18 @@ V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
 #undef V8_BASE_HASH_VALUE_TRIVIAL
 
-V8_INLINE size_t hash_value(unsigned int v) {
-  return hash_value_unsigned_impl(v);
-}
+V8_INLINE size_t hash_value(unsigned int v) { return hash32(v); }
 
 V8_INLINE size_t hash_value(unsigned long v) {  // NOLINT(runtime/int)
-  return hash_value_unsigned_impl(v);
+  if constexpr (sizeof(v) == 4) {
+    return hash32(static_cast<uint32_t>(v));
+  } else {
+    return hash64(v);
+  }
 }
 
 V8_INLINE size_t hash_value(unsigned long long v) {  // NOLINT(runtime/int)
-  return hash_value_unsigned_impl(v);
+  return hash64(v);
 }
 
 #define V8_BASE_HASH_VALUE_SIGNED(type)                  \

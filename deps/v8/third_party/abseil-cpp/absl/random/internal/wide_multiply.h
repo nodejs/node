@@ -15,20 +15,21 @@
 #ifndef ABSL_RANDOM_INTERNAL_WIDE_MULTIPLY_H_
 #define ABSL_RANDOM_INTERNAL_WIDE_MULTIPLY_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+
+#include "absl/base/config.h"
+#include "absl/numeric/bits.h"
+#include "absl/numeric/int128.h"
+#include "absl/random/internal/traits.h"
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(_M_IA64)
 #include <intrin.h>  // NOLINT(build/include_order)
 #pragma intrinsic(_umul128)
 #define ABSL_INTERNAL_USE_UMUL128 1
 #endif
-
-#include "absl/base/config.h"
-#include "absl/numeric/bits.h"
-#include "absl/numeric/int128.h"
-#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -50,7 +51,7 @@ struct wide_multiply {
   }
   static input_type lo(result_type r) { return static_cast<input_type>(r); }
 
-  static_assert(std::is_unsigned<UIntType>::value,
+  static_assert(std::is_unsigned_v<UIntType>,
                 "Class-template wide_multiply<> argument must be unsigned.");
 };
 

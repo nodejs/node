@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -145,6 +145,9 @@ $ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32" &&
 
 $ymm=1 if ($xmm && !$ymm && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|based on LLVM) ([0-9]+\.[0-9]+)/ &&
 		$2>=3.0);	# first version supporting AVX
+
+$ymm=1 if ($xmm && !$ymm && `$ENV{CC} -x c /dev/null -dM -E|grep __clang_major__` =~ /#define __clang_major__.([0-9]+)/ &&
+		$1>=11); #icx started with clang 11
 
 $shaext=$xmm;	### set to zero if compiling for 1.0.1
 

@@ -147,6 +147,11 @@ class DataQueue : public MemoryRetainer {
   class BackpressureListener {
    public:
     virtual void EntryRead(size_t amount) = 0;
+
+    // Called before the reader pulls from the DataQueue. Gives
+    // the listener a chance to flush pending data into the queue
+    // before the pull checks the entries list.
+    virtual void BeforePull() {}
   };
 
   // A DataQueue::Entry represents a logical chunk of data in the queue.
@@ -221,8 +226,11 @@ class DataQueue : public MemoryRetainer {
   static std::unique_ptr<Entry> CreateDataQueueEntry(
       std::shared_ptr<DataQueue> data_queue);
 
+  // Returns nullptr if the file cannot be stat'd. When `status` is given, it
+  // is set to the libuv error code so callers can report why.
   static std::unique_ptr<Entry> CreateFdEntry(Environment* env,
-                                              v8::Local<v8::Value> path);
+                                              v8::Local<v8::Value> path,
+                                              int* status = nullptr);
 
   // Creates a Reader for the given queue. If the queue is idempotent,
   // any number of readers can be created, all of which are guaranteed

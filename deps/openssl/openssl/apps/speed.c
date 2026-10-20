@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -3138,8 +3138,9 @@ int speed_main(int argc, char **argv)
                             exit(1);
                         }
 
-                        if (!EVP_CIPHER_CTX_ctrl(loopargs[k].ctx, EVP_CTRL_AEAD_GET_TAG,
-                                TAG_LEN, &loopargs[k].tag)) {
+                        if (EVP_CIPHER_CTX_ctrl(loopargs[k].ctx, EVP_CTRL_AEAD_GET_TAG,
+                                TAG_LEN, &loopargs[k].tag)
+                            <= 0) {
                             BIO_printf(bio_err, "\nFailed to get the tag\n");
                             dofail();
                             exit(1);

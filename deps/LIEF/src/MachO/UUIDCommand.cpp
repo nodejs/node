@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@
 #include "LIEF/MachO/UUIDCommand.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 
 UUIDCommand::UUIDCommand(const details::uuid_command& uuid) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE(uuid.cmd), uuid.cmdsize}
-{
+  LoadCommand::LoadCommand{LoadCommand::TYPE(uuid.cmd), uuid.cmdsize} {
   std::copy(std::begin(uuid.uuid), std::end(uuid.uuid), std::begin(uuid_));
 }
 
@@ -43,5 +42,4 @@ std::ostream& UUIDCommand::print(std::ostream& os) const {
 }
 
 
-}
 }

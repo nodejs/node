@@ -6,10 +6,17 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL } = require('../common/crypto');
+const {
+  hasOpenSSL,
+  hasFIPS,
+  isBoringSSL: commonIsBoringSSL,
+} = require('../common/crypto');
 const { promisify } = require('util');
 
-if (!hasOpenSSL(3)) {
+const isBoringSSL = commonIsBoringSSL;
+const isFips = hasFIPS(3);
+
+if (!hasOpenSSL(3) && !isBoringSSL) {
   assert.throws(() => crypto.encapsulate(), { code: 'ERR_CRYPTO_KEM_NOT_SUPPORTED' });
   return;
 }
@@ -34,7 +41,7 @@ const keys = {
     privateKey: fixtures.readKey('rsa_pss_private_2048.pem', 'ascii'),
   },
   'p-256': {
-    supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
+    supported: hasOpenSSL(3, 2) && !isFips, // DHKEM was added in 3.2
     publicKey: fixtures.readKey('ec_p256_public.pem', 'ascii'),
     privateKey: fixtures.readKey('ec_p256_private.pem', 'ascii'),
     sharedSecretLength: 32,
@@ -42,7 +49,7 @@ const keys = {
     raw: true,
   },
   'p-384': {
-    supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
+    supported: hasOpenSSL(3, 2) && !isFips, // DHKEM was added in 3.2
     publicKey: fixtures.readKey('ec_p384_public.pem', 'ascii'),
     privateKey: fixtures.readKey('ec_p384_private.pem', 'ascii'),
     sharedSecretLength: 48,
@@ -50,7 +57,7 @@ const keys = {
     raw: true,
   },
   'p-521': {
-    supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
+    supported: hasOpenSSL(3, 2) && !isFips, // DHKEM was added in 3.2
     publicKey: fixtures.readKey('ec_p521_public.pem', 'ascii'),
     privateKey: fixtures.readKey('ec_p521_private.pem', 'ascii'),
     sharedSecretLength: 64,
@@ -63,7 +70,7 @@ const keys = {
     privateKey: fixtures.readKey('ec_secp256k1_private.pem', 'ascii'),
   },
   'x25519': {
-    supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
+    supported: hasOpenSSL(3, 2) && !isFips, // DHKEM was added in 3.2
     publicKey: fixtures.readKey('x25519_public.pem', 'ascii'),
     privateKey: fixtures.readKey('x25519_private.pem', 'ascii'),
     sharedSecretLength: 32,
@@ -71,7 +78,7 @@ const keys = {
     raw: true,
   },
   'x448': {
-    supported: hasOpenSSL(3, 2), // DHKEM was added in 3.2
+    supported: hasOpenSSL(3, 2) && !isFips, // DHKEM was added in 3.2
     publicKey: fixtures.readKey('x448_public.pem', 'ascii'),
     privateKey: fixtures.readKey('x448_private.pem', 'ascii'),
     sharedSecretLength: 64,
@@ -79,25 +86,25 @@ const keys = {
     raw: true,
   },
   'ml-kem-512': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5),  // BoringSSL does not support ML-KEM-512
     publicKey: fixtures.readKey('ml_kem_512_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_512_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_512_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 768,
     raw: true,
   },
   'ml-kem-768': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5) || isBoringSSL,
     publicKey: fixtures.readKey('ml_kem_768_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_768_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_768_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1088,
     raw: true,
   },
   'ml-kem-1024': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5) || isBoringSSL,
     publicKey: fixtures.readKey('ml_kem_1024_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_1024_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_1024_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1568,
     raw: true,
@@ -109,7 +116,7 @@ for (const [name, {
 }] of Object.entries(keys)) {
   if (!supported) {
     assert.throws(() => crypto.encapsulate(publicKey),
-                  { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_CRYPTO_OPERATION_FAILED/ });
+                  { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM|ERR_CRYPTO_OPERATION_FAILED/ });
     continue;
   }
 
@@ -211,7 +218,7 @@ for (const [name, {
   } else if (name.startsWith('p-')) {
     wrongPrivateKey = name === 'p-256' ? keys['p-384'].privateKey : keys['p-256'].privateKey;
   } else if (name.startsWith('ml-')) {
-    wrongPrivateKey = name === 'ml-kem-512' ? keys['ml-kem-768'].privateKey : keys['ml-kem-512'].privateKey;
+    wrongPrivateKey = name === 'ml-kem-768' ? keys['ml-kem-1024'].privateKey : keys['ml-kem-768'].privateKey;
   } else {
     wrongPrivateKey = keys.x25519.privateKey;
   }

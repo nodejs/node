@@ -6,20 +6,30 @@
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node_buffer.h"
+#include "node_diagnostics_channel.h"
 #include "node_options-inl.h"
+#include "node_realm-inl.h"
 #include "string_bytes.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
-
+#include <atomic>
+#include <deque>
+#include <mutex>
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#include <openssl/indicator.h>
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #endif
 
 namespace node {
@@ -32,14 +42,16 @@ using ncrypto::DataPointer;
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
-using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -57,7 +69,127 @@ using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
 
+void MemoryRetainerTraits<crypto::ByteSource>::MemoryInfo(
+    MemoryTracker* tracker, const crypto::ByteSource& value) {
+  // Foreign ByteSources do not own the memory that they reference.
+  if (value.allocated_data_ != nullptr) {
+    tracker->TrackFieldWithSize("data", value.size_);
+  }
+}
+
+const char* MemoryRetainerTraits<crypto::ByteSource>::MemoryInfoName(
+    const crypto::ByteSource& value) {
+  return "ByteSource";
+}
+
+size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
+    const crypto::ByteSource& value) {
+  return sizeof(value);
+}
+
 namespace crypto {
+
+CShakeOptions::CShakeOptions(CShakeOptions&& other) noexcept
+    : function_name(std::move(other.function_name)),
+      customization(std::move(other.customization)),
+      flags(other.flags) {}
+
+CShakeOptions& CShakeOptions::operator=(CShakeOptions&& other) noexcept {
+  if (&other == this) return *this;
+  this->~CShakeOptions();
+  return *new (this) CShakeOptions(std::move(other));
+}
+
+void CShakeOptions::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("function_name", function_name.size());
+  tracker->TrackFieldWithSize("customization", customization.size());
+}
+
+bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
+                               const EVP_MD* digest) const {
+  if (!ctx || !*ctx || digest == nullptr) return false;
+  if (empty()) return ctx->digestInit(digest);
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+  const bool is_cshake =
+      EVP_MD_is_a(digest, "CSHAKE-128") || EVP_MD_is_a(digest, "CSHAKE-256");
+  if (!is_cshake) return false;
+
+  OSSL_PARAM params[3];
+  size_t count = 0;
+  if (has(kFunctionName)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        OSSL_DIGEST_PARAM_FUNCTION_NAME,
+        const_cast<char*>(function_name.c_str()),
+        function_name.size());
+  }
+  if (has(kCustomization)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        OSSL_DIGEST_PARAM_CUSTOMIZATION,
+        const_cast<char*>(customization.c_str()),
+        customization.size());
+  }
+  params[count] = OSSL_PARAM_construct_end();
+  return ctx->digestInit(digest, params);
+#else
+  return false;
+#endif
+}
+
+namespace {
+bool ContainsNullByte(std::string_view value) {
+  return value.find('\0') != std::string_view::npos;
+}
+
+v8::Maybe<void> GetDigestStringOption(
+    Environment* env,
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions::Flag flag,
+    std::string* target,
+    CShakeOptions* options) {
+  if (args[offset]->IsUndefined()) return v8::JustVoid();
+  CHECK(IsAnyBufferSource(args[offset]));
+  ArrayBufferOrViewContents<char> value(args[offset]);
+  if (!value.CheckSizeInt32()) {
+    THROW_ERR_OUT_OF_RANGE(env, "digest option is too big");
+    return v8::Nothing<void>();
+  }
+  target->assign(value.data(), value.size());
+  if (ContainsNullByte(*target)) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "Digest options must not contain null bytes");
+    return v8::Nothing<void>();
+  }
+  options->flags |= flag;
+  return v8::JustVoid();
+}
+}  // namespace
+
+v8::Maybe<void> GetCShakeOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions* options) {
+  Environment* env = Environment::GetCurrent(args);
+  if (GetDigestStringOption(env,
+                            args,
+                            offset,
+                            CShakeOptions::kFunctionName,
+                            &options->function_name,
+                            options)
+          .IsNothing() ||
+      GetDigestStringOption(env,
+                            args,
+                            offset + 1,
+                            CShakeOptions::kCustomization,
+                            &options->customization,
+                            options)
+          .IsNothing()) {
+    return v8::Nothing<void>();
+  }
+
+  return v8::JustVoid();
+}
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   const ByteSource* passphrase = *static_cast<const ByteSource**>(u);
@@ -82,20 +214,268 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-bool ProcessFipsOptions() {
-  /* Override FIPS settings in configuration file, if needed. */
-  if (per_process::cli_options->enable_fips_crypto ||
-      per_process::cli_options->force_fips_crypto) {
-#if OPENSSL_VERSION_MAJOR >= 3
-    if (!ncrypto::testFipsEnabled()) return false;
-    return ncrypto::setFipsEnabled(true, nullptr);
-#else
-    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
-    // no longer supported.
-    if (FIPS_mode() == 0) return FIPS_mode_set(1);
-#endif
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+namespace {
+
+constexpr size_t kMaxPendingFipsIndicatorEvents = 256;
+constexpr std::string_view kFipsIndicatorChannel = "crypto.fips.indicator";
+
+struct FipsIndicatorEvent {
+  std::string operation;
+  std::string reason;
+  bool blocked;
+  uint32_t count = 1;
+  uint32_t dropped = 0;
+};
+
+Local<DictionaryTemplate> GetFipsIndicatorEventTemplate(Environment* env) {
+  auto tmpl = env->fips_indicator_event_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "operation",
+        "reason",
+        "blocked",
+        "count",
+        "dropped",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_fips_indicator_event_template(tmpl);
   }
-  return true;
+  return tmpl;
+}
+
+class FipsIndicatorState final {
+ public:
+  static FipsIndicatorState& Get() {
+    static FipsIndicatorState state;
+    return state;
+  }
+
+  void Install() {
+    reject_unapproved_.store(
+        per_process::cli_options->force_fips_crypto &&
+            per_process::cli_options->force_fips_crypto_policy == "strict",
+        std::memory_order_release);
+    std::call_once(install_once_, [this]() {
+      OSSL_INDICATOR_get_callback(nullptr, &previous_callback_);
+      OSSL_INDICATOR_set_callback(nullptr, OnOpenSSLIndicator);
+    });
+  }
+
+  void Setup(Environment* env) {
+    CHECK(env->owns_process_state());
+    auto channel =
+        diagnostics_channel::Channel::Get(env, kFipsIndicatorChannel);
+    if (!channel) return;
+
+    Realm* realm = env->principal_realm();
+    auto* binding = realm->GetBindingData<diagnostics_channel::BindingData>();
+    CHECK_NOT_NULL(binding);
+    const uint32_t index =
+        binding->GetOrCreateChannelIndex(std::string(kFipsIndicatorChannel));
+
+    {
+      Mutex::ScopedLock lock(mutex_);
+      CHECK_NULL(env_);
+      env_ = env;
+      channel_ = channel;
+    }
+    env->AddCleanupHook(Cleanup, this);
+    binding->SetChannelStatusCallback(
+        index, [this](bool active) { SetActive(active); });
+    SetActive(channel->HasSubscribers());
+  }
+
+ private:
+  void SetActive(bool active) {
+    subscription_generation_++;
+    active_.store(active, std::memory_order_release);
+    if (active) return;
+
+    {
+      Mutex::ScopedLock lock(mutex_);
+      events_.clear();
+      dropped_events_ = 0;
+    }
+  }
+
+  static int OnOpenSSLIndicator(const char* operation,
+                                const char* reason,
+                                const OSSL_PARAM* params) {
+    return Get().OnIndicator(operation, reason, params);
+  }
+
+  static void Cleanup(void* data) {
+    static_cast<FipsIndicatorState*>(data)->CleanupEnvironment();
+  }
+
+  int OnIndicator(const char* operation,
+                  const char* reason,
+                  const OSSL_PARAM* params) {
+    const int previous_result =
+        previous_callback_ == nullptr
+            ? 1
+            : previous_callback_(operation, reason, params);
+    const int result = reject_unapproved_.load(std::memory_order_acquire)
+                           ? 0
+                           : previous_result;
+    if (!active_.load(std::memory_order_acquire)) return result;
+
+    const bool blocked = result == 0;
+    {
+      Mutex::ScopedLock lock(mutex_);
+      if (env_ != nullptr && active_.load(std::memory_order_relaxed)) {
+        const std::string operation_string =
+            operation == nullptr ? "" : operation;
+        const std::string reason_string = reason == nullptr ? "" : reason;
+        const auto existing = std::find_if(
+            events_.begin(),
+            events_.end(),
+            [&](const FipsIndicatorEvent& event) {
+              return event.operation == operation_string &&
+                     event.reason == reason_string && event.blocked == blocked;
+            });
+        if (existing == events_.end()) {
+          if (events_.size() < kMaxPendingFipsIndicatorEvents) {
+            events_.push_back({operation_string, reason_string, blocked});
+          } else if (dropped_events_ != UINT32_MAX) {
+            dropped_events_++;
+          }
+        } else if (existing->count != UINT32_MAX) {
+          existing->count++;
+        } else if (dropped_events_ != UINT32_MAX) {
+          dropped_events_++;
+        }
+        if (!dispatch_scheduled_) {
+          dispatch_scheduled_ = true;
+          env_->SetImmediateThreadsafe(
+              [](Environment* env) { Get().Drain(env); },
+              CallbackFlags::kUnrefed);
+        }
+      }
+    }
+    return result;
+  }
+
+  void Drain(Environment* env) {
+    CHECK(env->owns_process_state());
+    std::deque<FipsIndicatorEvent> events;
+    {
+      Mutex::ScopedLock lock(mutex_);
+      if (env_ != env) return;
+      events.swap(events_);
+      if (!events.empty()) events.front().dropped = dropped_events_;
+      dropped_events_ = 0;
+      dispatch_scheduled_ = false;
+    }
+    if (events.empty() || !channel_ || !channel_->HasSubscribers()) return;
+
+    Isolate* isolate = env->isolate();
+    HandleScope handle_scope(isolate);
+    Local<Context> context = env->context();
+    const uint64_t subscription_generation = subscription_generation_;
+    for (const auto& event : events) {
+      if (subscription_generation_ != subscription_generation) return;
+      MaybeLocal<Value> values[] = {
+          OneByteString(isolate, event.operation),
+          OneByteString(isolate, event.reason),
+          v8::Boolean::New(isolate, event.blocked),
+          Uint32::New(isolate, event.count),
+          Uint32::New(isolate, event.dropped),
+      };
+      Local<Object> value;
+      if (!NewDictionaryInstance(
+               context, GetFipsIndicatorEventTemplate(env), values)
+               .ToLocal(&value)) {
+        return;
+      }
+      channel_->Publish(env, value);
+      if (subscription_generation_ != subscription_generation) return;
+    }
+  }
+
+  void CleanupEnvironment() {
+    subscription_generation_++;
+    active_.store(false, std::memory_order_release);
+    {
+      Mutex::ScopedLock lock(mutex_);
+      env_ = nullptr;
+      channel_.reset();
+      events_.clear();
+      dropped_events_ = 0;
+      dispatch_scheduled_ = false;
+    }
+  }
+
+  std::once_flag install_once_;
+  std::atomic<bool> active_{false};
+  std::atomic<bool> reject_unapproved_{false};
+  OSSL_INDICATOR_CALLBACK* previous_callback_ = nullptr;
+  Mutex mutex_;
+  Environment* env_ = nullptr;
+  BaseObjectPtr<diagnostics_channel::Channel> channel_;
+  std::deque<FipsIndicatorEvent> events_;
+  uint32_t dropped_events_ = 0;
+  bool dispatch_scheduled_ = false;
+  uint64_t subscription_generation_ = 0;
+};
+
+}  // namespace
+#endif
+
+void InstallFipsIndicatorCallback() {
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+  const auto& options = per_process::cli_options;
+  const bool strict = options->force_fips_crypto &&
+                      options->force_fips_crypto_policy == "strict";
+  if (options->enable_fips_indicator_events || strict) {
+    FipsIndicatorState::Get().Install();
+  }
+#endif
+}
+
+void SetupFipsIndicatorChannel(const FunctionCallbackInfo<Value>& args) {
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+  Environment* env = Environment::GetCurrent(args);
+  if (env->owns_process_state() &&
+      per_process::cli_options->enable_fips_indicator_events) {
+    FipsIndicatorState::Get().Setup(env);
+  }
+#else
+  USE(args);
+#endif
+}
+
+std::optional<std::string> ProcessFipsOptions() {
+  const bool enable_fips = per_process::cli_options->enable_fips_crypto;
+  const bool force_fips = per_process::cli_options->force_fips_crypto;
+  if (!enable_fips && !force_fips) return std::nullopt;
+
+#if OPENSSL_VERSION_MAJOR >= 3
+  // Whether FIPS-approved implementations are reachable is decided by the
+  // OpenSSL configuration, not by Node.js. Refuse to start rather than
+  // restrict the default property query to a provider that is not there,
+  // which would leave every operation failing as unsupported.
+  if (!ncrypto::testFipsEnabled()) {
+    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
+    return option + " requires an active OpenSSL provider named \"fips\". "
+                    "FIPS mode is configured through OpenSSL; see "
+                    "https://nodejs.org/api/crypto.html#fips-mode";
+  }
+#endif
+
+  CryptoErrorList errors{CryptoErrorList::Option::NONE};
+  if (!ncrypto::setFipsEnabled(true, &errors)) {
+    std::string error = "OpenSSL error when trying to enable FIPS";
+    if (!errors.empty()) error += ':';
+    for (const auto& openssl_error : errors) {
+      error += '\n';
+      error += openssl_error;
+    }
+    return error;
+  }
+
+  return std::nullopt;
 }
 
 bool InitCryptoOnce(Isolate* isolate) {
@@ -113,11 +493,17 @@ bool InitCryptoOnce(Isolate* isolate) {
 // be part of a larger mutex for global OpenSSL state.
 static Mutex fips_mutex;
 
+bool IsFipsEnabled() {
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  return ncrypto::isFipsEnabled();
+}
+
 void InitCryptoOnce() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
 #ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+  CHECK_NOT_NULL(settings);
 
 #if OPENSSL_VERSION_MAJOR < 3
   // --openssl-config=...
@@ -138,23 +524,9 @@ void InitCryptoOnce() {
 #endif
 
   OPENSSL_init_ssl(0, settings);
+  InstallFipsIndicatorCallback();
 
-#if OPENSSL_WITH_PQC
-  // Configure all loaded providers to prefer seed-only format for ML-KEM and
-  // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
-  // seed is not available. The provider encoder reads these parameters at
-  // encoding time via ossl_prov_ctx_get_param().
-  OSSL_PROVIDER_do_all(
-      nullptr,
-      [](OSSL_PROVIDER* provider, void*) -> int {
-        OSSL_PROVIDER_add_conf_parameter(
-            provider, "ml-kem.output_formats", "seed-only,priv-only");
-        OSSL_PROVIDER_add_conf_parameter(
-            provider, "ml-dsa.output_formats", "seed-only,priv-only");
-        return 1;
-      },
-      nullptr);
-#endif
+  ncrypto::ConfigurePqcEncoding();
   OPENSSL_INIT_free(settings);
   settings = nullptr;
 
@@ -190,8 +562,12 @@ void InitCryptoOnce() {
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Mutex::ScopedLock fips_lock(fips_mutex);
-  args.GetReturnValue().Set(ncrypto::isFipsEnabled() ? 1 : 0);
+  args.GetReturnValue().Set(IsFipsEnabled() ? 1 : 0);
+}
+
+void GetFipsCryptoGeneration(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
+      args.GetIsolate(), ncrypto::getFipsStateGeneration()));
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -250,7 +626,7 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   // If there are no errors, it is likely a bug but we will return
   // an error anyway.
   if (errors.empty()) {
-    return Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Ok"));
+    return Exception::Error(env->ok_string());
   }
 
   // The last error in the list is the one that will be used as the
@@ -380,41 +756,47 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   return *this;
 }
 
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes) {
+  CHECK_NOT_NULL(bytes);
+  const size_t length_bytes = NumBitsToBytes(length_bits);
+  CHECK_LE(length_bytes, bytes->size());
+
+  if (bytes->allocated_data_ == nullptr || bytes->size() != length_bytes) {
+    auto data = DataPointer::Alloc(length_bytes);
+    if (length_bytes > 0) {
+      CHECK_NOT_NULL(data.get());
+      memcpy(data.get(), bytes->data(), length_bytes);
+    }
+    *bytes = ByteSource::Allocated(data.release());
+  }
+
+  const size_t remainder_bits = length_bits % CHAR_BIT;
+  if (remainder_bits != 0) {
+    auto* data = static_cast<unsigned char*>(bytes->allocated_data_);
+    CHECK_NOT_NULL(data);
+    const unsigned char mask =
+        static_cast<unsigned char>(0xff << (CHAR_BIT - remainder_bits));
+    data[length_bytes - 1] &= mask;
+  }
+}
+
 std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
     Environment* env) {
   // It's ok for allocated_data_ to be nullptr but
   // only if size_ is zero.
   CHECK_IMPLIES(size_ > 0, allocated_data_ != nullptr);
-#ifdef V8_ENABLE_SANDBOX
-  // If the v8 sandbox is enabled, then all array buffers must be allocated
-  // via the isolate. External buffers are not allowed. So, instead of wrapping
-  // the allocated data we'll copy it instead.
-
-  // TODO(@jasnell): It would be nice to use an abstracted utility to do this
-  // branch instead of duplicating the V8_ENABLE_SANDBOX check each time.
-  std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
+  std::unique_ptr<BackingStore> ptr = AdoptIntoBackingStore(
       env->isolate(),
-      size(),
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
-  if (!ptr) {
-    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
-    return nullptr;
-  }
-  memcpy(ptr->Data(), allocated_data_, size());
-  OPENSSL_clear_free(allocated_data_, size_);
-#else
-  std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
       allocated_data_,
       size(),
-      [](void* data, size_t length, void* deleter_data) {
-        OPENSSL_clear_free(deleter_data, length);
-      }, allocated_data_);
-#endif  // V8_ENABLE_SANDBOX
-  CHECK(ptr);
+      [](void* data, size_t length, void*) {
+        OPENSSL_clear_free(data, length);
+      },
+      nullptr);
   allocated_data_ = nullptr;
   data_ = nullptr;
   size_ = 0;
+  if (!ptr) THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
   return ptr;
 }
 
@@ -517,7 +899,11 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();
@@ -702,15 +1088,66 @@ Maybe<void> SetEncodedValue(Environment* env,
   if (!EncodeBignum(env, bn, size).ToLocal(&value)) {
     return Nothing<void>();
   }
-  return target->Set(env->context(), name, value).IsJust() ? JustVoid()
-                                                           : Nothing<void>();
+  return target->DefineOwnProperty(env->context(), name, value).FromMaybe(false)
+             ? JustVoid()
+             : Nothing<void>();
 }
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
-  CHECK_LE(mode, kCryptoJobSync);
+  CHECK_LE(mode, kCryptoJobWebCrypto);
   return static_cast<CryptoJobMode>(mode);
+}
+
+bool IsCryptoJobAsync(CryptoJobMode mode) {
+  return mode == kCryptoJobAsync || mode == kCryptoJobWebCrypto;
+}
+
+MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
+                                          Local<Value> cause) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> per_context_bindings;
+  Local<Value> domexception_ctor;
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
+           .ToLocal(&domexception_ctor)) {
+    return {};
+  }
+  CHECK(domexception_ctor->IsFunction());
+
+  Local<Object> options = Object::New(isolate);
+  if (options->Set(context, env->name_string(), env->operationerror_string())
+          .IsNothing() ||
+      options->Set(context, env->cause_string(), cause).IsNothing()) {
+    return {};
+  }
+
+  Local<Value> argv[] = {
+      FIXED_ONE_BYTE_STRING(isolate,
+                            "The operation failed for an operation-specific "
+                            "reason"),
+      options,
+  };
+
+  return domexception_ctor.As<Function>()->NewInstance(
+      context, arraysize(argv), argv);
+}
+
+MaybeLocal<Value> ToWebCryptoJobResult(Environment* env, Local<Value> value) {
+  if (value->IsArrayBuffer()) {
+    return value;
+  }
+
+  if (Buffer::HasInstance(value)) {
+    return value.As<ArrayBufferView>()->Buffer();
+  }
+
+  CHECK(value->IsBoolean() || (value->IsObject() && !value->IsArray() &&
+                               !value->IsArrayBufferView()));
+  return value;
 }
 
 namespace {
@@ -721,17 +1158,6 @@ namespace {
 // initialized, SecureBuffer will automatically use it.
 void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-#ifdef V8_ENABLE_SANDBOX
-  // The v8 sandbox is enabled, so we cannot use the secure heap because
-  // the sandbox requires that all array buffers be allocated via the isolate.
-  // That is fundamentally incompatible with the secure heap which allocates
-  // in openssl's secure heap area. Instead we'll just throw an error here.
-  //
-  // That said, we really shouldn't get here in the first place since the
-  // option to enable the secure heap is only available when the sandbox
-  // is disabled.
-  UNREACHABLE();
-#else
   CHECK(args[0]->IsUint32());
   uint32_t len = args[0].As<Uint32>()->Value();
 
@@ -741,7 +1167,10 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   }
   auto released = data.release();
 
-  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+  // Under V8_ENABLE_SANDBOX this ends up as a plain copy, which is fine:
+  // --secure-heap is unavailable there, so SecureAlloc() is OPENSSL_malloc().
+  std::shared_ptr<BackingStore> store = AdoptIntoBackingStore(
+      env->isolate(),
       released.data,
       released.len,
       [](void* data, size_t len, void* deleter_data) {
@@ -755,10 +1184,12 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
             true);
       },
       nullptr);
+  if (!store) {
+    return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+  }
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
   args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
-#endif  // V8_ENABLE_SANDBOX
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
@@ -775,11 +1206,16 @@ void Initialize(Environment* env, Local<Object> target) {
 #endif  // !OPENSSL_NO_ENGINE
 
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
+  SetMethodNoSideEffect(
+      context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
+  SetMethod(
+      context, target, "setupFipsIndicatorChannel", SetupFipsIndicatorChannel);
   SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
   SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+  NODE_DEFINE_CONSTANT(target, kCryptoJobWebCrypto);
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);
@@ -793,6 +1229,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #endif  // !OPENSSL_NO_ENGINE
 
   registry->Register(GetFipsCrypto);
+  registry->Register(GetFipsCryptoGeneration);
+  registry->Register(SetupFipsIndicatorChannel);
   registry->Register(SetFipsCrypto);
   registry->Register(TestFipsCrypto);
   registry->Register(SecureBuffer);

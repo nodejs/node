@@ -12,7 +12,7 @@
 #ifndef MBEDTLS_MPS_MBEDTLS_MPS_TRACE_H
 #define MBEDTLS_MPS_MBEDTLS_MPS_TRACE_H
 
-#include "common.h"
+#include "ssl_misc.h"
 #include "mps_common.h"
 #include "mps_trace.h"
 

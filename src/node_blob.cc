@@ -110,9 +110,12 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-  auto entry = DataQueue::CreateFdEntry(env, args[0]);
+  int status = 0;
+  auto entry = DataQueue::CreateFdEntry(env, args[0], &status);
   if (entry == nullptr) {
-    return THROW_ERR_INVALID_ARG_VALUE(env, "Unable to open file as blob");
+    // The file could not be stat'd. Report the libuv error so callers can tell
+    // ENOENT apart from any other reason the path could not be used.
+    return env->ThrowUVException(status, "stat", nullptr, *path);
   }
 
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
@@ -420,20 +423,16 @@ void Blob::Reader::SetWakeup(const FunctionCallbackInfo<Value>& args) {
   reader->wakeup_.Reset(args.GetIsolate(), args[0].As<Function>());
 }
 
-void Blob::Reader::NotifyPull(bool fin) {
+void Blob::Reader::NotifyPull() {
   if (wakeup_.IsEmpty() || !env()->can_call_into_js()) return;
-  // FIN notifications always fire — they must not be suppressed by
-  // pull_pending_ because there will be no further notifications to
-  // wake the iterator. Regular data notifications respect pull_pending_
-  // to coalesce multiple deliveries within a single packet.
-  if (!fin && pull_pending_) return;
+  // Coalesce notifications: if a wakeup is already pending and the reader
+  // has not yet pulled, skip re-notifying to avoid redundant wakeups
+  // within a single packet.
+  if (pull_pending_) return;
   pull_pending_ = true;
   HandleScope handle_scope(env()->isolate());
   Local<Function> fn = wakeup_.Get(env()->isolate());
-  // Pass fin as the first argument so the JS iterator knows EOS is
-  // imminent and should pull again without waiting for another wakeup.
-  Local<Value> argv[] = {v8::Boolean::New(env()->isolate(), fin)};
-  MakeCallback(fn, 1, argv);
+  MakeCallback(fn, 0, nullptr);
 }
 
 BaseObjectPtr<BaseObject> Blob::BlobTransferData::Deserialize(

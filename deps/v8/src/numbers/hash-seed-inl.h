@@ -6,7 +6,7 @@
 #define V8_NUMBERS_HASH_SEED_INL_H_
 
 #include "src/numbers/hash-seed.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/hash-seed-wrapper-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
@@ -19,7 +19,9 @@ inline HashSeed::HashSeed(LocalIsolate* isolate)
     : HashSeed(ReadOnlyRoots(isolate)) {}
 
 inline HashSeed::HashSeed(ReadOnlyRoots roots)
-    : data_(reinterpret_cast<const Data*>(roots.hash_seed()->begin())) {}
+    : data_(&roots.hash_seed()->data()) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(data_) % alignof(HashSeed::Data));
+}
 
 inline HashSeed HashSeed::Default() { return HashSeed(kDefaultData); }
 

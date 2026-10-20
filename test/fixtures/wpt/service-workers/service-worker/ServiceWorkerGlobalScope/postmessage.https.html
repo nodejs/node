@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<title>ServiceWorkerGlobalScope: postMessage</title>
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+<script src='../resources/test-helpers.sub.js'></script>
+<script>
+
+promise_test(function(t) {
+    var script = 'resources/postmessage-loopback-worker.js';
+    var scope = 'resources/scope/postmessage-loopback';
+    var registration;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = function(event) {
+                resolve(event.data);
+              };
+            });
+          registration.active.postMessage({port: channel.port2},
+                                          [channel.port2]);
+          return saw_message;
+        })
+      .then(function(result) {
+          assert_equals(result, 'OK');
+        });
+  }, 'Post loopback messages');
+
+promise_test(function(t) {
+    var script1 = 'resources/postmessage-ping-worker.js';
+    var script2 = 'resources/postmessage-pong-worker.js';
+    var scope = 'resources/scope/postmessage-pingpong';
+    var registration;
+    var frame;
+
+    return service_worker_unregister_and_register(t, script1, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          // A controlled frame is necessary for keeping a waiting worker.
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          return navigator.serviceWorker.register(script2, {scope: scope});
+        })
+      .then(function(r) {
+          return wait_for_state(t, r.installing, 'installed');
+        })
+      .then(function() {
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = function(event) {
+                resolve(event.data);
+              };
+            });
+          registration.active.postMessage({port: channel.port2},
+                                          [channel.port2]);
+          return saw_message;
+        })
+      .then(function(result) {
+          assert_equals(result, 'OK');
+          frame.remove();
+        });
+  }, 'Post messages among service workers');
+
+</script>

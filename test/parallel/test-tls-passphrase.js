@@ -26,6 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
+const { hasFIPS } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 const passKey = fixtures.readKey('rsa_private_encrypted.pem');
@@ -224,6 +225,10 @@ server.listen(0, common.mustCall(function() {
 })).unref();
 
 const errMessageDecrypt = /bad[ _]decrypt/i;
+// TLS supplies an empty password when the passphrase is omitted. OpenSSL 4
+// FIPS rejects it during PBKDF2 password-length checks, before decryption.
+const missingPassphraseError = hasFIPS(4) ?
+  { code: 'ERR_OSSL_PASSWORD_STRENGTH_TOO_WEAK' } : errMessageDecrypt;
 
 // Missing passphrase
 assert.throws(function() {
@@ -233,7 +238,7 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessageDecrypt);
+}, missingPassphraseError);
 
 assert.throws(function() {
   tls.connect({
@@ -242,7 +247,7 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessageDecrypt);
+}, missingPassphraseError);
 
 assert.throws(function() {
   tls.connect({
@@ -251,14 +256,14 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessageDecrypt);
+}, missingPassphraseError);
 
 // Invalid passphrase
 assert.throws(function() {
   tls.connect({
     port: server.address().port,
     key: passKey,
-    passphrase: 'invalid',
+    passphrase: 'wrong-password',
     cert: cert,
     rejectUnauthorized: false
   });
@@ -268,7 +273,7 @@ assert.throws(function() {
   tls.connect({
     port: server.address().port,
     key: [passKey],
-    passphrase: 'invalid',
+    passphrase: 'wrong-password',
     cert: cert,
     rejectUnauthorized: false
   });
@@ -278,7 +283,7 @@ assert.throws(function() {
   tls.connect({
     port: server.address().port,
     key: [{ pem: passKey }],
-    passphrase: 'invalid',
+    passphrase: 'wrong-password',
     cert: cert,
     rejectUnauthorized: false
   });
@@ -287,7 +292,7 @@ assert.throws(function() {
 assert.throws(function() {
   tls.connect({
     port: server.address().port,
-    key: [{ pem: passKey, passphrase: 'invalid' }],
+    key: [{ pem: passKey, passphrase: 'wrong-password' }],
     passphrase: 'password', // Valid but unused
     cert: cert,
     rejectUnauthorized: false

@@ -5,6 +5,9 @@
       'OPENSSL_USE_NODELETE',
       'B_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'AES_CTR_ASM',
       'AES_XTS_ASM',
@@ -28,7 +31,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux32-s390x': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'openssl_cli_srcs_linux32-s390x': [
       'openssl/apps/lib/cmp_mock_srv.c',

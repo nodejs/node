@@ -19,6 +19,7 @@ const {
   decompressBrotli,
   decompressZstd,
 } = require('zlib/iter');
+const zlib = require('zlib');
 
 // =============================================================================
 // Helper: compress then decompress, verify round-trip equality
@@ -40,6 +41,18 @@ async function testGzipRoundTrip() {
   const input = 'Hello, gzip compression!';
   const result = await roundTrip(input, compressGzip(), decompressGzip());
   assert.strictEqual(result, input);
+}
+
+async function testValidatedTransformReceiver() {
+  const descriptor = compressGzip();
+  const transform = descriptor.transform;
+  descriptor.transform = common.mustCall(function(source, options) {
+    assert.strictEqual(this, descriptor);
+    return Reflect.apply(transform, this, [source, options]);
+  });
+
+  const result = await bytes(pull(from('receiver'), descriptor));
+  assert.ok(result.byteLength > 0);
 }
 
 async function testGzipLargeData() {
@@ -129,6 +142,20 @@ async function testZstdActuallyCompresses() {
   const compressed = await bytes(pull(from(inputBuf), compressZstd()));
   assert.ok(compressed.byteLength < inputBuf.byteLength,
             `Compressed ${compressed.byteLength} should be < original ${inputBuf.byteLength}`);
+}
+
+async function testZstdConcatenatedFrames() {
+  const first = zlib.zstdCompressSync('a');
+  const second = zlib.zstdCompressSync('b');
+  const input = Buffer.concat([first, second]);
+  const result = await bytes(pull(from(input), decompressZstd()));
+  assert.strictEqual(Buffer.from(result).toString(), 'ab');
+
+  const withJunk = await bytes(pull(
+    from([first, Buffer.from('junk'), second]),
+    decompressZstd(),
+  ));
+  assert.strictEqual(Buffer.from(withJunk).toString(), 'a');
 }
 
 // =============================================================================
@@ -250,6 +277,7 @@ async function testGzipWithLevel() {
 (async () => {
   // Gzip
   await testGzipRoundTrip();
+  await testValidatedTransformReceiver();
   await testGzipLargeData();
   await testGzipActuallyCompresses();
 
@@ -267,6 +295,7 @@ async function testGzipWithLevel() {
   await testZstdRoundTrip();
   await testZstdLargeData();
   await testZstdActuallyCompresses();
+  await testZstdConcatenatedFrames();
 
   // Binary data
   await testBinaryRoundTripGzip();

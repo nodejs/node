@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -394,7 +394,7 @@ static ssize_t syscall_random(void *buf, size_t buflen)
     return getrandom(buf, buflen, 0);
 #elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
     return sysctl_random(buf, buflen);
-#elif defined(__wasi__)
+#elif defined(__wasi__) || defined(__EMSCRIPTEN__)
     if (getentropy(buf, buflen) == 0)
         return (ssize_t)buflen;
     return -1;

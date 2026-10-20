@@ -10,6 +10,10 @@ try {
   common.skip('missing trace events');
 }
 
+// Perfetto records nothing for a category enabled after the tracing session
+// started, so there is no dynamic enabling to test there yet.
+common.skipIfPerfettoEnabled();
+
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');

@@ -36,6 +36,7 @@ using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -234,7 +235,7 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
 template <typename FT, FT F, typename R, typename... Args>
 void WASI::WasiFunction<FT, F, R, Args...>::SetFunction(
     Environment* env, const char* name, Local<FunctionTemplate> tmpl) {
-  auto c_function = CFunction::Make(FastCallback);
+  static auto c_function = CFunction::Make(FastCallback);
   Local<FunctionTemplate> t =
       FunctionTemplate::New(env->isolate(),
                             SlowCallback,
@@ -296,13 +297,17 @@ static bool CheckType(Local<Value> v);
 template <typename VT>
 static VT ConvertType(Local<Value> V);
 
+// Wasm i32 values with the high bit set arrive as negative Int32 numbers.
 template <>
 bool CheckType<uint32_t>(Local<Value> value) {
-  return value->IsUint32();
+  return value->IsUint32() || value->IsInt32();
 }
 
 template <>
 uint32_t ConvertType(Local<Value> value) {
+  if (value->IsInt32()) {
+    return static_cast<uint32_t>(value.As<Int32>()->Value());
+  }
   return value.As<Uint32>()->Value();
 }
 
@@ -358,8 +363,8 @@ template <typename FT,
           FT F,
           typename R,
           typename... Args,
-          std::size_t... Indices,
-          typename std::enable_if_t<!std::is_void<R>::value, bool> = true>
+          std::size_t... Indices>
+  requires(!std::is_void_v<R>)
 inline void CallAndSetReturn(std::index_sequence<Indices...>,
                              const FunctionCallbackInfo<Value>& args,
                              WASI* wasi,
@@ -372,8 +377,8 @@ template <typename FT,
           FT F,
           typename R,
           typename... Args,
-          std::size_t... Indices,
-          typename std::enable_if_t<std::is_void<R>::value, bool> = true>
+          std::size_t... Indices>
+  requires std::is_void_v<R>
 inline void CallAndSetReturn(std::index_sequence<Indices...>,
                              const FunctionCallbackInfo<Value>& args,
                              WASI* wasi,

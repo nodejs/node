@@ -99,6 +99,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSSetPrototypeProperties:
       return true;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
@@ -133,7 +134,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
       CONTROL_OP_LIST(CASE)
       MACHINE_OP_LIST(CASE)
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_WASM(MACHINE_SIMD256_OP_LIST, CASE)
+      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       SIMPLIFIED_OP_LIST(CASE)
       break;
 #undef CASE
@@ -156,10 +157,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
-      return false;
-
-    // Generator creation cannot call back into arbitrary JavaScript.
-    case IrOpcode::kJSCreateGeneratorObject:
       return false;
 
     // Binary operations
@@ -202,6 +199,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSCreateObject:
     case IrOpcode::kJSCloneObject:
+    case IrOpcode::kJSCreateGeneratorObject:
 
     // Property access operations
     case IrOpcode::kJSDeleteProperty:
@@ -244,6 +242,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Misc operations
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:

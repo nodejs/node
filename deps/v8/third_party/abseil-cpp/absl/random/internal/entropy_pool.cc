@@ -20,6 +20,7 @@
 #include <cstring>
 #include <iterator>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/config.h"
@@ -56,21 +57,21 @@ class alignas(std::max(size_t{ABSL_CACHELINE_SIZE}, size_t{32}))
 
   void Init(absl::Span<const uint32_t> data) {
     SpinLockHolder l(mu_);  // Always uncontested.
-    std::copy(data.begin(), data.end(), std::begin(state_));
+    absl::c_copy(data, std::begin(state_));
     next_ = kState;
   }
 
   // Copy bytes into out.
   void Fill(uint8_t* out, size_t bytes) ABSL_LOCKS_EXCLUDED(mu_);
 
-  inline void MaybeRefill() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+  void MaybeRefill() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     if (next_ >= kState) {
       next_ = kCapacity;
       impl_.Generate(state_);
     }
   }
 
-  inline size_t available() const ABSL_SHARED_LOCKS_REQUIRED(mu_) {
+  size_t available() const ABSL_SHARED_LOCKS_REQUIRED(mu_) {
     return kState - next_;
   }
 

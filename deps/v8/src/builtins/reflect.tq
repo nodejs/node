@@ -83,7 +83,7 @@ transitioning javascript builtin ReflectDeleteProperty(
   return DeleteProperty(objectJSReceiver, key, LanguageMode::kSloppy);
 }
 
-// ES section #sec-reflect.has
+// https://tc39.es/ecma262/#sec-reflect.has
 transitioning javascript builtin ReflectHas(
     js-implicit context: NativeContext)(object: JSAny, key: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object)

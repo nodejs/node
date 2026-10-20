@@ -1,0 +1,73 @@
+use serde::Serialize;
+
+use crate::ast::idents::IntoWithSpan;
+use crate::ast::SpanLocation;
+
+use super::docs::Docs;
+use super::{Attrs, Ident, LifetimeEnv, Method, Mutability};
+
+/// A type annotated with [`diplomat::opaque`] whose fields/variants are not visible.
+/// Opaque types cannot be passed by-value across the FFI boundary, so they
+/// must be boxed or passed as references.
+#[derive(Clone, Serialize, Debug, Hash, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct OpaqueType {
+    pub name: Ident,
+    pub docs: Docs,
+    pub lifetimes: LifetimeEnv,
+    pub methods: Vec<Method>,
+    pub mutability: Mutability,
+    pub attrs: Attrs,
+    /// The ABI name of the generated destructor
+    pub dtor_abi_name: Ident,
+}
+
+impl OpaqueType {
+    /// Extract a [`OpaqueType`] metadata value from an AST node representing a struct.
+    pub fn new_struct(
+        strct: &syn::ItemStruct,
+        mutability: Mutability,
+        parent_attrs: &Attrs,
+        module_location: &SpanLocation,
+    ) -> Self {
+        let mut attrs = parent_attrs.clone();
+        attrs.add_attrs(&strct.attrs, module_location);
+        let name = (&strct.ident).spanned_into(module_location);
+        OpaqueType {
+            dtor_abi_name: Self::dtor_abi_name(&name, &attrs),
+            name,
+            docs: Docs::from_attrs(&strct.attrs, module_location),
+            lifetimes: LifetimeEnv::from_struct_item(strct, &[], module_location),
+            methods: vec![],
+            mutability,
+            attrs,
+        }
+    }
+
+    /// Extract a [`OpaqueType`] metadata value from an AST node representing an enum.
+    pub fn new_enum(
+        enm: &syn::ItemEnum,
+        mutability: Mutability,
+        parent_attrs: &Attrs,
+        module_location: &SpanLocation,
+    ) -> Self {
+        let mut attrs = parent_attrs.clone();
+        attrs.add_attrs(&enm.attrs, module_location);
+        let name = (&enm.ident).spanned_into(module_location);
+        OpaqueType {
+            dtor_abi_name: Self::dtor_abi_name(&name, &attrs),
+            name,
+            docs: Docs::from_attrs(&enm.attrs, module_location),
+            lifetimes: LifetimeEnv::from_enum_item(enm, &[], module_location),
+            methods: vec![],
+            mutability,
+            attrs,
+        }
+    }
+
+    fn dtor_abi_name(name: &Ident, attrs: &Attrs) -> Ident {
+        let dtor_abi_name = format!("{name}_destroy");
+        let dtor_abi_name = String::from(attrs.abi_rename.apply(dtor_abi_name.into()));
+        Ident::from(dtor_abi_name)
+    }
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -847,8 +847,8 @@ static const OSSL_PARAM sm2_known_gettable_params[] = {
     OSSL_PARAM_int(OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS, NULL),
     EC_IMEXPORTABLE_DOM_PARAMETERS,
     EC_IMEXPORTABLE_PUBLIC_KEY,
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_EC_PUB_X, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_EC_PUB_Y, NULL, 0),
+    OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_PUB_X, NULL, 0),
+    OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_PUB_Y, NULL, 0),
     EC_IMEXPORTABLE_PRIVATE_KEY,
     OSSL_PARAM_END
 };
@@ -1298,20 +1298,6 @@ static void *ec_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 
     if (gctx->group_check != NULL)
         ret = ret && ossl_ec_set_check_group_type_from_name(ec, gctx->group_check);
-#ifdef FIPS_MODULE
-    if (ret > 0
-        && !ossl_fips_self_testing()
-        && EC_KEY_get0_public_key(ec) != NULL
-        && EC_KEY_get0_private_key(ec) != NULL
-        && EC_KEY_get0_group(ec) != NULL) {
-        BN_CTX *bnctx = BN_CTX_new_ex(ossl_ec_key_get_libctx(ec));
-
-        ret = bnctx != NULL && ossl_ec_key_pairwise_check(ec, bnctx);
-        BN_CTX_free(bnctx);
-        if (ret <= 0)
-            ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
-    }
-#endif /* FIPS_MODULE */
 
     if (ret)
         return ec;

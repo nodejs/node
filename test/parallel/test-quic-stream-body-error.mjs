@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 const { setTimeout } = await import('node:timers/promises');
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,7 +43,7 @@ await stream.closed;
 
 // The source should have stopped. It may yield a few chunks
 // but not an unbounded number.
-ok(yieldCount < 50, `yieldCount too high: ${yieldCount}`);
+assert.ok(yieldCount < 50, `yieldCount too high: ${yieldCount}`);
 
 await clientSession.closed;
 await serverEndpoint.close();

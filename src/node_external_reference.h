@@ -20,18 +20,18 @@ class ExternalReferenceRegistry {
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorNameGetterCallback)                                            \
-  V(v8::AccessorNameSetterCallback)                                            \
+  V(v8::AccessorNameSetterCallbackV2)                                          \
   V(v8::NamedPropertyGetterCallback)                                           \
-  V(v8::NamedPropertyDefinerCallback)                                          \
+  V(v8::NamedPropertyDefinerCallbackV2)                                        \
   V(v8::NamedPropertyDeleterCallback)                                          \
   V(v8::NamedPropertyEnumeratorCallback)                                       \
   V(v8::NamedPropertyQueryCallback)                                            \
-  V(v8::NamedPropertySetterCallback)                                           \
-  V(v8::IndexedPropertyGetterCallbackV2)                                       \
-  V(v8::IndexedPropertySetterCallbackV2)                                       \
-  V(v8::IndexedPropertyDefinerCallbackV2)                                      \
-  V(v8::IndexedPropertyDeleterCallbackV2)                                      \
-  V(v8::IndexedPropertyQueryCallbackV2)                                        \
+  V(v8::NamedPropertySetterCallbackV2)                                         \
+  V(v8::IndexedPropertyGetterCallback)                                         \
+  V(v8::IndexedPropertySetterCallback)                                         \
+  V(v8::IndexedPropertyDefinerCallback)                                        \
+  V(v8::IndexedPropertyDeleterCallback)                                        \
+  V(v8::IndexedPropertyQueryCallback)                                          \
   V(const v8::String::ExternalStringResourceBase*)
 
 #define V(ExternalReferenceType)                                               \
@@ -42,8 +42,7 @@ class ExternalReferenceRegistry {
   // Registers both the underlying function pointer
   // and the corresponding CFunctionInfo.
   void Register(const v8::CFunction& c_func) {
-    RegisterT(c_func.GetAddress());
-    RegisterT(c_func.GetTypeInfo());
+    RegisterT(&c_func);
   }
 
   // This can be called only once.
@@ -78,10 +77,12 @@ class ExternalReferenceRegistry {
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \
+  V(glob)                                                                      \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
   V(http_parser)                                                               \
   V(internal_only_v8)                                                          \
+  V(ipc_serdes)                                                                \
   V(locks)                                                                     \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \

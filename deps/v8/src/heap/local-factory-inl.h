@@ -8,6 +8,7 @@
 #include "src/heap/local-factory.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
 #include "src/roots/roots-inl.h"
 

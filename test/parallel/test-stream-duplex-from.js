@@ -418,3 +418,19 @@ function makeATestWritableStream(writeFunc) {
   }));
   r.destroy(expectedErr);
 }
+
+// Regression for https://github.com/nodejs/node/issues/55077:
+// An AsyncFunction passed to Duplex.from() that returns without consuming its
+// input must still allow pipeline() to complete and destroy the upstream.
+{
+  const r = Readable.from(['foo', 'bar', 'baz']);
+  pipeline(
+    r,
+    Duplex.from(async function() {
+      // Intentionally do not consume the async iterable input.
+    }),
+    common.mustCall(() => {
+      assert.strictEqual(r.destroyed, true);
+    }),
+  );
+}

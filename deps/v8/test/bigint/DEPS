@@ -1,3 +1,4 @@
 include_rules = [
+  "+absl/time",
   "+src/bigint",
 ]

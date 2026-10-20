@@ -25,7 +25,6 @@
 #include "tls_server_session_picotls.h"
 
 #include <cassert>
-#include <iostream>
 
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
 

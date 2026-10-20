@@ -18,7 +18,8 @@ class JSTrampolineAssembler : public CodeStubAssembler {
   explicit JSTrampolineAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void TailCallJSFunction(TNode<JSFunction> function);
+  void TailCallJSFunction(TNode<JSFunction> function,
+                          TNode<Uint16T> expected_parameter_count);
 
   template <typename Function>
   void TieringBuiltinImpl(const Function& Impl);

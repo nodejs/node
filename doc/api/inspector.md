@@ -119,7 +119,8 @@ added: v12.11.0
 -->
 
 Connects a session to the main thread inspector back-end. An exception will
-be thrown if this API was not called on a Worker thread.
+be thrown if this API was not called on a Worker thread, or if
+[`--process-timeout`][] is used, as the session could pause the main thread.
 
 #### `session.disconnect()`
 
@@ -298,7 +299,8 @@ added: v12.11.0
 -->
 
 Connects a session to the main thread inspector back-end. An exception will
-be thrown if this API was not called on a Worker thread.
+be thrown if this API was not called on a Worker thread, or if
+[`--process-timeout`][] is used, as the session could pause the main thread.
 
 #### `session.disconnect()`
 
@@ -415,8 +417,8 @@ changes:
     description: The API is exposed in the worker threads.
 -->
 
-Attempts to close all remaining connections, blocking the event loop until all
-are closed. Once all connections are closed, deactivates the inspector.
+Deactivates the inspector. If there are active connections, they are forcibly
+terminated. Blocks until the inspector server has fully stopped.
 
 ### `inspector.console`
 
@@ -455,6 +457,9 @@ and flow control has been passed to the debugger client.
 
 See the [security warning][] regarding the `host`
 parameter usage.
+
+Throws an [`ERR_INSPECTOR_NOT_AVAILABLE`][] error if [`--process-timeout`][] is
+used.
 
 ### `inspector.url()`
 
@@ -687,6 +692,7 @@ For more details, see the official CDP documentation: [Network.loadNetworkResour
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -708,6 +714,7 @@ This event indicates that a new item has been added to the storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -728,6 +735,7 @@ This event indicates that an item has been removed from the storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -750,6 +758,7 @@ This event indicates that a storage item has been updated.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -770,6 +779,7 @@ storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -797,7 +807,9 @@ connection.
 [Debugger]: debugger.md
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
+[`--process-timeout`]: cli.md#--process-timeoutduration
 [`Debugger` domain]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger
+[`ERR_INSPECTOR_NOT_AVAILABLE`]: errors.md#err_inspector_not_available
 [`inspector.close()`]: #inspectorclose
 [`session.connect()`]: #sessionconnect
 [`session.connectToMainThread()`]: #sessionconnecttomainthread

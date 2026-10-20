@@ -27,19 +27,24 @@ if (!common.hasCrypto) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 function test() {
   const odd = Buffer.alloc(39, 'A');
 
-  const c = crypto.createDiffieHellman(hasOpenSSL3 ? 1024 : 32);
+  const size = hasFIPS(3) ? 2048 : (hasOpenSSL(3) ? 1024 : 32);
+  const c = crypto.createDiffieHellman(size);
   c.setPrivateKey(odd);
   c.generateKeys();
 }
 
-// FIPS requires a length of at least 1024
-if (!crypto.getFips()) {
+if (hasFIPS(3)) {
+  test();
+  assert.throws(() => crypto.createDiffieHellman(1024), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+} else if (crypto.getFips() !== 1) {
   test();
 } else {
-  assert.throws(function() { test(); }, /key size too small/);
+  assert.throws(test, /key size too small/);
 }

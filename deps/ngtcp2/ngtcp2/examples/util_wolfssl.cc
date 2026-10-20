@@ -25,10 +25,10 @@
 #include "util.h"
 
 #include <cassert>
-#include <iostream>
 #include <array>
 #include <algorithm>
 #include <expected>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -51,16 +51,16 @@ std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
 }
 
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename) {
+read_hpke_private_key_pem(const std::filesystem::path &path) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type) {
-  auto f = wolfSSL_BIO_new_file(filename.data(), "r");
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
+  auto f = wolfSSL_BIO_new_file(path.c_str(), "r");
   if (f == nullptr) {
-    std::println(stderr, "Could not open {} file {}", name, filename);
+    std::println(stderr, "Could not open {} file {}", name, path.native());
     return std::unexpected{Error::IO};
   }
 
@@ -71,7 +71,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   long datalen;
 
   if (wolfSSL_PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-    std::println(stderr, "Could not read {} file {}", name, filename);
+    std::println(stderr, "Could not read {} file {}", name, path.native());
     return std::unexpected{Error::IO};
   }
 
@@ -82,20 +82,21 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   });
 
   if (type != pem_type) {
-    std::println(stderr, "{} file {} contains unexpected type", name, filename);
+    std::println(stderr, "{} file {} contains unexpected type", name,
+                 path.native());
     return std::unexpected{Error::IO};
   }
 
   return {{data, data + datalen}};
 }
 
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data) {
-  auto f = wolfSSL_BIO_new_file(filename.data(), "w");
+  auto f = wolfSSL_BIO_new_file(path.c_str(), "w");
   if (f == nullptr) {
-    std::println(stderr, "Could not write {} to {}", name, filename);
+    std::println(stderr, "Could not write {} to {}", name, path.native());
     return std::unexpected{Error::IO};
   }
 

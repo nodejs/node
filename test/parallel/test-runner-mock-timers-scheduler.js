@@ -97,11 +97,9 @@ describe('Mock Timers Scheduler Test Suite', () => {
 
   it('should abort operation when .abort is called before calling setInterval', async (t) => {
     t.mock.timers.enable({ apis: ['scheduler.wait'] });
-    const controller = new AbortController();
-    controller.abort();
     const p = nodeTimersPromises.scheduler.wait(2000, {
       ref: true,
-      signal: controller.signal,
+      signal: AbortSignal.abort(),
     });
 
     await assert.rejects(() => p, {

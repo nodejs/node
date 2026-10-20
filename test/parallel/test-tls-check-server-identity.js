@@ -100,6 +100,27 @@ const tests = [
     cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'IP Address:8.8.8.8' }
   },
 
+  // An "IP Address:" SAN also matches an IPv6 host. Regression test for the
+  // IDNA-normalization change: domainToASCII('::1') === '' (an IPv6 literal is
+  // not a domain), which made the normalized host skip IPv6 IP-SAN matching.
+  {
+    host: '::1',
+    cert: { subject: {}, subjectaltname: 'IP Address:::1' }
+  },
+
+  // IPv6 hosts and SANs are matched canonically.
+  {
+    host: '2001:db8::1',
+    cert: { subject: {}, subjectaltname: 'IP Address:2001:DB8:0:0:0:0:0:1' }
+  },
+
+  // A non-matching IPv6 "IP Address:" SAN is rejected.
+  {
+    host: '::1',
+    cert: { subject: {}, subjectaltname: 'IP Address:::2' },
+    error: 'IP: ::1 is not in the cert\'s list: ::2'
+  },
+
   // But not when it's a CIDR.
   {
     host: '8.8.8.8',
@@ -380,6 +401,15 @@ const tests = [
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
            'DNS:a.com'
+  },
+  {
+    host: 'foo。bar.example.com',
+    cert: {
+      subjectaltname: 'DNS:*.example.com',
+      subject: {}
+    },
+    error: 'Host: foo。bar.example.com. is not in the cert\'s altnames: ' +
+           'DNS:*.example.com'
   },
   // IDNA
   {

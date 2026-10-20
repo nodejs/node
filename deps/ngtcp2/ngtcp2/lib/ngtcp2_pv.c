@@ -128,6 +128,8 @@ void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   }
 
   ++pv->round;
+  pv->round = ngtcp2_min(pv->round, 10);
+
   pv->probe_pkt_left = NGTCP2_PV_NUM_PROBE_PKT;
 }
 
@@ -148,7 +150,7 @@ int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   ent = ngtcp2_ringbuf_get(&pv->ents.rb, ngtcp2_ringbuf_len(&pv->ents.rb) - 1);
 
   t = pv->started_ts + pv->timeout;
-  t = ngtcp2_max_uint64(t, ent->expiry);
+  t = ngtcp2_max(t, ent->expiry);
 
   return t <= ts;
 }

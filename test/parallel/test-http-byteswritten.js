@@ -44,12 +44,12 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
     res.write(bchunk);
     res.write(chunk, 'hex');
   }
-  // Get .bytesWritten while buffer is not empty
-  assert(res.connection.bytesWritten > 0);
-
   res.end(body);
+
+  // Get .bytesWritten while the socket buffer is not empty.
+  assert(res.connection.bytesWritten > 0);
 }));
 
 httpServer.listen(0, function() {
-  http.get({ port: this.address().port });
+  http.get({ port: this.address().port, agent: false });
 });

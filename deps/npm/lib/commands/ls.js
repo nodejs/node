@@ -135,7 +135,7 @@ class LS extends ArboristWorkspaceCmd {
               omit,
             }) : () => true)
             .filter(installStrategy === 'linked'
-              ? filterLinkedStrategyEdges({ node, currentDepth })
+              ? filterLinkedStrategyEdges({ currentDepth })
               : () => true)
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
@@ -278,6 +278,21 @@ const augmentItemWithIncludeMetadata = (node, item) => {
   return item
 }
 
+// Render a manifest-extension provenance object as a short "field.name" list, empty when none.
+const formatExtensionApplied = (applied) => {
+  if (!applied) {
+    return ''
+  }
+  const fields = ['dependencies', 'optionalDependencies', 'peerDependencies', 'peerDependenciesMeta']
+  const parts = []
+  for (const field of fields) {
+    for (const name of applied[field] || []) {
+      parts.push(`${field}.${name}`)
+    }
+  }
+  return parts.join(', ')
+}
+
 const getHumanOutputItem = (node, { args, chalk, global, long }) => {
   const { pkgid, path } = node
   const workspacePkgId = chalk.blueBright(pkgid)
@@ -333,6 +348,21 @@ const getHumanOutputItem = (node, { args, chalk, global, long }) => {
         ? ' ' + chalk.dim('overridden')
         : ''
     ) +
+    (
+      node.patched
+        ? ' ' + chalk.cyan(`[patched: ${node.patched.path}]`)
+        : ''
+    ) +
+    (
+      formatExtensionApplied(node.packageExtensionsApplied)
+        ? ' ' + chalk.dim(`packageExtensions: ${formatExtensionApplied(node.packageExtensionsApplied)}`)
+        : ''
+    ) +
+    (
+      formatExtensionApplied(node.npmExtensionApplied)
+        ? ' ' + chalk.dim(`.npm-extension: ${formatExtensionApplied(node.npmExtensionApplied)}`)
+        : ''
+    ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `\n${node.package.description || ''}` : '')
@@ -355,6 +385,14 @@ const getJsonOutputItem = (node, { global, long }) => {
   // the project root can't be overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json` is ran in an empty directory since we end up printing an object with only an overridden prop
   if (!node.isProjectRoot) {
     item.overridden = node.overridden
+  }
+
+  if (node.packageExtensionsApplied) {
+    item.packageExtensionsApplied = node.packageExtensionsApplied
+  }
+
+  if (node.npmExtensionApplied) {
+    item.npmExtensionApplied = node.npmExtensionApplied
   }
 
   item[_name] = node.name
@@ -389,6 +427,10 @@ const getJsonOutputItem = (node, { global, long }) => {
     item.invalid = node[_invalid]
   }
 
+  if (node.patched) {
+    item.patched = node.patched.path
+  }
+
   if (node[_missing] && !isOptional(node)) {
     item.required = node[_required]
     item.missing = true
@@ -400,32 +442,15 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-// In linked strategy, two types of edges produce false UNMET DEPENDENCYs:
-// 1. Workspace edges for undeclared workspaces: the lockfile records edges from root to ALL workspaces, but only declared workspaces are hoisted to root/node_modules in linked mode.  Undeclared ones are intentionally absent.
-// 2. Dev edges on non-root packages: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
-const filterLinkedStrategyEdges = ({ node, currentDepth }) => {
-  const declaredDeps = new Set(Object.keys(Object.assign({},
-    node.target.package.dependencies,
-    node.target.package.devDependencies,
-    node.target.package.optionalDependencies,
-    node.target.package.peerDependencies
-  )))
-
-  return (edge) => {
-    // Skip workspace edges for undeclared workspaces at root level
-    if (currentDepth === 0 && edge.type === 'workspace' && edge.missing) {
-      if (!declaredDeps.has(edge.name)) {
-        return false
-      }
-    }
-
-    // Skip dev edges for non-root packages (store packages)
-    if (currentDepth > 0 && edge.dev) {
-      return false
-    }
-
-    return true
+// In linked strategy, dev edges on non-root packages produce false UNMET DEPENDENCYs: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
+// Undeclared workspaces no longer need filtering here: loadActual synthesizes their root links so their edges resolve instead of reporting missing.
+const filterLinkedStrategyEdges = ({ currentDepth }) => (edge) => {
+  // Skip dev edges for non-root packages (store packages)
+  if (currentDepth > 0 && edge.dev) {
+    return false
   }
+
+  return true
 }
 
 const filterByEdgesTypes = ({ link, omit }) => (edge) => {

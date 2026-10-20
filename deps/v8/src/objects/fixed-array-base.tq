@@ -1,0 +1,23 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@cppObjectLayoutDefinition
+extern class FixedArrayBase extends HeapObject {
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+}
+
+// Trusted-space mirror of FixedArrayBase, extending TrustedObject.
+@abstract
+@cppObjectLayoutDefinition
+extern class TrustedFixedArrayBase extends TrustedObject {
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+}
+
+operator '.length_intptr' macro LoadFixedArrayBaseLengthIntptr(
+    array: FixedArrayBase): intptr {
+  return Convert<intptr>(array.length);
+}

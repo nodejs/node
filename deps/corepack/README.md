@@ -127,9 +127,9 @@ Depending on the value of `devEngines.packageManager.onFail`:
   of mismatch.
 
 If the top-level `packageManager` field is missing, Corepack will use the
-package manager defined in `devEngines.packageManager` – in which case you must
-provide a specific version in `devEngines.packageManager.version`, ideally with
-a hash, as explained in the previous section:
+package manager defined in `devEngines.packageManager`. You should provide a
+specific version in `devEngines.packageManager.version`, ideally with a hash, as
+explained in the previous section:
 
 ```json
 {
@@ -141,6 +141,16 @@ a hash, as explained in the previous section:
   }
 }
 ```
+
+When `devEngines.packageManager.version` is a range rather than a specific
+version, Corepack resolves it the same way as when a range is given on the
+command line: the latest version matching the range is looked up on the npm
+registry, which means the resolution requires network access (or a cache
+containing a matching version, see [Offline Workflow](#offline-workflow)), and
+may change over time. Set `COREPACK_ENABLE_AUTO_PIN=1` to have Corepack add the
+resolved version to the `packageManager` field. When
+`devEngines.packageManager.version` is missing, Corepack falls back to its
+[Known Good Release](#known-good-releases) for that package manager.
 
 ## Known Good Releases
 
@@ -328,8 +338,6 @@ same major line. Should you need to upgrade to a new major, use an explicit
   Only keys that start with `COREPACK_` and are not in the exception list
   (`COREPACK_ENABLE_DOWNLOAD_PROMPT` and `COREPACK_ENV_FILE` are ignored)
   will be taken into account.
-  For Node.js 18.x users, this setting has no effect as that version doesn't
-  support parsing of `.env` files.
 
 - `COREPACK_HOME` can be set in order to define where Corepack should install
   the package managers. By default it is set to `%LOCALAPPDATA%\node\corepack`
@@ -351,8 +359,21 @@ same major line. Should you need to upgrade to a new major, use an explicit
   environment variables are required and as plain text. If you want to send an
   empty password, explicitly set `COREPACK_NPM_PASSWORD` to an empty string.
 
+- `COREPACK_ON_UNVERIFIED_DOWNLOAD` can be set to:
+  - `warn` (case insensitive): attempting to download an unsigned version without
+    providing a hash will emit a warning to stderr.
+  - `error` (case insensitive): attempting to download an unsigned version without
+    providing a hash will fail with an error, and nothing gets downloaded.
+  - `strict-warn` (case insensitive): same as `warn`, and additionally emits a
+    warning when downloading a version that is not pinned by a hash, even when
+    its signature can be verified.
+  - `strict-error` (case insensitive): same as `error`, and additionally fails
+    when downloading a version that is not pinned by a hash, even when its
+    signature can be verified.
+  - `ignore` (or any other unsupported value): disables that security feature.
+
 - `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are supported through
-  [`proxy-from-env`](https://github.com/Rob--W/proxy-from-env).
+  [`NODE_USE_ENV_PROXY=1`](https://nodejs.org/api/cli.html#node_use_env_proxy1).
 
 - `COREPACK_INTEGRITY_KEYS` can be set to an empty string or `0` to
   instruct Corepack to skip integrity checks, or to a JSON string containing

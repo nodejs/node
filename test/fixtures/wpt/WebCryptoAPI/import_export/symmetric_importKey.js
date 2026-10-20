@@ -59,6 +59,20 @@ function runTests(algorithmName) {
                         testFormat(format, algorithm, data, keyData.length * 8, usages, extractable);
                     });
                     testEmptyUsages(format, algorithm, data, keyData.length * 8, extractable);
+
+                    // Verify the key data is copied only after the algorithm is
+                    // normalized (per spec, "get a copy of the bytes held by the
+                    // keyData parameter" follows "normalize an algorithm"). A
+                    // getter on the algorithm name mutates the key data during
+                    // normalization; the imported key must reflect the restored
+                    // bytes. Checked for BufferSource formats (jwk key data is
+                    // not a BufferSource) when the key is extractable, so the
+                    // imported bytes can be read back and compared.
+                    if (extractable && format !== "jwk") {
+                        allValidUsages(vector.legalUsages).forEach(function(usages) {
+                            testKeyDataAlteredDuringCall(format, algorithm, keyData, keyData.length * 8, usages);
+                        });
+                    }
                 });
             });
 
@@ -109,6 +123,35 @@ function runTests(algorithmName) {
                 assert_equals(err.name, "SyntaxError", "Should throw correct error, not " + err.name + ": " + err.message);
             });
         }, "Empty Usages: " + keySize.toString() + " bits " + parameterString(format, keyData, algorithm, extractable, usages));
+    }
+
+    // Test that importKey copies the key data only after the algorithm has been
+    // normalized. The spec normalizes the algorithm (which can run author
+    // getters on the algorithm dictionary) before getting a copy of the bytes
+    // held by the keyData parameter. Here a getter on the algorithm's name
+    // mutates the key data during normalization and then restores it, so a
+    // spec-compliant implementation imports the restored (original) bytes.
+    function testKeyDataAlteredDuringCall(format, algorithm, keyData, keySize, usages) {
+        promise_test(function(test) {
+            var alteredKeyData = copyBuffer(keyData);
+            alteredKeyData[0] = 255 - alteredKeyData[0];
+            var algorithmWithGetter = {
+                ...algorithm,
+                get name() {
+                    alteredKeyData[0] = keyData[0];
+                    return algorithm.name;
+                }
+            };
+            return subtle.importKey(format, alteredKeyData, algorithmWithGetter, true, usages).
+            then(function(key) {
+                return subtle.exportKey(format, key);
+            }).
+            then(function(result) {
+                assert_true(equalBuffers(keyData, result), "Imported key reflects the key data as it was after normalization");
+            }, function(err) {
+                assert_unreached("Threw an unexpected error: " + err.toString());
+            });
+        }, "Key data altered during call: " + keySize.toString() + " bits " + parameterString(format, keyData, algorithm, true, usages));
     }
 
 

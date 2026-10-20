@@ -17,8 +17,15 @@ any memory inside the sandbox address space as this primitive can be
 constructed from typical V8 vulnerabilities. Further, it is assumed that an
 attacker will be able to read memory outside of the sandbox, for example
 through hardware side channels. The sandbox then aims to protect the rest of
-the process from such an attacker. As such, any corruption of memory outside of
-the sandbox address space is considered a sandbox violation.
+the process from such an attacker. As such, any write access leading to a
+corruption of memory outside of the sandbox address space that is not
+otherwise safeguarded is considered a sandbox violation. Note that some write
+accesses outside of the sandbox are not generally considered corruptions.
+Examples:
+- writes that are always trapped in safe regions (e.g., segmented tables);
+- counters that are re-validated when they are actually used;
+- tricking the garbage collector to free objects, as long as the metadata
+  itself is consistent and the corruption stays within the sandbox;
 
 ## Usage
 

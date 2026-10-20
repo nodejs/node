@@ -14,8 +14,11 @@
 
 #include "absl/random/internal/randen.h"
 
-#include "absl/base/internal/raw_logging.h"
+#include "absl/base/config.h"
+#include "absl/random/internal/platform.h"
 #include "absl/random/internal/randen_detect.h"
+#include "absl/random/internal/randen_hwaes.h"
+#include "absl/random/internal/randen_slow.h"
 
 // RANDen = RANDom generator or beetroots in Swiss High German.
 // 'Strong' (well-distributed, unpredictable, backtracking-resistant) random

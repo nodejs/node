@@ -2,15 +2,18 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_concepts.h"
 #include "v8-profiler.h"
 
 #include <uv.h>
 
 #include <limits>
+#include <memory>
 #include <queue>
 #include <stack>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace v8 {
 class BackingStore;
@@ -229,10 +232,7 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const std::basic_string<T>& value,
                          const char* node_name = nullptr);
-  template <typename T,
-            typename test_for_number = typename std::
-                enable_if<std::numeric_limits<T>::is_specialized, bool>::type,
-            typename dummy = bool>
+  template <NumericValue T>
   inline void TrackField(const char* edge_name,
                          const T& value,
                          const char* node_name = nullptr);
@@ -296,9 +296,15 @@ class MemoryTracker {
   inline v8::EmbedderGraph* graph() { return graph_; }
   inline v8::Isolate* isolate() { return isolate_; }
 
-  inline explicit MemoryTracker(v8::Isolate* isolate,
-                                v8::EmbedderGraph* graph)
-    : isolate_(isolate), graph_(graph) {}
+  inline explicit MemoryTracker(v8::Isolate* isolate, v8::EmbedderGraph* graph);
+  inline ~MemoryTracker();
+
+  // Can be passed to Track() if it is not desirable
+  // to create a strong edge between nodes, i.e. when
+  // the node should be added to the graph and the
+  // parent node is "tracking" the target node but
+  // not directly keeping it alive.
+  static const char* const kWeakEdge;
 
  private:
   typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>
@@ -321,11 +327,16 @@ class MemoryTracker {
                                       size_t size,
                                       const char* edge_name = nullptr);
   inline void PopNode();
+  inline void AddEdge(v8::EmbedderGraph::Node* from,
+                      v8::EmbedderGraph::Node* to,
+                      const char* edge_name = nullptr);
 
   v8::Isolate* isolate_;
   v8::EmbedderGraph* graph_;
   std::stack<MemoryRetainerNode*> node_stack_;
   NodeMap seen_;
+  // Placeholder nodes for cppgc wrappers; the graph only owns their JS nodes.
+  std::vector<std::unique_ptr<MemoryRetainerNode>> cppgc_nodes_;
 };
 
 }  // namespace node

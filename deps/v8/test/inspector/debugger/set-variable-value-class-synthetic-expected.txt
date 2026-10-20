@@ -1,0 +1,31 @@
+Checks that Debugger.setVariableValue cannot overwrite synthetic class context slots
+Class block scope found: true
+Setting .brand to "foo"
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+Own property names of inst:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : []
+        }
+    }
+}
+inst.run():
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}

@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -54,8 +52,8 @@ const done = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(received.byteLength, numChunks * chunkSize);
-    strictEqual(checksum(received), expectedChecksum);
+    assert.strictEqual(received.byteLength, numChunks * chunkSize);
+    assert.strictEqual(checksum(received), expectedChecksum);
 
     stream.writer.endSync();
     await stream.closed;
@@ -81,7 +79,7 @@ for (let i = 0; i < numChunks; i++) {
 }
 
 const totalWritten = w.endSync();
-strictEqual(totalWritten, numChunks * chunkSize);
+assert.strictEqual(totalWritten, numChunks * chunkSize);
 
 await Promise.all([stream.closed, done.promise]);
 await clientSession.close();

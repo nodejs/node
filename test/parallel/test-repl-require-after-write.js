@@ -5,6 +5,8 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
+common.skipIfInspectorDisabled();
+
 tmpdir.refresh();
 
 const requirePath = JSON.stringify(tmpdir.resolve('non-existent.json'));

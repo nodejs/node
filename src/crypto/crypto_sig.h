@@ -104,7 +104,6 @@ struct SignConfiguration final : public MemoryRetainer {
     kHasContextString = 4
   };
 
-  CryptoJobMode job_mode;
   Mode mode;
   KeyObjectData key;
   ByteSource data;

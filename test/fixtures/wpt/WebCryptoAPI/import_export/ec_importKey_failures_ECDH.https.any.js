@@ -1,6 +1,7 @@
 // META: title=WebCryptoAPI: importKey() for Failures
 // META: timeout=long
 // META: script=../util/helpers.js
+// META: script=../util/ec_key_fixtures.js
 // META: script=ec_importKey_failures_fixtures.js
 // META: script=importKey_failures.js
 

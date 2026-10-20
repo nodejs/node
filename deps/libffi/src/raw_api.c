@@ -42,7 +42,7 @@ ffi_raw_size (ffi_cif *cif)
   for (i = cif->nargs-1; i >= 0; i--, at++)
     {
 #if !FFI_NO_STRUCTS
-      if ((*at)->type == FFI_TYPE_STRUCT)
+      if ((*at)->type == FFI_TYPE_STRUCT || (*at)->type == FFI_TYPE_VECTOR)
 	result += FFI_ALIGN (sizeof (void*), FFI_SIZEOF_ARG);
       else
 #endif
@@ -82,8 +82,9 @@ ffi_raw_to_ptrarray (ffi_cif *cif, ffi_raw *raw, void **args)
 	  break;
 #endif
 	
-#if !FFI_NO_STRUCTS  
+#if !FFI_NO_STRUCTS
 	case FFI_TYPE_STRUCT:
+	case FFI_TYPE_VECTOR:
 	  *args = (raw++)->ptr;
 	  break;
 #endif
@@ -110,7 +111,7 @@ ffi_raw_to_ptrarray (ffi_cif *cif, ffi_raw *raw, void **args)
   for (i = 0; i < cif->nargs; i++, tp++, args++)
     {	  
 #if !FFI_NO_STRUCTS
-      if ((*tp)->type == FFI_TYPE_STRUCT)
+      if ((*tp)->type == FFI_TYPE_STRUCT || (*tp)->type == FFI_TYPE_VECTOR)
 	{
 	  *args = (raw++)->ptr;
 	}
@@ -172,6 +173,7 @@ ffi_ptrarray_to_raw (ffi_cif *cif, void **args, ffi_raw *raw)
 
 #if !FFI_NO_STRUCTS
 	case FFI_TYPE_STRUCT:
+	case FFI_TYPE_VECTOR:
 	  (raw++)->ptr = *args;
 	  break;
 #endif

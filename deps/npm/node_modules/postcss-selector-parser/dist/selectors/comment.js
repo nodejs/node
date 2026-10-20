@@ -1,21 +1,33 @@
 "use strict";
-
-exports.__esModule = true;
-exports["default"] = void 0;
-var _node = _interopRequireDefault(require("./node"));
-var _types = require("./types");
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; _setPrototypeOf(subClass, superClass); }
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
-var Comment = /*#__PURE__*/function (_Node) {
-  _inheritsLoose(Comment, _Node);
-  function Comment(opts) {
-    var _this;
-    _this = _Node.call(this, opts) || this;
-    _this.type = _types.COMMENT;
-    return _this;
-  }
-  return Comment;
-}(_node["default"]);
-exports["default"] = Comment;
-module.exports = exports.default;
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var node_1 = __importDefault(require("./node"));
+var types_1 = require("./types");
+var Comment = /** @class */ (function (_super) {
+    __extends(Comment, _super);
+    function Comment(opts) {
+        var _this = _super.call(this, opts) || this;
+        _this.type = types_1.COMMENT;
+        return _this;
+    }
+    return Comment;
+}(node_1.default));
+exports.default = Comment;
+//# sourceMappingURL=comment.js.map

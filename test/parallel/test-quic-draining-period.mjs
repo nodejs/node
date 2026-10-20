@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -36,7 +34,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   // With 3x PTO on localhost (~1-4ms RTT), the draining period should
   // be well under 1 second. The idle timeout is 10 seconds. If the
   // draining period fix is working, elapsed should be much less than 10s.
-  ok(elapsed < 2000, `Expected draining to complete in < 2s, took ${elapsed}ms`);
+  assert.ok(elapsed < 2000, `Expected draining to complete in < 2s, took ${elapsed}ms`);
 
   await serverEndpoint.close();
 }
@@ -58,7 +56,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const elapsed = Date.now() - start;
 
   // 10x PTO is still very short on localhost. Should complete promptly.
-  ok(elapsed < 2000, `Expected draining to complete in < 2s, took ${elapsed}ms`);
+  assert.ok(elapsed < 2000, `Expected draining to complete in < 2s, took ${elapsed}ms`);
 
   await serverEndpoint.close();
 }

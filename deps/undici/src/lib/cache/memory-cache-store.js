@@ -87,7 +87,7 @@ class MemoryCacheStore extends EventEmitter {
   }
 
   /**
-   * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} req
+   * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} key
    * @returns {import('../../types/cache-interceptor.d.ts').default.GetResult | undefined}
    */
   get (key) {
@@ -99,6 +99,11 @@ class MemoryCacheStore extends EventEmitter {
     const entries = this.#entries.get(topLevelKey)
 
     const entry = entries ? findEntry(key, entries, now) : null
+
+    if (entry != null) {
+      this.#entries.delete(topLevelKey)
+      this.#entries.set(topLevelKey, entries)
+    }
 
     return entry == null
       ? undefined
@@ -148,11 +153,13 @@ class MemoryCacheStore extends EventEmitter {
       },
       final (callback) {
         let entries = store.#entries.get(topLevelKey)
-        if (!entries) {
+        if (entries) {
+          store.#entries.delete(topLevelKey)
+        } else {
           entries = []
-          store.#entries.set(topLevelKey, entries)
         }
-        const previousEntry = findEntry(key, entries, Date.now())
+        store.#entries.set(topLevelKey, entries)
+        const previousEntry = findEntry(key, entries, -Infinity)
         if (previousEntry) {
           const index = entries.indexOf(previousEntry)
           entries.splice(index, 1, entry)
@@ -177,16 +184,7 @@ class MemoryCacheStore extends EventEmitter {
             store.#hasEmittedMaxSizeEvent = true
           }
 
-          // Perform eviction
-          for (const [key, entries] of store.#entries) {
-            for (const entry of entries.splice(0, entries.length / 2)) {
-              store.#size -= entry.size
-              store.#count -= 1
-            }
-            if (entries.length === 0) {
-              store.#entries.delete(key)
-            }
-          }
+          store.#evict(entry)
 
           // Reset the event flag after eviction
           if (store.#size < store.#maxSize && store.#count < store.#maxCount) {
@@ -197,6 +195,43 @@ class MemoryCacheStore extends EventEmitter {
         callback(null)
       }
     })
+  }
+
+  #evict (keep) {
+    const targetSize = this.#maxSize / 2
+    const targetCount = this.#maxCount / 2
+
+    for (const [key, entries] of this.#entries) {
+      for (let i = 0; i < entries.length && (this.#size > targetSize || this.#count > targetCount);) {
+        const entry = entries[i]
+        if (entry === keep) {
+          i++
+          continue
+        }
+        entries.splice(i, 1)
+        this.#size -= entry.size
+        this.#count -= 1
+      }
+
+      if (entries.length === 0) {
+        this.#entries.delete(key)
+      }
+
+      if (this.#size <= targetSize && this.#count <= targetCount) {
+        return
+      }
+    }
+
+    if (this.#size > this.#maxSize || this.#count > this.#maxCount) {
+      const topLevelKey = `${keep.origin}:${keep.path}`
+      const entries = this.#entries.get(topLevelKey)
+      entries.splice(entries.indexOf(keep), 1)
+      this.#size -= keep.size
+      this.#count -= 1
+      if (entries.length === 0) {
+        this.#entries.delete(topLevelKey)
+      }
+    }
   }
 
   /**
@@ -218,17 +253,62 @@ class MemoryCacheStore extends EventEmitter {
 }
 
 function findEntry (key, entries, now) {
-  return entries.find((entry) => (
-    entry.deleteAt > now &&
-    entry.method === key.method &&
-    (entry.vary == null || Object.keys(entry.vary).every(headerName => {
-      if (entry.vary[headerName] === null) {
-        return key.headers[headerName] === undefined
-      }
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    if (
+      entry.deleteAt > now &&
+      entry.method === key.method &&
+      varyMatches(key, entry)
+    ) {
+      return entry
+    }
+  }
+}
 
-      return entry.vary[headerName] === key.headers[headerName]
-    }))
-  ))
+function varyMatches (key, entry) {
+  if (entry.vary == null) {
+    return true
+  }
+
+  for (const headerName in entry.vary) {
+    if (Object.hasOwn(entry.vary, headerName) && !headerValueEquals(key.headers?.[headerName], entry.vary[headerName])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * @param {string|string[]|null|undefined} lhs
+ * @param {string|string[]|null|undefined} rhs
+ * @returns {boolean}
+ */
+function headerValueEquals (lhs, rhs) {
+  if (lhs == null && rhs == null) {
+    return true
+  }
+
+  if ((lhs == null && rhs != null) ||
+      (lhs != null && rhs == null)) {
+    return false
+  }
+
+  if (Array.isArray(lhs) && Array.isArray(rhs)) {
+    if (lhs.length !== rhs.length) {
+      return false
+    }
+
+    for (let i = 0; i < lhs.length; i++) {
+      if (lhs[i] !== rhs[i]) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  return lhs === rhs
 }
 
 module.exports = MemoryCacheStore

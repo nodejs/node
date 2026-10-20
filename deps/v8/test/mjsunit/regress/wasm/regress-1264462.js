@@ -7,8 +7,6 @@
 // We still keep this regression test for the future, even though the flag
 // `--turbo-force-mid-tier-regalloc` doesn't exist anymore.
 
-// Flags: --no-liftoff
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();

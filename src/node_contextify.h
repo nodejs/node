@@ -18,7 +18,7 @@ struct ContextOptions {
   v8::Local<v8::String> origin;
   v8::Local<v8::Boolean> allow_code_gen_strings;
   v8::Local<v8::Boolean> allow_code_gen_wasm;
-  std::unique_ptr<v8::MicrotaskQueue> own_microtask_queue;
+  v8::MicrotaskQueue* own_microtask_queue = nullptr;
   v8::Local<v8::Symbol> host_defined_options_id;
   bool vanilla = false;
 };
@@ -122,7 +122,7 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   }
 
   inline v8::MicrotaskQueue* microtask_queue() const {
-    return microtask_queue_.get();
+    return microtask_queue_;
   }
 
   template <typename T>
@@ -153,14 +153,14 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   static v8::Intercepted PropertySetterCallback(
       v8::Local<v8::Name> property,
       v8::Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<void>& args);
+      const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static v8::Intercepted PropertyDescriptorCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
   static v8::Intercepted PropertyDefinerCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<void>& args);
+      const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static v8::Intercepted PropertyDeleterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
@@ -173,20 +173,20 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   static v8::Intercepted IndexedPropertySetterCallback(
       uint32_t index,
       v8::Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<void>& args);
+      const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static v8::Intercepted IndexedPropertyDescriptorCallback(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& args);
   static v8::Intercepted IndexedPropertyDefinerCallback(
       uint32_t index,
       const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<void>& args);
+      const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static v8::Intercepted IndexedPropertyDeleterCallback(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static void IndexedPropertyEnumeratorCallback(
       const v8::PropertyCallbackInfo<v8::Array>& args);
 
   v8::TracedReference<v8::Context> context_;
-  std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
+  cppgc::Persistent<v8::MicrotaskQueue> microtask_queue_;
 };
 
 class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {

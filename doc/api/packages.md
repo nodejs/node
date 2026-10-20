@@ -710,6 +710,11 @@ specific to least specific as conditions should be defined:
   `import()` or `require()`. The format is expected to be ES modules that does
   not contain top-level await in its module graph - if it does,
   `ERR_REQUIRE_ASYNC_MODULE` will be thrown when the module is `require()`-ed.
+* `"worker"` - matches when the package is loaded within a [Web Worker][]
+  thread, including the worker entry point and all of its dependencies,
+  `import()`, `require()`, and `import.meta.resolve()`. Does not apply to
+  threads created with [`node:worker_threads`][], including those created
+  from within a Web Worker.
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
@@ -800,7 +805,7 @@ Any number of custom conditions can be set with repeat flags.
 
 Typical conditions should only contain alphanumerical characters,
 using ":", "-", or "=" as separators if necessary. Anything else may run
-into compability issues outside of node.
+into compatibility issues outside of node.
 
 In node, conditions have very few restrictions, but specifically these include:
 
@@ -947,6 +952,194 @@ $ node other.js
 
 See [the package examples repository][] for details.
 
+## Package maps
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.20.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with [`--experimental-package-map`][].
+
+Package maps provide a mechanism to control package resolution without relying
+on the `node_modules` folder structure. When enabled via the
+[`--experimental-package-map`][] flag, Node.js uses a JSON configuration file
+to determine how bare specifiers are resolved.
+
+This feature is useful for:
+
+* **Monorepos**: Define explicit dependency relationships between workspace
+  packages without symlinks or hoisting complexities.
+* **Dependency isolation**: Prevent packages from accessing undeclared
+  dependencies (phantom dependencies).
+* **Low file system coupling**: The package resolution algorithm runs without
+  inspecting the file system, relying instead on static data tables.
+
+### Configuration file format
+
+The package map configuration file is a JSON file with a `packages` object.
+Each key in `packages` is called a package ID and is a unique identifier for a package entry:
+
+```json
+{
+  "packages": {
+    "app": {
+      "url": "./packages/app",
+      "dependencies": {
+        "@myorg/utils": "utils",
+        "@myorg/ui-lib": "ui-lib"
+      }
+    },
+    "utils": {
+      "url": "./packages/utils"
+    },
+    "ui-lib": {
+      "url": "./packages/ui-lib",
+      "dependencies": {
+        "@myorg/utils": "utils"
+      }
+    }
+  }
+}
+```
+
+Each package entry has the following fields:
+
+* `url` {string} **Required.** An absolute or relative URL. This is parsed using
+  the WHATWG [`URL`][] API, using the configuration file URL as base. Only
+  `file:` protocol is supported. Multiple packages are allowed to share the
+  same URL; consumers must key module instances by both module url **and package IDs**
+  to differentiate them.
+* `dependencies` {Object} An object mapping bare specifiers to package keys.
+  Each key is the import name used in source code, and each value is the
+  corresponding package key in the `packages` object. Defaults to an empty
+  object.
+
+### Resolution algorithm
+
+When a bare specifier is encountered:
+
+1. Node.js determines which package performs the resolution request.
+   * If possible the package ID for the importer file should be provided to the resolution algorithm.
+   * Failing that, the resolution will check if the file path is within any
+     package location decoded from its `url`.
+2. If no package ID is provided and the importing file is not within any mapped package, an
+   [`ERR_PACKAGE_MAP_EXTERNAL_FILE`][] error is thrown.
+3. Node.js looks up the specifier's package name in the importing package's
+   `dependencies` object to find the corresponding package key.
+4. If found, the resolution algorithm locates the target package location from the
+   package's `url` field in the package map.
+5. If the specifier is not in `dependencies`, a
+   `MODULE_NOT_FOUND` error is thrown.
+6. The package location is forwarded to the regular Node.js resolution algorithm to
+   finish the resolution (`index.js`, exports field, etc).
+
+More details can be found in the [resolution algorithm pseudo-code][].
+
+### Multiple package versions
+
+Different packages can depend on different versions of the same package.
+Because `dependencies` maps bare specifiers to package keys, two packages
+can map the same specifier to different targets:
+
+```json
+{
+  "packages": {
+    "app": {
+      "url": "./app",
+      "dependencies": {
+        "component": "component-v2"
+      }
+    },
+    "legacy": {
+      "url": "./legacy",
+      "dependencies": {
+        "component": "component-v1"
+      }
+    },
+    "component-v1": {
+      "url": "./vendor/component-1.0.0"
+    },
+    "component-v2": {
+      "url": "./vendor/component-2.0.0"
+    }
+  }
+}
+```
+
+Both `app` and `legacy` can `import 'component'`, but they resolve to
+different paths based on their declared dependencies.
+
+### Multiple packages for the same URL
+
+To address complex hoisting situations, multiple packages may share the same
+URL, which introduces ambiguity when determining which package an import
+originates from:
+
+```json
+{
+  "packages": {
+    "app-old": {
+      "url": "./app-old",
+      "dependencies": {
+        "lib": "lib-old"
+      }
+    },
+    "app-new": {
+      "url": "./app-new",
+      "dependencies": {
+        "lib": "lib-new"
+      }
+    },
+    "lib-old": {
+      "url": "./lib",
+      "dependencies": {
+        "react": "react-15"
+      }
+    },
+    "lib-new": {
+      "url": "./lib",
+      "dependencies": {
+        "react": "react-18"
+      }
+    }
+  }
+}
+```
+
+In the example above both `lib-old` and `lib-new` use the same `./lib` folder to
+store their sources, the only difference being in which version of `react` they'll
+access when performing `require` calls or using `import`.
+
+Because multiple package entries share the same URL, resolving a bare specifier
+from a file within that URL is ambiguous unless the originating package ID is
+known. If the package ID cannot be determined (for example, because the caller
+did not propagate it from a previous resolution), Node.js will throw an error
+rather than guess.
+
+To support this pattern, implementers must key module instances by package ID
+and propagate it from each resolution result to subsequent resolution requests.
+This ensures that when `lib` requires `react`, the runtime knows whether the
+request comes from `lib-old` or `lib-new` and can select the correct dependency.
+
+### Interaction with other resolution
+
+Package maps only apply to bare specifiers that are not Node.js builtin
+modules. The following cases are not affected by package maps and continue
+to use standard resolution:
+
+* Relative paths or URLs (`./` or `../`).
+* Absolute paths or URLs.
+* Node.js builtin modules (`node:fs`, etc.).
+
+### Limitations
+
+* Package maps must be a single static file; dynamic configuration is not
+  supported.
+* Circular dependency detection is not performed by the package map resolver.
+* The package map file is loaded synchronously at startup.
+
 ## Node.js `package.json` field definitions
 
 This section describes the fields used by the Node.js runtime. Other tools (such
@@ -965,6 +1158,9 @@ The following fields in `package.json` files are used in Node.js:
   limits which submodules can be loaded from within the package.
 * [`"imports"`][] - Package imports, for use by modules within the package
   itself.
+* [`"private"`][] - When `true`, marks the package as not for publication. Used
+  by [`--experimental-strip-private-modules`][] to allow type stripping for the
+  package's TypeScript files under `node_modules`.
 
 ### `"name"`
 
@@ -1160,6 +1356,33 @@ Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
+### `"private"`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+```json
+{
+  "private": true
+}
+```
+
+The `"private"` field marks a package as private, signaling to package managers
+such as _npm_ that it must not be published to a public registry.
+By default, Node.js refuses to strip types from TypeScript files inside
+`node_modules`. When [`--experimental-strip-private-modules`][] is enabled,
+Node.js allows type stripping for:
+
+* files that are not inside a `node_modules` directory.
+* files inside `node_modules`, but only when the package that contains the
+  file sets `"private": true`. Only the `package.json` at each package boundary
+  is considered: the package's root directory, which is the directory directly
+  under `node_modules` (or under `node_modules/<@scope>` for scoped packages).
+  Nested `package.json` files are ignored.
+
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
 [ES module]: esm.md
@@ -1168,18 +1391,25 @@ This field defines [subpath imports][] for the current package.
 [Runtime Keys]: https://runtime-keys.proposal.wintercg.org/
 [Syntax detection]: #syntax-detection
 [TypeScript]: typescript.md
+[Web Worker]: globals.md#class-worker
 [WebAssembly modules]: esm.md#wasm-modules
 [WinterCG]: https://wintercg.org/
 [`"exports"`]: #exports
 [`"imports"`]: #imports
 [`"main"`]: #main
 [`"name"`]: #name
+[`"private"`]: #private
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
+[`--experimental-package-map`]: cli.md#--experimental-package-mappath
+[`--experimental-strip-private-modules`]: cli.md#--experimental-strip-private-modules
 [`--no-addons` flag]: cli.md#--no-addons
+[`ERR_PACKAGE_MAP_EXTERNAL_FILE`]: errors.md#err_package_map_external_file
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
+[`URL`]: url.md#the-whatwg-url-api
+[`node:worker_threads`]: worker_threads.md
 [`package.json`]: #nodejs-packagejson-field-definitions
 [customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points
@@ -1188,6 +1418,7 @@ This field defines [subpath imports][] for the current package.
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [merve]: https://github.com/anonrig/merve
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
+[resolution algorithm pseudo-code]: modules.md#all-together
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports

@@ -63,7 +63,7 @@ export declare namespace H2CClient {
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
     autoSelectFamilyAttemptTimeout?: number;
     /**
-     * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. The server's SETTINGS_MAX_CONCURRENT_STREAMS can lower it, but not raise it.
      * @default 100
     */
     maxConcurrentStreams?: number

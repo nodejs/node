@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/atomic-utils.h"
+
 #include <limits.h>
 
-#include "src/base/atomic-utils.h"
+#include "src/base/memcopy.h"
 #include "src/base/platform/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -233,6 +235,71 @@ TEST(AsAtomicWord, SetBits_Concurrent) {
     uintptr_t expected = (i % 2 == 0);
     EXPECT_EQ(expected, actual_word & 1u);
     actual_word >>= 1;
+  }
+}
+
+template <typename T>
+void TestRelaxedMemsetHelper(T value, T sentinel) {
+  constexpr int kBufferSize = 64;
+  for (int offset = 0; offset < 8; ++offset) {
+    for (int count = 0; count < 32; ++count) {
+      if (offset + count > kBufferSize) continue;
+      alignas(8) T buffer[kBufferSize];
+      for (int i = 0; i < kBufferSize; ++i) {
+        buffer[i] = sentinel;
+      }
+      Relaxed_Memset(&buffer[offset], value, count);
+      for (int i = 0; i < kBufferSize; ++i) {
+        if (i >= offset && i < offset + count) {
+          EXPECT_EQ(value, buffer[i])
+              << "offset=" << offset << " count=" << count << " i=" << i;
+        } else {
+          EXPECT_EQ(sentinel, buffer[i])
+              << "offset=" << offset << " count=" << count << " i=" << i;
+        }
+      }
+    }
+  }
+}
+
+TEST(RelaxedMemset, VariousTypesAndAlignments) {
+  TestRelaxedMemsetHelper<uint8_t>(0xAB, 0x12);
+  TestRelaxedMemsetHelper<uint16_t>(0xABCD, 0x1234);
+  TestRelaxedMemsetHelper<uint32_t>(0xABCDEF01u, 0x12345678u);
+  TestRelaxedMemsetHelper<uint64_t>(0xABCDEF0123456789ULL,
+                                    0x1111222233334444ULL);
+  TestRelaxedMemsetHelper<int8_t>(-1, 0);
+  TestRelaxedMemsetHelper<int32_t>(-123456, 789);
+}
+
+TEST(RelaxedMemset, ConstexprReplicatedWord) {
+  static_assert(ReplicateValueWord<uint8_t>(0xAB) ==
+#if V8_HOST_ARCH_64_BIT
+                0xABABABABABABABABULL
+#else
+                0xABABABABu
+#endif
+  );
+  static_assert(ReplicateValueWord<uint16_t>(0x1234) ==
+#if V8_HOST_ARCH_64_BIT
+                0x1234123412341234ULL
+#else
+                0x12341234u
+#endif
+  );
+
+  constexpr int kBufferSize = 32;
+  alignas(8) uint8_t buffer[kBufferSize];
+  for (int i = 0; i < kBufferSize; ++i) {
+    buffer[i] = 0xFF;
+  }
+  Relaxed_Memset<uint8_t>(&buffer[1], 0x42, 15);
+  EXPECT_EQ(0xFF, buffer[0]);
+  for (int i = 1; i < 16; ++i) {
+    EXPECT_EQ(0x42, buffer[i]);
+  }
+  for (int i = 16; i < kBufferSize; ++i) {
+    EXPECT_EQ(0xFF, buffer[i]);
   }
 }
 

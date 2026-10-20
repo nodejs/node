@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------
    ffi.c - Copyright (c) 1998, 2007, 2008, 2012 Red Hat, Inc.
 	   Copyright (c) 2000 Hewlett Packard Company
-	   Copyright (c) 2011 Anthony Green
+	   Copyright (c) 2011, 2026 Anthony Green
    
    IA64 Foreign Function Interface 
 
@@ -84,7 +84,7 @@ endian_adjust (void *addr, size_t len)
 #define stf_spill(addr, value)
 #else
 #define stf_spill(addr, value)	\
-  asm ("stf.spill %0 = %1%P0" : "=m" (*addr) : "f"(value));
+  __asm__ ("stf.spill %0 = %1%P0" : "=m" (*addr) : "f"(value));
 #endif
 
 /* Load a value from ADDR, which is in the current cpu implementation's
@@ -94,7 +94,7 @@ endian_adjust (void *addr, size_t len)
 #define ldf_fill(result, addr)
 #else
 #define ldf_fill(result, addr)	\
-  asm ("ldf.fill %0 = %1%P1" : "=f"(result) : "m"(*addr));
+  __asm__ ("ldf.fill %0 = %1%P1" : "=f"(result) : "m"(*addr));
 #endif
 
 /* Return the size of the C type associated with with TYPE.  Which will

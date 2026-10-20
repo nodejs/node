@@ -63,13 +63,17 @@ static void uv__fs_event_queue_readdirchanges(uv_loop_t* loop,
   handle->req_pending = 1;
 }
 
-static void uv__relative_path(const WCHAR* filename,
-                              const WCHAR* dir,
-                              WCHAR** relpath) {
+/* Compute the path of `filename` relative to the watched directory `dir`.
+ * Returns 0 on success, -1 if `filename` is not actually prefixed by `dir`,
+ * which can happen if the directory is a short path. */
+static int uv__relative_path(const WCHAR* filename,
+                             const WCHAR* dir,
+                             WCHAR** relpath) {
   size_t relpathlen;
   size_t filenamelen = wcslen(filename);
   size_t dirlen = wcslen(dir);
-  assert(!_wcsnicmp(filename, dir, dirlen));
+  if (filenamelen <= dirlen || _wcsnicmp(filename, dir, dirlen) != 0)
+    return -1;
   if (dirlen > 0 && dir[dirlen - 1] == '\\')
     dirlen--;
   relpathlen = filenamelen - dirlen - 1;
@@ -78,6 +82,7 @@ static void uv__relative_path(const WCHAR* filename,
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   wcsncpy(*relpath, filename + dirlen + 1, relpathlen);
   (*relpath)[relpathlen] = L'\0';
+  return 0;
 }
 
 static int uv__split_path(const WCHAR* filename, WCHAR** dir,
@@ -517,12 +522,21 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
               if (long_filenamew) {
                 /* Get the file name out of the long path. */
-                uv__relative_path(long_filenamew,
-                                  handle->dirw,
-                                  &filenamew);
-                uv__free(long_filenamew);
-                long_filenamew = filenamew;
-                sizew = -1;
+                if (uv__relative_path(long_filenamew,
+                                      handle->dirw,
+                                      &filenamew) == 0) {
+                  uv__free(long_filenamew);
+                  long_filenamew = filenamew;
+                  sizew = -1;
+                } else {
+                  /* The resolved long path was not prefixed by the watched
+                   * directory (e.g. short name vs long name mismatch),
+                   * fall back to the name given by ReadDirectoryChangesW. */
+                  uv__free(long_filenamew);
+                  long_filenamew = NULL;
+                  filenamew = file_info->FileName;
+                  sizew = file_info->FileNameLength / sizeof(WCHAR);
+                }
               } else {
                 /* We couldn't get the long filename, use the one reported. */
                 filenamew = file_info->FileName;

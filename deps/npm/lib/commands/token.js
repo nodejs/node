@@ -73,17 +73,22 @@ class Token extends BaseCommand {
     const parseable = this.npm.config.get('parseable')
     log.info('token', 'getting list')
     const tokens = await paginate('/-/npm/v1/tokens', this.npm.flatOptions)
+
+    this.generateTokenIds(tokens, 6)
+
     if (json) {
       output.buffer(tokens)
       return
     }
     if (parseable) {
-      output.standard(['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
+      output.standard(['key', 'token', 'id', 'name', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
       tokens.forEach(token => {
         output.standard(
           [
             token.key,
             token.token,
+            token.id,
+            token.name,
             token.created,
             token.readonly ? 'true' : 'false',
             token.cidr_whitelist ? token.cidr_whitelist.join(',') : '',
@@ -92,11 +97,10 @@ class Token extends BaseCommand {
       })
       return
     }
-    this.generateTokenIds(tokens, 6)
     const chalk = this.npm.chalk
     for (const token of tokens) {
       const created = String(token.created).slice(0, 10)
-      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
+      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} name ${chalk.magenta(token.name)} created ${created}`)
       if (token.cidr_whitelist) {
         output.standard(`with IP whitelist: ${chalk.green(token.cidr_whitelist.join(','))}`)
       }
@@ -166,6 +170,25 @@ class Token extends BaseCommand {
     let password = this.npm.config.get('password')
 
     const validCIDR = await this.validateCIDRList(cidr)
+
+    // Warn when creating a token that can publish directly to the registry.
+    // Only 'read-write' package/scope permission grants direct-publish; stage-only
+    // tokens ('read-write-stage-only') stage releases instead, and non-publishing
+    // permissions (read-only/no-access) can't publish at all, so both stay silent.
+    // bypass-2fa is orthogonal — it removes the 2FA requirement but grants no
+    // publish capability on its own — so it is not part of this trigger.
+    if (packagesAndScopesPermission === 'read-write') {
+      // Deprecation notice for direct-publish tokens; see github/npm#15609.
+      log.warn(
+        'token',
+        'Creating a token that can publish directly to the registry. ' +
+        'Consider `--packages-and-scopes-permission=read-write-stage-only` ' +
+        'instead — with a stage-only token, your releases go to a staging ' +
+        'queue for you to approve before they go public. Bypass-2FA tokens ' +
+        'with direct-publish access will stop working in January 2027. ' +
+        'See https://gh.io/bypass-2fa-tokens-no-longer-publish.'
+      )
+    }
 
     /* istanbul ignore if - skip testing read input */
     if (!password) {

@@ -409,7 +409,7 @@ std::vector<size_t> SizesToBenchmark(BenchmarkModes mode) {
 HWY_NOINLINE void BenchAllSort() {
   // Not interested in benchmark results for these targets. Note that SSE4 is
   // numerically less than SSE2, hence it is the lower bound.
-  if (HWY_SSE4 <= HWY_TARGET && HWY_TARGET <= HWY_SSE2) {
+  if (HWY_SSE4 <= HWY_TARGET && HWY_TARGET <= HWY_SSE2 && Unpredictable1()) {
     return;
   }
 #if HAVE_INTEL

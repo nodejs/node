@@ -8,7 +8,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const rejectsXCurves = hasFIPS(3, 5);
 
 const keyData = {
   'Ed25519': {
@@ -94,7 +96,7 @@ const testVectors = [
   },
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   testVectors.push(
     {
       name: 'Ed448',
@@ -170,6 +172,14 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
     assert.strictEqual(
       Buffer.from(pkcs8).toString('hex'),
       keyData[name].pkcs8.toString('hex'));
+
+    for (const format of ['raw', 'raw-public']) {
+      await assert.rejects(
+        subtle.exportKey(format, key), {
+          message: 'Key must be a public key',
+          name: 'InvalidAccessError',
+        });
+    }
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
@@ -411,13 +421,62 @@ async function testImportRaw({ name, publicUsages }) {
   const tests = [];
   for (const vector of testVectors) {
     for (const extractable of [true, false]) {
-      tests.push(testImportSpki(vector, extractable));
-      tests.push(testImportPkcs8(vector, extractable));
-      tests.push(testImportJwk(vector, extractable));
+      for (const test of [testImportSpki, testImportPkcs8, testImportJwk]) {
+        const imported = test(vector, extractable);
+        tests.push(rejectsXCurves && vector.name.startsWith('X') ?
+          assert.rejects(imported, {
+            name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+          }) : imported);
+      }
     }
-    tests.push(testImportRaw(vector));
+    if (rejectsXCurves && vector.name.startsWith('X')) {
+      tests.push(assert.rejects(testImportRaw(vector), {
+        name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+      }));
+    } else {
+      tests.push(testImportRaw(vector));
+    }
   }
   await Promise.all(tests);
+})().then(common.mustCall());
+
+// JWK key usage validation precedes `key_ops` validation.
+(async function() {
+  for (const { name, publicUsages, privateUsages } of testVectors) {
+    const jwk = keyData[name].jwk;
+    const publicJwk = {
+      kty: jwk.kty,
+      crv: jwk.crv,
+      x: jwk.x,
+    };
+    const isKeyAgreement = name.startsWith('X');
+    const invalidUsage = isKeyAgreement ?
+      privateUsages[0] : publicUsages[0];
+    const invalidJwk = isKeyAgreement ? publicJwk : jwk;
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...invalidJwk, key_ops: [invalidUsage, invalidUsage] },
+        { name },
+        true,
+        [invalidUsage]),
+      rejectsXCurves && isKeyAgreement ?
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+        { name: 'SyntaxError', message: /Unsupported key usage/ });
+
+    const validUsage = privateUsages[0];
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, key_ops: [validUsage, validUsage] },
+        { name },
+        true,
+        [validUsage]),
+      rejectsXCurves && isKeyAgreement ?
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+        { name: 'DataError', message: 'Duplicate key operation' });
+  }
 })().then(common.mustCall());
 
 {
@@ -430,15 +489,18 @@ async function testImportRaw({ name, publicUsages }) {
     ['Ed25519', ['verify'], ['sign']],
     ['X25519', [], ['deriveBits']],
   ]) {
+    const error = rejectsXCurves && name.startsWith('X') ?
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+      { message: /Invalid key type/ };
     assert.rejects(subtle.importKey(
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },
-      true, publicUsages), { message: /Invalid key type/ }).then(common.mustCall());
+      true, publicUsages), error).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name },
-      true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
+      true, privateUsages), error).then(common.mustCall());
   }
 }

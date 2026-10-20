@@ -9,8 +9,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { ok, strictEqual, deepStrictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -35,23 +34,23 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
       // for-await yields batches.
       const chunks = [];
       for await (const batch of stream) {
-        ok(Array.isArray(batch), 'batch should be an array');
+        assert.ok(Array.isArray(batch), 'batch should be an array');
         for (const chunk of batch) {
-          ok(chunk instanceof Uint8Array, 'chunk should be Uint8Array');
+          assert.ok(chunk instanceof Uint8Array, 'chunk should be Uint8Array');
           chunks.push(chunk);
         }
       }
-      ok(chunks.length > 0);
+      assert.ok(chunks.length > 0);
     } else if (idx === 1) {
       // text() consumes as string.
       const result = await text(stream);
-      strictEqual(typeof result, 'string');
-      strictEqual(result, message);
+      assert.strictEqual(typeof result, 'string');
+      assert.strictEqual(result, message);
     } else if (idx === 2) {
       // bytes() consumes as Uint8Array.
       const result = await bytes(stream);
-      ok(result instanceof Uint8Array);
-      deepStrictEqual(result, expected);
+      assert.ok(result instanceof Uint8Array);
+      assert.deepStrictEqual(result, expected);
     }
 
     stream.writer.endSync();
@@ -72,7 +71,7 @@ for (let i = 0; i < totalStreams; i++) {
   const stream = await clientSession.createBidirectionalStream({
     body: encoder.encode(message),
   });
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 

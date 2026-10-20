@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
    ffi_powerpc.h - Copyright (C) 2013 IBM
-                   Copyright (C) 2011 Anthony Green
+                   Copyright (C) 2011, 2026 Anthony Green
                    Copyright (C) 2011 Kyle Moffett
                    Copyright (C) 2008 Red Hat, Inc
                    Copyright (C) 2007, 2008 Free Software Foundation, Inc
@@ -27,6 +27,73 @@
    ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
    OTHER DEALINGS IN THE SOFTWARE.
    ----------------------------------------------------------------------- */
+
+/*
+ * Closure jump table indexes
+ */
+
+/* Common to ppc32 and ppc64 */
+#define PPC_LD_NONE		0
+#define PPC_LD_R3		1
+#define PPC_LD_R3R4		2
+#define PPC_LD_F32		3
+#define PPC_LD_F64		4
+#define PPC_LD_F128		5
+#define PPC_LD_U8		6
+#define PPC_LD_S8		7
+#define PPC_LD_U16		8
+#define PPC_LD_S16		9
+
+#ifndef POWERPC64
+
+#define PPC_LD_U32		PPC_LD_R3
+#define PPC_LD_S32		PPC_LD_R3
+#define PPC_LD_PTR		PPC_LD_R3
+#define PPC_LD_I64		PPC_LD_R3R4
+
+/* Needed for soft-float long-double. */
+#define PPC32_LD_R3R6		10
+
+/* Needed for FFI_SYSV small structure returns.  */
+#ifdef __LITTLE_ENDIAN__
+#define PPC32_SYSV_LD_STRUCT_3	PPC32_LD_R3
+#define PPC32_SYSV_LD_STRUCT_5	PPC32_LD_R3R4
+#define PPC32_SYSV_LD_STRUCT_6	PPC32_LD_R3R4
+#define PPC32_SYSV_LD_STRUCT_7	PPC32_LD_R3R4
+#else
+#define PPC32_SYSV_LD_STRUCT_3	11
+#define PPC32_SYSV_LD_STRUCT_5	12
+#define PPC32_SYSV_LD_STRUCT_6	13
+#define PPC32_SYSV_LD_STRUCT_7	14
+#endif
+
+#else /* POWERPC64 */
+
+#define PPC_LD_U32		10
+#define PPC_LD_S32		11
+#define PPC_LD_PTR		PPC_LD_R3
+#define PPC_LD_I64		PPC_LD_R3
+
+/* Used by ELFv2 for homogenous structure returns.  */
+#define PPC64_LD_VECTOR		12
+#define PPC64_LD_VECTOR_HOMOG	13
+#define PPC64_LD_FLOAT_HOMOG	14
+#define PPC64_LD_DOUBLE_HOMOG	15
+#ifdef __LITTLE_ENDIAN__
+#define PPC64_LD_STRUCT_3	PPC_LD_U32
+#define PPC64_LD_STRUCT_5	PPC_LD_I64
+#define PPC64_LD_STRUCT_6	PPC_LD_I64
+#define PPC64_LD_STRUCT_7	PPC_LD_I64
+#else
+#define PPC64_LD_STRUCT_3	16
+#define PPC64_LD_STRUCT_5	17
+#define PPC64_LD_STRUCT_6	18
+#define PPC64_LD_STRUCT_7	19
+#endif
+
+#endif /* POWERPC64 */
+
+#ifndef LIBFFI_ASM
 
 enum {
   /* The assembly depends on these exact flags.  */
@@ -103,3 +170,5 @@ int FFI_HIDDEN ffi_closure_helper_LINUX64 (ffi_cif *,
 					   void *, void *,
 					   unsigned long *, ffi_dblfl *,
 					   float128 *);
+
+#endif /* !LIBFFI_ASM */

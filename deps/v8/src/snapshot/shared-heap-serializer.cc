@@ -96,7 +96,7 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
     DCHECK_LT(base::checked_cast<size_t>(cache_index), existing_cache_size);
     if (base::checked_cast<size_t>(cache_index) == existing_cache_size - 1) {
       ReadOnlyRoots roots(isolate());
-      DCHECK(IsUndefined(existing_cache->back(), roots));
+      DCHECK(IsUndefined(existing_cache->back()));
       existing_cache->back() = *obj;
       existing_cache->push_back(roots.undefined_value());
     }
@@ -213,7 +213,7 @@ void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
     USE(cache_index);
     DCHECK_EQ(cache_index, i);
   }
-  DCHECK(IsUndefined(cache->back(), isolate()));
+  DCHECK(IsUndefined(cache->back()));
 }
 
 }  // namespace internal

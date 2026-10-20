@@ -18,7 +18,8 @@
   withSQLite ? true,
   withFFI ? true,
   withSSL ? true,
-  withTemporal ? false,
+  withTemporal ? true,
+  withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -28,10 +29,18 @@
         withSQLite
         withFFI
         withSSL
+        withPerfetto
         withTemporal
         ;
     }
   ),
+
+  # PKCS#11 fixture for `test/parallel/test-crypto-key-store-pkcs11.js`. `true`
+  # builds the one from tools/nix/pkcs11.nix against the OpenSSL being linked,
+  # which needs a shared OpenSSL >= 3 and a platform nixpkgs ships
+  # pkcs11-provider for. `false` and `null` disable it, any other value is used
+  # as the fixture itself.
+  pkcs11 ? false,
 
   # dev tools (not needed to build Node.js, useful to maintain it)
   ncu-path ? null, # Provide this if you want to use a local version of NCU
@@ -39,13 +48,24 @@
   benchmarkTools ? import ./tools/nix/benchmarkTools.nix { inherit pkgs; },
 }:
 
+assert pkgs.lib.assertMsg (
+  withTemporal || !(builtins.hasAttr "temporal_capi" sharedLibDeps)
+) "`sharedLibDeps` must not contain `temporal_capi` when `withTemporal` is false";
+assert pkgs.lib.assertMsg (
+  withPerfetto || !(builtins.hasAttr "perfetto" sharedLibDeps)
+) "`sharedLibDeps` must not contain `perfetto` when `withPerfetto` is false";
+
 let
   useSharedICU = if builtins.isString icu then icu == "system" else icu != null;
-  useSharedAda = builtins.hasAttr "ada" sharedLibDeps;
-  useSharedOpenSSL = builtins.hasAttr "openssl" sharedLibDeps;
+  needsRustCompiler = withTemporal && !(builtins.hasAttr "temporal_capi" sharedLibDeps);
 
-  useSharedTemporal = builtins.hasAttr "temporal_capi" sharedLibDeps;
-  needsRustCompiler = withTemporal && !useSharedTemporal;
+  sharedV8Deps = builtins.filter (depName: builtins.hasAttr depName sharedLibDeps) ([
+    "abseil"
+    "highway"
+    "perfetto"
+    "simdutf"
+    "temporal_capi"
+  ]);
 
   nativeBuildInputs =
     pkgs.nodejs-slim_latest.nativeBuildInputs
@@ -54,8 +74,7 @@ let
       pkgs.rustc
     ];
   buildInputs =
-    pkgs.lib.optional useSharedICU icu
-    ++ pkgs.lib.optional (withTemporal && useSharedTemporal) sharedLibDeps.temporal_capi;
+    pkgs.lib.optional useSharedICU icu ++ builtins.map (depName: sharedLibDeps.${depName}) sharedV8Deps;
 
   # Put here only the configure flags that affect the V8 build
   configureFlags = [
@@ -67,10 +86,14 @@ let
     )
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
-  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi";
+  ++ builtins.map (depName: "--shared-${depName}") sharedV8Deps
+  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
+
+  # `_FORTIFY_SOURCE` requires optimization, which debug builds do not have.
+  hardeningDisable = [ "fortify" ];
 
   buildInputs =
     builtins.attrValues sharedLibDeps
@@ -97,38 +120,77 @@ pkgs.mkShell {
     export CXX="${pkgs.lib.getExe ccache} $CXX"
   '';
 
-  BUILD_WITH = if (ninja != null) then "ninja" else "make";
-  NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
-  CONFIG_FLAGS = builtins.toString (
-    configureFlags
-    ++ extraConfigFlags
-    ++ pkgs.lib.optional (ninja != null) "--ninja"
-    ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
-    ++ pkgs.lib.optional (!withLief) "--without-lief"
-    ++ pkgs.lib.optional withQuic "--experimental-quic"
-    ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
-    ++ pkgs.lib.optional (!withFFI) "--without-ffi"
-    ++ pkgs.lib.optional (!withSSL) "--without-ssl"
-    ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
-    ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
-    ++
-      pkgs.lib.concatMap
-        (name: [
-          "--shared-${name}"
-          "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
-          "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
-        ])
-        (
-          builtins.attrNames (
-            if (useSeparateDerivationForV8 != false) then
-              builtins.removeAttrs sharedLibDeps [
-                "simdutf"
-                "temporal_capi"
-              ]
-            else
-              sharedLibDeps
-          )
+  env = {
+    BUILD_WITH = if (ninja != null) then "ninja" else "make";
+    NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
+    CONFIG_FLAGS = builtins.toString (
+      configureFlags
+      ++ extraConfigFlags
+      ++ pkgs.lib.optional (ninja != null) "--ninja"
+      ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
+      ++ pkgs.lib.optional (!withLief) "--without-lief"
+      ++ pkgs.lib.optional withQuic "--experimental-quic"
+      ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
+      ++ pkgs.lib.optional (!withFFI) "--without-ffi"
+      ++ pkgs.lib.optional (!withSSL) "--without-ssl"
+      ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
+      ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
+      ++ builtins.map (name: "--shared-${name}") (
+        builtins.attrNames (
+          if (useSeparateDerivationForV8 != false) then
+            builtins.removeAttrs sharedLibDeps sharedV8Deps
+          else
+            sharedLibDeps
         )
+      )
+    );
+  }
+  // (
+    let
+      ruff = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "ruff") null devTools;
+    in
+    pkgs.lib.optionalAttrs (ruff != null) {
+      RUFF = pkgs.lib.getExe ruff;
+    }
+  )
+  // (
+    let
+      yamllint = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "yamllint") null devTools;
+    in
+    pkgs.lib.optionalAttrs (yamllint != null) {
+      YAMLLINT = pkgs.lib.getExe yamllint;
+    }
+  )
+  // (
+    let
+      treefmt = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "treefmt") null devTools;
+    in
+    pkgs.lib.optionalAttrs (treefmt != null) {
+      NIX_LINTER = pkgs.lib.getExe treefmt;
+    }
+  )
+  // pkgs.lib.optionalAttrs (!withSQLite) {
+    NOSQLITE = "1";
+  }
+  // pkgs.lib.optionalAttrs (withPerfetto) {
+    TRACE_PROCESSOR_SHELL_PATH = "${pkgs.perfetto.tools}/bin/trace_processor_shell";
+  }
+  // pkgs.lib.optionalAttrs (pkcs11 != false && pkcs11 != null) (
+    let
+      pkcs11' =
+        if pkcs11 == true then
+          import ./tools/nix/pkcs11.nix {
+            inherit pkgs;
+            # Building pkcs11-provider without a shared OpenSSL is not supported.
+            inherit (sharedLibDeps) openssl;
+          }
+        else
+          pkcs11;
+    in
+    {
+      NODE_TEST_PKCS11_OPENSSL_CONF = pkcs11'.opensslConf;
+      NODE_TEST_PKCS11_PIN = pkcs11'.softhsmDir.pin;
+      NODE_TEST_PKCS11_SOFTHSM_DIR = pkcs11'.softhsmDir;
+    }
   );
-  NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";
 }

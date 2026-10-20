@@ -191,7 +191,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (IsNullOrUndefined(*args.receiver(), isolate)) {                         \
+  if (IsNullOrUndefined(*args.receiver())) {                                  \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \

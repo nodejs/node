@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/objects/js-shared-array-inl.h"
+#include "src/objects/js-shared-array.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +23,7 @@ BUILTIN(SharedArrayConstructor) {
   }
 
   int length = Cast<Smi>(*length_number).value();
-  if (length < 0 || length > FixedArray::kMaxCapacity) {
+  if (length < 0 || static_cast<uint32_t>(length) > FixedArray::kMaxCapacity) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kSharedArraySizeOutOfRange));
   }

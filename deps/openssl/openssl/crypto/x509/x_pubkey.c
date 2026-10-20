@@ -224,7 +224,7 @@ static int x509_pubkey_ex_d2i_ex(ASN1_VALUE **pval,
                      * bytes.
                      */
                     ERR_clear_last_mark();
-                    ERR_raise(ERR_LIB_ASN1, EVP_R_DECODE_ERROR);
+                    ERR_raise(ERR_LIB_ASN1, ASN1_R_DECODE_ERROR);
                     goto end;
                 }
             }

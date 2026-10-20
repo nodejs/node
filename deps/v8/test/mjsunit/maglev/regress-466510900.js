@@ -9,6 +9,6 @@ function foo() {
 }
 
 %PrepareFunctionForOptimization(foo);
-assertEquals(1.5864200554153736, foo());
+assertEquals(1.5864200554153733, foo());
 %OptimizeMaglevOnNextCall(foo);
-assertEquals(1.5864200554153736, foo());
+assertEquals(1.5864200554153733, foo());

@@ -100,9 +100,9 @@ function test() {
     externalizeString(long_ascii);
     externalizeString(short_twobyte);
     externalizeString(long_twobyte);
-    assertTrue(isOneByteString(short_asii) && isOneByteString(long_ascii));
-    assertFalse(isOneByteString(short_twobyte) || isOneByteString(long_twobyte));
   } catch (ex) { }
+  assertTrue(isOneByteString(short_ascii) && isOneByteString(long_ascii));
+  assertFalse(isOneByteString(short_twobyte) || isOneByteString(long_twobyte));
   assertEquals(min_short_ascii + 'MCsquared', short_ascii + long_ascii);
   assertTrue(isOneByteString(short_ascii + long_ascii));
   assertEquals('MCsquared' + min_short_ascii, long_ascii + short_ascii);

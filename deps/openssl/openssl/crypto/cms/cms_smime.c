@@ -36,12 +36,40 @@ static int cms_copy_content(BIO *out, BIO *in, unsigned int flags)
     unsigned char buf[4096];
     int r = 0, i;
     BIO *tmpout;
+    BIO *aeadbuf = NULL;
 
     tmpout = cms_get_text_bio(out, flags);
 
     if (tmpout == NULL) {
         ERR_raise(ERR_LIB_CMS, ERR_R_CMS_LIB);
         goto err;
+    }
+
+    /*
+     * For AEAD content (AuthEnvelopedData) the integrity tag is only verified
+     * once all the ciphertext has been processed, by the
+     * BIO_get_cipher_status() call below. RFC 5083 requires that the plaintext
+     * is not released to the caller until that verification succeeds, so
+     * buffer it in memory and only forward it to the output BIO once the tag
+     * has been checked. When CMS_TEXT is set tmpout is already a memory BIO
+     * that is flushed only on success, so the extra buffering is not needed.
+     */
+    if (tmpout == out && BIO_method_type(in) == BIO_TYPE_CIPHER) {
+        EVP_CIPHER_CTX *ctx = NULL;
+
+        if (BIO_get_cipher_ctx(in, &ctx) > 0 && ctx != NULL
+            && (EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
+                   & EVP_CIPH_FLAG_AEAD_CIPHER)
+                != 0) {
+            aeadbuf = BIO_new(BIO_s_mem());
+            if (aeadbuf == NULL) {
+                ERR_raise(ERR_LIB_CMS, ERR_R_BIO_LIB);
+                goto err;
+            }
+            /* Return 0 (EOF) rather than a retryable -1 once drained. */
+            BIO_set_mem_eof_return(aeadbuf, 0);
+            tmpout = aeadbuf;
+        }
     }
 
     /* Read all content through chain to process digest, decrypt etc */
@@ -65,6 +93,17 @@ static int cms_copy_content(BIO *out, BIO *in, unsigned int flags)
         if (!SMIME_text(tmpout, out)) {
             ERR_raise(ERR_LIB_CMS, CMS_R_SMIME_TEXT_ERROR);
             goto err;
+        }
+    } else if (aeadbuf != NULL) {
+        /* Forward the AEAD BIO to out BIO as the tag has been verified. */
+        for (;;) {
+            i = BIO_read(aeadbuf, buf, sizeof(buf));
+            if (i < 0)
+                goto err;
+            if (i == 0)
+                break;
+            if (BIO_write(out, buf, i) != i)
+                goto err;
         }
     }
 

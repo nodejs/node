@@ -50,12 +50,14 @@ class Tracked {
     num_moves_ = that.num_moves_;
     num_copies_ = that.num_copies_;
     ++(*num_copies_);
+    return *this;
   }
   Tracked& operator=(Tracked&& that) {
     val_ = std::move(that.val_);
     num_moves_ = std::move(that.num_moves_);
     num_copies_ = std::move(that.num_copies_);
     ++(*num_moves_);
+    return *this;
   }
 
   const T& val() const { return val_; }
@@ -67,8 +69,8 @@ class Tracked {
     return !(a == b);
   }
 
-  size_t num_copies() { return *num_copies_; }
-  size_t num_moves() { return *num_moves_; }
+  size_t num_copies() const { return *num_copies_; }
+  size_t num_moves() const { return *num_moves_; }
 
  private:
   T val_;

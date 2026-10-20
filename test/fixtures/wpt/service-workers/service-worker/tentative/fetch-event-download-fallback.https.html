@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>Service Worker: download FetchEvent without respondWith() falls through (crbug.com/40410035)</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script src="../resources/fetch-event-download-helpers.js"></script>
+<body>
+<script>
+'use strict';
+
+// When the SW observes the download FetchEvent but does NOT call
+// event.respondWith(), the request must fall back to the network. We can't
+// observe the saved file from script, but we can observe that:
+//   (a) the SW saw the fetch event (so the new interception path ran), and
+//   (b) the page itself didn't navigate (so the click was treated as a
+//       download, not as a regular link click).
+
+const WORKER = 'resources/fetch-event-download-worker.js';
+const SCOPE = 'resources/';
+
+promise_test(async (t) => {
+  const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  const channelId = uniqueChannelId();
+  const targetUrl =
+      SCOPE + 'download-target.txt?channel=' + channelId + '&mode=fallback';
+  const messagePromise = nextChannelMessage(t, channelId);
+
+  const urlBefore = location.href;
+  await clickDownloadAnchor(t, targetUrl);
+
+  const data = await messagePromise;
+  assert_equals(data.type, 'fetch',
+      'SW must still observe the fetch event even without respondWith().');
+  assert_equals(data.destination, '');
+  assert_equals(data.mode, 'navigate',
+      'Download FetchEvent mode must be "navigate" (HTML "Downloading hyperlinks").');
+
+  // The page must not navigate as a result of the download click.
+  assert_equals(location.href, urlBefore,
+      'The page must not navigate when <a download> is clicked.');
+}, 'Download FetchEvent without respondWith() falls back without navigating the page.');
+</script>
+</body>

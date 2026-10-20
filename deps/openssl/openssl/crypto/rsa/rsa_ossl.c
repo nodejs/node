@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -160,6 +160,14 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
      * See SP800-56Br2, section 7.1.1.1
      * RSAEP: 1 < f < (n – 1).
      * (where f is the plaintext).
+     *
+     * This bound is somewhat overkill here.  RSASVE.GENERATE (7.2.1.2)
+     * regenerates z until 1 < z < n-1, so on that path the plaintext is in
+     * range unconditionally.  On the OAEP path the leading 0x00 octet of the
+     * encoding forces m < n-1 unconditionally, while m = 0 or 1 is only
+     * cryptographically negligible, not impossible.  The check is kept to
+     * mirror the RSADP bound in rsa_ossl_private_decrypt() and to keep RSAEP
+     * faithful to 7.1.1 of the SP; nothing in the SP relies on it here.
      */
     if (padding == RSA_NO_PADDING) {
         BIGNUM *nminus1 = BN_CTX_get(ctx);
@@ -572,6 +580,12 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
      * See SP800-56Br2, section 7.1.2.1
      * RSADP: 1 < f < (n – 1)
      * (where f is the ciphertext).
+     *
+     * Kept under FIPS_MODULE because SP 800-56B KTS-OAEP (section 9.2) also
+     * decrypts through RSADP and needs this bound in a FIPS build, and there
+     * is no KTS-OAEP-specific path to attach it to.  The non-FIPS RSASVE path
+     * applies the same 1 < c < n-1 in rsasve_recover()
+     * (providers/implementations/kem/rsa_kem.c); keep the two in step.
      */
     if (padding == RSA_NO_PADDING) {
         BIGNUM *nminus1 = BN_CTX_get(ctx);

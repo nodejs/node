@@ -4,7 +4,7 @@ const http = require('http');
 
 {
   let serverRes;
-  const server = http.Server(function(req, res) {
+  const server = new http.Server(function(req, res) {
     res.write('Part of my res.');
     serverRes = res;
   });
@@ -27,7 +27,7 @@ const http = require('http');
 {
   // Don't crash of no 'error' handler.
   let serverRes;
-  const server = http.Server(function(req, res) {
+  const server = new http.Server(function(req, res) {
     res.write('Part of my res.');
     serverRes = res;
   });

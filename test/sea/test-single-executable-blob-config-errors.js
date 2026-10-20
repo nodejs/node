@@ -49,6 +49,24 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 
 {
   tmpdir.refresh();
+  const config = tmpdir.resolve('trailing-content.json');
+  writeFileSync(
+    config,
+    '{"main":"bundle.js","output":"sea.blob"}{}',
+    'utf8',
+  );
+  spawnSyncAndAssert(
+    process.execPath,
+    ['--experimental-sea-config', config], {
+      cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /TRAILING_CONTENT/,
+    });
+}
+
+{
+  tmpdir.refresh();
   const config = tmpdir.resolve('empty.json');
   writeFileSync(config, '{}', 'utf8');
   spawnSyncAndAssert(

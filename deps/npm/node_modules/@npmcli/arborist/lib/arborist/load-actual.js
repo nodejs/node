@@ -1,6 +1,6 @@
 // mix-in implementing the loadActual method
 
-const { dirname, join, normalize, relative, resolve } = require('node:path')
+const { dirname, join, normalize, relative, resolve, sep } = require('node:path')
 
 const PackageJson = require('@npmcli/package-json')
 const { readdirScoped } = require('@npmcli/fs')
@@ -13,6 +13,8 @@ const calcDepFlags = require('../calc-dep-flags.js')
 const Node = require('../node.js')
 const Link = require('../link.js')
 const realpath = require('../realpath.js')
+const PackageExtensions = require('../package-extensions.js')
+const NpmExtension = require('../npm-extension.js')
 
 // public symbols
 const _changePath = Symbol.for('_changePath')
@@ -70,6 +72,7 @@ module.exports = cls => class ActualLoader extends cls {
           // only reset root flags if we're not re-rooting,
           // otherwise leave as-is
           calcDepFlags(tree, !options.root)
+          this.#repropagateOverrides()
           this.actualTree = treeCheck(tree)
           return this.actualTree
         })
@@ -141,6 +144,7 @@ module.exports = cls => class ActualLoader extends cls {
             root: this.#actualTree,
           })
           await this[_setWorkspaces](this.#actualTree)
+          this.#linkActualWorkspaces()
 
           this.#transplant(root)
           return this.#actualTree
@@ -172,6 +176,12 @@ module.exports = cls => class ActualLoader extends cls {
       }
       await Promise.all(promises)
     }
+
+    this.#linkActualWorkspaces()
+
+    // .npm-extension runs before packageExtensions, matching the ideal-tree resolution order
+    await this.#applyNpmExtension()
+    this.#applyPackageExtensions()
 
     if (!ignoreMissing) {
       await this.#findMissingEdges()
@@ -209,6 +219,48 @@ module.exports = cls => class ActualLoader extends cls {
       actualRoot.package = { ...actualRoot.package, dependencies }
     }
     return this.#actualTree
+  }
+
+  // Under the linked (isolated) strategy, workspaces the root does not depend on are not symlinked into the root node_modules, so neither the on-disk scan nor the hidden lockfile gives the root's workspace edges a node_modules/<ws> link to resolve to.
+  // Synthesize those links from the authoritative workspaces map so npm ls and npm query surface the workspaces, matching hoisted and the logical package-lock.
+  #linkActualWorkspaces () {
+    const root = this.#actualTree
+    if (this.options.installStrategy !== 'linked' || !root.workspaces) {
+      return
+    }
+    // Declared workspaces ARE symlinked at root node_modules under linked, so a missing link there is a real problem that must surface as UNMET.
+    // Only undeclared workspaces are intentionally absent from root node_modules and need a synthesized link so their root edges resolve.
+    const pkg = root.package
+    const declared = new Set(Object.keys(Object.assign({},
+      pkg.dependencies,
+      pkg.devDependencies,
+      pkg.optionalDependencies,
+      pkg.peerDependencies
+    )))
+    // index loaded workspace targets by both path and realpath, so a workspace reached through a symlinked dir still matches
+    const byLoc = new Map()
+    for (const node of root.fsChildren) {
+      byLoc.set(node.path, node)
+      byLoc.set(node.realpath, node)
+    }
+    for (const [name, path] of root.workspaces.entries()) {
+      // declared workspaces, and any name already a root child, resolve their edge without a synthesized link
+      if (declared.has(name) || root.children.has(name)) {
+        continue
+      }
+      const target = byLoc.get(path)
+      if (target) {
+        // eslint-disable-next-line no-new
+        new Link({
+          name,
+          path: resolve(root.path, 'node_modules', name),
+          realpath: target.realpath,
+          target,
+          parent: root,
+          root,
+        })
+      }
+    }
   }
 
   #transplant (root) {
@@ -263,6 +315,9 @@ module.exports = cls => class ActualLoader extends cls {
         parent,
         root,
         loadOverrides,
+        // A package physically located in the linked strategy's store is a transitive dependency, not a real tree top, so it must not load its devDependencies.
+        // Never flag the loaded root itself, even if its own path happens to sit under a .store directory.
+        isInStore: path !== this.path && real.includes(`${sep}node_modules${sep}.store${sep}`),
       }
 
       try {
@@ -352,6 +407,79 @@ module.exports = cls => class ActualLoader extends cls {
     }
   }
 
+  // packageExtensions never rewrite a package's package.json, so a filesystem-scanned actual tree lacks the extension-created edges and provenance.
+  // Re-derive them from the root rule set, as buildIdealTree does.
+  // This is always required under the linked strategy, whose store layout forces the filesystem-scan path.
+  #applyPackageExtensions () {
+    const rootPkg = this.#actualTree.target?.package
+    const pe = new PackageExtensions(rootPkg?.packageExtensions)
+    if (!pe.present || !pe.selectors.length) {
+      return
+    }
+    for (const node of this.#actualTree.inventory.values()) {
+      // only installed dependencies are extended, never the root or a workspace
+      if (node.isLink || node.isProjectRoot || !node.name || !node.inNodeModules()) {
+        continue
+      }
+      const res = pe.apply(node.package)
+      if (res) {
+        node.package = res.pkg
+        node.packageExtensionsApplied = res.applied
+      }
+    }
+    // mirror the provenance onto links so the logical tree location reports it too
+    for (const node of this.#actualTree.inventory.values()) {
+      if (node.isLink && node.target?.packageExtensionsApplied) {
+        node.packageExtensionsApplied = node.target.packageExtensionsApplied
+      }
+    }
+  }
+
+  // Re-forward overrides through links once all edges are resolved, since a Link may forward before its subtree resolves and miss a transitive match (npm/cli#9619, #9659).
+  #repropagateOverrides () {
+    if (!this.#actualTree.overrides) {
+      return
+    }
+    for (const node of this.#actualTree.inventory.values()) {
+      if (node.isLink && node.overrides) {
+        node.recalculateOutEdgesOverrides()
+      }
+    }
+  }
+
+  // .npm-extension transformManifest, like packageExtensions, never rewrites a package's package.json, so re-derive its edges and provenance on a filesystem-scanned actual tree.
+  // This executes the root extension code; ignore-extension (and ignore-scripts via flatten) disables it.
+  async #applyNpmExtension () {
+    if (this.options.ignoreExtension) {
+      return
+    }
+    const ext = new NpmExtension({
+      root: this.#actualTree.realpath,
+      extensionFile: this.options.extensionFile,
+    })
+    if (!ext.present) {
+      return
+    }
+    await ext.load()
+    for (const node of this.#actualTree.inventory.values()) {
+      // only installed dependencies are transformed, never the root or a workspace
+      if (node.isLink || node.isProjectRoot || !node.name || !node.inNodeModules()) {
+        continue
+      }
+      const res = ext.apply(node.package)
+      if (res) {
+        node.package = res.pkg
+        node.npmExtensionApplied = res.applied
+      }
+    }
+    // mirror the provenance onto links so the logical tree location reports it too
+    for (const node of this.#actualTree.inventory.values()) {
+      if (node.isLink && node.target?.npmExtensionApplied) {
+        node.npmExtensionApplied = node.target.npmExtensionApplied
+      }
+    }
+  }
+
   async #findMissingEdges () {
     // try to resolve any missing edges by walking up the directory tree,
     // checking for the package in each node_modules folder.  stop at the
@@ -368,9 +496,10 @@ module.exports = cls => class ActualLoader extends cls {
 
       const depPromises = []
       for (const [name, edge] of node.edgesOut.entries()) {
-        const notMissing = !edge.missing &&
-          !(edge.to && (edge.to.dummy || edge.to.parent !== node))
-        if (notMissing) {
+        // An unresolved optional edge reports missing === false, so check the target directly.
+        // Otherwise an installed optional dep that lives only as a store sibling is never loaded.
+        const resolved = edge.to && !edge.to.dummy && edge.to.parent === node
+        if (resolved) {
           continue
         }
 

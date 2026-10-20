@@ -1,7 +1,11 @@
 # We make separate GOAL variables for each algorithm, to make it easy to
 # switch each to the Legacy provider when needed.
 
-$COMMON_GOAL=../../libcommon.a
+IF[{- !$disabled{module} -}]
+  $DIGEST_COMMON_GOAL=../../libdefault.a ../../libfips.a ../../liblegacy.a
+ELSE
+  $DIGEST_COMMON_GOAL=../../libdefault.a ../../libfips.a
+ENDIF
 
 $SHA1_GOAL=../../libdefault.a ../../libfips.a
 $SHA2_GOAL=../../libdefault.a ../../libfips.a
@@ -21,8 +25,8 @@ ELSE
   $RIPEMD_GOAL=../../libdefault.a
 ENDIF
 
-# This source is common for all digests in all our providers.
-SOURCE[$COMMON_GOAL]=digestcommon.c
+# This source contains FIPS-provider-specific parameter handling.
+SOURCE[$DIGEST_COMMON_GOAL]=digestcommon.c
 
 SOURCE[$SHA2_GOAL]=sha2_prov.c
 SOURCE[$SHA3_GOAL]=sha3_prov.c

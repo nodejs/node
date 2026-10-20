@@ -10,6 +10,8 @@ const assert = require('assert');
 const inspect = require('util').inspect;
 const { REPL_MODE_SLOPPY, REPL_MODE_STRICT } = require('repl');
 
+common.skipIfInspectorDisabled();
+
 const tests = [
   {
     env: {},

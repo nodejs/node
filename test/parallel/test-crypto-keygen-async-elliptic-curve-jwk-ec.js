@@ -8,11 +8,12 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 // Test async elliptic curve key generation with 'jwk' encoding and named
 // curve.
 for (const curve of ['P-384', 'P-256', 'P-521', 'secp256k1']) {
-  if (process.features.openssl_is_boringssl && curve === 'secp256k1') {
+  if (isBoringSSL && curve === 'secp256k1') {
     common.printSkipMessage(`Skipping unsupported ${curve} test case`);
     continue;
   }
@@ -24,7 +25,12 @@ for (const curve of ['P-384', 'P-256', 'P-521', 'secp256k1']) {
     privateKeyEncoding: {
       format: 'jwk'
     }
-  }, common.mustSucceed((publicKey, privateKey) => {
+  }, common.mustCall((err, publicKey, privateKey) => {
+    if (hasFIPS(3) && curve === 'secp256k1') {
+      assert.strictEqual(err?.code, 'ERR_OSSL_EC_UNKNOWN_GROUP');
+      return;
+    }
+    assert.ifError(err);
     assert.strictEqual(typeof publicKey, 'object');
     assert.strictEqual(typeof privateKey, 'object');
     assert.strictEqual(publicKey.x, privateKey.x);

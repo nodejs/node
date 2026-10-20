@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: ServiceWorker interception</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+// Note that Chrome cannot pass these tests because of https://crbug.com/731599.
+
+function service_worker_interception_test(url, description) {
+  promise_test(async t => {
+    // Register a service worker whose scope includes |url|.
+    const kServiceWorkerScriptURL =
+        'resources/service-worker-interception-service-worker.js';
+    const registration = await service_worker_unregister_and_register(
+        t, kServiceWorkerScriptURL, url);
+    add_result_callback(() => registration.unregister());
+    await wait_for_state(t, registration.installing, 'activated');
+
+    // Start a dedicated worker for |url|. The top-level script request and any
+    // module imports should be intercepted by the service worker.
+    const worker = new Worker(url, { type: 'module' });
+    const msg_event = await new Promise(resolve => worker.onmessage = resolve);
+    assert_equals(msg_event.data, 'LOADED_FROM_SERVICE_WORKER');
+  }, description);
+}
+
+service_worker_interception_test(
+    'resources/service-worker-interception-network-worker.js',
+    'Top-level module loading should be intercepted by a service worker.');
+
+service_worker_interception_test(
+    'resources/service-worker-interception-static-import-worker.js',
+    'Static import should be intercepted by a service worker.');
+
+service_worker_interception_test(
+    'resources/service-worker-interception-dynamic-import-worker.js',
+    'Dynamic import should be intercepted by a service worker.');
+
+</script>

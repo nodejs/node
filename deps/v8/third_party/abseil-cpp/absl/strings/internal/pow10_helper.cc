@@ -16,6 +16,8 @@
 
 #include <cmath>
 
+#include "absl/base/config.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace strings_internal {

@@ -9,8 +9,6 @@
 
 namespace v8::internal {
 
-class HeapObjectLayout;
-
 // Computes the pointer compression cage base from any read only or writable
 // heap object. The resulting value is intended to be used only as a hoisted
 // computation of cage base inside trivial accessors for optimizing value

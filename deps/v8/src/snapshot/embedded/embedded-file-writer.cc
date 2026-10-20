@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cinttypes>
 
+#include "src/codegen/code-comments.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #include "src/objects/code-inl.h"
@@ -68,7 +69,17 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   // stream.
   w->DeclareFunctionBegin(builtin_symbol.begin(),
                           blob->InstructionSizeOf(builtin));
+
+  if (builtin_marker_sources_id_ != 0) {
+    // Depending on the kind of builtin we don't actually have line based source
+    // information. To avoid gdb bleeding the line of the previous builtin into
+    // this one we emit a marker <builtin> source line info.
+    w->SourceInfo(builtin_marker_sources_id_,
+                  GetExternallyCompiledFilename(builtin_marker_sources_id_), 1);
+  }
+
   const int builtin_id = static_cast<int>(builtin);
+  const std::vector<uint8_t>& current_comments = code_comments_[builtin_id];
   const std::vector<uint8_t>& current_positions = source_positions_[builtin_id];
   // The code below interleaves bytes of assembly code for the builtin
   // function with source positions at the appropriate offsets.
@@ -88,6 +99,12 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   const std::vector<LabelInfo>& current_labels = label_info_[builtin_id];
   auto label = current_labels.begin();
 
+  std::optional<CodeCommentsIterator> cmt_it;
+  if (!current_comments.empty()) {
+    cmt_it.emplace(reinterpret_cast<Address>(current_comments.data()),
+                   static_cast<uint32_t>(current_comments.size()));
+  }
+
   const uint8_t* data =
       reinterpret_cast<const uint8_t*>(blob->InstructionStartOf(builtin));
   uint32_t size = blob->PaddedInstructionSizeOf(builtin);
@@ -96,6 +113,8 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
       static_cast<uint32_t>(positions.done() ? size : positions.code_offset());
   uint32_t next_label_offset = static_cast<uint32_t>(
       (label == current_labels.end()) ? size : label->offset);
+  uint32_t next_cmt_offset = static_cast<uint32_t>(
+      (cmt_it && cmt_it->HasCurrent()) ? cmt_it->GetPCOffset() : size);
   uint32_t next_offset = 0;
   while (i < size) {
     if (i == next_source_pos_offset) {
@@ -116,7 +135,24 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
           (label == current_labels.end()) ? size : label->offset);
       CHECK_GE(next_label_offset, i);
     }
-    next_offset = std::min(next_source_pos_offset, next_label_offset);
+    if (i == next_cmt_offset) {
+      const char* comment = cmt_it->GetComment();
+      if (strncmp(comment, "CFI:", 4) == 0) {
+        std::string dir(comment + 4);
+        size_t pos = dir.find(" - ");
+        if (pos != std::string::npos) {
+          dir = dir.substr(0, pos);
+        }
+        fprintf(w->fp(), "%s\n", dir.c_str());
+      } else {
+        w->Comment(comment);
+      }
+      cmt_it->Next();
+      next_cmt_offset = static_cast<uint32_t>(
+          (cmt_it && cmt_it->HasCurrent()) ? cmt_it->GetPCOffset() : size);
+    }
+    next_offset =
+        std::min({next_source_pos_offset, next_label_offset, next_cmt_offset});
     WriteBinaryContentsAsInlineAssembly(w, data + i, next_offset - i);
     i = next_offset;
   }
@@ -131,6 +167,12 @@ void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
 
 void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
                                           const i::EmbeddedData* blob) const {
+  if (v8_flags.torque_dwarf) {
+    FILE* fp = w->fp();
+    fprintf(fp, ".section .debug_line,\"\",@progbits\n");
+    fprintf(fp, ".Lline_table_start0:\n");
+  }
+
   w->Comment(
       "The embedded blob code section starts here. It contains the builtin");
   w->Comment("instruction streams.");
@@ -167,6 +209,103 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
   w->AlignToPageSizeIfNeeded();
   w->DeclareLabelEpilogue();
   w->Newline();
+}
+
+void EmbeddedFileWriter::WriteDebugSection(PlatformEmbeddedFileWriterBase* w,
+                                           const i::EmbeddedData* blob) const {
+  if (!v8_flags.torque_dwarf) return;
+
+  FILE* fp = w->fp();
+
+  // 1. .debug_abbrev
+  fprintf(fp, ".section .debug_abbrev,\"\",@progbits\n");
+  fprintf(fp, ".Ldebug_abbrev0:\n");
+  fprintf(fp, "  .byte 1\n");   // Abbrev 1
+  fprintf(fp, "  .byte 17\n");  // DW_TAG_compile_unit
+  fprintf(fp, "  .byte 1\n");   // DW_CHILDREN_yes
+  fprintf(fp, "  .byte 37\n");  // DW_AT_producer
+  fprintf(fp, "  .byte 14\n");  // DW_FORM_strp
+  fprintf(fp, "  .byte 19\n");  // DW_AT_language
+  fprintf(fp, "  .byte 5\n");   // DW_FORM_data2
+  fprintf(fp, "  .byte 3\n");   // DW_AT_name
+  fprintf(fp, "  .byte 14\n");  // DW_FORM_strp
+  fprintf(fp, "  .byte 16\n");  // DW_AT_stmt_list
+  fprintf(fp, "  .byte 23\n");  // DW_FORM_sec_offset
+  fprintf(fp, "  .byte 27\n");  // DW_AT_comp_dir
+  fprintf(fp, "  .byte 14\n");  // DW_FORM_strp
+  fprintf(fp, "  .byte 17\n");  // DW_AT_low_pc
+  fprintf(fp, "  .byte 1\n");   // DW_FORM_addr
+  fprintf(fp, "  .byte 18\n");  // DW_AT_high_pc
+  fprintf(fp, "  .byte 6\n");   // DW_FORM_data4
+  fprintf(fp, "  .byte 0\n");   // EOM
+  fprintf(fp, "  .byte 0\n");   // EOM
+
+  fprintf(fp, "  .byte 2\n");   // Abbrev 2
+  fprintf(fp, "  .byte 46\n");  // DW_TAG_subprogram
+  fprintf(fp, "  .byte 0\n");   // DW_CHILDREN_no
+  fprintf(fp, "  .byte 3\n");   // DW_AT_name
+  fprintf(fp, "  .byte 14\n");  // DW_FORM_strp
+  fprintf(fp, "  .byte 17\n");  // DW_AT_low_pc
+  fprintf(fp, "  .byte 1\n");   // DW_FORM_addr
+  fprintf(fp, "  .byte 18\n");  // DW_AT_high_pc
+  fprintf(fp, "  .byte 6\n");   // DW_FORM_data4
+  fprintf(fp, "  .byte 0\n");   // EOM
+  fprintf(fp, "  .byte 0\n");   // EOM
+  fprintf(fp, "  .byte 0\n");   // End of abbrev
+
+  // 2. .debug_info
+  fprintf(fp, ".section .debug_info,\"\",@progbits\n");
+  fprintf(fp, ".Lcu_begin0:\n");
+  fprintf(fp, "  .long .Ldebug_info_end0 - .Ldebug_info_start0\n");  // Length
+  fprintf(fp, ".Ldebug_info_start0:\n");
+  fprintf(fp, "  .short 4\n");                      // Version
+  fprintf(fp, "  .long .debug_abbrev\n");           // Abbrev offset
+  fprintf(fp, "  .byte %d\n", kSystemPointerSize);  // Address size
+
+  fprintf(fp, "  .byte 1\n");                    // Abbrev 1 (Compile Unit)
+  fprintf(fp, "  .long .Linfo_string0\n");       // Producer
+  fprintf(fp, "  .short 2\n");                   // Language (C)
+  fprintf(fp, "  .long .Linfo_string1\n");       // Name
+  fprintf(fp, "  .long .Lline_table_start0\n");  // Stmt list
+  fprintf(fp, "  .long .Linfo_string2\n");       // Comp dir
+  w->IndentedDataDirective(PointerSizeDirective());
+  fprintf(fp, "%s\n", EmbeddedBlobCodeSymbol().c_str());  // Low PC
+  fprintf(fp, "  .long %u\n", blob->code_size());         // High PC
+
+  int string_offset = 3;  // We already have 3 strings in header!
+
+  for (ReorderedBuiltinIndex embedded_index = 0;
+       embedded_index < Builtins::kBuiltinCount; embedded_index++) {
+    Builtin builtin = blob->GetBuiltinId(embedded_index);
+    const char* name = Builtins::name(builtin);
+
+    fprintf(fp, "  .byte 2\n");  // Abbrev 2 (Subprogram)
+    fprintf(fp, "  .long .Linfo_string%d\n", string_offset++);  // Name
+    w->IndentedDataDirective(PointerSizeDirective());
+    fprintf(fp, "Builtins_%s\n", name);                             // Low PC
+    fprintf(fp, "  .long %u\n", blob->InstructionSizeOf(builtin));  // High PC
+  }
+  fprintf(fp, "  .byte 0\n");  // End of children
+  fprintf(fp, ".Ldebug_info_end0:\n");
+
+  // 3. .debug_str
+  fprintf(fp, ".section .debug_str,\"MS\",@progbits,1\n");
+  fprintf(fp, ".Linfo_string0:\n");
+  fprintf(fp, "  .asciz \"Torque\"\n");
+  fprintf(fp, ".Linfo_string1:\n");
+  fprintf(fp, "  .asciz \"embedded.S\"\n");
+  fprintf(fp, ".Linfo_string2:\n");
+  fprintf(fp, "  .asciz \".\"\n");
+
+  string_offset = 3;
+  for (ReorderedBuiltinIndex embedded_index = 0;
+       embedded_index < Builtins::kBuiltinCount; embedded_index++) {
+    Builtin builtin = blob->GetBuiltinId(embedded_index);
+    const char* name = Builtins::name(builtin);
+    fprintf(fp, ".Linfo_string%d:\n", string_offset++);
+    fprintf(fp, "  .asciz \"Builtins_%s\"\n", name);
+  }
+  fprintf(fp, "\n");
 }
 
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
@@ -282,16 +421,33 @@ int EmbeddedFileWriter::GetExternallyCompiledFilenameCount() const {
 }
 
 void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
+  bool any_source_positions = false;
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
     Tagged<Code> code = builtins->code(builtin);
-    if (!code->has_source_position_table()) continue;
-    Tagged<TrustedByteArray> source_position_table =
-        code->source_position_table();
-    std::vector<unsigned char> data(source_position_table->begin(),
-                                    source_position_table->end());
-    source_positions_[static_cast<int>(builtin)] = data;
+    if (code->has_source_position_table()) {
+      Tagged<TrustedByteArray> source_position_table =
+          code->source_position_table();
+      std::vector<unsigned char> data(source_position_table->begin(),
+                                      source_position_table->end());
+      if (!data.empty()) {
+        any_source_positions = true;
+      }
+      source_positions_[static_cast<int>(builtin)] = data;
+    }
+    // Also copy code comments if present.
+    if (code->code_comments_size() > 0) {
+      std::vector<unsigned char> data(
+          reinterpret_cast<unsigned char*>(code->code_comments()),
+          reinterpret_cast<unsigned char*>(code->code_comments()) +
+              code->code_comments_size());
+      code_comments_[static_cast<int>(builtin)] = data;
+    }
+  }
+  if (any_source_positions) {
+    builtin_marker_sources_id_ =
+        LookupOrAddExternallyCompiledFilename("<builtin>");
   }
 }
 

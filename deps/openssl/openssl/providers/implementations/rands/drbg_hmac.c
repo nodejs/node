@@ -412,27 +412,25 @@ static const OSSL_PARAM *drbg_hmac_gettable_ctx_params(ossl_unused void *vctx,
 static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
     OSSL_LIB_CTX *libctx,
     EVP_MAC_CTX **macctx,
-    EVP_MD **digest)
+    EVP_MD **digest, const char *propq)
 {
-    OSSL_PROVIDER *prov = NULL;
     const OSSL_PARAM *p;
     const char *digest_name = NULL;
     const char *hmac_name = NULL;
     EVP_MD *md = NULL;
     EVP_MAC *mac = NULL;
-    OSSL_PARAM mac_params[2], *mp = mac_params;
+    OSSL_PARAM mac_params[3], *mp = mac_params;
     int ret = 0;
+    const char *propquery = NULL;
+
+#ifndef FIPS_MODULE
+    if (propq == NULL)
+        propquery = "provider=default";
+    else
+        propquery = propq;
+#endif
 
     if (macctx == NULL || digest == NULL)
-        return 0;
-
-    if ((p = OSSL_PARAM_locate_const(params,
-             OSSL_PROV_PARAM_CORE_PROV_NAME))
-        == NULL)
-        return 0;
-    if (p->data_type != OSSL_PARAM_UTF8_STRING)
-        return 0;
-    if ((prov = ossl_provider_find(libctx, (const char *)p->data, 1)) == NULL)
         return 0;
 
     p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
@@ -441,7 +439,7 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
             ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
             goto done;
         }
-        md = evp_digest_fetch_from_prov(prov, digest_name, NULL);
+        md = EVP_MD_fetch(libctx, p->data, propquery);
         if (md) {
             EVP_MD_free(*digest);
             *digest = md;
@@ -467,12 +465,14 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
     EVP_MAC_CTX_free(*macctx);
     *macctx = NULL;
 
-    mac = evp_mac_fetch_from_prov(prov, hmac_name, NULL);
+    mac = EVP_MAC_fetch(libctx, hmac_name, propquery);
     if (mac) {
         *macctx = EVP_MAC_CTX_new(mac);
         /* The context holds on to the MAC */
         EVP_MAC_free(mac);
         *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, (char *)digest_name, 0);
+        if (propquery)
+            *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_PROPERTIES, (char *)propquery, 0);
         *mp = OSSL_PARAM_construct_end();
         if (!EVP_MAC_CTX_set_params(*macctx, mac_params)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MAC);
@@ -484,7 +484,6 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
     }
 
 done:
-    ossl_provider_free(prov);
     return ret;
 }
 
@@ -496,15 +495,23 @@ static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]
     EVP_MD *prov_md = NULL;
     const EVP_MD *md;
     int md_size;
+    const OSSL_PARAM *p;
 
     if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
             OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK))
         return 0;
 
     /* try to fetch mac and digest from provider */
+    p = OSSL_PARAM_locate_const(params, OSSL_DRBG_PARAM_PROPERTIES);
     (void)ERR_set_mark();
-    if (!drbg_fetch_algs_from_prov(params, libctx, &hmac->ctx, &prov_md)) {
+    if (!drbg_fetch_algs_from_prov(params, libctx, &hmac->ctx, &prov_md,
+            (p != NULL && p->data_type == OSSL_PARAM_UTF8_STRING) ? p->data : NULL)) {
         (void)ERR_pop_to_mark();
+        /*
+         * Its possible for drbg_fetch_algs_from_prov to return 0 and set prov_md here
+         * so we need to free prov_md to be leak free
+         */
+        EVP_MD_free(prov_md);
         /* fall back to full implementation search */
         if (!ossl_prov_digest_load_from_params(&hmac->digest, params, libctx))
             return 0;

@@ -64,8 +64,10 @@ static int verify_signature(const OSSL_CMP_CTX *cmp_ctx,
 sig_err:
     res = ossl_x509_print_ex_brief(bio, cert, X509_FLAG_NO_EXTENSIONS);
     ERR_raise(ERR_LIB_CMP, CMP_R_ERROR_VALIDATING_SIGNATURE);
-    if (res)
-        ERR_add_error_mem_bio("\n", bio);
+    if (res) {
+        ERR_add_error_txt(NULL, "\n");
+        ERR_add_error_mem_bio(NULL, bio);
+    }
     res = 0;
 
 end:
@@ -387,7 +389,7 @@ static int check_msg_with_certs(OSSL_CMP_CTX *ctx, const STACK_OF(X509) *certs,
     int i;
 
     if (sk_X509_num(certs) <= 0) {
-        ossl_cmp_log1(WARN, ctx, "no %s", desc);
+        ossl_cmp_log1(INFO, ctx, "no %s", desc);
         return 0;
     }
 
@@ -407,7 +409,7 @@ static int check_msg_with_certs(OSSL_CMP_CTX *ctx, const STACK_OF(X509) *certs,
         }
     }
     if (in_extraCerts && n_acceptable_certs == 0)
-        ossl_cmp_warn(ctx, "no acceptable cert in extraCerts");
+        ossl_cmp_log1(WARN, ctx, "no acceptable %s", desc);
     return 0;
 }
 
@@ -502,14 +504,14 @@ static int check_msg_find_cert(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
 
     res = check_msg_all_certs(ctx, msg, 0 /* using ctx->trusted */)
         || check_msg_all_certs(ctx, msg, 1 /* 3gpp */);
-    ctx->log_cb = backup_log_cb;
-    if (res) {
-        /* discard any diagnostic information on trying to use certs */
-        (void)ERR_pop_to_mark();
+
+    ctx->log_cb = backup_log_cb; /* re-enable logging */
+    /* discard any previous diagnostic information on trying to use certs */
+    (void)ERR_pop_to_mark();
+
+    if (res)
         goto end;
-    }
     /* failed finding a sender cert that verifies the message signature */
-    (void)ERR_clear_last_mark();
 
     sname = X509_NAME_oneline(sender->d.directoryName, NULL, 0);
     skid_str = skid == NULL ? NULL : i2s_ASN1_OCTET_STRING(NULL, skid);
@@ -732,7 +734,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
                 "expected sender", expected_sender)) {
             str = X509_NAME_oneline(actual_sender, NULL, 0);
             ERR_raise_data(ERR_LIB_CMP, CMP_R_UNEXPECTED_SENDER,
-                str != NULL ? str : "<unknown>");
+                "%s", str != NULL ? str : "<unknown>");
             OPENSSL_free(str);
             return 0;
         }
@@ -776,8 +778,13 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
     res = 1; /* support more aggressive fuzzing by letting invalid msg pass */
 #endif
 
-    /* remove extraCerts again if not caching */
-    if (ctx->noCacheExtraCerts)
+    /*
+     * remove extraCerts again if not caching
+     * or if we failed validation above, lest a remote user
+     * starts sending us lots of certificates in invalid messages
+     * leading to a DOS from unbounded certificate stack growth
+     */
+    if (ctx->noCacheExtraCerts || res != 1)
         while (num_added-- > 0)
             X509_free(sk_X509_shift(ctx->untrusted));
 

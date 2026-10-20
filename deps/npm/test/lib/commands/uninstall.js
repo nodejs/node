@@ -143,6 +143,34 @@ t.test('remove multiple installed libs', async t => {
   t.throws(() => fs.statSync(b), 'should have removed b package from nm')
 })
 
+t.test('rejects an arg with a version spec', async t => {
+  const { uninstall } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-rm-version-spec',
+        version: '1.0.0',
+        dependencies: {
+          foo: '*',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+          }),
+        },
+      },
+    },
+  })
+
+  await t.rejects(
+    uninstall(['foo@1']),
+    { code: 'ERMARGS', message: /npm rm foo/ },
+    'should throw ERMARGS instead of silently no-oping'
+  )
+})
+
 t.test('no args local', async t => {
   const { uninstall } = await mockNpm(t)
 
@@ -213,4 +241,31 @@ t.test('completion', async t => {
   })
   const res = await uninstall.completion({ conf: { argv: { remain: ['npm', 'uninstall'] } } })
   t.match(res, ['bar', 'foo'])
+})
+
+t.test('uninstall threads allowScripts policy through to arborist', async t => {
+  let capturedOpts
+  const FakeArborist = function (opts) {
+    capturedOpts = opts
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+  }
+  FakeArborist.prototype.reify = async () => {}
+
+  const { npm } = await _mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await npm.exec('uninstall', ['canvas'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'opts.allowScripts populated from package.json')
 })

@@ -4,93 +4,28 @@
 
 ---
 wrap: yes
+extra flags: --array-destructure-bytecode
 
 ---
 snippet: "
   var x, a = [0,1,2,3];
   [x] = a;
 "
-frame size: 14
+frame size: 3
 parameter count: 1
-bytecode array length: 124
+bytecode array length: 13
 bytecodes: [
   /*   45 S> */ B(CreateArrayLiteral), U8(0:ARRAY_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x25),
                 B(Star1),
-  /*   60 S> */ B(GetIterator), R(1), FBV(1), FBV(3),
-                B(Star4),
-                B(GetNamedProperty), R(4), U8(1:"next"), FBV(5),
-                B(Star3),
-                B(LdaFalse),
-                B(Star5),
-                B(LdaTheHole),
-                B(Mov), R(1), R(2),
-                B(Star8),
-                B(Mov), R(context), R(9),
-                B(Ldar), R(5),
-  /*   57 E> */ B(JumpIfToBooleanTrue), U8(33),
-                B(LdaTrue),
-                B(Star5),
-                B(CallProperty0), R(3), R(4), FBV(11),
-                B(Star10),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), RegCount8(1),
-                B(GetNamedProperty), R(10), U8(2:"done"), FBV(9),
-                B(JumpIfToBooleanTrue), U8(13),
-                B(GetNamedProperty), R(10), U8(3:"value"), FBV(7),
-                B(Star10),
-                B(LdaFalse),
-                B(Star5),
-                B(Ldar), R(10),
-                B(Jump), U8(3),
-                B(LdaUndefined),
-                B(Star0),
-                B(LdaSmi), I8(-1),
-                B(Star7),
-                B(Star6),
-                B(Jump), U8(8),
-                B(Star7),
-                B(LdaZero),
-                B(Star6),
-                B(LdaTheHole),
-                B(SetPendingMessage),
-                B(Star8),
-                B(Ldar), R(5),
-                B(JumpIfToBooleanTrue), U8(35),
-                B(Mov), R(context), R(11),
-                B(GetNamedProperty), R(4), U8(4:"return"), FBV(13),
-                B(JumpIfUndefinedOrNull), U8(26),
-                B(Star12),
-                B(CallProperty0), R(12), R(4), FBV(15),
-                B(JumpIfJSReceiver), U8(19),
-                B(Star13),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(13), RegCount8(1),
-                B(Jump), U8(11),
-                B(Star11),
-                B(LdaZero),
-                B(TestReferenceEqual), R(6),
-                B(JumpIfTrue), U8(5),
-                B(Ldar), R(11),
-                B(ReThrow),
-                B(LdaZero),
-                B(TestReferenceEqual), R(6),
-                B(JumpIfFalse), U8(8),
-                B(Ldar), R(8),
-                B(SetPendingMessage),
-                B(Ldar), R(7),
-                B(ReThrow),
+  /*   57 S> */ B(ArrayDestructure), R(2), RegCount8(1),
+                B(Mov), R(2), R(0),
                 B(LdaUndefined),
   /*   65 S> */ B(Return),
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  INTERNALIZED_ONE_BYTE_STRING_TYPE ["next"],
-  INTERNALIZED_ONE_BYTE_STRING_TYPE ["done"],
-  INTERNALIZED_ONE_BYTE_STRING_TYPE ["value"],
-  INTERNALIZED_ONE_BYTE_STRING_TYPE ["return"],
 ]
 handlers: [
-  [25, 62, 68],
-  [81, 100, 102],
 ]
 
 ---
@@ -152,18 +87,18 @@ bytecodes: [
                 B(Star13),
                 B(LdaTrue),
                 B(Star6),
-                B(CallProperty0), R(4), R(5), FBV(19),
+                B(CallProperty0), R(4), R(5), FBV(18),
                 B(Star11),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), RegCount8(1),
-                B(GetNamedProperty), R(11), U8(2:"done"), FBV(21),
+                B(GetNamedProperty), R(11), U8(2:"done"), FBV(20),
                 B(JumpIfToBooleanTrue), U8(19),
                 B(GetNamedProperty), R(11), U8(3:"value"), FBV(7),
                 B(StaInArrayLiteral), R(12), R(13), FBV(16),
                 B(Ldar), R(13),
-                B(Inc), FBV(18),
+                B(Inc), EmbeddedFeedback(),
                 B(Star13),
-                B(JumpLoop), U8(31), I8(0), FBV(23),
+                B(JumpLoop), U8(31), I8(0), FBV(22),
                 B(Mov), R(12), R(1),
                 B(LdaSmi), I8(-1),
                 B(Star8),
@@ -400,6 +335,32 @@ constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = {y:1, w:2, v:3};
+  var { ...y } = a;
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 24
+bytecodes: [
+  /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
+                B(Star0),
+  /*   74 S> */ B(Mov), R(0), R(2),
+                B(JumpIfUndefinedOrNull), U8(4),
+                B(Jump), U8(7),
+  /*   63 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(2), RegCount8(1),
+  /*   68 E> */ B(CloneObject), R(2), Flag8(0x0), FBV(1),
+                B(Star1),
+                B(LdaUndefined),
+  /*   77 S> */ B(Return),
+]
+constant pool: [
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]

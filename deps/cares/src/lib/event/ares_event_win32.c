@@ -707,6 +707,9 @@ static ares_bool_t ares_evsys_win32_event_add(ares_event_t *event)
   ares_bool_t                   rc = ARES_FALSE;
 
   ed              = ares_malloc_zero(sizeof(*ed));
+  if (ed == NULL) {
+    return ARES_FALSE; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
   ed->event       = event;
   ed->socket      = event->fd;
   ed->base_socket = ARES_SOCKET_BAD;

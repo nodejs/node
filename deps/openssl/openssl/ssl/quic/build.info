@@ -10,7 +10,7 @@ IF[{- !$disabled{quic} -}]
     SOURCE[$LIBSSL]=quic_fc.c uint_set.c
     SOURCE[$LIBSSL]=quic_cfq.c quic_txpim.c quic_fifd.c quic_txp.c
     SOURCE[$LIBSSL]=quic_stream_map.c
-    SOURCE[$LIBSSL]=quic_sf_list.c quic_rstream.c quic_sstream.c
+    SOURCE[$LIBSSL]=quic_strm_reas.c quic_rstream.c quic_sstream.c
     SOURCE[$LIBSSL]=quic_reactor.c
     SOURCE[$LIBSSL]=quic_reactor_wait_ctx.c
     SOURCE[$LIBSSL]=quic_channel.c quic_port.c quic_engine.c

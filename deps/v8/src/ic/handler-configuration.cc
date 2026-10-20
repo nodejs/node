@@ -230,6 +230,34 @@ Handle<Object> LoadHandler::LoadNonExistent(
 }
 
 // static
+Handle<LoadHandler> LoadHandler::LoadProxyFast(
+    Isolate* isolate, DirectHandle<Map> target_map,
+    DirectHandle<Map> handler_map, DirectHandle<Smi> get_smi_handler,
+    DirectHandle<Object> trap_method) {
+  Handle<Smi> smi_handler = LoadProxy(isolate);
+
+  Handle<LoadHandler> handler =
+      isolate->factory()->NewLoadHandler(LoadHandler::kProxyDataFieldCount);
+  handler->set_smi_handler(*smi_handler);
+  handler->set_validity_cell(Map::kNoValidityCellSentinel);
+
+  // data1: target map
+  handler->set_data1(MakeWeak(Cast<HeapObject>(*target_map)));
+  // LoadIC
+  // data2: handler map
+  handler->set_data2(MakeWeak(Cast<HeapObject>(*handler_map)));
+  // data3: smi handler
+  handler->set_data3(*get_smi_handler);
+  // CallIC
+  // data4: trap method
+  handler->set_data4(MakeWeak(Cast<HeapObject>(*trap_method)));
+  // data5: counter
+  handler->set_data5(Smi::zero());
+
+  return handler;
+}
+
+// static
 Handle<LoadHandler> LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
     DirectHandle<InterceptorInfo> interceptor_info) {
@@ -330,7 +358,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
     DirectHandle<DescriptorArray> descriptors(
-        transition_map->instance_descriptors(isolate), isolate);
+        transition_map->instance_descriptors(), isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsAnyPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
@@ -366,7 +394,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
     DirectHandle<DescriptorArray> descriptors(
-        transition_map->instance_descriptors(isolate), isolate);
+        transition_map->instance_descriptors(), isolate);
     // Private fields must be added via StoreOwnTransition handler.
     DCHECK(!descriptors->GetKey(descriptor)->IsAnyPrivateName());
     PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -513,21 +541,14 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
   switch (kind) {
     case LoadHandler::Kind::kElement:
       os << "kElement, ";
-      if (LoadHandler::IsWasmArrayBits::decode(raw_handler)) {
-        os << "WasmArray, "
-           << LoadHandler::WasmArrayTypeBits::decode(raw_handler);
-
-      } else {
-        os << "allow out of bounds = "
-           << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
-           << ", is JSArray = "
-           << LoadHandler::IsJsArrayBits::decode(raw_handler)
-           << ", allow reading holes = "
-           << LoadHandler::AllowHandlingHole::decode(raw_handler)
-           << ", elements kind = "
-           << ElementsKindToString(
-                  LoadHandler::ElementsKindBits::decode(raw_handler));
-      }
+      os << "allow out of bounds = "
+         << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
+         << ", is JSArray = " << LoadHandler::IsJsArrayBits::decode(raw_handler)
+         << ", allow reading holes = "
+         << LoadHandler::AllowHandlingHole::decode(raw_handler)
+         << ", elements kind = "
+         << ElementsKindToString(
+                LoadHandler::ElementsKindBits::decode(raw_handler));
       break;
     case LoadHandler::Kind::kElementWithTransition:
       os << "kElementWithTransition, ";
@@ -551,18 +572,13 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kGlobal";
       break;
     case LoadHandler::Kind::kField: {
-      if (LoadHandler::IsWasmStructBits::decode(raw_handler)) {
-        os << "kField, WasmStruct, type = "
-           << LoadHandler::WasmFieldTypeBits::decode(raw_handler)
-           << ", field offset = "
-           << LoadHandler::WasmFieldOffsetBits::decode(raw_handler);
-      } else {
-        os << "kField, is in object = "
-           << LoadHandler::IsInobjectBits::decode(raw_handler)
-           << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
-           << ", field index = "
-           << LoadHandler::FieldIndexBits::decode(raw_handler);
-      }
+      os << "kField, is in object = "
+         << LoadHandler::IsInobjectBits::decode(raw_handler)
+         << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
+         << ", storage offset in words = "
+         << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler)
+         << ", descriptor index = "
+         << LoadHandler::DescriptorIndexBits::decode(raw_handler);
       break;
     }
     case LoadHandler::Kind::kConstantFromPrototype:
@@ -594,6 +610,9 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kModuleExport, exports index = "
          << LoadHandler::ExportsIndexBits::decode(raw_handler);
       break;
+    case LoadHandler::Kind::kGeneric:
+      os << "kGeneric";
+      break;
     default:
       os << "<invalid value " << static_cast<int>(kind) << ">";
       break;
@@ -617,8 +636,8 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
          << ", is in object = "
          << StoreHandler::IsInobjectBits::decode(raw_handler)
          << ", representation = " << representation.Mnemonic()
-         << ", field index = "
-         << StoreHandler::FieldIndexBits::decode(raw_handler);
+         << ", storage offset in words = "
+         << StoreHandler::StorageOffsetInWordsBits::decode(raw_handler);
       break;
     }
     case StoreHandler::Kind::kAccessorFromPrototype:
@@ -670,7 +689,8 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
-  } else if (Tagged<Code> code; TryCast(handler, &code)) {
+  } else if (Is<Code>(handler)) {
+    Tagged<Code> code = TrustedCast<Code>(handler);
     os << "LoadHandler(Code)(" << Builtins::name(code->builtin_id()) << ")";
   } else if (IsSymbol(handler)) {
     os << "LoadHandler(Symbol)(" << Brief(Cast<Symbol>(handler)) << ")";
@@ -693,6 +713,14 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     if (load_handler->data_field_count() >= 3) {
       os << ", data3 = ";
       ShortPrint(load_handler->data3(), os);
+    }
+    if (load_handler->data_field_count() >= 4) {
+      os << ", data4 = ";
+      ShortPrint(load_handler->data4(), os);
+    }
+    if (load_handler->data_field_count() >= 5) {
+      os << ", data5 = ";
+      ShortPrint(load_handler->data5(), os);
     }
     os << ", validity cell = ";
     ShortPrint(load_handler->validity_cell(), os);
@@ -741,7 +769,8 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsMap(handler)) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
-  } else if (Tagged<Code> code; TryCast(handler, &code)) {
+  } else if (Is<Code>(handler)) {
+    Tagged<Code> code = TrustedCast<Code>(handler);
     os << "StoreHandler(builtin = ";
     ShortPrint(code, os);
     os << ")" << std::endl;
@@ -750,9 +779,6 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, WasmValueType type) {
-  return os << WasmValueType2String(type);
-}
 
 #endif  // defined(OBJECT_PRINT)
 

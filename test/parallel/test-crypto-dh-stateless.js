@@ -5,8 +5,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
-const isBoringSSL = process.features.openssl_is_boringssl;
+const {
+  hasOpenSSL,
+  isBoringSSL: commonIsBoringSSL,
+} = require('../common/crypto');
+const isBoringSSL = commonIsBoringSSL;
 
 // Error code for a key-type mismatch during (EC)DH. The underlying OpenSSL
 // error code varies by version, and in OpenSSL 4.0 by platform: some builds

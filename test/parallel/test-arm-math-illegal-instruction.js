@@ -9,10 +9,10 @@ const { test } = require('node:test');
 
 // Iterate over all Math functions
 test('Iterate over all Math functions', () => {
-  Object.getOwnPropertyNames(Math).forEach((functionName) => {
+  for (const functionName of Object.getOwnPropertyNames(Math)) {
     if (!/[A-Z]/.test(functionName)) {
       // The function names don't have capital letters.
       Math[functionName](-0.5);
     }
-  });
+  }
 });

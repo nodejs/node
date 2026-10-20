@@ -227,7 +227,9 @@ const unsigned char *ares_dns_multistring_combined(ares_dns_multistring_t *strs,
 
   strs->cache_str =
     (unsigned char *)ares_buf_finish_str(buf, &strs->cache_str_len);
-  if (strs->cache_str != NULL) {
+  if (strs->cache_str == NULL) {
+    ares_buf_destroy(buf);
+  } else {
     strs->cache_invalidated = ARES_FALSE;
   }
   *len = strs->cache_str_len;

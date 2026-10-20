@@ -27,7 +27,9 @@ if (!common.hasCrypto) {
 
 const {
   hasOpenSSL,
+  hasFIPS,
   opensslCli,
+  isBoringSSL,
 } = require('../common/crypto');
 
 if (!opensslCli) {
@@ -43,12 +45,19 @@ function loadPEM(n) {
   return fixtures.readKey(`${n}.pem`);
 }
 
-const server = tls.Server({
-  secureProtocol: 'TLSv1_2_server_method',
+const serverOptions = {
   key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert')
-}, null).listen(0, common.mustCall(() => {
-  if (process.features.openssl_is_boringssl) {
+  cert: loadPEM('agent2-cert'),
+};
+if (hasFIPS(3)) {
+  serverOptions.minVersion = 'TLSv1.3';
+  serverOptions.maxVersion = 'TLSv1.3';
+} else {
+  serverOptions.secureProtocol = 'TLSv1_2_server_method';
+}
+
+const server = tls.Server(serverOptions, null).listen(0, common.mustCall(() => {
+  if (isBoringSSL) {
     let gotClientError = false;
     let gotServerError = false;
     function maybeClose() {
@@ -75,8 +84,9 @@ const server = tls.Server({
     return;
   }
 
-  const args = ['s_client', '-quiet', '-tls1_1',
-                '-cipher', (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
+  const args = ['s_client', '-quiet', hasFIPS(3) ? '-tls1_2' : '-tls1_1',
+                '-cipher', hasFIPS(3) ? 'DEFAULT' :
+                  (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
                 '-connect', `127.0.0.1:${server.address().port}`];
 
   execFile(opensslCli, args, common.mustCall((err, _, stderr) => {

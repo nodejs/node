@@ -28,13 +28,14 @@ on:
           - inspector_protocol
           - libffi
           - libuv
+          - lief
           - llhttp
-          - minimatch
           - nbytes
           - nixpkgs-unstable
           - nghttp2
           - nghttp3
           - ngtcp2
+          - perfetto
           - postject
           - root-certificates
           - simdjson
@@ -46,13 +47,16 @@ on:
           - zstd
 
 env:
-  PYTHON_VERSION: '3.14'
+  PYTHON_VERSION: '3.15'
 
 permissions:
   contents: read
 
 jobs:
   tools-deps-update:
+    permissions:
+      contents: read
+      pull-requests: read
     if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
     # cannot use ubuntu-slim here because some update scripts require Docker
     runs-on: ubuntu-latest
@@ -149,6 +153,7 @@ jobs:
           - id: icu
             subsystem: deps
             label: dependencies, test, icu
+            requires-python: true
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
               cat temp-output
@@ -157,6 +162,7 @@ jobs:
           - id: inspector_protocol
             subsystem: deps
             label: dependencies, inspector
+            requires-python: true
             run: |
               ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
               cat temp-output
@@ -178,19 +184,20 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: lief
+            subsystem: deps
+            label: dependencies, dont-land-on-v22.x
+            requires-python: true
+            run: |
+              ./tools/dep_updaters/update-lief.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: llhttp
             subsystem: deps
             label: dependencies
             run: |
               ./tools/dep_updaters/update-llhttp.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: minimatch
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-minimatch.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -234,6 +241,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ngtcp2.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: perfetto
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-perfetto.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -306,37 +321,53 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+    env:
+      BRANCH_NAME: actions/${{ github.ref_name != 'main' && format('{0}/', github.ref_name) || '' }}tools-update-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+      - name: Check for non-bot commits on the existing pull request
+        id: check-pr
+        # Updating the Action's PR force-pushes its branch, so skip the update
+        # if someone pushed their own commits to it to avoid discarding them.
+        # When 'inputs.id == matrix.id', non-bot commits are being overwritten
+        if: github.event_name == 'schedule' || inputs.id == 'all'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_URL=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH_NAME" --state open \
+            --json url,commits,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository | not) | select(any(.commits[].authors[]; .email != "github-bot@iojs.org")) | .url] | join(" ")')
+          if [ -n "$PR_URL" ]; then
+            echo "::notice::Skipping update, $PR_URL has commits not authored by the bot"
+            echo "hasNonBotCommits=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        if: |
-          (matrix.id == 'icu' || matrix.id == 'inspector_protocol') &&
-          (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        if: matrix.requires-python && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up Nix
-        if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f  # v31.10.5
+        if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
       - run: ${{ matrix.run }}
-        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+        if: (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Generate commit message if not set
-        if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         run: |
-          echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
+          echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to $NEW_VERSION" >> "$GITHUB_ENV"
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
-        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+        if: (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         with:
           token: ${{ secrets.GH_USER_TOKEN }}
-          branch: actions/${{ github.ref_name == 'main' || format('{0}/', github.ref_name) }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          branch: ${{ env.BRANCH_NAME }}  # Custom branch *just* for this Action.
           delete-branch: true
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}

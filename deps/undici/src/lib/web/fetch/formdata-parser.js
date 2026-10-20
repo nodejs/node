@@ -261,19 +261,27 @@ function parseContentDispositionAttribute (input, position) {
       position
     )
 
-    // Check for utf-8'' prefix (case insensitive)
+    const charsetSeparator = headerValue.indexOf(0x27)
+    const languageSeparator = charsetSeparator === -1
+      ? -1
+      : headerValue.indexOf(0x27, charsetSeparator + 1)
+
+    if (charsetSeparator === -1 || languageSeparator === -1) {
+      throw parsingError('expected charset and language separators in extended value')
+    }
+
     if (
+      charsetSeparator !== 5 ||
       (headerValue[0] !== 0x75 && headerValue[0] !== 0x55) || // u or U
       (headerValue[1] !== 0x74 && headerValue[1] !== 0x54) || // t or T
       (headerValue[2] !== 0x66 && headerValue[2] !== 0x46) || // f or F
       headerValue[3] !== 0x2d || // -
       headerValue[4] !== 0x38 // 8
     ) {
-      throw parsingError('unknown encoding, expected utf-8\'\'')
+      throw parsingError('unknown charset, expected utf-8')
     }
 
-    // Skip utf-8'' and decode the rest
-    value = decodeURIComponent(decoder.decode(headerValue.subarray(7)))
+    value = decodeURIComponent(decoder.decode(headerValue.subarray(languageSeparator + 1)))
   } else if (input[position.position] === 0x22 /* " */) {
     // Quoted string
     position.position++ // skip opening quote

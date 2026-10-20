@@ -221,7 +221,7 @@ inline cppgc::AllocationHandle& Environment::cppgc_allocation_handle() const {
 
 inline v8::ExternalMemoryAccounter* Environment::external_memory_accounter()
     const {
-  return external_memory_accounter_;
+  return external_memory_accounter_.get();
 }
 
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
@@ -320,6 +320,10 @@ inline std::shared_ptr<KVStore> Environment::env_vars() {
 
 inline void Environment::set_env_vars(std::shared_ptr<KVStore> env_vars) {
   env_vars_ = env_vars;
+}
+
+inline int Environment::ipc_channel_fd() const {
+  return ipc_channel_fd_;
 }
 
 inline bool Environment::printed_error() const {
@@ -623,6 +627,10 @@ inline void Environment::set_can_call_into_js(bool can_call_into_js) {
   can_call_into_js_ = can_call_into_js;
 }
 
+inline bool Environment::is_processing_v8_interrupt() const {
+  return is_processing_v8_interrupt_;
+}
+
 inline bool Environment::has_run_bootstrapping_code() const {
   return principal_realm_->has_run_bootstrapping_code();
 }
@@ -691,6 +699,10 @@ inline bool Environment::no_browser_globals() const {
 #else
   return flags_ & EnvironmentFlags::kNoBrowserGlobals;
 #endif
+}
+
+inline bool Environment::no_addon_permission_for_linked_bindings() const {
+  return flags_ & EnvironmentFlags::kNoAddonPermissionForLinkedBindings;
 }
 
 void Environment::set_source_maps_enabled(bool on) {
@@ -841,6 +853,13 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> IsolateData::Name##_permission_string() const { \
+    return Name##_permission_string##_.Get(isolate_);                          \
+  }
+  PERMISSIONS(V)
+#undef V
+
 #define VM(PropertyName) V(PropertyName##_binding_template, v8::ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> IsolateData::PropertyName() const {               \
@@ -854,6 +873,24 @@ void Environment::set_process_exit_handler(
   NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM)
 #undef V
 #undef VM
+
+  inline v8::Local<v8::Symbol> IsolateData::ffi_fast_arguments_symbol() const {
+    return ffi_fast_arguments_symbol_.Get(isolate_);
+  }
+  inline void IsolateData::set_ffi_fast_arguments_symbol(
+      v8::Local<v8::Symbol> value) {
+    CHECK(ffi_fast_arguments_symbol_.IsEmpty());
+    ffi_fast_arguments_symbol_.Set(isolate_, value);
+  }
+  inline v8::Local<v8::Symbol> IsolateData::ffi_fast_buffer_invoke_symbol()
+      const {
+    return ffi_fast_buffer_invoke_symbol_.Get(isolate_);
+  }
+  inline void IsolateData::set_ffi_fast_buffer_invoke_symbol(
+      v8::Local<v8::Symbol> value) {
+    CHECK(ffi_fast_buffer_invoke_symbol_.IsEmpty());
+    ffi_fast_buffer_invoke_symbol_.Set(isolate_, value);
+  }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
@@ -869,6 +906,29 @@ void Environment::set_process_exit_handler(
 #undef VS
 #undef VY
 #undef VP
+
+  inline v8::Local<v8::Symbol> Environment::ffi_fast_arguments_symbol() const {
+    return isolate_data()->ffi_fast_arguments_symbol();
+  }
+  inline void Environment::set_ffi_fast_arguments_symbol(
+      v8::Local<v8::Symbol> value) {
+    isolate_data()->set_ffi_fast_arguments_symbol(value);
+  }
+  inline v8::Local<v8::Symbol> Environment::ffi_fast_buffer_invoke_symbol()
+      const {
+    return isolate_data()->ffi_fast_buffer_invoke_symbol();
+  }
+  inline void Environment::set_ffi_fast_buffer_invoke_symbol(
+      v8::Local<v8::Symbol> value) {
+    isolate_data()->set_ffi_fast_buffer_invoke_symbol(value);
+  }
+
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> Environment::Name##_permission_string() const { \
+    return isolate_data()->Name##_permission_string();                         \
+  }
+  PERMISSIONS(V)
+#undef V
 
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> Environment::PropertyName() const {               \
@@ -905,8 +965,16 @@ inline void Environment::set_heap_snapshot_near_heap_limit(uint32_t limit) {
   heap_snapshot_near_heap_limit_ = limit;
 }
 
+inline void Environment::set_heap_profile_near_heap_limit(uint32_t limit) {
+  heap_profile_near_heap_limit_ = limit;
+}
+
 inline bool Environment::is_in_heapsnapshot_heap_limit_callback() const {
   return is_in_heapsnapshot_heap_limit_callback_;
+}
+
+inline bool Environment::is_in_heap_profile_near_heap_limit_callback() const {
+  return is_in_heap_profile_near_heap_limit_callback_;
 }
 
 inline bool Environment::report_exclude_env() const {
@@ -915,16 +983,42 @@ inline bool Environment::report_exclude_env() const {
 
 inline void Environment::AddHeapSnapshotNearHeapLimitCallback() {
   DCHECK(!heapsnapshot_near_heap_limit_callback_added_);
+  const bool was_registered = heap_profile_near_heap_limit_callback_added_;
   heapsnapshot_near_heap_limit_callback_added_ = true;
-  isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback, this);
+  if (!was_registered) {
+    isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                       this);
+  }
 }
 
 inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
     size_t heap_limit) {
   DCHECK(heapsnapshot_near_heap_limit_callback_added_);
   heapsnapshot_near_heap_limit_callback_added_ = false;
-  isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                        heap_limit);
+  if (!heap_profile_near_heap_limit_callback_added_) {
+    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                          heap_limit);
+  }
+}
+
+inline void Environment::AddHeapProfileNearHeapLimitCallback() {
+  DCHECK(!heap_profile_near_heap_limit_callback_added_);
+  const bool was_registered = heapsnapshot_near_heap_limit_callback_added_;
+  heap_profile_near_heap_limit_callback_added_ = true;
+  if (!was_registered) {
+    isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                       this);
+  }
+}
+
+inline void Environment::RemoveHeapProfileNearHeapLimitCallback(
+    size_t heap_limit) {
+  DCHECK(heap_profile_near_heap_limit_callback_added_);
+  heap_profile_near_heap_limit_callback_added_ = false;
+  if (!heapsnapshot_near_heap_limit_callback_added_) {
+    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                          heap_limit);
+  }
 }
 
 }  // namespace node

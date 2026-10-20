@@ -34,7 +34,8 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
   bool CanBeRestarted() const override;
 
   v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
-                                     bool throw_on_side_effect) override;
+                                     bool throw_on_side_effect,
+                                     int scope_index = 0) override;
   void PrepareRestart();
 
   Handle<SharedFunctionInfo> GetSharedFunctionInfo() const;

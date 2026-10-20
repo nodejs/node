@@ -128,7 +128,7 @@ function checkAnyFuncTable(call, start, count, value) {
     if (value) {
       assertEquals(value, call(start + i));
     } else {
-      assertTraps(kTrapFuncSigMismatch, () => call(start + i));
+      assertTraps(kTrapNullFunc, () => call(start + i));
     }
   }
 }

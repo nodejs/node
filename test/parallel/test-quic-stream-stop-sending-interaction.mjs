@@ -13,8 +13,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -44,9 +42,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     // The server's stream.closed rejects because
     // the client automatically sends RESET_STREAM in response to
     // STOP_SENDING. The error code matches the STOP_SENDING code.
-    await rejects(stream.closed, (error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(error.message.includes(String(stopCode)));
+    await assert.rejects(stream.closed, (error) => {
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.ok(error.message.includes(String(stopCode)));
       return true;
     });
 
@@ -66,7 +64,7 @@ clientStreamReady.resolve();
 // Read the server's data. The server→client direction is unaffected
 // by STOP_SENDING on the client→server direction.
 const received = await bytes(stream);
-strictEqual(new TextDecoder().decode(received), 'server data');
+assert.strictEqual(new TextDecoder().decode(received), 'server data');
 
 // The client's stream.closed resolves. The STOP_SENDING caused
 // the client's write side to end (ngtcp2 sends RESET_STREAM

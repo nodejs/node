@@ -15,6 +15,7 @@
 #include "absl/strings/internal/damerau_levenshtein_distance.h"
 
 #include <cstdint>
+#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+
+const { isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
@@ -19,7 +21,7 @@ const hashes = [
   'SHA-512',
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   hashes.push(
     'SHA3-256',
     'SHA3-384',
@@ -649,6 +651,35 @@ const testVectors = [
     });
   });
   await Promise.all(variations);
+})().then(common.mustCall());
+
+// Type-specific JWK usage validation precedes `key_ops` validation.
+(async function() {
+  const privateJwk = keyData[1024].jwk;
+
+  for (const { name, publicUsages, privateUsages } of testVectors) {
+    const algorithm = { name, hash: 'SHA-256' };
+    const invalidUsage = publicUsages[0];
+    const validUsage = privateUsages[0];
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...privateJwk, key_ops: [invalidUsage, invalidUsage] },
+        algorithm,
+        true,
+        [invalidUsage]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...privateJwk, key_ops: [validUsage, validUsage] },
+        algorithm,
+        true,
+        [validUsage]),
+      { name: 'DataError', message: 'Duplicate key operation' });
+  }
 })().then(common.mustCall());
 
 {

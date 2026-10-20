@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,14 +41,13 @@ class Code;
 /// Reference: https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64
 class LIEF_API RuntimeFunctionX64 : public ExceptionInfo {
   public:
-
-  /// \private
+  /// @private
   LIEF_LOCAL static std::unique_ptr<RuntimeFunctionX64>
-    parse(Parser& ctx, BinaryStream& strm, bool skip_unwind = false);
+      parse(Parser& ctx, BinaryStream& strm, bool skip_unwind = false);
 
-  /// \private
-  LIEF_LOCAL static ok_error_t
-    parse_unwind(Parser& ctx, BinaryStream& strm, RuntimeFunctionX64& func);
+  /// @private
+  LIEF_LOCAL static ok_error_t parse_unwind(Parser& ctx, BinaryStream& strm,
+                                            RuntimeFunctionX64& func);
 
   enum class UNWIND_FLAGS : uint8_t {
     /// The function has an exception handler that should be called when looking
@@ -133,7 +132,21 @@ class LIEF_API RuntimeFunctionX64 : public ExceptionInfo {
 
   enum class UNWIND_REG : uint32_t {
     RAX = 0,
-    RCX, RDX, RBX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15,
+    RCX,
+    RDX,
+    RBX,
+    RSP,
+    RBP,
+    RSI,
+    RDI,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
   };
 
   /// This structure represents the `UNWIND_INFO` which records the effects
@@ -191,9 +204,8 @@ class LIEF_API RuntimeFunctionX64 : public ExceptionInfo {
     /// Pretty representation of this structure as a string
     std::string to_string() const;
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const unwind_info_t& info)
-    {
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const unwind_info_t& info) {
       os << info.to_string();
       return os;
     }
@@ -202,8 +214,7 @@ class LIEF_API RuntimeFunctionX64 : public ExceptionInfo {
   RuntimeFunctionX64(uint32_t rva_start, uint32_t rva_end, uint32_t unwind_rva) :
     ExceptionInfo(ARCH::X86_64, rva_start),
     rva_end_(rva_end),
-    unwind_rva_(unwind_rva)
-  {}
+    unwind_rva_(unwind_rva) {}
 
   RuntimeFunctionX64(const RuntimeFunctionX64&) = default;
   RuntimeFunctionX64& operator=(const RuntimeFunctionX64&) = default;

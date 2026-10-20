@@ -10,8 +10,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,8 +43,8 @@ await clientSession.opened;
   const stream = await clientSession.createBidirectionalStream();
   // Access the writer — this initializes the streaming source.
   const w = stream.writer;
-  ok(w);
-  throws(() => {
+  assert.ok(w);
+  assert.throws(() => {
     stream.setBody(encoder.encode('too late'));
   }, {
     code: 'ERR_INVALID_STATE',
@@ -59,7 +57,7 @@ await clientSession.opened;
 {
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(encoder.encode('body set'));
-  throws(() => {
+  assert.throws(() => {
     stream.writer; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_INVALID_STATE',
@@ -71,7 +69,7 @@ await clientSession.opened;
 {
   const stream = await clientSession.createBidirectionalStream();
   stream.destroy();
-  throws(() => {
+  assert.throws(() => {
     stream.setBody(encoder.encode('destroyed'));
   }, {
     code: 'ERR_INVALID_STATE',

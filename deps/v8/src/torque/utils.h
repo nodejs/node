@@ -72,7 +72,7 @@ class V8_EXPORT_PRIVATE MessageBuilder {
 struct TorqueAbortCompilation {};
 
 template <class... Args>
-static MessageBuilder Message(TorqueMessage::Kind kind, Args&&... args) {
+MessageBuilder Message(TorqueMessage::Kind kind, Args&&... args) {
   return MessageBuilder(ToString(std::forward<Args>(args)...), kind);
 }
 

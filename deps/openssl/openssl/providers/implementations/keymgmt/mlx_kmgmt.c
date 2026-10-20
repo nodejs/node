@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,7 @@
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/err.h>
+#include <openssl/obj_mac.h>
 #include <openssl/param_build.h>
 #include <openssl/params.h>
 #include <openssl/proverr.h>
@@ -22,6 +23,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
 #include "prov/securitycheck.h"
+#include "fips/fipsindicator.h"
 
 static OSSL_FUNC_keymgmt_gen_fn mlx_kem_gen;
 static OSSL_FUNC_keymgmt_gen_cleanup_fn mlx_kem_gen_cleanup;
@@ -192,9 +194,8 @@ static int export_sub_cb(const OSSL_PARAM *params, void *varg)
             return 0;
         if (len != sub_arg->prvlen) {
             ERR_raise_data(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR,
-                "Unexpected %s private key length %lu != %lu",
-                sub_arg->algorithm_name, (unsigned long)len,
-                (unsigned long)sub_arg->publen);
+                "Unexpected %s private key length %zu != %zu",
+                sub_arg->algorithm_name, len, sub_arg->prvlen);
             return 0;
         }
         ++sub_arg->prvcount;
@@ -245,7 +246,7 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
 {
     MLX_KEY *key = vkey;
     OSSL_PARAM_BLD *tmpl = NULL;
-    OSSL_PARAM *params = NULL;
+    OSSL_PARAM *params = NULL, *p;
     size_t publen;
     size_t prvlen;
     int ret = 0;
@@ -307,12 +308,18 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
         goto err;
 
     ret = param_cb(params, cbarg);
+    /*
+     * OSSL_PARAM_free() only wipes the secure-heap data block,
+     * so wipe the key material copies held in the params first.
+     */
+    for (p = params; p->key != NULL; p++)
+        OPENSSL_cleanse(p->data, p->data_size);
     OSSL_PARAM_free(params);
 
 err:
     OSSL_PARAM_BLD_free(tmpl);
     OPENSSL_secure_clear_free(sub_arg.prvenc, prvlen);
-    OPENSSL_free(sub_arg.pubenc);
+    OPENSSL_clear_free(sub_arg.pubenc, publen);
     return ret;
 }
 
@@ -562,12 +569,18 @@ static int mlx_kem_get_params(void *vkey, OSSL_PARAM params[])
         selection |= OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
 
     /* Extract sub-component key material */
-    if (!export_sub(&sub_arg, selection, key))
+    if (!export_sub(&sub_arg, selection, key)
+        || (pub != NULL && sub_arg.pubcount != 2)
+        || (prv != NULL && sub_arg.prvcount != 2)) {
+        /* Erase any partial key material on failure */
+        if (sub_arg.pubenc != NULL)
+            OPENSSL_cleanse(sub_arg.pubenc,
+                key->minfo->pubkey_bytes + key->xinfo->pubkey_bytes);
+        if (sub_arg.prvenc != NULL)
+            OPENSSL_cleanse(sub_arg.prvenc,
+                key->minfo->prvkey_bytes + key->xinfo->prvkey_bytes);
         return 0;
-
-    if ((pub != NULL && sub_arg.pubcount != 2)
-        || (prv != NULL && sub_arg.prvcount != 2))
-        return 0;
+    }
 
     return 1;
 }
@@ -680,6 +693,27 @@ static const OSSL_PARAM *mlx_kem_gen_settable_params(ossl_unused void *vgctx,
     return settable;
 }
 
+#ifdef FIPS_MODULE
+static int mlx_kem_gen_get_params(void *vgctx, OSSL_PARAM params[])
+{
+    PROV_ML_KEM_GEN_CTX *gctx = vgctx;
+    OSSL_PARAM *p;
+    int approved;
+
+    if (gctx == NULL || gctx->evp_type >= OSSL_NELEM(hybrid_vtable))
+        return 0;
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR);
+    if (p != NULL) {
+        approved = strcmp(hybrid_vtable[gctx->evp_type].algorithm_name,
+                       SN_X448)
+            != 0;
+        if (!OSSL_PARAM_set_int(p, approved))
+            return 0;
+    }
+    return 1;
+}
+#endif
+
 static void *mlx_kem_gen(void *vgctx, OSSL_CALLBACK *osslcb, void *cbarg)
 {
     PROV_ML_KEM_GEN_CTX *gctx = vgctx;
@@ -733,15 +767,17 @@ static void *mlx_kem_dup(const void *vkey, int selection)
         || (ret = OPENSSL_memdup(key, sizeof(*ret))) == NULL)
         return NULL;
 
-    if (ret->propq != NULL
-        && (ret->propq = OPENSSL_strdup(ret->propq)) == NULL) {
+    ret->mkey = ret->xkey = NULL;
+
+    if (key->propq != NULL
+        && (ret->propq = OPENSSL_strdup(key->propq)) == NULL) {
         OPENSSL_free(ret);
         return NULL;
     }
 
     /* Absent key material, nothing left to do */
-    if (ret->mkey == NULL) {
-        if (ret->xkey == NULL)
+    if (key->mkey == NULL) {
+        if (key->xkey == NULL)
             return ret;
         /* Fail if the source key is an inconsistent state */
         OPENSSL_free(ret->propq);
@@ -751,7 +787,6 @@ static void *mlx_kem_dup(const void *vkey, int selection)
 
     switch (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) {
     case 0:
-        ret->xkey = ret->mkey = NULL;
         ret->state = MLX_HAVE_NOKEYS;
         return ret;
     case OSSL_KEYMGMT_SELECT_KEYPAIR:
@@ -807,7 +842,9 @@ static void *mlx_kem_dup(const void *vkey, int selection)
         { OSSL_FUNC_KEYMGMT_IMPORT_TYPES, (OSSL_FUNC)mlx_kem_imexport_types },             \
         { OSSL_FUNC_KEYMGMT_EXPORT, (OSSL_FUNC)mlx_kem_export },                           \
         { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (OSSL_FUNC)mlx_kem_imexport_types },             \
-        OSSL_DISPATCH_END                                                                  \
+        OSSL_FIPS_IND_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,                           \
+            OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS, mlx_kem_gen_get_params)                 \
+            OSSL_DISPATCH_END                                                              \
     }
 /* See |hybrid_vtable| above */
 DECLARE_DISPATCH(p256, 0);

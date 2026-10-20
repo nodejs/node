@@ -59,7 +59,8 @@ group("v8_testrunner") {
     "predictable_wrapper.py",
     "run-num-fuzzer.py",
     "run-tests.py",
-    ".vpython3",
+    "vpython.toml",
+    "vpython.toml.uv.lock",
     "testrunner/",
   ]
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,12 @@
 #include "logging.hpp"
 
 #include <algorithm>
-#include <iomanip>
 #include <numeric>
 #include <sstream>
 #include <utility>
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 std::vector<std::string> DynamicEntryRpath::paths() const {
   std::stringstream ss;
@@ -38,10 +37,13 @@ std::vector<std::string> DynamicEntryRpath::paths() const {
 }
 
 void DynamicEntryRpath::paths(const std::vector<std::string>& paths) {
-  rpath_ = std::accumulate(std::begin(paths), std::end(paths), std::string(),
-      [] (const std::string& path, const std::string& new_entry) {
-        return path.empty() ? new_entry :  path + DynamicEntryRpath::delimiter + new_entry;
-      });
+  rpath_ =
+      std::accumulate(paths.begin(), paths.end(), std::string(),
+                      [](const std::string& path, const std::string& new_entry) {
+                        return path.empty() ?
+                                   new_entry :
+                                   path + DynamicEntryRpath::delimiter + new_entry;
+                      });
 }
 
 DynamicEntryRpath& DynamicEntryRpath::append(std::string path) {
@@ -53,11 +55,9 @@ DynamicEntryRpath& DynamicEntryRpath::append(std::string path) {
 
 DynamicEntryRpath& DynamicEntryRpath::remove(const std::string& path) {
   std::vector<std::string> paths = this->paths();
-  paths.erase(std::remove_if(std::begin(paths), std::end(paths),
-                             [&path] (const std::string& p) {
-                               return p == path;
-                             }),
-              std::end(paths));
+  paths.erase(std::remove_if(paths.begin(), paths.end(),
+                             [&path](const std::string& p) { return p == path; }),
+              paths.end());
   this->paths(paths);
   return *this;
 }
@@ -70,10 +70,10 @@ DynamicEntryRpath& DynamicEntryRpath::insert(size_t pos, const std::string& path
   }
 
   if (pos > paths.size()) {
-    LIEF_ERR("pos: {:d} is out of range", pos);
+    LIEF_ERR("Position {:d} is out of range", pos);
     return *this;
   }
-  paths.insert(std::begin(paths) + pos, path);
+  paths.insert(paths.begin() + pos, path);
   this->paths(paths);
   return *this;
 }
@@ -91,7 +91,3 @@ std::ostream& DynamicEntryRpath::print(std::ostream& os) const {
 }
 
 }
-}
-
-
-

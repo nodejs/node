@@ -5,10 +5,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !isBoringSSL)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -96,12 +96,24 @@ async function testImportSpki({ name, publicUsages }, extractable) {
 }
 
 async function testImportPkcs8({ name, privateUsages }, extractable) {
-  const key = await subtle.importKey(
-    'pkcs8',
-    keyData[name].pkcs8,
-    { name },
-    extractable,
-    privateUsages);
+  let key;
+  try {
+    key = await subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8,
+      { name },
+      extractable,
+      privateUsages);
+  } catch (err) {
+    if (isBoringSSL) {
+      assert.strictEqual(err.name, 'DataError');
+      assert.strictEqual(err.cause.code,
+                         'ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED');
+      common.printSkipMessage('Skipping unsupported private key format test');
+      return;
+    }
+    throw err;
+  }
   assert.strictEqual(key.type, 'private');
   assert.strictEqual(key.extractable, extractable);
   assert.deepStrictEqual(key.usages, privateUsages);
@@ -225,6 +237,11 @@ async function testImportRawPublic({ name, publicUsages }, extractable) {
       name: 'NotSupportedError',
       message: `Unable to export ${publicKey.algorithm.name} public key using raw format`,
     });
+
+    await assert.rejects(subtle.exportKey('raw-seed', publicKey), {
+      name: 'InvalidAccessError',
+      message: 'Key must be a private key',
+    });
   }
 
   await assert.rejects(
@@ -239,7 +256,7 @@ async function testImportRawPublic({ name, publicUsages }, extractable) {
     subtle.importKey(
       'raw-public',
       pub,
-      { name: name === 'ML-KEM-512' ? 'ML-KEM-768' : 'ML-KEM-512' },
+      { name: name === 'ML-KEM-768' ? 'ML-KEM-1024' : 'ML-KEM-768' },
       extractable, publicUsages),
     { message: 'Invalid keyData' });
 }
@@ -264,6 +281,11 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
   if (extractable) {
     const value = await subtle.exportKey('raw-seed', privateKey);
     assert.deepStrictEqual(Buffer.from(value), seed);
+
+    await assert.rejects(subtle.exportKey('raw-public', privateKey), {
+      name: 'InvalidAccessError',
+      message: 'Key must be a public key',
+    });
   }
 
   await assert.rejects(
@@ -415,7 +437,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       privateUsages), // Invalid for a public key
     { message: /Unsupported key usage/ });
 
-  for (const alg of [undefined, name === 'ML-KEM-512' ? 'ML-KEM-1024' : 'ML-KEM-512']) {
+  for (const alg of [undefined, name === 'ML-KEM-768' ? 'ML-KEM-1024' : 'ML-KEM-768']) {
     await assert.rejects(
       subtle.importKey(
         'jwk',
@@ -457,6 +479,10 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
 (async function() {
   const tests = [];
   for (const vector of testVectors) {
+    if (isBoringSSL && vector.name === 'ML-KEM-512') {
+      common.printSkipMessage('Skipping unsupported ML-KEM-512 test');
+      continue;
+    }
     for (const extractable of [true, false]) {
       tests.push(testImportSpki(vector, extractable));
       tests.push(testImportPkcs8(vector, extractable));
@@ -472,35 +498,55 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
 })().then(common.mustCall());
 
 (async function() {
-  const alg = 'ML-KEM-512';
+  const alg = 'ML-KEM-768';
   const pub = Buffer.from(keyData[alg].jwk.pub, 'base64url');
   await assert.rejects(subtle.importKey('raw', pub, alg, false, []), {
     name: 'NotSupportedError',
-    message: 'Unable to import ML-KEM-512 using raw format',
+    message: 'Unable to import ML-KEM-768 using raw format',
   });
 })().then(common.mustCall());
 
+// JWK key usage validation precedes `key_ops` validation.
 (async function() {
-  for (const { name, privateUsages } of testVectors) {
-    const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');
-    const keyObject = createPrivateKey(pem);
-    const key = keyObject.toCryptoKey({ name }, true, privateUsages);
-    await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
-      assert.strictEqual(err.name, 'OperationError');
-      return true;
-    });
-  }
-})().then(common.mustCall());
+  const privateJwk = keyData['ML-KEM-768'].jwk;
+  const encapsulationOps = ['encapsulateKey', 'encapsulateBits'];
+  const decapsulationOps = ['decapsulateKey', 'decapsulateBits'];
 
-// Regression test: JWK `key_ops` validation must recognize ML-KEM operations
-// (encapsulateKey, encapsulateBits, decapsulateKey, decapsulateBits) so that
-// duplicate entries are rejected
-(async function() {
-  for (const op of ['encapsulateKey', 'encapsulateBits',
-                    'decapsulateKey', 'decapsulateBits']) {
-    const jwk = { ...keyData['ML-KEM-768'].jwk, key_ops: [op, op] };
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+  }
+
+  // Duplicate entries are still rejected when the requested usages are valid.
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, priv: undefined, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'DataError', message: /Duplicate key operation/ });
+  }
+
+  for (const op of decapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
     await assert.rejects(
       subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
       { name: 'DataError', message: /Duplicate key operation/ });
   }
 })().then(common.mustCall());
+
+if (!isBoringSSL) {
+  (async function() {
+    for (const { name, privateUsages } of testVectors) {
+      const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');
+      const keyObject = createPrivateKey(pem);
+      const key = keyObject.toCryptoKey({ name }, true, privateUsages);
+      await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        return true;
+      });
+    }
+  })().then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported private key format test');
+}

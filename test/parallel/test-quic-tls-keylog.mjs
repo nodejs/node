@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,17 +25,17 @@ const expectedLabels = [
 ];
 
 function assertKeylogLines(lines, side) {
-  ok(lines.length > 0, `Expected ${side} keylog lines, got ${lines.length}`);
+  assert.ok(lines.length > 0, `Expected ${side} keylog lines, got ${lines.length}`);
 
   for (const line of lines) {
-    strictEqual(typeof line, 'string',
-                `Each ${side} keylog line should be a string`);
+    assert.strictEqual(typeof line, 'string',
+                       `Each ${side} keylog line should be a string`);
   }
 
   const joined = lines.join('');
   for (const label of expectedLabels) {
-    ok(joined.includes(label),
-       `Expected ${side} keylog to contain ${label}`);
+    assert.ok(joined.includes(label),
+              `Expected ${side} keylog to contain ${label}`);
   }
 }
 

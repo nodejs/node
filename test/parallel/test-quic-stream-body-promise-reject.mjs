@@ -6,8 +6,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -24,7 +23,7 @@ const { bytes } = await import('stream/iter');
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(
+      assert.strictEqual(
         new TextDecoder().decode(received),
         'nested promise',
       );
@@ -44,7 +43,7 @@ const { bytes } = await import('stream/iter');
     Promise.resolve(Promise.resolve('nested promise')),
   );
 
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise]);
   await clientSession.close();
   await serverEndpoint.close();

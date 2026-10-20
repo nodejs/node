@@ -36,6 +36,13 @@ properties:
           - Microsoft.VisualStudio.Component.VC.Llvm.Clang
           - Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset
     - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: rustPackage
+      directives:
+        description: Install Rust with MSVC toolchain
+      settings:
+        id: Rustlang.Rust.MSVC
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: gitPackage
       directives:
         description: Install Git
@@ -51,4 +58,4 @@ properties:
       settings:
         id: Nasm.Nasm
         source: winget
-  configurationVersion: 0.1.1
+  configurationVersion: 0.2.0

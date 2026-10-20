@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: String slice-of-slice is only supported with DiplomatRuntime slice types
+In src/ast/snapshots/span_testing/slice_of_slice.rs:3:24:
+...: &[&str]) {}...
+       ^^^^
+Supported slice types: DiplomatStrSlice, DiplomatStr16Slice, DiplomatUtf8StrSlice.

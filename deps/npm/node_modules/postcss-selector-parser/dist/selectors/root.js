@@ -1,44 +1,56 @@
 "use strict";
-
-exports.__esModule = true;
-exports["default"] = void 0;
-var _container = _interopRequireDefault(require("./container"));
-var _types = require("./types");
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
-function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; _setPrototypeOf(subClass, superClass); }
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
-var Root = /*#__PURE__*/function (_Container) {
-  _inheritsLoose(Root, _Container);
-  function Root(opts) {
-    var _this;
-    _this = _Container.call(this, opts) || this;
-    _this.type = _types.ROOT;
-    return _this;
-  }
-  var _proto = Root.prototype;
-  _proto.toString = function toString() {
-    var str = this.reduce(function (memo, selector) {
-      memo.push(String(selector));
-      return memo;
-    }, []).join(',');
-    return this.trailingComma ? str + ',' : str;
-  };
-  _proto.error = function error(message, options) {
-    if (this._error) {
-      return this._error(message, options);
-    } else {
-      return new Error(message);
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var container_1 = __importDefault(require("./container"));
+var types_1 = require("./types");
+var Root = /** @class */ (function (_super) {
+    __extends(Root, _super);
+    function Root(opts) {
+        var _this = _super.call(this, opts) || this;
+        _this.type = types_1.ROOT;
+        return _this;
     }
-  };
-  _createClass(Root, [{
-    key: "errorGenerator",
-    set: function set(handler) {
-      this._error = handler;
-    }
-  }]);
-  return Root;
-}(_container["default"]);
-exports["default"] = Root;
-module.exports = exports.default;
+    Root.prototype._stringify = function (options, depth, max) {
+        var _this = this;
+        var str = this.reduce(function (memo, selector) {
+            memo.push(_this._stringifyChild(selector, options, depth, max));
+            return memo;
+        }, []).join(",");
+        return this.trailingComma ? str + "," : str;
+    };
+    Root.prototype.error = function (message, options) {
+        if (this._error) {
+            return this._error(message, options);
+        }
+        else {
+            return new Error(message);
+        }
+    };
+    Object.defineProperty(Root.prototype, "errorGenerator", {
+        set: function (handler) {
+            this._error = handler;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    return Root;
+}(container_1.default));
+exports.default = Root;
+//# sourceMappingURL=root.js.map

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -301,6 +301,8 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
 
     if (in != NULL) { /* aad or text */
         if (out == NULL) { /* aad */
+            if (ctx->len.text != 0)
+                goto err;
             Poly1305_Update(poly, in, inl);
             ctx->len.aad += inl;
             ctx->aad = 1;

@@ -9,6 +9,8 @@ const repl = require('internal/repl');
 const stream = require('stream');
 const fixtures = require('../common/fixtures');
 
+common.skipIfInspectorDisabled();
+
 class ActionStream extends stream.Stream {
   run(data) {
     const _iter = data[Symbol.iterator]();

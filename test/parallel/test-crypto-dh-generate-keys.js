@@ -6,10 +6,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
 
 {
-  const size = crypto.getFips() || hasOpenSSL3 ? 1024 : 256;
+  const prime = crypto.getDiffieHellman('modp14').getPrime();
 
   function unlessInvalidState(f) {
     try {
@@ -22,7 +21,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
   }
 
   function testGenerateKeysChangesKeys(setup, expected) {
-    const dh = crypto.createDiffieHellman(size);
+    const dh = crypto.createDiffieHellman(prime);
     setup(dh);
     const firstPublicKey = unlessInvalidState(() => dh.getPublicKey());
     const firstPrivateKey = unlessInvalidState(() => dh.getPrivateKey());

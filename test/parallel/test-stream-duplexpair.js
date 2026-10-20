@@ -54,7 +54,7 @@ const { Duplex, duplexPair } = require('stream');
   }));
 }
 
-// Test the case where the the _write never calls [kCallback]
+// Test the case where the _write never calls [kCallback]
 // because a zero-size push doesn't trigger a _read
 {
   const [ serverSide, clientSide ] = duplexPair();

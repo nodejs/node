@@ -42,6 +42,13 @@ function closeEnough(actual, expected, margin) {
             `expected ${expected} ± ${margin}, got ${actual}`);
 }
 
+// Ensure that accessed atime and mtime are enumerable
+function validateEnumerability(stats) {
+  const keys = Object.keys(stats);
+  assert.ok(keys.includes('atime'));
+  assert.ok(keys.includes('mtime'));
+}
+
 async function runTest(atime, mtime, margin = 0) {
   margin += Number.EPSILON;
   try {
@@ -56,24 +63,28 @@ async function runTest(atime, mtime, margin = 0) {
   closeEnough(stats.mtimeMs, mtime, margin);
   closeEnough(stats.atime.getTime(), new Date(atime).getTime(), margin);
   closeEnough(stats.mtime.getTime(), new Date(mtime).getTime(), margin);
+  validateEnumerability(stats);
 
   const statsBigint = await fsPromises.stat(filepath, { bigint: true });
   closeEnough(statsBigint.atimeMs, BigInt(atime), margin);
   closeEnough(statsBigint.mtimeMs, BigInt(mtime), margin);
   closeEnough(statsBigint.atime.getTime(), new Date(atime).getTime(), margin);
   closeEnough(statsBigint.mtime.getTime(), new Date(mtime).getTime(), margin);
+  validateEnumerability(statsBigint);
 
   const statsSync = fs.statSync(filepath);
   closeEnough(statsSync.atimeMs, atime, margin);
   closeEnough(statsSync.mtimeMs, mtime, margin);
   closeEnough(statsSync.atime.getTime(), new Date(atime).getTime(), margin);
   closeEnough(statsSync.mtime.getTime(), new Date(mtime).getTime(), margin);
+  validateEnumerability(statsSync);
 
   const statsSyncBigint = fs.statSync(filepath, { bigint: true });
   closeEnough(statsSyncBigint.atimeMs, BigInt(atime), margin);
   closeEnough(statsSyncBigint.mtimeMs, BigInt(mtime), margin);
   closeEnough(statsSyncBigint.atime.getTime(), new Date(atime).getTime(), margin);
   closeEnough(statsSyncBigint.mtime.getTime(), new Date(mtime).getTime(), margin);
+  validateEnumerability(statsSyncBigint);
 }
 
 // Too high/low numbers produce too different results on different platforms

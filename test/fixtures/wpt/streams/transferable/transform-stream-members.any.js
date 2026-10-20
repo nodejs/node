@@ -1,4 +1,4 @@
-// META: global=window,dedicatedworker,shadowrealm
+// META: global=window,dedicatedworker
 
 const combinations = [
   (t => [t, t.readable])(new TransformStream()),

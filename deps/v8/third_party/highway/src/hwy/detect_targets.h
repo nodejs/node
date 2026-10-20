@@ -1,4 +1,5 @@
 // Copyright 2021 Google LLC
+// Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,7 +93,7 @@
 #define HWY_SVE2 (1LL << 23)
 #define HWY_SVE (1LL << 24)
 // Bit 25 reserved for NEON
-#define HWY_NEON_BF16 (1LL << 26)  // fp16/dot/bf16 (e.g. Neoverse V2/N2/N3)
+#define HWY_NEON_BF16 (1LL << 26)  // fp16/dot/bf16 (e.g. Neoverse V2/N2)
 // Bit 27 reserved for NEON
 #define HWY_NEON (1LL << 28)  // Implies support for AES
 #define HWY_NEON_WITHOUT_AES (1LL << 29)
@@ -206,9 +207,9 @@
 #endif  // HWY_BROKEN_AVX10_2
 
 #ifndef HWY_BROKEN_AVX3_DL_ZEN4  // allow override
-// AVX3_DL and AVX3_ZEN4 require clang >= 7 (ensured above), gcc >= 8.1 or ICC
+// AVX3_DL and AVX3_ZEN4 require clang >= 7 (ensured above), gcc >= 10.1 or ICC
 // 2021.
-#if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 801) || \
+#if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1001) || \
     (HWY_COMPILER_ICC && HWY_COMPILER_ICC < 2021)
 #define HWY_BROKEN_AVX3_DL_ZEN4 (HWY_AVX3_DL | HWY_AVX3_ZEN4)
 #else
@@ -256,9 +257,10 @@
 #endif  // HWY_BROKEN_ARM7_WITHOUT_VFP4
 
 #ifndef HWY_BROKEN_NEON_BF16  // allow override
-// HWY_NEON_BF16 requires recent compilers.
+// Broken on older compilers:
 #if (HWY_COMPILER_CLANG != 0 && HWY_COMPILER_CLANG < 1700) || \
-    (HWY_COMPILER_GCC_ACTUAL != 0 && HWY_COMPILER_GCC_ACTUAL < 1302)
+    (HWY_COMPILER_GCC_ACTUAL != 0 && HWY_COMPILER_GCC_ACTUAL < 1302) || \
+    (defined(__apple_build_version__) && __apple_build_version__ <= 17000000)
 #define HWY_BROKEN_NEON_BF16 (HWY_NEON_BF16)
 #else
 #define HWY_BROKEN_NEON_BF16 0
@@ -268,11 +270,11 @@
 // SVE[2] require recent clang or gcc versions.
 
 #ifndef HWY_BROKEN_SVE  // allow override
-// GCC 10+. Clang 21 still has many test failures for SVE. No Apple CPU (at
-// least up to and including M4 and A18) has SVE.
+// Clang 22+, GCC 10+, except MSAN does not yet support SVE.
+// No Apple CPU (at least up to and including M4 and A18) has SVE.
 #if (HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 2200) ||           \
     (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1000) || \
-    HWY_OS_APPLE
+    HWY_OS_APPLE || HWY_IS_MSAN
 #define HWY_BROKEN_SVE (HWY_SVE | HWY_SVE_256)
 #else
 #define HWY_BROKEN_SVE 0
@@ -280,15 +282,27 @@
 #endif  // HWY_BROKEN_SVE
 
 #ifndef HWY_BROKEN_SVE2  // allow override
-// Clang 21 still has many test failures for SVE2.
+// Clang 22+, GCC 10+, except MSAN does not yet support SVE2.
+// No Apple CPU (at least up to and including M4 and A18) has SVE2.
 #if (HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 2200) ||           \
     (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1000) || \
-    HWY_OS_APPLE
-#define HWY_BROKEN_SVE2 (HWY_SVE2 | HWY_SVE2_128)
+    HWY_OS_APPLE || HWY_IS_MSAN
+#define HWY_BROKEN_SVE2 (HWY_SVE2)
 #else
 #define HWY_BROKEN_SVE2 0
 #endif
 #endif  // HWY_BROKEN_SVE2
+
+#ifndef HWY_BROKEN_SVE2_128  // allow override
+// GCC 10+. Clang 21 works for SVE2_128, but not for SVE2 nor MSAN.
+#if (HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 2100) ||           \
+    (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1000) || \
+    HWY_OS_APPLE || HWY_IS_MSAN
+#define HWY_BROKEN_SVE2_128 (HWY_SVE2_128)
+#else
+#define HWY_BROKEN_SVE2_128 0
+#endif
+#endif  // HWY_BROKEN_SVE2_128
 
 #ifndef HWY_BROKEN_PPC10  // allow override
 #if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1100)
@@ -374,13 +388,13 @@
 // Allow the user to override this without any guarantee of success.
 #ifndef HWY_BROKEN_TARGETS
 
-#define HWY_BROKEN_TARGETS                                              \
-  (HWY_BROKEN_CLANG6 | HWY_BROKEN_32BIT | HWY_BROKEN_MSVC |             \
-   HWY_BROKEN_AVX10_2 | HWY_BROKEN_AVX3_DL_ZEN4 | HWY_BROKEN_AVX3_SPR | \
-   HWY_BROKEN_ARM7_BIG_ENDIAN | HWY_BROKEN_ARM7_WITHOUT_VFP4 |          \
-   HWY_BROKEN_NEON_BF16 | HWY_BROKEN_SVE | HWY_BROKEN_SVE2 |            \
-   HWY_BROKEN_PPC10 | HWY_BROKEN_PPC_32BIT | HWY_BROKEN_RVV |           \
-   HWY_BROKEN_LOONGARCH | HWY_BROKEN_Z14)
+#define HWY_BROKEN_TARGETS                                                 \
+  (HWY_BROKEN_CLANG6 | HWY_BROKEN_32BIT | HWY_BROKEN_MSVC |                \
+   HWY_BROKEN_AVX10_2 | HWY_BROKEN_AVX3_DL_ZEN4 | HWY_BROKEN_AVX3_SPR |    \
+   HWY_BROKEN_ARM7_BIG_ENDIAN | HWY_BROKEN_ARM7_WITHOUT_VFP4 |             \
+   HWY_BROKEN_NEON_BF16 | HWY_BROKEN_SVE | HWY_BROKEN_SVE2 |               \
+   HWY_BROKEN_SVE2_128 | HWY_BROKEN_PPC10 | HWY_BROKEN_PPC_32BIT |         \
+   HWY_BROKEN_RVV | HWY_BROKEN_LOONGARCH | HWY_BROKEN_Z14)
 
 #endif  // HWY_BROKEN_TARGETS
 
@@ -503,7 +517,8 @@
 #if defined(__ARM_FEATURE_AES) &&                    \
     defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && \
     defined(__ARM_FEATURE_DOTPROD) &&                \
-    defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC)
+    defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) && \
+    defined(__ARM_FEATURE_MATMUL_INT8)
 #define HWY_BASELINE_NEON HWY_ALL_NEON
 #elif defined(__ARM_FEATURE_AES)
 #define HWY_BASELINE_NEON (HWY_NEON_WITHOUT_AES | HWY_NEON)
@@ -774,12 +789,10 @@
 #endif  // HWY_HAVE_AUXV
 
 #ifndef HWY_HAVE_RUNTIME_DISPATCH_RVV  // allow override
-// The riscv_vector.h in Clang 16-18 requires compiler flags, and 19 still has
-// some missing intrinsics, see
-// https://github.com/llvm/llvm-project/issues/56592. GCC 13.3 also has an
-// #error check, whereas 14.1 fails with "argument type 'vuint16m8_t' requires
-// the V ISA extension": https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115325.
-#if HWY_ARCH_RISCV && HWY_COMPILER_CLANG >= 1900 && 0
+// Clang 19+ supports target attributes for RVV intrinsics (resolved in
+// https://github.com/llvm/llvm-project/issues/56592 and
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115325).
+#if HWY_ARCH_RISCV && HWY_COMPILER_CLANG >= 1900
 #define HWY_HAVE_RUNTIME_DISPATCH_RVV 1
 #else
 #define HWY_HAVE_RUNTIME_DISPATCH_RVV 0
@@ -816,6 +829,9 @@
 // Allow opting out, and without a guarantee of success, opting-in.
 #ifndef HWY_HAVE_RUNTIME_DISPATCH
 // Clang, GCC and MSVC allow OS-independent runtime dispatch on x86.
+// Wasm does not, because browsers reject a binary containing any SIMD
+// instructions when the browser does not support them. Typical practice there
+// is to build two binaries, one with the -msimd128 flag.
 #if HWY_ARCH_X86 || HWY_HAVE_RUNTIME_DISPATCH_RVV ||                          \
     HWY_HAVE_RUNTIME_DISPATCH_APPLE || HWY_HAVE_RUNTIME_DISPATCH_LOONGARCH || \
     HWY_HAVE_RUNTIME_DISPATCH_LINUX

@@ -25,6 +25,13 @@ TEST_F(DirectHandlesTest, CreateDirectHandleFromLocal) {
   EXPECT_EQ(*direct, *handle);
 }
 
+TEST_F(DirectHandlesTest, HandleNull) {
+  HandleScope scope(isolate());
+  i::DirectHandle<i::Object> n(i::Tagged<i::Object>(i::kNullAddress),
+                               i_isolate());
+  EXPECT_FALSE(n.is_null());
+}
+
 TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
   HandleScope scope(isolate());
   i::IndirectHandle<i::String> handle =

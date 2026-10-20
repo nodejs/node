@@ -9,11 +9,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
-#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-promise.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -69,8 +69,8 @@ class V8_EXPORT MeasureMemoryDelegate {
      * the memory measurement was in progress; the second includes the size
      * of the respective context.
      */
-    const MemorySpan<const Local<Context>>& contexts;
-    const MemorySpan<const size_t>& sizes_in_bytes;
+    const std::span<const Local<Context>>& contexts;
+    const std::span<const size_t>& sizes_in_bytes;
 
     /**
      * Total size of objects that were not attributed to any context (i.e. are

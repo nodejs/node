@@ -19,7 +19,6 @@ const bench = common.createBenchmark(main, {
   path: '/',
   connections: 500,
   duration: 5,
-  n: [1e6],
 });
 
 function buildCurrentResource(getServe) {

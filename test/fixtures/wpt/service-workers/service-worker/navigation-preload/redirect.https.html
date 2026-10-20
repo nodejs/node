@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload redirect response</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script>
+
+function check_opaqueredirect(response_info, scope) {
+  assert_equals(response_info.type, 'opaqueredirect');
+  assert_equals(response_info.url, '' + new URL(scope, location));
+  assert_equals(response_info.status, 0);
+  assert_equals(response_info.ok, false);
+  assert_equals(response_info.statusText, '');
+  assert_equals(response_info.headers.length, 0);
+}
+
+function redirect_response_test(t, scope, expected_body, expected_urls) {
+  var script = 'resources/redirect-worker.js';
+  var registration;
+  var message_resolvers = [];
+  function wait_for_message(count) {
+    var promises = [];
+    message_resolvers = [];
+    for (var i = 0; i < count; ++i) {
+      promises.push(new Promise(resolve => message_resolvers.push(resolve)));
+    }
+    return promises;
+  }
+  function on_message(e) {
+    var resolve = message_resolvers.shift();
+    if (resolve)
+      resolve(e.data);
+  }
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(reg => {
+        registration = reg;
+        add_completion_callback(_ => registration.unregister());
+        var worker = registration.installing;
+        return wait_for_state(t, worker, 'activated');
+      })
+    .then(_ => with_iframe(scope + '&base'))
+    .then(frame => {
+        assert_equals(frame.contentDocument.body.textContent, 'OK');
+        frame.contentWindow.navigator.serviceWorker.onmessage = on_message;
+        return Promise.all(wait_for_message(expected_urls.length)
+                               .concat(with_iframe(scope)));
+      })
+    .then(results => {
+      var frame = results[expected_urls.length];
+      assert_equals(frame.contentDocument.body.textContent, expected_body);
+      for (var i = 0; i < expected_urls.length; ++i) {
+        check_opaqueredirect(results[i], expected_urls[i]);
+      }
+      frame.remove();
+      return registration.unregister();
+    });
+}
+
+promise_test(t => {
+    return redirect_response_test(
+        t,
+        'resources/redirect-scope.py?type=normal',
+        'redirected\n',
+        ['resources/redirect-scope.py?type=normal']);
+  }, 'Navigation Preload redirect response.');
+
+promise_test(t => {
+    return redirect_response_test(
+        t,
+        'resources/redirect-scope.py?type=no-location',
+        '',
+        ['resources/redirect-scope.py?type=no-location']);
+  }, 'Navigation Preload no-location redirect response.');
+
+promise_test(t => {
+    return redirect_response_test(
+        t,
+        'resources/redirect-scope.py?type=no-location-with-body',
+        'BODY',
+        ['resources/redirect-scope.py?type=no-location-with-body']);
+  }, 'Navigation Preload no-location redirect response with body.');
+
+promise_test(t => {
+    return redirect_response_test(
+        t,
+        'resources/redirect-scope.py?type=redirect-to-scope',
+        'redirected\n',
+        ['resources/redirect-scope.py?type=redirect-to-scope',
+         'resources/redirect-scope.py?type=redirect-to-scope2',
+         'resources/redirect-scope.py?type=redirect-to-scope3',]);
+  }, 'Navigation Preload redirect to the same scope.');
+</script>

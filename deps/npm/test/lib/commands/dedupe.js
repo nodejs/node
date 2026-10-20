@@ -94,3 +94,30 @@ t.test('dedupe', async (t) => {
     fs.existsSync(path.join(npm.prefix, 'node_modules', 'test-dep-b', 'node_modules', 'test-sub')),
     'test-dep-b/test-sub was removed')
 })
+
+t.test('dedupe threads allowScripts policy through to arborist', async t => {
+  let capturedOpts
+  const FakeArborist = function (opts) {
+    capturedOpts = opts
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+  }
+  FakeArborist.prototype.dedupe = async () => {}
+
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await npm.exec('dedupe', [])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'opts.allowScripts populated from package.json')
+})

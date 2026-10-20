@@ -31,7 +31,9 @@
 #include <machine/asm.h>
 #else
 /* XXX these lose for some platforms, I'm sure. */
-#define CNAME(x) x
+#define C2(X, Y)	X ## Y
+#define C1(X, Y)	C2(X, Y)
+#define CNAME(x) C1(__USER_LABEL_PREFIX__, x)
 #define ENTRY(x) .globl CNAME(x); .type CNAME(x),%function; CNAME(x):
 #endif
 

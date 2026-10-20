@@ -943,11 +943,11 @@ t.test('various options', async t => {
 
   t.test('using diff option', async t => {
     const { output } = await mockOptions(t, {
-      'diff-context': 5,
-      'diff-ignore-whitespace': true,
+      'diff-unified': 5,
+      'diff-ignore-all-space': true,
       'diff-no-prefix': false,
-      'diff-drc-prefix': 'foo/',
-      'diff-fst-prefix': 'bar/',
+      'diff-dst-prefix': 'foo/',
+      'diff-src-prefix': 'bar/',
       'diff-text': true,
 
     })

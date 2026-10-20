@@ -9,11 +9,15 @@
 
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-cse.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
+#include "src/numbers/conversions.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::maglev {
@@ -38,8 +42,71 @@ class RecomputePhiUseHintsProcessor {
   explicit RecomputePhiUseHintsProcessor(Zone* zone) : live_loop_phis_(zone) {}
 
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  void PostProcessGraph(Graph* graph) {
+#ifdef DEBUG
+    // The recording below trusts the graph's top-frame sets to be exhaustive:
+    // a top frame referencing a Phi that isn't registered would be skipped,
+    // silently letting the Phi be truncated. Enforce the invariant that any
+    // unregistered top frame is Phi-free (e.g. the FunctionEntryStackCheck
+    // frame, which is never registered but has no Phis at function entry).
+    // TODO(victorgomes): Move this check to the Maglev verifier and make frame
+    // registration a global invariant (kept live across escape analysis and the
+    // classic-Maglev LICM frame rewrites), so it can run at every pipeline
+    // point instead of only here.
+    auto references_phi = [](const auto* deopt_info) {
+      bool found = false;
+      deopt_info->ForEachInput([&](ValueNode* input) {
+        if (input->Is<Phi>()) found = true;
+      });
+      return found;
+    };
+    for (BasicBlock* block : graph->blocks()) {
+      if (block->is_dead()) continue;
+      block->ForEachNodeAndControl([&](NodeBase* node) {
+        if (node->properties().has_eager_deopt_info()) {
+          const EagerDeoptInfo* info = node->eager_deopt_info();
+          DCHECK_IMPLIES(
+              !graph->eager_deopt_top_frames().contains(&info->top_frame()),
+              !references_phi(info));
+        }
+        if (node->properties().can_lazy_deopt()) {
+          const LazyDeoptInfo* info = node->lazy_deopt_info();
+          DCHECK_IMPLIES(
+              !graph->lazy_deopt_top_frames().contains(&info->top_frame()),
+              !references_phi(info));
+        }
+      });
+    }
+#endif  // DEBUG
+    // Record kNonTruncated for Phis referenced by deopt frames, walking the
+    // graph's deduplicated top-frame sets instead of every node's frame. This
+    // uses the non-const ForEachInput, which also unwraps the frames and moves
+    // their deopt uses onto the unwrapped nodes, which UnwrapDeoptFrames relies
+    // on. Relies on every live top frame being registered there (the loop
+    // peeler registers its cloned frames).
+    auto record_deopt_use = [](ValueNode* input) {
+      Phi* phi = input->TryCast<Phi>();
+      if (!phi) return;
+      phi->RecordUseReprHint(
+          UseRepresentationSet{UseRepresentation::kNonTruncated},
+          /*force_same_loop=*/false);
+      TRACE_PHI_USE_HINTS("updating deopt-frame use hints for "
+                          << PrintNodeLabel(phi)
+                          << ": use_reprs=" << phi->use_repr_hints());
+    };
+    for (DeoptFrame* top_frame : graph->eager_deopt_top_frames()) {
+      EagerDeoptInfo info(graph->zone(), top_frame, {});
+      info.ForEachInput(record_deopt_use);
+    }
+    for (auto [top_frame, result_location] : graph->lazy_deopt_top_frames()) {
+      LazyDeoptInfo info(graph->zone(), top_frame, result_location.first,
+                         result_location.second, {});
+      info.ForEachInput(record_deopt_use);
+    }
+  }
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_phi()) return BlockProcessResult::kContinue;
     Phi::List& phis = *block->phis();
@@ -90,6 +157,10 @@ class RecomputePhiUseHintsProcessor {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult Process(AssumeType* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
     if (ValueNode* value_node = node->TryCast<ValueNode>()) {
@@ -117,6 +188,15 @@ class RecomputePhiUseHintsProcessor {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
           use_repr = UseRepresentation::kTaggedForNumberToString;
+        } else if (node->Is<CheckedNumberOrOddballToUint8Clamped>() ||
+                   node->Is<CheckedNumberOrOddballToHoleyFloat64>() ||
+                   node->Is<UnsafeNumberOrOddballToHoleyFloat64>()) {
+          // These consume their input tagged, so is_conversion() is false and
+          // the use would otherwise default to kTagged, pinning the phi boxed.
+          // The two unboxers are how a holey-double element store consumes its
+          // value, so a phi feeding such a store can untag to HoleyFloat64 and
+          // be stored raw instead of being boxed into a HeapNumber.
+          use_repr = UseRepresentation::kHoleyFloat64;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
                                live_loop_phis_.contains(phi));
@@ -127,6 +207,7 @@ class RecomputePhiUseHintsProcessor {
             << " after visiting input " << PrintNode(node));
       }
     }
+    // Deopt-frame uses are recorded in PostProcessGraph.
     return ProcessResult::kContinue;
   }
 
@@ -165,11 +246,13 @@ class LoopOptimizationProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
-      loop_effects = current_block->state()->loop_effects();
+      loop_effects = current_block->state()->AsLoopHeader()->loop_effects();
       if (loop_effects) return BlockProcessResult::kContinue;
     } else {
       // TODO(olivf): Some dominance analysis would allow us to keep loop
@@ -195,13 +278,13 @@ class LoopOptimizationProcessor {
     ValueNode* input = candidate->input(0).node();
     DCHECK(!IsLoopPhi(input));
     // For hoisting an instruction we need:
-    // * A unique loop entry block.
     // * Inputs live before the loop (i.e., not defined inside the loop).
     // * No hoisting over checks (done eagerly by clearing loop_effects).
-    // TODO(olivf): We should enforce loops having a unique entry block at graph
-    // building time.
-    if (current_block->predecessor_count() != 2) return false;
-    BasicBlock* loop_entry = current_block->predecessor_at(0);
+    // A resumable loop is also entered through resume edges that bypass its
+    // header, so it might not have a forward edge to hoist into at all.
+    if (current_block->state()->is_resumable_loop()) return false;
+    DCHECK_EQ(current_block->predecessor_count(), 2);
+    BasicBlock* loop_entry = current_block->forward_predecessor();
     if (loop_entry->successors().size() != 1) {
       return false;
     }
@@ -271,7 +354,8 @@ class LoopOptimizationProcessor {
     if (IsLoopPhi(object)) {
       return ProcessResult::kSkipBlock;
     }
-    if (!loop_effects->unstable_aspects_cleared && CanHoist(maps)) {
+    if (!loop_effects->unstable_aspects_cleared &&
+        !loop_effects->elements_kind_transitioned && CanHoist(maps)) {
       if (auto j = current_block->predecessor_at(0)
                        ->control_node()
                        ->TryCast<CheckpointedJump>()) {
@@ -309,8 +393,14 @@ constexpr bool CanBeStoreToNonEscapedObject() {
 
 class AnyUseMarkingProcessor {
  public:
+  // TODO(victorgomes): extract the escape analysis to a separate processor.
+  explicit AnyUseMarkingProcessor(bool run_maglev_escape_analysis = true)
+      : run_maglev_escape_analysis_(run_maglev_escape_analysis) {}
+
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -346,12 +436,16 @@ class AnyUseMarkingProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {
-    RunEscapeAnalysis(graph);
-    DropUseOfValueInStoresToCapturedAllocations();
+    if (run_maglev_escape_analysis_) {
+      RunEscapeAnalysis(graph);
+      DropUseOfValueInStoresToCapturedAllocations();
+      DCHECK(drop_uses_stack_.empty());
+    }
   }
 
  private:
   std::vector<Node*> stores_to_allocations_;
+  base::SmallVector<ValueNode*, 8> drop_uses_stack_;
 
   void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
                         Graph::SmallAllocationVector& deps) {
@@ -382,7 +476,7 @@ class AnyUseMarkingProcessor {
       auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
-      if (alloc->IsEscaping()) {
+      if (alloc->HasEscapingUses()) {
         // Escape this allocation and all its dependencies.
         EscapeAllocation(graph, alloc, it.second);
       } else {
@@ -401,7 +495,7 @@ class AnyUseMarkingProcessor {
           node->input(0).node()->Cast<InlinedAllocation>();
       // Since we don't analyze if allocations will escape until a fixpoint,
       // this could drop an use of an allocation and turn it non-escaping.
-      if (alloc->HasBeenElided()) {
+      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
         // Skip first input.
         for (int i = 1; i < node->input_count(); i++) {
           DropInputUses(node->input(i));
@@ -410,25 +504,46 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input input) {
+  void RemoveUseAndPushIfUnused(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
-        !input_node->Is<ArgumentsElements>())
+        !input_node->Is<ArgumentsElements>()) {
       return;
+    }
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
-      DropInputUses(input_node);
+      input_node->mark_unused_inputs_visited();
+      drop_uses_stack_.push_back(input_node);
     }
   }
 
-  void DropInputUses(ValueNode* node) {
-    for (Input input : node->inputs()) {
-      DropInputUses(input);
+  void DrainDropUsesStack() {
+    while (!drop_uses_stack_.empty()) {
+      ValueNode* current = drop_uses_stack_.back();
+      drop_uses_stack_.pop_back();
+      DCHECK(!current->properties().can_eager_deopt());
+      DCHECK(!current->properties().can_lazy_deopt());
+      for (Input input : current->inputs()) {
+        RemoveUseAndPushIfUnused(input);
+      }
     }
-    DCHECK(!node->properties().can_eager_deopt());
-    DCHECK(!node->properties().can_lazy_deopt());
-    node->mark_unused_inputs_visited();
   }
+
+  void DropInputUses(Input input) {
+    DCHECK(drop_uses_stack_.empty());
+    RemoveUseAndPushIfUnused(input);
+    DrainDropUsesStack();
+  }
+
+  void DropInputUses(ValueNode* node) {
+    DCHECK(drop_uses_stack_.empty());
+    DCHECK(!node->unused_inputs_were_visited());
+    drop_uses_stack_.push_back(node);
+    node->mark_unused_inputs_visited();
+    DrainDropUsesStack();
+  }
+
+  bool run_maglev_escape_analysis_;
 };
 
 class DeadNodeSweepingProcessor {
@@ -439,7 +554,9 @@ class DeadNodeSweepingProcessor {
     }
   }
   void PostProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -450,7 +567,7 @@ class DeadNodeSweepingProcessor {
     // it access the allocation offsets.
     int size = 0;
     for (auto alloc : node->allocation_list()) {
-      if (alloc->HasEscaped()) {
+      if (!alloc->HasBeenAnalysed() || alloc->HasEscaped()) {
         alloc->set_offset(size);
         size += alloc->size();
       }
@@ -465,7 +582,7 @@ class DeadNodeSweepingProcessor {
 
   ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
     // Remove inlined allocation that became non-escaping.
-    if (!node->HasEscaped()) {
+    if (node->HasBeenAnalysed() && node->HasBeenElided()) {
       if (v8_flags.trace_maglev_escape_analysis) {
         std::cout << "* Removing allocation node " << PrintNodeLabel(node)
                   << std::endl;
@@ -477,33 +594,408 @@ class DeadNodeSweepingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  (!NodeT::kProperties.is_required_when_unused() ||
-                   std::is_same_v<ArgumentsElements, NodeT>)) {
-      if (!node->is_used()) {
-        return ProcessResult::kRemove;
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (V8_UNLIKELY(v8_flags.trace_maglev_escape_analysis) &&
+          IsSweepableDeadNode(node)) {
+        InlinedAllocation* object =
+            node->input(0).node()->template Cast<InlinedAllocation>();
+        std::cout << "* Removing store node " << PrintNodeLabel(node)
+                  << " to allocation " << PrintNodeLabel(object) << std::endl;
       }
-      return ProcessResult::kContinue;
     }
+
+    if (IsSweepableDeadNode(node)) return ProcessResult::kRemove;
+
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  static bool IsSweepableDeadNode(NodeT* node) {
+    if (IsDead(node)) return true;
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node " << PrintNodeLabel(node)
-                      << " to allocation " << PrintNodeLabel(object)
-                      << std::endl;
-          }
-          return ProcessResult::kRemove;
-        }
+        if (!object->HasBeenAnalysed()) return false;
+        if (!object->HasEscaped()) return true;
+      }
+    }
+
+    return false;
+  }
+
+ private:
+  MaglevGraphLabeller* labeller_ = nullptr;
+};
+
+// Tracks which exception handlers are reachable by collecting catch blocks
+// from throwing nodes. Unreachable exception handlers (and their successors)
+// are aborted and marked dead.
+class ReachableExceptionHandlerTracker {
+ public:
+  explicit ReachableExceptionHandlerTracker(Graph* graph)
+      : graph_(graph), reachable_exception_handlers_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+
+  void MarkReachable(BasicBlock* block) {
+    reachable_exception_handlers_.insert(block);
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // TODO(victorgomes): Support removing the unreachable blocks instead of
+    // just skipping it.
+    if (V8_UNLIKELY(block->IsUnreachable())) {
+      return AbortBlock(block);
+    }
+
+    if (block->is_exception_handler_block()) {
+      if (!IsReachable(block)) {
+        return AbortBlock(block);
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      if (node->exception_handler_info()->HasExceptionHandler() &&
+          !node->exception_handler_info()->ShouldLazyDeopt()) {
+        MarkReachable(node->exception_handler_info()->catch_block());
       }
     }
     return ProcessResult::kContinue;
   }
 
  private:
-  MaglevGraphLabeller* labeller_ = nullptr;
+  BlockProcessResult AbortBlock(BasicBlock* block) {
+    ControlNode* control = block->reset_control_node();
+    block->RemovePredecessorFollowing(control);
+    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
+    block->set_deferred(true);
+    block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
+  }
+
+  bool IsReachable(BasicBlock* block) const {
+    return reachable_exception_handlers_.contains(block);
+  }
+
+  Graph* graph_;
+  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
+};
+
+template <typename KnaProvider>
+class CommonSubexpressionEliminationProcessor {
+ public:
+  explicit CommonSubexpressionEliminationProcessor(KnaProvider& kna_provider)
+      : kna_provider_(kna_provider) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostPhiProcessing() {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (ShouldCSE(Node::opcode_of<NodeT>) &&
+                  IsFixedInputNode<NodeT>()) {
+      // A value node is CSE'd by overwriting it in place with an Identity to
+      // its equivalent. The Identity stores the equivalent in input slot 0, so
+      // a zero-input value cannot be eliminated here. Checks produce no value
+      // and are just removed, so they stay eligible regardless of input count.
+      // TODO(victorgomes): Support CSE of zero-input value nodes.
+      if constexpr (!std::is_base_of_v<ValueNode, NodeT> ||
+                    NodeT::kInputCount >= 1) {
+        return TryCSE(node);
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  static constexpr bool ShouldCSE(Opcode op) {
+    return Node::participate_in_cse(op) && !Node::needs_epoch_check(op);
+  }
+
+  KnownNodeAspects& known_node_aspects() {
+    return kna_provider_.known_node_aspects();
+  }
+
+  template <typename NodeT>
+  ProcessResult TryCSE(NodeT* node) {
+    static_assert(IsFixedInputNode<NodeT>());
+    static_assert(Node::participate_in_cse(Node::opcode_of<NodeT>));
+    static_assert(!Node::needs_epoch_check(Node::opcode_of<NodeT>));
+    std::array<ValueNode*, NodeT::kInputCount> inputs;
+    int i = 0;
+    for (ValueNode*& input : inputs) {
+      input = node->input_node(i++)->UnwrapIdentities();
+    }
+    cse::CanonicalizeCommutative<NodeT>(inputs);
+    uint32_t hash = cse::HashNode(node, inputs);
+    NodeT* equivalent = std::apply(
+        [&](const auto&... opts) {
+          return known_node_aspects().template FindExpression<NodeT>(
+              hash, inputs, opts...);
+        },
+        node->options());
+    if (equivalent) {
+      // Value nodes forward their uses to the equivalent via an Identity;
+      // checks have no result, so a plain removal suffices.
+      if constexpr (std::is_base_of_v<ValueNode, NodeT>) {
+        node->OverwriteWithIdentityTo(equivalent);
+      }
+      return ProcessResult::kRemove;
+    }
+    known_node_aspects().AddExpression(hash, node);
+    return ProcessResult::kContinue;
+  }
+
+  KnaProvider& kna_provider_;
+};
+
+// TODO(victorgomes): This eliminator is block-local -- it clears its state at
+// every basic-block boundary (PreProcessBasicBlock), so a bounds check only
+// subsumes redundant checks, and only certifies Smi-safe indices, within the
+// same block. Extend it to a dominator-tree / whole-graph walk so a check in a
+// dominating block can eliminate checks (and fold Smi-size artifacts) in
+// dominated successor blocks.
+class BoundsCheckEliminationProcessor {
+ public:
+  explicit BoundsCheckEliminationProcessor(Graph* graph)
+      : graph_(graph),
+        current_block_bounds_checks_(graph->zone()),
+        current_block_smi_safe_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostPhiProcessing() {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    current_block_ = block;
+    current_block_bounds_checks_.clear();
+    current_block_smi_safe_.clear();
+    scanned_current_block_ = false;
+    return BlockProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckTypedArrayBounds* node,
+                        const ProcessingState& state) {
+    if (TryElide(node, state)) {
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckInt32Condition* node,
+                        const ProcessingState& state) {
+    RecordIfSmiSafeIndex(node);
+    if (TryElide(node, state)) {
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckInt32IsSmi* node, const ProcessingState&) {
+    if (IsKnownSmiSafe(node->input_node(0))) {
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckedSmiSizedInt32* node, const ProcessingState&) {
+    if (IsKnownSmiSafe(node->input_node(0))) {
+      node->OverwriteWithIdentityTo(node->input_node(0));
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  struct BoundsCheckInfo {
+    int32_t max_index;
+    bool emitted = false;
+  };
+
+  bool TryElide(Node* node, const ProcessingState& state) {
+    int32_t index = 0;
+    ValueNode* length = nullptr;
+    if (!TryGetConstantBoundsCheck(node, &index, &length)) {
+      return false;
+    }
+
+    if (!scanned_current_block_) {
+      FindMaxConstantIndicesInBlock(state.node_index(), index, length);
+    }
+
+    auto it = current_block_bounds_checks_.find(length);
+    if (it == current_block_bounds_checks_.end()) {
+      return false;
+    }
+
+    auto& [max_index, emitted] = it->second;
+    if (!emitted) {
+      // Rewrite the very first bounds check in the block to check the maximum
+      // index.
+      if (index < max_index) {
+        node->change_input(0, graph_->GetInt32Constant(max_index));
+      }
+      emitted = true;
+      return false;
+    } else if (index > max_index) {
+      // This bounds check did not exist when FindMaxConstantIndicesInBlock was
+      // called. Its index is larger than the maximum we found then, so we have
+      // to emit a bounds check.
+
+      // Future bounds checks can be elided if their index is less than the
+      // index of this bounds check.
+      max_index = index;
+      return false;
+    }
+    // Any subsequent constant bounds checks on this length are redundant.
+    return true;
+  }
+
+  bool TryGetConstantBoundsCheck(Node* node, int32_t* index_val,
+                                 ValueNode** length) {
+    ValueNode* index = nullptr;
+    if (auto* typed_bounds_check = node->TryCast<CheckTypedArrayBounds>()) {
+      index = typed_bounds_check->IndexInput().node();
+      *length = typed_bounds_check->LengthInput().node();
+    } else if (auto* int_bounds_check = node->TryCast<CheckInt32Condition>()) {
+      if (int_bounds_check->condition() == AssertCondition::kUnsignedLessThan) {
+        index = int_bounds_check->input_node(0);
+        *length = int_bounds_check->input_node(1);
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+    if (std::optional<int32_t> const_index = TryGetInt32Constant(index)) {
+      if (*const_index >= 0) {
+        *index_val = *const_index;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // TODO(ahaas): This is a copy of MaglevReducer::TryGetInt32Constant. We
+  // should share this logic.
+  std::optional<int32_t> TryGetInt32Constant(ValueNode* value) {
+    switch (value->opcode()) {
+      case Opcode::kHeapConstant: {
+        compiler::ObjectRef object = value->Cast<HeapConstant>()->object();
+        if (object.IsHeapNumber() &&
+            IsInt32Double(object.AsHeapNumber().value())) {
+          return static_cast<int32_t>(object.AsHeapNumber().value());
+        }
+        return {};
+      }
+      case Opcode::kInt32Constant:
+        return value->Cast<Int32Constant>()->value();
+      case Opcode::kUint32Constant: {
+        uint32_t uint32_value = value->Cast<Uint32Constant>()->value();
+        if (uint32_value <= INT32_MAX) {
+          return static_cast<int32_t>(uint32_value);
+        }
+        return {};
+      }
+      case Opcode::kSmiConstant:
+        return value->Cast<SmiConstant>()->value().value();
+      case Opcode::kFloat64Constant: {
+        double double_value =
+            value->Cast<Float64Constant>()->value().get_scalar();
+        if (!IsInt32Double(double_value)) return {};
+        return FastD2I(double_value);
+      }
+      default:
+        break;
+    }
+    return {};
+  }
+
+  void FindMaxConstantIndicesInBlock(int start_index, int32_t initial_index_val,
+                                     ValueNode* initial_length) {
+    scanned_current_block_ = true;
+    // This function gets called when the first bounds check in the block with a
+    // constant index is encountered. We can insert it directly into the map. We
+    // then have to scan the rest of the block for other bounds checks with
+    // constant indices.
+    current_block_bounds_checks_.insert(
+        {initial_length,
+         BoundsCheckInfo{initial_index_val, /*emitted=*/false}});
+    const auto& nodes = current_block_->nodes();
+    for (size_t i = start_index + 1; i < nodes.size(); ++i) {
+      Node* node = nodes[i];
+      if (node == nullptr) continue;
+      int32_t index = 0;
+      ValueNode* length = nullptr;
+      if (TryGetConstantBoundsCheck(node, &index, &length)) {
+        auto it = current_block_bounds_checks_.find(length);
+        if (it != current_block_bounds_checks_.end()) {
+          it->second.max_index = std::max(it->second.max_index, index);
+        } else {
+          current_block_bounds_checks_.insert(
+              {length, BoundsCheckInfo{index, /*emitted=*/false}});
+        }
+      }
+    }
+  }
+
+  void RecordIfSmiSafeIndex(CheckInt32Condition* node) {
+    if (node->condition() != AssertCondition::kUnsignedLessThan) return;
+    if (!IsSmiBoundedLength(node->input_node(1))) return;
+    current_block_smi_safe_.insert(node->input_node(0)->UnwrapIdentities());
+  }
+
+  bool IsKnownSmiSafe(ValueNode* node) {
+    return current_block_smi_safe_.contains(node->UnwrapIdentities());
+  }
+
+  bool IsSmiBoundedLength(ValueNode* length) {
+    length = length->UnwrapIdentities();
+    while (length->Is<CheckedSmiUntag>() || length->Is<UnsafeSmiUntag>()) {
+      length = length->input_node(0)->UnwrapIdentities();
+    }
+    if (auto* load = length->TryCast<LoadTaggedField>()) {
+      return load->is_array_length() == IsArrayLength::kYes &&
+             load->type() == NodeType::kSmi;
+    }
+    if (std::optional<int32_t> c = TryGetInt32Constant(length)) {
+      return *c >= 0 && *c <= Smi::kMaxValue;
+    }
+    return false;
+  }
+
+  Graph* graph_;
+  BasicBlock* current_block_ = nullptr;
+  ZoneMap<ValueNode*, BoundsCheckInfo> current_block_bounds_checks_;
+  ZoneAbslFlatHashSet<ValueNode*> current_block_smi_safe_;
+  bool scanned_current_block_ = false;
 };
 
 }  // namespace v8::internal::maglev

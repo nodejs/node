@@ -6,9 +6,9 @@
 
 #include "include/cppgc/allocation.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

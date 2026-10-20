@@ -25,8 +25,16 @@ Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.
+
+We recommend that package authors use `--install-strategy=linked` during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+`import` of a package that was never added to `package.json` can fail
+instead of resolving by accident and shipping broken. See [Catching
+undeclared ("phantom")
+dependencies](/using-npm/developers#catching-undeclared-phantom-dependencies).
 
 
 
@@ -96,8 +104,7 @@ will also prevent _writing_ `package-lock.json` if `save` is true.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.
@@ -132,6 +139,9 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
+
+Setting `ignore-scripts` also disables `.npm-extension` execution, as if
+`ignore-extension` were set.
 
 
 

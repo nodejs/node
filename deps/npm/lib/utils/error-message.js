@@ -80,6 +80,7 @@ const errorMessage = (er, npm) => {
     }
 
     case 'EALLOWGIT':
+    case 'EALLOWREMOTE':
       summary.push(['', er.message])
       detail.push(['', `Refusing to fetch "${er.package}"`])
       break
@@ -267,7 +268,7 @@ const errorMessage = (er, npm) => {
 
     case 'ENEEDAUTH':
       summary.push(['need auth', er.message])
-      detail.push(['need auth', 'You need to authorize this machine using `npm adduser`'])
+      detail.push(['need auth', 'You need to authorize this machine using `npm login`'])
       break
 
     case 'ECONNRESET':

@@ -10,7 +10,6 @@ namespace node::crypto {
 enum class TurboShakeVariant { TurboSHAKE128, TurboSHAKE256 };
 
 struct TurboShakeConfig final : public MemoryRetainer {
-  CryptoJobMode job_mode;
   TurboShakeVariant variant;
   uint32_t output_length;     // Output length in bytes
   uint8_t domain_separation;  // Domain separation byte (0x01–0x7F)
@@ -55,7 +54,6 @@ using TurboShakeJob = DeriveBitsJob<TurboShakeTraits>;
 enum class KangarooTwelveVariant { KT128, KT256 };
 
 struct KangarooTwelveConfig final : public MemoryRetainer {
-  CryptoJobMode job_mode;
   KangarooTwelveVariant variant;
   uint32_t output_length;  // Output length in bytes
   ByteSource data;

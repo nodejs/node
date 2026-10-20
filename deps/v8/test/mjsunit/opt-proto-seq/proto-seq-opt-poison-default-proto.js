@@ -23,7 +23,12 @@ function test_poison_default_proto() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_poison_default_proto(test_instance) {
+  keep_alive.push(test_instance);
   assertEquals(test_instance.func(), "test_function.prototype.func");
   assertEquals(
     test_instance.arrow_func(),
@@ -44,7 +49,7 @@ assert_test_poison_default_proto(test_poison_default_proto());
 %OptimizeMaglevOnNextCall(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());
 assertOptimized(test_poison_default_proto);
-assertTrue(isMaglevved(test_poison_default_proto));
+assertMaglevved(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());
 %OptimizeFunctionOnNextCall(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());

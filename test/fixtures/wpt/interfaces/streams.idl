@@ -7,7 +7,7 @@
 interface ReadableStream {
   constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
 
-  static ReadableStream from(any asyncIterable);
+  static ReadableStream from(async_sequence<any> asyncIterable);
 
   readonly attribute boolean locked;
 
@@ -114,7 +114,7 @@ interface ReadableByteStreamController {
 
 [Exposed=*]
 interface ReadableStreamBYOBRequest {
-  readonly attribute ArrayBufferView? view;
+  readonly attribute Uint8Array? view;
 
   undefined respond([EnforceRange] unsigned long long bytesWritten);
   undefined respondWithNewView(ArrayBufferView view);

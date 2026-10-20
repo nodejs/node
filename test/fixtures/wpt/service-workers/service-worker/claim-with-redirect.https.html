@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>Service Worker: Claim() when update happens after redirect</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var host_info = get_host_info();
+var BASE_URL = host_info['HTTPS_ORIGIN'] + base_path();
+var OTHER_BASE_URL = host_info['HTTPS_REMOTE_ORIGIN'] + base_path();
+
+var WORKER_URL = OTHER_BASE_URL + 'resources/update-claim-worker.py'
+var SCOPE_URL = OTHER_BASE_URL + 'resources/redirect.py'
+var OTHER_IFRAME_URL = OTHER_BASE_URL +
+                       'resources/claim-with-redirect-iframe.html';
+
+// Different origin from the registration
+var REDIRECT_TO_URL = BASE_URL +
+                      'resources/claim-with-redirect-iframe.html?redirected';
+
+var REGISTER_IFRAME_URL = OTHER_IFRAME_URL + '?register=' +
+                          encodeURIComponent(WORKER_URL) + '&' +
+                          'scope=' + encodeURIComponent(SCOPE_URL);
+var REDIRECT_IFRAME_URL = SCOPE_URL + '?Redirect=' +
+                          encodeURIComponent(REDIRECT_TO_URL);
+var UPDATE_IFRAME_URL = OTHER_IFRAME_URL + '?update=' +
+                        encodeURIComponent(SCOPE_URL);
+var UNREGISTER_IFRAME_URL = OTHER_IFRAME_URL + '?unregister=' +
+                            encodeURIComponent(SCOPE_URL);
+
+var waiting_resolver = undefined;
+
+addEventListener('message', e => {
+    if (waiting_resolver !== undefined) {
+      waiting_resolver(e.data);
+    }
+  });
+
+function assert_with_iframe(url, expected_message) {
+  return new Promise(resolve => {
+        waiting_resolver = resolve;
+        with_iframe(url);
+      })
+    .then(data => assert_equals(data.message, expected_message));
+}
+
+// This test checks behavior when browser got a redirect header from in-scope
+// page and navigated to out-of-scope page which has a different origin from any
+// registrations.
+promise_test(t => {
+  return assert_with_iframe(REGISTER_IFRAME_URL, 'registered')
+    .then(() => assert_with_iframe(REDIRECT_IFRAME_URL, 'redirected'))
+    .then(() => assert_with_iframe(UPDATE_IFRAME_URL, 'updated'))
+    .then(() => assert_with_iframe(UNREGISTER_IFRAME_URL, 'unregistered'));
+  }, 'Claim works after redirection to another origin');
+
+</script>
+</body>

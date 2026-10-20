@@ -70,7 +70,7 @@ void nghttp3_objalloc_clear(nghttp3_objalloc *objalloc);
     inline static void nghttp3_objalloc_##NAME##_init(                         \
       nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {      \
       nghttp3_objalloc_init(                                                   \
-        objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);    \
+        objalloc, ((sizeof(TYPE) + 0xFU) & ~(size_t)0xFU) * nmemb, mem);       \
     }                                                                          \
                                                                                \
     TYPE *nghttp3_objalloc_##NAME##_get(nghttp3_objalloc *objalloc);           \
@@ -124,7 +124,7 @@ void nghttp3_objalloc_clear(nghttp3_objalloc *objalloc);
     inline static void nghttp3_objalloc_##NAME##_init(                         \
       nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {      \
       nghttp3_objalloc_init(                                                   \
-        objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);    \
+        objalloc, ((sizeof(TYPE) + 0xFU) & ~(size_t)0xFU) * nmemb, mem);       \
     }                                                                          \
                                                                                \
     inline static TYPE *nghttp3_objalloc_##NAME##_get(                         \

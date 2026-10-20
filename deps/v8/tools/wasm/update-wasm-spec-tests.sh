@@ -140,7 +140,7 @@ log_and_run rm -rf wpt
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-promise-integration threads stack-switching custom-descriptors'
+repos='js-promise-integration threads stack-switching custom-descriptors wide-arithmetic'
 
 for repo in ${repos}; do
   new_section "Process ${repo}: core tests"

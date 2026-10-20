@@ -78,8 +78,8 @@ macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
   return NewJSArray(map, copy);
 }
 
-macro TryFastArrayToReversed(implicit context: Context)(
-                                receiver: JSAny): JSArray labels Slow {
+macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
+    JSArray labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
   if (array.length < 1) return ArrayCreate(0);

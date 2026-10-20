@@ -12,6 +12,8 @@ if (common.isWindows) {
               'read access.');
 }
 
+common.skipIfInspectorDisabled();
+
 const assert = require('assert');
 const fs = require('fs');
 const repl = require('internal/repl');

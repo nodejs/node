@@ -8,11 +8,8 @@
 #include "src/heap/marking.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/build_config.h"
-#include "src/base/macros.h"
-#include "src/heap/base-page.h"
-#include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/spaces.h"
 
 namespace v8::internal {
@@ -318,9 +315,7 @@ MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
     DCHECK(chunk->InWritableSharedSpace());
     // Object in shared writable space. Only mark it if the Isolate is owning
     // the shared space.
-    //
-    // TODO(340989496): Speed up check here by keeping the flag on Heap.
-    if (!heap->isolate()->is_shared_space_isolate()) {
+    if (!Isolate::FromHeap(heap)->is_shared_space_isolate()) {
       return MarkingHelper::LivenessMode::kAlwaysLive;
     }
   }

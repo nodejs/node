@@ -10,6 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#include <climits>
 #include <string>
 
 namespace node {
@@ -42,6 +43,7 @@ class CipherBase : public BaseObject {
     kAuthTagComputed,
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
+  static constexpr unsigned int kMaxSivAADComponents = 126;
 
   void CommonInit(const char* cipher_type,
                   const ncrypto::Cipher& cipher,
@@ -49,11 +51,15 @@ class CipherBase : public BaseObject {
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
-                  unsigned int auth_tag_len);
+                  unsigned int auth_tag_len,
+                  const char* cts_mode,
+                  const char* xts_standard);
   void InitIv(const char* cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
-              unsigned int auth_tag_len);
+              unsigned int auth_tag_len,
+              const char* cts_mode,
+              const char* xts_standard);
   bool InitAuthenticated(const char* cipher_type,
                          int iv_len,
                          unsigned int auth_tag_len);
@@ -85,6 +91,8 @@ class CipherBase : public BaseObject {
   unsigned int auth_tag_len_;
   char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
+  bool has_one_shot_update_;
+  unsigned int siv_aad_components_;
   int max_message_size_;
 };
 
@@ -105,6 +113,7 @@ class PublicKeyCipher {
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
                      const ncrypto::Digest& digest,
+                     const ncrypto::Digest& mgf1_digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
@@ -123,6 +132,18 @@ enum class WebCryptoCipherStatus {
   INVALID_KEY_TYPE,
   FAILED
 };
+
+inline bool TryGetIntCipherOutputLength(size_t input_len,
+                                        size_t output_overhead,
+                                        int* output_len) {
+  static constexpr size_t kMaxLength = INT_MAX;
+  if (output_overhead > kMaxLength ||
+      input_len > kMaxLength - output_overhead) {
+    return false;
+  }
+  *output_len = static_cast<int>(input_len + output_overhead);
+  return true;
+}
 
 // CipherJob is a base implementation class for implementations of
 // one-shot sync and async ciphers. It has been added primarily to
@@ -164,13 +185,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     }
 
     new CipherJob<CipherTraits>(
-        env,
-        args.This(),
-        mode,
-        key,
-        cipher_mode,
-        data,
-        std::move(params));
+        env, args.This(), mode, key, cipher_mode, data, std::move(params));
   }
 
   static void Initialize(
@@ -197,13 +212,14 @@ class CipherJob final : public CryptoJob<CipherTraits> {
                                 std::move(params)),
         key_(key->Data().addRef()),
         cipher_mode_(cipher_mode),
-        in_(mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource()) {}
+        in_(IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource()) {}
 
   const KeyObjectData& key() const { return key_; }
 
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
   void DoThreadPoolWork() override {
+    ncrypto::ClearErrorOnReturn clear_error_on_return;
     const WebCryptoCipherStatus status =
         CipherTraits::DoCipher(
             AsyncWrap::env(),
@@ -238,11 +254,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
 
-    if (errors->Empty())
-      errors->Capture();
-
-    if (out_.size() > 0 || errors->Empty()) {
-      CHECK(errors->Empty());
+    if (errors->Empty()) {
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       if (result->IsEmpty()) {
@@ -261,9 +273,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (CryptoJob<CipherTraits>::mode() == kCryptoJobAsync)
-      tracker->TrackFieldWithSize("in", in_.size());
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(in_, "in");
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<CipherTraits>::MemoryInfo(tracker);
   }
 

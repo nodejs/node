@@ -17,9 +17,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,8 +25,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const decoder = new TextDecoder();
 
 // H3V-01: Header names are lowercased on send.
@@ -50,19 +47,19 @@ const decoder = new TextDecoder();
       // H3V-01: All header names should be lowercase regardless
       // of how the client sent them.
       for (const name of Object.keys(headers)) {
-        strictEqual(name, name.toLowerCase(),
-                    `Header name "${name}" should be lowercase`);
+        assert.strictEqual(name, name.toLowerCase(),
+                           `Header name "${name}" should be lowercase`);
       }
 
       // Verify specific headers arrived lowercased.
-      strictEqual(headers[':method'], 'GET');
-      strictEqual(headers[':path'], '/test');
-      strictEqual(headers['x-custom-header'], 'Value1');
-      strictEqual(headers['content-type'], 'text/plain');
-      strictEqual(headers['x-mixed-case'], 'MixedValue');
+      assert.strictEqual(headers[':method'], 'GET');
+      assert.strictEqual(headers[':path'], '/test');
+      assert.strictEqual(headers['x-custom-header'], 'Value1');
+      assert.strictEqual(headers['content-type'], 'text/plain');
+      assert.strictEqual(headers['x-mixed-case'], 'MixedValue');
 
       // Verify values are NOT lowercased — only names are.
-      strictEqual(headers['x-custom-header'], 'Value1');
+      assert.strictEqual(headers['x-custom-header'], 'Value1');
 
       this.sendHeaders({
         // Response with mixed-case names — should be lowercased.
@@ -77,6 +74,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -93,22 +91,23 @@ const decoder = new TextDecoder();
     },
     onheaders: mustCall(function(headers) {
       // Client should also receive lowercased response header names.
-      strictEqual(headers[':status'], '200');
-      strictEqual(headers['content-type'], 'text/html');
-      strictEqual(headers['x-response-header'], 'ResponseValue');
+      assert.strictEqual(headers[':status'], 200);
+      assert.strictEqual(headers['content-type'], 'text/html');
+      assert.strictEqual(headers['x-response-header'], 'ResponseValue');
 
       // Verify all names are lowercase.
       for (const name of Object.keys(headers)) {
-        strictEqual(name, name.toLowerCase(),
-                    `Response header name "${name}" should be lowercase`);
+        assert.strictEqual(name, name.toLowerCase(),
+                           `Response header name "${name}" should be lowercase`);
       }
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Verify multiple pseudo-header combinations work correctly.
@@ -125,10 +124,10 @@ const decoder = new TextDecoder();
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       // All four required pseudo-headers present.
-      ok(headers[':method']);
-      ok(headers[':path']);
-      ok(headers[':scheme']);
-      ok(headers[':authority']);
+      assert.ok(headers[':method']);
+      assert.ok(headers[':path']);
+      assert.ok(headers[':scheme']);
+      assert.ok(headers[':authority']);
 
       this.sendHeaders({ ':status': '204' });
       this.writer.endSync();
@@ -137,6 +136,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -148,10 +148,11 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      strictEqual(headers[':status'], '204');
+      assert.strictEqual(headers[':status'], 204);
     }),
   });
 
   await Promise.all([bytes(stream), stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

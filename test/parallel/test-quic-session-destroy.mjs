@@ -12,8 +12,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -41,7 +39,7 @@ const transportParams = { maxIdleTimeout: 1 };
   await clientSession.opened;
 
   clientSession.destroy();
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
 
   // Closed should resolve (no error).
   await clientSession.closed;
@@ -68,10 +66,10 @@ const transportParams = { maxIdleTimeout: 1 };
 
   const testError = new Error('intentional destroy error');
   clientSession.destroy(testError);
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
 
   // Closed should reject with the same error.
-  await rejects(clientSession.closed, testError);
+  await assert.rejects(clientSession.closed, testError);
 
   await serverDone.promise;
   await serverEndpoint.close();
@@ -95,7 +93,7 @@ const transportParams = { maxIdleTimeout: 1 };
 
   // Destroy directly without calling close() first.
   clientSession.destroy();
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
   await clientSession.closed;
 
   await serverDone.promise;

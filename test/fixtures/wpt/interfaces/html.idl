@@ -48,7 +48,8 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
 
 [LegacyOverrideBuiltIns]
 partial interface Document {
-  static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
+  static Document parseHTMLUnsafe((TrustedHTML or DOMString) html, optional ParseHTMLUnsafeOptions options = {});
+  static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
 
   // resource metadata management
   [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
@@ -152,14 +153,14 @@ dictionary TogglePopoverOptions : ShowPopoverOptions {
 
 HTMLElement includes GlobalEventHandlers;
 HTMLElement includes ElementContentEditable;
-HTMLElement includes HTMLOrSVGElement;
+HTMLElement includes HTMLOrSVGOrMathMLElement;
 
 [Exposed=Window]
 interface HTMLUnknownElement : HTMLElement {
   // Note: intentionally no [HTMLConstructor]
 };
 
-interface mixin HTMLOrSVGElement {
+interface mixin HTMLOrSVGOrMathMLElement {
   [SameObject] readonly attribute DOMStringMap dataset;
   attribute DOMString nonce; // intentionally no [CEReactions]
 
@@ -349,13 +350,10 @@ interface HTMLDivElement : HTMLElement {
 interface HTMLAnchorElement : HTMLElement {
   [HTMLConstructor] constructor();
 
-  [CEReactions, Reflect] attribute DOMString target;
   [CEReactions, Reflect] attribute DOMString download;
   [CEReactions, Reflect] attribute USVString ping;
   [CEReactions, Reflect] attribute DOMString rel;
   [SameObject, PutForwards=value, Reflect="rel"] readonly attribute DOMTokenList relList;
-  [CEReactions, Reflect] attribute DOMString hreflang;
-  [CEReactions, Reflect] attribute DOMString type;
 
   [CEReactions] attribute DOMString text;
 
@@ -403,10 +401,14 @@ interface mixin HyperlinkElementUtils {
   [CEReactions] attribute USVString pathname;
   [CEReactions] attribute USVString search;
   [CEReactions] attribute USVString hash;
+
+  [CEReactions, Reflect] attribute DOMString hreflang;
+  [CEReactions, Reflect] attribute DOMString type;
 };
 
 interface mixin HTMLHyperlinkElementUtils {
   [CEReactions, ReflectSetter] stringifier attribute USVString href;
+  [CEReactions, Reflect] attribute DOMString target;
 };
 
 [Exposed=Window]
@@ -447,6 +449,7 @@ interface HTMLImageElement : HTMLElement {
   [CEReactions] attribute DOMString? crossOrigin;
   [CEReactions, Reflect] attribute DOMString useMap;
   [CEReactions, Reflect] attribute boolean isMap;
+  [CEReactions, Reflect] attribute boolean controls;
   [CEReactions, ReflectSetter] attribute unsigned long width;
   [CEReactions, ReflectSetter] attribute unsigned long height;
   readonly attribute unsigned long naturalWidth;
@@ -531,6 +534,7 @@ interface HTMLVideoElement : HTMLMediaElement {
   readonly attribute unsigned long videoHeight;
   [CEReactions, ReflectURL] attribute USVString poster;
   [CEReactions, Reflect] attribute boolean playsInline;
+
 };
 
 [Exposed=Window,
@@ -613,6 +617,7 @@ interface HTMLMediaElement : HTMLElement {
   attribute double volume;
   attribute boolean muted;
   [CEReactions, Reflect="muted"] attribute boolean defaultMuted;
+  [CEReactions] attribute DOMString loading;
 
   // tracks
   [SameObject] readonly attribute AudioTrackList audioTracks;
@@ -760,7 +765,6 @@ interface HTMLAreaElement : HTMLElement {
   [CEReactions, Reflect] attribute DOMString alt;
   [CEReactions, Reflect] attribute DOMString coords;
   [CEReactions, Reflect] attribute DOMString shape;
-  [CEReactions, Reflect] attribute DOMString target;
   [CEReactions, Reflect] attribute DOMString download;
   [CEReactions, Reflect] attribute USVString ping;
   [CEReactions, Reflect] attribute DOMString rel;
@@ -966,7 +970,7 @@ interface HTMLButtonElement : HTMLElement {
   [HTMLConstructor] constructor();
 
   [CEReactions, ReflectSetter] attribute DOMString command;
-  [CEReactions, Reflect] attribute Element? commandForElement;
+  [CEReactions, Reflect="commandfor"] attribute Element? commandForElement;
   [CEReactions, Reflect] attribute boolean disabled;
   readonly attribute HTMLFormElement? form;
   [CEReactions, ReflectSetter] attribute USVString formAction;
@@ -1271,10 +1275,12 @@ interface HTMLTemplateElement : HTMLElement {
   [HTMLConstructor] constructor();
 
   readonly attribute DocumentFragment content;
+  [CEReactions, Reflect="for"] attribute DOMString htmlFor;
   [CEReactions] attribute DOMString shadowRootMode;
   [CEReactions, Reflect] attribute boolean shadowRootDelegatesFocus;
-  [CEReactions, Reflect] attribute boolean shadowRootClonable;
   [CEReactions, Reflect] attribute boolean shadowRootSerializable;
+  [CEReactions] attribute DOMString shadowRootSlotAssignment;
+  [CEReactions, Reflect] attribute boolean shadowRootClonable;
   [CEReactions, Reflect] attribute DOMString shadowRootCustomElementRegistry;
 };
 
@@ -1808,7 +1814,7 @@ dictionary DragEventInit : MouseEventInit {
 };
 
 interface mixin PopoverTargetAttributes {
-  [CEReactions, Reflect] attribute Element? popoverTargetElement;
+  [CEReactions, Reflect="popovertarget"] attribute Element? popoverTargetElement;
   [CEReactions] attribute DOMString popoverTargetAction;
 };
 
@@ -2357,7 +2363,8 @@ Window includes WindowOrWorkerGlobalScope;
 WorkerGlobalScope includes WindowOrWorkerGlobalScope;
 
 partial interface Element {
-  [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+  [CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
+  [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html, optional SetHTMLUnsafeOptions options = {});
   DOMString getHTML(optional GetHTMLOptions options = {});
 
   [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
@@ -2366,10 +2373,23 @@ partial interface Element {
 };
 
 partial interface ShadowRoot {
-  [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+  [CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
+  [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html, optional SetHTMLUnsafeOptions options = {});
   DOMString getHTML(optional GetHTMLOptions options = {});
 
   [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
+};
+
+enum SanitizerPresets { "default" };
+dictionary SetHTMLOptions {
+  (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = "default";
+};
+dictionary SetHTMLUnsafeOptions {
+  (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = {};
+  boolean runScripts = false;
+};
+dictionary ParseHTMLUnsafeOptions {
+  (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = {};
 };
 
 dictionary GetHTMLOptions {
@@ -2401,6 +2421,68 @@ interface XMLSerializer {
   constructor();
 
   DOMString serializeToString(Node root);
+};
+
+[Exposed=Window]
+interface Sanitizer {
+  constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+
+  // Query configuration:
+  SanitizerConfig get();
+
+  // Modify a Sanitizer's lists and fields:
+  boolean allowElement(SanitizerElementWithAttributes element);
+  boolean removeElement(SanitizerElement element);
+  boolean replaceElementWithChildren(SanitizerElement element);
+  boolean allowProcessingInstruction(SanitizerPI pi);
+  boolean removeProcessingInstruction(SanitizerPI pi);
+  boolean allowAttribute(SanitizerAttribute attribute);
+  boolean removeAttribute(SanitizerAttribute attribute);
+  boolean setComments(boolean allow);
+  boolean setDataAttributes(boolean allow);
+
+  // Remove markup that executes script.
+  boolean removeUnsafe();
+};
+
+dictionary SanitizerElementNamespace {
+  required DOMString name;
+  DOMString? _namespace = "http://www.w3.org/1999/xhtml";
+};
+
+// Used by "elements"
+dictionary SanitizerElementNamespaceWithAttributes : SanitizerElementNamespace {
+  sequence<SanitizerAttribute> attributes;
+  sequence<SanitizerAttribute> removeAttributes;
+};
+
+dictionary SanitizerAttributeNamespace {
+  required DOMString name;
+  DOMString? _namespace = null;
+};
+
+dictionary SanitizerProcessingInstruction {
+  required DOMString target;
+};
+
+typedef (DOMString or SanitizerElementNamespace) SanitizerElement;
+typedef (DOMString or SanitizerElementNamespaceWithAttributes) SanitizerElementWithAttributes;
+typedef (DOMString or SanitizerProcessingInstruction) SanitizerPI;
+typedef (DOMString or SanitizerAttributeNamespace) SanitizerAttribute;
+
+dictionary SanitizerConfig {
+  sequence<SanitizerElementWithAttributes> elements;
+  sequence<SanitizerElement> removeElements;
+  sequence<SanitizerElement> replaceWithChildrenElements;
+
+  sequence<SanitizerPI> processingInstructions;
+  sequence<SanitizerPI> removeProcessingInstructions;
+
+  sequence<SanitizerAttribute> attributes;
+  sequence<SanitizerAttribute> removeAttributes;
+
+  boolean comments;
+  boolean dataAttributes;
 };
 
 [Exposed=Window]

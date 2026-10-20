@@ -4,8 +4,8 @@
 
 #if CPPGC_IS_STANDALONE
 
-#include "src/heap/cppgc/heap-config.h"
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/heap-config.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

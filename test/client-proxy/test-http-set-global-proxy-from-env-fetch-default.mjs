@@ -20,15 +20,17 @@ await checkProxiedFetch({
 
 shutdown();
 
-// FIXME(undici:4083): undici currently always tunnels the request over
-// CONNECT if proxyTunnel is not explicitly set to false.
 const expectedLogs = [{
-  method: 'CONNECT',
-  url: serverHost,
+  method: 'GET',
+  url: requestUrl,
   headers: {
-    'connection': 'close',
     'host': serverHost,
-    'proxy-connection': 'keep-alive',
+    'connection': 'keep-alive',
+    'accept': '*/*',
+    'accept-language': '*',
+    'sec-fetch-mode': 'cors',
+    'user-agent': 'node',
+    'accept-encoding': 'gzip, deflate',
   },
 }];
 

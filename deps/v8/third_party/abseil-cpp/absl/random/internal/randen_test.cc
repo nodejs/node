@@ -14,26 +14,27 @@
 
 #include "absl/random/internal/randen.h"
 
+#include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 #include "gtest/gtest.h"
-#include "absl/meta/type_traits.h"
 
 namespace {
 
 using absl::random_internal::Randen;
 
 TEST(RandenTest, CopyAndMove) {
-  static_assert(std::is_copy_constructible<Randen>::value,
+  static_assert(std::is_copy_constructible_v<Randen>,
                 "Randen must be copy constructible");
 
-  static_assert(absl::is_copy_assignable<Randen>::value,
+  static_assert(std::is_copy_assignable_v<Randen>,
                 "Randen must be copy assignable");
 
-  static_assert(std::is_move_constructible<Randen>::value,
+  static_assert(std::is_move_constructible_v<Randen>,
                 "Randen must be move constructible");
 
-  static_assert(absl::is_move_assignable<Randen>::value,
+  static_assert(std::is_move_assignable_v<Randen>,
                 "Randen must be move assignable");
 }
 

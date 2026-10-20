@@ -12,8 +12,7 @@
 import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
-
-const { ok, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -24,8 +23,8 @@ const { bytes } = await import('stream/iter');
 
 // quic.stream.blocked fires when a stream is flow-control blocked.
 dc.subscribe('quic.stream.blocked', mustCallAtLeast((msg) => {
-  ok(msg.stream, 'stream.blocked should include stream');
-  ok(msg.session, 'stream.blocked should include session');
+  assert.ok(msg.stream, 'stream.blocked should include stream');
+  assert.ok(msg.session, 'stream.blocked should include session');
 }, 1));
 
 const totalSize = 4096;
@@ -37,7 +36,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(received.byteLength, totalSize);
+    assert.strictEqual(received.byteLength, totalSize);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -63,11 +62,11 @@ stream.onblocked = mustCallAtLeast(() => {
 // NGTCP2_ERR_STREAM_DATA_BLOCKED, triggering onblocked.
 stream.setBody(body);
 
-for await (const _ of stream) { /* drain readable side */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await stream.closed;
 await serverDone.promise;
 
-ok(blockedCount > 0, `Expected onblocked to fire, got ${blockedCount} calls`);
+assert.ok(blockedCount > 0, `Expected onblocked to fire, got ${blockedCount} calls`);
 
 await clientSession.close();
 await serverEndpoint.close();

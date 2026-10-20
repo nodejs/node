@@ -11,7 +11,7 @@ if /i "%arg:~-4%"=="help" goto help
 cd %~dp0
 
 set JS_SUITES=default
-set NATIVE_SUITES=addons js-native-api node-api embedding
+set NATIVE_SUITES=addons ffi js-native-api node-api embedding
 @rem CI_* variables should be kept synchronized with the ones in Makefile
 set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
 set "CI_JS_SUITES=%JS_SUITES% pummel"
@@ -26,6 +26,7 @@ set target_arch=x64
 set ltcg=
 set thin_lto=
 set lto=
+set lto_jobs=
 set pgo_generate=
 set pgo_use=
 set target_env=
@@ -110,6 +111,7 @@ if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="thin-lto"      set thin_lto=1&goto arg-ok
 if /i "%1"=="lto"           set lto=1&goto arg-ok
+if /i "%1"=="lto-jobs"      set "lto_jobs=%2"&goto arg-ok-2
 if /i "%1"=="pgo-generate"  set pgo_generate=1&goto arg-ok
 if /i "%1"=="pgo-use"       set pgo_use=1&goto arg-ok
 if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
@@ -117,7 +119,7 @@ if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_ffi_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
-if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set build_ffi_tests=1&set no_cctest=1&goto arg-ok
+if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set no_cctest=1&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
@@ -187,6 +189,18 @@ goto next-arg
 
 :args-done
 
+if defined build_release (
+  set config=Release
+  set package=1
+  set msi=1
+  set licensertf=1
+  set download_arg="--download=all"
+  set i18n_arg=full-icu
+  set projgen=1
+  set cctest=1
+  set thin_lto=1
+)
+
 :: LTO mutual exclusion
 set lto_count=0
 if defined ltcg       set /a lto_count+=1
@@ -208,18 +222,6 @@ if defined pgo_generate if defined pgo_use (
   exit /b 1
 )
 
-if defined build_release (
-  set config=Release
-  set package=1
-  set msi=1
-  set licensertf=1
-  set download_arg="--download=all"
-  set i18n_arg=full-icu
-  set projgen=1
-  set cctest=1
-  set ltcg=1
-)
-
 if defined msi     set stage_package=1
 if defined package set stage_package=1
 
@@ -227,7 +229,7 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@node-core\doc-kit\bin\cli.mjs"
+set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@doc-kit\cli\bin\cli.mjs"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
@@ -235,7 +237,7 @@ if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
 :: skip building if the only argument received was format-md
-if "%*"=="format-md" if exist "%node_exe%" goto format-md
+if "%*"=="format-md" if exist "%node_exe%" goto lint-md-build
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
@@ -243,6 +245,7 @@ if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined thin_lto         set configure_flags=%configure_flags% --enable-thin-lto
 if defined lto              set configure_flags=%configure_flags% --enable-lto
+if defined lto_jobs         set configure_flags=%configure_flags% --lto-jobs=%lto_jobs%
 if defined pgo_generate     set configure_flags=%configure_flags% --enable-pgo-generate
 if defined pgo_use          set configure_flags=%configure_flags% --enable-pgo-use
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
@@ -698,13 +701,15 @@ robocopy /e doc\api %config%\doc\api
 
 %doc_kit_exe% ^
   generate ^
-  -t legacy-html-all legacy-json-all api-links ^
-  -i doc/api/*.md ^
-  -i lib/*.js ^
+  --config-file "%~dp0tools\doc\web.doc-kit.config.mjs" ^
   -o %config%/doc/api/ ^
-  -c file://%~dp0\CHANGELOG.md ^
-  -v %NODE_VERSION% ^
-  --type-map "file://%~dp0doc\type-map.json"
+  -v %NODE_VERSION%
+
+%doc_kit_exe% ^
+  generate ^
+  --config-file "%~dp0tools\doc\api-links.doc-kit.config.mjs" ^
+  -o %config%/doc/api/ ^
+  -v %NODE_VERSION%
 
 :run
 @rem Run tests if requested.
@@ -847,7 +852,7 @@ echo running lint-js
 goto lint-js-fix
 
 :lint-js-fix
-if not defined lint_js_fix goto lint-md
+if not defined lint_js_fix goto lint-md-build
 if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js-fix
 %node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
@@ -895,6 +900,7 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
 ENDLOCAL
+goto exit
 
 :no-lint
 echo Linting is not available through the source tarball.
@@ -908,7 +914,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [thin-lto] [lto] [pgo-generate] [pgo-use] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [thin-lto] [lto] [lto-jobs number-of-jobs] [pgo-generate] [pgo-use] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
@@ -922,6 +928,7 @@ echo   vcbuild.bat no-cctest                : skip building cctest.exe
 echo   vcbuild.bat ccache c:\ccache\        : use ccache to speed build
 echo   vcbuild.bat thin-lto                 : builds with Thin LTO applied globally to all targets
 echo   vcbuild.bat lto                      : builds with Full LTO applied globally to all targets
+echo   vcbuild.bat thin-lto lto-jobs 2      : builds with Thin LTO applied globally to all targets and limits parallel LTO link jobs (reduces peak memory usage)
 echo   vcbuild.bat pgo-generate             : builds instrumented binary for PGO (profile first, then rebuild with pgo-use)
 echo   vcbuild.bat pgo-use                  : builds optimized binary using PGO profile data
 goto exit

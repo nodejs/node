@@ -1,5 +1,5 @@
 // Test run({ watch: true }) emits test:watch:restarted when file is updated
-import * as common from '../common/index.mjs';
+import '../common/index.mjs';
 import { run } from 'node:test';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
@@ -11,9 +11,8 @@ import { refreshForTestRunnerWatch, skipIfNoWatch, fixtureContent } from '../com
 skipIfNoWatch();
 refreshForTestRunnerWatch();
 
-let alreadyDrained = false;
 const events = [];
-const testWatchRestarted = common.mustCall(1);
+let written = false;
 
 const controller = new AbortController();
 const stream = run({
@@ -21,27 +20,24 @@ const stream = run({
   watch: true,
   signal: controller.signal,
 }).on('data', function({ type }) {
-  events.push(type);
-  if (type === 'test:watch:restarted') {
-    testWatchRestarted();
+  if (type !== 'test:watch:restarted' && type !== 'test:watch:drained') {
+    return;
   }
-  if (type === 'test:watch:drained') {
-    if (alreadyDrained) {
-      controller.abort();
-    }
-    alreadyDrained = true;
+  events.push(type);
+  // Watchers with latency (FSEvents) can still report the fixture setup after
+  // the first run has started, so only a restart after the write below counts.
+  if (written && type === 'test:watch:drained' && events.at(-2) === 'test:watch:restarted') {
+    controller.abort();
   }
 });
 
 await once(stream, 'test:watch:drained');
 
+events.length = 0;
+written = true;
 writeFileSync(join(tmpdir.path, 'test.js'), fixtureContent['test.js']);
 
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);
 
-assert.partialDeepStrictEqual(events, [
-  'test:watch:drained',
-  'test:watch:restarted',
-  'test:watch:drained',
-]);
+assert.deepStrictEqual(events.slice(-2), ['test:watch:restarted', 'test:watch:drained']);

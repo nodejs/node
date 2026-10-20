@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 # Shell script to update zlib in the source tree to the most recent version.
 # Zlib rarely creates tags or releases, so we use the latest commit on the main branch.
 # See: https://github.com/nodejs/node/pull/47417
@@ -12,13 +12,13 @@ DEPS_DIR="$BASE_DIR/deps"
 
 echo "Comparing latest upstream with current revision"
 
-git fetch https://chromium.googlesource.com/chromium/src/third_party/zlib.git HEAD
+git fetch --no-tags https://chromium.googlesource.com/chromium/src/third_party/zlib.git HEAD
 
 # Revert zconf.h changes before checking diff
 perl -i -pe 's|^//#include "chromeconf.h"|#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
 git stash -- "$DEPS_DIR/zlib/zconf.h"
 
-DIFF_TREE=$(git diff --diff-filter=d 'stash@{0}:deps/zlib' FETCH_HEAD)
+DIFF_TREE=$(git diff --quiet --diff-filter=d 'stash@{0}:deps/zlib' FETCH_HEAD || echo "Changes detected")
 
 git stash drop
 
@@ -35,7 +35,7 @@ fi
 # two days, we assume that the most recent commit is stable enough to be
 # pulled in.
 LAST_CHANGE_DATE=$(git log -1 --format=%ct FETCH_HEAD)
-TWO_DAYS_AGO=$(date -d 'now - 2 days' '+%s')
+TWO_DAYS_AGO=$(date -d '2 days ago' '+%s' 2>/dev/null || date -v-2d '+%s')
 
 if [ "$LAST_CHANGE_DATE" -gt "$TWO_DAYS_AGO" ]; then
   echo "Skipped because the latest version is too recent."
@@ -48,32 +48,31 @@ echo "Making temporary workspace..."
 
 WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
-cd "$WORKSPACE"
+cleanup () {
+  EXIT_CODE=$?
+  rm -rf "$WORKSPACE"
+  exit $EXIT_CODE
+}
 
-mkdir zlib
+trap cleanup INT TERM EXIT
 
-ZLIB_TARBALL="zlib-v$NEW_VERSION.tar.gz"
+ZLIB_TARBALL="zlib-$LATEST_COMMIT.tar"
 
-echo "Fetching zlib source archive"
-curl -sL -o "$ZLIB_TARBALL" https://chromium.googlesource.com/chromium/src/+archive/refs/heads/main/third_party/zlib.tar.gz
+echo "Packing zlib source archive"
+git archive --prefix=zlib/ -o "$WORKSPACE/$ZLIB_TARBALL" --format=tar FETCH_HEAD
 
-log_and_verify_sha256sum "zlib" "$ZLIB_TARBALL"
+log_and_verify_sha256sum "zlib" "$WORKSPACE/$ZLIB_TARBALL"
 
-gzip -dc "$ZLIB_TARBALL" | tar xf - -C zlib/
+mv "$DEPS_DIR/zlib/zlib.gyp" "$WORKSPACE/."
+mv "$DEPS_DIR/zlib/win32/zlib.def" "$WORKSPACE/."
 
-rm "$ZLIB_TARBALL"
+rm -rf "$DEPS_DIR/zlib"
+tar -xf "$WORKSPACE/$ZLIB_TARBALL" -C "$DEPS_DIR" --exclude='zlib/doc/'
 
-cp "$DEPS_DIR/zlib/zlib.gyp" "$DEPS_DIR/zlib/win32/zlib.def" "$DEPS_DIR"
+mv "$WORKSPACE/zlib.gyp" "$DEPS_DIR/zlib/."
 
-rm -rf "$DEPS_DIR/zlib" zlib/.git
-
-mv zlib "$DEPS_DIR/"
-
-mv "$DEPS_DIR/zlib.gyp" "$DEPS_DIR/zlib/"
-
-mkdir "$DEPS_DIR/zlib/win32"
-
-mv "$DEPS_DIR/zlib.def" "$DEPS_DIR/zlib/win32"
+mkdir -p "$DEPS_DIR/zlib/win32"
+mv "$WORKSPACE/zlib.def" "$DEPS_DIR/zlib/win32/."
 
 perl -i -pe 's|^#include "chromeconf.h"|//#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
 
@@ -82,7 +81,7 @@ VERSION_NUMBER=$(grep "#define ZLIB_VERSION" "$DEPS_DIR/zlib/zlib.h" | sed -n "s
 NEW_VERSION="$VERSION_NUMBER-$LATEST_COMMIT"
 
 # update version information in src/zlib_version.h
-cat > "$ROOT/src/zlib_version.h" <<EOF
+cat -> "$BASE_DIR/src/zlib_version.h" <<EOF
 // This is an auto generated file, please do not edit.
 // Refer to tools/dep_updaters/update-zlib.sh
 #ifndef SRC_ZLIB_VERSION_H_

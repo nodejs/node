@@ -150,19 +150,19 @@ class NodeBIO : public MemoryRetainer {
 
   class Buffer {
    public:
-    Buffer(Environment* env, size_t len) : env_(env),
-                                           read_pos_(0),
-                                           write_pos_(0),
-                                           len_(len),
-                                           next_(nullptr) {
-      data_ = new char[len];
+    Buffer(Environment* env, size_t len)
+        : env_(env),
+          read_pos_(0),
+          write_pos_(0),
+          len_(len),
+          next_(nullptr),
+          data_(new char[len]) {
       if (env_ != nullptr) {
         env_->external_memory_accounter()->Increase(env_->isolate(), len);
       }
     }
 
     ~Buffer() {
-      delete[] data_;
       if (env_ != nullptr) {
         env_->external_memory_accounter()->Decrease(env_->isolate(), len_);
       }
@@ -173,7 +173,7 @@ class NodeBIO : public MemoryRetainer {
     size_t write_pos_;
     size_t len_;
     Buffer* next_;
-    char* data_;
+    std::unique_ptr<char[]> data_;
   };
 
   Environment* env_ = nullptr;

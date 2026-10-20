@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 #include "LIEF/ELF/NoteDetails/properties/StackSize.hpp"
 #include "spdlog/fmt/fmt.h"
 
-namespace LIEF {
-namespace ELF {
 
-void StackSize::dump(std::ostream &os) const {
-  os << fmt::format("Size: 0x{:04x}", stack_size());
-}
+namespace LIEF::ELF {
+
+void StackSize::dump(std::ostream& os) const {
+  os << fmt::format("Size: {:#06x}", stack_size());
 }
 }

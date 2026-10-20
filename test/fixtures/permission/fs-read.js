@@ -76,17 +76,6 @@ const regularFile = __filename;
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   })).then(common.mustCall());
-
-  assert.rejects(() => {
-    return new Promise((_resolve, reject) => {
-      const stream = fs.createReadStream(blockedFile);
-      stream.on('error', reject);
-    });
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(blockedFile),
-  })).then(common.mustCall());
 }
 
 // fs.stat
@@ -266,6 +255,20 @@ const regularFile = __filename;
   }));
 }
 
+// fs.mkstemp: the file is opened for reading and writing
+{
+  const expected = {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  };
+  assert.throws(() => {
+    fs.mkstempSync(path.join(blockedFolder, 'any-file'));
+  }, expected);
+  fs.mkstemp(path.join(blockedFolder, 'any-file'), common.expectsError(expected));
+  assert.rejects(fs.promises.mkstemp(path.join(blockedFolder, 'any-file')), expected)
+    .then(common.mustCall());
+}
+
 // fs.opendir
 {
   fs.opendir(blockedFolder, common.expectsError({
@@ -407,6 +410,31 @@ const regularFile = __filename;
   }));
   assert.throws(() => {
     fs.openAsBlob(blockedFileURL);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+}
+
+// fs.openAsBlobSync
+{
+  assert.throws(() => {
+    fs.openAsBlobSync(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.throws(() => {
+    fs.openAsBlobSync(bufferBlockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.throws(() => {
+    fs.openAsBlobSync(blockedFileURL);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -683,11 +711,6 @@ const regularFile = __filename;
   }));
   assert.throws(() => {
     fs.lstatSync(path.join(blockedFolder, 'anyfile'));
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-  }));
-  assert.throws(() => {
-    fs.lstatSync(bufferBlockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
   }));

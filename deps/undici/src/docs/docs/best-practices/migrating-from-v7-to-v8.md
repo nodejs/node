@@ -1,5 +1,7 @@
 # Migrating from Undici 7 to 8
 
+<!--type=misc-->
+
 This guide covers the changes you are most likely to hit when upgrading an
 application or library from Undici v7 to v8.
 
@@ -225,7 +227,7 @@ After moving to Undici v8, it is worth checking these paths in your test suite:
 
 ## Related documentation
 
-- [Dispatcher](/docs/api/Dispatcher.md)
-- [Client](/docs/api/Client.md)
-- [Global Installation](/docs/api/GlobalInstallation.md)
-- [Undici Module vs. Node.js Built-in Fetch](/docs/best-practices/undici-vs-builtin-fetch.md)
+- [Dispatcher](../api/Dispatcher.md)
+- [Client](../api/Client.md)
+- [Global Installation](../api/GlobalInstallation.md)
+- [Undici Module vs. Node.js Built-in Fetch](./undici-vs-builtin-fetch.md)

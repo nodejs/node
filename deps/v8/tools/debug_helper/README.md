@@ -4,3 +4,7 @@ This library is for debugging V8 itself, not debugging JavaScript running within
 V8. It is designed to be called from a debugger extension running within a
 native debugger such as WinDbg or LLDB. It can be used on live processes or
 crash dumps, and cannot assume that all memory is available in a dump.
+
+The GDB and LLDB plugins uses a shared a Python FFI bridge over this library
+and live under `tools/debug_helper/plugins/`.
+The WinDbg plugin has different dependencies and lives under `tools/windbg/`.

@@ -7,7 +7,7 @@
 namespace typed_array {
 const kBuiltinNameEvery: constexpr string = '%TypedArray%.prototype.every';
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.every
 transitioning macro EveryAllElements(
     implicit context: Context)(
     attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
@@ -49,7 +49,7 @@ transitioning macro EveryAllElements(
   return True;
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.every
 transitioning javascript builtin TypedArrayPrototypeEvery(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback

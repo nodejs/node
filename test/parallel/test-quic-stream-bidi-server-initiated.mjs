@@ -7,8 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { deepStrictEqual, strictEqual } = assert;
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -31,8 +30,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     body: encoder.encode(message),
   });
 
-  // Drain the client's write side (client sends FIN with no data).
-  for await (const batch of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }));
 
@@ -42,8 +40,8 @@ await clientSession.opened;
 clientSession.onstream = mustCall(async (stream) => {
   const received = await bytes(stream);
 
-  deepStrictEqual(received, expected);
-  strictEqual(decoder.decode(received), message);
+  assert.deepStrictEqual(received, expected);
+  assert.strictEqual(decoder.decode(received), message);
 
   // Close the client's write side so the stream fully closes.
   stream.writer.endSync();

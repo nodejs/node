@@ -173,6 +173,9 @@ def main():
             # Move the allow-listed directories from each lib in tmp_third_party to dst_third_party
             src = tmp_third_party / lib
             dst = dst_third_party / lib
+            if lib == 'mbedtls' and (src / 'tf-psa-crypto').is_dir():
+                included = included + ['tf-psa-crypto/core', 'tf-psa-crypto/include',
+                                       'tf-psa-crypto/drivers', 'tf-psa-crypto/LICENSE']
             for subpath in included:
                 src_item = src / subpath
                 dst_item = dst / subpath
@@ -187,6 +190,11 @@ def main():
                         dst_item.unlink()
                 print(f"Moving {src_item} -> {dst_item}")
                 shutil.move(str(src_item), str(dst_item))
+                if lib == 'mbedtls' and subpath.startswith('tf-psa-crypto/') and dst_item.is_dir():
+                    # The release archive includes generated sources that must be
+                    # checked in, despite the upstream development ignore rules.
+                    for gitignore in dst_item.rglob('.gitignore'):
+                        gitignore.unlink()
 
     # 2) Place internal headers expected by the project layout under src/
     #    - third-party/expected/include/tl/expected.hpp
@@ -269,6 +277,7 @@ def main():
         'LIEF_DYLD_SHARED_CACHE_SUPPORT': 0,
         'LIEF_ASM_SUPPORT': 0,
         'LIEF_EXTENDED': 0,
+        'LIEF_RUNTIME_SUPPORT': 0,
 
         'ENABLE_JSON_SUPPORT': 0,
         'LIEF_JSON_SUPPORT': 0,

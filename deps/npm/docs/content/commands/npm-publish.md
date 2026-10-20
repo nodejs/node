@@ -117,7 +117,7 @@ the package submitted to the registry.
 
 * Default: 'public' for new packages, existing packages it will not change the
   current level
-* Type: null, "restricted", or "public"
+* Type: null, "restricted", "public", or "private"
 
 If you do not want your scoped package to be publicly viewable (and
 installable) set `--access=restricted`.
@@ -128,6 +128,8 @@ Note: This defaults to not changing the current access level for existing
 packages. Specifying a value of `restricted` or `public` during publish will
 change the access for an existing package the same way that `npm access set
 status` would.
+
+The value `private` is an alias for `restricted`.
 
 
 
@@ -220,6 +222,9 @@ This value is not exported to the environment for child processes.
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
 
+When the `provenance-file` config is set, it takes precedence and automatic
+provenance generation (including via trusted publishing/OIDC) is skipped.
+
 This config cannot be used with: `provenance-file`
 
 #### `provenance-file`
@@ -229,6 +234,9 @@ This config cannot be used with: `provenance-file`
 
 When publishing, the provenance bundle at the given path will be used.
 
+This takes precedence over automatic provenance generation in trusted
+publishing flows.
+
 This config cannot be used with: `provenance`
 
 ### See Also
@@ -237,7 +245,7 @@ This config cannot be used with: `provenance`
 * [npm-packlist package](http://npm.im/npm-packlist)
 * [npm registry](/using-npm/registry)
 * [npm scope](/using-npm/scope)
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)
 * [npm owner](/commands/npm-owner)
 * [npm deprecate](/commands/npm-deprecate)
 * [npm dist-tag](/commands/npm-dist-tag)

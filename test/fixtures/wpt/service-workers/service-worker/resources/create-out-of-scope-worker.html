@@ -1,0 +1,19 @@
+<!doctype html>
+<script>
+const workerUrl = '../out-of-scope/sample-synthesized-worker.js?dedicated';
+const worker = new Worker(workerUrl);
+const workerPromise = new Promise(resolve => {
+  worker.onmessage = e => {
+    // `e.data` is 'worker loading intercepted by service worker' when a worker
+    // is intercepted by a service worker.
+    resolve(e.data);
+  }
+  worker.onerror = _ => {
+    resolve('worker loading was not intercepted by service worker');
+  }
+});
+
+function getWorkerPromise() {
+  return workerPromise;
+}
+</script>

@@ -6,9 +6,9 @@
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/visitor.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -142,7 +142,7 @@ TEST_F(EphemeronPairTest, EmptyKey) {
 
 using EphemeronPairGCTest = testing::TestWithHeap;
 
-TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
+TEST_F(EphemeronPairGCTest, EphemeronPairKeyAndValueAreCleared) {
   GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
   Persistent<EphemeronHolder> holder =
@@ -151,6 +151,7 @@ TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
   // ephemeron.
   PreciseGC();
   EXPECT_EQ(nullptr, holder->ephemeron_pair().value.Get());
+  EXPECT_EQ(nullptr, holder->ephemeron_pair().key.Get());
 }
 
 namespace {

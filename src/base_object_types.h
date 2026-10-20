@@ -12,6 +12,7 @@ namespace node {
 #define SERIALIZABLE_BINDING_TYPES(V)                                          \
   V(diagnostics_channel_binding_data, diagnostics_channel::BindingData)        \
   V(encoding_binding_data, encoding_binding::BindingData)                      \
+  V(glob_binding_data, glob::BindingData)                                      \
   V(fs_binding_data, fs::BindingData)                                          \
   V(mksnapshot_binding_data, mksnapshot::BindingData)                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
@@ -24,7 +25,8 @@ namespace node {
 #define UNSERIALIZABLE_BINDING_TYPES(V)                                        \
   V(http2_binding_data, http2::BindingData)                                    \
   V(http_parser_binding_data, http_parser::BindingData)                        \
-  V(quic_binding_data, quic::BindingData)
+  V(quic_binding_data, quic::BindingData)                                      \
+  V(sqlite_binding_data, sqlite::BindingData)
 
 // List of (non-binding) BaseObjects that are serializable in the snapshot.
 // The first argument should match what the type passes to

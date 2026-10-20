@@ -9,11 +9,23 @@
 
 #include <algorithm>
 #include <type_traits>
+#include <utility>
 
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 
-namespace v8 {
-namespace base {
+namespace v8::base {
+
+namespace bitfield_detail {
+template <typename T>
+static constexpr auto to_value(T value) {
+  if constexpr (is_strong_alias_v<T>) {
+    return value.value();
+  } else {
+    return value;
+  }
+}
+}  // namespace bitfield_detail
 
 // ----------------------------------------------------------------------------
 // BitField is a help template for encoding and decode bitfield with
@@ -25,11 +37,18 @@ namespace base {
 template <class T, int shift, int size, class U = uint32_t>
 class BitField final {
  public:
+  static constexpr auto to_value(T value) {
+    return bitfield_detail::to_value(value);
+  }
+  using TValue = decltype(to_value(std::declval<T>()));
+
   static_assert(std::is_unsigned_v<U>);
   static_assert(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
   static_assert(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
   static_assert(shift + size <= 8 * sizeof(U));
   static_assert(size > 0);
+
+  static_assert(sizeof(TValue) == sizeof(T));
 
   // Make sure we don't create bitfields that are too large for their value.
   // Carve out an exception for 32-bit size_t, for uniformity between 32-bit
@@ -37,7 +56,7 @@ class BitField final {
   static_assert(size <= 8 * sizeof(T) ||
                     (std::is_same_v<T, size_t> && sizeof(size_t) == 4),
                 "Bitfield is unnecessarily big!");
-  static_assert(!std::is_same_v<T, bool> || size == 1,
+  static_assert(!std::is_same_v<TValue, bool> || size == 1,
                 "Bitfield is unnecessarily big!");
 
   using FieldType = T;
@@ -58,13 +77,13 @@ class BitField final {
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {
-    return (static_cast<U>(value) & ~kMax) == 0;
+    return (static_cast<U>(to_value(value)) & ~kMax) == 0;
   }
 
   // Returns a type U with the bit field value encoded.
   static constexpr U encode(T value) {
-    if constexpr (std::is_enum_v<T> || sizeof(T) * 8 <= kSize ||
-                  std::is_same_v<T, bool>) {
+    if constexpr (std::is_enum_v<TValue> || sizeof(TValue) * 8 <= kSize ||
+                  std::is_same_v<TValue, bool>) {
       // For enums, we trust that they are within the valid range, since they
       // are typed and we assume that the enum itself has a valid value. DCHECK
       // just in case (e.g. in case valid enum values are outside the bitfield
@@ -79,7 +98,7 @@ class BitField final {
       // information.
       CHECK(is_valid(value));
     }
-    return static_cast<U>(value) << kShift;
+    return static_cast<U>(to_value(value)) << kShift;
   }
 
   // Returns a type U with the bit field value updated.
@@ -165,8 +184,15 @@ using BitField64 = BitField<T, shift, size, uint64_t>;
 template <class T, int kBitsPerItem, int kBitsPerWord, class U>
 class BitSetComputer {
  public:
+  static constexpr auto to_value(T value) {
+    return bitfield_detail::to_value(value);
+  }
+  using TValue = decltype(to_value(std::declval<T>()));
+
   static const int kItemsPerWord = kBitsPerWord / kBitsPerItem;
   static const int kMask = (1 << kBitsPerItem) - 1;
+
+  static_assert(sizeof(TValue) == sizeof(T));
 
   // The number of array elements required to embed T information for each item.
   static int word_count(int items) {
@@ -187,14 +213,14 @@ class BitSetComputer {
   // Return the encoding for a store of value for item in previous.
   static U encode(U previous, int item, T value) {
     int shift_value = shift(item);
-    int set_bits = (static_cast<int>(value) << shift_value);
+    TValue value_val = to_value(value);
+    int set_bits = (static_cast<int>(value_val) << shift_value);
     return (previous & ~(kMask << shift_value)) | set_bits;
   }
 
   static int shift(int item) { return (item % kItemsPerWord) * kBitsPerItem; }
 };
 
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_BIT_FIELD_H_

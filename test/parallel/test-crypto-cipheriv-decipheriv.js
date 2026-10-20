@@ -5,8 +5,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
-const isFipsEnabled = crypto.getFips();
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const isFipsEnabled = crypto.getFips() === 1;
+const fips3 = hasFIPS(3);
 
 function testCipher1(key, iv) {
   // Test encryption and decryption with explicit key and iv
@@ -84,12 +85,92 @@ function testCipher3(key, iv) {
          `encryption/decryption with key ${key} and iv ${iv}`);
 }
 
+function testSm4Xts() {
+  const aesKey = Buffer.alloc(16);
+  const aesIv = Buffer.alloc(16);
+  for (const create of [crypto.createCipheriv, crypto.createDecipheriv]) {
+    for (const xtsStandard of ['gb', 'IEEE-1619', '']) {
+      assert.throws(
+        () => create('aes-128-cbc', aesKey, aesIv, { xtsStandard }),
+        { code: 'ERR_INVALID_ARG_VALUE' });
+    }
+    for (const xtsStandard of [1, true, {}]) {
+      assert.throws(
+        () => create('aes-128-cbc', aesKey, aesIv, { xtsStandard }),
+        { code: 'ERR_INVALID_ARG_TYPE' });
+    }
+    assert.throws(
+      () => create('aes-128-cbc', aesKey, aesIv, { xtsStandard: 'GB' }),
+      { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION' });
+  }
+
+  if (!crypto.getCiphers().includes('sm4-xts')) {
+    common.printSkipMessage('unsupported sm4-xts test');
+    return;
+  }
+
+  // GB/T 17964-2021
+  const key = Buffer.from(
+    '2B7E151628AED2A6ABF7158809CF4F3C' +
+    '000102030405060708090A0B0C0D0E0F', 'hex');
+  const iv = Buffer.from('F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF', 'hex');
+  const plaintext = Buffer.from(
+    '6BC1BEE22E409F96E93D7E117393172A' +
+    'AE2D8A571E03AC9C9EB76FAC45AF8E51' +
+    '30C81C46A35CE411E5FBC1191A0A52EF' +
+    'F69F2445DF4F9B17', 'hex');
+  const vectors = [
+    {
+      options: undefined,
+      ciphertext: Buffer.from(
+        'E9538251C71D7B80BBE4483FEF497BD1' +
+        '2C5C581BD6242FC51E08964FB4F60FDB' +
+        '0BA42F63499279213D318D2C11F6886E' +
+        '903BE7F93A1B3479', 'hex'),
+    },
+    {
+      options: { xtsStandard: 'GB' },
+      ciphertext: Buffer.from(
+        'E9538251C71D7B80BBE4483FEF497BD1' +
+        '2C5C581BD6242FC51E08964FB4F60FDB' +
+        '0BA42F63499279213D318D2C11F6886E' +
+        '903BE7F93A1B3479', 'hex'),
+    },
+    {
+      options: { xtsStandard: 'IEEE' },
+      ciphertext: Buffer.from(
+        'E9538251C71D7B80BBE4483FEF497BD1' +
+        'B3DB1A3E60408C575D63FF7DB39F8326' +
+        '0869F9E2585FEC9F0B863BF8FD784B86' +
+        '27D16C0DB6D2CFC7', 'hex'),
+    },
+  ];
+
+  for (const { options, ciphertext } of vectors) {
+    const cipher = crypto.createCipheriv('sm4-xts', key, iv, options);
+    const encrypted = Buffer.concat([
+      cipher.update(plaintext),
+      cipher.final(),
+    ]);
+    assert.deepStrictEqual(encrypted, ciphertext);
+
+    const decipher = crypto.createDecipheriv('sm4-xts', key, iv, options);
+    const decrypted = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
+    assert.deepStrictEqual(decrypted, plaintext);
+  }
+}
+
 {
   const Cipheriv = crypto.Cipheriv;
-  const key = '123456789012345678901234';
-  const iv = '12345678';
+  const algorithm = fips3 ? 'aes-128-cbc' : 'des-ede3-cbc';
+  const key = fips3 ?
+    '1234567890123456' : '123456789012345678901234';
+  const iv = fips3 ? '1234567890123456' : '12345678';
 
-  const instance = Cipheriv('des-ede3-cbc', key, iv);
+  const instance = Cipheriv(algorithm, key, iv);
   assert(instance instanceof Cipheriv, 'Cipheriv is expected to return a new ' +
                                        'instance when called without `new`');
 
@@ -119,10 +200,12 @@ function testCipher3(key, iv) {
 
 {
   const Decipheriv = crypto.Decipheriv;
-  const key = '123456789012345678901234';
-  const iv = '12345678';
+  const algorithm = fips3 ? 'aes-128-cbc' : 'des-ede3-cbc';
+  const key = fips3 ?
+    '1234567890123456' : '123456789012345678901234';
+  const iv = fips3 ? '1234567890123456' : '12345678';
 
-  const instance = Decipheriv('des-ede3-cbc', key, iv);
+  const instance = Decipheriv(algorithm, key, iv);
   assert(instance instanceof Decipheriv, 'Decipheriv expected to return a new' +
                                          ' instance when called without `new`');
 
@@ -153,13 +236,16 @@ function testCipher3(key, iv) {
 testCipher1('0123456789abcd0123456789', '12345678');
 testCipher1('0123456789abcd0123456789', Buffer.from('12345678'));
 testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
-testCipher1(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
-testCipher2(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
+testCipher1(
+  Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
+testCipher2(
+  Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
 if (!isFipsEnabled) {
   testCipher3(Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex'),
               Buffer.from('A6A6A6A6A6A6A6A6', 'hex'));
 }
+testSm4Xts();
 
 // Zero-sized IV or null should be accepted in ECB mode.
 crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), Buffer.alloc(0));
@@ -207,8 +293,8 @@ assert.throws(
   errMessage);
 
 // But all other IV lengths should be accepted.
-const minIvLength = hasOpenSSL3 ? 8 : 1;
-const maxIvLength = hasOpenSSL3 ? 64 : 256;
+const minIvLength = hasOpenSSL(3) ? 8 : 1;
+const maxIvLength = hasOpenSSL(3) ? 64 : 256;
 for (let n = minIvLength; n < maxIvLength; n += 1) {
   if (isFipsEnabled && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));

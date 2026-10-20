@@ -50,7 +50,7 @@ namespace credentials {
 static bool HasOnly(int capability) {
   DCHECK(cap_valid(capability));
 
-  struct __user_cap_data_struct cap_data[_LINUX_CAPABILITY_U32S_3];
+  struct __user_cap_data_struct cap_data[_LINUX_CAPABILITY_U32S_3] = {};
   struct __user_cap_header_struct cap_header_data = {
     _LINUX_CAPABILITY_VERSION_3,
     getpid()};

@@ -8,6 +8,7 @@ const internalCp = require('internal/child_process');
 const cmd = process.execPath;
 const args = ['-p', '42'];
 const options = { windowsHide: true };
+const { spawnSyncAndAssert } = require('../common/child_process');
 
 // Since windowsHide isn't really observable, this test relies on monkey
 // patching spawn() and spawnSync() to verify that the flag is being passed
@@ -15,12 +16,12 @@ const options = { windowsHide: true };
 
 test('spawnSync() passes windowsHide correctly', (t) => {
   const spy = t.mock.method(internalCp, 'spawnSync');
-  const child = cp.spawnSync(cmd, args, options);
 
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
-  assert.strictEqual(child.stdout.toString().trim(), '42');
-  assert.strictEqual(child.stderr.toString().trim(), '');
+  spawnSyncAndAssert(cmd, args, options, {
+    stdout: '42',
+    stderr: '',
+    trim: true
+  });
   assert.strictEqual(spy.mock.calls.length, 1);
   assert.strictEqual(spy.mock.calls[0].arguments[0].windowsHide, true);
 });

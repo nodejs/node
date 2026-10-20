@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { pipeTo, pipeToSync, from, fromSync } = require('stream/iter');
+const { setTimeout } = require('timers/promises');
 
 async function testPipeToSync() {
   const written = [];
@@ -71,6 +72,7 @@ async function testPipeToSyncSourceError() {
   let failCalled = false;
   const writer = {
     writeSync() { return true; },
+    endSync: common.mustNotCall(),
     fail(reason) { failCalled = true; },
   };
   function* failingSource() {
@@ -93,7 +95,7 @@ async function testPipeToWithSignal() {
   };
   async function* slowSource() {
     yield [new TextEncoder().encode('a')];
-    await new Promise((r) => setTimeout(r, 50));
+    await setTimeout(50);
     yield [new TextEncoder().encode('b')];
   }
   ac.abort();
@@ -127,6 +129,7 @@ async function testPipeToSyncWithTransforms() {
   const chunks = [];
   const writer = {
     writeSync(chunk) { chunks.push(new TextDecoder().decode(chunk)); return true; },
+    endSync() { return 0; },
   };
   const upper = (batch) => {
     if (batch === null) return null;
@@ -139,6 +142,32 @@ async function testPipeToSyncWithTransforms() {
   };
   pipeToSync(fromSync('hello'), upper, writer);
   assert.strictEqual(chunks.join(''), 'HELLO');
+}
+
+async function testPipeToWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    write(chunk) { chunks.push(new TextDecoder().decode(chunk)); },
+  };
+
+  await pipeTo(from('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
+}
+
+async function testPipeToSyncWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    writeSync(chunk) {
+      chunks.push(new TextDecoder().decode(chunk));
+      return true;
+    },
+    endSync() { return 0; },
+  };
+
+  pipeToSync(fromSync('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
 }
 
 // PipeTo with writev writer
@@ -215,8 +244,105 @@ async function testPipeToSyncMinimalWriter() {
     },
   };
 
-  pipeToSync(fromSync('minimal-sync'), minimalWriter);
+  pipeToSync(fromSync('minimal-sync'), minimalWriter, { preventClose: true });
   assert.strictEqual(chunks.length > 0, true);
+}
+
+async function testPipeToSyncIterableUsesFromBatching() {
+  let pulled = 0;
+  let firstWritePulled = 0;
+  const chunks = [];
+  function* source() {
+    for (let i = 0; i < 3; i++) {
+      pulled++;
+      yield new Uint8Array([0x61 + i]);
+    }
+  }
+  const writer = {
+    write: common.mustNotCall(),
+    writeSync(chunk) {
+      if (firstWritePulled === 0) {
+        firstWritePulled = pulled;
+      }
+      chunks.push(chunk);
+      return true;
+    },
+  };
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 3);
+  assert.strictEqual(firstWritePulled, 3);
+  assert.deepStrictEqual(chunks, [
+    new Uint8Array([0x61]),
+    new Uint8Array([0x62]),
+    new Uint8Array([0x63]),
+  ]);
+}
+
+async function testPipeToSourceNormalizationIndependentOfWriter() {
+  function source() {
+    return {
+      *[Symbol.iterator]() {
+        yield {
+          async *[Symbol.asyncIterator]() {
+            yield 'nested';
+          },
+        };
+      },
+    };
+  }
+
+  for (const hasWriteSync of [false, true]) {
+    const writer = { write: common.mustNotCall() };
+    if (hasWriteSync) writer.writeSync = common.mustNotCall();
+
+    await assert.rejects(
+      pipeTo(source(), writer, { preventClose: true, preventFail: true }),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+    );
+  }
+}
+
+async function testPipeToSyncIterableWriteFallback() {
+  const asyncWrites = [];
+  const writer = {
+    writeSync(chunk) {
+      return chunk[0] !== 0x62;
+    },
+    async write(chunk) {
+      asyncWrites.push(chunk);
+    },
+  };
+  function* source() {
+    yield new Uint8Array([0x61]);
+    yield new Uint8Array([0x62]);
+    yield new Uint8Array([0x63]);
+  }
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 3);
+  assert.deepStrictEqual(asyncWrites, [new Uint8Array([0x62])]);
+}
+
+async function testPipeToSyncIterableAsyncValue() {
+  const chunks = [];
+  const writer = {
+    write: common.mustNotCall(),
+    writeSync(chunk) {
+      chunks.push(chunk);
+      return true;
+    },
+  };
+  function* source() {
+    yield Promise.resolve('a');
+    yield new Uint8Array([0x62]);
+  }
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 2);
+  const result = new TextDecoder().decode(
+    new Uint8Array(chunks.reduce((acc, c) => [...acc, ...c], [])));
+  assert.strictEqual(result, 'ab');
 }
 
 Promise.all([
@@ -228,10 +354,16 @@ Promise.all([
   testPipeToWithSignal(),
   testPipeToWithTransforms(),
   testPipeToSyncWithTransforms(),
+  testPipeToWriterTransformMethodIgnored(),
+  testPipeToSyncWriterTransformMethodIgnored(),
   testPipeToWithWritevWriter(),
   testPipeToSyncFallback(),
   testPipeToPreventFail(),
   testPipeToSyncPreventClose(),
   testPipeToMinimalWriter(),
   testPipeToSyncMinimalWriter(),
+  testPipeToSyncIterableUsesFromBatching(),
+  testPipeToSyncIterableWriteFallback(),
+  testPipeToSyncIterableAsyncValue(),
+  testPipeToSourceNormalizationIndependentOfWriter(),
 ]).then(common.mustCall());

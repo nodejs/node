@@ -5,10 +5,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 2))
   common.skip('requires OpenSSL >= 3.2');
+if (hasFIPS(3))
+  common.skip('Argon2 is not available in FIPS mode');
 
 const assert = require('assert');
 const { createSecretKey } = require('crypto');
@@ -78,7 +80,7 @@ for (const { algorithm, length, password, params, tag } of vectors) {
       const result = await subtle.deriveBits(parameters, key, length);
       assert.deepStrictEqual(result, tag);
     }
-    {
+    if (algorithm === 'Argon2id') {
       const derivedKeyType = { name: 'HMAC', length, hash: 'SHA-256' };
 
       const key = createSecretKey(password)
@@ -88,5 +90,38 @@ for (const { algorithm, length, password, params, tag } of vectors) {
       const result = await subtle.exportKey('raw', hmac);
       assert.deepStrictEqual(result, tag);
     }
+  })().then(common.mustCall());
+}
+
+{
+  (async () => {
+    const algorithm = {
+      name: 'Argon2id',
+      memory: 32,
+      passes: 3,
+      parallelism: 4,
+      nonce: Buffer.alloc(16, 0x02),
+    };
+    const key = await subtle.importKey(
+      'raw-secret',
+      Buffer.alloc(32, 0x01),
+      algorithm.name,
+      false,
+      ['deriveBits']);
+
+    const omitted = await subtle.deriveBits(algorithm, key, 256);
+    const explicitEmpty = await subtle.deriveBits({
+      ...algorithm,
+      secretValue: Buffer.alloc(0),
+      associatedData: Buffer.alloc(0),
+    }, key, 256);
+    assert.deepStrictEqual(omitted, explicitEmpty);
+
+    await assert.rejects(
+      subtle.deriveBits({ ...algorithm, passes: 0 }, key, 256),
+      {
+        name: 'OperationError',
+        message: 'passes must be > 0',
+      });
   })().then(common.mustCall());
 }

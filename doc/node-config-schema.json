@@ -45,6 +45,63 @@
         "$schema": {
           "type": "string"
         },
+        "bench": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {
+            "bench": {
+              "type": "boolean",
+              "description": "launch benchmark runner on startup"
+            },
+            "bench-isolation": {
+              "type": "string",
+              "description": "configures the type of benchmark isolation used in the benchmark runner"
+            },
+            "bench-name-pattern": {
+              "type": "string",
+              "description": "run benchmarks whose name matches this regular expression"
+            },
+            "bench-reporter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report benchmark output using the given reporter"
+            },
+            "bench-reporter-destination": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report the given benchmark reporter to the given destination"
+            },
+            "bench-samples": {
+              "type": "number",
+              "description": "specify the number of measured benchmark samples"
+            },
+            "bench-warmup": {
+              "type": "number",
+              "description": "specify the number of unreported benchmark warmup samples"
+            }
+          }
+        },
         "nodeOptions": {
           "additionalProperties": false,
           "required": [],
@@ -103,6 +160,10 @@
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
             },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
+            },
             "allow-wasi": {
               "type": "boolean",
               "description": "allow wasi when any permissions are set"
@@ -111,9 +172,51 @@
               "type": "boolean",
               "description": "allow worker threads when any permissions are set"
             },
-            "async-context-frame": {
-              "type": "boolean",
-              "description": "Improve AsyncLocalStorage performance with AsyncContextFrame"
+            "bench-isolation": {
+              "type": "string",
+              "description": "configures the type of benchmark isolation used in the benchmark runner"
+            },
+            "bench-name-pattern": {
+              "type": "string",
+              "description": "run benchmarks whose name matches this regular expression"
+            },
+            "bench-reporter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report benchmark output using the given reporter"
+            },
+            "bench-reporter-destination": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report the given benchmark reporter to the given destination"
+            },
+            "bench-samples": {
+              "type": "number",
+              "description": "specify the number of measured benchmark samples"
+            },
+            "bench-warmup": {
+              "type": "number",
+              "description": "specify the number of unreported benchmark warmup samples"
             },
             "conditions": {
               "oneOf": [
@@ -205,6 +308,10 @@
               "type": "boolean",
               "description": "experimental import support for addons"
             },
+            "experimental-bench": {
+              "type": "boolean",
+              "description": "experimental node:bench module and benchmark runner"
+            },
             "experimental-detect-module": {
               "type": "boolean",
               "description": "when ambiguous modules fail to evaluate because they contain ES module syntax, try again to evaluate them as ES modules"
@@ -242,11 +349,7 @@
             },
             "experimental-print-required-tla": {
               "type": "boolean",
-              "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to to find and print top-level await in the graph"
-            },
-            "experimental-repl-await": {
-              "type": "boolean",
-              "description": "experimental await keyword support in REPL"
+              "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to find and print top-level await in the graph"
             },
             "experimental-require-module": {
               "type": "boolean",
@@ -263,6 +366,10 @@
             "experimental-stream-iter": {
               "type": "boolean",
               "description": "experimental iterable streams API (node:stream/iter)"
+            },
+            "experimental-strip-private-modules": {
+              "type": "boolean",
+              "description": "Type-stripping for TypeScript files under node_modules belonging to packages marked \"private\": true"
             },
             "experimental-vm-modules": {
               "type": "boolean",
@@ -754,7 +861,7 @@
             },
             "use-largepages": {
               "type": "string",
-              "description": "Map the Node.js static code to large pages. Options are 'off' (the default value, meaning do not map), 'on' (map and ignore failure, reporting it to stderr), or 'silent' (map and silently ignore failure)"
+              "description": "This option is no longer supported and a no-op. Options are 'off' (default), 'on' (report a warning to stderr), or 'silent' (same as 'off')."
             },
             "use-openssl-ca": {
               "type": "boolean",
@@ -867,6 +974,10 @@
             "allow-net": {
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
+            },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
             },
             "allow-wasi": {
               "type": "boolean",

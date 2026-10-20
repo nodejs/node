@@ -4,7 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasFIPS } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support RSA-PSS key pair generation');
 
 const assert = require('assert');
@@ -16,14 +18,14 @@ const {
 // hash function, it is RECOMMENDED that the hash function be the same as the
 // one that is applied to the message."
 {
-
+  const modulusLength = hasFIPS(3) ? 2048 : 512;
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     hashAlgorithm: 'sha256',
     saltLength: 16
   }, common.mustSucceed((publicKey, privateKey) => {
     const expectedKeyDetails = {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',

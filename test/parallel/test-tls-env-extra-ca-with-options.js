@@ -8,7 +8,9 @@ if (!common.hasCrypto)
 const assert = require('node:assert');
 const tls = require('node:tls');
 const { fork } = require('node:child_process');
+const { hasFIPS } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
+const fips3 = hasFIPS(3);
 
 const tests = [
   {
@@ -28,13 +30,26 @@ const tests = [
       crl: fixtures.readKey('ca2-crl.pem')
     }
   },
-  {
-    clientOptions: {
-      pfx: fixtures.readKey('agent1.pfx'),
-      passphrase: 'sample'
-    }
-  },
 ];
+
+if (fips3) {
+  assert.throws(() => tls.createSecureContext({
+    pfx: fixtures.readKey('agent1.pfx'),
+    passphrase: 'sample',
+  }), {
+    code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+  });
+}
+
+if (!fips3 || hasFIPS(3, 5)) {
+  tests.push({
+    clientOptions: {
+      pfx: fixtures.readKey(fips3 ?
+        'agent1-fips.pfx' : 'agent1.pfx'),
+      passphrase: fips3 ? 'password' : 'sample'
+    }
+  });
+}
 
 if (process.argv[2]) {
   const testNumber = parseInt(process.argv[2], 10);

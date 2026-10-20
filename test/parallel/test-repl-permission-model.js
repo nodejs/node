@@ -12,6 +12,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
   run(data) {

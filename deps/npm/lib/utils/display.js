@@ -1,6 +1,7 @@
 const { log, output, input, META } = require('proc-log')
 const { explain } = require('./explain-eresolve.js')
 const { formatWithOptions } = require('./format')
+const { redactLog } = require('@npmcli/redact')
 
 // This is the general approach to color:
 // Eventually this will be exposed somewhere we can refer to these by name.
@@ -90,6 +91,8 @@ const getArrayOrObject = (items) => {
       return foundNonObject
     }
     // We use objects with 0,1,2,etc keys to merge array
+    // We don't currently use this but want to allow for it again
+    // istanbul ignore next
     if (items.every((o, i) => Object.hasOwn(o, i))) {
       return Object.assign([], ...items)
     }
@@ -98,14 +101,16 @@ const getArrayOrObject = (items) => {
   return Object.assign({}, ...items.filter(o => isPlainObject(o)))
 }
 
+const redactValue = (obj) => JSON.parse(redactLog(JSON.stringify(obj)))
+
 const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
   const items = []
   // meta also contains the meta object passed to flush
   const errors = metaError ? [metaError] : []
   // index 1 is the meta, 2 is the logged argument
-  for (const [, { [JSON_ERROR_KEY]: error }, obj] of buffer) {
+  for (const [, { [JSON_ERROR_KEY]: error, redact = true }, obj] of buffer) {
     if (obj) {
-      items.push(obj)
+      items.push(redact ? redactValue(obj) : obj)
     }
     if (error) {
       errors.push(error)
@@ -166,7 +171,6 @@ class Display {
   #progress
 
   // options
-  #command
   #levelIndex
   #timing
   #json
@@ -209,7 +213,6 @@ class Display {
   }
 
   async load ({
-    command,
     heading,
     json,
     loglevel,
@@ -232,7 +235,6 @@ class Display {
     this.#stderrChalk = stderrColor ? new Chalk({ level }) : this.#noColorChalk
     this.#logColors = COLOR_PALETTE({ chalk: this.#stderrChalk })
 
-    this.#command = command
     this.#levelIndex = LEVEL_OPTIONS[loglevel].index
     this.#timing = timing
     this.#json = json
@@ -291,7 +293,9 @@ class Display {
         if (this.#json) {
           const json = getJsonBuffer(meta, this.#outputState.buffer)
           if (json) {
-            this.#writeOutput(output.KEYS.standard, meta, JSON.stringify(json, null, 2))
+            // Per-item redaction already applied in getJsonBuffer, skip string-level redaction
+            const jsonMeta = { ...meta, redact: false }
+            this.#writeOutput(output.KEYS.standard, jsonMeta, JSON.stringify(json, null, 2))
           }
         } else {
           this.#outputState.buffer.forEach((item) => this.#writeOutput(...item))
@@ -308,17 +312,6 @@ class Display {
         if (this.#outputState.buffering) {
           this.#outputState.buffer.push([level, meta, ...args])
         } else {
-          // XXX: Check if the argument looks like a run-script banner.  This should be replaced with proc-log.META in @npmcli/run-script
-          if (typeof args[0] === 'string' && args[0].startsWith('\n> ') && args[0].endsWith('\n')) {
-            if (this.#silent || ['exec', 'explore'].includes(this.#command)) {
-              // Silent mode and some specific commands always hide run script banners
-              break
-            } else if (this.#json) {
-              // In json mode, change output to stderr since we don't want to break json parsing on stdout if the user is piping to jq or something.
-              // XXX: in a future (breaking?) change it might make sense for run-script to always output these banners with proc-log.output.error if we think they align closer with "logging" instead of "output".
-              level = output.KEYS.error
-            }
-          }
           this.#writeOutput(level, meta, ...args)
         }
         break

@@ -174,9 +174,35 @@ class DataQueueImpl final : public DataQueue,
     backpressure_listeners_.erase(listener);
   }
 
+  // Both notifications below can re-enter this DataQueue: a listener may end
+  // up calling into JavaScript, which can destroy the owner of a listener and
+  // so mutate backpressure_listeners_ (or drop the last reference to this
+  // queue) while we are iterating. Hold a reference, iterate a snapshot, and
+  // re-check membership so a listener removed mid-notification is not called.
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
-    for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->EntryRead(amount);
+      }
+    }
+  }
+
+  void NotifyBeforePull() {
+    if (idempotent_) return;
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->BeforePull();
+      }
+    }
   }
 
   bool HasBackpressureListeners() const noexcept {
@@ -380,6 +406,11 @@ class NonIdempotentDataQueueReader final
            size_t count,
            size_t max_count_hint = bob::kMaxCountHint) override {
     std::shared_ptr<DataQueue::Reader> self = shared_from_this();
+
+    // Let listeners flush pending data before we check the entries list.
+    // This allows, for example, the QUIC Stream to flush its receive
+    // accumulation buffer into the queue before the pull proceeds.
+    data_queue_->NotifyBeforePull();
 
     // If ended is true, this reader has already reached the end and cannot
     // provide any more data.
@@ -837,13 +868,19 @@ class FdEntry final : public EntryImpl {
   // the race
   //   condition described in the comment above.
  public:
-  static std::unique_ptr<FdEntry> Create(Environment* env, Local<Value> path) {
+  static std::unique_ptr<FdEntry> Create(Environment* env,
+                                         Local<Value> path,
+                                         int* status) {
     // We're only going to create the FdEntry if the file exists.
     uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
 
     auto buf = std::make_shared<BufferValue>(env->isolate(), path);
-    if (uv_fs_stat(nullptr, &req, buf->out(), nullptr) < 0) return nullptr;
+    int err = uv_fs_stat(nullptr, &req, buf->out(), nullptr);
+    if (err < 0) {
+      if (status != nullptr) *status = err;
+      return nullptr;
+    }
 
     return std::make_unique<FdEntry>(
         env, std::move(buf), req.statbuf, 0, req.statbuf.st_size);
@@ -906,11 +943,11 @@ class FdEntry final : public EntryImpl {
     uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
     // TODO(jasnell): Note the use of a sync fs call here is a bit unfortunate.
-    // Doing this asynchronously creates a bit of a race condition tho, a file
-    // could be unmodified when we call the operation but then by the time the
-    // async callback is triggered to give us that answer the file is modified.
-    // While such silliness is still possible here, the sync call at least makes
-    // it less likely to hit the race.
+    // Doing this asynchronously creates a bit of a race condition though, a
+    // file could be unmodified when we call the operation but then by the time
+    // the async callback is triggered to give us that answer the file is
+    // modified. While such silliness is still possible here, the sync call at
+    // least makes it less likely to hit the race.
     if (uv_fs_fstat(nullptr, &req, fd, nullptr) < 0) return true;
     return entry->is_modified(req.statbuf);
   }
@@ -1152,8 +1189,9 @@ std::unique_ptr<DataQueue::Entry> DataQueue::CreateDataQueueEntry(
 }
 
 std::unique_ptr<DataQueue::Entry> DataQueue::CreateFdEntry(Environment* env,
-                                                           Local<Value> path) {
-  return FdEntry::Create(env, path);
+                                                           Local<Value> path,
+                                                           int* status) {
+  return FdEntry::Create(env, path, status);
 }
 
 void DataQueue::Initialize(Environment* env, v8::Local<v8::Object> target) {

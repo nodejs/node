@@ -18,7 +18,7 @@ import sys
 CLANG_TIDY_WARNING = re.compile(r'(\/.*?)\ .*\[(.*)\]$')
 CLANG_TIDY_CMDLINE_OUT = re.compile(r'^clang-tidy.*\ .*|^\./\.\*')
 FILE_REGEXS = ['../src/*', '../test/*']
-HEADER_REGEX = ['\.\.\/src\/.*|\.\.\/include\/.*|\.\.\/test\/.*']
+HEADER_REGEX = [r'\.\.\/src\/.*|\.\.\/include\/.*|\.\.\/test\/.*']
 
 THREADS = multiprocessing.cpu_count()
 

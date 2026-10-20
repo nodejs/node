@@ -63,11 +63,10 @@ worker.on('online', common.mustCall(async () => {
 
   {
     const handle = await worker.startHeapProfile();
-    try {
-      await worker.startHeapProfile();
-    } catch (err) {
-      assert.strictEqual(err.code, 'ERR_HEAP_PROFILE_HAVE_BEEN_STARTED');
-    }
+
+    await assert.rejects(worker.startHeapProfile(), {
+      code: 'ERR_HEAP_PROFILE_HAVE_BEEN_STARTED',
+    });
     JSON.parse(await handle.stop());
   }
 

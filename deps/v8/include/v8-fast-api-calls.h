@@ -379,7 +379,7 @@ union V8_TRIVIAL_ABI AnyCType {
 static_assert(
     sizeof(AnyCType) == 8,
     "The union AnyCType should have size == 64 bits, as this is assumed "
-    "by EffectControlLinearizer.");
+    "by FastApiCallLoweringReducer.");
 
 class V8_EXPORT CFunction {
  public:
@@ -466,7 +466,15 @@ struct FastApiCallbackOptions {
   /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
    */
+  V8_DEPRECATE_SOON("Use DataV2 instead")
   v8::Local<v8::Value> data;
+
+  /**
+   * The `data` passed to the FunctionTemplate constructor as `v8::Data`.
+   */
+  START_ALLOW_USE_DEPRECATED()
+  V8_INLINE v8::Local<v8::Data> DataV2() const { return data; }
+  END_ALLOW_USE_DEPRECATED()
 };
 
 namespace internal {

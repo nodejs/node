@@ -1,0 +1,76 @@
+---
+source: core/src/ast/modules.rs
+expression: "File::from(&syn::parse_quote!\n{\n    #[diplomat::bridge] mod ffi { struct Foo {} } mod other\n    { use something::*; }\n})"
+---
+modules:
+  ffi:
+    name:
+      - ffi
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    imports: []
+    declared_types:
+      ? - Foo
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      : Struct:
+          name:
+            - Foo
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+          docs:
+            - - cfg: Star
+                lines: ""
+            - []
+          lifetimes: {}
+          fields: []
+          methods: []
+          output_only: false
+          attrs: {}
+    declared_traits: {}
+    declared_functions: {}
+    sub_modules: []
+    attrs: {}
+  other:
+    name:
+      - other
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    imports: []
+    declared_types: {}
+    declared_traits: {}
+    declared_functions: {}
+    sub_modules: []
+    attrs: {}

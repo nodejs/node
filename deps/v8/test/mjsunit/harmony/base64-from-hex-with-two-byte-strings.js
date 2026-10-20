@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-externalize-string --js-base-64
+// Flags: --expose-externalize-string
 
 (function TestBase64FromHexWithTwByteStrings() {
     var twoByteString = createExternalizableTwoByteString('666f6f626172');

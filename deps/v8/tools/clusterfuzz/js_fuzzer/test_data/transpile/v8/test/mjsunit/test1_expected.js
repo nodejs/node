@@ -49,6 +49,8 @@ function _classPrivateFieldLooseKey(e) {
   return "__private_" + id++ + "_" + e;
 }
 let A = function () {
+  "use strict";
+
   function A() {
     this.a = 1;
     this.b = 2;
@@ -64,6 +66,8 @@ let A = function () {
 var _privateryan = _classPrivateFieldLooseKey("privateryan");
 var _ryan = _classPrivateFieldLooseKey("ryan");
 let B = function (_A2) {
+  "use strict";
+
   function B(...args) {
     var _this;
     _this = _A2.call(this, ...args) || this;

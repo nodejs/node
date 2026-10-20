@@ -3,6 +3,9 @@
 #include "node_process-inl.h"
 #include "async_wrap.h"
 
+#include <algorithm>
+#include <unordered_map>
+
 namespace node {
 
 using v8::Context;
@@ -115,20 +118,93 @@ struct ACHHandle final {
 // this.
 void DeleteACHHandle::operator ()(ACHHandle* handle) const { delete handle; }
 
+// TODO(addaleax): Having this extra set of data structures is far from
+// ideal, but unfortunately the public synchronous cleanup hook API was
+// slightly mis-designed; in particular, RemoveEnvironmentCleanupHook() needs
+// to keep working when the Isolate either has no active context (such as
+// during GC) or that context is associated with another Node.js Environment.
+// We should align this with the asynchronous API, which handles this properly
+// through an explicit reference to the cleanup hook instead of requiring
+// lookups in internal maps.
+struct CleanupHookThunk final {
+  Isolate* isolate;
+  Environment* env;
+  CleanupHook fun;
+  void* arg;
+  bool running = false;
+};
+// Keyed on `arg`. The same hook may be registered once per Environment, and
+// several Environments can share an Isolate.
+using CleanupHookRegistry = std::unordered_multimap<void*, CleanupHookThunk>;
+static ExclusiveAccess<CleanupHookRegistry> cleanup_hook_registry;
+
+static void CleanupHookThunkRun(void* arg) {
+  CleanupHookThunk* thunk = static_cast<CleanupHookThunk*>(arg);
+  {
+    ExclusiveAccess<CleanupHookRegistry>::Scoped registry(
+        &cleanup_hook_registry);
+    thunk->running = true;
+  }
+  thunk->fun(thunk->arg);
+  ExclusiveAccess<CleanupHookRegistry>::Scoped registry(&cleanup_hook_registry);
+  auto [begin, end] = registry->equal_range(thunk->arg);
+  auto self = std::find_if(
+      begin, end, [&](const auto& entry) { return &entry.second == thunk; });
+  CHECK(self != end);
+  registry->erase(self);
+}
+
 void AddEnvironmentCleanupHook(Isolate* isolate,
                                CleanupHook fun,
                                void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
-  env->AddCleanupHook(fun, arg);
+  CleanupHookThunk* thunk;
+  {
+    ExclusiveAccess<CleanupHookRegistry>::Scoped registry(
+        &cleanup_hook_registry);
+    auto [begin, end] = registry->equal_range(arg);
+    // Adding the same hook twice to one Environment is documented to abort;
+    // a running hook may register itself again.
+    CHECK(std::none_of(begin, end, [&](const auto& entry) {
+      return entry.second.env == env && entry.second.fun == fun &&
+             !entry.second.running;
+    }));
+    thunk = &registry->emplace(arg, CleanupHookThunk{isolate, env, fun, arg})
+                 ->second;
+  }
+  env->AddCleanupHook(CleanupHookThunkRun, thunk);
 }
 
 void RemoveEnvironmentCleanupHook(Isolate* isolate,
                                   CleanupHook fun,
                                   void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);
-  env->RemoveCleanupHook(fun, arg);
+  // Prefer the current Environment's registration and otherwise take any
+  // match: there may be no current context (GC, addon threads) or it may
+  // belong to another Environment on the same isolate.
+  Environment* current =
+      isolate != nullptr && isolate == Isolate::TryGetCurrent()
+          ? Environment::GetCurrent(isolate)
+          : nullptr;
+  CleanupHookThunk thunk;
+  void* wrapped_arg;
+  {
+    ExclusiveAccess<CleanupHookRegistry>::Scoped registry(
+        &cleanup_hook_registry);
+    auto [begin, end] = registry->equal_range(arg);
+    auto found = end;
+    for (auto it = begin; it != end; ++it) {
+      if (it->second.isolate != isolate || it->second.fun != fun) continue;
+      if (found == end || it->second.env == current) found = it;
+      if (it->second.env == current) break;
+    }
+    // A running hook is removing itself; CleanupHookThunkRun() cleans up.
+    if (found == end || found->second.running) return;
+    wrapped_arg = &found->second;
+    thunk = found->second;
+    registry->erase(found);
+  }
+  thunk.env->RemoveCleanupHook(CleanupHookThunkRun, wrapped_arg);
 }
 
 static void FinishAsyncCleanupHook(void* arg) {

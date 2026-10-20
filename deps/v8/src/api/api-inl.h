@@ -17,7 +17,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 
@@ -203,12 +203,15 @@ class V8_NODISCARD CallDepthScope {
   bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
       i::MicrotaskQueue* microtask_queue) {
     bool did_perform_microtask_checkpoint =
-        isolate_->thread_local_top()->CallDepthIsZero() && do_callback &&
+        do_callback && isolate_->thread_local_top()->CallDepthIsZero() &&
         microtask_queue &&
         microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto &&
-        !isolate_->is_execution_terminating();
+        !isolate_->is_execution_terminating() &&
+        microtask_queue->ShouldPerformCheckpoint(
+            reinterpret_cast<v8::Isolate*>(isolate_));
+
     return !did_perform_microtask_checkpoint ||
-           IsUndefined(isolate_->heap()->weak_refs_keep_during_job(), isolate_);
+           IsUndefined(isolate_->heap()->weak_refs_keep_during_job());
   }
 #endif
 
@@ -501,19 +504,6 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
                                                           uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<type_info_id, T>(src, dst, max_length);
 }
-
-namespace internal {
-
-void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
-  entered_contexts_.push_back(context);
-}
-
-DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.empty()) return {};
-  return direct_handle(entered_contexts_.back(), isolate_);
-}
-
-}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_API_API_INL_H_

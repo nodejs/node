@@ -9,7 +9,7 @@ const Countdown = require('../common/countdown');
 const N = 2;
 let abortRequest = true;
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   const headers = { 'Content-Type': 'text/plain', 'Connection': 'close' };
   headers['Content-Length'] = 50;
   const socket = res.socket;

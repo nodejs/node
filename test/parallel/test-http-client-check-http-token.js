@@ -29,6 +29,6 @@ server.listen(0, common.mustCall(() => {
   });
 
   expectedSuccesses.forEach((method) => {
-    http.request({ method, port: server.address().port }).end();
+    http.request({ method, port: server.address().port, agent: false }).end();
   });
 }));

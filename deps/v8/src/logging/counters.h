@@ -201,8 +201,9 @@ class Histogram {
   void EnsureCreated(bool create_new = true) {
     if (create_new && histogram_.load(std::memory_order_acquire) == nullptr) {
       base::MutexGuard Guard(&mutex_);
-      if (histogram_.load(std::memory_order_relaxed) == nullptr)
+      if (histogram_.load(std::memory_order_relaxed) == nullptr) {
         histogram_.store(CreateHistogram(), std::memory_order_release);
+      }
     }
   }
 

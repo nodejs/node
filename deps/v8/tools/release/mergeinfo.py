@@ -88,7 +88,7 @@ def get_first_canary(branches):
   return canaries[0].split('/')[-1]
 
 def get_first_v8_version(branches):
-  version_re = re.compile("remotes/origin/[0-9]+\.[0-9]+\.[0-9]+")
+  version_re = re.compile(r"remotes/origin/[0-9]+\.[0-9]+\.[0-9]+")
   versions = [branch for branch in branches if version_re.match(branch)]
   if len(versions) == 0:
     return "--"

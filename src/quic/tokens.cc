@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
@@ -170,10 +169,9 @@ ngtcp2_vec GenerateRetryToken(uint8_t* buffer,
                                          odcid,
                                          uv_hrtime());
   DCHECK_GE(ret, 0);
-  DCHECK_LE(ret, RetryToken::kRetryTokenLen);
   DCHECK_EQ(buffer[0], RetryToken::kTokenMagic);
   // This shouldn't be possible but we handle it anyway just to be safe.
-  if (ret == 0) return {nullptr, 0};
+  if (ret <= 0) return {nullptr, 0};
   return {buffer, static_cast<size_t>(ret)};
 }
 
@@ -189,10 +187,9 @@ ngtcp2_vec GenerateRegularToken(uint8_t* buffer,
                                            address.length(),
                                            uv_hrtime());
   DCHECK_GE(ret, 0);
-  DCHECK_LE(ret, RegularToken::kRegularTokenLen);
   DCHECK_EQ(buffer[0], RegularToken::kTokenMagic);
   // This shouldn't be possible but we handle it anyway just to be safe.
-  if (ret == 0) return {nullptr, 0};
+  if (ret <= 0) return {nullptr, 0};
   return {buffer, static_cast<size_t>(ret)};
 }
 }  // namespace
@@ -324,4 +321,3 @@ RegularToken::operator const char*() const {
 }  // namespace node::quic
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

@@ -63,7 +63,7 @@ class AstRawString final : public ZoneObject {
     return is_one_byte() ? literal_bytes_.length()
                          : literal_bytes_.length() / 2;
   }
-  bool AsArrayIndex(uint32_t* index) const;
+  V8_EXPORT_PRIVATE bool AsArrayIndex(uint32_t* index) const;
   bool IsIntegerIndex() const;
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   V8_EXPORT_PRIVATE uint16_t FirstCharacter() const;
@@ -87,7 +87,7 @@ class AstRawString final : public ZoneObject {
   }
 
   // This function can be called after internalizing.
-  V8_INLINE IndirectHandle<String> string() const {
+  V8_INLINE IndirectHandle<InternalizedString> string() const {
     DCHECK(has_string_);
     return string_;
   }
@@ -118,7 +118,7 @@ class AstRawString final : public ZoneObject {
     return &next_;
   }
 
-  void set_string(IndirectHandle<String> string) {
+  void set_string(IndirectHandle<InternalizedString> string) {
     DCHECK(!string.is_null());
     DCHECK(!has_string_);
     string_ = string;
@@ -129,7 +129,7 @@ class AstRawString final : public ZoneObject {
 
   union {
     AstRawString* next_;
-    IndirectHandle<String> string_;
+    IndirectHandle<InternalizedString> string_;
   };
 
   base::Vector<const uint8_t> literal_bytes_;  // Memory owned by Zone.
@@ -383,8 +383,8 @@ class AstValueFactory {
   const AstRawString* GetTwoByteString(base::Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);
   }
-  const AstRawString* GetString(Tagged<String> literal,
-                                const SharedStringAccessGuardIfNeeded&);
+  V8_EXPORT_PRIVATE const AstRawString* GetString(
+      Tagged<String> literal, const SharedStringAccessGuardIfNeeded&);
 
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);

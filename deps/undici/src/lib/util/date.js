@@ -18,6 +18,26 @@ function parseHttpDate (date) {
   }
 }
 
+function makeDate (year, monthIdx, day, hour, minute, second, weekday) {
+  const result = new Date(Date.UTC(year, monthIdx, day, hour, minute, second))
+
+  // Date.UTC treats years 0-99 as 1900-1999. Reset the full year so component
+  // checks below validate the HTTP date as written.
+  if (year >= 0 && year <= 99) {
+    result.setUTCFullYear(year)
+  }
+
+  return result.getUTCFullYear() === year &&
+    result.getUTCMonth() === monthIdx &&
+    result.getUTCDate() === day &&
+    result.getUTCHours() === hour &&
+    result.getUTCMinutes() === minute &&
+    result.getUTCSeconds() === second &&
+    result.getUTCDay() === weekday
+    ? result
+    : undefined
+}
+
 /**
  * @see https://httpwg.org/specs/rfc9110.html#preferred.date.format
  *
@@ -224,8 +244,7 @@ function parseImfDate (date) {
     second = (code1 - 48) * 10 + (code2 - 48) // Convert ASCII codes to number
   }
 
-  const result = new Date(Date.UTC(year, monthIdx, day, hour, minute, second))
-  return result.getUTCDay() === weekday ? result : undefined
+  return makeDate(year, monthIdx, day, hour, minute, second, weekday)
 }
 
 /**
@@ -429,8 +448,7 @@ function parseAscTimeDate (date) {
   }
   const year = (yearDigit1 - 48) * 1000 + (yearDigit2 - 48) * 100 + (yearDigit3 - 48) * 10 + (yearDigit4 - 48)
 
-  const result = new Date(Date.UTC(year, monthIdx, day, hour, minute, second))
-  return result.getUTCDay() === weekday ? result : undefined
+  return makeDate(year, monthIdx, day, hour, minute, second, weekday)
 }
 
 /**
@@ -644,8 +662,7 @@ function parseRfc850Date (date) {
     second = (code1 - 48) * 10 + (code2 - 48) // Convert ASCII codes to number
   }
 
-  const result = new Date(Date.UTC(year, monthIdx, day, hour, minute, second))
-  return result.getUTCDay() === weekday ? result : undefined
+  return makeDate(year, monthIdx, day, hour, minute, second, weekday)
 }
 
 module.exports = {

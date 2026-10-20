@@ -34,15 +34,22 @@ describe('watch file with shared dependency', () => {
     const controller = new AbortController();
     const watcher = new FilesWatcher({ signal: controller.signal });
 
-    watcher.on('changed', common.mustCall(({ owners }) => {
-      if (owners.size !== 2) return;
-
-      // If this code is never reached the test times out.
+    const onExpectedOwners = common.mustCall(({ owners }) => {
       assert.ok(owners.has(fixturePaths['test.js']));
       assert.ok(owners.has(fixturePaths['test-2.js']));
       controller.abort();
       done();
-    }));
+    });
+
+    function onChanged({ owners }) {
+      if (owners.size !== 2) return;
+
+      // If this code is never reached the test times out.
+      watcher.removeListener('changed', onChanged);
+      onExpectedOwners({ owners });
+    }
+
+    watcher.on('changed', onChanged);
     watcher.filterFile(fixturePaths['test.js']);
     watcher.filterFile(fixturePaths['test-2.js']);
     watcher.filterFile(fixturePaths['dependency.js'], fixturePaths['test.js']);

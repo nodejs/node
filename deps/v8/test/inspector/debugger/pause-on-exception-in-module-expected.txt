@@ -1,0 +1,7 @@
+Tests for break on exception in modules.
+paused on exception:
+{
+    type : string
+    uncaught : true
+    value : hello
+}

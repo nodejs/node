@@ -12,11 +12,13 @@
 #include <ostream>
 
 #include "src/base/hashing.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
 
@@ -31,6 +33,7 @@ struct ModuleWireBytes;
 
 namespace compiler {
 class CallDescriptor;
+enum class TrapId : int32_t;
 
 enum SubtypeCheckExactness : uint8_t {
   kMayBeSubtype,
@@ -47,6 +50,7 @@ V8_INLINE std::ostream& operator<<(std::ostream& os,
     case kExactMatchLastSupertype:
       return os << "kExactMatchLastSupertype";
   }
+  UNREACHABLE();
 }
 
 SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
@@ -66,6 +70,9 @@ struct WasmTypeCheckConfig {
            from.is_ref() && to.is_ref() &&
            wasm::IsSameTypeHierarchy(from.heap_type(), to.heap_type());
   }
+
+  friend bool operator==(const WasmTypeCheckConfig&,
+                         const WasmTypeCheckConfig&) = default;
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,
@@ -74,27 +81,20 @@ V8_INLINE std::ostream& operator<<(std::ostream& os,
 }
 
 V8_INLINE size_t hash_value(WasmTypeCheckConfig const& p) {
-  return base::hash_combine(p.from.raw_bit_field(), p.to.raw_bit_field());
-}
-
-V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
-                          const WasmTypeCheckConfig& p2) {
-  return p1.from == p2.from && p1.to == p2.to;
+  return base::hash_combine(p.from.raw_bit_field(), p.to.raw_bit_field(),
+                            p.exactness);
 }
 
 static constexpr int kCharWidthBailoutSentinel = 3;
 
 enum class NullCheckStrategy { kExplicit, kTrapHandler };
 
-enum class EnforceBoundsCheck : bool {  // --
-  kNeedsBoundsCheck = true,
-  kCanOmitBoundsCheck = false
-};
+using EnforceBoundsCheck =
+    base::StrongAlias<struct EnforceBoundsCheckTag, bool>;
+constexpr EnforceBoundsCheck kNeedsBoundsCheck{true};
+constexpr EnforceBoundsCheck kCanOmitBoundsCheck{false};
 
-enum class AlignmentCheck : bool {  // --
-  kYes = true,
-  kNo = false,
-};
+using AlignmentCheck = base::StrongAlias<struct AlignmentCheckTag, bool>;
 
 enum class BoundsCheckResult {
   // Dynamically checked (using 1-2 conditional branches).
@@ -109,6 +109,8 @@ enum class BoundsCheckResult {
 // a null check.
 enum CheckForNull : bool { kWithoutNullCheck, kWithNullCheck };
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check);
+
+V8_EXPORT_PRIVATE TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
 base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,
@@ -139,11 +141,10 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
   int extra_params = extra_callable_param ? 2 : 1;
   LocationSignature::Builder locations(zone, sig->return_count(),
                                        sig->parameter_count() + extra_params);
-  int untagged_parameter_slots;  // Unused.
-  int untagged_return_slots;     // Unused.
   wasm::IterateSignatureImpl(sig, extra_callable_param, locations,
-                             &untagged_parameter_slots, parameter_slots,
-                             &untagged_return_slots, return_slots);
+                             nullptr /* untagged_parameter_slots */,
+                             parameter_slots,
+                             nullptr /* untagged_return_slots */, return_slots);
   return locations.Get();
 }
 }  // namespace compiler

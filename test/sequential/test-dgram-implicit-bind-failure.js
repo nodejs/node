@@ -4,19 +4,20 @@ const common = require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
 const dgram = require('dgram');
-const dns = require('dns');
 const { kStateSymbol } = require('internal/dgram');
 const mockError = new Error('fake DNS');
 
-// Monkey patch dns.lookup() so that it always fails.
-dns.lookup = function(address, family, callback) {
+const socket = dgram.createSocket('udp4');
+
+// Fail the implicit bind by making the handle's address resolution fail. A
+// literal bind address is not passed to dns.lookup(), so patching dns.lookup()
+// would not be observed here.
+socket[kStateSymbol].handle.lookup = function(address, callback) {
   process.nextTick(() => { callback(mockError); });
 };
 
-const socket = dgram.createSocket('udp4');
-
 socket.on(EventEmitter.errorMonitor, common.mustCall((err) => {
-  // The DNS lookup should fail since it is monkey patched. At that point in
+  // The bind should fail since the lookup is monkey patched. At that point in
   // time, the send queue should be populated with the send() operation.
   assert.strictEqual(err, mockError);
   assert(Array.isArray(socket[kStateSymbol].queue));

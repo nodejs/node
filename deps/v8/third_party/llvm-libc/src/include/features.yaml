@@ -1,0 +1,8 @@
+header: features.h
+standards:
+  - gnu
+macros: []
+types: []
+enums: []
+objects: []
+functions: []

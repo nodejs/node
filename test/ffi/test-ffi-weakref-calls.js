@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc
+// Flags: --expose-gc
 'use strict';
 const { skipIfFFIMissing } = require('../common');
 skipIfFFIMissing();
@@ -15,7 +15,7 @@ test('ffi unrefCallback releases callback function', async (t) => {
   let callback = () => 1;
   const ref = new WeakRef(callback);
   const pointer = lib.registerCallback(
-    { parameters: ['i32'], result: 'i32' },
+    { arguments: ['i32'], return: 'i32' },
     callback,
   );
 
@@ -31,13 +31,35 @@ test('ffi unrefCallback releases callback function', async (t) => {
   lib.unregisterCallback(pointer);
 });
 
+test('ffi unrefCallback zero-fills narrow callback return', async (t) => {
+  const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
+  t.after(() => lib.close());
+
+  let callback = () => 1;
+  const ref = new WeakRef(callback);
+  const pointer = lib.registerCallback(
+    { arguments: ['i8'], return: 'i8' },
+    callback,
+  );
+
+  lib.unrefCallback(pointer);
+  callback = null;
+
+  await gcUntil('ffi unrefCallback zero-fills narrow callback return', () => {
+    return ref.deref() === undefined;
+  });
+
+  t.assert.strictEqual(symbols.call_int8_callback(pointer, 21), 0);
+  lib.unregisterCallback(pointer);
+});
+
 test('ffi refCallback retains callback function', async (t) => {
   const { lib } = ffi.dlopen(libraryPath, fixtureSymbols);
   t.after(() => lib.close());
 
   let callback = () => 1;
   const ref = new WeakRef(callback);
-  const pointer = lib.registerCallback({ result: 'i32' }, callback);
+  const pointer = lib.registerCallback({ return: 'i32' }, callback);
 
   lib.unrefCallback(pointer);
   lib.refCallback(pointer);
@@ -47,6 +69,37 @@ test('ffi refCallback retains callback function', async (t) => {
     await gcUntil('ffi refCallback retains callback function', () => true, 1);
     t.assert.strictEqual(typeof ref.deref(), 'function');
   }
+
+  lib.unregisterCallback(pointer);
+});
+
+test('callback ref/unref throw after callback function is collected', async (t) => {
+  const { lib } = ffi.dlopen(libraryPath, fixtureSymbols);
+  t.after(() => lib.close());
+
+  let callback = () => 1;
+  const ref = new WeakRef(callback);
+  const pointer = lib.registerCallback(
+    { arguments: ['i32'], return: 'i32' },
+    callback,
+  );
+
+  lib.unrefCallback(pointer);
+  callback = null;
+
+  await gcUntil(
+    'callback ref/unref throw after callback function is collected',
+    () => ref.deref() === undefined,
+  );
+
+  t.assert.throws(() => lib.unrefCallback(pointer), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /Callback not found/,
+  });
+  t.assert.throws(() => lib.refCallback(pointer), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /Callback not found/,
+  });
 
   lib.unregisterCallback(pointer);
 });

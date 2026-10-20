@@ -4,7 +4,8 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-[false, 1, {}, [], null, undefined].forEach((i) => {
+const testCases = [false, 1, {}, [], null, undefined];
+for (const i of testCases) {
   assert.throws(
     () => fs.readlink(i, common.mustNotCall()),
     {
@@ -19,4 +20,4 @@ const fs = require('fs');
       name: 'TypeError'
     }
   );
-});
+}

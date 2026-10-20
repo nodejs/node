@@ -14,8 +14,12 @@
 
 #include "absl/types/compare.h"
 
+#include <algorithm>
+#include <functional>
+
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -277,23 +281,21 @@ TEST(DoThreeWayComparison, SanityTest) {
       absl::compare_internal::do_three_way_comparison(weak, 10, 5) > 0));
 }
 
-#ifdef __cpp_inline_variables
 TEST(Compare, StaticAsserts) {
-  static_assert(partial_ordering::less < 0, "");
-  static_assert(partial_ordering::equivalent == 0, "");
-  static_assert(partial_ordering::greater > 0, "");
-  static_assert(partial_ordering::unordered != 0, "");
+  static_assert(partial_ordering::less < 0);
+  static_assert(partial_ordering::equivalent == 0);
+  static_assert(partial_ordering::greater > 0);
+  static_assert(partial_ordering::unordered != 0);
 
-  static_assert(weak_ordering::less < 0, "");
-  static_assert(weak_ordering::equivalent == 0, "");
-  static_assert(weak_ordering::greater > 0, "");
+  static_assert(weak_ordering::less < 0);
+  static_assert(weak_ordering::equivalent == 0);
+  static_assert(weak_ordering::greater > 0);
 
-  static_assert(strong_ordering::less < 0, "");
-  static_assert(strong_ordering::equal == 0, "");
-  static_assert(strong_ordering::equivalent == 0, "");
-  static_assert(strong_ordering::greater > 0, "");
+  static_assert(strong_ordering::less < 0);
+  static_assert(strong_ordering::equal == 0);
+  static_assert(strong_ordering::equivalent == 0);
+  static_assert(strong_ordering::greater > 0);
 }
-#endif  // __cpp_inline_variables
 
 }  // namespace
 ABSL_NAMESPACE_END

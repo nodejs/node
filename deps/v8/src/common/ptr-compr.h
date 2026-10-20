@@ -91,8 +91,11 @@ class TrustedCage : public AllStatic {
 };
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
 #else
-// The trusted cage does not exist in this case.
-using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+// The trusted cage does not exist in this case, so trusted compression uses
+// the main-cage encoding. Keep this as a distinct type (not a `using`-alias)
+// so that `is_same_v<..., TrustedSpaceCompressionScheme>` behaves identically
+// regardless of the sandbox flag.
+struct TrustedSpaceCompressionScheme : V8HeapCompressionScheme {};
 #endif  // V8_ENABLE_SANDBOX
 
 // A compression scheme which can be passed if the only objects we ever expect

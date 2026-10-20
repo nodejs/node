@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { fromSync } = require('stream/iter');
+const { fromSync, textSync } = require('stream/iter');
 
 function testFromSyncString() {
   // String input should be UTF-8 encoded
@@ -66,9 +66,10 @@ function testFromSyncGenerator() {
   for (const batch of readable) {
     batches.push(batch);
   }
-  assert.strictEqual(batches.length, 2);
+  assert.strictEqual(batches.length, 1);
+  assert.strictEqual(batches[0].length, 2);
   assert.deepStrictEqual(batches[0][0], new Uint8Array([1, 2]));
-  assert.deepStrictEqual(batches[1][0], new Uint8Array([3, 4]));
+  assert.deepStrictEqual(batches[0][1], new Uint8Array([3, 4]));
 }
 
 function testFromSyncNestedIterables() {
@@ -182,13 +183,42 @@ function testFromSyncIgnoresAsyncStreamable() {
 // Explicit async iterable rejected
 function testFromSyncRejectsAsyncIterable() {
   async function* gen() { yield [new TextEncoder().encode('a')]; }
-  assert.throws(() => fromSync(gen()), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => fromSync(gen()), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /must be a synchronous input, not an async iterable\./,
+  });
+}
+
+function testFromSyncPrefersIteratorForDualIterable() {
+  const input = {
+    *[Symbol.iterator]() {
+      yield new TextEncoder().encode('sync');
+    },
+    async *[Symbol.asyncIterator]() {
+      yield new TextEncoder().encode('async');
+    },
+  };
+
+  assert.strictEqual(textSync(fromSync(input)), 'sync');
+}
+
+function testFromSyncPrefersIteratorForThenableIterable() {
+  const input = {
+    then() {},
+    *[Symbol.iterator]() {
+      yield new TextEncoder().encode('sync');
+    },
+  };
+
+  assert.strictEqual(textSync(fromSync(input)), 'sync');
 }
 
 // Promise rejected
 function testFromSyncRejectsPromise() {
-  assert.throws(() => fromSync(Promise.resolve('hello')),
-                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => fromSync(Promise.resolve('hello')), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /must be a synchronous input, not a promise\./,
+  });
 }
 
 // DataView input should be converted to Uint8Array (zero-copy)
@@ -214,6 +244,17 @@ function testFromSyncUndefinedThrows() {
   assert.throws(() => fromSync(undefined), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+function testFromSyncFunctionWithToStreamable() {
+  // Functions are objects and may implement the protocol.
+  function source() {}
+  source[Symbol.for('Stream.toStreamable')] = () => 'from-function';
+  assert.strictEqual(textSync(fromSync(source)), 'from-function');
+  // ...also when nested inside another source.
+  assert.strictEqual(textSync(fromSync([source, '!'])), 'from-function!');
+  // A function without a protocol is still rejected.
+  assert.throws(() => fromSync(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 Promise.all([
   testFromSyncString(),
   testFromSyncUint8Array(),
@@ -231,6 +272,9 @@ Promise.all([
   testFromSyncTopLevelProtocolOverIterator(),
   testFromSyncIgnoresAsyncStreamable(),
   testFromSyncRejectsAsyncIterable(),
+  testFromSyncPrefersIteratorForDualIterable(),
+  testFromSyncPrefersIteratorForThenableIterable(),
   testFromSyncRejectsPromise(),
   testFromSyncDataView(),
+  testFromSyncFunctionWithToStreamable(),
 ]).then(common.mustCall());

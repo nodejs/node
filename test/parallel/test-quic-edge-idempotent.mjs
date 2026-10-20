@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -37,17 +35,17 @@ await stream.closed;
 // Double close() on session — both return the same promise.
 const p1 = clientSession.close();
 const p2 = clientSession.close();
-strictEqual(p1, p2);
+assert.strictEqual(p1, p2);
 await clientSession.closed;
 
 // Double destroy() — second call is no-op.
 clientSession.destroy();
-strictEqual(clientSession.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
 clientSession.destroy();  // Should not throw.
-strictEqual(clientSession.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
 
 // Double close() on endpoint.
 const ep1 = serverEndpoint.close();
 const ep2 = serverEndpoint.close();
-strictEqual(ep1, ep2);
+assert.strictEqual(ep1, ep2);
 await serverEndpoint.closed;

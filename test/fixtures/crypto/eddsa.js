@@ -1,5 +1,7 @@
 'use strict';
 
+const { isBoringSSL } = require('../../common/crypto');
+
 const common = require('../../common');
 
 module.exports = function() {
@@ -46,7 +48,7 @@ module.exports = function() {
   const algorithms = ['Ed25519'];
   const contexts = [new Uint8Array(0), new Uint8Array(32), new Uint8Array(255)];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     algorithms.push('Ed448')
   } else {
     common.printSkipMessage(`Skipping unsupported Ed448 test cases`);

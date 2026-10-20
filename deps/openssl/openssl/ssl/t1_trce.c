@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1328,33 +1328,46 @@ static int ssl_print_certificate(BIO *bio, const SSL_CONNECTION *sc, int indent,
     return 1;
 }
 
-static int ssl_print_raw_public_key(BIO *bio, const SSL *ssl, int server,
-    int indent, const unsigned char **pmsg,
-    size_t *pmsglen)
+static int ssl_print_raw_public_key(BIO *bio, const SSL_CONNECTION *sc,
+    int server, int indent, const unsigned char **pmsg, size_t *pmsglen)
 {
     EVP_PKEY *pkey;
+    SSL_CTX *ctx = SSL_CONNECTION_GET_CTX(sc);
     size_t clen;
     const unsigned char *msg = *pmsg;
     size_t msglen = *pmsglen;
+    int has_spki_len;
 
-    if (msglen < 3)
-        return 0;
-    clen = (msg[0] << 16) | (msg[1] << 8) | msg[2];
-    if (msglen < clen + 3)
-        return 0;
-
-    msg += 3;
+    /*
+     * In TLS 1.2 and prior the SPKI is the entire payload of the extension,
+     * and does not have a separate length prefix
+     */
+    has_spki_len = SSL_CONNECTION_IS_DTLS(sc)
+        ? DTLS_VERSION_GT(sc->version, DTLS1_2_VERSION)
+        : sc->version > TLS1_2_VERSION;
+    if (has_spki_len) {
+        if (msglen < 3)
+            return 0;
+        clen = (msg[0] << 16) | (msg[1] << 8) | msg[2];
+        if (msglen < clen + 3)
+            return 0;
+        msg += 3;
+        *pmsg += clen + 3;
+        *pmsglen -= clen + 3;
+    } else {
+        clen = msglen;
+        *pmsg += msglen;
+        *pmsglen -= msglen;
+    }
 
     BIO_indent(bio, indent, 80);
     BIO_printf(bio, "raw_public_key, length=%d\n", (int)clen);
 
-    pkey = d2i_PUBKEY_ex(NULL, &msg, clen, ssl->ctx->libctx, ssl->ctx->propq);
+    pkey = d2i_PUBKEY_ex(NULL, &msg, (long)clen, ctx->libctx, ctx->propq);
     if (pkey == NULL)
         return 0;
     EVP_PKEY_print_public(bio, pkey, indent + 2, NULL);
     EVP_PKEY_free(pkey);
-    *pmsg += clen + 3;
-    *pmsglen -= clen + 3;
     return 1;
 }
 
@@ -1376,7 +1389,7 @@ static int ssl_print_certificates(BIO *bio, const SSL_CONNECTION *sc, int server
     msg += 3;
     if ((server && sc->ext.server_cert_type == TLSEXT_cert_type_rpk)
         || (!server && sc->ext.client_cert_type == TLSEXT_cert_type_rpk)) {
-        if (!ssl_print_raw_public_key(bio, &sc->ssl, server, indent, &msg, &clen))
+        if (!ssl_print_raw_public_key(bio, sc, server, indent, &msg, &clen))
             return 0;
         if (SSL_CONNECTION_IS_TLS13(sc)
             && !ssl_print_extensions(bio, indent + 2, server,

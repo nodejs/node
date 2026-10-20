@@ -47,9 +47,7 @@ template <std::size_t size> class knuth_morris_pratt_searcher {
   static constexpr bits::carray<std::ptrdiff_t, size>
   build_kmp_cache(char const (&needle)[size + 1]) {
     std::ptrdiff_t cnd = 0;
-    bits::carray<std::ptrdiff_t, size> cache;
-
-    cache.fill(-1);
+    bits::carray<std::ptrdiff_t, size> cache(-1);
     for (std::size_t pos = 1; pos < size; ++pos) {
       if (needle[pos] == needle[cnd]) {
         cache[pos] = cache[cnd];
@@ -109,9 +107,7 @@ template <std::size_t size> class boyer_moore_searcher {
   bits::carray<char, size> needle_;
 
   constexpr auto build_skip_table(char const (&needle)[size + 1]) {
-    skip_table_type skip_table;
-
-    skip_table.fill(size);
+    skip_table_type skip_table(size);
     for (std::size_t i = 0; i < size - 1; ++i)
       skip_table[needle[i]] -= i + 1;
     return skip_table;

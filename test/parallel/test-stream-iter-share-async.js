@@ -4,12 +4,13 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  dump,
   from,
   share,
   text,
 } = require('stream/iter');
 
-const { setTimeout } = require('timers/promises');
+const { setTimeout, setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Async share()
@@ -30,7 +31,7 @@ async function testShareMultipleConsumers() {
     yield [new TextEncoder().encode('chunk3')];
   }
 
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   const c1 = shared.pull();
   const c2 = shared.pull();
@@ -97,7 +98,7 @@ async function testShareCancelMidIteration() {
       sourceReturnCalled = true;
     }
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const consumer = shared.pull();
 
   const items = [];
@@ -111,7 +112,7 @@ async function testShareCancelMidIteration() {
   assert.strictEqual(items.length, 1);
   assert.strictEqual(items[0], 'a');
 
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(sourceReturnCalled, true);
 }
 
@@ -132,32 +133,185 @@ async function testShareCancelWithReason() {
   );
 }
 
+async function testShareCancelWithFalsyReason() {
+  for (const reason of [0, '', false, null]) {
+    const shared = share(from('data'));
+    const iterator = shared.pull()[Symbol.asyncIterator]();
+
+    shared.cancel(reason);
+
+    await assert.rejects(iterator.next(), (error) => error === reason);
+  }
+}
+
+async function testShareCancelWhileSourcePullPending() {
+  const noReason = { __proto__: null };
+
+  for (const reason of [noReason, 0]) {
+    const sourceStarted = Promise.withResolvers();
+    const sourceNext = Promise.withResolvers();
+    let nextCalls = 0;
+    let returnCalls = 0;
+    const source = {
+      __proto__: null,
+      [Symbol.asyncIterator]() {
+        return {
+          __proto__: null,
+          next() {
+            nextCalls++;
+            sourceStarted.resolve();
+            return sourceNext.promise;
+          },
+          async return() {
+            returnCalls++;
+            return { __proto__: null, done: true, value: undefined };
+          },
+        };
+      },
+    };
+    const shared = share(source);
+    const iterator = shared.pull()[Symbol.asyncIterator]();
+    const read = iterator.next().then(
+      (value) => ({ __proto__: null, rejected: false, value }),
+      (error) => ({ __proto__: null, rejected: true, error }),
+    );
+
+    await sourceStarted.promise;
+    if (reason === noReason) {
+      shared.cancel();
+    } else {
+      shared.cancel(reason);
+    }
+
+    const timedOut = { __proto__: null };
+    const outcome = await Promise.race([
+      read,
+      setImmediate(timedOut),
+    ]);
+    assert.notStrictEqual(outcome, timedOut);
+    if (reason === noReason) {
+      assert.strictEqual(outcome.rejected, false);
+      assert.strictEqual(outcome.value.done, true);
+    } else {
+      assert.strictEqual(outcome.rejected, true);
+      assert.strictEqual(outcome.error, reason);
+    }
+    assert.strictEqual(nextCalls, 1);
+
+    sourceNext.resolve({
+      __proto__: null,
+      done: false,
+      value: [Uint8Array.of(1)],
+    });
+    await setImmediate();
+    assert.strictEqual(returnCalls, 1);
+  }
+}
+
 async function testShareAbortSignal() {
   const ac = new AbortController();
-  const shared = share(from('data'), { signal: ac.signal });
-  const consumer = shared.pull();
-
-  ac.abort();
-
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
+  const reason = new Error('share aborted');
+  const enc = new TextEncoder();
+  async function* source() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
   }
-  assert.strictEqual(batches.length, 0);
+  const shared = share(source(), {
+    budget: 16384,
+    backpressure: 'unbounded',
+    signal: ac.signal,
+  });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  shared.pull();
+
+  await fast.next();
+  const read = fast.next();
+  const rejected = assert.rejects(read, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+}
+
+async function testShareAbortSignalWhileSourcePullPending() {
+  const ac = new AbortController();
+  const {
+    promise: resumePromise,
+    resolve: resume,
+  } = Promise.withResolvers();
+  const {
+    promise: sourceStartedPromise,
+    resolve: sourceStarted,
+  } = Promise.withResolvers();
+
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return {
+        __proto__: null,
+        async next() {
+          sourceStarted();
+          await resumePromise;
+          return { __proto__: null, done: true, value: undefined };
+        },
+      };
+    },
+  };
+
+  const shared = share(source, { signal: ac.signal });
+  const iter1 = shared.pull()[Symbol.asyncIterator]();
+  const iter2 = shared.pull()[Symbol.asyncIterator]();
+  const read1 = iter1.next();
+  const read2 = iter2.next();
+  const rejected1 = assert.rejects(read1, { name: 'AbortError' });
+  const rejected2 = assert.rejects(read2, { name: 'AbortError' });
+
+  await sourceStartedPromise;
+  ac.abort();
+  resume();
+
+  await Promise.all([rejected1, rejected2]);
+}
+
+async function testSharePullAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('pull aborted');
+  const shared = share(
+    // eslint-disable-next-line require-yield
+    (async function* never() {
+      await new Promise(() => {});
+    })(),
+  );
+  const iter = shared.pull({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+  shared.cancel();
+}
+
+async function testSharePullPreAbortedSignalDoesNotAddConsumer() {
+  const reason = new Error('already aborted');
+  const signal = AbortSignal.abort(reason);
+  const shared = share(from('data'));
+  const iter = shared.pull({ signal })[Symbol.asyncIterator]();
+
+  assert.strictEqual(shared.consumerCount, 0);
+  await assert.rejects(iter.next(), (error) => error === reason);
+  assert.strictEqual(shared.consumerCount, 0);
 }
 
 async function testShareAlreadyAborted() {
-  const ac = new AbortController();
-  ac.abort();
-
-  const shared = share(from('data'), { signal: ac.signal });
+  const shared = share(from('data'), { signal: AbortSignal.abort() });
   const consumer = shared.pull();
 
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
-  }
-  assert.strictEqual(batches.length, 0);
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of consumer) {
+      assert.fail('Should not reach here');
+    }
+  }, { name: 'AbortError' });
 }
 
 // =============================================================================
@@ -174,13 +328,32 @@ async function testShareSourceError() {
   const c2 = shared.pull();
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c1) { /* consume */ }
+    await dump(c1);
   }, { message: 'share source boom' });
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c2) { /* consume */ }
+    await dump(c2);
   }, { message: 'share source boom' });
+}
+
+async function testShareSourceErrorFollowsBufferedData() {
+  const reason = new Error('share source boom');
+  async function* failingSource() {
+    yield [Uint8Array.of(1)];
+    throw reason;
+  }
+
+  const shared = share(failingSource());
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+  const returned = shared.pull()[Symbol.asyncIterator]();
+  await returned.return();
+
+  assert.deepStrictEqual((await fast.next()).value, [Uint8Array.of(1)]);
+  await assert.rejects(fast.next(), (error) => error === reason);
+
+  assert.deepStrictEqual((await slow.next()).value, [Uint8Array.of(1)]);
+  await assert.rejects(slow.next(), (error) => error === reason);
+  assert.strictEqual((await returned.next()).done, true);
 }
 
 async function testShareLateJoiningConsumer() {
@@ -192,7 +365,7 @@ async function testShareLateJoiningConsumer() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   // First consumer reads all data
   const c1 = shared.pull();
@@ -206,6 +379,64 @@ async function testShareLateJoiningConsumer() {
   assert.strictEqual(data2, '');
 }
 
+async function testShareRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  async function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = share(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.asyncIterator]();
+  const c2 = shared.pull()[Symbol.asyncIterator]();
+  assert.deepStrictEqual((await c1.next()).value, [enc.encode('a')]);
+  // c2 has not read 'a' yet; it is the last consumer to detach.
+  await c1.return();
+  await c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(await text(shared.pull()), 'abc');
+}
+
+async function testShareDropOldestSplitsOversizedBatches() {
+  // from() combines the values of this sync generator into a single batch
+  // that is much larger than the budget. Evicting that batch as a whole would
+  // leave the slower consumer with nothing at all.
+  function* source() {
+    for (let i = 0; i < 50; i++) {
+      const chunk = new Uint8Array(4096);
+      chunk[0] = i;
+      yield chunk;
+    }
+  }
+  const shared = share(source(), {
+    budget: 65536,
+    backpressure: 'drop-oldest',
+  });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+
+  const fastSeen = [];
+  for (let r = await fast.next(); !r.done; r = await fast.next()) {
+    for (const chunk of r.value) fastSeen.push(chunk[0]);
+  }
+  assert.deepStrictEqual(fastSeen, Array.from({ length: 50 }, (_, i) => i));
+
+  const slowSeen = [];
+  for (let r = await slow.next(); !r.done; r = await slow.next()) {
+    for (const chunk of r.value) slowSeen.push(chunk[0]);
+  }
+  // The slow consumer lost the oldest chunks but keeps an in-order suffix
+  // that fits the budget.
+  assert.ok(slowSeen.length > 0);
+  assert.ok(slowSeen.length * 4096 < 65536);
+  assert.deepStrictEqual(
+    slowSeen,
+    Array.from({ length: slowSeen.length }, (_, i) => 50 - slowSeen.length + i));
+}
+
 async function testShareConsumerBreak() {
   // Verify that a consumer breaking mid-iteration detaches properly
   const enc = new TextEncoder();
@@ -214,7 +445,7 @@ async function testShareConsumerBreak() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const c1 = shared.pull();
   const c2 = shared.pull();
 
@@ -258,6 +489,24 @@ async function testShareMultipleConsumersConcurrentPull() {
   assert.strictEqual(t3, expected);
 }
 
+async function testShareConsumerConcurrentNextCalls() {
+  async function* source() {
+    const enc = new TextEncoder();
+    yield [enc.encode('first')];
+    yield [enc.encode('second')];
+  }
+
+  const shared = share(source());
+  const it = shared.pull()[Symbol.asyncIterator]();
+  const first = it.next();
+  const second = it.next();
+
+  const [r1, r2] = await Promise.all([first, second]);
+  const dec = new TextDecoder();
+  assert.strictEqual(dec.decode(r1.value[0]), 'first');
+  assert.strictEqual(dec.decode(r2.value[0]), 'second');
+}
+
 // share() accepts string source directly (normalized via from())
 async function testShareStringSource() {
   const shared = share('hello-share');
@@ -272,11 +521,20 @@ Promise.all([
   testShareCancel(),
   testShareCancelMidIteration(),
   testShareCancelWithReason(),
+  testShareCancelWithFalsyReason(),
+  testShareCancelWhileSourcePullPending(),
   testShareAbortSignal(),
+  testShareAbortSignalWhileSourcePullPending(),
+  testSharePullAbortSignalRejectsPendingNext(),
+  testSharePullPreAbortedSignalDoesNotAddConsumer(),
   testShareAlreadyAborted(),
   testShareSourceError(),
+  testShareSourceErrorFollowsBufferedData(),
   testShareLateJoiningConsumer(),
+  testShareRetainsBufferWhenAllConsumersDetach(),
+  testShareDropOldestSplitsOversizedBatches(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
+  testShareConsumerConcurrentNextCalls(),
   testShareStringSource(),
 ]).then(common.mustCall());

@@ -7,7 +7,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 // This test case reproduces a case in Turbofan where the WasmTyper was
 // flip-flopping between two different states never reaching a fix point.
 const builder = new WasmModuleBuilder();
-let $array1 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+let $array1 = builder.addArray(kWasmI16, {final: true});
 let loopSig = builder.addType(makeSig([kWasmFuncRef], []));
 let funcEndless = builder.addFunction('funcEndless', kSig_v_v).exportFunc()
   .addLocals(kWasmFuncRef, 1)  // $var0

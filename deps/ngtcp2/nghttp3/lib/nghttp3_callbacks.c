@@ -45,7 +45,7 @@ nghttp3_callbacks_convert_to_latest(nghttp3_callbacks *dest,
     return src;
   }
 
-  memset(dest, 0, sizeof(*dest));
+  *dest = (nghttp3_callbacks){0};
 
   callbacks_copy(dest, src, callbacks_version);
 
@@ -66,6 +66,9 @@ size_t nghttp3_callbackslen_version(int callbacks_version) {
   switch (callbacks_version) {
   case NGHTTP3_CALLBACKS_VERSION:
     return sizeof(callbacks);
+  case NGHTTP3_CALLBACKS_V3:
+    return offsetof(nghttp3_callbacks, recv_settings2) +
+           sizeof(callbacks.recv_settings2);
   case NGHTTP3_CALLBACKS_V2:
     return offsetof(nghttp3_callbacks, rand) + sizeof(callbacks.rand);
   case NGHTTP3_CALLBACKS_V1:

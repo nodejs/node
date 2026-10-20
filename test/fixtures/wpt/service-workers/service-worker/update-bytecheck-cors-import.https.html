@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+// Tests of updating a service worker. This file contains cors cases only.
+
+/*
+ * @param string main
+ *   Decide the content of the main script, where 'default' is for constant
+ *   content while 'time' is for time-variant content.
+ * @param string imported
+ *   Decide the content of the imported script, where 'default' is for constant
+ *   content while 'time' is for time-variant content.
+ */
+const settings = [{main: 'default', imported: 'default'},
+                  {main: 'default', imported: 'time'   },
+                  {main: 'time',    imported: 'default'},
+                  {main: 'time',    imported: 'time'   }];
+
+const host_info = get_host_info();
+settings.forEach(({main, imported}) => {
+  promise_test(async (t) => {
+    // Specify a cross origin path to load imported scripts from a cross origin.
+    const path = host_info.HTTPS_REMOTE_ORIGIN +
+                 '/service-workers/service-worker/resources/';
+    const script = 'resources/bytecheck-worker.py' +
+                   '?main=' + main +
+                   '&imported=' + imported +
+                   '&path=' + path +
+                   '&type=classic';
+    const scope = 'resources/blank.html';
+
+    // Register a service worker.
+    const swr = await service_worker_unregister_and_register(t, script, scope);
+    t.add_cleanup(() => swr.unregister());
+    const sw = await wait_for_update(t, swr);
+    await wait_for_state(t, sw, 'activated');
+    assert_array_equals([swr.active, swr.waiting, swr.installing],
+                        [sw, null, null]);
+
+    // Update the service worker registration.
+    await swr.update();
+
+    // If there should be a new service worker.
+    if (main === 'time' || imported === 'time') {
+      return wait_for_update(t, swr);
+    }
+    // Otherwise, make sure there is no newly created service worker.
+    assert_array_equals([swr.active, swr.waiting, swr.installing],
+                        [sw, null, null]);
+  }, `Test(main: ${main}, imported: ${imported})`);
+});
+
+settings.forEach(({main, imported}) => {
+  promise_test(async (t) => {
+    // Specify a cross origin path to load imported scripts from a cross origin.
+    const path = host_info.HTTPS_REMOTE_ORIGIN +
+                 '/service-workers/service-worker/resources/';
+    const script = 'resources/bytecheck-worker.py' +
+                   '?main=' + main +
+                   '&imported=' + imported +
+                   '&path=' + path +
+                   '&type=module';
+    const scope = 'resources/blank.html';
+
+    // Register a service worker.
+    const swr = await service_worker_unregister_and_register(t, script, scope, {type: 'module'});
+    t.add_cleanup(() => swr.unregister());
+    const sw = await wait_for_update(t, swr);
+    await wait_for_state(t, sw, 'activated');
+    assert_array_equals([swr.active, swr.waiting, swr.installing],
+                        [sw, null, null]);
+
+    // Update the service worker registration.
+    await swr.update();
+
+    // If there should be a new service worker.
+    if (main === 'time' || imported === 'time') {
+      return wait_for_update(t, swr);
+    }
+    // Otherwise, make sure there is no newly created service worker.
+    assert_array_equals([swr.active, swr.waiting, swr.installing],
+                        [sw, null, null]);
+  }, `Test module script(main: ${main}, imported: ${imported})`);
+});
+</script>

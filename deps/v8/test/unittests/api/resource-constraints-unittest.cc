@@ -23,7 +23,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeSmall) {
 
 TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   const uint64_t physical_memory = 0;
-  const size_t heap_max_size = Heap::DefaultMaxHeapSize(physical_memory);
+  const size_t heap_max_size = Heap::kDefaultMaxHeapSize;
   v8::ResourceConstraints constraints;
   const size_t expected_young_gen_max_size =
       Heap::DefaultMaxSemiSpaceSize(physical_memory) *
@@ -46,10 +46,13 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
 
 TEST(ResourceConstraints, ConfigureDefaults) {
   const uint64_t physical_memory = 2u * GB;
-  const size_t heap_max_size = Heap::DefaultMaxHeapSize(physical_memory);
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(2u * GB, 0u);
-  ASSERT_EQ(heap_max_size / 2, constraints.max_old_generation_size_in_bytes());
+#if V8_OS_ANDROID || defined(V8_TARGET_ARCH_32_BIT)
+  ASSERT_EQ(GB / 2u, constraints.max_old_generation_size_in_bytes());
+#else
+  ASSERT_EQ(1u * GB, constraints.max_old_generation_size_in_bytes());
+#endif
   ASSERT_EQ(0u, constraints.initial_old_generation_size_in_bytes());
   ASSERT_EQ(Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2 *
                 (internal::v8_flags.minor_ms ? (2 * 2) : 3),

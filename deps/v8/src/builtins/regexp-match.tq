@@ -12,11 +12,7 @@ const kIRREGEXP: constexpr uint8
     generates 'static_cast<uint8_t>(RegExpData::Type::IRREGEXP)';
 const kEXPERIMENTAL: constexpr uint8
     generates 'static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL)';
-const kRegExpDataIndirectPointerTag:
-    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
-extern macro LoadTrustedPointerFromObject(
-    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 extern transitioning macro RegExpBuiltinsAssembler::RegExpMatchGlobal(
     implicit context: Context)(JSRegExp, String, RegExpData): JSAny;
 
@@ -58,9 +54,7 @@ transitioning macro RegExpPrototypeMatchBody(
   if constexpr (isFastPath) {
     const jsregexp = UnsafeCast<JSRegExp>(regexp);
     const data: RegExpData =
-        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-            jsregexp, kJSRegExpRegExpDataOffset,
-            kRegExpDataIndirectPointerTag));
+        LoadRegExpDataFromObject(jsregexp, kJSRegExpRegExpDataOffset);
     if (data.type_tag == kATOM) {
       // TODO(jgruber): We could merge this path with
       // RegExpMatchGlobal; but then we'd lose the caching.
@@ -137,7 +131,7 @@ transitioning builtin RegExpMatchFast(
   return FastRegExpPrototypeMatchBody(receiver, string);
 }
 
-// ES#sec-regexp.prototype-@@match
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 transitioning javascript builtin RegExpPrototypeMatch(
     js-implicit context: NativeContext, receiver: JSAny)(

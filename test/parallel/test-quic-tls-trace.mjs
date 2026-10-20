@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,7 +25,7 @@ const clientSession = await connect(serverEndpoint.address, {
   tlsTrace: true,
 });
 await clientSession.opened;
-strictEqual(clientSession.destroyed, false);
+assert.strictEqual(clientSession.destroyed, false);
 
 await clientSession.closed;
 await serverEndpoint.close();

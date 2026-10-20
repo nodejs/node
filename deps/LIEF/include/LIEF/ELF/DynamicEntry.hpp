@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,11 @@ struct Elf32_Dyn;
 }
 
 /// Class which represents an entry in the dynamic table
-/// These entries are located in the ``.dynamic`` section or the ``PT_DYNAMIC`` segment
+/// These entries are located in the ``.dynamic`` section or the ``PT_DYNAMIC``
+/// segment
 class LIEF_API DynamicEntry : public Object {
   public:
+  // clang-format off
   static constexpr uint64_t MIPS_DISC    = 0x100000000;
   static constexpr uint64_t AARCH64_DISC = 0x200000000;
   static constexpr uint64_t HEXAGON_DISC = 0x300000000;
@@ -45,67 +47,72 @@ class LIEF_API DynamicEntry : public Object {
   static constexpr uint64_t IA_64_DISC   = 0x800000000;
 
   enum class TAG : uint64_t {
-    UNKNOWN                    = uint64_t(-1),
-    DT_NULL_                   = 0, /**< Marks end of dynamic array. */
-    NEEDED                     = 1, /**< String table offset of needed library. */
-    PLTRELSZ                   = 2, /**< Size of relocation entries in PLT. */
-    PLTGOT                     = 3, /**< Address associated with linkage table. */
-    HASH                       = 4, /**< Address of symbolic hash table. */
-    STRTAB                     = 5, /**< Address of dynamic string table. */
-    SYMTAB                     = 6, /**< Address of dynamic symbol table. */
-    RELA                       = 7, /**< Address of relocation table (Rela entries). */
-    RELASZ                     = 8, /**< Size of Rela relocation table. */
-    RELAENT                    = 9, /**< Size of a Rela relocation entry. */
-    STRSZ                      = 10,/**< Total size of the string table. */
-    SYMENT                     = 11,/**< Size of a symbol table entry. */
-    INIT                       = 12,/**< Address of initialization function. */
-    FINI                       = 13,/**< Address of termination function. */
-    SONAME                     = 14,/**< String table offset of a shared objects name. */
-    RPATH                      = 15,/**< String table offset of library search path. */
-    SYMBOLIC                   = 16,/**< Changes symbol resolution algorithm. */
-    REL                        = 17,/**< Address of relocation table (Rel entries). */
-    RELSZ                      = 18,/**< Size of Rel relocation table. */
-    RELENT                     = 19,/**< Size of a Rel relocation entry. */
-    PLTREL                     = 20,/**< Type of relocation entry used for linking. */
-    DEBUG_TAG                  = 21,/**< Reserved for debugger. */
-    TEXTREL                    = 22,/**< Relocations exist for non-writable segments. */
-    JMPREL                     = 23,/**< Address of relocations associated with PLT. */
-    BIND_NOW                   = 24,/**< Process all relocations before execution. */
-    INIT_ARRAY                 = 25,/**< Pointer to array of initialization functions. */
-    FINI_ARRAY                 = 26,/**< Pointer to array of termination functions. */
-    INIT_ARRAYSZ               = 27,/**< Size of DT_INIT_ARRAY. */
-    FINI_ARRAYSZ               = 28,/**< Size of DT_FINI_ARRAY. */
-    RUNPATH                    = 29,/**< String table offset of lib search path. */
-    FLAGS                      = 30,/**< Flags. */
-    PREINIT_ARRAY              = 32,/**< Pointer to array of preinit functions. */
-    PREINIT_ARRAYSZ            = 33,/**< Size of the DT_PREINIT_ARRAY array. */
-    SYMTAB_SHNDX               = 34,/**< Address of SYMTAB_SHNDX section */
-    RELRSZ                     = 35,/**< Total size of RELR relative relocations */
-    RELR                       = 36,/**< Address of RELR relative relocations */
-    RELRENT                    = 37,/**< Size of one RELR relative relocaction */
+    UNKNOWN = uint64_t(-1),
+    DT_NULL_ = 0,         /**< Marks end of dynamic array. */
+    NEEDED = 1,           /**< String table offset of needed library. */
+    PLTRELSZ = 2,         /**< Size of relocation entries in PLT. */
+    PLTGOT = 3,           /**< Address associated with linkage table. */
+    HASH = 4,             /**< Address of symbolic hash table. */
+    STRTAB = 5,           /**< Address of dynamic string table. */
+    SYMTAB = 6,           /**< Address of dynamic symbol table. */
+    RELA = 7,             /**< Address of relocation table (Rela entries). */
+    RELASZ = 8,           /**< Size of Rela relocation table. */
+    RELAENT = 9,          /**< Size of a Rela relocation entry. */
+    STRSZ = 10,           /**< Total size of the string table. */
+    SYMENT = 11,          /**< Size of a symbol table entry. */
+    INIT = 12,            /**< Address of initialization function. */
+    FINI = 13,            /**< Address of termination function. */
+    SONAME = 14,          /**< String table offset of a shared objects name. */
+    RPATH = 15,           /**< String table offset of library search path. */
+    SYMBOLIC = 16,        /**< Changes symbol resolution algorithm. */
+    REL = 17,             /**< Address of relocation table (Rel entries). */
+    RELSZ = 18,           /**< Size of Rel relocation table. */
+    RELENT = 19,          /**< Size of a Rel relocation entry. */
+    PLTREL = 20,          /**< Type of relocation entry used for linking. */
+    DEBUG_TAG = 21,       /**< Reserved for debugger. */
+    TEXTREL = 22,         /**< Relocations exist for non-writable segments. */
+    JMPREL = 23,          /**< Address of relocations associated with PLT. */
+    BIND_NOW = 24,        /**< Process all relocations before execution. */
+    INIT_ARRAY = 25,      /**< Pointer to array of initialization functions. */
+    FINI_ARRAY = 26,      /**< Pointer to array of termination functions. */
+    INIT_ARRAYSZ = 27,    /**< Size of DT_INIT_ARRAY. */
+    FINI_ARRAYSZ = 28,    /**< Size of DT_FINI_ARRAY. */
+    RUNPATH = 29,         /**< String table offset of lib search path. */
+    FLAGS = 30,           /**< Flags. */
+    PREINIT_ARRAY = 32,   /**< Pointer to array of preinit functions. */
+    PREINIT_ARRAYSZ = 33, /**< Size of the DT_PREINIT_ARRAY array. */
+    SYMTAB_SHNDX = 34,    /**< Address of SYMTAB_SHNDX section */
+    RELRSZ = 35,          /**< Total size of RELR relative relocations */
+    RELR = 36,            /**< Address of RELR relative relocations */
+    RELRENT = 37,         /**< Size of one RELR relative relocation */
 
     // GNU Extensions
-    GNU_HASH                   = 0x6FFFFEF5, /**< Reference to the GNU hash table. */
-    RELACOUNT                  = 0x6FFFFFF9, /**< ELF32_Rela count. */
-    RELCOUNT                   = 0x6FFFFFFA, /**< ELF32_Rel count. */
-    FLAGS_1                    = 0x6FFFFFFB, /**< Flags_1. */
-    VERSYM                     = 0x6FFFFFF0, /**< The address of .gnu.version section. */
-    VERDEF                     = 0x6FFFFFFC, /**< The address of the version definition table. */
-    VERDEFNUM                  = 0x6FFFFFFD, /**< The number of entries in DT_VERDEF. */
-    VERNEED                    = 0x6FFFFFFE, /**< The address of the version Dependency table. */
-    VERNEEDNUM                 = 0x6FFFFFFF, /**< The number of entries in DT_VERNEED. */
+    GNU_HASH    = 0x6FFFFEF5, /**< Reference to the GNU hash table. */
+    TLSDESC_PLT = 0x6FFFFEF6, /**< Location of PLT entry for TLS descriptor resolver calls. */
+    TLSDESC_GOT = 0x6FFFFEF7, /**< Location of GOT entry for TLS descriptor resolver PLT entry. */
+    RELACOUNT   = 0x6FFFFFF9, /**< ELF32_Rela count. */
+    RELCOUNT    = 0x6FFFFFFA, /**< ELF32_Rel count. */
+    FLAGS_1     = 0x6FFFFFFB, /**< Flags_1. */
+    VERSYM      = 0x6FFFFFF0, /**< The address of .gnu.version section. */
+    VERDEF      = 0x6FFFFFFC, /**< The address of the version definition table. */
+    VERDEFNUM   = 0x6FFFFFFD, /**< The number of entries in DT_VERDEF. */
+    VERNEED     = 0x6FFFFFFE, /**< The address of the version Dependency table. */
+    VERNEEDNUM  = 0x6FFFFFFF, /**< The number of entries in DT_VERNEED. */
+
+    AUXILIARY = 0x7ffffffd, /**< Shared object to load before self */
+    FILTER    = 0x7fffffff, /**< Shared object to filter from */
 
     // Android Extensions
-    ANDROID_REL_OFFSET         = 0x6000000D, /**< The offset of packed relocation data (older version < M) (Android specific). */
-    ANDROID_REL_SIZE           = 0x6000000E, /**< The size of packed relocation data in bytes (older version < M) (Android specific). */
-    ANDROID_REL                = 0x6000000F, /**< The offset of packed relocation data (Android specific). */
-    ANDROID_RELSZ              = 0x60000010, /**< The size of packed relocation data in bytes (Android specific). */
-    ANDROID_RELA               = 0x60000011, /**< The offset of packed relocation data (Android specific). */
-    ANDROID_RELASZ             = 0x60000012, /**< The size of packed relocation data in bytes (Android specific). */
-    ANDROID_RELR               = 0x6FFFE000, /**< The offset of new relr relocation data (Android specific). */
-    ANDROID_RELRSZ             = 0x6FFFE001, /**< The size of nre relr relocation data in bytes (Android specific). */
-    ANDROID_RELRENT            = 0x6FFFE003, /**< The size of a new relr relocation entry (Android specific). */
-    ANDROID_RELRCOUNT          = 0x6FFFE005,  /**< Specifies the relative count of new relr relocation entries (Android specific). */
+    ANDROID_REL_OFFSET = 0x6000000D, /**< The offset of packed relocation data (older version < M) (Android specific). */
+    ANDROID_REL_SIZE   = 0x6000000E, /**< The size of packed relocation data in bytes (older version < M) (Android specific). */
+    ANDROID_REL        = 0x6000000F, /**< The offset of packed relocation data (Android specific). */
+    ANDROID_RELSZ      = 0x60000010, /**< The size of packed relocation data in bytes (Android specific). */
+    ANDROID_RELA       = 0x60000011, /**< The offset of packed relocation data (Android specific). */
+    ANDROID_RELASZ     = 0x60000012, /**< The size of packed relocation data in bytes (Android specific). */
+    ANDROID_RELR       = 0x6FFFE000, /**< The offset of new relr relocation data (Android specific). */
+    ANDROID_RELRSZ     = 0x6FFFE001, /**< The size of new relr relocation data in bytes (Android specific). */
+    ANDROID_RELRENT    = 0x6FFFE003, /**< The size of a new relr relocation entry (Android specific). */
+    ANDROID_RELRCOUNT  = 0x6FFFE005, /**< Specifies the relative count of new relr relocation entries (Android specific). */
 
     /* Mips specific dynamic table entry tags. */
     MIPS_RLD_VERSION           = MIPS_DISC + 0x70000001, /**< 32 bit version number for runtime linker interface. */
@@ -156,63 +163,64 @@ class LIEF_API DynamicEntry : public Object {
     MIPS_RLD_MAP_REL           = MIPS_DISC + 0x70000035,
     MIPS_XHASH                 = MIPS_DISC + 0x70000036,
 
-    AARCH64_BTI_PLT            = AARCH64_DISC + 0x70000001,
-    AARCH64_PAC_PLT            = AARCH64_DISC + 0x70000003,
-    AARCH64_VARIANT_PCS        = AARCH64_DISC + 0x70000005,
-    AARCH64_MEMTAG_MODE        = AARCH64_DISC + 0x70000009,
-    AARCH64_MEMTAG_HEAP        = AARCH64_DISC + 0x7000000b,
-    AARCH64_MEMTAG_STACK       = AARCH64_DISC + 0x7000000c,
-    AARCH64_MEMTAG_GLOBALS     = AARCH64_DISC + 0x7000000d,
-    AARCH64_MEMTAG_GLOBALSSZ   = AARCH64_DISC + 0x7000000f,
+    AARCH64_BTI_PLT          = AARCH64_DISC + 0x70000001,
+    AARCH64_PAC_PLT          = AARCH64_DISC + 0x70000003,
+    AARCH64_VARIANT_PCS      = AARCH64_DISC + 0x70000005,
+    AARCH64_MEMTAG_MODE      = AARCH64_DISC + 0x70000009,
+    AARCH64_MEMTAG_HEAP      = AARCH64_DISC + 0x7000000b,
+    AARCH64_MEMTAG_STACK     = AARCH64_DISC + 0x7000000c,
+    AARCH64_MEMTAG_GLOBALS   = AARCH64_DISC + 0x7000000d,
+    AARCH64_MEMTAG_GLOBALSSZ = AARCH64_DISC + 0x7000000f,
 
-    HEXAGON_SYMSZ              = HEXAGON_DISC + 0x70000000,
-    HEXAGON_VER                = HEXAGON_DISC + 0x70000001,
-    HEXAGON_PLT                = HEXAGON_DISC + 0x70000002,
+    HEXAGON_SYMSZ = HEXAGON_DISC + 0x70000000,
+    HEXAGON_VER   = HEXAGON_DISC + 0x70000001,
+    HEXAGON_PLT   = HEXAGON_DISC + 0x70000002,
 
-    PPC_GOT                    = PPC_DISC     + 0x70000000,
-    PPC_OPT                    = PPC_DISC     + 0x70000001,
+    PPC_GOT = PPC_DISC + 0x70000000,
+    PPC_OPT = PPC_DISC + 0x70000001,
 
-    PPC64_GLINK                = PPC64_DISC   + 0x70000000,
-    PPC64_OPT                  = PPC64_DISC   + 0x70000003,
+    PPC64_GLINK = PPC64_DISC + 0x70000000,
+    PPC64_OPT = PPC64_DISC + 0x70000003,
 
-    RISCV_VARIANT_CC           = RISCV_DISC   + 0x70000003,
+    RISCV_VARIANT_CC = RISCV_DISC + 0x70000003,
 
-    X86_64_PLT                 = X86_64_DISC  + 0x70000000,
-    X86_64_PLTSZ               = X86_64_DISC  + 0x70000001,
-    X86_64_PLTENT              = X86_64_DISC  + 0x70000003,
+    X86_64_PLT    = X86_64_DISC + 0x70000000,
+    X86_64_PLTSZ  = X86_64_DISC + 0x70000001,
+    X86_64_PLTENT = X86_64_DISC + 0x70000003,
 
-    IA_64_PLT_RESERVE          = IA_64_DISC + (0x70000000 + 0),
-    IA_64_VMS_SUBTYPE          = IA_64_DISC + (0x60000000 + 0),
-    IA_64_VMS_IMGIOCNT         = IA_64_DISC + (0x60000000 + 2),
-    IA_64_VMS_LNKFLAGS         = IA_64_DISC + (0x60000000 + 8),
-    IA_64_VMS_VIR_MEM_BLK_SIZ  = IA_64_DISC + (0x60000000 + 10),
-    IA_64_VMS_IDENT            = IA_64_DISC + (0x60000000 + 12),
-    IA_64_VMS_NEEDED_IDENT     = IA_64_DISC + (0x60000000 + 16),
-    IA_64_VMS_IMG_RELA_CNT     = IA_64_DISC + (0x60000000 + 18),
-    IA_64_VMS_SEG_RELA_CNT     = IA_64_DISC + (0x60000000 + 20),
-    IA_64_VMS_FIXUP_RELA_CNT   = IA_64_DISC + (0x60000000 + 22),
-    IA_64_VMS_FIXUP_NEEDED     = IA_64_DISC + (0x60000000 + 24),
-    IA_64_VMS_SYMVEC_CNT       = IA_64_DISC + (0x60000000 + 26),
-    IA_64_VMS_XLATED           = IA_64_DISC + (0x60000000 + 30),
-    IA_64_VMS_STACKSIZE        = IA_64_DISC + (0x60000000 + 32),
-    IA_64_VMS_UNWINDSZ         = IA_64_DISC + (0x60000000 + 34),
-    IA_64_VMS_UNWIND_CODSEG    = IA_64_DISC + (0x60000000 + 36),
-    IA_64_VMS_UNWIND_INFOSEG   = IA_64_DISC + (0x60000000 + 38),
-    IA_64_VMS_LINKTIME         = IA_64_DISC + (0x60000000 + 40),
-    IA_64_VMS_SEG_NO           = IA_64_DISC + (0x60000000 + 42),
-    IA_64_VMS_SYMVEC_OFFSET    = IA_64_DISC + (0x60000000 + 44),
-    IA_64_VMS_SYMVEC_SEG       = IA_64_DISC + (0x60000000 + 46),
-    IA_64_VMS_UNWIND_OFFSET    = IA_64_DISC + (0x60000000 + 48),
-    IA_64_VMS_UNWIND_SEG       = IA_64_DISC + (0x60000000 + 50),
-    IA_64_VMS_STRTAB_OFFSET    = IA_64_DISC + (0x60000000 + 52),
-    IA_64_VMS_SYSVER_OFFSET    = IA_64_DISC + (0x60000000 + 54),
-    IA_64_VMS_IMG_RELA_OFF     = IA_64_DISC + (0x60000000 + 56),
-    IA_64_VMS_SEG_RELA_OFF     = IA_64_DISC + (0x60000000 + 58),
-    IA_64_VMS_FIXUP_RELA_OFF   = IA_64_DISC + (0x60000000 + 60),
-    IA_64_VMS_PLTGOT_OFFSET    = IA_64_DISC + (0x60000000 + 62),
-    IA_64_VMS_PLTGOT_SEG       = IA_64_DISC + (0x60000000 + 64),
-    IA_64_VMS_FPMODE           = IA_64_DISC + (0x60000000 + 66),
+    IA_64_PLT_RESERVE         = IA_64_DISC + (0x70000000 + 0),
+    IA_64_VMS_SUBTYPE         = IA_64_DISC + (0x60000000 + 0),
+    IA_64_VMS_IMGIOCNT        = IA_64_DISC + (0x60000000 + 2),
+    IA_64_VMS_LNKFLAGS        = IA_64_DISC + (0x60000000 + 8),
+    IA_64_VMS_VIR_MEM_BLK_SIZ = IA_64_DISC + (0x60000000 + 10),
+    IA_64_VMS_IDENT           = IA_64_DISC + (0x60000000 + 12),
+    IA_64_VMS_NEEDED_IDENT    = IA_64_DISC + (0x60000000 + 16),
+    IA_64_VMS_IMG_RELA_CNT    = IA_64_DISC + (0x60000000 + 18),
+    IA_64_VMS_SEG_RELA_CNT    = IA_64_DISC + (0x60000000 + 20),
+    IA_64_VMS_FIXUP_RELA_CNT  = IA_64_DISC + (0x60000000 + 22),
+    IA_64_VMS_FIXUP_NEEDED    = IA_64_DISC + (0x60000000 + 24),
+    IA_64_VMS_SYMVEC_CNT      = IA_64_DISC + (0x60000000 + 26),
+    IA_64_VMS_XLATED          = IA_64_DISC + (0x60000000 + 30),
+    IA_64_VMS_STACKSIZE       = IA_64_DISC + (0x60000000 + 32),
+    IA_64_VMS_UNWINDSZ        = IA_64_DISC + (0x60000000 + 34),
+    IA_64_VMS_UNWIND_CODSEG   = IA_64_DISC + (0x60000000 + 36),
+    IA_64_VMS_UNWIND_INFOSEG  = IA_64_DISC + (0x60000000 + 38),
+    IA_64_VMS_LINKTIME        = IA_64_DISC + (0x60000000 + 40),
+    IA_64_VMS_SEG_NO          = IA_64_DISC + (0x60000000 + 42),
+    IA_64_VMS_SYMVEC_OFFSET   = IA_64_DISC + (0x60000000 + 44),
+    IA_64_VMS_SYMVEC_SEG      = IA_64_DISC + (0x60000000 + 46),
+    IA_64_VMS_UNWIND_OFFSET   = IA_64_DISC + (0x60000000 + 48),
+    IA_64_VMS_UNWIND_SEG      = IA_64_DISC + (0x60000000 + 50),
+    IA_64_VMS_STRTAB_OFFSET   = IA_64_DISC + (0x60000000 + 52),
+    IA_64_VMS_SYSVER_OFFSET   = IA_64_DISC + (0x60000000 + 54),
+    IA_64_VMS_IMG_RELA_OFF    = IA_64_DISC + (0x60000000 + 56),
+    IA_64_VMS_SEG_RELA_OFF    = IA_64_DISC + (0x60000000 + 58),
+    IA_64_VMS_FIXUP_RELA_OFF  = IA_64_DISC + (0x60000000 + 60),
+    IA_64_VMS_PLTGOT_OFFSET   = IA_64_DISC + (0x60000000 + 62),
+    IA_64_VMS_PLTGOT_SEG      = IA_64_DISC + (0x60000000 + 64),
+    IA_64_VMS_FPMODE          = IA_64_DISC + (0x60000000 + 66),
   };
+  // clang-format on
 
   static TAG from_value(uint64_t value, ARCH arch);
   static uint64_t to_value(TAG tag);
@@ -222,8 +230,8 @@ class LIEF_API DynamicEntry : public Object {
   DynamicEntry(const details::Elf32_Dyn& header, ARCH arch);
 
   DynamicEntry(TAG tag, uint64_t value) :
-    tag_(tag), value_(value)
-  {}
+    tag_(tag),
+    value_(value) {}
 
   DynamicEntry& operator=(const DynamicEntry&) = default;
   DynamicEntry(const DynamicEntry&) = default;
@@ -267,8 +275,8 @@ class LIEF_API DynamicEntry : public Object {
 
   std::string to_string() const;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const DynamicEntry& entry) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const DynamicEntry& entry) {
     return entry.print(os);
   }
 
@@ -288,7 +296,7 @@ class LIEF_API DynamicEntry : public Object {
   }
 
   protected:
-  TAG      tag_ = TAG::DT_NULL_;
+  TAG tag_ = TAG::DT_NULL_;
   uint64_t value_ = 0;
 };
 

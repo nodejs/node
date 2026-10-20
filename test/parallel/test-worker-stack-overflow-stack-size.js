@@ -8,6 +8,14 @@ const { Worker } = require('worker_threads');
 // Verify that Workers don't care about --stack-size, as they have their own
 // fixed and known stack sizes.
 
+// The depth of the stack depends not only on the stack size, but also on the size of each
+// stack frame, which in turn depends on which tier the recursive function happens to be
+// running at when the overflow occurs. Under load the background tier-up can land at a
+// non-deterministic point in the recursion and flake the test. Keep the recursive
+// function in the interpreter with %NeverOptimizeFunction() so the frame size -
+// and thus the depth - is deterministic.
+v8.setFlagsFromString('--allow-natives-syntax');
+
 async function runWorker(options = {}) {
   const empiricalStackDepth = new Uint32Array(new SharedArrayBuffer(4));
   const worker = new Worker(`
@@ -16,6 +24,7 @@ async function runWorker(options = {}) {
     empiricalStackDepth[0]++;
     f();
   }
+  %NeverOptimizeFunction(f);
   f();`, {
     eval: true,
     workerData: { empiricalStackDepth },

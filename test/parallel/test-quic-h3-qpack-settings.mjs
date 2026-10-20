@@ -13,9 +13,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,8 +21,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -38,11 +35,11 @@ async function makeRequest(clientSession, path) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), path);
+  assert.strictEqual(decoder.decode(body), path);
   await stream.closed;
 }
 
@@ -71,6 +68,7 @@ async function makeRequest(clientSession, path) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     // Client also disables QPACK dynamic table.
     application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
@@ -81,7 +79,8 @@ async function makeRequest(clientSession, path) {
   await makeRequest(clientSession, '/second');
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Custom qpackMaxDTableCapacity = 8192 (larger than default).
@@ -107,6 +106,7 @@ async function makeRequest(clientSession, path) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;
@@ -115,5 +115,6 @@ async function makeRequest(clientSession, path) {
   await makeRequest(clientSession, '/beta');
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

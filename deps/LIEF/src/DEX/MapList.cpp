@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #include "LIEF/DEX/hash.hpp"
 #include "logging.hpp"
 
-namespace LIEF {
-namespace DEX {
+
+namespace LIEF::DEX {
 
 MapList::MapList() = default;
 MapList::MapList(const MapList& other) = default;
@@ -28,25 +28,21 @@ MapList& MapList::operator=(const MapList&) = default;
 MapList::it_items_t MapList::items() {
   std::vector<MapItem*> items;
   items.reserve(items_.size());
-  std::transform(std::begin(items_), std::end(items_),
-                 std::back_inserter(items),
-                 [] (MapList::items_t::value_type& p) -> MapItem* {
+  std::transform(items_.begin(), items_.end(), std::back_inserter(items),
+                 [](MapList::items_t::value_type& p) -> MapItem* {
                    return &(p.second);
                  });
   return items;
-
 }
 
 MapList::it_const_items_t MapList::items() const {
   std::vector<MapItem*> items;
   items.reserve(items_.size());
-  std::transform(std::begin(items_), std::end(items_),
-                 std::back_inserter(items),
-                 [] (const MapList::items_t::value_type& p) -> MapItem* {
+  std::transform(items_.begin(), items_.end(), std::back_inserter(items),
+                 [](const MapList::items_t::value_type& p) -> MapItem* {
                    return const_cast<MapItem*>(&(p.second));
                  });
   return items;
-
 }
 
 
@@ -56,7 +52,7 @@ bool MapList::has(MapItem::TYPES type) const {
 
 const MapItem& MapList::get(MapItem::TYPES type) const {
   const auto it = items_.find(type);
-  CHECK(it != std::end(items_), "Can't find type!");
+  CHECK(it != items_.end(), "Can't find type!");
   return it->second;
 }
 
@@ -77,7 +73,6 @@ void MapList::accept(Visitor& visitor) const {
 }
 
 
-
 std::ostream& operator<<(std::ostream& os, const MapList& mlist) {
   for (const MapItem& item : mlist.items()) {
     os << item << '\n';
@@ -88,5 +83,4 @@ std::ostream& operator<<(std::ostream& os, const MapList& mlist) {
 
 MapList::~MapList() = default;
 
-}
 }

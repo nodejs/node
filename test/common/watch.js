@@ -59,14 +59,20 @@ async function performFileOperation(operation, useRunApi, timeout = 1000) {
   }
 }
 
-function assertTestOutput(run, shouldCheckRecursion = false) {
+function assertTestOutput(run, shouldCheckRecursion = false, expectations) {
   if (shouldCheckRecursion) {
     assert.doesNotMatch(run, /run\(\) is being called recursively/);
   }
-  assert.match(run, /tests 1/);
-  assert.match(run, /pass 1/);
-  assert.match(run, /fail 0/);
-  assert.match(run, /cancelled 0/);
+  assert.match(run, new RegExp(`\n${Object.entries({
+    tests: 1,
+    suites: 0,
+    pass: 1,
+    fail: 0,
+    cancelled: 0,
+    skipped: 0,
+    todo: 0,
+    ...expectations,
+  }).map((t) => `. ${t.join(' ')}`).join('\n')}\n`));
 }
 
 async function testRunnerWatch({
@@ -106,7 +112,7 @@ async function testRunnerWatch({
   child.stdout.on('data', (data) => {
     stdout += data.toString();
     currentRun += data.toString();
-    const testRuns = stdout.match(/duration_ms\s\d+/g);
+    const testRuns = stdout.match(/^\S+ duration_ms\s\d+/gm);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
@@ -118,18 +124,11 @@ async function testRunnerWatch({
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
 
-    if (useRunApi) {
-      const interval = setInterval(
-        () => writeFileSync(path, content),
-        common.platformTimeout(1000),
-      );
-      await ran2.promise;
-      clearInterval(interval);
-    } else {
-      writeFileSync(path, content);
-      await setTimeout(common.platformTimeout(1000));
-      await ran2.promise;
-    }
+    await performFileOperation(
+      () => writeFileSync(path, content),
+      useRunApi,
+    );
+    await ran2.promise;
 
     runs.push(currentRun);
     child.kill();
@@ -222,9 +221,11 @@ async function testRunnerWatch({
     child.kill();
     await once(child, 'exit');
 
-    for (const run of runs) {
-      assertTestOutput(run, false);
-    }
+    assertTestOutput(runs[0], false);
+    assertTestOutput(runs[1], false, isolation === 'none' && {
+      tests: 2,
+      pass: 2,
+    });
   };
 
   action === 'update' && await testUpdate();

@@ -22,6 +22,11 @@ void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
 void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
   RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   intptr_t offset = (new_pc - pc);
+  // A single JAL can only encode a ±1 MiB displacement. If the deoptimization
+  // trampoline is farther away than that (possible for very large code
+  // objects), we abort instead of silently truncating the jump target.
+  CHECK_WITH_MSG(is_int21(offset),
+                 "PatchToJump: deopt trampoline is out of JAL range");
   // We'll overwrite only one instruction of 4-bytes. Give enough
   // space not to try to grow the buffer.
   constexpr int kSize = 128;

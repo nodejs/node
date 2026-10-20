@@ -39,8 +39,7 @@ npmVersion(arg, {
 ## Description
 
 Run this in a package directory to bump the version and write the new data
-back to `package.json`, `package-lock.json`, and, if present,
-`npm-shrinkwrap.json`.
+back to `package.json` and `package-lock.json`.
 
 The `newversion` argument should be a valid semver string, a valid second
 argument to [semver.inc](https://github.com/npm/node-semver#functions) (one
@@ -85,6 +84,9 @@ The exact order of execution is as follows:
 5. Commit and tag.
 6. Run the `postversion` script. Use it to clean up the file system or
    automatically push the commit and/or tag.
+
+For the `preversion`, `version` and `postversion` scripts, npm also sets the
+environment variables `npm_old_version` and `npm_new_version`.
 
 Take the following example:
 

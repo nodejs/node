@@ -7,14 +7,12 @@ const { libraryPath, ensureFixtureLibrary } = require('./common.js');
 const bench = common.createBenchmark(main, {
   size: [64, 1024, 16384],
   n: [1e6],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  sum_buffer: { result: 'u64', parameters: ['pointer', 'u64'] },
+  sum_buffer: { return: 'u64', arguments: ['pointer', 'u64'] },
 });
 
 function main({ n, size }) {

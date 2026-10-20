@@ -102,9 +102,14 @@ class JSTypeHintLowering {
   };
 
   // Potential reduction of unary operations (e.g. negation).
-  LoweringResult ReduceUnaryOperation(const Operator* op, Node* operand,
-                                      Node* effect, Node* control,
-                                      FeedbackSlot slot) const;
+  LoweringResult ReduceTypeOfOperation(const Operator* op, Node* operand,
+                                       Node* effect, Node* control,
+                                       FeedbackSlot slot) const;
+
+  LoweringResult ReduceUnaryOperationWithEmbeddedHint(const Operator* op,
+                                                      Node* operand,
+                                                      Node* effect,
+                                                      Node* control) const;
 
   // Potential reduction of binary (arithmetic, logical, shift and relational
   // comparison) operations.

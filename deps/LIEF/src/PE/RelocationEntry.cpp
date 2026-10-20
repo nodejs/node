@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +25,13 @@
 
 FMT_FORMATTER(LIEF::PE::RelocationEntry::BASE_TYPES, LIEF::PE::to_string);
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 RelocationEntry::BASE_TYPES
-  RelocationEntry::type_from_data(Header::MACHINE_TYPES arch, uint16_t data)
-{
+    RelocationEntry::type_from_data(Header::MACHINE_TYPES arch, uint16_t data) {
   uint8_t raw_type = get_type(data);
-  // Discriminate the type based on the the provided architecture
+  // Discriminate the type based on the provided architecture
   // for the values that depend on the arch.
   if (raw_type == 5) {
     if (Header::is_mips(arch)) {
@@ -84,18 +83,18 @@ uint64_t RelocationEntry::address() const {
 
 void RelocationEntry::address(uint64_t address) {
   if (relocation_ == nullptr) {
-    LIEF_ERR("parent relocation is not set");
+    LIEF_ERR("Parent relocation is not set");
     return;
   }
   int32_t delta = address - relocation_->virtual_address();
   if (delta < 0) {
-    LIEF_ERR("Invalid address: 0x{:04x} (base address=0x{:04x})",
-             address, relocation_->virtual_address());
+    LIEF_ERR("Invalid address: {:#06x} (base address={:#06x})", address,
+             relocation_->virtual_address());
     return;
   }
 
   if (delta > MAX_ADDR) {
-    LIEF_ERR("0x{:04x} does not fit in a 12-bit encoding");
+    LIEF_ERR("{:#06x} does not fit in a 12-bit encoding");
     return;
   }
 
@@ -106,8 +105,7 @@ size_t RelocationEntry::size() const {
   switch (type()) {
     case BASE_TYPES::LOW:
     case BASE_TYPES::HIGH:
-    case BASE_TYPES::HIGHADJ:
-      return 16;
+    case BASE_TYPES::HIGHADJ: return 16;
 
     case BASE_TYPES::HIGHLOW: // Addr += delta
       return 32;
@@ -116,14 +114,13 @@ size_t RelocationEntry::size() const {
       return 64;
 
     case BASE_TYPES::ABS:
-    default:
-      return 0;
+    default: return 0;
   }
   return 0;
 }
 
 void RelocationEntry::size(size_t /*size*/) {
-  LIEF_WARN("Setting size of a PE relocation is not supported!");
+  LIEF_WARN("Setting PE relocation size is not supported");
 }
 
 void RelocationEntry::accept(Visitor& visitor) const {
@@ -131,32 +128,24 @@ void RelocationEntry::accept(Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const RelocationEntry& entry) {
-  os << fmt::format("0x{:04x} {:14} 0x{:08x}",
-                    entry.data(), PE::to_string(entry.type()), entry.address());
+  os << fmt::format("{:#06x} {:14} {:#010x}", entry.data(),
+                    PE::to_string(entry.type()), entry.address());
   return os;
 }
 
 const char* to_string(RelocationEntry::BASE_TYPES type) {
-  #define ENTRY(X) std::pair(RelocationEntry::BASE_TYPES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(ABS),
-    ENTRY(HIGH),
-    ENTRY(LOW),
-    ENTRY(HIGHLOW),
-    ENTRY(HIGHADJ),
-    ENTRY(MIPS_JMPADDR),
-    ENTRY(ARM_MOV32),
-    ENTRY(RISCV_HI20),
-    ENTRY(SECTION),
-    ENTRY(THUMB_MOV32),
-    ENTRY(RISCV_LOW12I),
-    ENTRY(RISCV_LOW12S),
-    ENTRY(MIPS_JMPADDR16),
-    ENTRY(DIR64),
-    ENTRY(HIGH3ADJ),
+#define ENTRY(X) std::pair(RelocationEntry::BASE_TYPES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),      ENTRY(ABS),
+      ENTRY(HIGH),         ENTRY(LOW),
+      ENTRY(HIGHLOW),      ENTRY(HIGHADJ),
+      ENTRY(MIPS_JMPADDR), ENTRY(ARM_MOV32),
+      ENTRY(RISCV_HI20),   ENTRY(SECTION),
+      ENTRY(THUMB_MOV32),  ENTRY(RISCV_LOW12I),
+      ENTRY(RISCV_LOW12S), ENTRY(MIPS_JMPADDR16),
+      ENTRY(DIR64),        ENTRY(HIGH3ADJ),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(type); it != enums2str.end()) {
     return it->second;
@@ -166,5 +155,4 @@ const char* to_string(RelocationEntry::BASE_TYPES type) {
 }
 
 
-}
 }

@@ -6,14 +6,12 @@ const { libraryPath, ensureFixtureLibrary } = require('./common.js');
 
 const bench = common.createBenchmark(main, {
   n: [1e7],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  sum_6_i32: { result: 'i32', parameters: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'] },
+  sum_6_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'] },
 });
 
 const fn = functions.sum_6_i32;

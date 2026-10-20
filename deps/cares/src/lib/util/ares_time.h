@@ -39,6 +39,7 @@ ares_bool_t ares_timedout(const ares_timeval_t *now,
                           const ares_timeval_t *check);
 
 void        ares_tvnow(ares_timeval_t *now);
+void        ares_timeval_add(ares_timeval_t *now, size_t millisecs);
 void        ares_timeval_remaining(ares_timeval_t       *remaining,
                                    const ares_timeval_t *now,
                                    const ares_timeval_t *tout);

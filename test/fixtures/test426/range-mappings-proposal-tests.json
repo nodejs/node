@@ -37,6 +37,20 @@
       "sourceMapIsValid": false
     },
     {
+      "name": "rangeMappingsInvalidVLQZero",
+      "description": "VLQ with relative offset of 0 after the initial mapping is invalid",
+      "baseFile": "invalid-vlq-zero.js",
+      "sourceMapFile": "invalid-vlq-zero.js.map",
+      "sourceMapIsValid": false
+    },
+    {
+      "name": "rangeMappingsInvalidMappingForRange",
+      "description": "Range mappings cannot point to a mapping withou an original position",
+      "baseFile": "invalid-mapping-for-range.js",
+      "sourceMapFile": "invalid-mapping-for-range.js.map",
+      "sourceMapIsValid": false
+    },
+    {
       "name": "rangeMappingsOutOfRange",
       "description": "Test an invalid range mapping which is outside the mappings length",
       "baseFile": "out-of-range.js",
@@ -51,10 +65,24 @@
       "sourceMapIsValid": false
     },
     {
+      "name": "rangeMappingsOutOfRange3",
+      "description": "Test an invalid range mapping encoded with a continuation bit that is too large",
+      "baseFile": "out-of-range-3.js",
+      "sourceMapFile": "out-of-range-3.js.map",
+      "sourceMapIsValid": false
+    },
+    {
       "name": "rangeMappingsEmpty",
       "description": "Test a trivial range mapping that is the empty string",
       "baseFile": "empty-string.js",
       "sourceMapFile": "empty-string.js.map",
+      "sourceMapIsValid": true
+    },
+    {
+      "name": "rangeMappingsExtraLinesInRangeMappings",
+      "description": "Test that it's ok for range mappings to have trailing empty lines not in mappings",
+      "baseFile": "extra-lines-in-range-mappings.js",
+      "sourceMapFile": "extra-lines-in-range-mappings.js.map",
       "sourceMapIsValid": true
     },
     {
@@ -63,6 +91,60 @@
       "baseFile": "non-full-line-coverage.js",
       "sourceMapFile": "non-full-line-coverage.js.map",
       "sourceMapIsValid": true
+    },
+    {
+      "name": "rangeMappingsVLQContinuationBit",
+      "description": "Test a range mapping that uses a VLQ with continuation bit",
+      "baseFile": "vlq-continuation-bit.js",
+      "sourceMapFile": "vlq-continuation-bit.js.map",
+      "sourceMapIsValid": true,
+      "testActions": [
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 0,
+          "originalSource": "vlq-continuation-bit-original.js",
+          "originalLine": 0,
+          "originalColumn": 0,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 1,
+          "originalSource": "vlq-continuation-bit-original.js",
+          "originalLine": 0,
+          "originalColumn": 1,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 3,
+          "originalSource": "vlq-continuation-bit-original.js",
+          "originalLine": 0,
+          "originalColumn": 2,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 196,
+          "originalSource": "vlq-continuation-bit-original.js",
+          "originalLine": 0,
+          "originalColumn": 195,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 0,
+          "generatedColumn": 199,
+          "originalSource": "vlq-continuation-bit-original.js",
+          "originalLine": 0,
+          "originalColumn": 199,
+          "mappedName": null
+        }
+      ]
     },
     {
       "name": "rangeMappingsSimple",
@@ -131,7 +213,7 @@
           "generatedColumn": 16,
           "originalSource": "multiple-mappings-original.js",
           "originalLine": 0,
-          "originalColumn": 16,
+          "originalColumn": 17,
           "mappedName": null
         },
         {
@@ -140,7 +222,25 @@
           "generatedColumn": 18,
           "originalSource": "multiple-mappings-original.js",
           "originalLine": 0,
-          "originalColumn": 18,
+          "originalColumn": 19,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 30,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 31,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 34,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 35,
           "mappedName": null
         },
         {
@@ -149,7 +249,16 @@
           "generatedColumn": 35,
           "originalSource": "multiple-mappings-original.js",
           "originalLine": 0,
-          "originalColumn": 36,
+          "originalColumn": 35,
+          "mappedName": null
+        },
+        {
+          "actionType": "checkMapping",
+          "generatedLine": 1,
+          "generatedColumn": 36,
+          "originalSource": "multiple-mappings-original.js",
+          "originalLine": 0,
+          "originalColumn": 38,
           "mappedName": null
         }
       ]

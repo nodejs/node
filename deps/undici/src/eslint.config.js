@@ -6,6 +6,8 @@ const { installedExports } = require('./lib/global')
 module.exports = [
   ...neo({
     ignores: [
+      'deps/milo',
+      'lib/milo',
       'lib/llhttp',
       'test/fixtures/cache-tests',
       'undici-fetch.js',

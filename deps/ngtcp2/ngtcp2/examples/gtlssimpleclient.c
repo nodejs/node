@@ -421,7 +421,7 @@ static int client_read(struct client *c) {
       if (!c->last_error.error_code) {
         if (rv == NGTCP2_ERR_CRYPTO) {
           ngtcp2_ccerr_set_tls_alert(
-            &c->last_error, ngtcp2_conn_get_tls_alert(c->conn), NULL, 0);
+            &c->last_error, ngtcp2_conn_get_tls_alert2(c->conn), NULL, 0);
         } else {
           ngtcp2_ccerr_set_liberr(&c->last_error, rv, NULL, 0);
         }
@@ -544,7 +544,7 @@ static int client_write(struct client *c) {
     return -1;
   }
 
-  expiry = ngtcp2_conn_get_expiry(c->conn);
+  expiry = ngtcp2_conn_get_expiry2(c->conn);
   now = timestamp();
 
   t = expiry < now ? 1e-9 : (ev_tstamp)(expiry - now) / NGTCP2_SECONDS;
@@ -571,8 +571,8 @@ static void client_close(struct client *c) {
   ngtcp2_path_storage ps;
   uint8_t buf[1280];
 
-  if (ngtcp2_conn_in_closing_period(c->conn) ||
-      ngtcp2_conn_in_draining_period(c->conn)) {
+  if (ngtcp2_conn_in_closing_period2(c->conn) ||
+      ngtcp2_conn_in_draining_period2(c->conn)) {
     goto fin;
   }
 

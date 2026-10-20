@@ -20,7 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -30,7 +32,7 @@ const net = require('net');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 
-if (process.features.openssl_is_boringssl &&
+if (isBoringSSL &&
     tls.DEFAULT_MAX_VERSION !== 'TLSv1.2') {
   require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
   return;

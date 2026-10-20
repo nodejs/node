@@ -1,6 +1,6 @@
 node:events:<line>
-      throw er; // Unhandled 'error' event
-      ^
+    throw er; // Unhandled 'error' event
+    ^
 
 Error
     at Object.<anonymous> (<project-root>/test/fixtures/errors/events_unhandled_error_nexttick.js:6:12)

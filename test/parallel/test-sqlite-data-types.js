@@ -1,22 +1,13 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
 
 suite('data binding and mapping', () => {
   test('supported data types', (t) => {
     const u8a = new TextEncoder().encode('a☃b☃c');
-    const db = new DatabaseSync(nextDb());
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE types(
@@ -80,10 +71,83 @@ suite('data binding and mapping', () => {
       text: '',
       buf: new Uint8Array(),
     });
+
+    t.assert.deepStrictEqual(
+      stmt.run(5, true, false, true, null),
+      { changes: 1, lastInsertRowid: 5 }
+    );
+    t.assert.deepStrictEqual(
+      query.get(5),
+      { __proto__: null, key: 5, int: 1, double: 0, text: '1', buf: null }
+    );
+
+    t.assert.deepStrictEqual(
+      stmt.run(6, undefined, undefined, undefined, undefined),
+      { changes: 1, lastInsertRowid: 6 }
+    );
+    t.assert.deepStrictEqual(
+      query.get(6),
+      { __proto__: null, key: 6, int: null, double: null, text: null, buf: null }
+    );
+  });
+
+  test('undefined is bound as NULL', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO types (key, val) VALUES ($k, $v)');
+    const query = db.prepare('SELECT * FROM types WHERE key = ?');
+
+    // An explicit `undefined` and an omitted named parameter are equivalent.
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 1, v: undefined }),
+      { changes: 1, lastInsertRowid: 1 }
+    );
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 2 }),
+      { changes: 1, lastInsertRowid: 2 }
+    );
+    t.assert.deepStrictEqual(
+      query.get(1),
+      { __proto__: null, key: 1, val: null }
+    );
+    t.assert.deepStrictEqual(
+      query.get(2),
+      { __proto__: null, key: 2, val: null }
+    );
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT ? AS a').get(undefined),
+      { __proto__: null, a: null }
+    );
+  });
+
+  test('undefined is not treated as the named parameters argument', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+
+    // `undefined` is not an object, so it is bound as an anonymous parameter
+    // rather than being treated as the named parameters argument.
+    t.assert.throws(() => {
+      db.prepare('SELECT $k AS a').get(undefined);
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /column index out of range/,
+    });
+
+    t.assert.throws(() => {
+      db.prepare('SELECT ? AS a').get(1, undefined);
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /column index out of range/,
+    });
   });
 
   test('large strings are bound correctly', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, text TEXT) STRICT;'
@@ -118,7 +182,7 @@ suite('data binding and mapping', () => {
   });
 
   test('unsupported data types', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -126,7 +190,6 @@ suite('data binding and mapping', () => {
     t.assert.strictEqual(setup, undefined);
 
     [
-      undefined,
       () => {},
       Symbol(),
       /foo/,
@@ -153,7 +216,7 @@ suite('data binding and mapping', () => {
 
   test('throws when binding a BigInt that is too large', (t) => {
     const max = 9223372036854775807n; // Largest 64-bit signed integer value.
-    const db = new DatabaseSync(nextDb());
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -173,7 +236,7 @@ suite('data binding and mapping', () => {
   });
 
   test('statements are unbound on each call', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'

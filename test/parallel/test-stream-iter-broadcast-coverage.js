@@ -15,17 +15,17 @@ const {
 // Signal abort on pending write (covers wireBroadcastWriteSignal + removeAt)
 async function testBroadcastWriteAbort() {
   const { writer, broadcast: bc } = broadcast({
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
   const consumer = bc.push();
 
   // Fill the buffer to capacity
-  writer.writeSync(new Uint8Array([1]));
+  writer.writeSync(new Uint8Array(16384).fill(1));
 
   // Next write will block — pass a signal
   const ac = new AbortController();
-  const writePromise = writer.write(new Uint8Array([2]),
+  const writePromise = writer.write(new Uint8Array(16384).fill(2),
                                     { signal: ac.signal });
 
   // Abort the signal
@@ -74,7 +74,7 @@ async function testBroadcastFromSyncIterableStrings() {
 
 // Ringbuffer grow — push > 16 items without consumer draining
 async function testRingbufferGrow() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 32 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   // Push 20 items (exceeds default ringbuffer capacity of 16)
@@ -96,6 +96,28 @@ async function testRingbufferGrow() {
   }
 }
 
+// Multiple consumers at the minimum cursor should trim only after the last
+// one advances or detaches.
+async function testFanOutMinCursorTrimming() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const iter1 = bc.push()[Symbol.asyncIterator]();
+  const iter2 = bc.push()[Symbol.asyncIterator]();
+
+  writer.writeSync(new Uint8Array([1]));
+  writer.writeSync(new Uint8Array([2]));
+
+  assert.strictEqual((await iter1.next()).done, false);
+
+  assert.strictEqual((await iter2.next()).done, false);
+
+  await iter1.return();
+
+  assert.strictEqual((await iter2.next()).done, false);
+
+  writer.endSync();
+  assert.strictEqual((await iter2.next()).done, true);
+}
+
 // Broadcast drainableProtocol after close returns null
 async function testDrainableAfterClose() {
   const { drainableProtocol } = require('stream/iter');
@@ -111,5 +133,6 @@ Promise.all([
   testBroadcastFromSyncIterable(),
   testBroadcastFromSyncIterableStrings(),
   testRingbufferGrow(),
+  testFanOutMinCursorTrimming(),
   testDrainableAfterClose(),
 ]).then(common.mustCall());

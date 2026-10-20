@@ -162,7 +162,7 @@ InspectorTest.ContextGroup = class {
   }
 
   addScript(string, lineOffset, columnOffset, url) {
-    utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
+    utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false, true);
   }
 
   addInlineScript(string, url) {
@@ -172,7 +172,13 @@ InspectorTest.ContextGroup = class {
   }
 
   addModule(string, url, lineOffset, columnOffset) {
-    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true);
+    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true, true);
+  }
+
+  // Registers a module so that it can be resolved as a dependency, but leaves
+  // it unevaluated. Used to set up the target of an `import defer`.
+  addModuleWithoutEvaluating(string, url, lineOffset, columnOffset) {
+    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true, false);
   }
 
   loadScript(fileName) {
@@ -234,15 +240,16 @@ InspectorTest.ContextGroup = class {
 };
 
 InspectorTest.Session = class {
-  constructor(contextGroup, isFullyTrusted) {
+  constructor(contextGroup, isFullyTrusted, embedderState) {
     this.contextGroup = contextGroup;
     this._dispatchTable = new Map();
     this._eventHandlers = new Map();
     this._requestId = 0;
     this._isFullyTrusted = isFullyTrusted;
+    this._embedderState = embedderState;
     this.Protocol = this._setupProtocol();
     InspectorTest._sessions.add(this);
-    this.id = utils.connectSession(contextGroup.id, '', this._dispatchMessage.bind(this), isFullyTrusted);
+    this.id = utils.connectSession(contextGroup.id, '', this._dispatchMessage.bind(this), isFullyTrusted, embedderState);
   }
 
   disconnect() {
@@ -252,7 +259,7 @@ InspectorTest.Session = class {
 
   reconnect() {
     var state = utils.disconnectSession(this.id);
-    this.id = utils.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this), this._isFullyTrusted);
+    this.id = utils.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this), this._isFullyTrusted, this._embedderState);
   }
 
   async addInspectedObject(serializable) {

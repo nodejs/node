@@ -34,13 +34,11 @@ function createProxyServer(options = {}) {
   }
   proxy.on('request', (req, res) => {
     logRequest(logs, req);
-    const { hostname, port } = new URL(`http://${req.headers.host}`);
-    const targetPort = port || 80;
-
+    // Route based on the absolute-form request-target.
     const url = new URL(req.url);
     const options = {
-      hostname: hostname.startsWith('[') ? hostname.slice(1, -1) : hostname,
-      port: targetPort,
+      hostname: url.hostname.startsWith('[') ? url.hostname.slice(1, -1) : url.hostname,
+      port: url.port || 80,
       path: url.pathname + url.search,  // Convert back to relative URL.
       method: req.method,
       headers: {
@@ -82,7 +80,14 @@ function createProxyServer(options = {}) {
 
     const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ?
       hostname.slice(1, -1) : hostname;
-    const proxyReq = net.connect(port, normalizedHostname, () => {
+    // A CONNECT tunnel is full-duplex. Keep the upstream socket writable after
+    // receiving a FIN so that the client-to-upstream pipe can finish draining.
+    // The reverse pipe will end `res`, and `res` will in turn end `proxyReq`.
+    const proxyReq = net.connect({
+      port,
+      host: normalizedHostname,
+      allowHalfOpen: true,
+    }, () => {
       res.write(
         'HTTP/1.1 200 Connection Established\r\n' +
         'Proxy-agent: Node.js-Proxy\r\n' +

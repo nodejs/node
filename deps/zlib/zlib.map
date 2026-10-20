@@ -98,3 +98,19 @@ ZLIB_1.2.12 {
 	crc32_combine_gen64;
 	crc32_combine_op;
 } ZLIB_1.2.9;
+
+ZLIB_1.3.1.2 {
+	deflateUsed;
+} ZLIB_1.2.12;
+
+ZLIB_1.3.2 {
+  global:
+    compressBound_z;
+	deflateBound_z;
+	compress_z;
+	compress2_z;
+	uncompress_z;
+	uncompress2_z;
+  local:
+    inflate_fixed;
+} ZLIB_1.3.1.2;

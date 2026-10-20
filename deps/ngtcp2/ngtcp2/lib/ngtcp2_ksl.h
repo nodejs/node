@@ -382,8 +382,8 @@ static inline int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
                                                     const ngtcp2_ksl_key *rhs) {
   const ngtcp2_range *a = (const ngtcp2_range *)lhs,
                      *b = (const ngtcp2_range *)rhs;
-  return a->begin < b->begin && !(ngtcp2_max_uint64(a->begin, b->begin) <
-                                  ngtcp2_min_uint64(a->end, b->end));
+  return a->begin < b->begin &&
+         !(ngtcp2_max(a->begin, b->begin) < ngtcp2_min(a->end, b->end));
 }
 
 /*

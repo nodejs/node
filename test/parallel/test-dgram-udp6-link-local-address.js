@@ -11,9 +11,9 @@ const { isWindows } = common;
 
 function linklocal() {
   for (const [ifname, entries] of Object.entries(os.networkInterfaces())) {
-    for (const { address, family, scopeid } of entries) {
+    for (const { address, family } of entries) {
       if (family === 'IPv6' && address.startsWith('fe80:')) {
-        return { address, ifname, scopeid };
+        return { address, ifname };
       }
     }
   }
@@ -32,6 +32,12 @@ const client = dgram.createSocket('udp6');
 // Create the server socket listening on the link-local address.
 const server = dgram.createSocket('udp6');
 
+client.on('message', common.mustCall((buf) => {
+  assert.strictEqual(buf.toString(), message);
+  server.close();
+  client.close();
+}));
+
 server.on('listening', common.mustCall(() => {
   const port = server.address().port;
   client.send(message, 0, message.length, port, address);
@@ -40,14 +46,15 @@ server.on('listening', common.mustCall(() => {
 server.on('message', common.mustCall((buf, info) => {
   const received = buf.toString();
   assert.strictEqual(received, message);
-  // Check that the sender address is the one bound,
-  // including the link local scope identifier.
-  assert.strictEqual(
-    info.address,
-    isWindows ? `${iface.address}%${iface.scopeid}` : address
-  );
-  server.close();
-  client.close();
+  // AIX may use `lo0` as the scope ID for a datagram sent to a local interface.
+  // See https://github.com/nodejs/node/issues/46792#issuecomment-1455049522.
+  const scopeIndex = info.address.lastIndexOf('%');
+  assert.notStrictEqual(scopeIndex, -1);
+  assert.strictEqual(info.address.slice(0, scopeIndex), iface.address);
+  assert.notStrictEqual(info.address.slice(scopeIndex + 1), '');
+
+  // Verify that the scoped sender address can be used for a reply.
+  server.send(buf, info.port, info.address);
 }, 1));
 
 server.bind({ address });

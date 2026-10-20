@@ -1,6 +1,7 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
+import os from 'node:os';
 import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -21,6 +22,10 @@ function restart(file, content = readFileSync(file)) {
   writeFileSync(file, content);
   const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(2500));
   return () => clearInterval(timer);
+}
+
+function changeDetected(file) {
+  return `Change detected in ${inspect(file)}`;
 }
 
 let tmpFiles = 0;
@@ -82,7 +87,7 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
       future.resolve();
       return { stdout, stderr };
     },
-    restart(timeout = 1000) {
+    restart(timeout = common.platformTimeout(10_000)) {
       if (!child) {
         run();
       }
@@ -171,6 +176,23 @@ async function failWriteSucceed({ file, watchedFile }) {
 tmpdir.refresh();
 
 describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
+  it('should exit when terminated after the watched process has completed', async () => {
+    const file = createTmpFile();
+    const child = spawn(execPath, ['--watch', '--no-warnings', file], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+
+    for await (const line of createInterface({ input: child.stdout })) {
+      if (line.includes('Completed running')) {
+        break;
+      }
+    }
+
+    child.kill();
+    await once(child, 'exit');
+  });
+
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
@@ -181,6 +203,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -195,6 +218,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -216,6 +240,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value2',
         `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
@@ -241,6 +266,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value1',
         'ENV2: newValue',
@@ -267,6 +293,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value1',
         'ENV2: newValue',
@@ -310,6 +337,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: fails\r?\n/);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -329,6 +357,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -355,6 +384,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -379,6 +409,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -394,6 +425,7 @@ console.log("don't show me");`);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
     ]);
@@ -411,6 +443,7 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dependency),
       `Restarting ${inspect(file)}`,
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -429,6 +462,7 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dependency),
       `Restarting ${inspect(file)}`,
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -443,9 +477,11 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -466,6 +502,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       random,
       `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(`${file} --random ${random}`)}`,
       random,
       `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
@@ -483,6 +520,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -503,6 +541,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -552,6 +591,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -567,6 +607,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -598,6 +639,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -630,6 +672,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -662,6 +705,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -694,6 +738,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -710,6 +755,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -735,6 +781,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -815,6 +862,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(lines, [
       'running',
       'Received: first message',
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       'Received: second message',
@@ -826,7 +874,7 @@ process.on('message', (message) => {
     const file = createTmpFile();
     const configFile = createTmpFile(JSON.stringify({ watch: { 'watch': true } }), '.json');
     const { stderr, stdout } = await runWriteSucceed({
-      file, watchedFile: file, args: [`--experimental-config-file=${configFile}`, file], options: {
+      file, watchedFile: file, args: [`--config-file=${configFile}`, file], options: {
         timeout: 10000,
       },
     });
@@ -835,6 +883,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -850,13 +899,14 @@ process.on('message', (message) => {
     const watchedFile = createTmpFile('', '.js', dir);
     const configFile = createTmpFile(JSON.stringify({ watch: { 'watch-path': [dir] } }), '.json', dir);
 
-    const args = [`--experimental-config-file=${configFile}`, file];
+    const args = [`--config-file=${configFile}`, file];
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args });
 
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -874,7 +924,7 @@ process.on('message', (message) => {
     const { stderr, stdout } = await runWriteSucceed({
       file,
       watchedFile: file,
-      args: ['--experimental-default-config-file', file],
+      args: ['--config-file', file],
       options: {
         timeout: 10000,
         cwd: dir,
@@ -885,6 +935,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -939,6 +990,203 @@ process.on('message', (message) => {
         'ENV: override',
         `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
       ]);
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip all watch flags from NODE_OPTIONS in child process', async () => {
+    // Avoid recursively watching the repository's source and test trees.
+    const cwd = tmpdir.resolve('node-options');
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    mkdirSync(path.join(cwd, 'test'));
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    const nodeOptions = [
+      '--watch',
+      '--watch=true',
+      '--watch-path=./src',
+      '--watch-path', './test',
+      '--watch-preserve-output',
+      '--watch-preserve-output=true',
+      '--watch-kill-signal=SIGKILL',
+      '--watch-kill-signal', 'SIGINT',
+      '--max-old-space-size=4096',
+      '--no-warnings',
+    ].join(' ');
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        cwd,
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      const nodeOptionsLine = stdout.find((line) => line.includes('--max-old-space-size'));
+      assert.ok(nodeOptionsLine);
+      assert.strictEqual(nodeOptionsLine, '--max-old-space-size=4096 --no-warnings');
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip underscore aliases of watch flags from NODE_OPTIONS', async () => {
+    // Avoid recursively watching the repository's source and test trees.
+    const cwd = tmpdir.resolve('node-options-underscore');
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    mkdirSync(path.join(cwd, 'test'));
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    const nodeOptions = [
+      '--watch_path=./src',
+      '--watch_path', './test',
+      '--watch_preserve_output',
+      '--watch_preserve_output=true',
+      '--watch_kill_signal=SIGKILL',
+      '--watch_kill_signal', 'SIGINT',
+      '--max_old_space_size=4096',
+      '--no-warnings',
+    ].join(' ');
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        cwd,
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      const nodeOptionsLine = stdout.find((line) => line.includes('--max_old_space_size'));
+      assert.ok(nodeOptionsLine);
+      assert.strictEqual(nodeOptionsLine, '--max_old_space_size=4096 --no-warnings');
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip --watch_path from execArgv in child process', async () => {
+    const dir = tmpdir.resolve('exec-argv-underscore');
+    mkdirSync(dir, { recursive: true });
+    const file = createTmpFile('console.log(JSON.stringify(process.execArgv));');
+    const { done, restart } = runInBackground({
+      args: [`--watch_path=${dir}`, file],
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.includes('["--no-warnings"]'));
+    } finally {
+      await done();
+    }
+  });
+
+  it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', {
+    // Honoring --require from NODE_OPTIONS is required for this test.
+    skip: !!process.config.variables.node_without_node_options,
+  }, async () => {
+    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // that would break NODE_OPTIONS parsing.
+    const watchDir = path.join(os.tmpdir(), 'test for --watch parsing');
+    mkdirSync(watchDir, { recursive: true });
+    const reqFile = path.join(watchDir, 'req.cjs');
+    writeFileSync(reqFile, 'globalThis.requiredOk = true;');
+
+    const file = createTmpFile('console.log("required:" + !!globalThis.requiredOk);');
+    // Backslashes inside quoted NODE_OPTIONS values are escape characters.
+    const nodeOptions = `--watch --require "${reqFile.replaceAll(path.sep, '/')}"`;
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line.includes('required:true')));
+    } finally {
+      await done();
+    }
+  });
+
+  for (const { name, nodeOptions, expected } of [
+    { name: 'a double quote', nodeOptions: '--title="a\\"b"', expected: 'a"b' },
+    { name: 'a backslash', nodeOptions: '--title="a \\\\b"', expected: 'a \\b' },
+  ]) {
+    it(`should preserve NODE_OPTIONS values containing ${name} in child process`, {
+      // Honoring --title from NODE_OPTIONS is required for this test.
+      // process.title is always an empty string on SunOS, so --title
+      // cannot be observed there.
+      skip: !!process.config.variables.node_without_node_options || common.isSunOS,
+    }, async () => {
+      const file = createTmpFile('console.log(JSON.stringify(process.title));');
+      const { done, restart } = runInBackground({
+        args: ['--watch', file],
+        options: {
+          env: { ...process.env, NODE_OPTIONS: `--watch ${nodeOptions}` },
+        },
+      });
+
+      try {
+        const { stdout, stderr } = await restart();
+
+        assert.strictEqual(stderr, '');
+        assert.ok(stdout.includes(JSON.stringify(expected)), stdout.join('\n'));
+      } finally {
+        await done();
+      }
+    });
+  }
+
+  it('should handle NODE_OPTIONS containing only watch flags', async () => {
+    const file = createTmpFile('console.log(JSON.stringify(process.env.NODE_OPTIONS));');
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: '--watch' },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line.includes('""')));
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip multiple --watch-path entries from NODE_OPTIONS', async () => {
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // that would break NODE_OPTIONS parsing.
+    const dirA = path.join(os.tmpdir(), 'node-watch-path-a');
+    const dirB = path.join(os.tmpdir(), 'node-watch-path-b');
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+    const nodeOptions = `--watch --watch-path=${dirA} --watch-path ${dirB} --no-warnings`;
+    const { done, restart } = runInBackground({
+      args: ['--watch', file],
+      options: {
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.some((line) => line === '--no-warnings'));
     } finally {
       await done();
     }

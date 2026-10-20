@@ -5,11 +5,19 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
-  common.skip('Skipping unsupported ChaCha20-Poly1305 test case');
-
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+
+if (hasFIPS(3)) {
+  assert.rejects(
+    subtle.generateKey(
+      { name: 'ChaCha20-Poly1305' },
+      false,
+      ['encrypt', 'decrypt']),
+    { name: 'NotSupportedError' }).then(common.mustCall());
+  return;
+}
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
   // Using a copy of plaintext to prevent tampering of the original

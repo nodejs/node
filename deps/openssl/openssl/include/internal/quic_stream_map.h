@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -298,7 +298,7 @@ struct quic_stream_st {
      *            STOP_SENDING.]
      *
      *            TODO(QUIC FUTURE): Implement the latter case (currently we
-                                     just always do STOP_SENDING).
+     *                               just always do STOP_SENDING).
      *
      *         and;
      *
@@ -314,6 +314,7 @@ struct quic_stream_st {
     unsigned int ready_for_gc : 1;
     /* Set to 1 if this is currently counted in the shutdown flush stream count. */
     unsigned int shutdown_flush : 1;
+    unsigned int have_final_size : 1;
 };
 
 #define QUIC_STREAM_INITIATOR_CLIENT 0
@@ -830,6 +831,15 @@ void ossl_quic_stream_map_push_accept_queue(QUIC_STREAM_MAP *qsm,
  * empty.
  */
 QUIC_STREAM *ossl_quic_stream_map_peek_accept_queue(QUIC_STREAM_MAP *qsm);
+
+/*
+ * Retires an incoming stream for the purposes of MAX_STREAMS RXFC, so that the
+ * peer is granted credit for another stream. rtt is the estimated connection
+ * RTT. Must be called at most once for a given stream.
+ */
+void ossl_quic_stream_map_retire_stream_credit(QUIC_STREAM_MAP *qsm,
+    QUIC_STREAM *s,
+    OSSL_TIME rtt);
 
 /*
  * Removes a stream from the accept queue. rtt is the estimated connection RTT.

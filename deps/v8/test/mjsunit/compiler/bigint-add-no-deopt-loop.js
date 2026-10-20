@@ -4,14 +4,11 @@
 
 // Flags: --allow-natives-syntax --turbofan
 
-
-const big = 2n ** BigInt((2 ** 30)-1);
-
+const big = 2n ** BigInt(%BigIntMaxBits() - 1);
 
 function testAdd(x, y) {
   return x + y;
 }
-
 
 %PrepareFunctionForOptimization(testAdd);
 testAdd(3n, 7n);

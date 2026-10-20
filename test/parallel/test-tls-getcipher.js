@@ -20,7 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL: commonIsBoringSSL } = require('../common/crypto');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -36,7 +38,7 @@ const options = {
   honorCipherOrder: true
 };
 
-const isBoringSSL = process.features.openssl_is_boringssl;
+const isBoringSSL = commonIsBoringSSL;
 let clients = 0;
 const expectedClients = isBoringSSL ? 1 : 2;
 const server = tls.createServer(options, common.mustCall(() => {

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,17 +90,16 @@ class LIEF_API X86ISA : public NoteGnuProperty::Property {
 
   ~X86ISA() override = default;
 
-  void dump(std::ostream &os) const override;
+  void dump(std::ostream& os) const override;
 
   protected:
+  inline static std::unique_ptr<X86ISA> create_isa_1(FLAG flag,
+                                                     BinaryStream& stream);
   inline static std::unique_ptr<X86ISA>
-    create_isa_1(FLAG flag, BinaryStream& stream);
-  inline static std::unique_ptr<X86ISA>
-    create_compat_isa_1(FLAG flag, BinaryStream& stream, bool is_compat2);
+      create_compat_isa_1(FLAG flag, BinaryStream& stream, bool is_compat2);
   X86ISA(values_t values) :
     NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::X86_ISA),
-    values_(std::move(values))
-  {}
+    values_(std::move(values)) {}
 
   values_t values_;
 };

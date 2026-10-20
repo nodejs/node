@@ -1,0 +1,17 @@
+<!doctype html>
+<title>importScripts uncaught exception</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var worker = new Worker('006.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data[0], 1);
+    assert_equals(e.data[1], 2);
+    assert_equals(e.data[2], undefined);
+    this.done();
+  });
+});
+</script>

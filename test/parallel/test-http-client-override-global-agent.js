@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   res.writeHead(200);
   res.end('Hello, World!');
 }));

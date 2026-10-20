@@ -12,8 +12,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,14 +23,14 @@ const bogusVersion = 0x1a1a1a1a;
 // Subscribe to the version negotiation diagnostics channel.
 const channelFired = Promise.withResolvers();
 dc.subscribe('quic.session.version.negotiation', mustCall((msg) => {
-  ok(msg.session, 'message should have session');
-  strictEqual(msg.version, bogusVersion);
-  ok(Array.isArray(msg.requestedVersions),
-     'requestedVersions should be an array');
-  ok(msg.requestedVersions.length > 0,
-     'server should advertise at least one version');
-  ok(Array.isArray(msg.supportedVersions),
-     'supportedVersions should be an array');
+  assert.ok(msg.session, 'message should have session');
+  assert.strictEqual(msg.version, bogusVersion);
+  assert.ok(Array.isArray(msg.requestedVersions),
+            'requestedVersions should be an array');
+  assert.ok(msg.requestedVersions.length > 0,
+            'server should advertise at least one version');
+  assert.ok(Array.isArray(msg.supportedVersions),
+            'supportedVersions should be an array');
   channelFired.resolve();
 }));
 
@@ -49,22 +47,21 @@ const clientSession = await connect(serverEndpoint.address, {
   onversionnegotiation: mustCall((version, requestedVersions,
                                   supportedVersions) => {
     // The version is the bogus version we configured.
-    strictEqual(version, bogusVersion);
+    assert.strictEqual(version, bogusVersion);
     // requestedVersions are the versions the server advertised in
     // the Version Negotiation packet.
-    ok(Array.isArray(requestedVersions),
-       'requestedVersions should be an array');
-    ok(requestedVersions.length > 0,
-       'server should advertise at least one supported version');
+    assert.ok(Array.isArray(requestedVersions),
+              'requestedVersions should be an array');
+    assert.ok(requestedVersions.length > 0,
+              'server should advertise at least one supported version');
     // supportedVersions is our local supported range [min, max].
-    ok(Array.isArray(supportedVersions),
-       'supportedVersions should be an array');
-    strictEqual(supportedVersions.length, 2,
-                'supportedVersions should have [min, max]');
+    assert.ok(Array.isArray(supportedVersions),
+              'supportedVersions should be an array');
+    assert.strictEqual(supportedVersions.length, 2);
   }),
   // The onerror callback fires with the version negotiation error.
   onerror: mustCall((err) => {
-    strictEqual(err.code, 'ERR_QUIC_VERSION_NEGOTIATION_ERROR');
+    assert.strictEqual(err.code, 'ERR_QUIC_VERSION_NEGOTIATION_ERROR');
   }),
 });
 

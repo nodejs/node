@@ -9,6 +9,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -1100,7 +1101,6 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 
 
 TEST(SubclassTypedArrayBuiltin) {
-  v8_flags.js_float16array = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

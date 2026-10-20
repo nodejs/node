@@ -8,16 +8,6 @@
 
 namespace node {
 
-#ifdef _WIN32
-constexpr bool IsPathSeparator(const char c) noexcept {
-  return c == '\\' || c == '/';
-}
-#else   // POSIX
-constexpr bool IsPathSeparator(const char c) noexcept {
-  return c == '/';
-}
-#endif  // _WIN32
-
 std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
                             const std::string_view separator) {
@@ -90,14 +80,6 @@ std::string NormalizeString(const std::string_view path,
 }
 
 #ifdef _WIN32
-constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept {
-  return path.size() > 2 && IsWindowsDeviceRoot(path[0]) &&
-         (path[1] == ':' && (path[2] == '/' || path[2] == '\\'));
-}
-constexpr bool IsWindowsDeviceRoot(const char c) noexcept {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
-
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths) {
   std::string resolvedDevice = "";

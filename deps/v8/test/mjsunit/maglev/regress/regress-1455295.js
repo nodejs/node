@@ -20,7 +20,7 @@ function foo() {
 }
 
 %PrepareFunctionForOptimization(foo);
-print(42, foo());
-print(42, foo());
+assertEquals(42, foo());
+assertEquals(42, foo());
 %OptimizeMaglevOnNextCall(foo);
-print(42, foo());
+assertEquals(42, foo());

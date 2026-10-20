@@ -84,7 +84,7 @@ give users a place to go to easily look up the meaning of individual error
 codes.
 
 In case `make lint` fails to detect the new error codes added into `errors.md`,
-the markdown linting cache must be cleaned with `make lint-md-clean`.
+the markdown linting cache must be cleaned with `make lint-clean`.
 
 ## Testing new errors
 

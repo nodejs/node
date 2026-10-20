@@ -4,7 +4,7 @@
 const common = require('../common');
 
 const assert = require('assert');
-const { writeFile, readFile } = require('fs').promises;
+const { open, writeFile, readFile } = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 const { internalBinding } = require('internal/test/binding');
 const fsBinding = internalBinding('fs');
@@ -70,13 +70,21 @@ async function validateWrongSignalParam() {
 }
 
 async function validateZeroByteLiar() {
+  // readFile(path) sizes and reads small files natively (a lying size is
+  // handled there, see validateReadFileProc); the JS chunked reader that
+  // FileHandles use must cope with a file that claims size 0 as well.
   const originalFStat = fsBinding.fstat;
   fsBinding.fstat = common.mustCall(
     async () => (/* stat fields */ [0, 1, 2, 3, 4, 5, 6, 7, 0 /* size */])
   );
-  const readBuffer = await readFile(fn);
-  assert.strictEqual(readBuffer.toString(), largeBuffer.toString());
-  fsBinding.fstat = originalFStat;
+  const fh = await open(fn);
+  try {
+    const readBuffer = await readFile(fh);
+    assert.strictEqual(readBuffer.toString(), largeBuffer.toString());
+  } finally {
+    fsBinding.fstat = originalFStat;
+    await fh.close();
+  }
 }
 
 (async () => {

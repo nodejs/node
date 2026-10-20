@@ -4,7 +4,6 @@ export interface TypesBinding {
   isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>;
   isBigIntObject: (value: unknown) => value is BigInt;
   isBooleanObject: (value: unknown) => value is Boolean;
-  isDataView(value: unknown): value is DataView;
   isDate: (value: unknown) => value is Date;
   isExternal(value: unknown): value is object;
   isGeneratorFunction(value: unknown): value is GeneratorFunction;

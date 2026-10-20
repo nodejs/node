@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>Service Worker: Service-Worker-Allowed header</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+const host_info = get_host_info();
+
+// Returns a URL for a service worker script whose Service-Worker-Allowed
+// header value is set to |allowed_path|. If |origin| is specified, that origin
+// is used.
+function build_script_url(allowed_path, origin) {
+  const script = 'resources/empty-worker.js';
+  const url = origin ? `${origin}${base_path()}${script}` : script;
+  return `${url}?pipe=header(Service-Worker-Allowed,${allowed_path})`;
+}
+
+// register_test is a promise_test that registers a service worker.
+function register_test(script, scope, description) {
+  promise_test(async t => {
+    t.add_cleanup(() => {
+      return service_worker_unregister(t, scope);
+    });
+
+    const registration = await service_worker_unregister_and_register(
+        t, script, scope);
+    assert_true(registration instanceof ServiceWorkerRegistration, 'registered');
+    assert_equals(registration.scope, normalizeURL(scope));
+  }, description);
+}
+
+// register_fail_test is like register_test but expects a SecurityError.
+function register_fail_test(script, scope, description) {
+  promise_test(async t => {
+    t.add_cleanup(() => {
+      return service_worker_unregister(t, scope);
+    });
+
+    await service_worker_unregister(t, scope);
+    await promise_rejects_dom(t,
+                          'SecurityError',
+                          navigator.serviceWorker.register(script, {scope}));
+  }, description);
+}
+
+register_test(
+    build_script_url('/allowed-path'),
+    '/allowed-path',
+    'Registering within Service-Worker-Allowed path');
+
+register_test(
+    build_script_url(new URL('/allowed-path', document.location)),
+    '/allowed-path',
+    'Registering within Service-Worker-Allowed path (absolute URL)');
+
+register_test(
+    build_script_url('../allowed-path-with-parent'),
+    'allowed-path-with-parent',
+    'Registering within Service-Worker-Allowed path with parent reference');
+
+register_fail_test(
+    build_script_url('../allowed-path'),
+    '/disallowed-path',
+    'Registering outside Service-Worker-Allowed path'),
+
+register_fail_test(
+    build_script_url('../allowed-path-with-parent'),
+    '/allowed-path-with-parent',
+    'Registering outside Service-Worker-Allowed path with parent reference');
+
+register_fail_test(
+    build_script_url(host_info.HTTPS_REMOTE_ORIGIN + '/'),
+    'resources/this-scope-is-normally-allowed',
+    'Service-Worker-Allowed is cross-origin to script, registering on a normally allowed scope');
+
+register_fail_test(
+    build_script_url(host_info.HTTPS_REMOTE_ORIGIN + '/'),
+    '/this-scope-is-normally-disallowed',
+    'Service-Worker-Allowed is cross-origin to script, registering on a normally disallowed scope');
+
+register_fail_test(
+    build_script_url(host_info.HTTPS_REMOTE_ORIGIN + '/cross-origin/',
+                     host_info.HTTPS_REMOTE_ORIGIN),
+    '/cross-origin/',
+    'Service-Worker-Allowed is cross-origin to page, same-origin to script');
+</script>

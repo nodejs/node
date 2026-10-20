@@ -15,7 +15,13 @@
             },
             {
                 "domain": "Debugger",
-                "exported": ["SearchMatch", "paused.reason"]
+                "exported": [
+                    "SearchMatch",
+                    "paused.reason"
+                ],
+                "pass_associated_data": [
+                    "setBreakpointByUrl"
+                ]
             },
             {
                 "domain": "Console"

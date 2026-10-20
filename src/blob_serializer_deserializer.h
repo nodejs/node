@@ -1,7 +1,9 @@
 #ifndef SRC_BLOB_SERIALIZER_DESERIALIZER_H_
 #define SRC_BLOB_SERIALIZER_DESERIALIZER_H_
 
+#include <concepts>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
@@ -43,12 +45,16 @@ class BlobDeserializer : public BlobSerializerDeserializer {
 
   size_t read_total = 0;
   std::string_view sink;
+  // Cleared when a read would go past the end of `sink`; that read and all
+  // later ones yield zeroes and empty views, so callers can check at the end.
+  bool ok = true;
 
   Impl* impl() { return static_cast<Impl*>(this); }
   const Impl* impl() const { return static_cast<const Impl*>(this); }
 
   // Helper for reading numeric types.
   template <typename T>
+    requires std::is_arithmetic_v<T>
   T ReadArithmetic();
 
   // Layout of vectors:
@@ -63,15 +69,18 @@ class BlobDeserializer : public BlobSerializerDeserializer {
 
   // Helper for reading an array of numeric types.
   template <typename T>
+    requires std::is_arithmetic_v<T>
   void ReadArithmetic(T* out, size_t count);
 
   // Helper for reading numeric vectors.
   template <typename Number>
+    requires std::is_arithmetic_v<Number>
   std::vector<Number> ReadArithmeticVector(size_t count);
 
  private:
   // Helper for reading non-numeric vectors.
   template <typename T>
+    requires(!std::is_arithmetic_v<T>)
   std::vector<T> ReadNonArithmeticVector(size_t count);
 
   template <typename T>
@@ -94,6 +103,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
 
   // Helper for writing numeric types.
   template <typename T>
+    requires std::is_arithmetic_v<T>
   size_t WriteArithmetic(const T& data);
 
   // Layout of vectors:
@@ -110,15 +120,18 @@ class BlobSerializer : public BlobSerializerDeserializer {
 
   // Helper for writing an array of numeric types.
   template <typename T>
+    requires std::is_arithmetic_v<T>
   size_t WriteArithmetic(const T* data, size_t count);
 
   // Helper for writing numeric vectors.
   template <typename Number>
+    requires std::is_arithmetic_v<Number>
   size_t WriteArithmeticVector(const std::vector<Number>& data);
 
  private:
   // Helper for writing non-numeric vectors.
   template <typename T>
+    requires(!std::is_arithmetic_v<T>)
   size_t WriteNonArithmeticVector(const std::vector<T>& data);
 
   template <typename T>

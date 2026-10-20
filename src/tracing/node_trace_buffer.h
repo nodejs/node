@@ -1,9 +1,11 @@
 #ifndef SRC_TRACING_NODE_TRACE_BUFFER_H_
 #define SRC_TRACING_NODE_TRACE_BUFFER_H_
 
-#include "tracing/agent.h"
-#include "node_mutex.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "libplatform/v8-tracing.h"
+#include "node_mutex.h"
+#include "tracing/agent_legacy.h"
 
 #include <atomic>
 
@@ -19,7 +21,9 @@ class NodeTraceBuffer;
 
 class InternalTraceBuffer {
  public:
-  InternalTraceBuffer(size_t max_chunks, uint32_t id, Agent* agent);
+  InternalTraceBuffer(size_t max_chunks,
+                      uint32_t id,
+                      LegacyTracingAgent* agent);
 
   TraceObject* AddTraceEvent(uint64_t* handle);
   TraceObject* GetEventByHandle(uint64_t handle);
@@ -41,7 +45,7 @@ class InternalTraceBuffer {
   Mutex mutex_;
   bool flushing_;
   size_t max_chunks_;
-  Agent* agent_;
+  LegacyTracingAgent* agent_;
   std::vector<std::unique_ptr<TraceBufferChunk>> chunks_;
   size_t total_chunks_ = 0;
   uint32_t current_chunk_seq_ = 1;
@@ -50,7 +54,9 @@ class InternalTraceBuffer {
 
 class NodeTraceBuffer : public TraceBuffer {
  public:
-  NodeTraceBuffer(size_t max_chunks, Agent* agent, uv_loop_t* tracing_loop);
+  NodeTraceBuffer(size_t max_chunks,
+                  LegacyTracingAgent* agent,
+                  uv_loop_t* tracing_loop);
   ~NodeTraceBuffer() override;
 
   TraceObject* AddTraceEvent(uint64_t* handle) override;
@@ -79,5 +85,7 @@ class NodeTraceBuffer : public TraceBuffer {
 
 }  // namespace tracing
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TRACING_NODE_TRACE_BUFFER_H_

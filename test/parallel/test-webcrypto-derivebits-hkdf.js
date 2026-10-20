@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
@@ -24,12 +24,12 @@ const kDerivedKeyTypes = [
   ['HMAC', 256, 'SHA-256', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-384', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-512', 'sign', 'verify'],
+  ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
+  ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   kDerivedKeyTypes.push(
-    ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
-    ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
     ['HMAC', 256, 'SHA3-256', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-384', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
@@ -91,7 +91,7 @@ const kDerivations = {
         empty: '9e4b719033742101e90f1ad61e2ff3b4' +
                '256863667296d74389f1f02af2c4e6a6'
       },
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': {
           normal: '386b0693d7a58c4ddf01b49bfbbd2fa87c6f911991543995170ba20ed28df599',
           empty: 'd029bc828b6c6c8bb16ce3d25f5058f19c7d2517745e11c5d65c6d242e82e47f',
@@ -131,7 +131,7 @@ const kDerivations = {
         empty: 'c8e12774135305c9147f2cc4766e5ead' +
                '25d8f457b9a1953d52677361ced558fb'
       },
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': {
           normal: '9befc557f5baf4075b5fb38c014b41b92ab7534150baf64201069e8807d0e83d',
           empty: '54d1fa1aa7cad99dab0622b772170e775c103756183bac36a228fd817a98a3f6',
@@ -173,7 +173,7 @@ const kDerivations = {
         empty: 'e579d1f9e7f08e6f990ffcfcce1ed201' +
                'c5e37e62cdf606f0ba4aca80427fbc44'
       },
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': {
           normal: '24f38fd1905554b7cbf8395cc3976292d11ce24a0b3131da0fd4b109832d27e3',
           empty: '33d0a5151c0f52e4bb7fb67cf7a17063127624dc3e685903f49ebb07872084d1',
@@ -213,7 +213,7 @@ const kDerivations = {
         empty: 'b4f7e7557674d501cbfbc0148ad800c0' +
                '750189fe295a2aca5e1bf4122c85edf9'
       },
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': {
           normal: 'fe32459f7339dd2e8df6c6fc874ed9e81e3b7aad669edad9b71196f53ed95b12',
           empty: '04519be1eb94079c91306cc5b21946b3de6a78ad35ec83d4f4a37bafbda678d7',
@@ -606,6 +606,12 @@ async function testWrongKeyType(
 
             kDerivedKeyTypes.forEach((keyType) => {
               const keyArgs = getDeriveKeyInfo(...keyType);
+              if (hasFIPS() && keyType[0] === 'AES-OCB') {
+                variations.push(assert.rejects(testDeriveKey(...args, ...keyArgs), {
+                  name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+                }));
+                return;
+              }
               variations.push(testDeriveKey(...args, ...keyArgs));
               variations.push(testDeriveKeyBadHash(...args, ...keyArgs));
               variations.push(testDeriveKeyBadUsage(
@@ -637,6 +643,27 @@ async function testWrongKeyType(
     salt: new Uint8Array(0),
   }, key, 0);
   assert.deepStrictEqual(bits, new ArrayBuffer(0));
+})().then(common.mustCall());
+
+// HKDF output is limited to 255 digest blocks.
+(async function() {
+  const key = await crypto.subtle.importKey(
+    'raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']);
+  const algorithm = {
+    name: 'HKDF',
+    hash: 'SHA-256',
+    info: new Uint8Array(0),
+    salt: new Uint8Array(0),
+  };
+
+  const bits = await crypto.subtle.deriveBits(algorithm, key, 65280);
+  assert.strictEqual(bits.byteLength, 8160);
+
+  await assert.rejects(
+    crypto.subtle.deriveBits(algorithm, key, 65288), {
+      name: 'OperationError',
+      message: 'length exceeds the maximum derived bit length',
+    });
 })().then(common.mustCall());
 
 // OpenSSL limits info to 1024 bytes

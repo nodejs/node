@@ -17,14 +17,11 @@
 #include "src/heap/memory-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
-#include "src/sandbox/code-pointer-table-inl.h"
+#include "src/heap/safepoint.h"
+#include "src/init/v8.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
-
-#ifdef V8_ENABLE_PARTITION_ALLOC
-#include <partition_alloc/partition_alloc.h>
-#endif
 
 namespace v8 {
 namespace internal {
@@ -132,7 +129,6 @@ IsolateGroup::~IsolateGroup() {
   }
 
 #ifdef V8_ENABLE_SANDBOX
-  code_pointer_table_.TearDown();
   trusted_range_.Free();
 #endif  // V8_ENABLE_SANDBOX
 
@@ -146,7 +142,6 @@ IsolateGroup::~IsolateGroup() {
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-  backend_allocator_.TearDown();
   sandbox_->TearDown();
   if (!process_wide_) {
     delete sandbox_;
@@ -196,7 +191,6 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   trusted_pointer_compression_cage_ = &trusted_range_;
   sandbox_ = sandbox;
 
-  code_pointer_table()->Initialize();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
 
@@ -366,6 +360,9 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
   optimizing_compile_task_executor_->EnsureStarted();
 
   if (v8_flags.shared_heap) {
+    if (!global_safepoint_) {
+      global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
+    }
     if (has_shared_space_isolate()) {
       isolate->owns_shareable_data_ = false;
     } else {
@@ -423,7 +420,8 @@ IsolateGroup* IsolateGroup::New() {
 
   IsolateGroup* group = new IsolateGroup;
 #ifdef V8_ENABLE_SANDBOX
-  Sandbox* sandbox = Sandbox::New(GetPlatformVirtualAddressSpace());
+  Sandbox* sandbox =
+      Sandbox::New(V8::GetCurrentPlatform(), GetPlatformVirtualAddressSpace());
   group->Initialize(false, sandbox);
 #else
   group->Initialize(false);
@@ -451,229 +449,9 @@ void IsolateGroup::ReleaseDefault() {
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void SandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
-  base::MutexGuard guard(&mutex_);
-  if (is_initialized()) {
-    return;
-  }
-  CHECK(sandbox->is_initialized());
-  sandbox_ = sandbox;
-  constexpr size_t max_backing_memory_size = 8ULL * GB;
-  constexpr size_t min_backing_memory_size = 1ULL * GB;
-  size_t backing_memory_size = max_backing_memory_size;
-  Address backing_memory_base = 0;
-  while (!backing_memory_base &&
-         backing_memory_size >= min_backing_memory_size) {
-    backing_memory_base = sandbox_->address_space()->AllocatePages(
-        VirtualAddressSpace::kNoHint, backing_memory_size, kChunkSize,
-        PagePermissions::kNoAccess);
-    if (!backing_memory_base) {
-      backing_memory_size /= 2;
-    }
-  }
-  if (!backing_memory_base) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Could not reserve backing memory for ArrayBufferAllocators");
-  }
-  DCHECK(IsAligned(backing_memory_base, kChunkSize));
 
-  region_alloc_ = std::make_unique<base::RegionAllocator>(
-      backing_memory_base, backing_memory_size, kAllocationGranularity);
-  end_of_accessible_region_ = region_alloc_->begin();
-
-  // Install an on-merge callback to discard or decommit unused pages.
-  region_alloc_->set_on_merge_callback([this](Address start, size_t size) {
-    mutex_.AssertHeld();
-    Address end = start + size;
-    if (end == region_alloc_->end() &&
-        start <= end_of_accessible_region_ - kChunkSize) {
-      // Can shrink the accessible region.
-      Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
-      size_t size_to_decommit =
-          end_of_accessible_region_ - new_end_of_accessible_region;
-      if (!sandbox_->address_space()->DecommitPages(
-              new_end_of_accessible_region, size_to_decommit)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-      end_of_accessible_region_ = new_end_of_accessible_region;
-    } else if (size >= 2 * kChunkSize) {
-      // Can discard pages. The pages stay accessible, so the size of the
-      // accessible region doesn't change.
-      Address chunk_start = RoundUp(start, kChunkSize);
-      Address chunk_end = RoundDown(start + size, kChunkSize);
-      if (!sandbox_->address_space()->DiscardSystemPages(
-              chunk_start, chunk_end - chunk_start)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-    }
-  });
-}
-
-void* SandboxedArrayBufferAllocator::Allocate(size_t length) {
-  base::MutexGuard guard(&mutex_);
-
-  length = RoundUp(length, kAllocationGranularity);
-  Address region = region_alloc_->AllocateRegion(length);
-  if (region == base::RegionAllocator::kAllocationFailure) return nullptr;
-
-  // Check if the memory is inside the accessible region. If not, grow it.
-  Address end = region + length;
-  size_t length_to_memset = length;
-  if (end > end_of_accessible_region_) {
-    Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
-    size_t size = new_end_of_accessible_region - end_of_accessible_region_;
-    if (!sandbox_->address_space()->SetPagePermissions(
-            end_of_accessible_region_, size, PagePermissions::kReadWrite)) {
-      if (!region_alloc_->FreeRegion(region)) {
-        V8::FatalProcessOutOfMemory(
-            nullptr, "SandboxedArrayBufferAllocator::Allocate()");
-      }
-      return nullptr;
-    }
-
-    // The pages that were inaccessible are guaranteed to be zeroed, so only
-    // memset until the previous end of the accessible region.
-    length_to_memset = end_of_accessible_region_ - region;
-    end_of_accessible_region_ = new_end_of_accessible_region;
-  }
-
-  void* mem = reinterpret_cast<void*>(region);
-  memset(mem, 0, length_to_memset);
-  return mem;
-}
-
-void* SandboxedArrayBufferAllocator::AllocateUninitialized(size_t length) {
-  return Allocate(length);
-}
-
-void SandboxedArrayBufferAllocator::Free(void* data) {
-  base::MutexGuard guard(&mutex_);
-  region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
-}
-
-void SandboxedArrayBufferAllocator::TearDown() {
-  // The sandbox may already have been torn down, in which case there's no
-  // need to free any memory.
-  if (is_initialized() && sandbox_->is_initialized()) {
-    sandbox_->address_space()->FreePages(region_alloc_->begin(),
-                                         region_alloc_->size());
-  }
-  sandbox_ = nullptr;
-  region_alloc_.reset(nullptr);
-}
-
-#ifdef V8_ENABLE_PARTITION_ALLOC
-class PABackedSandboxedArrayBufferAllocator::Impl final {
- public:
-  explicit Impl(Sandbox* sandbox) {
-    const size_t max_pool_size = partition_alloc::internal::
-        PartitionAddressSpace::ConfigurablePoolMaxSize();
-    const size_t min_pool_size = partition_alloc::internal::
-        PartitionAddressSpace::ConfigurablePoolMinSize();
-    size_t pool_size = max_pool_size;
-    // Try to reserve the maximum size of the pool at first, then keep halving
-    // the size on failure until it succeeds.
-    uintptr_t pool_base = 0;
-    while (!pool_base && pool_size >= min_pool_size) {
-      pool_base = sandbox->address_space()->AllocatePages(
-          VirtualAddressSpace::kNoHint, pool_size, pool_size,
-          v8::PagePermissions::kNoAccess);
-      if (!pool_base) {
-        pool_size /= 2;
-      }
-    }
-    // The V8 sandbox is guaranteed to be large enough to host the pool.
-    CHECK(pool_base);
-    // Call PartitionAddressSpace::Init() first just to make sure metadata
-    // region start is initialized and the configurable pool allocations do have
-    // out-of-line metadata.
-    partition_alloc::internal::PartitionAddressSpace::Init();
-    partition_alloc::internal::PartitionAddressSpace::InitConfigurablePool(
-        pool_base, pool_size);
-
-    partition_alloc::PartitionOptions opts;
-    opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
-    opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
-    partition_.init(std::move(opts));
-  }
-
-  Impl(const Impl&) = delete;
-  Impl& operator=(const Impl&) = delete;
-
-  void* Allocate(size_t length) {
-    constexpr partition_alloc::AllocFlags flags =
-        partition_alloc::AllocFlags::kZeroFill |
-        partition_alloc::AllocFlags::kReturnNull;
-    return AllocateInternal<flags>(length);
-  }
-
-  void* AllocateUninitialized(size_t length) {
-    constexpr partition_alloc::AllocFlags flags =
-        partition_alloc::AllocFlags::kReturnNull;
-    return AllocateInternal<flags>(length);
-  }
-
-  void Free(void* data) {
-    partition_.root()->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(
-        data);
-  }
-
- private:
-  template <partition_alloc::AllocFlags flags>
-  void* AllocateInternal(size_t length) {
-    // The V8 sandbox requires all ArrayBuffer backing stores to be allocated
-    // inside the sandbox address space. This isn't guaranteed if allocation
-    // override hooks (which are e.g. used by GWP-ASan) are enabled or if a
-    // memory tool (e.g. ASan) overrides malloc, so disable both.
-    constexpr auto new_flags =
-        flags | partition_alloc::AllocFlags::kNoOverrideHooks |
-        partition_alloc::AllocFlags::kNoMemoryToolOverride;
-    return partition_.root()->AllocInline<new_flags>(
-        length, "PABackedSandboxedArrayBufferAllocator");
-  }
-
-  partition_alloc::PartitionAllocator partition_;
-};
-
-PABackedSandboxedArrayBufferAllocator::PABackedSandboxedArrayBufferAllocator() =
-    default;
-
-PABackedSandboxedArrayBufferAllocator::
-    ~PABackedSandboxedArrayBufferAllocator() = default;
-
-void PABackedSandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
-  if (impl_) {
-    return;
-  }
-  impl_ = std::make_unique<Impl>(sandbox);
-}
-
-void* PABackedSandboxedArrayBufferAllocator::Allocate(size_t length) {
-  DCHECK(impl_);
-  return impl_->Allocate(length);
-}
-
-void* PABackedSandboxedArrayBufferAllocator::AllocateUninitialized(
-    size_t length) {
-  DCHECK(impl_);
-  return impl_->AllocateUninitialized(length);
-}
-
-void PABackedSandboxedArrayBufferAllocator::Free(void* data) {
-  DCHECK(impl_);
-  return impl_->Free(data);
-}
-
-void PABackedSandboxedArrayBufferAllocator::TearDown() { impl_.reset(); }
-#endif  // V8_ENABLE_PARTITION_ALLOC
-
-SandboxedArrayBufferAllocatorBase*
-IsolateGroup::GetSandboxedArrayBufferAllocator() {
-  // TODO(342905186): Consider initializing it during IsolateGroup
-  // initialization instead of doing it lazily.
-  //
-  backend_allocator_.LazyInitialize(sandbox());
-  return &backend_allocator_;
+v8::Allocator* IsolateGroup::GetInSandboxAllocator() {
+  return sandbox_->in_sandbox_allocator();
 }
 
 #endif  // V8_ENABLE_SANDBOX

@@ -20,7 +20,7 @@ binding.HTTPParser = DummyParser;
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { parsers } = require('_http_common');
+const { parsers } = require('internal/http/common');
 
 // Test _http_common was not loaded before monkey patching
 const parser = parsers.alloc();

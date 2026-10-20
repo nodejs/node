@@ -30,9 +30,7 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-Hmac::Hmac(Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap),
-      ctx_(nullptr) {
+Hmac::Hmac(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
   MakeWeak();
 }
 
@@ -143,6 +141,9 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
       return ThrowCryptoError(env, ERR_get_error(), "Failed to finalize HMAC");
     }
     hmac->ctx_.reset();
+  } else {
+    // The context has already been finalized; never emit unwritten bytes.
+    buf.len = 0;
   }
 
   Local<Value> ret;
@@ -156,8 +157,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 HmacConfig::HmacConfig(HmacConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
+    : mode(other.mode),
       key(std::move(other.key)),
       data(std::move(other.data)),
       signature(std::move(other.signature)),
@@ -171,11 +171,8 @@ HmacConfig& HmacConfig::operator=(HmacConfig&& other) noexcept {
 
 void HmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  // If the job is sync, then the HmacConfig does not own the data
-  if (job_mode == kCryptoJobAsync) {
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("signature", signature.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(signature, "signature");
 }
 
 Maybe<void> HmacTraits::AdditionalConfig(
@@ -184,8 +181,6 @@ Maybe<void> HmacTraits::AdditionalConfig(
     unsigned int offset,
     HmacConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // SignConfiguration::Mode
   params->mode =
@@ -210,9 +205,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync
-      ? data.ToCopy()
-      : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   if (!args[offset + 4]->IsUndefined()) {
     ArrayBufferOrViewContents<char> signature(args[offset + 4]);
@@ -220,9 +213,8 @@ Maybe<void> HmacTraits::AdditionalConfig(
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
     }
-    params->signature = mode == kCryptoJobAsync
-        ? signature.ToCopy()
-        : signature.ToByteSource();
+    params->signature =
+        IsCryptoJobAsync(mode) ? signature.ToCopy() : signature.ToByteSource();
   }
 
   return JustVoid();

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -705,8 +705,8 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
      */
     if (p == NULL) {
         const char *base_ = base;
-        int l, h, i = 0, c = 0;
-        char *p1;
+        int i = 0, c = 0;
+        const char *p1;
 
         for (i = 0; i < num; ++i) {
             p1 = &(base_[i * size]);

@@ -12,9 +12,10 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 template <typename T>
-void RegExpBytecodeWriter::Emit(T value, int offset) {
+void BytecodeWriter::Emit(T value, int offset) {
   const int new_pc_within_bc = pc_ + offset;
   DCHECK(base::IsInRange(new_pc_within_bc, pc_within_bc_, end_of_bc_));
   DCHECK_LE(new_pc_within_bc + sizeof(T), buffer_.size());
@@ -28,7 +29,7 @@ void RegExpBytecodeWriter::Emit(T value, int offset) {
 }
 
 template <typename T>
-void RegExpBytecodeWriter::OverwriteValue(T value, int absolute_offset) {
+void BytecodeWriter::OverwriteValue(T value, int absolute_offset) {
   // TODO(jgruber): Consider specializing this function; there should be very
   // few uses (updating jump offsets).
   DCHECK(IsAligned(absolute_offset, sizeof(T)));
@@ -36,18 +37,18 @@ void RegExpBytecodeWriter::OverwriteValue(T value, int absolute_offset) {
   *reinterpret_cast<T*>(buffer_.data() + absolute_offset) = value;
 }
 
-void RegExpBytecodeWriter::EmitBytecode(RegExpBytecode bc) {
+void BytecodeWriter::EmitBytecode(Bytecode bc) {
   DCHECK_EQ(pc_, end_of_bc_);
   DCHECK_EQ(pc_within_bc_, end_of_bc_);
 #ifdef DEBUG
-  end_of_bc_ = pc_ + RegExpBytecodes::Size(bc);
+  end_of_bc_ = pc_ + Bytecodes::Size(bc);
   pc_within_bc_ = pc_;
 #endif
-  EnsureCapacity(RegExpBytecodes::Size(bc));
-  Emit(RegExpBytecodes::ToByte(bc), 0);
+  EnsureCapacity(Bytecodes::Size(bc));
+  Emit(Bytecodes::ToByte(bc), 0);
 }
 
-void RegExpBytecodeWriter::EnsureCapacity(size_t size_delta) {
+void BytecodeWriter::EnsureCapacity(size_t size_delta) {
   const size_t required_size = pc_ + size_delta;
   size_t size = buffer_.size();
   if (V8_LIKELY(size >= required_size)) return;
@@ -64,7 +65,7 @@ void RegExpBytecodeWriter::EnsureCapacity(size_t size_delta) {
   DCHECK_LE(required_size, buffer_.size());
 }
 
-void RegExpBytecodeWriter::ResetPc(int new_pc) {
+void BytecodeWriter::ResetPc(int new_pc) {
   // Resetting is only allowed at the beginning of a bytecode.
   DCHECK_EQ(pc_, pc_within_bc_);
   DCHECK_LE(new_pc, pc_);
@@ -76,7 +77,7 @@ void RegExpBytecodeWriter::ResetPc(int new_pc) {
 }
 
 #ifdef DEBUG
-void RegExpBytecodeWriter::EmitPadding(int offset) {
+void BytecodeWriter::EmitPadding(int offset) {
   const int padding_to = pc_ + offset;
   DCHECK_LE(padding_to, buffer_.size());
   DCHECK_LE(padding_to, end_of_bc_);
@@ -89,6 +90,7 @@ void RegExpBytecodeWriter::EmitPadding(int offset) {
 }
 #endif
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

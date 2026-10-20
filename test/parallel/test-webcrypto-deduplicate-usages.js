@@ -13,7 +13,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { createSecretKey } = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function assertSameSet(actual, expected, msg) {
@@ -42,17 +42,17 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'AES-GCM', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt'],
       expected: ['encrypt', 'decrypt'] },
+    { algorithm: { name: 'AES-KW', length: 128 },
+      usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
+      expected: ['wrapKey', 'unwrapKey'] },
+    { algorithm: { name: 'ChaCha20-Poly1305' },
+      usages: ['wrapKey', 'decrypt', 'encrypt', 'unwrapKey', 'wrapKey', 'encrypt'],
+      expected: ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey'] },
   ];
 
-  if (!process.features.openssl_is_boringssl) {
-    symmetric.push({
-      algorithm: { name: 'AES-KW', length: 128 },
-      usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+  if (hasFIPS(3))
+    symmetric.splice(symmetric.findIndex(({ algorithm }) =>
+      algorithm.name === 'ChaCha20-Poly1305'), 1);
 
   if (hasOpenSSL(3)) {
     symmetric.push({
@@ -69,19 +69,16 @@ function assertSameSet(actual, expected, msg) {
     common.printSkipMessage('AES-OCB and KMAC require OpenSSL >= 3');
   }
 
-  if (!process.features.openssl_is_boringssl) {
-    symmetric.push({
-      algorithm: { name: 'ChaCha20-Poly1305' },
-      usages: ['wrapKey', 'decrypt', 'encrypt', 'unwrapKey', 'wrapKey', 'encrypt'],
-      expected: ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('ChaCha20-Poly1305 is not supported in BoringSSL');
-  }
-
   for (const { algorithm, usages, expected } of symmetric) {
     tests.push((async () => {
-      const key = await subtle.generateKey(algorithm, true, usages);
+      const generated = subtle.generateKey(algorithm, true, usages);
+      if (hasFIPS(3) && algorithm.name === 'AES-OCB') {
+        await assert.rejects(generated, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await generated;
       assertSameSet(key.usages, expected,
                     `generateKey ${algorithm.name}`);
       assert.strictEqual(key.usages.length, expected.length,
@@ -121,7 +118,11 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['deriveKey', 'deriveBits'] },
   ];
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasFIPS(3))
+    asymmetric.splice(asymmetric.findIndex(({ algorithm }) =>
+      algorithm.name === 'X25519'), 1);
+
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     asymmetric.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],
@@ -136,7 +137,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['decapsulateKey', 'decapsulateBits'],
     });
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   for (const { algorithm, usages, publicExpected, privateExpected } of asymmetric) {
@@ -172,17 +173,10 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'HMAC', hash: 'SHA-256' }, keyData: new Uint8Array(32),
       usages: ['verify', 'sign', 'verify', 'sign'],
       expected: ['sign', 'verify'] },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    rawSymmetric.push({
-      algorithm: { name: 'AES-KW' }, keyData: new Uint8Array(16),
+    { algorithm: { name: 'AES-KW' }, keyData: new Uint8Array(16),
       usages: ['wrapKey', 'unwrapKey', 'wrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+      expected: ['wrapKey', 'unwrapKey'] },
+  ];
 
   if (hasOpenSSL(3)) {
     // KMAC does not support `raw` format, only `raw-secret` and `jwk`.
@@ -241,12 +235,19 @@ function assertSameSet(actual, expected, msg) {
   // Argon2 only supports raw-secret import.
   if (hasOpenSSL(3, 2)) {
     tests.push((async () => {
-      const key = await subtle.importKey(
+      const imported = subtle.importKey(
         'raw-secret',
         new Uint8Array(16),
         'Argon2id',
         false,
         ['deriveBits', 'deriveBits']);
+      if (hasFIPS(3)) {
+        await assert.rejects(imported, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await imported;
       assertSameSet(key.usages, ['deriveBits'],
                     'importKey raw-secret Argon2id');
       assert.strictEqual(key.usages.length, 1);
@@ -310,7 +311,7 @@ function assertSameSet(actual, expected, msg) {
     assert.deepStrictEqual(imported.usages, ['sign']);
   })());
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     // ML-DSA JWK roundtrip.
     tests.push((async () => {
       const { privateKey } = await subtle.generateKey(
@@ -336,7 +337,7 @@ function assertSameSet(actual, expected, msg) {
                              ['decapsulateKey', 'decapsulateBits']);
     })());
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   // Spki import of RSA public key.
@@ -356,30 +357,38 @@ function assertSameSet(actual, expected, msg) {
   })());
 
   // ChaCha20-Poly1305 raw-secret import.
-  if (!process.features.openssl_is_boringssl) {
-    tests.push((async () => {
-      const key = await subtle.importKey(
-        'raw-secret',
-        new Uint8Array(32),
-        { name: 'ChaCha20-Poly1305' },
-        true,
-        ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
-      assertSameSet(key.usages, ['encrypt', 'decrypt']);
-      assert.strictEqual(key.usages.length, 2);
-    })());
-  } else {
-    common.printSkipMessage('ChaCha20-Poly1305 is not supported in BoringSSL');
-  }
+  tests.push((async () => {
+    const imported = subtle.importKey(
+      'raw-secret',
+      new Uint8Array(32),
+      { name: 'ChaCha20-Poly1305' },
+      true,
+      ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
+    if (hasFIPS(3)) {
+      await assert.rejects(imported, { name: 'NotSupportedError' });
+      return;
+    }
+    const key = await imported;
+    assertSameSet(key.usages, ['encrypt', 'decrypt']);
+    assert.strictEqual(key.usages.length, 2);
+  })());
 
   // AES-OCB raw-secret import.
   if (hasOpenSSL(3)) {
     tests.push((async () => {
-      const key = await subtle.importKey(
+      const imported = subtle.importKey(
         'raw-secret',
         new Uint8Array(16),
         { name: 'AES-OCB' },
         true,
         ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
+      if (hasFIPS(3)) {
+        await assert.rejects(imported, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await imported;
       assertSameSet(key.usages, ['encrypt', 'decrypt']);
       assert.strictEqual(key.usages.length, 2);
     })());
@@ -455,17 +464,10 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'AES-GCM', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt'],
       expected: ['encrypt', 'decrypt'] },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    jwkVectors.push({
-      algorithm: { name: 'AES-KW', length: 128 },
+    { algorithm: { name: 'AES-KW', length: 128 },
       usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+      expected: ['wrapKey', 'unwrapKey'] },
+  ];
 
   if (hasOpenSSL(3)) {
     jwkVectors.push({
@@ -484,7 +486,14 @@ function assertSameSet(actual, expected, msg) {
 
   for (const { algorithm, usages, expected } of jwkVectors) {
     tests.push((async () => {
-      const key = await subtle.generateKey(algorithm, true, usages);
+      const generated = subtle.generateKey(algorithm, true, usages);
+      if (hasFIPS(3) && algorithm.name === 'AES-OCB') {
+        await assert.rejects(generated, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await generated;
       const jwk = await subtle.exportKey('jwk', key);
       assertSameSet(jwk.key_ops, expected,
                     `jwk key_ops for ${algorithm.name}`);
@@ -523,7 +532,11 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['deriveKey', 'deriveBits'] },
   ];
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasFIPS(3))
+    jwkPairVectors.splice(jwkPairVectors.findIndex(({ algorithm }) =>
+      algorithm.name === 'X25519'), 1);
+
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     jwkPairVectors.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],
@@ -538,7 +551,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['decapsulateKey', 'decapsulateBits'],
     });
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   for (const { algorithm, usages, publicExpected, privateExpected } of jwkPairVectors) {

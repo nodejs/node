@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const { join } = require('path');
 const fixtures = require('../common/fixtures');
 const testFixtures = fixtures.path('test-runner');
@@ -60,6 +61,25 @@ for (const isolation of ['none', 'process']) {
     assert.match(stdout, /ok 3 - this should pass/);
     // Doesn't match the TypeScript files
     assert.doesNotMatch(stdout, /ok 4 - this should pass/);
+  }
+
+  {
+    // A directory argument is searched for the default test files within it,
+    // both bare and with a trailing separator.
+    // Refs: https://github.com/nodejs/node/issues/64555
+    for (const dir of ['matching-patterns', 'matching-patterns/']) {
+      const args = ['--test', '--test-reporter=tap',
+                    '--no-experimental-strip-types',
+                    `--test-isolation=${isolation}`, dir];
+      spawnSyncAndAssert(process.execPath, args, { cwd: testFixtures }, {
+        stderr: '',
+        stdout(output) {
+          assert.match(output, /ok 1 - this should pass/);
+          assert.match(output, /ok 2 - this should pass/);
+          assert.match(output, /ok 3 - this should pass/);
+        },
+      });
+    }
   }
 
   {
@@ -434,6 +454,8 @@ for (const isolation of ['none', 'process']) {
   // Should not propagate config file options to sub tests in isolation process.
   const fixturePath = join(testFixtures, 'options-propagation');
   const configFlagVariants = [
+    ['--config-file=node.config.json'],
+    ['--config-file'],
     ['--experimental-config-file=node.config.json'],
     ['--experimental-config-file'],
     ['--experimental-default-config-file'],
@@ -472,7 +494,7 @@ for (const isolation of ['none', 'process']) {
     const args = [
       '--test-reporter=tap',
       '--no-warnings',
-      `--experimental-config-file=node.config.json`,
+      `--config-file=node.config.json`,
       '--expose-internals',
       '--test',
     ];

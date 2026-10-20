@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Found unsupported type
+In src/ast/snapshots/span_testing/unsupported_type.rs:3:33:
+...(a : fn()) {}...
+        ^^^^
+See a list of the types Diplomat supports: https://rust-diplomat.github.io/diplomat/types.html

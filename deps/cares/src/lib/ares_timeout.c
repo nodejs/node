@@ -32,6 +32,17 @@
 #endif
 
 
+void ares_timeval_add(ares_timeval_t *now, size_t millisecs)
+{
+  now->sec  += (ares_int64_t)millisecs / 1000;
+  now->usec += (unsigned int)((millisecs % 1000) * 1000);
+
+  if (now->usec >= 1000000) {
+    now->sec  += now->usec / 1000000;
+    now->usec %= 1000000;
+  }
+}
+
 void ares_timeval_remaining(ares_timeval_t       *remaining,
                             const ares_timeval_t *now,
                             const ares_timeval_t *tout)

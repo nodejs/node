@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,12 +92,15 @@ slh_prf_msg_shake(SLH_DSA_HASH_CTX *ctx, const uint8_t *sk_prf,
     const uint8_t *opt_rand, const uint8_t *msg, size_t msg_len,
     WPACKET *pkt)
 {
+    int ret;
     unsigned char out[SLH_MAX_N];
     const SLH_DSA_PARAMS *params = ctx->key->params;
     size_t n = params->n;
 
-    return xof_digest_3(ctx->md_ctx, sk_prf, n, opt_rand, n, msg, msg_len, out, n)
+    ret = xof_digest_3(ctx->md_ctx, sk_prf, n, opt_rand, n, msg, msg_len, out, n)
         && WPACKET_memcpy(pkt, out, n);
+    OPENSSL_cleanse(out, sizeof(out));
+    return ret;
 }
 
 static int
@@ -151,6 +154,7 @@ slh_hmsg_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *r, const uint8_t *pk_seed,
     const uint8_t *pk_root, const uint8_t *msg, size_t msg_len,
     uint8_t *out, size_t out_len)
 {
+    int ret;
     const SLH_DSA_PARAMS *params = hctx->key->params;
     size_t m = params->m;
     size_t n = params->n;
@@ -163,9 +167,11 @@ slh_hmsg_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *r, const uint8_t *pk_seed,
 
     memcpy(seed, r, n);
     memcpy(seed + n, pk_seed, n);
-    return digest_4(hctx->md_big_ctx, r, n, pk_seed, n, pk_root, n, msg, msg_len,
-               seed + 2 * n)
+    ret = digest_4(hctx->md_big_ctx, r, n, pk_seed, n, pk_root, n, msg, msg_len,
+              seed + 2 * n)
         && (PKCS1_MGF1(out, m, seed, seed_len, hctx->key->md_big) == 0);
+    OPENSSL_cleanse(seed, sizeof(seed));
+    return ret;
 }
 
 static int
@@ -205,16 +211,23 @@ slh_prf_msg_sha2(SLH_DSA_HASH_CTX *hctx,
         && EVP_MAC_update(mctx, msg, msg_len) == 1
         && EVP_MAC_final(mctx, mac, NULL, sizeof(mac)) == 1
         && WPACKET_memcpy(pkt, mac, n); /* Truncate output to n bytes */
+    OPENSSL_cleanse(mac, sizeof(mac));
     return ret;
 }
 
+/*
+ * The |digest| scratch storage in the hash context is used in place of a
+ * local stack buffer, and is erased when the hash context is freed
+ * (FIPS 205 section 3.1).  On the PRF path it holds a derived chain secret.
+ */
 static ossl_inline int
-do_hash(EVP_MD_CTX *ctx, size_t n, const uint8_t *pk_seed, const uint8_t *adrs,
+do_hash(SLH_DSA_HASH_CTX *hctx, EVP_MD_CTX *ctx, size_t n,
+    const uint8_t *pk_seed, const uint8_t *adrs,
     const uint8_t *m, size_t m_len, size_t b, uint8_t *out, size_t out_len)
 {
     int ret;
     uint8_t zeros[128] = { 0 };
-    uint8_t digest[MAX_DIGEST_SIZE];
+    uint8_t *digest = hctx->scratch;
 
     ret = digest_4(ctx, pk_seed, n, zeros, b - n, adrs, SLH_ADRSC_SIZE,
         m, m_len, digest);
@@ -230,7 +243,7 @@ slh_prf_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *pk_seed,
 {
     size_t n = hctx->key->params->n;
 
-    return do_hash(hctx->md_ctx, n, pk_seed, adrs, sk_seed, n,
+    return do_hash(hctx, hctx->md_ctx, n, pk_seed, adrs, sk_seed, n,
         OSSL_SLH_DSA_SHA2_NUM_ZEROS_H_AND_T_BOUND1, out, out_len);
 }
 
@@ -238,21 +251,22 @@ static int
 slh_f_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *pk_seed, const uint8_t *adrs,
     const uint8_t *m1, size_t m1_len, uint8_t *out, size_t out_len)
 {
-    return do_hash(hctx->md_ctx, hctx->key->params->n, pk_seed, adrs, m1, m1_len,
-        OSSL_SLH_DSA_SHA2_NUM_ZEROS_H_AND_T_BOUND1, out, out_len);
+    return do_hash(hctx, hctx->md_ctx, hctx->key->params->n, pk_seed, adrs,
+        m1, m1_len, OSSL_SLH_DSA_SHA2_NUM_ZEROS_H_AND_T_BOUND1, out, out_len);
 }
 
 static int
 slh_h_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *pk_seed, const uint8_t *adrs,
     const uint8_t *m1, const uint8_t *m2, uint8_t *out, size_t out_len)
 {
-    uint8_t m[SLH_MAX_N * 2];
+    /* The concatenated children go in the scratch after the digest */
+    uint8_t *m = hctx->scratch + MAX_DIGEST_SIZE;
     const SLH_DSA_PARAMS *prms = hctx->key->params;
     size_t n = prms->n;
 
     memcpy(m, m1, n);
     memcpy(m + n, m2, n);
-    return do_hash(hctx->md_big_ctx, n, pk_seed, adrs, m, 2 * n,
+    return do_hash(hctx, hctx->md_big_ctx, n, pk_seed, adrs, m, 2 * n,
         prms->sha2_h_and_t_bound, out, out_len);
 }
 
@@ -262,7 +276,7 @@ slh_t_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *pk_seed, const uint8_t *adrs,
 {
     const SLH_DSA_PARAMS *prms = hctx->key->params;
 
-    return do_hash(hctx->md_big_ctx, prms->n, pk_seed, adrs, ml, ml_len,
+    return do_hash(hctx, hctx->md_big_ctx, prms->n, pk_seed, adrs, ml, ml_len,
         prms->sha2_h_and_t_bound, out, out_len);
 }
 

@@ -77,6 +77,22 @@ function getSpecCoverageFixtureReport() {
   return report;
 }
 
+function formatSpawnSyncResult(result) {
+  return [
+    `status: ${result.status}`,
+    `signal: ${result.signal}`,
+    `stdout:\n${result.stdout}`,
+    `stderr:\n${result.stderr}`,
+  ].join('\n');
+}
+
+function assertIncludesReport(result, report) {
+  assert(
+    result.stdout.toString().includes(report),
+    formatSpawnSyncResult(result),
+  );
+}
+
 test('test coverage report', async (t) => {
   await t.test('handles the inspector not being available', (t) => {
     if (process.features.inspector) {
@@ -100,6 +116,8 @@ test('test coverage report', async (t) => {
 
 test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
+    // A dump left here would match the negative checks below on pid reuse.
+    t.after(() => tmpdir.refresh());
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
       '--experimental-test-coverage',
@@ -111,7 +129,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
-    assert(result.stdout.toString().includes(report));
+    assertIncludesReport(result, report);
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
     assert(findCoverageFileForPid(result.pid));
@@ -129,7 +147,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const result = spawnSync(process.execPath, args);
     const report = getTapCoverageFixtureReport();
 
-    assert(result.stdout.toString().includes(report));
+    assertIncludesReport(result, report);
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
     assert(!findCoverageFileForPid(result.pid));
@@ -138,6 +156,8 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
 
 test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
+    // A dump left here would match the negative checks below on pid reuse.
+    t.after(() => tmpdir.refresh());
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
       '--experimental-test-coverage',
@@ -149,7 +169,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
     const result = spawnSync(process.execPath, args, options);
     const report = getSpecCoverageFixtureReport();
 
-    assert(result.stdout.toString().includes(report));
+    assertIncludesReport(result, report);
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
     assert(findCoverageFileForPid(result.pid));
@@ -166,7 +186,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
     const result = spawnSync(process.execPath, args);
     const report = getSpecCoverageFixtureReport();
 
-    assert(result.stdout.toString().includes(report));
+    assertIncludesReport(result, report);
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
     assert(!findCoverageFileForPid(result.pid));
@@ -187,7 +207,7 @@ test('single process coverage is the same with --test', skipIfNoInspector, () =>
   const report = getTapCoverageFixtureReport();
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
   assert(!findCoverageFileForPid(result.pid));
 });
@@ -226,7 +246,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   });
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
 });
 
@@ -268,7 +288,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCa
   });
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
 }, 0));
 
@@ -285,6 +305,7 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
                           ]);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
+  assert.notStrictEqual(stdout, '', formatSpawnSyncResult(child));
   const coverage = JSON.parse(stdout);
 
   await t.test('does not include node_modules', () => {
@@ -366,7 +387,7 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
   const result = spawnSync(process.execPath, args, { cwd: fixture });
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
 });
 
@@ -401,7 +422,7 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
   const result = spawnSync(process.execPath, args, { cwd: fixture });
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
 });
 
@@ -435,7 +456,7 @@ test('coverage with excluded files', skipIfNoInspector, () => {
     return report.replaceAll('/', '\\');
   }
 
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
   assert(!findCoverageFileForPid(result.pid));
 });
@@ -472,7 +493,7 @@ test('coverage with included files', skipIfNoInspector, () => {
     return report.replaceAll('/', '\\');
   }
 
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
   assert(!findCoverageFileForPid(result.pid));
 });
@@ -506,8 +527,78 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
     return report.replaceAll('/', '\\');
   }
 
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage does not include untested files by default', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-exclude=**/*.test.js',
+    '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+  const report = [
+    '# start of coverage report',
+    '# -----------------------------------------------------------',
+    '# file       | line % | branch % | funcs % | uncovered lines',
+    '# -----------------------------------------------------------',
+    '# covered.js | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
+    '# all files  | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  assertIncludesReport(result, report);
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage includes untested files', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-include-all',
+    '--test-coverage-exclude=**/*.test.js', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+
+  const report = [
+    '# start of coverage report',
+    '# -------------------------------------------------------------',
+    '# file         | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------',
+    '# covered.js   | 100.00 |   100.00 |  100.00 | ',
+    '# nested       |        |          |         | ',
+    '#  deep.js     |   0.00 |   100.00 |  100.00 | 1-5',
+    '# untested.js  |   0.00 |   100.00 |  100.00 | 1-5',
+    '# -------------------------------------------------------------',
+    '# all files    |  33.33 |   100.00 |  100.00 | ',
+    '# -------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  assertIncludesReport(result, report);
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('untested files honor coverage include and exclude globs', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-include-all',
+    '--test-coverage-exclude=nested/**', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+  const stdout = result.stdout.toString();
+
+  assert.strictEqual(result.status, 0);
+  assert.match(stdout, /^# untested\.js/m);
+  assert.doesNotMatch(stdout, /deep\.js/);
   assert(!findCoverageFileForPid(result.pid));
 });
 
@@ -547,7 +638,7 @@ test('correctly prints the coverage report of files contained in parent director
   });
 
   assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
+  assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
 });
 
@@ -564,5 +655,5 @@ test('coverage with directory and file named "file"', skipIfNoInspector, () => {
 
   assert.strictEqual(result.stderr.toString(), '');
   assert.strictEqual(result.status, 0);
-  assert(result.stdout.toString().includes('start of coverage report'));
+  assertIncludesReport(result, 'start of coverage report');
 });
