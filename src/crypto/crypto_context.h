@@ -23,6 +23,12 @@ X509_STORE* NewRootCertStore();
 
 X509_STORE* GetOrCreateRootCertStore();
 
+// Installs the certificate verification callback that applies the SPKI
+// blocklist (and, on OpenSSL 4.1+, the CN name-constraint handling) to every
+// chain verified through `ctx`. Must be called for every SSL_CTX Node.js
+// creates, since SSL_CTX_set_cert_verify_callback replaces any earlier hook.
+void InstallCertVerifyCallback(SSL_CTX* ctx);
+
 ncrypto::BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 
 class SecureContext final : public BaseObject {
@@ -125,6 +131,15 @@ class SecureContext final : public BaseObject {
 
   template <bool primary>
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Test-only hooks for the SPKI blocklist that every SSL_CTX applies
+  // during certificate verification. Reachable through
+  // internalBinding('crypto') with --expose-internals. The argument is the
+  // SHA-256 of a DER-encoded SubjectPublicKeyInfo.
+  static void AddBlockedSPKIForTesting(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearBlockedSPKIsForTesting(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static int TicketKeyCallback(SSL* ssl,
                                unsigned char* name,

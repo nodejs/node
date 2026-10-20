@@ -3,6 +3,7 @@
 #include "tlscontext.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_context.h>
 #include <crypto/crypto_util.h>
 #include <debug_utils-inl.h>
 #include <env-inl.h>
@@ -292,6 +293,10 @@ SSLCtxPointer TLSContext::Initialize() {
   }
 
   SSL_CTX_set_default_verify_paths(ctx.get());
+  // QUIC builds its SSL_CTX here instead of through SecureContext, so the
+  // chain verification hook shared with TLS has to be installed explicitly.
+  crypto::InstallCertVerifyCallback(ctx.get());
+
   SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
 
   if (SSL_CTX_set_ciphersuites(ctx.get(), options_.ciphers.c_str()) != 1) {
