@@ -25,6 +25,7 @@
  */
 
 #include "ares_private.h"
+#include <limits.h>
 
 /* Uses public domain code snippets from
  * http://graphics.stanford.edu/~seander/bithacks.html */
@@ -164,4 +165,9 @@ ares_bool_t ares_size_t_mul_overflow(size_t a, size_t b, size_t *res)
   }
   *res = a * b;
   return ARES_FALSE;
+}
+
+int ares_dns_ttl_as_int(unsigned int ttl)
+{
+  return (ttl > INT_MAX) ? INT_MAX : (int)ttl;
 }

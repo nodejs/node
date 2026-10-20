@@ -21,6 +21,23 @@ These calls give the callbacks a chance to clean up any state which might have
 been stored in their arguments. If such a callback invocation adds a new
 request to the channel, that request will \fInot\fP be cancelled by the
 current invocation of \fBares_cancel(3)\fP.
+.SH REENTRANCY
+A callback invoked by
+.BR ares_cancel (3)
+may call c-ares functions on the same channel. The channel lock is recursive,
+and each query is unlinked from the library's internal structures before its
+callback runs, so a reentrant call cannot encounter a query that is part-way
+through being torn down.
+
+This includes starting new lookups, as described above, and reconfiguring the
+server list with
+.BR ares_set_servers_csv (3)
+and related functions.
+
+.SH AVAILABILITY
+The reentrancy guarantee described above applies as of c-ares version 1.35.0,
+and c-ares version 1.34.9 on the 1.34 branch.
+
 .SH SEE ALSO
 .BR ares_init (3)
 .BR ares_destroy (3)

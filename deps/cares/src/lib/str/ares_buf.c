@@ -1462,6 +1462,11 @@ ares_status_t ares_buf_load_file(const char *filename, ares_buf_t *buf)
     }
   }
 
+  if (setvbuf(fp, NULL, _IONBF, 0) != 0) {
+    status = ARES_EFILE; /* LCOV_EXCL_LINE: DefensiveCoding */
+    goto done;           /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
   /* Get length portably, fstat() is POSIX, not C */
   if (fseek(fp, 0, SEEK_END) != 0) {
     status = ARES_EFILE; /* LCOV_EXCL_LINE: DefensiveCoding */

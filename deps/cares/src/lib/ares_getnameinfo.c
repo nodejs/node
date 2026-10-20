@@ -194,7 +194,12 @@ void ares_getnameinfo(ares_channel_t *channel, const struct sockaddr *sa,
   }
 
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
   ares_getnameinfo_int(channel, sa, salen, flags_int, callback, arg);
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 }
 
@@ -223,9 +228,12 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
      */
 #ifdef HAVE_GETHOSTNAME
     if (niquery->flags & ARES_NI_NOFQDN) {
-      char        buf[255];
+      char        buf[255] = "";
       const char *domain;
-      gethostname(buf, 255);
+      if (gethostname(buf, (GETHOSTNAME_TYPE_ARG2)sizeof(buf)) != 0) {
+        buf[0] = '\0';
+      }
+      buf[sizeof(buf) - 1] = '\0';
       if ((domain = strchr(buf, '.')) != NULL) {
         char *end = ares_striendstr(host->h_name, domain);
         if (end) {

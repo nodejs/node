@@ -69,7 +69,6 @@ static ares_status_t ares_send_query_int(ares_server_t        *requested_server,
                                          ares_query_t         *query,
                                          const ares_timeval_t *now,
                                          ares_array_t        **requeue);
-static void          ares_detach_query(ares_query_t *query);
 
 static void        ares_query_remove_from_conn(ares_query_t *query)
 {
@@ -81,14 +80,32 @@ static void        ares_query_remove_from_conn(ares_query_t *query)
   query->conn                    = NULL;
 }
 
+/*! A queued server-state notification.  Holds the formatted address rather
+ *  than the server, so it stays valid however the server list changes. */
+typedef struct {
+  char       *server_string;
+  ares_bool_t success;
+  int         flags;
+} ares_server_state_msg_t;
+
+static void ares_server_state_msg_free(void *arg)
+{
+  ares_server_state_msg_t *msg = arg;
+  if (msg == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+  ares_free(msg->server_string);
+}
+
 /* Invoke the server state callback after a success or failure */
 static void invoke_server_state_cb(const ares_server_t *server,
                                    ares_bool_t success, int flags)
 {
-  const ares_channel_t *channel = server->channel;
-  ares_buf_t           *buf;
-  ares_status_t         status;
-  char                 *server_string;
+  ares_channel_t         *channel = server->channel;
+  ares_buf_t             *buf;
+  ares_status_t           status;
+  char                   *server_string;
+  ares_server_state_msg_t msg;
 
   if (channel->server_state_cb == NULL) {
     return;
@@ -111,9 +128,57 @@ static void invoke_server_state_cb(const ares_server_t *server,
     return; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
-  channel->server_state_cb(server_string, success, flags,
-                           channel->server_state_cb_data);
-  ares_free(server_string);
+  /* Queue rather than dispatch.  This runs in the middle of processing, and
+   * every caller keeps using its query / connection / server afterwards.  The
+   * callback is application code that may reentrantly call ares_cancel(),
+   * which frees those objects -- so dispatch once the library is no longer
+   * holding them.  Same philosophy as the deferred query-callback dispatch.
+   *
+   * Only the formatted address is captured, never the ares_server_t, so a
+   * queued entry cannot outlive anything it points at. */
+  if (channel->server_state_queue == NULL) {
+    channel->server_state_queue = ares_array_create(
+      sizeof(ares_server_state_msg_t), ares_server_state_msg_free);
+    if (channel->server_state_queue == NULL) {
+      /* LCOV_EXCL_START: OutOfMemory */
+      ares_free(server_string);
+      return;
+      /* LCOV_EXCL_STOP */
+    }
+  }
+
+  msg.server_string = server_string;
+  msg.success       = success;
+  msg.flags         = flags;
+
+  if (ares_array_insertdata_last(channel->server_state_queue, &msg) !=
+      ARES_SUCCESS) {
+    ares_free(server_string); /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+}
+
+/*! Deliver every server-state notification the channel has queued.  Loops
+ *  rather than snapshotting: a callback is allowed to re-enter the library and
+ *  queue more, and those belong to this same delivery point. */
+void ares_server_state_dispatch(ares_channel_t *channel)
+{
+  while (ares_array_len(channel->server_state_queue) > 0) {
+    ares_server_state_msg_t msg;
+
+    if (ares_array_claim_at(&msg, sizeof(msg), channel->server_state_queue,
+                            0) != ARES_SUCCESS) {
+      break; /* LCOV_EXCL_LINE: DefensiveCoding */
+    }
+
+    if (channel->server_state_cb != NULL) {
+      channel->server_state_cb(msg.server_string, msg.success, msg.flags,
+                               channel->server_state_cb_data);
+    }
+    ares_free(msg.server_string);
+  }
+
+  ares_array_destroy(channel->server_state_queue);
+  channel->server_state_queue = NULL;
 }
 
 static void server_increment_failures(ares_server_t *server,
@@ -124,7 +189,9 @@ static void server_increment_failures(ares_server_t *server,
   ares_timeval_t        next_retry_time;
 
   node = ares_slist_node_find(channel->servers, server);
-  if (node == NULL) {
+  /* Matches by sort key, not identity, so a removed server can match the live
+   * one that replaced it at the same configuration index. */
+  if (node == NULL || ares_slist_node_val(node) != server) {
     return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
@@ -155,7 +222,9 @@ static void server_set_good(ares_server_t *server, ares_bool_t used_tcp)
   const ares_channel_t *channel = server->channel;
 
   node = ares_slist_node_find(channel->servers, server);
-  if (node == NULL) {
+  /* Matches by sort key, not identity, so a removed server can match the live
+   * one that replaced it at the same configuration index. */
+  if (node == NULL || ares_slist_node_val(node) != server) {
     return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
@@ -204,6 +273,8 @@ static ares_status_t ares_process_fds_nolock(ares_channel_t         *channel,
     return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
+  ares_deferred_cb_enter(channel);
+
   ares_tvnow(&now);
 
   /* Process write events */
@@ -244,6 +315,8 @@ static ares_status_t ares_process_fds_nolock(ares_channel_t         *channel,
   }
 
 done:
+  ares_deferred_cb_leave(channel);
+
   if (status == ARES_ENOMEM) {
     return ARES_ENOMEM;
   }
@@ -421,29 +494,53 @@ void ares_process_pending_write(ares_channel_t *channel)
     return;
   }
 
+  /* A failed flush closes the connection and fails its queries over, which
+   * notifies.  Deliver once we are done walking the servers, and keep
+   * anything unlinked meanwhile readable until then. */
+  ares_deferred_cb_enter(channel);
+
   /* Set as untriggerd before calling into ares_conn_flush(), this is
    * because its possible ares_conn_flush() might cause additional data to
    * be enqueued if there is some form of exception so it will need to recurse.
    */
   channel->notify_pending_write = ARES_FALSE;
 
-  for (node = ares_slist_node_first(channel->servers); node != NULL;
-       node = ares_slist_node_next(node)) {
-    ares_server_t *server = ares_slist_node_val(node);
-    ares_conn_t   *conn   = server->tcp_conn;
+  node = ares_slist_node_first(channel->servers);
+  while (node != NULL) {
+    ares_server_t *server     = ares_slist_node_val(node);
+    ares_conn_t   *conn       = server->tcp_conn;
+    size_t         generation = channel->servers_generation;
     ares_status_t  status;
 
     if (conn == NULL) {
+      node = ares_slist_node_next(node);
       continue;
     }
 
-    /* Enqueue any pending data if there is any */
+    /* Enqueue any pending data if there is any.  The flush runs the
+     * application's send function, which may have reconfigured the servers
+     * and removed this one; its connection is then already closed, which
+     * handle_conn_error() ignores. */
     status = ares_conn_flush(conn);
     if (status != ARES_SUCCESS) {
       handle_conn_error(conn, ARES_TRUE, status);
     }
+
+    /* Tearing down a connection runs the callbacks of the queries it ends,
+     * and those may reconfigure the servers too, destroying the ones the new
+     * configuration omits along with their list nodes.  A failure also moves
+     * this server further down the list.  So when either may have happened,
+     * start over from the head rather than step from this node; flushing a
+     * connection again is harmless. */
+    if (status != ARES_SUCCESS || channel->servers_generation != generation) {
+      node = ares_slist_node_first(channel->servers);
+      continue;
+    }
+
+    node = ares_slist_node_next(node);
   }
 
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 }
 
@@ -553,6 +650,8 @@ typedef enum {
 typedef struct {
   requeue_type_t     type;   /* type of entry, requeue or endquery */
   unsigned short     qid;    /* query id */
+  size_t             serial; /* identifies the query the qid meant when
+                              * this entry was appended */
   ares_server_t     *server; /* requeue only: optional */
   ares_status_t      status; /* endquery only */
   ares_dns_record_t *dnsrec; /* endquery only: optional */
@@ -578,6 +677,7 @@ static ares_status_t ares_append_requeue_int(ares_array_t     **requeue,
 
   entry.type   = type;
   entry.qid    = query->qid;
+  entry.serial = query->serial;
   entry.server = server;
   entry.status = status;
   entry.dnsrec = dnsrec;
@@ -599,6 +699,53 @@ static ares_status_t ares_append_endqueue(ares_array_t     **requeue,
 {
   return ares_append_requeue_int(requeue, REQUEUE_ENDQUERY, query, NULL, status,
     dnsrec);
+}
+
+/*! Is the query the caller captured still the one holding \a qid?
+ *
+ *  A query id is a 16-bit wire value reissued as soon as the query holding it
+ *  is detached, so it names a slot rather than a query, and comparing the
+ *  pointer as well does not help: the replacement is often allocated at the
+ *  address the freed one had.  The serial is a channel-wide counter that is
+ *  never reused. */
+static ares_bool_t ares_query_is_live(const ares_channel_t *channel,
+                                      unsigned short qid, size_t serial)
+{
+  const ares_query_t *query =
+    ares_htable_szvp_get_direct(channel->queries_by_qid, qid);
+
+  if (query == NULL || query->serial != serial) {
+    return ARES_FALSE;
+  }
+
+  return ARES_TRUE;
+}
+
+/*! Is this exact server object still in the channel's server list?
+ *
+ *  Compares pointers only and never dereferences \a server.  Deferred
+ *  reclamation keeps an unlinked server readable for the rest of the call
+ *  that captured it, so reading through it is no longer a use-after-free --
+ *  but it has been removed from the configuration and must not be acted on,
+ *  which is what this reports.  A channel has a handful of servers, so the
+ *  linear scan does not matter. */
+ares_bool_t ares_server_in_channel(const ares_channel_t *channel,
+                                   const ares_server_t  *server)
+{
+  ares_slist_node_t *node;
+
+  if (server == NULL) {
+    return ARES_FALSE;
+  }
+
+  for (node = ares_slist_node_first(channel->servers); node != NULL;
+       node = ares_slist_node_next(node)) {
+    if (ares_slist_node_val(node) == server) {
+      return ARES_TRUE;
+    }
+  }
+
+  return ARES_FALSE;
 }
 
 /* Drain the deferred requeue/endqueue list iteratively.  All flush sites
@@ -636,11 +783,35 @@ static ares_status_t ares_flush_requeue(ares_channel_t       *channel,
 
     query = ares_htable_szvp_get_direct(channel->queries_by_qid, entry.qid);
 
+    /* A query id is a 16-bit wire value and generate_unique_qid() only avoids
+     * ids that are live when it runs.  Within a single drain, a callback can
+     * cancel a query whose entry is still in this array -- releasing its id --
+     * and start a new lookup that is handed the same id.  The lookup above
+     * would then resolve this entry to a completely different query: an
+     * endquery entry would deliver one lookup's answer to another and free it,
+     * a requeue entry would put an in-flight query on the wire twice.  The
+     * serial is a channel-wide counter that is never reused, so it tells the
+     * two apart. */
+    if (query != NULL && query->serial != entry.serial) {
+      query = NULL;
+    }
+
     if (entry.type == REQUEUE_REQUEUE) {
       /* Query disappeared (e.g. a prior callback in this drain cancelled it) */
       if (query == NULL) {
         continue;
       }
+      /* entry.server is a raw pointer captured before any callback in this
+       * drain ran.  A callback may legally re-enter the public API -- the
+       * channel lock is recursive -- and ares_set_servers*() destroys servers
+       * that are absent from the new configuration, so it may already be
+       * freed.  The query above is revalidated by qid for exactly this
+       * reason; do the same for the server, falling back to ordinary
+       * selection when it has gone. */
+      if (!ares_server_in_channel(channel, entry.server)) {
+        entry.server = NULL;
+      }
+
       /* Re-dispatch via the internal entrypoint so any further requeues are
        * appended back onto this same list and drained by the loop above,
        * rather than recursing. */
@@ -751,6 +922,13 @@ static ares_status_t process_read(ares_channel_t       *channel,
 
   if (status != ARES_SUCCESS) {
     return status;
+  }
+
+  /* A later call to the receive function may have reconfigured the servers,
+   * tearing this connection down after earlier calls buffered answers on it.
+   * Its queries have moved to the new configuration, so drop the answers. */
+  if (conn->flags & ARES_CONN_FLAG_DEAD) {
+    return ARES_SUCCESS;
   }
 
   status = read_answers(conn, now);
@@ -939,6 +1117,24 @@ static ares_status_t process_answer(ares_channel_t      *channel,
     goto cleanup;
   }
 
+  /* RFC 5452 section 9.1: only accept a response that arrives on the
+   * connection the query was sent on, and so from the server it was sent to.
+   * For UDP, ares_conn_read() also drops a datagram whose source address or
+   * port is not the server's; matching the port is hardening beyond RFC 5452
+   * section 9.1, which only requires the address to match.  Otherwise any
+   * server we hold a connection to could answer, and get cached, a query that
+   * was only ever sent to some other server, and the cookie check below would
+   * run against the wrong server's cookie state.  Treat it like an unknown
+   * query id, before anything acts on it (cookies, server health, the cache).
+   * Our caller has already consumed the message from the connection's buffer,
+   * so TCP framing stays in sync.  A query not attached to any connection
+   * (query->conn == NULL) never matches.  This also drops a late answer from
+   * a server tried before a retry. */
+  if (query->conn != conn) {
+    status = ARES_SUCCESS;
+    goto cleanup;
+  }
+
   /* Validate DNS cookie in response. This function may need to requeue the
    * query. */
   if (ares_cookie_validate(query, rdnsrec, conn, now, requeue)
@@ -1042,6 +1238,15 @@ static void handle_conn_error(ares_conn_t *conn, ares_bool_t critical_failure,
                               ares_status_t failure_status)
 {
   ares_server_t *server = conn->server;
+
+  /* Already torn down, most likely by a reconfiguration from application code
+   * the failing call ran, such as the send function.  Its queries have been
+   * requeued, and its server did not fail -- it was removed, or the
+   * connection was closed deliberately -- so there is nothing to record and
+   * nothing left to close. */
+  if (conn->flags & ARES_CONN_FLAG_DEAD) {
+    return;
+  }
 
   /* Increment failures first before requeue so it is unlikely to requeue
    * to the same server */
@@ -1359,6 +1564,14 @@ static ares_status_t ares_conn_query_write(ares_conn_t          *conn,
       conn->flags & ARES_CONN_FLAG_TCP) {
     channel->notify_pending_write = ARES_TRUE;
     channel->notify_pending_write_cb(channel->notify_pending_write_cb_data);
+
+    /* The callback is application code and may have reconfigured the
+     * servers, closing this connection with the query already buffered on
+     * it.  Report it as a connection failure so the query is requeued rather
+     * than attached to the closed connection. */
+    if (conn->flags & ARES_CONN_FLAG_DEAD) {
+      return ARES_ECONNREFUSED;
+    }
     return ARES_SUCCESS;
   }
 
@@ -1377,6 +1590,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server,
   ares_channel_t *channel = query->channel;
   ares_array_t   *requeue = NULL;
   unsigned short  qid     = query->qid;
+  size_t          serial  = query->serial;
   ares_status_t   status;
 
   status = ares_send_query_int(requested_server, query, now, &requeue);
@@ -1393,8 +1607,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server,
    * been freed.  Do not dereference 'query' here.  If it is no longer tracked
    * it ended, so don't report success to the caller (which would, e.g., cause
    * ares_send_nolock() to write to a now-freed *qid). */
-  if (status == ARES_SUCCESS &&
-      ares_htable_szvp_get_direct(channel->queries_by_qid, qid) == NULL) {
+  if (status == ARES_SUCCESS && !ares_query_is_live(channel, qid, serial)) {
     status = ARES_ETIMEOUT;
   }
 
@@ -1412,6 +1625,9 @@ static ares_status_t ares_send_query_int(ares_server_t        *requested_server,
   size_t          timeplus;
   ares_status_t   status;
   ares_bool_t     probe_downed_server = ARES_TRUE;
+  /* Captured before any application callback below, which may free the query */
+  unsigned short  qid    = query->qid;
+  size_t          serial = query->serial;
 
   /* Choose the server to send the query to */
   if (requested_server != NULL) {
@@ -1443,6 +1659,32 @@ static ares_status_t ares_send_query_int(ares_server_t        *requested_server,
   conn = ares_fetch_connection(channel, server, query);
   if (conn == NULL) {
     status = ares_open_connection(&conn, channel, server, query->using_tcp);
+
+    /* Opening a connection runs application code -- the socket-open function
+     * from ares_set_socket_functions_ex(), and the ares_set_socket_callback()
+     * and ares_set_socket_configure_callback() callbacks -- any of which may
+     * reentrantly call ares_cancel() and free this query.  Re-check liveness
+     * by the qid captured at entry rather than dereferencing a possibly-freed
+     * query. */
+    if (!ares_query_is_live(channel, qid, serial)) {
+      return ARES_ECANCELLED;
+    }
+
+    /* Those same callbacks may have reconfigured the servers, which frees the
+     * ones the new configuration omits.  'server' was captured before the
+     * open; everything below reads it, including server_increment_failures()
+     * on the failure paths of the switch.
+     *
+     * Requeue rather than return: every exit from this function must either
+     * enqueue the query or end it, and the query is still live here -- it has
+     * not been written, is not attached to a connection, and on a first send
+     * has no timeout node, so returning would strand it forever.
+     * query->conn is NULL, so this does not read through the freed server. */
+    if (!ares_server_in_channel(channel, server)) {
+      return ares_requeue_query(query, now, ARES_ECONNREFUSED, ARES_TRUE, NULL,
+                                requeue);
+    }
+
     switch (status) {
       /* Good result, continue on */
       case ARES_SUCCESS:
@@ -1464,6 +1706,19 @@ static ares_status_t ares_send_query_int(ares_server_t        *requested_server,
 
   /* Write the query */
   status = ares_conn_query_write(conn, query, now);
+
+  /* Writing runs application code too: ares_conn_query_write() reaches the
+   * send function installed by ares_set_socket_functions_ex(), which may
+   * reentrantly call ares_cancel() with the same hazard as above. */
+  if (!ares_query_is_live(channel, qid, serial)) {
+    return ARES_ECANCELLED;
+  }
+
+  /* Application code that tore this connection down during the write -- the
+   * send function, or the pending-write callback when the write is deferred,
+   * reconfiguring the servers, say -- surfaces here as ARES_ECONNREFUSED,
+   * even if the send itself reported success or never happened, so the query
+   * is requeued below rather than attached to the closed connection. */
   switch (status) {
     /* Good result, continue on */
     case ARES_SUCCESS:
@@ -1479,6 +1734,17 @@ static ares_status_t ares_send_query_int(ares_server_t        *requested_server,
     case ARES_ECONNREFUSED:
     case ARES_EBADFAMILY:
       handle_conn_error(conn, ARES_TRUE, status);
+      /* handle_conn_error() -> ares_close_connection() ->
+       * ares_requeue_queries() walks conn->queries_to_conn and may terminally
+       * end other queries on this connection.  If one of their callbacks
+       * reentrantly calls ares_cancel(), this query is freed too -- it is still
+       * linked in all_queries, since it only joins conn->queries_to_conn on the
+       * success path below.  Re-check liveness by the qid captured at entry
+       * rather than dereferencing a possibly-freed query.  Mirrors the guard in
+       * ares_send_query(). */
+      if (!ares_query_is_live(channel, qid, serial)) {
+        return ARES_ECONNREFUSED;
+      }
       status = ares_requeue_query(query, now, status, ARES_TRUE, NULL, requeue);
       if (status == ARES_ETIMEOUT) {
         status = ARES_ECONNREFUSED;
@@ -1597,11 +1863,18 @@ done:
   return rv;
 }
 
-static void ares_detach_query(ares_query_t *query)
+void ares_detach_query(ares_query_t *query)
 {
   /* Remove the query from all the lists in which it is linked */
   ares_query_remove_from_conn(query);
-  ares_htable_szvp_remove(query->channel->queries_by_qid, query->qid);
+  /* Only release the qid slot if it is still ours.  A query detached before
+   * its callback can have its qid reissued to a lookup started from within
+   * that callback, and the ares_free_query() that follows detaches a second
+   * time -- which would otherwise evict the new lookup instead. */
+  if (ares_htable_szvp_get_direct(query->channel->queries_by_qid, query->qid) ==
+      query) {
+    ares_htable_szvp_remove(query->channel->queries_by_qid, query->qid);
+  }
   ares_llist_node_destroy(query->node_all_queries);
   query->node_all_queries = NULL;
 }
@@ -1624,6 +1897,16 @@ static void end_query(ares_channel_t *channel, ares_server_t *server,
     return;
   }
 
+  /* Detach from all lookup lists before the callback, otherwise a reentrant
+   * ares_cancel() from within it would find this query still linked, free it,
+   * and the ares_free_query() below would double-free.  Mirrors
+   * ares_flush_requeue() for every synchronous path that reaches here with a
+   * NULL requeue: connection teardown via handle_conn_error(), and server
+   * removal via ares_servers_update() and ares_destroy_servers_state(), both
+   * of which reach ares_close_sockets().
+   * ares_detach_query() may safely run twice on the same query. */
+  ares_detach_query(query);
+
   /* Invoke the callback. */
   query->callback(query->arg, status, query->timeouts, dnsrec);
   ares_free_query(query);
@@ -1631,7 +1914,8 @@ static void end_query(ares_channel_t *channel, ares_server_t *server,
   /* Check and notify if no other queries are enqueued on the channel.  This
    * must come after the callback and freeing the query for 2 reasons.
    *  1) The callback itself may enqueue a new query
-   *  2) Technically the current query isn't detached until it is free()'d.
+   *  2) The current query is detached above, before the callback, so by this
+   *     point it is no longer tracked.
    */
   ares_queue_notify_empty(channel);
 }
@@ -1644,6 +1928,7 @@ void ares_free_query(ares_query_t *query)
   query->arg      = NULL;
   /* Deallocate the memory associated with the query */
   ares_dns_record_destroy(query->query);
+  ares_free(query->qcache_key);
 
   ares_free(query);
 }
