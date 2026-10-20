@@ -41,12 +41,47 @@ static void ares_requeue_queries(ares_conn_t  *conn,
   }
 }
 
+/*! Release a connection's memory.  Split from the unlink below so that the
+ *  two can happen at different times: a caller further up the stack may still
+ *  hold this pointer, and reading a detached connection is safe where reading
+ *  a freed one is not. */
+void ares_conn_reap(ares_conn_t *conn)
+{
+  if (conn == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
+  ares_buf_destroy(conn->in_buf);
+  ares_buf_destroy(conn->out_buf);
+  ares_llist_destroy(conn->queries_to_conn);
+  ares_free(conn);
+}
+
 void ares_close_connection(ares_conn_t *conn, ares_status_t requeue_status)
 {
-  ares_server_t  *server  = conn->server;
-  ares_channel_t *channel = server->channel;
+  ares_server_t  *server;
+  ares_channel_t *channel;
 
-  /* Unlink */
+  if (conn == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
+  /* Already torn down and awaiting reclamation.  Reaching here twice is
+   * ordinary once a connection can outlive its teardown: a caller holding it
+   * from before -- handle_conn_error() after a failed write, say -- closes it
+   * again without knowing.  Doing the work twice would requeue queries that
+   * have already moved and would put this connection on the pending list a
+   * second time, which is a double free. */
+  if (conn->flags & ARES_CONN_FLAG_DEAD) {
+    return;
+  }
+
+  server  = conn->server;
+  channel = server->channel;
+
+  /* Unlink from everything that can find this connection.  After this it is
+   * unreachable by lookup, which is what stops anything new from picking it
+   * up; anything that already holds it is handled by the deferral below. */
   ares_llist_node_claim(
     ares_htable_asvp_get_direct(channel->connnode_by_socket, conn->fd));
   ares_htable_asvp_remove(channel->connnode_by_socket, conn->fd);
@@ -55,19 +90,40 @@ void ares_close_connection(ares_conn_t *conn, ares_status_t requeue_status)
     server->tcp_conn = NULL;
   }
 
-  ares_buf_destroy(conn->in_buf);
-  ares_buf_destroy(conn->out_buf);
+  /* Marked dead as soon as it is unlinked, before anything below can run
+   * application code.  ares_requeue_queries() ends queries terminally once
+   * their retries are exhausted, which invokes the application's callback; if
+   * the flag were set after that, a second ares_close_connection() reaching
+   * this connection in the meantime would run the body again -- closing the
+   * descriptor twice and listing the connection for reclamation twice, which
+   * is a double free.  It also gives ares_close_sockets() its termination
+   * condition: dead implies unlinked, so its re-read-the-head loop cannot see
+   * a dead connection and spin. */
+  conn->flags |= ARES_CONN_FLAG_DEAD;
 
   /* Requeue queries to other connections */
   ares_requeue_queries(conn, requeue_status);
 
-  ares_llist_destroy(conn->queries_to_conn);
+  /* Hands the descriptor to the queued notification when one is due, so the
+   * application is told to stop watching it before it is closed.  Otherwise
+   * nothing will carry it and we close it here. */
+  if (!ares_conn_sock_state_cb_close(conn)) {
+    ares_socket_close(channel, conn->fd);
+  }
+  conn->fd = ARES_SOCKET_BAD;
 
-  ares_conn_sock_state_cb_update(conn, ARES_CONN_STATE_NONE);
+  /* If a library call is in progress it may be holding this connection --
+   * read_answers() and ares_send_query_int() both do, across code that can
+   * reach here.  Keep it readable until that call unwinds.  The buffers and
+   * the query list are freed by ares_conn_reap(), so a stale holder sees an
+   * emptied connection rather than freed memory. */
+  if (channel->deferred_cb_depth > 0) {
+    conn->next_pending     = channel->pending_conns;
+    channel->pending_conns = conn;
+    return;
+  }
 
-  ares_socket_close(channel, conn->fd);
-
-  ares_free(conn);
+  ares_conn_reap(conn);
 }
 
 void ares_close_sockets(ares_server_t *server)
@@ -76,6 +132,10 @@ void ares_close_sockets(ares_server_t *server)
 
   while ((node = ares_llist_node_first(server->connections)) != NULL) {
     ares_conn_t *conn = ares_llist_node_val(node);
+    /* This loop re-reads the head each time and relies on the close below
+     * unlinking it.  A dead connection returns early without unlinking, so
+     * one on this list would spin forever holding the channel lock. */
+    assert(!(conn->flags & ARES_CONN_FLAG_DEAD));
     ares_close_connection(conn, ARES_SUCCESS);
   }
 }
@@ -88,6 +148,7 @@ void ares_check_cleanup_conns(const ares_channel_t *channel)
     return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
+restart:
   /* Iterate across each server */
   for (snode = ares_slist_node_first(channel->servers); snode != NULL;
        snode = ares_slist_node_next(snode)) {
@@ -130,8 +191,12 @@ void ares_check_cleanup_conns(const ares_channel_t *channel)
         continue;
       }
 
-      /* Clean it up */
+      /* Clean it up.  The close function is application code and may have
+       * reconfigured the servers, freeing the list nodes this walk holds --
+       * the server's, and the next connection's.  Start over; connections
+       * already closed are no longer listed, so this ends. */
       ares_close_connection(conn, ARES_SUCCESS);
+      goto restart;
     }
   }
 }

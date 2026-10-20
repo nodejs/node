@@ -29,6 +29,10 @@
 ares_status_t        ares_dns_record_duplicate_ex(ares_dns_record_t      **dest,
                                                   const ares_dns_record_t *src);
 ares_bool_t          ares_dns_rec_allow_name_comp(ares_dns_rec_type_t type);
+/*! Whether an RR's RDATA names may be decompressed on receipt (RFC3597).
+ *  \param[in] type Record type.
+ *  \return ARES_TRUE if compressed RDATA names may be parsed. */
+ares_bool_t ares_dns_rec_allow_name_comp_read(ares_dns_rec_type_t type);
 ares_bool_t          ares_dns_opcode_isvalid(ares_dns_opcode_t opcode);
 ares_bool_t          ares_dns_rcode_isvalid(ares_dns_rcode_t rcode);
 ares_bool_t          ares_dns_flags_arevalid(unsigned short flags);

@@ -127,6 +127,32 @@ ares_bool_t ares_sockaddr_addr_eq(const struct sockaddr  *sa,
   return ARES_FALSE; /* different */
 }
 
+ares_bool_t ares_sockaddr_addr_port_eq(const struct sockaddr  *sa,
+                                       const struct ares_addr *aa,
+                                       unsigned short          port)
+{
+  unsigned short sa_port;
+
+  if (!ares_sockaddr_addr_eq(sa, aa)) {
+    return ARES_FALSE;
+  }
+
+  /* ares_sockaddr_addr_eq() only matches AF_INET and AF_INET6 */
+  if (sa->sa_family == AF_INET) {
+    sa_port = (CARES_INADDR_CAST(const struct sockaddr_in *, sa))->sin_port;
+  } else {
+    sa_port = (CARES_INADDR_CAST(const struct sockaddr_in6 *, sa))->sin6_port;
+  }
+
+  /* A port of 0 means the source port was not reported, so only the address
+   * can be checked. */
+  if (sa_port != 0 && ntohs(sa_port) != port) {
+    return ARES_FALSE;
+  }
+
+  return ARES_TRUE;
+}
+
 ares_conn_err_t ares_socket_write(ares_channel_t *channel, ares_socket_t fd,
                                   const void *data, size_t len, size_t *written,
                                   const struct sockaddr *sa,

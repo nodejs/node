@@ -231,6 +231,21 @@ will be passed the socket whose state has changed;
 will be set to true if the socket should listen for read events, and
 .I writable
 will be set to true if the socket should listen for write events.
+
+This callback may call c-ares functions on the same channel, including
+.BR ares_cancel (3)
+and the server configuration functions. Notifications are delivered once the
+library has finished the work that produced them rather than part-way through
+it, so a reentrant call cannot close a socket the library is still using. They
+arrive in the order the state changes occurred, and always before the
+outermost c-ares call returns. A call made from within a callback is not the
+outermost one, so notifications it produces arrive after it has returned.
+.BR ares_destroy (3)
+is no exception: the closure of every socket the channel still holds is
+reported before it returns, and the callback is never invoked afterwards.
+This applies as of c-ares version 1.35.0, and c-ares version 1.34.9 on the
+1.34 branch.
+
 The value of
 .I sock_state_cb_data
 will be passed as the
@@ -309,7 +324,16 @@ with the maximum number of seconds a query result may be cached which will
 override a larger TTL in the response message. This must be a non-zero value
 otherwise the cache will be disabled. Choose a reasonable value for your
 application such as 300 (5 minutes) or 3600 (1 hour).  The query cache is
-automatically flushed if a server configuration change is made.
+automatically flushed if a server configuration change is made.  As of c-ares
+1.35.0, and c-ares 1.34.9 on the 1.34 branch, a cached answer reports its
+remaining time to live rather than the
+original value received from the server, so TTLs returned on a cache hit
+decrease as the entry ages.  Two lookups share a cached answer only if their
+EDNS state matches: the version, the flag bits including DNSSEC OK, and every
+EDNS option other than the DNS cookie and the advertised UDP payload size,
+which are both ignored.  Options are compared in the order the application
+added them.  An application that attaches its own options and varies them
+between otherwise identical lookups gets a separate cache entry for each.
 .br
 .TP 18
 .B ARES_OPT_EVENT_THREAD
