@@ -3680,13 +3680,9 @@ void Session::SendConnectionClose() {
 
   ngtcp2_vec vec = *packet;
   Path path(impl_->local_address_, impl_->remote_address_);
-  ssize_t nwrite = ngtcp2_conn_write_connection_close(*this,
-                                                      &path,
-                                                      nullptr,
-                                                      vec.base,
-                                                      vec.len,
-                                                      impl_->last_error_,
-                                                      uv_hrtime());
+  ngtcp2_ccerr wire_error = impl_->last_error_.ToNgtcp2ConnectionCloseError();
+  ssize_t nwrite = ngtcp2_conn_write_connection_close(
+      *this, &path, nullptr, vec.base, vec.len, &wire_error, uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
     return ErrorAndSilentClose();

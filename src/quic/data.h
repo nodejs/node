@@ -260,6 +260,8 @@ class QuicError final : public MemoryRetainer {
   operator const ngtcp2_ccerr&() const;
   operator const ngtcp2_ccerr*() const;
 
+  ngtcp2_ccerr ToNgtcp2ConnectionCloseError() const;
+
   // Crypto errors are a subset of transport errors. The error code includes
   // the TLS alert code embedded within it.
   bool is_crypto_error() const;
