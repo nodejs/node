@@ -92,6 +92,7 @@ const syncOps = [
   ['mkdtempSync', 'mkdtemp', () => fs.mkdtempSync(fresh('tmp'))],
   ['mkdtempDisposableSync', 'mkdtemp',
    () => fs.mkdtempDisposableSync(fresh('tmp')).remove()],
+  ['mkstempSync', 'mkstemp', () => fs.closeSync(fs.mkstempSync(fresh('tmp')).fd)],
   ['openAsBlobSync', 'openAsBlob', () => fs.openAsBlobSync(file)],
   ['openSync', 'open', () => fs.closeSync(fs.openSync(file))],
   ['opendirSync', 'opendir', () => fs.opendirSync(newDir()).closeSync()],
@@ -141,6 +142,10 @@ const callbackOps = [
   ['lutimes', 'lutimes', (cb) => fs.lutimes(newLink(), now, now, cb)],
   ['mkdir', 'mkdir', (cb) => fs.mkdir(fresh('mkdir'), cb)],
   ['mkdtemp', 'mkdtemp', (cb) => fs.mkdtemp(fresh('tmp'), cb)],
+  ['mkstemp', 'mkstemp', (cb) => fs.mkstemp(fresh('tmp'), (err, file) => {
+    if (file !== undefined) fs.closeSync(file.fd);
+    cb(err);
+  })],
   ['open', 'open', (cb) => fs.open(file, (err, fd) => {
     if (fd !== undefined) fs.closeSync(fd);
     cb(err);
@@ -188,6 +193,7 @@ const promiseOps = [
   ['mkdtemp', 'mkdtemp', () => fsp.mkdtemp(fresh('tmp'))],
   ['mkdtempDisposable', 'mkdtemp',
    async () => (await fsp.mkdtempDisposable(fresh('tmp'))).remove()],
+  ['mkstemp', 'mkstemp', async () => (await fsp.mkstemp(fresh('tmp'))).handle.close()],
   ['open', 'open', async () => (await fsp.open(file)).close()],
   ['opendir', 'opendir', async () => (await fsp.opendir(newDir())).close()],
   ['openAsBlob', 'openAsBlob', () => fs.openAsBlob(file)],

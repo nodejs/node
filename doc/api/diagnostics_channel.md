@@ -1699,6 +1699,7 @@ of its forms: `stat` means `fs.stat()`, `fs.statSync()`, and
 | `fs.lutimes`    | `lutimes`                                                        | `path`, `atime`, `mtime` |
 | `fs.mkdir`      | `mkdir`                                                          | `path`                   |
 | `fs.mkdtemp`    | `mkdtemp`, `mkdtempDisposable`                                   | `prefix`                 |
+| `fs.mkstemp`    | `mkstemp`                                                        | `prefix`                 |
 | `fs.open`       | `open`                                                           | `path`                   |
 | `fs.openAsBlob` | `openAsBlob`                                                     | `path`                   |
 | `fs.opendir`    | `opendir`                                                        | `path`                   |
