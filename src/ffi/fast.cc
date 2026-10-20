@@ -245,7 +245,13 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   // returns zero after throwing, preventing the native target from seeing an
   // invalid pointer value.
   constexpr uintptr_t kInvalidBuffer = std::numeric_limits<uintptr_t>::max();
-  v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
+  // The trampoline always passes the FastApiCallbackOptions declared in the
+  // CFunctionInfo. No HandleScope is active during a Fast API call, and both
+  // ArrayBufferView::Buffer() and the error paths below create handles, so
+  // open one for the whole helper. Otherwise every call leaks handles into
+  // the caller's scope.
+  v8::Isolate* isolate = options->isolate;
+  v8::HandleScope scope(isolate);
 
   // Accept only the memory-backed JS values supported by ToFFIArgument in the
   // native helper. Other pointer conversions, including strings and direct
@@ -254,41 +260,26 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   if (value->IsArrayBufferView()) {
     v8::Local<v8::ArrayBufferView> view = value.As<v8::ArrayBufferView>();
     if (view->Buffer()->WasDetached()) {
-      if (isolate != nullptr) {
-        // No HandleScope is active during a Fast API call, so open one before
-        // creating the error object.
-        v8::HandleScope scope(isolate);
-        THROW_ERR_INVALID_ARG_VALUE(
-            isolate,
-            "Argument %u is an ArrayBufferView backed by a detached "
-            "ArrayBuffer",
-            index);
-      }
+      THROW_ERR_INVALID_ARG_VALUE(
+          isolate,
+          "Argument %u is an ArrayBufferView backed by a detached "
+          "ArrayBuffer",
+          index);
       return kInvalidBuffer;
     }
     return PointerFromValue(value);
   }
   if (value->IsArrayBuffer()) {
     if (value.As<v8::ArrayBuffer>()->WasDetached()) {
-      if (isolate != nullptr) {
-        // No HandleScope is active during a Fast API call, so open one before
-        // creating the error object.
-        v8::HandleScope scope(isolate);
-        THROW_ERR_INVALID_ARG_VALUE(
-            isolate, "Argument %u is a detached ArrayBuffer", index);
-      }
+      THROW_ERR_INVALID_ARG_VALUE(
+          isolate, "Argument %u is a detached ArrayBuffer", index);
       return kInvalidBuffer;
     }
     return PointerFromValue(value);
   }
 
-  if (isolate != nullptr) {
-    // No HandleScope is active during a Fast API call, so open one before
-    // creating the error object.
-    v8::HandleScope scope(isolate);
-    THROW_ERR_INVALID_ARG_VALUE(
-        isolate, "Argument %u must be a buffer or an ArrayBuffer", index);
-  }
+  THROW_ERR_INVALID_ARG_VALUE(
+      isolate, "Argument %u must be a buffer or an ArrayBuffer", index);
   return kInvalidBuffer;
 }
 
