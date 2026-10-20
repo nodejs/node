@@ -1578,9 +1578,21 @@ int CertVerifyCallback(X509_STORE_CTX* ctx, void*) {
                            result == SpkiCheck::kBlocked
                                ? X509_V_ERR_CERT_REVOKED
                                : X509_V_ERR_UNSPECIFIED);
+#ifdef OPENSSL_IS_BORINGSSL
+  // BoringSSL has no setters for the error depth and current certificate.
+  // Node.js' own verify callbacks do not read them, so only the error is
+  // recorded there.
+  (void)depth;
+  (void)offender;
+#else
   X509_STORE_CTX_set_error_depth(ctx, depth);
   X509_STORE_CTX_set_current_cert(ctx, offender);
-  X509_STORE_CTX_verify_cb verify_cb = X509_STORE_CTX_get_verify_cb(ctx);
+#endif
+  // The per-certificate callback is the one carried by the SSL object; it is
+  // what the library installs on the store context before calling this hook.
+  SSL* ssl = static_cast<SSL*>(
+      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+  auto verify_cb = ssl != nullptr ? SSL_get_verify_callback(ssl) : nullptr;
   if (verify_cb == nullptr) return 0;
   return verify_cb(0, ctx) ? 1 : 0;
 }
