@@ -32,7 +32,7 @@ declare namespace InternalFFIBinding {
   }
 
   class DynamicLibrary {
-    constructor(path: string | null);
+    constructor(path: string | null, binary?: ArrayBufferView);
 
     readonly path: string;
     readonly symbols: Record<string, bigint>;
