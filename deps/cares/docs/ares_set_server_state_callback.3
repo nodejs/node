@@ -47,6 +47,31 @@ the DNS servers used by an ares channel. For example, it can be used to track
 metrics about the numbers and types of queries sent to each server or to
 detect when a server is uncontactable or unhealthy.
 
+.SH REENTRANCY
+The server state callback may call c-ares functions on the same channel,
+including
+.BR ares_cancel (3)
+and the server configuration functions. The channel lock is recursive and the
+library holds no query, connection or server state across the callback.
+
+Notifications are queued and delivered once the library has finished the work
+that produced them, rather than part-way through it. A notification is
+therefore observed after the processing pass that generated it, not during.
+
+The callback and its
+.I user_data
+are read when the notification is delivered, not when it is queued. An
+application that replaces its callback between those two points will see the
+notification delivered to the new one; unregistering by passing a
+.B NULL
+callback discards any notification still queued.
+
+This applies to a replacement made from within a c-ares callback, where the
+channel lock is held.
+.BR ares_set_server_state_callback (3)
+does not take the channel lock, so replacing the callback from another thread
+while the channel is processing is not synchronized against delivery.
+
 .SH FLAGS
 .TP 5
 .B ARES_SERV_STATE_UDP
@@ -58,5 +83,9 @@ Indicates that the query was tried over TCP.
 .SH AVAILABILITY
 This function was first introduced in c-ares version 1.29.0.
 
+The reentrancy guarantee described above applies as of c-ares version 1.35.0,
+and c-ares version 1.34.9 on the 1.34 branch.
+
 .SH SEE ALSO
-.BR ares_get_servers_csv (3)
+.BR ares_get_servers_csv (3),
+.BR ares_cancel (3)

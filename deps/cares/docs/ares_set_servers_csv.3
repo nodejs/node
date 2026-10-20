@@ -126,6 +126,23 @@ are identical.  Prior versions would simply omit ports in \fBares_set_servers_cs
 but due to the addition of link local interface support, this difference was
 removed.
 
+.SH REENTRANCY
+These functions may be called from within a c-ares callback. Removing a server
+closes its connections, which ends the lookups that were using it and invokes
+their callbacks, so a reconfiguration can be requested from inside one.
+
+A nested call reconciles the whole server list, and the outer call leaves that
+result in place rather than deleting the servers the nested call installed.
+The consequence is that the outer call's own list does not survive, even
+though it returns
+.B ARES_SUCCESS:
+the last configuration applied is the one the channel keeps. An application
+that reconfigures from a callback should therefore not assume the list it
+passed to the outer call is in effect when that call returns.
+
+This applies as of c-ares version 1.35.0, and c-ares version 1.34.9 on the
+1.34 branch.
+
 .SH EXAMPLE
 .nf
 192.168.1.100,[fe80::1]:53%eth0,dns://192.168.1.1?tcpport=1153

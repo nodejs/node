@@ -111,11 +111,33 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
                                ares_callback_dnsrec callback, void *arg,
                                unsigned short *qid)
 {
-  ares_query_t            *query;
-  ares_timeval_t           now;
-  ares_status_t            status;
-  unsigned short           id          = generate_unique_qid(channel);
-  const ares_dns_record_t *dnsrec_resp = NULL;
+  ares_query_t      *query;
+  ares_timeval_t     now;
+  ares_status_t      status;
+  unsigned short     id          = generate_unique_qid(channel);
+  ares_dns_record_t *dnsrec_resp = NULL;
+  char              *qcache_key  = NULL;
+
+  /* A channel being destroyed accepts no new queries.  ares_destroy(3)
+   * documents that a callback must not add new requests to a channel being
+   * destroyed.  Refuse it, but still notify: ARES_EDESTRUCTION is documented
+   * in ares_query(3), ares_send(3), ares_search(3) and ares_getaddrinfo(3) as
+   * a status delivered to the callback, and every caller frees its own
+   * context from there.
+   *
+   * Not notified if we are already inside such a notification: an application
+   * whose callback starts a replacement lookup on every invocation would
+   * otherwise re-enter here from within the callback without bound and
+   * exhaust the stack.  At that depth it is already past the contract
+   * ares_destroy(3) documents. */
+  if (!channel->sys_up) {
+    if (!channel->in_shutdown_refusal) {
+      channel->in_shutdown_refusal = ARES_TRUE;
+      callback(arg, ARES_EDESTRUCTION, 0, NULL);
+      channel->in_shutdown_refusal = ARES_FALSE;
+    }
+    return ARES_EDESTRUCTION;
+  }
 
   ares_tvnow(&now);
 
@@ -124,13 +146,28 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
     return ARES_ENOSERVER;
   }
 
-  if (!(flags & ARES_SEND_FLAG_NOCACHE)) {
+  /* Derive the cache key once, from the caller's request, and only when the
+   * cache is actually on.  The send path may mutate query->query afterwards
+   * -- the EDNS fallback strips its OPT record -- and a key derived from it
+   * later would not match.  ares_init_options() always creates the cache
+   * object, so a zero maximum TTL is what "off" means. */
+  if (channel->qcache_max_ttl > 0) {
+    qcache_key = ares_qcache_calc_key(dnsrec);
+    if (qcache_key == NULL) {
+      callback(arg, ARES_ENOMEM, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+      return ARES_ENOMEM;                  /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  if (qcache_key != NULL && !(flags & ARES_SEND_FLAG_NOCACHE)) {
     /* Check query cache */
-    status = ares_qcache_fetch(channel, &now, dnsrec, &dnsrec_resp);
+    status = ares_qcache_fetch(channel, &now, qcache_key, &dnsrec_resp);
     if (status != ARES_ENOTFOUND) {
       /* ARES_SUCCESS means we retrieved the cache, anything else is a critical
        * failure, all result in termination */
+      ares_free(qcache_key);
       callback(arg, status, 0, dnsrec_resp);
+      ares_dns_record_destroy(dnsrec_resp);
       return status;
     }
   }
@@ -138,19 +175,27 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
   /* Allocate space for query and allocated fields. */
   query = ares_malloc(sizeof(ares_query_t));
   if (!query) {
-    callback(arg, ARES_ENOMEM, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM;                  /* LCOV_EXCL_LINE: OutOfMemory */
+    /* LCOV_EXCL_START: OutOfMemory */
+    ares_free(qcache_key);
+    callback(arg, ARES_ENOMEM, 0, NULL);
+    return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
   memset(query, 0, sizeof(*query));
 
   query->channel      = channel;
   query->qid          = id;
+  query->serial       = ++channel->query_serial;
   query->timeout.sec  = 0;
   query->timeout.usec = 0;
   query->using_tcp =
     (channel->flags & ARES_FLAG_USEVC) ? ARES_TRUE : ARES_FALSE;
 
   /* Duplicate Query */
+  /* The query adopts the key derived above; ares_free_query() releases it. */
+  query->qcache_key = qcache_key;
+  qcache_key        = NULL;
+
   status = ares_dns_record_duplicate_ex(&query->query, dnsrec);
   if (status != ARES_SUCCESS) {
     /* Sometimes we might get a EBADRESP response from duplicate due to
@@ -158,7 +203,11 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
     if (status == ARES_EBADRESP) {
       status = ARES_EBADQUERY;
     }
-    ares_free(query);
+    /* ares_free_query() rather than ares_free(): the query was zeroed above,
+     * so detaching finds every node NULL and the qid not yet registered, and
+     * it also releases qcache_key.  Reachable without memory pressure -- a
+     * name that is not a valid hostname fails the duplicate. */
+    ares_free_query(query);
     callback(arg, status, 0, NULL);
     return status;
   }
@@ -209,6 +258,12 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
    */
   if (!ares_htable_szvp_insert(channel->queries_by_qid, query->qid, query)) {
     /* LCOV_EXCL_START: OutOfMemory */
+    /* The query is already chained into all_queries, so a reentrant
+     * ares_cancel() from the callback below would find it, run the
+     * application callback a second time for one lookup, and free it -- and
+     * the ares_free_query() here would then double-free.  Same ordering as
+     * ares_cancel() and ares_destroy(): unlink first, notify second. */
+    ares_detach_query(query);
     callback(arg, ARES_ENOMEM, 0, NULL);
     ares_free_query(query);
     return ARES_ENOMEM;
@@ -217,10 +272,21 @@ ares_status_t ares_send_nolock(ares_channel_t *channel, ares_server_t *server,
 
   /* Perform the first query action. */
 
+  /* Sending opens and writes to connections and can mark a server down, both
+   * of which notify.  This bracket keeps any connection or server unlinked
+   * during the send readable until it returns.  It is never the outermost
+   * one: every public entry point that can get here, and query processing,
+   * holds its own, so delivery waits until the caller -- which may still be
+   * holding its own lookup state, as ares_getaddrinfo() does -- has unwound
+   * too. */
+  ares_deferred_cb_enter(channel);
   status = ares_send_query(server, query, &now);
+  ares_deferred_cb_leave(channel);
+
   if (status == ARES_SUCCESS && qid) {
     *qid = id;
   }
+
   return status;
 }
 
@@ -236,9 +302,14 @@ ares_status_t ares_send_dnsrec(ares_channel_t          *channel,
   }
 
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
 
   status = ares_send_nolock(channel, NULL, 0, dnsrec, callback, arg, qid);
 
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 
   return status;
