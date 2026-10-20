@@ -36,8 +36,9 @@ should call \fBares_process_pending_write(3)\fP using the channel associated
 with the callback.  Each time the callback is triggered must result in a call
 to \fBares_process_pending_write(3)\fP from the caller's event loop otherwise
 stalls and timeouts may occur.  The callback \fBmust not\fP call
-\fBares_process_pending_write(3)\fP directly as otherwise it would invalidate
-any advantage of this use-case.
+any c-ares function on the same channel; its only job is to wake the event
+loop.  In particular, calling \fBares_process_pending_write(3)\fP directly
+would invalidate any advantage of this use-case.
 
 This is considered an optimization, especially when using TLS-based connections
 which add additional overhead to the data stream.  Due to the asyncronous nature

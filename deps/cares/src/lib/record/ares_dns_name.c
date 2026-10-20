@@ -620,7 +620,7 @@ ares_status_t ares_dns_name_parse(ares_buf_t *buf, char **name,
        */
       size_t offset = (size_t)((c & 0x3F) << 8);
 
-      /* Some RR types (e.g. SRV) do not permit name compression within their
+      /* Some RR types (e.g. SVCB) do not permit name compression within their
        * RDATA.  Reject a compression pointer when it is not allowed. */
       if (!allow_compression) {
         status = ARES_EBADNAME;

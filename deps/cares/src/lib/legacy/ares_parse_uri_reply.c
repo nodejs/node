@@ -90,7 +90,7 @@ int ares_parse_uri_reply(const unsigned char *abuf, int alen_int,
     uri_curr->priority = ares_dns_rr_get_u16(rr, ARES_RR_URI_PRIORITY);
     uri_curr->weight   = ares_dns_rr_get_u16(rr, ARES_RR_URI_WEIGHT);
     uri_curr->uri = ares_strdup(ares_dns_rr_get_str(rr, ARES_RR_URI_TARGET));
-    uri_curr->ttl = (int)ares_dns_rr_get_ttl(rr);
+    uri_curr->ttl      = ares_dns_ttl_as_int(ares_dns_rr_get_ttl(rr));
 
     if (uri_curr->uri == NULL) {
       status = ARES_ENOMEM;

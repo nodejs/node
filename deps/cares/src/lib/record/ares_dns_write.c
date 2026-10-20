@@ -1074,6 +1074,11 @@ static ares_status_t ares_dns_write_rr(const ares_dns_record_t *dnsrec,
      * position */
     end_length = ares_buf_len(buf);
     rdlength   = end_length - pos_len - 2;
+    if (rdlength > 65535) {
+      /* RDATA cannot be framed by the 16-bit rdlength; writing the truncated
+       * length would emit a structurally corrupt message. */
+      return ARES_EBADQUERY;
+    }
 
     status = ares_buf_set_length(buf, pos_len);
     if (status != ARES_SUCCESS) {
@@ -1132,6 +1137,13 @@ ares_status_t ares_dns_write_buf(const ares_dns_record_t *dnsrec,
     goto done;
   }
 
+  /* Maximum DNS message size is 64k, even over TCP; ares_dns_parse_buf()
+   * rejects anything larger */
+  if (ares_buf_len(buf) - orig_len > 65535) {
+    status = ARES_EBADQUERY;
+    goto done;
+  }
+
 done:
   ares_llist_destroy(namelist);
   if (status != ARES_SUCCESS) {
@@ -1164,15 +1176,11 @@ ares_status_t ares_dns_write_buf_tcp(const ares_dns_record_t *dnsrec,
   /* Write message */
   status = ares_dns_write_buf(dnsrec, buf);
   if (status != ARES_SUCCESS) {
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;
   }
 
   len     = ares_buf_len(buf);
   msg_len = len - orig_len - 2;
-  if (msg_len > 65535) {
-    status = ARES_EBADQUERY;
-    goto done;
-  }
 
   /* Now we need to overwrite the length, so we jump back to the original
    * message length, overwrite the section and jump back */
