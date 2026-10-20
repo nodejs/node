@@ -98,7 +98,9 @@ function runXofDigestTests(subtle, options) {
           var duringCallParams = {
             get name() {
               // Transfer the buffer while calling digest
-              buffer.buffer.transfer();
+              if (!buffer.buffer.detached) {
+                buffer.buffer.transfer();
+              }
               return alg;
             },
             outputLength: outputLength,
