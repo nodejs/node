@@ -14,14 +14,14 @@ const { inspect } = require('util');
 {
   const h = createHistogram();
 
-  assert.strictEqual(h.min, 9223372036854776000);
-  assert.strictEqual(h.minBigInt, 9223372036854775807n);
+  assert.strictEqual(h.min, 0);
+  assert.strictEqual(h.minBigInt, 0n);
   assert.strictEqual(h.max, 0);
   assert.strictEqual(h.maxBigInt, 0n);
   assert.strictEqual(h.exceeds, 0);
   assert.strictEqual(h.exceedsBigInt, 0n);
-  assert.ok(Number.isNaN(h.mean));
-  assert.ok(Number.isNaN(h.stddev));
+  assert.strictEqual(h.mean, 0);
+  assert.strictEqual(h.stddev, 0);
 
   assert.strictEqual(h.count, 0);
   assert.strictEqual(h.countBigInt, 0n);
