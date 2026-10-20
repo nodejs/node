@@ -350,6 +350,10 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
 void ConfigureSecureContext(SecureContext* sc) {
   // OCSP stapling
   sc->ctx().setStatusCallback(TLSExtStatusCallback);
+  // The cert-verify callback (SPKI blocklist and the OpenSSL 4.1 CN name
+  // constraint handling) is installed once per SSL_CTX in
+  // SecureContext::Init, so that it also covers contexts created without a
+  // TLSWrap.
 }
 
 inline bool Set(
