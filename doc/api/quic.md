@@ -987,7 +987,8 @@ added: v23.8.0
     is application-specific. **Default:** `'transport'`.
   * `reason` {string} An optional human-readable reason string included in
     the `CONNECTION_CLOSE` frame. Per RFC 9000, this is for diagnostic purposes
-    only and should not be used for machine-readable error descriptions.
+    only and should not be used for machine-readable error descriptions. If its
+    UTF-8 encoding exceeds 256 bytes, it is truncated to at most 256 bytes.
 * Returns: {Promise}
 
 Initiate a graceful close of the session. Existing streams will be allowed
@@ -1066,7 +1067,9 @@ added: v23.8.0
   * `type` {string} Either `'transport'` or `'application'`. **Default:**
     `'transport'`.
   * `reason` {string} An optional human-readable reason string included in
-    the `CONNECTION_CLOSE` frame.
+    the `CONNECTION_CLOSE` frame. Per RFC 9000, this is for diagnostic purposes
+    only and should not be used for machine-readable error descriptions. If its
+    UTF-8 encoding exceeds 256 bytes, it is truncated to at most 256 bytes.
 
 Immediately destroy the session. All streams will be destroyed and the
 session will be closed. If `error` is provided and [`session.onerror`][] is
