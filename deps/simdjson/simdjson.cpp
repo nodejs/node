@@ -1,4 +1,4 @@
-/* auto-generated on 2026-10-07 22:43:29 -0400. version 5.0.3 Do not edit! */
+/* auto-generated on 2026-10-14 15:49:28 -0400. version 5.0.5 Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -3355,6 +3355,10 @@ consteval std::string consteval_to_quoted_escaped(std::string_view input) {
   out.push_back('"');
   return out;
 }
+
+consteval std::size_t padded_key_length(std::size_t length) {
+  return (length + 15) / 16 * 16;
+}
 #endif  // SIMDJSON_CONSTEVAL
 
 
@@ -3391,10 +3395,45 @@ struct fixed_string {
 template <std::size_t N>
 fixed_string(const char (&)[N]) -> fixed_string<N>;
 
+template <typename T>
+inline constexpr bool is_fixed_string = false;
+template <std::size_t N>
+inline constexpr bool is_fixed_string<constevalutil::fixed_string<N>> = true;
+
 template <fixed_string str>
 struct string_constant {
     static constexpr std::string_view value = str.view();
 };
+
+#if SIMDJSON_CONSTEVAL
+template <typename Text>
+consteval std::size_t static_string_size() {
+  return Text::text().size();
+}
+template <typename Text>
+consteval std::size_t padded_static_string_size() {
+  return padded_key_length(static_string_size<Text>());
+}
+
+template <typename Text>
+consteval auto make_static_string() {
+  std::array<char, padded_static_string_size<Text>()> out{};
+  std::string text = Text::text();
+  // The tail past text.size() stays zero: it is the padding.
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    out[i] = text[i];
+  }
+  return out;
+}
+
+template <typename Text>
+inline constexpr auto static_string = make_static_string<Text>();
+
+template <fixed_string str>
+struct quoted_escaped_text {
+  static consteval std::string text() { return consteval_to_quoted_escaped(str.view()); }
+};
+#endif // SIMDJSON_CONSTEVAL
 #endif // SIMDJSON_SUPPORTS_CONCEPTS
 
 } // namespace constevalutil
@@ -9436,10 +9475,10 @@ simdjson_fastfloat_really_inline bool rounds_to_nearest() noexcept {
 //  https://stackoverflow.com/questions/46079446/is-there-a-warning-for-floating-point-equality-checking-in-visual-studio-2013
 #elif defined(__clang__)
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wfloat-equal"
+SIMDJSON_DISABLE_GCC_WARNING(-Wfloat-equal)
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
+SIMDJSON_DISABLE_GCC_WARNING(-Wfloat-equal)
 #endif
   return (fmini + 1.0f == 1.0f - fmini);
 #ifdef SIMDJSON_FASTFLOAT_VISUAL_STUDIO
@@ -9680,7 +9719,7 @@ from_chars_float_advanced(UC const *first, UC const *last, T &value,
 #ifdef __clang__
 #pragma clang diagnostic push
 #if (!defined(__APPLE_CC__) && __clang_major__ >= 10) || (__clang_major__ >= 13)
-#pragma clang diagnostic ignored "-Wc++20-extensions"
+SIMDJSON_DISABLE_GCC_WARNING(-Wc++20-extensions)
 #endif
 #endif
   if simdjson_fastfloat_unlikely (pns.too_many_digits) {
