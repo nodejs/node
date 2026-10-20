@@ -30,5 +30,7 @@ for (let i = 0; i < 10; i++) {
 }
 
 process.on('exit', function () {
+  // Keep `first` and `third` alive until exit; registrations only hold them weakly.
+  deepStrictEqual(keptAlive.map((obj) => obj.name), ['first', 'third'])
   deepStrictEqual(finalized, ['first', 'third'])
 })
