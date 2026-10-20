@@ -2375,6 +2375,49 @@ crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
 crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
 ```
 
+## `zlib.crc32c(data[, value])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
+  it will be encoded as UTF-8 before being used for computation.
+* `value` {integer} An optional starting value. It must be a 32-bit unsigned
+  integer. **Default:** `0`
+* Returns: {integer} A 32-bit unsigned integer containing the checksum.
+
+Computes a 32-bit [Cyclic Redundancy Check][] checksum of `data` using the
+Castagnoli polynomial (CRC-32C, [RFC 3720][] section 12.1). If `value` is
+specified, it is used as the starting value of the checksum, otherwise, 0 is
+used as the starting value. Passing the result of a previous call as `value`
+continues the checksum, as with [`zlib.crc32()`][].
+
+CRC-32C is a different checksum from the CRC-32 computed by
+[`zlib.crc32()`][]; the two produce different results for the same input.
+CRC-32C is used by protocols and formats such as iSCSI, SCTP, ext4, Btrfs,
+and the Snappy framing format, and has better error detection properties than
+CRC-32.
+
+The CRC algorithm is designed to compute checksums and to detect error
+in data transmission. It's not suitable for cryptographic authentication.
+
+Strings are encoded as UTF-8, in the same way as [`zlib.crc32()`][].
+
+```mjs
+import zlib from 'node:zlib';
+
+let crc = zlib.crc32c('hello');  // 2591144780
+crc = zlib.crc32c('world', crc);  // 1456190592
+```
+
+```cjs
+const zlib = require('node:zlib');
+
+let crc = zlib.crc32c('hello');  // 2591144780
+crc = zlib.crc32c('world', crc);  // 1456190592
+```
+
 ## `zlib.createBrotliCompress([options])`
 
 <!-- YAML
@@ -3382,6 +3425,7 @@ Create a Zstandard decompression transform.
 [Brotli parameters]: #brotli-constants
 [Cyclic redundancy check]: https://en.wikipedia.org/wiki/Cyclic_redundancy_check
 [Memory usage tuning]: #memory-usage-tuning
+[RFC 3720]: https://www.rfc-editor.org/rfc/rfc3720.html
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.html
 [Streams API]: stream.md
 [Zstd compressor options]: #compressor-options-1
@@ -3451,6 +3495,7 @@ Create a Zstandard decompression transform.
 [`zlib.ZipEntry.createSymlink()`]: #static-method-zlibzipentrycreatesymlinkfilename-target-options
 [`zlib.ZipEntry.createSync()`]: #static-method-zlibzipentrycreatesyncfilename-data-options
 [`zlib.ZipFile.open()`]: #static-method-zlibzipfileopenfilename-options
+[`zlib.crc32()`]: #zlibcrc32data-value
 [`zlib.createZipArchive()`]: #zlibcreateziparchiveentries-options
 [`zlib.createZipArchiveSync()`]: #zlibcreateziparchivesyncentries-options
 [`zlib.getMaxZipContentSize()`]: #zlibgetmaxzipcontentsize

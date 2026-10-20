@@ -2923,6 +2923,7 @@ configure_library('abseil', output, pkgname=[
   'absl_cleanup',
   'absl_config',
   'absl_cord',
+  'absl_crc32c',
   'absl_core_headers',
   'absl_die_if_null',
   'absl_dynamic_annotations',
