@@ -794,6 +794,7 @@ class Http2Session : public AsyncWrap,
   BaseObjectPtr<Http2Ping> PopPing();
   bool AddPing(const uint8_t* data, v8::Local<v8::Function> callback);
   bool HasPendingData() const;
+  bool HasStreamsAbandonedByNghttp2() const;
 
   BaseObjectPtr<Http2Settings> PopSettings();
   bool AddSettings(v8::Local<v8::Function> callback);
