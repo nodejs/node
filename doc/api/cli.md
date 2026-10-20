@@ -3166,8 +3166,9 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63507
-    description: Renamed from `--experimental-test-coverage`. The legacy name is
-                 still accepted as an alias.
+    description: Test coverage is now stable, the flag was renamed from
+                 `--experimental-test-coverage` to `--test-coverage`. The legacy
+                 name is still accepted as an alias.
   - version:
     - v20.1.0
     - v18.17.0
