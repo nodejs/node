@@ -50,9 +50,6 @@
 
 #if HAVE_OPENSSL
 #include "ncrypto.h"
-#if OPENSSL_VERSION_MAJOR >= 3
-#include <openssl/provider.h>
-#endif
 #include "node_crypto.h"
 #if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
 // OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
@@ -1393,36 +1390,15 @@ InitializeOncePerProcessInternal(
     }
     crypto::InstallFipsIndicatorCallback();
 
-    // Activating the default provider here keeps --openssl-legacy-provider
-    // working. Its explicit load disables OpenSSL's fallback, and the eager
-    // CSPRNG check used to activate the provider as a side effect. Only
-    // check the seeding when that provider is missing or FIPS is on, so a
-    // configuration without a DRBG still aborts at startup instead of
-    // hanging at the first crypto call. Otherwise the DRBG is instantiated
-    // on first use.
-#if OPENSSL_VERSION_MAJOR >= 3
-    const bool check_csprng = ncrypto::isFipsEnabled() ||
-                              !OSSL_PROVIDER_available(nullptr, "default");
-#else
-    const bool check_csprng = true;
-#endif
-    if (check_csprng) {
-      CHECK(ncrypto::CSPRNG(nullptr, 0));
-    }
+    // Ensure CSPRNG is properly seeded.
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
-    // V8 uses the entropy for hash seeds, ASLR and Math.random(), none of
-    // it cryptographic. Going through OpenSSL would instantiate the DRBG
-    // and build the default provider's algorithm tables on every startup.
-    // V8 falls back to very weak entropy when the source fails, so abort
-    // instead.
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
-#ifdef _AIX
-      // uv_random() reads /dev/random on AIX, which blocks. OpenSSL seeds
-      // from /dev/urandom there.
+      // V8 falls back to very weak entropy when this function fails
+      // and /dev/urandom isn't available. That wouldn't be so bad if
+      // the entropy was only used for Math.random() but it's also used for
+      // hash table and address space layout randomization. Better to abort.
       CHECK(ncrypto::CSPRNG(buffer, length));
-#else
-      CHECK_EQ(uv_random(nullptr, nullptr, buffer, length, 0, nullptr), 0);
-#endif
       return true;
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
