@@ -295,6 +295,12 @@ test('sql.db returns the associated Database instance', () => {
   assert.strictEqual(sql.db, db);
 });
 
+test('tag stores share a prototype', () => {
+  const other = new Database(':memory:').createTagStore();
+  assert.strictEqual(Object.getPrototypeOf(other), Object.getPrototypeOf(sql));
+  assert.strictEqual(other.constructor, sql.constructor);
+});
+
 test('sql error messages are descriptive', () => {
   assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'test'})`.changes, 1);
 
