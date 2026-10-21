@@ -51,6 +51,7 @@ subSystemLabels:
   # Things that edit top-level .md files are always a doc change
   /^\w+\.md$/: doc
   # Different variants of Makefile and build files
+  /^[^/]+\.gni?$/: build
   /^(?:tools\/)?(?:Makefile|BSDmakefile|create_android_makefiles)$/: build, needs-ci
   /^tools\/(?:install\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, python, needs-ci
   /^vcbuild\.bat$/: build, windows, needs-ci
