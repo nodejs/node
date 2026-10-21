@@ -1449,7 +1449,10 @@ int VirtualTableModule::xNext(sqlite3_vtab_cursor* pCursor) {
            .ToLocal(&next_method_val)) {
     return mod->PropagateJSError();
   }
+  // On a protocol error, drop the iterator so it is not closed later.
+  // `for...of` does not call return() when next() is invalid either.
   if (!next_method_val->IsFunction()) {
+    cursor->iterator.Reset();
     return ReportProtocolError(
         pCursor->pVtab,
         "The \"options.rows\" iterator must have a next() method");
@@ -1462,6 +1465,7 @@ int VirtualTableModule::xNext(sqlite3_vtab_cursor* pCursor) {
     return mod->PropagateJSError();
   }
   if (!next_val->IsObject()) {
+    cursor->iterator.Reset();
     return ReportProtocolError(
         pCursor->pVtab,
         "The \"options.rows\" iterator's next() method must return an object");
