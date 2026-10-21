@@ -262,6 +262,7 @@ class Database : public BaseObject {
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
+  void TrackStatement(Statement* statement);
   void UntrackStatement(Statement* statement);
   bool IsOpen();
   // SQL functions are one of several paths by which SQLite can invoke JS.

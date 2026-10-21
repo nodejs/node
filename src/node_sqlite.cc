@@ -1756,6 +1756,10 @@ void Database::FinalizeStatements() {
   statements_.clear();
 }
 
+void Database::TrackStatement(Statement* statement) {
+  statements_.insert(statement);
+}
+
 void Database::UntrackStatement(Statement* statement) {
   statements_.erase(statement);
 }
@@ -2330,7 +2334,6 @@ void Database::Prepare(const FunctionCallbackInfo<Value>& args) {
   if (!stmt) {
     return;
   }
-  db->statements_.insert(stmt.get());
 
   if (return_arrays.has_value()) {
     stmt->return_arrays_ = return_arrays.value();
@@ -3780,6 +3783,7 @@ Statement::Statement(Environment* env,
                      BaseObjectPtr<Database> db,
                      StatementPtr stmt)
     : BaseObject(env, object), db_(std::move(db)), statement_(std::move(stmt)) {
+  db_->TrackStatement(this);
   MakeWeak();
   use_big_ints_ = db_->use_big_ints();
   return_arrays_ = db_->return_arrays();
@@ -4941,7 +4945,6 @@ BaseObjectPtr<Statement> SQLTagStore::PrepareStatement(
       return BaseObjectPtr<Statement>();
     }
 
-    session->database_->statements_.insert(stmt_obj.get());
     session->sql_tags_.Put(sql, stmt_obj);
     stmt = stmt_obj;
   }
