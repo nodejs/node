@@ -31,7 +31,7 @@ if (!common.hasFFI) {
 
 // The JSON schema is generated from a build with the default configuration
 // options, where these are disabled and their options are not available.
-if (common.hasQuic || common.hasDtls || common.hasV8Sandbox) {
+if (!common.hasQuic || !common.hasDtls || !common.hasV8Sandbox) {
   common.skip('this test assumes default configuration options');
 }
 
