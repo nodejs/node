@@ -1494,7 +1494,7 @@ SpkiCheck CheckSPKIs(const STACK_OF(X509) * certs,
                      X509** offender,
                      int* depth) {
   if (certs == nullptr) return SpkiCheck::kAllowed;
-  for (int i = 0; i < sk_X509_num(certs); i++) {
+  for (OPENSSL_SIZE_T i = 0; i < sk_X509_num(certs); i++) {
     X509* cert = sk_X509_value(certs, i);
     SpkiCheck result = CheckSPKI(cert);
     if (result != SpkiCheck::kAllowed) {
