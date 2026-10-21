@@ -738,9 +738,7 @@ class BackupJob : public ThreadPoolWork {
   }
 
   void Cleanup() {
-    if (backup_) {
-      sqlite3_backup_finish(backup_.release());
-    }
+    backup_.reset();
 
     if (dest_) {
       backup_status_ = sqlite3_errcode(dest_.get());
@@ -781,14 +779,8 @@ class BackupJob : public ThreadPoolWork {
   BaseObjectPtr<Database> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
-  struct Sqlite3Deleter {
-    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
-  };
-  struct BackupDeleter {
-    void operator()(sqlite3_backup* b) const { sqlite3_backup_finish(b); }
-  };
-  std::unique_ptr<sqlite3, Sqlite3Deleter> dest_;
-  std::unique_ptr<sqlite3_backup, BackupDeleter> backup_;
+  ConnectionPtr dest_;
+  BackupPtr backup_;
   int pages_;
   int backup_status_ = SQLITE_OK;
   std::string source_db_;
@@ -2181,6 +2173,8 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
       env, db->IsInCallback(), "database cannot be closed while in a callback");
   db->FinalizeStatements();
   db->DeleteSessions();
+  // Close through the raw handle instead of reset() so that a failed close
+  // keeps the handle, which the error below is read from.
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
@@ -3186,26 +3180,21 @@ void Database::CreateSession(const FunctionCallbackInfo<Value>& args) {
   // getter, which may have closed the database since it was checked.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
-  sqlite3_session* pSession;
-  int r =
-      sqlite3session_create(db->connection_.get(), db_name.c_str(), &pSession);
+  sqlite3_session* raw_session;
+  int r = sqlite3session_create(
+      db->connection_.get(), db_name.c_str(), &raw_session);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  bool wrapper_owns_session = false;
-  auto delete_session_on_failure = OnScopeLeave([&]() {
-    if (!wrapper_owns_session) {
-      sqlite3session_delete(pSession);
-    }
-  });
+  SessionPtr pSession(raw_session);
 
-  r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
+  r = sqlite3session_attach(pSession.get(),
+                            table == "" ? nullptr : table.c_str());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
   BaseObjectPtr<Session> session =
-      Session::Create(env, BaseObjectPtr<Database>(db), pSession);
+      Session::Create(env, BaseObjectPtr<Database>(db), std::move(pSession));
   if (!session) {
     return;
   }
-  wrapper_owns_session = true;
   args.GetReturnValue().Set(session->object());
 }
 
@@ -5179,9 +5168,9 @@ void StatementIterator::Return(const FunctionCallbackInfo<Value>& args) {
 Session::Session(Environment* env,
                  Local<Object> object,
                  BaseObjectPtr<Database> database,
-                 sqlite3_session* session)
+                 SessionPtr session)
     : BaseObject(env, object),
-      session_(std::unique_ptr<sqlite3_session, SessionDeleter>(session)),
+      session_(std::move(session)),
       database_(std::move(database)) {
   database_->sessions_.insert(this);
   MakeWeak();
@@ -5193,7 +5182,7 @@ Session::~Session() {
 
 BaseObjectPtr<Session> Session::Create(Environment* env,
                                        BaseObjectPtr<Database> database,
-                                       sqlite3_session* session) {
+                                       SessionPtr session) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -5202,7 +5191,8 @@ BaseObjectPtr<Session> Session::Create(Environment* env,
     return nullptr;
   }
 
-  return MakeBaseObject<Session>(env, obj, std::move(database), session);
+  return MakeBaseObject<Session>(
+      env, obj, std::move(database), std::move(session));
 }
 
 Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
@@ -5251,7 +5241,7 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(
       env->isolate(), session->database_.get(), r, SQLITE_OK, void());
 
-  auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
+  DeleteFnPtr<void, sqlite3_free> changeset(pChangeset);
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), nChangeset);
   if (nChangeset > 0) {
