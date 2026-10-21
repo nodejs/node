@@ -645,7 +645,7 @@ class BackupJob : public ThreadPoolWork {
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
@@ -654,7 +654,7 @@ class BackupJob : public ThreadPoolWork {
                                       source_->Connection(),
                                       source_db_.c_str()));
     if (!backup_) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
@@ -676,7 +676,7 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      HandleBackupError(resolver, backup_status_);
+      Settle(resolver, CreateSQLiteError(isolate, backup_status_), {});
       return;
     }
 
@@ -697,6 +697,7 @@ class BackupJob : public ThreadPoolWork {
                       env()->remaining_pages_string(),
                       Integer::New(env()->isolate(), remaining_pages))
                 .IsNothing()) {
+          Settle(resolver, {}, {});
           return;
         }
 
@@ -704,10 +705,7 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
-          Local<Value> exception = try_catch.Exception();
-          Finalize();
-          resolver->Reject(env()->context(), exception).ToChecked();
-          delete this;
+          Settle(resolver, try_catch.Exception(), {});
           return;
         }
       }
@@ -718,15 +716,11 @@ class BackupJob : public ThreadPoolWork {
     }
 
     if (backup_status_ != SQLITE_DONE) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
-    Finalize();
-    resolver
-        ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
-        .ToChecked();
-    delete this;
+    Settle(resolver, {}, Integer::New(isolate, total_pages));
   }
 
   void Finalize() {
@@ -747,29 +741,19 @@ class BackupJob : public ThreadPoolWork {
   }
 
  private:
-  void HandleBackupError(Local<Promise::Resolver> resolver) {
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), dest_.get()).ToLocal(&e)) {
-      Finalize();
-      delete this;
-      return;
-    }
-
+  // The single exit point of a backup. Rejects with `error` if it is set,
+  // otherwise resolves with `value` if it is set. Neither being set means an
+  // exception is already pending. Deletes the job.
+  void Settle(Local<Promise::Resolver> resolver,
+              MaybeLocal<Value> error,
+              Local<Value> value) {
     Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
-    delete this;
-  }
-
-  void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
-      Finalize();
-      delete this;
-      return;
+    Local<Value> e;
+    if (error.ToLocal(&e)) {
+      resolver->Reject(env()->context(), e).ToChecked();
+    } else if (!value.IsEmpty()) {
+      resolver->Resolve(env()->context(), value).ToChecked();
     }
-
-    Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
     delete this;
   }
 
