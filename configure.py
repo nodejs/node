@@ -2473,6 +2473,9 @@ def configure_quic(o):
   configure_library('ngtcp2', output, pkgname='libngtcp2')
 
 def configure_dtls(o):
+  if options.experimental_dtls and options.without_ssl:
+    warn('--experimental-dtls is incompatible with --without-ssl')
+
   o['variables']['node_use_dtls'] = b(options.experimental_dtls and
                                       not options.without_ssl)
 
