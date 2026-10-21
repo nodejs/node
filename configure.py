@@ -59,7 +59,7 @@ maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv6
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
-                     'amaro/dist/index': 'deps/amaro/dist/index.js'
+                     'amaro/dist/internal': 'deps/amaro/dist/internal.js'
 }
 
 # create option groups
@@ -1065,7 +1065,9 @@ parser.add_argument('--without-amaro',
     action='store_true',
     dest='without_amaro',
     default=None,
-    help='do not install the bundled Amaro (TypeScript utils)')
+    help='disable the TypeScript support (type stripping) provided by the '
+         'bundled Amaro. Its JavaScript parser is always bundled, as the REPL '
+         'and other internals depend on it')
 
 parser.add_argument('--without-lief',
     action='store_true',
@@ -3009,10 +3011,6 @@ configure_intl(output)
 configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
-
-# remove builtins that have been disabled
-if options.without_amaro:
-    del shareable_builtins['amaro/dist/index']
 
 # configure shareable builtins
 output['variables']['node_builtin_shareable_builtins'] = []

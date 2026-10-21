@@ -30,7 +30,7 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
-#if HAVE_AMARO && !defined(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH)
+#if HAVE_AMARO && !defined(NODE_SHARED_BUILTIN_AMARO_DIST_INTERNAL_PATH)
 #define NODE_VERSIONS_KEY_AMARO(V) V(amaro)
 #else
 #define NODE_VERSIONS_KEY_AMARO(V)
@@ -55,7 +55,6 @@ namespace node {
   V(napi)                                                                      \
   V(llhttp)                                                                    \
   V(uvwasi)                                                                    \
-  V(acorn)                                                                     \
   V(simdjson)                                                                  \
   V(simdutf)                                                                   \
   V(ada)                                                                       \
