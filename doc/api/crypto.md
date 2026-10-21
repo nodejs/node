@@ -160,8 +160,6 @@ and is the fastest serialized import format.
 
 #### Raw key formats
 
-> Stability: 1.1 - Active development
-
 The `'raw-public'`, `'raw-private'`, and `'raw-seed'` key formats allow
 importing and exporting raw key material without any encoding wrapper.
 See [`keyObject.export()`][], [`crypto.createPublicKey()`][], and
