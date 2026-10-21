@@ -297,6 +297,18 @@ REM NASM is only needed on x86_64.
 if not defined openssl_no_asm if "%target_arch%" NEQ "arm64" call tools\msvs\find_nasm.cmd
 if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-asm. See BUILDING.md.
 
+REM cargo is needed to build the Rust crates used for Temporal.
+if defined nobuild goto skip-find-cargo
+if "%target%"=="Clean" goto skip-find-cargo
+echo %configure_flags% | findstr /C:"--v8-disable-temporal-support" /C:"--shared-temporal_capi" >NUL && goto skip-find-cargo
+call tools\msvs\find_cargo.cmd
+if errorlevel 1 (
+  echo Could not find cargo, install the Rust toolchain. See BUILDING.md.
+  set exit_code=1
+  goto exit
+)
+:skip-find-cargo
+
 call :getnodeversion || exit /b 1
 
 @REM Forcing ClangCL usage for version 24 and above
