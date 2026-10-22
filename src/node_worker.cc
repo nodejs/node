@@ -1,5 +1,8 @@
 #include "node_worker.h"
 #include "async_wrap-inl.h"
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "debug_utils-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
@@ -778,6 +781,9 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   thread_options.stack_size = w->stack_size_;
 
   uv_thread_t* tid = &w->tid_.emplace();  // Create uv_thread_t instance
+#if HAVE_OPENSSL
+  crypto::EnsureOpenSSLNameMap();
+#endif  // HAVE_OPENSSL
   int ret = uv_thread_create_ex(tid, &thread_options, [](void* arg) {
     // XXX: This could become a std::unique_ptr, but that makes at least
     // gcc 6.3 detect undefined behaviour when there shouldn't be any.

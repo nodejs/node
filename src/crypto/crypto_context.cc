@@ -991,6 +991,7 @@ void StartLoadingCertificatesOffThread(
     // Check again under the lock.
     if (!tried_cert_loading_off_thread.load()) {
       tried_cert_loading_off_thread.store(true);
+      EnsureOpenSSLNameMap();
       int r =
           uv_thread_create(&cert_loading_thread, LoadCACertificates, nullptr);
       cert_loading_thread_started.store(r == 0);
@@ -1011,6 +1012,7 @@ void StartLoadingCertificatesOffThread(
     if (!has_cached_system_root_certs.load() &&
         !tried_system_cert_loading_off_thread.load()) {
       tried_system_cert_loading_off_thread.store(true);
+      EnsureOpenSSLNameMap();
       int r = uv_thread_create(
           &system_cert_loading_thread, LoadSystemCACertificates, nullptr);
       system_cert_loading_thread_started.store(r == 0);

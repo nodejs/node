@@ -478,6 +478,17 @@ std::optional<std::string> ProcessFipsOptions() {
   return std::nullopt;
 }
 
+// OpenSSL 3 copies its legacy algorithm names into the name map on the first
+// fetch, and another thread can look names up while the copy is in progress.
+// Some misses are cached: with OpenSSL 3.5, the decoders cached for
+// "rsassaPss" keys are then an empty set, and no RSA-PSS public key can be
+// decoded for the rest of the process. Startup does no fetch, so the first one
+// happens here, on the calling thread, before OpenSSL work moves to another.
+void EnsureOpenSSLNameMap() {
+  static uv_once_t once = UV_ONCE_INIT;
+  uv_once(&once, [] { ncrypto::Digest::Fetch("SHA256"); });
+}
+
 bool InitCryptoOnce(Isolate* isolate) {
   static uv_once_t init_once = UV_ONCE_INIT;
   TryCatch try_catch{isolate};

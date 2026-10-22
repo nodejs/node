@@ -73,6 +73,9 @@ void InstallFipsIndicatorCallback();
 bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
 
+// Call before starting OpenSSL work on another thread.
+void EnsureOpenSSLNameMap();
+
 void InitCrypto(v8::Local<v8::Object> target);
 
 extern void UseExtraCaCerts(std::string_view file);
@@ -460,6 +463,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
     CryptoJob<CryptoJobTraits>* job;
     ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
+    EnsureOpenSSLNameMap();
     if (job->mode() == kCryptoJobWebCrypto) {
       v8::Local<v8::Promise::Resolver> resolver;
       if (!v8::Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
