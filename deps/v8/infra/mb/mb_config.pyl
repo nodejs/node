@@ -759,7 +759,7 @@
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_no_metagen': [
-      'debug_bot', 'x64', 'v8_disable_metagen_instance_types'],
+      'debug_bot', 'x64', 'v8_disable_metagen'],
     'debug_x64_no_sandbox': [
       'debug_bot', 'x64', 'no_sandbox'],
     'debug_x64_sandbox_hardware_support': [
@@ -836,7 +836,7 @@
 
     # Torque compare test
     'torque_compare': [
-        'release_bot', 'verify_torque'],
+        'release_bot', 'verify_torque', 'v8_disable_metagen'],
 
     # PGO
     'builtins_profiling_x86': ['builtins_profiling', 'x86'],
@@ -1180,8 +1180,8 @@
       'gn_args': 'v8_dict_property_const_tracking=true',
     },
 
-    'v8_disable_metagen_instance_types': {
-      'gn_args': 'v8_use_metagen_instance_types=false',
+    'v8_disable_metagen': {
+      'gn_args': 'v8_use_metagen=false',
     },
     'v8_disable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=false',

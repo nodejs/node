@@ -52,6 +52,11 @@ builder.addFunction("call_next", kSig_v_v)
         kExprCallFunction, get_next_index,
         kExprCallRef, sig_v_v,
     ]).exportFunc();
+builder.addFunction("suspend_jspi_twice", kSig_v_v)
+    .addBody([
+        kExprCallFunction, jspi_suspending_index,
+        kExprCallFunction, jspi_suspending_index,
+    ]).exportFunc();
 builder.addFunction("call_next_in_catch_all", kSig_v_v)
     .addBody([
       kExprTryTable, kWasmVoid, 1,
@@ -436,4 +441,18 @@ instance = builder.instantiate( {m: {
   assertThrowsAsync(
       WebAssembly.promising(instance.exports.call_next_as_cont)(),
       WebAssembly.RuntimeError);
+})();
+
+(function TestJSPIInWasmFXSuspendTwice() {
+  print(arguments.callee.name);
+  let promise;
+  let call_promising = () => {
+    promise = WebAssembly.promising(instance.exports.suspend_jspi_twice)();
+  };
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_from_js,
+      call_promising,
+  ];
+  instance.exports.call_next_as_cont();
+  assertPromiseResult(promise);
 })();

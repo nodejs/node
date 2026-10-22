@@ -227,6 +227,9 @@ constexpr MachineType MachineTypeOf<
     HeapObjectSubtype,
     std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>>::value;
 
+template <class T>
+struct MachineTypeOf<ReadOnly<T>> : MachineTypeOf<T> {};
+
 template <>
 struct MachineTypeOf<ExternalReference> {
   static constexpr MachineType value = MachineType::Pointer();

@@ -118,11 +118,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
   inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
 
-  inline int NumberOfElements();
-  inline int NumberOfDeletedElements();
+  inline uint32_t NumberOfElements();
+  inline uint32_t NumberOfDeletedElements();
 
-  inline int Capacity();
-  inline int UsedCapacity();
+  inline uint32_t Capacity();
+  inline uint32_t UsedCapacity();
 
   int NumberOfEnumerableProperties();
 
@@ -141,14 +141,14 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   template <typename IsolateT>
   void Initialize(IsolateT* isolate, Tagged<ByteArray> meta_table,
-                  int capacity);
+                  uint32_t capacity);
 
   template <typename IsolateT, template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
                                    DirectHandle<SwissNameDictionary>>)
   static HandleType<SwissNameDictionary> Rehash(
       IsolateT* isolate, HandleType<SwissNameDictionary> table,
-      int new_capacity);
+      uint32_t new_capacity);
   template <typename IsolateT>
   void Rehash(IsolateT* isolate);
 
@@ -159,7 +159,8 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   class IndexIterator {
    public:
-    inline IndexIterator(DirectHandle<SwissNameDictionary> dict, int start);
+    inline IndexIterator(DirectHandle<SwissNameDictionary> dict,
+                         uint32_t start);
 
     inline IndexIterator& operator++();
 
@@ -169,8 +170,8 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
     inline InternalIndex operator*();
 
    private:
-    int used_capacity_;
-    int enum_index_;
+    uint32_t used_capacity_;
+    uint32_t enum_index_;
 
     // This may be an empty handle, but only if the capacity of the table is
     // 0 and pointer compression is disabled.
@@ -196,25 +197,25 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // For the given enumeration index, returns the entry (= bucket of the Swiss
   // Table) containing the data for the mapping with that enumeration index.
   // The returned bucket may be deleted.
-  inline int EntryForEnumerationIndex(int enumeration_index);
+  inline uint32_t EntryForEnumerationIndex(uint32_t enumeration_index);
 
-  inline static constexpr bool IsValidCapacity(int capacity);
-  inline static int CapacityFor(int at_least_space_for);
+  inline static constexpr bool IsValidCapacity(uint32_t capacity);
+  inline static uint32_t CapacityFor(uint32_t at_least_space_for);
 
   // Given a capacity, how much of it can we fill before resizing?
-  inline static constexpr int MaxUsableCapacity(int capacity);
+  inline static constexpr uint32_t MaxUsableCapacity(uint32_t capacity);
 
   // The maximum allowed capacity for any SwissNameDictionary.
-  inline static constexpr int MaxCapacity();
+  inline static constexpr uint32_t MaxCapacity();
 
   // Returns total size in bytes required for a table of given capacity.
-  inline static constexpr int SizeFor(int capacity);
+  inline static constexpr uint32_t SizeFor(uint32_t capacity);
 
-  inline static constexpr int MetaTableSizePerEntryFor(int capacity);
-  inline static constexpr int MetaTableSizeFor(int capacity);
+  inline static constexpr uint32_t MetaTableSizePerEntryFor(uint32_t capacity);
+  inline static constexpr uint32_t MetaTableSizeFor(uint32_t capacity);
 
-  inline static constexpr int DataTableSize(int capacity);
-  inline static constexpr int CtrlTableSize(int capacity);
+  inline static constexpr uint32_t DataTableSize(uint32_t capacity);
+  inline static constexpr uint32_t CtrlTableSize(uint32_t capacity);
 
   // Indicates that IterateEntries() returns entries ordered.
   static constexpr bool kIsOrderedDictionaryType = true;
@@ -223,20 +224,22 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // InternalIndex::NotFound() is always used instead.
   static constexpr int kNotFoundSentinel = -1;
 
-  static const int kGroupWidth = Group::kWidth;
+  static const uint32_t kGroupWidth = Group::kWidth;
   static const bool kUseSIMD = kGroupWidth == 16;
 
   class BodyDescriptor;
 
   // Note that 0 is also a valid capacity. Changing this value to a smaller one
   // may make some padding necessary in the data layout.
-  static constexpr int kInitialCapacity = kSwissNameDictionaryInitialCapacity;
+  static constexpr uint32_t kInitialCapacity =
+      kSwissNameDictionaryInitialCapacity;
 
   // Defines how many kTaggedSize sized values are associcated which each entry
   // in the data table.
-  static constexpr int kDataTableEntryCount = 2;
-  static constexpr int kDataTableKeyEntryIndex = 0;
-  static constexpr int kDataTableValueEntryIndex = kDataTableKeyEntryIndex + 1;
+  static constexpr uint32_t kDataTableEntryCount = 2;
+  static constexpr uint32_t kDataTableKeyEntryIndex = 0;
+  static constexpr uint32_t kDataTableValueEntryIndex =
+      kDataTableKeyEntryIndex + 1;
 
   // Field indices describing the layout of the meta table: A field index of i
   // means that the corresponding meta table entry resides at an offset of {i *
@@ -244,31 +247,32 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // uintX_t can be 8, 16, or 32, and depends on the capacity of the overall
   // SwissNameDictionary. See the section "Meta table" in the comment at the
   // beginning of the SwissNameDictionary class in this file.
-  static constexpr int kMetaTableElementCountFieldIndex = 0;
-  static constexpr int kMetaTableDeletedElementCountFieldIndex = 1;
+  static constexpr uint32_t kMetaTableElementCountFieldIndex = 0;
+  static constexpr uint32_t kMetaTableDeletedElementCountFieldIndex = 1;
   // Field index of the first entry of the enumeration table (which is part of
   // the meta table).
-  static constexpr int kMetaTableEnumerationDataStartIndex = 2;
+  static constexpr uint32_t kMetaTableEnumerationDataStartIndex = 2;
 
   // The maximum capacity of any SwissNameDictionary whose meta table can use 1
   // byte per entry.
-  static constexpr int kMax1ByteMetaTableCapacity = (1 << 8);
+  static constexpr uint32_t kMax1ByteMetaTableCapacity = (1 << 8);
   // The maximum capacity of any SwissNameDictionary whose meta table can use 2
   // bytes per entry.
-  static constexpr int kMax2ByteMetaTableCapacity = (1 << 16);
+  static constexpr uint32_t kMax2ByteMetaTableCapacity = (1 << 16);
 
   // TODO(v8:11388) We would like to use Torque-generated constants here, but
   // those are currently incorrect.
   // Offset into the overall table, starting at HeapObject standard fields,
   // in bytes. This means that the map is stored at offset 0.
-  using Offset = int;
+  using Offset = uint32_t;
   inline static constexpr Offset PrefixOffset();
   inline static constexpr Offset CapacityOffset();
   inline static constexpr Offset MetaTablePointerOffset();
   inline static constexpr Offset DataTableStartOffset();
-  inline static constexpr Offset DataTableEndOffset(int capacity);
-  inline static constexpr Offset CtrlTableStartOffset(int capacity);
-  inline static constexpr Offset PropertyDetailsTableStartOffset(int capacity);
+  inline static constexpr Offset DataTableEndOffset(uint32_t capacity);
+  inline static constexpr Offset CtrlTableStartOffset(uint32_t capacity);
+  inline static constexpr Offset PropertyDetailsTableStartOffset(
+      uint32_t capacity);
 
 #if VERIFY_HEAP
   void SwissNameDictionaryVerify(Isolate* isolate, bool slow_checks);
@@ -291,25 +295,26 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline uint8_t* PropertyDetailsTable();
 
   // Sets key and value to the hole for the given entry.
-  inline void ClearDataTableEntry(Isolate* isolate, int entry);
-  inline void SetKey(int entry, Tagged<Object> key);
+  inline void ClearDataTableEntry(Isolate* isolate, uint32_t entry);
+  inline void SetKey(uint32_t entry, Tagged<Object> key);
 
-  inline void DetailsAtPut(int entry, PropertyDetails value);
-  inline void ValueAtPut(int entry, Tagged<Object> value);
+  inline void DetailsAtPut(uint32_t entry, PropertyDetails value);
+  inline void ValueAtPut(uint32_t entry, Tagged<Object> value);
 
-  inline PropertyDetails DetailsAt(int entry);
-  inline Tagged<Object> ValueAtRaw(int entry);
-  inline Tagged<Object> KeyAt(int entry);
+  inline PropertyDetails DetailsAt(uint32_t entry);
+  inline Tagged<Object> ValueAtRaw(uint32_t entry);
+  inline Tagged<Object> KeyAt(uint32_t entry);
 
-  inline bool ToKey(ReadOnlyRoots roots, int entry, Tagged<Object>* out_key);
+  inline bool ToKey(ReadOnlyRoots roots, uint32_t entry,
+                    Tagged<Object>* out_key);
 
-  inline int FindFirstEmpty(uint32_t hash);
+  inline uint32_t FindFirstEmpty(uint32_t hash);
   // Adds |key| ->  (|value|, |details|) as a new mapping to the table, which
   // must have sufficient room. Returns the entry (= bucket) used by the new
   // mapping. Does not update the number of present entries or the
   // enumeration table.
-  inline int AddInternal(Tagged<Name> key, Tagged<Object> value,
-                         PropertyDetails details);
+  inline uint32_t AddInternal(Tagged<Name> key, Tagged<Object> value,
+                              PropertyDetails details);
 
   // Use |set_ctrl| for modifications whenever possible, since that function
   // correctly maintains the copy of the first group at the end of the ctrl
@@ -323,44 +328,51 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   // Sets the a control byte, taking the necessary copying of the first group
   // into account.
-  inline void SetCtrl(int entry, ctrl_t h);
-  inline ctrl_t GetCtrl(int entry);
+  inline void SetCtrl(uint32_t entry, ctrl_t h);
+  inline ctrl_t GetCtrl(uint32_t entry);
 
-  inline Tagged<Object> LoadFromDataTable(int entry, int data_offset);
-  inline void StoreToDataTable(int entry, int data_offset, Tagged<Object> data);
-  inline void StoreToDataTableNoBarrier(int entry, int data_offset,
+  inline Tagged<Object> LoadFromDataTable(uint32_t entry, uint32_t data_offset);
+  inline void StoreToDataTable(uint32_t entry, uint32_t data_offset,
+                               Tagged<Object> data);
+  inline void StoreToDataTableNoBarrier(uint32_t entry, uint32_t data_offset,
                                         Tagged<Object> data);
 
-  inline void SetCapacity(int capacity);
-  inline void SetNumberOfElements(int elements);
-  inline void SetNumberOfDeletedElements(int deleted_elements);
+  inline void SetCapacity(uint32_t capacity);
+  inline void SetNumberOfElements(uint32_t elements);
+  inline void SetNumberOfDeletedElements(uint32_t deleted_elements);
 
-  static inline swiss_table::ProbeSequence<Group::kWidth> probe(uint32_t hash,
-                                                                int capacity);
+  static inline swiss_table::ProbeSequence<Group::kWidth> probe(
+      uint32_t hash, uint32_t capacity);
 
   // Sets that the entry with the given |enumeration_index| is stored at the
   // given bucket of the data table.
-  inline void SetEntryForEnumerationIndex(int enumeration_index, int entry);
+  inline void SetEntryForEnumerationIndex(uint32_t enumeration_index,
+                                          uint32_t entry);
 
   DECL_ACCESSORS(meta_table, Tagged<ByteArray>)
-  inline void SetMetaTableField(int field_index, int value);
-  inline int GetMetaTableField(int field_index);
+  inline void SetMetaTableField(uint32_t field_index, uint32_t value);
+  inline uint32_t GetMetaTableField(uint32_t field_index);
 
   template <typename T>
   inline static void SetMetaTableField(Tagged<ByteArray> meta_table,
-                                       int field_index, int value);
+                                       uint32_t field_index, uint32_t value);
   template <typename T>
-  inline static int GetMetaTableField(Tagged<ByteArray> meta_table,
-                                      int field_index);
+  inline static uint32_t GetMetaTableField(Tagged<ByteArray> meta_table,
+                                           uint32_t field_index);
 
  public:
   uint32_t hash_;
-  int32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   TaggedMember<ByteArray> meta_table_;
   // The data_table is followed by ctrl_table and property_details_table.
   // Their start offsets are computed by CtrlTableStartOffset(capacity) /
   // PropertyDetailsTableStartOffset(capacity) since FLEXIBLE_ARRAY_MEMBER
   // can only model a single trailing variable-length section.
+  // Torque splits the flexible tail into indexed sections.
+  V8_TQ_TAIL_SECTIONS(
+      data_table[Convert<intptr>(capacity) * 2] : JSAny | TheHole;
+      ctrl_table[Convert<intptr>(capacity) + swiss_table::kGroupWidth] : uint8;
+      property_details_table[Convert<intptr>(capacity)] : uint8;);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 

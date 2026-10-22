@@ -476,7 +476,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
         UpdateSourcePosition(gasm_.effect(), node);
       } else {
         static_assert(WasmStruct::kHeaderSize > kTaggedSize);
-        static_assert(WasmArray::kHeaderSize > kTaggedSize);
+        static_assert(WasmArray::HeaderSize(SharedFlag{false}) > kTaggedSize);
         static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
         Node* trap_null = gasm_.LoadTrapOnNull(
             MachineType::Int32(), object,
@@ -734,7 +734,7 @@ Reduction WasmGCLowering::ReduceWasmArrayGet(Node* node) {
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
-  Node* offset = gasm_.WasmArrayElementOffset(index, info.type->element_type());
+  Node* offset = gasm_.WasmArrayElementOffset(index, info.type);
 
   MachineType type = MachineType::TypeForRepresentation(
       info.type->element_type().machine_representation(), info.is_signed);
@@ -757,7 +757,7 @@ Reduction WasmGCLowering::ReduceWasmArraySet(Node* node) {
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
-  Node* offset = gasm_.WasmArrayElementOffset(index, type->element_type());
+  Node* offset = gasm_.WasmArrayElementOffset(index, type);
 
   ObjectAccess access = ObjectAccessForGCStores(type->element_type());
 

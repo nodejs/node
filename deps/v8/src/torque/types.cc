@@ -12,6 +12,7 @@
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/type-visitor.h"
@@ -881,8 +882,13 @@ void ClassType::GenerateAccessors() {
           MakeNode<ElementAccessExpression>(load_expression, index);
     }
     Statement* load_body = MakeNode<ReturnStatement>(load_expression);
-    Declarations::DeclareMacro(load_macro_name, true, std::nullopt,
-                               load_signature, load_body, std::nullopt);
+    Macro* load_macro =
+        Declarations::DeclareMacro(load_macro_name, true, std::nullopt,
+                                   load_signature, load_body, std::nullopt);
+    load_macro->SetIdentifierPosition(field.pos);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddFunctionDefinition(load_macro);
+    }
 
     // Store accessor
     if (!field.const_qualified) {
@@ -909,9 +915,13 @@ void ClassType::GenerateAccessors() {
       }
       Statement* store_body = MakeNode<ExpressionStatement>(
           MakeNode<AssignmentExpression>(store_expression, value));
-      Declarations::DeclareMacro(store_macro_name, true, std::nullopt,
-                                 store_signature, store_body, std::nullopt,
-                                 false);
+      Macro* store_macro = Declarations::DeclareMacro(
+          store_macro_name, true, std::nullopt, store_signature, store_body,
+          std::nullopt, false);
+      store_macro->SetIdentifierPosition(field.pos);
+      if (GlobalContext::collect_kythe_data()) {
+        KytheData::AddFunctionDefinition(store_macro);
+      }
     }
   }
 }
@@ -1039,6 +1049,10 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 
   Macro* macro = Declarations::DeclareMacro(macro_name, true, std::nullopt,
                                             signature, block, std::nullopt);
+  macro->SetIdentifierPosition(field.pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(macro);
+  }
   if (this->ShouldGenerateCppObjectLayoutDefinitionAsserts()) {
     GlobalContext::EnsureInCCDebugOutputList(TorqueMacro::cast(macro),
                                              macro->Position().source);

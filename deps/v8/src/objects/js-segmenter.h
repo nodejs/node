@@ -87,7 +87,7 @@ V8_OBJECT class JSSegmenter : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<Foreign> icu_break_iterator_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSSegmenterFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSSegmenter::kHeaderSize = sizeof(JSSegmenter);

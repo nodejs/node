@@ -69,6 +69,10 @@
 #include <zircon/process.h>
 #endif
 
+#if defined(__FREERTOS__)
+#include <task.h>
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
@@ -469,6 +473,12 @@ pid_t GetTID() {
   // a kernel object ID (KOID) because zx_handle_t (32-bits) can be cast to a
   // pid_t type without loss of precision, but a zx_koid_t (64-bits) cannot.
   return static_cast<pid_t>(zx_thread_self());
+}
+
+#elif defined(__FREERTOS__)
+
+pid_t GetTID() {
+  return static_cast<pid_t>(uxTaskGetTaskNumber(xTaskGetCurrentTaskHandle()));
 }
 
 #else

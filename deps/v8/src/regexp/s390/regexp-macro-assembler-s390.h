@@ -210,6 +210,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
 
   Isolate* isolate() const { return masm_->isolate(); }
 
+  // Address of the regexp stack's thread-local block, whose stack limit,
+  // memory top and saved stack pointer sit at Stack::k*Offset.
+  ExternalReference regexp_stack_thread_local() const {
+    return ExternalReference::address_of_regexp_stack_thread_local(isolate());
+  }
+
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
 

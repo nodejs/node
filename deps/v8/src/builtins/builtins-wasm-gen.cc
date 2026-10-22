@@ -24,11 +24,8 @@ WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
   // We can only load the instance from Wasm frames, which is not the case for
   // builtins called from a Wasm-in-JS inlined function.
   TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
-  CSA_DCHECK(this,
-             Word32Or(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                            StackFrame::WASM))),
-                      WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                            StackFrame::WASM_SEGMENT_START)))));
+  CSA_DCHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                         StackFrame::WASM))));
 #endif
   return TrustedCast<WasmTrustedInstanceData>(
       LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset),
@@ -59,15 +56,9 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
 
   // Otherwise this must be a proper `WASM` frame, holding a
   // `WasmTrustedInstanceData` in the slot.
-  // There is a special case for wasm frames that are the first frame of a
-  // growable stack segment: they are represented with the special frame type
-  // `WASM_SEGMENT_START`.
   TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
-  CSA_CHECK(this,
-            Word32Or(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                           StackFrame::WASM))),
-                     WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                           StackFrame::WASM_SEGMENT_START)))));
+  CSA_CHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                        StackFrame::WASM))));
   TNode<HeapObject> instance_data =
       CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   context_result =

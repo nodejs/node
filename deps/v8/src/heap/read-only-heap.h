@@ -83,6 +83,11 @@ class ReadOnlyHeap final {
 
   bool roots_init_complete() const { return roots_init_complete_; }
 
+  // Decommits the payloads of WasmNull and the holes so that any access to
+  // them faults. The pages are shared by all isolates of the group, so this
+  // only needs to happen once per read-only heap.
+  void DecommitGuardRegions(Isolate* isolate);
+
  protected:
   friend class ReadOnlyArtifacts;
 

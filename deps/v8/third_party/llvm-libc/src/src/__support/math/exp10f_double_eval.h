@@ -27,67 +27,49 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 namespace double_eval {
 
-LIBC_INLINE float exp10f(float x) {
+LIBC_INLINE float exp10f_mid(float x) {
+  // Range reduction: 10^x = 2^(mid + hi) * 10^lo
+  auto rr = exp_b_range_reduc<Exp10Base>(x);
+
+  // The low part is approximated by a degree-5 minimax polynomial.
+  using fputil::multiply_add;
+  double lo2 = rr.lo * rr.lo;
+  double c0 = multiply_add(rr.lo, Exp10Base::COEFFS[0], 1.0);
+  double c1 = multiply_add(rr.lo, Exp10Base::COEFFS[2], Exp10Base::COEFFS[1]);
+  double c2 = multiply_add(rr.lo, Exp10Base::COEFFS[4], Exp10Base::COEFFS[3]);
+  double p = multiply_add(lo2, c2, c1);
+  // 10^x = 2^(mid + hi) * 10^lo
+  //      ~ mh * (1 + COEFFS[0] * lo + ... + COEFFS[4] * lo^5)
+  return static_cast<float>(multiply_add(p, lo2 * rr.mh, c0 * rr.mh));
+}
+
+[[gnu::cold, gnu::noinline]] LIBC_INLINE float exp10f_slow(float x) {
   using FPBits = fputil::FPBits<float>;
   FPBits xbits(x);
 
   uint32_t x_u = xbits.uintval();
   uint32_t x_abs = x_u & 0x7fff'ffffU;
 
-  // When |x| >= log10(2^128), or x is nan
-  if (LIBC_UNLIKELY(x_abs >= 0x421a'209bU)) {
-    // When x < log10(2^-150) or nan
-    if (x_u > 0xc234'9e35U) {
-      // exp(-Inf) = 0
-      if (xbits.is_inf())
-        return 0.0f;
-      // exp(nan) = nan
-      if (xbits.is_nan())
-        return x;
+  // x >= log10(2^128), or positive NaN.
+  if (LIBC_UNLIKELY(x_u >= 0x421a'209bU && x_u < 0x8000'0000U)) {
+    // x is finite.
+    if (x_u < 0x7f80'0000U) {
 #ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      if (fputil::fenv_is_round_up())
-        return FPBits::min_subnormal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_UNDERFLOW);
-      return 0.0f;
-    }
-    // x >= log10(2^128) or nan
-    if (xbits.is_pos() && (x_u >= 0x421a'209bU)) {
-      // x is finite
-      if (x_u < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        int rounding = fputil::quick_get_round();
-        if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-          return FPBits::max_normal().get_val();
+      int rounding = fputil::quick_get_round();
+      if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
+        return FPBits::max_normal().get_val();
 #endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW);
-      }
-      // x is +inf or nan
-      return x + FPBits::inf().get_val();
+      fputil::set_errno_if_required(ERANGE);
+      fputil::raise_except_if_required(FE_OVERFLOW);
     }
+    // x is +inf or nan
+    return x + FPBits::inf().get_val();
   }
 
   // When |x| <= log10(2)*2^-6
-  if (LIBC_UNLIKELY(x_abs <= 0x3b9a'209bU)) {
-    if (LIBC_UNLIKELY(x_u == 0xb25e'5bd9U)) { // x = -0x1.bcb7b2p-27f
-#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      return 0x1.fffffep-1f;
-#else  // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      if (fputil::fenv_is_round_to_nearest())
-        return 0x1.fffffep-1f;
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    }
-    // |x| < 2^-25
-    // 10^x ~ 1 + log(10) * x
-    if (LIBC_UNLIKELY(x_abs <= 0x3280'0000U)) {
-      return fputil::multiply_add(x, 0x1.26bb1cp+1f, 1.0f);
-    }
-
+  if (LIBC_UNLIKELY(x_abs <= 0x3b9a'209bU))
     return static_cast<float>(Exp10Base::powb_lo(x));
-  }
 
   // Exceptional value.
   if (LIBC_UNLIKELY(x_u == 0x3d14'd956U)) { // x = 0x1.29b2acp-5f
@@ -124,28 +106,57 @@ LIBC_INLINE float exp10f(float x) {
     }
   }
 
-  // Range reduction: 10^x = 2^(mid + hi) * 10^lo
-  //   rr = (2^(mid + hi), lo)
-  auto rr = exp_b_range_reduc<Exp10Base>(x);
+  // When |x| >= log10(2^128), or x is nan
+  if (LIBC_UNLIKELY(x_abs >= 0x421a'209bU)) {
+    // When x < log10(2^-150) or nan
+    if (x_u > 0xc234'9e35U) {
+      // exp(-Inf) = 0
+      if (xbits.is_inf())
+        return 0.0f;
+      // exp(nan) = nan
+      if (xbits.is_nan())
+        return x;
+#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      if (fputil::fenv_is_round_up())
+        return FPBits::min_subnormal().get_val();
+#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      fputil::set_errno_if_required(ERANGE);
+      fputil::raise_except_if_required(FE_UNDERFLOW);
+      return 0.0f;
+    }
+  }
 
-  // The low part is approximated by a degree-5 minimax polynomial.
-  // 10^lo ~ 1 + COEFFS[0] * lo + ... + COEFFS[4] * lo^5
-  using fputil::multiply_add;
-  double lo2 = rr.lo * rr.lo;
-  // c0 = 1 + COEFFS[0] * lo
-  double c0 = multiply_add(rr.lo, Exp10Base::COEFFS[0], 1.0);
-  // c1 = COEFFS[1] + COEFFS[2] * lo
-  double c1 = multiply_add(rr.lo, Exp10Base::COEFFS[2], Exp10Base::COEFFS[1]);
-  // c2 = COEFFS[3] + COEFFS[4] * lo
-  double c2 = multiply_add(rr.lo, Exp10Base::COEFFS[4], Exp10Base::COEFFS[3]);
-  // p = c1 + c2 * lo^2
-  //   = COEFFS[1] + COEFFS[2] * lo + COEFFS[3] * lo^2 + COEFFS[4] * lo^3
-  double p = multiply_add(lo2, c2, c1);
-  // 10^lo ~ c0 + p * lo^2
-  // 10^x = 2^(mid + hi) * 10^lo
-  //      ~ mh * (c0 + p * lo^2)
-  //      = (mh * c0) + p * (mh * lo^2)
-  return static_cast<float>(multiply_add(p, lo2 * rr.mh, c0 * rr.mh));
+  return exp10f_mid(x);
+}
+
+LIBC_INLINE float exp10f(float x) {
+  using FPBits = fputil::FPBits<float>;
+  FPBits xbits(x);
+
+  uint32_t x_u = xbits.uintval();
+  uint32_t x_abs = x_u & 0x7fff'ffffU;
+
+  if (LIBC_UNLIKELY(x_abs <= 0x3280'0000U)) {
+    if (LIBC_UNLIKELY(x_u == 0xb25e'5bd9U)) { // x = -0x1.bcb7b2p-27f
+#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      return 0x1.fffffep-1f;
+#else  // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      if (fputil::fenv_is_round_to_nearest())
+        return 0x1.fffffep-1f;
+#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+    }
+    // |x| < 2^-25
+    // 10^x ~ 1 + log(10) * x
+    return fputil::multiply_add(x, 0x1.26bb1cp+1f, 1.0f);
+  }
+
+  if (LIBC_LIKELY(
+          x_abs > 0x3b9a'209bU &&
+          (x_u < 0x421a'209bU || (xbits.is_neg() && x_u <= 0xc234'9e35U)) &&
+          x_u != 0x3d14'd956U && (x_u & 0x800f'ffffU) != 0))
+    return exp10f_mid(x);
+
+  return exp10f_slow(x);
 }
 
 } // namespace double_eval

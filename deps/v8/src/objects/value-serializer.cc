@@ -529,6 +529,15 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       }
       return WriteJSReceiver(view);
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      // Like WASM_STRUCT_TYPE in WriteJSReceiver: possibly shared, otherwise
+      // not serializable.
+      if (HeapLayout::InAnySharedSpace(Cast<HeapObject>(*object))) {
+        return WriteSharedObject(Cast<HeapObject>(object));
+      }
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         WriteString(Cast<String>(object));
@@ -1171,17 +1180,17 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
     return Nothing<bool>();
   }
 
-  if (name->IsOneByteEqualTo(base::CStrVector("EvalError"))) {
+  if (name->IsOneByteEqualTo("EvalError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("RangeError"))) {
+  } else if (name->IsOneByteEqualTo("RangeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("ReferenceError"))) {
+  } else if (name->IsOneByteEqualTo("ReferenceError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
+  } else if (name->IsOneByteEqualTo("SyntaxError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
+  } else if (name->IsOneByteEqualTo("TypeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
+  } else if (name->IsOneByteEqualTo("URIError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
@@ -1875,7 +1884,7 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
   return string;
 }
 
@@ -2541,6 +2550,11 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
        static_cast<size_t>(maximum_pages) > max_supported_pages)) {
     return {};
   }
+
+  // A shared JSArrayBuffer is required and can only be deserialized via a
+  // delegate. Check this before allocating an incomplete WasmMemoryObject and
+  // adding it to the ID map.
+  if (delegate_ == nullptr) return {};
 
   // To break a cycle on deserialization, we first allocate the
   // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.

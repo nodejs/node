@@ -25,7 +25,6 @@ extern runtime WasmFunctionTableSet(
 extern runtime ThrowRangeError(Context, Smi): never;
 extern runtime ThrowWasmError(Context, Smi): never;
 extern runtime WasmThrowRangeError(Context, Smi): never;
-extern runtime TrapHandlerThrowWasmError(Context): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
@@ -130,7 +129,11 @@ const kMaxPolymorphism: constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';
-const kDoubleUnaligned: constexpr int31 generates 'kDoubleUnaligned';
+
+const kWasmUnsharedArrayHeaderSize:
+    constexpr int32 generates 'WasmArray::HeaderSize(SharedFlag{false})';
+const kWasmSharedArrayHeaderSize:
+    constexpr int32 generates 'WasmArray::HeaderSize(SharedFlag{true})';
 
 extern macro WasmCrossInstanceCallSymbolConstant(): Symbol;
 
@@ -471,15 +474,20 @@ builtin WasmTriggerTierUp(): JSAny {
   tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), trustedData);
 }
 
-extern builtin WasmHandleStackOverflow(RawPtr, uint32): JSAny;
+extern builtin WasmHandleStackOverflow(RawPtr, uint32, intptr): JSAny;
 
-// {paramSlotsSize} is the size of the incoming stack parameters of the
-// currently-executing function, which have to be copied along with its
-// stack frame if the stack needs to be grown.
-builtin WasmGrowableStackGuard(paramSlotsSize: intptr, gap: intptr): JSAny {
+// {stackParamAndReturnSlotsSize} is the combined size of the incoming stack
+// parameters and stack return slots of the currently-executing function, which
+// have to be copied along with its stack frame if the stack needs to be grown.
+// {parameterSlotsSize} is the size of incoming stack parameters (which is also
+// the distance from the current FP to the relocated partial frame).
+builtin WasmGrowableStackGuard(
+    stackParamAndReturnSlotsSize: intptr, gap: intptr,
+    parameterSlotsSize: intptr): JSAny {
   tail WasmHandleStackOverflow(
-      LoadParentFramePointer() + paramSlotsSize + kFixedFrameSizeAboveFp,
-      Unsigned(Convert<int32>(gap)));
+      LoadParentFramePointer() + stackParamAndReturnSlotsSize +
+          kFixedFrameSizeAboveFp,
+      Unsigned(Convert<int32>(gap)), parameterSlotsSize);
 }
 
 builtin WasmStackGuard(gap: intptr): JSAny {
@@ -556,11 +564,11 @@ builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
 builtin WasmAllocateArray_Uninitialized(
     rtt: Map, length: uint32, elementSize: uint32): WasmArray {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
-  //              + WasmArray::kHeaderSize
+  //              + WasmArray::HeaderSize(SharedFlag{false})
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
-      Convert<intptr>(kWasmArrayHeaderSize);
+      Convert<intptr>(kWasmUnsharedArrayHeaderSize);
   const result: HeapObject = unsafe::Allocate(instanceSize);
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
@@ -572,14 +580,14 @@ builtin WasmAllocateArray_Uninitialized(
 builtin WasmAllocateSharedArray_Uninitialized(
     rtt: Map, length: uint32, elementSize: uint32): WasmArray {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
-  //              + WasmArray::kHeaderSize
+  //              + WasmArray::HeaderSize(SharedFlag{true})
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
-      Convert<intptr>(kWasmArrayHeaderSize);
+      Convert<intptr>(kWasmSharedArrayHeaderSize);
   const result: HeapObject = runtime::AllocateInSharedHeap(
       LoadContextFromFrame(), SmiFromIntPtr(instanceSize),
-      SmiConstant(kDoubleUnaligned));
+      SmiConstant(kDoubleAligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
@@ -867,10 +875,6 @@ builtin ThrowWasmTrapUnreachable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnreachable));
 }
 
-builtin WasmTrapHandlerThrowTrap(): JSAny {
-  tail runtime::TrapHandlerThrowWasmError(LoadContextFromWasmOrJsFrame());
-}
-
 builtin WasmPropagateException(): JSAny {
   tail runtime::PropagateException(kNoContext);
 }
@@ -1092,8 +1096,9 @@ builtin WasmStringNewWtf16Array(
     // TODO(448741522): Support inline creation of short shared Strings.
     // "config == 0" means both array and string are unshared.
     if (config != SmiConstant(0)) goto Runtime;
+    dcheck(!InSharedSpace(array));
     if (length == 1) {
-      const offset = kWasmArrayHeaderSize +
+      const offset = kWasmUnsharedArrayHeaderSize +
           torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
       const code: char16 = *torque_internal::unsafe::NewReference<char16>(
           array, offset);
@@ -1106,7 +1111,7 @@ builtin WasmStringNewWtf16Array(
     if (length >= 32) goto Runtime;
     const intptrLength = Convert<intptr>(length);
     const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
-        array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
+        array, kWasmUnsharedArrayHeaderSize, Convert<intptr>(array.length));
     const substring =
         Subslice(arrayContent, Convert<intptr>(start), intptrLength)
         otherwise goto OffsetOutOfRange;
@@ -1215,7 +1220,10 @@ builtin WasmStringEncodeWtf16Array(
     if (start > array.length) goto OffsetOutOfRange;
     if (array.length - start < Unsigned(string.length)) goto OffsetOutOfRange;
 
-    const byteOffset: intptr = kWasmArrayHeaderSize +
+    const headerSize: intptr = InSharedSpace(array) ?
+        Convert<intptr>(kWasmSharedArrayHeaderSize) :
+        Convert<intptr>(kWasmUnsharedArrayHeaderSize);
+    const byteOffset: intptr = headerSize +
         torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
     const arrayContent = torque_internal::unsafe::NewMutableSlice<char16>(
         array, byteOffset, string.length_intptr);

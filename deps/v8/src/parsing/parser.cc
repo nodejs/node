@@ -520,6 +520,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewNumberLiteral(value, pos);
     }
     case Token::kBigInt:
+      CountUsage(v8::Isolate::kBigInt);
       return factory()->NewBigIntLiteral(
           AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     case Token::kString: {
@@ -859,6 +860,11 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
         info->ast_value_factory()->Internalize(isolate);
       }
       CheckConflictingVarDeclarations(scope);
+      if (flags().is_eval() && !has_error() &&
+          scope->HasConflictingArgumentsVarDeclaration(ast_value_factory())) {
+        ReportVarRedeclarationIn(ast_value_factory()->arguments_string(),
+                                 scope);
+      }
     }
 
     // For sloppy eval though, we clear dynamic variables created for toplevel
@@ -1434,7 +1440,7 @@ const AstRawString* Parser::ParseModuleSpecifier() {
   return GetSymbol();
 }
 
-ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
+SmallZoneVector<Parser::ExportClauseData, 8> Parser::ParseExportClause(
     Scanner::Location* reserved_loc,
     Scanner::Location* string_literal_local_name_loc) {
   // ExportClause :
@@ -1455,8 +1461,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   //
   // ModuleExportName :
   //   StringLiteral
-  ZoneChunkList<ExportClauseData>* export_data =
-      zone()->New<ZoneChunkList<ExportClauseData>>(zone());
+  SmallZoneVector<ExportClauseData, 8> export_data(zone());
 
   Expect(Token::kLeftBrace);
 
@@ -1485,7 +1490,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     } else {
       export_name = local_name;
     }
-    export_data->push_back({export_name, local_name, location});
+    export_data.push_back({export_name, local_name, location});
     if (peek() == Token::kRightBrace) break;
     if (V8_UNLIKELY(!Check(Token::kComma))) {
       ReportUnexpectedToken(Next());
@@ -1815,7 +1820,6 @@ Statement* Parser::ParseExportDefault() {
 
     default: {
       int pos = position();
-      AcceptINScope scope(this, true);
       Expression* value = ParseAssignmentExpression();
       SetFunctionName(value, ast_value_factory()->default_string());
 
@@ -1959,7 +1963,7 @@ Statement* Parser::ParseExportDeclaration() {
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       Scanner::Location string_literal_local_name_loc =
           Scanner::Location::invalid();
-      ZoneChunkList<ExportClauseData>* export_data =
+      SmallZoneVector<ExportClauseData, 8> export_data =
           ParseExportClause(&reserved_loc, &string_literal_local_name_loc);
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
         Scanner::Location specifier_loc = scanner()->peek_location();
@@ -1968,11 +1972,11 @@ Statement* Parser::ParseExportDeclaration() {
             ParseImportWithOrAssertClause();
         ExpectSemicolon();
 
-        if (export_data->empty()) {
+        if (export_data.empty()) {
           module()->AddEmptyImport(module_specifier, import_attributes,
                                    specifier_loc, zone());
         } else {
-          for (const ExportClauseData& data : *export_data) {
+          for (const ExportClauseData& data : export_data) {
             module()->AddExport(data.local_name, data.export_name,
                                 module_specifier, import_attributes,
                                 data.location, specifier_loc, zone());
@@ -1991,7 +1995,7 @@ Statement* Parser::ParseExportDeclaration() {
 
         ExpectSemicolon();
 
-        for (const ExportClauseData& data : *export_data) {
+        for (const ExportClauseData& data : export_data) {
           module()->AddExport(data.local_name, data.export_name, data.location,
                               zone());
         }
@@ -2203,7 +2207,7 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
   // }
   DCHECK_NOT_NULL(scope);
   DCHECK(scope->is_block_scope());
-  DCHECK_GE(switch_statement->position(), scope->start_position());
+  DCHECK_LT(switch_statement->position(), scope->start_position());
   DCHECK_LT(switch_statement->position(), scope->end_position());
 
   Block* switch_block = factory()->NewBlock(2, false);
@@ -2979,6 +2983,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                   &num_parameters, &function_length, &has_duplicate_parameters,
                   &expected_property_count, &suspend_count,
                   arguments_for_wrapped_function);
+    if (should_preparse) {
+      CHECK(has_error());
+      return nullptr;
+    }
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
@@ -3264,7 +3272,6 @@ void Parser::ParseFunction(
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
-  AcceptINScope scope(this, true);
   ParseFunctionBody(body, function_name, pos, formals, kind,
                     function_syntax_kind, FunctionBodyType::kBlock);
 

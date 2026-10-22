@@ -6503,7 +6503,7 @@ void MacroAssembler::JumpCodeObject(Register code_data_container_object,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = s1;
@@ -6514,9 +6514,23 @@ void MacroAssembler::CallJSFunction(Register function_object,
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
-  // Force a safe crash if the parameter count doesn't match.
-  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
-           Operand(argument_count));
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(1));
+  } else {
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(expected_parameter_count));
+  }
   Call(code);
 }
 

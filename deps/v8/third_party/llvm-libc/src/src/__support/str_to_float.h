@@ -94,7 +94,7 @@ eisel_lemire(ExpandedFloat<T> init_num,
   using StorageType = typename FPBits::StorageType;
 
   StorageType mantissa = init_num.mantissa;
-  int32_t exp10 = init_num.exponent;
+  int32_t exp_10 = init_num.exponent;
 
   if (sizeof(T) > 8) { // This algorithm cannot handle anything longer than a
                        // double, so we skip straight to the fallback.
@@ -102,8 +102,8 @@ eisel_lemire(ExpandedFloat<T> init_num,
   }
 
   // Exp10 Range
-  if (exp10 < DETAILED_POWERS_OF_TEN_MIN_EXP_10 ||
-      exp10 > DETAILED_POWERS_OF_TEN_MAX_EXP_10) {
+  if (exp_10 < DETAILED_POWERS_OF_TEN_MIN_EXP_10 ||
+      exp_10 > DETAILED_POWERS_OF_TEN_MAX_EXP_10) {
     return cpp::nullopt;
   }
 
@@ -111,12 +111,12 @@ eisel_lemire(ExpandedFloat<T> init_num,
   uint32_t clz = static_cast<uint32_t>(cpp::countl_zero<StorageType>(mantissa));
   mantissa <<= clz;
 
-  int32_t exp2 = exp10_to_exp2(exp10) + FPBits::STORAGE_LEN + FPBits::EXP_BIAS -
-                 static_cast<int32_t>(clz);
+  int32_t exp_2 = exp10_to_exp2(exp_10) + FPBits::STORAGE_LEN +
+                  FPBits::EXP_BIAS - static_cast<int32_t>(clz);
 
   // Multiplication
   const uint64_t *power_of_ten =
-      DETAILED_POWERS_OF_TEN[exp10 - DETAILED_POWERS_OF_TEN_MIN_EXP_10];
+      DETAILED_POWERS_OF_TEN[exp_10 - DETAILED_POWERS_OF_TEN_MIN_EXP_10];
 
   UInt128 first_approx =
       static_cast<UInt128>(mantissa) * static_cast<UInt128>(power_of_ten[1]);
@@ -153,7 +153,7 @@ eisel_lemire(ExpandedFloat<T> init_num,
   StorageType final_mantissa = static_cast<StorageType>(
       high64(final_approx) >>
       (msb + FPBits::STORAGE_LEN - (FPBits::FRACTION_LEN + 3)));
-  exp2 -= static_cast<uint32_t>(1 ^ msb); // same as !msb
+  exp_2 -= static_cast<uint32_t>(1 ^ msb); // same as !msb
 
   if (round == RoundDirection::Nearest) {
     // Half-way ambiguity
@@ -180,18 +180,18 @@ eisel_lemire(ExpandedFloat<T> init_num,
   final_mantissa >>= 1;
   if ((final_mantissa >> (FPBits::FRACTION_LEN + 1)) > 0) {
     final_mantissa >>= 1;
-    ++exp2;
+    ++exp_2;
   }
 
   // The if block is equivalent to (but has fewer branches than):
-  //   if exp2 <= 0 || exp2 >= 0x7FF { etc }
-  if (static_cast<uint32_t>(exp2) - 1 >= (1 << FPBits::EXP_LEN) - 2) {
+  //   if exp_2 <= 0 || exp_2 >= 0x7FF { etc }
+  if (static_cast<uint32_t>(exp_2) - 1 >= (1 << FPBits::EXP_LEN) - 2) {
     return cpp::nullopt;
   }
 
   ExpandedFloat<T> output;
   output.mantissa = final_mantissa;
-  output.exponent = exp2;
+  output.exponent = exp_2;
   return output;
 }
 
@@ -207,7 +207,7 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
   using StorageType = typename FPBits::StorageType;
 
   UInt128 mantissa = init_num.mantissa;
-  int32_t exp10 = init_num.exponent;
+  int32_t exp_10 = init_num.exponent;
 
   // Exp10 Range
   // This doesn't reach very far into the range for long doubles, since it's
@@ -219,8 +219,8 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
   // uncommon path. In addition the exp10_to_exp2 function only approximates
   // multiplying by log(10)/log(2), and that approximation may not be accurate
   // out to the full long double range.
-  if (exp10 < DETAILED_POWERS_OF_TEN_MIN_EXP_10 ||
-      exp10 > DETAILED_POWERS_OF_TEN_MAX_EXP_10) {
+  if (exp_10 < DETAILED_POWERS_OF_TEN_MIN_EXP_10 ||
+      exp_10 > DETAILED_POWERS_OF_TEN_MAX_EXP_10) {
     return cpp::nullopt;
   }
 
@@ -229,12 +229,12 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
                 ((sizeof(UInt128) - sizeof(StorageType)) * CHAR_BIT);
   mantissa <<= clz;
 
-  int32_t exp2 =
-      exp10_to_exp2(exp10) + FPBits::STORAGE_LEN + FPBits::EXP_BIAS - clz;
+  int32_t exp_2 =
+      exp10_to_exp2(exp_10) + FPBits::STORAGE_LEN + FPBits::EXP_BIAS - clz;
 
   // Multiplication
   const uint64_t *power_of_ten =
-      DETAILED_POWERS_OF_TEN[exp10 - DETAILED_POWERS_OF_TEN_MIN_EXP_10];
+      DETAILED_POWERS_OF_TEN[exp_10 - DETAILED_POWERS_OF_TEN_MIN_EXP_10];
 
   // Since the input mantissa is more than 64 bits, we have to multiply with the
   // full 128 bits of the power of ten to get an approximation with the same
@@ -279,7 +279,7 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
       static_cast<uint32_t>(final_approx_upper >> (FPBits::STORAGE_LEN - 1));
   UInt128 final_mantissa = final_approx_upper >> (msb + FPBits::STORAGE_LEN -
                                                   (FPBits::FRACTION_LEN + 3));
-  exp2 -= static_cast<uint32_t>(1 ^ msb); // same as !msb
+  exp_2 -= static_cast<uint32_t>(1 ^ msb); // same as !msb
 
   if (round == RoundDirection::Nearest) {
     // Half-way ambiguity
@@ -305,18 +305,18 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
   final_mantissa >>= 1;
   if ((final_mantissa >> (FPBits::FRACTION_LEN + 1)) > 0) {
     final_mantissa >>= 1;
-    ++exp2;
+    ++exp_2;
   }
 
   // The if block is equivalent to (but has fewer branches than):
-  //   if exp2 <= 0 || exp2 >= MANTISSA_MAX { etc }
-  if (exp2 - 1 >= (1 << FPBits::EXP_LEN) - 2) {
+  //   if exp_2 <= 0 || exp_2 >= MANTISSA_MAX { etc }
+  if (exp_2 - 1 >= (1 << FPBits::EXP_LEN) - 2) {
     return cpp::nullopt;
   }
 
   ExpandedFloat<long double> output;
   output.mantissa = static_cast<StorageType>(final_mantissa);
-  output.exponent = exp2;
+  output.exponent = exp_2;
   return output;
 }
 #endif // !defined(LIBC_TYPES_LONG_DOUBLE_IS_FLOAT64) &&
@@ -343,7 +343,7 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
   using FPBits = typename fputil::FPBits<T>;
   using StorageType = typename FPBits::StorageType;
 
-  int32_t exp2 = 0;
+  int32_t exp_2 = 0;
   HighPrecisionDecimal hpd = HighPrecisionDecimal(numStart, num_len);
 
   FloatConvertReturn<T> output;
@@ -378,7 +378,7 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
     } else {
       shift_amount = POWERS_OF_TWO[hpd.get_decimal_point()];
     }
-    exp2 += shift_amount;
+    exp_2 += shift_amount;
     hpd.shift(-shift_amount);
   }
 
@@ -394,19 +394,19 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
     } else { // This handles the case of the number being between .1 and .5
       shift_amount = 1;
     }
-    exp2 -= shift_amount;
+    exp_2 -= shift_amount;
     hpd.shift(shift_amount);
   }
 
   // Left shift once so that the number is between 1 and 2
-  --exp2;
+  --exp_2;
   hpd.shift(1);
 
   // Get the biased exponent
-  exp2 += FPBits::EXP_BIAS;
+  exp_2 += FPBits::EXP_BIAS;
 
   // Handle the exponent being too large (and return inf).
-  if (exp2 >= FPBits::MAX_BIASED_EXPONENT) {
+  if (exp_2 >= FPBits::MAX_BIASED_EXPONENT) {
     output.num = {0, FPBits::MAX_BIASED_EXPONENT};
     output.error = ERANGE;
     return output;
@@ -417,37 +417,37 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
   StorageType final_mantissa = hpd.round_to_integer_type<StorageType>();
 
   // Handle subnormals
-  if (exp2 <= 0) {
+  if (exp_2 <= 0) {
     // Shift right until there is a valid exponent, and once more to compensate
     // for the left shift to get it between 1 and 2.
-    hpd.shift(exp2 - 1);
-    exp2 = 0;
+    hpd.shift(exp_2 - 1);
+    exp_2 = 0;
     final_mantissa = hpd.round_to_integer_type<StorageType>(round);
 
     // Check if by shifting right we've caused this to round to a normal number.
     if ((final_mantissa >> FPBits::FRACTION_LEN) != 0) {
-      ++exp2;
+      ++exp_2;
     }
   }
 
   // Check if rounding added a bit, and shift down if that's the case.
   if (final_mantissa == StorageType(2) << FPBits::FRACTION_LEN) {
     final_mantissa >>= 1;
-    ++exp2;
+    ++exp_2;
 
-    // Check if this rounding causes exp2 to go out of range and make the result
-    // INF. If this is the case, then finalMantissa and exp2 are already the
-    // correct values for an INF result.
-    if (exp2 >= FPBits::MAX_BIASED_EXPONENT) {
+    // Check if this rounding causes exp_2 to go out of range and make the
+    // result INF. If this is the case, then finalMantissa and exp_2 are already
+    // the correct values for an INF result.
+    if (exp_2 >= FPBits::MAX_BIASED_EXPONENT) {
       output.error = ERANGE;
     }
   }
 
-  if (exp2 == 0) {
+  if (exp_2 == 0) {
     output.error = ERANGE;
   }
 
-  output.num = {final_mantissa, exp2};
+  output.num = {final_mantissa, exp_2};
   return output;
 }
 
@@ -546,7 +546,7 @@ clinger_fast_path(ExpandedFloat<T> init_num,
   using StorageType = typename FPBits::StorageType;
 
   StorageType mantissa = init_num.mantissa;
-  int32_t exp10 = init_num.exponent;
+  int32_t exp_10 = init_num.exponent;
 
   if ((mantissa >> FPBits::FRACTION_LEN) > 0) {
     return cpp::nullopt;
@@ -562,31 +562,31 @@ clinger_fast_path(ExpandedFloat<T> init_num,
     float_mantissa = static_cast<T>(mantissa);
   }
 
-  if (exp10 == 0) {
+  if (exp_10 == 0) {
     result = FPBits(float_mantissa);
   }
-  if (exp10 > 0) {
-    if (exp10 > ClingerConsts<T>::EXACT_POWERS_OF_TEN +
-                    ClingerConsts<T>::DIGITS_IN_MANTISSA) {
+  if (exp_10 > 0) {
+    if (exp_10 > ClingerConsts<T>::EXACT_POWERS_OF_TEN +
+                     ClingerConsts<T>::DIGITS_IN_MANTISSA) {
       return cpp::nullopt;
     }
-    if (exp10 > ClingerConsts<T>::EXACT_POWERS_OF_TEN) {
+    if (exp_10 > ClingerConsts<T>::EXACT_POWERS_OF_TEN) {
       float_mantissa = float_mantissa *
                        ClingerConsts<T>::POWERS_OF_TEN_ARRAY
-                           [exp10 - ClingerConsts<T>::EXACT_POWERS_OF_TEN];
-      exp10 = ClingerConsts<T>::EXACT_POWERS_OF_TEN;
+                           [exp_10 - ClingerConsts<T>::EXACT_POWERS_OF_TEN];
+      exp_10 = ClingerConsts<T>::EXACT_POWERS_OF_TEN;
     }
     if (float_mantissa > ClingerConsts<T>::MAX_EXACT_INT) {
       return cpp::nullopt;
     }
     result =
-        FPBits(float_mantissa * ClingerConsts<T>::POWERS_OF_TEN_ARRAY[exp10]);
-  } else if (exp10 < 0) {
-    if (-exp10 > ClingerConsts<T>::EXACT_POWERS_OF_TEN) {
+        FPBits(float_mantissa * ClingerConsts<T>::POWERS_OF_TEN_ARRAY[exp_10]);
+  } else if (exp_10 < 0) {
+    if (exp_10 < -ClingerConsts<T>::EXACT_POWERS_OF_TEN) {
       return cpp::nullopt;
     }
     result =
-        FPBits(float_mantissa / ClingerConsts<T>::POWERS_OF_TEN_ARRAY[-exp10]);
+        FPBits(float_mantissa / ClingerConsts<T>::POWERS_OF_TEN_ARRAY[-exp_10]);
   }
 
   // If the rounding mode is not nearest, then the sign of the number may affect
@@ -594,10 +594,12 @@ clinger_fast_path(ExpandedFloat<T> init_num,
   // calculation is redone with a negative result, and the rounding mode is used
   // to select the correct result.
   if (round != RoundDirection::Nearest) {
-    FPBits negative_result;
     // I'm 99% sure this will break under fast math optimizations.
-    negative_result = FPBits((-float_mantissa) *
-                             ClingerConsts<T>::POWERS_OF_TEN_ARRAY[exp10]);
+    FPBits negative_result =
+        exp_10 < 0 ? FPBits((-float_mantissa) /
+                            ClingerConsts<T>::POWERS_OF_TEN_ARRAY[-exp_10])
+                   : FPBits((-float_mantissa) *
+                            ClingerConsts<T>::POWERS_OF_TEN_ARRAY[exp_10]);
 
     // If the results are equal, then we don't need to use the rounding mode.
     if (result.get_val() != -negative_result.get_val()) {
@@ -681,7 +683,7 @@ LIBC_INLINE FloatConvertReturn<T> decimal_exp_to_float(
     const size_t num_len = cpp::numeric_limits<size_t>::max()) {
   using FPBits = typename fputil::FPBits<T>;
 
-  int32_t exp10 = init_num.exponent;
+  int32_t exp_10 = init_num.exponent;
 
   FloatConvertReturn<T> output;
   [[maybe_unused]] cpp::optional<ExpandedFloat<T>> opt_output;
@@ -689,13 +691,13 @@ LIBC_INLINE FloatConvertReturn<T> decimal_exp_to_float(
   // If the exponent is too large and can't be represented in this size of
   // float, return inf. These bounds are relatively loose, but are mostly
   // serving as a first pass. Some close numbers getting through is okay.
-  if (exp10 > get_upper_bound<T>()) {
+  if (exp_10 > get_upper_bound<T>()) {
     output.num = {0, FPBits::MAX_BIASED_EXPONENT};
     output.error = ERANGE;
     return output;
   }
   // If the exponent is too small even for a subnormal, return 0.
-  if (exp10 < get_lower_bound<T>()) {
+  if (exp_10 < get_lower_bound<T>()) {
     output.num = {0, 0};
     output.error = ERANGE;
     return output;
@@ -729,7 +731,7 @@ LIBC_INLINE FloatConvertReturn<T> decimal_exp_to_float(
     // If the mantissa is truncated, then the result may be off by the LSB, so
     // check if rounding the mantissa up changes the result. If not, then it's
     // safe, else use the fallback.
-    auto second_output = eisel_lemire<T>({mantissa + 1, exp10}, round);
+    auto second_output = eisel_lemire<T>({mantissa + 1, exp_10}, round);
     if (second_output.has_value()) {
       if (opt_output->mantissa == second_output->mantissa &&
           opt_output->exponent == second_output->exponent) {
@@ -765,7 +767,7 @@ LIBC_INLINE FloatConvertReturn<T> binary_exp_to_float(ExpandedFloat<T> init_num,
   using StorageType = typename FPBits::StorageType;
 
   StorageType mantissa = init_num.mantissa;
-  int32_t exp2 = init_num.exponent;
+  int32_t exp_2 = init_num.exponent;
 
   FloatConvertReturn<T> output;
 
@@ -778,11 +780,11 @@ LIBC_INLINE FloatConvertReturn<T> binary_exp_to_float(ExpandedFloat<T> init_num,
   uint32_t amount_to_shift_left = cpp::countl_zero<StorageType>(mantissa);
   mantissa <<= amount_to_shift_left;
 
-  // Keep exp2 representing the exponent of the lowest bit of StorageType.
-  exp2 -= amount_to_shift_left;
+  // Keep exp_2 representing the exponent of the lowest bit of StorageType.
+  exp_2 -= amount_to_shift_left;
 
   // biased_exponent represents the biased exponent of the most significant bit.
-  int32_t biased_exponent = exp2 + FPBits::STORAGE_LEN + FPBits::EXP_BIAS - 1;
+  int32_t biased_exponent = exp_2 + FPBits::STORAGE_LEN + FPBits::EXP_BIAS - 1;
 
   // Handle numbers that're too large and get squashed to inf
   if (biased_exponent >= INF_EXP) {

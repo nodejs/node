@@ -807,6 +807,11 @@ class MaglevReducer {
   MaybeReduceResult TryBuildLoadFixedArrayElementConstantIndex(
       ValueNode* elements, int32_t index, LoadType type);
 
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(int32_t index);
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(ValueNode* index);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
@@ -1003,6 +1008,7 @@ class MaglevReducer {
   uint32_t NewObjectId() { return graph()->NewObjectId(); }
 
   VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateUninitializedHeapNumber();
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1090,6 +1096,10 @@ class MaglevReducer {
 
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
+  ValueNode* TryGetParentContext(ValueNode* node);
+  MaybeReduceResult TryGetConstantContextValue(
+      ValueNode* context, int offset, MaybeAssignedFlag assigned,
+      VariableMode mode = VariableMode::kVar);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
@@ -1386,6 +1396,12 @@ class MaglevReducer {
       return GetRootConstant(RootIndex::kUndefinedValue);
     }
     return maybe_value;
+  }
+
+  // Optional integer positions treat an omitted or known undefined value as 0.
+  ValueNode* GetValueOrZeroIfUndefined(ValueNode* maybe_value) {
+    ValueNode* value = GetValueOrUndefined(maybe_value);
+    return value->IsUndefinedValue() ? GetInt32Constant(0) : value;
   }
 
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);

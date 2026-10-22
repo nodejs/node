@@ -68,19 +68,19 @@ void ScopeInfo::set_context_local_count(int value) {
 }
 
 int ScopeInfo::position_info_start() const {
-  return position_info_start_.load().value();
+  return position_info_.start_.load().value();
 }
 
 void ScopeInfo::set_position_info_start(int value) {
-  position_info_start_.store(this, Smi::FromInt(value));
+  position_info_.start_.store(this, Smi::FromInt(value));
 }
 
 int ScopeInfo::position_info_end() const {
-  return position_info_end_.load().value();
+  return position_info_.end_.load().value();
 }
 
 void ScopeInfo::set_position_info_end(int value) {
-  position_info_end_.store(this, Smi::FromInt(value));
+  position_info_.end_.store(this, Smi::FromInt(value));
 }
 
 // -----------------------------------------------------------------------

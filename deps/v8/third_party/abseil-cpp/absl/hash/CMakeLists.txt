@@ -74,10 +74,9 @@ absl_cc_test(
     absl::flat_hash_set
     absl::hash
     absl::hash_testing
-    absl::memory
-    absl::meta
     absl::spy_hash_state
     absl::string_view
+    absl::strings
     GTest::gmock_main
 )
 

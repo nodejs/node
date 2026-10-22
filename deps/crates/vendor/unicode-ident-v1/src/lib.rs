@@ -43,11 +43,11 @@
 //!
 //! | | static storage | 0% nonascii | 1% | 10% | 100% nonascii |
 //! |---|---|---|---|---|---|
-//! | **`unicode-ident`** | 10.3 K | 0.41 ns | 0.44 ns | 0.44 ns | 0.93 ns |
-//! | **`unicode-xid`** | 12.0 K | 2.43 ns | 2.50 ns | 2.85 ns | 8.65 ns |
-//! | **`ucd-trie`** | 10.4 K | 1.28 ns | 1.25 ns | 1.20 ns | 1.97 ns |
-//! | **`fst`** | 144 K | 50.9 ns | 51.0 ns | 48.5 ns | 26.7 ns |
-//! | **`roaring`** | 66.1 K | 4.28 ns | 4.22 ns | 4.25 ns | 4.61 ns |
+//! | **`unicode-ident`** | 10.3 K | 0.36 ns | 0.37 ns | 0.37 ns | 0.43 ns |
+//! | **`unicode-xid`** | 12.2 K | 1.63 ns | 1.70 ns | 1.82 ns | 4.56 ns |
+//! | **`ucd-trie`** | 10.8 K | 1.01 ns | 0.73 ns | 0.97 ns | 1.09 ns |
+//! | **`fst`** | 149 K | 22.0 ns | 21.9 ns | 20.9 ns | 10.5 ns |
+//! | **`roaring`** | 66.1 K | 1.91 ns | 1.90 ns | 1.94 ns | 2.67 ns |
 //!
 //! Source code for the benchmark is provided in the *bench* directory of this
 //! repo and may be repeated by running `cargo criterion`.
@@ -221,9 +221,8 @@
 //! compression.
 //!
 //! This crate stores one 512-bit "row" of the above bitmaps in the leaf level
-//! of a trie, and a single additional level to index into the leafs. It turns
-//! out there are 124 unique 512-bit chunks across the two bitmaps so 7 bits are
-//! sufficient to index them.
+//! of a trie, and a single additional level to index into the leafs. There are
+//! 134 unique 512-bit chunks across the two bitmaps.
 //!
 //! The chunk size of 512 bits is selected as the size that minimizes the total
 //! size of the data structure. A smaller chunk, like 256 or 128 bits, would
@@ -231,18 +230,19 @@
 //! would increase redundancy in the leaf bitmaps. 512 bit chunks are the
 //! optimum for total size of the index plus leaf bitmaps.
 //!
-//! In fact since there are only 124 unique chunks, we can use an 8-bit index
-//! with a spare bit to index at the half-chunk level. This achieves an
-//! additional 8.5% compression by eliminating redundancies between the second
-//! half of any chunk and the first half of any other chunk. Note that this is
-//! not the same as using chunks which are half the size, because it does not
-//! necessitate raising the size of the trie's first level.
+//! The chunk data is compressed using the Kuhn–Munkres algorithm for bipartite
+//! matching to eliminate redundancies between the second half of any chunk and
+//! the first half of any other chunk. This achieves an additional 9%
+//! compression of the leaf level, leaving 122 chunks that can be indexed at the
+//! half-chunk level using an 8-bit index. Note that this is not the same as
+//! using chunks which are half the size, because it does not necessitate
+//! raising the size of the trie's first level.
 //!
 //! In contrast to binary search or the `ucd-trie` crate, performing lookups in
 //! this data structure is straight-line code with no need for branching.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/unicode-ident/1.0.24")]
+#![doc(html_root_url = "https://docs.rs/unicode-ident/1.0.26")]
 #![allow(
     clippy::doc_markdown,
     clippy::must_use_candidate,
@@ -253,16 +253,19 @@
 mod tables;
 
 pub use crate::tables::UNICODE_VERSION;
-use crate::tables::{ASCII_CONTINUE, ASCII_START, CHUNK, LEAF, TRIE_CONTINUE, TRIE_START};
-
-static ZERO: u8 = 0;
+use crate::tables::{
+    ASCII_CONTINUE, ASCII_START, CHUNK, LEAF, TRIE_CONTINUE, TRIE_START, ZERO_CONTINUE, ZERO_START,
+};
 
 /// Whether the character has the Unicode property XID\_Start.
 pub fn is_xid_start(ch: char) -> bool {
     if ch.is_ascii() {
         return ASCII_START & (1 << ch as u128) != 0;
     }
-    let chunk = *TRIE_START.0.get(ch as usize / 8 / CHUNK).unwrap_or(&ZERO);
+    let chunk = *TRIE_START
+        .0
+        .get(ch as usize / 8 / CHUNK)
+        .unwrap_or(&TRIE_START.0[ZERO_START]);
     let offset = chunk as usize * CHUNK / 2 + ch as usize / 8 % CHUNK;
     unsafe { LEAF.0.get_unchecked(offset) }.wrapping_shr(ch as u32 % 8) & 1 != 0
 }
@@ -275,7 +278,7 @@ pub fn is_xid_continue(ch: char) -> bool {
     let chunk = *TRIE_CONTINUE
         .0
         .get(ch as usize / 8 / CHUNK)
-        .unwrap_or(&ZERO);
+        .unwrap_or(&TRIE_CONTINUE.0[ZERO_CONTINUE]);
     let offset = chunk as usize * CHUNK / 2 + ch as usize / 8 % CHUNK;
     unsafe { LEAF.0.get_unchecked(offset) }.wrapping_shr(ch as u32 % 8) & 1 != 0
 }

@@ -2,13 +2,87 @@ header: fcntl.h
 standards:
   - posix
 macros:
+  - macro_name: O_CLOEXEC
+    macro_header: fcntl-macros.h
+  - macro_name: O_CREAT
+    macro_header: fcntl-macros.h
+  - macro_name: O_DIRECTORY
+    macro_header: fcntl-macros.h
+  - macro_name: O_EXCL
+    macro_header: fcntl-macros.h
+  - macro_name: O_NOCTTY
+    macro_header: fcntl-macros.h
+  - macro_name: O_NOFOLLOW
+    macro_header: fcntl-macros.h
+  - macro_name: O_TRUNC
+    macro_header: fcntl-macros.h
+  - macro_name: O_APPEND
+    macro_header: fcntl-macros.h
+  - macro_name: O_DSYNC
+    macro_header: fcntl-macros.h
+  - macro_name: O_NONBLOCK
+    macro_header: fcntl-macros.h
+  - macro_name: O_RSYNC
+    macro_header: fcntl-macros.h
+  - macro_name: O_SYNC
+    macro_header: fcntl-macros.h
+  - macro_name: O_ACCMODE
+    macro_header: fcntl-macros.h
+  - macro_name: O_RDONLY
+    macro_header: fcntl-macros.h
+  - macro_name: O_RDWR
+    macro_header: fcntl-macros.h
+  - macro_name: O_WRONLY
+    macro_header: fcntl-macros.h
   - macro_name: AT_FDCWD
     macro_header: fcntl-macros.h
-  - macro_name: AT_REMOVEDIR
+  - macro_name: AT_EACCESS
     macro_header: fcntl-macros.h
   - macro_name: AT_SYMLINK_NOFOLLOW
     macro_header: fcntl-macros.h
-  - macro_name: AT_EACCESS
+  - macro_name: AT_SYMLINK_FOLLOW
+    macro_header: fcntl-macros.h
+  - macro_name: AT_REMOVEDIR
+    macro_header: fcntl-macros.h
+  - macro_name: F_DUPFD
+    macro_header: fcntl-macros.h
+  - macro_name: F_DUPFD_CLOEXEC
+    macro_header: fcntl-macros.h
+  - macro_name: F_GETFD
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETFD
+    macro_header: fcntl-macros.h
+  - macro_name: F_GETFL
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETFL
+    macro_header: fcntl-macros.h
+  - macro_name: F_GETLK
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETLK
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETLKW
+    macro_header: fcntl-macros.h
+  - macro_name: F_OFD_GETLK
+    macro_header: fcntl-macros.h
+  - macro_name: F_OFD_SETLK
+    macro_header: fcntl-macros.h
+  - macro_name: F_OFD_SETLKW
+    macro_header: fcntl-macros.h
+  - macro_name: F_GETOWN
+    macro_header: fcntl-macros.h
+  - macro_name: F_GETOWN_EX
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETOWN
+    macro_header: fcntl-macros.h
+  - macro_name: F_SETOWN_EX
+    macro_header: fcntl-macros.h
+  - macro_name: FD_CLOEXEC
+    macro_header: fcntl-macros.h
+  - macro_name: F_RDLCK
+    macro_header: fcntl-macros.h
+  - macro_name: F_UNLCK
+    macro_header: fcntl-macros.h
+  - macro_name: F_WRLCK
     macro_header: fcntl-macros.h
   - macro_name: POSIX_FADV_NORMAL
     macro_header: fcntl-macros.h
@@ -92,3 +166,11 @@ functions:
       - type: off64_t
       - type: off64_t
       - type: int
+  - name: posix_fallocate
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: off_t
+      - type: off_t

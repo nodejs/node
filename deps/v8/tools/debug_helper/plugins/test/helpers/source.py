@@ -7,10 +7,10 @@ import re
 
 _FUNC_FRAME_RE = re.compile(
     r"#(?P<frame>\d+)[^\n]*\[test_func_3 @ (?P<script>[^\]]+):15:21\]"
-    r" \(this=(?P<this>0x[0-9a-f]+), argc=(?P<argc>\d+)\)")
+    r" \(this=(?P<this>0x[0-9a-f]+)(?P<rest>[^\n]*)")
 _TOP_LEVEL_FRAME_RE = re.compile(
     r"#(?P<frame>\d+)[^\n]*\[<anonymous> @ (?P<script>[^\]]*throw\.js):1:1\]"
-    r" \(this=(?P<this>0x[0-9a-f]+), argc=(?P<argc>\d+)\)")
+    r" \(this=(?P<this>0x[0-9a-f]+)(?P<rest>[^\n]*)")
 
 
 def _match_frame(bt, frame_re):
@@ -22,10 +22,22 @@ def _match_frame(bt, frame_re):
   return m
 
 
+def _argc_from_trailer(rest):
+  """Recover argc from the bt trailer.
+
+  This is the count of `[N]=` previews, or the total from the
+  `... (argc=N)` tail when the previews were capped.
+  """
+  tail = re.search(r"\.\.\. \(argc=(\d+)\)", rest)
+  if tail:
+    return int(tail.group(1))
+  return len(re.findall(r"\[\d+\]=", rest))
+
+
 def _header(m, function_name, position):
-  """The `v8 source` first line, reproducing the frame's bt annotation."""
+  """The `v8 source` first line: the frame's location plus the argc trailer."""
   return (f"#{m['frame']}  {function_name} @ {m['script']}:{position}"
-          f" (this={m['this']}, argc={m['argc']})\n\n")
+          f" (this={m['this']}, argc={_argc_from_trailer(m['rest'])})\n\n")
 
 
 def _expected_func_span(m):

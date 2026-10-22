@@ -1,9 +1,14 @@
-//===--- A platform independent indirection for a thread class --*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Platform-independent indirection for a thread class.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_THREADS_THREAD_H
@@ -137,7 +142,9 @@ struct Thread {
   void wait();
 
   // Return true if this thread is equal to the other thread.
-  bool operator==(const Thread &other) const;
+  constexpr bool operator==(const Thread &other) const {
+    return attrib == other.attrib;
+  }
 
   // Set the name of the thread. Return the error number on error.
   int set_name(const cpp::string_view &name);

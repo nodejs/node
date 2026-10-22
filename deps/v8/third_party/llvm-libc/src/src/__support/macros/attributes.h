@@ -37,6 +37,14 @@
 #define LIBC_ALWAYS_INLINE LIBC_INLINE
 #endif // __has_attribute(always_inline)
 
+#if __has_attribute(noinline)
+#define LIBC_NOINLINE __attribute__((noinline))
+#elif defined(LIBC_COMPILER_IS_MSVC) || defined(_MSC_VER)
+#define LIBC_NOINLINE __declspec(noinline)
+#else
+#define LIBC_NOINLINE
+#endif // __has_attribute(noinline)
+
 #ifndef LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
 #if (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 900)) ||       \
     (defined(LIBC_COMPILER_IS_CLANG) && LIBC_COMPILER_CLANG_VER >= 900)

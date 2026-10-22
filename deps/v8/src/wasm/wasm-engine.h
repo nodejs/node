@@ -18,6 +18,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/wasm/canonical-types.h"
@@ -193,7 +194,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeDirectHandle<WasmModuleObject> SyncCompile(
       Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, ErrorThrower* thrower,
-      base::OwnedVector<const uint8_t> bytes,
+      base::UniqueArray<const uint8_t> bytes,
       // Optional source URL; needed when recompiling on flags mismatch
       // to preserve the original URL.
       base::Vector<const char> source_url = {});
@@ -209,7 +210,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void AsyncCompile(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    base::OwnedVector<const uint8_t> bytes,
+                    base::UniqueArray<const uint8_t> bytes,
                     const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given Wasm module.
@@ -460,7 +461,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AsyncCompileJob* CreateAsyncCompileJob(
       WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
+      base::UniqueArray<const uint8_t> bytes, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerCodeGC_Locked(size_t dead_code_limit);

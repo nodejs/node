@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_
 #define V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_
 
+#include <array>
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
@@ -125,19 +126,17 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   static constexpr int kTemporaryStringLength = 256;
 
   std::string EmbeddedBlobCodeSymbol() const {
-    base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_code_symbol;
+    std::array<char, kTemporaryStringLength> embedded_blob_code_symbol;
     base::SNPrintF(embedded_blob_code_symbol, "v8_%s_embedded_blob_code_",
                    embedded_variant_);
-    return std::string{embedded_blob_code_symbol.begin()};
+    return std::string{embedded_blob_code_symbol.data()};
   }
 
   std::string EmbeddedBlobDataSymbol() const {
-    base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_data_symbol;
+    std::array<char, kTemporaryStringLength> embedded_blob_data_symbol;
     base::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
                    embedded_variant_);
-    return std::string{embedded_blob_data_symbol.begin()};
+    return std::string{embedded_blob_data_symbol.data()};
   }
 
   void WriteDataSection(PlatformEmbeddedFileWriterBase* w,

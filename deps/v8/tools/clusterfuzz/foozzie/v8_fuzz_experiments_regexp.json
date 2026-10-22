@@ -1,0 +1,6 @@
+[
+  [40, "jitless", "slow_path", "d8"],
+  [30, "jitless", "slow_path", "clang_x64_v8_arm64/d8"],
+  [15, "jitless", "slow_path", "clang_x86_v8_arm/d8"],
+  [15, "jitless", "slow_path", "clang_x86/d8"]
+]

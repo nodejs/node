@@ -1391,12 +1391,14 @@ MaybeDirectHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
   return MutableBigInt::MakeImmutable(result);
 }
 
-Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
-  if (n == 0) return MutableBigInt::Zero(isolate);
+template <typename IsolateT>
+Handle<BigInt> BigInt::FromInt64(IsolateT* isolate, int64_t n,
+                                 AllocationType allocation) {
+  if (n == 0) return MutableBigInt::Zero(isolate, allocation);
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   uint32_t length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length, allocation));
   bool sign = n < 0;
   result->initialize_bitfield(sign, length);
   uint64_t absolute;
@@ -1412,17 +1414,31 @@ Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
   result->set_64_bits(absolute);
   return MutableBigInt::MakeImmutable(result);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n,
+                                     AllocationType allocation);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromInt64(LocalIsolate* isolate, int64_t n,
+                                     AllocationType allocation);
 
-Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
-  if (n == 0) return MutableBigInt::Zero(isolate);
+template <typename IsolateT>
+Handle<BigInt> BigInt::FromUint64(IsolateT* isolate, uint64_t n,
+                                  AllocationType allocation) {
+  if (n == 0) return MutableBigInt::Zero(isolate, allocation);
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   uint32_t length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length, allocation));
   result->initialize_bitfield(false, length);
   result->set_64_bits(n);
   return MutableBigInt::MakeImmutable(result);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n,
+                                      AllocationType allocation);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromUint64(LocalIsolate* isolate, uint64_t n,
+                                      AllocationType allocation);
 
 MaybeDirectHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
                                               uint32_t words64_count,

@@ -697,7 +697,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void AlignFrameSize();
   inline void PatchPrepareStackFrame(int offset, SafepointTableBuilder*,
                                      bool feedback_vector_slot,
-                                     size_t stack_param_slots);
+                                     size_t stack_param_slots,
+                                     size_t stack_return_slots);
   inline void FinishCode();
   inline void AbortCompilation();
   inline static constexpr int StaticStackFrameSize();
@@ -706,8 +707,6 @@ class LiftoffAssembler : public MacroAssembler {
 
   inline void CheckTierUp(int declared_func_index, int budget_used,
                           Label* ool_label, const FreezeCacheState& frozen);
-  inline Register LoadOldFramePointer();
-  inline void CheckStackShrink();
   inline void LoadConstant(LiftoffRegister, WasmValue);
 
   inline void PrepareDebugTrap(MessageTemplate message);
@@ -863,7 +862,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueKind);
   inline void StoreCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
-                                   ValueKind, Register frame_pointer);
+                                   ValueKind);
   inline void LoadReturnStackSlot(LiftoffRegister, int offset, ValueKind);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueKind);

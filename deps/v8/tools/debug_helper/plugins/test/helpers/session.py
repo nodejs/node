@@ -192,15 +192,25 @@ class DebuggerSession:
     return self.run_command(f"v8 inspect {address}")
 
   def frame_trailer(self, function_name):
-    """Parse the `(this=0xADDR, argc=N)` trailer for one JS frame."""
+    """Parse the `(this=0xADDR, ...)` trailer for one JS frame.
+
+    Returns `(receiver, argc)`, where argc is the number of `[N]=` previews
+    or the total from the `... (argc=N)` tail when the previews were capped.
+    """
     bt = self.run_command("bt")
     pattern = re.compile(rf"\[{re.escape(function_name)}[^\[\]]*\][^\n]*"
-                         rf"this=(0x[0-9a-f]+), argc=(\d+)")
+                         rf"this=(0x[0-9a-f]+)(?P<rest>[^\n]*)")
     m = pattern.search(bt)
     if not m:
-      raise AssertionError(f"no `(this=..., argc=...)` trailer for frame "
+      raise AssertionError(f"no `(this=..., ...)` trailer for frame "
                            f"{function_name!r} in backtrace:\n{bt}")
-    return m.group(1), int(m.group(2))
+    rest = m.group("rest")
+    tail = re.search(r"\.\.\. \(argc=(\d+)\)", rest)
+    if tail:
+      argc = int(tail.group(1))
+    else:
+      argc = len(re.findall(r"\[\d+\]=", rest))
+    return m.group(1), argc
 
   def frame_receiver(self, function_name):
     """Get the receiver address for the JS frame named `function_name`."""

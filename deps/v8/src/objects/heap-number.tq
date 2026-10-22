@@ -11,3 +11,12 @@ extern class HeapNumber extends PrimitiveHeapObject {
 
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
+
+// This object is used for reserving space for mutable HeapNumber and for
+// representing an uninitialized state of a double field, so it's layout must
+// be equal to the layout of HeapNumber for simple transition from
+// uninitialized to initialized state.
+@cppObjectLayoutDefinition
+extern class UninitializedHeapNumber extends HeapObject {
+  value: float64;
+}

@@ -83,6 +83,7 @@ V8_OBJECT class PropertyArray : public HeapObject {
   // for class metadata, and the uninitialized_value Hole for not-yet-assigned
   // slots (see MigrateFastToFast in js-objects.cc). The actual element kind
   // is dispatched by the descriptor; callers know what to expect.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 

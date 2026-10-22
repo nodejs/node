@@ -407,6 +407,8 @@ class KnownNodeAspects {
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
+  void ClearUnstableNodeAspectsForMigration(Node* node,
+                                            bool is_tracing_enabled);
   void ClearUnstableNodeAspectsForElementsTransition(
       const ZoneVector<compiler::MapRef>& transition_sources,
       bool is_tracing_enabled);
@@ -824,8 +826,7 @@ class KnownNodeAspects {
                          std::is_same_v<NodeT,
                                         CheckMapsWithMigrationAndDeopt> ||
                          std::is_same_v<NodeT, MigrateMapIfNeeded>) {
-      // These instructions only migrate representations of values, not the
-      // values themselves, so cached values are still valid.
+      ClearUnstableNodeAspectsForMigration(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
       ClearUnstableNodeAspectsForStoreMap(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, TransitionElementsKind> ||
@@ -909,6 +910,8 @@ class KnownNodeAspects {
 
   SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
       Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
+  bool MarkSingleMapAsStale(ValueNode* node, bool is_tracing_enabled);
 
   static constexpr uint32_t kEffectEpochForPureInstructions =
       std::numeric_limits<uint32_t>::max();

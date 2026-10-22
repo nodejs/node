@@ -410,7 +410,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r8;
   Register scratch = r9;

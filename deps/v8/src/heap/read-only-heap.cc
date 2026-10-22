@@ -53,6 +53,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       CreateInitialHeapForBootstrapping(isolate, artifacts);
       artifacts->read_only_heap()->DeserializeIntoIsolate(
           isolate, read_only_snapshot_data, can_rehash);
+      artifacts->read_only_heap()->DecommitGuardRegions(isolate);
       artifacts->set_initial_next_unique_sfi_id(isolate->next_unique_sfi_id());
       read_only_heap_created = true;
     } else {
@@ -101,6 +102,34 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
     // contexts, and finally reserialize.
   } else {
     InitFromIsolate(isolate);
+  }
+}
+
+void ReadOnlyHeap::DecommitGuardRegions(Isolate* isolate) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+#if V8_STATIC_ROOTS_BOOL
+  // Protect wasm null.
+  if (!isolate->page_allocator()->DecommitPages(
+          reinterpret_cast<void*>(isolate->factory()->wasm_null()->address()),
+          WasmNull::kSize)) {
+    V8::FatalProcessOutOfMemory(isolate, "decommitting WasmNull payload");
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (v8_flags.unmap_holes) {
+// Protect the payload of each hole.
+#define UNMAP_HOLE(CamelName, snake_name, _)                            \
+  if (!isolate->page_allocator()->DecommitPages(                        \
+          reinterpret_cast<void*>(                                      \
+              &isolate->factory()->snake_name()->payload_),             \
+          Hole::kPayloadSize)) {                                        \
+    V8::FatalProcessOutOfMemory(isolate,                                \
+                                "decommitting " #CamelName " payload"); \
+  }
+
+    HOLE_LIST(UNMAP_HOLE)
+#undef UNMAP_HOLE
   }
 }
 

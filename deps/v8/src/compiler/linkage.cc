@@ -531,6 +531,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
 
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int js_parameter_count,
+                                             uint16_t expected_parameter_count,
                                              CallDescriptor::Flags flags,
                                              Operator::Properties properties) {
   const size_t return_count = 1;
@@ -600,7 +601,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kNoCalleeSaved,                // callee-saved
       kNoCalleeSavedFp,              // callee-saved fp
       flags,                         // flags
-      "js-call");                    // debug name
+      "js-call",                     // debug name
+      RegList{},                     // allocatable_registers
+      0,                             // return_slot_count
+      kInvalidWasmSignatureHash,     // signature_hash
+      expected_parameter_count);     // expected_parameter_count
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
