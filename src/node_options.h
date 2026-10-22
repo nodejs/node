@@ -139,6 +139,7 @@ class EnvironmentOptions : public Options {
   std::string heap_snapshot_signal;
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  std::string bench_gc;
   std::string bench_isolation = "process";
   std::string bench_name_pattern;
   std::string test_rerun_failures_path;

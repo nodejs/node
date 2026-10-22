@@ -351,6 +351,17 @@ details.
 This flag cannot be combined with \fB--test\fR, \fB--watch\fR, \fB--watch-path\fR,
 \fB--check\fR, \fB--eval\fR, or \fB--interactive\fR.
 .
+.It Fl -bench-gc Ns = Ns Ar mode
+Overrides the garbage collection mode for every selected benchmark. When \fBmode\fR
+is \fB'once'\fR, a full garbage collection runs before the first measured sample.
+When \fBmode\fR is \fB'sample'\fR, a full garbage collection runs before every measured
+sample. When \fBmode\fR is \fB'none'\fR, no garbage collection is forced. Without this
+option, each benchmark uses its own \fBgc\fR value, which defaults to \fB'none'\fR.
+Forcing garbage collection requires the \fB--expose-gc\fR flag. With process
+isolation, \fB--expose-gc\fR is added to benchmark child processes automatically
+when \fBmode\fR is \fB'once'\fR or \fB'sample'\fR. With \fB--bench-isolation=none\fR,
+\fB--expose-gc\fR must be passed explicitly.
+.
 .It Fl -bench-isolation Ns = Ns Ar mode
 Configures benchmark file isolation. When \fBmode\fR is \fB'process'\fR, each matching
 file runs in a separate child process. This is the default. Files are still run
@@ -2202,6 +2213,8 @@ one is included in the list below.
 \fB--allow-wasi\fR
 .It
 \fB--allow-worker\fR
+.It
+\fB--bench-gc\fR
 .It
 \fB--bench-isolation\fR
 .It

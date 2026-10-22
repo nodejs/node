@@ -71,7 +71,7 @@ to their caller.
 
 Each warmup and measured sample invokes the benchmark function once with a
 fresh {BenchContext}. The function must either call `context.start()` and
-`context.end(operations)` exactly once, or call `context.record(sample)` exactly
+`context.end([operations])` exactly once, or call `context.record(sample)` exactly
 once to provide an externally measured sample. Setup before `start()` and
 cleanup after `end()` are outside the measured region. Promise-returning
 functions are awaited.
@@ -90,6 +90,32 @@ system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
 
+### Garbage collection
+
+Warmup invocations can leave garbage on the heap that is collected during the
+first measured samples, charging warmup allocations to measured work. The `gc`
+option forces a full garbage collection outside the measured region:
+
+* `'none'`: No garbage collection is forced. This is the default.
+* `'once'`: A full garbage collection runs after warmup, before the first
+  measured sample. Garbage produced by measured samples is still collected
+  during measurement, so its cost remains part of the results.
+* `'sample'`: A full garbage collection runs before every measured sample. This
+  reduces variance between samples, but samples that are too short to trigger a
+  collection on their own exclude the cost of collecting their garbage, which
+  can make allocation-heavy code appear faster than it is in practice.
+
+Forced collection runs after `beforeEach` hooks and any event loop turn between
+samples, and is excluded from benchmark timeout accounting. The effective mode
+is reported as `gc` in `'bench:plan'` events. The mode can be overridden for
+every benchmark through `createRunner()`, [`run()`][], or [`--bench-gc`][].
+
+Forcing garbage collection requires the `--expose-gc` flag, which also makes
+`globalThis.gc()` available to benchmark code. A benchmark whose effective mode
+is `'once'` or `'sample'` fails when the flag is not set. When `--bench-gc`
+selects one of these modes, the command-line runner adds `--expose-gc` to
+benchmark child processes automatically.
+
 ### Measurement integrity
 
 A statistically consistent result does not prove that a benchmark measured the
@@ -98,8 +124,9 @@ specialize it more narrowly than the workload being modeled. Framework and loop
 overhead can also dominate operations that are too short. To reduce these risks:
 
 * Make values produced by measured work observable outside the measured
-  interval, for example by validating an aggregate derived from every result.
-  Passing them only through unused local computations is insufficient.
+  interval, for example by validating an aggregate derived from every result
+  or by passing each result to [`doNotOptimize()`][]. Passing them only through
+  unused local computations is insufficient.
 * Perform enough operations in each sample to amortize fixed timer reads and
   calls to `context.start()` and `context.end()`. If loop bookkeeping is material
   relative to one operation, batch multiple operations per iteration and report
@@ -112,7 +139,10 @@ overhead can also dominate operations that are too short. To reduce these risks:
 
 `node:bench` does not force a particular optimization state or infer whether an
 engine eliminated work. Such controls and diagnostics are runtime-specific and
-heuristic, and do not replace validating the benchmark workload.
+heuristic, and do not replace validating the benchmark workload. The `spec`
+reporter flags rates that are implausibly fast for real work, which often
+indicates eliminated work, but the absence of that warning does not prove the
+work was measured.
 
 ### Dynamic sampling and variable batches
 
@@ -221,9 +251,10 @@ arbitrary functions or closures to move them between isolates, because closures
 cannot be reconstructed with their original lexical environment.
 
 Benchmark files passed to `--bench` should declare benchmarks but must not call
-`run()`. The CLI supports `--bench-name-pattern`, `--bench-samples`,
-`--bench-warmup`, `--bench-reporter`, and `--bench-reporter-destination`. See
-the [command-line options documentation][] for details.
+`run()`. The CLI supports `--bench-gc`, `--bench-name-pattern`,
+`--bench-samples`, `--bench-warmup`, `--bench-reporter`, and
+`--bench-reporter-destination`. See the [command-line options documentation][]
+for details.
 
 Preload modules passed through `--require` or `--import` should not declare
 benchmarks. Such declarations are not associated with an entry file and have
@@ -260,13 +291,39 @@ bench('example', (b) => {
 run().compose(spec).pipe(process.stdout);
 ```
 
-The `spec` reporter buffers results and outputs a concise table containing the
-sample count, mean rate, 95% confidence interval for the mean, median rate, and
-warnings. A coefficient of variation above 5% is reported as `noisy`, and an
-absolute skewness above 1 is reported as `skewed`. The exact human-readable
-format is subject to change.
+The built-in reporters collect a snapshot of the reporting process's
+environment when they receive their first record. The snapshot contains:
 
-The `json` reporter emits every lifecycle record as newline-delimited JSON.
+* `node` {string} The value of `process.version`.
+* `v8` {string} The value of `process.versions.v8`.
+* `platform` {string} The value of `process.platform`.
+* `arch` {string} The value of `process.arch`.
+* `os` {Object} The operating system `type`, `release`, and `machine`, as
+  returned by the corresponding [`os`][] functions.
+* `cpus` {Object\[]} The logical CPUs grouped by `model`, with the `count` of
+  each model.
+* `availableParallelism` {number} The value of `os.availableParallelism()`.
+* `memory` {Object} The `total` and `free` system memory in bytes, and the
+  `constrained` memory limit in bytes, or `null` when the process is not
+  constrained below the total system memory.
+* `loadavg` {number\[]} The value of `os.loadavg()`.
+* `execArgv` {string\[]} The value of `process.execArgv`.
+
+With process isolation, reporters run in the parent process. Benchmark children
+are started from the same executable, but their `execArgv` can differ.
+
+The `spec` reporter buffers results and outputs a summary of the environment
+followed by a concise table containing the sample count, mean rate, 95%
+confidence interval for the mean, median rate, and warnings. A coefficient of
+variation above 5% is reported as `noisy`, an absolute skewness above 1 is
+reported as `skewed`, and a median rate of at least one operation per
+nanosecond is reported as `implausible`, as it usually indicates that the
+measured work was optimized away. The exact human-readable format is subject to
+change.
+
+The `json` reporter emits a `'bench:environment'` record containing the
+environment snapshot before the first lifecycle record, and then emits every
+lifecycle record as newline-delimited JSON.
 BigInt values, including `duration_ns`, are encoded as decimal strings. Errors
 are represented using their `name`, `message`, `stack`, `code`, `cause`, and
 `errors` properties. As required by JSON, non-finite numbers are encoded as
@@ -298,6 +355,9 @@ added: v26.9.0
 -->
 
 * `options` {Object}
+  * `gc` {string} Overrides the [garbage collection][] mode for every
+    benchmark declared through this runner. One of `'none'`, `'once'`, or
+    `'sample'`.
   * `yieldBetweenSamples` {boolean} Schedule an event loop turn between sample
     callbacks. Disabling this also prevents timer-based abort signals from
     firing between synchronous callbacks. Benchmark timeouts continue to be
@@ -311,8 +371,8 @@ the module-level functions. Call the returned `run()` function to start the
 runner and obtain its {BenchmarksStream}.
 
 Each runner can be started once. Its `run()` function accepts the same options
-as the module-level [`run()`][]. `run({ yieldBetweenSamples })` overrides the
-value passed to `createRunner()`. Unlike the module-level runner, a failed
+as the module-level [`run()`][]. `run({ gc })` and `run({ yieldBetweenSamples })`
+override the values passed to `createRunner()`. Unlike the module-level runner, a failed
 benchmark in an explicit runner does not change the process exit code.
 
 ## `bench([name][, options], fn)`
@@ -327,6 +387,8 @@ added: v26.9.0
   * `diagnosticChannels` {Array} String diagnostics channel names, deduplicated
     and inherited from containing suites by union. Symbol values in the array
     are silently ignored. **Default:** `[]`.
+  * `gc` {string} The [garbage collection][] mode. One of `'none'`, `'once'`,
+    or `'sample'`. **Default:** `'none'`.
   * `only` {boolean} When any benchmark or containing suite has `only` set,
     benchmarks without `only` in their hierarchy are skipped. **Default:**
     `false`.
@@ -435,6 +497,61 @@ added: v26.9.0
 
 Alias for `suite()`.
 
+## `doNotOptimize(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} A value produced by measured work.
+* Returns: {any} `value`.
+
+Stores `value` where the optimizing compiler cannot prove it is unused, so the
+computation that produced it is not eliminated as dead code. Returning `value`
+allows the call to wrap an expression.
+
+```mjs
+import { bench, doNotOptimize } from 'node:bench';
+
+bench('Math.sqrt', (b) => {
+  const n = 1_000_000;
+  b.start();
+  for (let i = 0; i < n; i++) {
+    doNotOptimize(Math.sqrt(i));
+  }
+  b.end(n);
+});
+```
+
+```cjs
+const { bench, doNotOptimize } = require('node:bench');
+
+bench('Math.sqrt', (b) => {
+  const n = 1_000_000;
+  b.start();
+  for (let i = 0; i < n; i++) {
+    doNotOptimize(Math.sqrt(i));
+  }
+  b.end(n);
+});
+```
+
+The call adds a small, constant cost to every invocation, so it is best suited
+to work that takes longer than a few nanoseconds per call. For cheaper
+operations, accumulate results into a value that is passed to
+`doNotOptimize()` once after the measured region.
+
+`doNotOptimize()` only prevents the result from being discarded. It does not
+prevent the compiler from hoisting loop-invariant work or folding constant
+inputs; vary inputs between iterations when the work would otherwise be
+invariant.
+
+`doNotOptimize()` is intended to be called only from benchmark functions while
+a runner is executing them. Non-number values are retained until the current
+sample finishes, after which the runner releases them. When called outside a
+benchmark function, the most recent non-number value remains reachable until
+`doNotOptimize()` is called again.
+
 ## `before(fn)`
 
 <!-- YAML
@@ -488,6 +605,9 @@ added: v26.9.0
 -->
 
 * `options` {Object}
+  * `gc` {string} Overrides the [garbage collection][] mode for every
+    benchmark. One of `'none'`, `'once'`, or `'sample'`. **Default:** the value
+    passed to `createRunner()` for an explicit runner.
   * `namePattern` {string|RegExp} Only runs benchmarks whose full hierarchical
     name matches the pattern. String values are interpreted as JavaScript
     regular expressions.
@@ -642,14 +762,14 @@ added: v26.9.0
 Starts the measured region using `process.hrtime.bigint()`. Calling `start()`
 more than once is an error.
 
-### `context.end(operations[, options])`
+### `context.end([operations[, options]])`
 
 <!-- YAML
 added: v26.9.0
 -->
 
 * `operations` {number} The number of completed operations. Must be a positive
-  safe integer.
+  safe integer. **Default:** `1`.
 * `options` {Object}
   * `detail` {any} Additional structured-cloneable sample data. With CLI process
     isolation, it must also be supported by advanced child process
@@ -671,7 +791,7 @@ added: v26.9.0
 
 * `sample` {Object}
   * `operations` {number} The number of completed operations. Must be a positive
-    safe integer.
+    safe integer. **Default:** `1`.
   * `duration_ns` {bigint} An externally measured positive duration in
     nanoseconds no greater than `Number.MAX_SAFE_INTEGER`.
   * `detail` {any} Additional structured-cloneable sample data. With CLI process
@@ -780,6 +900,8 @@ isolation, all files share one runner and their plans are emitted before any
 benchmark executes. Plan data contains the benchmark-scoped identity, location,
 tags, and parameters described in [benchmark result][], together with:
 
+* `gc` {string} The effective [garbage collection][] mode after run-level
+  overrides.
 * `diagnosticChannels` {string\[]} The inherited string channel names
   subscribed to during each callback.
 * `samples` {number} The effective maximum number of measured callback
@@ -798,7 +920,8 @@ tags, and parameters described in [benchmark result][], together with:
 
 The plan contains execution settings known to the runner. Runtime version,
 operating system, processor, and other environment metadata are intentionally
-left for reporters and higher-level tools to collect.
+left for reporters and higher-level tools to collect. The built-in reporters
+include an [environment snapshot][benchmark reporters].
 
 `'bench:complete'` data contains a [benchmark result][]. A failed result has an
 additional `error` property and may contain samples recorded before the error.
@@ -854,8 +977,13 @@ A completed benchmark result contains:
     interval for the median rate, with `lower` and `upper` properties.
   * `skewness` {number} The skewness of the scaled rate histogram.
 
+[`--bench-gc`]: cli.md#--bench-gcmode
 [`context.record()`]: #contextrecordsample
 [`createRunner()`]: #createrunneroptions
+[`doNotOptimize()`]: #donotoptimizevalue
+[`os`]: os.md
 [`run()`]: #runoptions
+[benchmark reporters]: #benchmark-reporters
 [benchmark result]: #benchmark-result
 [command-line options documentation]: cli.md#--bench
+[garbage collection]: #garbage-collection
