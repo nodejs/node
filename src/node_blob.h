@@ -51,9 +51,9 @@ class Blob : public BaseObject {
   SET_MEMORY_INFO_NAME(Blob)
   SET_SELF_SIZE(Blob)
 
-  BaseObjectPtr<Blob> Slice(Environment* env, size_t start, size_t end);
+  BaseObjectPtr<Blob> Slice(Environment* env, uint64_t start, uint64_t end);
 
-  inline size_t length() const { return this->data_queue_->size().value(); }
+  inline uint64_t length() const { return this->data_queue_->size().value(); }
 
   class BlobTransferData : public worker::TransferData {
    public:
@@ -129,13 +129,13 @@ class BlobBindingData : public SnapshotableObject {
 
   struct StoredDataObject : public MemoryRetainer {
     BaseObjectPtr<Blob> blob;
-    size_t length;
+    uint64_t length;
     std::string type;
 
     StoredDataObject() = default;
 
     StoredDataObject(const BaseObjectPtr<Blob>& blob_,
-                     size_t length_,
+                     uint64_t length_,
                      const std::string& type_);
 
     void MemoryInfo(MemoryTracker* tracker) const override;
