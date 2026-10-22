@@ -54,6 +54,7 @@ jobs:
           BATCH_SIZE: ${{ vars.AUTO_START_CI_BATCH_SIZE || '5' }}
   start-ci:
     permissions:
+      actions: read
       checks: read
       contents: read
       pull-requests: write
