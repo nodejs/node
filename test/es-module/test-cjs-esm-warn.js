@@ -72,4 +72,24 @@ describe('CJS ↔︎ ESM interop warnings', { concurrency: !process.env.TEST_PAR
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
   });
+
+  it('should annotate the parent frame when require() is traced', async () => {
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
+      '--no-experimental-require-module',
+      '--import',
+      'data:text/javascript,' + encodeURIComponent(
+        'import dc from "node:diagnostics_channel";' +
+        'dc.subscribe("tracing:module.require:start", () => {});'),
+      requiringEsm,
+    ]);
+
+    assert.ok(
+      stderr.replace(/\r/g, '').startsWith(
+        `${requiringEsm}:1\nrequire('./package-type-module/esm.js');\n^\n`
+      )
+    );
+
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
 });
