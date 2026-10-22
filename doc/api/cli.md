@@ -3147,6 +3147,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66911
+    description: Arguments following `--` are now passed to each test file.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46983
     description: The test runner is now stable.
