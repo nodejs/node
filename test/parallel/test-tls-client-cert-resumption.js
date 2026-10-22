@@ -22,6 +22,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCode } = require('../common/tls');
 const { once } = require('events');
 
 const ca = fixtures.readKey('ca1-cert.pem');
@@ -47,7 +48,7 @@ const CLIENTS = {
       cert: fixtures.readKey('agent3-cert.pem'),
     },
     authorized: false,
-    authorizationError: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    authorizationError: untrustedLeafErrorCode,
     peerCN: 'agent3',
   },
   missing: {                                          // No client certificate

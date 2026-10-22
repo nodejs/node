@@ -10,8 +10,8 @@
 
   # Using an updated version of BoringSSL as we do not support the old version anymore.
   boringssl = pkgs.callPackage (builtins.fetchurl {
-    url = "https://github.com/NixOS/nixpkgs/raw/6062ba1a1b8b6281b12533c9075a2dbeb38f7e49/pkgs/by-name/bo/boringssl/package.nix";
-    sha256 = "01n2ga83ds5m9hz88z635g3q1c141ka2qs9k576c62v3fdpgcj6i";
+    url = "https://github.com/NixOS/nixpkgs/raw/1c17f6e5f086bf6b259e7a28f68657ed8548a25a/pkgs/by-name/bo/boringssl/package.nix";
+    sha256 = "10cw2np6shjanxa2vzfxsrbyz451g1b6qan2v9c1ln75i3n5zn8a";
   }) { };
 
   # Other OpenSSL variants we want to test for:
