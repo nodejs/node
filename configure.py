@@ -2619,7 +2619,18 @@ def configure_intl(o):
     o['libraries'] += libs.split()
     if cflags:
       stripped_flags = [flag.strip() for flag in cflags.split('-I')]
-      o['include_dirs'] += [flag for flag in stripped_flags if flag]
+      # Pass system ICU headers via -isystem rather than -I so that warnings
+      # originating from them (e.g. clang's -Wunnecessary-virtual-specifier
+      # in unicode/uniset.h) are not turned into errors by --error-on-warn.
+      isystem_flags = []
+      for flag in stripped_flags:
+        if flag:
+          isystem_flags += ['-isystem', flag]
+      o['cflags'] += isystem_flags
+      o.setdefault('xcode_settings', {}).setdefault('OTHER_CFLAGS', [])
+      o['xcode_settings']['OTHER_CFLAGS'] += isystem_flags
+      if flavor == 'win':
+        o['include_dirs'] += [flag for flag in stripped_flags if flag]
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
