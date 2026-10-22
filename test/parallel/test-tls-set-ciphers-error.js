@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 {
   const options = {
@@ -21,12 +21,8 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
                 /no[_ ]cipher[_ ]match/i);
   options.ciphers = 'TLS_not_a_cipher';
-  if (isBoringSSL) {
-    tls.createServer(options).close();
-  } else {
-    assert.throws(() => tls.createServer(options, common.mustNotCall()),
-                  /no[_ ]cipher[_ ]match/i);
-  }
+  assert.throws(() => tls.createServer(options, common.mustNotCall()),
+                /no[_ ]cipher[_ ]match/i);
 }
 
 // Cipher name matching is case-sensitive prior to OpenSSL 4.0, and
