@@ -118,6 +118,8 @@ API call to drop permissions at runtime. This operation is **irreversible**.
 
 When called without a reference, the entire scope is dropped. When called
 with a reference, only the permission for that specific resource is revoked.
+The reference must not be an empty string or an empty `Uint8Array`; otherwise
+an `ERR_INVALID_ARG_VALUE` error is thrown.
 Dropping a permission only affects future access checks. It does not close or
 revoke access to resources that are already open, such as file descriptors,
 network sockets, child processes, or worker threads. Applications are

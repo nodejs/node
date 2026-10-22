@@ -40,6 +40,25 @@ const assert = require('assert');
 }
 
 {
+  // An empty reference must not drop the whole scope.
+  for (const scope of ['fs.read', 'fs.write', 'child', 'env']) {
+    for (const reference of ['', new Uint8Array(0), Buffer.alloc(0)]) {
+      assert.throws(() => {
+        process.permission.drop(scope, reference);
+      }, common.expectsError({
+        code: 'ERR_INVALID_ARG_VALUE',
+      }));
+    }
+  }
+
+  assert.strictEqual(process.permission.has('fs.read'), true);
+  assert.strictEqual(process.permission.has('child'), false);
+
+  process.permission.drop('child', null);
+  process.permission.drop('child', undefined);
+}
+
+{
   process.permission.drop('invalid-scope');
   process.permission.drop('invalid-scope', '/tmp');
 }
