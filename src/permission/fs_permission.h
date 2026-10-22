@@ -54,7 +54,9 @@ class FSPermission final : public PermissionBase {
       }
 
       Node* CreateChild(std::string_view path_prefix) {
-        if (path_prefix.empty() && !is_leaf) {
+        // An empty remaining prefix means this node already represents the
+        // inserted path. Re-inserting it is a no-op.
+        if (path_prefix.empty()) {
           is_leaf = true;
           return this;
         }
