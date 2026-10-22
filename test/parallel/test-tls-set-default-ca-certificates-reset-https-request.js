@@ -9,6 +9,7 @@ const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 
 // Test HTTPS connection succeeds with proper CA, fails after removing it
 const server = https.createServer({
@@ -49,7 +50,7 @@ server.listen(0, common.mustCall(() => {
 
       req2.on('error', common.mustCall((err) => {
         // Should fail with certificate verification error.
-        assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+        assert.match(err.code, untrustedLeafErrorCodePattern);
         server.close();
       }));
 

@@ -8,13 +8,14 @@ const assert = require('assert');
 const {
   connect, keys, tls
 } = require(fixtures.path('tls-connect'));
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 
 test(undefined, (err) => {
-  assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  assert.match(err.code, untrustedLeafErrorCodePattern);
 });
 
 test({}, (err) => {
-  assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  assert.match(err.code, untrustedLeafErrorCodePattern);
 });
 
 test(
@@ -30,8 +31,7 @@ test(
 test(
   { secureContext: tls.createSecureContext(), ca: keys.agent1.ca },
   (err) => {
-    assert.strictEqual(err.code,
-                       'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.match(err.code, untrustedLeafErrorCodePattern);
   });
 
 function test(client, callback) {
@@ -42,7 +42,7 @@ function test(client, callback) {
       cert: keys.agent1.cert,
     },
   }, common.mustCall(function(err, pair, cleanup) {
-    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.match(err.code, untrustedLeafErrorCodePattern);
     let recv = '';
     pair.server.server.once('secureConnection', common.mustCall((conn) => {
       conn.on('data', (data) => recv += data);

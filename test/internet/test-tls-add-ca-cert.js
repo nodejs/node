@@ -33,7 +33,7 @@ tls.connect(opts, common.mustCall(end));
 // The .ca option replaces the well-known roots, so connection fails.
 opts.ca = caCert;
 tls.connect(opts, fail).on('error', common.mustCall((err) => {
-  assert.strictEqual(err.message, 'unable to get local issuer certificate');
+  assert.strictEqual(err.code, 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY');
 }));
 
 function fail() {

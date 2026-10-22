@@ -5,6 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 const tls = require('tls');
 const { once } = require('events');
 
@@ -90,7 +91,7 @@ async function testVersion(minVersion, maxVersion) {
         return socket;
       }),
       {
-        code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        code: untrustedLeafErrorCodePattern,
       },
     );
 
@@ -107,7 +108,7 @@ async function testVersion(minVersion, maxVersion) {
         return socket;
       }),
       {
-        code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        code: untrustedLeafErrorCodePattern,
       },
     );
   } finally {

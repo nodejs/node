@@ -11,6 +11,7 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 const {
   assert, connect, keys, tls
 } = require(fixtures.path('tls-connect'));
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 
 // Use ec10 and agent10, they are the only identities with intermediate CAs.
 const client = keys.ec10;
@@ -185,7 +186,7 @@ connect({
     cert: server.single,
   },
 }, common.mustCall((err, pair, cleanup) => {
-  assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  assert.match(err.code, untrustedLeafErrorCodePattern);
   return cleanup();
 }));
 

@@ -4998,11 +4998,7 @@ bool SSLPointer::isServer() const {
 EVPKeyPointer SSLPointer::getPeerTempKey() const {
   if (!ssl_) return {};
   EVP_PKEY* raw_key = nullptr;
-#ifndef OPENSSL_IS_BORINGSSL
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
-#else
-  if (!SSL_get_server_tmp_key(get(), &raw_key)) return {};
-#endif
   return EVPKeyPointer(raw_key);
 }
 

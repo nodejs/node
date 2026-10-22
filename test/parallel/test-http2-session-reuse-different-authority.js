@@ -5,6 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 const h2 = require('http2');
 const tls = require('tls');
 const { once } = require('events');
@@ -125,7 +126,7 @@ server.on('stream', (stream) => {
         session: first.session,
       }),
       {
-        code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        code: untrustedLeafErrorCodePattern,
       },
     );
 
@@ -136,7 +137,7 @@ server.on('stream', (stream) => {
         maxVersion: 'TLSv1.2',
       }),
       {
-        code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        code: untrustedLeafErrorCodePattern,
       },
     );
   } finally {

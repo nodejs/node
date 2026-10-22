@@ -25,6 +25,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 const assert = require('assert');
 const tls = require('tls');
 
@@ -39,6 +40,7 @@ tls.createServer({ key, cert }).on('connection', common.mustCall(function() {
 })).listen(0, common.mustCall(function() {
   const options = { port: this.address().port, rejectUnauthorized: true };
   tls.connect(options).on('error', common.mustCall(function(err) {
-    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.match(err.code, untrustedLeafErrorCodePattern);
+    assert.match(err.message, /try running Node\.js with --use-system-ca/);
   }));
 }));

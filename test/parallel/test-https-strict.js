@@ -25,6 +25,8 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
+
 // Disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -148,7 +150,11 @@ function makeReq(path, port, error, host, ca) {
   server.expectCount++;
 
   req.on('response', common.mustCall((res) => {
-    assert.strictEqual(res.connection.authorizationError, error);
+    if (error instanceof RegExp) {
+      assert.match(res.connection.authorizationError, error);
+    } else {
+      assert.strictEqual(res.connection.authorizationError, error);
+    }
     responseErrors[path] = res.connection.authorizationError;
     pending--;
     if (pending === 0) {
@@ -167,7 +173,7 @@ function allListening() {
   const port3 = server3.address().port;
 
   // server1: host 'agent1', signed by ca1
-  makeReq('/inv1', port1, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  makeReq('/inv1', port1, untrustedLeafErrorCodePattern);
   makeReq('/inv1-ca1', port1, 'ERR_TLS_CERT_ALTNAME_INVALID',
           null, ca1);
   makeReq('/inv1-ca1ca2', port1, 'ERR_TLS_CERT_ALTNAME_INVALID',
@@ -175,7 +181,7 @@ function allListening() {
   makeReq('/val1-ca1', port1, null, 'agent1', ca1);
   makeReq('/val1-ca1ca2', port1, null, 'agent1', [ca1, ca2]);
   makeReq('/inv1-ca2', port1,
-          'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'agent1', ca2);
+          untrustedLeafErrorCodePattern, 'agent1', ca2);
 
   // server2: self-signed, host = 'agent2'
   // doesn't matter that thename matches, all of these will error.
@@ -186,14 +192,14 @@ function allListening() {
           'agent2', [ca1, ca2]);
 
   // server3: host 'agent3', signed by ca2
-  makeReq('/inv3', port3, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+  makeReq('/inv3', port3, untrustedLeafErrorCodePattern);
   makeReq('/inv3-ca2', port3, 'ERR_TLS_CERT_ALTNAME_INVALID', null, ca2);
   makeReq('/inv3-ca1ca2', port3, 'ERR_TLS_CERT_ALTNAME_INVALID',
           null, [ca1, ca2]);
   makeReq('/val3-ca2', port3, null, 'agent3', ca2);
   makeReq('/val3-ca1ca2', port3, null, 'agent3', [ca1, ca2]);
   makeReq('/inv3-ca1', port3,
-          'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'agent1', ca1);
+          untrustedLeafErrorCodePattern, 'agent1', ca1);
 
 }
 

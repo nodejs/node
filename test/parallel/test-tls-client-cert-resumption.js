@@ -22,6 +22,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { untrustedLeafErrorCodePattern } = require('../common/tls');
 const { once } = require('events');
 
 const ca = fixtures.readKey('ca1-cert.pem');
@@ -47,7 +48,7 @@ const CLIENTS = {
       cert: fixtures.readKey('agent3-cert.pem'),
     },
     authorized: false,
-    authorizationError: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    authorizationError: untrustedLeafErrorCodePattern,
     peerCN: 'agent3',
   },
   missing: {                                          // No client certificate
@@ -93,7 +94,11 @@ async function testResumption(version, name) {
 
     // Both conns must report same expected auth state:
     assert.strictEqual(socket.authorized, authorized, where);
-    assert.strictEqual(socket.authorizationError, authorizationError, where);
+    if (authorizationError instanceof RegExp) {
+      assert.match(socket.authorizationError, authorizationError, where);
+    } else {
+      assert.strictEqual(socket.authorizationError, authorizationError, where);
+    }
     const peer = socket.getPeerCertificate();
     if (peerCN === undefined)
       assert.deepStrictEqual(peer, {}, where);

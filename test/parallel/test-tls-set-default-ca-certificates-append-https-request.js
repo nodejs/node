@@ -10,7 +10,7 @@ const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { includesCert } = require('../common/tls');
+const { includesCert, untrustedLeafErrorCodePattern } = require('../common/tls');
 
 const bundledCerts = tls.getCACertificates('bundled');
 const fixtureCert = fixtures.readKey('fake-startcom-root-cert.pem');
@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
   req1.on('error', common.mustCall((err) => {
     console.log(err);
     // Should fail with certificate verification error
-    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.match(err.code, untrustedLeafErrorCodePattern);
 
     // Now add the fake-startcom-root-cert to bundled certs - connection should succeed
     tls.setDefaultCACertificates([...bundledCerts, fixtureCert]);
