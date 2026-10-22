@@ -1,3 +1,4 @@
+import type { AsyncWrap } from './async_wrap';
 import { ConstantsBinding } from './constants';
 
 interface ReadFileContext {
@@ -20,6 +21,8 @@ declare namespace InternalFSBinding {
     context: ReadFileContext;
   }
 
+  interface FSReqCallback<ResultType = unknown> extends AsyncWrap {}
+
   interface FSSyncContext {
     fd?: number;
     path?: string;
@@ -39,11 +42,12 @@ declare namespace InternalFSBinding {
   class FileHandle {
     constructor(fd: number, offset: number, length: number);
     fd: number;
-    getAsyncId(): number;
     close(): Promise<void>;
     onread: () => void;
     stream: Stream;
   }
+
+  interface FileHandle extends AsyncWrap {}
 
   class StatWatcher {
     constructor(useBigint: boolean);
