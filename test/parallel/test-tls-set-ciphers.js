@@ -7,9 +7,10 @@ if (!common.hasCrypto) {
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
-if (!hasOpenSSL(3)) {
+if (!hasOpenSSL(3) && !isBoringSSL) {
   common.skip('missing crypto, or OpenSSL version lower than 3');
 }
 
@@ -133,10 +134,11 @@ if (hasFIPS(3)) {
   test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
        U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
 
-  test('AES256-SHA', 'AES256-SHA256', U, expectedTLSAlertError,
+  // Use TLS 1.2 suites available on both crypto backends.
+  test('AES256-SHA', 'ECDHE-RSA-AES256-GCM-SHA384', U, expectedTLSAlertError,
        'ERR_SSL_NO_SHARED_CIPHER');
   test('AES256-SHA:TLS_AES_256_GCM_SHA384',
-       'TLS_CHACHA20_POLY1305_SHA256:AES256-SHA256',
+       'TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES256-GCM-SHA384',
        U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
 
   // Cipher order ignored, TLS1.3 chosen before TLS1.2.
@@ -154,7 +156,10 @@ if (hasFIPS(3)) {
   // default, but work.
   // However, for OpenSSL32 AES_128 is not enabled due to the
   // default security level
-  if (!hasOpenSSL(3, 2)) {
+  if (isBoringSSL) {
+    // BoringSSL does not implement the TLS 1.3 CCM cipher suites.
+    test('TLS_AES_128_CCM_8_SHA256', U, U, 'ERR_SSL_NO_CIPHER_MATCH', U);
+  } else if (!hasOpenSSL(3, 2)) {
     test('TLS_AES_128_CCM_8_SHA256', U,
          U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
 
