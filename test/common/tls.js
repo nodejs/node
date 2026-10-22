@@ -4,6 +4,12 @@
 const crypto = require('crypto');
 const net = require('net');
 const assert = require('assert');
+const { isBoringSSL } = require('./crypto');
+
+// BoringSSL reports the missing issuer directly for a lone, non-self-signed
+// leaf. OpenSSL replaces it with a leaf signature verification error.
+exports.untrustedLeafErrorCode = isBoringSSL ?
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY' : 'UNABLE_TO_VERIFY_LEAF_SIGNATURE';
 
 exports.ccs = Buffer.from('140303000101', 'hex');
 
