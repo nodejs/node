@@ -213,6 +213,28 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], '# tests 1\n');
   });
 
+  it('should run tests with testNamePatterns in watch mode with isolation \'none\'', async () => {
+    // The name filters must not be applied to the file level test that wraps
+    // the spawned process. Without this, no test ever runs.
+    const controller = new AbortController();
+    const passes = [];
+    const stream = run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      watch: true,
+      isolation: 'none',
+      signal: controller.signal,
+      testNamePatterns: [/executed/],
+    });
+    stream.on('test:pass', (event) => {
+      passes.push(event.name);
+      controller.abort();
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    assert.ok(passes.length > 0);
+    assert.ok(!passes.includes('this should be skipped'));
+  });
+
   it('should pass only to children', async () => {
     const result = await run({
       files: [join(testFixtures, 'test_only.js')],
