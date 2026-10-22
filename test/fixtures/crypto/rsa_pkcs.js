@@ -2,7 +2,8 @@
 
 const { isBoringSSL } = require('../../common/crypto');
 
-module.exports = function () {
+module.exports = function ({ includeUnsupported = false } = {}) {
+  const includeSha3 = !isBoringSSL || includeUnsupported;
   const pkcs8 = Buffer.from(
     '308204bf020100300d06092a864886f70d0101010500048204a9308204a50201000282' +
     '010100d3576092e62957364544e7e4233b7bdb293db2085122c479328546f9f0f712f6' +
@@ -99,7 +100,7 @@ module.exports = function () {
       '7a6335c70e193235dcda48add6858626bd96311e60f7e5ea4491b6c1e6248afe12b' +
       'bbd54f8869b043a5b0444562813f0a98b300356f306e6b783a29f3bec97ca40ea20' +
       '062cab8926ec5d96aa387cc84821a6d72b8ea126e7d', 'hex'),
-    ...(!isBoringSSL ? {
+    ...(includeSha3 ? {
       'sha3-256': Buffer.from(
         'be1b476c1911a01d71710fd8a2f3158d6f7839e91443b01bed30dfdd04336d80c6b' +
         'f692c06fad254877901c10a73853e8fb202a29cddefdf16c3adcda1fc123625897d' +
@@ -163,7 +164,7 @@ module.exports = function () {
       plaintext,
       signature: signatures['sha-512']
     },
-    ...(!isBoringSSL ? [
+    ...(includeSha3 ? [
       {
         publicKeyBuffer: spki,
         privateKeyBuffer: pkcs8,
