@@ -11,11 +11,6 @@ const {
   hasFIPS,
 } = require('../common/crypto');
 
-if (isBoringSSL) {
-  require('../common/boringssl').testLegacyProtocolUnsupported();
-  return;
-}
-
 const fixtures = require('../common/fixtures');
 const { inspect } = require('util');
 
@@ -168,20 +163,39 @@ test(U, 'TLSv1.2', 'TLS1_2_method', U, U, U,
 test('TLSv1.2', U, 'TLS1_2_method', U, U, U,
      U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 
-// TLS_method means "any supported protocol".
+// TLS_method uses the library's default minimum protocol version. BoringSSL's
+// default is TLSv1.2, even when older versions are explicitly enabled by the
+// other peer.
 test(U, U, 'TLSv1_2_method', U, U, 'TLS_method', 'TLSv1.2');
-test(U, U, 'TLSv1_1_method', U, U, 'TLS_method', 'TLSv1.1');
-test(U, U, 'TLSv1_method', U, U, 'TLS_method', 'TLSv1');
 test(U, U, 'TLS_method', U, U, 'TLSv1_2_method', 'TLSv1.2');
-test(U, U, 'TLS_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
-test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
+for (const [method, version] of [
+  ['TLSv1_1_method', 'TLSv1.1'],
+  ['TLSv1_method', 'TLSv1'],
+]) {
+  const expected = isBoringSSL ?
+    [U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'ERR_SSL_UNSUPPORTED_PROTOCOL'] :
+    [version];
+  test(U, U, method, U, U, 'TLS_method', ...expected);
+  test(U, U, 'TLS_method', U, U, method, ...expected);
+}
 
 // OpenSSL 1.1.1 and 3.0 use a different error code and alert (sent to the
 // client) when no protocols are enabled on the server.
-const NO_PROTOCOLS_AVAILABLE_SERVER = hasOpenSSL(3) ?
-  'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
-const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = hasOpenSSL(3) ?
-  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
+// BoringSSL closes the connection without sending an alert in this case.
+const NO_PROTOCOLS_AVAILABLE_SERVER = isBoringSSL ?
+  'ERR_SSL_NO_SUPPORTED_VERSIONS_ENABLED' : hasOpenSSL(3) ?
+    'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
+const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = isBoringSSL ?
+  'ECONNRESET' : hasOpenSSL(3) ?
+    'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
+const NO_PROTOCOLS_AVAILABLE_CLIENT = isBoringSSL ?
+  'ERR_SSL_NO_SUPPORTED_VERSIONS_ENABLED' : 'ERR_SSL_NO_PROTOCOLS_AVAILABLE';
+const NO_PROTOCOLS_AVAILABLE_CLIENT_ALERT = isBoringSSL ?
+  'ECONNRESET' : 'ERR_SSL_UNEXPECTED_MESSAGE';
+// When a client rejects the server's legacy version, BoringSSL surfaces the
+// protocol-version alert while OpenSSL reports a record version mismatch.
+const UNSUPPORTED_PROTOCOL_SERVER_ERROR = isBoringSSL ?
+  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_WRONG_VERSION_NUMBER';
 
 // SSLv23 also means "any supported protocol" greater than the default
 // minimum (which is configurable via command line).
@@ -198,9 +212,9 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
   test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
        U, NO_PROTOCOLS_AVAILABLE_SERVER_ALERT, NO_PROTOCOLS_AVAILABLE_SERVER);
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
-       U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
+       U, NO_PROTOCOLS_AVAILABLE_CLIENT, NO_PROTOCOLS_AVAILABLE_CLIENT_ALERT);
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
-       U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
+       U, NO_PROTOCOLS_AVAILABLE_CLIENT, NO_PROTOCOLS_AVAILABLE_CLIENT_ALERT);
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
@@ -211,9 +225,9 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
        U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
        'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
-       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
-       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
@@ -223,7 +237,7 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
        'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
-       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+       U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1') {
@@ -250,9 +264,9 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
 
   if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
     test(U, U, U, U, U, 'TLSv1_1_method',
-         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
     test(U, U, U, U, U, 'TLSv1_method',
-         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
   } else {
     // TLS1.3 client hellos are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_1_method',
@@ -274,7 +288,7 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
 
   if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
     test(U, U, U, U, U, 'TLSv1_method',
-         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
+         U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', UNSUPPORTED_PROTOCOL_SERVER_ERROR);
   } else {
     // TLS1.3 client hellos are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_method',
