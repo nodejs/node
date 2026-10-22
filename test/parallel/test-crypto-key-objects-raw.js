@@ -121,12 +121,8 @@ if (hasOpenSSL(3, 5)) {
 {
   const unsupportedKeyTypes = [
     ['rsa', 'rsa_public_2048.pem', 'rsa_private_2048.pem'],
+    ['dsa', 'dsa_public.pem', 'dsa_private.pem'],
   ];
-  if (!isBoringSSL) {
-    unsupportedKeyTypes.push(['dsa', 'dsa_public.pem', 'dsa_private.pem']);
-  } else {
-    common.printSkipMessage('Skipping unsupported dsa test case');
-  }
   for (const [type, pub, priv] of unsupportedKeyTypes) {
     const pubKeyObj = crypto.createPublicKey(
       fixtures.readKey(pub, 'ascii'));

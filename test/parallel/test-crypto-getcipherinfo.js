@@ -54,21 +54,13 @@ if (ciphers.includes('aes-128-wrap-inv')) {
 }
 assert(!ciphers.some((cipher) => /^\d+(?:\.\d+)+$/.test(cipher)));
 
-if (!isBoringSSL) {
-  // A failed provider fetch must not contaminate the OpenSSL error queue.
-  assert.throws(() => createHash('sha256', { outputLength: 28 }), {
-    code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
-  });
-}
+// A failed provider fetch must not contaminate the OpenSSL error queue.
+assert.throws(() => createHash('sha256', { outputLength: 28 }), {
+  code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
+});
 
 for (const cipher of ciphers) {
   const info = getCipherInfo(cipher);
-  if (isBoringSSL && !info) {
-    // BoringSSL reports some legacy ciphers in getCiphers() but returns no
-    // info for them (e.g. des-ede3, des-ede3-ecb, rc2-40-cbc).
-    common.printSkipMessage(`Skipping unsupported ${cipher} test case`);
-    continue;
-  }
   assert(info);
   if (info.nid !== undefined) {
     const info2 = getCipherInfo(info.nid);
