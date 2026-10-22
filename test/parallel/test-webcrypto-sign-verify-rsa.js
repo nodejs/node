@@ -267,6 +267,7 @@ async function testSaltLengths(keyLength) {
     ['SHA-256', 32],
     ['SHA-384', 48],
     ['SHA-512', 64],
+    // SHA-3 is only supported for digest operations in BoringSSL.
     ...(!isBoringSSL ? [
       ['SHA3-256', 32],
       ['SHA3-384', 48],
@@ -283,12 +284,18 @@ async function testSaltLengths(keyLength) {
 (async function() {
   const variations = [];
 
+  // The shared fixtures also cover node:crypto; WebCrypto only supports
+  // SHA-3 for digest operations in BoringSSL.
   rsa_pkcs().forEach((vector) => {
+    if (isBoringSSL && vector.hash.startsWith('SHA3-'))
+      return;
     variations.push(testVerify(vector));
     variations.push(rejectsSha1Signing && vector.hash === 'SHA-1' ?
       testFipsSignRejected(vector) : testSign(vector));
   });
   rsa_pss().forEach((vector) => {
+    if (isBoringSSL && vector.hash.startsWith('SHA3-'))
+      return;
     variations.push(testVerify(vector));
     variations.push(rejectsSha1Signing && vector.hash === 'SHA-1' ?
       testFipsSignRejected(vector) : testSign(vector));

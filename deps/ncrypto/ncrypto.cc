@@ -2804,6 +2804,13 @@ const EVP_MD* getDigestByName(const char* name) {
   if (strcmp(name, "dss1") == 0 || strcmp(name, "DSS1") == 0) [[unlikely]] {
     return EVP_sha1();
   }
+#if NCRYPTO_USE_BORINGSSL
+  // BoringSSL exposes SHA-3 through EVP_MD descriptors without registering
+  // their names or assigning them NIDs.
+  if (CaseInsensitiveNameEqual()(name, "sha3-256")) return EVP_sha3_256();
+  if (CaseInsensitiveNameEqual()(name, "sha3-384")) return EVP_sha3_384();
+  if (CaseInsensitiveNameEqual()(name, "sha3-512")) return EVP_sha3_512();
+#endif
   return EVP_get_digestbyname(name);
 }
 

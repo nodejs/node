@@ -484,12 +484,19 @@ if (hasOpenSSL(3)) {
 }
 
 // SHA-3 hashes and JWK "alg"
-if (!isBoringSSL) {
+{
   const rsa = fixtures.readKey('rsa_private_2048.pem');
   const privateKey = createPrivateKey(rsa);
   const publicKey = createPublicKey(privateKey);
 
   async function test(keyObject, algorithm, usages) {
+    if (isBoringSSL) {
+      assert.throws(() => keyObject.toCryptoKey(algorithm, true, usages), {
+        name: 'NotSupportedError',
+        message: 'SHA-3 is only supported for digest operations',
+      });
+      return;
+    }
     const key = keyObject.toCryptoKey(algorithm, true, usages);
     const jwk = await subtle.exportKey('jwk', key);
     assert.strictEqual(jwk.alg, undefined);
@@ -501,7 +508,8 @@ if (!isBoringSSL) {
       test(privateKey, { name, hash }, [name === 'RSA-OAEP' ? 'unwrapKey' : 'sign']).then(common.mustCall());
     }
 
-    test(createSecretKey(Buffer.alloc(32)), { name: 'HMAC', hash }, ['sign']);
+    test(createSecretKey(Buffer.alloc(32)), { name: 'HMAC', hash }, ['sign'])
+      .then(common.mustCall());
   }
 
   {
@@ -517,7 +525,16 @@ if (!isBoringSSL) {
       message: 'JWK "alg" does not match the requested algorithm',
     }).then(common.mustCall());
 
-    subtle.importKey('jwk', jwk, { name: 'HMAC', hash: 'SHA3-256' }, false, ['sign', 'verify']).then(common.mustCall());
+    const imported = subtle.importKey(
+      'jwk', jwk, { name: 'HMAC', hash: 'SHA3-256' }, false, ['sign', 'verify']);
+    if (isBoringSSL) {
+      assert.rejects(imported, {
+        name: 'NotSupportedError',
+        message: 'SHA-3 is only supported for digest operations',
+      }).then(common.mustCall());
+    } else {
+      imported.then(common.mustCall());
+    }
   }
 }
 
