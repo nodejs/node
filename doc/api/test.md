@@ -125,6 +125,49 @@ Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
+## Suites versus subtests
+
+A [`suite()`][] and a test with subtests can both group related tests. They
+look similar but do not behave the same way. The following two examples are
+structured identically:
+
+```js
+const { suite, test } = require('node:test');
+
+suite('my group', () => {
+  test('first', () => {
+    assert.strictEqual(1, 1);
+  });
+  test('second', () => {
+    assert.strictEqual(2, 2);
+  });
+});
+
+test('my group', async (t) => {
+  await t.test('first', () => {
+    assert.strictEqual(1, 1);
+  });
+  await t.test('second', () => {
+    assert.strictEqual(2, 2);
+  });
+});
+```
+
+The differences are:
+
+* The suite function receives a [`SuiteContext`][], which only exposes metadata
+  about the suite, such as its name and file path. The test function receives a
+  [`TestContext`][], whose `test()` method creates the subtests and which also
+  provides assertions, hooks, and diagnostics.
+* Tests declared inside a suite are registered when the suite function runs and
+  are then executed by the test runner, so the suite does not need to `await`
+  them. Subtests are created while the parent test runs, so the parent must
+  `await` them. Any subtest still outstanding when its parent finishes is
+  cancelled and treated as a failure.
+* `suite()` returns a promise that fulfills immediately with `undefined`. A test
+  returns a promise that settles once the test and all of its awaited subtests
+  have finished.
+
 ## Rerunning failed tests
 
 The test runner supports persisting the state of the run to a file, allowing
