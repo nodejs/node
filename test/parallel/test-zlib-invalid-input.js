@@ -89,7 +89,7 @@ Object.defineProperty(spoofedLength, 'byteLength', { get: () => 5000 });
   deflate.close();
 }
 
-if (!process.config.variables.node_shared_brotli) {
+if (zlib.constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH) {
   // A block switch is invalid when the stream declares only one block type.
   const invalidBlockSwitch = Buffer.from(
     '200010414141fcffff07002228f00b60f7f41f000000',

@@ -252,8 +252,6 @@
 
     [ 'node_shared_brotli=="false"', {
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
-    }, {
-      'defines': [ 'NODE_SHARED_BROTLI' ],
     }],
 
     [ 'node_use_sqlite=="true" and node_shared_sqlite=="false"', {

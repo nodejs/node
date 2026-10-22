@@ -58,9 +58,6 @@ template("node_gn_build") {
     if (v8_enable_i18n_support) {
       defines += [ "NODE_HAVE_I18N_SUPPORT=1" ]
     }
-    if (node_shared_brotli) {
-      defines += [ "NODE_SHARED_BROTLI" ]
-    }
   }
 
   config("node_external_config") {
