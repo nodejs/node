@@ -3269,7 +3269,7 @@ The available scopes are the same as [`process.permission.has()`][]:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `env` - Environment variables. Dropping a variable removes it from the
-  environment
+  environment. A reference ending with `*` is not accepted
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `net` - Network operations

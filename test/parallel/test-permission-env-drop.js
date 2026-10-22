@@ -68,3 +68,23 @@ spawnSyncAndAssert(
   ],
   { env },
   {});
+
+// Wildcards cannot be dropped, and nothing is removed.
+spawnSyncAndAssert(
+  process.execPath,
+  [
+    '--permission', '--allow-env=PERMISSION_ENV_*', '-e',
+    `
+    const assert = require('assert');
+    for (const reference of ['PERMISSION_ENV_*', '*']) {
+      assert.throws(() => process.permission.drop('env', reference), {
+        code: 'ERR_INVALID_ARG_VALUE',
+      });
+    }
+    assert.strictEqual(process.permission.has('env', 'PERMISSION_ENV_ONE'), true);
+    assert.strictEqual(process.env.PERMISSION_ENV_ONE, 'one');
+    assert.strictEqual(process.env.PERMISSION_ENV_TWO, 'two');
+    `,
+  ],
+  { env },
+  {});
