@@ -652,22 +652,22 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     StoreMap* node, bool is_tracing_enabled) {
   if (!node->is_transitioning()) return;
 
-  if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
-    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
-        node_info->possible_maps().size() == 1) {
-      compiler::MapRef old_map = node_info->possible_maps().at(0);
-      auto MaybeAliases = [&](compiler::MapRef map) -> bool {
-        return map.equals(old_map);
-      };
-      // Mark aliasing maps as stale.
-      if (MarkMapsStaleIfAny(MaybeAliases)) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
-          std::cout << kRed << "[KNA] StoreMap: Invalidate alias "
-                    << Brief(*old_map.object()) << kReset << std::endl;
-        }
-      }
-      return;
-    }
+  if (MarkSingleMapAsStale(node->ValueInput().node(), is_tracing_enabled)) {
+    return;
+  }
+
+  // TODO(olivf): Only invalidate nodes with the same type.
+  OnSideEffect();
+  if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
+    std::cout << kRed << "[KNA] StoreMap: Invalidate all unstable maps"
+              << kReset << std::endl;
+  }
+}
+
+void KnownNodeAspects::ClearUnstableNodeAspectsForMigration(
+    Node* node, bool is_tracing_enabled) {
+  if (MarkSingleMapAsStale(node->input_node(0), is_tracing_enabled)) {
+    return;
   }
 
   // TODO(olivf): Only invalidate nodes with the same type.
@@ -1007,6 +1007,28 @@ KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
     return {ContextStoreResult::kNone, std::move(aliased_slots)};
   }
   return {ContextStoreResult::kSetNewValue, std::move(aliased_slots)};
+}
+
+bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
+                                            bool is_tracing_enabled) {
+  if (NodeInfo* node_info = TryGetInfoFor(node)) {
+    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
+        node_info->possible_maps().size() == 1) {
+      compiler::MapRef old_map = node_info->possible_maps().at(0);
+      auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+        return map.equals(old_map);
+      };
+      // Mark aliasing maps as stale.
+      if (MarkMapsStaleIfAny(MaybeAliases)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
+          std::cout << kRed << "[KNA]: MarkSingleMapAsStale: Invalidate alias "
+                    << Brief(*old_map.object()) << kReset << std::endl;
+        }
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 #ifdef DEBUG
