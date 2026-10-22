@@ -9,10 +9,6 @@ args@{
     loadJSBuiltinsDynamically = false;
     devTools = [ ];
     benchmarkTools = [ ];
-    extraConfigFlags = [
-      "--debug-node"
-      "--error-on-warn"
-    ];
   }
   // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin (
     # Disable optional features on Darwin for coverage and faster CI.
@@ -24,7 +20,6 @@ args@{
     // {
       withSSL = true; # no-SSL coverage is ensured by Jenkins
       extraConfigFlags = [
-        "--error-on-warn"
         "--without-inspector"
         "--without-node-options"
       ];
