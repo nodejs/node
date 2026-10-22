@@ -25,5 +25,8 @@ unregisterABeforeExit()
 unregisterBAgain()
 
 process.on('exit', function () {
+  // Keep `a` and `b` alive until exit; registrations only hold them weakly.
+  strictEqual(a.name, 'a')
+  strictEqual(b.name, 'b')
   strictEqual(calls.join(','), 'b:exit')
 })
