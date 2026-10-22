@@ -3613,18 +3613,19 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
 // read + close -- instead of one round trip per step, which is what dominates
 // fs.readFile() for the typical small file and multiplies thread pool
 // contention when many files are read at once. Files whose size exceeds
-// `limit` are not read here: the job hands the open fd and the size back so
-// that the caller continues with the chunked reader (which stays fair and
-// abortable for large files); it then only saved the fstat() round trip.
+// `limit`, and files that are not regular files (a FIFO or a device may never
+// reach EOF), are not read here: the job hands the open fd and the size back
+// so that the caller continues with the chunked reader (which stays fair and
+// abortable between chunks); it then only saved the fstat() round trip.
 //
 // JS: const job = new ReadFileJob(path, flags, limit, trackFd);
 //     job.ondone = (err, buffer, fd, size, closeErr) => {...}; job.run(path);
 // Exactly one of these outcomes is reported:
 //   err            -- open/fstat/read failed (any fd opened here was closed);
-//   fd >= 0, size  -- file is larger than `limit`: caller owns fd now (it is
-//                     registered as an unmanaged fd iff trackFd, i.e. when the
-//                     caller will close it through fs.close() rather than a
-//                     FileHandle);
+//   fd >= 0, size  -- file is larger than `limit`, or not a regular file and
+//                     size is 0: caller owns fd now (it is registered as an
+//                     unmanaged fd iff trackFd, i.e. when the caller will
+//                     close it through fs.close() rather than a FileHandle);
 //   buffer         -- the whole content; closeErr set if only close() failed.
 class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
  public:
@@ -3689,8 +3690,9 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
     const uint64_t size = regular ? static_cast<uint64_t>(st->st_size) : 0;
     uv_fs_req_cleanup(&req);
 
-    if (size > limit_) {
-      // Too large to read in one go here: hand the fd back.
+    if (size > limit_ || !regular) {
+      // Too large to read in one go here, or possibly endless: hand the fd
+      // back.
       fd_ = fd;
       size_ = size;
       return;
