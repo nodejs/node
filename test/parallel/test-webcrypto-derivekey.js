@@ -97,7 +97,7 @@ const fips4 = hasFIPS(4);
        'ac5d90a6bc848961e78a491887539b29c532a9c0d0b39cec464df071a63e0061'],
     );
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
@@ -150,7 +150,7 @@ const fips4 = hasFIPS(4);
        '03431052c37d626ae3fc1df582ff2a4d610642fc27e1b8130ca5980c0b0756ac']
     );
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   const promises = kTests.map((args) => test(...args));
@@ -188,7 +188,7 @@ const fips4 = hasFIPS(4);
       // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
     );
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   if (hasOpenSSL(3)) {
@@ -248,7 +248,7 @@ const fips4 = hasFIPS(4);
       // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
     );
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   if (hasOpenSSL(3)) {

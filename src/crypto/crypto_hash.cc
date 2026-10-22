@@ -256,6 +256,12 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
 #else
       EVP_MD_do_all_sorted(SaveSupportedHashAlgorithms, env);
 #endif
+#if NCRYPTO_USE_BORINGSSL
+      // SHA-3 descriptors are not included in BoringSSL's name registry.
+      for (const char* name : {"sha3-256", "sha3-384", "sha3-512"}) {
+        env->supported_hash_algorithms.emplace_back(name);
+      }
+#endif
     }
     const uint64_t current_generation = ncrypto::getFipsStateGeneration();
     if (generation == current_generation) {

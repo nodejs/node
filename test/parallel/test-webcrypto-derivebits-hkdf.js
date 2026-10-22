@@ -35,7 +35,7 @@ if (!isBoringSSL) {
     ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
   );
 } else {
-  common.printSkipMessage('Skipping unsupported test cases');
+  common.printSkipMessage('SHA-3 is only supported for digest operations');
 }
 
 if (hasOpenSSL(3)) {
