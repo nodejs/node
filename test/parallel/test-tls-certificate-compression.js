@@ -76,8 +76,8 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
 // Test: certificate compression must not enable record-level compression.
 //
 // RFC 8879 certificate compression is unrelated to TLS record compression
-// (the CRIME attack vector). The latter is disabled by Node at startup via
-// sk_SSL_COMP_zero, and by modern OpenSSL defaults as well. To confirm, we
+// (the CRIME attack vector). The latter is disabled by Node at startup in
+// InitCryptoOnce(), and by modern OpenSSL defaults as well. To confirm, we
 // Verify a ClientHello sent by Node only advertises null record compression.
 (async () => {
   const { promise: clientHelloReceived, resolve: onClientHello } =
