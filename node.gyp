@@ -707,6 +707,24 @@
             }],
             [ 'OS=="win"', {
               'sources': [ 'src/res/node.rc' ],
+              # These system DLLs are only needed by less common code paths
+              # (system certificate store, network interface queries,
+              # diagnostic reports and so on). Loading them on first use
+              # instead of at process start-up saves about 2.5 ms per process.
+              'libraries': [ 'delayimp.lib' ],
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'DelayLoadDLLs': [
+                    'crypt32.dll',
+                    'dbghelp.dll',
+                    'iphlpapi.dll',
+                    'ole32.dll',
+                    'shell32.dll',
+                    'userenv.dll',
+                    'winmm.dll',
+                  ],
+                },
+              },
             }],
           ],
         }],
