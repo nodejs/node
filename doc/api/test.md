@@ -759,6 +759,21 @@ prevent shell expansion, which can reduce portability across systems.
 node --test "**/*.test.js" "**/*.spec.js"
 ```
 
+Any arguments following a `--` separator placed after the glob patterns are
+passed to each test file instead of being treated as glob patterns. They are
+available in each test file via `process.argv`.
+
+```bash
+node --test "**/*.test.js" -- --custom-flag value
+```
+
+If no glob patterns are provided, a second `--` is needed, because Node.js
+consumes the first `--` as the end of its own options.
+
+```bash
+node --test -- -- --custom-flag value
+```
+
 ### Randomizing tests execution order
 
 <!-- YAML
