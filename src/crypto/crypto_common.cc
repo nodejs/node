@@ -59,6 +59,9 @@ MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
   // Suggest --use-system-ca if the error indicates a certificate issue
   bool suggest_system_ca =
       (err == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE) ||
+#ifdef OPENSSL_IS_BORINGSSL
+      (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) ||
+#endif
       (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
       ((err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) &&
        !env->options()->use_system_ca);
