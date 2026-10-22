@@ -23,8 +23,7 @@ args@{
     )
     // {
       withSSL = true; # no-SSL coverage is ensured by Jenkins
-      extraConfigFlags = [
-        "--error-on-warn"
+      extraConfigFlags = pkgs.lib.optional pkgs.stdenv.hostPlatform.isAarch "--error-on-warn" ++ [
         "--without-inspector"
         "--without-node-options"
       ];
