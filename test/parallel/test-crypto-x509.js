@@ -177,10 +177,8 @@ for (const [commonName, property] of [
 
   assert.deepStrictEqual(x509.raw, der);
 
-  if (!isBoringSSL) {
-    assert.deepStrictEqual(x509.validFromDate, new Date('2022-09-03T21:40:37Z'));
-    assert.deepStrictEqual(x509.validToDate, new Date('2296-06-17T21:40:37Z'));
-  }
+  assert.deepStrictEqual(x509.validFromDate, new Date('2022-09-03T21:40:37Z'));
+  assert.deepStrictEqual(x509.validToDate, new Date('2296-06-17T21:40:37Z'));
 
   assert(x509.publicKey);
   assert.strictEqual(x509.publicKey.type, 'public');
@@ -565,10 +563,8 @@ UidvpWWipVLZgK+oDks+bKTobcoXGW9oXobiIYqslXPy
 -----END CERTIFICATE-----`.trim();
   const c1 = new X509Certificate(certPemUTCTime);
 
-  if (!isBoringSSL) {
-    assert.deepStrictEqual(c1.validFromDate, new Date('1949-12-25T23:59:58Z'));
-    assert.deepStrictEqual(c1.validToDate, new Date('1950-01-01T23:59:58Z'));
-  }
+  assert.deepStrictEqual(c1.validFromDate, new Date('1949-12-25T23:59:58Z'));
+  assert.deepStrictEqual(c1.validToDate, new Date('1950-01-01T23:59:58Z'));
 
   // The GeneralizedTime format is used for dates in 2050 or later.
   const certPemGeneralizedTime = `-----BEGIN CERTIFICATE-----
@@ -602,10 +598,8 @@ CWwQO8JZjJqFtqtuzy2n+gLCvqePgG/gmSqHOPm2ZbLW
 -----END CERTIFICATE-----`.trim();
   const c2 = new X509Certificate(certPemGeneralizedTime);
 
-  if (!isBoringSSL) {
-    assert.deepStrictEqual(c2.validFromDate, new Date('2049-12-26T00:00:01Z'));
-    assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
-  }
+  assert.deepStrictEqual(c2.validFromDate, new Date('2049-12-26T00:00:01Z'));
+  assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
 }
 
 {

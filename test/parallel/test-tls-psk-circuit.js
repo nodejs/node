@@ -7,11 +7,6 @@ if (!common.hasCrypto) {
 
 const { isBoringSSL, hasOpenSSL } = require('../common/crypto');
 
-if (isBoringSSL) {
-  require('../common/boringssl').testPskTls13Unsupported();
-  return;
-}
-
 const assert = require('assert');
 const tls = require('tls');
 
@@ -64,8 +59,16 @@ function test(secret, opts, error) {
   }));
 }
 
-test({ psk: USERS.UserA, identity: 'UserA' });
 test({ psk: USERS.UserA, identity: 'UserA' }, { maxVersion: 'TLSv1.2' });
+
+if (isBoringSSL) {
+  // Keep the TLS 1.2 callback and data checks above. The remaining cases use
+  // TLS 1.3, which Node's BoringSSL PSK integration does not support yet.
+  require('../common/boringssl').testPskTls13Unsupported();
+  return;
+}
+
+test({ psk: USERS.UserA, identity: 'UserA' });
 test({ psk: USERS.UserA, identity: 'UserA' }, { minVersion: 'TLSv1.3' });
 test({ psk: USERS.UserB, identity: 'UserB' });
 test({ psk: USERS.UserB, identity: 'UserB' }, { minVersion: 'TLSv1.3' });
