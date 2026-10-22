@@ -461,12 +461,21 @@ void DeserializerContext::ReadRawBytes(
   args.GetReturnValue().Set(offset);
 }
 
+// Deserialized buffers can be immutable even when the flag-gated JS getter
+// is unavailable. The getter can also be replaced by user code.
+void IsImmutableArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(args[0]->IsArrayBuffer() &&
+                            args[0].As<ArrayBuffer>()->IsImmutable());
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
+
+  SetMethod(context, target, "isImmutableArrayBuffer", IsImmutableArrayBuffer);
 
   Local<FunctionTemplate> ser =
       NewFunctionTemplate(isolate, SerializerContext::New);
@@ -523,6 +532,8 @@ void Initialize(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(IsImmutableArrayBuffer);
+
   registry->Register(SerializerContext::New);
 
   registry->Register(SerializerContext::WriteHeader);
