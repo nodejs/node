@@ -48,9 +48,9 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   }
 
   let ciphers;
-  if (hasOpenSSL(3) && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
+  if (proto === 'TLSv1' || proto === 'TLSv1.1' ||
       proto === 'TLSv1_1_method' || proto === 'TLSv1_method' ||
-      sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method')) {
+      sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method') {
     if (serr !== 'ERR_SSL_UNSUPPORTED_PROTOCOL')
       ciphers = 'ALL@SECLEVEL=0';
   }
@@ -176,12 +176,9 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_2_method', 'TLSv1.2');
 test(U, U, 'TLS_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
 test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 
-// OpenSSL 1.1.1 and 3.0 use a different error code and alert (sent to the
-// client) when no protocols are enabled on the server.
-const NO_PROTOCOLS_AVAILABLE_SERVER = hasOpenSSL(3) ?
-  'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
-const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = hasOpenSSL(3) ?
-  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
+const NO_PROTOCOLS_AVAILABLE_SERVER = 'ERR_SSL_NO_PROTOCOLS_AVAILABLE';
+const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT =
+  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION';
 
 // SSLv23 also means "any supported protocol" greater than the default
 // minimum (which is configurable via command line).
