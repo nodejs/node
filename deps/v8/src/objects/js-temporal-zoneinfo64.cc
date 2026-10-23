@@ -16,7 +16,7 @@
 #endif
 
 #ifdef V8_INTL_SUPPORT
-#ifndef V8_ENABLE_TEMPORAL_SYSTEMICU
+#if !defined(V8_ENABLE_TEMPORAL_SYSTEMICU) && !defined(USING_SYSTEM_ICU)
 // ICU internal header file
 #include "udatamem.h"
 #else
@@ -63,7 +63,7 @@ ZoneInfo64Provider::ZoneInfo64Provider() {
     provider = temporal_rs::Provider::empty();
     return;
   }
-#ifndef V8_ENABLE_TEMPORAL_SYSTEMICU
+#if !defined(V8_ENABLE_TEMPORAL_SYSTEMICU) && !defined(USING_SYSTEM_ICU)
   // NOT udata_getLength: this ignores the header,
   // and we're parsing resb files with the header
   auto length = memory->length;
@@ -76,6 +76,51 @@ ZoneInfo64Provider::ZoneInfo64Provider() {
   auto length = shadowMemory->length;
   auto data = shadowMemory->data;
 #endif
+  DCHECK_WITH_MSG(data != nullptr, "ICU4C returned nullptr");
+  if (data == nullptr) {
+    provider = temporal_rs::Provider::empty();
+    return;
+  }
+  // ICU4C sets length = -1 for the last entry in an offset TOC (.dat) archive
+  // (e.g. when zoneinfo64.res is the final entry in a small-icu build) and for
+  // all entries in a pointer TOC archive. Determine the exact byte length of
+  // the ResB bundle from its self-describing index table (see res_init() in
+  // ICU4C's uresdata.cpp).
+  int32_t resb_length = -1;
+  const void* body = udata_getMemory(memory);
+  if (body != nullptr) {
+    ptrdiff_t header_length =
+        static_cast<const uint8_t*>(body) - static_cast<const uint8_t*>(data);
+    constexpr uint32_t kUresIndexBundleTop = 3;
+    constexpr ptrdiff_t kMinResbBytes = static_cast<ptrdiff_t>(
+        (1 + 1 + kUresIndexBundleTop) * sizeof(uint32_t));
+    if (header_length >= 0 && header_length % 4 == 0 &&
+        (length == -1 || length >= header_length + kMinResbBytes)) {
+      const uint32_t* body_32 = static_cast<const uint32_t*>(body);
+      // body_32[0] is the root resource word; body_32[1..] is indexes[].
+      // indexes[URES_INDEX_LENGTH] & 0xff holds the length of indexes[].
+      uint32_t index_length = body_32[1] & 0xff;
+      if (index_length > kUresIndexBundleTop) {
+        // indexes[URES_INDEX_BUNDLE_TOP] is the number of 32-bit words in the
+        // bundle body.
+        uint32_t bundle_top = body_32[1 + kUresIndexBundleTop];
+        if (bundle_top >= 1 + index_length && bundle_top <= 0x1000000) {
+          resb_length = static_cast<int32_t>(header_length) +
+                        static_cast<int32_t>(bundle_top * sizeof(uint32_t));
+        }
+      }
+    }
+  }
+  DCHECK_WITH_MSG(resb_length != -1,
+                  "zoneinfo64.res should have a valid ResB index table");
+  DCHECK_IMPLIES(length != -1, resb_length <= length);
+  if (resb_length == -1 || (length != -1 && resb_length > length)) {
+    provider = temporal_rs::Provider::empty();
+    return;
+  }
+  if (length == -1) {
+    length = resb_length;
+  }
   // This really shouldn't happen: ICU4C pads these files
   // to 4 when baking them in
   DCHECK_WITH_MSG(length % 4 == 0, "ICU4C should pad udata to uint32_t");
@@ -85,7 +130,6 @@ ZoneInfo64Provider::ZoneInfo64Provider() {
     provider = temporal_rs::Provider::empty();
     return;
   }
-  DCHECK_WITH_MSG(data != nullptr, "ICU4C returned nullptr");
 
   const uint32_t* data_32 = static_cast<const uint32_t*>(data);
   std::span<const uint32_t> data_span(data_32, length / 4);
