@@ -24,3 +24,4 @@ test-build-sea*: SKIP
 # https://github.com/nodejs/node/issues/49630
 test-single-executable-application-snapshot: PASS, FLAKY
 test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
+test-single-executable-application-empty: PASS, FLAKY
