@@ -2436,15 +2436,14 @@ def configure_ffi(o):
 
 def configure_quic(o):
   if options.experimental_quic and options.without_ssl:
-    warn('--experimental-quic is incompatible with --without-ssl')
-  o['variables']['node_use_quic'] = b(options.experimental_quic and
-                                      not options.without_ssl)
+    error('--experimental-quic is incompatible with --without-ssl')
+  o['variables']['node_use_quic'] = b(options.experimental_quic)
 
   if not options.experimental_quic:
     for lib in ['nghttp3', 'ngtcp2']:
       shared_lib = 'shared_' + lib
       if getattr(options, shared_lib):
-        warn(f'--shared-{lib} requires --experimental-quic')
+        error(f'--shared-{lib} requires --experimental-quic')
     return
 
   configure_library('nghttp3', output, pkgname='libnghttp3')
