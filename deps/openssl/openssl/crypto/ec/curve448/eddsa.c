@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -62,7 +62,7 @@ static c448_error_t hash_init_with_dom(OSSL_LIB_CTX *ctx, EVP_MD_CTX *hashctx,
     const char *propq)
 {
     /* ASCII: "SigEd448", in hex for EBCDIC compatibility */
-    const char dom_s[] = "\x53\x69\x67\x45\x64\x34\x34\x38";
+    static const char dom_s[] = "\x53\x69\x67\x45\x64\x34\x34\x38";
     uint8_t dom[2];
     EVP_MD *shake256 = NULL;
 
@@ -89,22 +89,15 @@ static c448_error_t hash_init_with_dom(OSSL_LIB_CTX *ctx, EVP_MD_CTX *hashctx,
     return C448_SUCCESS;
 }
 
-/* In this file because it uses the hash */
-c448_error_t
-ossl_c448_ed448_convert_private_key_to_x448(
-    OSSL_LIB_CTX *ctx,
-    uint8_t x[X448_PRIVATE_BYTES],
-    const uint8_t ed[EDDSA_448_PRIVATE_BYTES],
-    const char *propq)
-{
-    /* pass the private key through oneshot_hash function */
-    /* and keep the first X448_PRIVATE_BYTES bytes */
-    return oneshot_hash(ctx, x, X448_PRIVATE_BYTES, ed,
-        EDDSA_448_PRIVATE_BYTES, propq);
-}
-
-c448_error_t
-ossl_c448_ed448_derive_public_key(
+/*
+ * EdDSA key generation.  This function uses a different (non-Decaf) encoding.
+ *
+ * pubkey (out): The public key.
+ * privkey (in): The private key.
+ * propq (in): The property query used to fetch SHAKE256.
+ */
+static c448_error_t
+c448_ed448_derive_public_key(
     OSSL_LIB_CTX *ctx,
     uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
     const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
@@ -151,8 +144,26 @@ ossl_c448_ed448_derive_public_key(
     return C448_SUCCESS;
 }
 
-c448_error_t
-ossl_c448_ed448_sign(OSSL_LIB_CTX *ctx,
+/*
+ * EdDSA signing.
+ *
+ * signature (out): The signature.
+ * privkey (in): The private key.
+ * pubkey (in):  The public key.
+ * message (in):  The message to sign.
+ * message_len (in):  The length of the message.
+ * prehashed (in):  Nonzero if the message is actually the hash of something
+ *                  you want to sign.
+ * context (in):  A "context" for this signature of up to 255 bytes.
+ * context_len (in):  Length of the context.
+ * propq (in):  The property query used to fetch SHAKE256.
+ *
+ * For Ed25519, it is unsafe to use the same key for both prehashed and
+ * non-prehashed messages, at least without some very careful protocol-level
+ * disambiguation.  For Ed448 it is safe.
+ */
+static c448_error_t
+c448_ed448_sign(OSSL_LIB_CTX *ctx,
     uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
     const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
     const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
@@ -259,19 +270,6 @@ err:
     return ret;
 }
 
-c448_error_t
-ossl_c448_ed448_sign_prehash(
-    OSSL_LIB_CTX *ctx,
-    uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t hash[64], const uint8_t *context,
-    size_t context_len, const char *propq)
-{
-    return ossl_c448_ed448_sign(ctx, signature, privkey, pubkey, hash, 64, 1,
-        context, context_len, propq);
-}
-
 static c448_error_t
 c448_ed448_pubkey_verify(const uint8_t *pub, size_t pub_len)
 {
@@ -283,8 +281,27 @@ c448_ed448_pubkey_verify(const uint8_t *pub, size_t pub_len)
     return ossl_curve448_point_decode_like_eddsa_and_mul_by_ratio(pk_point, pub);
 }
 
-c448_error_t
-ossl_c448_ed448_verify(
+/*
+ * EdDSA signature verification.
+ *
+ * Uses the standard (i.e. less-strict) verification formula.
+ *
+ * signature (in): The signature.
+ * pubkey (in): The public key.
+ * message (in): The message to verify.
+ * message_len (in): The length of the message.
+ * prehashed (in): Nonzero if the message is actually the hash of something you
+ *                 want to verify.
+ * context (in): A "context" for this signature of up to 255 bytes.
+ * context_len (in): Length of the context.
+ * propq (in): The property query used to fetch SHAKE256.
+ *
+ * For Ed25519, it is unsafe to use the same key for both prehashed and
+ * non-prehashed messages, at least without some very careful protocol-level
+ * disambiguation.  For Ed448 it is safe.
+ */
+static c448_error_t
+c448_ed448_verify(
     OSSL_LIB_CTX *ctx,
     const uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
     const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
@@ -365,25 +382,13 @@ ossl_c448_ed448_verify(
     return c448_succeed_if(ossl_curve448_point_eq(pk_point, r_point));
 }
 
-c448_error_t
-ossl_c448_ed448_verify_prehash(
-    OSSL_LIB_CTX *ctx,
-    const uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t hash[64], const uint8_t *context,
-    uint8_t context_len, const char *propq)
-{
-    return ossl_c448_ed448_verify(ctx, signature, pubkey, hash, 64, 1, context,
-        context_len, propq);
-}
-
 int ossl_ed448_sign(OSSL_LIB_CTX *ctx, uint8_t *out_sig,
     const uint8_t *message, size_t message_len,
     const uint8_t public_key[57], const uint8_t private_key[57],
     const uint8_t *context, size_t context_len,
     const uint8_t phflag, const char *propq)
 {
-    return ossl_c448_ed448_sign(ctx, out_sig, private_key, public_key, message,
+    return c448_ed448_sign(ctx, out_sig, private_key, public_key, message,
                message_len, phflag, context, context_len,
                propq)
         == C448_SUCCESS;
@@ -405,7 +410,7 @@ int ossl_ed448_verify(OSSL_LIB_CTX *ctx,
     const uint8_t *context, size_t context_len,
     const uint8_t phflag, const char *propq)
 {
-    return ossl_c448_ed448_verify(ctx, signature, public_key, message,
+    return c448_ed448_verify(ctx, signature, public_key, message,
                message_len, phflag, context, (uint8_t)context_len,
                propq)
         == C448_SUCCESS;
@@ -414,7 +419,7 @@ int ossl_ed448_verify(OSSL_LIB_CTX *ctx,
 int ossl_ed448_public_from_private(OSSL_LIB_CTX *ctx, uint8_t out_public_key[57],
     const uint8_t private_key[57], const char *propq)
 {
-    return ossl_c448_ed448_derive_public_key(ctx, out_public_key, private_key,
+    return c448_ed448_derive_public_key(ctx, out_public_key, private_key,
                propq)
         == C448_SUCCESS;
 }

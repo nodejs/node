@@ -1,11 +1,16 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_BF_BF_PI_H)
+#define OSSL_LIBCRYPTO_BF_BF_PI_H
+
+#include <openssl/blowfish.h>
 
 static const BF_KEY bf_init = {
     { 0x243f6a88L, 0x85a308d3L, 0x13198a2eL, 0x03707344L,
@@ -1040,3 +1045,5 @@ static const BF_KEY bf_init = {
         0x3ac372e6L,
     }
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_BF_BF_PI_H) */

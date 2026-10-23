@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,11 @@
 #ifndef OSSL_INTERNAL_HPKE_UTIL_H
 #define OSSL_INTERNAL_HPKE_UTIL_H
 #pragma once
+
+#include <stdint.h>
+
+#include <openssl/hpke.h>
+#include <openssl/types.h>
 
 /* Constants from RFC 9180 Section 7.1 and 7.3 */
 #define OSSL_HPKE_MAX_SECRET 64

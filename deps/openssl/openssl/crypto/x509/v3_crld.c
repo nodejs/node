@@ -226,6 +226,11 @@ static DIST_POINT *crldp_from_section(X509V3_CTX *ctx,
             if (!set_reasons(&point->reasons, cnf->value))
                 goto err;
         } else if (strcmp(cnf->name, "CRLissuer") == 0) {
+            if (point->CRLissuer != NULL) {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_DUPLICATE_FIELD,
+                    "field=%s", cnf->name);
+                goto err;
+            }
             point->CRLissuer = gnames_from_sectname(ctx, cnf->value);
             if (point->CRLissuer == NULL)
                 goto err;

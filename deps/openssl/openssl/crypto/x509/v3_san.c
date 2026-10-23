@@ -128,7 +128,7 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
             break;
         default:
             if (OBJ_obj2txt(oline, sizeof(oline), gen->d.otherName->type_id, 0) > 0)
-                BIO_snprintf(othername, sizeof(othername), "othername: %s",
+                snprintf(othername, sizeof(othername), "othername: %s",
                     oline);
             else
                 OPENSSL_strlcpy(othername, "othername", sizeof(othername));
@@ -225,27 +225,37 @@ int GENERAL_NAME_print(BIO *out, GENERAL_NAME *gen)
         case NID_id_on_SmtpUTF8Mailbox:
             BIO_printf(out, "othername:SmtpUTF8Mailbox:%.*s",
                 gen->d.otherName->value->value.utf8string->length,
-                gen->d.otherName->value->value.utf8string->data);
+                gen->d.otherName->value->value.utf8string->length
+                    ? gen->d.otherName->value->value.utf8string->data
+                    : (const unsigned char *)"");
             break;
         case NID_XmppAddr:
             BIO_printf(out, "othername:XmppAddr:%.*s",
                 gen->d.otherName->value->value.utf8string->length,
-                gen->d.otherName->value->value.utf8string->data);
+                gen->d.otherName->value->value.utf8string->length
+                    ? gen->d.otherName->value->value.utf8string->data
+                    : (const unsigned char *)"");
             break;
         case NID_SRVName:
             BIO_printf(out, "othername:SRVName:%.*s",
                 gen->d.otherName->value->value.ia5string->length,
-                gen->d.otherName->value->value.ia5string->data);
+                gen->d.otherName->value->value.ia5string->length
+                    ? gen->d.otherName->value->value.ia5string->data
+                    : (const unsigned char *)"");
             break;
         case NID_ms_upn:
             BIO_printf(out, "othername:UPN:%.*s",
                 gen->d.otherName->value->value.utf8string->length,
-                gen->d.otherName->value->value.utf8string->data);
+                gen->d.otherName->value->value.utf8string->length
+                    ? gen->d.otherName->value->value.utf8string->data
+                    : (const unsigned char *)"");
             break;
         case NID_NAIRealm:
             BIO_printf(out, "othername:NAIRealm:%.*s",
                 gen->d.otherName->value->value.utf8string->length,
-                gen->d.otherName->value->value.utf8string->data);
+                gen->d.otherName->value->value.utf8string->length
+                    ? gen->d.otherName->value->value.utf8string->data
+                    : (const unsigned char *)"");
             break;
         default:
             BIO_printf(out, "othername:<unsupported>");
@@ -337,7 +347,7 @@ static int copy_issuer(X509V3_CTX *ctx, GENERAL_NAMES *gens)
 {
     GENERAL_NAMES *ialt = NULL;
     GENERAL_NAME *gen;
-    X509_EXTENSION *ext;
+    const X509_EXTENSION *ext;
     int i, num;
 
     if (ctx != NULL && (ctx->flags & X509V3_CTX_TEST) != 0)
@@ -418,7 +428,7 @@ err:
 
 static int copy_email(X509V3_CTX *ctx, GENERAL_NAMES *gens, int move_p)
 {
-    X509_NAME *nm;
+    const X509_NAME *nm;
     ASN1_IA5STRING *email = NULL;
     X509_NAME_ENTRY *ne;
     GENERAL_NAME *gen = NULL;
@@ -432,19 +442,23 @@ static int copy_email(X509V3_CTX *ctx, GENERAL_NAMES *gens, int move_p)
         return 0;
     }
     /* Find the subject name */
-    nm = ctx->subject_cert != NULL ? X509_get_subject_name(ctx->subject_cert) : X509_REQ_get_subject_name(ctx->subject_req);
+    nm = ctx->subject_cert != NULL ? X509_get_subject_name(ctx->subject_cert)
+                                   : X509_REQ_get_subject_name(ctx->subject_req);
 
     /* Now add any email address(es) to STACK */
     while ((i = X509_NAME_get_index_by_NID(nm,
                 NID_pkcs9_emailAddress, i))
         >= 0) {
-        ne = X509_NAME_get_entry(nm, i);
-        email = ASN1_STRING_dup(X509_NAME_ENTRY_get_data(ne));
         if (move_p) {
-            X509_NAME_delete_entry(nm, i);
-            X509_NAME_ENTRY_free(ne);
-            i--;
+            /* We should really not support deleting things in a const object
+             * to rip the pointer out of it. If we truly want a new object
+             * without this in it, we should just construct one without it.
+             */
+            return 0;
         }
+        /* XXX Casts away const */
+        ne = (X509_NAME_ENTRY *)X509_NAME_get_entry(nm, i);
+        email = ASN1_STRING_dup(X509_NAME_ENTRY_get_data(ne));
         if (email == NULL || (gen = GENERAL_NAME_new()) == NULL) {
             ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
@@ -571,7 +585,8 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
     }
 
     if (is_string) {
-        if ((gen->d.ia5 = ASN1_IA5STRING_new()) == NULL || !ASN1_STRING_set(gen->d.ia5, (unsigned char *)value, strlen(value))) {
+        if ((gen->d.ia5 = ASN1_IA5STRING_new()) == NULL
+            || !ossl_asn1_string_set1_string(gen->d.ia5, value)) {
             ASN1_IA5STRING_free(gen->d.ia5);
             gen->d.ia5 = NULL;
             ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
@@ -632,7 +647,7 @@ static int do_othername(GENERAL_NAME *gen, const char *value, X509V3_CTX *ctx)
 {
     char *objtmp = NULL;
     const char *p;
-    int objlen;
+    size_t objlen;
 
     if ((p = strchr(value, ';')) == NULL)
         return 0;

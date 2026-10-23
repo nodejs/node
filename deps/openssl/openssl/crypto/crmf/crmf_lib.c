@@ -26,19 +26,11 @@
  * cases increases its link count) in the parent and so both should be freed up.
  */
 
-#include <openssl/asn1t.h>
-
 #include "crmf_local.h"
+#include <openssl/asn1t.h>
 #include "internal/constant_time.h"
-#include "internal/sizes.h"
-#include "crypto/evp.h"
-#include "crypto/x509.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/cms.h>
+#include "internal/sizes.h" /* for OSSL_MAX_NAME_SIZE */
+#include "crypto/x509.h" /* for ossl_x509_check_private_key() */
 
 /*-
  * atyp = Attribute Type
@@ -386,10 +378,14 @@ static int create_popo_signature(OSSL_CRMF_POPOSIGNINGKEY *ps,
         && strcmp(name, "UNDEF") == 0) /* at least for Ed25519, Ed448 */
         digest = NULL;
 
-    return ASN1_item_sign_ex(ASN1_ITEM_rptr(OSSL_CRMF_CERTREQUEST),
-        ps->algorithmIdentifier, /* sets this X509_ALGOR */
-        NULL, ps->signature, /* sets the ASN1_BIT_STRING */
-        cr, NULL, pkey, digest, libctx, propq);
+    if (ASN1_item_sign_ex(ASN1_ITEM_rptr(OSSL_CRMF_CERTREQUEST),
+            ps->algorithmIdentifier, /* sets this X509_ALGOR */
+            NULL, ps->signature, /* sets the ASN1_BIT_STRING */
+            cr, NULL, pkey, digest, libctx, propq)
+        != 0)
+        return 1;
+    ERR_raise(ERR_LIB_CRMF, CRMF_R_ERROR_SIGNING_POPO);
+    return 0;
 }
 
 int OSSL_CRMF_MSG_create_popo(int meth, OSSL_CRMF_MSG *crm,
@@ -541,13 +537,13 @@ int OSSL_CRMF_MSGS_verify_popo(const OSSL_CRMF_MSGS *reqs,
     return 1;
 }
 
-int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm, const X509_REQ *p10cr)
+int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm, const X509_REQ *p10)
 {
     X509_PUBKEY *pubkey = NULL;
     const unsigned char *pk = NULL;
     int pklen, ret = 0;
 
-    if (crm == NULL && p10cr == NULL) {
+    if (crm == NULL && p10 == NULL) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_NULL_ARGUMENT);
         return -1;
     }
@@ -555,7 +551,7 @@ int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm, const X509_R
     if (crm != NULL)
         pubkey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey(OSSL_CRMF_MSG_get0_tmpl(crm));
     else
-        pubkey = p10cr->req_info.pubkey;
+        pubkey = p10->req_info.pubkey;
 
     if (pubkey == NULL
         || (X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, pubkey)
@@ -785,16 +781,11 @@ unsigned char *OSSL_CRMF_ENCRYPTEDVALUE_decrypt(const OSSL_CRMF_ENCRYPTEDVALUE *
 
     /* select symmetric cipher based on algorithm given in message */
     OBJ_obj2txt(name, sizeof(name), enc->symmAlg->algorithm, 0);
-    (void)ERR_set_mark();
     cipher = EVP_CIPHER_fetch(libctx, name, propq);
-    if (cipher == NULL)
-        cipher = (EVP_CIPHER *)EVP_get_cipherbyobj(enc->symmAlg->algorithm);
     if (cipher == NULL) {
-        (void)ERR_clear_last_mark();
         ERR_raise(ERR_LIB_CRMF, CRMF_R_UNSUPPORTED_CIPHER);
         goto end;
     }
-    (void)ERR_pop_to_mark();
 
     cikeysize = EVP_CIPHER_get_key_length(cipher);
     /* first the symmetric key needs to be decrypted */
@@ -859,7 +850,7 @@ end:
     return NULL;
 }
 
-/*
+/*-
  * Decrypts the certificate in the given encryptedValue using private key pkey.
  * This is needed for the indirect PoP method as in RFC 9810 section 5.2.8.3.2.
  *
@@ -889,6 +880,7 @@ end:
     OPENSSL_free(buf);
     return cert;
 }
+
 /*-
  * Decrypts the certificate in the given encryptedKey using private key pkey.
  * This is needed for the indirect PoP method as in RFC 9810 section 5.2.8.3.2.

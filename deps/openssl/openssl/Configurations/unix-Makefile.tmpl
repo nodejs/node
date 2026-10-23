@@ -11,6 +11,7 @@
      our $makedepcmd = platform->makedepcmd();
 
      sub windowsdll { $config{target} =~ /^(?:Cygwin|mingw)/ }
+     sub run_on_windows { $^O =~ /^(?:cygwin|msys|MSWin32)/ }
 
      # Shared AIX support is special. We put libcrypto[64].so.ver into
      # libcrypto.a and use libcrypto_a.a as static one, unless using
@@ -184,20 +185,11 @@ INSTALL_SHLIB_INFO={-
                         grep { !$unified_info{attributes}->{libraries}->{$_}->{noinst} }
                         @{$unified_info{libraries}}))
 -}
-INSTALL_ENGINES={-
-        join(" \\\n" . ' ' x 16,
-             fill_lines(" ", $COLUMNS - 16,
-                        map { platform->dso($_) }
-                        grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
-                               && $unified_info{attributes}->{modules}->{$_}->{engine} }
-                        @{$unified_info{modules}}))
--}
 INSTALL_MODULES={-
         join(" \\\n" . ' ' x 16,
              fill_lines(" ", $COLUMNS - 16,
                         map { platform->dso($_) }
                         grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
-                               && !$unified_info{attributes}->{modules}->{$_}->{engine}
                                && !$unified_info{attributes}->{modules}->{$_}->{fips} }
                         @{$unified_info{modules}}))
 -}
@@ -249,18 +241,22 @@ MISC_SCRIPTS={-
 IMAGEDOCS1={-
         join(" \\\n" . ' ' x 10,
              fill_lines(" ", $COLUMNS - 10,
+                        map { '$(SRCDIR)/'.$_ }
                         @{$unified_info{imagedocs}->{man1}})) -}
 IMAGEDOCS3={-
         join(" \\\n" . ' ' x 10,
              fill_lines(" ", $COLUMNS - 10,
+                        map { '$(SRCDIR)/'.$_ }
                         @{$unified_info{imagedocs}->{man3}})) -}
 IMAGEDOCS5={-
         join(" \\\n" . ' ' x 10,
              fill_lines(" ", $COLUMNS - 10,
+                        map { '$(SRCDIR)/'.$_ }
                         @{$unified_info{imagedocs}->{man5}})) -}
 IMAGEDOCS7={-
         join(" \\\n" . ' ' x 10,
              fill_lines(" ", $COLUMNS - 10,
+                        map { '$(SRCDIR)/'.$_ }
                         @{$unified_info{imagedocs}->{man7}})) -}
 HTMLDOCS1={-
         join(" \\\n" . ' ' x 10,
@@ -278,6 +274,17 @@ HTMLDOCS7={-
         join(" \\\n" . ' ' x 10,
              fill_lines(" ", $COLUMNS - 10,
                         @{$unified_info{htmldocs}->{man7}})) -}
+
+# The pods every HTML page is made from, which is what the whole set is
+# converted from in one go.  Each page's pod is the first element of its
+# generator, the same place generatesrc() below takes it from.
+HTMLPODS={-
+        join(" \\\n" . ' ' x 9,
+             fill_lines(" ", $COLUMNS - 9,
+                        map { $unified_info{generate}->{$_}->[0] }
+                        map { @{$unified_info{htmldocs}->{$_} // []} }
+                        qw(man1 man3 man5 man7))) -}
+
 MANDOCS1={-
         join(" \\\n" . ' ' x 9,
              fill_lines(" ", $COLUMNS - 9,
@@ -294,6 +301,16 @@ MANDOCS7={-
         join(" \\\n" . ' ' x 9,
              fill_lines(" ", $COLUMNS - 9,
                         @{$unified_info{mandocs}->{man7}})) -}
+
+# The pods every manual page is made from, which is what the whole manual
+# is formatted from in one go.  Each page's pod is the first element of its
+# generator, the same place generatesrc() below takes it from.
+MANPODS={-
+        join(" \\\n" . ' ' x 8,
+             fill_lines(" ", $COLUMNS - 8,
+                        map { $unified_info{generate}->{$_}->[0] }
+                        map { @{$unified_info{mandocs}->{$_} // []} }
+                        qw(man1 man3 man5 man7))) -}
 
 APPS_OPENSSL="{- use File::Spec::Functions;
                  catfile("apps","openssl") -}"
@@ -334,7 +351,6 @@ LIBDIR={- our $libdir = $config{libdir};
 # $(libdir) is chosen to be compatible with the GNU coding standards
 libdir={- file_name_is_absolute($libdir)
           ? $libdir : '$(INSTALLTOP)/$(LIBDIR)' -}
-ENGINESDIR=$(libdir)/engines-{- $sover_dirname -}
 MODULESDIR=$(libdir)/ossl-modules
 
 # Convenience variable for those who want to set the rpath in shared
@@ -451,7 +467,6 @@ LIB_CPPFLAGS={- our $lib_cppflags =
                 join(' ', $lib_cppflags,
                           (map { '-D'.$_ }
                                'OPENSSLDIR="\"$(OPENSSLDIR)\""',
-                               'ENGINESDIR="\"$(ENGINESDIR)\""',
                                'MODULESDIR="\"$(MODULESDIR)\""'),
                           '$(CNF_CPPFLAGS)', '$(CPPFLAGS)') -}
 LIB_CFLAGS={- join(' ', $target{lib_cflags} || (),
@@ -514,6 +529,9 @@ BIN_LDFLAGS={- join(' ', $target{bin_lflags} || (),
                          '$(CNF_LDFLAGS)', '$(LDFLAGS)') -}
 BIN_EX_LIBS=$(CNF_EX_LIBS) $(EX_LIBS)
 
+CMOCKA_LIBS={- $config{cmocka_libs} // '' -}
+DETOURS_LIBS={- $config{detours_libs} // '' -}
+
 # CPPFLAGS_Q is used for one thing only: to build up buildinf.h
 CPPFLAGS_Q={- $cppflags1 =~ s|([\\"])|\\$1|g;
               $cppflags2 =~ s|([\\"])|\\$1|g;
@@ -542,8 +560,10 @@ LANG=C
 
 {- dependmagic('build_sw', 'Build all the software (default target)'); -}: build_libs_nodep build_modules_nodep build_programs_nodep link-utils
 {- dependmagic('build_libs', 'Build the libraries libssl and libcrypto'); -}: build_libs_nodep
-{- dependmagic('build_modules', 'Build the modules (i.e. providers and engines)'); -}: build_modules_nodep
-{- dependmagic('build_programs', 'Build the openssl executables and scripts'); -}: build_programs_nodep
+{- dependmagic('build_modules', 'Build the modules (i.e. providers)'); -}: build_modules_nodep
+{- dependmagic('build_programs', 'Build the openssl executables, scripts and all other programs as configured (e.g. tests or demos)'); -}: build_programs_nodep
+{- dependmagic('build_inst_sw', 'Build all the software to be installed'); -}: build_libs_nodep build_modules_nodep build_inst_programs_nodep link-utils
+{- dependmagic('build_inst_programs', 'Build only the installable openssl executables and scripts'); -}: build_inst_programs_nodep
 
 all: build_sw {- "build_docs" if !$disabled{docs}; -} ## Build software and documentation
 debuginfo: $(SHLIBS)
@@ -552,16 +572,49 @@ debuginfo: $(SHLIBS)
 		$(OBJCOPY) --strip-debug --add-gnu-debuglink=$$i.debug $$i; \
 	done;
 
+cov-report: $(SHLIBS)
+	@set -e; gcovr -r . --txt-metric=branch --html --html-details -o openssl-metrics.html
+
 ##@ Documentation
 build_generated_pods: $(GENERATED_PODS)
 build_docs: build_man_docs build_html_docs ## Create documentation
-build_man_docs: $(MANDOCS1) $(MANDOCS3) $(MANDOCS5) $(MANDOCS7) ## Create manpages
-build_html_docs: $(HTMLDOCS1) $(HTMLDOCS3) $(HTMLDOCS5) $(HTMLDOCS7) ## Create HTML documentation
+build_man_docs: doc/man/.mandocs.stamp ## Create manpages
+
+# The whole manual is formatted in one run.  pod2man is a perl program that
+# compiles Pod::Man before it reads a single pod, so a process per page
+# spends most of its time loading the same module over nine hundred times.
+# No target depends on an individual page -- the install recipes take them
+# as arguments -- so a stamp is enough to order the work, and the per-page
+# rules below stay available for building one page by name.
+doc/man/.mandocs.stamp: {- $config{manpage_format} eq "roff"
+                           ? '$(MANPODS)'
+                           : '$(MANDOCS1) $(MANDOCS3) $(MANDOCS5) $(MANDOCS7)' -}
+{- $config{manpage_format} eq "roff"
+   ? "\t" . '@$(ECHO) "Formatting the manual pages"'
+     . "\n\t" . '@$(PERL) $(SRCDIR)/util/mkpod2man.pl -o doc/man \\'
+     . "\n\t\t" . '-m "$(MANSUFFIX)" -d "$(RELEASE_DATE)" -r "$(VERSION)" \\'
+     . "\n\t\t" . '$(MANPODS)'
+     . "\n\t" . '@touch $@'
+   : "\t" . '@touch $@' -}
+
+build_html_docs: doc/html/.htmldocs.stamp ## Create HTML documentation
+
+# As with the manual pages, Pod::Html is compiled before the first pod is
+# read, so the whole set is converted in one invocation rather than in a
+# process per page.  Nothing depends on an individual page -- the install
+# recipe takes them as arguments -- so a stamp is enough to order the work,
+# and the per-page rules below stay available for one page by name.
+doc/html/.htmldocs.stamp: $(HTMLPODS)
+	@$(ECHO) "Converting the manual pages to HTML"
+	@$(PERL) $(SRCDIR)/util/mkpod2html.pl -o doc/html \
+		-r "$(SRCDIR)/doc" $(HTMLPODS)
+	@touch $@
 
 build_generated: $(GENERATED_MANDATORY)
 build_libs_nodep: $(LIBS) {- join(" ",map { platform->sharedlib_simple($_) // platform->sharedlib_import($_) // platform->sharedlib($_) // () } @{$unified_info{libraries}}) -}
 build_modules_nodep: $(MODULES)
 build_programs_nodep: $(PROGRAMS) $(SCRIPTS)
+build_inst_programs_nodep: $(INSTALL_PROGRAMS) $(SCRIPTS)
 
 # Kept around for backward compatibility
 build_apps build_tests: build_programs
@@ -605,6 +658,12 @@ list-tests: ## List available tests that can be invoked via "make test TESTS=<na
 
 ##@ Workspace cleaning
 
+cov-clean: ## Remove all coverage data files
+	-find . \( -name '*.gcda' -o -name '*.gcno' \) \! -type d | xargs $(RM)
+
+cov-reset: ## Remove runtime coverage counters
+	-find . -name '*.gcda' \! -type d | xargs $(RM)
+
 libclean:
 	@set -e; for s in $(SHLIB_INFO); do \
 		if [ "$$s" = ";" ]; then continue; fi; \
@@ -633,21 +692,40 @@ clean: libclean ## Clean the workspace, keep the configuration
 	$(RM) $(HTMLDOCS3)
 	$(RM) $(HTMLDOCS5)
 	$(RM) $(HTMLDOCS7)
+	$(RM) doc/html/.htmldocs.stamp
 	$(RM) $(MANDOCS1)
 	$(RM) $(MANDOCS3)
 	$(RM) $(MANDOCS5)
 	$(RM) $(MANDOCS7)
+	$(RM) doc/man/.mandocs.stamp
 	$(RM) $(PROGRAMS) $(TESTPROGS) $(MODULES) $(FIPSMODULE) $(SCRIPTS)
 	$(RM) $(GENERATED_MANDATORY) $(GENERATED)
-	-find . -name '*{- platform->depext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
-	-find . -name '*{- platform->objext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
 	$(RM) core
 	$(RM) tags TAGS doc-nits md-nits
 	$(RM) -r $(RESULT_D)
 	$(RM) providers/fips*.new
-	-find . -type l \! -name '.*' -exec $(RM) {} \;
+	# Remove the generated dependency files, object files, and symlinks
+	# in a single pass, avoid descending into submodules.
+	-find . \( -path './cloudflare-quiche' \
+	           -o -path './fuzz/corpora' \
+	           -o -path './gost-engine' \
+	           -o -path './krb5' \
+	           -o -path './oqs-provider' \
+	           -o -path './pkcs11-provider' \
+	           -o -path './pyca-cryptography' \
+	           -o -path './python-ecdsa' \
+	           -o -path './tlsfuzzer' \
+	           -o -path './tlslite-ng' \
+	           -o -path './wycheproof' \) \
+	        -prune \
+	        -o \! -type d \
+	           \( -name '*{- platform->depext() -}' \
+	              -o -name '*{- platform->objext() -}' \
+	              -o -type l \) \
+	           \! -name '.*' \
+	           -exec $(RM) '{}' +
 
-distclean: clean ## Clean and remove the configuration
+distclean: clean cov-clean ## Clean and remove the configuration
 	$(RM) include/openssl/configuration.h
 	$(RM) configdata.pm
 	$(RM) Makefile
@@ -662,13 +740,28 @@ depend: Makefile
 # Install helper targets #############################################
 ##@ Installation
 
-install: install_sw install_ssldirs {- "install_docs" if !$disabled{docs}; -} {- $disabled{fips} ? "" : "install_fips" -} ## Install software and documentation, create OpenSSL directories
+install: Makefile ## Install software and documentation, create OpenSSL directories
+	$(MAKE) install_sw
+	$(MAKE) install_ssldirs
+	{- "\$(MAKE) install_docs" if !$disabled{docs} -}
+	{- "\$(MAKE) install_fips" if !$disabled{fips} -}
 
 uninstall: {- "uninstall_docs" if !$disabled{docs}; -} uninstall_sw {- $disabled{fips} ? "" : "uninstall_fips" -} ## Uninstall software and documentation
 
-install_sw: install_dev install_engines install_modules install_runtime ## Install just the software and libraries
+# install_dev, install_modules and install_runtime each reach the build
+# through a recursive $(MAKE) of their own, and they do not build disjoint
+# sets: apps/libapps.a is a member of $(LIBS) and also a prerequisite of the
+# installable programs.  Under "make -j" the prerequisites below run at the
+# same time, so two of those sub-makes build the archive concurrently and one
+# removes it while the other is running ranlib over it.  Build everything in
+# a single make first; the sub-makes then find their targets current and
+# build nothing.
+install_sw: build_inst_sw ## Install just the software and libraries
+	"$(MAKE)" _install_sw
 
-uninstall_sw: uninstall_runtime uninstall_modules uninstall_engines uninstall_dev ## Uninstall the software and libraries
+_install_sw: install_dev install_modules install_runtime
+
+uninstall_sw: uninstall_runtime uninstall_modules uninstall_dev ## Uninstall the software and libraries
 
 install_docs: install_man_docs install_html_docs ## Install manpages and HTML documentation
 
@@ -676,16 +769,21 @@ uninstall_docs: uninstall_man_docs uninstall_html_docs ## Uninstall manpages and
 	$(RM) -r "$(DESTDIR)$(DOCDIR)"
 
 {- output_off() if $disabled{fips}; "" -}
-install_fips: build_sw $(INSTALL_FIPSMODULECONF)
+install_fips: build_inst_sw $(INSTALL_FIPSMODULECONF)
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(MODULESDIR)"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(OPENSSLDIR)"
 	@$(ECHO) "*** Installing FIPS module"
-	@$(ECHO) "install $(INSTALL_FIPSMODULE) -> $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"
 	@cp "$(INSTALL_FIPSMODULE)" "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new"
 	@chmod 755 "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new"
-	@mv -f "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new" \
-	       "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"
+	@if cmp -s "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new" \
+		   "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"; then \
+		$(RM) "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new"; \
+	else \
+		$(ECHO) "install $(INSTALL_FIPSMODULE) -> $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"; \
+		mv -f "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new" \
+		      "$(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"; \
+	fi
 	@$(ECHO) "*** Installing FIPS module configuration"
 	@$(ECHO) "install $(INSTALL_FIPSMODULECONF) -> $(DESTDIR)$(OPENSSLDIR)/fipsmodule.cnf"
 	@cp $(INSTALL_FIPSMODULECONF) "$(DESTDIR)$(OPENSSLDIR)/fipsmodule.cnf"
@@ -713,11 +811,16 @@ install_ssldirs:
 		x1=`echo "$$x" | cut -f1 -d:`; \
 		x2=`echo "$$x" | cut -f2 -d:`; \
 		fn=`basename $$x1`; \
-		$(ECHO) "install $$x1 -> $(DESTDIR)$(OPENSSLDIR)/misc/$$fn"; \
 		cp $$x1 "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new"; \
-		mv -f "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new" \
-		      "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn"; \
+		if cmp -s "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new" \
+			  "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn"; then \
+			$(RM) "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new"; \
+		else \
+			$(ECHO) "install $$x1 -> $(DESTDIR)$(OPENSSLDIR)/misc/$$fn"; \
+			mv -f "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn.new" \
+			      "$(DESTDIR)$(OPENSSLDIR)/misc/$$fn"; \
+		fi; \
 		if [ "$$x1" != "$$x2" ]; then \
 			ln=`basename "$$x2"`; \
 			: {- output_off() unless windowsdll(); "" -}; \
@@ -730,19 +833,31 @@ install_ssldirs:
 			: {- output_on() if windowsdll(); "" -}; \
 		fi; \
 	done
-	@$(ECHO) "install $(SRCDIR)/apps/openssl.cnf -> $(DESTDIR)$(OPENSSLDIR)/openssl.cnf.dist"
 	@cp $(SRCDIR)/apps/openssl.cnf "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new"
 	@chmod 644 "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new"
-	@mv -f  "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new" "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.dist"
+	@if cmp -s "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new" \
+		   "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.dist"; then \
+		$(RM) "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new"; \
+	else \
+		$(ECHO) "install $(SRCDIR)/apps/openssl.cnf -> $(DESTDIR)$(OPENSSLDIR)/openssl.cnf.dist"; \
+		mv -f "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.new" \
+		      "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf.dist"; \
+	fi
 	@if [ ! -f "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf" ]; then \
 		$(ECHO) "install $(SRCDIR)/apps/openssl.cnf -> $(DESTDIR)$(OPENSSLDIR)/openssl.cnf"; \
 		cp $(SRCDIR)/apps/openssl.cnf "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf"; \
 		chmod 644 "$(DESTDIR)$(OPENSSLDIR)/openssl.cnf"; \
 	fi
-	@$(ECHO) "install $(SRCDIR)/apps/ct_log_list.cnf -> $(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.dist"
 	@cp $(SRCDIR)/apps/ct_log_list.cnf "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new"
 	@chmod 644 "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new"
-	@mv -f  "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new" "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.dist"
+	@if cmp -s "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new" \
+		   "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.dist"; then \
+		$(RM) "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new"; \
+	else \
+		$(ECHO) "install $(SRCDIR)/apps/ct_log_list.cnf -> $(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.dist"; \
+		mv -f "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.new" \
+		      "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf.dist"; \
+	fi
 	@if [ ! -f "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf" ]; then \
 		$(ECHO) "install $(SRCDIR)/apps/ct_log_list.cnf -> $(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf"; \
 		cp $(SRCDIR)/apps/ct_log_list.cnf "$(DESTDIR)$(OPENSSLDIR)/ct_log_list.cnf"; \
@@ -754,26 +869,26 @@ install_dev: install_runtime_libs
 	@$(ECHO) "*** Installing development files"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(INSTALLTOP)/include/openssl"
 	@ : {- output_off() if $disabled{uplink}; "" -}
-	@$(ECHO) "install $(SRCDIR)/ms/applink.c -> $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c"
-	@cp $(SRCDIR)/ms/applink.c "$(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c"
-	@chmod 644 "$(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c"
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(INSTALLTOP)/include/openssl" $(SRCDIR)/ms/applink.c
 	@ : {- output_on() if $disabled{uplink}; "" -}
-	@set -e; for i in $(SRCDIR)/include/openssl/*.h \
-			  $(BLDDIR)/include/openssl/*.h; do \
-		fn=`basename $$i`; \
-		$(ECHO) "install $$i -> $(DESTDIR)$(INSTALLTOP)/include/openssl/$$fn"; \
-		cp $$i "$(DESTDIR)$(INSTALLTOP)/include/openssl/$$fn"; \
-		chmod 644 "$(DESTDIR)$(INSTALLTOP)/include/openssl/$$fn"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(INSTALLTOP)/include/openssl" \
+		$(SRCDIR)/include/openssl/*.h $(BLDDIR)/include/openssl/*.h
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(libdir)"
 	@set -e; for l in $(INSTALL_LIBS); do \
 		fn=`basename $$l`; \
-		$(ECHO) "install $$l -> $(DESTDIR)$(libdir)/$$fn"; \
 		cp $$l "$(DESTDIR)$(libdir)/$$fn.new"; \
 		$(RANLIB) "$(DESTDIR)$(libdir)/$$fn.new"; \
 		chmod 644 "$(DESTDIR)$(libdir)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(libdir)/$$fn.new" \
-		      "$(DESTDIR)$(libdir)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(libdir)/$$fn.new" \
+			  "$(DESTDIR)$(libdir)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(libdir)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$l -> $(DESTDIR)$(libdir)/$$fn"; \
+			mv -f "$(DESTDIR)$(libdir)/$$fn.new" \
+			      "$(DESTDIR)$(libdir)/$$fn"; \
+		fi; \
 	done
 	@ : {- output_off() if $disabled{shared}; "" -}
 	@set -e; for s in $(INSTALL_SHLIB_INFO); do \
@@ -815,19 +930,11 @@ install_dev: install_runtime_libs
 	done
 	@ : {- output_on() if $disabled{shared}; "" -}
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(PKGCONFIGDIR)"
-	@for e in $(INSTALL_EXPORTERS_PKGCONFIG); do \
-		fn=`basename $$e`; \
-		$(ECHO) "install $$e -> $(DESTDIR)$(PKGCONFIGDIR)/$$fn"; \
-		cp $$e "$(DESTDIR)$(PKGCONFIGDIR)/$$fn"; \
-		chmod 644 "$(DESTDIR)$(PKGCONFIGDIR)/$$fn"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(PKGCONFIGDIR)" $(INSTALL_EXPORTERS_PKGCONFIG)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(CMAKECONFIGDIR)"
-	@for e in $(INSTALL_EXPORTERS_CMAKE); do \
-		fn=`basename $$e`; \
-		$(ECHO) "install $$e -> $(DESTDIR)$(CMAKECONFIGDIR)/$$fn"; \
-		cp $$e "$(DESTDIR)$(CMAKECONFIGDIR)/$$fn"; \
-		chmod 644 "$(DESTDIR)$(CMAKECONFIGDIR)/$$fn"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(CMAKECONFIGDIR)" $(INSTALL_EXPORTERS_CMAKE)
 
 uninstall_dev: uninstall_runtime_libs
 	@$(ECHO) "*** Uninstalling development files"
@@ -886,30 +993,6 @@ uninstall_dev: uninstall_runtime_libs
 
 _install_modules_deps: install_runtime_libs build_modules
 
-install_engines: _install_modules_deps
-	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
-	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(ENGINESDIR)/"
-	@$(ECHO) "*** Installing engines"
-	@set -e; for e in dummy $(INSTALL_ENGINES); do \
-		if [ "$$e" = "dummy" ]; then continue; fi; \
-		fn=`basename $$e`; \
-		$(ECHO) "install $$e -> $(DESTDIR)$(ENGINESDIR)/$$fn"; \
-		cp $$e "$(DESTDIR)$(ENGINESDIR)/$$fn.new"; \
-		chmod 755 "$(DESTDIR)$(ENGINESDIR)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(ENGINESDIR)/$$fn.new" \
-		      "$(DESTDIR)$(ENGINESDIR)/$$fn"; \
-	done
-
-uninstall_engines:
-	@$(ECHO) "*** Uninstalling engines"
-	@set -e; for e in dummy $(INSTALL_ENGINES); do \
-		if [ "$$e" = "dummy" ]; then continue; fi; \
-		fn=`basename $$e`; \
-		$(ECHO) "$(RM) $(DESTDIR)$(ENGINESDIR)/$$fn"; \
-		$(RM) "$(DESTDIR)$(ENGINESDIR)/$$fn"; \
-	done
-	-$(RMDIR) "$(DESTDIR)$(ENGINESDIR)"
-
 install_modules: _install_modules_deps
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(MODULESDIR)/"
@@ -917,11 +1000,16 @@ install_modules: _install_modules_deps
 	@set -e; for e in dummy $(INSTALL_MODULES); do \
 		if [ "$$e" = "dummy" ]; then continue; fi; \
 		fn=`basename $$e`; \
-		$(ECHO) "install $$e -> $(DESTDIR)$(MODULESDIR)/$$fn"; \
 		cp $$e "$(DESTDIR)$(MODULESDIR)/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(MODULESDIR)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(MODULESDIR)/$$fn.new" \
-		      "$(DESTDIR)$(MODULESDIR)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(MODULESDIR)/$$fn.new" \
+			  "$(DESTDIR)$(MODULESDIR)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(MODULESDIR)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$e -> $(DESTDIR)$(MODULESDIR)/$$fn"; \
+			mv -f "$(DESTDIR)$(MODULESDIR)/$$fn.new" \
+			      "$(DESTDIR)$(MODULESDIR)/$$fn"; \
+		fi; \
 	done
 
 uninstall_modules:
@@ -948,41 +1036,61 @@ install_runtime_libs: build_libs
 		if [ "$$s" = "dummy" ]; then continue; fi; \
 		fn=`basename $$s`; \
 		: {- output_off() unless windowsdll(); "" -}; \
-		$(ECHO) "install $$s -> $(DESTDIR)$(bindir)/$$fn"; \
 		cp $$s "$(DESTDIR)$(bindir)/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(bindir)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
-		      "$(DESTDIR)$(bindir)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(bindir)/$$fn.new" \
+			  "$(DESTDIR)$(bindir)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(bindir)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$s -> $(DESTDIR)$(bindir)/$$fn"; \
+			mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
+			      "$(DESTDIR)$(bindir)/$$fn"; \
+		fi; \
 		: {- output_on() unless windowsdll(); "" -}{- output_off() if windowsdll(); "" -}; \
-		$(ECHO) "install $$s -> $(DESTDIR)$(libdir)/$$fn"; \
 		cp $$s "$(DESTDIR)$(libdir)/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(libdir)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(libdir)/$$fn.new" \
-		      "$(DESTDIR)$(libdir)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(libdir)/$$fn.new" \
+			  "$(DESTDIR)$(libdir)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(libdir)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$s -> $(DESTDIR)$(libdir)/$$fn"; \
+			mv -f "$(DESTDIR)$(libdir)/$$fn.new" \
+			      "$(DESTDIR)$(libdir)/$$fn"; \
+		fi; \
 		: {- output_on() if windowsdll(); "" -}; \
 	done
 
-install_programs: install_runtime_libs build_programs
+install_programs: install_runtime_libs build_inst_programs
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(bindir)"
 	@$(ECHO) "*** Installing runtime programs"
 	@set -e; for x in dummy $(INSTALL_PROGRAMS); do \
 		if [ "$$x" = "dummy" ]; then continue; fi; \
 		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(bindir)/$$fn"; \
 		cp $$x "$(DESTDIR)$(bindir)/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(bindir)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
-		      "$(DESTDIR)$(bindir)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(bindir)/$$fn.new" \
+			  "$(DESTDIR)$(bindir)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(bindir)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$x -> $(DESTDIR)$(bindir)/$$fn"; \
+			mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
+			      "$(DESTDIR)$(bindir)/$$fn"; \
+		fi; \
 	done
 	@set -e; for x in dummy $(BIN_SCRIPTS); do \
 		if [ "$$x" = "dummy" ]; then continue; fi; \
 		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(bindir)/$$fn"; \
 		cp $$x "$(DESTDIR)$(bindir)/$$fn.new"; \
 		chmod 755 "$(DESTDIR)$(bindir)/$$fn.new"; \
-		mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
-		      "$(DESTDIR)$(bindir)/$$fn"; \
+		if cmp -s "$(DESTDIR)$(bindir)/$$fn.new" \
+			  "$(DESTDIR)$(bindir)/$$fn"; then \
+			$(RM) "$(DESTDIR)$(bindir)/$$fn.new"; \
+		else \
+			$(ECHO) "install $$x -> $(DESTDIR)$(bindir)/$$fn"; \
+			mv -f "$(DESTDIR)$(bindir)/$$fn.new" \
+			      "$(DESTDIR)$(bindir)/$$fn"; \
+		fi; \
 	done
 
 uninstall_runtime: uninstall_programs uninstall_runtime_libs
@@ -1024,69 +1132,33 @@ install_man_docs: build_man_docs
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(MANDIR)/man5"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(MANDIR)/man7"
 	@$(ECHO) "*** Installing manpages"
-	@set -e; for x in dummy $(MANDOCS1); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(MANDIR)/man1/$${fn}$(MANSUFFIX)"; \
-		cp $$x "$(DESTDIR)$(MANDIR)/man1/$${fn}$(MANSUFFIX)"; \
-		chmod 644 "$(DESTDIR)$(MANDIR)/man1/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks install $(SRCDIR)/doc/man1 $(BLDDIR)/doc/man1 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man1"; \
-	done
-	@set -e; for x in dummy $(MANDOCS3); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(MANDIR)/man3/$${fn}$(MANSUFFIX)"; \
-		cp $$x "$(DESTDIR)$(MANDIR)/man3/$${fn}$(MANSUFFIX)"; \
-		chmod 644 "$(DESTDIR)$(MANDIR)/man3/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks install $(SRCDIR)/doc/man3 $(BLDDIR)/doc/man3 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man3"; \
-	done
-	@set -e; for x in dummy $(MANDOCS5); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(MANDIR)/man5/$${fn}$(MANSUFFIX)"; \
-		cp $$x "$(DESTDIR)$(MANDIR)/man5/$${fn}$(MANSUFFIX)"; \
-		chmod 644 "$(DESTDIR)$(MANDIR)/man5/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks install $(SRCDIR)/doc/man5 $(BLDDIR)/doc/man5 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man5"; \
-	done
-	@set -e; for x in dummy $(MANDOCS7); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(MANDIR)/man7/$${fn}$(MANSUFFIX)"; \
-		cp $$x "$(DESTDIR)$(MANDIR)/man7/$${fn}$(MANSUFFIX)"; \
-		chmod 644 "$(DESTDIR)$(MANDIR)/man7/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks install $(SRCDIR)/doc/man7 $(BLDDIR)/doc/man7 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man7"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl install \
+		$(SRCDIR)/doc/man1 $(BLDDIR)/doc/man1 \
+		"$(DESTDIR)$(MANDIR)/man1" "$(MANSUFFIX)" $(MANDOCS1)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl install \
+		$(SRCDIR)/doc/man3 $(BLDDIR)/doc/man3 \
+		"$(DESTDIR)$(MANDIR)/man3" "$(MANSUFFIX)" $(MANDOCS3)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl install \
+		$(SRCDIR)/doc/man5 $(BLDDIR)/doc/man5 \
+		"$(DESTDIR)$(MANDIR)/man5" "$(MANSUFFIX)" $(MANDOCS5)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl install \
+		$(SRCDIR)/doc/man7 $(BLDDIR)/doc/man7 \
+		"$(DESTDIR)$(MANDIR)/man7" "$(MANSUFFIX)" $(MANDOCS7)
 
 uninstall_man_docs: build_man_docs
 	@$(ECHO) "*** Uninstalling manpages"
-	@set -e; for x in dummy $(MANDOCS1); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "$(RM) $(DESTDIR)$(MANDIR)/man1/$${fn}$(MANSUFFIX)"; \
-		$(RM) "$(DESTDIR)$(MANDIR)/man1/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks uninstall $(SRCDIR)/doc/man1 $(BLDDIR)/doc/man1 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man1"; \
-	done
-	@set -e; for x in dummy $(MANDOCS3); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "$(RM) $(DESTDIR)$(MANDIR)/man3/$${fn}$(MANSUFFIX)"; \
-		$(RM) "$(DESTDIR)$(MANDIR)/man3/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks uninstall $(SRCDIR)/doc/man3 $(BLDDIR)/doc/man3 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man3"; \
-	done
-	@set -e; for x in dummy $(MANDOCS5); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "$(RM) $(DESTDIR)$(MANDIR)/man5/$${fn}$(MANSUFFIX)"; \
-		$(RM) "$(DESTDIR)$(MANDIR)/man5/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks uninstall $(SRCDIR)/doc/man5 $(BLDDIR)/doc/man5 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man5"; \
-	done
-	@set -e; for x in dummy $(MANDOCS7); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "$(RM) $(DESTDIR)$(MANDIR)/man7/$${fn}$(MANSUFFIX)"; \
-		$(RM) "$(DESTDIR)$(MANDIR)/man7/$${fn}$(MANSUFFIX)"; \
-		$(PERL) $(SRCDIR)/util/write-man-symlinks uninstall $(SRCDIR)/doc/man7 $(BLDDIR)/doc/man7 $${fn}$(MANSUFFIX) "$(DESTDIR)$(MANDIR)/man7"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl uninstall \
+		$(SRCDIR)/doc/man1 $(BLDDIR)/doc/man1 \
+		"$(DESTDIR)$(MANDIR)/man1" "$(MANSUFFIX)" $(MANDOCS1)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl uninstall \
+		$(SRCDIR)/doc/man3 $(BLDDIR)/doc/man3 \
+		"$(DESTDIR)$(MANDIR)/man3" "$(MANSUFFIX)" $(MANDOCS3)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl uninstall \
+		$(SRCDIR)/doc/man5 $(BLDDIR)/doc/man5 \
+		"$(DESTDIR)$(MANDIR)/man5" "$(MANSUFFIX)" $(MANDOCS5)
+	@$(PERL) $(SRCDIR)/util/install-man-pages.pl uninstall \
+		$(SRCDIR)/doc/man7 $(BLDDIR)/doc/man7 \
+		"$(DESTDIR)$(MANDIR)/man7" "$(MANSUFFIX)" $(MANDOCS7)
 
 install_html_docs: install_image_docs build_html_docs
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
@@ -1095,34 +1167,14 @@ install_html_docs: install_image_docs build_html_docs
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(HTMLDIR)/man5"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(HTMLDIR)/man7"
 	@$(ECHO) "*** Installing HTML manpages"
-	@set -e; for x in dummy $(HTMLDOCS1); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(HTMLDIR)/man1/$$fn"; \
-		cp $$x "$(DESTDIR)$(HTMLDIR)/man1/$$fn"; \
-		chmod 644 "$(DESTDIR)$(HTMLDIR)/man1/$$fn"; \
-	done
-	@set -e; for x in dummy $(HTMLDOCS3); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(HTMLDIR)/man3/$$fn"; \
-		cp $$x "$(DESTDIR)$(HTMLDIR)/man3/$$fn"; \
-		chmod 644 "$(DESTDIR)$(HTMLDIR)/man3/$$fn"; \
-	done
-	@set -e; for x in dummy $(HTMLDOCS5); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(HTMLDIR)/man5/$$fn"; \
-		cp $$x "$(DESTDIR)$(HTMLDIR)/man5/$$fn"; \
-		chmod 644 "$(DESTDIR)$(HTMLDIR)/man5/$$fn"; \
-	done
-	@set -e; for x in dummy $(HTMLDOCS7); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(HTMLDIR)/man7/$$fn"; \
-		cp $$x "$(DESTDIR)$(HTMLDIR)/man7/$$fn"; \
-		chmod 644 "$(DESTDIR)$(HTMLDIR)/man7/$$fn"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(HTMLDIR)/man1" $(HTMLDOCS1)
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(HTMLDIR)/man3" $(HTMLDOCS3)
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(HTMLDIR)/man5" $(HTMLDOCS5)
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(HTMLDIR)/man7" $(HTMLDOCS7)
 
 uninstall_html_docs: uninstall_image_docs
 	@$(ECHO) "*** Uninstalling HTML manpages"
@@ -1153,13 +1205,8 @@ uninstall_html_docs: uninstall_image_docs
 
 install_image_docs:
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl "$(DESTDIR)$(HTMLDIR)/man7/img"
-	@set -e; for x in dummy $(IMAGEDOCS7); do \
-		if [ "$$x" = "dummy" ]; then continue; fi; \
-		fn=`basename $$x`; \
-		$(ECHO) "install $$x -> $(DESTDIR)$(HTMLDIR)/man7/img/$$fn"; \
-		cp $(SRCDIR)/$$x "$(DESTDIR)$(HTMLDIR)/man7/img/$$fn"; \
-		chmod 644 "$(DESTDIR)$(HTMLDIR)/man7/img/$$fn"; \
-	done
+	@$(PERL) $(SRCDIR)/util/install-files.pl 644 \
+		"$(DESTDIR)$(HTMLDIR)/man7/img" $(IMAGEDOCS7)
 
 uninstall_image_docs:
 	@set -e; for x in dummy $(IMAGEDOCS7); do \
@@ -1176,17 +1223,20 @@ uninstall_image_docs:
 # is sensitive to build.info changes.
 update: generate errors ordinals generate_buildinfo ## Update errors, ordinals and build info
 
-.PHONY: generate generate_apps generate_crypto_bn generate_crypto_objects \
-          generate_crypto_conf generate_crypto_asn1 generate_fuzz_oids
-generate: generate_apps generate_crypto_bn generate_crypto_objects \
-          generate_crypto_conf generate_crypto_asn1 generate_fuzz_oids
+# $(UPTODATE) target input... succeeds when target exists and is strictly
+# newer than every input, and fails otherwise; used to skip regeneration
+# of a target that is already current.
+UPTODATE=$(PERL) -e 'my $$o = shift; exit 1 unless -e $$o; -M $$o < -M $$_ or exit 1 for @ARGV'
+
+.PHONY: generate generate_apps generate_crypto_objects generate_fuzz_oids
+generate: generate_apps generate_crypto_objects generate_fuzz_oids
 
 .PHONY: generate_buildinfo generate_doc_buildinfo
 generate_buildinfo: generate_doc_buildinfo
 
 .PHONY: doc-nits md-nits
 doc-nits: build_generated_pods ## Evaluate OpenSSL documentation
-	$(PERL) $(SRCDIR)/util/find-doc-nits -c -n -l -e -i
+	$(PERL) $(SRCDIR)/util/find-doc-nits -c -n -l -e -i -a
 
 # This uses "mdl", the markdownlint application, which is written in ruby.
 # The source is at https://github.com/markdownlint/markdownlint
@@ -1221,42 +1271,31 @@ check-format: check-clang-format-diff-cmd ## Evaluate C code according to OpenSS
 	( cd $(SRCDIR); git diff -U0 --no-prefix --no-color | $(CLANG_FORMAT_DIFF) )
 
 generate_apps:
-	( cd $(SRCDIR); $(PERL) VMS/VMSify-conf.pl \
+	( cd $(SRCDIR); \
+	  $(UPTODATE) apps/openssl-vms.cnf \
+		      apps/openssl.cnf VMS/VMSify-conf.pl || \
+	  $(PERL) VMS/VMSify-conf.pl \
 				< apps/openssl.cnf > apps/openssl-vms.cnf )
 
-generate_crypto_bn:
-	( cd $(SRCDIR); $(PERL) crypto/bn/bn_prime.pl > crypto/bn/bn_prime.h )
-
 generate_crypto_objects:
-	( cd $(SRCDIR); $(PERL) crypto/objects/objects.pl -n \
-				crypto/objects/objects.txt \
-				crypto/objects/obj_mac.num \
-				> crypto/objects/obj_mac.new && \
-	    mv crypto/objects/obj_mac.new crypto/objects/obj_mac.num )
-	( cd $(SRCDIR); $(PERL) crypto/objects/objects.pl \
-				crypto/objects/objects.txt \
-				crypto/objects/obj_mac.num \
-				> include/openssl/obj_mac.h )
-	( cd $(SRCDIR); $(PERL) crypto/objects/obj_dat.pl \
-				include/openssl/obj_mac.h \
-				> crypto/objects/obj_dat.h )
-	( cd $(SRCDIR); $(PERL) crypto/objects/objxref.pl \
-				crypto/objects/obj_mac.num \
-				crypto/objects/obj_xref.txt \
-				> crypto/objects/obj_xref.h )
-	( cd $(SRCDIR);	sed -e '1,8d' crypto/objects/obj_compat.h >> include/openssl/obj_mac.h )
+	( cd $(SRCDIR); set -e; \
+	  $(PERL) crypto/objects/objects.pl -n \
+			crypto/objects/objects.txt \
+			crypto/objects/obj_mac.num \
+			> crypto/objects/obj_mac.num.new; \
+	  if cmp crypto/objects/obj_mac.num.new \
+		 crypto/objects/obj_mac.num > /dev/null 2>&1; then \
+		rm crypto/objects/obj_mac.num.new; \
+	  else \
+		mv crypto/objects/obj_mac.num.new crypto/objects/obj_mac.num; \
+	  fi )
 
-generate_crypto_conf:
-	( cd $(SRCDIR); $(PERL) crypto/conf/keysets.pl \
-			        > crypto/conf/conf_def.h )
-
-generate_crypto_asn1:
-	( cd $(SRCDIR); $(PERL) crypto/asn1/charmap.pl \
-			        > crypto/asn1/charmap.h )
-
-generate_fuzz_oids:
-	( cd $(SRCDIR); $(PERL) fuzz/mkfuzzoids.pl \
-				crypto/objects/obj_dat.h \
+generate_fuzz_oids: crypto/objects/obj_dat.h
+	( b=`pwd`; cd $(SRCDIR); \
+	  $(UPTODATE) fuzz/oids.txt \
+		      $$b/crypto/objects/obj_dat.h fuzz/mkfuzzoids.pl || \
+	  $(PERL) fuzz/mkfuzzoids.pl \
+				$$b/crypto/objects/obj_dat.h \
 				> fuzz/oids.txt )
 
 generate_doc_buildinfo:
@@ -1315,11 +1354,14 @@ providers/fips.module.sources.new: configdata.pm
 	  for x in crypto/bn/asm/*.pl crypto/bn/asm/*.S \
 		   crypto/aes/asm/*.pl crypto/aes/asm/*.S \
 		   crypto/ec/asm/*.pl \
+		   crypto/ml_dsa/asm/*.pl \
+		   crypto/ml_kem/asm/*.pl \
 		   crypto/modes/asm/*.pl \
 		   crypto/sha/asm/*.pl \
+		   crypto/slh_dsa/asm/*.pl \
 		   crypto/*cpuid.pl crypto/*cpuid.S \
 		   crypto/*cap.c; do \
-	    echo "$$x"; \
+	    test -e "$$x" && echo "$$x"; \
 	  done \
 	) | grep -v sm2p256 | sort | uniq > providers/fips.module.sources.new
 	rm -rf sources-tmp
@@ -1329,14 +1371,7 @@ ERROR_REBUILD=
 errors:
 	( b=`pwd`; set -e; cd $(SRCDIR); \
           $(PERL) util/ck_errf.pl -strict -internal; \
-          $(PERL) -I$$b util/mkerr.pl $(ERROR_REBUILD) -internal )
-	( b=`pwd`; set -e; cd $(SRCDIR)/engines; \
-          for E in *.ec ; do \
-              $(PERL) ../util/ck_errf.pl -strict \
-                -conf $$E `basename $$E .ec`.c; \
-              $(PERL) -I$$b ../util/mkerr.pl $(ERROR_REBUILD) -static \
-                -conf $$E `basename $$E .ec`.c ; \
-          done )
+          $(PERL) -I$$b util/mkerr.pl $(ERROR_REBUILD) -internal -state )
 
 {- use File::Basename;
 
@@ -1349,7 +1384,8 @@ errors:
            include/openssl/dtls1.h
            include/openssl/srtp.h
            include/openssl/quic.h
-           include/openssl/sslerr_legacy.h );
+           include/openssl/sslerr_legacy.h
+           include/openssl/ech.h);
    my @cryptoheaders_tmpl =
        qw( include/internal/dso.h
            include/internal/o_dir.h
@@ -1361,6 +1397,7 @@ errors:
    my @cryptoskipheaders = ( @sslheaders_tmpl,
        qw( include/openssl/conf_api.h
            include/openssl/ebcdic.h
+           include/openssl/engine.h
            include/openssl/opensslconf.h
            include/openssl/symhacks.h ) );
    our %cryptoheaders = ();
@@ -1433,10 +1470,10 @@ ordinals: build_generated
 test_ordinals:
 	"$(MAKE)" run_tests TESTS=test_ordinals
 
-tags TAGS: FORCE
+tags TAGS: FORCE build_generated
 	rm -f TAGS tags
 	-( cd $(SRCDIR); util/ctags.sh )
-	-etags `find . -name '*.[ch]' -o -name '*.pm'`
+	-etags `find . -name '*.[ch]' -o -name '*.pm' -o -name '*.inc'`
 
 providers/fips.checksum.new: providers/fips.module.sources.new
 	@which unifdef > /dev/null || \
@@ -1565,6 +1602,18 @@ EOF
       my $defs = join("", map { " -D".$_ } @{$args{defs}});
       my $deps = join(" ", compute_platform_depends(@{$args{generator_deps}},
                                                     @{$args{deps}}));
+      my $tofile = "\$(PERL) \$(SRCDIR)/util/file-from-stdout.pl";
+      # A generator named for more than one target cannot be producing them
+      # on standard output; it writes them itself, so its output must not be
+      # captured.
+      our %gen_targets;
+      unless (%gen_targets) {
+          foreach my $t (keys %{$unified_info{generate}}) {
+              $gen_targets{join(" ", @{$unified_info{generate}->{$t}})}++;
+          }
+      }
+      my $writes_own_files =
+          $gen_targets{join(" ", @{$args{generator}})} > 1;
 
       if ($args{src} =~ /\.html$/) {
           #
@@ -1583,12 +1632,27 @@ EOF
           my $section = $1;
           my $name = uc basename($args{src}, ".$section");
           my $pod = $gen0;
-          return <<"EOF";
+
+          if ($config{manpage_format} eq "mdoc") {
+              return <<"EOF";
 $args{src}: $pod
-	pod2man --name=$name --section=$section\$(MANSUFFIX) --center=OpenSSL \\
-		--date=\$(RELEASE_DATE) --release=\$(VERSION) \\
-		$pod >\$\@
+	pod2mdoc -n $name -s $section\$(MANSUFFIX) \\
+		 -d \$(RELEASE_DATE) \\
+		 $pod >\$\@
 EOF
+          } elsif ($config{manpage_format} eq "roff") {
+              # One page at a time, through the same script that formats
+              # the whole manual, so there is a single implementation.  It
+              # does not fork for a single pod, and still beats pod2man,
+              # which has more of its own start-up to do.
+              return <<"EOF";
+$args{src}: $pod
+	\$(PERL) \$(SRCDIR)/util/mkpod2man.pl -o doc/man -m "\$(MANSUFFIX)" \\
+		-d "\$(RELEASE_DATE)" -r "\$(VERSION)" $pod
+EOF
+          } else {
+              die "Unhandled manpage format: $config{manpage_format}";
+          }
       } elsif (platform->isdef($args{src})) {
           #
           # Linker script-ish generator
@@ -1599,7 +1663,8 @@ EOF
           my $ord_name = $args{generator}->[1] || $args{product};
           return <<"EOF";
 $target: $gen0 $deps \$(SRCDIR)/util/mkdef.pl
-	\$(PERL) \$(SRCDIR)/util/mkdef.pl$ord_ver --type $args{intent} --ordinals $gen0  --name $ord_name --OS $mkdef_os > $target
+	$tofile $target \\
+		\$(PERL) \$(SRCDIR)/util/mkdef.pl$ord_ver --type $args{intent} --ordinals $gen0  --name $ord_name --OS $mkdef_os
 EOF
       } elsif (platform->isasm($args{src})
                || platform->iscppasm($args{src})) {
@@ -1614,11 +1679,15 @@ EOF
           } -> {$args{intent}};
 
           my $generator;
+          # The perlasm modules take the output name as their last argument;
+          # m4 writes to standard output.
+          my $to_stdout = 0;
           if ($gen0 =~ /\.pl$/) {
               $generator = 'CC="$(CC)" $(PERL)'.$gen_incs.' '.$gen0.$gen_args
                   .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSOR)';
           } elsif ($gen0 =~ /\.m4$/) {
-              $generator = 'm4 -B 8192'.$gen_incs.' '.$gen0.$gen_args.' >'
+              $generator = 'm4 -B 8192'.$gen_incs.' '.$gen0.$gen_args;
+              $to_stdout = 1;
           } elsif ($gen0 =~ /\.S$/) {
               $generator = undef;
           } else {
@@ -1626,15 +1695,17 @@ EOF
           }
 
           if (defined($generator)) {
+              my $recipe = $to_stdout ? "$tofile \$\@ $generator"
+                                      : "$generator \$\@";
               return <<"EOF";
 $args{src}: $gen0 $deps
-	$generator \$@
+	$recipe
 EOF
           }
           return <<"EOF";
 $args{src}: $gen0 $deps
 	\$(CC) $incs $cppflags $defs -E $gen0 | \\
-	\$(PERL) -ne '/^#(line)?\\s*[0-9]+/ or print' > \$@
+	$tofile \$@ \$(PERL) -ne '/^#(line)?\\s*[0-9]+/ or print'
 EOF
       } elsif ($gen0 =~ m|^.*\.in$|) {
           #
@@ -1683,7 +1754,8 @@ EOF
 
           return <<"EOF";
 $args{src}: $gen0 $deps
-	\$(PERL)$perlmodules "$dofile" "-o$target{build_file}" $gen0$gen_args > \$@
+	$tofile \$@ \\
+		\$(PERL)$perlmodules "$dofile" "-o$target{build_file}" $gen0$gen_args
 EOF
       } elsif (grep { $_ eq $gen0 } @{$unified_info{programs}}) {
           #
@@ -1696,7 +1768,9 @@ EOF
           # Use $(PERL) to execute wrap.pl directly to avoid calling env
           return <<"EOF";
 $args{src}: $gen0 $deps \$(BLDDIR)/util/wrap.pl
-	\$(PERL) \$(BLDDIR)/util/wrap.pl $gen0$gen_args > \$@
+	@{[ $writes_own_files
+	    ? "\$(PERL) \$(BLDDIR)/util/wrap.pl $gen0$gen_args > \$\@"
+	    : "$tofile \$\@ \$(PERL) \$(BLDDIR)/util/wrap.pl $gen0$gen_args" ]}
 EOF
       } else {
           #
@@ -1704,7 +1778,9 @@ EOF
           #
           return <<"EOF";
 $args{src}: $gen0 $deps
-	\$(PERL)$gen_incs $gen0$gen_args > \$@
+	@{[ $writes_own_files
+	    ? "\$(PERL)$gen_incs $gen0$gen_args > \$\@"
+	    : "$tofile \$\@ \$(PERL)$gen_incs $gen0$gen_args" ]}
 EOF
       }
   }
@@ -1897,13 +1973,27 @@ $import: $full
 EOF
           }
       }
-      $recipe .= <<"EOF";
+      if (!run_on_windows()) {
+          $recipe .= <<"EOF";
 $full: $fulldeps
 	\$(CC) \$(LIB_CFLAGS) $linkflags\$(LIB_LDFLAGS)$shared_soname$shared_imp \\
 		-o $full$shared_def \\
 		$fullobjs \\
 		$linklibs \$(LIB_EX_LIBS)
 EOF
+      } else {
+          $recipe .= <<"EOF";
+$full: $fulldeps
+	\$(file >\$@.lst, \\
+		$fullobjs \\
+	)
+	\$(CC) \$(LIB_CFLAGS) $linkflags\$(LIB_LDFLAGS)$shared_soname$shared_imp \\
+		-o $full$shared_def \\
+		@\$@.lst \\
+		$linklibs \$(LIB_EX_LIBS)
+	rm -f \$@.lst
+EOF
+      }
       if (windowsdll()) {
           $recipe .= <<"EOF";
 	rm -f apps/$full
@@ -2008,6 +2098,15 @@ EOF
               push @linkdirs, $d unless grep { $d eq $_ } @linkdirs;
           }
       }
+      my $wrapflags = '';
+      if (defined $unified_info{wraps}->{$args{bin}}) {
+          $wrapflags = ' ' . join(' ',
+                                  map { "-Wl,--wrap=$_" }
+                                  @{$unified_info{wraps}->{$args{bin}}});
+      }
+      my $utlibs = $unified_info{unit_test_libs}->{$args{bin}};
+      $utlibs = $utlibs ne '' ? ' ' . $utlibs : '' if defined $utlibs;
+      $utlibs //= '';
       my $linkflags = join("", map { $_." " } @linkdirs);
       my $linklibs = join("", map { $_." " } @linklibs);
       my $cmd = '$(CC)';
@@ -2025,10 +2124,10 @@ EOF
       return <<"EOF";
 $bin: $deps
 	rm -f $bin
-	\$\${LDCMD:-$cmd} $cmdflags $linkflags\$(BIN_LDFLAGS) \\
+	\$\${LDCMD:-$cmd} $cmdflags $linkflags\$(BIN_LDFLAGS)$wrapflags \\
 		-o $bin \\
 		$objs \\
-		$linklibs\$(BIN_EX_LIBS)
+		$linklibs\$(BIN_EX_LIBS)$utlibs
 EOF
   }
   sub in2script {
@@ -2040,10 +2139,9 @@ EOF
                            rel2abs($config{builddir}));
       return <<"EOF";
 $script: $sources configdata.pm
-	\$(RM) "$script"
-	\$(PERL) "-I\$(BLDDIR)" -Mconfigdata "$dofile" \\
-	    "-o$target{build_file}" $sources > "$script"
-	chmod a+x $script
+	\$(PERL) \$(SRCDIR)/util/file-from-stdout.pl -x "$script" \\
+	    \$(PERL) "-I\$(BLDDIR)" -Mconfigdata "$dofile" \\
+	    "-o$target{build_file}" $sources
 EOF
   }
   sub generatedir {

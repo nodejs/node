@@ -44,6 +44,7 @@ int ossl_quic_reactor_init(QUIC_REACTOR *rtor,
     rtor->mutex = mutex;
 
     rtor->cur_blocking_waiters = 0;
+    rtor->notify_generation = 0;
 
     if ((flags & QUIC_REACTOR_FLAG_USE_NOTIFIER) != 0) {
         if (!ossl_rio_notifier_init(&rtor->notifier))
@@ -608,25 +609,56 @@ void ossl_quic_reactor_enter_blocking_section(QUIC_REACTOR *rtor)
     ++rtor->cur_blocking_waiters;
 }
 
-void ossl_quic_reactor_leave_blocking_section(QUIC_REACTOR *rtor)
+int ossl_quic_reactor_deregister_blocking_section(QUIC_REACTOR *rtor,
+    uint64_t *gen)
 {
     assert(rtor->cur_blocking_waiters > 0);
     --rtor->cur_blocking_waiters;
 
-    if (rtor->have_notifier && rtor->signalled_notifier) {
-        if (rtor->cur_blocking_waiters == 0) {
-            ossl_rio_notifier_unsignal(&rtor->notifier);
-            rtor->signalled_notifier = 0;
-
-            /*
-             * Release the other threads which have woken up (and possibly
-             * rtor_notify_other_threads as well).
-             */
-            ossl_crypto_condvar_broadcast(rtor->notifier_cv);
-        } else {
-            /* We are not the last waiter out - so wait for that one. */
-            while (rtor->signalled_notifier)
-                ossl_crypto_condvar_wait(rtor->notifier_cv, rtor->mutex);
-        }
+    /* The last waiter drains the notifier and advances its signal generation. */
+    if (rtor->have_notifier && rtor->signalled_notifier
+        && rtor->cur_blocking_waiters == 0) {
+        ossl_rio_notifier_unsignal(&rtor->notifier);
+        rtor->signalled_notifier = 0;
+        ++rtor->notify_generation;
+        ossl_crypto_condvar_broadcast(rtor->notifier_cv);
     }
+
+    /* Remaining waiters require phase 2 for the current signal generation. */
+    if (rtor->have_notifier && rtor->signalled_notifier) {
+        *gen = rtor->notify_generation;
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ * Wait only for the signal cycle observed during deregistration.
+ * Precondition: reactor mutex held.
+ */
+static void rtor_wait_for_notifier_clear_locked(QUIC_REACTOR *rtor,
+    uint64_t gen)
+{
+    if (rtor->have_notifier)
+        while (rtor->signalled_notifier
+            && rtor->notify_generation == gen)
+            ossl_crypto_condvar_wait(rtor->notifier_cv, rtor->mutex);
+}
+
+void ossl_quic_reactor_wait_for_notifier_clear(QUIC_REACTOR *rtor,
+    uint64_t gen)
+{
+    ossl_crypto_mutex_lock(rtor->mutex);
+    rtor_wait_for_notifier_clear_locked(rtor, gen);
+    ossl_crypto_mutex_unlock(rtor->mutex);
+}
+
+void ossl_quic_reactor_leave_blocking_section(QUIC_REACTOR *rtor)
+{
+    uint64_t gen;
+
+    /* Caller holds the reactor mutex across both phases. */
+    if (ossl_quic_reactor_deregister_blocking_section(rtor, &gen))
+        rtor_wait_for_notifier_clear_locked(rtor, gen);
 }

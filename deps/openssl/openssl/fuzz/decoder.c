@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ int FuzzerInitialize(int *argc, char ***argv)
         NULL);
 
     pctx = ASN1_PCTX_new();
+    if (pctx == NULL)
+        return 0;
     ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT | ASN1_PCTX_FLAGS_SHOW_SEQUENCE | ASN1_PCTX_FLAGS_SHOW_SSOF | ASN1_PCTX_FLAGS_SHOW_TYPE | ASN1_PCTX_FLAGS_SHOW_FIELD_STRUCT_NAME);
     ASN1_PCTX_set_str_flags(pctx, ASN1_STRFLGS_UTF8_CONVERT | ASN1_STRFLGS_SHOW_TYPE | ASN1_STRFLGS_DUMP_ALL);
 
@@ -41,9 +43,15 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     BIO *bio;
 
     bio = BIO_new(BIO_s_null());
+    if (bio == NULL) {
+        ERR_clear_error();
+        return 0;
+    }
     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, NULL, NULL, NULL, 0, NULL,
         NULL);
     if (dctx == NULL) {
+        BIO_free(bio);
+        ERR_clear_error();
         return 0;
     }
     if (OSSL_DECODER_from_data(dctx, &buf, &len)) {
@@ -54,27 +62,29 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         EVP_PKEY_print_params(bio, pkey, 1, pctx);
 
         pkey2 = EVP_PKEY_dup(pkey);
-        OPENSSL_assert(pkey2 != NULL);
-        EVP_PKEY_eq(pkey, pkey2);
-        EVP_PKEY_free(pkey2);
+        if (pkey2 != NULL) {
+            EVP_PKEY_eq(pkey, pkey2);
+            EVP_PKEY_free(pkey2);
+        }
 
         ctx = EVP_PKEY_CTX_new(pkey, NULL);
-        /*
-         * Param check will take too long time on large DH parameters.
-         * Skip it.
-         */
-        if ((!EVP_PKEY_is_a(pkey, "DH") && !EVP_PKEY_is_a(pkey, "DHX"))
-            || EVP_PKEY_get_bits(pkey) <= 2048)
-            EVP_PKEY_param_check(ctx);
+        if (ctx != NULL) {
+            /*
+             * Param check will take too long time on large DH parameters.
+             * Skip it.
+             */
+            if ((!EVP_PKEY_is_a(pkey, "DH") && !EVP_PKEY_is_a(pkey, "DHX"))
+                || EVP_PKEY_get_bits(pkey) <= 2048)
+                EVP_PKEY_param_check(ctx);
 
-        EVP_PKEY_public_check(ctx);
-        /* Private and pairwise checks are unbounded, skip for large keys. */
-        if (EVP_PKEY_get_bits(pkey) <= 4096) {
-            EVP_PKEY_private_check(ctx);
-            EVP_PKEY_pairwise_check(ctx);
+            EVP_PKEY_public_check(ctx);
+            /* Private and pairwise checks are unbounded, skip for large keys. */
+            if (EVP_PKEY_get_bits(pkey) <= 4096) {
+                EVP_PKEY_private_check(ctx);
+                EVP_PKEY_pairwise_check(ctx);
+            }
+            EVP_PKEY_CTX_free(ctx);
         }
-        OPENSSL_assert(ctx != NULL);
-        EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
     }
     OSSL_DECODER_CTX_free(dctx);

@@ -24,7 +24,6 @@ L X509V3        include/openssl/x509v3err.h     crypto/x509/v3err.c             
 L PKCS12        include/openssl/pkcs12err.h     crypto/pkcs12/pk12err.c                 include/crypto/pkcs12err.h
 L RAND          include/openssl/randerr.h       crypto/rand/rand_err.c                  include/crypto/randerr.h
 L DSO           NONE                            crypto/dso/dso_err.c                    include/internal/dsoerr.h
-L ENGINE        include/openssl/engineerr.h     crypto/engine/eng_err.c                 include/crypto/engineerr.h
 L OCSP          include/openssl/ocsperr.h       crypto/ocsp/ocsp_err.c                  include/crypto/ocsperr.h
 L UI            include/openssl/uierr.h         crypto/ui/ui_err.c                      include/crypto/uierr.h
 L COMP          include/openssl/comperr.h       crypto/comp/comp_err.c                  include/crypto/comperr.h
@@ -46,19 +45,19 @@ L OSSL_DECODER  include/openssl/decodererr.h    crypto/encode_decode/decoder_err
 L HTTP          include/openssl/httperr.h       crypto/http/http_err.c                  include/crypto/httperr.h
 
 # SSL/TLS alerts
-R SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE          1010
-R SSL_R_SSLV3_ALERT_BAD_RECORD_MAC              1020
+R SSL_R_TLS_ALERT_UNEXPECTED_MESSAGE            1010
+R SSL_R_TLS_ALERT_BAD_RECORD_MAC                1020
 R SSL_R_TLSV1_ALERT_DECRYPTION_FAILED           1021
 R SSL_R_TLSV1_ALERT_RECORD_OVERFLOW             1022
-R SSL_R_SSLV3_ALERT_DECOMPRESSION_FAILURE       1030
-R SSL_R_SSLV3_ALERT_HANDSHAKE_FAILURE           1040
-R SSL_R_SSLV3_ALERT_NO_CERTIFICATE              1041
-R SSL_R_SSLV3_ALERT_BAD_CERTIFICATE             1042
-R SSL_R_SSLV3_ALERT_UNSUPPORTED_CERTIFICATE     1043
-R SSL_R_SSLV3_ALERT_CERTIFICATE_REVOKED         1044
-R SSL_R_SSLV3_ALERT_CERTIFICATE_EXPIRED         1045
-R SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN         1046
-R SSL_R_SSLV3_ALERT_ILLEGAL_PARAMETER           1047
+R SSL_R_TLS_ALERT_DECOMPRESSION_FAILURE         1030
+R SSL_R_TLS_ALERT_HANDSHAKE_FAILURE             1040
+R SSL_R_TLS_ALERT_NO_CERTIFICATE                1041
+R SSL_R_TLS_ALERT_BAD_CERTIFICATE               1042
+R SSL_R_TLS_ALERT_UNSUPPORTED_CERTIFICATE       1043
+R SSL_R_TLS_ALERT_CERTIFICATE_REVOKED           1044
+R SSL_R_TLS_ALERT_CERTIFICATE_EXPIRED           1045
+R SSL_R_TLS_ALERT_CERTIFICATE_UNKNOWN           1046
+R SSL_R_TLS_ALERT_ILLEGAL_PARAMETER             1047
 R SSL_R_TLSV1_ALERT_UNKNOWN_CA                  1048
 R SSL_R_TLSV1_ALERT_ACCESS_DENIED               1049
 R SSL_R_TLSV1_ALERT_DECODE_ERROR                1050

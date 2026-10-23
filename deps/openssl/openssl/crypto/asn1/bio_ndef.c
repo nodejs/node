@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#include "crypto/asn1.h"
 
 #include <stdio.h>
 
@@ -36,8 +37,11 @@ typedef struct ndef_aux_st {
     BIO *ndef_bio;
     /* Output BIO */
     BIO *out;
-    /* Boundary where content is inserted */
-    unsigned char **boundary;
+    /*
+     * Content octet string in which the encoder records where the content
+     * belongs.  Borrowed from the caller.
+     */
+    ASN1_STRING *content;
     /* DER buffer start */
     unsigned char *derbuf;
 } NDEF_SUPPORT;
@@ -52,8 +56,6 @@ static int ndef_suffix_free(BIO *b, unsigned char **pbuf, int *plen,
 /*
  * On success, the returned BIO owns the input BIO as part of its BIO chain.
  * On failure, NULL is returned and the input BIO is owned by the caller.
- *
- * Unfortunately cannot constify this due to CMS_stream() and PKCS7_stream()
  */
 BIO *BIO_new_NDEF(BIO *out, ASN1_VALUE *val, const ASN1_ITEM *it)
 {
@@ -62,6 +64,7 @@ BIO *BIO_new_NDEF(BIO *out, ASN1_VALUE *val, const ASN1_ITEM *it)
     const ASN1_AUX *aux = it->funcs;
     ASN1_STREAM_ARG sarg;
     BIO *pop_bio = NULL;
+    ASN1_STRING *content = NULL;
 
     if (!aux || !aux->asn1_cb) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_STREAMING_NOT_SUPPORTED);
@@ -105,6 +108,12 @@ BIO *BIO_new_NDEF(BIO *out, ASN1_VALUE *val, const ASN1_ITEM *it)
         goto err;
     }
 
+    if (aux->asn1_cb(ASN1_OP_GET0_STREAM_CONTENT, &val, it, &content) > 0
+        && content != NULL)
+        content->flags |= ASN1_STRING_FLAG_NDEF;
+    else
+        content = NULL; /* Don't leave a junk borrowed pointer to play with */
+
     /*
      * We must not fail now because the callback has prepended additional
      * BIOs to the chain
@@ -113,7 +122,7 @@ BIO *BIO_new_NDEF(BIO *out, ASN1_VALUE *val, const ASN1_ITEM *it)
     ndef_aux->val = val;
     ndef_aux->it = it;
     ndef_aux->ndef_bio = sarg.ndef_bio;
-    ndef_aux->boundary = sarg.boundary;
+    ndef_aux->content = content;
     ndef_aux->out = out;
 
     return sarg.ndef_bio;
@@ -130,7 +139,7 @@ static int ndef_prefix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
 {
     NDEF_SUPPORT *ndef_aux;
     unsigned char *p;
-    int derlen;
+    int derlen, outlen;
 
     if (parg == NULL)
         return 0;
@@ -145,12 +154,14 @@ static int ndef_prefix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
 
     ndef_aux->derbuf = p;
     *pbuf = p;
-    ASN1_item_ndef_i2d(ndef_aux->val, &p, ndef_aux->it);
-
-    if (*ndef_aux->boundary == NULL)
+    outlen = ASN1_item_ndef_i2d(ndef_aux->val, &p, ndef_aux->it);
+    if (outlen != derlen || p != *pbuf + derlen)
         return 0;
 
-    *plen = *ndef_aux->boundary - *pbuf;
+    if (ndef_aux->content == NULL || ndef_aux->content->data == NULL)
+        return 0;
+
+    *plen = (int)(ndef_aux->content->data - *pbuf);
 
     return 1;
 }
@@ -191,7 +202,7 @@ static int ndef_suffix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
 {
     NDEF_SUPPORT *ndef_aux;
     unsigned char *p;
-    int derlen;
+    int derlen, outlen;
     const ASN1_AUX *aux;
     ASN1_STREAM_ARG sarg;
 
@@ -205,7 +216,7 @@ static int ndef_suffix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
     /* Finalize structures */
     sarg.ndef_bio = ndef_aux->ndef_bio;
     sarg.out = ndef_aux->out;
-    sarg.boundary = ndef_aux->boundary;
+    sarg.boundary = NULL;
     if (aux->asn1_cb(ASN1_OP_STREAM_POST,
             &ndef_aux->val, ndef_aux->it, &sarg)
         <= 0)
@@ -219,12 +230,14 @@ static int ndef_suffix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
 
     ndef_aux->derbuf = p;
     *pbuf = p;
-    derlen = ASN1_item_ndef_i2d(ndef_aux->val, &p, ndef_aux->it);
-
-    if (*ndef_aux->boundary == NULL)
+    outlen = ASN1_item_ndef_i2d(ndef_aux->val, &p, ndef_aux->it);
+    if (outlen != derlen || p != *pbuf + derlen)
         return 0;
-    *pbuf = *ndef_aux->boundary;
-    *plen = derlen - (*ndef_aux->boundary - ndef_aux->derbuf);
+
+    if (ndef_aux->content == NULL || ndef_aux->content->data == NULL)
+        return 0;
+    *pbuf = ndef_aux->content->data;
+    *plen = derlen - (int)(ndef_aux->content->data - ndef_aux->derbuf);
 
     return 1;
 }

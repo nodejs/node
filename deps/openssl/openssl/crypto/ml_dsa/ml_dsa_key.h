@@ -1,11 +1,14 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_KEY_H)
+#define OSSL_LIBCRYPTO_ML_DSA_ML_DSA_KEY_H
 
 #include <openssl/e_os2.h>
 #include "ml_dsa_local.h"
@@ -54,3 +57,5 @@ struct ml_dsa_key_st {
     VECTOR s1; /* private secret of size L with short coefficients (-4..4) or (-2..2) */
     /* The s1->poly block is allocated and has space for s2 and t0 also */
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_KEY_H) */

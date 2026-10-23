@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # SHA1 for ARMv8.
@@ -175,7 +175,7 @@ ___
 }
 
 $code.=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 #ifndef	__KERNEL__
 .extern OPENSSL_armcap_P
 .hidden OPENSSL_armcap_P
@@ -329,7 +329,7 @@ $code.=<<___;
 .long	0x6ed9eba1,0x6ed9eba1,0x6ed9eba1,0x6ed9eba1	//K_20_39
 .long	0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc	//K_40_59
 .long	0xca62c1d6,0xca62c1d6,0xca62c1d6,0xca62c1d6	//K_60_79
-.asciz	"SHA1 block transform for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"SHA1 block transform for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	2
 ___
 }}}

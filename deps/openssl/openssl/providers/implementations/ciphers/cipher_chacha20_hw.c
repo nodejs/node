@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,12 +55,8 @@ static int chacha20_cipher(PROV_CIPHER_CTX *bctx, unsigned char *out,
         if (inl == 0)
             return 1;
 
-        if (n == CHACHA_BLK_SIZE) {
+        if (n == CHACHA_BLK_SIZE)
             ctx->partial_len = 0;
-            ctx->counter[0]++;
-            if (ctx->counter[0] == 0)
-                ctx->counter[1]++;
-        }
     }
 
     rem = (unsigned int)(inl % CHACHA_BLK_SIZE);
@@ -103,6 +99,11 @@ static int chacha20_cipher(PROV_CIPHER_CTX *bctx, unsigned char *out,
         memset(ctx->buf, 0, sizeof(ctx->buf));
         ChaCha20_ctr32(ctx->buf, ctx->buf, CHACHA_BLK_SIZE,
             ctx->key.d, ctx->counter);
+
+        /* propagate counter overflow */
+        if (++ctx->counter[0] == 0)
+            ctx->counter[1]++;
+
         for (n = 0; n < rem; n++)
             out[n] = in[n] ^ ctx->buf[n];
         ctx->partial_len = rem;
@@ -118,5 +119,5 @@ static const PROV_CIPHER_HW_CHACHA20 chacha20_hw = {
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_chacha20(size_t keybits)
 {
-    return (PROV_CIPHER_HW *)&chacha20_hw;
+    return (const PROV_CIPHER_HW *)&chacha20_hw;
 }

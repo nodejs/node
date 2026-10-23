@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,26 +63,32 @@ static EVP_PKEY *slh_dsa_gen_key(const char *name, uint32_t keysize,
 {
     EVP_PKEY_CTX *ctx;
     EVP_PKEY *new = NULL;
-    int rc;
 
     ctx = EVP_PKEY_CTX_new_from_name(NULL, name, NULL);
-    OPENSSL_assert(ctx != NULL);
+    if (ctx == NULL)
+        return NULL;
     if (params != NULL) {
         new = EVP_PKEY_new();
-        OPENSSL_assert(EVP_PKEY_fromdata_init(ctx));
-        if (*param_broken) {
-            rc = EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params);
-            OPENSSL_assert(rc == 0);
+        if (new == NULL)
+            goto out;
+        if (!EVP_PKEY_fromdata_init(ctx)) {
             EVP_PKEY_free(new);
             new = NULL;
-        } else {
-            OPENSSL_assert(EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) == 1);
+            goto out;
+        }
+        if (EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) != 1) {
+            EVP_PKEY_free(new);
+            new = NULL;
         }
         goto out;
     }
 
-    OPENSSL_assert(EVP_PKEY_keygen_init(ctx));
-    OPENSSL_assert(EVP_PKEY_generate(ctx, &new));
+    if (!EVP_PKEY_keygen_init(ctx))
+        goto out;
+    if (!EVP_PKEY_generate(ctx, &new)) {
+        EVP_PKEY_free(new);
+        new = NULL;
+    }
 
 out:
     EVP_PKEY_CTX_free(ctx);
@@ -221,9 +227,10 @@ static void slh_dsa_gen_key_with_params(uint8_t **buf, size_t *len,
     *buf = consume_uint8t(*buf, len, &selector);
     keytype = select_keytype(selector, &keysize);
 
-    RAND_bytes(pubbuf, PARAM_BUF_SZ);
-    RAND_bytes(prvbuf, PARAM_BUF_SZ);
-    RAND_bytes(sdbuf, PARAM_BUF_SZ);
+    if (!RAND_bytes(pubbuf, PARAM_BUF_SZ)
+        || !RAND_bytes(prvbuf, PARAM_BUF_SZ)
+        || !RAND_bytes(sdbuf, PARAM_BUF_SZ))
+        return;
 
     /*
      * select an invalid length if the buffer 0th bit is one
@@ -260,11 +267,6 @@ static void slh_dsa_gen_key_with_params(uint8_t **buf, size_t *len,
     params[2] = OSSL_PARAM_construct_end();
 
     *out1 = (void *)slh_dsa_gen_key(keytype, keysize, params, &broken);
-
-    if (broken)
-        OPENSSL_assert(*out1 == NULL);
-    else
-        OPENSSL_assert(*out1 != NULL);
     return;
 }
 
@@ -319,7 +321,6 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
     OSSL_PARAM params[4];
     int paramidx = 0;
     int intval1, intval2;
-    int expect_init_rc = 1;
 
     *buf = consume_uint8t(*buf, len, &selector);
     if (*buf == NULL)
@@ -339,10 +340,6 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
      */
     msg = (unsigned char *)*buf;
     msg_len = *len;
-
-    /* if msg_len > 255, sign_message_init will fail */
-    if (msg_len > 255 && (selector & 0x1) != 0)
-        expect_init_rc = 0;
 
     *len = 0;
 
@@ -365,33 +362,39 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
     params[paramidx] = OSSL_PARAM_construct_end();
 
     key = (void *)slh_dsa_gen_key(keytype, keylen, NULL, 0);
-    OPENSSL_assert(key != NULL);
+    if (key == NULL)
+        return;
     *out1 = key; /* for cleanup */
 
     ctx = EVP_PKEY_CTX_new_from_pkey(NULL, key, NULL);
-    OPENSSL_assert(ctx != NULL);
-
-    sig_alg = EVP_SIGNATURE_fetch(NULL, keytype, NULL);
-    OPENSSL_assert(sig_alg != NULL);
-
-    OPENSSL_assert(EVP_PKEY_sign_message_init(ctx, sig_alg, params) == expect_init_rc);
-    /*
-     * the context_string parameter can be no more than 255 bytes, so if
-     * our random input buffer is greater than that, we expect failure above,
-     * which we check for.  In that event, there's nothing more we can do here
-     * so bail out
-     */
-    if (expect_init_rc == 0)
+    if (ctx == NULL)
         goto out;
 
-    OPENSSL_assert(EVP_PKEY_sign(ctx, NULL, &sig_len, msg, msg_len));
+    sig_alg = EVP_SIGNATURE_fetch(NULL, keytype, NULL);
+    if (sig_alg == NULL)
+        goto out;
+
+    /*
+     * the context_string parameter can be no more than 255 bytes, so if
+     * our random input buffer is greater than that, sign_message_init will
+     * fail, in which case there's nothing more we can do here so bail out
+     */
+    if (EVP_PKEY_sign_message_init(ctx, sig_alg, params) != 1)
+        goto out;
+
+    if (EVP_PKEY_sign(ctx, NULL, &sig_len, msg, msg_len) != 1)
+        goto out;
     sig = OPENSSL_zalloc(sig_len);
-    OPENSSL_assert(sig != NULL);
+    if (sig == NULL)
+        goto out;
 
-    OPENSSL_assert(EVP_PKEY_sign(ctx, sig, &sig_len, msg, msg_len));
+    if (EVP_PKEY_sign(ctx, sig, &sig_len, msg, msg_len) != 1)
+        goto out;
 
-    OPENSSL_assert(EVP_PKEY_verify_message_init(ctx, sig_alg, params));
-    OPENSSL_assert(EVP_PKEY_verify(ctx, sig, sig_len, msg, msg_len));
+    if (EVP_PKEY_verify_message_init(ctx, sig_alg, params) != 1)
+        goto out;
+    if (EVP_PKEY_verify(ctx, sig, sig_len, msg, msg_len) != 1)
+        fprintf(stderr, "Failed to verify message\n");
 
 out:
     OPENSSL_free(sig);
@@ -417,32 +420,34 @@ out:
 static void slh_dsa_export_import(uint8_t **buf, size_t *len, void *key1,
     void *key2, void **out1, void **out2)
 {
-    int rc;
     EVP_PKEY *alice = (EVP_PKEY *)key1;
     EVP_PKEY *bob = (EVP_PKEY *)key2;
     EVP_PKEY *new = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     OSSL_PARAM *params = NULL;
 
-    OPENSSL_assert(EVP_PKEY_todata(alice, EVP_PKEY_KEYPAIR, &params) == 1);
+    if (alice == NULL || bob == NULL)
+        return;
+
+    if (!EVP_PKEY_todata(alice, EVP_PKEY_KEYPAIR, &params))
+        goto alice_done;
 
     ctx = EVP_PKEY_CTX_new_from_pkey(NULL, alice, NULL);
-    OPENSSL_assert(ctx != NULL);
+    if (ctx == NULL)
+        goto alice_done;
 
-    OPENSSL_assert(EVP_PKEY_fromdata_init(ctx));
+    if (!EVP_PKEY_fromdata_init(ctx))
+        goto alice_done;
 
     new = EVP_PKEY_new();
-    OPENSSL_assert(new != NULL);
-    OPENSSL_assert(EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) == 1);
+    if (new == NULL)
+        goto alice_done;
+    if (EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) != 1)
+        goto alice_done;
 
-    /*
-     * EVP_PKEY returns:
-     * 1 if the keys are equivalent
-     * 0 if the keys are not equivalent
-     * -1 if the key types are different
-     * -2 if the operation is not supported
-     */
-    OPENSSL_assert(EVP_PKEY_eq(alice, new) == 1);
+    (void)EVP_PKEY_eq(alice, new);
+
+alice_done:
     EVP_PKEY_free(new);
     EVP_PKEY_CTX_free(ctx);
     OSSL_PARAM_free(params);
@@ -450,26 +455,26 @@ static void slh_dsa_export_import(uint8_t **buf, size_t *len, void *key1,
     ctx = NULL;
     new = NULL;
 
-    OPENSSL_assert(EVP_PKEY_todata(bob, EVP_PKEY_KEYPAIR, &params) == 1);
+    if (!EVP_PKEY_todata(bob, EVP_PKEY_KEYPAIR, &params))
+        goto bob_done;
 
     ctx = EVP_PKEY_CTX_new_from_pkey(NULL, bob, NULL);
-    OPENSSL_assert(ctx != NULL);
+    if (ctx == NULL)
+        goto bob_done;
 
-    OPENSSL_assert(EVP_PKEY_fromdata_init(ctx));
+    if (!EVP_PKEY_fromdata_init(ctx))
+        goto bob_done;
 
     new = EVP_PKEY_new();
-    OPENSSL_assert(new != NULL);
-    OPENSSL_assert(EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) == 1);
+    if (new == NULL)
+        goto bob_done;
+    if (EVP_PKEY_fromdata(ctx, &new, EVP_PKEY_KEYPAIR, params) != 1)
+        goto bob_done;
 
-    OPENSSL_assert(EVP_PKEY_eq(bob, new) == 1);
+    (void)EVP_PKEY_eq(bob, new);
+    (void)EVP_PKEY_eq(alice, new);
 
-    /*
-     * Depending on the types of eys that get generated
-     * we might get a simple non-equivalence or a type mismatch here
-     */
-    rc = EVP_PKEY_eq(alice, new);
-    OPENSSL_assert(rc == 0 || rc == -1);
-
+bob_done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(new);
     OSSL_PARAM_free(params);
@@ -589,7 +594,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
      */
     if (ops[operation].setup != NULL)
         ops[operation].setup(&buffer_cursor, &len, &in1, &in2);
-    if (ops[operation].doit != NULL)
+    if (ops[operation].doit != NULL && in1 != NULL)
         ops[operation].doit(&buffer_cursor, &len, in1, in2, &out1, &out2);
     if (ops[operation].cleanup != NULL)
         ops[operation].cleanup(in1, in2, out1, out2);

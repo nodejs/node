@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 use strict;
 use warnings;
 
-my @directory_vars = ( "dir", "certs", "crl_dir", "new_certs_dir" );
+my @directory_vars = ( "dir", "certs", "new_certs_dir" );
 my @file_vars = ( "database", "certificate", "serial", "crlnumber",
 		  "crl", "private_key", "RANDFILE" );
 while(<STDIN>) {

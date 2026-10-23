@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@
 #include "cmll_local.h"
 
 void Camellia_ecb_encrypt(const unsigned char *in, unsigned char *out,
-    const CAMELLIA_KEY *key, const int enc)
+    const CAMELLIA_KEY *key, int enc)
 {
     if (CAMELLIA_ENCRYPT == enc)
         Camellia_encrypt(in, out, key);

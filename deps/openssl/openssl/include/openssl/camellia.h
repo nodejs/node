@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,7 +56,7 @@ typedef struct camellia_key_st CAMELLIA_KEY;
 #endif /* OPENSSL_NO_DEPRECATED_3_0 */
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0 int Camellia_set_key(const unsigned char *userKey,
-    const int bits,
+    int bits,
     CAMELLIA_KEY *key);
 OSSL_DEPRECATEDIN_3_0 void Camellia_encrypt(const unsigned char *in,
     unsigned char *out,
@@ -67,34 +67,34 @@ OSSL_DEPRECATEDIN_3_0 void Camellia_decrypt(const unsigned char *in,
 OSSL_DEPRECATEDIN_3_0 void Camellia_ecb_encrypt(const unsigned char *in,
     unsigned char *out,
     const CAMELLIA_KEY *key,
-    const int enc);
+    int enc);
 OSSL_DEPRECATEDIN_3_0 void Camellia_cbc_encrypt(const unsigned char *in,
     unsigned char *out,
     size_t length,
     const CAMELLIA_KEY *key,
     unsigned char *ivec,
-    const int enc);
+    int enc);
 OSSL_DEPRECATEDIN_3_0 void Camellia_cfb128_encrypt(const unsigned char *in,
     unsigned char *out,
     size_t length,
     const CAMELLIA_KEY *key,
     unsigned char *ivec,
     int *num,
-    const int enc);
+    int enc);
 OSSL_DEPRECATEDIN_3_0 void Camellia_cfb1_encrypt(const unsigned char *in,
     unsigned char *out,
     size_t length,
     const CAMELLIA_KEY *key,
     unsigned char *ivec,
     int *num,
-    const int enc);
+    int enc);
 OSSL_DEPRECATEDIN_3_0 void Camellia_cfb8_encrypt(const unsigned char *in,
     unsigned char *out,
     size_t length,
     const CAMELLIA_KEY *key,
     unsigned char *ivec,
     int *num,
-    const int enc);
+    int enc);
 OSSL_DEPRECATEDIN_3_0 void Camellia_ofb128_encrypt(const unsigned char *in,
     unsigned char *out,
     size_t length,

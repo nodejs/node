@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # This module doesn't present direct interest for OpenSSL, because it
@@ -74,7 +74,7 @@ if ($flavour =~ /64|n32/i) {
 }
 $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0x00fff000 : 0x00ff0000;
 #
-# <appro@openssl.org>
+# <https://github.com/dot-asm>
 #
 ######################################################################
 
@@ -124,7 +124,7 @@ $m1=$s11;
 $FRAMESIZE=14;
 
 $code=<<___;
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 .text
 
@@ -427,7 +427,7 @@ $code.=<<___;
 	$PTR_ADD $sp,$FRAMESIZE*$SZREG
 .end	bn_mul_mont_internal
 .rdata
-.asciiz	"Montgomery Multiplication for MIPS, CRYPTOGAMS by <appro\@openssl.org>"
+.asciiz	"Montgomery Multiplication for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

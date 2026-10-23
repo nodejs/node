@@ -208,6 +208,7 @@ TS_TST_INFO *PKCS7_to_TS_TST_INFO(PKCS7 *token)
     ASN1_TYPE *tst_info_wrapper;
     ASN1_OCTET_STRING *tst_info_der;
     const unsigned char *p;
+    size_t len;
 
     if (!PKCS7_type_is_signed(token)) {
         ERR_raise(ERR_LIB_TS, TS_R_BAD_PKCS7_TYPE);
@@ -229,6 +230,11 @@ TS_TST_INFO *PKCS7_to_TS_TST_INFO(PKCS7 *token)
         return NULL;
     }
     tst_info_der = tst_info_wrapper->value.octet_string;
-    p = tst_info_der->data;
-    return d2i_TS_TST_INFO(NULL, &p, tst_info_der->length);
+    p = ASN1_STRING_get0_data(tst_info_der);
+    len = ASN1_STRING_get_length(tst_info_der);
+    if (len > INT_MAX) {
+        ERR_raise(ERR_LIB_TS, TS_R_BAD_TYPE);
+        return NULL;
+    }
+    return d2i_TS_TST_INFO(NULL, &p, (int)len);
 }

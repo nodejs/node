@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -36,23 +36,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <windows.h>
 #include <tchar.h>
+#include "internal/e_os.h"
 #include "internal/numbers.h"
 #ifndef LPDIR_H
 #include "LPdir.h"
-#endif
-
-/*
- * We're most likely overcautious here, but let's reserve for broken WinCE
- * headers and explicitly opt for UNICODE call. Keep in mind that our WinCE
- * builds are compiled with -DUNICODE [as well as -D_UNICODE].
- */
-#if defined(LP_SYS_WINCE) && !defined(FindFirstFile)
-#define FindFirstFile FindFirstFileW
-#endif
-#if defined(LP_SYS_WINCE) && !defined(FindNextFile)
-#define FindNextFile FindNextFileW
 #endif
 
 #ifndef NAME_MAX
@@ -105,14 +93,14 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
             do {
 #ifdef CP_UTF8
                 if ((sz = MultiByteToWideChar((cp = CP_UTF8), 0,
-                         directory, len_0,
+                         directory, (int)len_0,
                          NULL, 0))
                         > 0
                     || GetLastError() != ERROR_NO_UNICODE_TRANSLATION)
                     break;
 #endif
                 sz = MultiByteToWideChar((cp = CP_ACP), 0,
-                    directory, len_0,
+                    directory, (int)len_0,
                     NULL, 0);
             } while (0);
 
@@ -122,7 +110,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
                  * concatenate asterisk, |sz| covers trailing '\0'!
                  */
                 wdir = _alloca((sz + 2) * sizeof(TCHAR));
-                if (!MultiByteToWideChar(cp, 0, directory, len_0,
+                if (!MultiByteToWideChar(cp, 0, directory, (int)len_0,
                         (WCHAR *)wdir, sz)) {
                     free(*ctx);
                     *ctx = NULL;
@@ -132,7 +120,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
             } else
 #endif
             {
-                sz = len_0;
+                sz = (int)len_0;
                 /*
                  * allocate two additional characters in case we need to
                  * concatenate asterisk, |sz| covers trailing '\0'!
@@ -187,7 +175,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
         len_0++;
 
 #ifdef LP_MULTIBYTE_AVAILABLE
-        if (!WideCharToMultiByte(CP_DEFAULT, 0, (WCHAR *)wdir, len_0,
+        if (!WideCharToMultiByte(CP_DEFAULT, 0, (WCHAR *)wdir, (int)len_0,
                 (*ctx)->entry_name,
                 sizeof((*ctx)->entry_name), NULL, 0))
 #endif

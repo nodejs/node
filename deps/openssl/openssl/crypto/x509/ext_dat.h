@@ -1,11 +1,16 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_X509_EXT_DAT_H)
+#define OSSL_LIBCRYPTO_X509_EXT_DAT_H
+
+#include <openssl/x509v3.h>
 
 int ossl_v3_name_cmp(const char *name, const char *cmp);
 
@@ -49,3 +54,5 @@ extern const X509V3_EXT_METHOD ossl_v3_time_specification;
 extern const X509V3_EXT_METHOD ossl_v3_attribute_mappings;
 extern const X509V3_EXT_METHOD ossl_v3_allowed_attribute_assignments;
 extern const X509V3_EXT_METHOD ossl_v3_aa_issuing_dist_point;
+
+#endif /* !defined(OSSL_LIBCRYPTO_X509_EXT_DAT_H) */

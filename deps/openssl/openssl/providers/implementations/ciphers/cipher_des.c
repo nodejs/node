@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,15 @@
 #include "cipher_des.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+
+struct des_get_ctx_param_list_st {
+    struct ossl_cipher_get_ctx_param_list_st common;
+    OSSL_PARAM *rand;
+};
+
+#define des_get_ctx_params_st des_get_ctx_param_list_st
+
+#include "providers/implementations/ciphers/cipher_des.inc"
 
 #define DES_FLAGS PROV_CIPHER_FLAG_RAND_KEY
 
@@ -117,7 +126,6 @@ static int des_dinit(void *vctx, const unsigned char *key, size_t keylen,
 
 static int des_generatekey(PROV_CIPHER_CTX *ctx, void *ptr)
 {
-
     DES_cblock *deskey = ptr;
     size_t kl = ctx->keylen;
 
@@ -127,20 +135,24 @@ static int des_generatekey(PROV_CIPHER_CTX *ctx, void *ptr)
     return 1;
 }
 
-CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_START(des)
-OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_RANDOM_KEY, NULL, 0),
-    CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_END(des)
+static const OSSL_PARAM *des_gettable_ctx_params(ossl_unused void *cctx,
+    ossl_unused void *provctx)
+{
+    return des_get_ctx_params_list;
+}
 
-        static int des_get_ctx_params(void *vctx, OSSL_PARAM params[])
+static int des_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
     PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
-    OSSL_PARAM *p;
+    struct des_get_ctx_param_list_st p;
 
-    if (!ossl_cipher_generic_get_ctx_params(vctx, params))
+    if (ctx == NULL || !des_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_RANDOM_KEY);
-    if (p != NULL && !des_generatekey(ctx, p->data)) {
+    if (!ossl_cipher_common_get_ctx_params(ctx, &p.common))
+        return 0;
+
+    if (p.rand != NULL && !des_generatekey(ctx, p.rand->data)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GENERATE_KEY);
         return 0;
     }

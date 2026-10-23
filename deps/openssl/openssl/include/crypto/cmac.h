@@ -16,7 +16,6 @@
 #include <openssl/params.h>
 
 int ossl_cmac_init(CMAC_CTX *ctx, const void *key, size_t keylen,
-    const EVP_CIPHER *cipher, ENGINE *impl,
-    const OSSL_PARAM param[]);
+    const EVP_CIPHER *cipher, const OSSL_PARAM param[]);
 
 #endif /* OSSL_CRYPTO_CMAC_H */

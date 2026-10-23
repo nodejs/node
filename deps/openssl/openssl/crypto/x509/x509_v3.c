@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include "x509_local.h"
+
+#include <crypto/asn1.h>
 
 int X509v3_get_ext_count(const STACK_OF(X509_EXTENSION) *x)
 {
@@ -80,7 +82,7 @@ int X509v3_get_ext_by_critical(const STACK_OF(X509_EXTENSION) *sk, int crit,
     return -1;
 }
 
-X509_EXTENSION *X509v3_get_ext(const STACK_OF(X509_EXTENSION) *x, int loc)
+const X509_EXTENSION *X509v3_get_ext(const STACK_OF(X509_EXTENSION) *x, int loc)
 {
     if (x == NULL || sk_X509_EXTENSION_num(x) <= loc || loc < 0)
         return NULL;
@@ -90,16 +92,27 @@ X509_EXTENSION *X509v3_get_ext(const STACK_OF(X509_EXTENSION) *x, int loc)
 
 X509_EXTENSION *X509v3_delete_ext(STACK_OF(X509_EXTENSION) *x, int loc)
 {
-    X509_EXTENSION *ret;
+    return sk_X509_EXTENSION_delete(x, loc);
+}
 
-    if (x == NULL || sk_X509_EXTENSION_num(x) <= loc || loc < 0)
+X509_EXTENSION *X509v3_delete_extension(STACK_OF(X509_EXTENSION) **x, int loc)
+{
+    X509_EXTENSION *ext;
+
+    if (x == NULL)
         return NULL;
-    ret = sk_X509_EXTENSION_delete(x, loc);
-    return ret;
+
+    /* Set extensions to NULL when last element dropped */
+    if ((ext = X509v3_delete_ext(*x, loc)) != NULL
+        && sk_X509_EXTENSION_num(*x) == 0) {
+        sk_X509_EXTENSION_free(*x);
+        *x = NULL;
+    }
+    return ext;
 }
 
 STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
-    X509_EXTENSION *ex, int loc)
+    const X509_EXTENSION *ex, int loc)
 {
     X509_EXTENSION *new_ex = NULL;
     int n;
@@ -118,6 +131,9 @@ STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
     } else
         sk = *x;
 
+    if (ossl_ignored_x509_extension(ex, X509V3_ADD_SILENT))
+        goto done;
+
     n = sk_X509_EXTENSION_num(sk);
     if (loc > n)
         loc = n;
@@ -132,6 +148,7 @@ STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
         ERR_raise(ERR_LIB_X509, ERR_R_CRYPTO_LIB);
         goto err;
     }
+done:
     if (*x == NULL)
         *x = sk;
     return sk;
@@ -154,8 +171,8 @@ STACK_OF(X509_EXTENSION) *X509v3_add_extensions(STACK_OF(X509_EXTENSION) **targe
     }
 
     for (i = 0; i < sk_X509_EXTENSION_num(exts); i++) {
-        X509_EXTENSION *ext = sk_X509_EXTENSION_value(exts, i);
-        ASN1_OBJECT *obj = X509_EXTENSION_get_object(ext);
+        const X509_EXTENSION *ext = sk_X509_EXTENSION_value(exts, i);
+        const ASN1_OBJECT *obj = X509_EXTENSION_get_object(ext);
         int idx = X509v3_get_ext_by_OBJ(*target, obj, -1);
 
         /* Does extension exist in target? */
@@ -237,7 +254,7 @@ int X509_EXTENSION_set_critical(X509_EXTENSION *ex, int crit)
     return 1;
 }
 
-int X509_EXTENSION_set_data(X509_EXTENSION *ex, ASN1_OCTET_STRING *data)
+int X509_EXTENSION_set_data(X509_EXTENSION *ex, const ASN1_OCTET_STRING *data)
 {
     int i;
 
@@ -249,14 +266,14 @@ int X509_EXTENSION_set_data(X509_EXTENSION *ex, ASN1_OCTET_STRING *data)
     return 1;
 }
 
-ASN1_OBJECT *X509_EXTENSION_get_object(X509_EXTENSION *ex)
+const ASN1_OBJECT *X509_EXTENSION_get_object(const X509_EXTENSION *ex)
 {
     if (ex == NULL)
         return NULL;
     return ex->object;
 }
 
-ASN1_OCTET_STRING *X509_EXTENSION_get_data(X509_EXTENSION *ex)
+const ASN1_OCTET_STRING *X509_EXTENSION_get_data(const X509_EXTENSION *ex)
 {
     if (ex == NULL)
         return NULL;

@@ -14,7 +14,6 @@
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_CONFIGDIR,
-    OPT_ENGINESDIR,
     OPT_MODULESDIR,
     OPT_DSOEXT,
     OPT_DIRNAMESEP,
@@ -31,7 +30,6 @@ const OPTIONS info_options[] = {
 
     OPT_SECTION("Output"),
     { "configdir", OPT_CONFIGDIR, '-', "Default configuration file directory" },
-    { "enginesdir", OPT_ENGINESDIR, '-', "Default engine module directory" },
     { "modulesdir", OPT_MODULESDIR, '-',
         "Default module directory (other than engine modules)" },
     { "dsoext", OPT_DSOEXT, '-', "Configured extension for modules" },
@@ -63,10 +61,6 @@ int info_main(int argc, char **argv)
             goto end;
         case OPT_CONFIGDIR:
             type = OPENSSL_INFO_CONFIG_DIR;
-            dirty++;
-            break;
-        case OPT_ENGINESDIR:
-            type = OPENSSL_INFO_ENGINES_DIR;
             dirty++;
             break;
         case OPT_MODULESDIR:

@@ -1,11 +1,14 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_HASH_H)
+#define OSSL_LIBCRYPTO_ML_DSA_ML_DSA_HASH_H
 
 #include <openssl/evp.h>
 
@@ -39,3 +42,5 @@ shake_xof_3(EVP_MD_CTX *ctx, const EVP_MD *md, const uint8_t *in1, size_t in1_le
         && EVP_DigestUpdate(ctx, in3, in3_len)
         && EVP_DigestSqueeze(ctx, out, out_len);
 }
+
+#endif /* !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_HASH_H) */

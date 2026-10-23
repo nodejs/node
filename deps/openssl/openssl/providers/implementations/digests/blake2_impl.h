@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,13 @@
  * can be found at https://blake2.net.
  */
 
+#if !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_DIGESTS_BLAKE2_IMPL_H)
+#define OSSL_PROVIDERS_IMPLEMENTATIONS_DIGESTS_BLAKE2_IMPL_H
+
 #include <string.h>
+
+#include <openssl/e_os2.h>
+
 #include "internal/endian.h"
 
 static ossl_inline uint32_t load32(const uint8_t *src)
@@ -116,3 +122,5 @@ static ossl_inline uint64_t rotr64(const uint64_t w, const unsigned int c)
 {
     return (w >> c) | (w << (64 - c));
 }
+
+#endif /* !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_DIGESTS_BLAKE2_IMPL_H) */

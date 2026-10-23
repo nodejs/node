@@ -7,14 +7,21 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_VECTOR_H)
+#define OSSL_LIBCRYPTO_ML_DSA_ML_DSA_VECTOR_H
+
 #include <assert.h>
-#include <openssl/crypto.h>
 #include "ml_dsa_poly.h"
 
 struct vector_st {
     POLY *poly;
     size_t num_poly;
 };
+
+#define CONSTTIME_SECRET_VECTOR(v) \
+    CONSTTIME_SECRET(v.poly, v.num_poly * sizeof(POLY));
+#define CONSTTIME_DECLASSIFY_VECTOR(v) \
+    CONSTTIME_DECLASSIFY(v.poly, v.num_poly * sizeof(POLY));
 
 /**
  * @brief Initialize a Vector object.
@@ -32,7 +39,16 @@ static ossl_inline ossl_unused void vector_init(VECTOR *v, POLY *polys, size_t n
 
 static ossl_inline ossl_unused int vector_alloc(VECTOR *v, size_t num_polys)
 {
-    v->poly = OPENSSL_malloc(num_polys * sizeof(POLY));
+    v->poly = OPENSSL_malloc_array(num_polys, sizeof(POLY));
+    if (v->poly == NULL)
+        return 0;
+    v->num_poly = num_polys;
+    return 1;
+}
+
+static ossl_inline ossl_unused int vector_secure_alloc(VECTOR *v, size_t num_polys)
+{
+    v->poly = OPENSSL_secure_malloc_array(num_polys, sizeof(POLY));
     if (v->poly == NULL)
         return 0;
     v->num_poly = num_polys;
@@ -42,6 +58,13 @@ static ossl_inline ossl_unused int vector_alloc(VECTOR *v, size_t num_polys)
 static ossl_inline ossl_unused void vector_free(VECTOR *v)
 {
     OPENSSL_free(v->poly);
+    v->poly = NULL;
+    v->num_poly = 0;
+}
+
+static ossl_inline ossl_unused void vector_secure_free(VECTOR *v, size_t rank)
+{
+    OPENSSL_secure_clear_free(v->poly, rank * sizeof(POLY));
     v->poly = NULL;
     v->num_poly = 0;
 }
@@ -127,34 +150,6 @@ vector_mult_scalar(const VECTOR *lhs, const POLY *rhs, VECTOR *out)
 
     for (i = 0; i < lhs->num_poly; i++)
         ossl_ml_dsa_poly_ntt_mult(lhs->poly + i, rhs, out->poly + i);
-}
-
-static ossl_inline ossl_unused int
-vector_expand_S(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
-    const uint8_t *seed, VECTOR *s1, VECTOR *s2)
-{
-    return ossl_ml_dsa_vector_expand_S(h_ctx, md, eta, seed, s1, s2);
-}
-
-static ossl_inline ossl_unused void
-vector_expand_mask(VECTOR *out, const uint8_t *rho_prime, size_t rho_prime_len,
-    uint32_t kappa, uint32_t gamma1,
-    EVP_MD_CTX *h_ctx, const EVP_MD *md)
-{
-    size_t i;
-    uint8_t derived_seed[ML_DSA_RHO_PRIME_BYTES + 2];
-
-    memcpy(derived_seed, rho_prime, ML_DSA_RHO_PRIME_BYTES);
-
-    for (i = 0; i < out->num_poly; i++) {
-        size_t index = kappa + i;
-
-        derived_seed[ML_DSA_RHO_PRIME_BYTES] = index & 0xFF;
-        derived_seed[ML_DSA_RHO_PRIME_BYTES + 1] = (index >> 8) & 0xFF;
-        poly_expand_mask(out->poly + i, derived_seed, sizeof(derived_seed),
-            gamma1, h_ctx, md);
-    }
-    OPENSSL_cleanse(derived_seed, sizeof(derived_seed));
 }
 
 /* Scale back previously rounded value */
@@ -253,3 +248,5 @@ vector_use_hint(const VECTOR *h, const VECTOR *r, uint32_t gamma2, VECTOR *out)
     for (i = 0; i < out->num_poly; i++)
         poly_use_hint(h->poly + i, r->poly + i, gamma2, out->poly + i);
 }
+
+#endif /* !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_VECTOR_H) */

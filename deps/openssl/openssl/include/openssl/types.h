@@ -11,6 +11,7 @@
  * Unfortunate workaround to avoid symbol conflict with wincrypt.h
  * See https://github.com/openssl/openssl/issues/9981
  */
+
 #ifdef _WIN32
 #define WINCRYPT_USE_SYMBOL_PREFIX
 #undef X509_NAME
@@ -33,32 +34,26 @@ extern "C" {
 #include <openssl/safestack.h>
 #include <openssl/macros.h>
 
-#if OPENSSL_VERSION_MAJOR >= 4
-#define OSSL_FUTURE_CONST const
-#else
-#define OSSL_FUTURE_CONST
-#endif
-
 typedef struct ossl_provider_st OSSL_PROVIDER; /* Provider Object */
 
 #ifdef NO_ASN1_TYPEDEFS
-#define ASN1_INTEGER ASN1_STRING
-#define ASN1_ENUMERATED ASN1_STRING
-#define ASN1_BIT_STRING ASN1_STRING
-#define ASN1_OCTET_STRING ASN1_STRING
-#define ASN1_PRINTABLESTRING ASN1_STRING
-#define ASN1_T61STRING ASN1_STRING
-#define ASN1_IA5STRING ASN1_STRING
-#define ASN1_UTCTIME ASN1_STRING
-#define ASN1_GENERALIZEDTIME ASN1_STRING
-#define ASN1_TIME ASN1_STRING
-#define ASN1_GENERALSTRING ASN1_STRING
-#define ASN1_UNIVERSALSTRING ASN1_STRING
-#define ASN1_BMPSTRING ASN1_STRING
-#define ASN1_VISIBLESTRING ASN1_STRING
-#define ASN1_UTF8STRING ASN1_STRING
-#define ASN1_BOOLEAN int
-#define ASN1_NULL int
+typedef ASN1_STRING ASN1_INTEGER;
+typedef ASN1_STRING ASN1_ENUMERATED;
+typedef ASN1_STRING ASN1_BIT_STRING;
+typedef ASN1_STRING ASN1_OCTET_STRING;
+typedef ASN1_STRING ASN1_PRINTABLESTRING;
+typedef ASN1_STRING ASN1_T61STRING;
+typedef ASN1_STRING ASN1_IA5STRING;
+typedef ASN1_STRING ASN1_UTCTIME;
+typedef ASN1_STRING ASN1_GENERALIZEDTIME;
+typedef ASN1_STRING ASN1_TIME;
+typedef ASN1_STRING ASN1_GENERALSTRING;
+typedef ASN1_STRING ASN1_UNIVERSALSTRING;
+typedef ASN1_STRING ASN1_BMPSTRING;
+typedef ASN1_STRING ASN1_VISIBLESTRING;
+typedef ASN1_STRING ASN1_UTF8STRING;
+typedef int ASN1_BOOLEAN;
+typedef int ASN1_NULL;
 #else
 typedef struct asn1_string_st ASN1_INTEGER;
 typedef struct asn1_string_st ASN1_ENUMERATED;
@@ -165,7 +160,6 @@ typedef struct ec_key_method_st EC_KEY_METHOD;
 #endif
 
 typedef struct rand_meth_st RAND_METHOD;
-typedef struct rand_drbg_st RAND_DRBG;
 
 typedef struct ssl_dane_st SSL_DANE;
 typedef struct x509_st X509;
@@ -225,6 +219,7 @@ typedef struct ct_policy_eval_ctx_st CT_POLICY_EVAL_CTX;
 
 typedef struct ossl_store_info_st OSSL_STORE_INFO;
 typedef struct ossl_store_search_st OSSL_STORE_SEARCH;
+typedef struct ossl_store_loader_st OSSL_STORE_LOADER;
 
 typedef struct ossl_lib_ctx_st OSSL_LIB_CTX;
 
@@ -242,6 +237,11 @@ typedef struct ossl_decoder_st OSSL_DECODER;
 typedef struct ossl_decoder_ctx_st OSSL_DECODER_CTX;
 
 typedef struct ossl_self_test_st OSSL_SELF_TEST;
+
+#ifndef OPENSSL_NO_ECH
+/* opaque type for ECH related information */
+typedef struct ossl_echstore_st OSSL_ECHSTORE;
+#endif
 
 #ifdef __cplusplus
 }

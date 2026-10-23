@@ -4,13 +4,14 @@ Welcome to the OpenSSL Project
 [![openssl logo]][www.openssl.org]
 
 [![github actions ci badge]][github actions ci]
-![Nightly OS Zoo ci badge](https://github.com/openssl/openssl/actions/workflows/os-zoo.yml/badge.svg)
-![Provider Compatibility](https://github.com/openssl/openssl/actions/workflows/provider-compatibility.yml/badge.svg)
-![Quic Interop](https://github.com/openssl/openssl/actions/workflows/run_quic_interop.yml/badge.svg)
-![Daily checks](https://github.com/openssl/openssl/actions/workflows/run-checker-daily.yml/badge.svg)
+[![Nightly OS Zoo ci badge](https://github.com/openssl/openssl/actions/workflows/os-zoo.yml/badge.svg)](https://github.com/openssl/openssl/actions/workflows/os-zoo.yml)
+[![Provider Compatibility](https://github.com/openssl/openssl/actions/workflows/provider-compatibility.yml/badge.svg)](https://github.com/openssl/openssl/actions/workflows/provider-compatibility.yml)
+[![Quic Interop](https://github.com/openssl/openssl/actions/workflows/run_quic_interop.yml/badge.svg)](https://github.com/openssl/openssl/actions/workflows/run_quic_interop.yml)
+[![Daily checks](https://github.com/openssl/openssl/actions/workflows/run-checker-daily.yml/badge.svg)](https://github.com/openssl/openssl/actions/workflows/run-checker-daily.yml)
+[![LFX Health Score](https://insights.linuxfoundation.org/api/badge/health-score?project=openssl)](https://insights.linuxfoundation.org/project/openssl)
 
 OpenSSL is a robust, commercial-grade, full-featured Open Source Toolkit
-for the TLS (formerly SSL), DTLS and QUIC protocols.
+for the Transport Layer Security (TLS, formerly SSL), Datagram TLS (DTLS), and QUIC protocols.
 
 The protocol implementations are based on a full-strength general purpose
 cryptographic library, which can also be used stand-alone. Also included is a
@@ -40,7 +41,7 @@ The OpenSSL toolkit includes:
 
 - **libssl**
   an implementation of all TLS protocol versions up to TLSv1.3 ([RFC 8446]),
-  DTLS protocol versions up to DTLSv1.2 ([RFC 6347]) and
+  DTLS protocol versions up to DTLSv1.3 ([RFC 9147]) and
   the QUIC version 1 protocol ([RFC 9000]).
 
 - **libcrypto**
@@ -48,7 +49,7 @@ The OpenSSL toolkit includes:
   basis of the TLS implementation, but can also be used independently.
 
 - **openssl**
-  the OpenSSL command line tool, a swiss army knife for cryptographic tasks,
+  the OpenSSL command line tool, a Swiss Army knife for cryptographic tasks,
   testing and analyzing. It can be used for
   - creation of key parameters
   - creation of X.509 certificates, CSRs and CRLs
@@ -135,7 +136,6 @@ containing additional information on specific topics.
  * [Information about the OpenSSL QUIC protocol implementation](README-QUIC.md)
  * [Information about the OpenSSL Provider architecture](README-PROVIDERS.md)
  * [Information about using the OpenSSL FIPS validated module](README-FIPS.md)
- * [Information about the legacy OpenSSL Engine architecture](README-ENGINES.md)
 
 The OpenSSL Guide
 -----------------
@@ -149,10 +149,12 @@ Manual Pages
 The manual pages for the master branch and all current stable releases are
 available online.
 
-- [OpenSSL master](https://www.openssl.org/docs/manmaster)
-- [OpenSSL 3.0](https://www.openssl.org/docs/man3.0)
-- [OpenSSL 3.1](https://www.openssl.org/docs/man3.1)
-- [OpenSSL 3.2](https://www.openssl.org/docs/man3.2)
+- [OpenSSL master](https://docs.openssl.org/master/)
+- [OpenSSL 4.0](https://docs.openssl.org/4.0/)
+- [OpenSSL 3.6](https://docs.openssl.org/3.6/)
+- [OpenSSL 3.5](https://docs.openssl.org/3.5/)
+- [OpenSSL 3.4](https://docs.openssl.org/3.4/)
+- [OpenSSL 3.0](https://docs.openssl.org/3.0/)
 
 Demos
 -----
@@ -217,7 +219,7 @@ All rights reserved.
     "OpenSSL Wiki"
 
 [ossl-guide-migration(7ossl)]:
-    <https://www.openssl.org/docs/manmaster/man7/ossl-guide-migration.html>
+    <https://docs.openssl.org/master/man7/ossl-guide-migration>
     "OpenSSL Migration Guide"
 
 [RFC 8446]:
@@ -229,12 +231,15 @@ All rights reserved.
 [RFC 9000]:
      <https://tools.ietf.org/html/rfc9000>
 
+[RFC 9147]:
+    <https://tools.ietf.org/html/rfc9147>
+
 [Binaries]:
     <https://github.com/openssl/openssl/wiki/Binaries>
     "List of third party OpenSSL binaries"
 
 [OpenSSL Guide]:
-    <https://www.openssl.org/docs/manmaster/man7/ossl-guide-introduction.html>
+    <https://docs.openssl.org/master/man7/ossl-guide-introduction>
     "An introduction to OpenSSL"
 
 <!-- Logos and Badges -->
@@ -248,7 +253,7 @@ All rights reserved.
     "GitHub Actions CI Status"
 
 [github actions ci]:
-    <https://github.com/openssl/openssl/actions?query=workflow%3A%22GitHub+CI%22>
+    <https://github.com/openssl/openssl/actions/workflows/ci.yml>
     "GitHub Actions CI"
 
 [appveyor badge]:

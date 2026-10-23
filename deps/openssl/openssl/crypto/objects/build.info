@@ -1,3 +1,14 @@
 LIBS=../../libcrypto
 SOURCE[../../libcrypto]=\
         o_names.c obj_dat.c obj_lib.c obj_err.c obj_xref.c
+
+DEPEND[obj_dat.o]=obj_dat.h
+GENERATE[obj_dat.h]=obj_dat.pl $(BLDDIR)/include/openssl/obj_mac.h
+DEPEND[obj_dat.h]=../../include/openssl/obj_mac.h
+
+DEPEND[obj_xref.o]=obj_xref.h
+GENERATE[obj_xref.h]=objxref.pl $(SRCDIR)/crypto/objects/obj_mac.num \
+    $(SRCDIR)/crypto/objects/obj_xref.txt
+DEPEND[obj_xref.h]=obj_mac.num obj_xref.txt
+INCLUDE[obj_dat.o]=.
+INCLUDE[obj_xref.o]=.

@@ -13,6 +13,7 @@
 
 #include <openssl/err.h>
 #include <openssl/lhash.h>
+#include "internal/common.h"
 #include "store_local.h"
 
 static CRYPTO_RWLOCK *registry_lock;
@@ -32,6 +33,8 @@ OSSL_STORE_LOADER *OSSL_STORE_LOADER_new(ENGINE *e, const char *scheme)
 {
     OSSL_STORE_LOADER *res = NULL;
 
+    if (!ossl_assert(e == NULL))
+        return NULL;
     /*
      * We usually don't check NULL arguments.  For loaders, though, the
      * scheme is crucial and must never be NULL, or the user will get
@@ -46,14 +49,8 @@ OSSL_STORE_LOADER *OSSL_STORE_LOADER_new(ENGINE *e, const char *scheme)
     if ((res = OPENSSL_zalloc(sizeof(*res))) == NULL)
         return NULL;
 
-    res->engine = e;
     res->scheme = scheme;
     return res;
-}
-
-const ENGINE *OSSL_STORE_LOADER_get0_engine(const OSSL_STORE_LOADER *loader)
-{
-    return loader->engine;
 }
 
 const char *OSSL_STORE_LOADER_get0_scheme(const OSSL_STORE_LOADER *loader)

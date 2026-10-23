@@ -9,10 +9,12 @@
 
 /* Dispatch functions for chacha20_poly1305 cipher */
 
+#include <string.h>
 #include <openssl/proverr.h>
 #include "cipher_chacha20_poly1305.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/ciphers/cipher_chacha20_poly1305.inc"
 
 #define CHACHA20_POLY1305_KEYLEN CHACHA_KEY_SIZE
 #define CHACHA20_POLY1305_BLKLEN 1
@@ -30,7 +32,6 @@ static OSSL_FUNC_cipher_get_params_fn chacha20_poly1305_get_params;
 static OSSL_FUNC_cipher_get_ctx_params_fn chacha20_poly1305_get_ctx_params;
 static OSSL_FUNC_cipher_set_ctx_params_fn chacha20_poly1305_set_ctx_params;
 static OSSL_FUNC_cipher_cipher_fn chacha20_poly1305_cipher;
-static OSSL_FUNC_cipher_update_fn chacha20_poly1305_update;
 static OSSL_FUNC_cipher_final_fn chacha20_poly1305_final;
 static OSSL_FUNC_cipher_gettable_ctx_params_fn chacha20_poly1305_gettable_ctx_params;
 static OSSL_FUNC_cipher_settable_ctx_params_fn chacha20_poly1305_settable_ctx_params;
@@ -67,13 +68,10 @@ static void *chacha20_poly1305_dupctx(void *provctx)
     if (ctx == NULL)
         return NULL;
     dctx = OPENSSL_memdup(ctx, sizeof(*ctx));
-    if (dctx != NULL && dctx->base.tlsmac != NULL && dctx->base.alloced) {
-        dctx->base.tlsmac = OPENSSL_memdup(dctx->base.tlsmac,
-            dctx->base.tlsmacsize);
-        if (dctx->base.tlsmac == NULL) {
-            OPENSSL_free(dctx);
-            dctx = NULL;
-        }
+    if (dctx != NULL
+        && !ossl_cipher_generic_dupctx_tlsmac(&dctx->base, &ctx->base)) {
+        OPENSSL_clear_free(dctx, sizeof(*dctx));
+        return NULL;
     }
     return dctx;
 }
@@ -99,34 +97,37 @@ static int chacha20_poly1305_get_params(OSSL_PARAM params[])
 static int chacha20_poly1305_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
-    OSSL_PARAM *p;
+    struct chacha20_poly1305_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_set_size_t(p, CHACHA20_POLY1305_IVLEN)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-            return 0;
-        }
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, CHACHA20_POLY1305_KEYLEN)) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+    if (ctx == NULL || !chacha20_poly1305_get_ctx_params_decoder(params, &p))
         return 0;
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_AEAD_TAGLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->tag_len)) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-        return 0;
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->tls_aad_pad_sz)) {
+
+    if (p.ivlen != NULL
+        && !OSSL_PARAM_set_size_t(p.ivlen, CHACHA20_POLY1305_IVLEN)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
 
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_AEAD_TAG);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p.keylen != NULL
+        && !OSSL_PARAM_set_size_t(p.keylen, CHACHA20_POLY1305_KEYLEN)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
+
+    if (p.taglen != NULL
+        && !OSSL_PARAM_set_size_t(p.taglen, ctx->tag_len)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
+
+    if (p.pad != NULL
+        && !OSSL_PARAM_set_size_t(p.pad, ctx->tls_aad_pad_sz)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
+
+    if (p.tag != NULL) {
+        if (p.tag->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
             return 0;
         }
@@ -134,57 +135,39 @@ static int chacha20_poly1305_get_ctx_params(void *vctx, OSSL_PARAM params[])
             ERR_raise(ERR_LIB_PROV, PROV_R_TAG_NOT_SET);
             return 0;
         }
-        if (p->data_size == 0 || p->data_size > POLY1305_BLOCK_SIZE) {
+        if (p.tag->data_size == 0 || p.tag->data_size > POLY1305_BLOCK_SIZE) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
             return 0;
         }
-        memcpy(p->data, ctx->tag, p->data_size);
+        memcpy(p.tag->data, ctx->tag, p.tag->data_size);
     }
-
     return 1;
 }
 
-static const OSSL_PARAM chacha20_poly1305_known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_AEAD_TAGLEN, NULL),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD, NULL),
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *chacha20_poly1305_gettable_ctx_params(ossl_unused void *cctx, ossl_unused void *provctx)
 {
-    return chacha20_poly1305_known_gettable_ctx_params;
+    return chacha20_poly1305_get_ctx_params_list;
 }
 
-static const OSSL_PARAM chacha20_poly1305_known_settable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TLS1_AAD, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TLS1_IV_FIXED, NULL, 0),
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *chacha20_poly1305_settable_ctx_params(
     ossl_unused void *cctx, ossl_unused void *provctx)
 {
-    return chacha20_poly1305_known_settable_ctx_params;
+    return chacha20_poly1305_set_ctx_params_list;
 }
 
 static int chacha20_poly1305_set_ctx_params(void *vctx,
     const OSSL_PARAM params[])
 {
-    const OSSL_PARAM *p;
     size_t len;
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
     PROV_CIPHER_HW_CHACHA20_POLY1305 *hw = (PROV_CIPHER_HW_CHACHA20_POLY1305 *)ctx->base.hw;
+    struct chacha20_poly1305_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (!chacha20_poly1305_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &len)) {
+    if (p.keylen != NULL) {
+        if (!OSSL_PARAM_get_size_t(p.keylen, &len)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -193,9 +176,9 @@ static int chacha20_poly1305_set_ctx_params(void *vctx,
             return 0;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &len)) {
+
+    if (p.ivlen != NULL) {
+        if (!OSSL_PARAM_get_size_t(p.ivlen, &len)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -203,35 +186,34 @@ static int chacha20_poly1305_set_ctx_params(void *vctx,
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
             return 0;
         }
+        ctx->iv_state = IV_STATE_UNINITIALISED;
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_TAG);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p.tag != NULL) {
+        if (p.tag->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
-        if (p->data_size == 0 || p->data_size > POLY1305_BLOCK_SIZE) {
+        if (p.tag->data_size == 0 || p.tag->data_size > POLY1305_BLOCK_SIZE) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
             return 0;
         }
-        if (p->data != NULL) {
+        if (p.tag->data != NULL) {
             if (ctx->base.enc) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_TAG_NOT_NEEDED);
                 return 0;
             }
-            memcpy(ctx->tag, p->data, p->data_size);
+            memcpy(ctx->tag, p.tag->data, p.tag->data_size);
         }
-        ctx->tag_len = p->data_size;
+        ctx->tag_len = p.tag->data_size;
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_TLS1_AAD);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p.aad != NULL) {
+        if (p.aad->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
-        len = hw->tls_init(&ctx->base, p->data, p->data_size);
+        len = hw->tls_init(&ctx->base, p.aad->data, p.aad->data_size);
         if (len == 0) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DATA);
             return 0;
@@ -239,13 +221,14 @@ static int chacha20_poly1305_set_ctx_params(void *vctx,
         ctx->tls_aad_pad_sz = len;
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_TLS1_IV_FIXED);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p.fixed != NULL) {
+        if (p.fixed->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
-        if (hw->tls_iv_set_fixed(&ctx->base, p->data, p->data_size) == 0) {
+        if (hw->tls_iv_set_fixed(&ctx->base, p.fixed->data,
+                p.fixed->data_size)
+            == 0) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
             return 0;
         }
@@ -263,9 +246,11 @@ static int chacha20_poly1305_einit(void *vctx, const unsigned char *key,
     ret = ossl_cipher_generic_einit(vctx, key, keylen, iv, ivlen, NULL);
     if (ret && iv != NULL) {
         PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
+        PROV_CHACHA20_POLY1305_CTX *cctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
         PROV_CIPHER_HW_CHACHA20_POLY1305 *hw = (PROV_CIPHER_HW_CHACHA20_POLY1305 *)ctx->hw;
 
         hw->initiv(ctx);
+        cctx->iv_state = IV_STATE_BUFFERED;
     }
     if (ret && !chacha20_poly1305_set_ctx_params(vctx, params))
         ret = 0;
@@ -282,9 +267,11 @@ static int chacha20_poly1305_dinit(void *vctx, const unsigned char *key,
     ret = ossl_cipher_generic_dinit(vctx, key, keylen, iv, ivlen, NULL);
     if (ret && iv != NULL) {
         PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
+        PROV_CHACHA20_POLY1305_CTX *cctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
         PROV_CIPHER_HW_CHACHA20_POLY1305 *hw = (PROV_CIPHER_HW_CHACHA20_POLY1305 *)ctx->hw;
 
         hw->initiv(ctx);
+        cctx->iv_state = IV_STATE_BUFFERED;
     }
     if (ret && !chacha20_poly1305_set_ctx_params(vctx, params))
         ret = 0;
@@ -316,13 +303,16 @@ static int chacha20_poly1305_update(void *vctx, unsigned char *out,
     size_t *outl, size_t outsize,
     const unsigned char *in, size_t inl)
 {
+    PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
+
+    if (ctx->iv_state == IV_STATE_FINISHED)
+        return 0;
+
     /*
-     * A zero-length update is a no-op. Only EVP_Cipher() and Final produce or
-     * check the authentication tag.
+     * a zero-length update is a nop, ALWAYS SUCCEED via early exit
+     * NB: ONLY EVP_Cipher() / final produce or check the tag
      */
     if (inl == 0) {
-        if (!ossl_prov_is_running())
-            return 0;
         *outl = 0;
         return 1;
     }
@@ -333,16 +323,25 @@ static int chacha20_poly1305_update(void *vctx, unsigned char *out,
 static int chacha20_poly1305_final(void *vctx, unsigned char *out, size_t *outl,
     size_t outsize)
 {
-    PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
-    PROV_CIPHER_HW_CHACHA20_POLY1305 *hw = (PROV_CIPHER_HW_CHACHA20_POLY1305 *)ctx->hw;
+    PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)vctx;
+    PROV_CIPHER_HW_CHACHA20_POLY1305 *hw = (PROV_CIPHER_HW_CHACHA20_POLY1305 *)ctx->base.hw;
 
     if (!ossl_prov_is_running())
         return 0;
 
-    if (hw->aead_cipher(ctx, out, outl, NULL, 0) <= 0)
+    /* The tag must be set before actually decrypting data */
+    if (!ctx->base.enc && ctx->tag_len == 0) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_TAG_NOT_SET);
+        return 0;
+    }
+
+    if (hw->aead_cipher((PROV_CIPHER_CTX *)ctx, out, outl, NULL, 0) <= 0)
         return 0;
 
     *outl = 0;
+
+    /* Don't reuse the IV */
+    ctx->iv_state = IV_STATE_FINISHED;
     return 1;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -160,7 +160,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
         if (!BN_mod_mul(x, x, t, p, ctx))
             goto end;
 
-        if (!BN_copy(ret, x))
+        if (BN_copy(ret, x) == NULL)
             goto end;
         err = 0;
         goto vrfy;
@@ -170,7 +170,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
      * e > 2, so we really have to use the Tonelli/Shanks algorithm. First,
      * find some y that is not a square.
      */
-    if (!BN_copy(q, p))
+    if (BN_copy(q, p) == NULL)
         goto end; /* use 'q' as temp */
     q->neg = 0;
     i = 2;
@@ -297,7 +297,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
          */
 
         if (BN_is_one(b)) {
-            if (!BN_copy(ret, x))
+            if (BN_copy(ret, x) == NULL)
                 goto end;
             err = 0;
             goto vrfy;
@@ -323,7 +323,7 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
         }
 
         /* t := y^2^(e - i - 1) */
-        if (!BN_copy(t, y))
+        if (BN_copy(t, y) == NULL)
             goto end;
         for (j = e - i - 1; j > 0; j--) {
             if (!BN_mod_sqr(t, t, p, ctx))

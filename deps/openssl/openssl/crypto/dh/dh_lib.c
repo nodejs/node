@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,18 +15,16 @@
 
 #include <stdio.h>
 #include <openssl/bn.h>
-#ifndef FIPS_MODULE
-#include <openssl/engine.h>
-#endif
 #include <openssl/obj_mac.h>
 #include <openssl/core_names.h>
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
+#include "internal/common.h"
 #include "crypto/evp.h"
 #include "crypto/dh.h"
 #include "dh_local.h"
 
-static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx);
+static DH *dh_new_intern(OSSL_LIB_CTX *libctx);
 
 #ifndef FIPS_MODULE
 int DH_set_method(DH *dh, const DH_METHOD *meth)
@@ -39,10 +37,6 @@ int DH_set_method(DH *dh, const DH_METHOD *meth)
     mtmp = dh->meth;
     if (mtmp->finish)
         mtmp->finish(dh);
-#ifndef OPENSSL_NO_ENGINE
-    ENGINE_finish(dh->engine);
-    dh->engine = NULL;
-#endif
     dh->meth = meth;
     if (meth->init)
         meth->init(dh);
@@ -56,22 +50,24 @@ const DH_METHOD *ossl_dh_get_method(const DH *dh)
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 DH *DH_new(void)
 {
-    return dh_new_intern(NULL, NULL);
+    return dh_new_intern(NULL);
 }
 #endif
 
 DH *DH_new_method(ENGINE *engine)
 {
-    return dh_new_intern(engine, NULL);
+    if (!ossl_assert(engine == NULL))
+        return NULL;
+    return dh_new_intern(NULL);
 }
 #endif /* !FIPS_MODULE */
 
 DH *ossl_dh_new_ex(OSSL_LIB_CTX *libctx)
 {
-    return dh_new_intern(NULL, libctx);
+    return dh_new_intern(libctx);
 }
 
-static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
+static DH *dh_new_intern(OSSL_LIB_CTX *libctx)
 {
     DH *ret = OPENSSL_zalloc(sizeof(*ret));
 
@@ -93,25 +89,6 @@ static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
     ret->libctx = libctx;
     ret->meth = DH_get_default_method();
-#if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
-    ret->flags = ret->meth->flags; /* early default init */
-    if (engine) {
-        if (!ENGINE_init(engine)) {
-            ERR_raise(ERR_LIB_DH, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-        ret->engine = engine;
-    } else
-        ret->engine = ENGINE_get_default_DH();
-    if (ret->engine) {
-        ret->meth = ENGINE_get_DH(ret->engine);
-        if (ret->meth == NULL) {
-            ERR_raise(ERR_LIB_DH, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-    }
-#endif
-
     ret->flags = ret->meth->flags;
 
 #ifndef FIPS_MODULE
@@ -149,9 +126,6 @@ void DH_free(DH *r)
     if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 #if !defined(FIPS_MODULE)
-#if !defined(OPENSSL_NO_ENGINE)
-    ENGINE_finish(r->engine);
-#endif
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_DH, r, &r->ex_data);
 #endif
 
@@ -168,12 +142,17 @@ int DH_up_ref(DH *r)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&r->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&r->references, &i))
         return 0;
 
     REF_PRINT_COUNT("DH", i, r);
     REF_ASSERT_ISNT(i < 2);
     return ((i > 1) ? 1 : 0);
+}
+
+OSSL_LIB_CTX *ossl_dh_get0_libctx(const DH *dh)
+{
+    return dh->libctx;
 }
 
 void ossl_dh_set0_libctx(DH *d, OSSL_LIB_CTX *libctx)
@@ -318,13 +297,6 @@ void DH_set_flags(DH *dh, int flags)
 {
     dh->flags |= flags;
 }
-
-#ifndef FIPS_MODULE
-ENGINE *DH_get0_engine(DH *dh)
-{
-    return dh->engine;
-}
-#endif /*FIPS_MODULE */
 
 FFC_PARAMS *ossl_dh_get0_params(DH *dh)
 {

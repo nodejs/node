@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -139,6 +139,12 @@ struct quic_reactor_st {
 
     /* 1 if a block_until_pred call has put the notifier in the signalled state. */
     unsigned int signalled_notifier : 1;
+
+    /*
+     * Bumped each time the notifier is drained. Lets a phase-2 waiter identify
+     * the signal cycle it participated in (see two-phase leave below).
+     */
+    uint64_t notify_generation;
 };
 
 /* Create an OS notifier? */
@@ -251,11 +257,15 @@ int ossl_quic_reactor_block_until_pred(QUIC_REACTOR *rtor,
  * via the notifier. The reactor mutex must be held while calling these
  * functions.
  *
- * The number of 'active' calls to these functions (i.e., the number of enter
- * calls which have yet to be matched with a subsequent leave call) must *at all
- * times* equal the number of threads blocking on the reactor. In other words, a
- * single thread is not permitted to use these functions "recursively". Failing
- * to adhere to this rule will result in deadlock.
+ * An active registration is an enter call which has not yet been matched by a
+ * subsequent deregister or leave call. A thread may have at most one active
+ * registration for a given reactor; recursive registration will result in
+ * deadlock. A thread which has deregistered may still wait for the notifier in
+ * phase 2, but is no longer counted as an active registration.
+ *
+ * A thread with an active registration on any reactor must not tick a reactor.
+ * A tick can block while notifying other registered threads, which would
+ * prevent the ticking thread from deregistering and can result in deadlock.
  *
  * This means that if a caller has the concept of multiple concurrent blocking
  * calls on the same thread on the same reactor (which may occur in some
@@ -278,6 +288,23 @@ int ossl_quic_reactor_block_until_pred(QUIC_REACTOR *rtor,
  */
 void ossl_quic_reactor_enter_blocking_section(QUIC_REACTOR *rtor);
 void ossl_quic_reactor_leave_blocking_section(QUIC_REACTOR *rtor);
+
+/*
+ * Two-phase leave for callers registered with multiple reactors. First call
+ * deregister_blocking_section() for every reactor; only then call
+ * wait_for_notifier_clear() for each deregistration that returned 1. This
+ * avoids waiting on one reactor while still registered with another.
+ *
+ * deregister_blocking_section() never blocks, requires the reactor mutex, and
+ * stores the signal generation to await in *gen. wait_for_notifier_clear()
+ * acquires the mutex itself and waits only for that generation. Single-reactor
+ * callers may continue to use leave_blocking_section(), whose combined wait is
+ * likewise bounded to the signal generation observed during deregistration.
+ */
+int ossl_quic_reactor_deregister_blocking_section(QUIC_REACTOR *rtor,
+    uint64_t *gen);
+void ossl_quic_reactor_wait_for_notifier_clear(QUIC_REACTOR *rtor,
+    uint64_t gen);
 
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@
 #include "crypto/x509.h"
 
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
-ASN1_TYPE *PKCS12_get_attr(const PKCS12_SAFEBAG *bag, int attr_nid)
+const ASN1_TYPE *PKCS12_get_attr(const PKCS12_SAFEBAG *bag, int attr_nid)
 {
     return PKCS12_get_attr_gen(bag->attrib, attr_nid);
 }
@@ -26,7 +26,7 @@ const ASN1_TYPE *PKCS12_SAFEBAG_get0_attr(const PKCS12_SAFEBAG *bag,
     return PKCS12_get_attr_gen(bag->attrib, attr_nid);
 }
 
-ASN1_TYPE *PKCS8_get_attr(PKCS8_PRIV_KEY_INFO *p8, int attr_nid)
+const ASN1_TYPE *PKCS8_get_attr(PKCS8_PRIV_KEY_INFO *p8, int attr_nid)
 {
     return PKCS12_get_attr_gen(PKCS8_pkey_get0_attrs(p8), attr_nid);
 }
@@ -252,14 +252,11 @@ PKCS12_SAFEBAG *PKCS12_SAFEBAG_create_pkcs8_encrypt_ex(int pbe_nid,
     const char *propq)
 {
     PKCS12_SAFEBAG *bag = NULL;
-    const EVP_CIPHER *pbe_ciph = NULL;
-    EVP_CIPHER *pbe_ciph_fetch = NULL;
+    EVP_CIPHER *pbe_ciph = NULL;
     X509_SIG *p8;
 
     ERR_set_mark();
-    pbe_ciph = pbe_ciph_fetch = EVP_CIPHER_fetch(ctx, OBJ_nid2sn(pbe_nid), propq);
-    if (pbe_ciph == NULL)
-        pbe_ciph = EVP_get_cipherbynid(pbe_nid);
+    pbe_ciph = EVP_CIPHER_fetch(ctx, OBJ_nid2sn(pbe_nid), propq);
     ERR_pop_to_mark();
 
     if (pbe_ciph != NULL)
@@ -275,7 +272,7 @@ PKCS12_SAFEBAG *PKCS12_SAFEBAG_create_pkcs8_encrypt_ex(int pbe_nid,
         X509_SIG_free(p8);
 
 err:
-    EVP_CIPHER_free(pbe_ciph_fetch);
+    EVP_CIPHER_free(pbe_ciph);
     return bag;
 }
 

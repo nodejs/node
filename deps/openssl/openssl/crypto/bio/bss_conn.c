@@ -16,37 +16,6 @@
 
 #ifndef OPENSSL_NO_SOCK
 
-typedef struct bio_connect_st {
-    int state;
-    int connect_family;
-    int connect_sock_type;
-    char *param_hostname;
-    char *param_service;
-    int connect_mode;
-#ifndef OPENSSL_NO_KTLS
-    unsigned char record_type;
-#endif
-    int tfo_first;
-
-    BIO_ADDRINFO *addr_first;
-    const BIO_ADDRINFO *addr_iter;
-    /*
-     * int socket; this will be kept in bio->num so that it is compatible
-     * with the bss_sock bio
-     */
-    /*
-     * called when the connection is initially made callback(BIO,state,ret);
-     * The callback should return 'ret'.  state is for compatibility with the
-     * ssl info_callback
-     */
-    BIO_info_cb *info_callback;
-    /*
-     * Used when connect_sock_type is SOCK_DGRAM. Owned by us; we forward
-     * read/write(mmsg) calls to this if present.
-     */
-    BIO *dgram_bio;
-} BIO_CONNECT;
-
 static int conn_write(BIO *h, const char *buf, int num);
 static int conn_read(BIO *h, char *buf, int size);
 static int conn_puts(BIO *h, const char *str);
@@ -64,14 +33,6 @@ static int conn_state(BIO *b, BIO_CONNECT *c);
 static void conn_close_socket(BIO *data);
 static BIO_CONNECT *BIO_CONNECT_new(void);
 static void BIO_CONNECT_free(BIO_CONNECT *a);
-
-#define BIO_CONN_S_BEFORE 1
-#define BIO_CONN_S_GET_ADDR 2
-#define BIO_CONN_S_CREATE_SOCKET 3
-#define BIO_CONN_S_CONNECT 4
-#define BIO_CONN_S_OK 5
-#define BIO_CONN_S_BLOCKED_CONNECT 6
-#define BIO_CONN_S_CONNECT_ERROR 7
 
 static const BIO_METHOD methods_connectp = {
     BIO_TYPE_CONNECT,
@@ -373,8 +334,9 @@ static int conn_read(BIO *b, char *out, int outl)
         return ret;
     }
 
-    if (out != NULL) {
+    if (out != NULL && outl > 0) {
         clear_socket_error();
+        b->flags &= ~BIO_FLAGS_IN_EOF;
 #ifndef OPENSSL_NO_KTLS
         if (BIO_get_ktls_recv(b))
             ret = ktls_read_record(b->num, out, outl);
@@ -414,7 +376,7 @@ static int conn_write(BIO *b, const char *in, int inl)
     clear_socket_error();
 #ifndef OPENSSL_NO_KTLS
     if (BIO_should_ktls_ctrl_msg_flag(b)) {
-        ret = ktls_send_ctrl_message(b->num, data->record_type, in, inl);
+        ret = ktls_send_ctrl_message(b->num, data->record_type, in, inl, 0);
         if (ret >= 0) {
             ret = inl;
             BIO_clear_ktls_ctrl_msg_flag(b);
@@ -735,10 +697,12 @@ static long conn_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 
 static int conn_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = conn_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = conn_write(bp, str, (int)n);
     return ret;
 }
 
@@ -775,6 +739,7 @@ int conn_gets(BIO *bio, char *buf, int size)
     }
 
     clear_socket_error();
+    bio->flags &= ~BIO_FLAGS_IN_EOF;
     while (size-- > 1) {
 #ifndef OPENSSL_NO_KTLS
         if (BIO_get_ktls_recv(bio))
@@ -794,7 +759,7 @@ int conn_gets(BIO *bio, char *buf, int size)
             break;
     }
     *ptr = '\0';
-    return ret > 0 || (bio->flags & BIO_FLAGS_IN_EOF) != 0 ? ptr - buf : ret;
+    return ret > 0 || (bio->flags & BIO_FLAGS_IN_EOF) != 0 ? (int)(ptr - buf) : ret;
 }
 
 static int conn_sendmmsg(BIO *bio, BIO_MSG *msg, size_t stride, size_t num_msgs,
