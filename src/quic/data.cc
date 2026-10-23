@@ -375,8 +375,7 @@ error_code QuicError::h3_liberr_to_code(int liberr) {
 
 bool QuicError::is_crypto_error() const {
   const auto error_code = code();
-  return type() == Type::TRANSPORT &&
-         error_code >= NGTCP2_CRYPTO_ERROR &&
+  return type() == Type::TRANSPORT && error_code >= NGTCP2_CRYPTO_ERROR &&
          error_code < NGTCP2_CRYPTO_ERROR + 0x100U;
 }
 
