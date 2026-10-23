@@ -950,9 +950,6 @@ Enable experimental ES Module support in the \fBnode:vm\fR module.
 .It Fl -experimental-wasi-unstable-preview1
 Enable experimental WebAssembly System Interface (WASI) support.
 .
-.It Fl -experimental-web-worker
-Enable experimental support for the Web Worker API.
-.
 .It Fl -experimental-worker-inspection
 Enable experimental support for the worker inspection with Chrome DevTools.
 .
@@ -1246,6 +1243,9 @@ Disable the experimental \fBnode:sqlite\fR module.
 .
 .It Fl -no-experimental-vfs
 Disable the experimental \fBnode:vfs\fR module and \fB--vfs-load\fR.
+.
+.It Fl -no-experimental-web-worker
+Disable support for the Web Worker API.
 .
 .It Fl -no-experimental-webstorage
 Disable \fBWeb Storage\fR support.
@@ -2305,8 +2305,6 @@ one is included in the list below.
 .It
 \fB--experimental-wasi-unstable-preview1\fR
 .It
-\fB--experimental-web-worker\fR
-.It
 \fB--experimental-websocket\fR
 .It
 \fB--force-context-aware\fR
@@ -2370,6 +2368,8 @@ one is included in the list below.
 \fB--no-experimental-strip-types\fR
 .It
 \fB--no-experimental-vfs\fR
+.It
+\fB--no-experimental-web-worker\fR
 .It
 \fB--no-experimental-webstorage\fR
 .It
