@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 #ifdef MIPSEB
 # define MSB 0
@@ -329,5 +329,5 @@ poly1305_emit:
 	jr	$31
 .end	poly1305_emit
 .rdata
-.asciiz	"Poly1305 for MIPS64, CRYPTOGAMS by <appro@openssl.org>"
+.asciiz	"Poly1305 for MIPS64, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	2

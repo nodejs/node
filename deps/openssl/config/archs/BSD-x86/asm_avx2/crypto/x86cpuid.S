@@ -256,42 +256,6 @@ L013nospin:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
 	ret
-.globl	_OPENSSL_wipe_cpu
-.type	_OPENSSL_wipe_cpu,@function
-.align	4
-_OPENSSL_wipe_cpu:
-L_OPENSSL_wipe_cpu_begin:
-	%ifdef __CET__
-
-.byte	243,15,30,251
-	%endif
-
-	xorl	%eax,%eax
-	xorl	%edx,%edx
-	call	L015PIC_me_up
-L015PIC_me_up:
-	popl	%ecx
-	leal	__GLOBAL_OFFSET_TABLE_+[.-L015PIC_me_up](%ecx),%ecx
-	movl	_OPENSSL_ia32cap_P@GOT(%ecx),%ecx
-	movl	(%ecx),%ecx
-	btl	$1,(%ecx)
-	jnc	L016no_x87
-	andl	$83886080,%ecx
-	cmpl	$83886080,%ecx
-	jne	L017no_sse2
-	pxor	%xmm0,%xmm0
-	pxor	%xmm1,%xmm1
-	pxor	%xmm2,%xmm2
-	pxor	%xmm3,%xmm3
-	pxor	%xmm4,%xmm4
-	pxor	%xmm5,%xmm5
-	pxor	%xmm6,%xmm6
-	pxor	%xmm7,%xmm7
-L017no_sse2:
-.long	4007259865,4007259865,4007259865,4007259865,2430851995
-L016no_x87:
-	leal	4(%esp),%eax
-	ret
 .globl	_OPENSSL_atomic_add
 .type	_OPENSSL_atomic_add,@function
 .align	4
@@ -307,11 +271,11 @@ L_OPENSSL_atomic_add_begin:
 	pushl	%ebx
 	nop
 	movl	(%edx),%eax
-L018spin:
+L015spin:
 	leal	(%eax,%ecx,1),%ebx
 	nop
 .long	447811568
-	jne	L018spin
+	jne	L015spin
 	movl	%ebx,%eax
 	popl	%ebx
 	ret
@@ -329,32 +293,32 @@ L_OPENSSL_cleanse_begin:
 	movl	8(%esp),%ecx
 	xorl	%eax,%eax
 	cmpl	$7,%ecx
-	jae	L019lot
+	jae	L016lot
 	cmpl	$0,%ecx
-	je	L020ret
-L021little:
+	je	L017ret
+L018little:
 	movb	%al,(%edx)
 	subl	$1,%ecx
 	leal	1(%edx),%edx
-	jnz	L021little
-L020ret:
+	jnz	L018little
+L017ret:
 	ret
 .align	4,0x90
-L019lot:
+L016lot:
 	testl	$3,%edx
-	jz	L022aligned
+	jz	L019aligned
 	movb	%al,(%edx)
 	leal	-1(%ecx),%ecx
 	leal	1(%edx),%edx
-	jmp	L019lot
-L022aligned:
+	jmp	L016lot
+L019aligned:
 	movl	%eax,(%edx)
 	leal	-4(%ecx),%ecx
 	testl	$-4,%ecx
 	leal	4(%edx),%edx
-	jnz	L022aligned
+	jnz	L019aligned
 	cmpl	$0,%ecx
-	jne	L021little
+	jne	L018little
 	ret
 .globl	_CRYPTO_memcmp
 .type	_CRYPTO_memcmp,@function
@@ -374,18 +338,18 @@ L_CRYPTO_memcmp_begin:
 	xorl	%eax,%eax
 	xorl	%edx,%edx
 	cmpl	$0,%ecx
-	je	L023no_data
-L024loop:
+	je	L020no_data
+L021loop:
 	movb	(%esi),%dl
 	leal	1(%esi),%esi
 	xorb	(%edi),%dl
 	leal	1(%edi),%edi
 	orb	%dl,%al
 	decl	%ecx
-	jnz	L024loop
+	jnz	L021loop
 	negl	%eax
 	shrl	$31,%eax
-L023no_data:
+L020no_data:
 	popl	%edi
 	popl	%esi
 	ret
@@ -394,6 +358,59 @@ L023no_data:
 .align	4
 _OPENSSL_instrument_bus:
 L_OPENSSL_instrument_bus_begin:
+	%ifdef __CET__
+
+.byte	243,15,30,251
+	%endif
+
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	$0,%eax
+	call	L022PIC_me_up
+L022PIC_me_up:
+	popl	%edx
+	leal	__GLOBAL_OFFSET_TABLE_+[.-L022PIC_me_up](%edx),%edx
+	movl	_OPENSSL_ia32cap_P@GOT(%edx),%edx
+	btl	$4,(%edx)
+	jnc	L023nogo
+	btl	$19,(%edx)
+	jnc	L023nogo
+	movl	20(%esp),%edi
+	movl	24(%esp),%ecx
+	.byte	0x0f,0x31
+	movl	%eax,%esi
+	movl	$0,%ebx
+	clflush	(%edi)
+.byte	240
+	addl	%ebx,(%edi)
+	jmp	L024loop
+.align	4,0x90
+L024loop:
+	.byte	0x0f,0x31
+	movl	%eax,%edx
+	subl	%esi,%eax
+	movl	%edx,%esi
+	movl	%eax,%ebx
+	clflush	(%edi)
+.byte	240
+	addl	%eax,(%edi)
+	leal	4(%edi),%edi
+	subl	$1,%ecx
+	jnz	L024loop
+	movl	24(%esp),%eax
+L023nogo:
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.globl	_OPENSSL_instrument_bus2
+.type	_OPENSSL_instrument_bus2,@function
+.align	4
+_OPENSSL_instrument_bus2:
+L_OPENSSL_instrument_bus2_begin:
 	%ifdef __CET__
 
 .byte	243,15,30,251
@@ -415,59 +432,6 @@ L025PIC_me_up:
 	jnc	L026nogo
 	movl	20(%esp),%edi
 	movl	24(%esp),%ecx
-	.byte	0x0f,0x31
-	movl	%eax,%esi
-	movl	$0,%ebx
-	clflush	(%edi)
-.byte	240
-	addl	%ebx,(%edi)
-	jmp	L027loop
-.align	4,0x90
-L027loop:
-	.byte	0x0f,0x31
-	movl	%eax,%edx
-	subl	%esi,%eax
-	movl	%edx,%esi
-	movl	%eax,%ebx
-	clflush	(%edi)
-.byte	240
-	addl	%eax,(%edi)
-	leal	4(%edi),%edi
-	subl	$1,%ecx
-	jnz	L027loop
-	movl	24(%esp),%eax
-L026nogo:
-	popl	%edi
-	popl	%esi
-	popl	%ebx
-	popl	%ebp
-	ret
-.globl	_OPENSSL_instrument_bus2
-.type	_OPENSSL_instrument_bus2,@function
-.align	4
-_OPENSSL_instrument_bus2:
-L_OPENSSL_instrument_bus2_begin:
-	%ifdef __CET__
-
-.byte	243,15,30,251
-	%endif
-
-	pushl	%ebp
-	pushl	%ebx
-	pushl	%esi
-	pushl	%edi
-	movl	$0,%eax
-	call	L028PIC_me_up
-L028PIC_me_up:
-	popl	%edx
-	leal	__GLOBAL_OFFSET_TABLE_+[.-L028PIC_me_up](%edx),%edx
-	movl	_OPENSSL_ia32cap_P@GOT(%edx),%edx
-	btl	$4,(%edx)
-	jnc	L029nogo
-	btl	$19,(%edx)
-	jnc	L029nogo
-	movl	20(%esp),%edi
-	movl	24(%esp),%ecx
 	movl	28(%esp),%ebp
 	.byte	0x0f,0x31
 	movl	%eax,%esi
@@ -480,14 +444,14 @@ L028PIC_me_up:
 	subl	%esi,%eax
 	movl	%edx,%esi
 	movl	%eax,%ebx
-	jmp	L030loop2
+	jmp	L027loop2
 .align	4,0x90
-L030loop2:
+L027loop2:
 	clflush	(%edi)
 .byte	240
 	addl	%eax,(%edi)
 	subl	$1,%ebp
-	jz	L031done2
+	jz	L028done2
 	.byte	0x0f,0x31
 	movl	%eax,%edx
 	subl	%esi,%eax
@@ -498,11 +462,11 @@ L030loop2:
 	setne	%dl
 	subl	%edx,%ecx
 	leal	(%edi,%edx,4),%edi
-	jnz	L030loop2
-L031done2:
+	jnz	L027loop2
+L028done2:
 	movl	24(%esp),%eax
 	subl	%ecx,%eax
-L029nogo:
+L026nogo:
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -524,33 +488,33 @@ L_OPENSSL_ia32_rdrand_bytes_begin:
 	movl	12(%esp),%edi
 	movl	16(%esp),%ebx
 	cmpl	$0,%ebx
-	je	L032done
+	je	L029done
 	movl	$8,%ecx
-L033loop:
+L030loop:
 .byte	15,199,242
-	jc	L034break
-	loop	L033loop
-	jmp	L032done
+	jc	L031break
+	loop	L030loop
+	jmp	L029done
 .align	4,0x90
-L034break:
+L031break:
 	cmpl	$4,%ebx
-	jb	L035tail
+	jb	L032tail
 	movl	%edx,(%edi)
 	leal	4(%edi),%edi
 	addl	$4,%eax
 	subl	$4,%ebx
-	jz	L032done
+	jz	L029done
 	movl	$8,%ecx
-	jmp	L033loop
+	jmp	L030loop
 .align	4,0x90
-L035tail:
+L032tail:
 	movb	%dl,(%edi)
 	leal	1(%edi),%edi
 	incl	%eax
 	shrl	$8,%edx
 	decl	%ebx
-	jnz	L035tail
-L032done:
+	jnz	L032tail
+L029done:
 	xorl	%edx,%edx
 	popl	%ebx
 	popl	%edi
@@ -571,33 +535,33 @@ L_OPENSSL_ia32_rdseed_bytes_begin:
 	movl	12(%esp),%edi
 	movl	16(%esp),%ebx
 	cmpl	$0,%ebx
-	je	L036done
+	je	L033done
 	movl	$8,%ecx
-L037loop:
+L034loop:
 .byte	15,199,250
-	jc	L038break
-	loop	L037loop
-	jmp	L036done
+	jc	L035break
+	loop	L034loop
+	jmp	L033done
 .align	4,0x90
-L038break:
+L035break:
 	cmpl	$4,%ebx
-	jb	L039tail
+	jb	L036tail
 	movl	%edx,(%edi)
 	leal	4(%edi),%edi
 	addl	$4,%eax
 	subl	$4,%ebx
-	jz	L036done
+	jz	L033done
 	movl	$8,%ecx
-	jmp	L037loop
+	jmp	L034loop
 .align	4,0x90
-L039tail:
+L036tail:
 	movb	%dl,(%edi)
 	leal	1(%edi),%edi
 	incl	%eax
 	shrl	$8,%edx
 	decl	%ebx
-	jnz	L039tail
-L036done:
+	jnz	L036tail
+L033done:
 	xorl	%edx,%edx
 	popl	%ebx
 	popl	%edi

@@ -296,9 +296,30 @@ typedef struct ui_string_st UI_STRING;
 SKM_DEFINE_STACK_OF_INTERNAL(UI_STRING, UI_STRING, UI_STRING)
 #define sk_UI_STRING_num(sk) OPENSSL_sk_num(ossl_check_const_UI_STRING_sk_type(sk))
 #define sk_UI_STRING_value(sk, idx) ((UI_STRING *)OPENSSL_sk_value(ossl_check_const_UI_STRING_sk_type(sk), (idx)))
-#define sk_UI_STRING_new(cmp) ((STACK_OF(UI_STRING) *)OPENSSL_sk_new(ossl_check_UI_STRING_compfunc_type(cmp)))
-#define sk_UI_STRING_new_null() ((STACK_OF(UI_STRING) *)OPENSSL_sk_new_null())
-#define sk_UI_STRING_new_reserve(cmp, n) ((STACK_OF(UI_STRING) *)OPENSSL_sk_new_reserve(ossl_check_UI_STRING_compfunc_type(cmp), (n)))
+#define sk_UI_STRING_new(cmp) \
+    ((STACK_OF(UI_STRING) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_UI_STRING_compfunc_type(cmp)), \
+                sk_UI_STRING_cmpfunc_thunk), \
+            sk_UI_STRING_copyfunc_thunk), \
+        sk_UI_STRING_freefunc_thunk))
+#define sk_UI_STRING_new_null() \
+    ((STACK_OF(UI_STRING) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_UI_STRING_cmpfunc_thunk), \
+            sk_UI_STRING_copyfunc_thunk), \
+        sk_UI_STRING_freefunc_thunk))
+#define sk_UI_STRING_new_reserve(cmp, n) \
+    ((STACK_OF(UI_STRING) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_UI_STRING_compfunc_type(cmp), (n)), \
+                sk_UI_STRING_cmpfunc_thunk), \
+            sk_UI_STRING_copyfunc_thunk), \
+        sk_UI_STRING_freefunc_thunk))
 #define sk_UI_STRING_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_UI_STRING_sk_type(sk), (n))
 #define sk_UI_STRING_free(sk) OPENSSL_sk_free(ossl_check_UI_STRING_sk_type(sk))
 #define sk_UI_STRING_zero(sk) OPENSSL_sk_zero(ossl_check_UI_STRING_sk_type(sk))
@@ -308,7 +329,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(UI_STRING, UI_STRING, UI_STRING)
 #define sk_UI_STRING_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_type(ptr))
 #define sk_UI_STRING_pop(sk) ((UI_STRING *)OPENSSL_sk_pop(ossl_check_UI_STRING_sk_type(sk)))
 #define sk_UI_STRING_shift(sk) ((UI_STRING *)OPENSSL_sk_shift(ossl_check_UI_STRING_sk_type(sk)))
-#define sk_UI_STRING_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_UI_STRING_sk_type(sk),ossl_check_UI_STRING_freefunc_type(freefunc))
+#define sk_UI_STRING_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_freefunc_type(freefunc))
 #define sk_UI_STRING_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_type(ptr), (idx))
 #define sk_UI_STRING_set(sk, idx, ptr) ((UI_STRING *)OPENSSL_sk_set(ossl_check_UI_STRING_sk_type(sk), (idx), ossl_check_UI_STRING_type(ptr)))
 #define sk_UI_STRING_find(sk, ptr) OPENSSL_sk_find(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_type(ptr))
@@ -316,8 +337,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(UI_STRING, UI_STRING, UI_STRING)
 #define sk_UI_STRING_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_type(ptr), pnum)
 #define sk_UI_STRING_sort(sk) OPENSSL_sk_sort(ossl_check_UI_STRING_sk_type(sk))
 #define sk_UI_STRING_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_UI_STRING_sk_type(sk))
-#define sk_UI_STRING_dup(sk) ((STACK_OF(UI_STRING) *)OPENSSL_sk_dup(ossl_check_const_UI_STRING_sk_type(sk)))
-#define sk_UI_STRING_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(UI_STRING) *)OPENSSL_sk_deep_copy(ossl_check_const_UI_STRING_sk_type(sk), ossl_check_UI_STRING_copyfunc_type(copyfunc), ossl_check_UI_STRING_freefunc_type(freefunc)))
+#define sk_UI_STRING_dup(sk) \
+    ((STACK_OF(UI_STRING) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_UI_STRING_sk_type(sk)), \
+                sk_UI_STRING_cmpfunc_thunk), \
+            sk_UI_STRING_copyfunc_thunk), \
+        sk_UI_STRING_freefunc_thunk))
+#define sk_UI_STRING_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(UI_STRING) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_UI_STRING_sk_type(sk), \
+                    ossl_check_UI_STRING_copyfunc_type(copyfunc), \
+                    ossl_check_UI_STRING_freefunc_type(freefunc)), \
+                sk_UI_STRING_cmpfunc_thunk), \
+            sk_UI_STRING_copyfunc_thunk), \
+        sk_UI_STRING_freefunc_thunk))
 #define sk_UI_STRING_set_cmp_func(sk, cmp) ((sk_UI_STRING_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_UI_STRING_sk_type(sk), ossl_check_UI_STRING_compfunc_type(cmp)))
 
 /* clang-format on */

@@ -50,9 +50,30 @@ typedef struct SRP_gN_cache_st {
 SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN_cache, SRP_gN_cache, SRP_gN_cache)
 #define sk_SRP_gN_cache_num(sk) OPENSSL_sk_num(ossl_check_const_SRP_gN_cache_sk_type(sk))
 #define sk_SRP_gN_cache_value(sk, idx) ((SRP_gN_cache *)OPENSSL_sk_value(ossl_check_const_SRP_gN_cache_sk_type(sk), (idx)))
-#define sk_SRP_gN_cache_new(cmp) ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_new(ossl_check_SRP_gN_cache_compfunc_type(cmp)))
-#define sk_SRP_gN_cache_new_null() ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_new_null())
-#define sk_SRP_gN_cache_new_reserve(cmp, n) ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_new_reserve(ossl_check_SRP_gN_cache_compfunc_type(cmp), (n)))
+#define sk_SRP_gN_cache_new(cmp) \
+    ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_SRP_gN_cache_compfunc_type(cmp)), \
+                sk_SRP_gN_cache_cmpfunc_thunk), \
+            sk_SRP_gN_cache_copyfunc_thunk), \
+        sk_SRP_gN_cache_freefunc_thunk))
+#define sk_SRP_gN_cache_new_null() \
+    ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_SRP_gN_cache_cmpfunc_thunk), \
+            sk_SRP_gN_cache_copyfunc_thunk), \
+        sk_SRP_gN_cache_freefunc_thunk))
+#define sk_SRP_gN_cache_new_reserve(cmp, n) \
+    ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_SRP_gN_cache_compfunc_type(cmp), (n)), \
+                sk_SRP_gN_cache_cmpfunc_thunk), \
+            sk_SRP_gN_cache_copyfunc_thunk), \
+        sk_SRP_gN_cache_freefunc_thunk))
 #define sk_SRP_gN_cache_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_SRP_gN_cache_sk_type(sk), (n))
 #define sk_SRP_gN_cache_free(sk) OPENSSL_sk_free(ossl_check_SRP_gN_cache_sk_type(sk))
 #define sk_SRP_gN_cache_zero(sk) OPENSSL_sk_zero(ossl_check_SRP_gN_cache_sk_type(sk))
@@ -62,7 +83,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN_cache, SRP_gN_cache, SRP_gN_cache)
 #define sk_SRP_gN_cache_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_type(ptr))
 #define sk_SRP_gN_cache_pop(sk) ((SRP_gN_cache *)OPENSSL_sk_pop(ossl_check_SRP_gN_cache_sk_type(sk)))
 #define sk_SRP_gN_cache_shift(sk) ((SRP_gN_cache *)OPENSSL_sk_shift(ossl_check_SRP_gN_cache_sk_type(sk)))
-#define sk_SRP_gN_cache_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_gN_cache_sk_type(sk),ossl_check_SRP_gN_cache_freefunc_type(freefunc))
+#define sk_SRP_gN_cache_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_freefunc_type(freefunc))
 #define sk_SRP_gN_cache_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_type(ptr), (idx))
 #define sk_SRP_gN_cache_set(sk, idx, ptr) ((SRP_gN_cache *)OPENSSL_sk_set(ossl_check_SRP_gN_cache_sk_type(sk), (idx), ossl_check_SRP_gN_cache_type(ptr)))
 #define sk_SRP_gN_cache_find(sk, ptr) OPENSSL_sk_find(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_type(ptr))
@@ -70,8 +91,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN_cache, SRP_gN_cache, SRP_gN_cache)
 #define sk_SRP_gN_cache_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_type(ptr), pnum)
 #define sk_SRP_gN_cache_sort(sk) OPENSSL_sk_sort(ossl_check_SRP_gN_cache_sk_type(sk))
 #define sk_SRP_gN_cache_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_SRP_gN_cache_sk_type(sk))
-#define sk_SRP_gN_cache_dup(sk) ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_dup(ossl_check_const_SRP_gN_cache_sk_type(sk)))
-#define sk_SRP_gN_cache_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_deep_copy(ossl_check_const_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_copyfunc_type(copyfunc), ossl_check_SRP_gN_cache_freefunc_type(freefunc)))
+#define sk_SRP_gN_cache_dup(sk) \
+    ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_SRP_gN_cache_sk_type(sk)), \
+                sk_SRP_gN_cache_cmpfunc_thunk), \
+            sk_SRP_gN_cache_copyfunc_thunk), \
+        sk_SRP_gN_cache_freefunc_thunk))
+#define sk_SRP_gN_cache_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(SRP_gN_cache) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_SRP_gN_cache_sk_type(sk), \
+                    ossl_check_SRP_gN_cache_copyfunc_type(copyfunc), \
+                    ossl_check_SRP_gN_cache_freefunc_type(freefunc)), \
+                sk_SRP_gN_cache_cmpfunc_thunk), \
+            sk_SRP_gN_cache_copyfunc_thunk), \
+        sk_SRP_gN_cache_freefunc_thunk))
 #define sk_SRP_gN_cache_set_cmp_func(sk, cmp) ((sk_SRP_gN_cache_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_SRP_gN_cache_sk_type(sk), ossl_check_SRP_gN_cache_compfunc_type(cmp)))
 
 /* clang-format on */
@@ -91,9 +129,30 @@ typedef struct SRP_user_pwd_st {
 SKM_DEFINE_STACK_OF_INTERNAL(SRP_user_pwd, SRP_user_pwd, SRP_user_pwd)
 #define sk_SRP_user_pwd_num(sk) OPENSSL_sk_num(ossl_check_const_SRP_user_pwd_sk_type(sk))
 #define sk_SRP_user_pwd_value(sk, idx) ((SRP_user_pwd *)OPENSSL_sk_value(ossl_check_const_SRP_user_pwd_sk_type(sk), (idx)))
-#define sk_SRP_user_pwd_new(cmp) ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_new(ossl_check_SRP_user_pwd_compfunc_type(cmp)))
-#define sk_SRP_user_pwd_new_null() ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_new_null())
-#define sk_SRP_user_pwd_new_reserve(cmp, n) ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_new_reserve(ossl_check_SRP_user_pwd_compfunc_type(cmp), (n)))
+#define sk_SRP_user_pwd_new(cmp) \
+    ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_SRP_user_pwd_compfunc_type(cmp)), \
+                sk_SRP_user_pwd_cmpfunc_thunk), \
+            sk_SRP_user_pwd_copyfunc_thunk), \
+        sk_SRP_user_pwd_freefunc_thunk))
+#define sk_SRP_user_pwd_new_null() \
+    ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_SRP_user_pwd_cmpfunc_thunk), \
+            sk_SRP_user_pwd_copyfunc_thunk), \
+        sk_SRP_user_pwd_freefunc_thunk))
+#define sk_SRP_user_pwd_new_reserve(cmp, n) \
+    ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_SRP_user_pwd_compfunc_type(cmp), (n)), \
+                sk_SRP_user_pwd_cmpfunc_thunk), \
+            sk_SRP_user_pwd_copyfunc_thunk), \
+        sk_SRP_user_pwd_freefunc_thunk))
 #define sk_SRP_user_pwd_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_SRP_user_pwd_sk_type(sk), (n))
 #define sk_SRP_user_pwd_free(sk) OPENSSL_sk_free(ossl_check_SRP_user_pwd_sk_type(sk))
 #define sk_SRP_user_pwd_zero(sk) OPENSSL_sk_zero(ossl_check_SRP_user_pwd_sk_type(sk))
@@ -103,7 +162,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_user_pwd, SRP_user_pwd, SRP_user_pwd)
 #define sk_SRP_user_pwd_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_type(ptr))
 #define sk_SRP_user_pwd_pop(sk) ((SRP_user_pwd *)OPENSSL_sk_pop(ossl_check_SRP_user_pwd_sk_type(sk)))
 #define sk_SRP_user_pwd_shift(sk) ((SRP_user_pwd *)OPENSSL_sk_shift(ossl_check_SRP_user_pwd_sk_type(sk)))
-#define sk_SRP_user_pwd_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_user_pwd_sk_type(sk),ossl_check_SRP_user_pwd_freefunc_type(freefunc))
+#define sk_SRP_user_pwd_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_freefunc_type(freefunc))
 #define sk_SRP_user_pwd_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_type(ptr), (idx))
 #define sk_SRP_user_pwd_set(sk, idx, ptr) ((SRP_user_pwd *)OPENSSL_sk_set(ossl_check_SRP_user_pwd_sk_type(sk), (idx), ossl_check_SRP_user_pwd_type(ptr)))
 #define sk_SRP_user_pwd_find(sk, ptr) OPENSSL_sk_find(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_type(ptr))
@@ -111,8 +170,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_user_pwd, SRP_user_pwd, SRP_user_pwd)
 #define sk_SRP_user_pwd_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_type(ptr), pnum)
 #define sk_SRP_user_pwd_sort(sk) OPENSSL_sk_sort(ossl_check_SRP_user_pwd_sk_type(sk))
 #define sk_SRP_user_pwd_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_SRP_user_pwd_sk_type(sk))
-#define sk_SRP_user_pwd_dup(sk) ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_dup(ossl_check_const_SRP_user_pwd_sk_type(sk)))
-#define sk_SRP_user_pwd_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_deep_copy(ossl_check_const_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_copyfunc_type(copyfunc), ossl_check_SRP_user_pwd_freefunc_type(freefunc)))
+#define sk_SRP_user_pwd_dup(sk) \
+    ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_SRP_user_pwd_sk_type(sk)), \
+                sk_SRP_user_pwd_cmpfunc_thunk), \
+            sk_SRP_user_pwd_copyfunc_thunk), \
+        sk_SRP_user_pwd_freefunc_thunk))
+#define sk_SRP_user_pwd_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(SRP_user_pwd) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_SRP_user_pwd_sk_type(sk), \
+                    ossl_check_SRP_user_pwd_copyfunc_type(copyfunc), \
+                    ossl_check_SRP_user_pwd_freefunc_type(freefunc)), \
+                sk_SRP_user_pwd_cmpfunc_thunk), \
+            sk_SRP_user_pwd_copyfunc_thunk), \
+        sk_SRP_user_pwd_freefunc_thunk))
 #define sk_SRP_user_pwd_set_cmp_func(sk, cmp) ((sk_SRP_user_pwd_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_SRP_user_pwd_sk_type(sk), ossl_check_SRP_user_pwd_compfunc_type(cmp)))
 
 /* clang-format on */
@@ -152,9 +228,30 @@ typedef struct SRP_gN_st {
 SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN, SRP_gN, SRP_gN)
 #define sk_SRP_gN_num(sk) OPENSSL_sk_num(ossl_check_const_SRP_gN_sk_type(sk))
 #define sk_SRP_gN_value(sk, idx) ((SRP_gN *)OPENSSL_sk_value(ossl_check_const_SRP_gN_sk_type(sk), (idx)))
-#define sk_SRP_gN_new(cmp) ((STACK_OF(SRP_gN) *)OPENSSL_sk_new(ossl_check_SRP_gN_compfunc_type(cmp)))
-#define sk_SRP_gN_new_null() ((STACK_OF(SRP_gN) *)OPENSSL_sk_new_null())
-#define sk_SRP_gN_new_reserve(cmp, n) ((STACK_OF(SRP_gN) *)OPENSSL_sk_new_reserve(ossl_check_SRP_gN_compfunc_type(cmp), (n)))
+#define sk_SRP_gN_new(cmp) \
+    ((STACK_OF(SRP_gN) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_SRP_gN_compfunc_type(cmp)), \
+                sk_SRP_gN_cmpfunc_thunk), \
+            sk_SRP_gN_copyfunc_thunk), \
+        sk_SRP_gN_freefunc_thunk))
+#define sk_SRP_gN_new_null() \
+    ((STACK_OF(SRP_gN) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_SRP_gN_cmpfunc_thunk), \
+            sk_SRP_gN_copyfunc_thunk), \
+        sk_SRP_gN_freefunc_thunk))
+#define sk_SRP_gN_new_reserve(cmp, n) \
+    ((STACK_OF(SRP_gN) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_SRP_gN_compfunc_type(cmp), (n)), \
+                sk_SRP_gN_cmpfunc_thunk), \
+            sk_SRP_gN_copyfunc_thunk), \
+        sk_SRP_gN_freefunc_thunk))
 #define sk_SRP_gN_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_SRP_gN_sk_type(sk), (n))
 #define sk_SRP_gN_free(sk) OPENSSL_sk_free(ossl_check_SRP_gN_sk_type(sk))
 #define sk_SRP_gN_zero(sk) OPENSSL_sk_zero(ossl_check_SRP_gN_sk_type(sk))
@@ -164,7 +261,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN, SRP_gN, SRP_gN)
 #define sk_SRP_gN_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_type(ptr))
 #define sk_SRP_gN_pop(sk) ((SRP_gN *)OPENSSL_sk_pop(ossl_check_SRP_gN_sk_type(sk)))
 #define sk_SRP_gN_shift(sk) ((SRP_gN *)OPENSSL_sk_shift(ossl_check_SRP_gN_sk_type(sk)))
-#define sk_SRP_gN_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_gN_sk_type(sk),ossl_check_SRP_gN_freefunc_type(freefunc))
+#define sk_SRP_gN_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_freefunc_type(freefunc))
 #define sk_SRP_gN_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_type(ptr), (idx))
 #define sk_SRP_gN_set(sk, idx, ptr) ((SRP_gN *)OPENSSL_sk_set(ossl_check_SRP_gN_sk_type(sk), (idx), ossl_check_SRP_gN_type(ptr)))
 #define sk_SRP_gN_find(sk, ptr) OPENSSL_sk_find(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_type(ptr))
@@ -172,8 +269,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(SRP_gN, SRP_gN, SRP_gN)
 #define sk_SRP_gN_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_type(ptr), pnum)
 #define sk_SRP_gN_sort(sk) OPENSSL_sk_sort(ossl_check_SRP_gN_sk_type(sk))
 #define sk_SRP_gN_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_SRP_gN_sk_type(sk))
-#define sk_SRP_gN_dup(sk) ((STACK_OF(SRP_gN) *)OPENSSL_sk_dup(ossl_check_const_SRP_gN_sk_type(sk)))
-#define sk_SRP_gN_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(SRP_gN) *)OPENSSL_sk_deep_copy(ossl_check_const_SRP_gN_sk_type(sk), ossl_check_SRP_gN_copyfunc_type(copyfunc), ossl_check_SRP_gN_freefunc_type(freefunc)))
+#define sk_SRP_gN_dup(sk) \
+    ((STACK_OF(SRP_gN) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_SRP_gN_sk_type(sk)), \
+                sk_SRP_gN_cmpfunc_thunk), \
+            sk_SRP_gN_copyfunc_thunk), \
+        sk_SRP_gN_freefunc_thunk))
+#define sk_SRP_gN_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(SRP_gN) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_SRP_gN_sk_type(sk), \
+                    ossl_check_SRP_gN_copyfunc_type(copyfunc), \
+                    ossl_check_SRP_gN_freefunc_type(freefunc)), \
+                sk_SRP_gN_cmpfunc_thunk), \
+            sk_SRP_gN_copyfunc_thunk), \
+        sk_SRP_gN_freefunc_thunk))
 #define sk_SRP_gN_set_cmp_func(sk, cmp) ((sk_SRP_gN_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_SRP_gN_sk_type(sk), ossl_check_SRP_gN_compfunc_type(cmp)))
 
 /* clang-format on */
