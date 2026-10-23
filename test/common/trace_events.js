@@ -4,7 +4,8 @@
 // binary format.
 // This depends on perfetto's `trace_processor_shell` converts to pftrace format
 // to JSON format. Run `make tools/perfetto/trace_processor_shell` to download
-// it, or point `TRACE_PROCESSOR_SHELL_PATH` at an existing build of it.
+// it (`vcbuild test` does so on Windows), or point `TRACE_PROCESSOR_SHELL_PATH`
+// at an existing build of it.
 
 const assert = require('assert');
 const { spawnSync } = require('child_process');
@@ -14,7 +15,8 @@ const common = require('./');
 
 const traceProcessor = path.resolve(
   __dirname, '..', '..',
-  process.env.TRACE_PROCESSOR_SHELL_PATH || 'tools/perfetto/trace_processor_shell');
+  process.env.TRACE_PROCESSOR_SHELL_PATH ||
+    `tools/perfetto/trace_processor_shell${common.isWindows ? '.exe' : ''}`);
 
 // The JSON form of a trace runs about three times the size of the trace it was
 // converted from, and the traces these tests produce are a few hundred KiB at
@@ -29,7 +31,7 @@ const defaultTraceFileName = `node_trace.1.${traceFileExt}`;
 function checkTraceProcessor() {
   if (common.hasPerfetto && !fs.existsSync(traceProcessor)) {
     assert.fail('trace_processor_shell is missing, ' +
-                'run `make tools/perfetto/trace_processor_shell` to download it');
+                'run `python3 tools/perfetto/get_trace_processor.py` to download it');
   }
 }
 

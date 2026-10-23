@@ -349,7 +349,7 @@ TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
 endif
 
 $(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
-	@tools/perfetto/get_trace_processor $@
+	@$(PYTHON) tools/perfetto/get_trace_processor.py $@
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
