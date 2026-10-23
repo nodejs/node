@@ -3,10 +3,61 @@ const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
 
 const assert = require('assert');
+const { spawnSync } = require('child_process');
 const tls = require('tls');
 const net = require('net');
 const { once } = require('events');
 const fixtures = require('../common/fixtures');
+
+if (process.argv[2] === 'record-compression') {
+  (async () => {
+    const tcpServer = net.createServer({ pauseOnConnect: true });
+    tcpServer.listen(0);
+    await once(tcpServer, 'listening');
+
+    const clientConnected = once(tcpServer, 'connection');
+    const probe = tls.connect({
+      port: tcpServer.address().port,
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2',
+      maxVersion: 'TLSv1.2',
+    });
+
+    const [socket] = await clientConnected;
+    const clientHelloReceived = once(socket, 'data');
+    socket.resume();
+    const [clientHello] = await clientHelloReceived;
+
+    probe.destroy();
+    socket.destroy();
+    tcpServer.close();
+
+    // ClientHello layout (RFC 5246 7.4.1.2):
+    //   record header (5) | handshake header (4) | client_version (2)
+    //   | random (32) | session_id <0..32> | cipher_suites <2..>
+    //   | compression_methods <1..>
+    assert.strictEqual(clientHello[0], 0x16);
+    assert.strictEqual(clientHello[5], 0x01);
+    let i = 5 + 4 + 2 + 32;
+    i += 1 + clientHello[i];
+    i += 2 + clientHello.readUInt16BE(i);
+    const methods = clientHello.subarray(i + 1, i + 1 + clientHello[i]);
+    assert.deepStrictEqual([...methods], [0x00]);
+  })().then(common.mustCall());
+  return;
+}
+
+// TLS record compression must remain disabled even when OpenSSL configuration
+// tries to enable it at a security level that permits it.
+{
+  const config = fixtures.path('openssl-record-compression.cnf');
+  const child = spawnSync(process.execPath, [
+    `--openssl-config=${config}`,
+    __filename,
+    'record-compression',
+  ], { encoding: 'utf8' });
+  assert.strictEqual(child.status, 0, child.stderr);
+}
 
 const supportedAlgs = tls.getCertificateCompressionAlgorithms();
 if (supportedAlgs.length === 0)
@@ -72,50 +123,6 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     /TLSv1\.3/,
   );
 }
-
-// Test: certificate compression must not enable record-level compression.
-//
-// RFC 8879 certificate compression is unrelated to TLS record compression
-// (the CRIME attack vector). The latter is disabled by Node at startup via
-// sk_SSL_COMP_zero, and by modern OpenSSL defaults as well. To confirm, we
-// Verify a ClientHello sent by Node only advertises null record compression.
-(async () => {
-  const { promise: clientHelloReceived, resolve: onClientHello } =
-    Promise.withResolvers();
-  const tcpServer = net.createServer((socket) => {
-    socket.once('data', (chunk) => {
-      onClientHello(chunk);
-      socket.destroy();
-    });
-    socket.on('error', () => {});
-  });
-  tcpServer.listen(0);
-  await once(tcpServer, 'listening');
-
-  const probe = tls.connect({
-    port: tcpServer.address().port,
-    rejectUnauthorized: false,
-    certificateCompression: supportedAlgs,
-  });
-  probe.on('error', () => {});
-
-  const clientHello = await clientHelloReceived;
-  tcpServer.close();
-  probe.destroy();
-
-  // ClientHello layout (RFC 8446 4.1.2 + 5.1 record layer):
-  //   record header (5) | handshake header (4) | legacy_version (2)
-  //   | random (32) | session_id <1..32> | cipher_suites <2..>
-  //   | compression_methods <1..> | extensions <2..>
-  assert.strictEqual(clientHello[0], 0x16); // Handshake record
-  assert.strictEqual(clientHello[5], 0x01); // ClientHello
-  let i = 5 + 4 + 2 + 32;
-  i += 1 + clientHello[i];                  // Skip legacy_session_id
-  i += 2 + clientHello.readUInt16BE(i);     // Skip cipher_suites
-  const methods = clientHello.subarray(i + 1, i + 1 + clientHello[i]);
-  // Must only advertise the null compression method.
-  assert.deepStrictEqual([...methods], [0x00]);
-})().then(common.mustCall());
 
 // Test: a CompressedCertificate whose uncompressed length exceeds OpenSSL's
 // default max_cert_list (100 KB) is rejected before decompression, protecting
