@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # May 2011
@@ -57,7 +57,7 @@ if ($flavour && $flavour ne "void") {
 }
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 #if defined(__thumb2__)
 .syntax	unified
@@ -321,7 +321,7 @@ $code.=<<___;
 .word	OPENSSL_armcap_P-.
 # endif
 #endif
-.asciz	"GF(2^m) Multiplication for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"GF(2^m) Multiplication for ARMv4/NEON, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	5
 
 #if __ARM_MAX_ARCH__>=7

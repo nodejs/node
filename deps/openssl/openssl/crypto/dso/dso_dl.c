@@ -1,11 +1,13 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#include <stdio.h>
 
 #include "dso_local.h"
 
@@ -228,13 +230,13 @@ static char *dl_name_converter(DSO *dso, const char *filename)
         return NULL;
     }
     if (transform)
-        BIO_snprintf(translated, rsize,
+        snprintf(translated, rsize,
             (DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0
                 ? "lib%s%s"
                 : "%s%s",
             filename, DSO_EXTENSION);
     else
-        BIO_snprintf(translated, rsize, "%s", filename);
+        snprintf(translated, rsize, "%s", filename);
     return translated;
 }
 

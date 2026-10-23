@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -198,7 +198,7 @@ static void create_ml_dsa_raw_key(uint8_t **buf, size_t *len,
      * typically much less (between 1 and 100 bytes) so use RAND_bytes here
      * instead
      */
-    if (!RAND_bytes(key, keylen))
+    if (!RAND_bytes(key, (int)keylen))
         return;
 
     /*
@@ -254,6 +254,10 @@ static int keygen_ml_dsa_real_key_helper(uint8_t **buf, size_t *len,
 
     ret = 1;
 err:
+    if (!ret) {
+        EVP_PKEY_free(*key);
+        *key = NULL;
+    }
     EVP_PKEY_CTX_free(ctx);
     return ret;
 }
@@ -659,7 +663,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     /* And run our setup/doit/cleanup sequence */
     if (ops[operation].setup != NULL)
         ops[operation].setup(&buffer_cursor, &len, &in1, &in2);
-    if (ops[operation].doit != NULL)
+    if (ops[operation].doit != NULL && in1 != NULL)
         ops[operation].doit(&buffer_cursor, &len, in1, in2, &out1, &out2);
     if (ops[operation].cleanup != NULL)
         ops[operation].cleanup(in1, in2, out1, out2);

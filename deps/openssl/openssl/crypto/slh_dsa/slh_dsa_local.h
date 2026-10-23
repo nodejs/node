@@ -7,6 +7,9 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_LOCAL_H)
+#define OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_LOCAL_H
+
 #include "crypto/slh_dsa.h"
 #include "slh_hash.h"
 #include "slh_params.h"
@@ -45,24 +48,22 @@
  * NOTE: Any changes to this structure will need updating in
  * ossl_slh_dsa_hash_ctx_dup().
  */
-/* A SHA-512 digest plus two |n| byte node values */
-#define SLH_DSA_HASH_SCRATCH_LEN (64 + 2 * SLH_MAX_N)
-
 struct slh_dsa_hash_ctx_st {
     const SLH_DSA_KEY *key; /* This key is not owned by this object */
-    EVP_MD_CTX *md_ctx; /* Either SHAKE OR SHA-256 */
-    EVP_MD_CTX *md_big_ctx; /* Either SHA-512 or points to |md_ctx| for SHA-256*/
+    void *shactx; /* A low level SHAKE object */
+    void *shactx_pkseed; /* A low level SHAKE or SHA256 object with PK.seed hashed in it */
+    size_t shactx_len; /* The size of the two hash contexts above */
+    /*
+     * A working hash context used by the hash functions in place of local
+     * stack copies, so that intermediate hash states derived from secrets
+     * live in one place and are erased when this object is freed.  It is
+     * also used for the one-shot SHA-512 contexts of the security category
+     * 3 and 5 SHA2 parameter sets.  Not used concurrently.
+     */
+    void *scratch;
+    size_t scratch_len;
     EVP_MAC_CTX *hmac_ctx; /* required by SHA algorithms for PRFmsg() */
     int hmac_digest_used; /* Used for lazy init of hmac_ctx digest */
-    /*
-     * Working storage for the SHA2 hash function intermediates, used in
-     * place of local stack copies, so that potentially sensitive
-     * intermediate data lives in one place and is erased when this object
-     * is freed (FIPS 205 section 3.1).  The SHAKE hash functions write
-     * their output directly to the caller's buffer and need no scratch.
-     * Not used concurrently.
-     */
-    uint8_t scratch[SLH_DSA_HASH_SCRATCH_LEN];
 };
 
 __owur int ossl_slh_wots_pk_gen(SLH_DSA_HASH_CTX *ctx, const uint8_t *sk_seed,
@@ -75,11 +76,11 @@ __owur int ossl_slh_wots_pk_from_sig(SLH_DSA_HASH_CTX *ctx,
     PACKET *sig_rpkt, const uint8_t *msg,
     const uint8_t *pk_seed, uint8_t *adrs,
     uint8_t *pk_out, size_t pk_out_len);
-
 __owur int ossl_slh_xmss_node(SLH_DSA_HASH_CTX *ctx, const uint8_t *sk_seed,
     uint32_t node_id, uint32_t height,
     const uint8_t *pk_seed, uint8_t *adrs,
     uint8_t *pk_out, size_t pk_out_len);
+
 __owur int ossl_slh_xmss_sign(SLH_DSA_HASH_CTX *ctx, const uint8_t *msg,
     const uint8_t *sk_seed, uint32_t node_id,
     const uint8_t *pk_seed, uint8_t *adrs,
@@ -105,3 +106,5 @@ __owur int ossl_slh_fors_pk_from_sig(SLH_DSA_HASH_CTX *ctx, PACKET *sig_rpkt,
     const uint8_t *md, const uint8_t *pk_seed,
     uint8_t *adrs,
     uint8_t *pk_out, size_t pk_out_len);
+
+#endif /* !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_LOCAL_H) */

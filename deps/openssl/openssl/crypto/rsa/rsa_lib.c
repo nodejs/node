@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,25 +15,25 @@
 
 #include <openssl/crypto.h>
 #include <openssl/core_names.h>
-#ifndef FIPS_MODULE
-#include <openssl/engine.h>
-#endif
 #include <openssl/evp.h>
 #include <openssl/param_build.h>
+#include "internal/common.h"
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
+#include "internal/zeroization.h"
 #include "crypto/bn.h"
 #include "crypto/evp.h"
 #include "crypto/rsa.h"
+#include "crypto/sparse_array.h"
 #include "crypto/security_bits.h"
 #include "rsa_local.h"
 
-static RSA *rsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx);
+static RSA *rsa_new_intern(OSSL_LIB_CTX *libctx);
 
 #ifndef FIPS_MODULE
 RSA *RSA_new(void)
 {
-    return rsa_new_intern(NULL, NULL);
+    return rsa_new_intern(NULL);
 }
 
 const RSA_METHOD *RSA_get_method(const RSA *rsa)
@@ -51,10 +51,6 @@ int RSA_set_method(RSA *rsa, const RSA_METHOD *meth)
     mtmp = rsa->meth;
     if (mtmp->finish)
         mtmp->finish(rsa);
-#ifndef OPENSSL_NO_ENGINE
-    ENGINE_finish(rsa->engine);
-    rsa->engine = NULL;
-#endif
     rsa->meth = meth;
     if (meth->init)
         meth->init(rsa);
@@ -63,16 +59,18 @@ int RSA_set_method(RSA *rsa, const RSA_METHOD *meth)
 
 RSA *RSA_new_method(ENGINE *engine)
 {
-    return rsa_new_intern(engine, NULL);
+    if (!ossl_assert(engine == NULL))
+        return NULL;
+    return rsa_new_intern(NULL);
 }
 #endif
 
 RSA *ossl_rsa_new_with_ctx(OSSL_LIB_CTX *libctx)
 {
-    return rsa_new_intern(NULL, libctx);
+    return rsa_new_intern(libctx);
 }
 
-static RSA *rsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
+static RSA *rsa_new_intern(OSSL_LIB_CTX *libctx)
 {
     RSA *ret = OPENSSL_zalloc(sizeof(*ret));
 
@@ -92,28 +90,12 @@ static RSA *rsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
         return NULL;
     }
 
+    ret->blindings_sa = ossl_rsa_alloc_blinding();
+    if (ret->blindings_sa == NULL)
+        goto err;
+
     ret->libctx = libctx;
     ret->meth = RSA_get_default_method();
-#if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
-    ret->flags = ret->meth->flags & ~RSA_FLAG_NON_FIPS_ALLOW;
-    if (engine) {
-        if (!ENGINE_init(engine)) {
-            ERR_raise(ERR_LIB_RSA, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-        ret->engine = engine;
-    } else {
-        ret->engine = ENGINE_get_default_RSA();
-    }
-    if (ret->engine) {
-        ret->meth = ENGINE_get_RSA(ret->engine);
-        if (ret->meth == NULL) {
-            ERR_raise(ERR_LIB_RSA, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-    }
-#endif
-
     ret->flags = ret->meth->flags & ~RSA_FLAG_NON_FIPS_ALLOW;
 #ifndef FIPS_MODULE
     if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_RSA, ret, &ret->ex_data)) {
@@ -148,9 +130,6 @@ void RSA_free(RSA *r)
 
     if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
-#if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
-    ENGINE_finish(r->engine);
-#endif
 
 #ifndef FIPS_MODULE
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_RSA, r, &r->ex_data);
@@ -159,13 +138,8 @@ void RSA_free(RSA *r)
     CRYPTO_THREAD_lock_free(r->lock);
     CRYPTO_FREE_REF(&r->references);
 
-#ifdef OPENSSL_PEDANTIC_ZEROIZATION
-    BN_clear_free(r->n);
-    BN_clear_free(r->e);
-#else
-    BN_free(r->n);
-    BN_free(r->e);
-#endif
+    ossl_public_bn_free(r->n);
+    ossl_public_bn_free(r->e);
     BN_clear_free(r->d);
     BN_clear_free(r->p);
     BN_clear_free(r->q);
@@ -181,8 +155,7 @@ void RSA_free(RSA *r)
     RSA_PSS_PARAMS_free(r->pss);
     sk_RSA_PRIME_INFO_pop_free(r->prime_infos, ossl_rsa_multip_info_free);
 #endif
-    BN_BLINDING_free(r->blinding);
-    BN_BLINDING_free(r->mt_blinding);
+    ossl_rsa_free_blinding(r);
     OPENSSL_free(r);
 }
 
@@ -190,7 +163,7 @@ int RSA_up_ref(RSA *r)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&r->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&r->references, &i))
         return 0;
 
     REF_PRINT_COUNT("RSA", i, r);
@@ -407,11 +380,11 @@ int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
         return 0;
 
     if (n != NULL) {
-        BN_free(r->n);
+        ossl_public_bn_free(r->n);
         r->n = n;
     }
     if (e != NULL) {
-        BN_free(r->e);
+        ossl_public_bn_free(r->e);
         r->e = e;
     }
     if (d != NULL) {
@@ -729,17 +702,12 @@ int RSA_get_version(RSA *r)
 }
 
 #ifndef FIPS_MODULE
-ENGINE *RSA_get0_engine(const RSA *r)
-{
-    return r->engine;
-}
-
 int RSA_pkey_ctx_ctrl(EVP_PKEY_CTX *ctx, int optype, int cmd, int p1, void *p2)
 {
     /* If key type not RSA or RSA-PSS return error */
-    if (ctx != NULL && ctx->pmeth != NULL
-        && ctx->pmeth->pkey_id != EVP_PKEY_RSA
-        && ctx->pmeth->pkey_id != EVP_PKEY_RSA_PSS)
+    if (ctx == NULL
+        || (ctx->legacy_keytype != EVP_PKEY_RSA
+            && ctx->legacy_keytype != EVP_PKEY_RSA_PSS))
         return -1;
     return EVP_PKEY_CTX_ctrl(ctx, -1, optype, cmd, p1, p2);
 }
@@ -1377,4 +1345,5 @@ int EVP_PKEY_CTX_set_rsa_keygen_primes(EVP_PKEY_CTX *ctx, int primes)
 
     return evp_pkey_ctx_set_params_strict(ctx, params);
 }
+
 #endif

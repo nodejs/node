@@ -295,7 +295,7 @@ int OSSL_STORE_expect(OSSL_STORE_CTX *ctx, int expected_type)
     int ret = 1;
 
     if (ctx == NULL
-        || expected_type < 0 || expected_type > OSSL_STORE_INFO_CRL) {
+        || expected_type < 0 || expected_type > OSSL_STORE_INFO_SKEY) {
         ERR_raise(ERR_LIB_OSSL_STORE, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
@@ -694,6 +694,15 @@ OSSL_STORE_INFO *OSSL_STORE_INFO_new_CRL(X509_CRL *crl)
     return info;
 }
 
+OSSL_STORE_INFO *OSSL_STORE_INFO_new_SKEY(EVP_SKEY *skey)
+{
+    OSSL_STORE_INFO *info = OSSL_STORE_INFO_new(OSSL_STORE_INFO_SKEY, skey);
+
+    if (info == NULL)
+        ERR_raise(ERR_LIB_OSSL_STORE, ERR_R_OSSL_STORE_LIB);
+    return info;
+}
+
 /*
  * Functions to try to extract data from an OSSL_STORE_INFO.
  */
@@ -829,6 +838,24 @@ X509_CRL *OSSL_STORE_INFO_get1_CRL(const OSSL_STORE_INFO *info)
     return NULL;
 }
 
+EVP_SKEY *OSSL_STORE_INFO_get0_SKEY(const OSSL_STORE_INFO *info)
+{
+    if (info->type == OSSL_STORE_INFO_SKEY)
+        return info->_.skey;
+    return NULL;
+}
+
+EVP_SKEY *OSSL_STORE_INFO_get1_SKEY(const OSSL_STORE_INFO *info)
+{
+    if (info->type == OSSL_STORE_INFO_SKEY) {
+        if (!EVP_SKEY_up_ref(info->_.skey))
+            return NULL;
+        return info->_.skey;
+    }
+    ERR_raise(ERR_LIB_OSSL_STORE, OSSL_STORE_R_NOT_A_SYMMETRIC_KEY);
+    return NULL;
+}
+
 /*
  * Free the OSSL_STORE_INFO
  */
@@ -854,6 +881,9 @@ void OSSL_STORE_INFO_free(OSSL_STORE_INFO *info)
             break;
         case OSSL_STORE_INFO_CRL:
             X509_CRL_free(info->_.crl);
+            break;
+        case OSSL_STORE_INFO_SKEY:
+            EVP_SKEY_free(info->_.skey);
             break;
         }
         OPENSSL_free(info);
@@ -912,7 +942,7 @@ int OSSL_STORE_supports_search(OSSL_STORE_CTX *ctx, int search_type)
 }
 
 /* Search term constructors */
-OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(X509_NAME *name)
+OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(const X509_NAME *name)
 {
     OSSL_STORE_SEARCH *search = OPENSSL_zalloc(sizeof(*search));
 
@@ -924,7 +954,7 @@ OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(X509_NAME *name)
     return search;
 }
 
-OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_issuer_serial(X509_NAME *name,
+OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_issuer_serial(const X509_NAME *name,
     const ASN1_INTEGER *serial)
 {
     OSSL_STORE_SEARCH *search = OPENSSL_zalloc(sizeof(*search));
@@ -996,7 +1026,7 @@ int OSSL_STORE_SEARCH_get_type(const OSSL_STORE_SEARCH *criterion)
     return criterion->search_type;
 }
 
-X509_NAME *OSSL_STORE_SEARCH_get0_name(const OSSL_STORE_SEARCH *criterion)
+const X509_NAME *OSSL_STORE_SEARCH_get0_name(const OSSL_STORE_SEARCH *criterion)
 {
     return criterion->name;
 }

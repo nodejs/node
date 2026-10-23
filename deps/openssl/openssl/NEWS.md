@@ -7,6 +7,9 @@ release. For more details please read the CHANGES file.
 OpenSSL Releases
 ----------------
 
+ - [OpenSSL 4.1](#openssl-41)
+ - [OpenSSL 4.0](#openssl-40)
+ - [OpenSSL 3.6](#openssl-36)
  - [OpenSSL 3.5](#openssl-35)
  - [OpenSSL 3.4](#openssl-34)
  - [OpenSSL 3.3](#openssl-33)
@@ -20,18 +23,94 @@ OpenSSL Releases
  - [OpenSSL 1.0.0](#openssl-100)
  - [OpenSSL 0.9.x](#openssl-09x)
 
-OpenSSL 3.5
+OpenSSL 4.1
 -----------
 
-### Major changes between OpenSSL 3.5.8 and OpenSSL 3.5.9 [29 Sep 2026]
+### Major changes between OpenSSL 4.0 and OpenSSL 4.1.0 [23 Oct 2026]
 
-OpenSSL 3.5.9 is a security patch release.  The most severe CVE fixed
+OpenSSL 4.1.0 is a feature release adding significant new functionality
+to OpenSSL.
+
+This release incorporates the following potentially significant or incompatible
+changes:
+
+  * Added `VC-WIN32-MSVC2013` and `VC-WIN64A-MSVC2013` build targets to provide
+    internal functions for bridging the gaps in C99 standard support
+    that are present in MSVC 2013.
+
+  * Added optimized ML-DSA and ML-KEM NTT operations on `ppc64le`;
+    optimized ML-DSA operations on `x86_64`;
+    AVX-512-optimized SHAKE x4 operations for ML-DSA on `x86_64`;
+    AVX-512 and VAES optimizations for AES-CBC decryption on `x86_64`.
+
+  * Changed `tsget` utility to use `Net::Curl::Easy` (from the `Net-Curl` CPAN
+    distribution) instead of the abandoned `WWW::Curl::Easy`.  Users who rely
+    on `tsget` should install `Net::Curl::Easy` before upgrading.
+
+  * Dropped Windows-on-Itanium (`VC-WIN64I`) and Windows CE (`VC-CE`) targets
+    from Configurations.
+
+  * Dropped `no-ecdsa` and `no-ecdh` options from `Configure`, as these options
+    did not really disable the implementations.  Use `no-ec` to disable
+    the elliptic curve support.
+
+This release adds the following new features:
+
+  * Support for DTLS 1.3 ([RFC 9147]).
+    Refer to the `ossl-guide-dtlsv13(7)` manual page for details.
+
+  * Support for [RFC 8701] GREASE (Generate Random Extensions And Sustain
+    Extensibility).
+
+  * DTLS support in the SSL listener API.
+
+  * Support for IKEV2 KDF.
+
+  * Initial support for the Elbrus2000 (`e2k`) architecture.
+
+Known issues in 4.1.0
+
+  * <https://github.com/openssl/openssl/issues/32878>
+    When a DTLS 1.3 KeyUpdate is received, all other outstanding
+    post-handshake records are dropped from the retransmission buffer.
+    This means post-handshake records still awaiting an ACK (such as a
+    NewSessionTicket) will no longer be retransmitted if the original
+    transmission is lost. A fix is in progress and planned for a future
+    release.
+
+  * <https://github.com/openssl/openssl/issues/33277>
+    A permanent receive failure on a DTLS listener can be reported as
+    `SSL_ERROR_WANT_READ` on an accepted connection. Polling and subsequent
+    accept calls may also fail to report the error, causing applications
+    to continue waiting after a permanent failure.
+
+  * <https://github.com/openssl/openssl/issues/33278>
+    A retryable write failure on a nonblocking connection accepted from a
+    DTLS listener can be reported as `SSL_ERROR_SYSCALL` instead of
+    `SSL_ERROR_WANT_WRITE`. Applications treating this result as fatal may
+    close a connection that is still usable.
+
+  * <https://github.com/openssl/openssl/issues/33242>
+    DTLS 1.3 servers may abort handshakes with an `unexpected_message` alert
+    when a client acknowledges part or all of the server's first flight
+    before sending its response. This can occur after packet loss or while
+    the client is preparing its authentication response.
+
+OpenSSL 4.0
+-----------
+
+### Major changes between OpenSSL 4.0.2 and OpenSSL 4.0.3 [29 Sep 2026]
+
+OpenSSL 4.0.3 is a security patch release.  The most severe CVE fixed
 in this release is High.
 
 This release incorporates the following bug fixes and mitigations:
 
   * Fixed DTLS retransmissions of handshake messages from a stale buffer offset.
     ([CVE-2026-84782])
+
+  * Fixed a use-after-free in X.509 extension cache under concurrent use.
+    ([CVE-2026-84783])
 
   * Fixed excessive memory allocation in relative CRLDP processing.
     ([CVE-2026-35189])
@@ -42,7 +121,8 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed potential CPU DoS via O(n^2) fragment reassembly in QUIC.
     ([CVE-2026-42772])
 
-  * Fixed a timing side-channel in scalar multiplication for mon-NIST EC curves.
+  * Fixed a timing side-channel leak in generic elliptic curve scalar
+    multiplication.
     ([CVE-2026-54872])
 
   * Fixed QUIC `STREAM` fragment metadata DoS.
@@ -73,9 +153,23 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed a bug where `EVP_DecryptFinal()` incorrectly reported a stale success
     on AES-SIV authentication failure.
 
-### Major changes between OpenSSL 3.5.7 and OpenSSL 3.5.8 [25 Aug 2026]
+  * Fixed a regression in base64 encoding BIO filter introduced in OpenSSL 4.0,
+    where incomplete writes down the BIO chain may result in the loss of encoded
+    base64 data.
 
-OpenSSL 3.5.8 is a security patch release.  The most severe CVE fixed
+This release incorporates the following potentially significant or incompatible
+changes:
+
+ * Changed the OpenSSL FIPS provider so that every algorithm advertised
+   with `fips=yes` property explicitly exposes a `fips-indicator` gettable
+   context parameter, that returns 1 for an approved operation.  The absence
+   of an indicator is no longer interpreted as approval.  Algorithms advertised
+   with `fips=no` property, including X448MLKEM1024, remain unapproved
+   and return 0 when they expose the indicator.
+
+### Major changes between OpenSSL 4.0.1 and OpenSSL 4.0.2 [25 Aug 2026]
+
+OpenSSL 4.0.2 is a security patch release.  The most severe CVE fixed
 in this release is Moderate.
 
 This release incorporates the following bug fixes and mitigations:
@@ -100,6 +194,9 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed excessive memory use buffering DTLS records for a future epoch.
     ([CVE-2026-54874])
 
+  * Fixed client-side memory leak in OCSP response checking.
+    ([CVE-2026-54876])
+
   * Fixed untrusted Sender DN being used as a format string in CMP response
     validation.
     ([CVE-2026-63073])
@@ -117,9 +214,9 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed checking of authentication tags for empty ciphertexts for AEAD ciphers
     in CCM cipher mode.
 
-### Major changes between OpenSSL 3.5.6 and OpenSSL 3.5.7 [9 Jun 2026]
+### Major changes between OpenSSL 4.0.0 and OpenSSL 4.0.1 [9 Jun 2026]
 
-OpenSSL 3.5.7 is a security patch release.  The most severe CVE fixed
+OpenSSL 4.0.1 is a security patch release.  The most severe CVE fixed
 in this release is High.
 
 This release incorporates the following bug fixes and mitigations:
@@ -132,6 +229,9 @@ This release incorporates the following bug fixes and mitigations:
 
   * Fixed unbounded memory growth in the QUIC `PATH_CHALLENGE` handler.
     ([CVE-2026-34183])
+
+  * Fixed double-free when checking OCSP stapled response.
+    ([CVE-2026-35188])
 
   * Fixed NULL pointer dereference in QUIC server initial packet handling.
     ([CVE-2026-42764])
@@ -151,6 +251,9 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed PKCS#12 files with PBMAC1 are accepted with short HMAC keys.
     ([CVE-2026-34181])
 
+  * Fixed NULL dereference in certificate verification with OCSP Checking.
+    ([CVE-2026-42765])
+
   * Fixed possible NULL dereference in password-dased CMS decryption.
     ([CVE-2026-42766])
 
@@ -168,15 +271,126 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed FFC-DH peer validation uses attacker-supplied `q`.
     ([CVE-2026-42770])
 
+  * Fixed possible out of bounds read in `X509_VERIFY_PARAM_set1_email()`.
+    ([CVE-2026-42771])
+
   * Fixed incorrect tag processing for empty messages in AES-GCM-SIV
     and AES-SIV modes.
     ([CVE-2026-45446])
 
   * Fixed excessive allocation of the handshake message buffer (aka HollowByte).
 
-### Major changes between OpenSSL 3.5.5 and OpenSSL 3.5.6 [7 Apr 2026]
+  * Fixed a regression introduced in 4.0.0 that led to a `openssl pkey`
+    command crash when it was invoked to encrypt a private key with password
+    being provided interactively.
 
-OpenSSL 3.5.6 is a security patch release. The most severe CVE fixed in this
+  * Fixed a regression introduced in 4.0.0 that led to `openssl s_client -adv`
+    command prematurely terminating a session when reading input of 16384 bytes
+    in one `read()` call.
+
+### Major changes between OpenSSL 3.6 and OpenSSL 4.0.0 [14 Apr 2026]
+
+OpenSSL 4.0.0 is a feature release adding significant new functionality
+to OpenSSL.
+
+This release incorporates the following potentially significant or incompatible
+changes:
+
+  * Removed extra leading '00:' when printing key data such as an RSA modulus
+    in hexadecimal format where the first (most significant) byte is >= 0x80.
+
+  * Standardized the width of hexadecimal dumps to 24 bytes for signatures
+    (to stay within the 80 characters limit) and 16 bytes for everything else.
+
+  * Lower bounds checks are now enforced when using `PKCS5_PBKDF2_HMAC` API
+    with FIPS provider.
+
+  * Added AKID verification checks when `X509_V_FLAG_X509_STRICT` is set.
+
+  * Augmented CRL verification process with several additional checks.
+
+  * `libcrypto` no longer cleans up globally allocated data via `atexit()`.
+
+  * `BIO_snprintf()` now uses `snprintf()` provided by libc instead of internal
+    implementation.
+
+  * `OPENSSL_cleanup()` now runs in a global destructor, or not at all
+    by default.
+
+  * `ASN1_STRING` has been made opaque.
+
+  * Signatures of numerous API functions, including those that are related
+    to X509 processing, are changed to include `const` qualifiers for argument
+    and return types, where suitable.
+
+  * Deprecated `X509_cmp_time()`, `X509_cmp_current_time()`,
+    and `X509_cmp_timeframe()` in favor of `X509_check_certificate_times()`.
+
+  * Removed support for the SSLv2 Client Hello.
+
+  * Removed support for SSLv3.  SSLv3 has been deprecated since 2015,
+    and OpenSSL had it disabled by default since version 1.1.0 (2016).
+
+  * Removed support for engines.  The `no-engine` build option
+    and the `OPENSSL_NO_ENGINE` macro are always present.
+
+  * Support of deprecated elliptic curves in TLS according to [RFC 8422] was
+    disabled at compile-time by default. To enable it, use the
+    `enable-tls-deprecated-ec` configuration option.
+
+  * Support of explicit EC curves was disabled at compile-time by default.
+    To enable it, use the `enable-ec_explicit_curves` configuration option.
+
+  * Removed `c_rehash` script tool.  Use `openssl rehash` instead.
+
+  * Removed the deprecated `msie-hack` option from the `openssl ca` command.
+
+  * Removed `BIO_f_reliable()` implementation without replacement.
+    It was broken since 3.0 release without any complaints.
+
+  * Removed deprecated support for custom `EVP_CIPHER`, `EVP_MD`, `EVP_PKEY`,
+    and `EVP_PKEY_ASN1` methods.
+
+  * Removed deprecated fixed SSL/TLS version method functions.
+
+  * Removed deprecated functions `ERR_get_state()`, `ERR_remove_state()`
+    and `ERR_remove_thread_state()`. The `ERR_STATE` object is now always
+    opaque.
+
+  * Dropped `darwin-i386{,-cc}` and `darwin-ppc{,64}{,-cc}` targets
+    from Configurations.
+
+This release adds the following new features:
+
+  * Support for Encrypted Client Hello (ECH, [RFC 9849]).
+    See `doc/designs/ech-api.md` for details.
+
+  * Support for [RFC 8998], signature algorithm `sm2sig_sm3`, key exchange
+    group `curveSM2`, and [tls-hybrid-sm2-mlkem] post-quantum group
+    `curveSM2MLKEM768`.
+
+  * cSHAKE function support as per [SP 800-185].
+
+  * "ML-DSA-MU" digest algorithm support.
+
+  * Support for SNMP KDF and SRTP KDF.
+
+  * FIPS self tests can now be deferred and run as needed when installing
+    the FIPS module with the `-defer_tests` option of the `openssl fipsinstall`
+    command.
+
+  * Support for using either static or dynamic VC runtime linkage
+    on Windows.
+
+  * Support for negotiated FFDHE key exchange in TLS 1.2 in accordance
+    with [RFC 7919].
+
+OpenSSL 3.6
+-----------
+
+### Major changes between OpenSSL 3.6.1 and OpenSSL 3.6.2 [7 Apr 2026]
+
+OpenSSL 3.6.2 is a security patch release. The most severe CVE fixed in this
 release is Moderate.
 
 This release incorporates the following bug fixes and mitigations:
@@ -187,6 +401,9 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed loss of key agreement group tuple structure when the `DEFAULT` keyword
     is used in the server-side configuration of the key-agreement group list.
     ([CVE-2026-2673])
+
+  * Fixed out-of-bounds read in AES-CFB-128 on x86-64 CPUs with AVX-512 support.
+    ([CVE-2026-28386])
 
   * Fixed potential use-after-free in DANE client code.
     ([CVE-2026-28387])
@@ -204,9 +421,9 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed heap buffer overflow in hexadecimal conversion.
     ([CVE-2026-31789])
 
-### Major changes between OpenSSL 3.5.4 and OpenSSL 3.5.5 [27 Jan 2026]
+### Major changes between OpenSSL 3.6.0 and OpenSSL 3.6.1 [27 Jan 2026]
 
-OpenSSL 3.5.5 is a security patch release. The most severe CVE fixed in this
+OpenSSL 3.6.1 is a security patch release. The most severe CVE fixed in this
 release is High.
 
 This release incorporates the following bug fixes and mitigations:
@@ -249,6 +466,45 @@ This release incorporates the following bug fixes and mitigations:
   * Fixed `ASN1_TYPE` Type Confusion in the `PKCS7_digest_from_attributes()`
     function.
     ([CVE-2026-22796])
+
+  * Fixed a regression in `X509_V_FLAG_CRL_CHECK_ALL` flag handling by
+    restoring its pre-3.6.0 behaviour.
+
+  * Fixed a regression in handling stapled OCSP responses causing handshake
+    failures for OpenSSL 3.6.0 servers with various client implementations.
+
+### Major changes between OpenSSL 3.5 and OpenSSL 3.6.0 [1 Oct 2025]
+
+OpenSSL 3.6.0 is a feature release adding significant new functionality
+to OpenSSL.
+
+This release incorporates the following potentially significant or incompatible
+changes:
+
+  * Added NIST security categories for PKEY objects.
+
+  * Added support for `EVP_SKEY` opaque symmetric key objects to the key
+    derivation and key exchange provider methods. Added `EVP_KDF_CTX_set_SKEY()`,
+    `EVP_KDF_derive_SKEY()`, and `EVP_PKEY_derive_SKEY()` functions.
+
+  * Added LMS signature verification support as per [SP 800-208].
+    This support is present in both the FIPS and default providers.
+
+  * An ANSI-C toolchain is no longer sufficient for building OpenSSL.
+    The code should be built using compilers supporting C-99 features.
+
+  * Support for the VxWorks platforms has been removed.
+
+  * Added an `openssl configutl` utility for processing the OpenSSL
+    configuration file and dumping the equal configuration file.
+
+  * Added support for FIPS 186-5 deterministic ECDSA signature
+    generation to the FIPS provider.
+
+  * Deprecated `EVP_PKEY_ASN1_METHOD`-related functions.
+
+OpenSSL 3.5
+-----------
 
 ### Major changes between OpenSSL 3.5.3 and OpenSSL 3.5.4 [30 Sep 2025]
 
@@ -2368,6 +2624,7 @@ OpenSSL 0.9.x
 [CVE-2026-18798]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-18798
 [CVE-2026-22795]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22795
 [CVE-2026-22796]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22796
+[CVE-2026-28386]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28386
 [CVE-2026-28387]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28387
 [CVE-2026-28388]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28388
 [CVE-2026-28389]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28389
@@ -2378,14 +2635,17 @@ OpenSSL 0.9.x
 [CVE-2026-34181]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34181
 [CVE-2026-34182]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34182
 [CVE-2026-34183]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34183
+[CVE-2026-35188]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-35188
 [CVE-2026-35189]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-35189
 [CVE-2026-35191]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-35191
 [CVE-2026-42764]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42764
+[CVE-2026-42765]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42765
 [CVE-2026-42766]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42766
 [CVE-2026-42767]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42767
 [CVE-2026-42768]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42768
 [CVE-2026-42769]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42769
 [CVE-2026-42770]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42770
+[CVE-2026-42771]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42771
 [CVE-2026-42772]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42772
 [CVE-2026-45445]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45445
 [CVE-2026-45446]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45446
@@ -2394,6 +2654,7 @@ OpenSSL 0.9.x
 [CVE-2026-54873]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54873
 [CVE-2026-54874]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54874
 [CVE-2026-54875]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54875
+[CVE-2026-54876]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54876
 [CVE-2026-63072]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63072
 [CVE-2026-63073]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63073
 [CVE-2026-63074]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63074
@@ -2406,9 +2667,18 @@ OpenSSL 0.9.x
 [CVE-2026-75806]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75806
 [CVE-2026-77696]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-77696
 [CVE-2026-84782]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-84782
+[CVE-2026-84783]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-84783
 [CVE-2026-84784]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-84784
 [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
-[OpenSSL Guide]: https://www.openssl.org/docs/manmaster/man7/ossl-guide-introduction.html
+[OpenSSL Guide]: https://docs.openssl.org/master/man7/ossl-guide-introduction
 [README-QUIC.md]: ./README-QUIC.md
+[RFC 7919]: https://datatracker.ietf.org/doc/html/rfc7919
+[RFC 8422]: https://datatracker.ietf.org/doc/html/rfc8422
+[RFC 8701]: https://datatracker.ietf.org/doc/html/rfc8701
+[RFC 8998]: https://datatracker.ietf.org/doc/html/rfc8998#name-iana-considerations
+[RFC 9147]: https://datatracker.ietf.org/doc/html/rfc9147
+[RFC 9849]: https://datatracker.ietf.org/doc/html/rfc9849
+[SP 800-185]: https://csrc.nist.gov/pubs/sp/800/185/final
+[SP 800-208]: https://csrc.nist.gov/pubs/sp/800/208/final
 [issue tracker]: https://github.com/openssl/openssl/issues
 [jitterentropy-library]: https://github.com/smuellerDD/jitterentropy-library

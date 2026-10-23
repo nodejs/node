@@ -303,7 +303,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
     int ok = 0;
     BIGNUM *tmp_1 = NULL, *tmp_2 = NULL;
     unsigned char *a_buf = NULL, *b_buf = NULL;
-    size_t len;
+    int len;
 
     if (!group || !curve || !curve->a || !curve->b)
         return 0;
@@ -324,7 +324,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
      * definition of Curve, C.1's definition of FieldElement, and 2.3.5's
      * definition of how to encode the field elements.
      */
-    len = ((size_t)EC_GROUP_get_degree(group) + 7) / 8;
+    len = (EC_GROUP_get_degree(group) + 7) / 8;
     if ((a_buf = OPENSSL_malloc(len)) == NULL
         || (b_buf = OPENSSL_malloc(len)) == NULL)
         goto err;
@@ -348,9 +348,8 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
                 ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
                 goto err;
             }
-        ossl_asn1_string_set_bits_left(curve->seed, 0);
-        if (!ASN1_BIT_STRING_set(curve->seed, group->seed,
-                (int)group->seed_len)) {
+        if (!ASN1_BIT_STRING_set1(curve->seed, group->seed,
+                (int)group->seed_len, 0)) {
             ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -412,7 +411,7 @@ ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group,
     form = EC_GROUP_get_point_conversion_form(group);
 
     len = EC_POINT_point2buf(group, point, form, &buffer, NULL);
-    if (len == 0) {
+    if (len == 0 || len > INT_MAX) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
@@ -421,7 +420,7 @@ ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group,
         ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
         goto err;
     }
-    ASN1_STRING_set0(ret->base, buffer, len);
+    ASN1_STRING_set0(ret->base, buffer, (int)len);
 
     /* set the order */
     tmp = EC_GROUP_get0_order(group);
@@ -467,11 +466,14 @@ ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
             return NULL;
         }
     } else {
-        if (ret->type == ECPKPARAMETERS_TYPE_NAMED)
+        if (ret->type == ECPKPARAMETERS_TYPE_NAMED) {
             ASN1_OBJECT_free(ret->value.named_curve);
-        else if (ret->type == ECPKPARAMETERS_TYPE_EXPLICIT
-            && ret->value.parameters != NULL)
+            ret->value.named_curve = NULL;
+        } else if (ret->type == ECPKPARAMETERS_TYPE_EXPLICIT
+            && ret->value.parameters != NULL) {
             ECPARAMETERS_free(ret->value.parameters);
+            ret->value.parameters = NULL;
+        }
     }
 
     if (EC_GROUP_get_asn1_flag(group) == OPENSSL_EC_NAMED_CURVE) {
@@ -888,6 +890,14 @@ EC_GROUP *d2i_ECPKParameters(EC_GROUP **a, const unsigned char **in, long len)
 
     if (params->type == ECPKPARAMETERS_TYPE_EXPLICIT)
         group->decoded_from_explicit_params = 1;
+#ifdef OPENSSL_NO_EC_EXPLICIT_CURVES
+    if (EC_GROUP_check_named_curve(group, 0, NULL) == NID_undef) {
+        EC_GROUP_free(group);
+        ECPKPARAMETERS_free(params);
+        ERR_raise(ERR_LIB_EC, EC_R_UNKNOWN_GROUP);
+        return NULL;
+    }
+#endif
 
     if (a) {
         EC_GROUP_free(*a);
@@ -948,13 +958,21 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
         goto err;
     }
 
+#ifdef OPENSSL_NO_EC_EXPLICIT_CURVES
+    if (EC_GROUP_check_named_curve(ret->group, 0, NULL) == NID_undef) {
+        ERR_raise(ERR_LIB_EC, EC_R_UNKNOWN_GROUP);
+        goto err;
+    }
+#endif
+
     ret->version = priv_key->version;
 
     if (priv_key->privateKey) {
         ASN1_OCTET_STRING *pkey = priv_key->privateKey;
-        if (EC_KEY_oct2priv(ret, ASN1_STRING_get0_data(pkey),
-                ASN1_STRING_length(pkey))
-            == 0)
+        size_t pkey_len = ASN1_STRING_get_length(pkey);
+        if (pkey_len > INT_MAX)
+            goto err;
+        if (EC_KEY_oct2priv(ret, ASN1_STRING_get0_data(pkey), (int)pkey_len) == 0)
             goto err;
     } else {
         ERR_raise(ERR_LIB_EC, EC_R_MISSING_PRIVATE_KEY);
@@ -973,11 +991,13 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
 
     if (priv_key->publicKey) {
         const unsigned char *pub_oct;
-        int pub_oct_len;
+        size_t pub_oct_len;
 
         pub_oct = ASN1_STRING_get0_data(priv_key->publicKey);
-        pub_oct_len = ASN1_STRING_length(priv_key->publicKey);
-        if (!EC_KEY_oct2key(ret, pub_oct, pub_oct_len, NULL)) {
+        pub_oct_len = ASN1_STRING_get_length(priv_key->publicKey);
+        if (pub_oct_len > INT_MAX)
+            goto err;
+        if (!EC_KEY_oct2key(ret, pub_oct, (int)pub_oct_len, NULL)) {
             ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
             goto err;
         }
@@ -1025,12 +1045,12 @@ int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
 
     privlen = EC_KEY_priv2buf(a, &priv);
 
-    if (privlen == 0) {
+    if (privlen == 0 || privlen > INT_MAX) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
 
-    ASN1_STRING_set0(priv_key->privateKey, priv, privlen);
+    ASN1_STRING_set0(priv_key->privateKey, priv, (int)privlen);
     priv = NULL;
 
     if (!(a->enc_flag & EC_PKEY_NO_PARAMETERS)) {
@@ -1049,15 +1069,15 @@ int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
             goto err;
         }
 
-        publen = EC_KEY_key2buf(a, a->conv_form, &pub, NULL);
+        publen = EC_KEY_key2buf(a, EC_KEY_get_conv_form(a), &pub, NULL);
 
-        if (publen == 0) {
+        if (publen == 0 || publen > INT_MAX) {
             ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
             goto err;
         }
 
-        ossl_asn1_string_set_bits_left(priv_key->publicKey, 0);
-        ASN1_STRING_set0(priv_key->publicKey, pub, publen);
+        ossl_asn1_bit_string_set_unused_bits(priv_key->publicKey, 0);
+        ASN1_STRING_set0(priv_key->publicKey, pub, (int)publen);
         pub = NULL;
     }
 
@@ -1070,7 +1090,7 @@ err:
     OPENSSL_clear_free(priv, privlen);
     OPENSSL_free(pub);
     EC_PRIVATEKEY_free(priv_key);
-    return (ok ? ret : 0);
+    return ok ? ret : 0;
 }
 
 int i2d_ECParameters(const EC_KEY *a, unsigned char **out)
@@ -1150,18 +1170,22 @@ int i2o_ECPublicKey(const EC_KEY *a, unsigned char **out)
     }
 
     buf_len = EC_POINT_point2oct(a->group, a->pub_key,
-        a->conv_form, NULL, 0, NULL);
+        EC_KEY_get_conv_form(a), NULL, 0, NULL);
 
+    if (buf_len > INT_MAX) {
+        ERR_raise(ERR_LIB_EC, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
     if (out == NULL || buf_len == 0)
         /* out == NULL => just return the length of the octet string */
-        return buf_len;
+        return (int)buf_len;
 
     if (*out == NULL) {
         if ((*out = OPENSSL_malloc(buf_len)) == NULL)
             return 0;
         new_buffer = 1;
     }
-    if (!EC_POINT_point2oct(a->group, a->pub_key, a->conv_form,
+    if (!EC_POINT_point2oct(a->group, a->pub_key, EC_KEY_get_conv_form(a),
             *out, buf_len, NULL)) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         if (new_buffer) {
@@ -1172,7 +1196,7 @@ int i2o_ECPublicKey(const EC_KEY *a, unsigned char **out)
     }
     if (!new_buffer)
         *out += buf_len;
-    return buf_len;
+    return (int)buf_len;
 }
 
 DECLARE_ASN1_FUNCTIONS(ECDSA_SIG)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,6 @@ static BIO *out = NULL;
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_ENGINE,
     OPT_OUT,
     OPT_PASSIN,
     OPT_NOOUT,
@@ -34,6 +33,7 @@ typedef enum OPTION_choice {
     OPT_SEARCHFOR_CERTS,
     OPT_SEARCHFOR_KEYS,
     OPT_SEARCHFOR_CRLS,
+    OPT_SEARCHFOR_SKEYS,
     OPT_CRITERION_SUBJECT,
     OPT_CRITERION_ISSUER,
     OPT_CRITERION_SERIAL,
@@ -49,14 +49,12 @@ const OPTIONS storeutl_options[] = {
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
     { "", OPT_MD, '-', "Any supported digest" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Search"),
     { "certs", OPT_SEARCHFOR_CERTS, '-', "Search for certificates only" },
     { "keys", OPT_SEARCHFOR_KEYS, '-', "Search for keys only" },
     { "crls", OPT_SEARCHFOR_CRLS, '-', "Search for CRLs only" },
+    { "skeys", OPT_SEARCHFOR_SKEYS, '-', "Search for symmetric keys only" },
     { "subject", OPT_CRITERION_SUBJECT, 's', "Search by subject" },
     { "issuer", OPT_CRITERION_ISSUER, 's', "Search by issuer and serial, issuer name" },
     { "serial", OPT_CRITERION_SERIAL, 's', "Search by issuer and serial, serial number" },
@@ -83,7 +81,6 @@ int storeutl_main(int argc, char *argv[])
 {
     int ret = 1, noout = 0, text = 0, recursive = 0;
     char *outfile = NULL, *passin = NULL, *passinarg = NULL;
-    ENGINE *e = NULL;
     OPTION_CHOICE o;
     char *prog;
     PW_CB_DATA pw_cb_data;
@@ -129,6 +126,7 @@ int storeutl_main(int argc, char *argv[])
         case OPT_SEARCHFOR_CERTS:
         case OPT_SEARCHFOR_KEYS:
         case OPT_SEARCHFOR_CRLS:
+        case OPT_SEARCHFOR_SKEYS:
             if (expected != 0) {
                 BIO_printf(bio_err, "%s: only one search type can be given.\n",
                     prog);
@@ -142,6 +140,7 @@ int storeutl_main(int argc, char *argv[])
                     { OPT_SEARCHFOR_CERTS, OSSL_STORE_INFO_CERT },
                     { OPT_SEARCHFOR_KEYS, OSSL_STORE_INFO_PKEY },
                     { OPT_SEARCHFOR_CRLS, OSSL_STORE_INFO_CRL },
+                    { OPT_SEARCHFOR_SKEYS, OSSL_STORE_INFO_SKEY },
                 };
                 size_t i;
 
@@ -253,9 +252,6 @@ int storeutl_main(int argc, char *argv[])
                 goto end;
             }
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         case OPT_MD:
             digestname = opt_unknown();
             break;
@@ -314,7 +310,7 @@ int storeutl_main(int argc, char *argv[])
     }
 
     if (!app_passwd(passinarg, NULL, &passin, NULL)) {
-        BIO_printf(bio_err, "Error getting passwords\n");
+        BIO_puts(bio_err, "Error getting passwords\n");
         goto end;
     }
     pw_cb_data.password = passin;
@@ -334,29 +330,17 @@ end:
     OSSL_STORE_SEARCH_free(search);
     BIO_free_all(out);
     OPENSSL_free(passin);
-    release_engine(e);
     return ret;
 }
 
-static int indent_printf(int indent, BIO *bio, const char *format, ...)
+static void indent_printf(int indent, BIO *bio, const char *format, ...)
 {
     va_list args;
-    int ret, vret;
 
-    ret = BIO_printf(bio, "%*s", indent, "");
-    if (ret < 0)
-        return ret;
-
+    BIO_printf(bio, "%*s", indent, "");
     va_start(args, format);
-    vret = BIO_vprintf(bio, format, args);
+    BIO_vprintf(bio, format, args);
     va_end(args);
-
-    if (vret < 0)
-        return vret;
-    if (vret > INT_MAX - ret)
-        return INT_MAX;
-
-    return ret + vret;
 }
 
 static int process(const char *uri, const UI_METHOD *uimeth, PW_CB_DATA *uidata,
@@ -419,10 +403,10 @@ static int process(const char *uri, const UI_METHOD *uimeth, PW_CB_DATA *uidata,
             if (OSSL_STORE_eof(store_ctx))
                 break;
 
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "ERROR: OSSL_STORE_load() returned NULL without "
                 "eof or error indications\n");
-            BIO_printf(bio_err, "       This is an error in the loader\n");
+            BIO_puts(bio_err, "       This is an error in the loader\n");
             ERR_print_errors(bio_err);
             ret++;
             break;
@@ -496,8 +480,11 @@ static int process(const char *uri, const UI_METHOD *uimeth, PW_CB_DATA *uidata,
             if (!noout)
                 PEM_write_bio_X509_CRL(out, OSSL_STORE_INFO_get0_CRL(info));
             break;
+        case OSSL_STORE_INFO_SKEY:
+            /* Currently there is no universal API allowing to print smth, so no output */
+            break;
         default:
-            BIO_printf(bio_err, "!!! Unknown code\n");
+            BIO_puts(bio_err, "!!! Unknown code\n");
             ret++;
             break;
         }

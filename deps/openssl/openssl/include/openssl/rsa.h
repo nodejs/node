@@ -210,7 +210,7 @@ int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx, unsigned char **label);
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0 RSA *RSA_new(void);
-OSSL_DEPRECATEDIN_3_0 RSA *RSA_new_method(ENGINE *engine);
+OSSL_DEPRECATEDIN_3_0 RSA *RSA_new_method(ENGINE *engine /* must be NULL */);
 OSSL_DEPRECATEDIN_3_0 int RSA_bits(const RSA *rsa);
 OSSL_DEPRECATEDIN_3_0 int RSA_size(const RSA *rsa);
 OSSL_DEPRECATEDIN_3_0 int RSA_security_bits(const RSA *rsa);
@@ -253,7 +253,6 @@ OSSL_DEPRECATEDIN_3_0 void RSA_clear_flags(RSA *r, int flags);
 OSSL_DEPRECATEDIN_3_0 int RSA_test_flags(const RSA *r, int flags);
 OSSL_DEPRECATEDIN_3_0 void RSA_set_flags(RSA *r, int flags);
 OSSL_DEPRECATEDIN_3_0 int RSA_get_version(RSA *r);
-OSSL_DEPRECATEDIN_3_0 ENGINE *RSA_get0_engine(const RSA *r);
 #endif /* !OPENSSL_NO_DEPRECATED_3_0 */
 
 #define EVP_RSA_gen(bits) \

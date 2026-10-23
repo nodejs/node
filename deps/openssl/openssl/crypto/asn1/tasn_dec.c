@@ -377,7 +377,7 @@ int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
         } else if (ret == -1)
             return -1;
         if (aux && (aux->flags & ASN1_AFLG_BROKEN)) {
-            len = tmplen - (p - *in);
+            len = tmplen - (long)(p - *in);
             seq_nolen = 1;
         }
         /* If indefinite we don't do a length check */
@@ -427,7 +427,7 @@ int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
                     ERR_raise(ERR_LIB_ASN1, ASN1_R_UNEXPECTED_EOC);
                     goto err;
                 }
-                len -= p - q;
+                len -= (long)(p - q);
                 seq_eoc = 0;
                 break;
             }
@@ -458,7 +458,7 @@ int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
                 continue;
             }
             /* Update length */
-            len -= p - q;
+            len -= (long)(p - q);
         }
 
         /* Check for EOC if expecting one */
@@ -493,7 +493,7 @@ int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
             }
         }
         /* Save encoding */
-        if (!ossl_asn1_enc_save(pval, *in, p - *in, it))
+        if (!ossl_asn1_enc_save(pval, *in, (long)(p - *in), it))
             goto auxerr;
         if (asn1_cb && !asn1_cb(ASN1_OP_D2I_POST, pval, it, NULL))
             goto auxerr;
@@ -564,7 +564,7 @@ static int asn1_template_ex_d2i(ASN1_VALUE **val,
             return 0;
         }
         /* We read the field in OK so update length */
-        len -= p - q;
+        len -= (long)(p - q);
         if (exp_eoc) {
             /* If NDEF we must have an EOC here */
             if (!asn1_check_eoc(&p, len)) {
@@ -669,7 +669,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val,
                     ERR_raise(ERR_LIB_ASN1, ASN1_R_UNEXPECTED_EOC);
                     goto err;
                 }
-                len -= p - q;
+                len -= (long)(p - q);
                 sk_eoc = 0;
                 break;
             }
@@ -683,7 +683,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val,
                 ASN1_item_free(skfield, ASN1_ITEM_ptr(tt->item));
                 goto err;
             }
-            len -= p - q;
+            len -= (long)(p - q);
             if (!sk_ASN1_VALUE_push((STACK_OF(ASN1_VALUE) *)*val, skfield)) {
                 ERR_raise(ERR_LIB_ASN1, ERR_R_CRYPTO_LIB);
                 ASN1_item_free(skfield, ASN1_ITEM_ptr(tt->item));
@@ -802,9 +802,9 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
         if (inf) {
             if (!asn1_find_end(&p, plen, inf))
                 goto err;
-            len = p - cont;
+            len = (long)(p - cont);
         } else {
-            len = p - cont + plen;
+            len = (long)(p - cont) + plen;
             p += plen;
         }
     } else if (cst) {
@@ -826,7 +826,7 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
         if (!asn1_collect(&buf, &p, plen, inf, -1, V_ASN1_UNIVERSAL, 0)) {
             goto err;
         }
-        len = buf.length;
+        len = (long)buf.length;
         /* Append a final null to string */
         if (!BUF_MEM_grow_clean(&buf, len + 1)) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
@@ -983,7 +983,7 @@ static int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, long len,
             ASN1_STRING_set0(stmp, (unsigned char *)cont /* UGLY CAST! */, ilen);
             *free_cont = 0;
         } else {
-            if (!ASN1_STRING_set(stmp, cont, ilen)) {
+            if (!ossl_asn1_string_set1_data(stmp, cont, len)) {
                 ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
                 ASN1_STRING_free(stmp);
                 *pval = NULL;
@@ -1054,7 +1054,7 @@ static int asn1_find_end(const unsigned char **in, long len, char inf)
         } else {
             p += plen;
         }
-        len -= p - q;
+        len -= (long)(p - q);
     }
     if (expected_eoc) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_MISSING_EOC);
@@ -1127,7 +1127,7 @@ static int asn1_collect(BUF_MEM *buf, const unsigned char **in, long len,
                 return 0;
         } else if (plen && !collect_data(buf, &p, plen))
             return 0;
-        len -= p - q;
+        len -= (long)(p - q);
     }
     if (inf) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_MISSING_EOC);
@@ -1139,9 +1139,14 @@ static int asn1_collect(BUF_MEM *buf, const unsigned char **in, long len,
 
 static int collect_data(BUF_MEM *buf, const unsigned char **p, long plen)
 {
-    int len;
+    long len;
     if (buf) {
-        len = buf->length;
+        len = (long)buf->length;
+        if (len + plen < 0) {
+            /* resulting buffer length will not fit into long */
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_LENGTH_TOO_LONG);
+            return 0;
+        }
         if (!BUF_MEM_grow_clean(buf, len + plen)) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
             return 0;
@@ -1204,7 +1209,7 @@ static int asn1_check_tlen(long *olen, int *otag, unsigned char *oclass,
             ctx->plen = plen;
             ctx->pclass = pclass;
             ctx->ptag = ptag;
-            ctx->hdrlen = p - q;
+            ctx->hdrlen = (int)(p - q);
             ctx->valid = 1;
             /*
              * If definite length, and no error, length + header can't exceed
@@ -1239,7 +1244,7 @@ static int asn1_check_tlen(long *olen, int *otag, unsigned char *oclass,
     }
 
     if ((i & 1) != 0)
-        plen = len - (p - q);
+        plen = len - (long)(p - q);
 
     if (inf != NULL)
         *inf = i & 1;

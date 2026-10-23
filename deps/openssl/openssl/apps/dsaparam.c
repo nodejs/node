@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,7 +33,6 @@ typedef enum OPTION_choice {
     OPT_TEXT,
     OPT_NOOUT,
     OPT_GENKEY,
-    OPT_ENGINE,
     OPT_VERBOSE,
     OPT_QUIET,
     OPT_R_ENUM,
@@ -45,9 +44,6 @@ const OPTIONS dsaparam_options[] = {
 
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
     { "in", OPT_IN, '<', "Input file" },
@@ -73,7 +69,6 @@ const OPTIONS dsaparam_options[] = {
 
 int dsaparam_main(int argc, char **argv)
 {
-    ENGINE *e = NULL;
     BIO *out = NULL;
     EVP_PKEY *params = NULL, *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -108,9 +103,6 @@ int dsaparam_main(int argc, char **argv)
             break;
         case OPT_OUT:
             outfile = opt_arg();
-            break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
             break;
         case OPT_TEXT:
             text = 1;
@@ -161,7 +153,7 @@ int dsaparam_main(int argc, char **argv)
 
     ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "DSA", app_get0_propq());
     if (ctx == NULL) {
-        BIO_printf(bio_err,
+        BIO_puts(bio_err,
             "Error, DSA parameter generation context allocation failed\n");
         goto end;
     }
@@ -175,23 +167,23 @@ int dsaparam_main(int argc, char **argv)
         EVP_PKEY_CTX_set_app_data(ctx, bio_err);
         if (verbose) {
             EVP_PKEY_CTX_set_cb(ctx, progress_cb);
-            BIO_printf(bio_err, "Generating DSA parameters, %d bit long prime\n",
+            BIO_printf(bio_err, "Generating DSA parameters, %d bit long prime\n"
+                                "This could take some time\n",
                 num);
-            BIO_printf(bio_err, "This could take some time\n");
         }
         if (EVP_PKEY_paramgen_init(ctx) <= 0) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "Error, DSA key generation paramgen init failed\n");
             goto end;
         }
         if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num) <= 0) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "Error, DSA key generation setting bit length failed\n");
             goto end;
         }
         if (numqbits > 0) {
             if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, numqbits) <= 0) {
-                BIO_printf(bio_err,
+                BIO_puts(bio_err,
                     "Error, DSA key generation setting subprime bit length failed\n");
                 goto end;
             }
@@ -222,7 +214,7 @@ int dsaparam_main(int argc, char **argv)
         else
             i = PEM_write_bio_Parameters(out, params);
         if (!i) {
-            BIO_printf(bio_err, "Error, unable to write DSA parameters\n");
+            BIO_puts(bio_err, "Error, unable to write DSA parameters\n");
             goto end;
         }
     }
@@ -236,7 +228,7 @@ int dsaparam_main(int argc, char **argv)
             goto end;
         }
         if (EVP_PKEY_keygen_init(ctx) <= 0) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "Error, unable to initialise for key generation\n");
             goto end;
         }
@@ -248,6 +240,11 @@ int dsaparam_main(int argc, char **argv)
             i = i2d_PrivateKey_bio(out, pkey);
         else
             i = PEM_write_bio_PrivateKey(out, pkey, NULL, NULL, 0, NULL, NULL);
+        if (i <= 0) {
+            BIO_printf(bio_err,
+                "Error, unable to write DSA private key\n");
+            goto end;
+        }
     }
     ret = 0;
 end:
@@ -257,6 +254,5 @@ end:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(params);
-    release_engine(e);
     return ret;
 }

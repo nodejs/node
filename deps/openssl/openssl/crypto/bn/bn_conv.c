@@ -1,11 +1,13 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#include <stdio.h>
 
 #include <openssl/err.h>
 #include "crypto/ctype.h"
@@ -63,7 +65,7 @@ char *BN_bn2dec(const BIGNUM *a)
     num = (i / 10 + i / 1000 + 1) + 1;
     tbytes = num + 3; /* negative and terminator and one spare? */
     bn_data_num = num / BN_DEC_NUM + 1;
-    bn_data = OPENSSL_malloc(bn_data_num * sizeof(BN_ULONG));
+    bn_data = OPENSSL_malloc_array(bn_data_num, sizeof(BN_ULONG));
     buf = OPENSSL_malloc(tbytes);
     if (buf == NULL || bn_data == NULL)
         goto err;
@@ -93,14 +95,14 @@ char *BN_bn2dec(const BIGNUM *a)
          * the last one needs truncation. The blocks need to be reversed in
          * order.
          */
-        n = BIO_snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT1, *lp);
-        if (n < 0)
+        n = snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT1, *lp);
+        if (n < 0 || (size_t)n >= tbytes - (size_t)(p - buf))
             goto err;
         p += n;
         while (lp != bn_data) {
             lp--;
-            n = BIO_snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT2, *lp);
-            if (n < 0)
+            n = snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT2, *lp);
+            if (n < 0 || (size_t)n >= tbytes - (size_t)(p - buf))
                 goto err;
             p += n;
         }

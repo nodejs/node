@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -124,6 +124,14 @@ const char *SSL_state_string_long(const SSL *s)
         return "TLSv1.3 write end of early data";
     case TLS_ST_SR_END_OF_EARLY_DATA:
         return "TLSv1.3 read end of early data";
+    case TLS_ST_CR_ACK:
+        return "DTLSv1.3 read client ack";
+    case TLS_ST_CW_ACK:
+        return "DTLSv1.3 write client ack";
+    case TLS_ST_SR_ACK:
+        return "DTLSv1.3 read server ack";
+    case TLS_ST_SW_ACK:
+        return "DTLSv1.3 write server ack";
     default:
         return "unknown state";
     }
@@ -241,6 +249,14 @@ const char *SSL_state_string(const SSL *s)
         return "TWEOED";
     case TLS_ST_SR_END_OF_EARLY_DATA:
         return "TWEOED";
+    case TLS_ST_CR_ACK:
+        return "TRCACK";
+    case TLS_ST_CW_ACK:
+        return "TWCACK";
+    case TLS_ST_SR_ACK:
+        return "TRSACK";
+    case TLS_ST_SW_ACK:
+        return "TWSACK";
     default:
         return "UNKWN";
     }
@@ -333,6 +349,10 @@ const char *SSL_alert_desc_string(int value)
         return "BH";
     case TLS1_AD_UNKNOWN_PSK_IDENTITY:
         return "UP";
+#ifndef OPENSSL_NO_ECH
+    case TLS1_AD_ECH_REQUIRED:
+        return "RR";
+#endif
     default:
         return "UK";
     }
@@ -403,6 +423,10 @@ const char *SSL_alert_desc_string_long(int value)
         return "unknown PSK identity";
     case TLS1_AD_NO_APPLICATION_PROTOCOL:
         return "no application protocol";
+#ifndef OPENSSL_NO_ECH
+    case TLS1_AD_ECH_REQUIRED:
+        return "ECH required";
+#endif
     default:
         return "unknown";
     }

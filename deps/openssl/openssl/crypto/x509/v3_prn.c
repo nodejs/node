@@ -66,31 +66,33 @@ void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
 
 /* Main routine: print out a general extension */
 
-int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag,
+int X509V3_EXT_print(BIO *out, const X509_EXTENSION *ext, unsigned long flag,
     int indent)
 {
     void *ext_str = NULL;
     char *value = NULL;
-    ASN1_OCTET_STRING *extoct;
+    const ASN1_OCTET_STRING *extoct;
     const unsigned char *p;
-    int extlen;
+    size_t extlen;
     const X509V3_EXT_METHOD *method;
     STACK_OF(CONF_VALUE) *nval = NULL;
     int ok = 1;
 
     extoct = X509_EXTENSION_get_data(ext);
     p = ASN1_STRING_get0_data(extoct);
-    extlen = ASN1_STRING_length(extoct);
+    extlen = ASN1_STRING_get_length(extoct);
+    if (extlen > INT_MAX)
+        return 0;
 
     if ((method = X509V3_EXT_get(ext)) == NULL)
-        return unknown_ext_print(out, p, extlen, flag, indent, 0);
+        return unknown_ext_print(out, p, (int)extlen, flag, indent, 0);
     if (method->it)
-        ext_str = ASN1_item_d2i(NULL, &p, extlen, ASN1_ITEM_ptr(method->it));
+        ext_str = ASN1_item_d2i(NULL, &p, (int)extlen, ASN1_ITEM_ptr(method->it));
     else
-        ext_str = method->d2i(NULL, &p, extlen);
+        ext_str = method->d2i(NULL, &p, (int)extlen);
 
     if (!ext_str)
-        return unknown_ext_print(out, p, extlen, flag, indent, 1);
+        return unknown_ext_print(out, p, (int)extlen, flag, indent, 1);
 
     if (method->i2s) {
         if ((value = method->i2s(method, ext_str)) == NULL) {
@@ -150,8 +152,8 @@ int X509V3_extensions_print(BIO *bp, const char *title,
     }
 
     for (i = 0; i < sk_X509_EXTENSION_num(exts); i++) {
-        ASN1_OBJECT *obj;
-        X509_EXTENSION *ex;
+        const ASN1_OBJECT *obj;
+        const X509_EXTENSION *ex;
 
         ex = sk_X509_EXTENSION_value(exts, i);
         obj = X509_EXTENSION_get_object(ex);
@@ -201,7 +203,7 @@ static int unknown_ext_print(BIO *out, const unsigned char *ext, int extlen,
 }
 
 #ifndef OPENSSL_NO_STDIO
-int X509V3_EXT_print_fp(FILE *fp, X509_EXTENSION *ext, int flag, int indent)
+int X509V3_EXT_print_fp(FILE *fp, const X509_EXTENSION *ext, int flag, int indent)
 {
     BIO *bio_tmp;
     int ret;

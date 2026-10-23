@@ -26,4 +26,5 @@ exclude_rule 'MD025' # Multiple top level headers in the same document
 exclude_rule 'MD026' # Trailing punctuation in header
 exclude_rule 'MD029' # Ordered list item prefix
 exclude_rule 'MD030' # Spaces after list markers (default: 1!)
+exclude_rule 'MD032' # List surrounded by blanks check is buggy
 exclude_rule 'MD033' # Allow inline HTML (complex tables are impossible without it)

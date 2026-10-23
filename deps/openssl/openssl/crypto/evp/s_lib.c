@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -29,7 +29,7 @@ int EVP_SKEY_export(const EVP_SKEY *skey, int selection,
     return evp_skeymgmt_export(skey->skeymgmt, skey->keydata, selection, export_cb, export_cbarg);
 }
 
-static EVP_SKEY *evp_skey_alloc(EVP_SKEYMGMT *skeymgmt)
+EVP_SKEY *evp_skey_alloc(EVP_SKEYMGMT *skeymgmt)
 {
     EVP_SKEY *skey;
 
@@ -47,8 +47,12 @@ static EVP_SKEY *evp_skey_alloc(EVP_SKEYMGMT *skeymgmt)
         ERR_raise(ERR_LIB_EVP, ERR_R_CRYPTO_LIB);
         goto err;
     }
-    skey->skeymgmt = skeymgmt;
-    return skey;
+    if (EVP_SKEYMGMT_up_ref(skeymgmt)) {
+        skey->skeymgmt = skeymgmt;
+        return skey;
+    } else {
+        goto err;
+    }
 
 err:
     CRYPTO_FREE_REF(&skey->references);
@@ -78,8 +82,7 @@ static EVP_SKEY *evp_skey_alloc_fetch(OSSL_LIB_CTX *libctx,
     }
 
     skey = evp_skey_alloc(skeymgmt);
-    if (skey == NULL)
-        EVP_SKEYMGMT_free(skeymgmt);
+    EVP_SKEYMGMT_free(skeymgmt);
 
     return skey;
 }
@@ -88,6 +91,25 @@ EVP_SKEY *EVP_SKEY_import(OSSL_LIB_CTX *libctx, const char *skeymgmtname, const 
     int selection, const OSSL_PARAM *params)
 {
     EVP_SKEY *skey = evp_skey_alloc_fetch(libctx, skeymgmtname, propquery);
+
+    if (skey == NULL)
+        return NULL;
+
+    skey->keydata = evp_skeymgmt_import(skey->skeymgmt, selection, params);
+    if (skey->keydata == NULL)
+        goto err;
+
+    return skey;
+
+err:
+    EVP_SKEY_free(skey);
+    return NULL;
+}
+
+EVP_SKEY *EVP_SKEY_import_SKEYMGMT(OSSL_LIB_CTX *libctx, EVP_SKEYMGMT *skeymgmt,
+    int selection, const OSSL_PARAM *params)
+{
+    EVP_SKEY *skey = evp_skey_alloc(skeymgmt);
 
     if (skey == NULL)
         return NULL;
@@ -174,7 +196,7 @@ int EVP_SKEY_up_ref(EVP_SKEY *skey)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&skey->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&skey->references, &i))
         return 0;
 
     REF_PRINT_COUNT("EVP_SKEY", i, skey);
@@ -265,11 +287,15 @@ EVP_SKEY *EVP_SKEY_to_provider(EVP_SKEY *skey, OSSL_LIB_CTX *libctx,
     }
 
     if (prov != NULL) {
-        if (skey->skeymgmt->prov == prov)
+        if (skey->skeymgmt->prov == prov) {
             skeymgmt = skey->skeymgmt;
-        else
+            /* Balance the short-circuit free below */
+            if (!EVP_SKEYMGMT_up_ref(skeymgmt))
+                goto err;
+        } else {
             skeymgmt = evp_skeymgmt_fetch_from_prov(prov, skey->skeymgmt->type_name,
                 propquery);
+        }
     } else {
         /* If no provider, get the default skeymgmt */
         skeymgmt = EVP_SKEYMGMT_fetch(libctx, skey->skeymgmt->type_name,
@@ -304,10 +330,59 @@ EVP_SKEY *EVP_SKEY_to_provider(EVP_SKEY *skey, OSSL_LIB_CTX *libctx,
 
     ret->keydata = ctx.keydata;
 
+    /* Balance the local reference obtained earlier (fetch or alias up_ref) */
+    EVP_SKEYMGMT_free(skeymgmt);
+
     return ret;
 
 err:
     EVP_SKEYMGMT_free(skeymgmt);
     EVP_SKEY_free(ret);
     return NULL;
+}
+
+int EVP_SKEY_get0_local_keyid(const EVP_SKEY *skey,
+    const unsigned char **id, size_t *len)
+{
+    if (skey == NULL || id == NULL || len == NULL) {
+        ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (skey->skeymgmt->get_local_keyid == NULL)
+        return 0;
+
+    return skey->skeymgmt->get_local_keyid(skey->keydata, id, len);
+}
+
+int EVP_SKEY_get0_algorithm_id(const EVP_SKEY *skey,
+    const unsigned char **oid, size_t *oid_len,
+    const unsigned char **params, size_t *params_len)
+{
+    int ret_oid = 0, ret_params = 0;
+
+    if (skey == NULL) {
+        ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (skey->skeymgmt->get_algorithm_id == NULL)
+        return 0;
+
+    if (oid != NULL && oid_len != NULL)
+        ret_oid = 1;
+    if (params != NULL && params_len != NULL)
+        ret_params = 1;
+
+    if (ret_oid == 0 && ret_params == 0)
+        return 0;
+
+    if (ret_oid == 0 && (oid != NULL || oid_len != NULL))
+        return 0;
+
+    if (ret_params == 0 && (params != NULL || params_len != NULL))
+        return 0;
+
+    return skey->skeymgmt->get_algorithm_id(skey->keydata,
+        oid, oid_len, params, params_len);
 }

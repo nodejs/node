@@ -33,7 +33,7 @@ extern "C" {
  * ! MD5_LONG has to be at least 32 bits wide.                     !
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  */
-#define MD5_LONG unsigned int
+typedef unsigned int MD5_LONG;
 
 #define MD5_CBLOCK 64
 #define MD5_LBLOCK (MD5_CBLOCK / 4)

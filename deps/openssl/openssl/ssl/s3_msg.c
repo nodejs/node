@@ -51,9 +51,6 @@ int ssl3_send_alert(SSL_CONNECTION *s, int level, int desc)
         desc = tls13_alert_code(desc);
     else
         desc = ssl->method->ssl3_enc->alert_value(desc);
-    if (s->version == SSL3_VERSION && desc == SSL_AD_PROTOCOL_VERSION)
-        desc = SSL_AD_HANDSHAKE_FAILURE; /* SSL 3.0 does not have
-                                          * protocol_version alerts */
     if (desc < 0)
         return -1;
     if (s->shutdown & SSL_SENT_SHUTDOWN && desc != SSL_AD_CLOSE_NOTIFY)

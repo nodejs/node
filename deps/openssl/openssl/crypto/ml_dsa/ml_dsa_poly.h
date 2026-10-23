@@ -1,18 +1,30 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+#if !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_POLY_H)
+#define OSSL_LIBCRYPTO_ML_DSA_ML_DSA_POLY_H
+
 #include <openssl/crypto.h>
+
+#include "internal/common.h"
+#include "ml_dsa_local.h"
 
 #define ML_DSA_NUM_POLY_COEFFICIENTS 256
 
 /* Polynomial object with 256 coefficients. The coefficients are unsigned 32 bits */
 struct poly_st {
+#if defined(VX_COMPILER_SUPPORT_VEC128)
+    ALIGN16 uint32_t coeff[ML_DSA_NUM_POLY_COEFFICIENTS];
+#elif defined(_ARCH_PPC64)
+    ALIGN16 uint32_t coeff[ML_DSA_NUM_POLY_COEFFICIENTS];
+#else
     uint32_t coeff[ML_DSA_NUM_POLY_COEFFICIENTS];
+#endif
 };
 
 static ossl_inline ossl_unused void
@@ -182,3 +194,5 @@ poly_max_signed(const POLY *p, uint32_t *mx)
         *mx = maximum(*mx, abs);
     }
 }
+
+#endif /* !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_POLY_H) */

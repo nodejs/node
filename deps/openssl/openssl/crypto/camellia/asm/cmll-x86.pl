@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,14 +8,13 @@
 
 
 # ====================================================================
-# Copyright (c) 2008 Andy Polyakov <appro@openssl.org>
+# Copyright (c) 2008 Andy Polyakov <https://github.com/dot-asm>
 #
 # This module may be used under the terms of either the GNU General
 # Public License version 2 or later, the GNU Lesser General Public
 # License version 2.1 or later, the Mozilla Public License version
 # 1.1 or the BSD License. The exact terms of either license are
-# distributed along with this module. For further details see
-# http://www.openssl.org/~appro/camellia/.
+# distributed along with this module.
 # ====================================================================
 
 # Performance in cycles per processed byte (less is better) in
@@ -550,7 +549,7 @@ my $bias=int(@T[0])?shift(@T):0;
 }
 
 # void Camellia_Ekeygen(
-#		const int keyBitLength,
+#		int keyBitLength,
 #		const Byte *rawKey,
 #		KEY_TABLE_TYPE keyTable)
 &function_begin("Camellia_Ekeygen");
@@ -808,7 +807,7 @@ for ($i=0;$i<256;$i++) { &data_word(&S0222($i),&S3033($i)); }
 
 # void Camellia_cbc_encrypt (const void char *inp, unsigned char *out,
 #			size_t length, const CAMELLIA_KEY *key,
-#			unsigned char *ivp,const int enc);
+#			unsigned char *ivp, int enc);
 {
 # stack frame layout
 #             -4(%esp)		# return address	 0(%esp)
@@ -1142,7 +1141,7 @@ my ($s0,$s1,$s2,$s3) = @T;
 &function_end("Camellia_cbc_encrypt");
 }
 
-&asciz("Camellia for x86 by <appro\@openssl.org>");
+&asciz("Camellia for x86 by <https://github.com/dot-asm>");
 
 &asm_finish();
 

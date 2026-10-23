@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -44,7 +44,7 @@ EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
      * implementing dedicated NxN multiplication subroutines for
      * small N. But till it materializes, let's stick to generic
      * prime method...
-     *                                              <appro>
+     *                                              <@dot-asm>
      */
     meth = EC_GFp_mont_method();
 #else

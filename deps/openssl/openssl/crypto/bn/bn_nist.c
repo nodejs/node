@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -281,8 +281,8 @@ static void nist_cp_bn(BN_ULONG *dst, const BN_ULONG *src, int top)
 }
 
 #if BN_BITS2 == 64
-#define bn_cp_64(to, n, from, m) (to)[n] = (m >= 0) ? ((from)[m]) : 0;
-#define bn_64_set_0(to, n) (to)[n] = (BN_ULONG)0;
+#define bn_cp_64(to, n, from, m) ((to)[n] = ((m) >= 0) ? ((from)[m]) : 0)
+#define bn_64_set_0(to, n) (to)[n] = (BN_ULONG)0
 /*
  * two following macros are implemented under assumption that they
  * are called in a sequence with *ascending* n, i.e. as they are...
@@ -309,7 +309,7 @@ static void nist_cp_bn(BN_ULONG *dst, const BN_ULONG *src, int top)
         bn_32_set_0(to, (n) * 2);     \
         bn_32_set_0(to, (n) * 2 + 1); \
     }
-#define bn_cp_32(to, n, from, m) (to)[n] = (m >= 0) ? ((from)[m]) : 0;
+#define bn_cp_32(to, n, from, m) ((to)[n] = ((m) >= 0) ? ((from)[m]) : 0)
 #define bn_32_set_0(to, n) (to)[n] = (BN_ULONG)0;
 #if defined(_WIN32) && !defined(__GNUC__)
 #define NIST_INT64 __int64
@@ -340,11 +340,11 @@ static ossl_inline void store_lo32(void *ptr, NIST_INT64 val)
 }
 #endif /* NIST_INT64 */
 
-#define nist_set_192(to, from, a1, a2, a3)      \
-    {                                           \
-        bn_cp_64(to, 0, from, (a3) - 3)         \
-            bn_cp_64(to, 1, from, (a2) - 3)     \
-                bn_cp_64(to, 2, from, (a1) - 3) \
+#define nist_set_192(to, from, a1, a2, a3) \
+    {                                      \
+        bn_cp_64(to, 0, from, (a3) - 3);   \
+        bn_cp_64(to, 1, from, (a2) - 3);   \
+        bn_cp_64(to, 2, from, (a1) - 3);   \
     }
 
 int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
@@ -471,15 +471,15 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 typedef BN_ULONG (*bn_addsub_f)(BN_ULONG *, const BN_ULONG *,
     const BN_ULONG *, int);
 
-#define nist_set_224(to, from, a1, a2, a3, a4, a5, a6, a7)      \
-    {                                                           \
-        bn_cp_32(to, 0, from, (a7) - 7)                         \
-            bn_cp_32(to, 1, from, (a6) - 7)                     \
-                bn_cp_32(to, 2, from, (a5) - 7)                 \
-                    bn_cp_32(to, 3, from, (a4) - 7)             \
-                        bn_cp_32(to, 4, from, (a3) - 7)         \
-                            bn_cp_32(to, 5, from, (a2) - 7)     \
-                                bn_cp_32(to, 6, from, (a1) - 7) \
+#define nist_set_224(to, from, a1, a2, a3, a4, a5, a6, a7) \
+    {                                                      \
+        bn_cp_32(to, 0, from, (a7) - 7);                   \
+        bn_cp_32(to, 1, from, (a6) - 7);                   \
+        bn_cp_32(to, 2, from, (a5) - 7);                   \
+        bn_cp_32(to, 3, from, (a4) - 7);                   \
+        bn_cp_32(to, 4, from, (a3) - 7);                   \
+        bn_cp_32(to, 5, from, (a2) - 7);                   \
+        bn_cp_32(to, 6, from, (a1) - 7);                   \
     }
 
 int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
@@ -585,9 +585,6 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         rp[6] = (unsigned int)acc;
 
         carry = (int)(acc >> 32);
-#if BN_BITS2 == 64
-        rp[7] = carry;
-#endif
     }
 #else
     {
@@ -639,16 +636,16 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     return 1;
 }
 
-#define nist_set_256(to, from, a1, a2, a3, a4, a5, a6, a7, a8)      \
-    {                                                               \
-        bn_cp_32(to, 0, from, (a8) - 8)                             \
-            bn_cp_32(to, 1, from, (a7) - 8)                         \
-                bn_cp_32(to, 2, from, (a6) - 8)                     \
-                    bn_cp_32(to, 3, from, (a5) - 8)                 \
-                        bn_cp_32(to, 4, from, (a4) - 8)             \
-                            bn_cp_32(to, 5, from, (a3) - 8)         \
-                                bn_cp_32(to, 6, from, (a2) - 8)     \
-                                    bn_cp_32(to, 7, from, (a1) - 8) \
+#define nist_set_256(to, from, a1, a2, a3, a4, a5, a6, a7, a8) \
+    {                                                          \
+        bn_cp_32(to, 0, from, (a8) - 8);                       \
+        bn_cp_32(to, 1, from, (a7) - 8);                       \
+        bn_cp_32(to, 2, from, (a6) - 8);                       \
+        bn_cp_32(to, 3, from, (a5) - 8);                       \
+        bn_cp_32(to, 4, from, (a4) - 8);                       \
+        bn_cp_32(to, 5, from, (a3) - 8);                       \
+        bn_cp_32(to, 6, from, (a2) - 8);                       \
+        bn_cp_32(to, 7, from, (a1) - 8);                       \
     }
 
 int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
@@ -868,20 +865,20 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     return 1;
 }
 
-#define nist_set_384(to, from, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)     \
-    {                                                                                 \
-        bn_cp_32(to, 0, from, (a12) - 12)                                             \
-            bn_cp_32(to, 1, from, (a11) - 12)                                         \
-                bn_cp_32(to, 2, from, (a10) - 12)                                     \
-                    bn_cp_32(to, 3, from, (a9) - 12)                                  \
-                        bn_cp_32(to, 4, from, (a8) - 12)                              \
-                            bn_cp_32(to, 5, from, (a7) - 12)                          \
-                                bn_cp_32(to, 6, from, (a6) - 12)                      \
-                                    bn_cp_32(to, 7, from, (a5) - 12)                  \
-                                        bn_cp_32(to, 8, from, (a4) - 12)              \
-                                            bn_cp_32(to, 9, from, (a3) - 12)          \
-                                                bn_cp_32(to, 10, from, (a2) - 12)     \
-                                                    bn_cp_32(to, 11, from, (a1) - 12) \
+#define nist_set_384(to, from, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) \
+    {                                                                             \
+        bn_cp_32(to, 0, from, (a12) - 12);                                        \
+        bn_cp_32(to, 1, from, (a11) - 12);                                        \
+        bn_cp_32(to, 2, from, (a10) - 12);                                        \
+        bn_cp_32(to, 3, from, (a9) - 12);                                         \
+        bn_cp_32(to, 4, from, (a8) - 12);                                         \
+        bn_cp_32(to, 5, from, (a7) - 12);                                         \
+        bn_cp_32(to, 6, from, (a6) - 12);                                         \
+        bn_cp_32(to, 7, from, (a5) - 12);                                         \
+        bn_cp_32(to, 8, from, (a4) - 12);                                         \
+        bn_cp_32(to, 9, from, (a3) - 12);                                         \
+        bn_cp_32(to, 10, from, (a2) - 12);                                        \
+        bn_cp_32(to, 11, from, (a1) - 12);                                        \
     }
 
 int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,

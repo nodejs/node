@@ -15,7 +15,7 @@
 #include <openssl/core_names.h>
 #include "internal/encoder.h"
 #include "prov/ml_dsa.h"
-#include "ml_dsa_codecs.h"
+#include "prov/ml_dsa_codecs.h"
 
 /*-
  * Tables describing supported ASN.1 input/output formats.
@@ -286,14 +286,13 @@ int ossl_ml_dsa_i2d_pubkey(const ML_DSA_KEY *key, unsigned char **out)
 
 /* Allocate and encode PKCS#8 private key payload. */
 int ossl_ml_dsa_i2d_prvkey(const ML_DSA_KEY *key, uint8_t **out,
-    PROV_CTX *provctx)
+    PROV_CTX *provctx, const char *formats)
 {
     const ML_DSA_PARAMS *params = ossl_ml_dsa_key_params(key);
     const ML_COMMON_CODEC *codec;
     ML_COMMON_PKCS8_FMT_PREF *fmt_slots, *slot;
     const ML_COMMON_PKCS8_FMT *p8fmt;
     uint8_t *buf = NULL, *pos;
-    const char *formats;
     int len = ML_DSA_SEED_BYTES;
     int ret = 0;
     const uint8_t *seed = ossl_ml_dsa_key_get_seed(key);
@@ -310,8 +309,13 @@ int ossl_ml_dsa_i2d_prvkey(const ML_DSA_KEY *key, uint8_t **out,
         return 0;
     }
 
-    formats = ossl_prov_ctx_get_param(
-        provctx, OSSL_PKEY_PARAM_ML_DSA_OUTPUT_FORMATS, NULL);
+    if (formats == NULL) {
+        if ((ossl_ml_dsa_key_get_prov_flags(key) & ML_DSA_KEY_RETAIN_SEED) == 0)
+            seed = NULL;
+        formats = ossl_prov_ctx_get_param(provctx,
+            OSSL_PKEY_PARAM_ML_DSA_OUTPUT_FORMATS,
+            NULL);
+    }
     fmt_slots = ossl_ml_common_pkcs8_fmt_order(params->alg, codec->p8fmt,
         "output", formats);
     if (fmt_slots == NULL)
@@ -331,7 +335,7 @@ int ossl_ml_dsa_i2d_prvkey(const ML_DSA_KEY *key, uint8_t **out,
             params->alg);
         goto end;
     }
-    len = p8fmt->p8_bytes;
+    len = (int)p8fmt->p8_bytes;
 
     if (out == NULL) {
         ret = len;

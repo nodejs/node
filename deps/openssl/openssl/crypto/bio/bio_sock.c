@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -437,7 +437,7 @@ int BIO_socket_wait(int fd, int for_read, time_t max_time)
     time_t now;
 
 #ifdef _WIN32
-    if ((SOCKET)fd == INVALID_SOCKET)
+    if (fd == (int)INVALID_SOCKET)
 #else
     if (fd < 0 || fd >= FD_SETSIZE)
 #endif
@@ -471,6 +471,43 @@ int BIO_socket_wait(int fd, int for_read, time_t max_time)
     confds.fd = fd;
     confds.events = for_read ? POLLIN : POLLOUT;
     return poll(&confds, 1, (int)(max_time - now) * 1000);
+#endif
+}
+
+/*
+ * Check if fd is ready for reading or writing without blocking.
+ * If for_read == 0 then check for writing, else check for reading.
+ * Returns -1 on error, 0 if not ready, and 1 if ready.
+ */
+int BIO_socket_ready(int fd, int for_read)
+{
+#if defined(OPENSSL_SYS_WINDOWS) || !defined(POLLIN)
+    fd_set confds;
+    struct timeval tv;
+
+#ifdef _WIN32
+    if (fd == (int)INVALID_SOCKET)
+#else
+    if (fd < 0 || fd >= FD_SETSIZE)
+#endif
+        return -1;
+
+    FD_ZERO(&confds);
+    openssl_fdset(fd, &confds);
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    return select(fd + 1, for_read ? &confds : NULL,
+        for_read ? NULL : &confds, NULL, &tv);
+#else
+    struct pollfd confds;
+
+    if (fd < 0)
+        return -1;
+
+    confds.fd = fd;
+    confds.events = for_read ? POLLIN : POLLOUT;
+    confds.revents = 0;
+    return poll(&confds, 1, 0);
 #endif
 }
 #endif /* !defined(OPENSSL_NO_SOCK) */

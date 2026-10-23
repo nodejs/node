@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -305,6 +305,9 @@ size_t ossl_qtx_get_unflushed_pkt_count(OSSL_QTX *qtx);
  * for ensuring the lifetime of the BIO exceeds the lifetime of the QTX.
  */
 void ossl_qtx_set_bio(OSSL_QTX *qtx, BIO *bio);
+
+/* Changes the MTU in bytes we use to send datagrams. */
+int ossl_qtx_set_mtu(OSSL_QTX *qtx, unsigned int mtu);
 
 /* Changes the MDPL. */
 int ossl_qtx_set_mdpl(OSSL_QTX *qtx, size_t mdpl);

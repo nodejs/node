@@ -190,8 +190,6 @@ void evp_cleanup_int(void)
 
     EVP_PBE_cleanup();
     OBJ_sigid_free();
-
-    evp_app_cleanup_int();
 }
 
 struct doall_cipher {

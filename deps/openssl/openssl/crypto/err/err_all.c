@@ -30,7 +30,6 @@
 #include "crypto/pkcs12err.h"
 #include "crypto/randerr.h"
 #include "internal/dsoerr.h"
-#include "crypto/engineerr.h"
 #include "crypto/uierr.h"
 #include "crypto/httperr.h"
 #include "crypto/ocsperr.h"
@@ -82,9 +81,6 @@ int ossl_err_load_crypto_strings(void)
         || ossl_err_load_DSO_strings() == 0
 #ifndef OPENSSL_NO_TS
         || ossl_err_load_TS_strings() == 0
-#endif
-#ifndef OPENSSL_NO_ENGINE
-        || ossl_err_load_ENGINE_strings() == 0
 #endif
 #ifndef OPENSSL_NO_HTTP
         || ossl_err_load_HTTP_strings() == 0

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -46,10 +46,18 @@ struct ssl_connection_st *ossl_quic_obj_get0_handshake_layer(QUIC_OBJ *obj);
     SSL_CONNECTION_FROM_SSL_ONLY_int(ssl, const)
 #endif
 
+#ifndef OPENSSL_NO_DTLS
+
+#define IS_DTLS(ssl) \
+    ((ssl) != NULL && ((ssl)->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS) != 0)
+#else
+#define IS_DTLS(ssl) 0
+#endif
+
 #ifndef OPENSSL_NO_QUIC
 
 #define IS_QUIC_METHOD(m) \
-    ((m) == OSSL_QUIC_client_method() || (m) == OSSL_QUIC_client_thread_method() || (m) == OSSL_QUIC_server_method())
+    ((m) == OSSL_QUIC_client_method() || (m) == OSSL_QUIC_client_thread_method() || (m) == OSSL_QUIC_server_method() || (m) == OSSL_QUIC_method())
 
 #define IS_QUIC_CTX(ctx) IS_QUIC_METHOD((ctx)->method)
 

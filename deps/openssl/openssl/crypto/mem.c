@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,9 @@
  */
 
 #include "internal/e_os.h"
+#include "internal/threads_common.h"
 #include "internal/cryptlib.h"
+#include "internal/mem_alloc_utils.h"
 #include "crypto/cryptlib.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,12 +113,19 @@ static void parseit(void)
 {
     char *semi = strchr(md_failstring, ';');
     char *atsign;
+    char *end;
 
     if (semi != NULL)
         *semi++ = '\0';
 
-    /* Get the count (atol will stop at the @ if there), and percentage */
-    md_count = atol(md_failstring);
+    /*
+     * Get the count (parsing stops at the '@' if present), and percentage.
+     * Ignore an unparsable/overflowing count rather than acting on garbage.
+     * Validate that the count is followed by '@' or end-of-string.
+     */
+    if (!ossl_strtol(md_failstring, &end, 10, &md_count)
+        || (*end != '\0' && *end != '@'))
+        md_count = 0;
     atsign = strchr(md_failstring, '@');
     md_fail_percent = atsign == NULL ? 0 : (int)(atof(atsign + 1) * 100 + 0.5);
 
@@ -146,7 +155,7 @@ static int shouldfail(void)
     char buff[80];
 
     if (md_tracefd > 0) {
-        BIO_snprintf(buff, sizeof(buff),
+        snprintf(buff, sizeof(buff),
             "%c C%ld %%%d R%d\n",
             shoulditfail ? '-' : '+', md_count, md_fail_percent, roll);
         len = strlen(buff);
@@ -178,10 +187,19 @@ void ossl_malloc_setup_failures(void)
             parseit();
         }
     }
-    if ((cp = getenv("OPENSSL_MALLOC_FD")) != NULL)
-        md_tracefd = atoi(cp);
-    if ((cp = getenv("OPENSSL_MALLOC_SEED")) != NULL)
-        srandom(atoi(cp));
+    if ((cp = getenv("OPENSSL_MALLOC_FD")) != NULL) {
+        int fd;
+
+        if (ossl_strtoint(cp, NULL, 10, &fd) && fd >= 0)
+            md_tracefd = fd;
+    }
+    if ((cp = getenv("OPENSSL_MALLOC_SEED")) != NULL) {
+        unsigned long seed;
+
+        /* Any value is a usable seed; just truncate it to the srandom() type. */
+        if (OPENSSL_strtoul(cp, NULL, 10, &seed))
+            srandom((unsigned int)seed);
+    }
 }
 #endif
 
@@ -190,6 +208,7 @@ void *CRYPTO_malloc(size_t num, const char *file, int line)
     void *ptr;
 
     INCREMENT(malloc_count);
+    FAILTEST();
     if (malloc_impl != CRYPTO_malloc) {
         ptr = malloc_impl(num, file, line);
         if (ptr != NULL || num == 0)
@@ -197,11 +216,12 @@ void *CRYPTO_malloc(size_t num, const char *file, int line)
         goto err;
     }
 
-    if (num == 0)
+    if (ossl_unlikely(num == 0))
         return NULL;
 
-    FAILTEST();
     if (allow_customize) {
+        TSAN_BENIGN(&allow_customize,
+            "allow_customize is intentionally racy");
         /*
          * Disallow customization after the first allocation. We only set this
          * if necessary to avoid a store to the same cache line on every
@@ -211,18 +231,10 @@ void *CRYPTO_malloc(size_t num, const char *file, int line)
     }
 
     ptr = malloc(num);
-    if (ptr != NULL)
+    if (ossl_likely(ptr != NULL))
         return ptr;
 err:
-    /*
-     * ossl_err_get_state_int() in err.c uses CRYPTO_zalloc(num, NULL, 0) for
-     * ERR_STATE allocation. Prevent mem alloc error loop while reporting error.
-     */
-    if (file != NULL || line != 0) {
-        ERR_new();
-        ERR_set_debug(file, line, NULL);
-        ERR_set_error(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE, NULL);
-    }
+    ossl_report_alloc_err(file, line);
     return NULL;
 }
 
@@ -240,70 +252,48 @@ void *CRYPTO_zalloc(size_t num, const char *file, int line)
 void *CRYPTO_aligned_alloc(size_t num, size_t alignment, void **freeptr,
     const char *file, int line)
 {
-    void *ret;
-
     *freeptr = NULL;
 
-#if defined(OPENSSL_SMALL_FOOTPRINT)
-    ret = freeptr = NULL;
-    return ret;
-#endif
+    /* Ensure that alignment is a power of two no larger than 65536 */
+    if (alignment == 0 || (alignment & (alignment - 1)) != 0
+        || alignment > 65536) {
+        ossl_report_alloc_err_inv(file, line);
+        return NULL;
+    }
 
     /* Allow non-malloc() allocations as long as no malloc_impl is provided. */
     if (malloc_impl == CRYPTO_malloc) {
 #if defined(_BSD_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
-        if (posix_memalign(&ret, alignment, num))
-            return NULL;
-        *freeptr = ret;
-        return ret;
-#elif defined(_ISOC11_SOURCE)
-        ret = *freeptr = aligned_alloc(alignment, num);
-        return ret;
+        void *ret;
+
+        /* posix_memalign() requires alignment to be at least sizeof(void *) */
+        if (alignment < sizeof(void *))
+            alignment = sizeof(void *);
+
+        if (posix_memalign(&ret, alignment, num) == 0) {
+            *freeptr = ret;
+            return ret;
+        }
 #endif
     }
 
-    /* we have to do this the hard way */
-
-    /*
-     * Note: Windows supports an _aligned_malloc call, but we choose
-     * not to use it here, because allocations from that function
-     * require that they be freed via _aligned_free.  Given that
-     * we can't differentiate plain malloc blocks from blocks obtained
-     * via _aligned_malloc, just avoid its use entirely
-     */
-
-    /*
-     * Step 1: Allocate an amount of memory that is <alignment>
-     * bytes bigger than requested
-     */
-    *freeptr = CRYPTO_malloc(num + alignment, file, line);
-    if (*freeptr == NULL)
-        return NULL;
-
-    /*
-     * Step 2: Add <alignment - 1> bytes to the pointer
-     * This will cross the alignment boundary that is
-     * requested
-     */
-    ret = (void *)((char *)*freeptr + (alignment - 1));
-
-    /*
-     * Step 3: Use the alignment as a mask to translate the
-     * least significant bits of the allocation at the alignment
-     * boundary to 0.  ret now holds a pointer to the memory
-     * buffer at the requested alignment
-     * NOTE: It is a documented requirement that alignment be a
-     * power of 2, which is what allows this to work
-     */
-    ret = (void *)((uintptr_t)ret & (uintptr_t)(~(alignment - 1)));
-    return ret;
+    return ossl_malloc_align(num, alignment, freeptr, file, line);
 }
 
 void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
 {
+    void *ret;
+
     INCREMENT(realloc_count);
-    if (realloc_impl != CRYPTO_realloc)
-        return realloc_impl(str, num, file, line);
+    FAILTEST();
+    if (realloc_impl != CRYPTO_realloc) {
+        ret = realloc_impl(str, num, file, line);
+
+        if (num == 0 || ret != NULL)
+            return ret;
+
+        goto err;
+    }
 
     if (str == NULL)
         return CRYPTO_malloc(num, file, line);
@@ -313,8 +303,13 @@ void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
         return NULL;
     }
 
-    FAILTEST();
-    return realloc(str, num);
+    ret = realloc(str, num);
+
+err:
+    if (num != 0 && ret == NULL)
+        ossl_report_alloc_err(file, line);
+
+    return ret;
 }
 
 void *CRYPTO_clear_realloc(void *str, size_t old_len, size_t num,

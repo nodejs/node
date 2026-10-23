@@ -29,7 +29,8 @@
 
 static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg);
 static int rsa_keygen(OSSL_LIB_CTX *libctx, RSA *rsa, int bits, int primes,
-    BIGNUM *e_value, BN_GENCB *cb, int pairwise_test);
+    BIGNUM *e_value, BN_GENCB *cb, int pairwise_test,
+    uint32_t a, uint32_t b);
 
 /*
  * NB: this wrapper would normally be placed in rsa_lib.c and the static
@@ -47,8 +48,9 @@ int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb)
         e_value, cb);
 }
 
-int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes,
-    BIGNUM *e_value, BN_GENCB *cb)
+int ossl_rsa_generate_multi_prime_key(RSA *rsa, int bits, int primes,
+    BIGNUM *e_value, BN_GENCB *cb,
+    uint32_t a, uint32_t b)
 {
 #ifndef FIPS_MODULE
     /* multi-prime is only supported with the builtin key generation */
@@ -68,7 +70,13 @@ int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes,
             return 0;
     }
 #endif /* FIPS_MODULE */
-    return rsa_keygen(rsa->libctx, rsa, bits, primes, e_value, cb, 0);
+    return rsa_keygen(rsa->libctx, rsa, bits, primes, e_value, cb, 0, a, b);
+}
+
+int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes,
+    BIGNUM *e, BN_GENCB *cb)
+{
+    return ossl_rsa_generate_multi_prime_key(rsa, bits, primes, e, cb, 0, 0);
 }
 
 DEFINE_STACK_OF(BIGNUM)
@@ -450,8 +458,10 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
             tmp = BN_dup(prime);
             if (tmp == NULL)
                 goto err;
-            if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors)))
+            if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors))) {
+                BN_clear_free(tmp);
                 goto err;
+            }
             continue;
         }
 
@@ -520,8 +530,10 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
         tmp = BN_dup(prime);
         if (tmp == NULL)
             goto err;
-        if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors)))
+        if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors))) {
+            BN_clear_free(tmp);
             goto err;
+        }
     }
 
     if (BN_cmp(rsa->p, rsa->q) < 0) {
@@ -529,8 +541,12 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
         rsa->p = rsa->q;
         rsa->q = tmp;
         /* mirror this in our factor stack */
-        if (!sk_BIGNUM_insert(factors, sk_BIGNUM_delete(factors, 0), 1))
+        tmp = sk_BIGNUM_delete(factors, 0);
+        if (!sk_BIGNUM_insert(factors, tmp, 1)) {
+            /* the factor is no longer on the stack, so free it here */
+            BN_clear_free(tmp);
             goto err;
+        }
     }
 
     /* calculate d */
@@ -595,9 +611,10 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
     }
     ok = 1;
 err:
-    sk_BIGNUM_free(factors);
-    sk_BIGNUM_free(exps);
-    sk_BIGNUM_free(coeffs);
+    /* On error, these stacks may still contain BIGNUMs. */
+    sk_BIGNUM_pop_free(factors, BN_clear_free);
+    sk_BIGNUM_pop_free(exps, BN_clear_free);
+    sk_BIGNUM_pop_free(coeffs, BN_clear_free);
     if (ok == -1) {
         ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         ok = 0;
@@ -609,12 +626,13 @@ err:
 #endif /* FIPS_MODULE */
 
 static int rsa_keygen(OSSL_LIB_CTX *libctx, RSA *rsa, int bits, int primes,
-    BIGNUM *e_value, BN_GENCB *cb, int pairwise_test)
+    BIGNUM *e_value, BN_GENCB *cb, int pairwise_test,
+    uint32_t a, uint32_t b)
 {
     int ok = 0;
 
 #ifdef FIPS_MODULE
-    ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb);
+    ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb, a, b);
     pairwise_test = 1; /* FIPS MODE needs to always run the pairwise test */
 #else
     /*
@@ -624,7 +642,7 @@ static int rsa_keygen(OSSL_LIB_CTX *libctx, RSA *rsa, int bits, int primes,
     if (primes == 2
         && bits >= 2048
         && (e_value == NULL || BN_num_bits(e_value) > 16))
-        ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb);
+        ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb, a, b);
     else
         ok = rsa_multiprime_keygen(rsa, bits, primes, e_value, cb);
 #endif /* FIPS_MODULE */
@@ -705,7 +723,7 @@ static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg)
      * decoded.
      */
     plaintxt_len = RSA_size(rsa);
-    plaintxt = OPENSSL_zalloc(plaintxt_len * 3);
+    plaintxt = OPENSSL_calloc(plaintxt_len, 3);
     if (plaintxt == NULL)
         goto err;
     ciphertxt = plaintxt + plaintxt_len;

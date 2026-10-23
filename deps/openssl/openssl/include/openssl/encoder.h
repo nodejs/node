@@ -50,6 +50,8 @@ const OSSL_PARAM *OSSL_ENCODER_settable_ctx_params(OSSL_ENCODER *encoder);
 OSSL_ENCODER_CTX *OSSL_ENCODER_CTX_new(void);
 int OSSL_ENCODER_CTX_set_params(OSSL_ENCODER_CTX *ctx,
     const OSSL_PARAM params[]);
+int OSSL_ENCODER_CTX_ctrl_string(OSSL_ENCODER_CTX *ctx,
+    const char *name, const char *val);
 void OSSL_ENCODER_CTX_free(OSSL_ENCODER_CTX *ctx);
 
 /* Utilities that help set specific parameters */

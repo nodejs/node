@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,19 +25,19 @@
 #ifndef OSSL_CRYPTO_CAMELLIA_CMLL_LOCAL_H
 #define OSSL_CRYPTO_CAMELLIA_CMLL_LOCAL_H
 
-typedef unsigned int u32;
-typedef unsigned char u8;
+#include <stdint.h>
+#include <openssl/camellia.h>
 
-int Camellia_Ekeygen(int keyBitLength, const u8 *rawKey,
+int Camellia_Ekeygen(int keyBitLength, const uint8_t *rawKey,
     KEY_TABLE_TYPE keyTable);
-void Camellia_EncryptBlock_Rounds(int grandRounds, const u8 plaintext[],
+void Camellia_EncryptBlock_Rounds(int grandRounds, const uint8_t plaintext[],
     const KEY_TABLE_TYPE keyTable,
-    u8 ciphertext[]);
-void Camellia_DecryptBlock_Rounds(int grandRounds, const u8 ciphertext[],
+    uint8_t ciphertext[]);
+void Camellia_DecryptBlock_Rounds(int grandRounds, const uint8_t ciphertext[],
     const KEY_TABLE_TYPE keyTable,
-    u8 plaintext[]);
-void Camellia_EncryptBlock(int keyBitLength, const u8 plaintext[],
-    const KEY_TABLE_TYPE keyTable, u8 ciphertext[]);
-void Camellia_DecryptBlock(int keyBitLength, const u8 ciphertext[],
-    const KEY_TABLE_TYPE keyTable, u8 plaintext[]);
+    uint8_t plaintext[]);
+void Camellia_EncryptBlock(int keyBitLength, const uint8_t plaintext[],
+    const KEY_TABLE_TYPE keyTable, uint8_t ciphertext[]);
+void Camellia_DecryptBlock(int keyBitLength, const uint8_t ciphertext[],
+    const KEY_TABLE_TYPE keyTable, uint8_t plaintext[]);
 #endif /* #ifndef OSSL_CRYPTO_CAMELLIA_CMLL_LOCAL_H */

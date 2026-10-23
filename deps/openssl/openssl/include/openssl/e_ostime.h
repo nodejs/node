@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,6 +21,7 @@
  * substantial set of headers on some platforms (e.g. <winsock2.h> on Win32).
  */
 
+/* IWYU pragma: begin_exports */
 #if defined(OPENSSL_SYS_WINDOWS)
 #if !defined(_WINSOCKAPI_)
 /*
@@ -34,5 +35,6 @@
 #else
 #include <sys/time.h>
 #endif
+/* IWYU pragma: end_exports */
 
 #endif

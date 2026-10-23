@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#if (defined(_WIN64) || defined(_WIN32_WCE)) && !defined(UNICODE)
+#if defined(_WIN64) && !defined(UNICODE)
 #define UNICODE
 #endif
 #if defined(UNICODE) && !defined(_UNICODE)
@@ -17,11 +17,19 @@
 #define UNICODE
 #endif
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
+
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <stddef.h>
 #include "uplink.h"
 void OPENSSL_showfatal(const char *, ...);
+void OPENSSL_Uplink(volatile void **table, int index);
 
 static TCHAR msg[128];
 
@@ -72,7 +80,6 @@ void OPENSSL_Uplink(volatile void **table, int index)
 
         if (applinktable == NULL) {
             void **(*applink)();
-
             applink = (void **(*)())GetProcAddress(h, "OPENSSL_Applink");
             if (applink == NULL) {
                 apphandle = (HMODULE)-1;
@@ -89,7 +96,7 @@ void OPENSSL_Uplink(volatile void **table, int index)
         } else
             p = applinktable;
 
-        if (index > (int)p[0])
+        if (index > (intptr_t)p[0])
             break;
 
         if (p[index])

@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 
 #include <openssl/opensslconf.h>
 #include "crypto/chacha.h"
-#include "crypto/ppc_arch.h"
+#include "arch/ppc_arch.h"
 
 void ChaCha20_ctr32_int(unsigned char *out, const unsigned char *inp,
     size_t len, const unsigned int key[8],

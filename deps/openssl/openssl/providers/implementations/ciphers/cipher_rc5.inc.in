@@ -1,0 +1,29 @@
+/*
+ * Copyright 2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('rc5_get_ctx_params',
+                         (['OSSL_CIPHER_PARAM_KEYLEN',     'common.keylen', 'size_t'],
+                          ['OSSL_CIPHER_PARAM_IVLEN',      'common.ivlen',  'size_t'],
+                          ['OSSL_CIPHER_PARAM_PADDING',    'common.pad',    'uint'],
+                          ['OSSL_CIPHER_PARAM_NUM',        'common.num',    'uint'],
+                          ['OSSL_CIPHER_PARAM_IV',         'common.iv',     'octet_string'],
+                          ['OSSL_CIPHER_PARAM_UPDATED_IV', 'common.updiv',  'octet_string'],
+                          ['OSSL_CIPHER_PARAM_ROUNDS',     'rounds',        'uint'],
+                         )); -}
+
+{- produce_param_decoder('rc5_set_ctx_params',
+                         (['OSSL_CIPHER_PARAM_PADDING',      'common.pad',        'uint'],
+                          ['OSSL_CIPHER_PARAM_NUM',          'common.num',        'uint'],
+                          ['OSSL_CIPHER_PARAM_KEYLEN',       'common.keylen',     'size_t'],
+                          ['OSSL_CIPHER_PARAM_ROUNDS',       'rounds',            'uint'],
+                         )); -}
