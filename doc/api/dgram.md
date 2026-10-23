@@ -241,6 +241,7 @@ changes:
 * `port` {integer}
 * `address` {string}
 * `callback` {Function} with no parameters. Called when binding is complete.
+* Returns: {dgram.Socket} The socket itself.
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address`. If `port` is not
@@ -319,6 +320,7 @@ added: v0.11.14
   * `exclusive` {boolean}
   * `fd` {integer}
 * `callback` {Function}
+* Returns: {dgram.Socket} The socket itself.
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address` that are passed as
@@ -410,6 +412,7 @@ added: v0.1.99
 -->
 
 * `callback` {Function} Called when the socket has been closed.
+* Returns: {dgram.Socket} The socket itself.
 
 Close the underlying socket and stop listening for data on it. If a callback is
 provided, it is added as a listener for the [`'close'`][] event.
