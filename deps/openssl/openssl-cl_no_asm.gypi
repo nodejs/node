@@ -16,8 +16,6 @@
       'includes': ['config/archs/BSD-x86/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="ia32" and OS=="linux"', {
       'includes': ['config/archs/linux-elf/no-asm/openssl-cl.gypi'],
-    }, 'target_arch=="ia32" and OS=="mac"', {
-      'includes': ['config/archs/darwin-i386-cc/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="ia32" and OS=="solaris"', {
       'includes': ['config/archs/solaris-x86-gcc/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="ia32" and OS=="win"', {

@@ -7,7 +7,8 @@
     ],
     'openssl_sources_%%-$arch-%%': [
 %%- foreach $src (@generated_srcs) {
-  $OUT .= "      './config/archs/$arch/$asm/$src',\n";
+  my $dir = $common_files{$src} ? 'common' : "archs/$arch/$asm";
+  $OUT .= "      './config/$dir/$src',\n";
 } -%%
     ],
     'openssl_defines_%%-$arch-%%': [
@@ -41,6 +42,9 @@
     './crypto',
     './crypto/include/internal',
     './providers/common/include',
+%%- foreach $dir (@generated_include_dirs) {
+  $OUT .= "    '$dir',\n";
+} -%%
   ],
   'defines': ['<@(openssl_defines_%%-$arch-%%)'],
 %%- if (!$is_win) {

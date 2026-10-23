@@ -11,9 +11,20 @@ cleanup() {
 
 download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.5');
+const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-4.1.');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
-const releases = await res.json()
+const includePrereleases = process.env.INCLUDE_PRERELEASES === 'true';
+const releases = (await res.json())
+  .filter(({ ref }) => includePrereleases || /^refs\/tags\/openssl-\d+\.\d+\.\d+$/.test(ref))
+  .sort(({ ref: a }, { ref: b }) => {
+    const [, aVersion, aPrerelease] = a.split('-');
+    const [, bVersion, bPrerelease] = b.split('-');
+    const versionOrder = aVersion.localeCompare(bVersion, 'en', { numeric: true });
+    if (versionOrder) return versionOrder;
+    if (!aPrerelease) return bPrerelease ? 1 : 0;
+    if (!bPrerelease) return -1;
+    return aPrerelease.localeCompare(bPrerelease, 'en', { numeric: true });
+  });
 const latest = releases.at(-1);
 if(!latest) throw new Error(`Could not find latest release`);
 console.log(latest.ref.replace('refs/tags/',''));
@@ -80,7 +91,7 @@ regenerate() {
   echo ""
   echo "Please commit the regenerated files:"
   echo ""
-  echo "$ git add -A deps/openssl/config/archs deps/openssl/openssl"
+  echo "$ git add -A deps/openssl/config deps/openssl/openssl"
   echo "$ git commit -m \"deps: update archs files for openssl\""
   echo ""
 }
