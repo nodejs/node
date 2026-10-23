@@ -31,6 +31,8 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
   assert.strictEqual(process.release.lts, 'Jod');
 } else if (versionParts[0] === '24' && versionParts[1] >= 11) {
   assert.strictEqual(process.release.lts, 'Krypton');
+} else if (versionParts[0] === '26' && versionParts[1] >= 13) {
+  assert.strictEqual(process.release.lts, 'Lithium');
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }
