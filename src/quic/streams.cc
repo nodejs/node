@@ -703,7 +703,7 @@ class Stream::Outbound final : public MemoryRetainer {
             if (flags_.next_pending) {
               flags_.next_pending = false;
               stream_->Destroy(
-                  QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+                  QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
               // We do not need to worry about calling MarkErrored in this case
               // since we are immediately destroying the stream which will
               // release the outbound buffer anyway.
