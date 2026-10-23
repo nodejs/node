@@ -34,7 +34,10 @@ bool is_tree_granted(
     node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
     std::string_view param) {
-  std::string resolved_param = node::PathResolve(env, {param});
+  // Without an Environment (e.g. on SQLite worker threads), the path must
+  // already be absolute and no diagnostics are published.
+  std::string resolved_param =
+      env == nullptr ? std::string(param) : node::PathResolve(env, {param});
 #ifdef _WIN32
   // Remove leading "\\?\" from UNC path
   if (resolved_param.starts_with("\\\\?\\")) {
@@ -51,11 +54,13 @@ bool is_tree_granted(
   }
 #endif
   auto _is_granted = granted_tree->Lookup(resolved_param, true);
-  node::Debug(env,
-              node::DebugCategory::PERMISSION_MODEL,
-              "Access %d to %s\n",
-              _is_granted,
-              param);
+  if (env != nullptr) {
+    node::Debug(env,
+                node::DebugCategory::PERMISSION_MODEL,
+                "Access %d to %s\n",
+                _is_granted,
+                param);
+  }
 
   return _is_granted;
 }
@@ -267,39 +272,7 @@ bool FSPermission::is_granted(Environment* env,
 
 bool FSPermission::is_granted_no_side_effects(PermissionScope perm,
                                               std::string_view param) const {
-  // VFS callbacks can execute on SQLite's worker threads. The path passed by
-  // the VFS has already been made absolute, so do not call PathResolve() or
-  // publish diagnostics here.
-  std::string path(param);
-#ifdef _WIN32
-  if (path.starts_with("\\\\?\\")) {
-    path.erase(0, 4);
-  }
-  if (path.starts_with("UNC\\")) {
-    path.erase(0, 4);
-  }
-  if (path.starts_with("//")) {
-    path.erase(0, 2);
-  }
-#endif
-
-  RwLock::ScopedReadLock lock(lock_);
-  switch (perm) {
-    case PermissionScope::kFileSystem:
-      return allow_all_in_ && allow_all_out_;
-    case PermissionScope::kFileSystemRead:
-      return path.empty() ? allow_all_in_
-                          : !deny_all_in_ &&
-                                (allow_all_in_ ||
-                                 granted_in_fs_.Lookup(path, true));
-    case PermissionScope::kFileSystemWrite:
-      return path.empty() ? allow_all_out_
-                          : !deny_all_out_ &&
-                                (allow_all_out_ ||
-                                 granted_out_fs_.Lookup(path, true));
-    default:
-      return false;
-  }
+  return is_granted(nullptr, perm, param);
 }
 
 FSPermission::RadixTree::RadixTree() : root_node_(std::make_unique<Node>("")) {}

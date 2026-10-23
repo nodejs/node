@@ -74,9 +74,12 @@ class SQLitePermissionVFS {
   bool AllowsTemporaryFile(bool read, bool write) const;
 
  private:
+  bool AllowsCanonicalPath(std::string_view path, bool read, bool write) const;
+
   sqlite3_vfs vfs_{};
   sqlite3_vfs* parent_ = nullptr;
   sqlite3_vfs* memory_vfs_ = nullptr;
+  Environment* env_ = nullptr;
   permission::Permission* permission_ = nullptr;
   std::string name_;
   bool registered_ = false;

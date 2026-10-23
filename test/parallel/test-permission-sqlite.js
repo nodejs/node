@@ -195,7 +195,7 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
   // a sidecar does not inherit permission when opened as a main database.
   const code = `const { DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(process.env.DB_PATH);
-    db.prepare('ATTACH DATABASE ? AS outside').run(process.env.ATTACH_PATH);`;
+    db.exec("ATTACH DATABASE '" + process.env.ATTACH_PATH + "' AS outside");`;
   for (const attachPath of [deniedPath, suffixDbPath]) {
     const { status, stderr } = run(
       code,
@@ -221,6 +221,46 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
   const { status, stderr } = run(code, []);
   assert.strictEqual(status, 1, `stderr: ${stderr}`);
   assert.match(stderr, /not authorized/);
+}
+
+{
+  // SQLite does not expose bound or computed ATTACH filenames to the
+  // authorizer, so they cannot be checked for a URI VFS and are denied.
+  for (const attach of [
+    "db.prepare('ATTACH ? AS outside').run('file::memory:?vfs=memdb');",
+    "db.exec(\"ATTACH 'file::memory:?vf' || 's=memdb' AS outside\");",
+  ]) {
+    const code = `const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(':memory:');
+      ${attach}`;
+    const { status, stderr } = run(code, []);
+    assert.strictEqual(status, 1, `stderr: ${stderr}`);
+    assert.match(stderr, /not authorized/);
+  }
+}
+
+if (!common.isWindows) {
+  // Granted paths that go through a symbolic link are checked the same way
+  // as the fs module checks them, without resolving the link.
+  const realDir = tmpdir.resolve('sqlite-real');
+  const linkDir = tmpdir.resolve('sqlite-link');
+  fs.mkdirSync(realDir, { recursive: true });
+  fs.rmSync(linkDir, { force: true });
+  fs.symlinkSync(realDir, linkDir, 'dir');
+  const linkedDbPath = tmpdir.resolve('sqlite-link', 'linked.sqlite');
+  const code = `const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(process.env.DB_PATH);
+    db.exec('CREATE TABLE t (x)');
+    db.close();`;
+  const { status, stderr } = run(
+    code,
+    [
+      '--allow-fs-read=' + linkDir,
+      '--allow-fs-write=' + linkDir,
+    ],
+    { DB_PATH: linkedDbPath },
+  );
+  assert.strictEqual(status, 0, `stderr: ${stderr}`);
 }
 
 {
