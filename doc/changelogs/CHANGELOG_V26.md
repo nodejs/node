@@ -4,9 +4,13 @@
 
 <table>
 <tr>
+<th>LTS 'Lithium'</th>
 <th>Current</th>
 </tr>
 <tr>
+<td>
+<a href="#26.13.0">26.13.0</a><br/>
+</td>
 <td>
 <a href="#26.12.1">26.12.1</a><br/>
 <a href="#26.12.0">26.12.0</a><br/>
@@ -58,6 +62,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="26.13.0"></a>
+
+## 2026-10-28, Version 26.13.0 'Lithium' (LTS), @richardlau
+
+### Notable Changes
+
+This release marks the transition of Node.js 26.x into Long Term Support (LTS)
+with the codename 'Lithium'. It will continue to receive updates through to
+the end of April 2029.
+
+Other than updating metadata, such as the `process.release` object, to reflect
+that the release is LTS, no further changes from Node.js 26.12.1 are included.
+
+If you are updating from an earlier Long Term Support release (e.g. Node.js 24
+or 22 or earlier) please note that since Node.js 25 the official binaries for
+Linux are linked against libatomic, which may need to be installed separately
+depending on your Linux distribution.
 
 <a id="26.12.1"></a>
 
