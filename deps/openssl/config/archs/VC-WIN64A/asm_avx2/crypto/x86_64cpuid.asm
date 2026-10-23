@@ -322,25 +322,6 @@ $L$no_data:
 	DB	0F3h,0C3h		;repret
 
 
-global	OPENSSL_wipe_cpu
-
-ALIGN	16
-OPENSSL_wipe_cpu:
-	pxor	xmm0,xmm0
-	pxor	xmm1,xmm1
-	pxor	xmm2,xmm2
-	pxor	xmm3,xmm3
-	pxor	xmm4,xmm4
-	pxor	xmm5,xmm5
-	xor	rcx,rcx
-	xor	rdx,rdx
-	xor	r8,r8
-	xor	r9,r9
-	xor	r10,r10
-	xor	r11,r11
-	lea	rax,[8+rsp]
-	DB	0F3h,0C3h		;repret
-
 global	OPENSSL_instrument_bus
 
 ALIGN	16

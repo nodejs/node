@@ -309,40 +309,6 @@ L$no_data:
 	.byte	0xf3,0xc3
 
 
-.globl	_OPENSSL_wipe_cpu
-
-.p2align	4
-_OPENSSL_wipe_cpu:
-
-.byte	243,15,30,250
-	pxor	%xmm0,%xmm0
-	pxor	%xmm1,%xmm1
-	pxor	%xmm2,%xmm2
-	pxor	%xmm3,%xmm3
-	pxor	%xmm4,%xmm4
-	pxor	%xmm5,%xmm5
-	pxor	%xmm6,%xmm6
-	pxor	%xmm7,%xmm7
-	pxor	%xmm8,%xmm8
-	pxor	%xmm9,%xmm9
-	pxor	%xmm10,%xmm10
-	pxor	%xmm11,%xmm11
-	pxor	%xmm12,%xmm12
-	pxor	%xmm13,%xmm13
-	pxor	%xmm14,%xmm14
-	pxor	%xmm15,%xmm15
-	xorq	%rcx,%rcx
-	xorq	%rdx,%rdx
-	xorq	%rsi,%rsi
-	xorq	%rdi,%rdi
-	xorq	%r8,%r8
-	xorq	%r9,%r9
-	xorq	%r10,%r10
-	xorq	%r11,%r11
-	leaq	8(%rsp),%rax
-	.byte	0xf3,0xc3
-
-
 .globl	_OPENSSL_instrument_bus
 
 .p2align	4
