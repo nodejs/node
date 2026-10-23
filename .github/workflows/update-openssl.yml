@@ -5,6 +5,11 @@ on:
     - cron: 5 0 * * 0
 
   workflow_dispatch:
+    inputs:
+      include_prereleases:
+        description: Include prereleases
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,6 +46,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          INCLUDE_PRERELEASES: ${{ github.event_name == 'workflow_dispatch' && inputs.include_prereleases }}
       - name: Commit OpenSSL sources
         if: env.NEW_VERSION
         run: |
