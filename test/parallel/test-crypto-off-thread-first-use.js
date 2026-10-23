@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 if (!hasOpenSSL(3))
-  common.skip('this test requires OpenSSL 3.x');
+  common.skip('this test requires OpenSSL >= 3.x');
 
 // OpenSSL 3 builds its table of algorithm names on first use. If several
 // threads use OpenSSL for the first time at once, an RSA-PSS key decoded while
