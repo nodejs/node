@@ -698,6 +698,10 @@
               "type": "number",
               "description": "the line coverage minimum threshold"
             },
+            "test-forbid-only": {
+              "type": "boolean",
+              "description": "fail tests that use the 'only' option"
+            },
             "test-global-setup": {
               "type": "string",
               "description": "specifies the path to the global setup file"
@@ -1136,6 +1140,10 @@
             "test-coverage-lines": {
               "type": "number",
               "description": "the line coverage minimum threshold"
+            },
+            "test-forbid-only": {
+              "type": "boolean",
+              "description": "fail tests that use the 'only' option"
             },
             "test-force-exit": {
               "type": "boolean",
