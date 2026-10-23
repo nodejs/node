@@ -652,6 +652,10 @@
               "type": "boolean",
               "description": "Type-stripping for TypeScript files."
             },
+            "test-coverage": {
+              "type": "boolean",
+              "description": "enable code coverage in the test runner"
+            },
             "test-coverage-branches": {
               "type": "number",
               "description": "the branch coverage minimum threshold"
@@ -1060,6 +1064,10 @@
           "additionalProperties": false,
           "required": [],
           "properties": {
+            "test-coverage": {
+              "type": "boolean",
+              "description": "enable code coverage in the test runner"
+            },
             "experimental-test-coverage": {
               "type": "boolean",
               "description": "enable code coverage in the test runner"

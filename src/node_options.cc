@@ -1219,12 +1219,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
-  AddOption("--experimental-test-coverage",
+  AddOption("--test-coverage",
             "enable code coverage in the test runner",
             BOOL_FIELD(test_runner_coverage),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
+  // TODO(cjihrig): Remove this alias in a semver major.
+  AddAlias("--experimental-test-coverage", "--test-coverage");
   AddOption("--test-coverage-branches",
             "the branch coverage minimum threshold",
             &EnvironmentOptions::test_coverage_branches,
