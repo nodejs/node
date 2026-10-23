@@ -203,6 +203,7 @@ class BindingData : public BaseObject {
   SET_SELF_SIZE(BindingData)
 
   std::unordered_set<Database*> open_databases;
+  std::weak_ptr<SQLitePermissionVFS> permission_vfs;
 
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
