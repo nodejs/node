@@ -1228,8 +1228,7 @@ if (!isBoringSSL) {
   const first = generateKeyPairSync('ed25519');
   if (rejectsXCurves) {
     assert.throws(() => generateKeyPairSync('x25519'), {
-      name: 'Error',
-      message: /:digital envelope routines::unsupported$/,
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   } else {
     const second = generateKeyPairSync('x25519');

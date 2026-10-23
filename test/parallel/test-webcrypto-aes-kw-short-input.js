@@ -6,18 +6,13 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { getFips } = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 (async () => {
   const keyToWrap = await subtle.importKey(
     'raw', new Uint8Array(16), 'AES-GCM', true, ['encrypt']);
-  let emptyKey;
-  if (hasOpenSSL(3) && getFips() !== 1) {
-    emptyKey = await subtle.importKey(
-      'raw-secret', new Uint8Array(0), 'KMAC128', true, ['sign']);
-  }
+  const shortKey = await subtle.importKey(
+    'raw', new Uint8Array(8), { name: 'HMAC', hash: 'SHA-256' }, true, ['sign']);
 
   for (const length of [128, 192, 256]) {
     const wrappingKey = await subtle.generateKey(
@@ -31,11 +26,8 @@ const { subtle } = globalThis.crypto;
         'HKDF', false, ['deriveBits']), { name: 'OperationError' });
     }
 
-    if (emptyKey !== undefined) {
-      await assert.rejects(subtle.wrapKey(
-        'raw-secret', emptyKey, wrappingKey, 'AES-KW'),
-                           { name: 'OperationError' });
-    }
+    await assert.rejects(subtle.wrapKey(
+      'raw', shortKey, wrappingKey, 'AES-KW'), { name: 'OperationError' });
 
     const wrapped = await subtle.wrapKey(
       'raw', keyToWrap, wrappingKey, 'AES-KW');

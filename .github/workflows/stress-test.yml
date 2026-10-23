@@ -60,7 +60,7 @@ jobs:
           path: node
       - name: Install Clang ${{ env.CLANG_VERSION }}
         if: runner.os == 'Linux'
-        uses: ./node/.github/actions/install-clang
+        uses: $/.github/actions/install-clang
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Xcode ${{ env.XCODE_VERSION }}
