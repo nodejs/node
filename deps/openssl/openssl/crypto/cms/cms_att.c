@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -113,7 +113,7 @@ int CMS_signed_add1_attr_by_txt(CMS_SignerInfo *si,
     return 0;
 }
 
-void *CMS_signed_get0_data_by_OBJ(const CMS_SignerInfo *si,
+const void *CMS_signed_get0_data_by_OBJ(const CMS_SignerInfo *si,
     const ASN1_OBJECT *oid,
     int lastpos, int type)
 {
@@ -182,7 +182,7 @@ int CMS_unsigned_add1_attr_by_txt(CMS_SignerInfo *si,
     return 0;
 }
 
-void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
+const void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
     int lastpos, int type)
 {
     return X509at_get0_data_by_OBJ(si->unsignedAttrs, oid, lastpos, type);

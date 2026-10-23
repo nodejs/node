@@ -131,8 +131,10 @@ void ossl_statem_clear(SSL_CONNECTION *s)
 {
     s->statem.state = MSG_FLOW_UNINITED;
     s->statem.hand_state = TLS_ST_BEFORE;
+    s->statem.error_state = ERROR_STATE_NOERROR;
     ossl_statem_set_in_init(s, 1);
     s->statem.no_cert_verify = 0;
+    s->statem.ack_for_retransmit = 0;
 }
 
 /*
@@ -244,6 +246,20 @@ int ossl_statem_skip_early_data(SSL_CONNECTION *s)
  */
 int ossl_statem_check_finish_init(SSL_CONNECTION *s, int sending)
 {
+    /*
+     * A client that suppressed 0-RTT keeps SSL_write_early_data() reporting
+     * success while the application streams early data. Any ordinary read,
+     * write, or handshake call waits for the handshake to complete and so ends
+     * that sequence: clear the suppressed flag, after which a further
+     * SSL_write_early_data() returns the normal error instead of masking a
+     * state-machine mistake. The internal SSL_connect() issued from
+     * SSL_write_early_data() runs in the CONNECTING state and is excluded.
+     */
+    if (!s->server
+        && s->ext.early_data_suppressed
+        && s->early_data_state == SSL_EARLY_DATA_NONE)
+        s->ext.early_data_suppressed = 0;
+
     if (sending == -1) {
         if (s->statem.hand_state == TLS_ST_PENDING_EARLY_DATA_END
             || s->statem.hand_state == TLS_ST_EARLY_DATA) {
@@ -288,6 +304,7 @@ void ossl_statem_set_hello_verify_done(SSL_CONNECTION *s)
      * sensible.
      */
     s->statem.hand_state = TLS_ST_SR_CLNT_HELLO;
+    s->statem.error_state = ERROR_STATE_NOERROR;
 }
 
 int ossl_statem_connect(SSL *s)
@@ -402,7 +419,7 @@ static int state_machine(SSL_CONNECTION *s, int server)
 
         s->server = server;
         if (cb != NULL) {
-            if (SSL_IS_FIRST_HANDSHAKE(s) || !SSL_CONNECTION_IS_TLS13(s))
+            if (SSL_IS_FIRST_HANDSHAKE(s) || !SSL_CONNECTION_IS_VERSION13(s))
                 cb(ussl, SSL_CB_HANDSHAKE_START, 1);
         }
 
@@ -482,6 +499,8 @@ static int state_machine(SSL_CONNECTION *s, int server)
             if (ssret == SUB_STATE_FINISHED) {
                 st->state = MSG_FLOW_WRITING;
                 init_write_state_machine(s);
+            } else if (ssret == SUB_STATE_END_HANDSHAKE) {
+                st->state = MSG_FLOW_FINISHED;
             } else {
                 /* NBIO or error */
                 goto end;
@@ -571,7 +590,7 @@ static SUB_STATE_RETURN read_state_machine(SSL_CONNECTION *s)
 {
     OSSL_STATEM *st = &s->statem;
     int ret, mt;
-    size_t len = 0;
+    size_t len = 0, headerlen;
     int (*transition)(SSL_CONNECTION *s, int mt);
     PACKET pkt;
     MSG_PROCESS_RETURN (*process_message)(SSL_CONNECTION *s, PACKET *pkt);
@@ -602,6 +621,16 @@ static SUB_STATE_RETURN read_state_machine(SSL_CONNECTION *s)
     while (1) {
         switch (st->read_state) {
         case READ_STATE_HEADER:
+            /*
+             * Restore the state after an incomplete ACK before reading again:
+             * the DTLS record layer uses it to handle application data.
+             */
+            if (SSL_CONNECTION_IS_DTLS13(s)
+                && (st->hand_state == TLS_ST_CR_ACK
+                    || st->hand_state == TLS_ST_SR_ACK)
+                && !transition(s, SSL3_MT_DUMMY))
+                return SUB_STATE_ERROR;
+
             /* Get the state the peer wants to move to */
             if (SSL_CONNECTION_IS_DTLS(s)) {
                 /*
@@ -613,6 +642,28 @@ static SUB_STATE_RETURN read_state_machine(SSL_CONNECTION *s)
             }
 
             if (ret == 0) {
+                /* Re-ACK a retransmission without completing our own flight. */
+                if (st->ack_for_retransmit)
+                    return SUB_STATE_FINISHED;
+
+                /*
+                 * If we're in DTLSv1.3 and in state TLS_ST_OK, then we must
+                 * have received a post-handshake message. If we subsequently
+                 * try to receive that message and get nothing back (and did not
+                 * encounter a fatal error), then that message must have been
+                 * dropped, so we need to end the handshake now, and return to
+                 * reading app data.
+                 */
+                if (SSL_CONNECTION_IS_DTLS13(s)
+                    && st->hand_state == TLS_ST_OK
+                    && s->statem.state != MSG_FLOW_ERROR) {
+                    if (!ssl_free_wbio_buffer(s)) {
+                        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+                        return SUB_STATE_ERROR;
+                    }
+                    ossl_statem_set_in_init(s, 0);
+                    return SUB_STATE_END_HANDSHAKE;
+                }
                 /* Could be non-blocking IO */
                 return SUB_STATE_ERROR;
             }
@@ -656,10 +707,23 @@ static SUB_STATE_RETURN read_state_machine(SSL_CONNECTION *s)
             }
 
             s->first_packet = 0;
-            if (!PACKET_buf_init(&pkt, s->init_msg, len)) {
+            /*
+             * We initialise the buffer including the message header, and
+             * then skip over header ready to process the message. This
+             * ensures that calls to PACKET_msg_start() gives us the whole
+             * message
+             */
+            headerlen = (char *)s->init_msg - s->init_buf->data;
+            if (!PACKET_buf_init(&pkt, (unsigned char *)s->init_buf->data,
+                    len + headerlen)) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
                 return SUB_STATE_ERROR;
             }
+            if (!PACKET_forward(&pkt, headerlen)) {
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+                return SUB_STATE_ERROR;
+            }
+
             ret = process_message(s, &pkt);
 
             /* Discard the packet data */
@@ -724,17 +788,28 @@ static SUB_STATE_RETURN read_state_machine(SSL_CONNECTION *s)
  */
 static int statem_do_write(SSL_CONNECTION *s)
 {
+    int record_type;
     OSSL_STATEM *st = &s->statem;
 
-    if (st->hand_state == TLS_ST_CW_CHANGE
-        || st->hand_state == TLS_ST_SW_CHANGE) {
-        if (SSL_CONNECTION_IS_DTLS(s))
-            return dtls1_do_write(s, SSL3_RT_CHANGE_CIPHER_SPEC);
-        else
-            return ssl3_do_write(s, SSL3_RT_CHANGE_CIPHER_SPEC);
-    } else {
+    switch (st->hand_state) {
+    case TLS_ST_CW_CHANGE:
+    case TLS_ST_SW_CHANGE:
+        record_type = SSL3_RT_CHANGE_CIPHER_SPEC;
+
+        break;
+    case TLS_ST_CW_ACK:
+    case TLS_ST_SW_ACK:
+        record_type = SSL3_RT_ACK;
+
+        break;
+    default:
         return ssl_do_write(s);
     }
+
+    if (SSL_CONNECTION_IS_DTLS(s))
+        return dtls1_do_write(s, record_type);
+    else
+        return ssl3_do_write(s, record_type);
 }
 
 /*
@@ -789,6 +864,7 @@ static SUB_STATE_RETURN write_state_machine(SSL_CONNECTION *s)
         CON_FUNC_RETURN (**confunc)(SSL_CONNECTION *s,
             WPACKET *pkt),
         int *mt);
+    int (*dtls_use_timer)(SSL_CONNECTION *s);
     void (*cb)(const SSL *ssl, int type, int val) = NULL;
     CON_FUNC_RETURN (*confunc)(SSL_CONNECTION *s, WPACKET *pkt);
     int mt;
@@ -802,11 +878,13 @@ static SUB_STATE_RETURN write_state_machine(SSL_CONNECTION *s)
         pre_work = ossl_statem_server_pre_work;
         post_work = ossl_statem_server_post_work;
         get_construct_message_f = ossl_statem_server_construct_message;
+        dtls_use_timer = ossl_statem_dtls_server_use_timer;
     } else {
         transition = ossl_statem_client_write_transition;
         pre_work = ossl_statem_client_pre_work;
         post_work = ossl_statem_client_post_work;
         get_construct_message_f = ossl_statem_client_construct_message;
+        dtls_use_timer = ossl_statem_dtls_client_use_timer;
     }
 
     while (1) {
@@ -899,9 +977,9 @@ static SUB_STATE_RETURN write_state_machine(SSL_CONNECTION *s)
             /* Fall through */
 
         case WRITE_STATE_SEND:
-            if (SSL_CONNECTION_IS_DTLS(s) && st->use_timer) {
+            if (SSL_CONNECTION_IS_DTLS(s) && dtls_use_timer(s))
                 dtls1_start_timer(s);
-            }
+
             ret = statem_do_write(s);
             if (ret <= 0) {
                 return SUB_STATE_ERROR;

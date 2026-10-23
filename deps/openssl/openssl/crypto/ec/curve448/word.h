@@ -21,9 +21,9 @@
 #include "internal/constant_time.h"
 
 #ifdef INT128_MAX
-#include "arch_64/arch_intrinsics.h"
+#include "arch_64/arch_intrinsics.inc"
 #else
-#include "arch_32/arch_intrinsics.h"
+#include "arch_32/arch_intrinsics.inc"
 #endif
 
 #if (ARCH_WORD_BITS == 64)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,7 @@ static ASN1_OCTET_STRING *mk_octet_string(void *value, size_t value_n)
     ASN1_OCTET_STRING *v = ASN1_OCTET_STRING_new();
 
     if (v == NULL) {
-        BIO_printf(bio_err, "error: allocation failed\n");
+        BIO_puts(bio_err, "error: allocation failed\n");
     } else if (!ASN1_OCTET_STRING_set(v, value, (int)value_n)) {
         ASN1_OCTET_STRING_free(v);
         v = NULL;
@@ -42,7 +42,7 @@ static int x509_ctrl(void *object, int cmd, void *value, size_t value_n)
         ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
 
         if (v == NULL) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "error: setting distinguishing ID in certificate failed\n");
             return 0;
         }
@@ -65,7 +65,7 @@ static int x509_req_ctrl(void *object, int cmd, void *value, size_t value_n)
         ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
 
         if (v == NULL) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "error: setting distinguishing ID in certificate signing request failed\n");
             return 0;
         }

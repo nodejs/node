@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,9 +52,6 @@ extern char ossl_cpu_info_str[];
 /* size: MAX_PATH + sizeof("OPENSSLDIR: \"\"") */
 static char openssldir[MAX_PATH + 15];
 
-/* size: MAX_PATH + sizeof("ENGINESDIR: \"\"") */
-static char enginesdir[MAX_PATH + 15];
-
 /* size: MAX_PATH + sizeof("MODULESDIR: \"\"") */
 static char modulesdir[MAX_PATH + 15];
 
@@ -62,11 +59,9 @@ static CRYPTO_ONCE version_strings_once = CRYPTO_ONCE_STATIC_INIT;
 
 DEFINE_RUN_ONCE_STATIC(version_strings_setup)
 {
-    BIO_snprintf(openssldir, sizeof(openssldir), "OPENSSLDIR: \"%s\"",
+    snprintf(openssldir, sizeof(openssldir), "OPENSSLDIR: \"%s\"",
         ossl_get_openssldir());
-    BIO_snprintf(enginesdir, sizeof(enginesdir), "ENGINESDIR: \"%s\"",
-        ossl_get_enginesdir());
-    BIO_snprintf(modulesdir, sizeof(modulesdir), "MODULESDIR: \"%s\"",
+    snprintf(modulesdir, sizeof(modulesdir), "MODULESDIR: \"%s\"",
         ossl_get_modulesdir());
     return 1;
 }
@@ -99,8 +94,6 @@ const char *OpenSSL_version(int t)
 #if defined(_WIN32) && defined(OSSL_WINCTX)
     case OPENSSL_DIR:
         return openssldir;
-    case OPENSSL_ENGINES_DIR:
-        return enginesdir;
     case OPENSSL_MODULES_DIR:
         return modulesdir;
 #else
@@ -109,12 +102,6 @@ const char *OpenSSL_version(int t)
         return "OPENSSLDIR: \"" OPENSSLDIR "\"";
 #else
         return "OPENSSLDIR: N/A";
-#endif
-    case OPENSSL_ENGINES_DIR:
-#ifdef ENGINESDIR
-        return "ENGINESDIR: \"" ENGINESDIR "\"";
-#else
-        return "ENGINESDIR: N/A";
 #endif
     case OPENSSL_MODULES_DIR:
 #ifdef MODULESDIR
@@ -134,6 +121,8 @@ const char *OpenSSL_version(int t)
 #else
         return "OSSL_WINCTX: Undefined";
 #endif
+    case OPENSSL_ENGINES_DIR:
+        return "ENGINESDIR: N/A";
     }
     return "not available";
 }

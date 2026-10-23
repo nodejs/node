@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,6 +72,25 @@ void DTLS_RECORD_LAYER_clear(RECORD_LAYER *rl)
     d->buffered_app_data = buffered_app_data;
 }
 
+/*
+ * Checks for application data set aside while a handshake was in progress.
+ * dtls1_read_bytes() only returns it once the handshake has finished.
+ */
+int DTLS_RECORD_LAYER_buffered_app_data_pending(const RECORD_LAYER *rl)
+{
+    TLS_RECORD *rdata;
+    pitem *item, *iter;
+
+    iter = pqueue_iterator(rl->d->buffered_app_data);
+    while ((item = pqueue_next(&iter)) != NULL) {
+        rdata = item->data;
+        if (rdata->length > 0)
+            return 1;
+    }
+
+    return 0;
+}
+
 static int dtls_buffer_record(SSL_CONNECTION *s, TLS_RECORD *rec)
 {
     TLS_RECORD *rdata;
@@ -87,7 +106,7 @@ static int dtls_buffer_record(SSL_CONNECTION *s, TLS_RECORD *rec)
         return -1;
 
     rdata = OPENSSL_malloc(sizeof(*rdata));
-    item = pitem_new(rec->seq_num, rdata);
+    item = pitem_new_u64(rec->seq_num, rdata);
     if (rdata == NULL || item == NULL) {
         OPENSSL_free(rdata);
         pitem_free(item);
@@ -118,7 +137,7 @@ static int dtls_buffer_record(SSL_CONNECTION *s, TLS_RECORD *rec)
 
 #ifndef OPENSSL_NO_SCTP
     /* Store bio_dgram_sctp_rcvinfo struct */
-    if (BIO_dgram_is_sctp(s->rbio) && (ossl_statem_get_state(s) == TLS_ST_SR_FINISHED || ossl_statem_get_state(s) == TLS_ST_CR_FINISHED)) {
+    if (s->rbio != NULL && BIO_dgram_is_sctp(s->rbio) && (ossl_statem_get_state(s) == TLS_ST_SR_FINISHED || ossl_statem_get_state(s) == TLS_ST_CR_FINISHED)) {
         BIO_ctrl(s->rbio, BIO_CTRL_DGRAM_SCTP_GET_RCVINFO,
             sizeof(rdata->recordinfo), &rdata->recordinfo);
     }
@@ -154,7 +173,7 @@ static void dtls_unbuffer_record(SSL_CONNECTION *s)
 
 #ifndef OPENSSL_NO_SCTP
         /* Restore bio_dgram_sctp_rcvinfo struct */
-        if (BIO_dgram_is_sctp(s->rbio)) {
+        if (s->rbio != NULL && BIO_dgram_is_sctp(s->rbio)) {
             BIO_ctrl(s->rbio, BIO_CTRL_DGRAM_SCTP_SET_RCVINFO,
                 sizeof(rdata->recordinfo), &rdata->recordinfo);
         }
@@ -203,9 +222,14 @@ int dtls1_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
     TLS_RECORD *rr;
     void (*cb)(const SSL *ssl, int type2, int val) = NULL;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+    int is_dtls13;
+    int in_early_data;
+    int current_state;
 
     if (sc == NULL)
         return -1;
+
+    is_dtls13 = SSL_CONNECTION_IS_DTLS13(sc);
 
     if ((type && (type != SSL3_RT_APPLICATION_DATA) && (type != SSL3_RT_HANDSHAKE)) || (peek && (type != SSL3_RT_APPLICATION_DATA))) {
         SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
@@ -224,6 +248,7 @@ int dtls1_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
 
 start:
     sc->rwstate = SSL_NOTHING;
+    in_early_data = (sc->early_data_state == SSL_EARLY_DATA_READING);
 
     /*
      * We are not handshaking and have no data yet, so process data buffered
@@ -251,17 +276,78 @@ start:
                     &rr->rechandle,
                     &rr->version, &rr->type,
                     &rr->data, &rr->length,
-                    &rr->epoch, rr->seq_num));
+                    &rr->epoch, &rr->seq_num));
+
+            /*
+             * DTLS1.3 will move the Server and Client's Read Record
+             * during the handshake once it has received a record
+             * in the new Epoch.
+             *
+             * We cannot move to the next epoch (1 or 2) until we
+             * have read the client/server hello.
+             */
+            if (ret <= 0 && is_dtls13
+                && sc->rlayer.rrlmethod->unprocessed_records(sc->rlayer.rrl) > 0
+                && ((SSL_in_init(s) && sc->dtls13_process_hello) || in_early_data)) {
+                int which = SSL3_CC_HANDSHAKE;
+
+                if (sc->server)
+                    which |= SSL3_CHANGE_CIPHER_SERVER_READ;
+                else
+                    which |= SSL3_CHANGE_CIPHER_CLIENT_READ;
+                /*
+                 * Change the Read Record Layer to next read epoch
+                 */
+                if (!s->method->ssl3_enc->change_cipher_state(sc,
+                        which)) {
+                    SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+                    return -1;
+                }
+                /* This must only ever happen once per handshake */
+                sc->dtls13_process_hello = 0;
+
+                /*
+                 * Read the Buffered epoch
+                 */
+                ret = HANDLE_RLAYER_READ_RETURN(sc,
+                    sc->rlayer.rrlmethod->read_record(sc->rlayer.rrl,
+                        &rr->rechandle,
+                        &rr->version, &rr->type,
+                        &rr->data, &rr->length,
+                        &rr->epoch, &rr->seq_num));
+            }
+
             if (ret <= 0) {
                 ret = dtls1_read_failed(sc, ret);
                 /*
                  * Anything other than a timeout is an error. SSLfatal() already
                  * called if appropriate.
                  */
-                if (ret <= 0)
-                    return ret;
-                else
+                if (ret > 0)
                     goto start;
+
+                /*
+                 * Once the record layer holds buffered records from a later
+                 * epoch it asks for a retry without reading the BIO again (see
+                 * dtls_get_more_records()), so nothing has set the BIO's retry
+                 * flags. Without them SSL_get_error() reports
+                 * SSL_ERROR_SYSCALL for what is an ordinary wait for more
+                 * data.
+                 *
+                 * A connection accepted by a DTLS listener has no read BIO of
+                 * its own (see dtls_listener_create_conn_ssl());
+                 * SSL_get_error() already reports SSL_ERROR_WANT_READ for
+                 * SSL_READING on such a connection without needing one.
+                 */
+                if (sc->rwstate == SSL_READING) {
+                    BIO *rbio = SSL_get_rbio(s);
+
+                    if (rbio != NULL && !BIO_should_retry(rbio)) {
+                        BIO_clear_retry_flags(rbio);
+                        BIO_set_retry_read(rbio);
+                    }
+                }
+                return ret;
             }
             rr->off = 0;
             sc->rlayer.num_recs++;
@@ -278,14 +364,33 @@ start:
         sc->rlayer.alert_count = 0;
 
     /* we now have a packet which can be read and processed */
-
-    if (sc->s3.change_cipher_spec /* set when we receive ChangeCipherSpec,
-                                   * reset by ssl3_get_finished */
-        && (rr->type != SSL3_RT_HANDSHAKE)) {
+    current_state = SSL_get_state(s);
+    if ((sc->s3.change_cipher_spec /* set when we receive ChangeCipherSpec,
+                                    * reset by ssl3_get_finished */
+            && (rr->type != SSL3_RT_HANDSHAKE))
+        || (is_dtls13 && rr->epoch >= 3 /* For DTLS 1.3 we can receive
+                                         * Application Data before we
+                                         * receive an expecting ACK
+                                         * message */
+            && (current_state == TLS_ST_CW_FINISHED
+                || current_state == TLS_ST_CW_KEY_UPDATE
+                || current_state == TLS_ST_SW_KEY_UPDATE
+                || current_state == TLS_ST_SW_SESSION_TICKET
+                || (current_state == TLS_ST_OK && SSL_in_init(s)))
+            && rr->type == SSL3_RT_APPLICATION_DATA)) {
         /*
-         * We now have application data between CCS and Finished. Most likely
-         * the packets were reordered on their way, so buffer the application
-         * data for later processing rather than dropping the connection.
+         * For DTLS 1.3 we received Application Data while we are
+         * waiting for an Acknowledgement record. Buffer this data so
+         * it can be processed once we have received the Acknowledgement.
+         * When DTLS 1.3 receives application data and it is already
+         * in TLS_ST_OK and is processing a handshake message like
+         * NewSessionTicket or KeyUpdate the application data is
+         * buffered.
+         *
+         * For non-DTLS 1.3 we now have application data between CCS and
+         * Finished. Most likely the packets were reordered on their way,
+         * so buffer the application data for later processing rather than
+         * dropping the connection.
          */
         if (dtls_buffer_record(sc, rr) < 0) {
             /* SSLfatal() already called */
@@ -293,6 +398,10 @@ start:
         }
         if (!ssl_release_record(sc, rr, 0))
             return -1;
+
+        if (is_dtls13 && current_state == TLS_ST_OK && SSL_in_init(s)) {
+            return -1;
+        }
         goto start;
     }
 
@@ -307,13 +416,21 @@ start:
         return 0;
     }
 
+    if ((rr->type == SSL3_RT_HANDSHAKE || rr->type == SSL3_RT_ACK)
+        && SSL_CONNECTION_IS_DTLS13(sc)) {
+        sc->s3.tmp.record_epoch = rr->epoch;
+        sc->s3.tmp.record_seq_num = rr->seq_num;
+    }
+
     if (type == rr->type
-        || (rr->type == SSL3_RT_CHANGE_CIPHER_SPEC
-            && type == SSL3_RT_HANDSHAKE && recvd_type != NULL)) {
+        || (type == SSL3_RT_HANDSHAKE
+            && ((!is_dtls13 && recvd_type != NULL && rr->type == SSL3_RT_CHANGE_CIPHER_SPEC)
+                || (is_dtls13 && rr->type == SSL3_RT_ACK)))) {
         /*
          * SSL3_RT_APPLICATION_DATA or
          * SSL3_RT_HANDSHAKE or
-         * SSL3_RT_CHANGE_CIPHER_SPEC
+         * SSL3_RT_CHANGE_CIPHER_SPEC or
+         * SSL3_RT_ACK
          */
         /*
          * make sure that we are not getting application data when we are
@@ -359,7 +476,7 @@ start:
          * app data. If there was an alert and there is no message to read
          * anymore, finally set shutdown.
          */
-        if (BIO_dgram_is_sctp(SSL_get_rbio(s)) && sc->d1->shutdown_received
+        if (SSL_get_rbio(s) != NULL && BIO_dgram_is_sctp(SSL_get_rbio(s)) && sc->d1->shutdown_received
             && BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)) <= 0) {
             sc->shutdown |= SSL_RECEIVED_SHUTDOWN;
             return 0;
@@ -401,7 +518,8 @@ start:
             cb(s, SSL_CB_READ_ALERT, j);
         }
 
-        if (alert_level == SSL3_AL_WARNING) {
+        if ((!is_dtls13 && alert_level == SSL3_AL_WARNING)
+            || (is_dtls13 && alert_descr == SSL_AD_USER_CANCELLED)) {
             sc->s3.warn_alert = alert_descr;
             if (!ssl_release_record(sc, rr, 0))
                 return -1;
@@ -412,37 +530,33 @@ start:
                     SSL_R_TOO_MANY_WARN_ALERTS);
                 return -1;
             }
+        }
 
-            if (alert_descr == SSL_AD_CLOSE_NOTIFY) {
+        /*
+         * Apart from close_notify the only other warning alert in DTLSv1.3
+         * is user_cancelled - which we just ignore.
+         */
+        if (is_dtls13 && alert_descr == SSL_AD_USER_CANCELLED) {
+            goto start;
+        } else if (alert_descr == SSL_AD_CLOSE_NOTIFY
+            && (is_dtls13 || alert_level == SSL3_AL_WARNING)) {
 #ifndef OPENSSL_NO_SCTP
-                /*
-                 * With SCTP and streams the socket may deliver app data
-                 * after a close_notify alert. We have to check this first so
-                 * that nothing gets discarded.
-                 */
-                if (BIO_dgram_is_sctp(SSL_get_rbio(s)) && BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)) > 0) {
-                    sc->d1->shutdown_received = 1;
-                    sc->rwstate = SSL_READING;
-                    BIO_clear_retry_flags(SSL_get_rbio(s));
-                    BIO_set_retry_read(SSL_get_rbio(s));
-                    return -1;
-                }
-#endif
-                sc->shutdown |= SSL_RECEIVED_SHUTDOWN;
-                return 0;
-            } else if (alert_descr == SSL_AD_NO_RENEGOTIATION) {
-                /*
-                 * This is a warning but we receive it if we requested
-                 * renegotiation and the peer denied it. Terminate with a fatal
-                 * alert because if the application tried to renegotiate it
-                 * presumably had a good reason and expects it to succeed. In
-                 * the future we might have a renegotiation where we don't care
-                 * if the peer refused it where we carry on.
-                 */
-                SSLfatal(sc, SSL_AD_HANDSHAKE_FAILURE, SSL_R_NO_RENEGOTIATION);
+            /*
+             * With SCTP and streams the socket may deliver app data
+             * after a close_notify alert. We have to check this first so
+             * that nothing gets discarded.
+             */
+            if (SSL_get_rbio(s) != NULL && BIO_dgram_is_sctp(SSL_get_rbio(s)) && BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)) > 0) {
+                sc->d1->shutdown_received = 1;
+                sc->rwstate = SSL_READING;
+                BIO_clear_retry_flags(SSL_get_rbio(s));
+                BIO_set_retry_read(SSL_get_rbio(s));
                 return -1;
             }
-        } else if (alert_level == SSL3_AL_FATAL) {
+#endif
+            sc->shutdown |= SSL_RECEIVED_SHUTDOWN;
+            return 0;
+        } else if (alert_level == SSL3_AL_FATAL || is_dtls13) {
             sc->rwstate = SSL_NOTHING;
             sc->s3.fatal_alert = alert_descr;
             SSLfatal_data(sc, SSL_AD_NO_ALERT,
@@ -453,12 +567,24 @@ start:
                 return -1;
             SSL_CTX_remove_session(sc->session_ctx, sc->session);
             return 0;
-        } else {
-            SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_ALERT_TYPE);
+        } else if (alert_descr == SSL_AD_NO_RENEGOTIATION) {
+            /*
+             * This is a warning but we receive it if we requested
+             * renegotiation and the peer denied it. Terminate with a fatal
+             * alert because if the application tried to renegotiate it
+             * presumably had a good reason and expects it to succeed. In
+             * the future we might have a renegotiation where we don't care
+             * if the peer refused it where we carry on.
+             */
+            SSLfatal(sc, SSL_AD_HANDSHAKE_FAILURE, SSL_R_NO_RENEGOTIATION);
             return -1;
+        } else if (alert_level == SSL3_AL_WARNING) {
+            /* We ignore any other warning alert in (D)TLSv1.2 and below */
+            goto start;
         }
 
-        goto start;
+        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_ALERT_TYPE);
+        return -1;
     }
 
     if (sc->shutdown & SSL_SENT_SHUTDOWN) { /* but we have not received a
@@ -482,33 +608,57 @@ start:
     /*
      * Unexpected handshake message (Client Hello, or protocol violation)
      */
-    if (rr->type == SSL3_RT_HANDSHAKE && !ossl_statem_get_in_handshake(sc)) {
-        struct hm_header_st msg_hdr;
+    if (!ossl_statem_get_in_handshake(sc) && rr->type == SSL3_RT_HANDSHAKE && !in_early_data) {
+        unsigned char msg_type;
 
         /*
          * This may just be a stale retransmit. Also sanity check that we have
-         * at least enough record bytes for a message header
+         * at least enough record bytes for a message header.
+         *
+         * For DTLS 1.3, a record at exactly the previous read epoch is not
+         * necessarily stale: it authenticated (see dtls_get_more_records()'s
+         * retained prev_epoch_rl handling), but that alone doesn't prove it's
+         * a retransmission. Let it through to the normal handshake-message
+         * path below instead of discarding it here -- the sequence and epoch
+         * checks there (dtls_record_from_retained_epoch(),
+         * dtls_prev_epoch_allows_type()) are what actually decide whether it
+         * can be acknowledged. This retained-epoch exception is for handshake
+         * records only (rr->type == SSL3_RT_HANDSHAKE above); an ACK record
+         * still has to be tied to the epoch that authenticated it before it
+         * can touch d1->sent_messages, which dtls_process_ack() enforces
+         * separately.
          */
-        if (rr->epoch != sc->rlayer.d->r_epoch
+        if ((rr->epoch != dtls1_get_epoch(sc, SSL3_CC_READ)
+                && !(SSL_CONNECTION_IS_DTLS13(sc)
+                    && dtls1_get_epoch(sc, SSL3_CC_READ) > 0
+                    && rr->epoch == dtls1_get_epoch(sc, SSL3_CC_READ) - 1))
             || rr->length < DTLS1_HM_HEADER_LENGTH) {
             if (!ssl_release_record(sc, rr, 0))
                 return -1;
             goto start;
         }
 
-        dtls1_get_message_header(rr->data, &msg_hdr);
+        msg_type = *rr->data;
 
         /*
          * If we are server, we may have a repeated FINISHED of the client
          * here, then retransmit our CCS and FINISHED.
+         *
+         * DTLS 1.3 has proper ACK records, so this DTLS 1.2-only fallback
+         * (which infers loss from a bare repeated Finished and reacts by
+         * blindly retransmitting our own flight) is skipped for it. A
+         * repeated DTLS 1.3 Finished instead falls through to the normal
+         * handshake-message path below, which ACKs a message it has
+         * already fully processed without reprocessing it (see the
+         * record_epoch check in statem_dtls.c).
          */
-        if (msg_hdr.type == SSL3_MT_FINISHED) {
+        if (!SSL_CONNECTION_IS_DTLS13(sc) && msg_type == SSL3_MT_FINISHED) {
             if (dtls1_check_timeout_num(sc) < 0) {
                 /* SSLfatal) already called */
                 return -1;
             }
 
-            if (dtls1_retransmit_buffered_messages(sc) <= 0) {
+            if (dtls1_retransmit_sent_messages(sc) <= 0) {
                 /* Fail if we encountered a fatal error */
                 if (ossl_statem_in_error(sc))
                     return -1;
@@ -522,24 +672,32 @@ start:
 
                     sc->rwstate = SSL_READING;
                     bio = SSL_get_rbio(s);
-                    BIO_clear_retry_flags(bio);
-                    BIO_set_retry_read(bio);
+                    /*
+                     * A connection accepted by a DTLS listener has no read
+                     * BIO of its own (see dtls_listener_create_conn_ssl());
+                     * SSL_get_error() already reports SSL_ERROR_WANT_READ
+                     * for SSL_READING on such a connection without needing
+                     * one.
+                     */
+                    if (bio != NULL) {
+                        BIO_clear_retry_flags(bio);
+                        BIO_set_retry_read(bio);
+                    }
                     return -1;
                 }
             }
             goto start;
         }
+    }
+
+    if (!ossl_statem_get_in_handshake(sc)
+        && (rr->type == SSL3_RT_HANDSHAKE || rr->type == SSL3_RT_ACK)) {
 
         /*
          * To get here we must be trying to read app data but found handshake
-         * data. But if we're trying to read app data, and we're not in init
-         * (which is tested for at the top of this function) then init must be
-         * finished
+         * data. This can be because we are in early data and receive the rest
+         * of the handshake.
          */
-        if (!ossl_assert(SSL_is_init_finished(s))) {
-            SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-            return -1;
-        }
 
         /* We found handshake data, so we're going back into init */
         ossl_statem_set_in_init(sc, 1);
@@ -548,7 +706,16 @@ start:
         /* SSLfatal() called if appropriate */
         if (i < 0)
             return i;
+
         if (i == 0)
+            return -1;
+
+        /*
+         * If we were actually trying to read early data and we found a
+         * handshake message, then we don't want to continue to try and read
+         * the application data any more. It won't be "early" now.
+         */
+        if (in_early_data)
             return -1;
 
         if (!(sc->mode & SSL_MODE_AUTO_RETRY)) {
@@ -563,8 +730,16 @@ start:
                  */
                 sc->rwstate = SSL_READING;
                 bio = SSL_get_rbio(s);
-                BIO_clear_retry_flags(bio);
-                BIO_set_retry_read(bio);
+                /*
+                 * A connection accepted by a DTLS listener has no read BIO
+                 * of its own (see dtls_listener_create_conn_ssl());
+                 * SSL_get_error() already reports SSL_ERROR_WANT_READ for
+                 * SSL_READING on such a connection without needing one.
+                 */
+                if (bio != NULL) {
+                    BIO_clear_retry_flags(bio);
+                    BIO_set_retry_read(bio);
+                }
                 return -1;
             }
         }
@@ -585,6 +760,34 @@ start:
          */
         SSLfatal(sc, SSL_AD_UNEXPECTED_MESSAGE, ERR_R_INTERNAL_ERROR);
         return -1;
+
+    case SSL3_RT_ACK:
+        switch (sc->negotiated_version) {
+        case DTLS1_3_VERSION:
+            /* ACK should have been handled if DTLSv1.3 has been negotiated. */
+            SSLfatal(sc, SSL_AD_UNEXPECTED_MESSAGE, ERR_R_INTERNAL_ERROR);
+            return -1;
+
+        case DTLS_ANY_VERSION:
+            /*
+             * This must be an ACK from a DTLSv1.3 server for a partial
+             * ClientHello. We always send the full message again if the
+             * ClientHello is not responded to with a ServerHello before the
+             * timer runs out. Drop the record.
+             */
+            if (!ssl_release_record(sc, rr, 0))
+                return -1;
+            goto start;
+
+        default:
+            /*
+             * If we receive an ACK record when we have negotiated a lower version
+             * than DTLSv1.3 then we respond with an unexpected record fatal alert.
+             */
+            SSLfatal(sc, SSL_AD_UNEXPECTED_MESSAGE, SSL_R_UNEXPECTED_RECORD);
+            return -1;
+        }
+
     case SSL3_RT_APPLICATION_DATA:
         /*
          * At this point, we were expecting handshake data, but have
@@ -595,6 +798,12 @@ start:
          */
         if (sc->s3.in_read_app_data && (sc->s3.total_renegotiations != 0) && ossl_statem_app_data_allowed(sc)) {
             sc->s3.in_read_app_data = 2;
+            return -1;
+        } else if (sc->version == DTLS1_3_VERSION) {
+            /*
+             * Let's let DTLS ACK and retransmits fix this problem.
+             */
+            ssl_release_record(sc, rr, 0);
             return -1;
         } else {
             SSLfatal(sc, SSL_AD_UNEXPECTED_MESSAGE, SSL_R_UNEXPECTED_RECORD);
@@ -631,15 +840,17 @@ int do_dtls1_write(SSL_CONNECTION *sc, uint8_t type, const unsigned char *buf,
     int ret;
 
     /* If we have an alert to send, lets send it */
-    if (sc->s3.alert_dispatch > 0) {
+    if (sc->s3.alert_dispatch != SSL_ALERT_DISPATCH_NONE) {
         i = s->method->ssl_dispatch_alert(s);
         if (i <= 0)
             return i;
         /* if it went, fall through and send more stuff */
     }
 
-    if (len == 0)
-        return 0;
+    if (len == 0) {
+        *written = 0;
+        return 1;
+    }
 
     if (len > ssl_get_max_send_fragment(sc)) {
         SSLfatal(sc, SSL_AD_INTERNAL_ERROR, SSL_R_EXCEEDS_MAX_FRAGMENT_SIZE);
@@ -647,12 +858,14 @@ int do_dtls1_write(SSL_CONNECTION *sc, uint8_t type, const unsigned char *buf,
     }
 
     tmpl.type = type;
+    if (sc->version == DTLS1_3_VERSION)
+        tmpl.version = DTLS1_2_VERSION;
     /*
      * Special case: for hello verify request, client version 1.0 and we
      * haven't decided which version to use yet send back using version 1.0
      * header: otherwise some clients will ignore it.
      */
-    if (s->method->version == DTLS_ANY_VERSION
+    else if (s->method->version == DTLS_ANY_VERSION
         && sc->max_proto_version != DTLS1_BAD_VER)
         tmpl.version = DTLS1_VERSION;
     else
@@ -664,34 +877,78 @@ int do_dtls1_write(SSL_CONNECTION *sc, uint8_t type, const unsigned char *buf,
         sc->rlayer.wrlmethod->write_records(sc->rlayer.wrl, &tmpl, 1));
 
     if (ret > 0)
-        *written = (int)len;
+        *written = len;
+
+    /*
+     * Add record number to the buffered sent message
+     */
+    if (type == SSL3_RT_HANDSHAKE && ret > 0 && SSL_CONNECTION_IS_DTLS13(sc)) {
+        pitem *item;
+        unsigned char prio[8];
+        dtls_sent_msg *sent_msg;
+        DTLS1_RECORD_NUMBER *rec_num;
+
+        dtls1_get_queue_priority(prio, sc->d1->w_msg.msg_seq, 0);
+        item = pqueue_find(&sc->d1->sent_messages, prio);
+
+        if (item == NULL)
+            return ret;
+
+        sent_msg = (dtls_sent_msg *)item->data;
+        rec_num = dtls1_record_number_new(tmpl.epoch, tmpl.sequence_number,
+            sc->d1->w_frag_off, sc->d1->w_frag_len);
+
+        if (rec_num == NULL)
+            return -1;
+
+        ossl_list_record_number_insert_tail(&sent_msg->rec_nums, rec_num);
+    }
 
     return ret;
 }
 
-void dtls1_increment_epoch(SSL_CONNECTION *s, int rw)
+int dtls1_increment_epoch(SSL_CONNECTION *s, int rw)
 {
     if (rw & SSL3_CC_READ) {
-        s->rlayer.d->r_epoch++;
+        if (!SSL_CONNECTION_IS_DTLS13(s) && s->rlayer.d->r_conn_epoch == UINT16_MAX)
+            return 0;
+
+        s->rlayer.d->r_conn_epoch++;
 
         /*
          * We must not use any buffered messages received from the previous
          * epoch
          */
         dtls1_clear_received_buffer(s);
+
+        if (s->rlayer.d->r_conn_epoch == 0)
+            /* We've wrapped around, so clear the buffer just in case */
+            return 0;
     } else {
-        s->rlayer.d->w_epoch++;
+        if (!SSL_CONNECTION_IS_DTLS13(s) && s->rlayer.d->w_conn_epoch == DTLS1_MAX_EPOCH)
+            return 0;
+
+        /*
+         * RFC 9147 Section 8: sending implementations MUST NOT allow the
+         * epoch to exceed 2^48-1.
+         */
+        if (SSL_CONNECTION_IS_DTLS13(s) && s->rlayer.d->w_conn_epoch == DTLS1_3_MAX_EPOCH)
+            return 0;
+
+        s->rlayer.d->w_conn_epoch++;
     }
+
+    return 1;
 }
 
-uint16_t dtls1_get_epoch(SSL_CONNECTION *s, int rw)
+uint64_t dtls1_get_epoch(SSL_CONNECTION *s, int rw)
 {
-    uint16_t epoch;
+    uint64_t epoch;
 
     if (rw & SSL3_CC_READ)
-        epoch = s->rlayer.d->r_epoch;
+        epoch = s->rlayer.d->r_conn_epoch;
     else
-        epoch = s->rlayer.d->w_epoch;
+        epoch = s->rlayer.d->w_conn_epoch;
 
     return epoch;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,9 +52,9 @@ static int aesni_cbc_hmac_sha256_init_key(PROV_CIPHER_CTX *vctx,
     PROV_AES_HMAC_SHA256_CTX *sctx = (PROV_AES_HMAC_SHA256_CTX *)vctx;
 
     if (ctx->base.enc)
-        ret = aesni_set_encrypt_key(key, ctx->base.keylen * 8, &ctx->ks);
+        ret = aesni_set_encrypt_key(key, (int)(ctx->base.keylen * 8), &ctx->ks);
     else
-        ret = aesni_set_decrypt_key(key, ctx->base.keylen * 8, &ctx->ks);
+        ret = aesni_set_decrypt_key(key, (int)(ctx->base.keylen * 8), &ctx->ks);
 
     SHA256_Init(&sctx->head); /* handy when benchmarking */
     sctx->tail = sctx->head;
@@ -91,8 +91,8 @@ static void sha256_update(SHA256_CTX *c, const void *data, size_t len)
         sha256_block_data_order(c, ptr, len / SHA256_CBLOCK);
 
         ptr += len;
-        c->Nh += len >> 29;
-        c->Nl += len <<= 3;
+        c->Nh += (unsigned int)(len >> 29);
+        c->Nl += (unsigned int)(len <<= 3);
         if (c->Nl < (unsigned int)len)
             c->Nh++;
     }
@@ -116,7 +116,7 @@ typedef struct {
     const unsigned char *inp;
     unsigned char *out;
     int blocks;
-    u64 iv[2];
+    uint64_t iv[2];
 } CIPH_DESC;
 
 void sha256_multi_block(SHA256_MB_CTX *, const HASH_DESC *, int);
@@ -133,17 +133,17 @@ static size_t tls1_multi_block_encrypt(void *vctx,
     CIPH_DESC ciph_d[8];
     unsigned char storage[sizeof(SHA256_MB_CTX) + 32];
     union {
-        u64 q[16];
-        u32 d[32];
-        u8 c[128];
+        uint64_t q[16];
+        uint32_t d[32];
+        uint8_t c[128];
     } blocks[8];
     SHA256_MB_CTX *mctx;
     unsigned int frag, last, packlen, i;
     unsigned int x4 = 4 * n4x, minblocks, processed = 0;
     size_t ret = 0;
-    u8 *IVs;
+    uint8_t *IVs;
 #if defined(BSWAP8)
-    u64 seqnum;
+    uint64_t seqnum;
 #endif
 
     /* ask for IVs in bulk */
@@ -203,16 +203,16 @@ static size_t tls1_multi_block_encrypt(void *vctx,
         blocks[i].q[0] = BSWAP8(seqnum + i);
 #else
         for (carry = i, j = 8; j--;) {
-            blocks[i].c[j] = ((u8 *)sctx->md.data)[j] + carry;
+            blocks[i].c[j] = ((uint8_t *)sctx->md.data)[j] + carry;
             carry = (blocks[i].c[j] - carry) >> (sizeof(carry) * 8 - 1);
         }
 #endif
-        blocks[i].c[8] = ((u8 *)sctx->md.data)[8];
-        blocks[i].c[9] = ((u8 *)sctx->md.data)[9];
-        blocks[i].c[10] = ((u8 *)sctx->md.data)[10];
+        blocks[i].c[8] = ((uint8_t *)sctx->md.data)[8];
+        blocks[i].c[9] = ((uint8_t *)sctx->md.data)[9];
+        blocks[i].c[10] = ((uint8_t *)sctx->md.data)[10];
         /* fix length */
-        blocks[i].c[11] = (u8)(len >> 8);
-        blocks[i].c[12] = (u8)(len);
+        blocks[i].c[11] = (uint8_t)(len >> 8);
+        blocks[i].c[12] = (uint8_t)(len);
 
         memcpy(blocks[i].c + 13, hash_d[i].ptr, 64 - 13);
         hash_d[i].ptr += 64 - 13;
@@ -372,11 +372,11 @@ static size_t tls1_multi_block_encrypt(void *vctx,
         len += 16; /* account for explicit iv */
 
         /* arrange header */
-        out0[0] = ((u8 *)sctx->md.data)[8];
-        out0[1] = ((u8 *)sctx->md.data)[9];
-        out0[2] = ((u8 *)sctx->md.data)[10];
-        out0[3] = (u8)(len >> 8);
-        out0[4] = (u8)(len);
+        out0[0] = ((uint8_t *)sctx->md.data)[8];
+        out0[1] = ((uint8_t *)sctx->md.data)[9];
+        out0[2] = ((uint8_t *)sctx->md.data)[10];
+        out0[3] = (uint8_t)(len >> 8);
+        out0[4] = (uint8_t)(len);
 
         ret += len + 5;
         inp += frag;
@@ -441,8 +441,8 @@ static int aesni_cbc_hmac_sha256_cipher(PROV_CIPHER_CTX *vctx,
             blocks *= SHA256_CBLOCK;
             aes_off += blocks;
             sha_off += blocks;
-            sctx->md.Nh += blocks >> 29;
-            sctx->md.Nl += blocks <<= 3;
+            sctx->md.Nh += (unsigned int)(blocks >> 29);
+            sctx->md.Nl += (unsigned int)(blocks <<= 3);
             if (sctx->md.Nl < (unsigned int)blocks)
                 sctx->md.Nh++;
         } else {
@@ -463,7 +463,7 @@ static int aesni_cbc_hmac_sha256_cipher(PROV_CIPHER_CTX *vctx,
 
             /* pad the payload|hmac */
             plen += SHA256_DIGEST_LENGTH;
-            for (l = len - plen - 1; plen < len; plen++)
+            for (l = (unsigned int)(len - plen - 1); plen < len; plen++)
                 out[plen] = l;
             /* encrypt HMAC|padding at once */
             aesni_cbc_encrypt(out + aes_off, out + aes_off, len - aes_off,
@@ -507,7 +507,7 @@ static int aesni_cbc_hmac_sha256_cipher(PROV_CIPHER_CTX *vctx,
 
             /* figure out payload length */
             pad = out[len - 1];
-            maxpad = len - (SHA256_DIGEST_LENGTH + 1);
+            maxpad = (unsigned int)(len - (SHA256_DIGEST_LENGTH + 1));
             maxpad |= (255 - maxpad) >> (sizeof(maxpad) * 8 - 8);
             maxpad &= 255;
 
@@ -519,12 +519,12 @@ static int aesni_cbc_hmac_sha256_cipher(PROV_CIPHER_CTX *vctx,
              * we'll use the maxpad value instead of the supplied pad to make
              * sure we perform well defined pointer arithmetic.
              */
-            pad = constant_time_select(mask, pad, maxpad);
+            pad = constant_time_select((unsigned int)mask, pad, maxpad);
 
             inp_len = len - (SHA256_DIGEST_LENGTH + pad + 1);
 
-            ctx->aux.tls_aad[plen - 2] = inp_len >> 8;
-            ctx->aux.tls_aad[plen - 1] = inp_len;
+            ctx->aux.tls_aad[plen - 2] = (unsigned char)(inp_len >> 8);
+            ctx->aux.tls_aad[plen - 1] = (unsigned char)(inp_len);
 
             /* calculate HMAC */
             sctx->md = sctx->head;
@@ -542,7 +542,7 @@ static int aesni_cbc_hmac_sha256_cipher(PROV_CIPHER_CTX *vctx,
             }
 
             /* but pretend as if we hashed padded payload */
-            bitlen = sctx->md.Nl + (inp_len << 3); /* at most 18 bits */
+            bitlen = sctx->md.Nl + (unsigned int)(inp_len << 3); /* at most 18 bits */
 #ifdef BSWAP4
             bitlen = BSWAP4(bitlen);
 #else
@@ -777,7 +777,7 @@ static int aesni_cbc_hmac_sha256_tls1_multiblock_aad(
             if (inp_len >= 8192 && OPENSSL_ia32cap_P[2] & (1 << 5))
                 n4x = 2; /* AVX2 */
         } else if ((n4x = param->interleave / 4) && n4x <= 2)
-            inp_len = param->len;
+            inp_len = (unsigned int)param->len;
         else
             return -1;
 

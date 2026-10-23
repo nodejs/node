@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,20 +12,28 @@
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 
-int ASN1_PRINTABLE_type(const unsigned char *s, int len)
+#include <crypto/asn1.h>
+
+/**
+ * @brief Determine the narrowest ASN.1 string type that can represent bytes.
+ *
+ * Unlike ASN1_PRINTABLE_type() this requires an explicit length and has no
+ * legacy path that treats its input as a NUL terminated C string, so it may
+ * be called on ASN1_STRING data.
+ *
+ * @param s pointer to the bytes to classify
+ * @param len the number of bytes available at s
+ * @returns V_ASN1_T61STRING, V_ASN1_IA5STRING or V_ASN1_PRINTABLESTRING
+ */
+static int printable_type(const unsigned char *s, size_t len)
 {
-    int c;
     int ia5 = 0;
     int t61 = 0;
+    size_t i;
 
-    if (s == NULL)
-        return V_ASN1_PRINTABLESTRING;
+    for (i = 0; i < len; i++) {
+        int c = s[i];
 
-    if (len < 0)
-        len = strlen((const char *)s);
-
-    while (len-- > 0) {
-        c = *(s++);
         if (!ossl_isasn1print(c))
             ia5 = 1;
         if (!ossl_isascii(c))
@@ -38,6 +46,17 @@ int ASN1_PRINTABLE_type(const unsigned char *s, int len)
     return V_ASN1_PRINTABLESTRING;
 }
 
+int ASN1_PRINTABLE_type(const unsigned char *s, int len)
+{
+    if (s == NULL)
+        return V_ASN1_PRINTABLESTRING;
+
+    if (len < 0)
+        len = (int)strlen((const char *)s);
+
+    return printable_type(s, (size_t)len);
+}
+
 int ASN1_UNIVERSALSTRING_to_string(ASN1_UNIVERSALSTRING *s)
 {
     int i;
@@ -45,7 +64,7 @@ int ASN1_UNIVERSALSTRING_to_string(ASN1_UNIVERSALSTRING *s)
 
     if (s->type != V_ASN1_UNIVERSALSTRING)
         return 0;
-    if ((s->length % 4) != 0)
+    if (s->length < 0 || (s->length % 4) != 0)
         return 0;
     p = s->data;
     for (i = 0; i < s->length; i += 4) {
@@ -60,9 +79,10 @@ int ASN1_UNIVERSALSTRING_to_string(ASN1_UNIVERSALSTRING *s)
     for (i = 3; i < s->length; i += 4) {
         *(p++) = s->data[i];
     }
-    *(p) = '\0';
+    if (s->length > 0)
+        *p = '\0';
     s->length /= 4;
-    s->type = ASN1_PRINTABLE_type(s->data, s->length);
+    s->type = printable_type(s->data, (size_t)s->length);
     return 1;
 }
 

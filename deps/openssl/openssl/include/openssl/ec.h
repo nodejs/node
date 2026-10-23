@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -19,8 +19,6 @@
 
 #include <openssl/opensslconf.h>
 #include <openssl/types.h>
-
-#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -252,6 +250,14 @@ const BIGNUM *EC_GROUP_get0_order(const EC_GROUP *group);
  *  \return number of bits of group order.
  */
 int EC_GROUP_order_bits(const EC_GROUP *group);
+
+/** Gets the symmetric-equivalent security bit size an EC_GROUP.
+ * This is rounded down to one of the standard sizes, (80, 112,
+ * 128, 192, 256) or reported as-is when smaller than 80.
+ *  \param  group  EC_GROUP object
+ *  \return symmetric-equivalent security bits.
+ */
+int EC_GROUP_security_bits(const EC_GROUP *group);
 
 /** Gets the cofactor of a EC_GROUP
  *  \param  group     EC_GROUP object
@@ -1032,12 +1038,6 @@ OSSL_DEPRECATEDIN_3_0 EC_KEY *EC_KEY_dup(const EC_KEY *src);
  */
 OSSL_DEPRECATEDIN_3_0 int EC_KEY_up_ref(EC_KEY *key);
 
-/** Returns the ENGINE object of a EC_KEY object
- *  \param  eckey  EC_KEY object
- *  \return the ENGINE object (possibly NULL).
- */
-OSSL_DEPRECATEDIN_3_0 ENGINE *EC_KEY_get0_engine(const EC_KEY *eckey);
-
 /** Returns the EC_GROUP object of a EC_KEY object
  *  \param  key  EC_KEY object
  *  \return the EC_GROUP object (possibly NULL).
@@ -1548,8 +1548,6 @@ OSSL_DEPRECATEDIN_3_0 void EC_KEY_METHOD_get_verify(const EC_KEY_METHOD *meth,
         EC_KEY *eckey));
 #endif /* OPENSSL_NO_DEPRECATED_3_0 */
 
-#define EVP_EC_gen(curve) \
-    EVP_PKEY_Q_keygen(NULL, NULL, "EC", (char *)(strstr(curve, "")))
 /* strstr is used to enable type checking for the variadic string arg */
 #define ECParameters_dup(x) ASN1_dup_of(EC_KEY, i2d_ECParameters, \
     d2i_ECParameters, x)

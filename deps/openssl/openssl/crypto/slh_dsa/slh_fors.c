@@ -157,7 +157,7 @@ int ossl_slh_fors_sign(SLH_DSA_HASH_CTX *ctx, const uint8_t *md,
         /*
          * Give each of the k trees a unique range at each level.
          * e.g. If we have 4096 leaf nodes (2^a = 2^12) for each tree
-         * tree i will use indexes from 4096 * i + (0..4095) for its bottom level.
+         * i will use indexes from 4096 * i + (0..4095) for its bottom level.
          * For the next level up from the bottom there would be 2048 nodes
          * (so tree i uses indexes 2048 * i + (0...2047) for this level)
          */

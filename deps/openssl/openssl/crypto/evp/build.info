@@ -2,22 +2,25 @@ LIBS=../../libcrypto
 $COMMON=digest.c evp_enc.c evp_lib.c evp_fetch.c evp_utils.c \
         mac_lib.c mac_meth.c keymgmt_meth.c keymgmt_lib.c kdf_lib.c kdf_meth.c \
         skeymgmt_meth.c \
-        pmeth_lib.c signature.c p_lib.c s_lib.c pmeth_gn.c exchange.c \
-        evp_rand.c asymcipher.c kem.c dh_support.c ec_support.c pmeth_check.c
+        pmeth_lib.c signature.c p_lib.c pmeth_gn.c exchange.c \
+        evp_rand.c asymcipher.c kem.c dh_support.c ec_support.c pmeth_check.c \
+        evp_pkey_type.c
 
 SOURCE[../../libcrypto]=$COMMON\
         encode.c evp_key.c evp_cnf.c \
+        enc_b64_scalar.c \
+        enc_b64_avx2.c \
         e_des.c e_bf.c e_idea.c e_des3.c \
         e_rc4.c e_aes.c names.c e_aria.c e_sm4.c \
         e_xcbc_d.c e_rc2.c e_cast.c e_rc5.c m_null.c \
         p_seal.c p_sign.c p_verify.c p_legacy.c \
         bio_md.c bio_b64.c bio_enc.c evp_err.c e_null.c \
-        c_allc.c c_alld.c bio_ok.c \
+        c_allc.c c_alld.c \
         evp_pkey.c evp_pbe.c p5_crpt.c p5_crpt2.c pbe_scrypt.c \
         e_aes_cbc_hmac_sha1.c e_aes_cbc_hmac_sha256.c e_rc4_hmac_md5.c \
         e_chacha20_poly1305.c \
         legacy_sha.c ctrl_params_translate.c \
-        cmeth_lib.c m_sigver.c
+        m_sigver.c s_lib.c
 
 # Diverse type specific ctrl functions.  They are kinda sorta legacy, kinda
 # sorta not.

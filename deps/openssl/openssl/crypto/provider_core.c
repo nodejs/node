@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
 #include <openssl/core.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
@@ -371,8 +372,8 @@ int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
     if (!CRYPTO_THREAD_write_lock(store->lock))
         return 0;
     if (store->provinfosz == 0) {
-        store->provinfo = OPENSSL_zalloc(sizeof(*store->provinfo)
-            * BUILTINS_BLOCK_SIZE);
+        store->provinfo = OPENSSL_calloc(BUILTINS_BLOCK_SIZE,
+            sizeof(*store->provinfo));
         if (store->provinfo == NULL)
             goto err;
         store->provinfosz = BUILTINS_BLOCK_SIZE;
@@ -380,8 +381,8 @@ int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
         OSSL_PROVIDER_INFO *tmpbuiltins;
         size_t newsz = store->provinfosz + BUILTINS_BLOCK_SIZE;
 
-        tmpbuiltins = OPENSSL_realloc(store->provinfo,
-            sizeof(*store->provinfo) * newsz);
+        tmpbuiltins = OPENSSL_realloc_array(store->provinfo,
+            newsz, sizeof(*store->provinfo));
         if (tmpbuiltins == NULL)
             goto err;
         store->provinfo = tmpbuiltins;
@@ -420,9 +421,15 @@ OSSL_PROVIDER *ossl_provider_find(OSSL_LIB_CTX *libctx, const char *name,
 #endif
 
         tmpl.name = (char *)name;
-        if (!CRYPTO_THREAD_write_lock(store->lock))
+        if (!CRYPTO_THREAD_read_lock(store->lock))
             return NULL;
-        sk_OSSL_PROVIDER_sort(store->providers);
+        if (!sk_OSSL_PROVIDER_is_sorted(store->providers)) {
+            CRYPTO_THREAD_unlock(store->lock);
+            if (!CRYPTO_THREAD_write_lock(store->lock))
+                return NULL;
+            if (!sk_OSSL_PROVIDER_is_sorted(store->providers))
+                sk_OSSL_PROVIDER_sort(store->providers);
+        }
         if ((i = sk_OSSL_PROVIDER_find(store->providers, &tmpl)) != -1)
             prov = sk_OSSL_PROVIDER_value(store->providers, i);
         CRYPTO_THREAD_unlock(store->lock);
@@ -480,7 +487,7 @@ int ossl_provider_up_ref(OSSL_PROVIDER *prov)
 {
     int ref = 0;
 
-    if (CRYPTO_UP_REF(&prov->refcnt, &ref) <= 0)
+    if (!CRYPTO_UP_REF(&prov->refcnt, &ref))
         return 0;
 
 #ifndef FIPS_MODULE
@@ -1118,7 +1125,7 @@ static int provider_init(OSSL_PROVIDER *prov)
         cnt++; /* One for the terminating item */
 
         /* Allocate one extra item for the "library" name */
-        prov->error_strings = OPENSSL_zalloc(sizeof(ERR_STRING_DATA) * (cnt + 1));
+        prov->error_strings = OPENSSL_calloc(cnt + 1, sizeof(ERR_STRING_DATA));
         if (prov->error_strings == NULL)
             goto end;
 
@@ -1128,7 +1135,7 @@ static int provider_init(OSSL_PROVIDER *prov)
         prov->error_strings[0].error = ERR_PACK(prov->error_lib, 0, 0);
         prov->error_strings[0].string = prov->name;
         /*
-         * Copy reasonstrings item 0..cnt-1 to prov->error_trings positions
+         * Copy reasonstrings item 0..cnt-1 to prov->error_strings positions
          * 1..cnt.
          */
         for (cnt2 = 1; cnt2 <= cnt; cnt2++) {
@@ -1570,7 +1577,7 @@ int ossl_provider_doall_activated(OSSL_LIB_CTX *ctx,
              * to avoid upping the ref count on the parent provider, which we
              * must not do while holding locks.
              */
-            if (CRYPTO_UP_REF(&prov->refcnt, &ref) <= 0) {
+            if (!CRYPTO_UP_REF(&prov->refcnt, &ref)) {
                 CRYPTO_THREAD_unlock(prov->flag_lock);
                 goto err_unlock;
             }
@@ -2277,7 +2284,9 @@ OSSL_FUNC_BIO_puts_fn ossl_core_bio_puts;
 OSSL_FUNC_BIO_up_ref_fn ossl_core_bio_up_ref;
 OSSL_FUNC_BIO_free_fn ossl_core_bio_free;
 OSSL_FUNC_BIO_vprintf_fn ossl_core_bio_vprintf;
-OSSL_FUNC_BIO_vsnprintf_fn BIO_vsnprintf;
+#ifndef FIPS_MODULE
+static OSSL_FUNC_BIO_vsnprintf_fn core_bio_vsnprintf;
+#endif
 static OSSL_FUNC_indicator_cb_fn core_indicator_get_callback;
 static OSSL_FUNC_self_test_cb_fn core_self_test_get_callback;
 static OSSL_FUNC_get_entropy_fn rand_get_entropy;
@@ -2450,7 +2459,6 @@ static void core_self_test_get_callback(OPENSSL_CORE_CTX *libctx,
     OSSL_SELF_TEST_get_callback((OSSL_LIB_CTX *)libctx, cb, cbarg);
 }
 
-#ifdef OPENSSL_NO_FIPS_JITTER
 static size_t rand_get_entropy(const OSSL_CORE_HANDLE *handle,
     unsigned char **pout, int entropy,
     size_t min_len, size_t max_len)
@@ -2458,31 +2466,6 @@ static size_t rand_get_entropy(const OSSL_CORE_HANDLE *handle,
     return ossl_rand_get_entropy((OSSL_LIB_CTX *)core_get_libctx(handle),
         pout, entropy, min_len, max_len);
 }
-#else
-/*
- * OpenSSL FIPS providers prior to 3.2 call rand_get_entropy API from
- * core, instead of the newer get_user_entropy. Newer API call honors
- * runtime configuration of random seed source and can be configured
- * to use os getranom() or another seed source, such as
- * JITTER. However, 3.0.9 only calls this API. Note that no other
- * providers known to use this, and it is core <-> provider only
- * API. Public facing EVP and getrandom bytes already correctly honor
- * runtime configuration for seed source. There are no other providers
- * packaged in Wolfi, or even known to exist that use this api. Thus
- * it is safe to say any caller of this API is in fact 3.0.9 FIPS
- * provider. Also note that the passed in handle is invalid and cannot
- * be safely dereferences in such cases. Due to a bug in FIPS
- * providers 3.0.0, 3.0.8 and 3.0.9. See
- * https://github.com/openssl/openssl/blob/master/doc/internal/man3/ossl_rand_get_entropy.pod#notes
- */
-size_t ossl_rand_jitter_get_seed(unsigned char **, int, size_t, size_t);
-static size_t rand_get_entropy(const OSSL_CORE_HANDLE *handle,
-    unsigned char **pout, int entropy,
-    size_t min_len, size_t max_len)
-{
-    return ossl_rand_jitter_get_seed(pout, entropy, min_len, max_len);
-}
-#endif
 
 static size_t rand_get_user_entropy(const OSSL_CORE_HANDLE *handle,
     unsigned char **pout, int entropy,
@@ -2606,6 +2589,18 @@ static int core_obj_create(const OSSL_CORE_HANDLE *prov, const char *oid,
 /*
  * Functions provided by the core.
  */
+#ifndef FIPS_MODULE
+static int core_bio_vsnprintf(char *buf, size_t n, const char *format,
+    va_list args)
+{
+    int ret = vsnprintf(buf, n, format, args);
+
+    if ((size_t)ret >= n)
+        ret = -1;
+    return ret;
+}
+#endif
+
 static const OSSL_DISPATCH core_dispatch_[] = {
     { OSSL_FUNC_CORE_GETTABLE_PARAMS, (void (*)(void))core_gettable_params },
     { OSSL_FUNC_CORE_GET_PARAMS, (void (*)(void))core_get_params },
@@ -2630,7 +2625,7 @@ static const OSSL_DISPATCH core_dispatch_[] = {
     { OSSL_FUNC_BIO_UP_REF, (void (*)(void))ossl_core_bio_up_ref },
     { OSSL_FUNC_BIO_FREE, (void (*)(void))ossl_core_bio_free },
     { OSSL_FUNC_BIO_VPRINTF, (void (*)(void))ossl_core_bio_vprintf },
-    { OSSL_FUNC_BIO_VSNPRINTF, (void (*)(void))BIO_vsnprintf },
+    { OSSL_FUNC_BIO_VSNPRINTF, (void (*)(void))core_bio_vsnprintf },
     { OSSL_FUNC_SELF_TEST_CB, (void (*)(void))core_self_test_get_callback },
     { OSSL_FUNC_INDICATOR_CB, (void (*)(void))core_indicator_get_callback },
     { OSSL_FUNC_GET_ENTROPY, (void (*)(void))rand_get_entropy },

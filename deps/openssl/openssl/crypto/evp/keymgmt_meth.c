@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,12 +19,27 @@
 
 static void evp_keymgmt_free(void *data)
 {
-    EVP_KEYMGMT_free(data);
+    EVP_KEYMGMT *keymgmt = (EVP_KEYMGMT *)data;
+    int ref = 0;
+
+    if (keymgmt == NULL)
+        return;
+
+    CRYPTO_DOWN_REF(&keymgmt->refcnt, &ref);
+    if (ref > 0)
+        return;
+    OPENSSL_free(keymgmt->type_name);
+    ossl_provider_free(keymgmt->prov);
+    CRYPTO_FREE_REF(&keymgmt->refcnt);
+    OPENSSL_free(keymgmt);
 }
 
 static int evp_keymgmt_up_ref(void *data)
 {
-    return EVP_KEYMGMT_up_ref(data);
+    EVP_KEYMGMT *keymgmt = (EVP_KEYMGMT *)data;
+    int ref = 0;
+
+    return CRYPTO_UP_REF(&keymgmt->refcnt, &ref);
 }
 
 static void *keymgmt_new(void)
@@ -34,7 +49,7 @@ static void *keymgmt_new(void)
     if ((keymgmt = OPENSSL_zalloc(sizeof(*keymgmt))) == NULL)
         return NULL;
     if (!CRYPTO_NEW_REF(&keymgmt->refcnt, 1)) {
-        EVP_KEYMGMT_free(keymgmt);
+        OPENSSL_free(keymgmt);
         return NULL;
     }
     return keymgmt;
@@ -62,7 +77,7 @@ static int get_legacy_alg_type_from_keymgmt(const EVP_KEYMGMT *keymgmt)
 
 static void *keymgmt_from_algorithm(int name_id,
     const OSSL_ALGORITHM *algodef,
-    OSSL_PROVIDER *prov)
+    OSSL_PROVIDER *prov, int no_store)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_KEYMGMT *keymgmt = NULL;
@@ -76,8 +91,10 @@ static void *keymgmt_from_algorithm(int name_id,
         return NULL;
 
     keymgmt->name_id = name_id;
+    keymgmt->no_store = no_store;
+
     if ((keymgmt->type_name = ossl_algorithm_get1_first_name(algodef)) == NULL) {
-        EVP_KEYMGMT_free(keymgmt);
+        evp_keymgmt_free(keymgmt);
         return NULL;
     }
     keymgmt->description = algodef->algorithm_description;
@@ -87,6 +104,10 @@ static void *keymgmt_from_algorithm(int name_id,
         case OSSL_FUNC_KEYMGMT_NEW:
             if (keymgmt->new == NULL)
                 keymgmt->new = OSSL_FUNC_keymgmt_new(fns);
+            break;
+        case OSSL_FUNC_KEYMGMT_NEW_EX:
+            if (keymgmt->new_ex == NULL)
+                keymgmt->new_ex = OSSL_FUNC_keymgmt_new_ex(fns);
             break;
         case OSSL_FUNC_KEYMGMT_GEN_INIT:
             if (keymgmt->gen_init == NULL)
@@ -236,6 +257,7 @@ static void *keymgmt_from_algorithm(int name_id,
      */
     if (keymgmt->free == NULL
         || (keymgmt->new == NULL
+            && keymgmt->new_ex == NULL
             && keymgmt->gen == NULL
             && keymgmt->load == NULL)
         || keymgmt->has == NULL
@@ -248,13 +270,16 @@ static void *keymgmt_from_algorithm(int name_id,
         || (keymgmt->gen != NULL
             && (keymgmt->gen_init == NULL
                 || keymgmt->gen_cleanup == NULL))) {
-        EVP_KEYMGMT_free(keymgmt);
+        evp_keymgmt_free(keymgmt);
         ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_PROVIDER_FUNCTIONS);
         return NULL;
     }
     keymgmt->prov = prov;
-    if (prov != NULL)
-        ossl_provider_up_ref(prov);
+    if (prov != NULL && !ossl_provider_up_ref(prov)) {
+        evp_keymgmt_free(keymgmt);
+        ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+        return NULL;
+    }
 
 #ifndef FIPS_MODULE
     keymgmt->legacy_alg = get_legacy_alg_type_from_keymgmt(keymgmt);
@@ -285,26 +310,23 @@ EVP_KEYMGMT *EVP_KEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
 
 int EVP_KEYMGMT_up_ref(EVP_KEYMGMT *keymgmt)
 {
-    int ref = 0;
-
-    CRYPTO_UP_REF(&keymgmt->refcnt, &ref);
+#ifdef OPENSSL_NO_CACHED_FETCH
+    return evp_keymgmt_up_ref(keymgmt);
+#else
+    if (keymgmt->no_store != 0)
+        return evp_keymgmt_up_ref(keymgmt);
     return 1;
+#endif
 }
 
 void EVP_KEYMGMT_free(EVP_KEYMGMT *keymgmt)
 {
-    int ref = 0;
-
-    if (keymgmt == NULL)
-        return;
-
-    CRYPTO_DOWN_REF(&keymgmt->refcnt, &ref);
-    if (ref > 0)
-        return;
-    OPENSSL_free(keymgmt->type_name);
-    ossl_provider_free(keymgmt->prov);
-    CRYPTO_FREE_REF(&keymgmt->refcnt);
-    OPENSSL_free(keymgmt);
+#ifdef OPENSSL_NO_CACHED_FETCH
+    evp_keymgmt_free(keymgmt);
+#else
+    if (keymgmt != NULL && (keymgmt->no_store != 0))
+        evp_keymgmt_free(keymgmt);
+#endif
 }
 
 const OSSL_PROVIDER *EVP_KEYMGMT_get0_provider(const EVP_KEYMGMT *keymgmt)
@@ -342,8 +364,12 @@ void EVP_KEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
     void (*fn)(EVP_KEYMGMT *keymgmt, void *arg),
     void *arg)
 {
+    struct EVP_KEYMGMT_do_all_provided_thunk t;
+
+    t.fn = fn;
+    t.arg = arg;
     evp_generic_do_all(libctx, OSSL_OP_KEYMGMT,
-        (void (*)(void *, void *))fn, arg,
+        EVP_KEYMGMT_do_all_provided_thunk, &t,
         keymgmt_from_algorithm,
         evp_keymgmt_up_ref,
         evp_keymgmt_free);
@@ -362,18 +388,20 @@ int EVP_KEYMGMT_names_do_all(const EVP_KEYMGMT *keymgmt,
 /*
  * Internal API that interfaces with the method function pointers
  */
-void *evp_keymgmt_newdata(const EVP_KEYMGMT *keymgmt)
+void *evp_keymgmt_newdata(const EVP_KEYMGMT *keymgmt, const OSSL_PARAM params[])
 {
     void *provctx = ossl_provider_ctx(EVP_KEYMGMT_get0_provider(keymgmt));
 
     /*
-     * 'new' is currently mandatory on its own, but when new
-     * constructors appear, it won't be quite as mandatory,
-     * so we have a check for future cases.
+     * Some providers may have a new_ex which accepts parameters. Otherwise we
+     * fall back to the old "new" which doesn't accept params.
      */
-    if (keymgmt->new == NULL)
-        return NULL;
-    return keymgmt->new(provctx);
+    if (keymgmt->new_ex == NULL) {
+        if (keymgmt->new == NULL)
+            return NULL;
+        return keymgmt->new(provctx);
+    }
+    return keymgmt->new_ex(provctx, params);
 }
 
 void evp_keymgmt_freedata(const EVP_KEYMGMT *keymgmt, void *keydata)
@@ -398,8 +426,8 @@ int evp_keymgmt_gen_set_template(const EVP_KEYMGMT *keymgmt, void *genctx,
     /*
      * It's arguable if we actually should return success in this case, as
      * it allows the caller to set a template key, which is then ignored.
-     * However, this is how the legacy methods (EVP_PKEY_METHOD) operate,
-     * so we do this in the interest of backward compatibility.
+     * However, this is how the legacy methods used to operate, so we do this in
+     * the interest of backward compatibility.
      */
     if (keymgmt->gen_set_template == NULL)
         return 1;

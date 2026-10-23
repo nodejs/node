@@ -88,7 +88,7 @@ int skeyutl_main(int argc, char **argv)
         goto opthelp;
 
     if (cipher == NULL && skeymgmt == NULL) {
-        BIO_printf(bio_err, "Either -skeymgmt -or -cipher option should be specified\n");
+        BIO_puts(bio_err, "Either -skeymgmt -or -cipher option should be specified\n");
         goto end;
     }
 
@@ -102,6 +102,9 @@ int skeyutl_main(int argc, char **argv)
             goto end;
         params = app_params_new_from_opts(skeyopts,
             EVP_SKEYMGMT_get0_gen_settable_params(mgmt));
+        /* A NULL return is an error only if key options were given */
+        if (skeyopts != NULL && params == NULL)
+            goto end;
 
         skey = EVP_SKEY_generate(app_get0_libctx(),
             skeymgmt ? skeymgmt : EVP_CIPHER_name(cipher),
@@ -114,15 +117,17 @@ int skeyutl_main(int argc, char **argv)
         } else {
             const char *key_name = EVP_SKEY_get0_key_id(skey);
 
-            BIO_printf(bio_out, "An opaque key identified by %s is created\n",
-                key_name ? key_name : "<unknown>");
-            BIO_printf(bio_out, "Provider: %s\n", EVP_SKEY_get0_provider_name(skey));
-            BIO_printf(bio_out, "Key management: %s\n", EVP_SKEY_get0_skeymgmt_name(skey));
+            BIO_printf(bio_out, "An opaque key identified by %s is created\n"
+                                "Provider: %s\n"
+                                "Key management: %s\n",
+                key_name ? key_name : "<unknown>",
+                EVP_SKEY_get0_provider_name(skey),
+                EVP_SKEY_get0_skeymgmt_name(skey));
             ret = 0;
         }
         goto end;
     } else {
-        BIO_printf(bio_err, "Key generation is the only supported operation as of now\n");
+        BIO_puts(bio_err, "Key generation is the only supported operation as of now\n");
     }
 
 end:

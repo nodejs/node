@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,9 +30,10 @@
 #include "prov/bio.h"
 #include "prov/implementations.h"
 #include "internal/encoder.h"
-#include "endecoder_local.h"
-#include "ml_dsa_codecs.h"
-#include "ml_kem_codecs.h"
+#include "prov/endecoder_local.h"
+#include "prov/ml_dsa_codecs.h"
+#include "prov/ml_kem_codecs.h"
+#include "prov/lms_codecs.h"
 
 DEFINE_SPECIAL_STACK_OF_CONST(BIGNUM_const, BIGNUM)
 
@@ -362,8 +363,9 @@ static int ec_to_text(BIO *out, const void *key, int selection)
     }
 
     if (type_label != NULL
-        && BIO_printf(out, "%s: (%d bit)\n", type_label,
-               EC_GROUP_order_bits(group))
+        && BIO_printf(out, "%s: (%d bit field, %d bit security level)\n",
+               type_label, EC_GROUP_get_degree(group),
+               EC_GROUP_security_bits(group))
             <= 0)
         goto err;
     if (priv != NULL
@@ -442,7 +444,7 @@ static int ecx_to_text(BIO *out, const void *key, int selection)
 #ifndef OPENSSL_NO_ML_KEM
 static int ml_kem_to_text(BIO *out, const void *vkey, int selection)
 {
-    return ossl_ml_kem_key_to_text(out, (ML_KEM_KEY *)vkey, selection);
+    return ossl_ml_kem_key_to_text(out, (const ML_KEM_KEY *)vkey, selection);
 }
 #endif
 
@@ -451,7 +453,7 @@ static int ml_kem_to_text(BIO *out, const void *vkey, int selection)
 #ifndef OPENSSL_NO_SLH_DSA
 static int slh_dsa_to_text(BIO *out, const void *key, int selection)
 {
-    return ossl_slh_dsa_key_to_text(out, (SLH_DSA_KEY *)key, selection);
+    return ossl_slh_dsa_key_to_text(out, (const SLH_DSA_KEY *)key, selection);
 }
 #endif /* OPENSSL_NO_SLH_DSA */
 
@@ -617,9 +619,17 @@ err:
 #ifndef OPENSSL_NO_ML_DSA
 static int ml_dsa_to_text(BIO *out, const void *key, int selection)
 {
-    return ossl_ml_dsa_key_to_text(out, (ML_DSA_KEY *)key, selection);
+    return ossl_ml_dsa_key_to_text(out, (const ML_DSA_KEY *)key, selection);
 }
 #endif /* OPENSSL_NO_ML_DSA */
+
+#ifndef OPENSSL_NO_LMS
+static int lms_to_text(BIO *out, const void *key, int selection)
+{
+    return ossl_lms_key_to_text(out, (LMS_KEY *)key, selection);
+}
+#endif /* OPENSSL_NO_LMS */
+
 /* ---------------------------------------------------------------------- */
 
 static void *key2text_newctx(void *provctx)
@@ -741,4 +751,8 @@ MAKE_TEXT_ENCODER(slh_dsa_shake_192s, slh_dsa);
 MAKE_TEXT_ENCODER(slh_dsa_shake_192f, slh_dsa);
 MAKE_TEXT_ENCODER(slh_dsa_shake_256s, slh_dsa);
 MAKE_TEXT_ENCODER(slh_dsa_shake_256f, slh_dsa);
+#endif
+
+#ifndef OPENSSL_NO_LMS
+MAKE_TEXT_ENCODER(lms, lms);
 #endif

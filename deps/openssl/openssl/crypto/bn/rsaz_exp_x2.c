@@ -155,7 +155,7 @@ static DAMM ossl_rsaz_amm52_x2[] = {
 typedef void (*DEXTRACT)(BN_ULONG *res, const BN_ULONG *red_table,
     int red_table_idx, int tbl_idx);
 
-static DEXTRACT ossl_extract_multiplier_win5[] = {
+static const DEXTRACT ossl_extract_multiplier_win5[] = {
     ossl_extract_multiplier_2x20_win5_avx,
     ossl_extract_multiplier_2x20_win5,
     ossl_extract_multiplier_2x30_win5_avx,

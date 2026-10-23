@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # Version 4.3.
@@ -2022,7 +2022,7 @@ sub declast()
 
 # void AES_cbc_encrypt (const void char *inp, unsigned char *out,
 #			size_t length, const AES_KEY *key,
-#			unsigned char *ivp,const int enc);
+#			unsigned char *ivp, int enc);
 {
 # stack frame layout
 #             -4(%esp)		# return address	 0(%esp)
@@ -2870,8 +2870,7 @@ sub enckey()
     &set_label("exit");
 &function_end("_x86_AES_set_encrypt_key");
 
-# int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
-#                        AES_KEY *key)
+# int AES_set_encrypt_key(const unsigned char *userKey, int bits, AES_KEY *key)
 &function_begin_B("AES_set_encrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&ret	();
@@ -2932,8 +2931,7 @@ sub deckey()
 	&mov	(&DWP(4*$i,$key),$tp1);
 }
 
-# int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
-#                        AES_KEY *key)
+# int AES_set_decrypt_key(const unsigned char *userKey, int bits, AES_KEY *key)
 &function_begin_B("AES_set_decrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&cmp	("eax",0);
@@ -2991,7 +2989,7 @@ sub deckey()
 
 	&xor	("eax","eax");			# return success
 &function_end("AES_set_decrypt_key");
-&asciz("AES for x86, CRYPTOGAMS by <appro\@openssl.org>");
+&asciz("AES for x86, CRYPTOGAMS by <https://github.com/dot-asm>");
 
 &asm_finish();
 

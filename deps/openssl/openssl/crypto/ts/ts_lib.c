@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,7 @@ int TS_ASN1_INTEGER_print_bio(BIO *bio, const ASN1_INTEGER *num)
         return -1;
     if ((hex = BN_bn2hex(num_bn))) {
         result = BIO_write(bio, "0x", 2) > 0;
-        result = result && BIO_write(bio, hex, strlen(hex)) > 0;
+        result = result && BIO_write(bio, hex, (int)strlen(hex)) > 0;
         OPENSSL_free(hex);
     }
     BN_free(num_bn);
@@ -48,8 +48,8 @@ int TS_OBJ_print_bio(BIO *bio, const ASN1_OBJECT *obj)
 int TS_ext_print_bio(BIO *bio, const STACK_OF(X509_EXTENSION) *extensions)
 {
     int i, critical, n;
-    X509_EXTENSION *ex;
-    ASN1_OBJECT *obj;
+    const X509_EXTENSION *ex;
+    const ASN1_OBJECT *obj;
 
     BIO_printf(bio, "Extensions:\n");
     n = X509v3_get_ext_count(extensions);
@@ -86,7 +86,7 @@ int TS_MSG_IMPRINT_print_bio(BIO *bio, TS_MSG_IMPRINT *a)
     BIO_printf(bio, "Message data:\n");
     msg = a->hashed_msg;
     BIO_dump_indent(bio, (const char *)ASN1_STRING_get0_data(msg),
-        ASN1_STRING_length(msg), 4);
+        (int)ASN1_STRING_get_length(msg), 4);
 
     return 1;
 }

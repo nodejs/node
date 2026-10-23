@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -21,59 +21,6 @@ OPENSSL_cpuid_setup:
 	.prologue 0
 	ret	($26)
 .end	OPENSSL_cpuid_setup
-
-.globl	OPENSSL_wipe_cpu
-.ent	OPENSSL_wipe_cpu
-OPENSSL_wipe_cpu:
-	.frame	$30,0,$26
-	.prologue 0
-	clr	$1
-	clr	$2
-	clr	$3
-	clr	$4
-	clr	$5
-	clr	$6
-	clr	$7
-	clr	$8
-	clr	$16
-	clr	$17
-	clr	$18
-	clr	$19
-	clr	$20
-	clr	$21
-	clr	$22
-	clr	$23
-	clr	$24
-	clr	$25
-	clr	$27
-	clr	$at
-	clr	$29
-	fclr	$f0
-	fclr	$f1
-	fclr	$f10
-	fclr	$f11
-	fclr	$f12
-	fclr	$f13
-	fclr	$f14
-	fclr	$f15
-	fclr	$f16
-	fclr	$f17
-	fclr	$f18
-	fclr	$f19
-	fclr	$f20
-	fclr	$f21
-	fclr	$f22
-	fclr	$f23
-	fclr	$f24
-	fclr	$f25
-	fclr	$f26
-	fclr	$f27
-	fclr	$f28
-	fclr	$f29
-	fclr	$f30
-	mov	$sp,$0
-	ret	($26)
-.end	OPENSSL_wipe_cpu
 
 .globl	OPENSSL_atomic_add
 .ent	OPENSSL_atomic_add

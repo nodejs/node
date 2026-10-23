@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -166,7 +166,7 @@ static int template_decapsulate(void *vctx, unsigned char *out, size_t *outlen,
 
     if (out == NULL) {
         if (outlen != NULL)
-            debug_print("decaps outlen set to %zu \n", *outlen);
+            debug_print("decaps outlen set to %zu\n", *outlen);
         return 1;
     }
 

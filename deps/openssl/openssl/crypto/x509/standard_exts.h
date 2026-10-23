@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,12 @@
  * of the ext_nid values.
  */
 
-static const X509V3_EXT_METHOD *standard_exts[] = {
+#if !defined(OSSL_LIBCRYPTO_X509_STANDARD_EXTS_H)
+#define OSSL_LIBCRYPTO_X509_STANDARD_EXTS_H
+
+#include "ext_dat.h"
+
+static const X509V3_EXT_METHOD *const standard_exts[] = {
     &ossl_v3_nscert,
     &ossl_v3_ns_ia5_list[0],
     &ossl_v3_ns_ia5_list[1],
@@ -97,3 +102,5 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
 /* Number of standard extensions */
 
 #define STANDARD_EXTENSION_COUNT OSSL_NELEM(standard_exts)
+
+#endif /* !defined(OSSL_LIBCRYPTO_X509_STANDARD_EXTS_H) */

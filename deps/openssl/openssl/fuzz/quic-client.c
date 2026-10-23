@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,6 @@
 #include "internal/sockets.h"
 #include "internal/time.h"
 #include "internal/quic_ssl.h"
-
-/* unused, to avoid warning. */
-static int idx;
 
 static OSSL_TIME fake_now;
 
@@ -35,7 +32,9 @@ int FuzzerInitialize(int *argc, char ***argv)
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
     ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
-    idx = SSL_get_ex_data_X509_STORE_CTX_idx();
+    if (SSL_get_ex_data_X509_STORE_CTX_idx() == 0) {
+        /* Just suppress warning */
+    }
     comp_methods = SSL_COMP_get_compression_methods();
     if (comp_methods != NULL)
         sk_SSL_COMP_sort(comp_methods);
@@ -77,6 +76,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     if (client == NULL)
         goto end;
 
+    allstreams[0] = stream = client;
+
     fake_now = ossl_ms2time(1);
     if (!ossl_quic_set_override_now_cb(client, fake_now_cb, NULL))
         goto end;
@@ -90,7 +91,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     if (!BIO_ADDR_rawmake(peer_addr, AF_INET, &ina, sizeof(ina), htons(4433)))
         goto end;
 
-    SSL_set_tlsext_host_name(client, "localhost");
+    if (SSL_set_tlsext_host_name(client, "localhost") != 1)
+        goto end;
     in = BIO_new(BIO_s_dgram_mem());
     if (in == NULL)
         goto end;
@@ -116,7 +118,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             0))
         goto end;
 
-    allstreams[0] = stream = client;
     for (;;) {
         size_t size;
         uint64_t nxtpktms = 0;
@@ -249,7 +250,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             break;
 
         if (size > 0)
-            BIO_write(in, buf + 2, size);
+            BIO_write(in, buf + 2, (int)size);
         len -= size + 2;
         buf += size + 2;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,6 +17,8 @@
 #include <openssl/x509.h>
 #include <openssl/err.h>
 
+#include <crypto/asn1.h>
+
 int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
     STACK_OF(X509_ALGOR) *cap)
 {
@@ -28,7 +30,7 @@ int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
     }
     seq->length = ASN1_item_i2d((ASN1_VALUE *)cap, &seq->data,
         ASN1_ITEM_rptr(X509_ALGORS));
-    if (seq->length <= 0 || seq->data == NULL) {
+    if (ASN1_STRING_get_length(seq) == 0 || ASN1_STRING_get0_data(seq) == NULL) {
         ASN1_STRING_free(seq);
         return 1;
     }
@@ -42,16 +44,19 @@ int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
 
 STACK_OF(X509_ALGOR) *PKCS7_get_smimecap(PKCS7_SIGNER_INFO *si)
 {
-    ASN1_TYPE *cap;
+    const ASN1_TYPE *cap;
     const unsigned char *p;
+    size_t len;
 
     cap = PKCS7_get_signed_attribute(si, NID_SMIMECapabilities);
     if (cap == NULL || (cap->type != V_ASN1_SEQUENCE))
         return NULL;
-    p = cap->value.sequence->data;
+    p = ASN1_STRING_get0_data(cap->value.sequence);
+    len = ASN1_STRING_get_length(cap->value.sequence);
+    if (len > INT_MAX)
+        return NULL;
     return (STACK_OF(X509_ALGOR) *)
-        ASN1_item_d2i(NULL, &p, cap->value.sequence->length,
-            ASN1_ITEM_rptr(X509_ALGORS));
+        ASN1_item_d2i(NULL, &p, (int)len, ASN1_ITEM_rptr(X509_ALGORS));
 }
 
 /* Basic smime-capabilities OID and optional integer arg */
@@ -127,7 +132,7 @@ int PKCS7_add1_attrib_digest(PKCS7_SIGNER_INFO *si,
     os = ASN1_OCTET_STRING_new();
     if (os == NULL)
         return 0;
-    if (!ASN1_STRING_set(os, md, mdlen)
+    if (!ossl_asn1_string_set1_data(os, md, mdlen)
         || !PKCS7_add_signed_attribute(si, NID_pkcs9_messageDigest,
             V_ASN1_OCTET_STRING, os)) {
         ASN1_OCTET_STRING_free(os);

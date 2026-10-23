@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/objects.h>
+#include "internal/e_os.h"
 #include "internal/comp.h"
 #include <openssl/err.h>
 #include "crypto/cryptlib.h"
@@ -60,16 +61,6 @@ static ZSTD_customMem zstd_mem_funcs = {
     zstd_free,
     NULL
 };
-#endif
-
-/*
- * When OpenSSL is built on Windows, we do not want to require that
- * the LIBZSTD.DLL be available in order for the OpenSSL DLLs to
- * work.  Therefore, all ZSTD routines are loaded at run time
- * and we do not link to a .LIB file when ZSTD_SHARED is set.
- */
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32)
-#include <windows.h>
 #endif
 
 #ifdef ZSTD_SHARED
@@ -620,19 +611,19 @@ static int bio_zstd_read(BIO *b, char *out, int outl)
             }
             /* No more output space */
             if (outBuf.pos == outBuf.size)
-                return outBuf.pos;
+                return (int)outBuf.pos;
         } while (ctx->decompress.inbuf.pos < ctx->decompress.inbuf.size);
 
         /*
          * No data in input buffer try to read some in, if an error then
          * return the total data read.
          */
-        ret = BIO_read(next, ctx->decompress.buffer, ctx->decompress.bufsize);
+        ret = BIO_read(next, ctx->decompress.buffer, (int)ctx->decompress.bufsize);
         if (ret <= 0) {
             BIO_copy_next_retry(b);
             if (ret < 0 && outBuf.pos == 0)
                 return ret;
-            return outBuf.pos;
+            return (int)outBuf.pos;
         }
         ctx->decompress.inbuf.size = ret;
         ctx->decompress.inbuf.pos = 0;
@@ -672,19 +663,19 @@ static int bio_zstd_write(BIO *b, const char *in, int inl)
         /* If data in output buffer write it first */
         while (ctx->compress.write_pos < ctx->compress.outbuf.pos) {
             ret = BIO_write(next, (unsigned char *)ctx->compress.outbuf.dst + ctx->compress.write_pos,
-                ctx->compress.outbuf.pos - ctx->compress.write_pos);
+                (int)(ctx->compress.outbuf.pos - ctx->compress.write_pos));
             if (ret <= 0) {
                 BIO_copy_next_retry(b);
                 if (ret < 0 && inBuf.pos == 0)
                     return ret;
-                return inBuf.pos;
+                return (int)inBuf.pos;
             }
             ctx->compress.write_pos += ret;
         }
 
         /* Have we consumed all supplied data? */
         if (done)
-            return inBuf.pos;
+            return (int)inBuf.pos;
 
         /* Reset buffer */
         ctx->compress.outbuf.pos = 0;
@@ -724,7 +715,7 @@ static int bio_zstd_flush(BIO *b)
         /* If data in output buffer write it first */
         while (ctx->compress.write_pos < ctx->compress.outbuf.pos) {
             ret = BIO_write(next, (unsigned char *)ctx->compress.outbuf.dst + ctx->compress.write_pos,
-                ctx->compress.outbuf.pos - ctx->compress.write_pos);
+                (int)(ctx->compress.outbuf.pos - ctx->compress.write_pos));
             if (ret <= 0) {
                 BIO_copy_next_retry(b);
                 return ret;
@@ -762,8 +753,19 @@ static long bio_zstd_ctrl(BIO *b, int cmd, long num, void *ptr)
     switch (cmd) {
 
     case BIO_CTRL_RESET:
+        /* reset decompressor */
+        ctx->decompress.inbuf.size = 0;
+        ctx->decompress.inbuf.pos = 0;
+        if (ctx->decompress.state != NULL)
+            ZSTD_initDStream(ctx->decompress.state);
+
+        /* reset compressor */
         ctx->compress.write_pos = 0;
-        ctx->compress.bufsize = 0;
+        ctx->compress.outbuf.pos = 0;
+        if (ctx->compress.state != NULL)
+            ZSTD_initCStream(ctx->compress.state, ZSTD_CLEVEL_DEFAULT);
+
+        /* keep existing bufsize, do not set it to 0 */
         ret = 1;
         break;
 

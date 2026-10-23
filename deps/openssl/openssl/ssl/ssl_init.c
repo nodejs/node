@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,12 +15,10 @@
 #include <openssl/trace.h>
 #include "ssl_local.h"
 #include "internal/thread_once.h"
-#include "internal/rio_notifier.h" /* for ossl_wsa_cleanup() */
 
 static int stopped;
 
 static CRYPTO_ONCE ssl_base = CRYPTO_ONCE_STATIC_INIT;
-static int ssl_base_inited = 0;
 DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
 {
 #ifndef OPENSSL_NO_COMP
@@ -34,7 +32,6 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
 #endif
     ssl_sort_cipher_list();
     OSSL_TRACE(INIT, "ossl_init_ssl_base: SSL_add_ssl_module()\n");
-    ssl_base_inited = 1;
     return 1;
 }
 

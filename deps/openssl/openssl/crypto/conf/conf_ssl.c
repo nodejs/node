@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,51 +11,41 @@
 #include <string.h>
 #include <openssl/conf.h>
 #include <openssl/err.h>
-#include "internal/sslconf.h"
 #include "conf_local.h"
+#include "internal/sslconf.h"
+#include "internal/core.h"
+#include "internal/cryptlib.h"
 
-/*
- * SSL library configuration module placeholder. We load it here but defer
- * all decisions about its contents to libssl.
- */
+typedef struct ssl_module_st SSL_MODULE;
 
-struct ssl_conf_name_st {
-    /* Name of this set of commands */
-    char *name;
-    /* List of commands */
-    SSL_CONF_CMD *cmds;
-    /* Number of commands */
-    size_t cmd_count;
+struct ssl_module_st {
+    struct ssl_conf_name_st *names;
+    size_t names_count;
 };
-
-struct ssl_conf_cmd_st {
-    /* Command */
-    char *cmd;
-    /* Argument */
-    char *arg;
-};
-
-static struct ssl_conf_name_st *ssl_names;
-static size_t ssl_names_count;
 
 static void ssl_module_free(CONF_IMODULE *md)
 {
-    size_t i, j;
-    if (ssl_names == NULL)
+    SSL_MODULE *ssl = CONF_imodule_get_usr_data(md);
+
+    if (ssl == NULL)
         return;
-    for (i = 0; i < ssl_names_count; i++) {
-        struct ssl_conf_name_st *tname = ssl_names + i;
+
+    CONF_imodule_set_usr_data(md, NULL);
+    ossl_lib_ctx_detach_ssl_conf_imodule(NULL, md);
+
+    for (size_t i = 0; i < ssl->names_count; i++) {
+        struct ssl_conf_name_st *tname = ssl->names + i;
 
         OPENSSL_free(tname->name);
-        for (j = 0; j < tname->cmd_count; j++) {
+        for (size_t j = 0; j < tname->cmd_count; j++) {
             OPENSSL_free(tname->cmds[j].cmd);
             OPENSSL_free(tname->cmds[j].arg);
         }
         OPENSSL_free(tname->cmds);
     }
-    OPENSSL_free(ssl_names);
-    ssl_names = NULL;
-    ssl_names_count = 0;
+
+    OPENSSL_free(ssl->names);
+    OPENSSL_free(ssl);
 }
 
 static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
@@ -64,6 +54,8 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
     int rv = 0;
     const char *ssl_conf_section;
     STACK_OF(CONF_VALUE) *cmd_lists;
+    OSSL_LIB_CTX *libctx;
+    SSL_MODULE *ssl = NULL;
 
     ssl_conf_section = CONF_imodule_get_value(md);
     cmd_lists = NCONF_get_section(cnf, ssl_conf_section);
@@ -77,12 +69,21 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
     }
     cnt = sk_CONF_VALUE_num(cmd_lists);
     ssl_module_free(md);
-    ssl_names = OPENSSL_zalloc(sizeof(*ssl_names) * cnt);
-    if (ssl_names == NULL)
+
+    ssl = OPENSSL_zalloc(sizeof(*ssl));
+    if (ssl == NULL)
         goto err;
-    ssl_names_count = cnt;
-    for (i = 0; i < ssl_names_count; i++) {
-        struct ssl_conf_name_st *ssl_name = ssl_names + i;
+    CONF_imodule_set_usr_data(md, ssl);
+
+    ssl->names = OPENSSL_calloc(cnt, sizeof(*ssl->names));
+    libctx = ossl_lib_ctx_get_concrete(cnf->libctx);
+    if (libctx == NULL || ssl->names == NULL)
+        goto err;
+
+    ossl_lib_ctx_attach_ssl_conf_imodule(libctx, md);
+    ssl->names_count = cnt;
+    for (i = 0; i < ssl->names_count; i++) {
+        struct ssl_conf_name_st *ssl_name = ssl->names + i;
         CONF_VALUE *sect = sk_CONF_VALUE_value(cmd_lists, (int)i);
         STACK_OF(CONF_VALUE) *cmds = NCONF_get_section(cnf, sect->value);
 
@@ -99,7 +100,7 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
         if (ssl_name->name == NULL)
             goto err;
         cnt = sk_CONF_VALUE_num(cmds);
-        ssl_name->cmds = OPENSSL_zalloc(cnt * sizeof(struct ssl_conf_cmd_st));
+        ssl_name->cmds = OPENSSL_calloc(cnt, sizeof(struct ssl_conf_cmd_st));
         if (ssl_name->cmds == NULL)
             goto err;
         ssl_name->cmd_count = cnt;
@@ -132,11 +133,16 @@ err:
  * conf_ssl_name_find. Also stores the name of the set of commands in |*name|
  * and the number of commands in the set in |*cnt|.
  */
-const SSL_CONF_CMD *conf_ssl_get(size_t idx, const char **name, size_t *cnt)
+const SSL_CONF_CMD *conf_ssl_get(CONF_IMODULE *md, size_t idx, const char **name, size_t *cnt)
 {
-    *name = ssl_names[idx].name;
-    *cnt = ssl_names[idx].cmd_count;
-    return ssl_names[idx].cmds;
+    SSL_MODULE *ssl = md != NULL ? CONF_imodule_get_usr_data(md) : NULL;
+
+    if (ssl == NULL || ssl->names == NULL)
+        return NULL;
+
+    *name = ssl->names[idx].name;
+    *cnt = ssl->names[idx].cmd_count;
+    return ssl->names[idx].cmds;
 }
 
 /*
@@ -144,14 +150,16 @@ const SSL_CONF_CMD *conf_ssl_get(size_t idx, const char **name, size_t *cnt)
  * index for the command set in |*idx|.
  * Returns 1 on success or 0 on failure.
  */
-int conf_ssl_name_find(const char *name, size_t *idx)
+int conf_ssl_name_find(CONF_IMODULE *md, const char *name, size_t *idx)
 {
-    size_t i;
+    SSL_MODULE *ssl = md != NULL ? CONF_imodule_get_usr_data(md) : NULL;
     const struct ssl_conf_name_st *nm;
+    size_t i;
 
-    if (name == NULL)
+    if (ssl == NULL || ssl->names == NULL)
         return 0;
-    for (i = 0, nm = ssl_names; i < ssl_names_count; i++, nm++) {
+
+    for (i = 0, nm = ssl->names; i < ssl->names_count; i++, nm++) {
         if (strcmp(nm->name, name) == 0) {
             *idx = i;
             return 1;

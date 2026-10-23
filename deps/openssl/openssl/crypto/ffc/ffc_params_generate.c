@@ -46,7 +46,8 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         if (L == 2048 && (N == 224 || N == 256))
             return 112;
 #ifndef OPENSSL_NO_DH
-        ERR_raise(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS);
+        ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+            "(L, N)=(%zu, %zu) should be (2048, 224) or (2048, 256)", L, N);
 #endif
     } else if (type == FFC_PARAM_TYPE_DSA) {
         /* Valid DSA L,N parameters from FIPS 186-4 Section 4.2 */
@@ -58,7 +59,10 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         if (L == 3072 && N == 256)
             return 128;
 #ifndef OPENSSL_NO_DSA
-        ERR_raise(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS);
+        ERR_raise_data(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS,
+            "(L, N)=(%zu, %zu) should be (1024, 160) (for verification only), "
+            "(2048, 224), (2048, 256), or (3072, 256)",
+            L, N);
 #endif
     }
     return 0;
@@ -74,7 +78,10 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         if (L == 2048 && (N == 224 || N == 256))
             return 112;
 #ifndef OPENSSL_NO_DH
-        ERR_raise(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS);
+        ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+            "(L, N)=(%zu, %zu) should be (1024, 160), (2048, 224), or "
+            "(2048, 256)",
+            L, N);
 #endif
     } else if (type == FFC_PARAM_TYPE_DSA) {
         if (N > 512) {
@@ -91,7 +98,8 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         if (L >= 1024 && N >= 160)
             return 80;
 #ifndef OPENSSL_NO_DSA
-        ERR_raise(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS);
+        ERR_raise_data(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS,
+            "(L, N)=(%zu, %zu) should be at least (1024, 160)", L, N);
 #endif
     }
     return 0;
@@ -266,7 +274,7 @@ static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
          * X = W + 2^(L-1) where W < 2^(L-1)
          */
         if (!BN_mask_bits(W, L - 1)
-            || !BN_copy(X, W)
+            || BN_copy(X, W) == NULL
             || !BN_add(X, X, test)
             /*
              * A.1.1.2 Step (11.4) AND
@@ -563,7 +571,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
 
     if (N == 0)
         N = mdsize * 8;
-    qsize = N >> 3;
+    qsize = (int)(N >> 3);
 
     /*
      * A.1.1.2 Step (1) AND
@@ -667,7 +675,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
     }
 
     /* A.1.1.2 Step (11): max loop count = 4L - 1 */
-    counter = 4 * L - 1;
+    counter = (int)(4 * L - 1);
     /* Validation requires the counter to be supplied */
     if (verify) {
         /* A.1.1.3 Step (4) : if (counter > (4L -1)) return INVALID */
@@ -683,10 +691,10 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
      * A.1.1.3 Step (10)
      * n = floor(L / hash_outlen) - 1
      */
-    n = (L - 1) / (mdsize << 3);
+    n = (int)((L - 1) / (mdsize << 3));
 
     /* Calculate 2^(L-1): Used in step A.1.1.2 Step (11.3) */
-    if (!BN_lshift(test, BN_value_one(), L - 1))
+    if (!BN_lshift(test, BN_value_one(), (int)(L - 1)))
         goto err;
 
     for (;;) {
@@ -704,7 +712,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
             goto err;
 
         memcpy(seed_tmp, seed, seedlen);
-        r = generate_p(ctx, md, counter, n, seed_tmp, seedlen, q, p, L,
+        r = generate_p(ctx, md, counter, n, seed_tmp, seedlen, q, p, (int)L,
             cb, &pcounter, res);
         if (r > 0)
             break; /* found p */
@@ -905,7 +913,7 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
     if (test == NULL)
         goto err;
 
-    if (!BN_lshift(test, BN_value_one(), L - 1))
+    if (!BN_lshift(test, BN_value_one(), (int)(L - 1)))
         goto err;
 
     if (!verify) {
@@ -951,8 +959,8 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
             goto err;
 
         /* step 6 */
-        n = (L - 1) / 160;
-        counter = 4 * L - 1; /* Was 4096 */
+        n = (int)((L - 1) / 160);
+        counter = (int)(4 * L - 1); /* Was 4096 */
         /* Validation requires the counter to be supplied */
         if (verify) {
             if (params->pcounter > counter) {
@@ -962,7 +970,7 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
             counter = params->pcounter;
         }
 
-        rv = generate_p(ctx, md, counter, n, buf, qsize, q, p, L, cb,
+        rv = generate_p(ctx, md, counter, n, buf, qsize, q, p, (int)L, cb,
             &pcounter, res);
         if (rv > 0)
             break; /* found it */

@@ -1,0 +1,263 @@
+/*
+ * Copyright 2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef OSSL_CRYPTO_EC_PARAMS_H
+#define OSSL_CRYPTO_EC_PARAMS_H
+
+/* clang-format off */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+#include "crypto/ec.h"
+#include <openssl/core_names.h>
+#include <openssl/err.h>
+#include <openssl/proverr.h>
+
+{-
+our @EC_GROUP_NAME_TYPES = (
+    ['OSSL_PKEY_PARAM_GROUP_NAME',                      'group_name', 'utf8_string'],
+);
+
+our @EC_ENCODING_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_ENCODING',                     'encoding',   'utf8_string'],
+);
+
+our @EC_POINT_FORMAT_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT',      'pt_format',  'utf8_string', 'duplicate: first'],
+);
+
+our @EC_FIELD_TYPE_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_FIELD_TYPE',                   'field_type', 'utf8_string'],
+);
+
+our @EC_EXPLICIT_CURVE_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_P',                            'p',          'BN'],
+    ['OSSL_PKEY_PARAM_EC_A',                            'a',          'BN'],
+    ['OSSL_PKEY_PARAM_EC_B',                            'b',          'BN'],
+    ['OSSL_PKEY_PARAM_EC_GENERATOR',                    'generator',  'octet_string'],
+    ['OSSL_PKEY_PARAM_EC_ORDER',                        'order',      'BN'],
+    ['OSSL_PKEY_PARAM_EC_COFACTOR',                     'cofactor',   'BN'],
+);
+
+our @EC_SEED_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_SEED',                         'seed',       'octet_string'],
+);
+
+our @EC_DECODED_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS', 'decoded',    'int'],
+);
+
+our @EC_DOMAIN_TYPES = (
+    @EC_GROUP_NAME_TYPES,
+    @EC_ENCODING_TYPES,
+    @EC_POINT_FORMAT_TYPES,
+    @EC_FIELD_TYPE_TYPES,
+    @EC_EXPLICIT_CURVE_TYPES,
+    @EC_SEED_TYPES,
+    @EC_DECODED_TYPES,
+);
+
+our @EC_PRIVATE_KEY_TYPES = (
+    ['OSSL_PKEY_PARAM_PRIV_KEY', 'priv', 'BN'],
+);
+
+our @EC_PUBLIC_KEY_TYPES = (
+    ['OSSL_PKEY_PARAM_PUB_KEY', 'pub', 'octet_string'],
+);
+
+our @EC_KEY_TYPES = (
+    @EC_PUBLIC_KEY_TYPES,
+    @EC_PRIVATE_KEY_TYPES,
+);
+
+our @EC_COFACTOR_MODE_TYPES = (
+    ['OSSL_PKEY_PARAM_USE_COFACTOR_ECDH',   'use_cofactor',   'int'],
+);
+
+our @EC_INCLUDE_PUBLIC_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC',   'include_public', 'int'],
+);
+
+our @EC_GROUP_CHECK_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE', 'group_check',    'utf8_string'],
+);
+
+our @EC_OTHER_TYPES = (
+    @EC_COFACTOR_MODE_TYPES,
+    @EC_INCLUDE_PUBLIC_TYPES,
+    @EC_GROUP_CHECK_TYPES,
+);
+
+our @EC_COMMON_INFO_TYPES = (
+    ['OSSL_PKEY_PARAM_BITS',               'bits',           'int'],
+    ['OSSL_PKEY_PARAM_EC_FIELD_DEGREE',    'field_degree',   'int'],
+    ['OSSL_PKEY_PARAM_SECURITY_BITS',      'secbits',        'int'],
+    ['OSSL_PKEY_PARAM_MAX_SIZE',           'maxsize',        'int'],
+);
+
+our @EC_SECURITY_CATEGORY_INFO_TYPES = (
+    ['OSSL_PKEY_PARAM_SECURITY_CATEGORY',  'seccat',         'int'],
+);
+
+our @EC_DIGEST_INFO_TYPES = (
+    ['OSSL_PKEY_PARAM_DEFAULT_DIGEST',     'default_digest', 'utf8_string'],
+);
+
+our @EC_ENCODED_PUBLIC_KEY_TYPES = (
+    ['OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY', 'encoded_pub',    'octet_string'],
+);
+
+our @EC_AFFINE_PUBLIC_KEY_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_PUB_X',           'pub_x',          'BN'],
+    ['OSSL_PKEY_PARAM_EC_PUB_Y',           'pub_y',          'BN'],
+);
+
+our @EC_INFO_TYPES = (
+    @EC_COMMON_INFO_TYPES,
+    @EC_SECURITY_CATEGORY_INFO_TYPES,
+    @EC_DIGEST_INFO_TYPES,
+    @EC_ENCODED_PUBLIC_KEY_TYPES,
+    @EC_AFFINE_PUBLIC_KEY_TYPES,
+);
+
+our @EC2M_INFO_TYPES = (
+    ['OSSL_PKEY_PARAM_EC_CHAR2_M',        'char2_m',    'int',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+    ['OSSL_PKEY_PARAM_EC_CHAR2_TYPE',     'char2_type', 'utf8_string',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+    ['OSSL_PKEY_PARAM_EC_CHAR2_TP_BASIS', 'char2_tp',   'int',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+    ['OSSL_PKEY_PARAM_EC_CHAR2_PP_K1',    'char2_k1',   'int',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+    ['OSSL_PKEY_PARAM_EC_CHAR2_PP_K2',    'char2_k2',   'int',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+    ['OSSL_PKEY_PARAM_EC_CHAR2_PP_K3',    'char2_k3',   'int',
+     '#if !defined(OPENSSL_NO_EC2M)'],
+);
+
+our @EC_SETTABLE_TYPES = (
+    @EC_COFACTOR_MODE_TYPES,
+    @EC_ENCODED_PUBLIC_KEY_TYPES,
+    @EC_ENCODING_TYPES,
+    @EC_POINT_FORMAT_TYPES,
+    @EC_SEED_TYPES,
+    @EC_INCLUDE_PUBLIC_TYPES,
+    @EC_GROUP_CHECK_TYPES,
+);
+
+our @EC_DHKEM_GEN_TYPES = (
+    ['OSSL_PKEY_PARAM_DHKEM_IKM',      'dhkem_ikm',      'octet_string', '!fips'],
+);
+
+our @EC_FIPS_GEN_TYPES = (
+    ['OSSL_PKEY_PARAM_FIPS_KEY_CHECK', 'fips_key_check', 'int',          'fips'],
+);
+
+our @EC_GEN_TYPES = (
+    @EC_GROUP_NAME_TYPES,
+    @EC_COFACTOR_MODE_TYPES,
+    @EC_ENCODING_TYPES,
+    @EC_POINT_FORMAT_TYPES,
+    @EC_FIELD_TYPE_TYPES,
+    @EC_GROUP_CHECK_TYPES,
+    @EC_EXPLICIT_CURVE_TYPES,
+    @EC_SEED_TYPES,
+    @EC_DHKEM_GEN_TYPES,
+    @EC_FIPS_GEN_TYPES,
+);
+
+return "";
+-}
+
+/* Selection-specific provider import and export declarations. */
+{-
+my $imexport = "";
+
+# Compact bit flags used to index ec_types in ec_kmgmt.c.
+my $private_key_type = 1;
+my $public_key_type = 2;
+my $domain_type = 4;
+my $other_parameters_type = 8;
+my $all_types = $private_key_type | $public_key_type
+    | $domain_type | $other_parameters_type;
+
+for my $selection ($private_key_type..$all_types) {
+    my @types = ();
+
+    push @types, @EC_PRIVATE_KEY_TYPES
+        if ($selection & $private_key_type);
+    push @types, @EC_PUBLIC_KEY_TYPES
+        if ($selection & $public_key_type);
+    push @types, @EC_DOMAIN_TYPES if ($selection & $domain_type);
+    push @types, @EC_OTHER_TYPES if ($selection & $other_parameters_type);
+    $imexport .= "#define ec_imexport_types_"
+        . "${selection}_st ec_params_st\n";
+    $imexport .= produce_param_decoder(
+        "ec_imexport_types_${selection}", @types);
+    $imexport .= "\n";
+}
+$imexport;
+-}
+
+/* Public EC compatibility functions retain their existing signatures. */
+#define ec_group_fromdata_st ec_params_st
+{- produce_param_decoder('ec_group_fromdata', @EC_DOMAIN_TYPES); -}
+
+#define ec_group_todata_st ec_params_st
+{- produce_param_decoder('ec_group_todata', @EC_DOMAIN_TYPES); -}
+
+#define ec_key_fromdata_st ec_params_st
+{- produce_param_decoder('ec_key_fromdata', @EC_KEY_TYPES); -}
+
+#define ec_key_otherparams_fromdata_st ec_params_st
+{- produce_param_decoder('ec_key_otherparams_fromdata', @EC_OTHER_TYPES,
+                         @EC_POINT_FORMAT_TYPES); -}
+
+#define ec_pkey_import_from_st ec_params_st
+{- produce_param_decoder('ec_pkey_import_from',
+                         (@EC_DOMAIN_TYPES, @EC_KEY_TYPES, @EC_OTHER_TYPES)); -}
+
+/* Keymgmt get and set parameter surfaces. */
+#define ec_get_params_st ec_params_st
+{- produce_param_decoder('ec_get_params',
+                         (@EC_INFO_TYPES, @EC_DOMAIN_TYPES, @EC2M_INFO_TYPES,
+                          @EC_KEY_TYPES, @EC_OTHER_TYPES)); -}
+
+#define sm2_get_params_st ec_params_st
+{- produce_param_decoder('sm2_get_params',
+                         (@EC_COMMON_INFO_TYPES, @EC_DIGEST_INFO_TYPES,
+                          @EC_ENCODED_PUBLIC_KEY_TYPES, @EC_DOMAIN_TYPES,
+                          @EC_KEY_TYPES, @EC_AFFINE_PUBLIC_KEY_TYPES)); -}
+
+#define ec_set_params_st ec_params_st
+{- produce_param_decoder('ec_set_params', @EC_SETTABLE_TYPES); -}
+
+#define sm2_set_params_st ec_params_st
+{- produce_param_decoder('sm2_set_params', @EC_SETTABLE_TYPES); -}
+
+/* Key generation context parameters. */
+#define ec_gen_set_params_st ec_params_st
+{- produce_param_decoder('ec_gen_set_params', @EC_GEN_TYPES); -}
+
+#define sm2_gen_set_params_st ec_params_st
+{- produce_param_decoder('sm2_gen_set_params',
+                         (@EC_GROUP_NAME_TYPES, @EC_ENCODING_TYPES,
+                          @EC_POINT_FORMAT_TYPES, @EC_FIELD_TYPE_TYPES,
+                          @EC_EXPLICIT_CURVE_TYPES, @EC_SEED_TYPES)); -}
+
+#define ec_gen_get_params_st ec_params_st
+{- produce_param_decoder('ec_gen_get_params',
+                         ['OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR',
+                          'fips_indicator', 'int', 'fips']); -}
+
+/* clang-format on */
+
+#endif
