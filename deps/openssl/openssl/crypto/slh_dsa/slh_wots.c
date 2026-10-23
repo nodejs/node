@@ -109,13 +109,13 @@ static int slh_wots_chain(SLH_DSA_HASH_CTX *ctx, const uint8_t *in,
     if (!WPACKET_allocate_bytes(wpkt, tmp_len, &tmp))
         return 0;
 
-    set_hash_address(adrs, j++);
+    set_hash_address(adrs, (uint32_t)(j++));
     if (!F(ctx, pk_seed, adrs, in, n, tmp, tmp_len))
         return 0;
 
     end_index = start_index + steps;
     for (; j < end_index; ++j) {
-        set_hash_address(adrs, j);
+        set_hash_address(adrs, (uint32_t)j);
         if (!F(ctx, pk_seed, adrs, tmp, n, tmp, tmp_len))
             return 0;
     }
@@ -142,45 +142,23 @@ int ossl_slh_wots_pk_gen(SLH_DSA_HASH_CTX *ctx,
     int ret = 0;
     const SLH_DSA_KEY *key = ctx->key;
     size_t n = key->params->n;
-    size_t i, len = SLH_WOTS_LEN(n); /* 2 * n + 3 */
-    uint8_t sk[SLH_MAX_N];
+    size_t len = SLH_WOTS_LEN(n); /* 2 * n + 3 */
     uint8_t tmp[SLH_WOTS_LEN_MAX * SLH_MAX_N];
-    WPACKET pkt, *tmp_wpkt = &pkt; /* Points to the |tmp| buffer */
-    size_t tmp_len = 0;
+    size_t tmp_len = n * len;
 
     SLH_HASH_FUNC_DECLARE(key, hashf);
     SLH_ADRS_FUNC_DECLARE(key, adrsf);
-    SLH_HASH_FN_DECLARE(hashf, PRF);
-    SLH_ADRS_FN_DECLARE(adrsf, set_chain_address);
-    SLH_ADRS_DECLARE(sk_adrs);
     SLH_ADRS_DECLARE(wots_pk_adrs);
 
-    if (!WPACKET_init_static_len(tmp_wpkt, tmp, sizeof(tmp), 0))
-        return 0;
-    adrsf->copy(sk_adrs, adrs);
-    adrsf->set_type_and_clear(sk_adrs, SLH_ADRS_TYPE_WOTS_PRF);
-    adrsf->copy_keypair_address(sk_adrs, adrs);
-
-    for (i = 0; i < len; ++i) { /* len = 2n + 3 */
-        set_chain_address(sk_adrs, i);
-        if (!PRF(ctx, pk_seed, sk_seed, sk_adrs, sk, sizeof(sk)))
-            goto end;
-
-        set_chain_address(adrs, i);
-        if (!slh_wots_chain(ctx, sk, 0, NIBBLE_MASK, pk_seed, adrs, tmp_wpkt))
-            goto end;
-    }
-
-    if (!WPACKET_get_total_written(tmp_wpkt, &tmp_len)) /* should be n * (2 * n + 3) */
+    if (!hashf->wots_pk_gen(ctx, sk_seed, pk_seed, adrs, tmp, tmp_len))
         goto end;
+
     adrsf->copy(wots_pk_adrs, adrs);
     adrsf->set_type_and_clear(wots_pk_adrs, SLH_ADRS_TYPE_WOTS_PK);
     adrsf->copy_keypair_address(wots_pk_adrs, adrs);
     ret = hashf->T(ctx, pk_seed, wots_pk_adrs, tmp, tmp_len, pk_out, pk_out_len);
 end:
-    WPACKET_finish(tmp_wpkt);
-    OPENSSL_cleanse(tmp, sizeof(tmp));
-    OPENSSL_cleanse(sk, n);
+    OPENSSL_cleanse(tmp, tmp_len);
     return ret;
 }
 
@@ -232,11 +210,11 @@ int ossl_slh_wots_sign(SLH_DSA_HASH_CTX *ctx, const uint8_t *msg,
     adrsf->copy_keypair_address(sk_adrs, adrs);
 
     for (i = 0; i < len; ++i) {
-        set_chain_address(sk_adrs, i);
+        set_chain_address(sk_adrs, (uint32_t)i);
         /* compute chain i secret */
         if (!PRF(ctx, pk_seed, sk_seed, sk_adrs, sk, sizeof(sk)))
             goto err;
-        set_chain_address(adrs, i);
+        set_chain_address(adrs, (uint32_t)i);
         /* compute chain i signature */
         if (!slh_wots_chain(ctx, sk, 0, msg_and_csum_nibbles[i],
                 pk_seed, adrs, sig_wpkt))
@@ -295,7 +273,7 @@ int ossl_slh_wots_pk_from_sig(SLH_DSA_HASH_CTX *ctx,
 
     /* Compute the end nodes for each of the chains */
     for (i = 0; i < len; ++i) {
-        set_chain_address(adrs, i);
+        set_chain_address(adrs, (uint32_t)i);
         if (!PACKET_get_bytes(sig_rpkt, &sig_i, n)
             || !slh_wots_chain(ctx, sig_i, msg_and_csum_nibbles[i],
                 NIBBLE_MASK - msg_and_csum_nibbles[i],

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -111,12 +111,13 @@ __owur static OSSL_COMP_CERT *OSSL_COMP_CERT_from_uncompressed_data(unsigned cha
     }
 
     if ((max_length = ossl_calculate_comp_expansion(alg, len)) == 0
+        || max_length > INT_MAX
         || method == NULL
         || (comp_ctx = COMP_CTX_new(method)) == NULL
         || (comp_data = OPENSSL_zalloc(max_length)) == NULL)
         goto err;
 
-    comp_length = COMP_compress_block(comp_ctx, comp_data, max_length, data, len);
+    comp_length = COMP_compress_block(comp_ctx, comp_data, (int)max_length, data, (int)len);
     if (comp_length <= 0)
         goto err;
 
@@ -150,7 +151,7 @@ int OSSL_COMP_CERT_up_ref(OSSL_COMP_CERT *cc)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&cc->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&cc->references, &i))
         return 0;
 
     REF_PRINT_COUNT("OSSL_COMP_CERT", i, cc);

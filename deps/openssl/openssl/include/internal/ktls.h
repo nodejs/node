@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -97,8 +97,8 @@ static ossl_inline int ktls_enable_tx_zerocopy_sendfile(int fd)
  * the entire record is pushed to TCP. It is impossible to send a partial
  * record using this control message.
  */
-static ossl_inline int ktls_send_ctrl_message(int fd, unsigned char record_type,
-    const void *data, size_t length)
+static ossl_inline int ktls_send_ctrl_message(int fd,
+    unsigned char record_type, const void *data, size_t length, int flags)
 {
     struct msghdr msg = { 0 };
     int cmsg_len = sizeof(record_type);
@@ -120,7 +120,7 @@ static ossl_inline int ktls_send_ctrl_message(int fd, unsigned char record_type,
     msg.msg_iov = &msg_iov;
     msg.msg_iovlen = 1;
 
-    return sendmsg(fd, &msg, 0);
+    return sendmsg(fd, &msg, flags);
 }
 
 #ifdef OPENSSL_NO_KTLS_RX
@@ -201,16 +201,10 @@ static ossl_inline int ktls_read_record(int fd, void *data, size_t length)
  * KTLS enables the sendfile system call to send data from a file over
  * TLS.
  */
-static ossl_inline ossl_ssize_t ktls_sendfile(int s, int fd, off_t off,
-    size_t size, int flags)
+static ossl_inline int ktls_sendfile(int s, int fd, off_t off, size_t size,
+    ossl_ssize_t *sbytes, int flags)
 {
-    off_t sbytes = 0;
-    int ret;
-
-    ret = sendfile(fd, s, off, size, NULL, &sbytes, flags);
-    if (ret == -1 && sbytes == 0)
-        return -1;
-    return sbytes;
+    return sendfile(fd, s, off, size, NULL, sbytes, flags);
 }
 
 #endif /* __FreeBSD__ */
@@ -340,8 +334,8 @@ static ossl_inline int ktls_enable_tx_zerocopy_sendfile(int fd)
  * the entire record is pushed to TCP. It is impossible to send a partial
  * record using this control message.
  */
-static ossl_inline int ktls_send_ctrl_message(int fd, unsigned char record_type,
-    const void *data, size_t length)
+static ossl_inline int ktls_send_ctrl_message(int fd,
+    unsigned char record_type, const void *data, size_t length, int flags)
 {
     struct msghdr msg;
     int cmsg_len = sizeof(record_type);
@@ -367,16 +361,25 @@ static ossl_inline int ktls_send_ctrl_message(int fd, unsigned char record_type,
     msg.msg_iov = &msg_iov;
     msg.msg_iovlen = 1;
 
-    return sendmsg(fd, &msg, 0);
+    return sendmsg(fd, &msg, flags);
 }
 
 /*
  * KTLS enables the sendfile system call to send data from a file over TLS.
  * @flags are ignored on Linux. (placeholder for FreeBSD sendfile)
  * */
-static ossl_inline ossl_ssize_t ktls_sendfile(int s, int fd, off_t off, size_t size, int flags)
+static ossl_inline int ktls_sendfile(int s, int fd, off_t off, size_t size, ossl_ssize_t *sbytes, int flags)
 {
-    return sendfile(s, fd, &off, size);
+    ossl_ssize_t sent;
+
+    sent = sendfile(s, fd, &off, size);
+    if (sent >= 0) {
+        *sbytes = sent;
+        return 0;
+    } else {
+        *sbytes = 0;
+        return -1;
+    }
 }
 
 #ifdef OPENSSL_NO_KTLS_RX
@@ -407,7 +410,7 @@ static ossl_inline int ktls_read_record(int fd, void *data, size_t length)
     unsigned char *p = data;
     const size_t prepend_length = SSL3_RT_HEADER_LENGTH;
 
-    if (length < prepend_length + EVP_GCM_TLS_TAG_LEN) {
+    if (length < prepend_length) {
         errno = EINVAL;
         return -1;
     }
@@ -417,17 +420,27 @@ static ossl_inline int ktls_read_record(int fd, void *data, size_t length)
     msg.msg_controllen = sizeof(cmsgbuf.buf);
 
     msg_iov.iov_base = p + prepend_length;
-    msg_iov.iov_len = length - prepend_length - EVP_GCM_TLS_TAG_LEN;
+    msg_iov.iov_len = length - prepend_length;
     msg.msg_iov = &msg_iov;
     msg.msg_iovlen = 1;
+
+    memset(p, 0, prepend_length);
 
     ret = recvmsg(fd, &msg, 0);
     if (ret < 0)
         return ret;
 
+    if ((msg.msg_flags & (MSG_EOR | MSG_CTRUNC)) != MSG_EOR) {
+        errno = EMSGSIZE;
+        return -1;
+    }
+
     if (msg.msg_controllen > 0) {
         cmsg = CMSG_FIRSTHDR(&msg);
-        if (cmsg->cmsg_type == TLS_GET_RECORD_TYPE) {
+        if (cmsg != NULL
+            && cmsg->cmsg_level == SOL_TLS
+            && cmsg->cmsg_type == TLS_GET_RECORD_TYPE
+            && cmsg->cmsg_len >= CMSG_LEN(sizeof(unsigned char))) {
             p[0] = *((unsigned char *)CMSG_DATA(cmsg));
             p[1] = TLS1_2_VERSION_MAJOR;
             p[2] = TLS1_2_VERSION_MINOR;

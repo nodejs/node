@@ -28,13 +28,9 @@
  * 8 - 256 == 8192
  */
 static int bn_limit_bits = 0;
-static int bn_limit_num = 8; /* (1<<bn_limit_bits) */
 static int bn_limit_bits_low = 0;
-static int bn_limit_num_low = 8; /* (1<<bn_limit_bits_low) */
 static int bn_limit_bits_high = 0;
-static int bn_limit_num_high = 8; /* (1<<bn_limit_bits_high) */
 static int bn_limit_bits_mont = 0;
-static int bn_limit_num_mont = 8; /* (1<<bn_limit_bits_mont) */
 
 void BN_set_params(int mult, int high, int low, int mont)
 {
@@ -42,25 +38,21 @@ void BN_set_params(int mult, int high, int low, int mont)
         if (mult > (int)(sizeof(int) * 8) - 1)
             mult = sizeof(int) * 8 - 1;
         bn_limit_bits = mult;
-        bn_limit_num = 1 << mult;
     }
     if (high >= 0) {
         if (high > (int)(sizeof(int) * 8) - 1)
             high = sizeof(int) * 8 - 1;
         bn_limit_bits_high = high;
-        bn_limit_num_high = 1 << high;
     }
     if (low >= 0) {
         if (low > (int)(sizeof(int) * 8) - 1)
             low = sizeof(int) * 8 - 1;
         bn_limit_bits_low = low;
-        bn_limit_num_low = 1 << low;
     }
     if (mont >= 0) {
         if (mont > (int)(sizeof(int) * 8) - 1)
             mont = sizeof(int) * 8 - 1;
         bn_limit_bits_mont = mont;
-        bn_limit_num_mont = 1 << mont;
     }
 }
 
@@ -89,15 +81,7 @@ const BIGNUM *BN_value_one(void)
     return &const_one;
 }
 
-/*
- * Old Visual Studio ARM compiler miscompiles BN_num_bits_word()
- * https://mta.openssl.org/pipermail/openssl-users/2018-August/008465.html
- */
-#if defined(_MSC_VER) && defined(_ARM_) && defined(_WIN32_WCE) \
-    && _MSC_VER >= 1400 && _MSC_VER < 1501
-#define MS_BROKEN_BN_num_bits_word
-#pragma optimize("", off)
-#endif
+#ifndef __e2k__
 int BN_num_bits_word(BN_ULONG l)
 {
     BN_ULONG x, mask;
@@ -142,9 +126,20 @@ int BN_num_bits_word(BN_ULONG l)
 
     return bits;
 }
-#ifdef MS_BROKEN_BN_num_bits_word
-#pragma optimize("", on)
+#else /* __e2k__ */
+#include <x86gprintrin.h>
+int BN_num_bits_word(BN_ULONG l)
+{
+    /* clz(0) is well-defined on e2k, hence no if (l == 0) return 0;
+     * is required here.
+     */
+#if BN_BITS2 > 32
+    return 64 - __builtin_clzll(l);
+#else
+    return 32 - __builtin_clz(l);
 #endif
+}
+#endif /* __e2k__ */
 
 /*
  * This function still leaks `a->dmax`: it's caller's responsibility to
@@ -193,7 +188,7 @@ int BN_num_bits(const BIGNUM *a)
         return bn_num_bits_consttime(a);
     }
 
-    if (BN_is_zero(a))
+    if (ossl_unlikely(BN_is_zero(a)))
         return 0;
 
     return ((i * BN_BITS2) + BN_num_bits_word(a->d[i]));
@@ -265,19 +260,19 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
 {
     BN_ULONG *a = NULL;
 
-    if (words > (INT_MAX / (4 * BN_BITS2))) {
+    if (ossl_unlikely(words > (INT_MAX / (4 * BN_BITS2)))) {
         ERR_raise(ERR_LIB_BN, BN_R_BIGNUM_TOO_LONG);
         return NULL;
     }
-    if (BN_get_flags(b, BN_FLG_STATIC_DATA)) {
+    if (ossl_unlikely(BN_get_flags(b, BN_FLG_STATIC_DATA))) {
         ERR_raise(ERR_LIB_BN, BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
         return NULL;
     }
     if (BN_get_flags(b, BN_FLG_SECURE))
-        a = OPENSSL_secure_zalloc(words * sizeof(*a));
+        a = OPENSSL_secure_calloc(words, sizeof(*a));
     else
-        a = OPENSSL_zalloc(words * sizeof(*a));
-    if (a == NULL)
+        a = OPENSSL_calloc(words, sizeof(*a));
+    if (ossl_unlikely(a == NULL))
         return NULL;
 
     assert(b->top <= words);
@@ -297,9 +292,10 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
 
 BIGNUM *bn_expand2(BIGNUM *b, int words)
 {
-    if (words > b->dmax) {
+    if (ossl_likely(words > b->dmax)) {
         BN_ULONG *a = bn_expand_internal(b, words);
-        if (!a)
+
+        if (ossl_unlikely(!a))
             return NULL;
         if (b->d != NULL)
             bn_free_d(b, 1);
@@ -321,7 +317,7 @@ BIGNUM *BN_dup(const BIGNUM *a)
     t = BN_get_flags(a, BN_FLG_SECURE) ? BN_secure_new() : BN_new();
     if (t == NULL)
         return NULL;
-    if (!BN_copy(t, a)) {
+    if (BN_copy(t, a) == NULL) {
         BN_free(t);
         return NULL;
     }
@@ -337,12 +333,12 @@ BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
 
     bn_words = BN_get_flags(b, BN_FLG_CONSTTIME) ? b->dmax : b->top;
 
-    if (a == b)
+    if (ossl_unlikely(a == b))
         return a;
-    if (bn_wexpand(a, bn_words) == NULL)
+    if (ossl_unlikely(bn_wexpand(a, bn_words) == NULL))
         return NULL;
 
-    if (b->top > 0)
+    if (ossl_likely(b->top > 0))
         memcpy(a->d, b->d, sizeof(b->d[0]) * bn_words);
 
     a->neg = b->neg;
@@ -724,9 +720,9 @@ int BN_ucmp(const BIGNUM *a, const BIGNUM *b)
         int min_top = a->top < b->top ? a->top : b->top;
 
         for (i = 0; i < min_top; i++) {
-            res = constant_time_select_int(constant_time_lt_bn(ap[i], bp[i]),
+            res = constant_time_select_int((int)constant_time_lt_bn(ap[i], bp[i]),
                 -1, res);
-            res = constant_time_select_int(constant_time_lt_bn(bp[i], ap[i]),
+            res = constant_time_select_int((int)constant_time_lt_bn(bp[i], ap[i]),
                 1, res);
         }
 
@@ -850,11 +846,11 @@ int BN_is_bit_set(const BIGNUM *a, int n)
     int i, j;
 
     bn_check_top(a);
-    if (n < 0)
+    if (ossl_unlikely(n < 0))
         return 0;
     i = n / BN_BITS2;
     j = n % BN_BITS2;
-    if (a->top <= i)
+    if (ossl_unlikely(a->top <= i))
         return 0;
     return (int)(((a->d[i]) >> j) & ((BN_ULONG)1));
 }
@@ -904,12 +900,12 @@ int bn_cmp_words(const BN_ULONG *a, const BN_ULONG *b, int n)
     int i;
     BN_ULONG aa, bb;
 
-    if (n == 0)
+    if (ossl_unlikely(n == 0))
         return 0;
 
     aa = a[n - 1];
     bb = b[n - 1];
-    if (aa != bb)
+    if (ossl_likely(aa != bb))
         return ((aa > bb) ? 1 : -1);
     for (i = n - 2; i >= 0; i--) {
         aa = a[i];
@@ -975,12 +971,15 @@ void BN_consttime_swap(BN_ULONG condition, BIGNUM *a, BIGNUM *b, int nwords)
     b->neg ^= t;
 
     /*-
-     * BN_FLG_STATIC_DATA: indicates that data may not be written to. Intention
-     * is actually to treat it as it's read-only data, and some (if not most)
-     * of it does reside in read-only segment. In other words observation of
-     * BN_FLG_STATIC_DATA in BN_consttime_swap should be treated as fatal
-     * condition. It would either cause SEGV or effectively cause data
-     * corruption.
+     * BN_FLG_STATIC_DATA: indicates that d points to a buffer that this
+     * BIGNUM does not own, so it must never be reallocated or freed through
+     * the BIGNUM. The flag by itself does not forbid writing to the words,
+     * but much of the data marked this way is compiled-in and does reside in
+     * a read-only segment. Since BN_consttime_swap writes to d, observing
+     * BN_FLG_STATIC_DATA here should be treated as a fatal condition: it
+     * would either cause SEGV or effectively cause data corruption. The flag
+     * is therefore never swapped, as it describes the storage of each d
+     * buffer, which is not exchanged.
      *
      * BN_FLG_MALLOCED: refers to BN structure itself, and hence must be
      * preserved.
@@ -1072,10 +1071,10 @@ int ossl_bn_is_word_fixed_top(const BIGNUM *a, const BN_ULONG w)
     if (a->neg || a->top == 0)
         return 0;
 
-    res = constant_time_select_int(constant_time_eq_bn(ap[0], w), 1, 0);
+    res = constant_time_select_int((int)constant_time_eq_bn(ap[0], w), 1, 0);
 
     for (i = 1; i < a->top; i++)
-        res = constant_time_select_int(constant_time_is_zero_bn(ap[i]),
+        res = constant_time_select_int((int)constant_time_is_zero_bn(ap[i]),
             res, 0);
     return res;
 }
@@ -1191,7 +1190,7 @@ void bn_correct_top(BIGNUM *a)
     BN_ULONG *ftl;
     int tmp_top = a->top;
 
-    if (tmp_top > 0) {
+    if (ossl_likely(tmp_top > 0)) {
         for (ftl = &(a->d[tmp_top]); tmp_top > 0; tmp_top--) {
             ftl--;
             if (*ftl != 0)

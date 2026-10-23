@@ -1,0 +1,28 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('test_rng_get_ctx_params',
+                         (['OSSL_RAND_PARAM_STATE',                   'state',  'int'],
+                          ['OSSL_RAND_PARAM_STRENGTH',                'str',    'uint'],
+                          ['OSSL_RAND_PARAM_MAX_REQUEST',             'maxreq', 'size_t'],
+                          ['OSSL_RAND_PARAM_GENERATE',                'gen',    'uint'],
+                          ['OSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR', 'ind',    'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('test_rng_set_ctx_params',
+                         (['OSSL_RAND_PARAM_TEST_ENTROPY',   'ent',    'octet_string'],
+                          ['OSSL_RAND_PARAM_TEST_NONCE',     'nonce',  'octet_string'],
+                          ['OSSL_RAND_PARAM_STRENGTH',       'str',    'uint'],
+                          ['OSSL_RAND_PARAM_MAX_REQUEST',    'maxreq', 'size_t'],
+                          ['OSSL_RAND_PARAM_GENERATE',       'gen',    'uint'],
+                         )); -}

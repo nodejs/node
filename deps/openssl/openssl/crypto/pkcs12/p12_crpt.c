@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,8 @@
 #include <openssl/core_names.h>
 #include "crypto/evp.h"
 #include <openssl/pkcs12.h>
+
+#include <crypto/asn1.h>
 
 /* PKCS#12 PBE algorithms now in static table */
 

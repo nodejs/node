@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,17 +50,25 @@ int i2d_ASN1_OBJECT(const ASN1_OBJECT *a, unsigned char **pp)
 
 int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
 {
-    int i, first, len = 0, c, use_bn;
+    int i, first, len = 0, use_bn;
+    char c;
     char ftmp[24], *tmp = ftmp;
     int tmpsize = sizeof(ftmp);
     const char *p;
     unsigned long l;
     BIGNUM *bl = NULL;
 
-    if (num == 0)
+    if (num == 0) {
         return 0;
-    else if (num == -1)
-        num = strlen(buf);
+    } else if (num == -1) {
+        size_t num_s = strlen(buf);
+
+        if (num_s >= INT_MAX) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_LENGTH_TOO_LONG);
+            goto err;
+        }
+        num = (int)num_s;
+    }
 
     p = buf;
     c = *(p++);
@@ -285,7 +293,7 @@ ASN1_OBJECT *ossl_c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     }
 
     if ((a == NULL) || ((*a) == NULL) || !((*a)->flags & ASN1_OBJECT_FLAG_DYNAMIC)) {
-        if ((ret = ASN1_OBJECT_new()) == NULL)
+        if ((ret = ossl_asn1_object_new()) == NULL)
             return NULL;
     } else {
         ret = (*a);
@@ -330,7 +338,14 @@ err:
     return NULL;
 }
 
+#ifndef OPENSSL_NO_DEPRECATED_4_0
 ASN1_OBJECT *ASN1_OBJECT_new(void)
+{
+    return NULL;
+}
+#endif /* OPENSSL_NO_DEPRECATED_4_0 */
+
+ASN1_OBJECT *ossl_asn1_object_new(void)
 {
     ASN1_OBJECT *ret;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,13 +45,27 @@ size_t ossl_rand_get_user_entropy(OSSL_LIB_CTX *ctx,
     unsigned char **pout, int entropy,
     size_t min_len, size_t max_len)
 {
-    EVP_RAND_CTX *rng = ossl_rand_get0_seed_noncreating(ctx);
+    EVP_RAND_CTX *rng;
 
-    if (rng != NULL && evp_rand_can_seed(rng))
-        return evp_rand_get_seed(rng, pout, entropy, min_len, max_len,
-            0, NULL, 0);
-    else
-        return ossl_rand_get_entropy(ctx, pout, entropy, min_len, max_len);
+    if (ossl_rand_seed_source_strict(ctx)) {
+        /*
+         * With strict seeding the seed source must be used, even when the
+         * request arrives before anything instantiated it: create it now
+         * and fail instead of silently substituting the operating system
+         * entropy sources.
+         */
+        rng = ossl_rand_get0_seed(ctx);
+        if (rng == NULL || !evp_rand_can_seed(rng)) {
+            ERR_raise(ERR_LIB_RAND, RAND_R_ERROR_RETRIEVING_ENTROPY);
+            return 0;
+        }
+    } else {
+        rng = ossl_rand_get0_seed_noncreating(ctx);
+        if (rng == NULL || !evp_rand_can_seed(rng))
+            return ossl_rand_get_entropy(ctx, pout, entropy, min_len, max_len);
+    }
+    return evp_rand_get_seed(rng, pout, entropy, min_len, max_len,
+        0, NULL, 0);
 }
 
 void ossl_rand_cleanup_entropy(ossl_unused OSSL_LIB_CTX *ctx,
@@ -103,10 +117,21 @@ size_t ossl_rand_get_user_nonce(OSSL_LIB_CTX *ctx,
     const void *salt, size_t salt_len)
 {
     unsigned char *buf;
-    EVP_RAND_CTX *rng = ossl_rand_get0_seed_noncreating(ctx);
+    EVP_RAND_CTX *rng;
 
-    if (rng == NULL)
-        return ossl_rand_get_nonce(ctx, pout, min_len, max_len, salt, salt_len);
+    if (ossl_rand_seed_source_strict(ctx)) {
+        /* See ossl_rand_get_user_entropy() */
+        rng = ossl_rand_get0_seed(ctx);
+        if (rng == NULL) {
+            ERR_raise(ERR_LIB_RAND, RAND_R_ERROR_RETRIEVING_NONCE);
+            return 0;
+        }
+    } else {
+        rng = ossl_rand_get0_seed_noncreating(ctx);
+        if (rng == NULL)
+            return ossl_rand_get_nonce(ctx, pout, min_len, max_len,
+                salt, salt_len);
+    }
 
     if ((buf = OPENSSL_malloc(min_len)) == NULL)
         return 0;

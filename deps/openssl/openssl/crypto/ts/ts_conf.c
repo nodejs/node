@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,15 +7,11 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* We need to use some engine deprecated APIs */
-#define OPENSSL_SUPPRESS_DEPRECATED
-
 #include <string.h>
 
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include <openssl/pem.h>
-#include <openssl/engine.h>
 #include <openssl/ts.h>
 #include <openssl/conf_api.h>
 
@@ -23,7 +19,6 @@
 #define BASE_SECTION "tsa"
 #define ENV_DEFAULT_TSA "default_tsa"
 #define ENV_SERIAL "serial"
-#define ENV_CRYPTO_DEVICE "crypto_device"
 #define ENV_SIGNER_CERT "signer_cert"
 #define ENV_CERTS "certs"
 #define ENV_SIGNER_KEY "signer_key"
@@ -157,51 +152,6 @@ int TS_CONF_set_serial(CONF *conf, const char *section, TS_serial_cb cb,
 err:
     return ret;
 }
-
-#ifndef OPENSSL_NO_ENGINE
-
-int TS_CONF_set_crypto_device(CONF *conf, const char *section,
-    const char *device)
-{
-    int ret = 0;
-
-    if (device == NULL)
-        device = NCONF_get_string(conf, section, ENV_CRYPTO_DEVICE);
-
-    if (device && !TS_CONF_set_default_engine(device)) {
-        ts_CONF_invalid(section, ENV_CRYPTO_DEVICE);
-        goto err;
-    }
-    ret = 1;
-err:
-    return ret;
-}
-
-int TS_CONF_set_default_engine(const char *name)
-{
-    ENGINE *e = NULL;
-    int ret = 0;
-
-    if (strcmp(name, "builtin") == 0)
-        return 1;
-
-    if ((e = ENGINE_by_id(name)) == NULL)
-        goto err;
-    if (strcmp(name, "chil") == 0)
-        ENGINE_ctrl(e, ENGINE_CTRL_CHIL_SET_FORKCHECK, 1, 0, 0);
-    if (!ENGINE_set_default(e, ENGINE_METHOD_ALL))
-        goto err;
-    ret = 1;
-
-err:
-    if (!ret)
-        ERR_raise_data(ERR_LIB_TS, TS_R_COULD_NOT_SET_ENGINE,
-            "engine:%s", name);
-    ENGINE_free(e);
-    return ret;
-}
-
-#endif
 
 int TS_CONF_set_signer_cert(CONF *conf, const char *section,
     const char *cert, TS_RESP_CTX *ctx)
@@ -408,14 +358,26 @@ int TS_CONF_set_accuracy(CONF *conf, const char *section, TS_RESP_CTX *ctx)
     for (i = 0; i < sk_CONF_VALUE_num(list); ++i) {
         CONF_VALUE *val = sk_CONF_VALUE_value(list, i);
         if (strcmp(val->name, ENV_VALUE_SECS) == 0) {
-            if (val->value)
-                secs = atoi(val->value);
+            if (val->value != NULL
+                && (!ossl_strtoint(val->value, NULL, 10, &secs)
+                    || secs < 0)) {
+                ts_CONF_invalid(section, ENV_ACCURACY);
+                goto err;
+            }
         } else if (strcmp(val->name, ENV_VALUE_MILLISECS) == 0) {
-            if (val->value)
-                millis = atoi(val->value);
+            if (val->value != NULL
+                && (!ossl_strtoint(val->value, NULL, 10, &millis)
+                    || millis < 0)) {
+                ts_CONF_invalid(section, ENV_ACCURACY);
+                goto err;
+            }
         } else if (strcmp(val->name, ENV_VALUE_MICROSECS) == 0) {
-            if (val->value)
-                micros = atoi(val->value);
+            if (val->value != NULL
+                && (!ossl_strtoint(val->value, NULL, 10, &micros)
+                    || micros < 0)) {
+                ts_CONF_invalid(section, ENV_ACCURACY);
+                goto err;
+            }
         } else {
             ts_CONF_invalid(section, ENV_ACCURACY);
             goto err;

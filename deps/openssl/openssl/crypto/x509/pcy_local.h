@@ -1,11 +1,19 @@
 /*
- * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_X509_PCY_LOCAL_H)
+#define OSSL_LIBCRYPTO_X509_PCY_LOCAL_H
+
+#include <openssl/asn1.h>
+#include <openssl/safestack.h>
+#include <openssl/types.h>
+#include <openssl/x509v3.h>
 
 typedef struct X509_POLICY_DATA_st X509_POLICY_DATA;
 
@@ -169,3 +177,5 @@ int ossl_policy_node_match(const X509_POLICY_LEVEL *lvl,
     const X509_POLICY_NODE *node, const ASN1_OBJECT *oid);
 
 const X509_POLICY_CACHE *ossl_policy_cache_set(X509 *x);
+
+#endif /* !defined(OSSL_LIBCRYPTO_X509_PCY_LOCAL_H) */

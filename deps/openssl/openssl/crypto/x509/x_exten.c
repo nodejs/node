@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,8 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include "x509_local.h"
+
+#include <crypto/asn1.h>
 
 ASN1_SEQUENCE(X509_EXTENSION) = {
     ASN1_SIMPLE(X509_EXTENSION, object, ASN1_OBJECT),

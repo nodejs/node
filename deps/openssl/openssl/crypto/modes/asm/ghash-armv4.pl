@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # April 2010
@@ -142,7 +142,7 @@ ___
 }
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 #if defined(__thumb2__) || defined(__clang__)
 .syntax	unified
@@ -296,6 +296,7 @@ $code.=<<___;
 
 .global	gcm_gmult_4bit
 .type	gcm_gmult_4bit,%function
+.align	4
 gcm_gmult_4bit:
 	stmdb	sp!,{r4-r11,lr}
 	ldrb	$nlo,[$Xi,#15]
@@ -538,7 +539,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-.asciz  "GHASH for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz  "GHASH for ARMv4/NEON, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align  2
 ___
 

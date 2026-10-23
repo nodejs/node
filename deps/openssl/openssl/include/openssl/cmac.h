@@ -36,7 +36,8 @@ OSSL_DEPRECATEDIN_3_0 EVP_CIPHER_CTX *CMAC_CTX_get0_cipher_ctx(CMAC_CTX *ctx);
 OSSL_DEPRECATEDIN_3_0 int CMAC_CTX_copy(CMAC_CTX *out, const CMAC_CTX *in);
 OSSL_DEPRECATEDIN_3_0 int CMAC_Init(CMAC_CTX *ctx,
     const void *key, size_t keylen,
-    const EVP_CIPHER *cipher, ENGINE *impl);
+    const EVP_CIPHER *cipher,
+    ENGINE *impl /* must be NULL */);
 OSSL_DEPRECATEDIN_3_0 int CMAC_Update(CMAC_CTX *ctx,
     const void *data, size_t dlen);
 OSSL_DEPRECATEDIN_3_0 int CMAC_Final(CMAC_CTX *ctx,

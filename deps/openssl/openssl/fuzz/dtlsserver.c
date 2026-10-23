@@ -218,7 +218,6 @@ static const uint8_t RSACertificatePEM[] = {
     0x2d, 0x0a
 };
 
-#ifndef OPENSSL_NO_DEPRECATED_3_0
 /*
 -----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC1mQfTLWrNFfUs
@@ -464,10 +463,8 @@ static const uint8_t RSAPrivateKeyPEM[] = {
     0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b,
     0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a
 };
-#endif
 
 #ifndef OPENSSL_NO_EC
-#ifndef OPENSSL_NO_DEPRECATED_3_0
 /*
 -----BEGIN EC PRIVATE KEY-----
 MHcCAQEEIJLyl7hJjpQL/RhP1x2zS79xdiPJQB683gWeqcqHPeZkoAoGCCqGSM49
@@ -496,7 +493,6 @@ static const char ECDSAPrivateKeyPEM[] = {
     0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54,
     0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a
 };
-#endif
 
 /*
 -----BEGIN CERTIFICATE-----
@@ -559,7 +555,7 @@ static const char ECDSACertPEM[] = {
 };
 #endif
 
-#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
+#ifndef OPENSSL_NO_DSA
 /*
 -----BEGIN DSA PRIVATE KEY-----
 MIIBuwIBAAKBgQDdkFKzNABLOha7Eqj7004+p5fhtR6bxpujToMmSZTYi8igVVXP
@@ -739,9 +735,6 @@ static const char DSACertPEM[] = {
 };
 #endif
 
-/* unused, to avoid warning. */
-static int idx;
-
 #define FUZZTIME 1485898104
 
 #define TIME_IMPL(t)       \
@@ -771,7 +764,9 @@ time_t time(time_t *t) TIME_IMPL(t)
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
     ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
-    idx = SSL_get_ex_data_X509_STORE_CTX_idx();
+    if (SSL_get_ex_data_X509_STORE_CTX_idx() == 0) {
+        /* Just suppress warning */
+    }
     comp_methods = SSL_COMP_get_compression_methods();
     if (comp_methods != NULL)
         sk_SSL_COMP_sort(comp_methods);
@@ -779,121 +774,109 @@ time_t time(time_t *t) TIME_IMPL(t)
     return 1;
 }
 
+static int use_pem_privkey(SSL_CTX *ctx, const void *pem, size_t pem_len)
+{
+    BIO *bio_buf;
+    EVP_PKEY *pkey;
+    int rv = 0;
+
+    bio_buf = BIO_new(BIO_s_mem());
+    if (bio_buf == NULL)
+        return 0;
+    if ((size_t)BIO_write(bio_buf, pem, (int)pem_len) != pem_len) {
+        BIO_free(bio_buf);
+        return 0;
+    }
+    pkey = PEM_read_bio_PrivateKey(bio_buf, NULL, NULL, NULL);
+    BIO_free(bio_buf);
+    if (pkey == NULL)
+        return 0;
+    if (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)
+        rv = 1;
+    EVP_PKEY_free(pkey);
+    return rv;
+}
+
+static int use_pem_cert(SSL_CTX *ctx, const void *pem, size_t pem_len)
+{
+    BIO *bio_buf;
+    X509 *cert;
+    int rv = 0;
+
+    bio_buf = BIO_new(BIO_s_mem());
+    if (bio_buf == NULL)
+        return 0;
+    if ((size_t)BIO_write(bio_buf, pem, (int)pem_len) != pem_len) {
+        BIO_free(bio_buf);
+        return 0;
+    }
+    cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
+    BIO_free(bio_buf);
+    if (cert == NULL)
+        return 0;
+    if (SSL_CTX_use_certificate(ctx, cert) == 1)
+        rv = 1;
+    X509_free(cert);
+    return rv;
+}
+
 int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
-    SSL *server;
+    SSL *server = NULL;
     BIO *in;
     BIO *out;
-    BIO *bio_buf;
     SSL_CTX *ctx;
-    int ret;
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-    RSA *privkey;
-#endif
-#if !defined(OPENSSL_NO_DEPRECATED_3_0)
-    EVP_PKEY *pkey;
-#endif
-    X509 *cert;
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-#ifndef OPENSSL_NO_EC
-    EC_KEY *ecdsakey = NULL;
-#endif
-#endif
-#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
-    DSA *dsakey = NULL;
-#endif
 
-    if (len < 2)
+    if (len < 2 || len > INT_MAX)
         return 0;
 
-    /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(DTLS_server_method());
+    if (ctx == NULL)
+        return 0;
 
-    ret = SSL_CTX_set_min_proto_version(ctx, 0);
-    OPENSSL_assert(ret == 1);
-    ret = SSL_CTX_set_cipher_list(ctx, "ALL:eNULL:@SECLEVEL=0");
-    OPENSSL_assert(ret == 1);
+    if (SSL_CTX_set_min_proto_version(ctx, 0) != 1)
+        goto end;
+    if (SSL_CTX_set_cipher_list(ctx, "ALL:eNULL:@SECLEVEL=0") != 1)
+        goto end;
 
-#ifndef OPENSSL_NO_DEPRECATED_3_0
     /* RSA */
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, RSAPrivateKeyPEM, sizeof(RSAPrivateKeyPEM)) == sizeof(RSAPrivateKeyPEM));
-    privkey = PEM_read_bio_RSAPrivateKey(bio_buf, NULL, NULL, NULL);
-    ERR_print_errors_fp(stderr);
-    OPENSSL_assert(privkey != NULL);
-    BIO_free(bio_buf);
-    pkey = EVP_PKEY_new();
-    EVP_PKEY_assign_RSA(pkey, privkey);
-    ret = SSL_CTX_use_PrivateKey(ctx, pkey);
-    OPENSSL_assert(ret == 1);
-    EVP_PKEY_free(pkey);
-#endif
-
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, RSACertificatePEM, sizeof(RSACertificatePEM)) == sizeof(RSACertificatePEM));
-    cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
-    BIO_free(bio_buf);
-    OPENSSL_assert(cert != NULL);
-    ret = SSL_CTX_use_certificate(ctx, cert);
-    OPENSSL_assert(ret == 1);
-    X509_free(cert);
+    if (!use_pem_privkey(ctx, RSAPrivateKeyPEM, sizeof(RSAPrivateKeyPEM)))
+        goto end;
+    if (!use_pem_cert(ctx, RSACertificatePEM, sizeof(RSACertificatePEM)))
+        goto end;
 
 #ifndef OPENSSL_NO_EC
-#ifndef OPENSSL_NO_DEPRECATED_3_0
     /* ECDSA */
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSAPrivateKeyPEM, sizeof(ECDSAPrivateKeyPEM)) == sizeof(ECDSAPrivateKeyPEM));
-    ecdsakey = PEM_read_bio_ECPrivateKey(bio_buf, NULL, NULL, NULL);
-    ERR_print_errors_fp(stderr);
-    OPENSSL_assert(ecdsakey != NULL);
-    BIO_free(bio_buf);
-    pkey = EVP_PKEY_new();
-    EVP_PKEY_assign_EC_KEY(pkey, ecdsakey);
-    ret = SSL_CTX_use_PrivateKey(ctx, pkey);
-    OPENSSL_assert(ret == 1);
-    EVP_PKEY_free(pkey);
-#endif
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSACertPEM, sizeof(ECDSACertPEM)) == sizeof(ECDSACertPEM));
-    cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
-    OPENSSL_assert(cert != NULL);
-    BIO_free(bio_buf);
-    ret = SSL_CTX_use_certificate(ctx, cert);
-    OPENSSL_assert(ret == 1);
-    X509_free(cert);
+    if (!use_pem_privkey(ctx, ECDSAPrivateKeyPEM, sizeof(ECDSAPrivateKeyPEM)))
+        goto end;
+    if (!use_pem_cert(ctx, ECDSACertPEM, sizeof(ECDSACertPEM)))
+        goto end;
 #endif
 
-#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
+#ifndef OPENSSL_NO_DSA
     /* DSA */
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, DSAPrivateKeyPEM, sizeof(DSAPrivateKeyPEM)) == sizeof(DSAPrivateKeyPEM));
-    dsakey = PEM_read_bio_DSAPrivateKey(bio_buf, NULL, NULL, NULL);
-    ERR_print_errors_fp(stderr);
-    OPENSSL_assert(dsakey != NULL);
-    BIO_free(bio_buf);
-    pkey = EVP_PKEY_new();
-    EVP_PKEY_assign_DSA(pkey, dsakey);
-    ret = SSL_CTX_use_PrivateKey(ctx, pkey);
-    OPENSSL_assert(ret == 1);
-    EVP_PKEY_free(pkey);
-
-    bio_buf = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(bio_buf, DSACertPEM, sizeof(DSACertPEM)) == sizeof(DSACertPEM));
-    cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
-    OPENSSL_assert(cert != NULL);
-    BIO_free(bio_buf);
-    ret = SSL_CTX_use_certificate(ctx, cert);
-    OPENSSL_assert(ret == 1);
-    X509_free(cert);
+    if (!use_pem_privkey(ctx, DSAPrivateKeyPEM, sizeof(DSAPrivateKeyPEM)))
+        goto end;
+    if (!use_pem_cert(ctx, DSACertPEM, sizeof(DSACertPEM)))
+        goto end;
 #endif
 
     server = SSL_new(ctx);
+    if (server == NULL)
+        goto end;
     in = BIO_new(BIO_s_mem());
+    if (in == NULL)
+        goto end;
     out = BIO_new(BIO_s_mem());
+    if (out == NULL) {
+        BIO_free(in);
+        goto end;
+    }
     SSL_set_bio(server, in, out);
     SSL_set_accept_state(server);
 
-    OPENSSL_assert((size_t)BIO_write(in, buf, len) == len);
+    if ((size_t)BIO_write(in, buf, (int)len) != len)
+        goto end;
 
     if (SSL_do_handshake(server) == 1) {
         /* Keep reading application data until error or EOF. */
@@ -904,6 +887,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
         }
     }
+end:
     SSL_free(server);
     ERR_clear_error();
     SSL_CTX_free(ctx);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,8 @@
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include "ext_dat.h"
+
+#include <crypto/asn1.h>
 
 /*
  * Subject Sign Tool (1.2.643.100.111) The name of the tool used to signs the subject (UTF8String)
@@ -53,7 +55,7 @@ ASN1_UTF8STRING *s2i_ASN1_UTF8STRING(X509V3_EXT_METHOD *method,
         ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
-    if (!ASN1_STRING_set((ASN1_STRING *)utf8, str, strlen(str))) {
+    if (!ossl_asn1_string_set1_string(utf8, str)) {
         ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         ASN1_UTF8STRING_free(utf8);
         return NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,6 @@ typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_STDNAME,
     OPT_CONVERT,
-    OPT_SSL3,
     OPT_TLS1,
     OPT_TLS1_1,
     OPT_TLS1_2,
@@ -48,9 +47,6 @@ const OPTIONS ciphers_options[] = {
 
     OPT_SECTION("Cipher specification"),
     { "s", OPT_S, '-', "Only supported ciphers" },
-#ifndef OPENSSL_NO_SSL3
-    { "ssl3", OPT_SSL3, '-', "Ciphers compatible with SSL3" },
-#endif
 #ifndef OPENSSL_NO_TLS1
     { "tls1", OPT_TLS1, '-', "Ciphers compatible with TLS1" },
 #endif
@@ -135,10 +131,6 @@ int ciphers_main(int argc, char **argv)
         case OPT_CONVERT:
             convert = opt_arg();
             break;
-        case OPT_SSL3:
-            min_version = SSL3_VERSION;
-            max_version = SSL3_VERSION;
-            break;
         case OPT_TLS1:
             min_version = TLS1_VERSION;
             max_version = TLS1_VERSION;
@@ -207,13 +199,13 @@ int ciphers_main(int argc, char **argv)
 #endif
 
     if (ciphersuites != NULL && !SSL_CTX_set_ciphersuites(ctx, ciphersuites)) {
-        BIO_printf(bio_err, "Error setting TLSv1.3 ciphersuites\n");
+        BIO_puts(bio_err, "Error setting TLSv1.3 ciphersuites\n");
         goto err;
     }
 
     if (ciphers != NULL) {
         if (!SSL_CTX_set_cipher_list(ctx, ciphers)) {
-            BIO_printf(bio_err, "Error in cipher list\n");
+            BIO_puts(bio_err, "Error in cipher list\n");
             goto err;
         }
     }
@@ -237,10 +229,10 @@ int ciphers_main(int argc, char **argv)
             if (p == NULL)
                 break;
             if (i != 0)
-                BIO_printf(bio_out, ":");
-            BIO_printf(bio_out, "%s", p);
+                BIO_puts(bio_out, ":");
+            BIO_puts(bio_out, p);
         }
-        BIO_printf(bio_out, "\n");
+        BIO_puts(bio_out, "\n");
     } else {
 
         for (i = 0; i < sk_SSL_CIPHER_num(sk); i++) {

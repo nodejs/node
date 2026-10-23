@@ -34,7 +34,7 @@
 # to more modular mixture of C and assembly. And it's optimized even
 # for processors other than Intel Core family (see table below for
 # improvement coefficients).
-# 						<appro@openssl.org>
+# 						<https://github.com/dot-asm>
 #
 # RSA1024 sign/sec	this/original	|this/rsax(*)	this/fips(*)
 #			----------------+---------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,9 +45,9 @@ int BIO_dump_indent_cb(int (*cb)(const void *data, size_t len, void *u),
     if ((rows * dump_width) < len)
         rows++;
     for (i = 0; i < rows; i++) {
-        n = BIO_snprintf(buf, sizeof(buf), "%*s%04x - ", indent, "",
+        n = snprintf(buf, sizeof(buf), "%*s%04x - ", indent, "",
             i * dump_width);
-        if (n < 0)
+        if (n < 0 || (size_t)n >= sizeof(buf))
             return -1;
         for (j = 0; j < dump_width; j++) {
             if (SPACE(buf, n, 3)) {
@@ -55,7 +55,7 @@ int BIO_dump_indent_cb(int (*cb)(const void *data, size_t len, void *u),
                     strcpy(buf + n, "   ");
                 } else {
                     ch = *(s + i * dump_width + j) & 0xff;
-                    BIO_snprintf(buf + n, 4, "%02x%c", ch,
+                    snprintf(buf + n, 4, "%02x%c", ch,
                         j == 7 ? '-' : ' ');
                 }
                 n += 3;
@@ -99,7 +99,7 @@ int BIO_dump_indent_cb(int (*cb)(const void *data, size_t len, void *u),
 #ifndef OPENSSL_NO_STDIO
 static int write_fp(const void *data, size_t len, void *fp)
 {
-    return UP_fwrite(data, len, 1, fp);
+    return (int)UP_fwrite(data, len, 1, fp);
 }
 
 int BIO_dump_fp(FILE *fp, const void *s, int len)
@@ -115,7 +115,9 @@ int BIO_dump_indent_fp(FILE *fp, const void *s, int len, int indent)
 
 static int write_bio(const void *data, size_t len, void *bp)
 {
-    return BIO_write((BIO *)bp, (const char *)data, len);
+    if (len > INT_MAX)
+        return -1;
+    return BIO_write((BIO *)bp, (const char *)data, (int)len);
 }
 
 int BIO_dump(BIO *bp, const void *s, int len)

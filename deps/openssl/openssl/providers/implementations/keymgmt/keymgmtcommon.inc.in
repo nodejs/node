@@ -1,0 +1,49 @@
+/*
+ * Copyright 2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('keymgmt_gen_get_params',
+                         (['OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR',
+                           'fips indicator', 'int'],
+                         )); -}
+
+{- produce_param_decoder('keymgmt_fips_gen_get_params',
+                         (['OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR',
+                           'ind', 'int', 'hidden'],
+                         )); -}
+
+#ifdef FIPS_MODULE
+static const OSSL_PARAM *keymgmt_gen_gettable_params(
+    ossl_unused void *genctx, ossl_unused void *provctx)
+{
+    return keymgmt_gen_get_params_list;
+}
+
+static ossl_unused int keymgmt_gen_get_params(ossl_unused void *genctx,
+    OSSL_PARAM params[])
+{
+    struct keymgmt_gen_get_params_st p;
+
+    return keymgmt_gen_get_params_decoder(params, &p);
+}
+
+# define OSSL_KEYMGMT_FIPS_GEN_DISPATCH_END(get_params)                   \
+    { OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS, (void (*)(void))get_params },     \
+    { OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS,                             \
+      (void (*)(void))keymgmt_gen_gettable_params },                     \
+    OSSL_DISPATCH_END
+# define OSSL_KEYMGMT_FIPS_APPROVED_GEN_DISPATCH_END                     \
+    OSSL_KEYMGMT_FIPS_GEN_DISPATCH_END(keymgmt_gen_get_params)
+#else
+# define OSSL_KEYMGMT_FIPS_GEN_DISPATCH_END(get_params) OSSL_DISPATCH_END
+# define OSSL_KEYMGMT_FIPS_APPROVED_GEN_DISPATCH_END OSSL_DISPATCH_END
+#endif

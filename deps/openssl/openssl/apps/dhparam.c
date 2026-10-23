@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -40,7 +40,6 @@ typedef enum OPTION_choice {
     OPT_OUTFORM,
     OPT_IN,
     OPT_OUT,
-    OPT_ENGINE,
     OPT_CHECK,
     OPT_TEXT,
     OPT_NOOUT,
@@ -63,9 +62,6 @@ const OPTIONS dhparam_options[] = {
 #if !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_DEPRECATED_3_0)
     { "dsaparam", OPT_DSAPARAM, '-',
         "Read or generate DSA parameters, convert to DH" },
-#endif
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
@@ -97,7 +93,6 @@ int dhparam_main(int argc, char **argv)
     EVP_PKEY *pkey = NULL, *tmppkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     char *infile = NULL, *outfile = NULL, *prog;
-    ENGINE *e = NULL;
     int dsaparam = 0;
     int text = 0, ret = 1, num = 0, g = 0;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM, check = 0, noout = 0;
@@ -128,9 +123,6 @@ int dhparam_main(int argc, char **argv)
             break;
         case OPT_OUT:
             outfile = opt_arg();
-            break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
             break;
         case OPT_CHECK:
             check = 1;
@@ -186,7 +178,7 @@ int dhparam_main(int argc, char **argv)
         num = DEFBITS;
 
     if (dsaparam && g) {
-        BIO_printf(bio_err,
+        BIO_puts(bio_err,
             "Error, generator may not be chosen for DSA parameters\n");
         goto end;
     }
@@ -226,16 +218,16 @@ int dhparam_main(int argc, char **argv)
 
         if (dsaparam) {
             if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num) <= 0) {
-                BIO_printf(bio_err, "Error, unable to set DSA prime length\n");
+                BIO_puts(bio_err, "Error, unable to set DSA prime length\n");
                 goto end;
             }
         } else {
             if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, num) <= 0) {
-                BIO_printf(bio_err, "Error, unable to set DH prime length\n");
+                BIO_puts(bio_err, "Error, unable to set DH prime length\n");
                 goto end;
             }
             if (EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, g) <= 0) {
-                BIO_printf(bio_err, "Error, unable to set generator\n");
+                BIO_puts(bio_err, "Error, unable to set generator\n");
                 goto end;
             }
         }
@@ -309,13 +301,13 @@ int dhparam_main(int argc, char **argv)
             OSSL_DECODER_CTX_free(decoderctx);
         } while (!done);
         if (tmppkey == NULL) {
-            BIO_printf(bio_err, "Error, unable to load parameters\n");
+            BIO_puts(bio_err, "Error, unable to load parameters\n");
             goto end;
         }
 
         if (dsaparam) {
             if (!EVP_PKEY_is_a(tmppkey, "DSA")) {
-                BIO_printf(bio_err, "Error, unable to load DSA parameters\n");
+                BIO_puts(bio_err, "Error, unable to load DSA parameters\n");
                 goto end;
             }
             pkey = dsa_to_dh(tmppkey);
@@ -324,7 +316,7 @@ int dhparam_main(int argc, char **argv)
         } else {
             if (!EVP_PKEY_is_a(tmppkey, "DH")
                 && !EVP_PKEY_is_a(tmppkey, "DHX")) {
-                BIO_printf(bio_err, "Error, unable to load DH parameters\n");
+                BIO_puts(bio_err, "Error, unable to load DH parameters\n");
                 goto end;
             }
             pkey = tmppkey;
@@ -342,14 +334,14 @@ int dhparam_main(int argc, char **argv)
     if (check) {
         ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey, app_get0_propq());
         if (ctx == NULL) {
-            BIO_printf(bio_err, "Error, failed to check DH parameters\n");
+            BIO_puts(bio_err, "Error, failed to check DH parameters\n");
             goto end;
         }
         if (EVP_PKEY_param_check(ctx) <= 0) {
-            BIO_printf(bio_err, "Error, invalid parameters generated\n");
+            BIO_puts(bio_err, "Error, invalid parameters generated\n");
             goto end;
         }
-        BIO_printf(bio_err, "DH parameters appear to be ok.\n");
+        BIO_puts(bio_err, "DH parameters appear to be ok.\n");
     }
 
     if (!noout) {
@@ -362,7 +354,7 @@ int dhparam_main(int argc, char **argv)
 
         if (ectx == NULL || !OSSL_ENCODER_to_bio(ectx, out)) {
             OSSL_ENCODER_CTX_free(ectx);
-            BIO_printf(bio_err, "Error, unable to write DH parameters\n");
+            BIO_puts(bio_err, "Error, unable to write DH parameters\n");
             goto end;
         }
         OSSL_ENCODER_CTX_free(ectx);
@@ -376,7 +368,6 @@ end:
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(tmppkey);
     EVP_PKEY_CTX_free(ctx);
-    release_engine(e);
     return ret;
 }
 
@@ -396,7 +387,7 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
     if (!EVP_PKEY_get_bn_param(dh, OSSL_PKEY_PARAM_FFC_P, &bn_p)
         || !EVP_PKEY_get_bn_param(dh, OSSL_PKEY_PARAM_FFC_Q, &bn_q)
         || !EVP_PKEY_get_bn_param(dh, OSSL_PKEY_PARAM_FFC_G, &bn_g)) {
-        BIO_printf(bio_err, "Error, failed to set DH parameters\n");
+        BIO_puts(bio_err, "Error, failed to set DH parameters\n");
         goto err;
     }
 
@@ -408,7 +399,7 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
         || !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_FFC_G,
             bn_g)
         || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL) {
-        BIO_printf(bio_err, "Error, failed to set DH parameters\n");
+        BIO_puts(bio_err, "Error, failed to set DH parameters\n");
         goto err;
     }
 
@@ -416,7 +407,7 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
     if (ctx == NULL
         || EVP_PKEY_fromdata_init(ctx) <= 0
         || EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {
-        BIO_printf(bio_err, "Error, failed to set DH parameters\n");
+        BIO_puts(bio_err, "Error, failed to set DH parameters\n");
         goto err;
     }
 

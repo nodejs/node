@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,7 +47,7 @@ uint32_t ossl_rand_uniform_uint32(OSSL_LIB_CTX *ctx, uint32_t upper, int *err)
      * We are generating a fixed point number on the interval [0, 1).
      * Multiplying this by the range gives us a number on [0, upper).
      * The high word of the multiplication result represents the integral
-     * part we want.  The lower word is the fractional part.  We can early exit if
+     * part we want.  The lower word is the fractional part.  We can early exit
      * if the fractional part is small enough that no carry from the next lower
      * word can cause an overflow and carry into the integer part.  This
      * happens when the fractional part is bounded by 2^32 - upper which
@@ -69,7 +69,7 @@ uint32_t ossl_rand_uniform_uint32(OSSL_LIB_CTX *ctx, uint32_t upper, int *err)
      * repeat the process with the next lower word.
      *
      * Each *bit* of randomness has a probability of one half of terminating
-     * this process, so each each word beyond the first has a probability
+     * this process, so each word beyond the first has a probability
      * of 2^-32 of not terminating the process.  That is, we're extremely
      * likely to stop very rapidly.
      */

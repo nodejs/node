@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,8 +35,7 @@
 #ifndef OPENSSL_NO_POSIX_IO
 #include <sys/stat.h>
 #include <fcntl.h>
-#if defined(_WIN32) && !defined(_WIN32_WCE)
-#include <windows.h>
+#if defined(_WIN32)
 #include <io.h>
 #define stat _stat
 #define chmod _chmod
@@ -70,7 +69,8 @@
  * This declaration is a nasty hack to get around vms' extension to fopen for
  * passing in sharing options being disabled by /STANDARD=ANSI89
  */
-static __FILE_ptr32 (*const vms_fopen)(const char *, const char *, ...) = (__FILE_ptr32 (*)(const char *, const char *, ...))fopen;
+static __FILE_ptr32 (*const vms_fopen)(const char *, const char *, ...)
+    = (__FILE_ptr32 (*)(const char *, const char *, ...))fopen;
 #define VMS_OPEN_ATTRS \
     "shr=get,put,upd,del", "ctx=bin,stm", "rfm=stm", "rat=none", "mrs=0"
 #define openssl_fopen(fname, mode) vms_fopen((fname), (mode), VMS_OPEN_ATTRS)
@@ -149,7 +149,7 @@ int RAND_load_file(const char *file, long bytes)
             n = (bytes <= RAND_LOAD_BUF_SIZE) ? (int)bytes : RAND_BUF_SIZE;
         else
             n = RAND_LOAD_BUF_SIZE;
-        i = fread(buf, 1, n, in);
+        i = (int)fread(buf, 1, n, in);
 #ifdef EINTR
         if (ferror(in) && errno == EINTR) {
             clearerr(in);
@@ -260,7 +260,7 @@ int RAND_write_file(const char *file)
     chmod(file, 0600);
 #endif
 
-    ret = fwrite(buf, 1, RAND_BUF_SIZE, out);
+    ret = (int)fwrite(buf, 1, RAND_BUF_SIZE, out);
     fclose(out);
     OPENSSL_cleanse(buf, RAND_BUF_SIZE);
     return ret;
@@ -272,7 +272,7 @@ const char *RAND_file_name(char *buf, size_t size)
     size_t len;
     int use_randfile = 1;
 
-#if defined(_WIN32) && defined(CP_UTF8) && !defined(_WIN32_WCE)
+#if defined(_WIN32) && defined(CP_UTF8)
     DWORD envlen;
     WCHAR *var;
 

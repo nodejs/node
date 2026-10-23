@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,10 @@
 # https://www.openssl.org/source/license.html
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 #
 # Permission to use under GPLv2 terms is granted.
 # ====================================================================
@@ -190,7 +190,7 @@ ___
 }
 
 $code.=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 #ifndef	__KERNEL__
 .extern	OPENSSL_armcap_P
 .hidden	OPENSSL_armcap_P
@@ -356,7 +356,7 @@ $code.=<<___ if ($SZ==4);
 ___
 $code.=<<___;
 .size	.LK$BITS,.-.LK$BITS
-.asciz	"SHA$BITS block transform for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"SHA$BITS block transform for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	2
 
 .text

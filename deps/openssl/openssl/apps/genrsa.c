@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,7 +35,6 @@ typedef enum OPTION_choice {
     OPT_3,
 #endif
     OPT_F4,
-    OPT_ENGINE,
     OPT_OUT,
     OPT_PASSOUT,
     OPT_CIPHER,
@@ -52,9 +51,6 @@ const OPTIONS genrsa_options[] = {
 
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -84,7 +80,6 @@ const OPTIONS genrsa_options[] = {
 int genrsa_main(int argc, char **argv)
 {
     BN_GENCB *cb = BN_GENCB_new();
-    ENGINE *eng = NULL;
     BIGNUM *bn = BN_new();
     BIO *out = NULL;
     EVP_PKEY *pkey = NULL;
@@ -124,9 +119,6 @@ int genrsa_main(int argc, char **argv)
         case OPT_OUT:
             outfile = opt_arg();
             break;
-        case OPT_ENGINE:
-            eng = setup_engine(opt_arg(), 0);
-            break;
         case OPT_R_CASES:
             if (!opt_rand(o))
                 goto end;
@@ -161,8 +153,12 @@ int genrsa_main(int argc, char **argv)
     argv = opt_rest();
 
     if (argc == 1) {
-        if (!opt_int(argv[0], &num) || num <= 0)
+        if (!opt_int(argv[0], &num))
             goto end;
+        if (num <= 0) {
+            BIO_printf(bio_err, "%s: Invalid number of bits: %d\n", prog, num);
+            goto end;
+        }
         if (num > OPENSSL_RSA_MAX_MODULUS_BITS)
             BIO_printf(bio_err,
                 "Warning: It is not recommended to use more than %d bit for RSA keys.\n"
@@ -179,7 +175,7 @@ int genrsa_main(int argc, char **argv)
     if (!opt_cipher(ciphername, &enc))
         goto end;
     if (!app_passwd(NULL, passoutarg, NULL, &passout)) {
-        BIO_printf(bio_err, "Error getting password\n");
+        BIO_puts(bio_err, "Error getting password\n");
         goto end;
     }
 
@@ -187,7 +183,7 @@ int genrsa_main(int argc, char **argv)
     if (out == NULL)
         goto end;
 
-    if (!init_gen_str(&ctx, "RSA", eng, 0, app_get0_libctx(),
+    if (!init_gen_str(&ctx, "RSA", 0, app_get0_libctx(),
             app_get0_propq()))
         goto end;
 
@@ -196,19 +192,19 @@ int genrsa_main(int argc, char **argv)
     EVP_PKEY_CTX_set_app_data(ctx, bio_err);
 
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, num) <= 0) {
-        BIO_printf(bio_err, "Error setting RSA length\n");
+        BIO_puts(bio_err, "Error setting RSA length\n");
         goto end;
     }
     if (!BN_set_word(bn, f4)) {
-        BIO_printf(bio_err, "Error allocating RSA public exponent\n");
+        BIO_puts(bio_err, "Error allocating RSA public exponent\n");
         goto end;
     }
     if (EVP_PKEY_CTX_set1_rsa_keygen_pubexp(ctx, bn) <= 0) {
-        BIO_printf(bio_err, "Error setting RSA public exponent\n");
+        BIO_puts(bio_err, "Error setting RSA public exponent\n");
         goto end;
     }
     if (EVP_PKEY_CTX_set_rsa_keygen_primes(ctx, primes) <= 0) {
-        BIO_printf(bio_err, "Error setting number of primes\n");
+        BIO_puts(bio_err, "Error setting number of primes\n");
         goto end;
     }
     pkey = app_keygen(ctx, "RSA", num, verbose);
@@ -221,7 +217,7 @@ int genrsa_main(int argc, char **argv)
         /* Every RSA key has an 'e' */
         EVP_PKEY_get_bn_param(pkey, "e", &e);
         if (e == NULL) {
-            BIO_printf(bio_err, "Error cannot access RSA e\n");
+            BIO_puts(bio_err, "Error cannot access RSA e\n");
             goto end;
         }
         hexe = BN_bn2hex(e);
@@ -250,7 +246,6 @@ end:
     EVP_PKEY_free(pkey);
     EVP_CIPHER_free(enc);
     BIO_free_all(out);
-    release_engine(eng);
     OPENSSL_free(passout);
     if (ret != 0)
         ERR_print_errors(bio_err);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,9 +77,9 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
                     sizeof(arg_token.token)))
                 continue; /* just stop */
 
-            ossl_quic_srtm_add(srtm, (void *)(uintptr_t)arg_opaque,
-                arg_seq_num, &arg_token);
-            ossl_quic_srtm_check(srtm);
+            if (ossl_quic_srtm_add(srtm, (void *)(uintptr_t)arg_opaque,
+                    arg_seq_num, &arg_token))
+                ossl_quic_srtm_check(srtm);
             break;
 
         case CMD_REMOVE:
@@ -87,17 +87,17 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
                 || !PACKET_get_net_8(&pkt, &arg_seq_num))
                 continue; /* just stop */
 
-            ossl_quic_srtm_remove(srtm, (void *)(uintptr_t)arg_opaque,
-                arg_seq_num);
-            ossl_quic_srtm_check(srtm);
+            if (ossl_quic_srtm_remove(srtm, (void *)(uintptr_t)arg_opaque,
+                    arg_seq_num, NULL))
+                ossl_quic_srtm_check(srtm);
             break;
 
         case CMD_CULL:
             if (!PACKET_get_net_8(&pkt, &arg_opaque))
                 continue; /* just stop */
 
-            ossl_quic_srtm_cull(srtm, (void *)(uintptr_t)arg_opaque);
-            ossl_quic_srtm_check(srtm);
+            if (ossl_quic_srtm_cull(srtm, (void *)(uintptr_t)arg_opaque))
+                ossl_quic_srtm_check(srtm);
             break;
 
         case CMD_LOOKUP:
@@ -106,9 +106,9 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
                 || !PACKET_get_net_8(&pkt, &arg_idx))
                 continue; /* just stop */
 
-            ossl_quic_srtm_lookup(srtm, &arg_token, (size_t)arg_idx,
-                NULL, NULL);
-            ossl_quic_srtm_check(srtm);
+            if (ossl_quic_srtm_lookup(srtm, &arg_token, (size_t)arg_idx,
+                    NULL, NULL))
+                ossl_quic_srtm_check(srtm);
             break;
 
         default:

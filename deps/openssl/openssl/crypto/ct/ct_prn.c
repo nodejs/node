@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,8 @@
 #ifdef OPENSSL_NO_CT
 #error "CT is disabled"
 #endif
+
+#include <stdio.h>
 
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
@@ -40,7 +42,7 @@ static void timestamp_print(uint64_t timestamp, BIO *out)
      * Note GeneralizedTime from ASN1_GENERALIZETIME_adj is always 15
      * characters long with a final Z. Update it with fractional seconds.
      */
-    BIO_snprintf(genstr, sizeof(genstr), "%.14s.%03dZ",
+    snprintf(genstr, sizeof(genstr), "%.14s.%03dZ",
         ASN1_STRING_get0_data(gen), (unsigned int)(timestamp % 1000));
     if (ASN1_GENERALIZEDTIME_set_string(gen, genstr))
         ASN1_GENERALIZEDTIME_print(out, gen);
@@ -82,7 +84,7 @@ void SCT_print(const SCT *sct, BIO *out, int indent,
 
     if (sct->version != SCT_VERSION_V1) {
         BIO_printf(out, "unknown\n%*s", indent + 16, "");
-        BIO_hex_string(out, indent + 16, 16, sct->sct, sct->sct_len);
+        BIO_hex_string(out, indent + 16, 16, sct->sct, (int)sct->sct_len);
         return;
     }
 
@@ -94,7 +96,7 @@ void SCT_print(const SCT *sct, BIO *out, int indent,
     }
 
     BIO_printf(out, "\n%*sLog ID    : ", indent + 4, "");
-    BIO_hex_string(out, indent + 16, 16, sct->log_id, sct->log_id_len);
+    BIO_hex_string(out, indent + 16, 16, sct->log_id, (int)sct->log_id_len);
 
     BIO_printf(out, "\n%*sTimestamp : ", indent + 4, "");
     timestamp_print(sct->timestamp, out);
@@ -103,12 +105,12 @@ void SCT_print(const SCT *sct, BIO *out, int indent,
     if (sct->ext_len == 0)
         BIO_printf(out, "none");
     else
-        BIO_hex_string(out, indent + 16, 16, sct->ext, sct->ext_len);
+        BIO_hex_string(out, indent + 16, 16, sct->ext, (int)sct->ext_len);
 
     BIO_printf(out, "\n%*sSignature : ", indent + 4, "");
     SCT_signature_algorithms_print(sct, out);
     BIO_printf(out, "\n%*s            ", indent + 4, "");
-    BIO_hex_string(out, indent + 16, 16, sct->sig, sct->sig_len);
+    BIO_hex_string(out, indent + 16, 16, sct->sig, (int)sct->sig_len);
 }
 
 void SCT_LIST_print(const STACK_OF(SCT) *sct_list, BIO *out, int indent,

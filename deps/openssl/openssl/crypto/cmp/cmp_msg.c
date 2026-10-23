@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -13,15 +13,7 @@
 
 #include "cmp_local.h"
 
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/asn1t.h>
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <internal/cms.h>
+#include <internal/cms.h> /* for ossl_cms_sign_encrypt() */
 
 OSSL_CMP_MSG *OSSL_CMP_MSG_new(OSSL_LIB_CTX *libctx, const char *propq)
 {
@@ -73,7 +65,7 @@ OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg)
 
 const char *ossl_cmp_bodytype_to_string(int type)
 {
-    static const char *type_names[] = {
+    static const char *const type_names[] = {
         "IR",
         "IP",
         "CR",
@@ -512,7 +504,7 @@ OSSL_CMP_MSG *ossl_cmp_certrep_new(OSSL_CMP_CTX *ctx, int bodytype,
     int certReqId, const OSSL_CMP_PKISI *si,
     X509 *cert, const EVP_PKEY *pkey,
     const X509 *encryption_recip,
-    STACK_OF(X509) *chain, STACK_OF(X509) *caPubs,
+    const STACK_OF(X509) *chain, STACK_OF(X509) *caPubs,
     int unprotectedErrors)
 {
     OSSL_CMP_MSG *msg = NULL;
@@ -832,13 +824,13 @@ OSSL_CMP_MSG *ossl_cmp_error_new(OSSL_CMP_CTX *ctx, const OSSL_CMP_PKISI *si,
             goto err;
         msg->body->value.error->errorDetails = ft;
         if (lib != NULL && *lib != '\0'
-            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, lib, -1))
+            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, lib, strlen(lib)))
             goto err;
         if (reason != NULL && *reason != '\0'
-            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, reason, -1))
+            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, reason, strlen(reason)))
             goto err;
         if (details != NULL
-            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, details, -1))
+            && !ossl_cmp_sk_ASN1_UTF8STRING_push_str(ft, details, strlen(details)))
             goto err;
     }
 

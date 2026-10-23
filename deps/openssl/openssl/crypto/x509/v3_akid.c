@@ -66,7 +66,8 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
         extlist = tmpextlist;
     }
     if (akeyid->serial) {
-        tmp = i2s_ASN1_OCTET_STRING(NULL, akeyid->serial);
+        tmp = i2s_ASN1_INTEGER(NULL, akeyid->serial);
+
         if (tmp == NULL) {
             ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
@@ -84,6 +85,13 @@ err:
     return NULL;
 }
 
+enum qualifier {
+    NEVER,
+    NONSS,
+    MAYBE,
+    GOTTO,
+};
+
 /*-
  * Three explicit tags may be given, where 'keyid' and 'issuer' may be combined:
  * 'none': do not add any authority key identifier.
@@ -97,7 +105,6 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
     X509V3_CTX *ctx,
     STACK_OF(CONF_VALUE) *values)
 {
-    char keyid = 0, issuer = 0;
     int i, n = sk_CONF_VALUE_num(values);
     CONF_VALUE *cnf;
     ASN1_OCTET_STRING *ikeyid = NULL;
@@ -105,33 +112,37 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
     GENERAL_NAMES *gens = NULL;
     GENERAL_NAME *gen = NULL;
     ASN1_INTEGER *serial = NULL;
-    X509_EXTENSION *ext;
+    const X509_EXTENSION *ext;
     X509 *issuer_cert;
     int same_issuer, ss;
     AUTHORITY_KEYID *akeyid = AUTHORITY_KEYID_new();
+    enum qualifier keyid = NEVER, issuer = NEVER;
 
     if (akeyid == NULL)
         goto err;
 
-    if (n == 1 && strcmp(sk_CONF_VALUE_value(values, 0)->name, "none") == 0) {
+    if (n == 1 && strcmp(sk_CONF_VALUE_value(values, 0)->name, "none") == 0)
         return akeyid;
-    }
 
     for (i = 0; i < n; i++) {
+        enum qualifier q = MAYBE;
+
         cnf = sk_CONF_VALUE_value(values, i);
-        if (cnf->value != NULL && strcmp(cnf->value, "always") != 0) {
-            ERR_raise_data(ERR_LIB_X509V3, X509V3_R_UNKNOWN_OPTION,
-                "name=%s option=%s", cnf->name, cnf->value);
-            goto err;
+        if (cnf->value != NULL && *cnf->value != '\0') {
+            if (strcmp(cnf->value, "always") == 0) {
+                q = GOTTO;
+            } else if (strcmp(cnf->value, "nonss") == 0) {
+                q = NONSS;
+            } else {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_UNKNOWN_OPTION,
+                    "name=%s option=%s", cnf->name, cnf->value);
+                goto err;
+            }
         }
-        if (strcmp(cnf->name, "keyid") == 0 && keyid == 0) {
-            keyid = 1;
-            if (cnf->value != NULL)
-                keyid = 2;
+        if (strcmp(cnf->name, "keyid") == 0 && keyid == NEVER) {
+            keyid = q;
         } else if (strcmp(cnf->name, "issuer") == 0 && issuer == 0) {
-            issuer = 1;
-            if (cnf->value != NULL)
-                issuer = 2;
+            issuer = q;
         } else if (strcmp(cnf->name, "none") == 0
             || strcmp(cnf->name, "keyid") == 0
             || strcmp(cnf->name, "issuer") == 0) {
@@ -164,44 +175,68 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
         ss = same_issuer;
     ERR_pop_to_mark();
 
-    /* unless forced with "always", AKID is suppressed for self-signed certs */
-    if (keyid == 2 || (keyid == 1 && !ss)) {
+    if (keyid > NONSS || (keyid == NONSS && !ss)) {
         /*
-         * prefer any pre-existing subject key identifier of the issuer cert
-         * except issuer cert is same as subject cert and is not self-signed
+         * The subject key identifier of the issuer cert is acceptable unless
+         * the issuer cert is same as subject cert, but the subject will not
+         * be self-signed (i.e. will be signed with a different key).
          */
         i = X509_get_ext_by_NID(issuer_cert, NID_subject_key_identifier, -1);
         if (i >= 0 && (ext = X509_get_ext(issuer_cert, i)) != NULL
             && !(same_issuer && !ss)) {
+
             if ((ikeyid = X509V3_EXT_d2i(ext)) == NULL)
                 goto err;
 
-            if (ASN1_STRING_length(ikeyid) == 0) /* indicating "none" */ {
+            /* Ignore empty keyids in the issuer cert */
+            if (ASN1_STRING_get_length(ikeyid) == 0) {
                 ASN1_OCTET_STRING_free(ikeyid);
                 ikeyid = NULL;
             }
         }
-        if (ikeyid == NULL && same_issuer && ctx->issuer_pkey != NULL) {
-            /* generate fallback AKID, emulating s2i_skey_id(..., "hash") */
+        /*
+         * If we have that other key in hand, synthesise a fallback AKID,
+         * emulating s2i_skey_id(..., "hash").
+         *
+         * When creating self-signed certificates, we do not synthesise
+         * best-effort keyids, instead the keyid needs be set first.  The
+         * X509V3_EXT_add_nconf_sk() function makes every effort to process the
+         * SKID before the AKID, but some callers may specify extensions
+         * piecemeal.  We don't want to mispredict it being set later and end
+         * up with a "dangling" AKID keyid.
+         */
+        if (ikeyid == NULL && same_issuer && !ss && ctx->issuer_pkey != NULL) {
             X509_PUBKEY *pubkey = NULL;
 
             if (X509_PUBKEY_set(&pubkey, ctx->issuer_pkey))
                 ikeyid = ossl_x509_pubkey_hash(pubkey);
             X509_PUBKEY_free(pubkey);
         }
-        if (keyid == 2 && ikeyid == NULL) {
+        if (keyid == GOTTO && ikeyid == NULL) {
             ERR_raise(ERR_LIB_X509V3, X509V3_R_UNABLE_TO_GET_ISSUER_KEYID);
             goto err;
         }
     }
 
-    if (issuer == 2 || (issuer == 1 && !ss && ikeyid == NULL)) {
-        isname = X509_NAME_dup(X509_get_issuer_name(issuer_cert));
-        serial = ASN1_INTEGER_dup(X509_get0_serialNumber(issuer_cert));
-        if (isname == NULL || serial == NULL) {
-            ERR_raise(ERR_LIB_X509V3, X509V3_R_UNABLE_TO_GET_ISSUER_DETAILS);
-            goto err;
+    /*
+     * When the same object is specified as both the issuer and subject
+     * certificate, but with a different (forced) issuer public key (so not
+     * self-signed), we don't have access to the true issuer certificate's
+     * serial number, so can't create an isser+serial AKID.
+     */
+    if (!same_issuer || ss) {
+        if (issuer == GOTTO
+            || (ikeyid == NULL
+                && (issuer == MAYBE
+                    || (issuer == NONSS && !ss)))) {
+            isname = X509_NAME_dup(X509_get_issuer_name(issuer_cert));
+            serial = ASN1_INTEGER_dup(X509_get0_serialNumber(issuer_cert));
         }
+    }
+    /* "always" fails unless both issuer and serial are available */
+    if (issuer == GOTTO && (isname == NULL || serial == NULL)) {
+        ERR_raise(ERR_LIB_X509V3, X509V3_R_UNABLE_TO_GET_ISSUER_DETAILS);
+        goto err;
     }
 
     if (isname != NULL) {

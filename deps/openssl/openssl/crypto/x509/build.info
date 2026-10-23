@@ -23,3 +23,5 @@ SOURCE[../../libcrypto]=\
 IF[{- !$disabled{'deprecated-3.0'} -}]
   SOURCE[../../libcrypto]=x509type.c
 ENDIF
+
+DEPEND[v3_purp.o]=../objects/obj_dat.h

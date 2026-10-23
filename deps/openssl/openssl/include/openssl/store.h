@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -160,6 +160,7 @@ OSSL_STORE_CTX *OSSL_STORE_attach(BIO *bio, const char *scheme,
 #define OSSL_STORE_INFO_PKEY 4 /* EVP_PKEY * */
 #define OSSL_STORE_INFO_CERT 5 /* X509 * */
 #define OSSL_STORE_INFO_CRL 6 /* X509_CRL * */
+#define OSSL_STORE_INFO_SKEY 7 /* EVP_SKEY * */
 
 /*
  * Functions to generate OSSL_STORE_INFOs, one function for each type we
@@ -176,6 +177,7 @@ OSSL_STORE_INFO *OSSL_STORE_INFO_new_PUBKEY(EVP_PKEY *pubkey);
 OSSL_STORE_INFO *OSSL_STORE_INFO_new_PKEY(EVP_PKEY *pkey);
 OSSL_STORE_INFO *OSSL_STORE_INFO_new_CERT(X509 *x509);
 OSSL_STORE_INFO *OSSL_STORE_INFO_new_CRL(X509_CRL *crl);
+OSSL_STORE_INFO *OSSL_STORE_INFO_new_SKEY(EVP_SKEY *skey);
 
 /*
  * Functions to try to extract data from a OSSL_STORE_INFO.
@@ -196,6 +198,8 @@ X509 *OSSL_STORE_INFO_get0_CERT(const OSSL_STORE_INFO *info);
 X509 *OSSL_STORE_INFO_get1_CERT(const OSSL_STORE_INFO *info);
 X509_CRL *OSSL_STORE_INFO_get0_CRL(const OSSL_STORE_INFO *info);
 X509_CRL *OSSL_STORE_INFO_get1_CRL(const OSSL_STORE_INFO *info);
+EVP_SKEY *OSSL_STORE_INFO_get0_SKEY(const OSSL_STORE_INFO *info);
+EVP_SKEY *OSSL_STORE_INFO_get1_SKEY(const OSSL_STORE_INFO *info);
 
 const char *OSSL_STORE_INFO_type_string(int type);
 
@@ -223,8 +227,8 @@ int OSSL_STORE_supports_search(OSSL_STORE_CTX *ctx, int search_type);
  * The input is considered to be owned by the caller, and must therefore
  * remain present throughout the lifetime of the returned OSSL_STORE_SEARCH
  */
-OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(X509_NAME *name);
-OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_issuer_serial(X509_NAME *name,
+OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(const X509_NAME *name);
+OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_issuer_serial(const X509_NAME *name,
     const ASN1_INTEGER
         *serial);
 OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_key_fingerprint(const EVP_MD *digest,
@@ -238,7 +242,7 @@ void OSSL_STORE_SEARCH_free(OSSL_STORE_SEARCH *search);
 
 /* Search term accessors */
 int OSSL_STORE_SEARCH_get_type(const OSSL_STORE_SEARCH *criterion);
-X509_NAME *OSSL_STORE_SEARCH_get0_name(const OSSL_STORE_SEARCH *criterion);
+const X509_NAME *OSSL_STORE_SEARCH_get0_name(const OSSL_STORE_SEARCH *criterion);
 const ASN1_INTEGER *OSSL_STORE_SEARCH_get0_serial(const OSSL_STORE_SEARCH
         *criterion);
 const unsigned char *OSSL_STORE_SEARCH_get0_bytes(const OSSL_STORE_SEARCH
@@ -259,8 +263,6 @@ int OSSL_STORE_find(OSSL_STORE_CTX *ctx, const OSSL_STORE_SEARCH *search);
  *  ---------------------------------------------------
  */
 
-typedef struct ossl_store_loader_st OSSL_STORE_LOADER;
-
 OSSL_STORE_LOADER *OSSL_STORE_LOADER_fetch(OSSL_LIB_CTX *libctx,
     const char *scheme,
     const char *properties);
@@ -279,6 +281,8 @@ void OSSL_STORE_LOADER_do_all_provided(OSSL_LIB_CTX *libctx,
 int OSSL_STORE_LOADER_names_do_all(const OSSL_STORE_LOADER *loader,
     void (*fn)(const char *name, void *data),
     void *data);
+const OSSL_PARAM *
+OSSL_STORE_LOADER_settable_ctx_params(const OSSL_STORE_LOADER *loader);
 
 /*-
  *  Function to register a loader for the given URI scheme.
@@ -312,7 +316,8 @@ typedef int (*OSSL_STORE_close_fn)(OSSL_STORE_LOADER_CTX *ctx);
 #endif
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0
-OSSL_STORE_LOADER *OSSL_STORE_LOADER_new(ENGINE *e, const char *scheme);
+OSSL_STORE_LOADER *OSSL_STORE_LOADER_new(ENGINE *e /* must be NULL */,
+    const char *scheme);
 OSSL_DEPRECATEDIN_3_0
 int OSSL_STORE_LOADER_set_open(OSSL_STORE_LOADER *loader,
     OSSL_STORE_open_fn open_function);
@@ -343,8 +348,6 @@ int OSSL_STORE_LOADER_set_error(OSSL_STORE_LOADER *loader,
 OSSL_DEPRECATEDIN_3_0
 int OSSL_STORE_LOADER_set_close(OSSL_STORE_LOADER *loader,
     OSSL_STORE_close_fn close_function);
-OSSL_DEPRECATEDIN_3_0
-const ENGINE *OSSL_STORE_LOADER_get0_engine(const OSSL_STORE_LOADER *loader);
 OSSL_DEPRECATEDIN_3_0
 const char *OSSL_STORE_LOADER_get0_scheme(const OSSL_STORE_LOADER *loader);
 OSSL_DEPRECATEDIN_3_0

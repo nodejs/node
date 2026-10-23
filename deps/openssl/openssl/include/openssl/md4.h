@@ -34,7 +34,7 @@ extern "C" {
  * ! MD4_LONG has to be at least 32 bits wide.                     !
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  */
-#define MD4_LONG unsigned int
+typedef unsigned int MD4_LONG;
 
 #define MD4_CBLOCK 64
 #define MD4_LBLOCK (MD4_CBLOCK / 4)

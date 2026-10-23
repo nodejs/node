@@ -55,26 +55,6 @@ option to `./Configure`.
 TNS/E has moved to a limited support state, so fixes for this platform will not
 be guaranteed in future.
 
-Linking and Loading Considerations
-----------------------------------
-
-Because of how the NonStop Common Runtime Environment (CRE) works, there are
-restrictions on how programs can link and load with OpenSSL libraries.
-On current NonStop platforms, programs cannot both statically link OpenSSL
-libraries and dynamically load OpenSSL shared libraries concurrently. If this
-is done, there is a high probability of encountering a SIGSEGV condition
-relating to `atexit()` processing when a shared library is unloaded and when
-the program terminates. This limitation applies to all OpenSSL shared library
-components.
-
-A control has been added as of 3.3.x to disable calls to `atexit()` within the
-`libcrypto` builds (specifically in `crypto/init.c`). This switch can be
-controlled using `disable-atexit` or `enable-atexit`, and is disabled by default
-for NonStop builds. If you need to have `atexit()` functionality, set
-`enabled-atexit` when configuring OpenSSL to enable the `atexit()` call to
-register `OPENSSL_cleanup()` automatically. Preferably, you can explicitly call
-`OPENSSL_cleanup()` from your application.
-
 Secure Memory
 -------------
 
@@ -187,7 +167,7 @@ the following variables. The following set of compiler defines are required:
 ### Optional Build Variables
 
     DBGFLAG="--debug"
-    CIPHENABLES="enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-rc4"
+    CIPHENABLES="enable-weak-ssl-ciphers enable-rc4"
 
 ### Internal Known TNS/X to TNS/E Cross Compile Variables
 

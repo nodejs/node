@@ -1,26 +1,44 @@
 /*
- * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+#if !defined(OSSL_LIBCRYPTO_X509_X509_LOCAL_H)
+#define OSSL_LIBCRYPTO_X509_X509_LOCAL_H
+
+#include <openssl/safestack.h>
+#include <openssl/x509_vfy.h>
 
 #include "internal/refcount.h"
+#include "internal/hashtable.h"
+
+#include <crypto/asn1.h>
 
 #define X509V3_conf_add_error_name_value(val) \
     ERR_add_error_data(4, "name=", (val)->name, ", value=", (val)->value)
+
+/*
+ * Really all I want is CRYPTO_BUFFER from BoringSSL, but let's just do this
+ * for now.
+ */
+typedef struct ossl_x509_buffer_st {
+    const uint8_t *data;
+    size_t len;
+} X509_BUFFER;
+
+DEFINE_STACK_OF(X509_BUFFER)
 
 /*
  * This structure holds all parameters associated with a verify operation by
  * including an X509_VERIFY_PARAM structure in related structures the
  * parameters used can be customized
  */
-
 struct X509_VERIFY_PARAM_st {
     char *name;
-    time_t check_time; /* Time to use */
+    int64_t check_time; /* Time to use */
     uint32_t inh_flags; /* Inheritance flags */
     unsigned long flags; /* Various verify flags */
     int purpose; /* purpose to check untrusted certificates */
@@ -29,13 +47,16 @@ struct X509_VERIFY_PARAM_st {
     int auth_level; /* Security level for chain verification */
     STACK_OF(ASN1_OBJECT) *policies; /* Permissible policies */
     /* Peer identity details */
-    STACK_OF(OPENSSL_STRING) *hosts; /* Set of acceptable names */
+    STACK_OF(X509_BUFFER) *hosts; /* Set of acceptable names */
+    int (*validate_host)(const char *name, size_t len);
+    STACK_OF(X509_BUFFER) *ips; /* Set of acceptable ip addresses */
+    int (*validate_ip)(const uint8_t *name, size_t len);
+    STACK_OF(X509_BUFFER) *rfc822s; /* Set of acceptable RFC 822 names */
+    int (*validate_rfc822)(const char *name, size_t len);
+    STACK_OF(X509_BUFFER) *smtputf8s; /* Set of acceptable SMTP Utf8 names */
+    int (*validate_smtputf8)(const char *name, size_t len);
     unsigned int hostflags; /* Flags to control matching features */
     char *peername; /* Matching hostname in peer certificate */
-    char *email; /* If not NULL email address to match */
-    size_t emaillen;
-    unsigned char *ip; /* If not NULL IP address to match */
-    size_t iplen; /* Length of IP address */
 };
 
 /* No error callback if depth < 0 */
@@ -106,6 +127,11 @@ struct x509_lookup_st {
     X509_STORE *store_ctx; /* who owns us */
 };
 
+HT_START_KEY_DEFN(objs_key)
+HT_DEF_KEY_FIELD(xn_canon, unsigned char *)
+HT_DEF_KEY_FIELD(xn_canon_enclen, int)
+HT_END_KEY_DEFN(OBJS_KEY)
+
 /*
  * This is used to hold everything.  It is used for all certificate
  * validation.  Once we have a certificate chain, the 'verify' function is
@@ -114,7 +140,13 @@ struct x509_lookup_st {
 struct x509_store_st {
     /* The following is a cache of trusted certs */
     int cache; /* if true, stash any hits */
-    STACK_OF(X509_OBJECT) *objs; /* Cache of all objects */
+    /* Maps X509_NAME -> STACK_OF(X509_OBJECT) */
+    HT *objs_ht;
+    /*
+     * Deprecated. Used only in the X509_STORE_get0_objects() for backward
+     * compatibility.
+     */
+    STACK_OF(X509_OBJECT) *objs;
     /* These are external lookup methods */
     STACK_OF(X509_LOOKUP) *get_cert_methods;
     X509_VERIFY_PARAM *param;
@@ -124,9 +156,9 @@ struct x509_store_st {
     /* error callback */
     int (*verify_cb)(int ok, X509_STORE_CTX *ctx);
     /* get issuers cert from ctx */
-    int (*get_issuer)(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
+    X509_STORE_CTX_get_issuer_fn get_issuer;
     /* check issued */
-    int (*check_issued)(X509_STORE_CTX *ctx, X509 *x, X509 *issuer);
+    X509_STORE_CTX_check_issued_fn check_issued;
     /* Check revocation status of chain */
     int (*check_revocation)(X509_STORE_CTX *ctx);
     /* retrieve CRL */
@@ -137,9 +169,8 @@ struct x509_store_st {
     int (*cert_crl)(X509_STORE_CTX *ctx, X509_CRL *crl, X509 *x);
     /* Check policy status of the chain */
     int (*check_policy)(X509_STORE_CTX *ctx);
-    STACK_OF(X509) *(*lookup_certs)(X509_STORE_CTX *ctx,
+    STACK_OF(X509) *(*lookup_certs)(const X509_STORE_CTX *ctx,
         const X509_NAME *nm);
-    /* cannot constify 'ctx' param due to lookup_certs_sk() in x509_vfy.c */
     STACK_OF(X509_CRL) *(*lookup_crls)(const X509_STORE_CTX *ctx,
         const X509_NAME *nm);
     int (*cleanup)(X509_STORE_CTX *ctx);
@@ -155,8 +186,17 @@ DEFINE_STACK_OF(BY_DIR_ENTRY)
 typedef STACK_OF(X509_NAME_ENTRY) STACK_OF_X509_NAME_ENTRY;
 DEFINE_STACK_OF(STACK_OF_X509_NAME_ENTRY)
 
-int ossl_x509_likely_issued(X509 *issuer, X509 *subject);
+int ossl_ignored_x509_extension(const X509_EXTENSION *ex, int flags);
+int ossl_x509_likely_issued(const X509 *issuer, const X509 *subject);
 int ossl_x509_signing_allowed(const X509 *issuer, const X509 *subject);
 int ossl_x509_store_ctx_get_by_subject(const X509_STORE_CTX *ctx, X509_LOOKUP_TYPE type,
     const X509_NAME *name, X509_OBJECT *ret);
-int ossl_x509_store_read_lock(X509_STORE *xs);
+__owur int ossl_x509_store_read_lock(X509_STORE *xs);
+STACK_OF(X509_OBJECT) *ossl_x509_store_ht_get_by_name(const X509_STORE *store,
+    const X509_NAME *xn);
+int ossl_x509_check_rfc822(X509 *x, const char *chk, size_t chklen,
+    unsigned int flags);
+int ossl_x509_check_smtputf8(X509 *x, const char *chk, size_t chklen,
+    unsigned int flags);
+
+#endif /* !defined(OSSL_LIBCRYPTO_X509_X509_LOCAL_H) */

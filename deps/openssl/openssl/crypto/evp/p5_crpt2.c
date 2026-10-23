@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,24 +19,26 @@
 #include "crypto/evp.h"
 #include "evp_local.h"
 
+#include <crypto/asn1.h>
+
 int ossl_pkcs5_pbkdf2_hmac_ex(const char *pass, int passlen,
     const unsigned char *salt, int saltlen, int iter,
     const EVP_MD *digest, int keylen, unsigned char *out,
     OSSL_LIB_CTX *libctx, const char *propq)
 {
     const char *empty = "";
-    int rv = 1, mode = 1;
+    int rv = 1;
     EVP_KDF *kdf;
     EVP_KDF_CTX *kctx;
     const char *mdname = EVP_MD_get0_name(digest);
-    OSSL_PARAM params[6], *p = params;
+    OSSL_PARAM params[5], *p = params;
 
     /* Keep documented behaviour. */
     if (pass == NULL) {
         pass = empty;
         passlen = 0;
     } else if (passlen == -1) {
-        passlen = strlen(pass);
+        passlen = (int)strlen(pass);
     }
     if (salt == NULL && saltlen == 0)
         salt = (unsigned char *)empty;
@@ -50,7 +52,6 @@ int ossl_pkcs5_pbkdf2_hmac_ex(const char *pass, int passlen,
         return 0;
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,
         (char *)pass, (size_t)passlen);
-    *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_PKCS5, &mode);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
         (unsigned char *)salt, saltlen);
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_ITER, &iter);
@@ -117,8 +118,7 @@ int PKCS5_v2_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
 {
     PBE2PARAM *pbe2 = NULL;
     char ciph_name[80];
-    const EVP_CIPHER *cipher = NULL;
-    EVP_CIPHER *cipher_fetch = NULL;
+    EVP_CIPHER *cipher = NULL;
     EVP_PBE_KEYGEN_EX *kdf;
 
     int rv = 0;
@@ -144,11 +144,7 @@ int PKCS5_v2_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
         goto err;
     }
 
-    (void)ERR_set_mark();
-    cipher = cipher_fetch = EVP_CIPHER_fetch(libctx, ciph_name, propq);
-    /* Fallback to legacy method */
-    if (cipher == NULL)
-        cipher = EVP_get_cipherbyname(ciph_name);
+    cipher = EVP_CIPHER_fetch(libctx, ciph_name, propq);
 
     if (cipher == NULL) {
         (void)ERR_clear_last_mark();
@@ -166,7 +162,7 @@ int PKCS5_v2_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
     }
     rv = kdf(ctx, pass, passlen, pbe2->keyfunc->parameter, NULL, NULL, en_de, libctx, propq);
 err:
-    EVP_CIPHER_free(cipher_fetch);
+    EVP_CIPHER_free(cipher);
     PBE2PARAM_free(pbe2);
     return rv;
 }
@@ -189,8 +185,7 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
     unsigned int keylen = 0;
     int prf_nid, hmac_md_nid;
     PBKDF2PARAM *kdf = NULL;
-    const EVP_MD *prfmd = NULL;
-    EVP_MD *prfmd_fetch = NULL;
+    EVP_MD *prfmd = NULL;
 
     if (EVP_CIPHER_CTX_get0_cipher(ctx) == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_NO_CIPHER_SET);
@@ -232,16 +227,11 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
         goto err;
     }
 
-    (void)ERR_set_mark();
-    prfmd = prfmd_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(hmac_md_nid), propq);
-    if (prfmd == NULL)
-        prfmd = EVP_get_digestbynid(hmac_md_nid);
+    prfmd = EVP_MD_fetch(libctx, OBJ_nid2sn(hmac_md_nid), propq);
     if (prfmd == NULL) {
-        (void)ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_PRF);
         goto err;
     }
-    (void)ERR_pop_to_mark();
 
     if (kdf->salt->type != V_ASN1_OCTET_STRING) {
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_SALT_TYPE);
@@ -259,7 +249,7 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
 err:
     OPENSSL_cleanse(key, keylen);
     PBKDF2PARAM_free(kdf);
-    EVP_MD_free(prfmd_fetch);
+    EVP_MD_free(prfmd);
     return rv;
 }
 

@@ -11,7 +11,8 @@ libdir={- if (defined $OpenSSL::safe::installdata::LIBDIR_REL_PREFIX[0]) {
           } -}
 includedir={- $OUT = '';
               $OUT .= '${prefix}/' . $_ . ' '
-                  foreach (@OpenSSL::safe::installdata::INCLUDEDIR_REL_PREFIX); -}
+                  foreach (@OpenSSL::safe::installdata::INCLUDEDIR_REL_PREFIX);
+              $OUT =~ s/\s+\z//; -}
 
 Name: OpenSSL-libssl
 Description: Secure Sockets Layer and cryptography libraries
@@ -23,4 +24,5 @@ Cflags:{- $OUT = ' -I${includedir}';
               $OUT = '';
               $OUT .= ' -I${prefix}/' . $_ . ' '
                   foreach (@OpenSSL::safe::installdata::INCLUDEDIR_REL_PREFIX);
+              $OUT =~ s/\s+\z//;
           } -}

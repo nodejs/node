@@ -1,9 +1,9 @@
 .explicit
 .text
 .ident	"ia64.S, Version 2.1"
-.ident	"IA-64 ISA artwork by Andy Polyakov <appro@openssl.org>"
+.ident	"IA-64 ISA artwork by Andy Polyakov <https://github.com/dot-asm>"
 
-// Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 
 //
 // ====================================================================
-// Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 // project.
 //
 // Rights for redistribution and usage in source and binary forms are
