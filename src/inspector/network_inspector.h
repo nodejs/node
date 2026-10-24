@@ -34,7 +34,6 @@ class NetworkInspector {
 
  private:
   bool enabled_;
-  Environment* env_;
   std::unique_ptr<NetworkAgent> network_agent_;
   std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
