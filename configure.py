@@ -2451,10 +2451,9 @@ def configure_quic(o):
 
 def configure_dtls(o):
   if options.experimental_dtls and options.without_ssl:
-    warn('--experimental-dtls is incompatible with --without-ssl')
+    error('--experimental-dtls is incompatible with --without-ssl')
 
-  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
-                                      not options.without_ssl)
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls)
 
 def configure_static(o):
   if options.fully_static or options.partly_static:
