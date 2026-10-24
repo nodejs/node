@@ -43,6 +43,13 @@
                     nullptr)
 #endif
 
+// Ubuntu 22.04's default libssl-dev still lacks EVP_PKEY_PRIVATE_KEY when
+// fully updated. The macro was added upstream in OpenSSL 3.0.12.
+#if NCRYPTO_USE_OPENSSL3_PROVIDER && !defined(EVP_PKEY_PRIVATE_KEY)
+#define EVP_PKEY_PRIVATE_KEY                                                   \
+  (EVP_PKEY_KEY_PARAMETERS | OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
+#endif
+
 namespace ncrypto {
 namespace {
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
