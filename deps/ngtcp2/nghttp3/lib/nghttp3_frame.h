@@ -323,6 +323,8 @@ size_t nghttp3_frame_write_cpsl_wt_close_session_len(
  *
  * NGHTTP3_ERR_NOMEM
  *     Out of memory.
+ * NGHTTP3_ERR_INVALID_ARGUMENT
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 int nghttp3_nva_copy(nghttp3_nv **pnva, const nghttp3_nv *nva, size_t nvlen,
                      const nghttp3_mem *mem);

@@ -174,8 +174,8 @@ size_t nghttp3_frame_write_cpsl_wt_close_session_len(
 int nghttp3_nva_copy(nghttp3_nv **pnva, const nghttp3_nv *nva, size_t nvlen,
                      const nghttp3_mem *mem) {
   size_t i;
-  uint8_t *data = NULL;
-  size_t buflen = 0;
+  uint8_t *data;
+  size_t buflen;
   nghttp3_nv *p;
 
   if (nvlen == 0) {
@@ -184,17 +184,31 @@ int nghttp3_nva_copy(nghttp3_nv **pnva, const nghttp3_nv *nva, size_t nvlen,
     return 0;
   }
 
+  if (sizeof(nghttp3_nv) > SIZE_MAX / nvlen) {
+    return NGHTTP3_ERR_INVALID_ARGUMENT;
+  }
+
+  buflen = sizeof(nghttp3_nv) * nvlen;
+
   for (i = 0; i < nvlen; ++i) {
     /* + 1 for null-termination */
     if ((nva[i].flags & NGHTTP3_NV_FLAG_NO_COPY_NAME) == 0) {
+      if (nva[i].namelen == SIZE_MAX ||
+          buflen > SIZE_MAX - nva[i].namelen - 1) {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
       buflen += nva[i].namelen + 1;
     }
     if ((nva[i].flags & NGHTTP3_NV_FLAG_NO_COPY_VALUE) == 0) {
+      if (nva[i].valuelen == SIZE_MAX ||
+          buflen > SIZE_MAX - nva[i].valuelen - 1) {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
       buflen += nva[i].valuelen + 1;
     }
   }
-
-  buflen += sizeof(nghttp3_nv) * nvlen;
 
   *pnva = nghttp3_mem_malloc(mem, buflen);
 
@@ -207,30 +221,28 @@ int nghttp3_nva_copy(nghttp3_nv **pnva, const nghttp3_nv *nva, size_t nvlen,
 
   for (i = 0; i < nvlen; ++i) {
     p->flags = nva[i].flags;
+    p->namelen = nva[i].namelen;
+    p->valuelen = nva[i].valuelen;
 
     if (nva[i].flags & NGHTTP3_NV_FLAG_NO_COPY_NAME) {
       p->name = nva[i].name;
-      p->namelen = nva[i].namelen;
     } else {
       if (nva[i].namelen) {
         memcpy(data, nva[i].name, nva[i].namelen);
         nghttp3_downcase(data, nva[i].namelen);
       }
       p->name = data;
-      p->namelen = nva[i].namelen;
       data[p->namelen] = '\0';
       data += nva[i].namelen + 1;
     }
 
     if (nva[i].flags & NGHTTP3_NV_FLAG_NO_COPY_VALUE) {
       p->value = nva[i].value;
-      p->valuelen = nva[i].valuelen;
     } else {
       if (nva[i].valuelen) {
         memcpy(data, nva[i].value, nva[i].valuelen);
       }
       p->value = data;
-      p->valuelen = nva[i].valuelen;
       data[p->valuelen] = '\0';
       data += nva[i].valuelen + 1;
     }

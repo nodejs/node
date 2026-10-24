@@ -1264,6 +1264,13 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
         break;
       }
 
+      /* Apply buffer limits here even if everything is in the input
+         buffer. */
+      if (rstate->left > sizeof(conn->rx.pri_fieldbuf)) {
+        rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
+        break;
+      }
+
       conn->rx.pri_fieldbuflen = 0;
 
       rstate->state = NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE;
@@ -1279,22 +1286,12 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
       len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
       assert(len > 0);
       if (conn->rx.pri_fieldbuflen == 0 && rstate->left == len) {
-        /* Everything is in the input buffer.  Apply same length
-           limit we impose when buffering the field. */
-        if (len > sizeof(conn->rx.pri_fieldbuf)) {
-          busy = 1;
-          rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
-          break;
-        }
-
+        /* Everything is in the input buffer. */
         pri_field_value = p;
         pri_field_valuelen = len;
-      } else if (len + conn->rx.pri_fieldbuflen >
-                 sizeof(conn->rx.pri_fieldbuf)) {
-        busy = 1;
-        rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
-        break;
       } else {
+        assert(len + conn->rx.pri_fieldbuflen <= sizeof(conn->rx.pri_fieldbuf));
+
         memcpy(conn->rx.pri_fieldbuf + conn->rx.pri_fieldbuflen, p, len);
         conn->rx.pri_fieldbuflen += len;
 

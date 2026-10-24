@@ -3238,6 +3238,8 @@ typedef struct nghttp3_data_reader {
  *     Stream has already been opened.
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_request(
   nghttp3_conn *conn, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen,
@@ -3257,6 +3259,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_request(
  *     Stream not found
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_info(nghttp3_conn *conn,
                                             int64_t stream_id,
@@ -3279,6 +3283,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_info(nghttp3_conn *conn,
  *     Stream not found
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_response(nghttp3_conn *conn,
                                                 int64_t stream_id,
@@ -3303,6 +3309,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_response(nghttp3_conn *conn,
  *     Application has already submitted fin to stream.
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_trailers(nghttp3_conn *conn,
                                                 int64_t stream_id,
