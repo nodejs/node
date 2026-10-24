@@ -195,7 +195,8 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
   // a sidecar does not inherit permission when opened as a main database.
   const code = `const { DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(process.env.DB_PATH);
-    db.exec("ATTACH DATABASE '" + process.env.ATTACH_PATH + "' AS outside");`;
+    const attachPath = process.env.ATTACH_PATH.replaceAll("'", "''");
+    db.exec("ATTACH DATABASE '" + attachPath + "' AS outside");`;
   for (const attachPath of [deniedPath, suffixDbPath]) {
     const { status, stderr } = run(
       code,
