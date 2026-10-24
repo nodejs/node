@@ -297,8 +297,10 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module and custom `--require` modules has a implicit
-read permission.
+The initializer module and custom `--require` modules have an implicit
+read permission. The entrypoint is granted as passed on the command line,
+without the module loader's resolution; see the [File System Permissions][]
+documentation for details.
 
 ```console
 $ node --permission -r custom-require.js -r custom-require-2.js index.js
