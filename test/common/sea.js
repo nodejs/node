@@ -93,17 +93,17 @@ function buildSEA(fixtureDir, options = {}) {
     fs.cpSync(fixtureDir, workingDir, { recursive: true });
   }
 
-  // Parse the config to get the output file path, if on Windows, ensure it ends with .exe
   const config = JSON.parse(fs.readFileSync(path.resolve(workingDir, configPath)));
   assert.strictEqual(typeof config.output, 'string');
-  if (process.platform === 'win32') {
-    if (!config.output.endsWith('.exe')) {
-      config.output += '.exe';
-    }
-    if (config.executable && !config.executable.endsWith('.exe')) {
-      config.executable += '.exe';
-    }
-    fs.writeFileSync(path.resolve(workingDir, configPath), JSON.stringify(config, null, 2));
+
+  if (process.platform === 'win32' &&
+      config.executable &&
+      !config.executable.endsWith('.exe')) {
+    config.executable += '.exe';
+    fs.writeFileSync(
+      path.resolve(workingDir, configPath),
+      JSON.stringify(config, null, 2),
+    );
   }
 
   // Build the SEA.
@@ -127,7 +127,13 @@ function buildSEA(fixtureDir, options = {}) {
     return child;
   }
 
-  const outputFile = path.resolve(workingDir, config.output);
+  let output = config.output;
+  if (process.platform === 'win32' &&
+      !output.toLowerCase().endsWith('.exe')) {
+    output += '.exe';
+  }
+
+  const outputFile = path.resolve(workingDir, output);
   assert(fs.existsSync(outputFile), `Expected SEA output file ${outputFile} to exist`);
   signSEA(outputFile, verifyWorkflow);
   return outputFile;
