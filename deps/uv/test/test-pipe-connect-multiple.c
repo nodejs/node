@@ -73,6 +73,7 @@ TEST_IMPL(pipe_connect_multiple) {
 #if defined(NO_SELF_CONNECT)
   RETURN_SKIP(NO_SELF_CONNECT);
 #endif
+  RETURN_SKIP_IN_APPCONTAINER("flaky crash in child process spawning");
   int i;
   int r;
   uv_loop_t* loop;
@@ -139,6 +140,7 @@ TEST_IMPL(pipe_connect_close_multiple) {
 #if defined(NO_SELF_CONNECT)
   RETURN_SKIP(NO_SELF_CONNECT);
 #endif
+  RETURN_SKIP_IN_APPCONTAINER("flaky crash in child process spawning");
   int i;
   int r;
   uv_loop_t* loop;

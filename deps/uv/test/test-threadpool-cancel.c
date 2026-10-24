@@ -23,6 +23,10 @@
 #include "task.h"
 #include <string.h>
 
+#ifdef __linux__
+# include <unistd.h>
+#endif
+
 #ifdef _WIN32
 # define putenv _putenv
 #endif
@@ -53,6 +57,12 @@ static unsigned done2_cb_called;
 static unsigned timer_cb_called;
 static uv_work_t pause_reqs[4];
 static uv_sem_t pause_sems[ARRAY_SIZE(pause_reqs)];
+
+#ifdef __linux__
+static uv_fs_t iouring_fs_req;
+static ssize_t iouring_fs_result;
+static int iouring_cancel_result;
+#endif
 
 
 static void work_cb(uv_work_t* req) {
@@ -97,7 +107,7 @@ static int known_broken(uv_req_t* req) {
     return 0;
 
 #ifdef __linux__
-  /* TODO(bnoordhuis) make cancellation work with io_uring */
+  /* io_uring requests may complete before the cancel timer fires. */
   switch (((uv_fs_t*) req)->fs_type) {
     case UV_FS_CLOSE:
     case UV_FS_FDATASYNC:
@@ -130,6 +140,29 @@ static void fs_cb(uv_fs_t* req) {
   uv_fs_req_cleanup(req);
   fs_cb_called++;
 }
+
+#ifdef __linux__
+static void iouring_fs_cb(uv_fs_t* req) {
+  iouring_fs_result = req->result;
+  uv_fs_req_cleanup(req);
+  fs_cb_called++;
+}
+
+static void iouring_cancel_cb(uv_timer_t* handle) {
+  int* fd;
+
+  iouring_cancel_result = uv_cancel((uv_req_t*) &iouring_fs_req);
+  if (iouring_cancel_result == UV_EBUSY) {
+    fd = handle->data;
+    ASSERT_OK(close(*fd));
+    *fd = -1;
+  } else {
+    ASSERT_OK(iouring_cancel_result);
+  }
+
+  uv_close((uv_handle_t*) handle, NULL);
+}
+#endif
 
 
 static void getaddrinfo_cb(uv_getaddrinfo_t* req,
@@ -367,6 +400,70 @@ TEST_FS_IMPL(threadpool_cancel_fs) {
 
   MAKE_VALGRIND_HAPPY(loop);
   return 0;
+}
+
+TEST_IMPL(threadpool_cancel_fs_iouring_sync_cancel) {
+#ifdef __linux__
+  char env[] = "UV_USE_IO_URING=1";
+  char buf[1];
+  uv_loop_t* loop;
+  uv_timer_t timer;
+  uv_buf_t iov;
+  int pipefd[2];
+
+  ASSERT_OK(putenv(env));
+
+  loop = uv_default_loop();
+  ASSERT_OK(uv_loop_configure(loop, UV_LOOP_USE_IO_URING_SQPOLL));
+  ASSERT_OK(pipe(pipefd));
+
+  iov = uv_buf_init(buf, sizeof(buf));
+
+  ASSERT_OK(uv_fs_read(loop,
+                       &iouring_fs_req,
+                       pipefd[0],
+                       &iov,
+                       1,
+                       -1,
+                       iouring_fs_cb));
+
+  if (iouring_fs_req.work_req.done != NULL) {
+    ASSERT_OK(close(pipefd[1]));
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_EQ(iouring_fs_result, 0);
+    ASSERT_EQ(fs_cb_called, 1);
+    ASSERT_OK(close(pipefd[0]));
+
+    MAKE_VALGRIND_HAPPY(loop);
+    RETURN_SKIP("io_uring is not available.");
+  }
+
+  ASSERT_OK(uv_timer_init(loop, &timer));
+  timer.data = &pipefd[1];
+  ASSERT_OK(uv_timer_start(&timer, iouring_cancel_cb, 10, 0));
+
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  if (iouring_cancel_result == UV_EBUSY) {
+    ASSERT_EQ(iouring_fs_result, 0);
+    ASSERT_EQ(fs_cb_called, 1);
+    ASSERT_OK(close(pipefd[0]));
+
+    MAKE_VALGRIND_HAPPY(loop);
+    RETURN_SKIP("Synchronous io_uring cancellation is not available.");
+  }
+
+  ASSERT_EQ(fs_cb_called, 1);
+  ASSERT_EQ(iouring_fs_result, UV_ECANCELED);
+
+  ASSERT_OK(close(pipefd[0]));
+  ASSERT_OK(close(pipefd[1]));
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+#else
+  RETURN_SKIP("Not on Linux.");
+#endif
 }
 
 

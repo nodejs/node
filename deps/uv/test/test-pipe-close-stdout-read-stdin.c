@@ -81,6 +81,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     close(0);
     r = dup(fd[0]);
     ASSERT_NE(r, -1);
+    /* fd 0 is the descriptor uv_pipe_open() takes over below. */
+    ASSERT_OK(close(fd[0]));
 
     /* Create a stream that reads from the pipe. */
     r = uv_pipe_init(uv_default_loop(), (uv_pipe_t *)&stdin_pipe, 0);

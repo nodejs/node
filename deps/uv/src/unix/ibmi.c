@@ -174,7 +174,8 @@ static void iconv_a2e(const char* src, unsigned char dst[], size_t length) {
 }
 
 void init_process_title_mutex_once(void) {
-  uv_mutex_init(&process_title_mutex);
+  if (uv_mutex_init(&process_title_mutex))
+    abort();
 }
 
 static int get_ibmi_system_status(SSTS0200* rcvr) {
