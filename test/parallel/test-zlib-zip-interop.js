@@ -81,9 +81,18 @@ test('an archive written by createZipArchive is readable by unzip, zipinfo, and 
 
     const zipinfo = spawnSync('zipinfo', [archivePath], { env });
     assert.strictEqual(zipinfo.status, 0);
+    const listing = zipinfo.stdout.toString();
     for (const name of Object.keys(files)) {
-      if (!zipinfoUnicode && /[^\x20-\x7e]/.test(name)) continue;
-      assert.ok(zipinfo.stdout.toString().includes(name), `zipinfo missing ${name}`);
+      if (listing.includes(name)) continue;
+      if (/[^\x20-\x7e]/.test(name)) {
+        if (!zipinfoUnicode) continue;
+        // Some zipinfo builds (e.g. Gentoo's without natspec) print bytes that
+        // isprint() rejects as '?' (fnfilter() in Info-ZIP's extract.c), which
+        // can leave invalid UTF-8 behind (U+FFFD once decoded). Accept that.
+        const placeholder = name.replace(/[^\x20-\x7e]+/g, '?');
+        if (listing.replace(/[?\uFFFD]+/g, '?').includes(placeholder)) continue;
+      }
+      assert.fail(`zipinfo missing ${name}`);
     }
 
     const extractDir = path.join(dir, 'out');
