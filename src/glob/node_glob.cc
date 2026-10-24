@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "glob/glob_matcher.h"
 #include "glob/glob_parser.h"
@@ -18,11 +19,13 @@ namespace node::glob {
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
@@ -282,18 +285,20 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
                                     WalkOptions* options,
                                     std::vector<CompiledPatternPtr>* includes,
                                     std::vector<CompiledPatternPtr>* excludes,
-                                    std::unique_ptr<JsExcludeFilter>* filter) {
+                                    std::unique_ptr<JsExcludeFilter>* filter,
+                                    std::unique_ptr<JsFsReader>* reader) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
 
-  CHECK_EQ(args.Length(), 6);
+  CHECK_EQ(args.Length(), 7);
   CHECK(args[0]->IsString());                              // cwd
   CHECK(args[1]->IsArray());                               // include patterns
   CHECK(args[2]->IsArray());                               // exclude patterns
   CHECK(args[3]->IsUint32());                              // packed flags
   CHECK(args[4]->IsFunction() || args[4]->IsUndefined());  // exclude callback
   CHECK(args[5]->IsNumber());                              // maxDepth
+  CHECK(args[6]->IsFunction() || args[6]->IsUndefined());  // reader
 
   const uint32_t packed = args[3].As<Uint32>()->Value() | kHostWalkFlags;
   const CompileFlags flags = UnpackFlags(packed);
@@ -309,6 +314,11 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
     *filter =
         std::make_unique<JsExcludeFilter>(realm->env(), args[4].As<Function>());
     options->exclude_filter = filter->get();
+  }
+  if (args[6]->IsFunction()) {
+    *reader =
+        std::make_unique<JsFsReader>(realm->env(), args[6].As<Function>());
+    options->fs_reader = reader->get();
   }
   {
     Utf8Value cwd(isolate, args[0]);
@@ -346,7 +356,7 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
 }
 
 // globSync(cwd, includePatterns[], excludePatterns[], flags, excludeFn,
-// maxDepth)
+// maxDepth, reader)
 void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Environment* env = realm->env();
@@ -357,15 +367,17 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   std::vector<CompiledPatternPtr> includes;
   std::vector<CompiledPatternPtr> excludes;
   std::unique_ptr<JsExcludeFilter> filter;
+  std::unique_ptr<JsFsReader> reader;
   if (!binding->ReadWalkArguments(
-          args, &options, &includes, &excludes, &filter)) {
+          args, &options, &includes, &excludes, &filter, &reader)) {
     return;
   }
 
   std::vector<WalkEntry> entries;
   glob::GlobSync(env, options, includes, excludes, &entries);
-  // An exclude callback that threw leaves its exception pending.
+  // An exclude callback or a reader that threw leaves its exception pending.
   if (filter != nullptr && filter->failed()) return;
+  if (reader != nullptr && reader->failed()) return;
 
   Local<Array> paths;
   Local<Value> types;
@@ -424,15 +436,117 @@ bool JsExcludeFilter::ExcludesEntry(std::string_view name,
   return excluded;
 }
 
+JsFsReader::JsFsReader(Environment* env, Local<Function> read)
+    : env_(env), read_(env->isolate(), read) {}
+
+// (op, path) -> what the read found, or undefined for a path it could
+// not read, see internal/fs/glob.
+MaybeLocal<Value> JsFsReader::Call(ReadOp op, const std::string& path) {
+  Isolate* isolate = env_->isolate();
+  EscapableHandleScope scope(isolate);
+  Local<Context> context = env_->context();
+  Local<Value> argv[2];
+  argv[0] = Integer::New(isolate, op);
+  Local<Value> result;
+  if (!ToV8Value(context, path, isolate).ToLocal(&argv[1]) ||
+      !read_.Get(isolate)
+           ->Call(context, Undefined(isolate), arraysize(argv), argv)
+           .ToLocal(&result)) {
+    failed_ = true;
+    return MaybeLocal<Value>();
+  }
+  return scope.Escape(result);
+}
+
+// The entry's uv_dirent_type_t
+StatInfo JsFsReader::Lstat(const std::string& path) {
+  StatInfo info;
+  if (failed_) return info;
+  HandleScope scope(env_->isolate());
+  Local<Value> result;
+  if (!Call(kReadLstat, path).ToLocal(&result) || !result->IsInt32()) {
+    return info;
+  }
+  info.exists = true;
+  info.type = result.As<Int32>()->Value();
+  info.is_dir = info.type == UV_DIRENT_DIR;
+  info.is_link = info.type == UV_DIRENT_LINK;
+  return info;
+}
+
+bool JsFsReader::IsDirectory(const std::string& path) {
+  if (failed_) return false;
+  HandleScope scope(env_->isolate());
+  Local<Value> result;
+  return Call(kReadStat, path).ToLocal(&result) && result->IsTrue();
+}
+
+std::string JsFsReader::Realpath(const std::string& path) {
+  if (failed_) return std::string();
+  Isolate* isolate = env_->isolate();
+  HandleScope scope(isolate);
+  Local<Value> result;
+  if (!Call(kReadRealpath, path).ToLocal(&result) || !result->IsString()) {
+    return std::string();
+  }
+  return Utf8Value(isolate, result).ToString();
+}
+
+// [names, types]
+std::vector<DirEntry> JsFsReader::Scandir(const std::string& path) {
+  std::vector<DirEntry> entries;
+  if (failed_) return entries;
+  Isolate* isolate = env_->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env_->context();
+  Local<Value> result;
+  if (!Call(kReadScandir, path).ToLocal(&result) || !result->IsArray()) {
+    return entries;
+  }
+  Local<Array> listing = result.As<Array>();
+  CHECK_EQ(listing->Length(), 2);
+  Local<Value> names_value;
+  Local<Value> types_value;
+  if (!listing->Get(context, 0).ToLocal(&names_value) ||
+      !listing->Get(context, 1).ToLocal(&types_value)) {
+    failed_ = true;
+    return entries;
+  }
+  CHECK(names_value->IsArray());
+  CHECK(types_value->IsArray());
+  Local<Array> names = names_value.As<Array>();
+  Local<Array> types = types_value.As<Array>();
+  const uint32_t length = names->Length();
+  CHECK_EQ(types->Length(), length);
+  entries.reserve(length);
+  for (uint32_t i = 0; i < length; i++) {
+    Local<Value> name;
+    Local<Value> type;
+    if (!names->Get(context, i).ToLocal(&name) ||
+        !types->Get(context, i).ToLocal(&type)) {
+      failed_ = true;
+      entries.clear();
+      return entries;
+    }
+    CHECK(name->IsString());
+    CHECK(type->IsInt32());
+    entries.push_back(
+        {Utf8Value(isolate, name).ToString(), type.As<Int32>()->Value()});
+  }
+  return entries;
+}
+
 GlobRequest::GlobRequest(Environment* env,
                          Local<Object> object,
                          const WalkOptions& options,
                          const std::vector<CompiledPatternPtr>& includes,
                          const std::vector<CompiledPatternPtr>& excludes,
-                         std::unique_ptr<JsExcludeFilter> filter)
+                         std::unique_ptr<JsExcludeFilter> filter,
+                         std::unique_ptr<JsFsReader> reader)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_GLOBREQUEST),
       ThreadPoolWork(env, "glob"),
       filter_(std::move(filter)),
+      reader_(std::move(reader)),
       walk_(env, options, includes, excludes),
       with_file_types_(options.with_file_types) {
   MakeWeak();
@@ -445,15 +559,16 @@ void GlobRequest::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
+// A pull spans several slices when the exclude callback is consulted
+// in between; the batch keeps filling across them (and a directory
+// visited before a stop may already have filled it).
+size_t GlobRequest::MaxResults() const {
+  if (drain_) return std::numeric_limits<size_t>::max();
+  return batch_.size() < kBatchSize ? kBatchSize - batch_.size() : 0;
+}
+
 void GlobRequest::DoThreadPoolWork() {
-  // A pull spans several slices when the exclude callback is consulted
-  // in between; the batch keeps filling across them (and a directory
-  // visited before a stop may already have filled it).
-  size_t max_results = std::numeric_limits<size_t>::max();
-  if (!drain_) {
-    max_results = batch_.size() < kBatchSize ? kBatchSize - batch_.size() : 0;
-  }
-  done_ = walk_.RunSlice(max_results, /*on_main_thread=*/false, &batch_);
+  done_ = walk_.RunSlice(MaxResults(), /*on_main_thread=*/false, &batch_);
 }
 
 void GlobRequest::PublishDenials() {
@@ -534,16 +649,7 @@ void GlobRequest::AfterThreadPoolWork(int status) {
     errors::TryCatchScope try_catch(env);
     AnswerQuestions();
     if (try_catch.HasCaught() || filter_->failed()) {
-      // The exclude callback threw: the pull rejects with its exception.
-      done_ = true;
-      walk_.Stop();
-      batch_.clear();
-      Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
-      resolver_.Reset();
-      MakeWeak();
-      // A terminating isolate (worker shutdown) has nothing to pass on.
-      if (try_catch.HasTerminated() || !try_catch.HasCaught()) return;
-      USE(resolver->Reject(context, try_catch.Exception()));
+      Reject(try_catch);
       return;
     }
     // The walk resumes with the answers.
@@ -552,6 +658,41 @@ void GlobRequest::AfterThreadPoolWork(int status) {
     return;
   }
 
+  Resolve();
+}
+
+void GlobRequest::RunMainThreadSlice() {
+  in_flight_ = false;
+  Environment* env = AsyncWrap::env();
+  if (!env->can_call_into_js()) {
+    resolver_.Reset();
+    done_ = true;
+    walk_.Stop();
+    MakeWeak();
+    return;
+  }
+  if (cancelled_) done_ = true;
+
+  HandleScope scope(env->isolate());
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
+  InternalCallbackScope callback_scope(this);
+
+  if (!done_) {
+    errors::TryCatchScope try_catch(env);
+    done_ = walk_.RunSlice(MaxResults(), /*on_main_thread=*/true, &batch_);
+    if (try_catch.HasCaught() || reader_->failed() ||
+        (filter_ != nullptr && filter_->failed())) {
+      Reject(try_catch);
+      return;
+    }
+  }
+
+  Resolve();
+}
+
+void GlobRequest::Resolve() {
+  Environment* env = AsyncWrap::env();
   // A finished walk keeps no threads waiting for garbage collection.
   if (done_) walk_.Stop();
   Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
@@ -561,7 +702,21 @@ void GlobRequest::AfterThreadPoolWork(int status) {
 
   Local<Value> value;
   if (!Settle().ToLocal(&value)) return;
-  USE(resolver->Resolve(context, value));
+  USE(resolver->Resolve(env->context(), value));
+}
+
+// A callback threw: the pull rejects with its exception.
+void GlobRequest::Reject(const errors::TryCatchScope& try_catch) {
+  Environment* env = AsyncWrap::env();
+  done_ = true;
+  walk_.Stop();
+  batch_.clear();
+  Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
+  resolver_.Reset();
+  MakeWeak();
+  // A terminating isolate (worker shutdown) has nothing to pass on.
+  if (try_catch.HasTerminated() || !try_catch.HasCaught()) return;
+  USE(resolver->Reject(env->context(), try_catch.Exception()));
 }
 
 // next() -> Promise<[paths, types, done]>: one batch of results.
@@ -605,6 +760,15 @@ void GlobRequest::Pull(const FunctionCallbackInfo<Value>& args, bool drain) {
   request->in_flight_ = true;
   // Keep the request alive for as long as the worker holds a pointer to it.
   request->ClearWeak();
+  if (request->reader_ != nullptr) {
+    // The reader is JavaScript, so the slice runs on the main thread, from
+    // a later loop turn as a thread-pool slice would settle in.
+    env->SetImmediate(
+        [self = BaseObjectPtr<GlobRequest>(request)](Environment* env) {
+          self->RunMainThreadSlice();
+        });
+    return;
+  }
   request->ScheduleWork();
 }
 
@@ -627,8 +791,9 @@ void BindingData::GlobStart(const FunctionCallbackInfo<Value>& args) {
   std::vector<CompiledPatternPtr> includes;
   std::vector<CompiledPatternPtr> excludes;
   std::unique_ptr<JsExcludeFilter> filter;
+  std::unique_ptr<JsFsReader> reader;
   if (!binding->ReadWalkArguments(
-          args, &options, &includes, &excludes, &filter)) {
+          args, &options, &includes, &excludes, &filter, &reader)) {
     return;
   }
 
@@ -639,7 +804,13 @@ void BindingData::GlobStart(const FunctionCallbackInfo<Value>& args) {
            .ToLocal(&object)) {
     return;
   }
-  new GlobRequest(env, object, options, includes, excludes, std::move(filter));
+  new GlobRequest(env,
+                  object,
+                  options,
+                  includes,
+                  excludes,
+                  std::move(filter),
+                  std::move(reader));
   args.GetReturnValue().Set(object);
 }
 
@@ -674,6 +845,11 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kFlagFollowSymlinks);
   NODE_DEFINE_CONSTANT(target, kFlagWithFileTypes);
   NODE_DEFINE_CONSTANT(target, kFlagMatchBase);
+  // The reads a reader serves
+  NODE_DEFINE_CONSTANT(target, kReadLstat);
+  NODE_DEFINE_CONSTANT(target, kReadStat);
+  NODE_DEFINE_CONSTANT(target, kReadRealpath);
+  NODE_DEFINE_CONSTANT(target, kReadScandir);
 }
 
 void BindingData::RegisterExternalReferences(

@@ -34,6 +34,37 @@ class ExcludeFilter {
   virtual bool failed() const = 0;
 };
 
+// What lstat reports about a path.
+struct StatInfo {
+  bool exists = false;
+  bool is_dir = false;
+  bool is_link = false;
+  int type = UV_DIRENT_UNKNOWN;
+};
+
+struct DirEntry {
+  std::string name;
+  int type = UV_DIRENT_UNKNOWN;
+};
+
+// Reads the filesystem for a walk in place of libuv, for paths libuv
+// cannot see: a mounted virtual file system only answers through the
+// JavaScript fs hooks. A walk with a reader runs on the main thread, and
+// a read that fails answers as a missing path, as the walk's own reads do.
+class FsReader {
+ public:
+  virtual ~FsReader() = default;
+  virtual StatInfo Lstat(const std::string& path) = 0;
+  // Whether the path, with symbolic links followed, is a directory.
+  virtual bool IsDirectory(const std::string& path) = 0;
+  // Empty when the path cannot be resolved.
+  virtual std::string Realpath(const std::string& path) = 0;
+  virtual std::vector<DirEntry> Scandir(const std::string& path) = 0;
+  // Set once a call has thrown. The walk stops and the exception is left
+  // for the caller to propagate.
+  virtual bool failed() const = 0;
+};
+
 struct WalkOptions {
   // options.cwd, or ".": the string paths are resolved against.
   std::string cwd = ".";
@@ -45,6 +76,7 @@ struct WalkOptions {
   size_t max_depth = kNoDepthLimit;
 
   ExcludeFilter* exclude_filter = nullptr;
+  FsReader* fs_reader = nullptr;
 };
 
 struct WalkEntry {
