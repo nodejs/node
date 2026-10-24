@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Blob data isolation from input ArrayBuffers</title>
+<link rel="help" href="https://w3c.github.io/FileAPI/#constructorBlob">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+
+// These tests verify that Blob correctly copies its input data, so that
+// subsequent modifications to the input do not affect the Blob's contents.
+// This is especially important to test with small buffers that might trigger
+// buffer pool optimizations in some implementations.
+
+function readBlobAsArrayBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+promise_test(async () => {
+  const input = new Uint8Array([1, 2, 3, 4]);
+  const blob = new Blob([input]);
+
+  input[0] = 99;
+
+  const result = new Uint8Array(await readBlobAsArrayBuffer(blob));
+  assert_array_equals(result, [1, 2, 3, 4], "Blob data should not be affected by modifying the input Uint8Array");
+}, "Modifying a Uint8Array after Blob construction does not affect the Blob");
+
+promise_test(async () => {
+  const input = new Uint8Array([5, 6, 7, 8]);
+  const inputBuffer = input.buffer;
+  const blob = new Blob([inputBuffer]);
+
+  input[0] = 99;
+
+  const result = new Uint8Array(await readBlobAsArrayBuffer(blob));
+  assert_array_equals(result, [5, 6, 7, 8], "Blob data should not be affected by modifying the underlying ArrayBuffer");
+}, "Modifying an ArrayBuffer after Blob construction does not affect the Blob");
+
+promise_test(async () => {
+  // Test with a view into a larger buffer (common pattern that exercises offset handling)
+  const largerBuffer = new ArrayBuffer(16);
+  const view = new Uint8Array(largerBuffer, 4, 4);
+  view.set([10, 11, 12, 13]);
+
+  const blob = new Blob([view]);
+
+  view[0] = 99;
+
+  const result = new Uint8Array(await readBlobAsArrayBuffer(blob));
+  assert_array_equals(result, [10, 11, 12, 13], "Blob data should not be affected by modifying a typed array view");
+}, "Modifying a typed array view after Blob construction does not affect the Blob");
+
+promise_test(async () => {
+  // Very small buffer - most likely to hit buffer pool optimizations
+  const input = new Uint8Array([42]);
+  const blob = new Blob([input]);
+
+  input[0] = 0;
+
+  const result = new Uint8Array(await readBlobAsArrayBuffer(blob));
+  assert_array_equals(result, [42], "Blob data should not be affected even with single-byte input");
+}, "Modifying a single-byte Uint8Array after Blob construction does not affect the Blob");
+
+promise_test(async () => {
+  const blob = new Blob([new Uint8Array([1, 2, 3, 4])]);
+
+  const result1 = await readBlobAsArrayBuffer(blob);
+  new Uint8Array(result1)[0] = 99;
+
+  const result2 = new Uint8Array(await readBlobAsArrayBuffer(blob));
+  assert_array_equals(
+    result2,
+    [1, 2, 3, 4],
+    "Blob data should not be affected by modifying a previously-read ArrayBuffer"
+  );
+}, "Modifying a returned ArrayBuffer does not affect subsequent reads");
+</script>
