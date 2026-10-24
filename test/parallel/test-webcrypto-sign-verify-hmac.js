@@ -7,6 +7,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { getFips } = require('crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/hmac')();
@@ -174,6 +175,10 @@ async function testSign({ hash,
   const variations = [];
 
   for (const vector of vectors) {
+    // The shared fixtures also cover node:crypto; WebCrypto only supports
+    // SHA-3 for digest operations in BoringSSL.
+    if (isBoringSSL && vector.hash.startsWith('SHA3-'))
+      continue;
     variations.push(testVerify(vector));
     variations.push(testSign(vector));
   }

@@ -39,7 +39,7 @@ const { subtle } = globalThis.crypto;
                        { name: 'OperationError' });
   await assert.rejects(subtle.generateKey({ name: 'HMAC', hash: 'SHA-256', length: 0 }, false, []),
                        { name: 'OperationError' });
-  if (SubtleCrypto.supports('digest', 'SHA3-256')) {
+  if (SubtleCrypto.supports('generateKey', { name: 'HMAC', hash: 'SHA3-256', length: 256 })) {
     const hmac = { name: 'HMAC', hash: 'SHA3-256' };
     await assert.rejects(subtle.generateKey(hmac, false, ['encrypt']), { name: 'SyntaxError' });
     await assert.rejects(subtle.generateKey(hmac, false, []), { name: 'NotSupportedError' });

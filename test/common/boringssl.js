@@ -168,33 +168,6 @@ function testEphemeralKeyInfo() {
 }
 
 /**
- * The protocol matrix tests cover OpenSSL behavior for legacy TLS protocols.
- * For BoringSSL we only need to exhibit that a TLSv1-only client cannot connect
- * to a server whose minimum protocol is TLS 1.2; the client receives the
- * protocol-version alert instead of the OpenSSL version-specific matrix.
- */
-function testLegacyProtocolUnsupported() {
-  const server = tls.createServer({
-    key: fixtures.readKey('agent2-key.pem'),
-    cert: fixtures.readKey('agent2-cert.pem'),
-    minVersion: 'TLSv1.2',
-  }, common.mustNotCall());
-
-  server.on('tlsClientError', common.mustCall());
-  server.listen(0, common.mustCall(() => {
-    const client = tls.connect({
-      port: server.address().port,
-      rejectUnauthorized: false,
-      secureProtocol: 'TLSv1_method',
-    }, common.mustNotCall());
-    client.on('error', common.mustCall((err) => {
-      assert.strictEqual(err.code, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION');
-      server.close();
-    }));
-  }));
-}
-
-/**
  * BoringSSL can load a multi-PFX option well enough to serve the ECDSA
  * identity, but it does not provide the same OpenSSL multi-identity selection
  * behavior. After the ECDSA handshake succeeds, an RSA-only client fails with
@@ -335,7 +308,6 @@ module.exports = {
   assertNoCipherMatch,
   assertOpenSSLSecurityLevelsUnsupported,
   testEphemeralKeyInfo,
-  testLegacyProtocolUnsupported,
   testMultiPfxSelectionDifference,
   testPskTls13Unsupported,
   testRenegotiationUnsupported,

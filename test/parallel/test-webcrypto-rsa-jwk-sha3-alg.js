@@ -4,13 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { isBoringSSL } = require('../common/crypto');
-if (isBoringSSL)
-  common.skip('missing SHA-3');
-
 const assert = require('assert');
 const { createPrivateKey, createPublicKey } = require('crypto');
 const fixtures = require('../common/fixtures');
+const { isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 (async () => {
@@ -24,6 +21,14 @@ const { subtle } = globalThis.crypto;
         const usages = name === 'RSA-OAEP' ? [jwk.d ? 'decrypt' : 'encrypt'] :
           [jwk.d ? 'sign' : 'verify'];
         const algorithm = { name, hash };
+        if (isBoringSSL) {
+          await assert.rejects(
+            subtle.importKey('jwk', jwk, algorithm, true, usages), {
+              name: 'NotSupportedError',
+              message: 'SHA-3 is only supported for digest operations',
+            });
+          continue;
+        }
         // There is no JWK alg identifier for RSA with SHA-3. Omitting alg is
         // valid, but an identifier for SHA-2 or an unknown identifier is not.
         const key = await subtle.importKey('jwk', jwk, algorithm, true, usages);

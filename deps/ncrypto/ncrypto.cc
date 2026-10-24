@@ -2804,6 +2804,13 @@ const EVP_MD* getDigestByName(const char* name) {
   if (strcmp(name, "dss1") == 0 || strcmp(name, "DSS1") == 0) [[unlikely]] {
     return EVP_sha1();
   }
+#if NCRYPTO_USE_BORINGSSL
+  // BoringSSL exposes SHA-3 through EVP_MD descriptors without registering
+  // their names or assigning them NIDs.
+  if (CaseInsensitiveNameEqual()(name, "sha3-256")) return EVP_sha3_256();
+  if (CaseInsensitiveNameEqual()(name, "sha3-384")) return EVP_sha3_384();
+  if (CaseInsensitiveNameEqual()(name, "sha3-512")) return EVP_sha3_512();
+#endif
   return EVP_get_digestbyname(name);
 }
 
@@ -5005,11 +5012,7 @@ bool SSLPointer::isServer() const {
 EVPKeyPointer SSLPointer::getPeerTempKey() const {
   if (!ssl_) return {};
   EVP_PKEY* raw_key = nullptr;
-#ifndef OPENSSL_IS_BORINGSSL
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
-#else
-  if (!SSL_get_server_tmp_key(get(), &raw_key)) return {};
-#endif
   return EVPKeyPointer(raw_key);
 }
 
@@ -5107,13 +5110,57 @@ bool SSLCtxPointer::setGroups(const char* groups) {
 }
 
 bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
-#ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
+#ifndef OPENSSL_IS_BORINGSSL
   return SSL_CTX_set_ciphersuites(ctx_.get(), ciphers);
 #else
-  // BoringSSL does not allow API config of TLS 1.3 cipher suites.
-  // We treat this as a non-op.
-  return true;
+  constexpr std::array<uint16_t, 3> supported = {
+      SSL_CIPHER_AES_128_GCM_SHA256,
+      SSL_CIPHER_AES_256_GCM_SHA384,
+      SSL_CIPHER_CHACHA20_POLY1305_SHA256,
+  };
+  std::vector<uint16_t> cipher_ids;
+  std::string_view remaining(ciphers);
+  while (!remaining.empty()) {
+    const size_t end = remaining.find(':');
+    std::string_view name = remaining.substr(0, end);
+    const size_t first = name.find_first_not_of(" \t\n\r\f\v");
+    if (first != std::string_view::npos) {
+      name = name.substr(first);
+      name = name.substr(0, name.find_last_not_of(" \t\n\r\f\v") + 1);
+      for (const auto id : supported) {
+        const SSL_CIPHER* cipher = SSL_get_cipher_by_value(id);
+        if (name == SSL_CIPHER_standard_name(cipher)) {
+          // OpenSSL ignores unknown names and accepts duplicates, while
+          // BoringSSL requires unique protocol IDs.
+          if (std::find(cipher_ids.begin(), cipher_ids.end(), id) ==
+              cipher_ids.end()) {
+            cipher_ids.push_back(id);
+          }
+          break;
+        }
+      }
+    }
+    if (end == std::string_view::npos) break;
+    remaining.remove_prefix(end + 1);
+  }
+  if (*ciphers != '\0' && cipher_ids.empty()) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CIPHER_MATCH);
+    return false;
+  }
+  std::vector<uint32_t> flags(cipher_ids.size());
+  if (!flags.empty() &&
+      (SSL_CTX_get_options(get()) & SSL_OP_CIPHER_SERVER_PREFERENCE) == 0) {
+    // TLS 1.3 otherwise always uses server preference in BoringSSL. An
+    // equal-preference group lets the client choose from the configured list.
+    std::fill(flags.begin(),
+              flags.end() - 1,
+              SSL_CIPHER_FLAG_EQUAL_PREFERENCE_WITH_NEXT);
+  }
+  // An empty input resets BoringSSL's built-in preference order. The public
+  // TLS API expands empty cipher strings to Node's defaults before this call.
+  return SSL_CTX_set1_tls13_ciphers(
+             get(), cipher_ids.data(), flags.data(), cipher_ids.size()) == 1;
 #endif
 }
 

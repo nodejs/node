@@ -5,14 +5,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { isBoringSSL } = require('../common/crypto');
-
-if (isBoringSSL) {
-  require('../common/boringssl').testPskTls13Unsupported();
-  return;
-}
-
-const { opensslCli } = require('../common/crypto');
+const { isBoringSSL, opensslCli } = require('../common/crypto');
 
 if (!opensslCli) {
   common.skip('missing openssl cli');
@@ -95,6 +88,8 @@ waitForPort(common.PORT, common.mustCall((err) => {
 function runClient(message, cb) {
   const s = tls.connect(common.PORT, {
     ciphers: CIPHERS,
+    // BoringSSL requires TLS 1.2 for this certificate-less PSK handshake.
+    ...(isBoringSSL ? { maxVersion: 'TLSv1.2' } : {}),
     checkServerIdentity: () => {},
     pskCallback(hint) {
       // 'hint' will be null in TLS1.3.
