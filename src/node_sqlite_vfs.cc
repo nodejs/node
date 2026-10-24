@@ -316,8 +316,7 @@ bool FileControlRequiresWrite(int operation) {
 
 int PermissionFileControl(sqlite3_file* file, int operation, void* argument) {
   PermissionFile* permission_file = PermissionFileFromBase(file);
-  if (FileControlRequiresWrite(operation) &&
-      !permission_file->can_write) {
+  if (FileControlRequiresWrite(operation) && !permission_file->can_write) {
     return SQLITE_PERM;
   }
 
