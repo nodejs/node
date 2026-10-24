@@ -87,6 +87,10 @@ const handleStream = common.mustCallAtLeast((stream, headers) => {
         }, kTimeout);
       }));
       break;
+    case '/set-encoding':
+      stream.respond(responseHeaders);
+      stream.end(serverResponse);
+      break;
     case '/trigger-error':
       stream.close(http2.constants.NGHTTP2_STREAM_CLOSED);
       stream.on('error', common.expectsError({
@@ -283,6 +287,38 @@ async function testHttp2(secure = false) {
   assert.ok(delta > kDelta);
 }
 
+async function testHttp2WithSetEncoding() {
+  const origin = `http://localhost:${http2Server.address().port}`;
+
+  const responseReceived = once(session, 'Network.responseReceived');
+  const loadingFinished = once(session, 'Network.loadingFinished');
+  session.on('Network.loadingFailed', common.mustNotCall());
+
+  const client = http2.connect(origin);
+  const request = client.request({
+    [http2.constants.HTTP2_HEADER_PATH]: '/set-encoding',
+  });
+  request.setEncoding('hex');
+  let body = '';
+  request.on('data', (chunk) => {
+    body += chunk;
+  });
+  request.on('end', common.mustCall(() => {
+    assert.strictEqual(body, Buffer.from(serverResponse).toString('hex'));
+    client.close();
+  }));
+  request.end();
+
+  const [ response ] = await responseReceived;
+  await loadingFinished;
+
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: response.params.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, serverResponse);
+}
+
 async function testHttp2Error(secure = false) {
   const port = (secure ? http2SecureServer : http2Server).address().port;
   const origin = (secure ? 'https' : 'http') + `://localhost:${port}`;
@@ -320,6 +356,8 @@ const testNetworkInspection = async () => {
   await testHttp2();
   session.removeAllListeners();
   await testHttp2(true);
+  session.removeAllListeners();
+  await testHttp2WithSetEncoding();
   session.removeAllListeners();
   await testHttp2Error();
   session.removeAllListeners();

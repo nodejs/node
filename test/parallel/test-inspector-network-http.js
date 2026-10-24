@@ -250,6 +250,36 @@ async function testHttpGet() {
   await assertResponseBody(responseReceived, '\nhello world\n');
 }
 
+async function testHttpGetWithSetEncoding() {
+  const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
+
+  http.get({
+    host: '127.0.0.1',
+    port: httpServer.address().port,
+    path: '/hello-world',
+    headers: requestHeaders
+  }, common.mustCall((response) => {
+    response.setEncoding('utf8');
+    let body = '';
+    response.on('data', (chunk) => {
+      body += chunk;
+    });
+    response.on('end', common.mustCall(() => {
+      assert.strictEqual(body, '\nhello world\n');
+    }));
+  }));
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  await loadingFinishedFuture;
+  await assertResponseBody(responseReceived, '\nhello world\n');
+}
+
 async function testHttpGetWithAbsoluteUrlPath() {
   const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
   const {
@@ -382,6 +412,8 @@ async function testHttpsError() {
 
 const testNetworkInspection = async () => {
   await testHttpGet();
+  session.removeAllListeners();
+  await testHttpGetWithSetEncoding();
   session.removeAllListeners();
   await testHttpGetWithAbsoluteUrlPath();
   session.removeAllListeners();
