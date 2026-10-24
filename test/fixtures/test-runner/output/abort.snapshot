@@ -54,8 +54,6 @@ TAP version 13
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     # Subtest: not ok 4
     not ok 8 - not ok 4
@@ -67,8 +65,6 @@ TAP version 13
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     # Subtest: not ok 5
     not ok 9 - not ok 5
@@ -80,8 +76,6 @@ TAP version 13
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     1..9
 not ok 1 - promise timeout signal
@@ -106,10 +100,6 @@ not ok 2 - promise abort signal
   error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
-  stack: |-
-    <node-internal-frames>
-    Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/abort.js:21:52)
-    <node-internal-frames>
   ...
 # Subtest: callback timeout signal
     # Subtest: ok 1
@@ -166,8 +156,6 @@ not ok 2 - promise abort signal
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     # Subtest: not ok 4
     not ok 8 - not ok 4
@@ -179,8 +167,6 @@ not ok 2 - promise abort signal
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     # Subtest: not ok 5
     not ok 9 - not ok 5
@@ -192,8 +178,6 @@ not ok 2 - promise abort signal
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
       ...
     1..9
 not ok 3 - callback timeout signal
@@ -218,10 +202,6 @@ not ok 4 - callback abort signal
   error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
-  stack: |-
-    <node-internal-frames>
-    Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/abort.js:39:53)
-    <node-internal-frames>
   ...
 1..4
 # tests 22

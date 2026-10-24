@@ -38,10 +38,6 @@ not ok 1 - 1 before describe
   error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
-  stack: |-
-    <node-internal-frames>
-    before.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:8:8)
-    <node-internal-frames>
   ...
 # Subtest: 2 after describe
     # Subtest: test 1
@@ -66,10 +62,6 @@ not ok 2 - 2 after describe
   error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
-  stack: |-
-    <node-internal-frames>
-    after.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:23:8)
-    <node-internal-frames>
   ...
 # Subtest: 3 beforeEach describe
     # Subtest: test 1
@@ -82,10 +74,6 @@ not ok 2 - 2 after describe
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
-        beforeEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:38:8)
-        <node-internal-frames>
       ...
     # Subtest: test 2
     not ok 2 - test 2
@@ -97,10 +85,6 @@ not ok 2 - 2 after describe
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
-        beforeEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:38:8)
-        <node-internal-frames>
       ...
     1..2
 not ok 3 - 3 beforeEach describe
@@ -123,10 +107,6 @@ not ok 3 - 3 beforeEach describe
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
-        afterEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:53:8)
-        <node-internal-frames>
       ...
     # Subtest: test 2
     not ok 2 - test 2
@@ -138,10 +118,6 @@ not ok 3 - 3 beforeEach describe
       error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
-      stack: |-
-        <node-internal-frames>
-        afterEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:53:8)
-        <node-internal-frames>
       ...
     1..2
 not ok 4 - 4 afterEach describe
