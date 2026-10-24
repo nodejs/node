@@ -59,6 +59,7 @@ jobs:
     needs: get_candidate_prs
     if: needs.get_candidate_prs.outputs.candidates != ''
     permissions:
+      actions: read
       checks: read
       contents: read
       pull-requests: read
