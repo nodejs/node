@@ -24,7 +24,7 @@ function main({ n, type }) {
       fd = 1 << 30;
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   bench.start();
