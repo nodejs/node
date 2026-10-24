@@ -1,0 +1,7 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "useVfs": true,
+  "useCodeCache": true,
+  "vfsArchive": "assets.zip"
+}
