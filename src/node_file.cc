@@ -3552,9 +3552,10 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
       if (static_cast<size_t>(r) < sizeof(buffer)) {
         continue;
       }
-      // Switch to the heap buffer.
+      // Switch to the heap buffer. A pipe can deliver more than kMinChunk in
+      // short reads before the first full one.
       uv_fs_req_cleanup(&req);
-      big_cap = kMinChunk;
+      big_cap = std::max(kMinChunk, result.size());
       big = UncheckedMalloc<char>(big_cap);
       if (big == nullptr) {
         FS_SYNC_TRACE_END(read);
