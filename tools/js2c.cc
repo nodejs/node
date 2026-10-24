@@ -336,7 +336,7 @@ std::string GetFileId(const std::string& filename) {
     end -= kJsSuffix.size();
   }
 
-  // deps/acorn/acorn/dist/acorn.js -> internal/deps/acorn/acorn/dist/acorn
+  // deps/amaro/dist/internal.js -> internal/deps/amaro/dist/internal
   if (filename.starts_with(depsPrefix)) {
     start = depsPrefix.size();
     prefix = "internal/deps/";

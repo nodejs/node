@@ -8,7 +8,6 @@ directories to create the Node.js binaries.
 All dependencies are located within the `deps` directory.
 This a list of all the dependencies:
 
-* [acorn][]
 * [ada][]
 * [amaro][]
 * [brotli][]
@@ -212,12 +211,6 @@ ensures that tooling can generate updates automatically.
 
 ## Dependency list
 
-### acorn
-
-The [acorn](https://github.com/acornjs/acorn) dependency is a JavaScript parser.
-[acorn-walk](https://github.com/acornjs/acorn/tree/master/acorn-walk) is
-an abstract syntax tree walker for the ESTree format.
-
 ### ada
 
 The [ada](https://github.com/ada-url/ada) dependency is a
@@ -226,7 +219,10 @@ fast and spec-compliant URL parser written in C++.
 ### amaro
 
 The [amaro](https://www.npmjs.com/package/amaro) dependency is a wrapper around the
-WebAssembly version of the SWC JavaScript/TypeScript parser.
+WebAssembly version of the SWC JavaScript/TypeScript parser. Besides TypeScript
+type stripping, it provides the JavaScript tokenizer and parser utilities used by
+the REPL, by `assert` error messages, and by the top-level await diagnostics of
+the module loader.
 
 ### brotli
 
@@ -405,7 +401,6 @@ performance improvements not currently available in standard zlib.
 The [zstd](https://github.com/facebook/zstd) dependency is used for compression
 according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 
-[acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
 [brotli]: #brotli
