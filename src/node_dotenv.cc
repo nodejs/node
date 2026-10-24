@@ -86,6 +86,21 @@ Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
   return JustVoid();
 }
 
+std::optional<std::string> Dotenv::Get(const std::string& key) const {
+#ifdef _WIN32
+  // Environment variable names are case-insensitive on Windows, and so is
+  // the lookup in process.env once the env files are applied.
+  for (const auto& [name, value] : store_) {
+    if (StringEqualNoCase(name.c_str(), key.c_str())) return value;
+  }
+  return std::nullopt;
+#else
+  auto match = store_.find(key);
+  if (match == store_.end()) return std::nullopt;
+  return match->second;
+#endif
+}
+
 std::vector<std::string> Dotenv::GetKeys() const {
   std::vector<std::string> keys;
   keys.reserve(store_.size());
