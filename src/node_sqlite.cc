@@ -645,7 +645,7 @@ class BackupJob : public ThreadPoolWork {
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
@@ -654,7 +654,7 @@ class BackupJob : public ThreadPoolWork {
                                       source_->Connection(),
                                       source_db_.c_str()));
     if (!backup_) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
@@ -676,7 +676,7 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      HandleBackupError(resolver, backup_status_);
+      Settle(resolver, CreateSQLiteError(isolate, backup_status_), {});
       return;
     }
 
@@ -697,6 +697,7 @@ class BackupJob : public ThreadPoolWork {
                       env()->remaining_pages_string(),
                       Integer::New(env()->isolate(), remaining_pages))
                 .IsNothing()) {
+          Settle(resolver, {}, {});
           return;
         }
 
@@ -704,10 +705,7 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
-          Local<Value> exception = try_catch.Exception();
-          Finalize();
-          resolver->Reject(env()->context(), exception).ToChecked();
-          delete this;
+          Settle(resolver, try_catch.Exception(), {});
           return;
         }
       }
@@ -718,15 +716,11 @@ class BackupJob : public ThreadPoolWork {
     }
 
     if (backup_status_ != SQLITE_DONE) {
-      HandleBackupError(resolver);
+      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
       return;
     }
 
-    Finalize();
-    resolver
-        ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
-        .ToChecked();
-    delete this;
+    Settle(resolver, {}, Integer::New(isolate, total_pages));
   }
 
   void Finalize() {
@@ -738,9 +732,7 @@ class BackupJob : public ThreadPoolWork {
   }
 
   void Cleanup() {
-    if (backup_) {
-      sqlite3_backup_finish(backup_.release());
-    }
+    backup_.reset();
 
     if (dest_) {
       backup_status_ = sqlite3_errcode(dest_.get());
@@ -749,29 +741,19 @@ class BackupJob : public ThreadPoolWork {
   }
 
  private:
-  void HandleBackupError(Local<Promise::Resolver> resolver) {
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), dest_.get()).ToLocal(&e)) {
-      Finalize();
-      delete this;
-      return;
-    }
-
+  // The single exit point of a backup. Rejects with `error` if it is set,
+  // otherwise resolves with `value` if it is set. Neither being set means an
+  // exception is already pending. Deletes the job.
+  void Settle(Local<Promise::Resolver> resolver,
+              MaybeLocal<Value> error,
+              Local<Value> value) {
     Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
-    delete this;
-  }
-
-  void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
-      Finalize();
-      delete this;
-      return;
+    Local<Value> e;
+    if (error.ToLocal(&e)) {
+      resolver->Reject(env()->context(), e).ToChecked();
+    } else if (!value.IsEmpty()) {
+      resolver->Resolve(env()->context(), value).ToChecked();
     }
-
-    Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
     delete this;
   }
 
@@ -781,14 +763,8 @@ class BackupJob : public ThreadPoolWork {
   BaseObjectPtr<Database> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
-  struct Sqlite3Deleter {
-    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
-  };
-  struct BackupDeleter {
-    void operator()(sqlite3_backup* b) const { sqlite3_backup_finish(b); }
-  };
-  std::unique_ptr<sqlite3, Sqlite3Deleter> dest_;
-  std::unique_ptr<sqlite3_backup, BackupDeleter> backup_;
+  ConnectionPtr dest_;
+  BackupPtr backup_;
   int pages_;
   int backup_status_ = SQLITE_OK;
   std::string source_db_;
@@ -1756,6 +1732,10 @@ void Database::FinalizeStatements() {
   statements_.clear();
 }
 
+void Database::TrackStatement(Statement* statement) {
+  statements_.insert(statement);
+}
+
 void Database::UntrackStatement(Statement* statement) {
   statements_.erase(statement);
 }
@@ -2084,6 +2064,8 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
       env, db->IsInCallback(), "database cannot be closed while in a callback");
   db->FinalizeStatements();
   db->DeleteSessions();
+  // Close through the raw handle instead of reset() so that a failed close
+  // keeps the handle, which the error below is read from.
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
@@ -2169,7 +2151,6 @@ void Database::Prepare(const FunctionCallbackInfo<Value>& args) {
   if (!stmt) {
     return;
   }
-  db->statements_.insert(stmt.get());
 
   if (return_arrays.has_value()) {
     stmt->return_arrays_ = return_arrays.value();
@@ -2876,26 +2857,21 @@ void Database::CreateSession(const FunctionCallbackInfo<Value>& args) {
   // getter, which may have closed the database since it was checked.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
-  sqlite3_session* pSession;
-  int r =
-      sqlite3session_create(db->connection_.get(), db_name.c_str(), &pSession);
+  sqlite3_session* raw_session;
+  int r = sqlite3session_create(
+      db->connection_.get(), db_name.c_str(), &raw_session);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  bool wrapper_owns_session = false;
-  auto delete_session_on_failure = OnScopeLeave([&]() {
-    if (!wrapper_owns_session) {
-      sqlite3session_delete(pSession);
-    }
-  });
+  SessionPtr pSession(raw_session);
 
-  r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
+  r = sqlite3session_attach(pSession.get(),
+                            table == "" ? nullptr : table.c_str());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
   BaseObjectPtr<Session> session =
-      Session::Create(env, BaseObjectPtr<Database>(db), pSession);
+      Session::Create(env, BaseObjectPtr<Database>(db), std::move(pSession));
   if (!session) {
     return;
   }
-  wrapper_owns_session = true;
   args.GetReturnValue().Set(session->object());
 }
 
@@ -3473,6 +3449,7 @@ Statement::Statement(Environment* env,
                      BaseObjectPtr<Database> db,
                      StatementPtr stmt)
     : BaseObject(env, object), db_(std::move(db)), statement_(std::move(stmt)) {
+  db_->TrackStatement(this);
   MakeWeak();
   use_big_ints_ = db_->use_big_ints();
   return_arrays_ = db_->return_arrays();
@@ -4347,24 +4324,27 @@ static inline void SetSideEffectFreeGetter(
 SQLTagStore::~SQLTagStore() {}
 
 Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
-  Isolate* isolate = env->isolate();
-  Local<FunctionTemplate> tmpl =
-      NewFunctionTemplate(isolate, IllegalConstructor);
-  tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SQLTagStore"));
-  tmpl->InstanceTemplate()->SetInternalFieldCount(
-      SQLTagStore::kInternalFieldCount);
-  SetProtoMethod(isolate, tmpl, "get", Get);
-  SetProtoMethod(isolate, tmpl, "all", All);
-  SetProtoMethod(isolate, tmpl, "iterate", Iterate);
-  SetProtoMethod(isolate, tmpl, "run", Run);
-  SetProtoMethod(isolate, tmpl, "clear", Clear);
-  SetSideEffectFreeGetter(isolate,
-                          tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "capacity"),
-                          CapacityGetter);
-  SetSideEffectFreeGetter(
-      isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
-  SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
+  Local<FunctionTemplate> tmpl = env->sqlite_tag_store_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SQLTagStore"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        SQLTagStore::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "get", Get);
+    SetProtoMethod(isolate, tmpl, "all", All);
+    SetProtoMethod(isolate, tmpl, "iterate", Iterate);
+    SetProtoMethod(isolate, tmpl, "run", Run);
+    SetProtoMethod(isolate, tmpl, "clear", Clear);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "capacity"),
+                            CapacityGetter);
+    SetSideEffectFreeGetter(
+        isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
+    SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
+    env->set_sqlite_tag_store_constructor_template(tmpl);
+  }
   return tmpl;
 }
 
@@ -4634,7 +4614,6 @@ BaseObjectPtr<Statement> SQLTagStore::PrepareStatement(
       return BaseObjectPtr<Statement>();
     }
 
-    session->database_->statements_.insert(stmt_obj.get());
     session->sql_tags_.Put(sql, stmt_obj);
     stmt = stmt_obj;
   }
@@ -4869,9 +4848,9 @@ void StatementIterator::Return(const FunctionCallbackInfo<Value>& args) {
 Session::Session(Environment* env,
                  Local<Object> object,
                  BaseObjectPtr<Database> database,
-                 sqlite3_session* session)
+                 SessionPtr session)
     : BaseObject(env, object),
-      session_(std::unique_ptr<sqlite3_session, SessionDeleter>(session)),
+      session_(std::move(session)),
       database_(std::move(database)) {
   database_->sessions_.insert(this);
   MakeWeak();
@@ -4883,7 +4862,7 @@ Session::~Session() {
 
 BaseObjectPtr<Session> Session::Create(Environment* env,
                                        BaseObjectPtr<Database> database,
-                                       sqlite3_session* session) {
+                                       SessionPtr session) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -4892,7 +4871,8 @@ BaseObjectPtr<Session> Session::Create(Environment* env,
     return nullptr;
   }
 
-  return MakeBaseObject<Session>(env, obj, std::move(database), session);
+  return MakeBaseObject<Session>(
+      env, obj, std::move(database), std::move(session));
 }
 
 Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
@@ -4941,7 +4921,7 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(
       env->isolate(), session->database_.get(), r, SQLITE_OK, void());
 
-  auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
+  DeleteFnPtr<void, sqlite3_free> changeset(pChangeset);
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), nChangeset);
   if (nChangeset > 0) {
