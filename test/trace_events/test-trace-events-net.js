@@ -1,5 +1,10 @@
 'use strict';
 const common = require('../common');
+
+if (common.isInsideDirWithUnusualChars) {
+  common.skip('Test is broken in directories with unusual characters');
+}
+
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
