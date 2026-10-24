@@ -695,7 +695,7 @@ aes_xts_dec_128:
 
     .word 797838423
 
-    # store second to last block plaintext
+    # store last block plaintext
     .word 33942567
 
     ret
@@ -936,7 +936,7 @@ aes_xts_dec_256:
 
     .word 797838423
 
-    # store second to last block plaintext
+    # store last block plaintext
     .word 33942567
 
     ret

@@ -1,4 +1,4 @@
-// Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -6,10 +6,10 @@
 // https://www.openssl.org/source/license.html
 
 // ====================================================================
-// Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 // project. The module is, however, dual licensed under OpenSSL and
 // CRYPTOGAMS licenses depending on where you obtain it. For further
-// details see http://www.openssl.org/~appro/cryptogams/.
+// details see https://github.com/dot-asm/cryptogams/.
 //
 // Permission to use under GPLv2 terms is granted.
 // ====================================================================
@@ -55,7 +55,7 @@
 
 // $output is the last argument if it looks like a file (it has an extension)
 // $flavour is the first argument if it doesn't look like a file
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 #ifndef	__KERNEL__
 
 .private_extern	_OPENSSL_armcap_P
@@ -1064,7 +1064,7 @@ LK256:
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .long	0	//terminator
 
-.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,104,116,116,112,115,58,47,47,103,105,116,104,117,98,46,99,111,109,47,100,111,116,45,97,115,109,62,0
 .align	2
 .align	2
 

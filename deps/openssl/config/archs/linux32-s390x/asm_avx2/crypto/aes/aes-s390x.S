@@ -1,4 +1,4 @@
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 
 .text
 
@@ -2367,4 +2367,4 @@ AES_xts_decrypt:
 	lm	%r6,%r14,6*4(%r15)
 	br	%r14
 .size	AES_xts_decrypt,.-AES_xts_decrypt
-.string	"AES for s390x, CRYPTOGAMS by <appro@openssl.org>"
+.string	"AES for s390x, CRYPTOGAMS by <https://github.com/dot-asm>"
