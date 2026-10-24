@@ -276,8 +276,12 @@ Node.js makes no guarantees about the exact timing of when callbacks will fire,
 nor of their ordering. The callback will be called as close as possible to the
 time specified.
 
-When `delay` is larger than `2147483647` or less than `1` or `NaN`, the `delay`
-will be set to `1`. Non-integer delays are truncated to an integer.
+When `delay` is larger than `2147483647`, a negative number, or `NaN`, the
+`delay` will be set to `1`. A delay of `0` (or a positive sub-millisecond
+value, which is truncated to `0`) schedules the callback for the timers phase
+of a subsequent event loop turn, without the `1` ms minimum delay. It does not
+run within the current turn; the callback is invoked during a later iteration
+of the event loop. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
