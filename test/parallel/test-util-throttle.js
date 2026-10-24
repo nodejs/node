@@ -4,9 +4,14 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { createHook } = require('node:async_hooks');
+const { getEventListeners } = require('node:events');
 const { setImmediate } = require('node:timers/promises');
 const { throttle } = require('node:util');
 const { TIMEOUT_MAX } = require('internal/timers');
+
+function abortListenerCount(signal) {
+  return getEventListeners(signal, 'abort').length;
+}
 
 process.on('unhandledRejection', common.mustNotCall());
 
@@ -255,6 +260,47 @@ throttle(() => {}, 1, 1, {
       throttled(3),
       (error) => error.code === 'ABORT_ERR' && error.cause === reason,
     );
+  }
+
+  {
+    const { signal } = new AbortController();
+    const throttled = throttle(common.mustCall((value) => value, 2), 1, 10, {
+      signal,
+    });
+    assert.strictEqual(abortListenerCount(signal), 0);
+    const first = throttled(1);
+    assert.strictEqual(abortListenerCount(signal), 0);
+    const second = throttled(2);
+    assert.strictEqual(abortListenerCount(signal), 1);
+    assert.deepStrictEqual(await Promise.all([first, second]), [1, 2]);
+    assert.strictEqual(abortListenerCount(signal), 0);
+  }
+
+  {
+    const { signal } = new AbortController();
+    const throttled = throttle(common.mustCall(), 1, TIMEOUT_MAX, { signal });
+    throttled();
+    const queued = throttled();
+    assert.strictEqual(abortListenerCount(signal), 1);
+    throttled.cancel();
+    assert.strictEqual(abortListenerCount(signal), 0);
+    await assert.rejects(queued, { code: 'ABORT_ERR' });
+  }
+
+  {
+    // Calls waiting on concurrency are queued too, so they keep the listener.
+    const { signal } = new AbortController();
+    const { promise, resolve } = Promise.withResolvers();
+    const throttled = throttle(common.mustCall(() => promise, 2), 2, TIMEOUT_MAX, {
+      concurrency: 1,
+      signal,
+    });
+    const first = throttled();
+    const second = throttled();
+    assert.strictEqual(abortListenerCount(signal), 1);
+    resolve();
+    await Promise.all([first, second]);
+    assert.strictEqual(abortListenerCount(signal), 0);
   }
 
   {

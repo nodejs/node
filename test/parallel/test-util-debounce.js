@@ -4,9 +4,14 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { createHook } = require('node:async_hooks');
+const { getEventListeners } = require('node:events');
 const { setTimeout } = require('node:timers/promises');
 const { debounce } = require('node:util');
 const { TIMEOUT_MAX } = require('internal/timers');
+
+function abortListenerCount(signal) {
+  return getEventListeners(signal, 'abort').length;
+}
 
 for (const value of [undefined, null, true, 0, 'fn', {}, [], Symbol()]) {
   assert.throws(() => debounce(value, 1), {
@@ -318,6 +323,41 @@ assert.throws(() => debounce(() => {}, 1, { signal: {} }), {
     debounced.flush();
     controller.abort();
     assert.strictEqual(await result, 1);
+  }
+
+  {
+    const { signal } = new AbortController();
+    const debounced = debounce(common.mustCall((value) => value, 2), 1, {
+      signal,
+    });
+    assert.strictEqual(abortListenerCount(signal), 0);
+    const first = debounced(1);
+    assert.strictEqual(abortListenerCount(signal), 1);
+    assert.strictEqual(await first, 1);
+    assert.strictEqual(abortListenerCount(signal), 0);
+
+    const second = debounced(2);
+    debounced.flush();
+    assert.strictEqual(abortListenerCount(signal), 0);
+    assert.strictEqual(await second, 2);
+
+    const third = debounced(3);
+    debounced.cancel();
+    assert.strictEqual(abortListenerCount(signal), 0);
+    await assert.rejects(third, { code: 'ABORT_ERR' });
+  }
+
+  {
+    const { signal } = new AbortController();
+    const debounced = debounce(common.mustCall((value) => value), 10, {
+      leading: true,
+      signal,
+    });
+    assert.strictEqual(await debounced(1), 1);
+    // The leading call keeps the listener until the wait is over.
+    assert.strictEqual(abortListenerCount(signal), 1);
+    await setTimeout(20);
+    assert.strictEqual(abortListenerCount(signal), 0);
   }
 
   {
