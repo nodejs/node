@@ -57,3 +57,31 @@ test('permission-audit logs fs denial without throwing', () => {
 test('permission-audit logs fs denial without throwing (eval)', () => {
   runAudit('eval');
 });
+
+// --permission takes precedence over --permission-audit, so the read is denied.
+function runEnforced(args, extraEnv) {
+  const { status, stdout, stderr } = spawnSync(
+    process.execPath,
+    [...args, '-e', `
+      try {
+        require('node:fs').readFileSync(${JSON.stringify(blockedFile)});
+        console.log('RESULT NO_THROW');
+      } catch (e) {
+        console.log('RESULT THREW ' + e.code);
+      }
+    `],
+    { encoding: 'utf8', env: { ...process.env, ...extraEnv } },
+  );
+  assert.strictEqual(status, 0, stderr);
+  assert.ok(stdout.split('\n').includes('RESULT THREW ERR_ACCESS_DENIED'),
+            stdout);
+}
+
+test('--permission takes precedence over --permission-audit', () => {
+  runEnforced(['--permission', '--permission-audit']);
+});
+
+test('--permission takes precedence over --permission-audit in NODE_OPTIONS', () => {
+  runEnforced(['--permission'], { NODE_OPTIONS: '--permission-audit' });
+  runEnforced(['--permission-audit'], { NODE_OPTIONS: '--permission' });
+});
