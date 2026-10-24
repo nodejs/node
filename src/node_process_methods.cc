@@ -516,17 +516,71 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 // restore them if execve(2) subsequently fails. On failure returns -1 with
 // errno set.
 inline int persist_standard_stream(int fd) {
-  int flags = fcntl(fd, F_GETFD, 0);
+  int flags;
+  do {
+    flags = fcntl(fd, F_GETFD, 0);
+  } while (flags < 0 && errno == EINTR);
 
   if (flags < 0) {
     return flags;
   }
 
-  if (fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC) < 0) {
+  int err;
+  do {
+    err = fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC);
+  } while (err < 0 && errno == EINTR);
+
+  if (err < 0) {
     return -1;
   }
 
   return flags;
+}
+
+// Clears O_NONBLOCK on `fd` so the descriptor is blocking in the replacement
+// process, matching child_process.spawn() and normal exit behavior.
+// On success returns the previous F_GETFL flags (>= 0) so callers can
+// restore them if execve(2) subsequently fails. On failure returns -1 with
+// errno set.
+inline int restore_standard_stream_blocking(int fd) {
+  int flags;
+  do {
+    flags = fcntl(fd, F_GETFL, 0);
+  } while (flags < 0 && errno == EINTR);
+
+  if (flags < 0) {
+    return flags;
+  }
+
+  if (flags & O_NONBLOCK) {
+    int err;
+    do {
+      err = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    } while (err < 0 && errno == EINTR);
+
+    if (err < 0) {
+      return -1;
+    }
+  }
+
+  return flags;
+}
+
+inline void restore_standard_stream_flags(int fd,
+                                         int saved_fd_flags,
+                                         int saved_fl_flags) {
+  if (saved_fd_flags >= 0) {
+    int err;
+    do {
+      err = fcntl(fd, F_SETFD, saved_fd_flags);
+    } while (err < 0 && errno == EINTR);
+  }
+  if (saved_fl_flags >= 0 && (saved_fl_flags & O_NONBLOCK)) {
+    int err;
+    do {
+      err = fcntl(fd, F_SETFL, saved_fl_flags);
+    } while (err < 0 && errno == EINTR);
+  }
 }
 
 static void Execve(const FunctionCallbackInfo<Value>& args) {
@@ -580,21 +634,40 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   envp[envp_array->Length()] = nullptr;
 
   // Set stdin, stdout and stderr to be non-close-on-exec so that the new
-  // process will inherit them. Save the previous flags on each fd so we can
-  // restore them if execve(2) fails and we throw back to JS.
-  int saved_stdio_flags[3] = {-1, -1, -1};
+  // process will inherit them, and restore blocking mode so that the new
+  // process does not inherit O_NONBLOCK set by libuv. Save the previous
+  // flags on each fd so we can restore them if execve(2) fails and we throw
+  // back to JS.
+  int saved_stdio_fd_flags[3] = {-1, -1, -1};
+  int saved_stdio_fl_flags[3] = {-1, -1, -1};
   for (int fd = 0; fd < 3; fd++) {
-    int prev = persist_standard_stream(fd);
-    if (prev < 0) {
+    int prev_fd = persist_standard_stream(fd);
+    if (prev_fd < 0) {
       int fcntl_errno = errno;
       // Undo changes already applied to earlier fds before throwing.
       for (int j = 0; j < fd; j++) {
-        fcntl(j, F_SETFD, saved_stdio_flags[j]);
+        restore_standard_stream_flags(
+            j, saved_stdio_fd_flags[j], saved_stdio_fl_flags[j]);
       }
       env->ThrowErrnoException(fcntl_errno, "fcntl");
       return;
     }
-    saved_stdio_flags[fd] = prev;
+    saved_stdio_fd_flags[fd] = prev_fd;
+
+    int prev_fl = restore_standard_stream_blocking(fd);
+    if (prev_fl < 0) {
+      int fcntl_errno = errno;
+      // Undo F_SETFD on current fd.
+      restore_standard_stream_flags(fd, saved_stdio_fd_flags[fd], -1);
+      // Undo changes already applied to earlier fds before throwing.
+      for (int j = 0; j < fd; j++) {
+        restore_standard_stream_flags(
+            j, saved_stdio_fd_flags[j], saved_stdio_fl_flags[j]);
+      }
+      env->ThrowErrnoException(fcntl_errno, "fcntl");
+      return;
+    }
+    saved_stdio_fl_flags[fd] = prev_fl;
   }
 
   // Perform the execve operation.
@@ -606,12 +679,13 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   // can be observed and handled by JS code.
   execve(*executable, argv.data(), envp.data());
 
-  // If execve returned, it failed. Restore the FD_CLOEXEC flags we cleared
-  // above so that a failed call leaves no observable side effects, then
-  // throw an ErrnoException so JS can catch it.
+  // If execve returned, it failed. Restore the FD_CLOEXEC and O_NONBLOCK flags
+  // we modified above so that a failed call leaves no observable side effects,
+  // then throw an ErrnoException so JS can catch it.
   int execve_errno = errno;
   for (int fd = 0; fd < 3; fd++) {
-    fcntl(fd, F_SETFD, saved_stdio_flags[fd]);
+    restore_standard_stream_flags(
+        fd, saved_stdio_fd_flags[fd], saved_stdio_fl_flags[fd]);
   }
   env->ThrowErrnoException(execve_errno, "execve", nullptr, *executable);
 }
@@ -878,3 +952,4 @@ NODE_BINDING_PER_ISOLATE_INIT(process_methods,
                               node::process::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(process_methods,
                                 node::process::RegisterExternalReferences)
+
