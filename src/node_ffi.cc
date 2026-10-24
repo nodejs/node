@@ -5,6 +5,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "ffi/data.h"
@@ -13,6 +14,7 @@
 #include "ffi/types.h"
 #include "node_binding.h"
 #include "node_errors.h"
+#include "node_internals.h"
 
 namespace node {
 
@@ -770,6 +772,17 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   // pointer argument surfaces as the BigInt `0n` via ToJSArgument.
   for (size_t i = 0; i < expected_args; i++) {
     callback_args[i] = ToJSArgument(isolate, cb->args[i], args[i]);
+  }
+
+  // When native code invokes the callback from the event loop (for example
+  // through a libuv handle), no callback scope is active. Open one so that
+  // nextTick and microtasks queued by the callback are drained when it
+  // returns, as for Node.js's own callbacks. Callbacks invoked synchronously
+  // during a call into native code already run inside the caller's scope.
+  Context::Scope context_scope(context);
+  std::optional<InternalCallbackScope> callback_scope;
+  if (env->async_callback_scope_depth() == 0) {
+    callback_scope.emplace(env, Object::New(isolate), async_context{0, 0});
   }
 
   TryCatch try_catch(isolate);
