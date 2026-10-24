@@ -1525,8 +1525,7 @@ which streaming never makes. Output is still bounded per chunk to the declared
 uncompressed size; pass `maxSize` to impose an explicit ceiling.
 
 For an in-memory entry stored without compression, the yielded chunks are
-zero-copy views of the entry's retained content (see
-[`zipEntry.rawContent`][]); do not mutate them.
+zero-copy views of the entry's retained content; do not mutate them.
 
 The yielded chunks are **provisional until the iterator completes**. CRC-32
 verification (and the final declared-size check) can only run once every byte
@@ -1669,20 +1668,56 @@ The entry's raw name bytes, before any character decoding. Useful when the
 archive's names are in an encoding other than UTF-8 or CP437 and the caller
 wants to decode them itself.
 
-### `zipEntry.rawContent`
+### `zipEntry.rawContent([options])`
 
 <!-- YAML
 added: v26.8.0
 -->
 
-* Type: {Buffer|null}
+* `options` {Object}
+  * `maxSize` {number} Reject content with more than this many compressed
+    bytes, before allocating anything. **Default:**
+    [`zlib.getMaxZipContentSize()`][].
+* Returns: {Promise} Fulfilled with a {Buffer} containing the entry's raw
+  content: the bytes as stored in the archive, still compressed if
+  [`zipEntry.compressed`][] is `true`. The buffer is a fresh copy that shares
+  no memory with the archive or with data the entry was created from.
 
-The entry's raw (still compressed, if applicable) content when it is held in
-memory, or `null` when there is no in-memory buffer to expose - for an entry
-created with [`zlib.ZipEntry.createStream()`][], or a file-backed entry
-returned by [`zipFile.get()`][], whose bytes are read from disk on demand
-rather than retained. Use [`zipEntry.content()`][] or
-[`zipEntry.contentIterator()`][] to read a file-backed entry.
+The content is neither decompressed nor checked against
+[`zipEntry.crc32`][], which covers the uncompressed bytes.
+
+Throws an [`ERR_ZIP_ENTRY_TOO_LARGE`][] error if the entry's compressed size
+exceeds `maxSize`, and an [`ERR_INVALID_STATE`][] error for a streaming entry
+([`zlib.ZipEntry.createStream()`][]) whose content is not yet available.
+
+### `zipEntry.rawContentSync([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} See [`zipEntry.rawContent()`][].
+* Returns: {Buffer} The entry's raw content.
+
+The synchronous version of [`zipEntry.rawContent()`][].
+
+### `zipEntry.rawContentIterator([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `maxSize` {number} Reject content with more than this many compressed
+    bytes, before reading anything. **Default:** no limit.
+* Returns: {AsyncIterator} of {Buffer} chunks of the entry's raw content.
+
+Unlike [`zipEntry.rawContent()`][], this does not buffer the whole member in
+memory. For a file-backed entry (one returned by [`zipFile.get()`][]) the
+bytes are read from disk as the iterator is consumed and nothing is retained;
+the entry is valid only while its `ZipFile` is open. For an in-memory entry,
+the yielded chunk is a zero-copy view of the entry's retained content; do not
+mutate it.
 
 ### `zipEntry.size`
 
@@ -3469,15 +3504,17 @@ Create a Zstandard decompression transform.
 [`zipBuffer.comment`]: #zipbuffercomment
 [`zipBuffer.toBuffer()`]: #zipbuffertobufferoptions
 [`zipBuffer.toBufferSync()`]: #zipbuffertobuffersyncoptions
+[`zipEntry.compressed`]: #zipentrycompressed
 [`zipEntry.content()`]: #zipentrycontentoptions
 [`zipEntry.contentIterator()`]: #zipentrycontentiteratoroptions
 [`zipEntry.contentSync()`]: #zipentrycontentsyncoptions
+[`zipEntry.crc32`]: #zipentrycrc32
 [`zipEntry.isDirectory`]: #zipentryisdirectory
 [`zipEntry.isSymlink`]: #zipentryissymlink
 [`zipEntry.modified`]: #zipentrymodified
 [`zipEntry.nameBuffer`]: #zipentrynamebuffer
 [`zipEntry.name`]: #zipentryname
-[`zipEntry.rawContent`]: #zipentryrawcontent
+[`zipEntry.rawContent()`]: #zipentryrawcontentoptions
 [`zipFile.add()`]: #zipfileaddfilename-data-options
 [`zipFile.addEntry()`]: #zipfileaddentryentry
 [`zipFile.close()`]: #zipfileclose
