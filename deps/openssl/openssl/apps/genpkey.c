@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,14 +15,14 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
-static int verbose = 1;
+static int verbose = 0;
 
-static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
+static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file,
     OSSL_LIB_CTX *libctx, const char *propq);
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_ENGINE,
     OPT_OUTFORM,
+    OPT_ENCOPT,
     OPT_OUT,
     OPT_PASS,
     OPT_PARAMFILE,
@@ -42,9 +42,6 @@ typedef enum OPTION_choice {
 const OPTIONS genpkey_options[] = {
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
     { "paramfile", OPT_PARAMFILE, '<', "Parameters file" },
     { "algorithm", OPT_ALGORITHM, 's', "The public key algorithm" },
     { "verbose", OPT_VERBOSE, '-', "Output status while generating keys" },
@@ -57,6 +54,7 @@ const OPTIONS genpkey_options[] = {
     { "out", OPT_OUT, '>', "Output (private key) file" },
     { "outpubkey", OPT_OUTPUBKEY, '>', "Output public key file" },
     { "outform", OPT_OUTFORM, 'F', "output format (DER or PEM)" },
+    { "encopt", OPT_ENCOPT, 's', "Private key encoder parameter" },
     { "pass", OPT_PASS, 's', "Output file pass phrase source" },
     { "genparam", OPT_GENPARAM, '-', "Generate parameters, not key" },
     { "text", OPT_TEXT, '-', "Print the private key in text" },
@@ -110,7 +108,7 @@ static void show_gen_pkeyopt(const char *algname, OSSL_LIB_CTX *libctx, const ch
     if (params == NULL)
         goto cleanup;
 
-    BIO_printf(bio_err, "\nThe possible -pkeyopt arguments are:\n");
+    BIO_puts(bio_err, "\nThe possible -pkeyopt arguments are:\n");
     for (i = 0; params[i].key != NULL; ++i) {
         const char *name = param_datatype_2name(params[i].data_type, &ishex);
 
@@ -125,7 +123,6 @@ int genpkey_main(int argc, char **argv)
 {
     CONF *conf = NULL;
     BIO *mem_out = NULL, *mem_outpubkey = NULL;
-    ENGINE *e = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     char *outfile = NULL, *passarg = NULL, *pass = NULL, *prog, *p;
@@ -135,6 +132,7 @@ int genpkey_main(int argc, char **argv)
     OPTION_CHOICE o;
     int outformat = FORMAT_PEM, text = 0, ret = 1, rv, do_param = 0;
     int private = 0, i;
+    STACK_OF(OPENSSL_STRING) *encopt = NULL;
     OSSL_LIB_CTX *libctx = app_get0_libctx();
     STACK_OF(OPENSSL_STRING) *keyopt = NULL;
 
@@ -159,6 +157,12 @@ int genpkey_main(int argc, char **argv)
             if (!opt_format(opt_arg(), OPT_FMT_PEMDER, &outformat))
                 goto opthelp;
             break;
+        case OPT_ENCOPT:
+            if (encopt == NULL)
+                encopt = sk_OPENSSL_STRING_new_null();
+            if (!sk_OPENSSL_STRING_push(encopt, opt_arg()))
+                goto end;
+            break;
         case OPT_OUT:
             outfile = opt_arg();
             break;
@@ -167,9 +171,6 @@ int genpkey_main(int argc, char **argv)
             break;
         case OPT_PASS:
             passarg = opt_arg();
-            break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
             break;
         case OPT_PARAMFILE:
             if (do_param == 1)
@@ -223,11 +224,11 @@ int genpkey_main(int argc, char **argv)
 
     /* Fetch cipher, etc. */
     if (paramfile != NULL) {
-        if (!init_keygen_file(&ctx, paramfile, e, libctx, app_get0_propq()))
+        if (!init_keygen_file(&ctx, paramfile, libctx, app_get0_propq()))
             goto end;
     }
     if (algname != NULL) {
-        if (!init_gen_str(&ctx, algname, e, do_param, libctx, app_get0_propq()))
+        if (!init_gen_str(&ctx, algname, do_param, libctx, app_get0_propq()))
             goto end;
     }
     if (ctx == NULL)
@@ -244,7 +245,7 @@ int genpkey_main(int argc, char **argv)
     if (!opt_cipher(ciphername, &cipher))
         goto opthelp;
     if (ciphername != NULL && do_param == 1) {
-        BIO_printf(bio_err, "Cannot use cipher with -genparam option\n");
+        BIO_puts(bio_err, "Cannot use cipher with -genparam option\n");
         goto opthelp;
     }
 
@@ -272,7 +273,7 @@ int genpkey_main(int argc, char **argv)
     EVP_PKEY_CTX_set_app_data(ctx, bio_err);
 
     pkey = do_param ? app_paramgen(ctx, algname)
-                    : app_keygen(ctx, algname, 0, 0 /* not verbose */);
+                    : app_keygen(ctx, algname, 0, verbose);
     if (pkey == NULL)
         goto end;
 
@@ -280,16 +281,16 @@ int genpkey_main(int argc, char **argv)
         rv = PEM_write_bio_Parameters(mem_out, pkey);
     } else if (outformat == FORMAT_PEM) {
         assert(private);
-        rv = PEM_write_bio_PrivateKey(mem_out, pkey, cipher, NULL, 0, NULL, pass);
+        rv = encode_private_key(mem_out, "PEM", pkey, encopt, cipher, pass);
         if (rv > 0 && mem_outpubkey != NULL)
             rv = PEM_write_bio_PUBKEY(mem_outpubkey, pkey);
     } else if (outformat == FORMAT_ASN1) {
         assert(private);
-        rv = i2d_PrivateKey_bio(mem_out, pkey);
+        rv = encode_private_key(mem_out, "DER", pkey, encopt, cipher, pass);
         if (rv > 0 && mem_outpubkey != NULL)
             rv = i2d_PUBKEY_bio(mem_outpubkey, pkey);
     } else {
-        BIO_printf(bio_err, "Bad format specified for key\n");
+        BIO_puts(bio_err, "Bad format specified for key\n");
         goto end;
     }
 
@@ -330,18 +331,18 @@ end:
                     outfile, strerror(errno));
         }
     }
+    sk_OPENSSL_STRING_free(encopt);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
     EVP_CIPHER_free(cipher);
     BIO_free_all(mem_out);
     BIO_free_all(mem_outpubkey);
-    release_engine(e);
     OPENSSL_free(pass);
     NCONF_free(conf);
     return ret;
 }
 
-static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
+static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file,
     OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *pbio;
@@ -366,10 +367,7 @@ static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
         return 0;
     }
 
-    if (e != NULL)
-        ctx = EVP_PKEY_CTX_new(pkey, e);
-    else
-        ctx = EVP_PKEY_CTX_new_from_pkey(libctx, pkey, propq);
+    ctx = EVP_PKEY_CTX_new_from_pkey(libctx, pkey, propq);
     if (ctx == NULL)
         goto err;
     if (EVP_PKEY_keygen_init(ctx) <= 0)
@@ -387,22 +385,17 @@ err:
 }
 
 int init_gen_str(EVP_PKEY_CTX **pctx,
-    const char *algname, ENGINE *e, int do_param,
+    const char *algname, int do_param,
     OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY_CTX *ctx = NULL;
-    int pkey_id;
 
     if (*pctx) {
         BIO_puts(bio_err, "Algorithm already set!\n");
         return 0;
     }
 
-    pkey_id = get_legacy_pkey_id(libctx, algname, e);
-    if (pkey_id != NID_undef)
-        ctx = EVP_PKEY_CTX_new_id(pkey_id, e);
-    else
-        ctx = EVP_PKEY_CTX_new_from_name(libctx, algname, propq);
+    ctx = EVP_PKEY_CTX_new_from_name(libctx, algname, propq);
 
     if (ctx == NULL)
         goto err;

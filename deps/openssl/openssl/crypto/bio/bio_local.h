@@ -1,11 +1,14 @@
 /*
- * Copyright 2005-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_BIO_BIO_LOCAL_H)
+#define OSSL_LIBCRYPTO_BIO_BIO_LOCAL_H
 
 #include "internal/e_os.h"
 #include "internal/sockets.h"
@@ -71,6 +74,7 @@ struct bio_addrinfo_st {
 #include "internal/cryptlib.h"
 #include "internal/bio.h"
 #include "internal/refcount.h"
+#include "internal/time.h"
 
 typedef struct bio_f_buffer_ctx_struct {
     /*-
@@ -93,6 +97,9 @@ typedef struct bio_f_buffer_ctx_struct {
     char *obuf; /* the char array */
     int obuf_len; /* how many bytes are in it */
     int obuf_off; /* write/read offset */
+#ifndef OPENSSL_NO_SOCK
+    BIO_ADDR *peer;
+#endif
 } BIO_F_BUFFER_CTX;
 
 struct bio_st {
@@ -119,6 +126,87 @@ struct bio_st {
 };
 
 #ifndef OPENSSL_NO_SOCK
+
+typedef struct bio_connect_st {
+    int state;
+    int connect_family;
+    int connect_sock_type;
+    char *param_hostname;
+    char *param_service;
+    int connect_mode;
+#ifndef OPENSSL_NO_KTLS
+    unsigned char record_type;
+#endif
+    int tfo_first;
+
+    BIO_ADDRINFO *addr_first;
+    const BIO_ADDRINFO *addr_iter;
+    /*
+     * int socket; this will be kept in bio->num so that it is compatible
+     * with the bss_sock bio
+     */
+    /*
+     * called when the connection is initially made callback(BIO,state,ret);
+     * The callback should return 'ret'.  state is for compatibility with the
+     * ssl info_callback
+     */
+    BIO_info_cb *info_callback;
+    /*
+     * Used when connect_sock_type is SOCK_DGRAM. Owned by us; we forward
+     * read/write(mmsg) calls to this if present.
+     */
+    BIO *dgram_bio;
+} BIO_CONNECT;
+
+typedef struct bio_accept_st {
+    int state;
+    int accept_family;
+    int bind_mode; /* Socket mode for BIO_listen */
+    int accepted_mode; /* Socket mode for BIO_accept (set on accepted sock) */
+    char *param_addr;
+    char *param_serv;
+
+    int accept_sock;
+
+    BIO_ADDRINFO *addr_first;
+    const BIO_ADDRINFO *addr_iter;
+    BIO_ADDR cache_accepting_addr; /* Useful if we asked for port 0 */
+    char *cache_accepting_name, *cache_accepting_serv;
+    BIO_ADDR cache_peer_addr;
+    char *cache_peer_name, *cache_peer_serv;
+
+    BIO *bio_chain;
+} BIO_ACCEPT;
+
+#ifndef OPENSSL_NO_DGRAM
+typedef struct bio_dgram_data_st {
+    BIO_ADDR peer;
+    BIO_ADDR local_addr;
+    unsigned int connected;
+    unsigned int _errno;
+    unsigned int mtu;
+    OSSL_TIME next_timeout;
+    OSSL_TIME socket_timeout;
+    unsigned int peekmode;
+    char local_addr_enabled;
+} bio_dgram_data;
+#endif
+
+#define BIO_CONN_S_BEFORE 1
+#define BIO_CONN_S_GET_ADDR 2
+#define BIO_CONN_S_CREATE_SOCKET 3
+#define BIO_CONN_S_CONNECT 4
+#define BIO_CONN_S_OK 5
+#define BIO_CONN_S_BLOCKED_CONNECT 6
+#define BIO_CONN_S_CONNECT_ERROR 7
+
+#define BIO_ACPT_S_BEFORE 1
+#define BIO_ACPT_S_GET_ADDR 2
+#define BIO_ACPT_S_CREATE_SOCKET 3
+#define BIO_ACPT_S_LISTEN 4
+#define BIO_ACPT_S_ACCEPT 5
+#define BIO_ACPT_S_OK 6
+
 #ifdef OPENSSL_SYS_VMS
 typedef unsigned int socklen_t;
 #endif
@@ -178,3 +266,5 @@ void bio_sock_cleanup_int(void);
 #endif
 
 #endif
+
+#endif /* !defined(OSSL_LIBCRYPTO_BIO_BIO_LOCAL_H) */

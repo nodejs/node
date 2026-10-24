@@ -1,11 +1,14 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_ENCODE_DECODE_ENCODER_LOCAL_H)
+#define OSSL_LIBCRYPTO_ENCODE_DECODE_ENCODER_LOCAL_H
 
 #include <openssl/core_dispatch.h>
 #include <openssl/types.h>
@@ -21,6 +24,7 @@
 struct ossl_endecode_base_st {
     OSSL_PROVIDER *prov;
     int id;
+    int no_store;
     char *name;
     const OSSL_ALGORITHM *algodef;
     OSSL_PROPERTY_LIST *parsed_propdef;
@@ -101,6 +105,9 @@ struct ossl_encoder_ctx_st {
 
     /* For any function that needs a passphrase reader */
     struct ossl_passphrase_data_st pwdata;
+
+    /* Flag that the structure is ready for use */
+    int frozen;
 };
 
 struct ossl_decoder_instance_st {
@@ -162,6 +169,9 @@ struct ossl_decoder_ctx_st {
 
     /* Signal that further processing should not continue. */
     int harderr;
+
+    /* Flag that the structure is ready for use */
+    int frozen;
 };
 
 const OSSL_PROPERTY_LIST *
@@ -171,3 +181,5 @@ ossl_encoder_parsed_properties(const OSSL_ENCODER *encoder);
 
 int ossl_decoder_fast_is_a(OSSL_DECODER *decoder,
     const char *name, int *id_cache);
+
+#endif /* !defined(OSSL_LIBCRYPTO_ENCODE_DECODE_ENCODER_LOCAL_H) */

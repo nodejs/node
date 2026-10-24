@@ -43,7 +43,7 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
     int nid;
     int rv = -1;
     const unsigned char *label = NULL;
-    int labellen = 0;
+    size_t labellen = 0;
     const EVP_MD *mgf1md = NULL, *md = NULL;
     RSA_OAEP_PARAMS *oaep;
     const ASN1_OBJECT *aoid;
@@ -90,7 +90,9 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
         }
 
         label = ASN1_STRING_get0_data(parameter);
-        labellen = ASN1_STRING_length(parameter);
+        labellen = ASN1_STRING_get_length(parameter);
+        if (labellen > INT_MAX)
+            goto err;
     }
 
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, RSA_PKCS1_OAEP_PADDING) <= 0)
@@ -105,7 +107,7 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
         if (dup_label == NULL)
             goto err;
 
-        if (EVP_PKEY_CTX_set0_rsa_oaep_label(pkctx, dup_label, labellen) <= 0) {
+        if (EVP_PKEY_CTX_set0_rsa_oaep_label(pkctx, dup_label, (int)labellen) <= 0) {
             OPENSSL_free(dup_label);
             goto err;
         }
@@ -243,7 +245,7 @@ static int rsa_cms_sign(CMS_SignerInfo *si)
         return 0;
     if ((aid_len = params[0].return_size) == 0)
         return 0;
-    if (d2i_X509_ALGOR(&alg, &pp, aid_len) == NULL)
+    if (d2i_X509_ALGOR(&alg, &pp, (long)aid_len) == NULL)
         return 0;
     return 1;
 }

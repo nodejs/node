@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,16 +31,12 @@ typedef enum OPTION_choice {
     OPT_PRINT,
     OPT_PRINT_CERTS,
     OPT_QUIET,
-    OPT_ENGINE,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs7_options[] = {
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
     { "in", OPT_IN, '<', "Input file" },
@@ -63,7 +59,6 @@ const OPTIONS pkcs7_options[] = {
 
 int pkcs7_main(int argc, char **argv)
 {
-    ENGINE *e = NULL;
     PKCS7 *p7 = NULL, *p7i;
     BIO *in = NULL, *out = NULL;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM;
@@ -113,9 +108,6 @@ int pkcs7_main(int argc, char **argv)
         case OPT_QUIET:
             quiet = 1;
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         case OPT_PROV_CASES:
             if (!opt_provider(o))
                 goto end;
@@ -133,7 +125,7 @@ int pkcs7_main(int argc, char **argv)
 
     p7 = PKCS7_new_ex(libctx, app_get0_propq());
     if (p7 == NULL) {
-        BIO_printf(bio_err, "unable to allocate PKCS7 object\n");
+        BIO_puts(bio_err, "unable to allocate PKCS7 object\n");
         ERR_print_errors(bio_err);
         goto end;
     }
@@ -143,7 +135,7 @@ int pkcs7_main(int argc, char **argv)
     else
         p7i = PEM_read_bio_PKCS7(in, &p7, NULL, NULL);
     if (p7i == NULL) {
-        BIO_printf(bio_err, "unable to load PKCS7 object\n");
+        BIO_puts(bio_err, "unable to load PKCS7 object\n");
         ERR_print_errors(bio_err);
         goto end;
     }
@@ -217,7 +209,7 @@ int pkcs7_main(int argc, char **argv)
             i = PEM_write_bio_PKCS7(out, p7);
 
         if (!i) {
-            BIO_printf(bio_err, "unable to write pkcs7 object\n");
+            BIO_puts(bio_err, "unable to write pkcs7 object\n");
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -225,7 +217,6 @@ int pkcs7_main(int argc, char **argv)
     ret = 0;
 end:
     PKCS7_free(p7);
-    release_engine(e);
     BIO_free(in);
     BIO_free_all(out);
     return ret;

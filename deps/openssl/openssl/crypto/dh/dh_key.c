@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -114,7 +114,7 @@ err:
 int DH_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
     int ret = 0, i;
-    volatile size_t npad = 0, mask = 1;
+    volatile int npad = 0, mask = 1;
 
     /* compute the key; ret is constant unless compute_key is external */
 #ifdef FIPS_MODULE
@@ -207,6 +207,7 @@ static int dh_init(DH *dh)
 static int dh_finish(DH *dh)
 {
     BN_MONT_CTX_free(dh->method_mont_p);
+    dh->method_mont_p = NULL;
     return 1;
 }
 
@@ -393,7 +394,7 @@ int ossl_dh_buf2key(DH *dh, const unsigned char *buf, size_t len)
     const BIGNUM *p;
     int ret;
 
-    if ((pubkey = BN_bin2bn(buf, len, NULL)) == NULL)
+    if (len > INT_MAX || (pubkey = BN_bin2bn(buf, (int)len, NULL)) == NULL)
         goto err;
     DH_get0_pqg(dh, &p, NULL, NULL);
     if (p == NULL || BN_num_bytes(p) == 0) {

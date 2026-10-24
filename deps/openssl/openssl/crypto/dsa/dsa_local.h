@@ -1,11 +1,14 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_DSA_DSA_LOCAL_H)
+#define OSSL_LIBCRYPTO_DSA_DSA_LOCAL_H
 
 #include <openssl/dsa.h>
 #include "internal/refcount.h"
@@ -29,8 +32,6 @@ struct dsa_st {
     CRYPTO_EX_DATA ex_data;
 #endif
     const DSA_METHOD *meth;
-    /* functional reference if 'meth' is ENGINE-provided */
-    ENGINE *engine;
     CRYPTO_RWLOCK *lock;
     OSSL_LIB_CTX *libctx;
 
@@ -72,3 +73,5 @@ struct dsa_method {
 DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa,
     unsigned int nonce_type, const char *digestname,
     OSSL_LIB_CTX *libctx, const char *propq);
+
+#endif /* !defined(OSSL_LIBCRYPTO_DSA_DSA_LOCAL_H) */

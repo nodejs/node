@@ -19,15 +19,22 @@
 #endif
 #include "internal/cryptlib.h"
 #ifdef _WIN32
-#include <windows.h>
+#include "internal/e_os.h"
 #else
 #include <unistd.h>
 #endif
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
+#ifdef __aarch64__
+#include <stdint.h>
+#endif
 
 unsigned int OPENSSL_armcap_P = 0;
 unsigned int OPENSSL_arm_midr = 0;
 unsigned int OPENSSL_armv8_rsa_neonized = 0;
+
+#ifdef __aarch64__
+uint64_t _armv8_sve_get_vl_bytes(void);
+#endif
 
 #ifdef _WIN32
 void OPENSSL_cpuid_setup(void)
@@ -62,7 +69,7 @@ uint32_t OPENSSL_rdtsc(void)
 
 /* First determine if getauxval() is available (OSSL_IMPLEMENT_GETAUXVAL) */
 
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 void OPENSSL_cpuid_setup(void) __attribute__((constructor));
 #endif
 
@@ -80,7 +87,7 @@ void OPENSSL_cpuid_setup(void) __attribute__((constructor));
 #endif
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <sys/param.h>
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 1200000) || (defined(__OpenBSD__) && OpenBSD >= 202409)
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 1104000) || (defined(__OpenBSD__) && OpenBSD >= 202409)
 #include <sys/auxv.h>
 #define OSSL_IMPLEMENT_GETAUXVAL
 
@@ -296,7 +303,7 @@ void OPENSSL_cpuid_setup(void)
             char uarch[64];
 
             size_t len = sizeof(uarch);
-            if ((sysctlbyname("machdep.cpu.brand_string", uarch, &len, NULL, 0) == 0) && ((strncmp(uarch, "Apple M1", 8) == 0) || (strncmp(uarch, "Apple M2", 8) == 0) || (strncmp(uarch, "Apple M3", 8) == 0) || (strncmp(uarch, "Apple M4", 8) == 0))) {
+            if ((sysctlbyname("machdep.cpu.brand_string", uarch, &len, NULL, 0) == 0) && ((strncmp(uarch, "Apple M1", 8) == 0) || (strncmp(uarch, "Apple M2", 8) == 0) || (strncmp(uarch, "Apple M3", 8) == 0) || (strncmp(uarch, "Apple M4", 8) == 0) || (strncmp(uarch, "Apple M5", 8) == 0))) {
                 OPENSSL_armcap_P |= ARMV8_UNROLL8_EOR3;
                 OPENSSL_armcap_P |= ARMV8_HAVE_SHA3_AND_WORTH_USING;
             }
@@ -344,7 +351,7 @@ void OPENSSL_cpuid_setup(void)
         OPENSSL_armcap_P |= ARMV8_SVE;
 
     if (getauxval(OSSL_HWCAP2) & OSSL_HWCAP2_SVE2)
-        OPENSSL_armcap_P |= ARMV8_SVE2;
+        OPENSSL_armcap_P |= ARMV9_SVE2;
 
     if (getauxval(OSSL_HWCAP2) & OSSL_HWCAP2_RNG)
         OPENSSL_armcap_P |= ARMV8_RNG;
@@ -389,7 +396,7 @@ void OPENSSL_cpuid_setup(void)
     }
 #ifdef __aarch64__
     OPENSSL_armcap_P |= arm_probe_for(_armv8_sve_probe, ARMV8_SVE);
-    OPENSSL_armcap_P |= arm_probe_for(_armv8_sve2_probe, ARMV8_SVE2);
+    OPENSSL_armcap_P |= arm_probe_for(_armv8_sve2_probe, ARMV9_SVE2);
     OPENSSL_armcap_P |= arm_probe_for(_armv8_rng_probe, ARMV8_RNG);
 #endif
 
@@ -416,15 +423,25 @@ void OPENSSL_cpuid_setup(void)
     if ((OPENSSL_armcap_P & ARMV8_SHA3)
         && (MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V1)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N2)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_QCOMM, QCOM_CPU_PART_ORYON_X1)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_MICROSOFT, MICROSOFT_CPU_PART_COBALT_100)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V2)
-            || MIDR_IMPLEMENTER(OPENSSL_arm_midr) == ARM_CPU_IMP_AMPERE))
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N3)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V3_AE)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V3)
+            || MIDR_IMPLEMENTER(OPENSSL_arm_midr) == ARM_CPU_IMP_AMPERE
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_NVIDIA, NVIDIA_CPU_PART_OLYMPUS)))
         OPENSSL_armcap_P |= ARMV8_UNROLL8_EOR3;
 
     if ((OPENSSL_armcap_P & ARMV8_SHA3)
         && (MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V1)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V2)
-            || MIDR_IMPLEMENTER(OPENSSL_arm_midr) == ARM_CPU_IMP_AMPERE))
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V3_AE)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V3)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N2)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N3)
+            || MIDR_IMPLEMENTER(OPENSSL_arm_midr) == ARM_CPU_IMP_AMPERE
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_NVIDIA, NVIDIA_CPU_PART_OLYMPUS)))
         OPENSSL_armcap_P |= ARMV8_UNROLL12_EOR3;
 
     if ((OPENSSL_armcap_P & ARMV8_SHA3)
@@ -439,8 +456,22 @@ void OPENSSL_cpuid_setup(void)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_APPLE, APPLE_CPU_PART_M2_AVALANCHE_PRO)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_APPLE, APPLE_CPU_PART_M2_BLIZZARD_PRO)
             || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_APPLE, APPLE_CPU_PART_M2_AVALANCHE_MAX)
-            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_APPLE, APPLE_CPU_PART_M2_BLIZZARD_MAX)))
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_APPLE, APPLE_CPU_PART_M2_BLIZZARD_MAX)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_QCOMM, QCOM_CPU_PART_ORYON_X1)
+            || MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_NVIDIA, NVIDIA_CPU_PART_OLYMPUS)))
         OPENSSL_armcap_P |= ARMV8_HAVE_SHA3_AND_WORTH_USING;
+
+    if (OPENSSL_armcap_P & ARMV9_SVE2) {
+        uint64_t vl_bytes = _armv8_sve_get_vl_bytes();
+
+        if (vl_bytes > 16 && (vl_bytes & (vl_bytes - 1)) == 0) {
+            /*
+             * This implementation faster if vector length > 128 bits
+             * But vector length must be a power of 2 (e.g. 256, 512 bits)
+             */
+            OPENSSL_armcap_P |= ARMV9_SVE2_POLY1305;
+        }
+    }
 #endif
 }
 #endif /* _WIN32, __ARM_MAX_ARCH__ >= 7 */

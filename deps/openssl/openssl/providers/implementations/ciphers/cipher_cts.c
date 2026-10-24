@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
  * Helper functions for 128 bit CBC CTS ciphers (Currently AES and Camellia).
  *
  * The function dispatch tables are embedded into cipher_aes.c
- * and cipher_camellia.c using cipher_aes_cts.inc and cipher_camellia_cts.inc
+ * and cipher_camellia.c
  */
 
 /*
@@ -47,9 +47,24 @@
  */
 
 #include <openssl/core_names.h>
+#include <openssl/proverr.h>
 #include "prov/ciphercommon.h"
 #include "internal/nelem.h"
 #include "cipher_cts.h"
+
+struct cipher_cts_get_ctx_param_list_st {
+    struct ossl_cipher_get_ctx_param_list_st common;
+    OSSL_PARAM *mode;
+};
+
+struct cipher_cts_set_ctx_param_list_st {
+    OSSL_PARAM *mode;
+};
+
+#define cipher_cts_get_ctx_params_st cipher_cts_get_ctx_param_list_st
+#define cipher_cts_set_ctx_params_st cipher_cts_set_ctx_param_list_st
+
+#include "providers/implementations/ciphers/cipher_cts.inc"
 
 /* The value assigned to 0 is the default */
 #define CTS_CS1 0
@@ -94,6 +109,63 @@ int ossl_cipher_cbc_cts_mode_name2id(const char *name)
             return (int)cts_modes[i].id;
     }
     return -1;
+}
+
+int ossl_cipher_cbc_cts_get_ctx_params(void *vctx, OSSL_PARAM params[])
+{
+    PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
+    struct cipher_cts_get_ctx_param_list_st p;
+
+    if (ctx == NULL || !cipher_cts_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (!ossl_cipher_common_get_ctx_params(ctx, &p.common))
+        return 0;
+
+    if (p.mode != NULL) {
+        const char *name = ossl_cipher_cbc_cts_mode_id2name(ctx->cts_mode);
+
+        if (name == NULL || !OSSL_PARAM_set_utf8_string(p.mode, name)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+const OSSL_PARAM *ossl_cipher_cbc_cts_gettable_ctx_params(
+    ossl_unused void *cctx, ossl_unused void *provctx)
+{
+    return cipher_cts_get_ctx_params_list;
+}
+
+int ossl_cipher_cbc_cts_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+{
+    PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
+    struct cipher_cts_set_ctx_param_list_st p;
+
+    if (ctx == NULL || !cipher_cts_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.mode != NULL) {
+        int id;
+
+        if (p.mode->data_type != OSSL_PARAM_UTF8_STRING
+            || p.mode->data == NULL
+            || (id = ossl_cipher_cbc_cts_mode_name2id(p.mode->data)) < 0) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+        ctx->cts_mode = (unsigned int)id;
+    }
+
+    return 1;
+}
+
+const OSSL_PARAM *ossl_cipher_cbc_cts_settable_ctx_params(
+    ossl_unused void *cctx, ossl_unused void *provctx)
+{
+    return cipher_cts_set_ctx_params_list;
 }
 
 static size_t cts128_cs1_encrypt(PROV_CIPHER_CTX *ctx, const unsigned char *in,

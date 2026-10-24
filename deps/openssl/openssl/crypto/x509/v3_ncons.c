@@ -277,10 +277,10 @@ static int add_lengths(int *out, int a, int b)
  *  X509_V_ERR_UNSUPPORTED_NAME_SYNTAX: bad or unsupported syntax of name
  */
 
-int NAME_CONSTRAINTS_check(X509 *x, NAME_CONSTRAINTS *nc)
+int NAME_CONSTRAINTS_check(const X509 *x, NAME_CONSTRAINTS *nc)
 {
     int r, i, name_count, constraint_count;
-    X509_NAME *nm;
+    const X509_NAME *nm;
 
     nm = X509_get_subject_name(x);
 
@@ -299,7 +299,8 @@ int NAME_CONSTRAINTS_check(X509 *x, NAME_CONSTRAINTS *nc)
     if (X509_NAME_entry_count(nm) > 0) {
         GENERAL_NAME gntmp;
         gntmp.type = GEN_DIRNAME;
-        gntmp.d.directoryName = nm;
+        /* XXX casts away const (but does not mutate) */
+        gntmp.d.directoryName = (X509_NAME *)nm;
 
         r = nc_match(&gntmp, nc);
 
@@ -317,7 +318,8 @@ int NAME_CONSTRAINTS_check(X509 *x, NAME_CONSTRAINTS *nc)
             if (i == -1)
                 break;
             ne = X509_NAME_get_entry(nm, i);
-            gntmp.d.rfc822Name = X509_NAME_ENTRY_get_data(ne);
+            /* XXX casts away const (but does not mutate) */
+            gntmp.d.rfc822Name = (ASN1_STRING *)X509_NAME_ENTRY_get_data(ne);
             if (gntmp.d.rfc822Name->type != V_ASN1_IA5STRING)
                 return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
 
@@ -338,7 +340,7 @@ int NAME_CONSTRAINTS_check(X509 *x, NAME_CONSTRAINTS *nc)
     return X509_V_OK;
 }
 
-static int cn2dnsid(ASN1_STRING *cn, unsigned char **dnsid, size_t *idlen)
+static int cn2dnsid(const ASN1_STRING *cn, unsigned char **dnsid, size_t *idlen)
 {
     int utf8_length;
     unsigned char *utf8_value;
@@ -434,7 +436,7 @@ static int cn2dnsid(ASN1_STRING *cn, unsigned char **dnsid, size_t *idlen)
 /*
  * Check CN against DNS-ID name constraints.
  */
-int NAME_CONSTRAINTS_check_CN(X509 *x, NAME_CONSTRAINTS *nc)
+int NAME_CONSTRAINTS_check_CN(const X509 *x, NAME_CONSTRAINTS *nc)
 {
     int r, i;
     const X509_NAME *nm = X509_get_subject_name(x);
@@ -449,8 +451,8 @@ int NAME_CONSTRAINTS_check_CN(X509 *x, NAME_CONSTRAINTS *nc)
     /* Process any commonName attributes in subject name */
 
     for (i = -1;;) {
-        X509_NAME_ENTRY *ne;
-        ASN1_STRING *cn;
+        const X509_NAME_ENTRY *ne;
+        const ASN1_STRING *cn;
         unsigned char *idval;
         size_t idlen;
 
@@ -466,7 +468,7 @@ int NAME_CONSTRAINTS_check_CN(X509 *x, NAME_CONSTRAINTS *nc)
         if (idlen == 0)
             continue;
 
-        stmp.length = idlen;
+        stmp.length = (int)idlen;
         stmp.data = idval;
         r = nc_match(&gntmp, nc);
         OPENSSL_free(idval);
@@ -805,7 +807,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
     OPENSSL_free(scheme);
     OPENSSL_free(uri_copy);
 
-    hostlen = strlen(host);
+    hostlen = (int)strlen(host);
 
     /* Special case: initial '.' is RHS match */
     if (base->length > 0 && *baseptr == '.') {

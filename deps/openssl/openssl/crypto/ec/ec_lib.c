@@ -21,6 +21,7 @@
 #include <openssl/opensslv.h>
 #include <openssl/param_build.h>
 #include "crypto/ec.h"
+#include "crypto/ec_params.h"
 #include "crypto/bn.h"
 #include "internal/nelem.h"
 #include "ec_local.h"
@@ -242,9 +243,9 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
     }
 
     if ((src->meth->flags & EC_FLAGS_CUSTOM_CURVE) == 0) {
-        if (!BN_copy(dest->order, src->order))
+        if (BN_copy(dest->order, src->order) == NULL)
             return 0;
-        if (!BN_copy(dest->cofactor, src->cofactor))
+        if (BN_copy(dest->cofactor, src->cofactor) == NULL)
             return 0;
     }
 
@@ -348,7 +349,7 @@ static int ec_guess_cofactor(EC_GROUP *group)
         if (!BN_set_bit(q, BN_num_bits(group->field) - 1))
             goto err;
     } else {
-        if (!BN_copy(q, group->field))
+        if (BN_copy(q, group->field) == NULL)
             goto err;
     }
 
@@ -411,12 +412,12 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
     if (!EC_POINT_copy(group->generator, generator))
         return 0;
 
-    if (!BN_copy(group->order, order))
+    if (BN_copy(group->order, order) == NULL)
         return 0;
 
     /* Either take the provided positive cofactor, or try to compute it */
     if (cofactor != NULL && !BN_is_zero(cofactor)) {
-        if (!BN_copy(group->cofactor, cofactor))
+        if (BN_copy(group->cofactor, cofactor) == NULL)
             return 0;
     } else if (!ec_guess_cofactor(group)) {
         BN_zero(group->cofactor);
@@ -451,7 +452,7 @@ int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx)
 {
     if (group->order == NULL)
         return 0;
-    if (!BN_copy(order, group->order))
+    if (BN_copy(order, group->order) == NULL)
         return 0;
 
     return !BN_is_zero(order);
@@ -467,13 +468,39 @@ int EC_GROUP_order_bits(const EC_GROUP *group)
     return group->meth->group_order_bits(group);
 }
 
+int EC_GROUP_security_bits(const EC_GROUP *group)
+{
+    int ecbits = group->meth->group_order_bits(group);
+
+    /*
+     * The following estimates are based on the values published in Table 2 of
+     * "NIST Special Publication 800-57 Part 1 Revision 4" at
+     * http://dx.doi.org/10.6028/NIST.SP.800-57pt1r4 .
+     *
+     * Note that the above reference explicitly categorizes algorithms in a
+     * discrete set of values {80, 112, 128, 192, 256}, and that it is relevant
+     * only for NIST approved Elliptic Curves, while OpenSSL applies the same
+     * logic also to other curves.
+     */
+    if (ecbits >= 512)
+        return 256;
+    if (ecbits >= 384)
+        return 192;
+    if (ecbits >= 256)
+        return 128;
+    if (ecbits >= 224)
+        return 112;
+    if (ecbits >= 160)
+        return 80;
+    return ecbits / 2;
+}
+
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor,
     BN_CTX *ctx)
 {
-
     if (group->cofactor == NULL)
         return 0;
-    if (!BN_copy(cofactor, group->cofactor))
+    if (BN_copy(cofactor, group->cofactor) == NULL)
         return 0;
 
     return !BN_is_zero(group->cofactor);
@@ -904,6 +931,9 @@ int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
     const EC_POINT *point, BIGNUM *x, BIGNUM *y,
     BN_CTX *ctx)
 {
+    BN_CTX *new_ctx = NULL;
+    int ret = 0;
+
     if (group->meth->point_get_affine_coordinates == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
@@ -916,7 +946,24 @@ int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
         ERR_raise(ERR_LIB_EC, EC_R_POINT_AT_INFINITY);
         return 0;
     }
-    return group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
+    if (point->Z_is_one) {
+        if (group->meth->field_decode != NULL) {
+            if (ctx == NULL && (ctx = new_ctx = BN_CTX_new_ex(group->libctx)) == NULL) {
+                ERR_raise(ERR_LIB_EC, ERR_R_INTERNAL_ERROR);
+                return 0;
+            }
+            if ((x != NULL && !group->meth->field_decode(group, x, point->X, ctx))
+                || (y != NULL && !group->meth->field_decode(group, y, point->Y, ctx)))
+                goto err;
+        } else if ((x != NULL && BN_copy(x, point->X) == NULL)
+            || (y != NULL && BN_copy(y, point->Y) == NULL))
+            goto err;
+        ret = 1;
+    } else
+        ret = group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
+err:
+    BN_CTX_free(new_ctx);
+    return ret;
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -1502,34 +1549,34 @@ static EC_GROUP *group_new_from_name(const OSSL_PARAM *p,
 }
 
 /* These parameters can be set directly into an EC_GROUP */
-int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[])
+int ossl_ec_group_set_params_parsed(EC_GROUP *group, const EC_PARAMS *params)
 {
     int encoding_flag = -1, format = -1;
-    const OSSL_PARAM *p;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT);
-    if (p != NULL) {
-        if (!ossl_ec_pt_format_param2id(p, &format)) {
+    if (params == NULL)
+        return 0;
+
+    if (params->pt_format != NULL) {
+        if (!ossl_ec_pt_format_param2id(params->pt_format, &format)) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_FORM);
             return 0;
         }
         EC_GROUP_set_point_conversion_form(group, format);
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_ENCODING);
-    if (p != NULL) {
-        if (!ossl_ec_encoding_param2id(p, &encoding_flag)) {
+    if (params->encoding != NULL) {
+        if (!ossl_ec_encoding_param2id(params->encoding, &encoding_flag)) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_FORM);
             return 0;
         }
         EC_GROUP_set_asn1_flag(group, encoding_flag);
     }
     /* Optional seed */
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_SEED);
-    if (p != NULL) {
+    if (params->seed != NULL) {
         /* The seed is allowed to be NULL */
-        if (p->data_type != OSSL_PARAM_OCTET_STRING
-            || !EC_GROUP_set_seed(group, p->data, p->data_size)) {
+        if (params->seed->data_type != OSSL_PARAM_OCTET_STRING
+            || !EC_GROUP_set_seed(group, params->seed->data,
+                params->seed->data_size)) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_SEED);
             return 0;
         }
@@ -1537,7 +1584,16 @@ int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[])
     return 1;
 }
 
-EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
+int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[])
+{
+    EC_PARAMS p;
+
+    if (!ec_group_fromdata_decoder(params, &p))
+        return 0;
+    return ossl_ec_group_set_params_parsed(group, &p);
+}
+
+EC_GROUP *ossl_ec_group_new_from_params_parsed(const EC_PARAMS *params,
     OSSL_LIB_CTX *libctx, const char *propq)
 {
     const OSSL_PARAM *ptmp;
@@ -1553,23 +1609,27 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     int is_prime_field = 1;
     BN_CTX *bnctx = NULL;
     const unsigned char *buf = NULL;
+#ifndef OPENSSL_NO_EC_EXPLICIT_CURVES
     int encoding_flag = -1;
+#endif
 #endif
 
     /* This is the simple named group case */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
+    if (params == NULL)
+        return NULL;
+
+    ptmp = params->group_name;
     if (ptmp != NULL) {
         int decoded = 0;
 
         if ((group = group_new_from_name(ptmp, libctx, propq)) == NULL)
             return NULL;
-        if (!ossl_ec_group_set_params(group, params)) {
+        if (!ossl_ec_group_set_params_parsed(group, params)) {
             EC_GROUP_free(group);
             return NULL;
         }
 
-        ptmp = OSSL_PARAM_locate_const(params,
-            OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS);
+        ptmp = params->decoded;
         if (ptmp != NULL && !OSSL_PARAM_get_int(ptmp, &decoded)) {
             ERR_raise(ERR_LIB_EC, EC_R_WRONG_CURVE_PARAMETERS);
             EC_GROUP_free(group);
@@ -1599,7 +1659,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         goto err;
     }
 
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_FIELD_TYPE);
+    ptmp = params->field_type;
     if (ptmp == NULL || ptmp->data_type != OSSL_PARAM_UTF8_STRING) {
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_FIELD);
         goto err;
@@ -1616,19 +1676,19 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         goto err;
     }
 
-    pa = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_A);
+    pa = params->a;
     if (!OSSL_PARAM_get_BN(pa, &a)) {
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_A);
         goto err;
     }
-    pb = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_B);
+    pb = params->b;
     if (!OSSL_PARAM_get_BN(pb, &b)) {
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_B);
         goto err;
     }
 
     /* extract the prime number or irreducible polynomial */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_P);
+    ptmp = params->p;
     if (!OSSL_PARAM_get_BN(ptmp, &p)) {
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_P);
         goto err;
@@ -1670,7 +1730,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     }
 
     /* Optional seed */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_SEED);
+    ptmp = params->seed;
     if (ptmp != NULL) {
         if (ptmp->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_SEED);
@@ -1681,7 +1741,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     }
 
     /* generator base point */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_GENERATOR);
+    ptmp = params->generator;
     if (ptmp == NULL
         || ptmp->data_type != OSSL_PARAM_OCTET_STRING
         || ptmp->data_size == 0) {
@@ -1699,7 +1759,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     }
 
     /* order */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_ORDER);
+    ptmp = params->order;
     if (!OSSL_PARAM_get_BN(ptmp, &order)
         || (BN_is_negative(order) || BN_is_zero(order))
         || (BN_num_bits(order) > (int)field_bits + 1)) { /* Hasse bound */
@@ -1708,7 +1768,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     }
 
     /* Optional cofactor */
-    ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_COFACTOR);
+    ptmp = params->cofactor;
     if (ptmp != NULL) {
         cofactor = BN_CTX_get(bnctx);
         if (cofactor == NULL || !OSSL_PARAM_get_BN(ptmp, &cofactor)) {
@@ -1729,11 +1789,17 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         goto err;
     }
     if (named_group == group) {
+#ifdef OPENSSL_NO_EC_EXPLICIT_CURVES
+        if (EC_GROUP_check_named_curve(group, 0, NULL) == NID_undef) {
+            ERR_raise(ERR_LIB_EC, EC_R_UNKNOWN_GROUP);
+            goto err;
+        }
+#else
         /*
          * If we did not find a named group then the encoding should be explicit
          * if it was specified
          */
-        ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_ENCODING);
+        ptmp = params->encoding;
         if (ptmp != NULL
             && !ossl_ec_encoding_param2id(ptmp, &encoding_flag)) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_ENCODING);
@@ -1744,10 +1810,13 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
             goto err;
         }
         EC_GROUP_set_asn1_flag(group, OPENSSL_EC_EXPLICIT_CURVE);
+#endif
     } else {
         EC_GROUP_free(group);
         group = named_group;
     }
+    if (!ossl_ec_group_set_params_parsed(group, params))
+        goto err;
     /* We've imported the group from explicit parameters, set it so. */
     group->decoded_from_explicit_params = 1;
     ok = 1;
@@ -1762,6 +1831,16 @@ err:
 
     return group;
 #endif /* FIPS_MODULE */
+}
+
+EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
+    OSSL_LIB_CTX *libctx, const char *propq)
+{
+    EC_PARAMS p;
+
+    if (!ec_group_fromdata_decoder(params, &p))
+        return NULL;
+    return ossl_ec_group_new_from_params_parsed(&p, libctx, propq);
 }
 
 OSSL_PARAM *EC_GROUP_to_params(const EC_GROUP *group, OSSL_LIB_CTX *libctx,

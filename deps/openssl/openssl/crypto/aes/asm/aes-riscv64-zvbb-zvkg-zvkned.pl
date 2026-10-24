@@ -2,7 +2,7 @@
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #
-# Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License"). You can obtain
 # a copy in the file LICENSE in the source distribution or at
@@ -633,7 +633,7 @@ aes_xts_dec_128:
     @{[aes_128_dec]}
     @{[vxor_vv $V24, $V24, $V28]}
 
-    # store second to last block plaintext
+    # store last block plaintext
     @{[vse32_v $V24, $OUTPUT]}
 
     ret
@@ -697,7 +697,7 @@ aes_xts_dec_256:
     @{[aes_256_dec]}
     @{[vxor_vv $V24, $V24, $V28]}
 
-    # store second to last block plaintext
+    # store last block plaintext
     @{[vse32_v $V24, $OUTPUT]}
 
     ret

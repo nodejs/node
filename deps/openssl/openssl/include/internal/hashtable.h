@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <openssl/e_os2.h>
 #include <internal/rcu.h>
 #include "crypto/context.h"
@@ -23,7 +24,9 @@ typedef struct ht_internal_st HT;
  * Represents a key to a hashtable
  */
 typedef struct ht_key_header_st {
+    uint64_t cached_hash;
     size_t keysize;
+    size_t bufsize;
     uint8_t *keybuf;
 } HT_KEY;
 
@@ -50,10 +53,11 @@ typedef struct ht_value_list_st {
 typedef struct ht_config_st {
     OSSL_LIB_CTX *ctx;
     void (*ht_free_fn)(HT_VALUE *obj);
-    uint64_t (*ht_hash_fn)(uint8_t *key, size_t keylen);
+    uint64_t (*ht_hash_fn)(HT_KEY *key);
     size_t init_neighborhoods;
     uint32_t collision_check;
     uint32_t lockless_reads;
+    uint32_t no_rcu;
 } HT_CONFIG;
 
 /*
@@ -106,17 +110,90 @@ typedef struct ht_config_st {
 /*
  * Initializes a key
  */
-#define HT_INIT_KEY(key)                                                \
-    do {                                                                \
-        memset((key), 0, sizeof(*(key)));                               \
-        (key)->key_header.keysize = (sizeof(*(key)) - sizeof(HT_KEY));  \
-        (key)->key_header.keybuf = (((uint8_t *)key) + sizeof(HT_KEY)); \
+#define HT_INIT_KEY(key)                                                                           \
+    do {                                                                                           \
+        memset((key), 0, sizeof(*(key)));                                                          \
+        (key)->key_header.keysize = (key)->key_header.bufsize = (sizeof(*(key)) - sizeof(HT_KEY)); \
+        (key)->key_header.keybuf = (((uint8_t *)key) + sizeof(HT_KEY));                            \
     } while (0)
+
+/*
+ * Initializes a key as a raw buffer
+ * This operates identically to HT_INIT_KEY
+ * but it treats the provided key as a raw buffer
+ * and iteratively accounts the running amount of
+ * data copied into the key from the caller.
+ *
+ * This MUST be used with the RAW macros below:
+ * HT_COPY_RAW_KEY
+ * HT_COPY_RAW_KEY_CASE
+ */
+#define HT_INIT_RAW_KEY(key)           \
+    do {                               \
+        HT_INIT_KEY((key));            \
+        (key)->key_header.keysize = 0; \
+    } while (0)
+
+/*
+ * Helper function to copy raw data into a key
+ * This should not be called independently
+ * use the HT_COPY_RAW_KEY macro instead
+ */
+static ossl_inline ossl_unused int ossl_key_raw_copy(HT_KEY *key, const uint8_t *buf, size_t len)
+{
+    if (key->keysize + len > key->bufsize)
+        return 0;
+    memcpy(&key->keybuf[key->keysize], buf, len);
+    key->keysize += len;
+    return 1;
+}
+
+/*
+ * Copy data directly into a key
+ * When initialized with HT_INIT_RAW_KEY, this macro
+ * can be used to copy packed data into a key for hashtable usage
+ * It is advantageous as it limits the amount of data that needs to
+ * be hashed when doing inserts/lookups/deletes, as it tracks how much
+ * key data is actually valid
+ */
+#define HT_COPY_RAW_KEY(key, buf, len) ossl_key_raw_copy(key, buf, len)
+
+/*
+ * Similar to HT_COPY_RAW_KEY but accepts a character buffer, and copies
+ * data while converting case for case insensitive matches
+ */
+#define HT_COPY_RAW_KEY_CASE(key, buf, len)                                            \
+    do {                                                                               \
+        size_t tmplen = (size_t)(len);                                                 \
+        if (tmplen > (key)->bufsize - (key)->keysize)                                  \
+            tmplen = (key)->bufsize - (key)->keysize;                                  \
+        ossl_ht_strcase((key), (char *)&((key)->keybuf[(key)->keysize]), buf, tmplen); \
+        (key)->keysize += tmplen;                                                      \
+    } while (0)
+
+#define HT_INIT_KEY_CACHED(key, hash)         \
+    do {                                      \
+        HT_INIT_KEY((key));                   \
+        (key)->key_header.cached_hash = hash; \
+    } while (0)
+
+#define HT_INIT_KEY_EXTERNAL(key, buf, len) \
+    do {                                    \
+        HT_INIT_KEY((key));                 \
+        (key)->key_header.keybuf = (buf);   \
+        (key)->key_header.keysize = (len);  \
+    } while (0)
+
+#define HT_KEY_GET_HASH(key) (key)->key_header.cached_hash
 
 /*
  * Resets a hash table key to a known state
  */
-#define HT_KEY_RESET(key) memset((key)->key_header.keybuf, 0, (key)->key_header.keysize)
+#define HT_KEY_RESET(key)                                               \
+    do {                                                                \
+        memset((key)->key_header.keybuf, 0, (key)->key_header.keysize); \
+        (key)->key_header.cached_hash = 0;                              \
+    } while (0)
 
 /*
  * Sets a scalar field in a hash table key
@@ -139,9 +216,9 @@ typedef struct ht_config_st {
  * This is useful for instances in which we want upper and lower case
  * key value to hash to the same entry
  */
-#define HT_SET_KEY_STRING_CASE(key, member, value)                                            \
-    do {                                                                                      \
-        ossl_ht_strcase((key)->keyfields.member, value, sizeof((key)->keyfields.member) - 1); \
+#define HT_SET_KEY_STRING_CASE(key, member, value)                                                  \
+    do {                                                                                            \
+        ossl_ht_strcase(NULL, (key)->keyfields.member, value, sizeof((key)->keyfields.member) - 1); \
     } while (0)
 
 /*
@@ -158,12 +235,12 @@ typedef struct ht_config_st {
     } while (0)
 
 /* Same as HT_SET_KEY_STRING_CASE but also takes length of the string. */
-#define HT_SET_KEY_STRING_CASE_N(key, member, value, len)                                         \
-    do {                                                                                          \
-        if (len < sizeof((key)->keyfields.member))                                                \
-            ossl_ht_strcase((key)->keyfields.member, value, len);                                 \
-        else                                                                                      \
-            ossl_ht_strcase((key)->keyfields.member, value, sizeof((key)->keyfields.member) - 1); \
+#define HT_SET_KEY_STRING_CASE_N(key, member, value, len)                                               \
+    do {                                                                                                \
+        if ((size_t)len < sizeof((key)->keyfields.member))                                              \
+            ossl_ht_strcase(NULL, (key)->keyfields.member, value, len);                                 \
+        else                                                                                            \
+            ossl_ht_strcase(NULL, (key)->keyfields.member, value, sizeof((key)->keyfields.member) - 1); \
     } while (0)
 
 /*
@@ -208,7 +285,7 @@ typedef struct ht_config_st {
         inval.type_id = &name##_##vtype##_id;                                  \
         rc = ossl_ht_insert(h, key, &inval, olddata == NULL ? NULL : &oval);   \
         if (oval != NULL)                                                      \
-            *olddata = (vtype *)oval->value;                                   \
+            *olddata = (vtype *)ossl_ht_inner_value(h, oval);                  \
         return rc;                                                             \
     }                                                                          \
                                                                                \
@@ -230,7 +307,7 @@ typedef struct ht_config_st {
         vv = ossl_ht_get(h, key);                                              \
         if (vv == NULL)                                                        \
             return NULL;                                                       \
-        *v = ossl_rcu_deref(&vv);                                              \
+        *v = ossl_ht_deref_value(h, &vv);                                      \
         return ossl_ht_##name##_##vtype##_from_value(*v);                      \
     }                                                                          \
                                                                                \
@@ -260,9 +337,9 @@ typedef struct ht_config_st {
 /*
  * Helper function to construct case insensitive keys
  */
-static void ossl_unused ossl_ht_strcase(char *tgt, const char *src, int len)
+static ossl_inline ossl_unused void ossl_ht_strcase(HT_KEY *key, char *tgt, const char *src, size_t len)
 {
-    int i;
+    size_t i;
 #if defined(CHARSET_EBCDIC) && !defined(CHARSET_EBCDIC_TEST)
     const long int case_adjust = ~0x40;
 #else
@@ -271,6 +348,14 @@ static void ossl_unused ossl_ht_strcase(char *tgt, const char *src, int len)
 
     if (src == NULL)
         return;
+
+    /*
+     * If we're passed a key, we're doing raw key copies
+     * so check that we don't overflow here, and truncate if
+     * we copy more space than we have available
+     */
+    if (key != NULL && key->keysize + len > key->bufsize)
+        len = (size_t)(key->bufsize - key->keysize);
 
     for (i = 0; i < len && src[i] != '\0'; i++)
         tgt[i] = case_adjust & src[i];
@@ -289,7 +374,7 @@ void ossl_ht_free(HT *htable);
 /*
  * Lock the table for reading
  */
-void ossl_ht_read_lock(HT *htable);
+int ossl_ht_read_lock(HT *htable);
 
 /*
  * Lock the table for writing
@@ -314,7 +399,9 @@ int ossl_ht_flush(HT *htable);
 /*
  * Inserts an element to a hash table, optionally returning
  * replaced data to caller
- * Returns 1 if the insert was successful, 0 on error
+ * Returns 1 if the insert was successful, 0 on duplicate without
+ * replacement, invalid input, or another non-allocation failure, and -1
+ * on allocation failure or if the table could not be grown.
  */
 int ossl_ht_insert(HT *htable, HT_KEY *key, HT_VALUE *data,
     HT_VALUE **olddata);
@@ -360,5 +447,50 @@ void ossl_ht_value_list_free(HT_VALUE_LIST *list);
  * on key.  Returns NULL if the element was not found.
  */
 HT_VALUE *ossl_ht_get(HT *htable, HT_KEY *key);
+
+/**
+ * ossl_ht_deref_value - Dereference a value stored in a hash table entry
+ * @h:   The hash table handle
+ * @val: Pointer to the value pointer inside the hash table
+ *
+ * This helper returns the actual value stored in a hash table entry,
+ * with awareness of whether the table is configured for RCU (Read-Copy-Update)
+ * safe lookups.
+ *
+ * If the hash table is configured to use RCU lookups, the function
+ * calls ossl_rcu_deref() to safely read the value under RCU protection.
+ * This ensures that the caller sees a consistent pointer in concurrent environments.
+ *
+ * If RCU is not enabled (i.e. `h->config.no_rcu` is true), the function
+ * simply dereferences @val directly.
+ *
+ * Return:
+ * A pointer to the dereferenced hash table value (`HT_VALUE *`), or NULL if
+ * the underlying pointer is NULL.
+ */
+HT_VALUE *ossl_ht_deref_value(HT *p, HT_VALUE **val);
+
+/**
+ * ossl_ht_inner_value - Extract the user payload from a hash table value
+ * @h: The hash table handle
+ * @v: The hash table value wrapper (HT_VALUE)
+ *
+ * This helper returns the user-provided payload stored inside a
+ * hash table value container. The behavior differs depending on
+ * whether the hash table is configured to use RCU (Read-Copy-Update)
+ * for concurrency control.
+ *
+ * - If RCU is enabled, the function simply returns `v->value` without
+ *   modifying or freeing the container.
+ *
+ * - If RCU is disabled the container structure `v` is no longer needed once
+ *   the inner pointer has been extracted. In this case, the function frees
+ *   `v` and returns the inner `value` pointer directly.
+ *
+ * Return:
+ * A pointer to the user payload (`void *`) contained in the hash table
+ * value wrapper.
+ */
+void *ossl_ht_inner_value(HT *h, HT_VALUE *v);
 
 #endif

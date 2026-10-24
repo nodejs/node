@@ -1,13 +1,11 @@
 /*
- * Copyright 2003-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
-
-#define OSSL_FORCE_ERR_STATE
 
 #include <openssl/err.h>
 #include "err_local.h"
@@ -16,7 +14,7 @@ int ERR_set_mark(void)
 {
     ERR_STATE *es;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL)
         return 0;
 
@@ -30,7 +28,7 @@ int ERR_pop(void)
 {
     ERR_STATE *es;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL || es->bottom == es->top)
         return 0;
 
@@ -43,7 +41,7 @@ int ERR_pop_to_mark(void)
 {
     ERR_STATE *es;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL)
         return 0;
 
@@ -64,7 +62,7 @@ int ERR_count_to_mark(void)
     ERR_STATE *es;
     int count = 0, top;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(1);
     if (es == NULL)
         return 0;
 
@@ -83,7 +81,7 @@ int ERR_clear_last_mark(void)
     ERR_STATE *es;
     int top;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL)
         return 0;
 

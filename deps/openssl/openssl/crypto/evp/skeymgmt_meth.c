@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,8 @@
 #include "internal/refcount.h"
 #include "crypto/evp.h"
 #include "evp_local.h"
+
+static void evp_skeymgmt_free(void *s);
 
 void *evp_skeymgmt_generate(const EVP_SKEYMGMT *skeymgmt, const OSSL_PARAM params[])
 {
@@ -52,7 +54,7 @@ static void *skeymgmt_new(void)
     if ((skeymgmt = OPENSSL_zalloc(sizeof(*skeymgmt))) == NULL)
         return NULL;
     if (!CRYPTO_NEW_REF(&skeymgmt->refcnt, 1)) {
-        EVP_SKEYMGMT_free(skeymgmt);
+        evp_skeymgmt_free(skeymgmt);
         return NULL;
     }
     return skeymgmt;
@@ -60,7 +62,7 @@ static void *skeymgmt_new(void)
 
 static void *skeymgmt_from_algorithm(int name_id,
     const OSSL_ALGORITHM *algodef,
-    OSSL_PROVIDER *prov)
+    OSSL_PROVIDER *prov, int no_store)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_SKEYMGMT *skeymgmt = NULL;
@@ -69,8 +71,9 @@ static void *skeymgmt_from_algorithm(int name_id,
         return NULL;
 
     skeymgmt->name_id = name_id;
+    skeymgmt->no_store = no_store;
     if ((skeymgmt->type_name = ossl_algorithm_get1_first_name(algodef)) == NULL) {
-        EVP_SKEYMGMT_free(skeymgmt);
+        evp_skeymgmt_free(skeymgmt);
         return NULL;
     }
     skeymgmt->description = algodef->algorithm_description;
@@ -97,6 +100,14 @@ static void *skeymgmt_from_algorithm(int name_id,
             if (skeymgmt->get_key_id == NULL)
                 skeymgmt->get_key_id = OSSL_FUNC_skeymgmt_get_key_id(fns);
             break;
+        case OSSL_FUNC_SKEYMGMT_GET_LOCAL_KEYID:
+            if (skeymgmt->get_local_keyid == NULL)
+                skeymgmt->get_local_keyid = OSSL_FUNC_skeymgmt_get_local_keyid(fns);
+            break;
+        case OSSL_FUNC_SKEYMGMT_GET_ALGORITHM_ID:
+            if (skeymgmt->get_algorithm_id == NULL)
+                skeymgmt->get_algorithm_id = OSSL_FUNC_skeymgmt_get_algorithm_id(fns);
+            break;
         case OSSL_FUNC_SKEYMGMT_IMP_SETTABLE_PARAMS:
             if (skeymgmt->imp_params == NULL)
                 skeymgmt->imp_params = OSSL_FUNC_skeymgmt_imp_settable_params(fns);
@@ -112,13 +123,13 @@ static void *skeymgmt_from_algorithm(int name_id,
     if (skeymgmt->free == NULL
         || skeymgmt->import == NULL
         || skeymgmt->export == NULL) {
-        EVP_SKEYMGMT_free(skeymgmt);
+        evp_skeymgmt_free(skeymgmt);
         ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_PROVIDER_FUNCTIONS);
         return NULL;
     }
 
     if (!ossl_provider_up_ref(prov)) {
-        EVP_SKEYMGMT_free(skeymgmt);
+        evp_skeymgmt_free(skeymgmt);
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
         return NULL;
     }
@@ -127,37 +138,17 @@ static void *skeymgmt_from_algorithm(int name_id,
     return skeymgmt;
 }
 
-EVP_SKEYMGMT *evp_skeymgmt_fetch_from_prov(OSSL_PROVIDER *prov,
-    const char *name,
-    const char *properties)
+static int evp_skeymgmt_up_ref(void *s)
 {
-    return evp_generic_fetch_from_prov(prov,
-        OSSL_OP_SKEYMGMT,
-        name, properties,
-        skeymgmt_from_algorithm,
-        (int (*)(void *))EVP_SKEYMGMT_up_ref,
-        (void (*)(void *))EVP_SKEYMGMT_free);
-}
-
-EVP_SKEYMGMT *EVP_SKEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
-    const char *properties)
-{
-    return evp_generic_fetch(ctx, OSSL_OP_SKEYMGMT, algorithm, properties,
-        skeymgmt_from_algorithm,
-        (int (*)(void *))EVP_SKEYMGMT_up_ref,
-        (void (*)(void *))EVP_SKEYMGMT_free);
-}
-
-int EVP_SKEYMGMT_up_ref(EVP_SKEYMGMT *skeymgmt)
-{
+    EVP_SKEYMGMT *skeymgmt = (EVP_SKEYMGMT *)s;
     int ref = 0;
 
-    CRYPTO_UP_REF(&skeymgmt->refcnt, &ref);
-    return 1;
+    return CRYPTO_UP_REF(&skeymgmt->refcnt, &ref);
 }
 
-void EVP_SKEYMGMT_free(EVP_SKEYMGMT *skeymgmt)
+static void evp_skeymgmt_free(void *s)
 {
+    EVP_SKEYMGMT *skeymgmt = (EVP_SKEYMGMT *)s;
     int ref = 0;
 
     if (skeymgmt == NULL)
@@ -170,6 +161,48 @@ void EVP_SKEYMGMT_free(EVP_SKEYMGMT *skeymgmt)
     ossl_provider_free(skeymgmt->prov);
     CRYPTO_FREE_REF(&skeymgmt->refcnt);
     OPENSSL_free(skeymgmt);
+}
+
+EVP_SKEYMGMT *evp_skeymgmt_fetch_from_prov(OSSL_PROVIDER *prov,
+    const char *name,
+    const char *properties)
+{
+    return evp_generic_fetch_from_prov(prov,
+        OSSL_OP_SKEYMGMT,
+        name, properties,
+        skeymgmt_from_algorithm,
+        evp_skeymgmt_up_ref,
+        evp_skeymgmt_free);
+}
+
+EVP_SKEYMGMT *EVP_SKEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
+    const char *properties)
+{
+    return evp_generic_fetch(ctx, OSSL_OP_SKEYMGMT, algorithm, properties,
+        skeymgmt_from_algorithm,
+        evp_skeymgmt_up_ref,
+        evp_skeymgmt_free);
+}
+
+int EVP_SKEYMGMT_up_ref(EVP_SKEYMGMT *skeymgmt)
+{
+#ifdef OPENSSL_NO_CACHED_FETCH
+    return evp_skeymgmt_up_ref(skeymgmt);
+#else
+    if (skeymgmt->no_store != 0)
+        return evp_skeymgmt_up_ref(skeymgmt);
+    return 1;
+#endif
+}
+
+void EVP_SKEYMGMT_free(EVP_SKEYMGMT *skeymgmt)
+{
+#ifdef OPENSSL_NO_CACHED_FETCH
+    evp_skeymgmt_free(skeymgmt);
+#else
+    if (skeymgmt != NULL && (skeymgmt->no_store != 0))
+        evp_skeymgmt_free(skeymgmt);
+#endif
 }
 
 const OSSL_PROVIDER *EVP_SKEYMGMT_get0_provider(const EVP_SKEYMGMT *skeymgmt)
@@ -197,11 +230,15 @@ void EVP_SKEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
     void (*fn)(EVP_SKEYMGMT *skeymgmt, void *arg),
     void *arg)
 {
+    struct EVP_SKEYMGMT_do_all_provided_thunk t;
+
+    t.fn = fn;
+    t.arg = arg;
     evp_generic_do_all(libctx, OSSL_OP_SKEYMGMT,
-        (void (*)(void *, void *))fn, arg,
+        EVP_SKEYMGMT_do_all_provided_thunk, &t,
         skeymgmt_from_algorithm,
-        (int (*)(void *))EVP_SKEYMGMT_up_ref,
-        (void (*)(void *))EVP_SKEYMGMT_free);
+        evp_skeymgmt_up_ref,
+        evp_skeymgmt_free);
 }
 
 int EVP_SKEYMGMT_names_do_all(const EVP_SKEYMGMT *skeymgmt,

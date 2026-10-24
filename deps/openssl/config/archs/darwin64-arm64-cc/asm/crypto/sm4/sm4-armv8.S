@@ -1,4 +1,4 @@
-// Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 
 // $output is the last argument if it looks like a file (it has an extension)
 // $flavour is the first argument if it doesn't look like a file
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 .text
 

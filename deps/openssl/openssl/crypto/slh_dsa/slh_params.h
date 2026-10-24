@@ -1,11 +1,14 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_PARAMS_H)
+#define OSSL_LIBCRYPTO_SLH_DSA_SLH_PARAMS_H
 
 #include <openssl/e_os2.h>
 
@@ -37,3 +40,5 @@ typedef struct slh_dsa_params_st {
 } SLH_DSA_PARAMS;
 
 const SLH_DSA_PARAMS *ossl_slh_dsa_params_get(const char *alg);
+
+#endif /* !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_PARAMS_H) */

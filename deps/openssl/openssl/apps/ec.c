@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,6 @@ typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_INFORM,
     OPT_OUTFORM,
-    OPT_ENGINE,
     OPT_IN,
     OPT_OUT,
     OPT_NOOUT,
@@ -46,19 +45,16 @@ typedef enum OPTION_choice {
 const OPTIONS ec_options[] = {
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
     { "in", OPT_IN, 's', "Input file" },
-    { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)" },
+    { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12)" },
     { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
     { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "check", OPT_CHECK, '-', "check key consistency" },
     { "", OPT_CIPHER, '-', "Any supported cipher" },
     { "param_enc", OPT_PARAM_ENC, 's',
-        "Specifies the way the ec parameters are encoded" },
+        "Selects between named_curve and explicit EC parameter encoding" },
     { "conv_form", OPT_CONV_FORM, 's', "Specifies the point conversion form " },
 
     OPT_SECTION("Output"),
@@ -82,7 +78,6 @@ int ec_main(int argc, char **argv)
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *eckey = NULL;
     BIO *out = NULL;
-    ENGINE *e = NULL;
     EVP_CIPHER *enc = NULL;
     char *infile = NULL, *outfile = NULL, *ciphername = NULL, *prog;
     char *passin = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
@@ -142,9 +137,6 @@ int ec_main(int argc, char **argv)
         case OPT_PASSOUT:
             passoutarg = opt_arg();
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         case OPT_CIPHER:
             ciphername = opt_unknown();
             break;
@@ -180,19 +172,17 @@ int ec_main(int argc, char **argv)
     private = !pubin && (text || (!param_out && !pubout));
 
     if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
-        BIO_printf(bio_err, "Error getting passwords\n");
+        BIO_puts(bio_err, "Error getting passwords\n");
         goto end;
     }
 
-    BIO_printf(bio_err, "read EC key\n");
-
     if (pubin)
-        eckey = load_pubkey(infile, informat, 1, passin, e, "public key");
+        eckey = load_pubkey(infile, informat, 1, passin, "public key");
     else
-        eckey = load_key(infile, informat, 1, passin, e, "private key");
+        eckey = load_key(infile, informat, 1, passin, "private key");
 
     if (eckey == NULL) {
-        BIO_printf(bio_err, "unable to load Key\n");
+        BIO_puts(bio_err, "unable to load Key\n");
         goto end;
     }
 
@@ -204,25 +194,25 @@ int ec_main(int argc, char **argv)
         && !EVP_PKEY_set_utf8_string_param(
             eckey, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
             point_format)) {
-        BIO_printf(bio_err, "unable to set point conversion format\n");
+        BIO_puts(bio_err, "unable to set point conversion format\n");
         goto end;
     }
 
     if (asn1_encoding != NULL
         && !EVP_PKEY_set_utf8_string_param(
             eckey, OSSL_PKEY_PARAM_EC_ENCODING, asn1_encoding)) {
-        BIO_printf(bio_err, "unable to set asn1 encoding format\n");
+        BIO_puts(bio_err, "unable to set asn1 encoding format\n");
         goto end;
     }
 
     if (no_public) {
         if (!EVP_PKEY_set_int_param(eckey, OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC, 0)) {
-            BIO_printf(bio_err, "unable to disable public key encoding\n");
+            BIO_puts(bio_err, "unable to disable public key encoding\n");
             goto end;
         }
     } else {
         if (!EVP_PKEY_set_int_param(eckey, OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC, 1)) {
-            BIO_printf(bio_err, "unable to enable public key encoding\n");
+            BIO_puts(bio_err, "unable to enable public key encoding\n");
             goto end;
         }
     }
@@ -231,7 +221,7 @@ int ec_main(int argc, char **argv)
         assert(pubin || private);
         if ((pubin && EVP_PKEY_print_public(out, eckey, 0, NULL) <= 0)
             || (!pubin && EVP_PKEY_print_private(out, eckey, 0, NULL) <= 0)) {
-            BIO_printf(bio_err, "unable to print EC key\n");
+            BIO_puts(bio_err, "unable to print EC key\n");
             goto end;
         }
     }
@@ -239,13 +229,13 @@ int ec_main(int argc, char **argv)
     if (check) {
         pctx = EVP_PKEY_CTX_new_from_pkey(NULL, eckey, NULL);
         if (pctx == NULL) {
-            BIO_printf(bio_err, "unable to check EC key\n");
+            BIO_puts(bio_err, "unable to check EC key\n");
             goto end;
         }
         if (EVP_PKEY_check(pctx) <= 0)
-            BIO_printf(bio_err, "EC Key Invalid!\n");
+            BIO_puts(bio_err, "EC Key Invalid!\n");
         else
-            BIO_printf(bio_err, "EC Key valid.\n");
+            BIO_puts(bio_err, "EC Key valid.\n");
         ERR_print_errors(bio_err);
     }
 
@@ -254,7 +244,6 @@ int ec_main(int argc, char **argv)
         const char *output_type = outformat == FORMAT_ASN1 ? "DER" : "PEM";
         const char *output_structure = "type-specific";
 
-        BIO_printf(bio_err, "writing EC key\n");
         if (param_out) {
             selection = OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
         } else if (pubin || pubout) {
@@ -280,7 +269,7 @@ int ec_main(int argc, char **argv)
                     strlen(passout));
         }
         if (!OSSL_ENCODER_to_bio(ectx, out)) {
-            BIO_printf(bio_err, "unable to write EC key\n");
+            BIO_puts(bio_err, "unable to write EC key\n");
             goto end;
         }
     }
@@ -295,7 +284,6 @@ end:
     OSSL_ENCODER_CTX_free(ectx);
     OSSL_DECODER_CTX_free(dctx);
     EVP_PKEY_CTX_free(pctx);
-    release_engine(e);
     if (passin != NULL)
         OPENSSL_clear_free(passin, strlen(passin));
     if (passout != NULL)

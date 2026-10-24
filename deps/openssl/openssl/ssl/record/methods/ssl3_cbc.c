@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -105,8 +105,7 @@ static void tls1_sha512_final_raw(void *ctx, unsigned char *md_out)
 #define LARGEST_DIGEST_CTX SHA512_CTX
 
 /*-
- * ssl3_cbc_digest_record computes the MAC of a decrypted, padded SSLv3/TLS
- * record.
+ * ssl3_cbc_digest_record computes the MAC of a decrypted, padded TLS record.
  *
  *   ctx: the EVP_MD_CTX from which we take the hash function.
  *     ssl3_cbc_record_digest_supported must return true for this EVP_MD_CTX.
@@ -118,7 +117,6 @@ static void tls1_sha512_final_raw(void *ctx, unsigned char *md_out)
  *              has been removed.
  *   data_plus_mac_plus_padding_size: the public length of the whole
  *     record, including MAC and padding.
- *   is_sslv3: non-zero if we are to use SSLv3. Otherwise, TLS.
  *
  * On entry: we know that data is data_plus_mac_plus_padding_size in length
  * Returns 1 on success or 0 on error
@@ -131,7 +129,7 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
     size_t data_size,
     size_t data_plus_mac_plus_padding_size,
     const unsigned char *mac_secret,
-    size_t mac_secret_length, char is_sslv3)
+    size_t mac_secret_length)
 {
     union {
         OSSL_UNION_ALIGN;
@@ -140,9 +138,8 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
     void (*md_final_raw)(void *ctx, unsigned char *md_out);
     void (*md_transform)(void *ctx, const unsigned char *block);
     size_t md_size, md_block_size = 64;
-    size_t sslv3_pad_length = 40, header_length, variance_blocks,
-           len, max_mac_bytes, num_blocks,
-           num_starting_blocks, k, mac_end_offset, c, index_a, index_b;
+    size_t header_length, variance_blocks, len, max_mac_bytes, num_blocks,
+        num_starting_blocks, k, mac_end_offset, c, index_a, index_b;
     size_t bits; /* at most 18 bits */
     unsigned char length_bytes[MAX_HASH_BIT_COUNT_BYTES];
     /* hmac_pad is the masked HMAC key. */
@@ -176,7 +173,6 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
         md_final_raw = tls1_md5_final_raw;
         md_transform = (void (*)(void *ctx, const unsigned char *block))MD5_Transform;
         md_size = 16;
-        sslv3_pad_length = 48;
         length_is_big_endian = 0;
 #endif
     } else if (EVP_MD_is_a(md, "SHA1")) {
@@ -229,22 +225,11 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
         return 0;
 
     header_length = 13;
-    if (is_sslv3) {
-        header_length = mac_secret_length
-            + sslv3_pad_length
-            + 8 /* sequence number */
-            + 1 /* record type */
-            + 2; /* record length */
-    }
 
     /*
      * variance_blocks is the number of blocks of the hash that we have to
      * calculate in constant time because they could be altered by the
-     * padding value. In SSLv3, the padding must be minimal so the end of
-     * the plaintext varies by, at most, 15+20 = 35 bytes. (We conservatively
-     * assume that the MAC size varies from 0..20 bytes.) In case the 9 bytes
-     * of hash termination (0x80 + 64-bit length) don't fit in the final
-     * block, we say that the final two blocks can vary based on the padding.
+     * padding value.
      * TLSv1 has MACs up to 48 bytes long (SHA-384) and the padding is not
      * required to be minimal. Therefore we say that the final |variance_blocks|
      * blocks can
@@ -252,14 +237,11 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
      * short and there obviously cannot be this many blocks then
      * variance_blocks can be reduced.
      */
-    variance_blocks = is_sslv3 ? 2
-                               : (((255 + 1 + md_size + md_block_size - 1)
-                                      / md_block_size)
-                                     + 1);
+    variance_blocks = ((255 + 1 + md_size + md_block_size - 1) / md_block_size) + 1;
+
     /*
      * From now on we're dealing with the MAC, which conceptually has 13
-     * bytes of `header' before the start of the data (TLS) or 71/75 bytes
-     * (SSLv3)
+     * bytes of `header' before the start of the data (TLS)
      */
     len = data_plus_mac_plus_padding_size + header_length;
     /*
@@ -302,37 +284,30 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
      * in bits.
      */
     index_b = (mac_end_offset + md_length_size) / md_block_size;
-    /*
-     * bits is the hash-length in bits. It includes the additional hash block
-     * for the masked HMAC key, or whole of |header| in the case of SSLv3.
-     */
 
-    /*
-     * For SSLv3, if we're going to have any starting blocks then we need at
-     * least two because the header is larger than a single block.
-     */
-    if (num_blocks > variance_blocks + (is_sslv3 ? 1 : 0)) {
+    if (num_blocks > variance_blocks) {
         num_starting_blocks = num_blocks - variance_blocks;
         k = md_block_size * num_starting_blocks;
     }
 
+    /*
+     * bits is the hash-length in bits. It includes the additional hash block
+     * for the masked HMAC key, or whole of |header| in the case of SSLv3.
+     */
     bits = 8 * mac_end_offset;
-    if (!is_sslv3) {
-        /*
-         * Compute the initial HMAC block. For SSLv3, the padding and secret
-         * bytes are included in |header| because they take more than a
-         * single block.
-         */
-        bits += 8 * md_block_size;
-        memset(hmac_pad, 0, md_block_size);
-        if (!ossl_assert(mac_secret_length <= sizeof(hmac_pad)))
-            return 0;
-        memcpy(hmac_pad, mac_secret, mac_secret_length);
-        for (i = 0; i < md_block_size; i++)
-            hmac_pad[i] ^= 0x36;
 
-        md_transform(md_state.c, hmac_pad);
-    }
+    /*
+     * Compute the initial HMAC block.
+     */
+    bits += 8 * md_block_size;
+    memset(hmac_pad, 0, md_block_size);
+    if (!ossl_assert(mac_secret_length <= sizeof(hmac_pad)))
+        return 0;
+    memcpy(hmac_pad, mac_secret, mac_secret_length);
+    for (i = 0; i < md_block_size; i++)
+        hmac_pad[i] ^= 0x36;
+
+    md_transform(md_state.c, hmac_pad);
 
     if (length_is_big_endian) {
         memset(length_bytes, 0, md_length_size - 4);
@@ -349,37 +324,12 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
     }
 
     if (k > 0) {
-        if (is_sslv3) {
-            size_t overhang;
-
-            /*
-             * The SSLv3 header is larger than a single block. overhang is
-             * the number of bytes beyond a single block that the header
-             * consumes: either 7 bytes (SHA1) or 11 bytes (MD5). There are no
-             * ciphersuites in SSLv3 that are not SHA1 or MD5 based and
-             * therefore we can be confident that the header_length will be
-             * greater than |md_block_size|. However we add a sanity check just
-             * in case
-             */
-            if (header_length <= md_block_size) {
-                /* Should never happen */
-                return 0;
-            }
-            overhang = header_length - md_block_size;
-            md_transform(md_state.c, header);
-            memcpy(first_block, header + md_block_size, overhang);
-            memcpy(first_block + overhang, data, md_block_size - overhang);
-            md_transform(md_state.c, first_block);
-            for (i = 1; i < k / md_block_size - 1; i++)
-                md_transform(md_state.c, data + md_block_size * i - overhang);
-        } else {
-            /* k is a multiple of md_block_size. */
-            memcpy(first_block, header, 13);
-            memcpy(first_block + 13, data, md_block_size - 13);
-            md_transform(md_state.c, first_block);
-            for (i = 1; i < k / md_block_size; i++)
-                md_transform(md_state.c, data + md_block_size * i - 13);
-        }
+        /* k is a multiple of md_block_size. */
+        memcpy(first_block, header, 13);
+        memcpy(first_block + 13, data, md_block_size - 13);
+        md_transform(md_state.c, first_block);
+        for (i = 1; i < k / md_block_size; i++)
+            md_transform(md_state.c, data + md_block_size * i - 13);
     }
 
     memset(mac_out, 0, sizeof(mac_out));
@@ -447,25 +397,17 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
     if (md_ctx == NULL)
         goto err;
 
-    if (EVP_DigestInit_ex(md_ctx, md, NULL /* engine */) <= 0)
+    if (EVP_DigestInit_ex(md_ctx, md, NULL) <= 0)
         goto err;
-    if (is_sslv3) {
-        /* We repurpose |hmac_pad| to contain the SSLv3 pad2 block. */
-        memset(hmac_pad, 0x5c, sslv3_pad_length);
 
-        if (EVP_DigestUpdate(md_ctx, mac_secret, mac_secret_length) <= 0
-            || EVP_DigestUpdate(md_ctx, hmac_pad, sslv3_pad_length) <= 0
-            || EVP_DigestUpdate(md_ctx, mac_out, md_size) <= 0)
-            goto err;
-    } else {
-        /* Complete the HMAC in the standard manner. */
-        for (i = 0; i < md_block_size; i++)
-            hmac_pad[i] ^= 0x6a;
+    /* Complete the HMAC in the standard manner. */
+    for (i = 0; i < md_block_size; i++)
+        hmac_pad[i] ^= 0x6a;
 
-        if (EVP_DigestUpdate(md_ctx, hmac_pad, md_block_size) <= 0
-            || EVP_DigestUpdate(md_ctx, mac_out, md_size) <= 0)
-            goto err;
-    }
+    if (EVP_DigestUpdate(md_ctx, hmac_pad, md_block_size) <= 0
+        || EVP_DigestUpdate(md_ctx, mac_out, md_size) <= 0)
+        goto err;
+
     ret = EVP_DigestFinal(md_ctx, md_out, &md_out_size_u);
     if (ret && md_out_size)
         *md_out_size = md_out_size_u;

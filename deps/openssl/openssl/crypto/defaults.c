@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,17 +34,6 @@ static char openssldir[MAX_PATH + 1];
 static char *openssldirptr = NULL;
 
 /**
- * @brief The directory where OpenSSL engines are located.
- */
-
-static char enginesdir[MAX_PATH + 1];
-
-/**
- * @brief The pointer to the enginesdir buffer
- */
-static char *enginesdirptr = NULL;
-
-/**
  * @brief The directory where OpenSSL modules are located.
  */
 static char modulesdir[MAX_PATH + 1];
@@ -72,8 +61,12 @@ static char *get_windows_regdirs(char *dst, DWORD dstsizebytes, LPCWSTR valuenam
     DWORD index = 0;
     LPCWSTR tempstr = NULL;
 
-    ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-        TEXT(REGISTRY_KEY), KEY_WOW64_32KEY,
+    /*
+     * Narrow call: TEXT(REGISTRY_KEY) would widen only the first literal of the
+     * concatenation, which MSVC 12.0 rejects.  The subkey path is ASCII.
+     */
+    ret = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+        REGISTRY_KEY, KEY_WOW64_32KEY,
         KEY_QUERY_VALUE, &hkey);
     if (ret != ERROR_SUCCESS)
         goto out;
@@ -124,7 +117,6 @@ static CRYPTO_ONCE defaults_setup_init = CRYPTO_ONCE_STATIC_INIT;
 DEFINE_RUN_ONCE_STATIC(do_defaults_setup)
 {
     get_windows_regdirs(openssldir, sizeof(openssldir), L"OPENSSLDIR");
-    get_windows_regdirs(enginesdir, sizeof(enginesdir), L"ENGINESDIR");
     get_windows_regdirs(modulesdir, sizeof(modulesdir), L"MODULESDIR");
 
     /*
@@ -132,9 +124,6 @@ DEFINE_RUN_ONCE_STATIC(do_defaults_setup)
      */
     if (strlen(openssldir) > 0)
         openssldirptr = openssldir;
-
-    if (strlen(enginesdir) > 0)
-        enginesdirptr = enginesdir;
 
     if (strlen(modulesdir) > 0)
         modulesdirptr = modulesdir;
@@ -156,22 +145,6 @@ const char *ossl_get_openssldir(void)
     return (const char *)openssldirptr;
 #else
     return OPENSSLDIR;
-#endif
-}
-
-/**
- * @brief Get the directory where OpenSSL engines are located.
- *
- * @return A pointer to a string containing the engines directory path.
- */
-const char *ossl_get_enginesdir(void)
-{
-#if defined(_WIN32) && defined(OSSL_WINCTX)
-    if (!RUN_ONCE(&defaults_setup_init, do_defaults_setup))
-        return NULL;
-    return (const char *)enginesdirptr;
-#else
-    return ENGINESDIR;
 #endif
 }
 

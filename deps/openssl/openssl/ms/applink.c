@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,6 +34,12 @@
 #define APPLINK_MAX 22 /* always same as last macro */
 
 #ifndef APPMACROS_ONLY
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#endif
 
 /*
  * Normally, do not define APPLINK_NO_INCLUDES.  Define it if you are using
@@ -97,6 +103,14 @@ static int app_fsetmod(FILE *fp, char mod)
 extern "C" {
 #endif
 
+/*
+ * The AppLink table exposes the legacy CRT signatures used by ms/uplink.h.
+ */
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+
 __declspec(dllexport) void **
 #if defined(__BORLANDC__)
     /*
@@ -144,6 +158,14 @@ __declspec(dllexport) void **
 
     return OPENSSL_ApplinkTable;
 }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 #ifdef __cplusplus
 }

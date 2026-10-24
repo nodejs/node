@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <openssl/bn.h>
 #include "internal/cryptlib.h"
-#include "crypto/sparc_arch.h"
+#include "arch/sparc_arch.h"
 
 #if defined(__GNUC__) && defined(__linux)
 __attribute__((visibility("hidden")))
@@ -71,7 +71,7 @@ static void common_handler(int sig)
 }
 
 #if defined(__sun) && defined(__SVR4)
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 extern unsigned int getisax(unsigned int vec[], unsigned int sz) __attribute__((weak));
 #elif defined(__SUNPRO_C)
 #pragma weak getisax

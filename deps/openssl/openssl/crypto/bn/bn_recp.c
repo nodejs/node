@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,7 +42,7 @@ void BN_RECP_CTX_free(BN_RECP_CTX *recp)
 
 int BN_RECP_CTX_set(BN_RECP_CTX *recp, const BIGNUM *d, BN_CTX *ctx)
 {
-    if (BN_is_zero(d) || !BN_copy(&(recp->N), d))
+    if (BN_is_zero(d) || BN_copy(&(recp->N), d) == NULL)
         return 0;
     BN_zero(&(recp->Nr));
     recp->num_bits = BN_num_bits(d);
@@ -95,7 +95,7 @@ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
 
     if (BN_ucmp(m, &(recp->N)) < 0) {
         BN_zero(d);
-        if (!BN_copy(r, m)) {
+        if (BN_copy(r, m) == NULL) {
             BN_CTX_end(ctx);
             return 0;
         }

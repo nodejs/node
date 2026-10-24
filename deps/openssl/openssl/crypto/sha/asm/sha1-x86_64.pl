@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # sha1_block procedure for x86_64.
@@ -1857,7 +1857,7 @@ K_XX_XX:
 ___
 }}}
 $code.=<<___;
-.asciz	"SHA1 block transform for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"SHA1 block transform for x86_64, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	64
 ___
 

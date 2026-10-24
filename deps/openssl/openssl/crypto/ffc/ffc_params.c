@@ -12,6 +12,7 @@
 #include "internal/ffc.h"
 #include "internal/param_build_set.h"
 #include "internal/nelem.h"
+#include "internal/zeroization.h"
 
 #ifndef FIPS_MODULE
 #include <openssl/asn1.h> /* ossl_ffc_params_print */
@@ -27,34 +28,27 @@ void ossl_ffc_params_init(FFC_PARAMS *params)
 
 void ossl_ffc_params_cleanup(FFC_PARAMS *params)
 {
-#ifdef OPENSSL_PEDANTIC_ZEROIZATION
-    BN_clear_free(params->p);
-    BN_clear_free(params->q);
-    BN_clear_free(params->g);
-    BN_clear_free(params->j);
-    OPENSSL_clear_free(params->seed, params->seedlen);
-#else
-    BN_free(params->p);
-    BN_free(params->q);
-    BN_free(params->g);
-    BN_free(params->j);
-    OPENSSL_free(params->seed);
-#endif
+    ossl_public_bn_free(params->p);
+    ossl_public_bn_free(params->q);
+    ossl_public_bn_free(params->g);
+    ossl_public_bn_free(params->j);
+    ossl_public_param_free(params->seed, params->seedlen);
+
     ossl_ffc_params_init(params);
 }
 
 void ossl_ffc_params_set0_pqg(FFC_PARAMS *d, BIGNUM *p, BIGNUM *q, BIGNUM *g)
 {
     if (p != NULL && p != d->p) {
-        BN_free(d->p);
+        ossl_public_bn_free(d->p);
         d->p = p;
     }
     if (q != NULL && q != d->q) {
-        BN_free(d->q);
+        ossl_public_bn_free(d->q);
         d->q = q;
     }
     if (g != NULL && g != d->g) {
-        BN_free(d->g);
+        ossl_public_bn_free(d->g);
         d->g = g;
     }
 }
@@ -73,7 +67,7 @@ void ossl_ffc_params_get0_pqg(const FFC_PARAMS *d, const BIGNUM **p,
 /* j is the 'cofactor' that is optionally output for ASN1. */
 void ossl_ffc_params_set0_j(FFC_PARAMS *d, BIGNUM *j)
 {
-    BN_free(d->j);
+    ossl_public_bn_free(d->j);
     d->j = NULL;
     if (j != NULL)
         d->j = j;
@@ -85,7 +79,7 @@ int ossl_ffc_params_set_seed(FFC_PARAMS *params,
     if (params->seed != NULL) {
         if (params->seed == seed)
             return 1;
-        OPENSSL_free(params->seed);
+        ossl_public_param_free(params->seed, params->seedlen);
     }
 
     if (seed != NULL && seedlen > 0) {
@@ -172,7 +166,7 @@ static int ffc_bn_cpy(BIGNUM **dst, const BIGNUM *src)
         a = (BIGNUM *)src;
     else if ((a = BN_dup(src)) == NULL)
         return 0;
-    BN_clear_free(*dst);
+    ossl_public_bn_free(*dst);
     *dst = a;
     return 1;
 }
@@ -189,7 +183,7 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
 
     dst->mdname = src->mdname;
     dst->mdprops = src->mdprops;
-    OPENSSL_free(dst->seed);
+    ossl_public_param_free(dst->seed, dst->seedlen);
     dst->seedlen = src->seedlen;
     if (src->seed != NULL) {
         dst->seed = OPENSSL_memdup(src->seed, src->seedlen);
@@ -217,33 +211,34 @@ int ossl_ffc_params_cmp(const FFC_PARAMS *a, const FFC_PARAMS *b, int ignore_q)
 }
 
 int ossl_ffc_params_todata(const FFC_PARAMS *ffc, OSSL_PARAM_BLD *bld,
-    OSSL_PARAM params[])
+    const FFC_OSSL_PARAMS *pp)
 {
     int test_flags;
 
+#define PP(f) (pp == NULL ? NULL : pp->f)
     if (ffc->p != NULL
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_FFC_P, ffc->p))
+        && !ossl_param_build_set_bn(bld, PP(p), OSSL_PKEY_PARAM_FFC_P, ffc->p))
         return 0;
     if (ffc->q != NULL
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_FFC_Q, ffc->q))
+        && !ossl_param_build_set_bn(bld, PP(q), OSSL_PKEY_PARAM_FFC_Q, ffc->q))
         return 0;
     if (ffc->g != NULL
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_FFC_G, ffc->g))
+        && !ossl_param_build_set_bn(bld, PP(g), OSSL_PKEY_PARAM_FFC_G, ffc->g))
         return 0;
     if (ffc->j != NULL
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_FFC_COFACTOR,
-            ffc->j))
+        && !ossl_param_build_set_bn(bld, PP(cofactor),
+            OSSL_PKEY_PARAM_FFC_COFACTOR, ffc->j))
         return 0;
-    if (!ossl_param_build_set_int(bld, params, OSSL_PKEY_PARAM_FFC_GINDEX,
+    if (!ossl_param_build_set_int(bld, PP(g_index), OSSL_PKEY_PARAM_FFC_GINDEX,
             ffc->gindex))
         return 0;
-    if (!ossl_param_build_set_int(bld, params, OSSL_PKEY_PARAM_FFC_PCOUNTER,
+    if (!ossl_param_build_set_int(bld, PP(p_counter), OSSL_PKEY_PARAM_FFC_PCOUNTER,
             ffc->pcounter))
         return 0;
-    if (!ossl_param_build_set_int(bld, params, OSSL_PKEY_PARAM_FFC_H, ffc->h))
+    if (!ossl_param_build_set_int(bld, PP(h), OSSL_PKEY_PARAM_FFC_H, ffc->h))
         return 0;
     if (ffc->seed != NULL
-        && !ossl_param_build_set_octet_string(bld, params,
+        && !ossl_param_build_set_octet_string(bld, PP(seed),
             OSSL_PKEY_PARAM_FFC_SEED,
             ffc->seed, ffc->seedlen))
         return 0;
@@ -252,35 +247,36 @@ int ossl_ffc_params_todata(const FFC_PARAMS *ffc, OSSL_PARAM_BLD *bld,
         const char *name = ossl_ffc_named_group_get_name(group);
 
         if (name == NULL
-            || !ossl_param_build_set_utf8_string(bld, params,
+            || !ossl_param_build_set_utf8_string(bld, PP(group_name),
                 OSSL_PKEY_PARAM_GROUP_NAME,
                 name))
             return 0;
     }
     test_flags = ((ffc->flags & FFC_PARAM_FLAG_VALIDATE_PQ) != 0);
-    if (!ossl_param_build_set_int(bld, params,
+    if (!ossl_param_build_set_int(bld, PP(validate_pq),
             OSSL_PKEY_PARAM_FFC_VALIDATE_PQ, test_flags))
         return 0;
     test_flags = ((ffc->flags & FFC_PARAM_FLAG_VALIDATE_G) != 0);
-    if (!ossl_param_build_set_int(bld, params,
+    if (!ossl_param_build_set_int(bld, PP(validate_g),
             OSSL_PKEY_PARAM_FFC_VALIDATE_G, test_flags))
         return 0;
     test_flags = ((ffc->flags & FFC_PARAM_FLAG_VALIDATE_LEGACY) != 0);
-    if (!ossl_param_build_set_int(bld, params,
+    if (!ossl_param_build_set_int(bld, PP(validate_legacy),
             OSSL_PKEY_PARAM_FFC_VALIDATE_LEGACY,
             test_flags))
         return 0;
 
     if (ffc->mdname != NULL
-        && !ossl_param_build_set_utf8_string(bld, params,
+        && !ossl_param_build_set_utf8_string(bld, PP(digest),
             OSSL_PKEY_PARAM_FFC_DIGEST,
             ffc->mdname))
         return 0;
     if (ffc->mdprops != NULL
-        && !ossl_param_build_set_utf8_string(bld, params,
+        && !ossl_param_build_set_utf8_string(bld, PP(propq),
             OSSL_PKEY_PARAM_FFC_DIGEST_PROPS,
             ffc->mdprops))
         return 0;
+#undef PP
     return 1;
 }
 
@@ -304,7 +300,7 @@ int ossl_ffc_params_print(BIO *bp, const FFC_PARAMS *ffc, int indent)
             || BIO_puts(bp, "seed:") <= 0)
             goto err;
         for (i = 0; i < ffc->seedlen; i++) {
-            if ((i % 15) == 0) {
+            if ((i % 16) == 0) {
                 if (BIO_puts(bp, "\n") <= 0
                     || !BIO_indent(bp, indent + 4, 128))
                     goto err;

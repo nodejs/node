@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,8 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
 #include "ext_dat.h"
+
+#include <crypto/asn1.h>
 
 ASN1_ITEM_TEMPLATE(OSSL_USER_NOTICE_SYNTAX) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, OSSL_USER_NOTICE_SYNTAX, USERNOTICE)
 ASN1_ITEM_TEMPLATE_END(OSSL_USER_NOTICE_SYNTAX)
@@ -27,7 +29,9 @@ static int print_notice(BIO *out, USERNOTICE *notice, int indent)
         ref = notice->noticeref;
         if (BIO_printf(out, "%*sOrganization: %.*s\n", indent, "",
                 ref->organization->length,
-                ref->organization->data)
+                ref->organization->length
+                    ? ref->organization->data
+                    : (const unsigned char *)"")
             <= 0)
             return 0;
         if (BIO_printf(out, "%*sNumber%s: ", indent, "",
@@ -59,7 +63,9 @@ static int print_notice(BIO *out, USERNOTICE *notice, int indent)
 
     return BIO_printf(out, "%*sExplicit Text: %.*s", indent, "",
                notice->exptext->length,
-               notice->exptext->data)
+               notice->exptext->length
+                   ? notice->exptext->data
+                   : (const unsigned char *)"")
         >= 0;
 }
 

@@ -210,7 +210,9 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 #define OPENSSL_RAND_SEED_DEVRANDOM
 #endif
 
-#if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+#if ((defined(__FreeBSD__) && __FreeBSD_version < 1200061)     \
+    || (defined(__NetBSD__) && __NetBSD_Version < 1000000000)) \
+    && defined(KERN_ARND)
 /*
  * sysctl_random(): Use sysctl() to read a random number from the kernel
  * Returns the number of bytes returned in buf on success, -1 on failure.
@@ -352,7 +354,7 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * internally. So we need to check errno for ENOSYS
      */
 #if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
-#if defined(__GNUC__) && __GNUC__ >= 2 && defined(__ELF__) && !defined(__hpux)
+#if defined(__GNUC__) && defined(__ELF__) && !defined(__hpux)
     extern int getentropy(void *buffer, size_t length) __attribute__((weak));
 
     if (getentropy != NULL) {
@@ -420,11 +422,6 @@ static int keep_random_devices_open = 1;
     && defined(OPENSSL_RAND_SEED_GETRANDOM)
 static void *shm_addr;
 
-static void cleanup_shm(void)
-{
-    shmdt(shm_addr);
-}
-
 /*
  * Ensure that the system randomness source has been adequately seeded.
  * This is done by having the first start of libcrypto, wait until the device
@@ -454,9 +451,19 @@ static int wait_random_seeded(void)
              * this alternative but essentially identical source moot.
              */
             if (uname(&un) == 0) {
-                kernel[0] = atoi(un.release);
+                int val;
+                char *end;
+
+                kernel[0] = (ossl_strtoint(un.release, &end, 10, &val)
+                                && (*end == '.' || *end == '\0'))
+                    ? val
+                    : 0;
                 p = strchr(un.release, '.');
-                kernel[1] = p == NULL ? 0 : atoi(p + 1);
+                kernel[1] = (p != NULL
+                                && ossl_strtoint(p + 1, &end, 10, &val)
+                                && (*end == '.' || *end == '\0'))
+                    ? val
+                    : 0;
                 if (kernel[0] > kernel_version[0]
                     || (kernel[0] == kernel_version[0]
                         && kernel[1] >= kernel_version[1])) {
@@ -491,8 +498,8 @@ static int wait_random_seeded(void)
              * If this call fails, it isn't a big problem.
              */
             shm_addr = shmat(shm_id, NULL, SHM_RDONLY);
-            if (shm_addr != (void *)-1)
-                OPENSSL_atexit(&cleanup_shm);
+            if (shm_addr == (void *)-1)
+                shm_addr = NULL;
         }
     }
     return seeded;
@@ -581,6 +588,14 @@ void ossl_rand_pool_cleanup(void)
 
     for (i = 0; i < OSSL_NELEM(random_devices); i++)
         close_random_device(i);
+
+#if defined(__linux) && defined(DEVRANDOM_WAIT) \
+    && defined(OPENSSL_RAND_SEED_GETRANDOM)
+    if (shm_addr != NULL) {
+        shmdt(shm_addr);
+        shm_addr = NULL;
+    }
+#endif
 }
 
 void ossl_rand_pool_keep_random_devices_open(int keep)

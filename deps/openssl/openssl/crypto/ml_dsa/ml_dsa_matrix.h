@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,11 @@
  */
 
 /* A 'k' by 'l' Matrix object ('k' rows and 'l' columns) containing polynomial scalars */
+#if !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_MATRIX_H)
+#define OSSL_LIBCRYPTO_ML_DSA_ML_DSA_MATRIX_H
+
+#include "ml_dsa_local.h"
+
 struct matrix_st {
     POLY *m_poly;
     size_t k, l;
@@ -36,9 +41,4 @@ matrix_mult_vector(const MATRIX *a, const VECTOR *s, VECTOR *t)
     ossl_ml_dsa_matrix_mult_vector(a, s, t);
 }
 
-static ossl_inline ossl_unused int
-matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md, const uint8_t *rho,
-    MATRIX *out)
-{
-    return ossl_ml_dsa_matrix_expand_A(g_ctx, md, rho, out);
-}
+#endif /* !defined(OSSL_LIBCRYPTO_ML_DSA_ML_DSA_MATRIX_H) */

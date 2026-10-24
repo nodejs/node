@@ -64,6 +64,21 @@ extern "C" {
         return 0;                                                                 \
     }
 
+#if defined(FIPS_MODULE)
+#include "internal/fips.h"
+#include "prov/provider_ctx.h"
+#define DIGEST_PROV_CHECK(provctx, name)                  \
+    if (!ossl_prov_is_running())                          \
+        return NULL;                                      \
+    if (!ossl_deferred_self_test(PROV_LIBCTX_OF(provctx), \
+            ST_ID_DIGEST_##name))                         \
+    return NULL
+#else
+#define DIGEST_PROV_CHECK(_provctx, _name) \
+    if (!ossl_prov_is_running())           \
+    return NULL
+#endif /* FIPS_MODULE && DIGEST_IS_FIPS */
+
 #define PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_START(                               \
     name, CTX, blksize, dgstsize, flags, upd, fin)                               \
     static OSSL_FUNC_digest_newctx_fn name##_newctx;                             \
@@ -71,8 +86,8 @@ extern "C" {
     static OSSL_FUNC_digest_dupctx_fn name##_dupctx;                             \
     static void *name##_newctx(void *prov_ctx)                                   \
     {                                                                            \
-        CTX *ctx = ossl_prov_is_running() ? OPENSSL_zalloc(sizeof(*ctx)) : NULL; \
-        return ctx;                                                              \
+        DIGEST_PROV_CHECK(prov_ctx, name);                                       \
+        return OPENSSL_zalloc(sizeof(CTX));                                      \
     }                                                                            \
     static void name##_freectx(void *vctx)                                       \
     {                                                                            \
@@ -140,6 +155,21 @@ extern "C" {
         { OSSL_FUNC_DIGEST_INIT, (void (*)(void))name##_internal_init },               \
         { OSSL_FUNC_DIGEST_SETTABLE_CTX_PARAMS, (void (*)(void))settable_ctx_params }, \
         { OSSL_FUNC_DIGEST_SET_CTX_PARAMS, (void (*)(void))set_ctx_params },           \
+        PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_END
+
+#define IMPLEMENT_digest_functions_with_serialize(                                 \
+    name, CTX, blksize, dgstsize, flags, init, upd, fin,                           \
+    serialize, deserialize)                                                        \
+    static OSSL_FUNC_digest_init_fn name##_internal_init;                          \
+    static int name##_internal_init(void *ctx, const OSSL_PARAM params[])          \
+    {                                                                              \
+        return ossl_prov_is_running() && init(ctx);                                \
+    }                                                                              \
+    PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_START(name, CTX, blksize, dgstsize, flags, \
+        upd, fin),                                                                 \
+        { OSSL_FUNC_DIGEST_INIT, (void (*)(void))name##_internal_init },           \
+        { OSSL_FUNC_DIGEST_SERIALIZE, (void (*)(void))serialize },                 \
+        { OSSL_FUNC_DIGEST_DESERIALIZE, (void (*)(void))deserialize },             \
         PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_END
 
 const OSSL_PARAM *ossl_digest_default_gettable_params(void *provctx);

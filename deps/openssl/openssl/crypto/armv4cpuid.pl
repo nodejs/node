@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -22,7 +22,7 @@ open OUT,"| \"$^X\" $xlate $flavour \"$output\""
 *STDOUT=*OUT;
 
 $code.=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 #if defined(__thumb2__) && !defined(__APPLE__)
 .syntax	unified
@@ -73,6 +73,7 @@ OPENSSL_atomic_add:
 
 .global	OPENSSL_cleanse
 .type	OPENSSL_cleanse,%function
+.align	5
 OPENSSL_cleanse:
 	eor	ip,ip,ip
 	cmp	r1,#7
@@ -112,7 +113,7 @@ OPENSSL_cleanse:
 
 .global	CRYPTO_memcmp
 .type	CRYPTO_memcmp,%function
-.align	4
+.align	5
 CRYPTO_memcmp:
 	eor	ip,ip,ip
 	cmp	r2,#0
@@ -154,6 +155,7 @@ _armv7_neon_probe:
 
 .global	_armv7_tick
 .type	_armv7_tick,%function
+.align	5
 _armv7_tick:
 #ifdef	__APPLE__
 	mrrc	p15,0,r0,r1,c14		@ CNTPCT
@@ -165,6 +167,7 @@ _armv7_tick:
 
 .global	_armv8_aes_probe
 .type	_armv8_aes_probe,%function
+.align	5
 _armv8_aes_probe:
 #if defined(__thumb2__) && !defined(__APPLE__)
 	.byte	0xb0,0xff,0x00,0x03	@ aese.8	q0,q0
@@ -176,6 +179,7 @@ _armv8_aes_probe:
 
 .global	_armv8_sha1_probe
 .type	_armv8_sha1_probe,%function
+.align	5
 _armv8_sha1_probe:
 #if defined(__thumb2__) && !defined(__APPLE__)
 	.byte	0x00,0xef,0x40,0x0c	@ sha1c.32	q0,q0,q0
@@ -187,6 +191,7 @@ _armv8_sha1_probe:
 
 .global	_armv8_sha256_probe
 .type	_armv8_sha256_probe,%function
+.align	5
 _armv8_sha256_probe:
 #if defined(__thumb2__) && !defined(__APPLE__)
 	.byte	0x00,0xff,0x40,0x0c	@ sha256h.32	q0,q0,q0
@@ -197,6 +202,7 @@ _armv8_sha256_probe:
 .size	_armv8_sha256_probe,.-_armv8_sha256_probe
 .global	_armv8_pmull_probe
 .type	_armv8_pmull_probe,%function
+.align	5
 _armv8_pmull_probe:
 #if defined(__thumb2__) && !defined(__APPLE__)
 	.byte	0xa0,0xef,0x00,0x0e	@ vmull.p64	q0,d0,d0
@@ -207,49 +213,9 @@ _armv8_pmull_probe:
 .size	_armv8_pmull_probe,.-_armv8_pmull_probe
 #endif
 
-.global	OPENSSL_wipe_cpu
-.type	OPENSSL_wipe_cpu,%function
-OPENSSL_wipe_cpu:
-#if __ARM_MAX_ARCH__>=7
-	ldr	r0,.LOPENSSL_armcap
-	adr	r1,.LOPENSSL_armcap
-	ldr	r0,[r1,r0]
-#ifdef	__APPLE__
-	ldr	r0,[r0]
-#endif
-#endif
-	eor	r2,r2,r2
-	eor	r3,r3,r3
-	eor	ip,ip,ip
-#if __ARM_MAX_ARCH__>=7
-	tst	r0,#1
-	beq	.Lwipe_done
-	veor	q0, q0, q0
-	veor	q1, q1, q1
-	veor	q2, q2, q2
-	veor	q3, q3, q3
-	veor	q8, q8, q8
-	veor	q9, q9, q9
-	veor	q10, q10, q10
-	veor	q11, q11, q11
-	veor	q12, q12, q12
-	veor	q13, q13, q13
-	veor	q14, q14, q14
-	veor	q15, q15, q15
-.Lwipe_done:
-#endif
-	mov	r0,sp
-#if __ARM_ARCH__>=5
-	bx	lr
-#else
-	tst	lr,#1
-	moveq	pc,lr
-	.word	0xe12fff1e	@ bx	lr
-#endif
-.size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-
 .global	OPENSSL_instrument_bus
 .type	OPENSSL_instrument_bus,%function
+.align	5
 OPENSSL_instrument_bus:
 	eor	r0,r0,r0
 #if __ARM_ARCH__>=5
@@ -263,6 +229,7 @@ OPENSSL_instrument_bus:
 
 .global	OPENSSL_instrument_bus2
 .type	OPENSSL_instrument_bus2,%function
+.align	5
 OPENSSL_instrument_bus2:
 	eor	r0,r0,r0
 #if __ARM_ARCH__>=5

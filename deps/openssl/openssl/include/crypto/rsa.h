@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,58 @@
 #include "crypto/types.h"
 
 #define RSA_MIN_MODULUS_BITS 512
+
+#ifdef FIPS_MODULE
+#define OSSL_RSA_PARAM_MAX_PRIMES 2
+#else
+#define OSSL_RSA_PARAM_MAX_PRIMES 10
+#endif
+
+typedef struct rsa_params_st {
+    OSSL_PARAM *n;
+    OSSL_PARAM *e;
+    OSSL_PARAM *d;
+    OSSL_PARAM *a;
+    OSSL_PARAM *b;
+    OSSL_PARAM *bits;
+    OSSL_PARAM *secbits;
+    OSSL_PARAM *maxsize;
+    OSSL_PARAM *seccat;
+    OSSL_PARAM *default_digest;
+    OSSL_PARAM *mandatory_digest;
+
+    /* PSS specific params */
+    OSSL_PARAM *digest;
+    OSSL_PARAM *digest_props;
+    OSSL_PARAM *maskgenfunc;
+    OSSL_PARAM *mgf1_digest;
+    OSSL_PARAM *pss_saltlen;
+
+    /* import specific params */
+    OSSL_PARAM *derive;
+
+#ifdef FIPS_MODULE
+    struct {
+        OSSL_PARAM *xp;
+        OSSL_PARAM *xp1;
+        OSSL_PARAM *xp2;
+        OSSL_PARAM *xq;
+        OSSL_PARAM *xq1;
+        OSSL_PARAM *xq2;
+        OSSL_PARAM *p1;
+        OSSL_PARAM *p2;
+        OSSL_PARAM *q1;
+        OSSL_PARAM *q2;
+    } fips;
+#endif
+
+    OSSL_PARAM *primes;
+    struct {
+        OSSL_PARAM *factors[OSSL_RSA_PARAM_MAX_PRIMES];
+        OSSL_PARAM *exps[OSSL_RSA_PARAM_MAX_PRIMES];
+        OSSL_PARAM *coeffs[OSSL_RSA_PARAM_MAX_PRIMES - 1];
+    } mp;
+} RSA_PARAMS;
 
 typedef struct rsa_pss_params_30_st {
     int hash_algorithm_nid;
@@ -73,13 +125,19 @@ RSA *ossl_rsa_dup(const RSA *rsa, int selection);
 
 int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
     int include_private);
+int ossl_rsa_todata_parsed(RSA *rsa, OSSL_PARAM_BLD *bld,
+    const RSA_PARAMS *params, int include_private);
 int ossl_rsa_fromdata(RSA *rsa, const OSSL_PARAM params[], int include_private);
+int ossl_rsa_fromdata_parsed(RSA *rsa, const RSA_PARAMS *params,
+    int include_private);
 int ossl_rsa_pss_params_30_todata(const RSA_PSS_PARAMS_30 *pss,
     OSSL_PARAM_BLD *bld, OSSL_PARAM params[]);
+int ossl_rsa_pss_params_30_todata_parsed(const RSA_PSS_PARAMS_30 *pss,
+    OSSL_PARAM_BLD *bld, const RSA_PARAMS *params);
 int ossl_rsa_pss_params_30_fromdata(RSA_PSS_PARAMS_30 *pss_params,
-    int *defaults_set,
-    const OSSL_PARAM params[],
-    OSSL_LIB_CTX *libctx);
+    int *defaults_set, const OSSL_PARAM params[], OSSL_LIB_CTX *libctx);
+int ossl_rsa_pss_params_30_fromdata_parsed(RSA_PSS_PARAMS_30 *pss_params,
+    int *defaults_set, const RSA_PARAMS *params, OSSL_LIB_CTX *libctx);
 int ossl_rsa_set0_pss_params(RSA *r, RSA_PSS_PARAMS *pss);
 int ossl_rsa_pss_get_param_unverified(const RSA_PSS_PARAMS *pss,
     const EVP_MD **pmd, const EVP_MD **pmgf1md,
@@ -124,16 +182,23 @@ ASN1_STRING *ossl_rsa_ctx_to_pss_string(EVP_PKEY_CTX *pkctx);
 int ossl_rsa_pss_to_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pkctx,
     const X509_ALGOR *sigalg, EVP_PKEY *pkey);
 
+int ossl_rsa_generate_multi_prime_key(RSA *rsa, int bits, int primes,
+    BIGNUM *e_value, BN_GENCB *cb,
+    uint32_t a, uint32_t b);
+
 #if defined(FIPS_MODULE) && !defined(OPENSSL_NO_ACVP_TESTS)
 int ossl_rsa_acvp_test_gen_params_new(OSSL_PARAM **dst, const OSSL_PARAM src[]);
+int ossl_rsa_acvp_test_gen_params_new_parsed(OSSL_PARAM **dst,
+    const RSA_PARAMS *params);
 void ossl_rsa_acvp_test_gen_params_free(OSSL_PARAM *dst);
 
 int ossl_rsa_acvp_test_set_params(RSA *r, const OSSL_PARAM params[]);
 int ossl_rsa_acvp_test_get_params(RSA *r, OSSL_PARAM params[]);
+int ossl_rsa_acvp_test_get_params_parsed(RSA *r, const RSA_PARAMS *params);
 typedef struct rsa_acvp_test_st RSA_ACVP_TEST;
 void ossl_rsa_acvp_test_free(RSA_ACVP_TEST *t);
 #else
-#define RSA_ACVP_TEST void
+typedef void RSA_ACVP_TEST;
 #endif
 int ossl_rsa_check_factors(RSA *r);
 

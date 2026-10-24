@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,7 +65,7 @@ static long bio_call_callback(BIO *b, int oper, const char *argp, size_t len,
     if (inret > 0 && (oper & BIO_CB_RETURN) && bareoper != BIO_CB_CTRL) {
         if (*processed > INT_MAX)
             return -1;
-        inret = *processed;
+        inret = (long)*processed;
     }
 
     ret = b->callback(b, oper, argp, argi, argl, inret);
@@ -116,24 +116,22 @@ BIO *BIO_new(const BIO_METHOD *method)
     return BIO_new_ex(NULL, method);
 }
 
-int BIO_free(BIO *a)
+static int BIO_free_int(BIO *a, int *ret)
 {
-    int ret;
 
     if (a == NULL)
         return 0;
 
-    if (CRYPTO_DOWN_REF(&a->references, &ret) <= 0)
+    if (CRYPTO_DOWN_REF(&a->references, ret) <= 0)
         return 0;
 
-    REF_PRINT_COUNT("BIO", ret, a);
-    if (ret > 0)
+    REF_PRINT_COUNT("BIO", *ret, a);
+    if (*ret > 0)
         return 1;
-    REF_ASSERT_ISNT(ret < 0);
+    REF_ASSERT_ISNT(*ret < 0);
 
     if (HAS_CALLBACK(a)) {
-        ret = (int)bio_call_callback(a, BIO_CB_FREE, NULL, 0, 0, 0L, 1L, NULL);
-        if (ret <= 0)
+        if ((int)bio_call_callback(a, BIO_CB_FREE, NULL, 0, 0, 0L, 1L, NULL) <= 0)
             return 0;
     }
 
@@ -147,6 +145,13 @@ int BIO_free(BIO *a)
     OPENSSL_free(a);
 
     return 1;
+}
+
+int BIO_free(BIO *b)
+{
+    int ref;
+
+    return BIO_free_int(b, &ref);
 }
 
 void BIO_set_data(BIO *a, void *ptr)
@@ -188,7 +193,7 @@ int BIO_up_ref(BIO *a)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&a->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&a->references, &i))
         return 0;
 
     REF_PRINT_COUNT("BIO", i, a);
@@ -209,6 +214,11 @@ int BIO_test_flags(const BIO *b, int flags)
 void BIO_set_flags(BIO *b, int flags)
 {
     b->flags |= flags;
+}
+
+long BIO_set_send_flags(BIO *b, int flags)
+{
+    return BIO_ctrl(b, BIO_C_SET_SEND_FLAGS, (long)flags, NULL);
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -254,10 +264,14 @@ int BIO_method_type(const BIO *b)
 }
 
 /*
- * This is essentially the same as BIO_read_ex() except that it allows
- * 0 or a negative value to indicate failure (retryable or not) in the return.
- * This is for compatibility with the old style BIO_read(), where existing code
- * may make assumptions about the return value that it might get.
+ * Internal BIO read function. Attempts to read dlen bytes from BIO b and
+ * places them in data. If any bytes were successfully read, then the number
+ * of bytes read is stored in readbytes.
+ * For compatibility with the old-style BIO_read() API, the function uses a
+ * return-value convention where a positive value indicates success,
+ * 0 indicates end-of-file, and a negative value indicates an error
+ * (including retryable errors).
+ * It also returns 0 if dlen==0.
  */
 static int bio_read_intern(BIO *b, void *data, size_t dlen, size_t *readbytes)
 {
@@ -285,6 +299,13 @@ static int bio_read_intern(BIO *b, void *data, size_t dlen, size_t *readbytes)
     if (ret > 0)
         b->num_read += (uint64_t)*readbytes;
 
+    /*
+     * If method->bread() returned 0 when dlen>0, it can be either EOF or
+     * an error, and we should distinguish them
+     */
+    if (ret == 0 && dlen > 0 && BIO_eof(b) == 0)
+        ret = -1;
+
     if (HAS_CALLBACK(b))
         ret = (int)bio_call_callback(b, BIO_CB_READ | BIO_CB_RETURN, data,
             dlen, 0, 0L, ret, readbytes);
@@ -303,8 +324,10 @@ int BIO_read(BIO *b, void *data, int dlen)
     size_t readbytes;
     int ret;
 
-    if (dlen < 0)
-        return 0;
+    if (dlen < 0) {
+        ERR_raise(ERR_LIB_BIO, ERR_R_PASSED_INVALID_ARGUMENT);
+        return -1;
+    }
 
     ret = bio_read_intern(b, data, (size_t)dlen, &readbytes);
 
@@ -431,7 +454,7 @@ int BIO_sendmmsg(BIO *b, BIO_MSG *msg,
         ret = (size_t)bio_call_callback(b, BIO_CB_SENDMMSG | BIO_CB_RETURN,
             (void *)&args, ret, 0, 0, (long)ret, msgs_processed);
 
-    return ret;
+    return ret > 0;
 }
 
 int BIO_recvmmsg(BIO *b, BIO_MSG *msg,
@@ -478,7 +501,7 @@ int BIO_recvmmsg(BIO *b, BIO_MSG *msg,
         ret = (size_t)bio_call_callback(b, BIO_CB_RECVMMSG | BIO_CB_RETURN,
             (void *)&args, ret, 0, 0, (long)ret, msgs_processed);
 
-    return ret;
+    return ret > 0;
 }
 
 int BIO_get_rpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc)
@@ -620,7 +643,7 @@ int BIO_get_line(BIO *bio, char *buf, int size)
         if (*ptr++ == '\n')
             break;
     *ptr = '\0';
-    return ret > 0 || BIO_eof(bio) ? ptr - buf : ret;
+    return ret > 0 || BIO_eof(bio) ? (int)(ptr - buf) : ret;
 }
 
 int BIO_indent(BIO *b, int indent, int max)
@@ -677,6 +700,13 @@ long BIO_ctrl(BIO *b, int cmd, long larg, void *parg)
             larg, ret, NULL);
 
     return ret;
+}
+
+int BIO_eof(BIO *b)
+{
+    if ((b->flags & BIO_FLAGS_AUTO_EOF) != 0)
+        return 1;
+    return (int)BIO_ctrl(b, BIO_CTRL_EOF, 0, NULL);
 }
 
 long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
@@ -849,11 +879,11 @@ void BIO_free_all(BIO *bio)
 
     while (bio != NULL) {
         b = bio;
-        CRYPTO_GET_REF(&b->references, &ref);
         bio = bio->next_bio;
-        BIO_free(b);
-        /* Since ref count > 1, don't free anyone else. */
-        if (ref > 1)
+        ref = 0;
+        BIO_free_int(b, &ref);
+        /* Since ref count > 0, don't free anyone else. */
+        if (ref > 0)
             break;
     }
 }
@@ -1076,3 +1106,18 @@ retry:
 
     return rv;
 }
+
+#ifndef OPENSSL_NO_SOCK
+
+int BIO_err_is_non_fatal(unsigned int errcode)
+{
+    if (ERR_SYSTEM_ERROR(errcode))
+        return BIO_sock_non_fatal_error(ERR_GET_REASON(errcode));
+    else if (ERR_GET_LIB(errcode) == ERR_LIB_BIO
+        && ERR_GET_REASON(errcode) == BIO_R_NON_FATAL)
+        return 1;
+    else
+        return 0;
+}
+
+#endif
