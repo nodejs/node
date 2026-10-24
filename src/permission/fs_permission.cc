@@ -285,7 +285,13 @@ bool FSPermission::RadixTree::Lookup(std::string_view s,
   auto path_len = s.length();
 
   while (true) {
-    if (parent_node_prefix_len == path_len && current_node->IsEndNode()) {
+    // A split can leave the directory node with a trailing separator and
+    // the wildcard one level below it. See IsEndNode().
+    if ((parent_node_prefix_len == path_len ||
+         (parent_node_prefix_len == path_len + 1 &&
+          !current_node->prefix.empty() &&
+          current_node->prefix.back() == node::kPathSeparator)) &&
+        current_node->IsEndNode()) {
       return true;
     }
 
