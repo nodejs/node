@@ -82,3 +82,63 @@ test('ffi callback ref and unref APIs work', () => {
     lib.close();
   }
 });
+
+test('ffi callbacks drain nextTick and microtasks only from the event loop', {
+  skip: common.isWindows,
+}, async () => {
+  const { lib, functions: symbols } = getLibrary();
+  let ran = false;
+  const syncCallback = lib.registerCallback(
+    { arguments: ['i32'], return: 'i32' },
+    (value) => {
+      queueMicrotask(() => { ran = true; });
+      return value;
+    },
+  );
+
+  // The process exports libuv, so a uv timer can invoke the callback from
+  // the event loop with no JS on the stack.
+  const { lib: uvLib, functions: uv } = ffi.dlopen(null, {
+    uv_handle_size: { arguments: ['i32'], return: 'u64' },
+    uv_timer_init: { arguments: ['pointer', 'pointer'], return: 'i32' },
+    uv_timer_start: { arguments: ['pointer', 'pointer', 'u64', 'u64'], return: 'i32' },
+    uv_close: { arguments: ['pointer', 'pointer'], return: 'void' },
+  });
+  const UV_TIMER = 13;
+  const timerSize = Number(uv.uv_handle_size(UV_TIMER)) + 64;
+  const timers = [new Uint8Array(timerSize), new Uint8Array(timerSize)];
+  const { promise, resolve } = Promise.withResolvers();
+  const order = [];
+  const timerCallbacks = [
+    uvLib.registerCallback({ arguments: ['pointer'], return: 'void' }, () => {
+      order.push('callback');
+      process.nextTick(() => order.push('nextTick'));
+      queueMicrotask(() => order.push('microtask'));
+    }),
+    // The second timer runs right after the first one, with no Node.js
+    // callback in between that could drain the queues instead.
+    uvLib.registerCallback({ arguments: ['pointer'], return: 'void' }, () => {
+      resolve([...order]);
+      for (const timer of timers) uv.uv_close(timer, 0n);
+    }),
+  ];
+
+  try {
+    // A callback invoked synchronously runs inside the caller's scope, so its
+    // microtasks must not run before the native call returns.
+    assert.strictEqual(symbols.call_int_callback(syncCallback, 1), 1);
+    assert.strictEqual(ran, false);
+
+    const loop = ffi.getCurrentEventLoop();
+    for (let i = 0; i < timers.length; i++) {
+      assert.strictEqual(uv.uv_timer_init(loop, timers[i]), 0);
+      assert.strictEqual(uv.uv_timer_start(timers[i], timerCallbacks[i], 0n, 0n), 0);
+    }
+    assert.deepStrictEqual(await promise, ['callback', 'nextTick', 'microtask']);
+    // Let the uv_close() of the timer handles complete.
+    await new Promise(setImmediate);
+  } finally {
+    lib.close();
+    uvLib.close();
+  }
+});
