@@ -83,16 +83,14 @@ async function getDOMStorageItems(localStorageFile) {
     { message: 'Could not read DOM storage items: the backing file is malformed' },
   );
 
-  // A wrong-typed schema_version makes Storage::Open() throw, which has to be
-  // caught rather than left pending on an isolate with no JavaScript running.
-  // Its message reaches the frontend.
+  // A wrong-typed schema_version keeps the store from opening, and the reason
+  // reaches the frontend.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage(
         'bad-schema-version.db', 'one', Buffer.from('hello', 'utf16le'))),
     {
-      // The reason comes off the v8::Message, hence the "Uncaught" prefix;
-      // converting the exception itself would run user JavaScript.
+      // Formatted like a v8::Message, hence the "Uncaught Error" prefix.
       message: 'Could not read DOM storage items: Uncaught Error: ' +
         'localStorage database is malformed: expected schema_version to be ' +
         'an integer',
