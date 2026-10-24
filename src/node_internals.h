@@ -270,6 +270,10 @@ class InternalCallbackScope {
   inline bool Failed() const { return failed_; }
   inline void MarkAsFailed() { failed_ = true; }
 
+  // For executionAsyncResource() inside a scope that skipped the id stack.
+  inline uint32_t lazy_depth() const { return lazy_depth_; }
+  v8::Local<v8::Object> lazy_resource(v8::Isolate* isolate) const;
+
  private:
   Environment* env_;
   async_context async_context_;
@@ -279,6 +283,12 @@ class InternalCallbackScope {
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
+  bool lazy_ids_ = false;
+  uint32_t lazy_depth_ = 0;
+  double prior_async_id_ = 0;
+  double prior_trigger_async_id_ = 0;
+  InternalCallbackScope* lazy_prev_ = nullptr;
+  std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*> lazy_resource_;
   v8::Global<v8::Value> prior_context_frame_;
   std::optional<v8::Isolate::AllowJavascriptExecutionScope> allow_js_;
 };
