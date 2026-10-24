@@ -278,6 +278,9 @@ both to the top-level `node:fs` functions and to the equivalent
 `FileHandle` methods, and currently includes `fsync`/`fdatasync`,
 `fchmod`, `fchown`, and `futimes` (and their synchronous variants).
 
+In [audit mode](#audit-mode), these operations are not disabled and run normally. No
+diagnostics channel message is published for them.
+
 #### Environment variable permissions
 
 When the Permission Model is enforced, the process only has access to the
