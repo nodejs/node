@@ -1782,6 +1782,73 @@ void ScanPool::RunOne(Mutex::ScopedLock& lock) {
 
 }  // namespace
 
+DirentPath GetDirentPath(const std::string& cwd, const std::string& path) {
+  std::string full = path;
+  const bool joined = !cwd.empty() && !IsAbsolute(path);
+  if (joined) {
+    full = cwd + kSep + path;
+    if constexpr (kWindows) {
+      // Like path.join(), only retain a UNC prefix supplied by cwd itself.
+      const bool unc = cwd.size() > 2 && IsPathSeparator(cwd[0]) &&
+                       IsPathSeparator(cwd[1]) && !IsPathSeparator(cwd[2]);
+      if (!unc) {
+        size_t leading = 0;
+        while (leading < full.size() && IsPathSeparator(full[leading])) {
+          leading++;
+        }
+        if (leading > 1) full.erase(0, leading - 1);
+      }
+    }
+    full = Normalize(full);
+  }
+  // basename() ignores a drive prefix, but not the server/share in a UNC root.
+  const bool has_drive = kWindows && full.size() >= 2 &&
+                         IsWindowsDeviceRoot(full[0]) && full[1] == ':';
+  const size_t drive = has_drive ? 2 : 0;
+  size_t end = full.size();
+  while (end > drive && IsPathSeparator(full[end - 1])) end--;
+  size_t start = end;
+  while (start > drive && !IsPathSeparator(full[start - 1])) start--;
+
+  size_t root = RootLength(full);
+  if (kWindows && full.size() >= 2 && IsPathSeparator(full[0]) &&
+      IsPathSeparator(full[1])) {
+    // Unlike resolved walker paths, callback paths can have an incomplete UNC
+    // prefix. dirname() recognizes a UNC root only with both server and share.
+    size_t server_end = 2;
+    while (server_end < full.size() && !IsPathSeparator(full[server_end])) {
+      server_end++;
+    }
+    size_t share_start = server_end;
+    while (share_start < full.size() && IsPathSeparator(full[share_start])) {
+      share_start++;
+    }
+    root = 1;
+    if (server_end > 2 && share_start < full.size()) {
+      root = share_start;
+      while (root < full.size() && !IsPathSeparator(full[root])) root++;
+      if (root < full.size()) {
+        root++;
+      } else if (joined) {
+        // path.join() terminates a bare UNC share root with a separator.
+        full += kSep;
+        root++;
+      }
+    }
+  }
+  size_t parent_end = end;
+  while (parent_end > root && !IsPathSeparator(full[parent_end - 1])) {
+    parent_end--;
+  }
+  parent_end = parent_end > root ? parent_end - 1 : root;
+  // POSIX dirname('//name') keeps both leading separators.
+  if (!kWindows && root != 0 && parent_end == 1 && start == 2) {
+    parent_end = 2;
+  }
+  return {full.substr(start, end - start),
+          parent_end == 0 ? "." : full.substr(0, parent_end)};
+}
+
 // The pimpl the public Walk hands its calls to.
 class WalkerImpl : public WalkerState {
  public:
