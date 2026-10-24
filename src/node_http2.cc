@@ -801,6 +801,18 @@ bool Http2Session::HasPendingData() const {
   return true;
 }
 
+// nghttp2 signals that the connection should be dropped by having both
+// want_read and want_write return 0. If that happens while we still track
+// open streams, nghttp2 has terminated the session on its own (for example
+// due to a protocol error from the peer) and those streams will never be
+// completed.
+bool Http2Session::HasStreamsAbandonedByNghttp2() const {
+  if (HasPendingData()) return false;
+  return std::ranges::any_of(streams_, [](const auto& entry) {
+    return !entry.second->is_closed() && !entry.second->is_destroyed();
+  });
+}
+
 void Http2Session::EmitStatistics() {
   if (!HasHttp2Observer(env())) [[likely]] {
     return;
@@ -2069,9 +2081,11 @@ uint8_t Http2Session::SendPendingData() {
 
   MaybeStopReading();
 
-  // If nghttp2 has internally torn down the session (detected in OnFrameSent)
-  // during the nghttp2_session_mem_send loop above, at this point we error:
-  if (internal_goaway_sent_) {
+  // If nghttp2 has internally torn down the session (detected in OnFrameSent,
+  // or because it no longer wants to read or write while we still have open
+  // streams) during the nghttp2_session_mem_send loop above, at this point we
+  // error:
+  if (internal_goaway_sent_ || HasStreamsAbandonedByNghttp2()) {
     internal_goaway_sent_ = false;
     if (!is_closing() && !is_destroyed()) {
       Isolate* isolate = env()->isolate();
