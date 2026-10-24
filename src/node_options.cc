@@ -655,7 +655,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "enable the permission system",
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--permission-audit",
             "enable audit only for the permission system",
             &EnvironmentOptions::permission_audit,
@@ -894,11 +895,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
-  AddOption("--experimental-config-file",
+  AddOption("--config-file",
             "set config file path",
-            &EnvironmentOptions::experimental_config_file_path,
+            &EnvironmentOptions::config_file_path,
             kDisallowedInEnvvar);
-  AddAlias("--experimental-default-config-file", "--experimental-config-file");
+  AddAlias("--experimental-config-file", "--config-file");
+  AddAlias("--experimental-default-config-file", "--config-file");
   AddOption("--experimental-package-map",
             "use the specified file for package map resolution",
             &EnvironmentOptions::experimental_package_map_path,
