@@ -1274,10 +1274,19 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   // this point the scanner should be rewound to the position of the class
   // token.
   DCHECK_EQ(peek_position(), initializer_pos);
-  // Insert a FunctionState with the closest outer Declaration scope
+  // Insert a FunctionState with the closest outer Declaration scope.
+  // The immediate enclosing function scope may have been elided from the
+  // ScopeInfo chain if it did not allocate a context. Since class bodies are
+  // always strict mode, 'yield' is never a valid identifier in computed
+  // property names, so we can unconditionally enable generator mode; whether
+  // 'await' is a keyword is recorded on the initializer SharedFunctionInfo.
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
-  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
+  FunctionKind enclosing_kind = flags().class_initializer_allows_await()
+                                    ? FunctionKind::kAsyncGeneratorFunction
+                                    : FunctionKind::kGeneratorFunction;
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope,
+                               enclosing_kind);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.

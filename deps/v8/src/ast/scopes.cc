@@ -345,6 +345,7 @@ void DeclarationScope::SetDefaults() {
                            is_module_scope());
   set_needs_private_name_context_chain_recalc(false);
   set_class_scope_has_private_brand(false);
+  set_class_initializer_allows_await(false);
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -1575,7 +1576,8 @@ bool Scope::NeedsScopeInfo() const {
 }
 
 bool Scope::ShouldBanArguments() {
-  return GetReceiverScope()->should_ban_arguments();
+  return GetReceiverScope()->should_ban_arguments() &&
+         !GetClosureScope()->from_scope_info();
 }
 
 DeclarationScope* Scope::GetReceiverScope() {

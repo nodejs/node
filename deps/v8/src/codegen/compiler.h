@@ -719,7 +719,7 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
  private:
   Isolate* isolate_for_local_isolate_;
   AlignedCachedData cached_data_;
-  CodeSerializer::OffThreadDeserializeData off_thread_data_;
+  OffThreadDeserializeData off_thread_data_;
   BackgroundMergeTask background_merge_task_;
   TimedHistogram* timer_;
   int64_t background_time_in_microseconds_ = 0;

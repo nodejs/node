@@ -653,6 +653,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kExitMachineGraph:
       CheckValueInputIs(node, 0, Type::Machine());
       break;
+#if V8_ENABLE_SANDBOX
+    case IrOpcode::kLoadTrustedPointer:
+      // TODO(manoskouk): what are the constraints here?
+      break;
+#endif
 
     // JavaScript operators
     // --------------------

@@ -289,6 +289,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
       PropertiesAreFinalBit::Next<bool, 1>;
   using IsHoistedInContextBit =
       PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+  using ClassInitializerAllowsAwaitBit = IsHoistedInContextBit::Next<bool, 1>;
   // Bit positions in |flags2|.
   using ClassScopeHasPrivateBrandBit = base::BitField<bool, 0, 1, uint8_t>;
   using HasStaticPrivateMethodsOrAccessorsBit =
@@ -707,6 +708,9 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
   // Indicates that the function is a hoisted-in-context declaration.
   DECL_BOOLEAN_ACCESSORS(is_hoisted_in_context)
+
+  // Indicates that a class initializer's enclosing scope allowed await.
+  DECL_BOOLEAN_ACCESSORS(class_initializer_allows_await)
 
   inline FunctionKind kind() const;
 
