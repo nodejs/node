@@ -271,6 +271,23 @@ it('drops an observed composite of a composite once its sources are collected', 
   await gcUntil('outer composite is collected', () => outerRef.deref() === undefined);
 });
 
+it('drops observed composites that share a source once it is collected', async () => {
+  const handler = () => {};
+  // Using a helper keeps the source and the composites off this stack.
+  const createObservedComposites = () => {
+    const controller = new AbortController();
+    return Array.from({ length: 10 }, () => {
+      const composite = AbortSignal.any([controller.signal]);
+      composite.addEventListener('abort', handler);
+      return new WeakRef(composite);
+    });
+  };
+  const refs = createObservedComposites();
+
+  await gcUntil('observed composites are collected',
+                () => refs.every((ref) => ref.deref() === undefined));
+});
+
 it('drops settled signals even when there are listeners', (t, done) => {
   runWithOrphanListeners(limit, async (signalRefs) => {
     await gcUntil('all signals are GCed', () => {
