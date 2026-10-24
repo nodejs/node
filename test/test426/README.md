@@ -7,7 +7,7 @@ suite ensures that the Node.js source map implementation conforms to the
 The [`test/fixtures/test426`](../fixtures/test426/) contains a copy of the set of
 [Source Map Tests][] suite. The last updated hash is:
 
-* <https://github.com/tc39/source-map-tests/commit/9ea66b466fd37e8a4050033d23b3e1480973c3dc>
+* <https://github.com/tc39/source-map-tests/commit/42c51f748cf73680755d8d85b46c290105d7a0c4>
 
 See the json files in [the `status` folder](./status) for prerequisites,
 expected failures, and support status for specific tests.
