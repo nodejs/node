@@ -62,7 +62,8 @@ const cli = startCLI([script]);
 
   await cli.command('breakpoints');
   assert.ok(cli.output.includes(`#0 ${script}:6`));
-  assert.ok(cli.output.includes(`#1 ${script}:16`));
+  assert.ok(cli.output.includes('#1 otherFunction()'));
+  assert.ok(cli.output.includes(`#2 ${script}:16`));
 
   await cli.command('list()');
   assert.match(
@@ -105,7 +106,7 @@ const cli = startCLI([script]);
 
   await cli.stepCommand('');
   assert.ok(
-    cli.output.includes(`debugCommand in ${script}:14`),
+    cli.output.includes(`break in ${script}:14`),
     'found function breakpoint we set above');
 })().finally(() => cli.quit())
   .then(common.mustCall());

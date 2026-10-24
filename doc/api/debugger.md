@@ -132,6 +132,7 @@ To begin watching an expression, type `watch('my_expression')`. The command
   evaluates to `true`
 * `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
   on line 1
+* `clearBreakpoint('fn()')`, `cb(...)`: Clear breakpoint set on `fn`
 
 It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
