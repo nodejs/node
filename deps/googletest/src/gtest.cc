@@ -6857,6 +6857,16 @@ static void LoadFlagsFromFile(const std::string& path) {
     if (!ParseGoogleTestFlag(lines[i].c_str())) g_help_flag = true;
   }
 }
+
+static bool ParseFlagFileFlag(const char* const arg) {
+  std::string flagfile_value;
+  if (!ParseFlag(arg, "flagfile", &flagfile_value)) {
+    return false;
+  }
+  GTEST_FLAG_SET(flagfile, flagfile_value);
+  LoadFlagsFromFile(flagfile_value);
+  return true;
+}
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_ && GTEST_HAS_FILE_SYSTEM
 
 // Parses the command line for Google Test flags, without initializing
@@ -6864,7 +6874,6 @@ static void LoadFlagsFromFile(const std::string& path) {
 // instantiated to either char or wchar_t.
 template <typename CharType>
 void ParseGoogleTestFlagsOnlyImpl(int* argc, CharType** argv) {
-  std::string flagfile_value;
   for (int i = 1; i < *argc; i++) {
     const std::string arg_string = StreamableToString(argv[i]);
     const char* const arg = arg_string.c_str();
@@ -6875,9 +6884,7 @@ void ParseGoogleTestFlagsOnlyImpl(int* argc, CharType** argv) {
     if (ParseGoogleTestFlag(arg)) {
       remove_flag = true;
 #if GTEST_USE_OWN_FLAGFILE_FLAG_ && GTEST_HAS_FILE_SYSTEM
-    } else if (ParseFlag(arg, "flagfile", &flagfile_value)) {
-      GTEST_FLAG_SET(flagfile, flagfile_value);
-      LoadFlagsFromFile(flagfile_value);
+    } else if (ParseFlagFileFlag(arg)) {
       remove_flag = true;
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_ && GTEST_HAS_FILE_SYSTEM
     } else if (arg_string == "--help" || HasGoogleTestFlagPrefix(arg)) {
