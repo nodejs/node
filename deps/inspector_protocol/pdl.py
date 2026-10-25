@@ -89,15 +89,16 @@ def parse(data, file_name, map_binary_to_string, source_set):
       protocol['domains'].append(domain)
       continue
 
-    match = re.compile(
-        r'^include (.*)').match(line)
+    match = re.compile(r'^include (.*)').match(line)
     if match:
       included_filename = match.group(1)
       if os.path.isabs(included_filename):
         raise Exception("Only relative paths are supported in includes")
-      resolved_path = os.path.normpath(os.path.join(os.path.dirname(file_name), included_filename))
+      resolved_path = os.path.normpath(
+          os.path.join(os.path.dirname(file_name), included_filename))
       with open(resolved_path, 'r') as file:
-        included_data = parse(file.read(), resolved_path, map_binary_to_string, source_set)
+        included_data = parse(file.read(), resolved_path, map_binary_to_string,
+                              source_set)
         protocol['domains'].extend(included_data['domains'])
       continue
 
