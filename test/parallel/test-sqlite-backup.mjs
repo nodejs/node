@@ -48,8 +48,24 @@ describe('backup()', () => {
       backup();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "sourceDb" argument must be an object.'
+      message: 'The "sourceDb" argument must be an instance of Database.'
     });
+  });
+
+  test('throws if the source is not an instance of Database', (t) => {
+    const database = makeSourceDb();
+    for (const source of [
+      {},
+      database.prepare('SELECT 1'),
+      database.createSession(),
+    ]) {
+      t.assert.throws(() => {
+        backup(source, 'out.db');
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "sourceDb" argument must be an instance of Database.'
+      });
+    }
   });
 
   test('throws if path is not a string, URL, or Buffer', (t) => {
