@@ -23,12 +23,7 @@ else
 
     boringssl =
       let
-        inherit (nixpkgs) callPackage lib writeTextFile;
-        # TODO: remove this override once nixpkgs.boringssl is 0.20261020.0 or newer.
-        boringssl = callPackage (builtins.fetchurl {
-          url = "${repo}/raw/1c17f6e5f086bf6b259e7a28f68657ed8548a25a/pkgs/by-name/bo/boringssl/package.nix";
-          sha256 = "10cw2np6shjanxa2vzfxsrbyz451g1b6qan2v9c1ln75i3n5zn8a";
-        }) { };
+        inherit (nixpkgs) boringssl lib writeTextFile;
       in
       # BoringSSL does not install the openssl.pc metadata required by configure.
       # https://boringssl-review.googlesource.com/c/boringssl/+/104208
