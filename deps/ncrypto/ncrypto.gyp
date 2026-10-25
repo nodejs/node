@@ -9,15 +9,19 @@
       'engine.cc',
       'ncrypto.h',
     ],
+    # OpenSSL may be configured with --api below 3.0. Keep 3.0 deprecation
+    # checks where supported without exceeding its configured API level.
+    'ncrypto_openssl3_api_compat':
+      '(OPENSSL_CONFIGURED_API<30000?OPENSSL_CONFIGURED_API:30000)',
     'ncrypto_strict_defines': [
-      'OPENSSL_API_COMPAT=30000',
+      'OPENSSL_API_COMPAT=<(ncrypto_openssl3_api_compat)',
       'OPENSSL_NO_DEPRECATED',
     ],
     'ncrypto_legacy_openssl_defines': [
       'OPENSSL_API_COMPAT=0x10100000L',
     ],
     'ncrypto_engine_defines': [
-      'OPENSSL_API_COMPAT=30000',
+      'OPENSSL_API_COMPAT=<(ncrypto_openssl3_api_compat)',
       'OPENSSL_SUPPRESS_DEPRECATED',
       'NCRYPTO_ENGINE_COMPAT=1',
     ],
