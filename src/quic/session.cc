@@ -3831,10 +3831,12 @@ void Session::GenerateNewConnectionId(ngtcp2_cid* cid,
   DCHECK(!is_destroyed());
   CID cid_ = impl_->config_.options.cid_factory->GenerateInto(cid, len);
   Debug(this, "Generated new connection id %s", cid_);
-  StatelessResetToken new_token(
-      token, endpoint().options().reset_token_secret, cid_);
+  // Fills in the token sent to the peer in the NEW_CONNECTION_ID frame. It is
+  // intentionally not associated with this session: the endpoint's token map
+  // holds only tokens issued by the peer, and nothing would remove a locally
+  // issued token from it when this session is destroyed.
+  StatelessResetToken(token, endpoint().options().reset_token_secret, cid_);
   endpoint().AssociateCID(cid_, impl_->config_.scid);
-  endpoint().AssociateStatelessResetToken(new_token, this);
 }
 
 bool Session::HandshakeCompleted() {
