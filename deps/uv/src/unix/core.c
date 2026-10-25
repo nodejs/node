@@ -1027,8 +1027,22 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
       loop->watchers[w->fd] = NULL;
       loop->nfds--;
     }
+    return;
   }
-  else if (uv__queue_empty(&w->watcher_queue))
+
+#if !defined(__sun)
+  /* Short-circuit if the event mask is unchanged, like uv__io_start() does.
+   * Without this, stopping an event that was never started (e.g. the
+   * uv__io_stop(POLLOUT) in uv__drain() after a write that completed
+   * synchronously) needlessly re-registers the file descriptor with the
+   * kernel on the next loop iteration and makes uv_backend_timeout() report
+   * zero in the meantime.
+   */
+  if (w->events == w->pevents)
+    return;
+#endif
+
+  if (uv__queue_empty(&w->watcher_queue))
     uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
 }
 
