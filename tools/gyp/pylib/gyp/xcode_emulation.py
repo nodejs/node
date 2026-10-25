@@ -1429,7 +1429,10 @@ class MacPrefixHeader:
         return h
 
     def GetInclude(self, lang, arch=None):
-        """Gets the cflags to include the prefix header for language |lang|."""
+        """Gets the cflags to include the prefix header for language |lang|.
+
+        There is no compiled header for assembly ('asm'), which includes the
+        prefix header itself."""
         if self.compile_headers and lang in self.compiled_headers:
             return "-include %s" % self._CompiledHeader(lang, arch)
         elif self.header:
