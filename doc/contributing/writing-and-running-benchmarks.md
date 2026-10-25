@@ -55,6 +55,18 @@ node benchmark/run.js --set benchmarker=autocannon http
 node benchmark/http/simple.js benchmarker=autocannon
 ```
 
+Besides the throughput, HTTP benchmarks report the latency percentiles
+measured by the benchmarker, in milliseconds:
+
+```console
+http/simple.js c=500 benchmarker="autocannon": 16,217.34 (latency ms: 50%=28 90%=34 99%=257 99.9%=270)
+```
+
+The resolution depends on the benchmarker: `autocannon` records whole
+milliseconds, `wrk` reports microseconds and does not print the 99.9th
+percentile, and `h2load` reports no percentiles. The CSV output and the
+comparison tools only use the throughput.
+
 #### HTTPS benchmark requirements
 
 To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
