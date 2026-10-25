@@ -1,5 +1,6 @@
 #include "node_diagnostics_channel.h"
 
+#include "base_object-inl.h"
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
 
@@ -301,4 +302,76 @@ TEST_F(DiagnosticsChannelTest, NativeChannelsGrowSubscriberStorage) {
         "globalThis.__dc.subscribe('test:cctest:grow:1024', "
         "                          globalThis.__lastSubscriber);");
   EXPECT_TRUE(last->HasSubscribers());
+}
+
+// Mirrors how node:sqlite holds a Channel: a strong reference kept for the
+// lifetime of a BaseObject, which is destroyed during environment cleanup
+// after the BindingData that owns the channel is already gone.
+class ChannelHolder : public node::BaseObject {
+ public:
+  ChannelHolder(node::Environment* env,
+                v8::Local<v8::Object> obj,
+                BaseObjectPtr<Channel> channel)
+      : BaseObject(env, obj), channel_(std::move(channel)) {}
+
+  ~ChannelHolder() override {
+    destroyed = true;
+    // Would read the destroyed BindingData if the back-pointer were stale.
+    had_subscribers = channel_->HasSubscribers();
+  }
+
+  static bool destroyed;
+  static bool had_subscribers;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ChannelHolder)
+  SET_SELF_SIZE(ChannelHolder)
+
+ private:
+  BaseObjectPtr<Channel> channel_;
+};
+
+bool ChannelHolder::destroyed = false;
+bool ChannelHolder::had_subscribers = false;
+
+// A Channel whose holder outlives the BindingData must report no subscribers
+// rather than reading the destroyed binding's subscriber array.
+TEST_F(DiagnosticsChannelTest, ChannelOutlivingBindingHasNoSubscribers) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+
+  ChannelHolder::destroyed = false;
+  ChannelHolder::had_subscribers = false;
+
+  {
+    Env env{handle_scope, argv};
+
+    SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+      EXPECT_EQ(exit_code, 0);
+      node::Stop(*env);
+    });
+
+    node::LoadEnvironment(
+        *env,
+        "const dc = require('diagnostics_channel');"
+        "dc.subscribe('test:cctest:outlives-binding', () => {});");
+
+    auto channel = Channel::Get(*env, "test:cctest:outlives-binding");
+    ASSERT_TRUE(channel);
+    ASSERT_TRUE(channel->HasSubscribers());
+
+    v8::Local<v8::Context> context = (*env)->context();
+    v8::Local<v8::Object> obj =
+        node::BaseObject::MakeLazilyInitializedJSTemplate(*env)
+            ->GetFunction(context)
+            .ToLocalChecked()
+            ->NewInstance(context)
+            .ToLocalChecked();
+    // MakeBaseObject leaves the holder a strong root, so it survives until the
+    // environment is torn down, like a DatabaseSync still reachable at exit.
+    node::MakeBaseObject<ChannelHolder>(*env, obj, channel);
+  }
+
+  EXPECT_TRUE(ChannelHolder::destroyed);
+  EXPECT_FALSE(ChannelHolder::had_subscribers);
 }
