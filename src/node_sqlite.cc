@@ -1120,7 +1120,7 @@ bool VirtualTableModule::CanCallIntoJS() const {
 bool VirtualTableModule::CloseIterator(NodeVTabCursor* cursor) {
   VirtualTableModule* mod = cursor->module;
 
-  // Skipped in two cases:
+  // Skipped in three cases:
   //
   // - While the database is being torn down from a destructor, because those
   //   run from a garbage collection callback where JavaScript cannot be
@@ -1131,7 +1131,11 @@ bool VirtualTableModule::CloseIterator(NodeVTabCursor* cursor) {
   //   A generator whose own body threw has already run its `finally` as part of
   //   that throw, so this only affects an iterator abandoned while suspended
   //   because something else failed.
-  if (cursor->iterator.IsEmpty() || !mod->CanCallIntoJS() ||
+  // - When next() has already reported `done: true`, because the iteration ran
+  //   to completion. `return()` is only called on abrupt termination in
+  //   `for...of`; a finished iterator must not be asked to clean up again, and
+  //   a custom iterable may throw from `return()` even after completion.
+  if (cursor->iterator.IsEmpty() || cursor->done || !mod->CanCallIntoJS() ||
       mod->env_->isolate()->HasPendingException()) {
     return false;
   }
@@ -1445,7 +1449,10 @@ int VirtualTableModule::xNext(sqlite3_vtab_cursor* pCursor) {
            .ToLocal(&next_method_val)) {
     return mod->PropagateJSError();
   }
+  // On a protocol error, drop the iterator so it is not closed later.
+  // `for...of` does not call return() when next() is invalid either.
   if (!next_method_val->IsFunction()) {
+    cursor->iterator.Reset();
     return ReportProtocolError(
         pCursor->pVtab,
         "The \"options.rows\" iterator must have a next() method");
@@ -1458,6 +1465,7 @@ int VirtualTableModule::xNext(sqlite3_vtab_cursor* pCursor) {
     return mod->PropagateJSError();
   }
   if (!next_val->IsObject()) {
+    cursor->iterator.Reset();
     return ReportProtocolError(
         pCursor->pVtab,
         "The \"options.rows\" iterator's next() method must return an object");
