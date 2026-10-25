@@ -1081,6 +1081,10 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[0]->IsFunction()) {
+    if (args.Length() > 1) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "Callback must be the last argument");
+      return;
+    }
     fn = args[0].As<Function>();
   } else {
     if (!args[0]->IsObject() || args[0]->IsArray()) {
