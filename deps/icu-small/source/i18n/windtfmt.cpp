@@ -193,7 +193,7 @@ Win32DateFormat::~Win32DateFormat()
     delete fWindowsLocaleName;
 }
 
-Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
+Win32DateFormat& Win32DateFormat::operator=(const Win32DateFormat& other) U_LIFETIME_BOUND
 {
     if (this == &other) { return *this; }  // self-assignment: no-op
     // The following handles fCalendar
@@ -222,7 +222,9 @@ Win32DateFormat *Win32DateFormat::clone() const
 }
 
 // TODO: Is just ignoring pos the right thing?
-UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, FieldPosition & /* pos */) const
+UnicodeString& Win32DateFormat::format(Calendar& cal,
+                                       UnicodeString& appendTo U_LIFETIME_BOUND,
+                                       FieldPosition& /* pos */) const
 {
     FILETIME ft;
     SYSTEMTIME st_gmt;

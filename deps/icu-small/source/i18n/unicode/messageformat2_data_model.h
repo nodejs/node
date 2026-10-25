@@ -743,6 +743,7 @@ namespace message2 {
 		    virtual ~Builder();
             }; // class OptionMap::Builder
         private:
+            friend class message2::MessageFormatter;
             friend class message2::Serializer;
 
             bool bogus = false;
@@ -1134,6 +1135,7 @@ namespace message2 {
 
         private:
             friend class Builder;
+            friend class message2::MessageFormatter;
             friend class message2::Serializer;
 
             UMarkupType type;
@@ -1935,7 +1937,7 @@ namespace message2 {
              *
              * @return True if this binding represents a variable and expression;
              *         false if it represents a variable plus an annotation.
-             * @internal ICU 78 technology preview
+             * @internal ICU 79 technology preview
              * @deprecated This API is for technology preview only.
              */
             UBool isLocal() const { return local; }
@@ -2406,6 +2408,10 @@ namespace message2 {
 } // namespace message2
 
 U_NAMESPACE_END
+
+#if defined(U_REAL_MSVC)
+#pragma warning(pop)
+#endif
 
 #endif // U_HIDE_DEPRECATED_API
 

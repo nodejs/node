@@ -74,7 +74,7 @@ ulocale_close(ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getLanguage(const ULocale* locale);
+ulocale_getLanguage(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Returns the locale's ISO-15924 abbreviation script code.
@@ -84,7 +84,7 @@ ulocale_getLanguage(const ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getScript(const ULocale* locale);
+ulocale_getScript(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Returns the locale's ISO-3166 region code.
@@ -94,7 +94,7 @@ ulocale_getScript(const ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getRegion(const ULocale* locale);
+ulocale_getRegion(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Returns the locale's variant code.
@@ -104,7 +104,7 @@ ulocale_getRegion(const ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getVariant(const ULocale* locale);
+ulocale_getVariant(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Returns the programmatic name of the entire locale, with the language,
@@ -117,7 +117,7 @@ ulocale_getVariant(const ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getLocaleID(const ULocale* locale);
+ulocale_getLocaleID(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Returns the programmatic name of the entire locale as ulocale_getLocaleID()
@@ -128,7 +128,7 @@ ulocale_getLocaleID(const ULocale* locale);
  * @stable ICU 74
  */
 U_CAPI const char* U_EXPORT2
-ulocale_getBaseName(const ULocale* locale);
+ulocale_getBaseName(const ULocale* locale U_LIFETIME_BOUND);
 
 /**
  * Gets the bogus state. Locale object can be bogus if it doesn't exist

@@ -125,10 +125,10 @@ public:
     StackUResourceBundle();
     ~StackUResourceBundle();
 
-    UResourceBundle* getAlias() { return &bundle; }
+    UResourceBundle* getAlias() U_LIFETIME_BOUND { return &bundle; }
 
-    UResourceBundle& ref() { return bundle; }
-    const UResourceBundle& ref() const { return bundle; }
+    UResourceBundle& ref() U_LIFETIME_BOUND { return bundle; }
+    const UResourceBundle& ref() const U_LIFETIME_BOUND { return bundle; }
 
     StackUResourceBundle(const StackUResourceBundle&) = delete;
     StackUResourceBundle& operator=(const StackUResourceBundle&) = delete;
@@ -156,9 +156,9 @@ U_CAPI UResourceBundle* U_EXPORT2
 ures_openNoDefault(const char* path, const char* localeID, UErrorCode* status);
 
 /* Some getters used by the copy constructor */
-U_CFUNC const char* ures_getName(const UResourceBundle* resB);
+U_CFUNC const char* ures_getName(const UResourceBundle* resB U_LIFETIME_BOUND);
 #ifdef URES_DEBUG
-U_CFUNC const char* ures_getPath(const UResourceBundle* resB);
+U_CFUNC const char* ures_getPath(const UResourceBundle* resB U_LIFETIME_BOUND);
 /**
  * If anything was in the RB cache, dump it to the screen.
  * @return true if there was anything into the cache
@@ -167,7 +167,10 @@ U_CAPI UBool U_EXPORT2 ures_dumpCacheContents(void);
 #endif
 
 /* Candidates for export */
-U_CFUNC UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle *original, UErrorCode *status);
+U_CFUNC UResourceBundle*
+ures_copyResb(UResourceBundle* r U_LIFETIME_BOUND,
+              const UResourceBundle* original,
+              UErrorCode* status);
 
 /**
  * Returns a resource that can be located using the pathToResource argument. One needs optional package, locale
@@ -185,8 +188,9 @@ U_CFUNC UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findResource(const char* pathToResource, 
-                  UResourceBundle *fillIn, UErrorCode *status); 
+ures_findResource(const char* pathToResource,
+                  UResourceBundle* fillIn U_LIFETIME_BOUND,
+                  UErrorCode* status);
 
 /**
  * Returns a sub resource that can be located using the pathToResource argument. One needs a path inside 
@@ -204,9 +208,10 @@ ures_findResource(const char* pathToResource,
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findSubResource(const UResourceBundle *resB, 
-                     char* pathToResource, 
-                     UResourceBundle *fillIn, UErrorCode *status);
+ures_findSubResource(const UResourceBundle* resB,
+                     char* pathToResource,
+                     UResourceBundle* fillIn U_LIFETIME_BOUND,
+                     UErrorCode* status);
 
 /**
  * Returns a functionally equivalent locale (considering keywords) for the specified keyword.
@@ -256,11 +261,11 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
  *                e.g.: <TT>U_USING_FALLBACK_WARNING</TT>,<TT>U_USING_DEFAULT_WARNING </TT>
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
-U_CAPI UResourceBundle* U_EXPORT2 
-ures_getByKeyWithFallback(const UResourceBundle *resB, 
-                          const char* inKey, 
-                          UResourceBundle *fillIn, 
-                          UErrorCode *status);
+U_CAPI UResourceBundle* U_EXPORT2
+ures_getByKeyWithFallback(const UResourceBundle* resB,
+                          const char* inKey,
+                          UResourceBundle* fillIn U_LIFETIME_BOUND,
+                          UErrorCode* status);
 
 /**
  * Get a String with multi-level fallback. Normally only the top level resources will
@@ -278,11 +283,11 @@ ures_getByKeyWithFallback(const UResourceBundle *resB,
  * @return returns a pointer to a zero-terminated UChar array which lives in a
  *         memory mapped/DLL file.
  */
-U_CAPI const UChar* U_EXPORT2 
-ures_getStringByKeyWithFallback(const UResourceBundle *resB, 
-                          const char* inKey,  
-                          int32_t* len,
-                          UErrorCode *status);
+U_CAPI const UChar* U_EXPORT2
+ures_getStringByKeyWithFallback(const UResourceBundle* resB U_LIFETIME_BOUND,
+                                const char* inKey,
+                                int32_t* len,
+                                UErrorCode* status);
 
 #ifdef __cplusplus
 
@@ -349,8 +354,8 @@ ures_getVersionByKey(const UResourceBundle *resB,
  *          The caller does not own this string.
  * @see ures_getVersion
  */
-U_CAPI const char* U_EXPORT2 
-ures_getVersionNumberInternal(const UResourceBundle *resourceBundle);
+U_CAPI const char* U_EXPORT2
+ures_getVersionNumberInternal(const UResourceBundle* resourceBundle U_LIFETIME_BOUND);
 
 /**
  * Return the name of the Locale associated with this ResourceBundle. This API allows
@@ -365,9 +370,8 @@ ures_getVersionNumberInternal(const UResourceBundle *resourceBundle);
  * @param status just for catching illegal arguments
  * @return  A Locale name
  */
-U_CAPI const char* U_EXPORT2 
-ures_getLocaleInternal(const UResourceBundle* resourceBundle, 
-               UErrorCode* status);
+U_CAPI const char* U_EXPORT2
+ures_getLocaleInternal(const UResourceBundle* resourceBundle U_LIFETIME_BOUND, UErrorCode* status);
 
 /**
  * Same as ures_openDirect() but uses the fill-in parameter instead of allocating a new bundle.

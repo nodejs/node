@@ -21,6 +21,7 @@
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "putilimp.h"
 #include "uinvchar.h"
 #include "ustr_imp.h"
 
@@ -111,7 +112,15 @@ CharString &CharString::truncate(int32_t newLength) {
 }
 
 CharString &CharString::append(char c, UErrorCode &errorCode) {
-    if(ensureCapacity(len+2, 0, errorCode)) {
+    if(U_FAILURE(errorCode)) {
+        return *this;
+    }
+    int32_t newCapacity;
+    if (uprv_add32_overflow(len, 2, &newCapacity)) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return *this;
+    }
+    if(ensureCapacity(newCapacity, 0, errorCode)) {
         buffer[len++]=c;
         buffer[len]=0;
     }
@@ -138,15 +147,21 @@ CharString &CharString::append(const char *s, int32_t sLength, UErrorCode &error
             } else {
                 buffer[len+=sLength]=0;
             }
-        } else if(buffer.getAlias()<=s && s<(buffer.getAlias()+len) &&
-                  sLength>=(buffer.getCapacity()-len)
-        ) {
-            // (Part of) this string is appended to itself which requires reallocation,
-            // so we have to make a copy of the substring and append that.
-            return append(CharString(s, sLength, errorCode), errorCode);
-        } else if(ensureCapacity(len+sLength+1, 0, errorCode)) {
-            uprv_memcpy(buffer.getAlias()+len, s, sLength);
-            buffer[len+=sLength]=0;
+        } else {
+            int32_t newCapacity;
+            if(uprv_add32_overflow(len, sLength, &newCapacity) ||
+               uprv_add32_overflow(newCapacity, 1, &newCapacity)) {
+                errorCode=U_ILLEGAL_ARGUMENT_ERROR;
+            } else if(buffer.getAlias()<=s && s<(buffer.getAlias()+len) &&
+                      newCapacity>buffer.getCapacity()
+            ) {
+                // (Part of) this string is appended to itself which requires reallocation,
+                // so we have to make a copy of the substring and append that.
+                return append(CharString(s, sLength, errorCode), errorCode);
+            } else if(ensureCapacity(newCapacity, 0, errorCode)) {
+                uprv_memcpy(buffer.getAlias()+len, s, sLength);
+                buffer[len+=sLength]=0;
+            }
         }
     }
     return *this;
@@ -192,12 +207,30 @@ char *CharString::getAppendBuffer(int32_t minCapacity,
         resultCapacity=0;
         return nullptr;
     }
+    if(minCapacity<0 || desiredCapacityHint<0) {
+        errorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        resultCapacity=0;
+        return nullptr;
+    }
     int32_t appendCapacity=buffer.getCapacity()-len-1;  // -1 for NUL
     if(appendCapacity>=minCapacity) {
         resultCapacity=appendCapacity;
         return buffer.getAlias()+len;
     }
-    if(ensureCapacity(len+minCapacity+1, len+desiredCapacityHint+1, errorCode)) {
+    int32_t newCapacity;
+    if(uprv_add32_overflow(len, minCapacity, &newCapacity) ||
+       uprv_add32_overflow(newCapacity, 1, &newCapacity)) {
+        errorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        resultCapacity=0;
+        return nullptr;
+    }
+    int32_t newDesiredCapacity = 0;
+    if(desiredCapacityHint > 0 &&
+       (uprv_add32_overflow(len, desiredCapacityHint, &newDesiredCapacity) ||
+        uprv_add32_overflow(newDesiredCapacity, 1, &newDesiredCapacity))) {
+        newDesiredCapacity = 0;
+    }
+    if(ensureCapacity(newCapacity, newDesiredCapacity, errorCode)) {
         resultCapacity=buffer.getCapacity()-len-1;
         return buffer.getAlias()+len;
     }
@@ -213,11 +246,21 @@ CharString &CharString::appendInvariantChars(const char16_t* uchars, int32_t uch
     if(U_FAILURE(errorCode)) {
         return *this;
     }
+    if(ucharsLen < 0 || (uchars == nullptr && ucharsLen != 0)) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return *this;
+    }
     if (!uprv_isInvariantUString(uchars, ucharsLen)) {
         errorCode = U_INVARIANT_CONVERSION_ERROR;
         return *this;
     }
-    if(ensureCapacity(len+ucharsLen+1, 0, errorCode)) {
+    int32_t newCapacity;
+    if (uprv_add32_overflow(len, ucharsLen, &newCapacity) ||
+        uprv_add32_overflow(newCapacity, 1, &newCapacity)) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return *this;
+    }
+    if(ensureCapacity(newCapacity, 0, errorCode)) {
         u_UCharsToChars(uchars, buffer.getAlias()+len, ucharsLen);
         len += ucharsLen;
         buffer[len] = 0;
@@ -231,9 +274,17 @@ UBool CharString::ensureCapacity(int32_t capacity,
     if(U_FAILURE(errorCode)) {
         return false;
     }
+    if(capacity<0) {
+        errorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        return false;
+    }
     if(capacity>buffer.getCapacity()) {
         if(desiredCapacityHint==0) {
-            desiredCapacityHint=capacity+buffer.getCapacity();
+            // Default growth heuristic. If it overflows, skip the extra headroom
+            // and allocate exactly the requested capacity, which is still valid.
+            if(uprv_add32_overflow(capacity, buffer.getCapacity(), &desiredCapacityHint)) {
+                desiredCapacityHint=0;
+            }
         }
         if( (desiredCapacityHint<=capacity || buffer.resize(desiredCapacityHint, len+1)==nullptr) &&
             buffer.resize(capacity, len+1)==nullptr

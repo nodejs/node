@@ -34,7 +34,7 @@ public:
     ~InputText();
 
     void setText(const char *in, int32_t len);
-    void setDeclaredEncoding(const char *encoding, int32_t len);
+    void setDeclaredEncoding(const char *encoding, int32_t len, UErrorCode &status);
     UBool isSet() const; 
     void MungeInput(UBool fStripTags);
 

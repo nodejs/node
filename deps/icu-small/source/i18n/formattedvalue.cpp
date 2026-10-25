@@ -198,6 +198,10 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-local-addr"
 #endif
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-stack-address"
+#endif
 U_CAPI const char16_t* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
@@ -218,6 +222,9 @@ ufmtval_getString(
     // defined to return memory owned by the ufmtval argument.
     return readOnlyAlias.getBuffer();
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #if U_GCC_MAJOR_MINOR >= 409
 #pragma GCC diagnostic pop
 #endif

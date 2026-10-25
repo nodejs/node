@@ -68,16 +68,17 @@ private:
     const NFRule * findFractionRuleSetRule(double number) const;
     
     friend class NFSubstitution;
+    friend class NFRule;
 
 private:
     UnicodeString name;
     NFRuleList rules;
-    NFRule *nonNumericalRules[6];
-    RuleBasedNumberFormat *owner;
+    NFRule *nonNumericalRules[6] {  };
+    RuleBasedNumberFormat *owner {  };
     NFRuleList fractionRules;
-    UBool fIsFractionRuleSet;
-    UBool fIsPublic;
-    UBool fIsParseable;
+    UBool fIsFractionRuleSet {  };
+    UBool fIsPublic {  };
+    UBool fIsParseable { true };
 
     NFRuleSet(const NFRuleSet &other); // forbid copying of this class
     NFRuleSet &operator=(const NFRuleSet &other); // forbid copying of this class

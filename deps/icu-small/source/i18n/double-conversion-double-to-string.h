@@ -252,11 +252,24 @@ class DoubleToStringConverter {
   //   kBase10MaximalLength significant digits).
   //      "-1.7976931348623157e+308", "-1.7976931348623157E308"
   // In addition, the buffer must be able to hold the trailing '\0' character.
+  //
+  // Since the algorithm finds the shortest number of significant digits, it
+  // can produce an output that isn't the shortest possible if the
+  // decimal_in_shortest_high is high enough. For example, the number
+  // 1e23 could be written as 99999999999999991611392 with 23
+  // digits, however, it only needs one significant digit 1, and thus the
+  // result is 100000000000000000000000, which has 24 digits.
   bool ToShortest(double value, StringBuilder* result_builder) const {
     return ToShortestIeeeNumber(value, result_builder, SHORTEST);
   }
 
   // Same as ToShortest, but for single-precision floats.
+  //
+  // Since the algorithm finds the shortest number of significant digits, it
+  // can, in very rare cases, produce an output that isn't the shortest possible.
+  // For example, the number 1e11f could be written as 99999997952 with 11
+  // digits, however, it only needs one significant digit 1, and thus the
+  // result is 100000000000, which has 12 digits.
   bool ToShortestSingle(float value, StringBuilder* result_builder) const {
     return ToShortestIeeeNumber(value, result_builder, SHORTEST_SINGLE);
   }

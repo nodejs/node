@@ -16,8 +16,9 @@ ByteSink::~ByteSink() {}
 
 char* ByteSink::GetAppendBuffer(int32_t min_capacity,
                                 int32_t /*desired_capacity_hint*/,
-                                char* scratch, int32_t scratch_capacity,
-                                int32_t* result_capacity) {
+                                char* scratch U_LIFETIME_BOUND,
+                                int32_t scratch_capacity,
+                                int32_t* result_capacity) U_LIFETIME_BOUND {
   if (min_capacity < 1 || scratch_capacity < min_capacity) {
     *result_capacity = 0;
     return nullptr;
@@ -35,7 +36,7 @@ CheckedArrayByteSink::CheckedArrayByteSink(char* outbuf, int32_t capacity)
 
 CheckedArrayByteSink::~CheckedArrayByteSink() {}
 
-CheckedArrayByteSink& CheckedArrayByteSink::Reset() {
+CheckedArrayByteSink& CheckedArrayByteSink::Reset() U_LIFETIME_BOUND {
   size_ = appended_ = 0;
   overflowed_ = false;
   return *this;
@@ -65,9 +66,9 @@ void CheckedArrayByteSink::Append(const char* bytes, int32_t n) {
 
 char* CheckedArrayByteSink::GetAppendBuffer(int32_t min_capacity,
                                             int32_t /*desired_capacity_hint*/,
-                                            char* scratch,
+                                            char* scratch U_LIFETIME_BOUND,
                                             int32_t scratch_capacity,
-                                            int32_t* result_capacity) {
+                                            int32_t* result_capacity) U_LIFETIME_BOUND {
   if (min_capacity < 1 || scratch_capacity < min_capacity) {
     *result_capacity = 0;
     return nullptr;

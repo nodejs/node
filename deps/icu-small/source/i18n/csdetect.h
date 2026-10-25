@@ -47,7 +47,7 @@ public:
 
     const CharsetMatch *detect(UErrorCode& status);
 
-    void setDeclaredEncoding(const char *encoding, int32_t len) const;
+    void setDeclaredEncoding(const char *encoding, int32_t len, UErrorCode &status) const;
 
     UBool setStripTagsFlag(UBool flag);
 

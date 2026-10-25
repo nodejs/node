@@ -68,24 +68,24 @@ private:
      * The match that must occur before the key, or null if there is no
      * preceding context.
      */
-    StringMatcher *anteContext;
+    StringMatcher *anteContext = nullptr;
 
     /**
      * The matcher object for the key.  If null, then the key is empty.
      */
-    StringMatcher *key;
+    StringMatcher *key = nullptr;
 
     /**
      * The match that must occur after the key, or null if there is no
      * following context.
      */
-    StringMatcher *postContext;
+    StringMatcher *postContext = nullptr;
 
     /**
      * The object that performs the replacement if the key,
      * anteContext, and postContext are matched.  Never null.
      */
-    UnicodeFunctor* output;
+    UnicodeFunctor* output = nullptr;
 
     /**
      * The string that must be matched, consisting of the anteContext, key,
@@ -105,31 +105,31 @@ private:
      *
      * The array is owned, but the pointers within it are not.
      */
-    UnicodeFunctor** segments;
+    UnicodeFunctor** segments = nullptr;
 
     /**
      * The number of elements in segments[] or zero if segments is nullptr.
      */
-    int32_t segmentsCount;
+    int32_t segmentsCount = 0;
 
     /**
      * The length of the string that must match before the key.  If
      * zero, then there is no matching requirement before the key.
      * Substring [0,anteContextLength) of pattern is the anteContext.
      */
-    int32_t anteContextLength;
+    int32_t anteContextLength = 0;
 
     /**
      * The length of the key.  Substring [anteContextLength,
      * anteContextLength + keyLength) is the key.
 
      */
-    int32_t keyLength;
+    int32_t keyLength = 0;
 
     /**
      * Miscellaneous attributes.
      */
-    int8_t flags;
+    int8_t flags = 0;
 
     /**
      * Flag attributes.
@@ -143,7 +143,7 @@ private:
      * An alias pointer to the data for this rule.  The data provides
      * lookup services for matchers and segments.
      */
-    const TransliterationRuleData* data;
+    const TransliterationRuleData* data = nullptr;
 
 public:
 

@@ -440,8 +440,10 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     return finalResult;
 }
 
-Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const char16_t *segment, int32_t segLen, UErrorCode &status) {
-
+Hashtable* CanonicalIterator::getEquivalents2(Hashtable* fillinResult U_LIFETIME_BOUND,
+                                              const char16_t* segment,
+                                              int32_t segLen,
+                                              UErrorCode& status) {
     if (U_FAILURE(status)) {
         return nullptr;
     }
@@ -518,7 +520,12 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const cha
  * (with canonical rearrangement!)
  * If so, take the remainder, and return the equivalents 
  */
-Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, const char16_t *segment, int32_t segLen, int32_t segmentPos, UErrorCode &status) {
+Hashtable* CanonicalIterator::extract(Hashtable* fillinResult U_LIFETIME_BOUND,
+                                      UChar32 comp,
+                                      const char16_t* segment,
+                                      int32_t segLen,
+                                      int32_t segmentPos,
+                                      UErrorCode& status) {
 //Hashtable *CanonicalIterator::extract(UChar32 comp, const UnicodeString &segment, int32_t segLen, int32_t segmentPos, UErrorCode &status) {
     //if (PROGRESS) printf(" extract: %s, ", UToS(Tr(UnicodeString(comp))));
     //if (PROGRESS) printf("%s, %i\n", UToS(Tr(segment)), segmentPos);

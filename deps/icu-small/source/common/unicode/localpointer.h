@@ -117,19 +117,19 @@ public:
      * @return the pointer value
      * @stable ICU 4.4
      */
-    T *getAlias() const { return ptr; }
+    T* getAlias() const U_LIFETIME_BOUND { return ptr; }
     /**
      * Access without ownership change.
      * @return the pointer value as a reference
      * @stable ICU 4.4
      */
-    T &operator*() const { return *ptr; }
+    T& operator*() const U_LIFETIME_BOUND { return *ptr; }
     /**
      * Access without ownership change.
      * @return the pointer value
      * @stable ICU 4.4
      */
-    T *operator->() const { return ptr; }
+    T* operator->() const U_LIFETIME_BOUND { return ptr; }
     /**
      * Gives up ownership; the internal pointer becomes nullptr.
      * @return the pointer value;
@@ -250,7 +250,7 @@ public:
      * @return *this
      * @stable ICU 56
      */
-    LocalPointer<T> &operator=(LocalPointer<T> &&src) noexcept {
+    LocalPointer<T>& operator=(LocalPointer<T>&& src) noexcept U_LIFETIME_BOUND {
         delete LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=src.ptr;
         src.ptr=nullptr;
@@ -265,7 +265,7 @@ public:
      * @return *this
      * @stable ICU 64
      */
-    LocalPointer<T> &operator=(std::unique_ptr<T> &&p) noexcept {
+    LocalPointer<T>& operator=(std::unique_ptr<T>&& p) noexcept U_LIFETIME_BOUND {
         adoptInstead(p.release());
         return *this;
     }
@@ -425,7 +425,7 @@ public:
      * @return *this
      * @stable ICU 56
      */
-    LocalArray<T> &operator=(LocalArray<T> &&src) noexcept {
+    LocalArray<T>& operator=(LocalArray<T>&& src) noexcept U_LIFETIME_BOUND {
         delete[] LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=src.ptr;
         src.ptr=nullptr;
@@ -440,7 +440,7 @@ public:
      * @return *this
      * @stable ICU 64
      */
-    LocalArray<T> &operator=(std::unique_ptr<T[]> &&p) noexcept {
+    LocalArray<T>& operator=(std::unique_ptr<T[]>&& p) noexcept U_LIFETIME_BOUND {
         adoptInstead(p.release());
         return *this;
     }
@@ -507,7 +507,7 @@ public:
      * @return reference to the array item
      * @stable ICU 4.4
      */
-    T &operator[](ptrdiff_t i) const { return LocalPointerBase<T>::ptr[i]; }
+    T& operator[](ptrdiff_t i) const U_LIFETIME_BOUND { return LocalPointerBase<T>::ptr[i]; }
 
     /**
      * Conversion operator to a C++11 std::unique_ptr.
@@ -571,14 +571,15 @@ public:
     explicit LocalOpenPointer(std::unique_ptr<Type, decltype(closeFunction)> &&p)
             : LocalPointerBase<Type>(p.release()) {}
     ~LocalOpenPointer() { if (ptr != nullptr) { closeFunction(ptr); } }
-    LocalOpenPointer &operator=(LocalOpenPointer &&src) noexcept {
+    LocalOpenPointer& operator=(LocalOpenPointer&& src) noexcept U_LIFETIME_BOUND {
         if (ptr != nullptr) { closeFunction(ptr); }
         LocalPointerBase<Type>::ptr=src.ptr;
         src.ptr=nullptr;
         return *this;
     }
     /* TODO: Be agnostic of the deleter function signature from the user-provided std::unique_ptr? */
-    LocalOpenPointer &operator=(std::unique_ptr<Type, decltype(closeFunction)> &&p) {
+    LocalOpenPointer&
+    operator=(std::unique_ptr<Type, decltype(closeFunction)>&& p) U_LIFETIME_BOUND {
         adoptInstead(p.release());
         return *this;
     }

@@ -462,19 +462,19 @@ uplug_setPlugName(UPlugData *data, const char *name) {
 }
 
 
-U_CAPI const char * U_EXPORT2
-uplug_getPlugName(UPlugData *data) {
+U_CAPI const char* U_EXPORT2
+uplug_getPlugName(UPlugData* data U_LIFETIME_BOUND) {
   return data->name;
 }
 
 
-U_CAPI const char * U_EXPORT2
-uplug_getSymbolName(UPlugData *data) {
+U_CAPI const char* U_EXPORT2
+uplug_getSymbolName(UPlugData* data U_LIFETIME_BOUND) {
   return data->sym;
 }
 
-U_CAPI const char * U_EXPORT2
-uplug_getLibraryName(UPlugData *data, UErrorCode *status) {
+U_CAPI const char* U_EXPORT2
+uplug_getLibraryName(UPlugData* data U_LIFETIME_BOUND, UErrorCode* status) {
   if(data->libName[0]) {
     return data->libName;
   } else {
@@ -503,7 +503,7 @@ uplug_setContext(UPlugData *data, void *context) {
 }
 
 U_CAPI const char* U_EXPORT2
-uplug_getConfiguration(UPlugData *data) {
+uplug_getConfiguration(UPlugData* data U_LIFETIME_BOUND) {
   return data->config;
 }
 

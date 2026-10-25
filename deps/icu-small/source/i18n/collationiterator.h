@@ -212,6 +212,22 @@ public:
 protected:
     CollationIterator(const CollationIterator &other);
 
+    /**
+     * A special constructor used by DataBuilderCollationIterator, which initializes
+     * the CollationData in the constructor. The public CollationIterator constructor
+     * initializes the trie pointer from the CollationData, but it's not yet available
+     * when DataBuilderCollationIterator invokes the CollationIterator constructor.
+     * The CollationData used by DataBuilderCollationIterator is the Normalizer2Impl,
+     * which does not have a trie, so the trie pointer is set to nullptr.
+     */
+    CollationIterator(const CollationData *d, std::nullptr_t nullTrie, UBool numeric)
+            : trie(nullTrie),
+              data(d),
+              cesIndex(0),
+              skipped(nullptr),
+              numCpFwd(-1),
+              isNumeric(numeric) {}
+
     void reset();
 
     /**

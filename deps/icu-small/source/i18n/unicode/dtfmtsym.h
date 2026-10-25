@@ -461,6 +461,40 @@ public:
 
 #ifndef U_HIDE_INTERNAL_API
     /**
+     * Gets day-of-month ordinal name format patterns by width and context.
+     * The returned array is indexed by StandardPlural::Form (see standardplural.h);
+     * its length is always StandardPlural::COUNT.  An empty entry means no data for that
+     * plural category.  Currently only FORMAT context and ABBREVIATED width are
+     * supported; other combinations return nullptr.
+     * @param context  The formatting context.  Currently only FORMAT is supported.
+     * @param width    The width.  Currently only ABBREVIATED is supported.
+     * @return the day-of-month ordinal name strings, or nullptr if not available.
+     *         (DateFormatSymbols retains ownership.)
+     * @internal
+     */
+    U_I18N_API const UnicodeString* getDayOfMonthOrdinalNames(DtContextType context,
+                                                              DtWidthType width) const;
+
+    /**
+     * Gets day-of-month cardinal name strings by width and context.
+     * The returned array has length 33 and is indexed by day-of-month (1-32);
+     * index 0 is unused.  An empty entry means no cardinal override for
+     * that day number.  Currently only FORMAT context and ABBREVIATED width are
+     * supported; other combinations return nullptr.
+     * @param count    Filled in with the length of the array (33).
+     * @param context  The formatting context.  Currently only FORMAT is supported.
+     * @param width    The width.  Currently only ABBREVIATED is supported.
+     * @return the day-of-month cardinal strings, or nullptr if not available.
+     *         (DateFormatSymbols retains ownership.)
+     * @internal
+     */
+    U_I18N_API const UnicodeString* getDayOfMonthCardinalNames(int32_t& count,
+                                                               DtContextType context,
+                                                               DtWidthType width) const;
+#endif  /* U_HIDE_INTERNAL_API */
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
      * This default time separator is used for formatting when the locale
      * doesn't specify any time separator, and always recognized when parsing.
      * @internal
@@ -965,6 +999,20 @@ private:
      */
     UnicodeString  *fStandaloneNarrowDayPeriods;
     int32_t         fStandaloneNarrowDayPeriodsCount;
+
+    /**
+     * Day-of-month ordinal name format patterns; format/abbreviated.
+     * Indexed by StandardPlural::Form; always StandardPlural::COUNT entries when non-null.
+     */
+    UnicodeString  *fDayOfMonthOrdinalNames = nullptr;
+
+    /**
+     * Day-of-month cardinal name strings; format/abbreviated.
+     * Indexed by day number 1-32; length is 33 (index 0 unused).
+     * An empty entry means no cardinal override for that day number.
+     */
+    UnicodeString  *fDayOfMonthCardinalNames = nullptr;
+    int32_t         fDayOfMonthCardinalNamesCount = 0;
 
 private:
     /** valid/actual locale information 

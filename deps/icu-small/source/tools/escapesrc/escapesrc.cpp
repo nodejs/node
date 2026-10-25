@@ -51,13 +51,10 @@ static const char
 // For convenience
 # define cp1047_to_8859(c) cp1047_8859_1[c]
 
-// Our app's name
-std::string prog;
-
 /**
  * Give the usual 1-line documentation and exit
  */
-void usage() {
+void usage(const std::string& prog) {
   fprintf(stderr, "%s: usage: %s infile.cpp outfile.cpp\n", prog.c_str(), prog.c_str());
 }
 
@@ -65,7 +62,7 @@ void usage() {
  * Delete the output file (if any)
  * We want to delete even if we didn't generate, because it might be stale.
  */
-int cleanup(const std::string &outfile) {
+int cleanup(const std::string& prog, const std::string &outfile) {
   const char *outstr = outfile.c_str();
   if(outstr && *outstr) {
     int rc = std::remove(outstr);
@@ -364,7 +361,7 @@ bool fixLine(int /*no*/, std::string &linestr) {
  * @param outfile
  * @return 1 on err, 0 otherwise
  */
-int convert(const std::string &infile, const std::string &outfile) {
+int convert(const std::string& prog, const std::string &infile, const std::string &outfile) {
   fprintf(stderr, "escapesrc: %s -> %s\n", infile.c_str(), outfile.c_str());
 
   std::ifstream inf;
@@ -373,7 +370,7 @@ int convert(const std::string &infile, const std::string &outfile) {
 
   if(!inf.is_open()) {
     fprintf(stderr, "%s: could not open input file %s\n", prog.c_str(), infile.c_str());
-    cleanup(outfile);
+    cleanup(prog, outfile);
     return 1;
   }
 
@@ -405,7 +402,7 @@ int convert(const std::string &infile, const std::string &outfile) {
 fail:
   outf.close();
   fprintf(stderr, "%s:%d: Fixup failed by %s\n", infile.c_str(), no, prog.c_str());
-  cleanup(outfile);
+  cleanup(prog, outfile);
   return 1;
 }
 
@@ -413,15 +410,15 @@ fail:
  * Main function
  */
 int main(int argc, const char *argv[]) {
-  prog = argv[0];
+  std::string prog(argv[0]);
 
   if(argc != 3) {
-    usage();
+    usage(prog);
     return 1;
   }
 
   std::string infile = argv[1];
   std::string outfile = argv[2];
 
-  return convert(infile, outfile);
+  return convert(prog, infile, outfile);
 }

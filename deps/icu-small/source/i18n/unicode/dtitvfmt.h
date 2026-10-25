@@ -569,9 +569,6 @@ public:
      *                  If parse fails, return contents are undefined.
      * @param parse_pos The position to start parsing at. Since no parsing
      *                  is supported, upon return this param is unchanged.
-     * @return          A newly created Formattable* object, or nullptr
-     *                  on failure.  The caller owns this and should
-     *                  delete it when done.
      * @internal ICU 4.0
      */
     U_I18N_API virtual void parseObject(const UnicodeString& source,

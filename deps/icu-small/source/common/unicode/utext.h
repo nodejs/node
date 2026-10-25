@@ -180,8 +180,8 @@ typedef struct UText UText; /**< C typedef for struct UText. @stable ICU 3.6 */
   *
   * @stable ICU 3.4
   */
-U_CAPI UText * U_EXPORT2
-utext_close(UText *ut);
+U_CAPI UText* U_EXPORT2
+utext_close(UText* ut U_LIFETIME_BOUND);
 
 /**
  * Open a read-only UText implementation for UTF-8 strings.
@@ -204,9 +204,11 @@ utext_close(UText *ut);
  *               will always be used and returned.
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openUTF8(UText *ut, const char *s, int64_t length, UErrorCode *status);
-
+U_CAPI UText* U_EXPORT2
+utext_openUTF8(UText* ut U_LIFETIME_BOUND,
+               const char* s U_LIFETIME_BOUND,
+               int64_t length,
+               UErrorCode* status);
 
 /**
  * Open a read-only UText for UChar * string.
@@ -222,9 +224,11 @@ utext_openUTF8(UText *ut, const char *s, int64_t length, UErrorCode *status);
  *               will always be used and returned.
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openUChars(UText *ut, const UChar *s, int64_t length, UErrorCode *status);
-
+U_CAPI UText* U_EXPORT2
+utext_openUChars(UText* ut U_LIFETIME_BOUND,
+                 const UChar* s U_LIFETIME_BOUND,
+                 int64_t length,
+                 UErrorCode* status);
 
 #if U_SHOW_CPLUSPLUS_API
 /**
@@ -239,9 +243,10 @@ utext_openUChars(UText *ut, const UChar *s, int64_t length, UErrorCode *status);
  *                 will always be used and returned.
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openUnicodeString(UText *ut, icu::UnicodeString *s, UErrorCode *status);
-
+U_CAPI UText* U_EXPORT2
+utext_openUnicodeString(UText* ut U_LIFETIME_BOUND,
+                        icu::UnicodeString* s U_LIFETIME_BOUND,
+                        UErrorCode* status);
 
 /**
  * Open a UText for a const UnicodeString.   The resulting UText will not be writable.
@@ -255,8 +260,10 @@ utext_openUnicodeString(UText *ut, icu::UnicodeString *s, UErrorCode *status);
  *               will always be used and returned.
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openConstUnicodeString(UText *ut, const icu::UnicodeString *s, UErrorCode *status);
+U_CAPI UText* U_EXPORT2
+utext_openConstUnicodeString(UText* ut U_LIFETIME_BOUND,
+                             const icu::UnicodeString* s U_LIFETIME_BOUND,
+                             UErrorCode* status);
 
 
 /**
@@ -271,8 +278,10 @@ utext_openConstUnicodeString(UText *ut, const icu::UnicodeString *s, UErrorCode 
  * @see Replaceable
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openReplaceable(UText *ut, icu::Replaceable *rep, UErrorCode *status);
+U_CAPI UText* U_EXPORT2
+utext_openReplaceable(UText* ut U_LIFETIME_BOUND,
+                      icu::Replaceable* rep U_LIFETIME_BOUND,
+                      UErrorCode* status);
 
 /**
  * Open a  UText implementation over an ICU CharacterIterator.
@@ -286,8 +295,10 @@ utext_openReplaceable(UText *ut, icu::Replaceable *rep, UErrorCode *status);
  * @see Replaceable
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_openCharacterIterator(UText *ut, icu::CharacterIterator *ci, UErrorCode *status);
+U_CAPI UText* U_EXPORT2
+utext_openCharacterIterator(UText* ut U_LIFETIME_BOUND,
+                            icu::CharacterIterator* ci U_LIFETIME_BOUND,
+                            UErrorCode* status);
 
 #endif
 
@@ -349,9 +360,12 @@ utext_openCharacterIterator(UText *ut, icu::CharacterIterator *ci, UErrorCode *s
   *  @return       The newly created clone, or NULL if the clone operation failed.
   *  @stable ICU 3.4
   */
-U_CAPI UText * U_EXPORT2
-utext_clone(UText *dest, const UText *src, UBool deep, UBool readOnly, UErrorCode *status);
-
+U_CAPI UText* U_EXPORT2
+utext_clone(UText* dest U_LIFETIME_BOUND,
+            const UText* src,
+            UBool deep,
+            UBool readOnly,
+            UErrorCode* status);
 
 /**
   *  Compare two UText objects for equality.
@@ -1535,8 +1549,8 @@ struct UText {
  * @return pointer to the UText, allocated if necessary, with extra space set up if requested.
  * @stable ICU 3.4
  */
-U_CAPI UText * U_EXPORT2
-utext_setup(UText *ut, int32_t extraSpace, UErrorCode *status);
+U_CAPI UText* U_EXPORT2
+utext_setup(UText* ut U_LIFETIME_BOUND, int32_t extraSpace, UErrorCode* status);
 
 // do not use #ifndef U_HIDE_INTERNAL_API around the following!
 /**

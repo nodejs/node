@@ -256,8 +256,10 @@ unorm2_getInstance(const char *packageName,
  * @return the requested UNormalizer2, if successful
  * @stable ICU 4.4
  */
-U_CAPI UNormalizer2 * U_EXPORT2
-unorm2_openFiltered(const UNormalizer2 *norm2, const USet *filterSet, UErrorCode *pErrorCode);
+U_CAPI UNormalizer2* U_EXPORT2
+unorm2_openFiltered(const UNormalizer2* norm2 U_LIFETIME_BOUND,
+                    const USet* filterSet U_LIFETIME_BOUND,
+                    UErrorCode* pErrorCode);
 
 /**
  * Closes a UNormalizer2 instance from unorm2_openFiltered().

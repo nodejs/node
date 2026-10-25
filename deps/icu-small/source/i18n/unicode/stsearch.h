@@ -204,8 +204,7 @@ public:
      * @param text    The text iterator in which to search for the pattern.
      * @param locale  A locale which defines the language-sensitive 
      *                comparison rules used to determine whether text in the 
-     *                pattern and target matches. User is responsible for 
-     *                the clearing of this object.
+     *                pattern and target matches.
      * @param breakiter A <tt>BreakIterator</tt> object used to constrain 
      *                the matches that are found. Matches whose start and end 
      *                indices in the target text are not boundaries as 

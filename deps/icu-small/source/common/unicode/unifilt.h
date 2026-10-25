@@ -93,7 +93,7 @@ public:
      * and return the pointer.
      * @stable ICU 2.4
      */
-    virtual UnicodeMatcher* toMatcher() const override;
+    virtual UnicodeMatcher* toMatcher() const U_LIFETIME_BOUND override;
 
     /**
      * Implement UnicodeMatcher API.

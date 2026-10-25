@@ -25,6 +25,20 @@
 #include "ubidi_props.h"
 
 /* miscellaneous definitions ---------------------------------------------- */
+/*
+ * Internal option bit for ubidi_writeReordered() and doWriteReverse():
+ * Used exclusively by setParaRunsOnly() during Scheme 9 (LOGICAL, RTL => LOGICAL, LTR)
+ * BidiTransform transformations. When mirroring changes code point length (e.g., U+1DB10
+ * contracting back to U+221D), setParaRunsOnly() requires that the temporary visualText
+ * buffer maintain 1-to-1 code unit synchronization with pBiDi->length (4) to prevent
+ * array desynchronization in the subsequent ubidi_setPara call.
+ * 
+ * When this flag is set, doWriteReverse() steps source indices by destination code unit
+ * length (j += k) instead of original base character length (j += origBaseLen), preserving
+ * legacy ICU behavior where the trailing surrogate half (which has Bidi class LTR) is copied
+ * into visualText, allowing ubidi_setPara to correctly split the run for reordering.
+ */
+#define UBIDI_INTERNAL_RUNS_ONLY 64
 
 // ICU-20853=ICU-20935 Solaris #defines CS and ES in sys/regset.h
 #ifdef CS
@@ -441,7 +455,7 @@ typedef union {
 
 /* helper function to (re)allocate memory if allowed */
 U_CFUNC UBool
-ubidi_getMemory(BidiMemoryForAllocation *pMemory, int32_t *pSize, UBool mayAllocate, int32_t sizeNeeded);
+ubidi_getMemory(BidiMemoryForAllocation *pMemory, int32_t *pSize, UBool mayAllocate, size_t sizeNeeded);
 
 /* helper macros for each allocated array in UBiDi */
 #define getDirPropsMemory(pBiDi, length) \

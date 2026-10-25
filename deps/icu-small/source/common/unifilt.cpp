@@ -28,7 +28,7 @@ UnicodeFilter::~UnicodeFilter() {}
  * UnicodeFunctor API.
  *   Note that UnicodeMatcher is a base class of UnicodeFilter.
  */
-UnicodeMatcher* UnicodeFilter::toMatcher() const {
+UnicodeMatcher* UnicodeFilter::toMatcher() const U_LIFETIME_BOUND {
   return const_cast<UnicodeFilter *>(this);
 }
 

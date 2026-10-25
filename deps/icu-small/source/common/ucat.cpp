@@ -28,7 +28,7 @@ static const char SEPARATOR = '%';
  * MAX_KEY_LEN or more.
  */
 static char*
-_catkey(char* buffer, int32_t set_num, int32_t msg_num) {
+_catkey(char* buffer U_LIFETIME_BOUND, int32_t set_num, int32_t msg_num) {
     int32_t i = 0;
     i = T_CString_integerToString(buffer, set_num, 10);
     buffer[i++] = SEPARATOR;
@@ -47,9 +47,12 @@ u_catclose(u_nl_catd catd) {
 }
 
 U_CAPI const char16_t* U_EXPORT2
-u_catgets(u_nl_catd catd, int32_t set_num, int32_t msg_num,
-          const char16_t* s,
-          int32_t* len, UErrorCode* ec) {
+u_catgets(u_nl_catd catd U_LIFETIME_BOUND,
+          int32_t set_num,
+          int32_t msg_num,
+          const char16_t* s U_LIFETIME_BOUND,
+          int32_t* len,
+          UErrorCode* ec) {
 
     char key[MAX_KEY_LEN];
     const char16_t* result;

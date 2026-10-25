@@ -665,8 +665,9 @@ RuleBasedCollator::setReorderCodes(const int32_t *reorderCodes, int32_t length,
     if(length == 1 && reorderCodes[0] == UCOL_REORDER_CODE_NONE) {
         length = 0;
     }
-    if(length == settings->reorderCodesLength &&
-            uprv_memcmp(reorderCodes, settings->reorderCodes, length * 4) == 0) {
+    if (length == settings->reorderCodesLength &&
+            (length == 0 || 
+                uprv_memcmp(reorderCodes, settings->reorderCodes, length * 4) == 0)) {
         return;
     }
     const CollationSettings &defaultSettings = getDefaultSettings();

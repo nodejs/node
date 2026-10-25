@@ -670,8 +670,6 @@ public:
      * @param parse_pos The position to start parsing at. Upon return this param is set to the position after the
      *                  last character successfully parsed. If the source is not parsed successfully, this param
      *                  will remain unchanged.
-     * @return A newly created Formattable* object, or nullptr on failure.  The caller owns this and should
-     *                 delete it when done.
      * @stable ICU 50
      */
     U_I18N_API virtual void parseObject(const UnicodeString& source,

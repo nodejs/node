@@ -41,7 +41,7 @@ void Edits::releaseArray() noexcept {
     }
 }
 
-Edits &Edits::copyArray(const Edits &other) {
+Edits& Edits::copyArray(const Edits& other) U_LIFETIME_BOUND {
     if (U_FAILURE(errorCode_)) {
         length = delta = numChanges = 0;
         return *this;
@@ -63,7 +63,7 @@ Edits &Edits::copyArray(const Edits &other) {
     return *this;
 }
 
-Edits &Edits::moveArray(Edits &src) noexcept {
+Edits& Edits::moveArray(Edits& src) noexcept U_LIFETIME_BOUND {
     if (U_FAILURE(errorCode_)) {
         length = delta = numChanges = 0;
         return *this;
@@ -85,7 +85,7 @@ Edits &Edits::moveArray(Edits &src) noexcept {
     return *this;
 }
 
-Edits &Edits::operator=(const Edits &other) {
+Edits& Edits::operator=(const Edits& other) U_LIFETIME_BOUND {
     if (this == &other) { return *this; }  // self-assignment: no-op
     length = other.length;
     delta = other.delta;
@@ -94,7 +94,7 @@ Edits &Edits::operator=(const Edits &other) {
     return copyArray(other);
 }
 
-Edits &Edits::operator=(Edits &&src) noexcept {
+Edits& Edits::operator=(Edits&& src) noexcept U_LIFETIME_BOUND {
     length = src.length;
     delta = src.delta;
     numChanges = src.numChanges;
@@ -251,7 +251,9 @@ UBool Edits::copyErrorTo(UErrorCode &outErrorCode) const {
     return true;
 }
 
-Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &errorCode) {
+Edits& Edits::mergeAndAppend(const Edits& ab,
+                             const Edits& bc,
+                             UErrorCode& errorCode) U_LIFETIME_BOUND {
     if (copyErrorTo(errorCode)) { return *this; }
     // Picture string a --(Edits ab)--> string b --(Edits bc)--> string c.
     // Parallel iteration over both Edits.
@@ -397,7 +399,7 @@ Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &error
     return *this;
 }
 
-Edits::Iterator::Iterator(const uint16_t *a, int32_t len, UBool oc, UBool crs) :
+Edits::Iterator::Iterator(const uint16_t* a U_LIFETIME_BOUND, int32_t len, UBool oc, UBool crs) :
         array(a), index(0), length(len), remaining(0),
         onlyChanges_(oc), coarse(crs),
         dir(0), changed(false), oldLength_(0), newLength_(0),
@@ -776,7 +778,7 @@ int32_t Edits::Iterator::sourceIndexFromDestinationIndex(int32_t i, UErrorCode &
     }
 }
 
-UnicodeString& Edits::Iterator::toString(UnicodeString& sb) const {
+UnicodeString& Edits::Iterator::toString(UnicodeString& sb U_LIFETIME_BOUND) const {
     sb.append(u"{ src[", -1);
     ICU_Utility::appendNumber(sb, srcIndex);
     sb.append(u"..", -1);

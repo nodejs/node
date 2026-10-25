@@ -195,8 +195,8 @@ MessagePattern::MessagePattern(const MessagePattern &other)
     }
 }
 
-MessagePattern &
-MessagePattern::operator=(const MessagePattern &other) {
+MessagePattern&
+MessagePattern::operator=(const MessagePattern& other) U_LIFETIME_BOUND {
     if(this==&other) {
         return *this;
     }
@@ -264,35 +264,40 @@ MessagePattern::~MessagePattern() {
 
 // MessagePattern API ------------------------------------------------------ ***
 
-MessagePattern &
-MessagePattern::parse(const UnicodeString &pattern, UParseError *parseError, UErrorCode &errorCode) {
+MessagePattern&
+MessagePattern::parse(const UnicodeString& pattern,
+                      UParseError* parseError,
+                      UErrorCode& errorCode) U_LIFETIME_BOUND {
     preParse(pattern, parseError, errorCode);
     parseMessage(0, 0, 0, UMSGPAT_ARG_TYPE_NONE, parseError, errorCode);
     postParse();
     return *this;
 }
 
-MessagePattern &
-MessagePattern::parseChoiceStyle(const UnicodeString &pattern,
-                                 UParseError *parseError, UErrorCode &errorCode) {
+MessagePattern&
+MessagePattern::parseChoiceStyle(const UnicodeString& pattern,
+                                 UParseError* parseError,
+                                 UErrorCode& errorCode) U_LIFETIME_BOUND {
     preParse(pattern, parseError, errorCode);
     parseChoiceStyle(0, 0, parseError, errorCode);
     postParse();
     return *this;
 }
 
-MessagePattern &
-MessagePattern::parsePluralStyle(const UnicodeString &pattern,
-                                 UParseError *parseError, UErrorCode &errorCode) {
+MessagePattern&
+MessagePattern::parsePluralStyle(const UnicodeString& pattern,
+                                 UParseError* parseError,
+                                 UErrorCode& errorCode) U_LIFETIME_BOUND {
     preParse(pattern, parseError, errorCode);
     parsePluralOrSelectStyle(UMSGPAT_ARG_TYPE_PLURAL, 0, 0, parseError, errorCode);
     postParse();
     return *this;
 }
 
-MessagePattern &
-MessagePattern::parseSelectStyle(const UnicodeString &pattern,
-                                 UParseError *parseError, UErrorCode &errorCode) {
+MessagePattern&
+MessagePattern::parseSelectStyle(const UnicodeString& pattern,
+                                 UParseError* parseError,
+                                 UErrorCode& errorCode) U_LIFETIME_BOUND {
     preParse(pattern, parseError, errorCode);
     parsePluralOrSelectStyle(UMSGPAT_ARG_TYPE_SELECT, 0, 0, parseError, errorCode);
     postParse();
@@ -1202,10 +1207,10 @@ MessageImpl::appendReducedApostrophes(const UnicodeString &s, int32_t start, int
 }
 
 // Ported from second half of ICU4J SelectFormat.format(String).
-UnicodeString &
-MessageImpl::appendSubMessageWithoutSkipSyntax(const MessagePattern &msgPattern,
+UnicodeString&
+MessageImpl::appendSubMessageWithoutSkipSyntax(const MessagePattern& msgPattern,
                                                int32_t msgStart,
-                                               UnicodeString &result) {
+                                               UnicodeString& result U_LIFETIME_BOUND) {
     const UnicodeString &msgString=msgPattern.getPatternString();
     int32_t prevIndex=msgPattern.getPart(msgStart).getLimit();
     for(int32_t i=msgStart;;) {

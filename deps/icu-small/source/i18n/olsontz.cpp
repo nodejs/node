@@ -113,7 +113,7 @@ void OlsonTimeZone::constructEmpty() {
 /**
  * Construct from a resource bundle
  * @param top the top-level zoneinfo resource bundle.  This is used
- * to lookup the rule that `res' may refer to, if there is one.
+ * to lookup the rule that `res` may refer to, if there is one.
  * @param res the resource bundle of the zone to be constructed
  * @param ec input-output error code
  */

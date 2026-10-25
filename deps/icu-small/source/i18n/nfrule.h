@@ -109,15 +109,15 @@ private:
                      int32_t startingAt, int32_t* resultCount) const;
 
 private:
-    int64_t baseValue;
-    int32_t radix;
-    int16_t exponent;
-    char16_t decimalPoint;
-    UnicodeString fRuleText;
-    NFSubstitution* sub1;
-    NFSubstitution* sub2;
-    const RuleBasedNumberFormat* formatter;
-    const PluralFormat* rulePatternFormat;
+    int64_t baseValue {  };
+    int32_t radix { 10 };
+    int16_t exponent {  };
+    char16_t decimalPoint {  };
+    UnicodeString ruleText;
+    NFSubstitution* sub1 {  };
+    NFSubstitution* sub2 {  };
+    const RuleBasedNumberFormat* formatter {  };
+    const PluralFormat* rulePatternFormat {  };
 
     NFRule(const NFRule &other); // forbid copying of this class
     NFRule &operator=(const NFRule &other); // forbid copying of this class

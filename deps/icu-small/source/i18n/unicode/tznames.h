@@ -260,7 +260,7 @@ public:
      * below.
      * <ol>
      * <li>Check if the ID contains "/". If not, return null.
-     * <li>Check if the ID does not start with "Etc/" or "SystemV/". If it does, return null.
+     * <li>Check if the ID is associated with a region other than "001" (World) — i.e., not "Etc/" or "SystemV/". If not, return null.
      * <li>Extract a substring after the last occurrence of "/".
      * <li>Replace "_" with " ".
      * </ol>

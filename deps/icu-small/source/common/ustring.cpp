@@ -52,9 +52,11 @@ isMatchAtCPBoundary(const char16_t *start, const char16_t *match, const char16_t
     return true;
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strFindFirst(const char16_t *s, int32_t length,
-               const char16_t *sub, int32_t subLength) {
+U_CAPI char16_t* U_EXPORT2
+u_strFindFirst(const char16_t* s U_LIFETIME_BOUND,
+               int32_t length,
+               const char16_t* sub,
+               int32_t subLength) {
     const char16_t *start, *p, *q, *subLimit;
     char16_t c, cs, cq;
 
@@ -190,13 +192,13 @@ u_strFindFirst(const char16_t *s, int32_t length,
     return nullptr;
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strstr(const char16_t *s, const char16_t *substring) {
+U_CAPI char16_t* U_EXPORT2
+u_strstr(const char16_t* s U_LIFETIME_BOUND, const char16_t* substring) {
     return u_strFindFirst(s, -1, substring, -1);
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strchr(const char16_t *s, char16_t c) {
+U_CAPI char16_t* U_EXPORT2
+u_strchr(const char16_t* s U_LIFETIME_BOUND, char16_t c) {
     if(U16_IS_SURROGATE(c)) {
         /* make sure to not find half of a surrogate pair */
         return u_strFindFirst(s, -1, &c, 1);
@@ -216,8 +218,8 @@ u_strchr(const char16_t *s, char16_t c) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strchr32(const char16_t *s, UChar32 c) {
+U_CAPI char16_t* U_EXPORT2
+u_strchr32(const char16_t* s U_LIFETIME_BOUND, UChar32 c) {
     if((uint32_t)c<=U_BMP_MAX) {
         /* find BMP code point */
         return u_strchr(s, (char16_t)c);
@@ -237,8 +239,8 @@ u_strchr32(const char16_t *s, UChar32 c) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memchr(const char16_t *s, char16_t c, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memchr(const char16_t* s U_LIFETIME_BOUND, char16_t c, int32_t count) {
     if(count<=0) {
         return nullptr; /* no string */
     } else if(U16_IS_SURROGATE(c)) {
@@ -256,8 +258,8 @@ u_memchr(const char16_t *s, char16_t c, int32_t count) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memchr32(const char16_t *s, UChar32 c, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memchr32(const char16_t* s U_LIFETIME_BOUND, UChar32 c, int32_t count) {
     if((uint32_t)c<=U_BMP_MAX) {
         /* find BMP code point */
         return u_memchr(s, (char16_t)c, count);
@@ -283,9 +285,11 @@ u_memchr32(const char16_t *s, UChar32 c, int32_t count) {
 
 /* Backward binary string search functions ---------------------------------- */
 
-U_CAPI char16_t * U_EXPORT2
-u_strFindLast(const char16_t *s, int32_t length,
-              const char16_t *sub, int32_t subLength) {
+U_CAPI char16_t* U_EXPORT2
+u_strFindLast(const char16_t* s U_LIFETIME_BOUND,
+              int32_t length,
+              const char16_t* sub,
+              int32_t subLength) {
     const char16_t *start, *limit, *p, *q, *subLimit;
     char16_t c, cs;
 
@@ -363,13 +367,13 @@ u_strFindLast(const char16_t *s, int32_t length,
     return nullptr;
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strrstr(const char16_t *s, const char16_t *substring) {
+U_CAPI char16_t* U_EXPORT2
+u_strrstr(const char16_t* s U_LIFETIME_BOUND, const char16_t* substring) {
     return u_strFindLast(s, -1, substring, -1);
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strrchr(const char16_t *s, char16_t c) {
+U_CAPI char16_t* U_EXPORT2
+u_strrchr(const char16_t* s U_LIFETIME_BOUND, char16_t c) {
     if(U16_IS_SURROGATE(c)) {
         /* make sure to not find half of a surrogate pair */
         return u_strFindLast(s, -1, &c, 1);
@@ -390,8 +394,8 @@ u_strrchr(const char16_t *s, char16_t c) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_strrchr32(const char16_t *s, UChar32 c) {
+U_CAPI char16_t* U_EXPORT2
+u_strrchr32(const char16_t* s U_LIFETIME_BOUND, UChar32 c) {
     if((uint32_t)c<=U_BMP_MAX) {
         /* find BMP code point */
         return u_strrchr(s, (char16_t)c);
@@ -412,8 +416,8 @@ u_strrchr32(const char16_t *s, UChar32 c) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memrchr(const char16_t *s, char16_t c, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memrchr(const char16_t* s U_LIFETIME_BOUND, char16_t c, int32_t count) {
     if(count<=0) {
         return nullptr; /* no string */
     } else if(U16_IS_SURROGATE(c)) {
@@ -431,8 +435,8 @@ u_memrchr(const char16_t *s, char16_t c, int32_t count) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memrchr32(const char16_t *s, UChar32 c, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memrchr32(const char16_t* s U_LIFETIME_BOUND, UChar32 c, int32_t count) {
     if((uint32_t)c<=U_BMP_MAX) {
         /* find BMP code point */
         return u_memrchr(s, (char16_t)c, count);
@@ -537,8 +541,8 @@ endloop:
 }
 
 /* Search for a codepoint in a string that matches one of the matchSet codepoints. */
-U_CAPI char16_t * U_EXPORT2
-u_strpbrk(const char16_t *string, const char16_t *matchSet)
+U_CAPI char16_t* U_EXPORT2
+u_strpbrk(const char16_t* string U_LIFETIME_BOUND, const char16_t* matchSet)
 {
     int32_t idx = _matchFromSet(string, matchSet, true);
     if(idx >= 0) {
@@ -575,9 +579,7 @@ u_strspn(const char16_t *string, const char16_t *matchSet)
 /* ----- Text manipulation functions --- */
 
 U_CAPI char16_t* U_EXPORT2
-u_strtok_r(char16_t *src,
-     const char16_t *delim,
-           char16_t   **saveState)
+u_strtok_r(char16_t* src U_LIFETIME_BOUND, const char16_t* delim, char16_t** saveState)
 {
     char16_t *tokSource;
     char16_t *nextToken;
@@ -625,8 +627,7 @@ u_strtok_r(char16_t *src,
 /* Miscellaneous functions -------------------------------------------------- */
 
 U_CAPI char16_t* U_EXPORT2
-u_strcat(char16_t  *dst,
-    const char16_t  *src)
+u_strcat(char16_t* dst U_LIFETIME_BOUND, const char16_t* src)
 {
     char16_t *anchor = dst;            /* save a pointer to start of dst */
 
@@ -639,10 +640,8 @@ u_strcat(char16_t  *dst,
     return anchor;
 }
 
-U_CAPI char16_t*  U_EXPORT2
-u_strncat(char16_t  *dst,
-     const char16_t  *src,
-     int32_t     n ) 
+U_CAPI char16_t* U_EXPORT2
+u_strncat(char16_t* dst U_LIFETIME_BOUND, const char16_t* src, int32_t n)
 {
     if(n > 0) {
         char16_t *anchor = dst;            /* save a pointer to start of dst */
@@ -964,8 +963,7 @@ u_strncmpCodePointOrder(const char16_t *s1, const char16_t *s2, int32_t n) {
 }
 
 U_CAPI char16_t* U_EXPORT2
-u_strcpy(char16_t  *dst,
-    const char16_t  *src)
+u_strcpy(char16_t* dst U_LIFETIME_BOUND, const char16_t* src)
 {
     char16_t *anchor = dst;            /* save a pointer to start of dst */
 
@@ -975,11 +973,8 @@ u_strcpy(char16_t  *dst,
     return anchor;
 }
 
-U_CAPI char16_t*  U_EXPORT2
-u_strncpy(char16_t  *dst,
-     const char16_t  *src,
-     int32_t     n) 
-{
+U_CAPI char16_t* U_EXPORT2
+u_strncpy(char16_t* dst U_LIFETIME_BOUND, const char16_t* src, int32_t n) {
     char16_t *anchor = dst;            /* save a pointer to start of dst */
 
     /* copy string 2 over */
@@ -1113,24 +1108,24 @@ u_strHasMoreChar32Than(const char16_t *s, int32_t length, int32_t number) {
     }
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memcpy(char16_t *dest, const char16_t *src, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memcpy(char16_t* dest U_LIFETIME_BOUND, const char16_t* src, int32_t count) {
     if(count > 0) {
         uprv_memcpy(dest, src, (size_t)count*U_SIZEOF_UCHAR);
     }
     return dest;
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memmove(char16_t *dest, const char16_t *src, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memmove(char16_t* dest U_LIFETIME_BOUND, const char16_t* src, int32_t count) {
     if(count > 0) {
         uprv_memmove(dest, src, (size_t)count*U_SIZEOF_UCHAR);
     }
     return dest;
 }
 
-U_CAPI char16_t * U_EXPORT2
-u_memset(char16_t *dest, char16_t c, int32_t count) {
+U_CAPI char16_t* U_EXPORT2
+u_memset(char16_t* dest U_LIFETIME_BOUND, char16_t c, int32_t count) {
     if(count > 0) {
         char16_t *ptr = dest;
         char16_t *limit = dest + count;

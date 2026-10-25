@@ -18,7 +18,6 @@
 #include "unicode/numberformatter.h"
 #include "unicode/platform.h"
 #include "unicode/unum.h"
-#include "unicode/urename.h"
 #include "units_data.h"
 
 using namespace icu;

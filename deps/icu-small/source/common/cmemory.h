@@ -28,6 +28,7 @@
 
 #include "unicode/utypes.h"
 
+#include <limits.h>
 #include <stddef.h>
 #include <string.h>
 #include "unicode/localpointer.h"
@@ -171,17 +172,23 @@ uprv_deleteUObject(void *obj);
 
 #ifdef __cplusplus
 
+#include <memory>
 #include <utility>
+#include <type_traits>
 #include "unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 
 /**
  * "Smart pointer" class, deletes memory via uprv_free().
+ * ICU 79+: Use prv::make_unique & prv::make_unique_for_overwrite instead.
+ *
  * For most methods see the LocalPointerBase base class.
  * Adds operator[] for array item access.
  *
  * @see LocalPointerBase
+ * @see prv::make_unique
+ * @deprecated use prv::make_unique & prv::make_unique_for_overwrite
  */
 template<typename T>
 class LocalMemory : public LocalPointerBase<T> {
@@ -212,7 +219,7 @@ public:
      * @param src source smart pointer
      * @return *this
      */
-    LocalMemory<T> &operator=(LocalMemory<T> &&src) noexcept {
+    LocalMemory<T>& operator=(LocalMemory<T>&& src) noexcept U_LIFETIME_BOUND {
         uprv_free(LocalPointerBase<T>::ptr);
         LocalPointerBase<T>::ptr=src.ptr;
         src.ptr=nullptr;
@@ -252,7 +259,7 @@ public:
      * @param newCapacity must be >0
      * @return the allocated array pointer, or nullptr if the allocation failed
      */
-    inline T *allocateInsteadAndReset(int32_t newCapacity=1);
+    inline T* allocateInsteadAndReset(int32_t newCapacity = 1) U_LIFETIME_BOUND;
     /**
      * Deletes the array it owns and allocates a new one, copying length T items.
      * Returns the new array pointer.
@@ -264,18 +271,18 @@ public:
      *               which the caller must track because the LocalMemory does not track it
      * @return the allocated array pointer, or nullptr if the allocation failed
      */
-    inline T *allocateInsteadAndCopy(int32_t newCapacity=1, int32_t length=0);
+    inline T* allocateInsteadAndCopy(int32_t newCapacity = 1, int32_t length = 0) U_LIFETIME_BOUND;
     /**
      * Array item access (writable).
      * No index bounds check.
      * @param i array index
      * @return reference to the array item
      */
-    T &operator[](ptrdiff_t i) const { return LocalPointerBase<T>::ptr[i]; }
+    T& operator[](ptrdiff_t i) const U_LIFETIME_BOUND { return LocalPointerBase<T>::ptr[i]; }
 };
 
-template<typename T>
-inline T *LocalMemory<T>::allocateInsteadAndReset(int32_t newCapacity) {
+template <typename T>
+inline T* LocalMemory<T>::allocateInsteadAndReset(int32_t newCapacity) U_LIFETIME_BOUND {
     if(newCapacity>0) {
         T *p=(T *)uprv_malloc(newCapacity*sizeof(T));
         if(p!=nullptr) {
@@ -289,9 +296,9 @@ inline T *LocalMemory<T>::allocateInsteadAndReset(int32_t newCapacity) {
     }
 }
 
-
-template<typename T>
-inline T *LocalMemory<T>::allocateInsteadAndCopy(int32_t newCapacity, int32_t length) {
+template <typename T>
+inline T* LocalMemory<T>::allocateInsteadAndCopy(int32_t newCapacity,
+                                                 int32_t length) U_LIFETIME_BOUND {
     if(newCapacity>0) {
         T *p=(T *)uprv_malloc(newCapacity*sizeof(T));
         if(p!=nullptr) {
@@ -366,7 +373,8 @@ public:
     /**
      * Move assignment: transfers ownership or copies the stack array.
      */
-    MaybeStackArray<T, stackCapacity> &operator=(MaybeStackArray<T, stackCapacity> &&src) noexcept;
+    MaybeStackArray<T, stackCapacity>&
+    operator=(MaybeStackArray<T, stackCapacity>&& src) noexcept U_LIFETIME_BOUND;
     /**
      * Returns the array capacity (number of T items).
      * @return array capacity
@@ -376,12 +384,12 @@ public:
      * Access without ownership change.
      * @return the array pointer
      */
-    T *getAlias() const { return ptr; }
+    T* getAlias() const U_LIFETIME_BOUND { return ptr; }
     /**
      * Returns the array limit. Simple convenience method.
      * @return getAlias()+getCapacity()
      */
-    T *getArrayLimit() const { return getAlias()+capacity; }
+    T* getArrayLimit() const U_LIFETIME_BOUND { return getAlias() + capacity; }
     // No "operator T *() const" because that can make
     // expressions like mbs[index] ambiguous for some compilers.
     /**
@@ -390,14 +398,14 @@ public:
      * @param i array index
      * @return reference to the array item
      */
-    const T &operator[](ptrdiff_t i) const { return ptr[i]; }
+    const T& operator[](ptrdiff_t i) const U_LIFETIME_BOUND { return ptr[i]; }
     /**
      * Array item access (writable).
      * No index bounds check.
      * @param i array index
      * @return reference to the array item
      */
-    T &operator[](ptrdiff_t i) { return ptr[i]; }
+    T& operator[](ptrdiff_t i) U_LIFETIME_BOUND { return ptr[i]; }
     /**
      * Deletes the array (if owned) and aliases another one, no transfer of ownership.
      * If the arguments are illegal, then the current array is unchanged.
@@ -422,7 +430,7 @@ public:
      * @param length number of T items to be copied from the old array to the new one
      * @return the allocated array pointer, or nullptr if the allocation failed
      */
-    inline T *resize(int32_t newCapacity, int32_t length=0);
+    inline T* resize(int32_t newCapacity, int32_t length = 0) U_LIFETIME_BOUND;
     /**
      * Gives up ownership of the array if owned, or else clones it,
      * copying length T items; resets itself to the internal stack array.
@@ -483,9 +491,9 @@ icu::MaybeStackArray<T, stackCapacity>::MaybeStackArray(
     }
 }
 
-template<typename T, int32_t stackCapacity>
-inline MaybeStackArray <T, stackCapacity>&
-MaybeStackArray<T, stackCapacity>::operator=(MaybeStackArray <T, stackCapacity>&& src) noexcept {
+template <typename T, int32_t stackCapacity>
+inline MaybeStackArray<T, stackCapacity>& MaybeStackArray<T, stackCapacity>::operator=(
+    MaybeStackArray<T, stackCapacity>&& src) noexcept U_LIFETIME_BOUND {
     releaseArray();  // in case this instance had its own memory allocated
     capacity = src.capacity;
     needToRelease = src.needToRelease;
@@ -499,8 +507,9 @@ MaybeStackArray<T, stackCapacity>::operator=(MaybeStackArray <T, stackCapacity>&
     return *this;
 }
 
-template<typename T, int32_t stackCapacity>
-inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t length) {
+template <typename T, int32_t stackCapacity>
+inline T* MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity,
+                                                    int32_t length) U_LIFETIME_BOUND {
     if(newCapacity>0) {
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
         ::fprintf(::stderr, "MaybeStackArray (resize) alloc %d * %lu\n", newCapacity, sizeof(T));
@@ -587,30 +596,30 @@ public:
      * Access without ownership change.
      * @return the header pointer
      */
-    H *getAlias() const { return ptr; }
+    H* getAlias() const U_LIFETIME_BOUND { return ptr; }
     /**
      * Returns the array start.
      * @return array start, same address as getAlias()+1
      */
-    T *getArrayStart() const { return reinterpret_cast<T *>(getAlias()+1); }
+    T* getArrayStart() const U_LIFETIME_BOUND { return reinterpret_cast<T*>(getAlias() + 1); }
     /**
      * Returns the array limit.
      * @return array limit
      */
-    T *getArrayLimit() const { return getArrayStart()+capacity; }
+    T* getArrayLimit() const U_LIFETIME_BOUND { return getArrayStart() + capacity; }
     /**
      * Access without ownership change. Same as getAlias().
      * A class instance can be used directly in expressions that take a T *.
      * @return the header pointer
      */
-    operator H *() const { return ptr; }
+    operator H*() const U_LIFETIME_BOUND { return ptr; }
     /**
      * Array item access (writable).
      * No index bounds check.
      * @param i array index
      * @return reference to the array item
      */
-    T &operator[](ptrdiff_t i) { return getArrayStart()[i]; }
+    T& operator[](ptrdiff_t i) U_LIFETIME_BOUND { return getArrayStart()[i]; }
     /**
      * Deletes the memory block (if owned) and aliases another one, no transfer of ownership.
      * If the arguments are illegal, then the current memory is unchanged.
@@ -636,7 +645,7 @@ public:
      * @param length number of T items to be copied from the old array to the new one
      * @return the allocated pointer, or nullptr if the allocation failed
      */
-    inline H *resize(int32_t newCapacity, int32_t length=0);
+    inline H* resize(int32_t newCapacity, int32_t length = 0) U_LIFETIME_BOUND;
     /**
      * Gives up ownership of the memory if owned, or else clones it,
      * copying the header and length T array items; resets itself to the internal memory.
@@ -668,9 +677,9 @@ private:
     void operator=(const MaybeStackHeaderAndArray & /*other*/) {}
 };
 
-template<typename H, typename T, int32_t stackCapacity>
-inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::resize(int32_t newCapacity,
-                                                                int32_t length) {
+template <typename H, typename T, int32_t stackCapacity>
+inline H* MaybeStackHeaderAndArray<H, T, stackCapacity>::resize(int32_t newCapacity,
+                                                                int32_t length) U_LIFETIME_BOUND {
     if(newCapacity>=0) {
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
       ::fprintf(::stderr,"MaybeStackHeaderAndArray alloc %d + %d * %ul\n", sizeof(H),newCapacity,sizeof(T));
@@ -769,7 +778,7 @@ public:
         other.fCount = 0;
     }
 
-    MemoryPool& operator=(MemoryPool&& other) noexcept {
+    MemoryPool& operator=(MemoryPool&& other) noexcept U_LIFETIME_BOUND {
         // Since `this` may contain instances that need to be deleted, we can't
         // just throw them away and replace them with `other`. The normal way of
         // dealing with this in C++ is to swap `this` and `other`, rather than
@@ -788,8 +797,8 @@ public:
      * @param args Arguments to be forwarded to the typename T constructor.
      * @return A pointer to the newly created object, or nullptr on error.
      */
-    template<typename... Args>
-    T* create(Args&&... args) {
+    template <typename... Args>
+    T* create(Args&&... args) U_LIFETIME_BOUND {
         int32_t capacity = fPool.getCapacity();
         if (fCount == capacity &&
             fPool.resize(capacity == stackCapacity ? 4 * capacity : 2 * capacity,
@@ -800,7 +809,7 @@ public:
     }
 
     template <typename... Args>
-    T* createAndCheckErrorCode(UErrorCode &status, Args &&... args) {
+    T* createAndCheckErrorCode(UErrorCode& status, Args&&... args) U_LIFETIME_BOUND {
         if (U_FAILURE(status)) {
             return nullptr;
         }
@@ -846,13 +855,13 @@ protected:
 template<typename T, int32_t stackCapacity = 8>
 class MaybeStackVector : protected MemoryPool<T, stackCapacity> {
 public:
-    template<typename... Args>
-    T* emplaceBack(Args&&... args) {
+    template <typename... Args>
+    T* emplaceBack(Args&&... args) U_LIFETIME_BOUND {
         return this->create(args...);
     }
 
     template <typename... Args>
-    T *emplaceBackAndCheckErrorCode(UErrorCode &status, Args &&... args) {
+    T* emplaceBackAndCheckErrorCode(UErrorCode& status, Args&&... args) U_LIFETIME_BOUND {
         return this->createAndCheckErrorCode(status, args...);
     }
 
@@ -860,11 +869,11 @@ public:
         return this->fCount;
     }
 
-    T** getAlias() {
+    T** getAlias() U_LIFETIME_BOUND {
         return this->fPool.getAlias();
     }
 
-    const T *const *getAlias() const {
+    const T* const* getAlias() const U_LIFETIME_BOUND {
         return this->fPool.getAlias();
     }
 
@@ -874,7 +883,7 @@ public:
      * @param i array index
      * @return reference to the array item
      */
-    const T* operator[](ptrdiff_t i) const {
+    const T* operator[](ptrdiff_t i) const U_LIFETIME_BOUND {
         return this->fPool[i];
     }
 
@@ -884,11 +893,270 @@ public:
      * @param i array index
      * @return reference to the array item
      */
-    T* operator[](ptrdiff_t i) {
+    T* operator[](ptrdiff_t i) U_LIFETIME_BOUND {
         return this->fPool[i];
     }
 };
 
+namespace prv {
+
+#if U_OVERRIDE_CXX_ALLOCATION
+
+/**
+ * A deleter (as used by std::unique_ptr) that deallocates using `deallocate`.
+ * @internal
+ */
+template <typename T, void deallocate(void *), typename = void> class Deleter {
+  public:
+    Deleter() = default;
+    void operator()(T *const ptr) const {
+        if constexpr (!std::is_trivially_destructible_v<T>) {
+            ptr->~T();
+        }
+        deallocate(ptr);
+    }
+};
+
+/**
+ * A deleter (as used by std::unique_ptr) that deallocates using `deallocate`: specialization for
+ * arrays of trivially destructible objects, e.g., int32_t[].
+ * @internal
+ */
+template <typename T, void deallocate(void *)>
+class Deleter<T[], deallocate, std::enable_if_t<std::is_trivially_destructible_v<T>>> {
+  public:
+    Deleter() = default;
+    void operator()(T *const ptr) const { deallocate(ptr); }
+};
+
+/**
+ * A deleter (as used by std::unique_ptr) that deallocates using `deallocate`: specialization for
+ * arrays of nontrivially destructible objects, e.g., UnicodeString[].
+ * @internal
+ */
+template <typename T, void deallocate(void *)>
+class Deleter<T[], deallocate, std::enable_if_t<!std::is_trivially_destructible_v<T>>> {
+  public:
+    Deleter(const std::size_t size) : size_(size) {}
+    void operator()(T *const ptr) const {
+        for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(size_) - 1; i >= 0; --i) {
+            ptr[i]->~T();
+        }
+        deallocate(ptr);
+    }
+  private:
+    const std::size_t size_;
+};
+
+/**
+ * An std::unique_ptr that deallocates using uprv_free.
+ * @internal
+ */
+template <typename T> using unique_ptr = std::unique_ptr<T, Deleter<T, uprv_free>>;
+
+#else
+
+using std::unique_ptr;
+
+#endif
+
+/**
+ * Helper for make_unique<T, Args...>; forwards all but the last of args to the constructor of
+ * T, uses the last of args as the error code for allocation errors.
+ *
+ * As usual, does nothing if the incoming UErrorCode already is U_FAILURE.
+ *
+ * @internal
+ */
+template <typename T, typename... Args, std::size_t... i>
+unique_ptr<T> make_unique_impl(std::tuple<Args...> args,
+                               std::index_sequence<i...> constructor_arg_indices) {
+    static_assert(std::is_same_v<decltype(constructor_arg_indices),
+                                 std::make_index_sequence<sizeof...(Args) - 1>>);
+    auto &&error = std::get<sizeof...(Args) - 1>(args);
+    static_assert(std::is_same_v<decltype(error), UErrorCode &>);
+    if (U_FAILURE(error)) {
+        return nullptr;
+    }
+#if U_OVERRIDE_CXX_ALLOCATION
+    void *const buffer = uprv_malloc(sizeof(T));
+    if (buffer == nullptr) {
+        error = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    return unique_ptr<T>(new (buffer) T(std::get<i>(args)...));
+#else
+    return std::make_unique<T>(std::get<i>(args)...);
+#endif
+}
+
+/**
+ * A version of std::make_unique<T> that is compatible with ICU allocation error handling.
+ * If U_OVERRIDE_CXX_ALLOCATION, allocates using uprv_malloc, and sets a UErrorCode on failure.
+ * Otherwise, equivalent to std::make_unique<T>.
+ *   prv::make_unique<T>(Args... args, UErrorCode& status)
+ * corresponds to
+ *   std::make_unique<T>(Args... args)
+ * and
+ *   new T(Args... args).
+ *
+ * As usual, does nothing if the incoming UErrorCode already is U_FAILURE.
+ *
+ * With empty args, this corresponds to new T(), and the allocated object is value-initialized; in
+ * particular, scalar types are zero-initialized; cf. make_unique_for_overwrite which
+ * corresponds to new T.
+ *
+ * @internal
+ */
+template <typename T, typename... Args, typename = std::enable_if_t<!std::is_array_v<T>>>
+unique_ptr<T> make_unique(Args &&...args) {
+    return make_unique_impl<T>(std::forward_as_tuple(args...),
+                               std::make_index_sequence<sizeof...(Args) - 1>());
+}
+
+/**
+ * A version of std::make_unique<T[]> that is compatible with ICU allocation error handling.
+ * If U_OVERRIDE_CXX_ALLOCATION, allocates using uprv_malloc, and sets a UErrorCode on failure.
+ * Otherwise, equivalent to std::make_unique<T[]>.
+ *   prv::make_unique<T[]>(std::size_t n, UErrorCode& status)
+ * corresponds to
+ *   std::make_unique<T[]>(std::size_t n)
+ * and
+ *   new T[std::size_t n]().
+ *
+ * As usual, does nothing if the incoming UErrorCode already is U_FAILURE.
+ *
+ * The allocated objects are value-initialized; in particular, scalar types are zero-initialized;
+ * cf. make_unique_for_overwrite which corresponds to new T[n].
+ *
+ * @internal
+ */
+template <typename T,
+          // In C++20, this could require is_unbounded_array_v<T>.
+          typename = std::enable_if_t<std::is_same_v<std::remove_extent_t<T>[], T>>>
+unique_ptr<T> make_unique(const std::size_t n, UErrorCode &error) {
+    if (U_FAILURE(error)) {
+        return nullptr;
+    }
+    // In C23/C++26, we could use ckd_mul.
+    constexpr std::size_t maxSize = SIZE_MAX / sizeof(std::remove_extent_t<T>);
+    if (n > maxSize) {
+        error = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
+#if U_OVERRIDE_CXX_ALLOCATION
+    void *const buffer = uprv_malloc(sizeof(std::remove_extent_t<T>) * n);
+    if (buffer == nullptr) {
+        error = U_MEMORY_ALLOCATION_ERROR;
+        if constexpr (std::is_trivially_destructible_v<std::remove_extent_t<T>>) {
+            return nullptr;
+        } else {
+            return unique_ptr<T>(nullptr, Deleter<T, uprv_free>(0));
+        }
+    }
+    if constexpr (std::is_trivially_destructible_v<std::remove_extent_t<T>>) {
+        return unique_ptr<T>(new (buffer) std::remove_extent_t<T>[n]());
+    } else {
+        return unique_ptr<T>(new (buffer) std::remove_extent_t<T>[n](), Deleter<T, uprv_free>(n));
+    }
+#else
+    return std::make_unique<T>(n);
+#endif
+}
+
+/**
+ * A version of std::make_unique_for_overwrite<T> that is compatible with ICU allocation error
+ * handling.
+ * If U_OVERRIDE_CXX_ALLOCATION, allocates using uprv_malloc, and sets a UErrorCode on failure.
+ * Otherwise, equivalent to std::make_unique_for_overwrite<T>.
+ *   prv::make_unique_for_overwrite<T>(UErrorCode& status)
+ * corresponds to
+ *   std::make_unique_for_overwrite<T>()
+ * and
+ *   new T.
+ *
+ * As usual, does nothing if the incoming UErrorCode already is U_FAILURE.
+ *
+ * The allocated object is default-initialized.  For some types, e.g., scalar types, this means it
+ * has an indeterminate value, or an erroneous value since C++26 (in plain English, the memory is
+ * uninitialized).
+ *
+ * @internal
+ */
+template <typename T, typename = std::enable_if_t<!std::is_array_v<T>>>
+unique_ptr<T> make_unique_for_overwrite(UErrorCode &error) {
+    if (U_FAILURE(error)) {
+        return nullptr;
+    }
+#if U_OVERRIDE_CXX_ALLOCATION
+    void *const buffer = uprv_malloc(sizeof(T));
+    if (buffer == nullptr) {
+        error = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    return unique_ptr<T>(new (buffer) T);
+#elif U_CPLUSPLUS_VERSION >= 20
+    return std::make_unique_for_overwrite<T>();
+#else
+    return unique_ptr<T>(new T);
+#endif
+}
+
+/**
+ * A version of std::make_unique_for_overwrite<T[]> that is compatible with ICU allocation error
+ * handling.
+ * If U_OVERRIDE_CXX_ALLOCATION, allocates using uprv_malloc, and sets a UErrorCode on failure.
+ * Otherwise, equivalent to std::make_unique_for_overwrite<T[]>.
+ *   prv::make_unique_for_overwrite<T[]>(std::size_t n, UErrorCode& status)
+ * corresponds to
+ *   std::make_unique_for_overwrite<T[]>(std::size_t n)
+ * and
+ *   new T[std::size_t n].
+ *
+ * As usual, does nothing if the incoming UErrorCode already is U_FAILURE.
+ *
+ * The allocated objects are default-initialized.  For some types, e.g., scalar types, this means
+ * they have indeterminate values, or erroneous values since C++26 (in plain English, the memory is
+ * uninitialized).
+ *
+ * @internal
+ */
+template <typename T,
+          // In C++20, this could require is_unbounded_array_v<T>.
+          typename = std::enable_if_t<std::is_same_v<std::remove_extent_t<T>[], T>>>
+unique_ptr<T> make_unique_for_overwrite(const std::size_t n, UErrorCode &error) {
+    if (U_FAILURE(error)) {
+        return nullptr;
+    }
+    // In C23/C++26, we could use ckd_mul.
+    constexpr std::size_t maxSize = SIZE_MAX / sizeof(std::remove_extent_t<T>);
+    if (n > maxSize) {
+        error = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
+#if U_OVERRIDE_CXX_ALLOCATION
+    void *const buffer = uprv_malloc(sizeof(std::remove_extent_t<T>) * n);
+    if (buffer == nullptr) {
+        error = U_MEMORY_ALLOCATION_ERROR;
+        if constexpr (std::is_trivially_destructible_v<std::remove_extent_t<T>>) {
+            return nullptr;
+        } else {
+            return unique_ptr<T>(nullptr, Deleter<T, uprv_free>(0));
+        }
+    }
+    if constexpr (std::is_trivially_destructible_v<std::remove_extent_t<T>>) {
+        return unique_ptr<T>(new (buffer) std::remove_extent_t<T>[n]);
+    } else {
+        return unique_ptr<T>(new (buffer) std::remove_extent_t<T>[n], Deleter<T, uprv_free>(n));
+    }
+#elif U_CPLUSPLUS_VERSION >= 20
+    return std::make_unique_for_overwrite<T>(n);
+#else
+    return unique_ptr<T>(new std::remove_extent_t<T>[n]);
+#endif
+}
+
+}  // namespace prv
 
 U_NAMESPACE_END
 

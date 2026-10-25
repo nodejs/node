@@ -521,7 +521,7 @@ ucurr_forLocale(const char* locale,
         return u_terminateUChars(buff, buffCapacity, resLen, ec);
     }
 
-    // get country or country_variant in `id'
+    // get country or country_variant in `id`
     CharString id = idForLocale(locale, ec);
     if (U_FAILURE(*ec)) {
         return 0;
@@ -637,7 +637,7 @@ static UBool fallback(CharString& loc) {
 
 
 U_CAPI const char16_t* U_EXPORT2
-ucurr_getName(const char16_t* currency,
+ucurr_getName(const char16_t* currency U_LIFETIME_BOUND,
               const char* locale,
               UCurrNameStyle nameStyle,
               UBool* isChoiceFormat, // fillin
@@ -754,7 +754,7 @@ ucurr_getName(const char16_t* currency,
 }
 
 U_CAPI const char16_t* U_EXPORT2
-ucurr_getPluralName(const char16_t* currency,
+ucurr_getPluralName(const char16_t* currency U_LIFETIME_BOUND,
                     const char* locale,
                     UBool* isChoiceFormat,
                     const char* pluralCount,
@@ -1433,6 +1433,12 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
     int32_t total_currency_symbol_count = 0;
     CurrencyNameStruct* currencySymbols = nullptr;
     CurrencyNameCacheEntry* cacheEntry = nullptr;
+
+    // The cache key is stored in a fixed-size buffer.
+    if (uprv_strlen(locale) >= ULOC_FULLNAME_CAPACITY) {
+        ec = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
 
     umtx_lock(&gCurrencyCacheMutex);
     // in order to handle racing correctly,
@@ -2291,7 +2297,7 @@ ucurr_countCurrencies(const char* locale,
         // local variables
         UErrorCode localStatus = U_ZERO_ERROR;
 
-        // get country or country_variant in `id'
+        // get country or country_variant in `id`
         CharString id = idForLocale(locale, ec);
 
         if (U_FAILURE(*ec))
@@ -2395,7 +2401,7 @@ ucurr_forLocaleAndDate(const char* locale,
             // local variables
             UErrorCode localStatus = U_ZERO_ERROR;
 
-            // get country or country_variant in `id'
+            // get country or country_variant in `id`
             CharString id = idForLocale(locale, ec);
             if (U_FAILURE(*ec))
             {

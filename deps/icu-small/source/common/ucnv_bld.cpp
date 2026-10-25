@@ -824,8 +824,10 @@ ucnv_loadSharedData(const char *converterName,
     return mySharedConverterData;
 }
 
-U_CAPI UConverter *
-ucnv_createConverter(UConverter *myUConverter, const char *converterName, UErrorCode * err)
+U_CAPI UConverter*
+ucnv_createConverter(UConverter* myUConverter U_LIFETIME_BOUND,
+                     const char* converterName,
+                     UErrorCode* err)
 {
     UConverterNamePieces stackPieces;
     UConverterLoadArgs stackArgs=UCNV_LOAD_ARGS_INITIALIZER;
@@ -879,11 +881,12 @@ ucnv_canCreateConverter(const char *converterName, UErrorCode *err) {
     return U_SUCCESS(*err);
 }
 
-UConverter *
-ucnv_createAlgorithmicConverter(UConverter *myUConverter,
+UConverter*
+ucnv_createAlgorithmicConverter(UConverter* myUConverter U_LIFETIME_BOUND,
                                 UConverterType type,
-                                const char *locale, uint32_t options,
-                                UErrorCode *err) {
+                                const char* locale,
+                                uint32_t options,
+                                UErrorCode* err) {
     UConverter *cnv;
     const UConverterSharedData *sharedData;
     UConverterLoadArgs stackArgs=UCNV_LOAD_ARGS_INITIALIZER;
@@ -969,10 +972,10 @@ ucnv_createConverterFromPackage(const char *packageName, const char *converterNa
 
 
 U_CFUNC UConverter*
-ucnv_createConverterFromSharedData(UConverter *myUConverter,
-                                   UConverterSharedData *mySharedConverterData,
-                                   UConverterLoadArgs *pArgs,
-                                   UErrorCode *err)
+ucnv_createConverterFromSharedData(UConverter* myUConverter U_LIFETIME_BOUND,
+                                   UConverterSharedData* mySharedConverterData,
+                                   UConverterLoadArgs* pArgs,
+                                   UErrorCode* err)
 {
     UBool isCopyLocal;
 

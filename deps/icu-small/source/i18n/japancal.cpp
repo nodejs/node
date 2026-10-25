@@ -139,7 +139,7 @@ const char *JapaneseCalendar::getType() const
     return "japanese";
 }
 
-int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear, UErrorCode& status) 
+int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t extendedYear, UErrorCode& status) 
 {
     if (U_FAILURE(status)) {
       return 0;
@@ -147,40 +147,47 @@ int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear, UErrorCode& statu
     int32_t era = internalGetEra();
     // TODO do we assume we can trust 'era'?  What if it is denormalized?
 
-    int32_t month = 0;
+    if (era == 0) {
+        // era 0 in Japanese calendar is Gregorian BC
+        return GregorianCalendar::getDefaultMonthInYear(extendedYear, status);
+    }
 
     // Find out if we are at the edge of an era
-    int32_t eraStart[3] = { 0,0,0 };
+    int32_t eraStart[3] = {0, 0, 0};
     gJapaneseEraRules->getStartDate(era, eraStart, status);
     if (U_FAILURE(status)) {
         return 0;
     }
-    if(eyear == eraStart[0]) {
-        // Yes, we're in the first year of this era.
-        return eraStart[1]  // month
-                -1;         // return 0-based month
+    if (extendedYear == eraStart[0]) {
+        return eraStart[1] - 1; // return 0-based month
+    } else {
+        return 0;
     }
-
-    return month;
 }
 
-int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month, UErrorCode& status) 
+int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t extendedYear, int32_t month, UErrorCode& status) 
 {
     if (U_FAILURE(status)) {
         return 0;
     }
     int32_t era = internalGetEra();
-    int32_t day = 1;
 
-    int32_t eraStart[3] = { 0,0,0 };
+    if (era == 0) {
+        // era 0 in Japanese calendar is Gregorian BC
+        return GregorianCalendar::getDefaultDayInMonth(extendedYear, month, status);
+    }
+
+    int32_t eraStart[3] = {0, 0, 0};
     gJapaneseEraRules->getStartDate(era, eraStart, status);
     if (U_FAILURE(status)) {
         return 0;
     }
-    if (eyear == eraStart[0] && (month == eraStart[1] - 1)) {
-        return eraStart[2];
+    if (extendedYear == eraStart[0]) { // if it is year 1..
+        if (month == (eraStart[1] - 1)) { // if it is the emperor's first month..
+            return eraStart[2]; // return the D_O_M of accession
+        }
     }
-    return day;
+    return 1;
 }
 
 
@@ -194,24 +201,34 @@ int32_t JapaneseCalendar::handleGetExtendedYear(UErrorCode& status)
     if (U_FAILURE(status)) {
         return 0;
     }
+
     // EXTENDED_YEAR in JapaneseCalendar is a Gregorian year
     // The default value of EXTENDED_YEAR is 1970 (Showa 45)
-
     if (newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR) == UCAL_EXTENDED_YEAR &&
         newerField(UCAL_EXTENDED_YEAR, UCAL_ERA) == UCAL_EXTENDED_YEAR) {
         return internalGet(UCAL_EXTENDED_YEAR, kGregorianEpoch);
     }
-    int32_t eraStartYear = gJapaneseEraRules->getStartYear(internalGet(UCAL_ERA, gCurrentEra), status);
-    if (U_FAILURE(status)) {
-        return 0;
-    }
 
     // extended year is a gregorian year, where 1 = 1AD,  0 = 1BC, -1 = 2BC, etc
-    int32_t year = internalGet(UCAL_YEAR, 1);   // pin to minimum of year 1 (first year)
-    // add gregorian starting year, subtract one because year starts at 1
-    if (uprv_add32_overflow(year, eraStartYear - 1,  &year)) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
+    int32_t era = internalGet(UCAL_ERA, gCurrentEra);
+    int32_t year = internalGet(UCAL_YEAR, 1);
+    if (era == 0) {
+        // era 0 in Japanese calendar is Gregorian BC
+        // year = 1 - year;
+        if (uprv_mul32_overflow(year, -1, &year) || uprv_add32_overflow(year, 1, &year)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
+    } else {
+        int32_t eraStartYear = gJapaneseEraRules->getStartYear(internalGet(UCAL_ERA, gCurrentEra), status);
+        if (U_FAILURE(status)) {
+            return 0;
+        }
+        // add gregorian starting year, subtract one because year starts at 1
+        if (uprv_add32_overflow(year, eraStartYear - 1,  &year)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
     }
     return year;
 }
@@ -219,21 +236,36 @@ int32_t JapaneseCalendar::handleGetExtendedYear(UErrorCode& status)
 
 void JapaneseCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
 {
-    //Calendar::timeToFields(theTime, quick, status);
-    GregorianCalendar::handleComputeFields(julianDay, status);
-    int32_t year = internalGet(UCAL_EXTENDED_YEAR); // Gregorian year
-    int32_t eraCode = gJapaneseEraRules->getEraCode(year, internalGetMonth(status) + 1, internalGet(UCAL_DAY_OF_MONTH), status);
-
-    int32_t startYear = gJapaneseEraRules->getStartYear(eraCode, status) - 1;
     if (U_FAILURE(status)) {
         return;
     }
-    if (uprv_add32_overflow(year, -startYear,  &year)) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
+    //Calendar::timeToFields(theTime, quick, status);
+    GregorianCalendar::handleComputeFields(julianDay, status);
+    int32_t extendedYear = internalGet(UCAL_EXTENDED_YEAR); // Gregorian year
+    int32_t eraCode = gJapaneseEraRules->getEraCode(extendedYear, internalGetMonth(status) + 1, internalGet(UCAL_DAY_OF_MONTH), status);
+    if (U_FAILURE(status)) {
         return;
     }
+    U_ASSERT(eraCode >= 0); // getEraCode() returns -1 only when status is failure
+
     internalSet(UCAL_ERA, eraCode);
-    internalSet(UCAL_YEAR, year);
+    int32_t year;
+    if (eraCode == 0) {
+        // Gregorian BC
+        // year = 1 - extendedYear;
+        if (uprv_mul32_overflow(extendedYear, -1, &year) || uprv_add32_overflow(year, 1, &year)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
+    } else if (eraCode == 1) {
+        // Gregorian AD
+        year = extendedYear;
+    } else {
+        // Japanese era. extendedYear is at least 1868 (Meiji 1), so it should never
+        // cause integer overflow here.
+        year = extendedYear - gJapaneseEraRules->getStartYear(eraCode, status) + 1;
+    }
+    internalSet(YEAR, year);
 }
 
 /*
@@ -295,17 +327,28 @@ int32_t JapaneseCalendar::getActualMaximum(UCalendarDateFields field, UErrorCode
     if (U_FAILURE(status)) {
         return 0; // error case... any value
     }
-    if (era == gJapaneseEraRules->getMaxEraCode()) { // max known era, not gCurrentEra
+    if (era >= gJapaneseEraRules->getMaxEraCode()) { // max known era, not gCurrentEra
         // TODO: Investigate what value should be used here - revisit after 4.0.
         return handleGetLimit(UCAL_YEAR, UCAL_LIMIT_MAXIMUM);
     }
-    int32_t nextEraStart[3] = { 0,0,0 };
-    gJapaneseEraRules->getStartDate(era + 1, nextEraStart, status);
+    if (era == 0) {
+        // era 0 is Gregorian BC and has no era start year data.
+        return GregorianCalendar::getActualMaximum(UCAL_YEAR, status);
+    }
+
+    // Use getNextEraCode() instead of +1, because there might be gaps between eras.
+    int32_t nextEra = gJapaneseEraRules->getNextEraCode(era);
+    U_ASSERT(nextEra != era);
+    int32_t nextEraStart[3] = {0, 0, 0};
+    gJapaneseEraRules->getStartDate(nextEra, nextEraStart, status);
     int32_t nextEraYear = nextEraStart[0];
     int32_t nextEraMonth = nextEraStart[1]; // 1-base
     int32_t nextEraDate = nextEraStart[2];
 
     int32_t eraStartYear = gJapaneseEraRules->getStartYear(era, status);
+    if (U_FAILURE(status)) {
+        return 0;
+    }
     int32_t maxYear = nextEraYear - eraStartYear + 1;   // 1-base
     if (nextEraMonth == 1 && nextEraDate == 1) {
         // Subtract 1, because the next era starts at Jan 1

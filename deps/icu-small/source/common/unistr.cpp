@@ -237,7 +237,7 @@ UnicodeString::UnicodeString(const char16_t *text,
 }
 
 UnicodeString::UnicodeString(UBool isTerminated,
-                             ConstChar16Ptr textPtr,
+                             ConstChar16Ptr textPtr U_LIFETIME_BOUND,
                              int32_t textLength) {
   fUnion.fFields.fLengthAndFlags = kReadonlyAlias;
   const char16_t *text = textPtr;
@@ -259,7 +259,7 @@ UnicodeString::UnicodeString(UBool isTerminated,
   }
 }
 
-UnicodeString::UnicodeString(char16_t *buff,
+UnicodeString::UnicodeString(char16_t* buff U_LIFETIME_BOUND,
                              int32_t buffLength,
                              int32_t buffCapacity) {
   fUnion.fFields.fLengthAndFlags = kWritableAlias;
@@ -298,7 +298,8 @@ UnicodeString::UnicodeString(const char *src, int32_t length, EInvariant) {
   }
 }
 
-UnicodeString UnicodeString::readOnlyAliasFromU16StringView(std::u16string_view text) {
+UnicodeString
+UnicodeString::readOnlyAliasFromU16StringView(std::u16string_view text U_LIFETIME_BOUND) {
   UnicodeString result;
   if (text.length() <= INT32_MAX) {
     result.setTo(false, text.data(), static_cast<int32_t>(text.length()));
@@ -308,7 +309,8 @@ UnicodeString UnicodeString::readOnlyAliasFromU16StringView(std::u16string_view 
   return result;
 }
 
-UnicodeString UnicodeString::readOnlyAliasFromUnicodeString(const UnicodeString &text) {
+UnicodeString
+UnicodeString::readOnlyAliasFromUnicodeString(const UnicodeString& text U_LIFETIME_BOUND) {
   UnicodeString result;
   if (text.isBogus()) {
     result.setToBogus();
@@ -523,18 +525,18 @@ UnicodeString UnicodeString::fromUTF32(const UChar32 *utf32, int32_t length) {
 // Assignment
 //========================================
 
-UnicodeString &
-UnicodeString::operator=(const UnicodeString &src) {
+UnicodeString&
+UnicodeString::operator=(const UnicodeString& src) U_LIFETIME_BOUND {
   return copyFrom(src);
 }
 
-UnicodeString &
-UnicodeString::fastCopyFrom(const UnicodeString &src) {
+UnicodeString&
+UnicodeString::fastCopyFrom(const UnicodeString& src) U_LIFETIME_BOUND {
   return copyFrom(src, true);
 }
 
-UnicodeString &
-UnicodeString::copyFrom(const UnicodeString &src, UBool fastCopy) {
+UnicodeString&
+UnicodeString::copyFrom(const UnicodeString& src, UBool fastCopy) U_LIFETIME_BOUND {
   // if assigning to ourselves, do nothing
   if(this == &src) {
     return *this;
@@ -611,7 +613,7 @@ UnicodeString::copyFrom(const UnicodeString &src, UBool fastCopy) {
   return *this;
 }
 
-UnicodeString &UnicodeString::operator=(UnicodeString &&src) noexcept {
+UnicodeString& UnicodeString::operator=(UnicodeString&& src) noexcept U_LIFETIME_BOUND {
   // No explicit check for self move assignment, consistent with standard library.
   // Self move assignment causes no crash nor leak but might make the object bogus.
   releaseArray();
@@ -995,7 +997,7 @@ UnicodeString::extract(int32_t start,
 }
 
 UnicodeString
-UnicodeString::tempSubString(int32_t start, int32_t len) const {
+UnicodeString::tempSubString(int32_t start, int32_t len) const U_LIFETIME_BOUND {
   pinIndices(start, len);
   const char16_t *array = getBuffer();  // not getArrayStart() to check kIsBogus & kOpenGetBuffer
   if(array==nullptr) {
@@ -1239,15 +1241,15 @@ UnicodeString::doLastIndexOf(UChar32 c,
 // Write implementation
 //========================================
 
-UnicodeString& 
+UnicodeString&
 UnicodeString::findAndReplace(int32_t start,
-                  int32_t length,
-                  const UnicodeString& oldText,
-                  int32_t oldStart,
-                  int32_t oldLength,
-                  const UnicodeString& newText,
-                  int32_t newStart,
-                  int32_t newLength)
+                              int32_t length,
+                              const UnicodeString& oldText,
+                              int32_t oldStart,
+                              int32_t oldLength,
+                              const UnicodeString& newText,
+                              int32_t newStart,
+                              int32_t newLength) U_LIFETIME_BOUND
 {
   if(isBogus() || oldText.isBogus() || newText.isBogus()) {
     return *this;
@@ -1296,8 +1298,8 @@ UnicodeString::unBogus() {
   }
 }
 
-const char16_t *
-UnicodeString::getTerminatedBuffer() {
+const char16_t*
+UnicodeString::getTerminatedBuffer() U_LIFETIME_BOUND {
   if(!isWritable()) {
     return nullptr;
   }
@@ -1335,10 +1337,10 @@ UnicodeString::getTerminatedBuffer() {
 }
 
 // setTo() analogous to the readonly-aliasing constructor with the same signature
-UnicodeString &
+UnicodeString&
 UnicodeString::setTo(UBool isTerminated,
-                     ConstChar16Ptr textPtr,
-                     int32_t textLength)
+                     ConstChar16Ptr textPtr U_LIFETIME_BOUND,
+                     int32_t textLength) U_LIFETIME_BOUND
 {
   if(fUnion.fFields.fLengthAndFlags & kOpenGetBuffer) {
     // do not modify a string that has an "open" getBuffer(minCapacity)
@@ -1373,10 +1375,10 @@ UnicodeString::setTo(UBool isTerminated,
 }
 
 // setTo() analogous to the writable-aliasing constructor with the same signature
-UnicodeString &
-UnicodeString::setTo(char16_t *buffer,
-                     int32_t buffLength,
-                     int32_t buffCapacity) {
+UnicodeString&
+UnicodeString::setTo(char16_t* buffer,
+                     int32_t buffLength U_LIFETIME_BOUND,
+                     int32_t buffCapacity) U_LIFETIME_BOUND {
   if(fUnion.fFields.fLengthAndFlags & kOpenGetBuffer) {
     // do not modify a string that has an "open" getBuffer(minCapacity)
     return *this;
@@ -1408,7 +1410,7 @@ UnicodeString::setTo(char16_t *buffer,
   return *this;
 }
 
-UnicodeString &UnicodeString::setToUTF8(StringPiece utf8) {
+UnicodeString& UnicodeString::setToUTF8(StringPiece utf8) U_LIFETIME_BOUND {
   unBogus();
   int32_t length = utf8.length();
   int32_t capacity;
@@ -1434,8 +1436,7 @@ UnicodeString &UnicodeString::setToUTF8(StringPiece utf8) {
 }
 
 UnicodeString&
-UnicodeString::setCharAt(int32_t offset,
-             char16_t c)
+UnicodeString::setCharAt(int32_t offset, char16_t c) U_LIFETIME_BOUND
 {
   int32_t len = length();
   if(cloneArrayIfNeeded() && len > 0) {
@@ -1452,8 +1453,8 @@ UnicodeString::setCharAt(int32_t offset,
 
 UnicodeString&
 UnicodeString::replace(int32_t start,
-               int32_t _length,
-               UChar32 srcChar) {
+                       int32_t _length,
+                       UChar32 srcChar) U_LIFETIME_BOUND {
   char16_t buffer[U16_MAX_LENGTH];
   int32_t count = 0;
   UBool isError = false;
@@ -1465,7 +1466,7 @@ UnicodeString::replace(int32_t start,
 }
 
 UnicodeString&
-UnicodeString::append(UChar32 srcChar) {
+UnicodeString::append(UChar32 srcChar) U_LIFETIME_BOUND {
   char16_t buffer[U16_MAX_LENGTH];
   int32_t _length = 0;
   UBool isError = false;
@@ -1476,11 +1477,11 @@ UnicodeString::append(UChar32 srcChar) {
 }
 
 UnicodeString&
-UnicodeString::doReplace( int32_t start,
-              int32_t length,
-              const UnicodeString& src,
-              int32_t srcStart,
-              int32_t srcLength)
+UnicodeString::doReplace(int32_t start,
+                         int32_t length,
+                         const UnicodeString& src,
+                         int32_t srcStart,
+                         int32_t srcLength) U_LIFETIME_BOUND
 {
   // pin the indices to legal values
   src.pinIndices(srcStart, srcLength);
@@ -1492,10 +1493,10 @@ UnicodeString::doReplace( int32_t start,
 
 UnicodeString&
 UnicodeString::doReplace(int32_t start,
-             int32_t length,
-             const char16_t *srcChars,
-             int32_t srcStart,
-             int32_t srcLength)
+                         int32_t length,
+                         const char16_t* srcChars,
+                         int32_t srcStart,
+                         int32_t srcLength) U_LIFETIME_BOUND
 {
   if(!isWritable()) {
     return *this;
@@ -1614,7 +1615,7 @@ UnicodeString::doReplace(int32_t start,
 }
 
 UnicodeString&
-UnicodeString::doReplace(int32_t start, int32_t length, std::u16string_view src) {
+UnicodeString::doReplace(int32_t start, int32_t length, std::u16string_view src) U_LIFETIME_BOUND {
   if (!isWritable()) {
     return *this;
   }
@@ -1629,7 +1630,9 @@ UnicodeString::doReplace(int32_t start, int32_t length, std::u16string_view src)
 // doReplace() and doAppend() optimize for different cases.
 
 UnicodeString&
-UnicodeString::doAppend(const UnicodeString& src, int32_t srcStart, int32_t srcLength) {
+UnicodeString::doAppend(const UnicodeString& src,
+                        int32_t srcStart,
+                        int32_t srcLength) U_LIFETIME_BOUND {
   if(srcLength == 0) {
     return *this;
   }
@@ -1640,7 +1643,9 @@ UnicodeString::doAppend(const UnicodeString& src, int32_t srcStart, int32_t srcL
 }
 
 UnicodeString&
-UnicodeString::doAppend(const char16_t *srcChars, int32_t srcStart, int32_t srcLength) {
+UnicodeString::doAppend(const char16_t* srcChars,
+                        int32_t srcStart,
+                        int32_t srcLength) U_LIFETIME_BOUND {
   if(!isWritable() || srcLength == 0 || srcChars == nullptr) {
     return *this;
   }
@@ -1714,7 +1719,7 @@ UnicodeString::doAppend(const char16_t *srcChars, int32_t srcStart, int32_t srcL
 }
 
 UnicodeString&
-UnicodeString::doAppend(std::u16string_view src) {
+UnicodeString::doAppend(std::u16string_view src) U_LIFETIME_BOUND {
   if (!isWritable() || src.empty()) {
     return *this;
   }
@@ -1770,7 +1775,7 @@ UBool UnicodeString::hasMetaData() const {
 }
 
 UnicodeString&
-UnicodeString::doReverse(int32_t start, int32_t length) {
+UnicodeString::doReverse(int32_t start, int32_t length) U_LIFETIME_BOUND {
   if(length <= 1 || !cloneArrayIfNeeded()) {
     return *this;
   }
@@ -1875,8 +1880,8 @@ UnicodeString::doHashCode() const
 // External Buffer
 //========================================
 
-char16_t *
-UnicodeString::getBuffer(int32_t minCapacity) {
+char16_t*
+UnicodeString::getBuffer(int32_t minCapacity) U_LIFETIME_BOUND {
   if(minCapacity>=-1 && cloneArrayIfNeeded(minCapacity)) {
     fUnion.fFields.fLengthAndFlags|=kOpenGetBuffer;
     setZeroLength();
@@ -2053,11 +2058,11 @@ UnicodeStringAppendable::reserveAppendCapacity(int32_t appendCapacity) {
   return str.cloneArrayIfNeeded(str.length() + appendCapacity);
 }
 
-char16_t *
-UnicodeStringAppendable::getAppendBuffer(int32_t minCapacity,
-                                         int32_t desiredCapacityHint,
-                                         char16_t *scratch, int32_t scratchCapacity,
-                                         int32_t *resultCapacity) {
+char16_t* UnicodeStringAppendable::getAppendBuffer(int32_t minCapacity,
+                                                   int32_t desiredCapacityHint,
+                                                   char16_t* scratch U_LIFETIME_BOUND,
+                                                   int32_t scratchCapacity,
+                                                   int32_t* resultCapacity) U_LIFETIME_BOUND {
   if(minCapacity < 1 || scratchCapacity < minCapacity) {
     *resultCapacity = 0;
     return nullptr;

@@ -311,7 +311,7 @@ public:
      * @return      *this
      * @stable ICU 2.0
      */
-    U_COMMON_API Locale& operator=(const Locale& other);
+    U_COMMON_API Locale& operator=(const Locale& other) U_LIFETIME_BOUND;
 
     /**
      * Move assignment operator; might leave source in bogus state.
@@ -322,7 +322,7 @@ public:
      * @return      *this
      * @stable ICU 63
      */
-    U_COMMON_API Locale& operator=(Locale&& other) noexcept;
+    U_COMMON_API Locale& operator=(Locale&& other) noexcept U_LIFETIME_BOUND;
 
     /**
      * Checks if two locale keys are the same.
@@ -471,7 +471,7 @@ public:
      * @return      An alias to the code
      * @stable ICU 2.0
      */
-    U_COMMON_API const char* getLanguage() const;
+    U_COMMON_API const char* getLanguage() const U_LIFETIME_BOUND;
 
     /**
      * Returns the locale's ISO-15924 abbreviation script code.
@@ -480,21 +480,21 @@ public:
      * @see uscript_getCode
      * @stable ICU 2.8
      */
-    U_COMMON_API const char* getScript() const;
+    U_COMMON_API const char* getScript() const U_LIFETIME_BOUND;
 
     /**
      * Returns the locale's ISO-3166 country code.
      * @return      An alias to the code
      * @stable ICU 2.0
      */
-    U_COMMON_API const char* getCountry() const;
+    U_COMMON_API const char* getCountry() const U_LIFETIME_BOUND;
 
     /**
      * Returns the locale's variant code.
      * @return      An alias to the code
      * @stable ICU 2.0
      */
-    U_COMMON_API const char* getVariant() const;
+    U_COMMON_API const char* getVariant() const U_LIFETIME_BOUND;
 
     /**
      * Returns the programmatic name of the entire locale, with the language,
@@ -504,7 +504,7 @@ public:
      * @return      A pointer to "name".
      * @stable ICU 2.0
      */
-    U_COMMON_API const char* getName() const;
+    U_COMMON_API const char* getName() const U_LIFETIME_BOUND;
 
     /**
      * Returns the programmatic name of the entire locale as getName() would return,
@@ -513,7 +513,7 @@ public:
      * @see getName
      * @stable ICU 2.8
      */
-    U_COMMON_API const char* getBaseName() const;
+    U_COMMON_API const char* getBaseName() const U_LIFETIME_BOUND;
 
     /**
      * Add the likely subtags for this Locale, per the algorithm described
@@ -837,7 +837,7 @@ public:
      * @return          A reference to "dispLang".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayLanguage(UnicodeString& dispLang) const;
+    U_COMMON_API UnicodeString& getDisplayLanguage(UnicodeString& dispLang U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispLang" with the name of this locale's language in a format suitable for
@@ -853,7 +853,7 @@ public:
      * @stable ICU 2.0
      */
     U_COMMON_API UnicodeString& getDisplayLanguage(const Locale& displayLocale,
-                                                   UnicodeString& dispLang) const;
+                                                   UnicodeString& dispLang U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispScript" with the name of this locale's script in a format suitable
@@ -864,7 +864,7 @@ public:
      * @return              A reference to "dispScript".
      * @stable ICU 2.8
      */
-    U_COMMON_API UnicodeString& getDisplayScript(UnicodeString& dispScript) const;
+    U_COMMON_API UnicodeString& getDisplayScript(UnicodeString& dispScript U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispScript" with the name of this locale's country in a format suitable
@@ -881,7 +881,7 @@ public:
      * @stable ICU 2.8
      */
     U_COMMON_API UnicodeString& getDisplayScript(const Locale& displayLocale,
-                                                 UnicodeString& dispScript) const;
+                                                 UnicodeString& dispScript U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispCountry" with the name of this locale's country in a format suitable
@@ -892,7 +892,8 @@ public:
      * @return              A reference to "dispCountry".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayCountry(UnicodeString& dispCountry) const;
+    U_COMMON_API UnicodeString&
+    getDisplayCountry(UnicodeString& dispCountry U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispCountry" with the name of this locale's country in a format suitable
@@ -908,8 +909,9 @@ public:
      * @return              A reference to "dispCountry".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayCountry(const Locale& displayLocale,
-                                                  UnicodeString& dispCountry) const;
+    U_COMMON_API UnicodeString&
+    getDisplayCountry(const Locale& displayLocale,
+                      UnicodeString& dispCountry U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispVar" with the name of this locale's variant code in a format suitable
@@ -918,7 +920,7 @@ public:
      * @return          A reference to "dispVar".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayVariant(UnicodeString& dispVar) const;
+    U_COMMON_API UnicodeString& getDisplayVariant(UnicodeString& dispVar U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "dispVar" with the name of this locale's variant code in a format
@@ -929,7 +931,7 @@ public:
      * @stable ICU 2.0
      */
     U_COMMON_API UnicodeString& getDisplayVariant(const Locale& displayLocale,
-                                                  UnicodeString& dispVar) const;
+                                                  UnicodeString& dispVar U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "name" with the name of this locale in a format suitable for user display
@@ -942,7 +944,7 @@ public:
      * @return      A reference to "name".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayName(UnicodeString& name) const;
+    U_COMMON_API UnicodeString& getDisplayName(UnicodeString& name U_LIFETIME_BOUND) const;
 
     /**
      * Fills in "name" with the name of this locale in a format suitable for user display
@@ -956,7 +958,8 @@ public:
      * @return          A reference to "name".
      * @stable ICU 2.0
      */
-    U_COMMON_API UnicodeString& getDisplayName(const Locale& displayLocale, UnicodeString& name) const;
+    U_COMMON_API UnicodeString& getDisplayName(const Locale& displayLocale,
+                                               UnicodeString& name U_LIFETIME_BOUND) const;
 
     /**
      * Generates a hash code for the locale.
@@ -1150,8 +1153,8 @@ private:
      * @param cLocaleID The new locale name.
      * @param canonicalize whether to call uloc_canonicalize on cLocaleID
      */
-    Locale& init(const char* localeID, UBool canonicalize);
-    Locale& init(StringPiece localeID, UBool canonicalize);
+    Locale& init(const char* localeID, UBool canonicalize) U_LIFETIME_BOUND;
+    Locale& init(StringPiece localeID, UBool canonicalize) U_LIFETIME_BOUND;
 
     /*
      * Internal constructor to allow construction of a locale object with
@@ -1192,11 +1195,13 @@ private:
                       sizeof region -
                       sizeof variantBegin];
 
-        const char* getLanguage() const { return language; }
-        const char* getScript() const { return script; }
-        const char* getRegion() const { return region; }
-        const char* getVariant() const { return variantBegin == 0 ? "" : getBaseName() + variantBegin; }
-        const char* getBaseName() const { return baseName; }
+        const char* getLanguage() const U_LIFETIME_BOUND { return language; }
+        const char* getScript() const U_LIFETIME_BOUND { return script; }
+        const char* getRegion() const U_LIFETIME_BOUND { return region; }
+        const char* getVariant() const U_LIFETIME_BOUND {
+            return variantBegin == 0 ? "" : getBaseName() + variantBegin;
+        }
+        const char* getBaseName() const U_LIFETIME_BOUND { return baseName; }
 
         // Doesn't inherit from UMemory, shouldn't be heap allocated.
         static void* U_EXPORT2 operator new(size_t) noexcept = delete;
@@ -1237,12 +1242,12 @@ private:
         char region[ULOC_COUNTRY_CAPACITY];
         Alloc* ptr;
 
-        const char* getLanguage() const { return language; }
-        const char* getScript() const { return script; }
-        const char* getRegion() const { return region; }
-        const char* getVariant() const;
-        const char* getFullName() const;
-        const char* getBaseName() const;
+        const char* getLanguage() const U_LIFETIME_BOUND { return language; }
+        const char* getScript() const U_LIFETIME_BOUND { return script; }
+        const char* getRegion() const U_LIFETIME_BOUND { return region; }
+        const char* getVariant() const U_LIFETIME_BOUND;
+        const char* getFullName() const U_LIFETIME_BOUND;
+        const char* getBaseName() const U_LIFETIME_BOUND;
 
         // Doesn't inherit from UMemory, shouldn't be heap allocated.
         static void* U_EXPORT2 operator new(size_t) noexcept = delete;
@@ -1254,8 +1259,8 @@ private:
              int32_t variantBegin);
         ~Heap();
 
-        Heap& operator=(const Heap& other);
-        Heap& operator=(Heap&& other) noexcept;
+        Heap& operator=(const Heap& other) U_LIFETIME_BOUND;
+        Heap& operator=(Heap&& other) noexcept U_LIFETIME_BOUND;
     };
     static_assert(sizeof(Heap) <= sizeof(Nest));
 
@@ -1283,15 +1288,15 @@ private:
         Payload(const Payload& other);
         Payload(Payload&& other) noexcept;
 
-        Payload& operator=(const Payload& other);
-        Payload& operator=(Payload&& other) noexcept;
+        Payload& operator=(const Payload& other) U_LIFETIME_BOUND;
+        Payload& operator=(Payload&& other) noexcept U_LIFETIME_BOUND;
 
         void setToBogus();
         bool isBogus() const { return type == eBOGUS; }
 
-        template <typename T, typename... Args> T& emplace(Args&&... args);
+        template <typename T, typename... Args> T& emplace(Args&&... args) U_LIFETIME_BOUND;
 
-        template <typename T> T* get();
+        template <typename T> T* get() U_LIFETIME_BOUND;
 
         template <typename BogusFn, typename NestFn, typename HeapFn, typename... Args>
         auto visit(BogusFn bogusFn, NestFn nestFn, HeapFn heapFn, Args... args) const;
@@ -1307,7 +1312,7 @@ private:
      */
     template <const char* (Nest::*const NEST)() const,
               const char* (Heap::*const HEAP)() const>
-    const char* getField() const;
+    const char* getField() const U_LIFETIME_BOUND;
 
     static const Locale &getLocale(int locid);
 

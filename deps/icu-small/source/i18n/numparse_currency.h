@@ -48,7 +48,7 @@ class U_I18N_API_CLASS CombinedCurrencyMatcher : public NumberParseMatcher, publ
     UnicodeString fCurrency1;
     UnicodeString fCurrency2;
 
-    bool fUseFullCurrencyData;
+    bool fUseFullCurrencyData = false;
     UnicodeString fLocalLongNames[StandardPlural::COUNT];
 
     UnicodeString afterPrefixInsert;

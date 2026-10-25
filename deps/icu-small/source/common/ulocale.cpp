@@ -40,7 +40,7 @@ ulocale_close(ULocale* locale) {
 }
 
 #define IMPL_ULOCALE_STRING_GETTER(N1, N2) \
-const char* ulocale_get ## N1(const ULocale* locale) { \
+const char* ulocale_get ## N1(const ULocale* locale U_LIFETIME_BOUND) { \
     if (locale == nullptr) return nullptr; \
     return CONST_INTERNAL(locale)->get ## N2(); \
 }

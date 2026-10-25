@@ -391,6 +391,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     FormattedStringBuilder tempString;
     NumberFormatterImpl::writeNumber(micros2.simple, data.quantity2, tempString, 0, status);
     length2 += string.insert(UPRV_INDEX_2, tempString, status);
+    if (U_FAILURE(status)) { return; }
 
     // TODO: Support padding?
 
@@ -431,7 +432,8 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
 
 
 const Modifier&
-NumberRangeFormatterImpl::resolveModifierPlurals(const Modifier& first, const Modifier& second) const {
+NumberRangeFormatterImpl::resolveModifierPlurals(const Modifier& first U_LIFETIME_BOUND,
+                                                 const Modifier& second) const {
     Modifier::Parameters parameters;
     first.getParameters(parameters);
     if (parameters.obj == nullptr) {

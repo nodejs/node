@@ -736,7 +736,7 @@ RegionNameEnumeration::RegionNameEnumeration(UVector *nameList, UErrorCode& stat
 }
 
 const UnicodeString*
-RegionNameEnumeration::snext(UErrorCode& status) {
+RegionNameEnumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
   if (U_FAILURE(status) || (fRegionNames==nullptr)) {
     return nullptr;
   }

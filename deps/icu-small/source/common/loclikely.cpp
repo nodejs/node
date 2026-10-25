@@ -418,7 +418,7 @@ GetRegionFromKey(const char* localeID, std::string_view key, UErrorCode& status)
     if (U_SUCCESS(status) && len >= 3 && len <= 6 &&
         uprv_isASCIILetter(kw[0]) && uprv_isASCIILetter(kw[1])) {
         // Additional Check
-        static icu::RegionValidateMap valid;
+        icu::RegionValidateMap valid;
         const char region[] = {kw[0], kw[1], '\0'};
         if (valid.isSet(region)) {
             result.append(uprv_toupper(kw[0]), status);

@@ -120,7 +120,6 @@ public:
      * @param limit offset immediately following the last character to
      * be copied
      * @param target UnicodeString into which to copy characters.
-     * @return A reference to <TT>target</TT>
      * @stable ICU 2.1
      */
     virtual void extractBetween(int32_t start,
