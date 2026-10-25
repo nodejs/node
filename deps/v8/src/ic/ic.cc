@@ -1760,17 +1760,6 @@ KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate,
 Handle<Object> KeyedLoadIC::LoadElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
     MaybeDirectHandle<Map> maybe_transition_target) {
-  // Has a getter interceptor, or is any has and has a query interceptor.
-  if (receiver_map->has_indexed_interceptor() &&
-      (receiver_map->GetIndexedInterceptor()->has_getter() ||
-       (IsAnyHas() && receiver_map->GetIndexedInterceptor()->has_query())) &&
-      !receiver_map->GetIndexedInterceptor()->non_masking()) {
-    // TODO(jgruber): Update counter name.
-    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
-                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
-  }
-
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
@@ -1784,6 +1773,23 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
   if (instance_type == JS_PROXY_TYPE) {
     return LoadHandler::LoadProxy(isolate());
   }
+  if (receiver_map->is_access_check_needed()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
+    return LoadHandler::LoadSlow(isolate());
+  }
+
+  // Has a getter interceptor, or is any has and has a query interceptor.
+  if (receiver_map->has_indexed_interceptor() &&
+      (receiver_map->GetIndexedInterceptor()->has_getter() ||
+       (IsAnyHas() && receiver_map->GetIndexedInterceptor()->has_query())) &&
+      !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    DCHECK(!receiver_map->is_access_check_needed());
+    // TODO(jgruber): Update counter name.
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
+                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     // TODO(jgruber): Update counter name.
@@ -2870,7 +2876,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
-  if (!IsJSObjectMap(*receiver_map)) {
+  if (!IsJSObjectMap(*receiver_map) || receiver_map->is_access_check_needed() ||
+      receiver_map->IsMapInArrayPrototypeChain(isolate())) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
     // should handled by the slow stub below instead of the proxy stub.
     if (IsJSProxyMap(*receiver_map) && !IsDefineKeyedOwnIC()) {

@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_CODE_SERIALIZER_H_
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
+#include <optional>
+
 #include "src/base/macros.h"
 #include "src/codegen/script-details.h"
 #include "src/snapshot/serializer.h"
@@ -57,21 +59,26 @@ typedef v8::ScriptCompiler::CachedData::CompatibilityCheckResult
 // histogram definition.
 static_assert(static_cast<int>(SerializedCodeSanityCheckResult::kLast) == 9);
 
+class CodeSerializer;
+
+struct OffThreadDeserializeData {
+ public:
+  bool HasResult() const { return !maybe_result.is_null(); }
+  DirectHandle<Script> GetOnlyScript(LocalHeap* heap);
+
+ private:
+  friend class CodeSerializer;
+  friend class SerializedCodeData;
+  MaybeIndirectHandle<SharedFunctionInfo> maybe_result;
+  std::vector<IndirectHandle<Script>> scripts;
+  std::unique_ptr<PersistentHandles> persistent_handles;
+  SerializedCodeSanityCheckResult sanity_check_result =
+      SerializedCodeSanityCheckResult::kSuccess;
+  std::optional<SerializedCodeSanityCheckResult> source_sanity_check_result;
+};
+
 class CodeSerializer : public Serializer {
  public:
-  struct OffThreadDeserializeData {
-   public:
-    bool HasResult() const { return !maybe_result.is_null(); }
-    DirectHandle<Script> GetOnlyScript(LocalHeap* heap);
-
-   private:
-    friend class CodeSerializer;
-    MaybeIndirectHandle<SharedFunctionInfo> maybe_result;
-    std::vector<IndirectHandle<Script>> scripts;
-    std::unique_ptr<PersistentHandles> persistent_handles;
-    SerializedCodeSanityCheckResult sanity_check_result;
-  };
-
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
@@ -85,9 +92,14 @@ class CodeSerializer : public Serializer {
               DirectHandle<String> source, const ScriptDetails& script_details,
               MaybeDirectHandle<Script> maybe_cached_script = {});
 
-  V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
-  StartDeserializeOffThread(LocalIsolate* isolate,
-                            AlignedCachedData* cached_data);
+  static void StartDeserializeOffThread(LocalIsolate* isolate,
+                                        AlignedCachedData* cached_data,
+                                        OffThreadDeserializeData* data);
+
+  V8_WARN_UNUSED_RESULT static bool NotifySourceTextAvailable(
+      Isolate* isolate, OffThreadDeserializeData* data,
+      const AlignedCachedData* cached_data, DirectHandle<String> source,
+      const ScriptDetails& script_details);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<SharedFunctionInfo>
   FinishOffThreadDeserialize(
@@ -140,7 +152,9 @@ class SerializedCodeData : public SerializedData {
   // FromCachedDataWithoutSource. The rejection result from that call should be
   // passed into this one.
   static SerializedCodeData FromPartiallySanityCheckedCachedData(
-      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      Isolate* isolate, AlignedCachedData* cached_data,
+      const OffThreadDeserializeData& data, DirectHandle<String> source,
+      const ScriptDetails& script_details,
       SerializedCodeSanityCheckResult* rejection_result);
 
   // Used when producing.
@@ -157,7 +171,8 @@ class SerializedCodeData : public SerializedData {
                              ScriptOriginOptions origin_options);
 
  private:
-  explicit SerializedCodeData(AlignedCachedData* data);
+  friend class CodeSerializer;
+  explicit SerializedCodeData(const AlignedCachedData* data);
   SerializedCodeData(const uint8_t* data, int size)
       : SerializedData(const_cast<uint8_t*>(data), size) {}
 
@@ -169,6 +184,9 @@ class SerializedCodeData : public SerializedData {
   SerializedCodeSanityCheckResult SanityCheck(
       uint32_t expected_ro_snapshot_checksum,
       uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheckJustSource(
+      Isolate* isolate, DirectHandle<String> source,
+      const ScriptDetails& script_details) const;
   SerializedCodeSanityCheckResult SanityCheckJustSource(
       uint32_t expected_source_hash) const;
   SerializedCodeSanityCheckResult SanityCheckWithoutSource(

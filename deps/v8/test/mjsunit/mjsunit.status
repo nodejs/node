@@ -2943,6 +2943,7 @@
   'regress/wasm/regress-543901836': [SKIP],
   'regress/wasm/regress-560536735': [SKIP],
   'regress/wasm/regress-561660149': [SKIP],
+  'regress/wasm/regress-574223268': [SKIP],
   'compiler/regress-347724915': [SKIP],
   'regress/regress-crbug-418520151': [SKIP],
   'regress/regress-535000102': [SKIP],

@@ -9110,16 +9110,21 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
         sub_graph.GotoOrTrim(&*object_case);
         sub_graph.Bind(&*object_case);
       }
-      any_successful |= (!build_kind_specific(kind).IsDoneWithAbort());
+      ReduceResult result = build_kind_specific(kind);
       if (IsSmiElementsKind(kind) && make_smi_fallthrough_to_object) {
         // After building the SMI specific parts (see build_kind_specific call
         // above), jump to the beginning of the case for the object elements
         // kind.
         DCHECK(object_case.has_value());
         sub_graph.GotoOrTrim(&*object_case);
+
+        // Whether the Smi case is successful depends on whether the object case
+        // is successful, so don't update any_successful here.
       } else {
         DCHECK(do_return.has_value());
         sub_graph.GotoOrTrim(&*do_return);
+
+        any_successful |= !result.IsDoneWithAbort();
       }
       sub_graph.Bind(&check_next_map);
     } else {
@@ -16971,11 +16976,11 @@ void MaglevGraphBuilder::ProcessMergePointPredecessors(
   ResetBuilderCachedState();
 
   if (merge_state.is_loop()) {
-    DCHECK_EQ(merge_state.predecessors_so_far(),
-              merge_state.predecessor_count() - 1);
+    CHECK_EQ(merge_state.predecessors_so_far(),
+             merge_state.predecessor_count() - 1);
   } else {
-    DCHECK_EQ(merge_state.predecessors_so_far(),
-              merge_state.predecessor_count());
+    CHECK_EQ(merge_state.predecessors_so_far(),
+             merge_state.predecessor_count());
   }
 
   if (merge_state.predecessor_count() == 1) {
