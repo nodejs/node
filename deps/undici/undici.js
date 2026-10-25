@@ -1099,6 +1099,7 @@ var require_fixed_queue = __commonJS({
 var require_pool_base = __commonJS({
   "lib/dispatcher/pool-base.js"(exports2, module2) {
     "use strict";
+    var { AsyncResource } = require("node:async_hooks");
     var { PoolStats } = require_stats();
     var DispatcherBase = require_dispatcher_base();
     var FixedQueue = require_fixed_queue();
@@ -1120,6 +1121,19 @@ var require_pool_base = __commonJS({
     var kRemoveClient = /* @__PURE__ */ Symbol("remove client");
     var kRetireClient = /* @__PURE__ */ Symbol("retire client");
     var kRetiring = /* @__PURE__ */ Symbol("retiring clients");
+    var QueuedRequest = class extends AsyncResource {
+      static {
+        __name(this, "QueuedRequest");
+      }
+      constructor(opts, handler) {
+        super("UNDICI_POOL_QUEUED_REQUEST");
+        this.opts = opts;
+        this.handler = handler;
+      }
+      dispatch(dispatcher) {
+        return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler);
+      }
+    };
     function closeClients(pool) {
       const closeAll = [];
       for (let i = 0; i < pool[kClients].length; i++) {
@@ -1158,7 +1172,7 @@ var require_pool_base = __commonJS({
             break;
           }
           this[kQueued]--;
-          needDrain = !client.dispatch(item.opts, item.handler);
+          needDrain = !item.dispatch(client);
         }
         client[kNeedDrain] = needDrain;
         if (needDrain) {
@@ -1190,7 +1204,7 @@ var require_pool_base = __commonJS({
           }
           const item = queue.shift();
           this[kQueued]--;
-          if (!dispatcher.dispatch(item.opts, item.handler)) {
+          if (!item.dispatch(dispatcher)) {
             dispatcher[kNeedDrain] = true;
             this[kOnClientBusy](dispatcher);
             hasDispatcher = this[kHasDispatcher]();
@@ -1287,7 +1301,7 @@ var require_pool_base = __commonJS({
         const dispatcher = this[kGetDispatcher]();
         if (!dispatcher) {
           this[kNeedDrain] = true;
-          this[kQueue].push({ opts, handler });
+          this[kQueue].push(new QueuedRequest(opts, handler));
           this[kQueued]++;
         } else if (!dispatcher.dispatch(opts, handler)) {
           dispatcher[kNeedDrain] = true;
@@ -8632,6 +8646,7 @@ var require_client_h2 = __commonJS({
     var kGoAwayReplayAttempts = /* @__PURE__ */ Symbol("goaway replay attempts");
     var kRefusedStreamRetry = /* @__PURE__ */ Symbol("refused stream retry");
     var MAX_GOAWAY_REPLAY_ATTEMPTS = 1;
+    var MIN_PROBE_TIMEOUT = 1e3;
     var extractBody;
     var http2;
     try {
@@ -8806,6 +8821,9 @@ var require_client_h2 = __commonJS({
         // Armed while the peer advertises MAX_CONCURRENT_STREAMS = 0 and we have
         // work that cannot start. See setNoStreamsTimeout.
         noStreamsTimeout: null,
+        // Armed while a PING checks whether the peer is still there after a
+        // stream timed out. See probeHttp2Session.
+        probeTimeout: null,
         // Sockets start out ref'd. Session ref/unref proxies to the socket, so a
         // single cached flag lets us skip redundant uv ref/unref calls, provided
         // every ref/unref of the session or its socket goes through
@@ -8873,6 +8891,9 @@ var require_client_h2 = __commonJS({
         */
         busy(request) {
           if (session[kRemoteSettings] === false && client[kRunning] > 0) {
+            return true;
+          }
+          if (session[kHTTP2SessionState].probeTimeout != null) {
             return true;
           }
           if (client[kRunning] >= client[kMaxConcurrentStreams]) {
@@ -8966,6 +8987,45 @@ var require_client_h2 = __commonJS({
       resetHttp2Session(session, err);
     }
     __name(onNoStreamsTimeout, "onNoStreamsTimeout");
+    function probeHttp2Session(session, timeout) {
+      const state = session[kHTTP2SessionState];
+      if (state.probeTimeout != null || session.closed || session.destroyed) {
+        return;
+      }
+      try {
+        session.ping(onHttp2ProbeAck.bind(session));
+      } catch {
+        return;
+      }
+      state.probeTimeout = setTimeout(onHttp2ProbeTimeout, Math.max(timeout, MIN_PROBE_TIMEOUT), session).unref();
+    }
+    __name(probeHttp2Session, "probeHttp2Session");
+    function clearHttp2ProbeTimeout(session) {
+      const state = session[kHTTP2SessionState];
+      if (state?.probeTimeout != null) {
+        clearTimeout(state.probeTimeout);
+        state.probeTimeout = null;
+      }
+    }
+    __name(clearHttp2ProbeTimeout, "clearHttp2ProbeTimeout");
+    function onHttp2ProbeAck() {
+      if (this[kHTTP2SessionState].probeTimeout == null) {
+        return;
+      }
+      clearHttp2ProbeTimeout(this);
+      this[kClient][kResume]();
+    }
+    __name(onHttp2ProbeAck, "onHttp2ProbeAck");
+    function onHttp2ProbeTimeout(session) {
+      session[kHTTP2SessionState].probeTimeout = null;
+      if (session.closed || session.destroyed) {
+        return;
+      }
+      const err = new SocketError("HTTP/2: connection unresponsive", util.getSocketInfo(session[kSocket]));
+      session[kError] = err;
+      resetHttp2Session(session, err);
+    }
+    __name(onHttp2ProbeTimeout, "onHttp2ProbeTimeout");
     function clearHttp2IdleTimeout(session) {
       const state = session[kHTTP2SessionState];
       if (state?.idleTimeout != null) {
@@ -9109,6 +9169,7 @@ var require_client_h2 = __commonJS({
       }
       clearHttp2IdleTimeout(this);
       clearNoStreamsTimeout(this);
+      clearHttp2ProbeTimeout(this);
       if (!this.closed && !this.destroyed) {
         this.close();
       }
@@ -9127,6 +9188,7 @@ var require_client_h2 = __commonJS({
       }
       clearHttp2IdleTimeout(this);
       clearNoStreamsTimeout(this);
+      clearHttp2ProbeTimeout(this);
       if (state.ping.interval != null) {
         clearInterval(state.ping.interval);
         state.ping.interval = null;
@@ -9747,7 +9809,9 @@ var require_client_h2 = __commonJS({
         return;
       }
       stream.off("timeout", onTimeout);
-      const err = state.responseReceived ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`) : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`);
+      const { responseReceived, session, bodyTimeout, headersTimeout } = state;
+      const err = responseReceived ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${bodyTimeout}"`) : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`);
+      probeHttp2Session(session, responseReceived ? bodyTimeout : headersTimeout);
       state.abort(err);
     }
     __name(onTimeout, "onTimeout");
