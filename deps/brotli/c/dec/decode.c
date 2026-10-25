@@ -1317,7 +1317,7 @@ DecodeDistanceBlockSwitch(BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(0, s);
 }
 
-static BROTLI_BOOL BROTLI_NOINLINE SafeDecodeDistanceBlockSwitch(
+static BROTLI_NOINLINE BrotliDecoderErrorCode SafeDecodeDistanceBlockSwitch(
     BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(1, s);
 }
