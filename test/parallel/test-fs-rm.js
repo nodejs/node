@@ -490,10 +490,9 @@ if (isGitPresent) {
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
     function makeDirectoryReadOnly(dir, allowExecute) {
-      let accessErrorCode = 'EACCES';
-      if (common.isMacOS && allowExecute) {
-        accessErrorCode = 'ENOTEMPTY';
-      }
+      // With libc++ before LLVM 23 remove_all() reports the parent's ENOTEMPTY
+      // over the child's EACCES: https://github.com/llvm/llvm-project/pull/197104
+      let accessErrorCode = allowExecute ? /^(EACCES|ENOTEMPTY)$/ : 'EACCES';
       if (common.isWindows) {
         accessErrorCode = 'EPERM';
         const permissions = ['DE', 'DC'];

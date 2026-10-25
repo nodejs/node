@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ namespace ELF {
 
 /// This class represents the `GNU_PROPERTY_AARCH64_FEATURE_PAUTH` property.
 ///
-/// \note If both: AArch64PAuth::platform and AArch64PAuth::version are set to
+/// @note If both AArch64PAuth::platform and AArch64PAuth::version are set to
 /// 0, this means that the binary is incompatible with PAuth ABI extension.
 class LIEF_API AArch64PAuth : public NoteGnuProperty::Property {
   public:
@@ -50,20 +50,18 @@ class LIEF_API AArch64PAuth : public NoteGnuProperty::Property {
 
   static std::unique_ptr<AArch64PAuth> create(BinaryStream& stream);
 
-  void dump(std::ostream &os) const override;
+  void dump(std::ostream& os) const override;
 
   ~AArch64PAuth() override = default;
 
   protected:
   AArch64PAuth() :
-    NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_PAUTH)
-  {}
+    NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_PAUTH) {}
 
   AArch64PAuth(uint64_t platform, uint64_t version) :
     NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_PAUTH),
     platform_(platform),
-    version_(version)
-  {}
+    version_(version) {}
 
   uint64_t platform_ = 0;
   uint64_t version_ = 0;

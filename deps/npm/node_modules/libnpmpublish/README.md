@@ -53,11 +53,15 @@ A couple of options of note:
 
 * `opts.provenance` - when running in a supported CI environment, will trigger
   the generation of a signed provenance statement to be published alongside
-  the package. Mutually exclusive with the `provenanceFile` option.
+  the package. Mutually exclusive with the `provenanceFile` option; providing
+  both will throw an `EUSAGE` error. In the npm CLI's trusted
+  publishing flows, automatic provenance generation is skipped when
+  `provenanceFile` is supplied.
 
 * `opts.provenanceFile` - specifies the path to an externally-generated
   provenance statement to be published alongside the package. Mutually
-  exclusive with the `provenance` option. The specified file should be a
+  exclusive with the `provenance` option; providing both will throw an
+  `EUSAGE` error. The specified file should be a
   [Sigstore Bundle](https://github.com/sigstore/protobuf-specs/blob/main/protos/sigstore_bundle.proto)
   containing a [DSSE](https://github.com/secure-systems-lab/dsse)-packaged
   provenance statement.

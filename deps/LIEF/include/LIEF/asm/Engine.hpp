@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #define LIEF_ASM_ENGINE_H
 #include "LIEF/visibility.h"
 #include "LIEF/iterators.hpp"
+#include "LIEF/compiler_attributes.hpp"
 
 #include "LIEF/asm/Instruction.hpp"
 #include "LIEF/asm/AssemblerConfig.hpp"
@@ -51,34 +52,34 @@ class LIEF_API Engine {
   /// parameter.
   instructions_it disassemble(const uint8_t* buffer, size_t size, uint64_t addr);
 
-  /// Disassemble the given vector of bytes with the address specified in the second
-  /// parameter.
+  /// Disassemble the given vector of bytes with the address specified in the
+  /// second parameter.
   instructions_it disassemble(const std::vector<uint8_t>& bytes, uint64_t addr) {
     return disassemble(bytes.data(), bytes.size(), addr);
   }
 
-  std::vector<uint8_t> assemble(uint64_t address, const std::string& Asm,
-      AssemblerConfig& config = AssemblerConfig::default_config());
+  std::vector<uint8_t>
+      assemble(uint64_t address, const std::string& Asm,
+               AssemblerConfig& config = AssemblerConfig::default_config());
 
-  std::vector<uint8_t> assemble(uint64_t address, const std::string& Asm,
-      LIEF::Binary& bin, AssemblerConfig& config = AssemblerConfig::default_config());
+  std::vector<uint8_t>
+      assemble(uint64_t address, const std::string& Asm, LIEF::Binary& bin,
+               AssemblerConfig& config = AssemblerConfig::default_config());
 
-  std::vector<uint8_t> assemble(uint64_t address, const llvm::MCInst& inst,
-                                LIEF::Binary& bin);
+  std::vector<uint8_t> assemble(const llvm::MCInst& inst);
 
-  std::vector<uint8_t> assemble(
-      uint64_t address, const std::vector<llvm::MCInst>& inst, LIEF::Binary& bin);
+  std::vector<uint8_t> assemble(const std::vector<llvm::MCInst>& inst);
 
   ~Engine();
 
-  /// \private
-  LIEF_LOCAL const details::Engine& impl() const {
+  /// @private
+  LIEF_LOCAL const details::Engine& impl() const LIEF_LIFETIMEBOUND {
     assert(impl_ != nullptr);
     return *impl_;
   }
 
-  /// \private
-  LIEF_LOCAL details::Engine& impl() {
+  /// @private
+  LIEF_LOCAL details::Engine& impl() LIEF_LIFETIMEBOUND {
     assert(impl_ != nullptr);
     return *impl_;
   }

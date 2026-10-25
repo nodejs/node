@@ -160,6 +160,8 @@ in this example, there are two run attempts, with two tests defined in `test.js`
 the first test succeeded on the first attempt, and the second test succeeded on the second attempt.
 
 When the `--test-rerun-failures` option is used, the test runner will only run tests that have not yet passed.
+A `todo` test that fails counts as not yet passed and is rerun, even though its failure does not
+cause the test run to fail.
 
 ```bash
 node --test-rerun-failures /path/to/state/file
@@ -488,8 +490,8 @@ added: v24.19.0
 
 Tags annotate tests and suites with arbitrary string labels. The
 [`--experimental-test-tag-filter`][] CLI flag (or the `testTagFilters`
-option on [`run()`][]) selects tests whose tag set contains every
-provided filter value.
+option on [`run()`][]) selects tests by a boolean expression over those
+labels.
 
 Tags are an alternative to encoding metadata into test names. They are
 useful for cross-cutting axes such as subsystem, speed bucket, flakiness,
@@ -522,37 +524,89 @@ describe('database', { tags: ['db'] }, () => {
 });
 ```
 
-Tag values must be non-empty strings. Tags are matched case-insensitively;
-the canonical form is lowercase. Duplicates within a single `tags` array
-are collapsed on the lowercased form, preserving the first-seen
-declaration order.
+Tag values must be non-empty strings that contain no whitespace, no
+operator characters (`& | ! ( ) *`), and are not the reserved words
+`'and'`, `'or'`, or `'not'` in any casing. Tags are matched
+case-insensitively; the canonical form is lowercase. Duplicates within a
+single `tags` array are collapsed on the lowercased form, preserving the
+first-seen declaration order.
 
 Hooks (`before`, `after`, `beforeEach`, `afterEach`) do not declare their
 own tags. They run as part of their owning suite, which carries the
 suite's tags.
 
-### Filtering by tag
+### Filtering syntax
 
-Each [`--experimental-test-tag-filter`][] value is a literal tag name. A
-test runs only when its tag set contains that name. The flag may be
-specified more than once; tests must match **every** filter to run. The
-same applies to the `testTagFilters` array on [`run()`][]. Filters are
-case-insensitive and AND'd with [`--test-name-pattern`][],
-[`--test-skip-pattern`][], and `.only` filtering.
+The filter expression supports:
 
-Untagged tests are excluded under any non-empty filter, since the filter
-requires the tag to be present.
+* Identifiers—any non-whitespace, non-operator characters. A literal
+  identifier matches a tag of the same value (case-insensitive).
+* `*` wildcards inside an identifier match any sequence of characters.
+  A bare `*` matches any tagged test.
+* Boolean operators with two equivalent forms:
+  * `and` / `&&`
+  * `or` / `||`
+  * `not` / `!`
+* Parentheses for grouping.
 
-### Reading tags from inside a test
+The word forms (`and`, `or`, `not`) require whitespace separation; the
+punctuation forms do not.
+
+#### Operator precedence
+
+The expression is evaluated with the standard precedence
+`not > and > or`. Binary operators are left-associative.
+
+| Expression     | Equivalent grouping |
+| -------------- | ------------------- |
+| `a or b and c` | `a or (b and c)`    |
+| `not a and b`  | `(not a) and b`     |
+
+Use parentheses to override:
+
+| Expression                     | Selects                                    |
+| ------------------------------ | ------------------------------------------ |
+| `(unit or smoke) and not slow` | unit-or-smoke tests that are not also slow |
+| `db && !flaky`                 | db tests that are not flaky                |
+| `*`                            | every tagged test                          |
+
+#### Untagged tests
+
+Untagged tests behave as if they have an empty tag set. As a result:
+
+| Filter expression        | Untagged test | Why                                              |
+| ------------------------ | ------------- | ------------------------------------------------ |
+| `db`                     | excluded      | Positive match against an empty tag set is false |
+| `*`                      | excluded      | The bare wildcard requires at least one tag      |
+| `db or unit`             | excluded      | Both branches are false against an empty tag set |
+| `not flaky`              | included      | Negation against an empty tag set is true        |
+| `not flaky and not slow` | included      | Both negations are true against an empty tag set |
+| `db or not flaky`        | included      | The negated branch is true                       |
+
+For example, `--experimental-test-tag-filter='not flaky'` runs every test
+that is not tagged `flaky`, including all untagged tests.
+
+#### Composing multiple filters
+
+[`--experimental-test-tag-filter`][] may be specified more than once on the
+command line. Multiple expressions compose by AND—a test must satisfy
+every expression to run. The same applies to passing an array to
+`testTagFilters` on [`run()`][]. The tag filter is also AND'd with
+[`--test-name-pattern`][], [`--test-skip-pattern`][], and `.only`
+filtering.
+
+#### Reading tags from inside a test
 
 The [`TestContext`][] object exposes the test's tags as a frozen array
 through [`context.tags`][], so tests can branch on their own metadata.
 
-### Errors
+#### Errors
 
 A tag value that violates the validation rules above throws
 `ERR_INVALID_ARG_VALUE` at the registration site, before any test runs.
-A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`.
+A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`. A malformed
+filter expression on the CLI causes the test runner to exit with a
+non-zero status before running any test files.
 
 ## Extraneous asynchronous activity
 
@@ -825,7 +879,7 @@ test runner functionality:
 
 * `--test` - Prevented to avoid recursive test execution
 * `--experimental-test-coverage` - Managed by the test runner
-* `--experimental-test-tag-filter` - Filter values are validated by the parent
+* `--experimental-test-tag-filter` - Filter expressions are validated by the parent
   process and re-emitted to child processes
 * `--watch` - Watch mode is handled at the parent level
 * `--experimental-default-config-file` - Config file loading is handled by the parent
@@ -1737,10 +1791,11 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
-  * `testTagFilters` {string|string\[]} A tag name, or an array of tag names,
-    used to filter tests by their declared tags. Tests must contain every
-    listed tag to run. Equivalent to passing [`--experimental-test-tag-filter`][]
-    on the command line. See [Test tags][]. **Default:** `undefined`.
+  * `testTagFilters` {string|string\[]} A boolean expression, or an array of
+    boolean expressions, used to filter tests by their declared tags.
+    Multiple expressions compose by AND. Equivalent to passing
+    [`--experimental-test-tag-filter`][] on the command line. See
+    [Test tags][]. **Default:** `undefined`.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
@@ -1777,6 +1832,13 @@ changes:
     If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
     files must meet **both** criteria to be included in the coverage report.
     **Default:** `undefined`.
+  * `coverageIncludeAll` {boolean} Includes source files that were never loaded by
+    the test run in the coverage report, where they are reported as having zero
+    coverage. Candidate files are searched for in `cwd`, and are subject to the
+    same `coverageIncludeGlobs` and `coverageExcludeGlobs` filtering as the rest
+    of the report. This property is only applicable when `coverage` was set to
+    `true`.
+    **Default:** `false`.
   * `lineCoverage` {number} Require a minimum percent of covered lines. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
@@ -4272,6 +4334,46 @@ test('test', (t) => {
 });
 ```
 
+#### `context.assert.callCount(fn, times[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `times` {integer} The expected number of calls.
+* `message` {string} Optional error message.
+
+Asserts that the mock function `fn` has been called exactly `times` times.
+
+```js
+test('mock was called twice', (t) => {
+  const fn = t.mock.fn();
+  fn();
+  fn();
+  t.assert.callCount(fn, 2);
+});
+```
+
+#### `context.assert.called(fn[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `message` {string} Optional error message.
+
+Asserts that the mock function `fn` has been called at least once.
+
+```js
+test('mock was called', (t) => {
+  const fn = t.mock.fn();
+  fn();
+  t.assert.called(fn);
+});
+```
+
 #### `context.assert.fileSnapshot(value, path[, options])`
 
 <!-- YAML
@@ -4310,6 +4412,52 @@ This function differs from `context.assert.snapshot()` in the following ways:
 
 These differences allow snapshot files to better support features such as syntax
 highlighting.
+
+#### `context.assert.lastCalledWith(fn[, ...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `...args` {any} The expected arguments.
+
+Asserts that the most recent call to the mock function `fn` received arguments
+deeply and strictly equal to `args`, using the same comparison as
+[`assert.deepStrictEqual()`][].
+
+```js
+test('mock was last called with arguments', (t) => {
+  const fn = t.mock.fn();
+  fn(1);
+  fn(2);
+  t.assert.lastCalledWith(fn, 2);
+});
+```
+
+#### `context.assert.nthCalledWith(fn, n[, ...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `n` {integer} The 1-based index of the call to check.
+* `...args` {any} The expected arguments.
+
+Asserts that the `n`th call to the mock function `fn` received arguments
+deeply and strictly equal to `args`, using the same comparison as
+[`assert.deepStrictEqual()`][]. `n` starts at `1`, so
+`t.assert.nthCalledWith(fn, 1)` checks `fn.mock.calls[0]`.
+
+```js
+test('mock was called with arguments on the second call', (t) => {
+  const fn = t.mock.fn();
+  fn(1);
+  fn(2);
+  t.assert.nthCalledWith(fn, 2, 2);
+});
+```
 
 #### `context.assert.snapshot(value[, options])`
 
@@ -4481,7 +4629,9 @@ The unique identifier of the worker running the current test file. This value is
 derived from the `NODE_TEST_WORKER_ID` environment variable. When running tests
 with `--test-isolation=process` (the default), each test file runs in a separate
 child process and is assigned a worker ID from 1 to N, where N is the number of
-concurrent workers. When running with `--test-isolation=none`, all tests run in
+concurrent workers. A worker ID is never shared by two test files running at the
+same time. Once a test file finishes, its worker ID is reused by the next test
+file that starts. When running with `--test-isolation=none`, all tests run in
 the same process and the worker ID is always 1. This value is `undefined` when
 not running in a test context.
 
@@ -4908,7 +5058,7 @@ test.describe('my suite', (suite) => {
 [`'test:watch:restarted'`]: #event-testwatchrestarted
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
-[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filtertag
+[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filterexpr
 [`--import`]: cli.md#--importmodule
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
@@ -4931,6 +5081,7 @@ test.describe('my suite', (suite) => {
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
+[`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.log`]: #contextlogmessage-data

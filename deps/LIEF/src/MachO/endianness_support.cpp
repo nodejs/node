@@ -1,4 +1,4 @@
-/* Copyright 2021 - 2025 R. Thomas
+/* Copyright 2021 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,9 @@ void swap_endian<MachO::details::mach_header>(MachO::details::mach_header* hdr) 
 }
 
 template<>
-void swap_endian<MachO::details::mach_header_64>(MachO::details::mach_header_64* hdr) {
+void swap_endian<MachO::details::mach_header_64>(
+    MachO::details::mach_header_64* hdr
+) {
   swap_endian(&hdr->magic);
   swap_endian(&hdr->cputype);
   swap_endian(&hdr->cpusubtype);
@@ -47,7 +49,7 @@ void swap_endian<MachO::details::load_command>(MachO::details::load_command* hdr
   swap_endian(&hdr->cmdsize);
 }
 
-template <typename segment_command>
+template<typename segment_command>
 void swap_endian_seg(segment_command* cmd) {
   swap_endian(&cmd->cmd);
   swap_endian(&cmd->cmdsize);
@@ -62,16 +64,20 @@ void swap_endian_seg(segment_command* cmd) {
 }
 
 template<>
-void swap_endian<MachO::details::segment_command_32>(MachO::details::segment_command_32* hdr) {
+void swap_endian<MachO::details::segment_command_32>(
+    MachO::details::segment_command_32* hdr
+) {
   swap_endian_seg(hdr);
 }
 
 template<>
-void swap_endian<MachO::details::segment_command_64>(MachO::details::segment_command_64* hdr) {
+void swap_endian<MachO::details::segment_command_64>(
+    MachO::details::segment_command_64* hdr
+) {
   swap_endian_seg(hdr);
 }
 
-template <typename section>
+template<typename section>
 void swap_endian_sec(section* hdr) {
   swap_endian(&hdr->addr);
   swap_endian(&hdr->size);
@@ -96,7 +102,9 @@ void swap_endian<MachO::details::section_64>(MachO::details::section_64* hdr) {
 }
 
 template<>
-void swap_endian<MachO::details::dylib_command>(MachO::details::dylib_command* hdr) {
+void swap_endian<MachO::details::dylib_command>(
+    MachO::details::dylib_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->name);
@@ -106,35 +114,45 @@ void swap_endian<MachO::details::dylib_command>(MachO::details::dylib_command* h
 }
 
 template<>
-void swap_endian<MachO::details::sub_framework_command>(MachO::details::sub_framework_command* hdr) {
+void swap_endian<MachO::details::sub_framework_command>(
+    MachO::details::sub_framework_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->umbrella);
 }
 
 template<>
-void swap_endian<MachO::details::sub_client_command>(MachO::details::sub_client_command* hdr) {
+void swap_endian<MachO::details::sub_client_command>(
+    MachO::details::sub_client_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->client);
 }
 
 template<>
-void swap_endian<MachO::details::sub_umbrella_command>(MachO::details::sub_umbrella_command* hdr) {
+void swap_endian<MachO::details::sub_umbrella_command>(
+    MachO::details::sub_umbrella_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->sub_umbrella);
 }
 
 template<>
-void swap_endian<MachO::details::sub_library_command>(MachO::details::sub_library_command* hdr) {
+void swap_endian<MachO::details::sub_library_command>(
+    MachO::details::sub_library_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->sub_library);
 }
 
 template<>
-void swap_endian<MachO::details::prebound_dylib_command>(MachO::details::prebound_dylib_command* hdr) {
+void swap_endian<MachO::details::prebound_dylib_command>(
+    MachO::details::prebound_dylib_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->name);
@@ -143,21 +161,25 @@ void swap_endian<MachO::details::prebound_dylib_command>(MachO::details::preboun
 }
 
 template<>
-void swap_endian<MachO::details::dylinker_command>(MachO::details::dylinker_command* hdr) {
+void swap_endian<MachO::details::dylinker_command>(
+    MachO::details::dylinker_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->name);
 }
 
 template<>
-void swap_endian<MachO::details::thread_command>(MachO::details::thread_command* hdr) {
+void swap_endian<MachO::details::thread_command>(
+    MachO::details::thread_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->flavor);
   swap_endian(&hdr->count);
 }
 
-template <typename routine>
+template<typename routine>
 void swap_endian_routine(routine* hdr) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
@@ -172,17 +194,23 @@ void swap_endian_routine(routine* hdr) {
 }
 
 template<>
-void swap_endian<MachO::details::routines_command_32>(MachO::details::routines_command_32* hdr) {
+void swap_endian<MachO::details::routines_command_32>(
+    MachO::details::routines_command_32* hdr
+) {
   return swap_endian_routine(hdr);
 }
 
 template<>
-void swap_endian<MachO::details::routines_command_64>(MachO::details::routines_command_64* hdr) {
+void swap_endian<MachO::details::routines_command_64>(
+    MachO::details::routines_command_64* hdr
+) {
   return swap_endian_routine(hdr);
 }
 
 template<>
-void swap_endian<MachO::details::symtab_command>(MachO::details::symtab_command* hdr) {
+void swap_endian<MachO::details::symtab_command>(
+    MachO::details::symtab_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->symoff);
@@ -192,7 +220,9 @@ void swap_endian<MachO::details::symtab_command>(MachO::details::symtab_command*
 }
 
 template<>
-void swap_endian<MachO::details::dysymtab_command>(MachO::details::dysymtab_command* hdr) {
+void swap_endian<MachO::details::dysymtab_command>(
+    MachO::details::dysymtab_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->ilocalsym);
@@ -216,12 +246,14 @@ void swap_endian<MachO::details::dysymtab_command>(MachO::details::dysymtab_comm
 }
 
 template<>
-void swap_endian<MachO::details::dylib_table_of_contents>(MachO::details::dylib_table_of_contents* hdr) {
+void swap_endian<MachO::details::dylib_table_of_contents>(
+    MachO::details::dylib_table_of_contents* hdr
+) {
   swap_endian(&hdr->symbol_index);
   swap_endian(&hdr->module_index);
 }
 
-template <typename dylib_module>
+template<typename dylib_module>
 void swap_endian_module(dylib_module* hdr) {
   swap_endian(&hdr->module_name);
   swap_endian(&hdr->iextdefsym);
@@ -239,22 +271,30 @@ void swap_endian_module(dylib_module* hdr) {
 }
 
 template<>
-void swap_endian<MachO::details::dylib_module_64>(MachO::details::dylib_module_64* hdr) {
+void swap_endian<MachO::details::dylib_module_64>(
+    MachO::details::dylib_module_64* hdr
+) {
   return swap_endian_module(hdr);
 }
 
 template<>
-void swap_endian<MachO::details::dylib_module_32>(MachO::details::dylib_module_32* hdr) {
+void swap_endian<MachO::details::dylib_module_32>(
+    MachO::details::dylib_module_32* hdr
+) {
   return swap_endian_module(hdr);
 }
 
 template<>
-void swap_endian<MachO::details::dylib_reference>(MachO::details::dylib_reference* hdr) {
-  swap_endian((uint32_t*)hdr);
+void swap_endian<MachO::details::dylib_reference>(
+    MachO::details::dylib_reference* hdr
+) {
+  swap_endian(reinterpret_cast<uint32_t*>(hdr));
 }
 
 template<>
-void swap_endian<MachO::details::twolevel_hints_command>(MachO::details::twolevel_hints_command* hdr) {
+void swap_endian<MachO::details::twolevel_hints_command>(
+    MachO::details::twolevel_hints_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->offset);
@@ -262,13 +302,17 @@ void swap_endian<MachO::details::twolevel_hints_command>(MachO::details::twoleve
 }
 
 template<>
-void swap_endian<MachO::details::twolevel_hint>(MachO::details::twolevel_hint* hdr) {
-  swap_endian((uint32_t*)hdr);
+void swap_endian<MachO::details::twolevel_hint>(
+    MachO::details::twolevel_hint* hdr
+) {
+  swap_endian(reinterpret_cast<uint32_t*>(hdr));
 }
 
 
 template<>
-void swap_endian<MachO::details::prebind_cksum_command>(MachO::details::prebind_cksum_command* hdr) {
+void swap_endian<MachO::details::prebind_cksum_command>(
+    MachO::details::prebind_cksum_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->cksum);
@@ -281,14 +325,18 @@ void swap_endian<MachO::details::uuid_command>(MachO::details::uuid_command* hdr
 }
 
 template<>
-void swap_endian<MachO::details::rpath_command>(MachO::details::rpath_command* hdr) {
+void swap_endian<MachO::details::rpath_command>(
+    MachO::details::rpath_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->path);
 }
 
 template<>
-void swap_endian<MachO::details::linkedit_data_command>(MachO::details::linkedit_data_command* hdr) {
+void swap_endian<MachO::details::linkedit_data_command>(
+    MachO::details::linkedit_data_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->dataoff);
@@ -296,21 +344,36 @@ void swap_endian<MachO::details::linkedit_data_command>(MachO::details::linkedit
 }
 
 template<>
-void swap_endian<MachO::details::data_in_code_entry>(MachO::details::data_in_code_entry* hdr) {
+void swap_endian<MachO::details::data_in_code_entry>(
+    MachO::details::data_in_code_entry* hdr
+) {
   swap_endian(&hdr->offset);
   swap_endian(&hdr->length);
   swap_endian(&hdr->kind);
 }
 
 template<>
-void swap_endian<MachO::details::source_version_command>(MachO::details::source_version_command* hdr) {
+void swap_endian<MachO::details::note_command>(MachO::details::note_command* hdr) {
+  swap_endian(&hdr->cmd);
+  swap_endian(&hdr->cmdsize);
+  // hdr->data_owner is a raw char array: skip byte-swapped.
+  swap_endian(&hdr->offset);
+  swap_endian(&hdr->size);
+}
+
+template<>
+void swap_endian<MachO::details::source_version_command>(
+    MachO::details::source_version_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->version);
 }
 
 template<>
-void swap_endian<MachO::details::encryption_info_command>(MachO::details::encryption_info_command* hdr) {
+void swap_endian<MachO::details::encryption_info_command>(
+    MachO::details::encryption_info_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->cryptoff);
@@ -319,7 +382,9 @@ void swap_endian<MachO::details::encryption_info_command>(MachO::details::encryp
 }
 
 template<>
-void swap_endian<MachO::details::version_min_command>(MachO::details::version_min_command* hdr) {
+void swap_endian<MachO::details::version_min_command>(
+    MachO::details::version_min_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->version);
@@ -327,7 +392,9 @@ void swap_endian<MachO::details::version_min_command>(MachO::details::version_mi
 }
 
 template<>
-void swap_endian<MachO::details::build_version_command>(MachO::details::build_version_command* hdr) {
+void swap_endian<MachO::details::build_version_command>(
+    MachO::details::build_version_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->platform);
@@ -337,13 +404,17 @@ void swap_endian<MachO::details::build_version_command>(MachO::details::build_ve
 }
 
 template<>
-void swap_endian<MachO::details::build_tool_version>(MachO::details::build_tool_version* hdr) {
+void swap_endian<MachO::details::build_tool_version>(
+    MachO::details::build_tool_version* hdr
+) {
   swap_endian(&hdr->tool);
   swap_endian(&hdr->version);
 }
 
 template<>
-void swap_endian<MachO::details::dyld_info_command>(MachO::details::dyld_info_command* hdr) {
+void swap_endian<MachO::details::dyld_info_command>(
+    MachO::details::dyld_info_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->rebase_off);
@@ -359,14 +430,18 @@ void swap_endian<MachO::details::dyld_info_command>(MachO::details::dyld_info_co
 }
 
 template<>
-void swap_endian<MachO::details::linker_option_command>(MachO::details::linker_option_command* hdr) {
+void swap_endian<MachO::details::linker_option_command>(
+    MachO::details::linker_option_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->count);
 }
 
 template<>
-void swap_endian<MachO::details::symseg_command>(MachO::details::symseg_command* hdr) {
+void swap_endian<MachO::details::symseg_command>(
+    MachO::details::symseg_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->offset);
@@ -374,13 +449,17 @@ void swap_endian<MachO::details::symseg_command>(MachO::details::symseg_command*
 }
 
 template<>
-void swap_endian<MachO::details::ident_command>(MachO::details::ident_command* hdr) {
+void swap_endian<MachO::details::ident_command>(
+    MachO::details::ident_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
 }
 
 template<>
-void swap_endian<MachO::details::fvmfile_command>(MachO::details::fvmfile_command* hdr) {
+void swap_endian<MachO::details::fvmfile_command>(
+    MachO::details::fvmfile_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->name);
@@ -388,7 +467,9 @@ void swap_endian<MachO::details::fvmfile_command>(MachO::details::fvmfile_comman
 }
 
 template<>
-void swap_endian<MachO::details::entry_point_command>(MachO::details::entry_point_command* hdr) {
+void swap_endian<MachO::details::entry_point_command>(
+    MachO::details::entry_point_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->entryoff);
@@ -396,7 +477,9 @@ void swap_endian<MachO::details::entry_point_command>(MachO::details::entry_poin
 }
 
 template<>
-void swap_endian<MachO::details::fileset_entry_command>(MachO::details::fileset_entry_command* hdr) {
+void swap_endian<MachO::details::fileset_entry_command>(
+    MachO::details::fileset_entry_command* hdr
+) {
   swap_endian(&hdr->cmd);
   swap_endian(&hdr->cmdsize);
   swap_endian(&hdr->vmaddr);
@@ -406,7 +489,9 @@ void swap_endian<MachO::details::fileset_entry_command>(MachO::details::fileset_
 }
 
 template<>
-void swap_endian<MachO::details::relocation_info>(MachO::details::relocation_info* hdr) {
+void swap_endian<MachO::details::relocation_info>(
+    MachO::details::relocation_info* hdr
+) {
   struct mirror_t {
     int32_t A;
     uint32_t B;
@@ -417,7 +502,9 @@ void swap_endian<MachO::details::relocation_info>(MachO::details::relocation_inf
 }
 
 template<>
-void swap_endian<MachO::details::scattered_relocation_info>(MachO::details::scattered_relocation_info* hdr) {
+void swap_endian<MachO::details::scattered_relocation_info>(
+    MachO::details::scattered_relocation_info* hdr
+) {
   struct mirror_t {
     int32_t A;
     uint32_t B;
@@ -426,7 +513,7 @@ void swap_endian<MachO::details::scattered_relocation_info>(MachO::details::scat
   swap_endian(&mirror->A);
 }
 
-template <typename nlist>
+template<typename nlist>
 void swap_endian_nlist(nlist* hdr) {
   swap_endian(&hdr->n_strx);
   swap_endian(&hdr->n_type);
@@ -446,7 +533,9 @@ void swap_endian<MachO::details::nlist_64>(MachO::details::nlist_64* hdr) {
 }
 
 template<>
-void swap_endian<MachO::details::x86_thread_state64_t>(MachO::details::x86_thread_state64_t* hdr) {
+void swap_endian<MachO::details::x86_thread_state64_t>(
+    MachO::details::x86_thread_state64_t* hdr
+) {
   swap_endian(&hdr->rax);
   swap_endian(&hdr->rbx);
   swap_endian(&hdr->rcx);
@@ -471,7 +560,9 @@ void swap_endian<MachO::details::x86_thread_state64_t>(MachO::details::x86_threa
 }
 
 template<>
-void swap_endian<MachO::details::x86_thread_state_t>(MachO::details::x86_thread_state_t* hdr) {
+void swap_endian<MachO::details::x86_thread_state_t>(
+    MachO::details::x86_thread_state_t* hdr
+) {
   swap_endian(&hdr->eax);
   swap_endian(&hdr->ebx);
   swap_endian(&hdr->ecx);
@@ -491,7 +582,9 @@ void swap_endian<MachO::details::x86_thread_state_t>(MachO::details::x86_thread_
 }
 
 template<>
-void swap_endian<MachO::details::arm_thread_state_t>(MachO::details::arm_thread_state_t* hdr) {
+void swap_endian<MachO::details::arm_thread_state_t>(
+    MachO::details::arm_thread_state_t* hdr
+) {
   swap_endian(&hdr->r0);
   swap_endian(&hdr->r1);
   swap_endian(&hdr->r2);
@@ -512,9 +605,11 @@ void swap_endian<MachO::details::arm_thread_state_t>(MachO::details::arm_thread_
 }
 
 template<>
-void swap_endian<MachO::details::arm_thread_state64_t>(MachO::details::arm_thread_state64_t* hdr) {
-  for (size_t i = 0; i < 29; ++i) {
-    swap_endian(&hdr->x[i]);
+void swap_endian<MachO::details::arm_thread_state64_t>(
+    MachO::details::arm_thread_state64_t* hdr
+) {
+  for (uint64_t& i : hdr->x) {
+    swap_endian(&i);
   }
   swap_endian(&hdr->fp);
   swap_endian(&hdr->lr);
@@ -524,11 +619,13 @@ void swap_endian<MachO::details::arm_thread_state64_t>(MachO::details::arm_threa
 }
 
 template<>
-void swap_endian<MachO::details::ppc_thread_state64_t>(MachO::details::ppc_thread_state64_t* hdr) {
+void swap_endian<MachO::details::ppc_thread_state64_t>(
+    MachO::details::ppc_thread_state64_t* hdr
+) {
   swap_endian(&hdr->srr0);
   swap_endian(&hdr->srr1);
-  for (size_t i = 0; i < 32; ++i) {
-    swap_endian(&hdr->r[i]);
+  for (uint64_t& i : hdr->r) {
+    swap_endian(&i);
   }
   swap_endian(&hdr->cr);
   swap_endian(&hdr->xer);
@@ -538,11 +635,13 @@ void swap_endian<MachO::details::ppc_thread_state64_t>(MachO::details::ppc_threa
 }
 
 template<>
-void swap_endian<MachO::details::ppc_thread_state_t>(MachO::details::ppc_thread_state_t* hdr) {
+void swap_endian<MachO::details::ppc_thread_state_t>(
+    MachO::details::ppc_thread_state_t* hdr
+) {
   swap_endian(&hdr->srr0);
   swap_endian(&hdr->srr1);
-  for (size_t i = 0; i < 32; ++i) {
-    swap_endian(&hdr->r[i]);
+  for (unsigned int& i : hdr->r) {
+    swap_endian(&i);
   }
   swap_endian(&hdr->cr);
   swap_endian(&hdr->xer);

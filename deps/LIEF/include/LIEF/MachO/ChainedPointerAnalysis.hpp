@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,16 +30,18 @@ namespace MachO {
 class LIEF_API ChainedPointerAnalysis {
   public:
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E
-  struct dyld_chained_ptr_arm64e_rebase_t
-  {
+  struct dyld_chained_ptr_arm64e_rebase_t {
+    // clang-format off
     uint64_t  target : 43,
               high8  :  8,
               next   : 11,
               bind   :  1,
               auth   :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_rebase_t& chain);
 
     uint64_t unpack_target() const {
       return uint64_t(high8) | target;
@@ -47,22 +49,23 @@ class LIEF_API ChainedPointerAnalysis {
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E
-  struct dyld_chained_ptr_arm64e_bind_t
-  {
+  struct dyld_chained_ptr_arm64e_bind_t {
+    // clang-format off
     uint64_t  ordinal : 16,
               zero    : 16,
               addend  : 19,
               next    : 11,
               bind    :  1,
               auth    :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_bind_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_bind_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E
-  struct dyld_chained_ptr_arm64e_auth_rebase_t
-  {
+  struct dyld_chained_ptr_arm64e_auth_rebase_t {
+    // clang-format off
     uint64_t  target    : 32,
               diversity : 16,
               addr_div  :  1,
@@ -70,14 +73,16 @@ class LIEF_API ChainedPointerAnalysis {
               next      : 11,
               bind      :  1,
               auth      :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_auth_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_auth_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E
-  struct dyld_chained_ptr_arm64e_auth_bind_t
-  {
+  struct dyld_chained_ptr_arm64e_auth_bind_t {
+    // clang-format off
     uint64_t  ordinal   : 16,
               zero      : 16,
               diversity : 16,
@@ -86,22 +91,25 @@ class LIEF_API ChainedPointerAnalysis {
               next      : 11,
               bind      :  1,
               auth      :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_auth_bind_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_auth_bind_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_64 & DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET
-  struct dyld_chained_ptr_64_rebase_t
-  {
+  struct dyld_chained_ptr_64_rebase_t {
+    // clang-format off
     uint64_t  target    : 36,
               high8     :  8,
               reserved  :  7,
               next      : 12,
               bind      :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_64_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os, const dyld_chained_ptr_64_rebase_t& chain);
 
     uint64_t unpack_target() const {
       return uint64_t(high8) | target;
@@ -109,22 +117,24 @@ class LIEF_API ChainedPointerAnalysis {
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24
-  struct dyld_chained_ptr_arm64e_bind24_t
-  {
+  struct dyld_chained_ptr_arm64e_bind24_t {
+    // clang-format off
     uint64_t    ordinal : 24,
                 zero    :  8,
                 addend  : 19,
                 next    : 11,
                 bind    :  1,
                 auth    :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_bind24_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_bind24_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24
-  struct dyld_chained_ptr_arm64e_auth_bind24_t
-  {
+  struct dyld_chained_ptr_arm64e_auth_bind24_t {
+    // clang-format off
     uint64_t  ordinal   : 24,
               zero      :  8,
               diversity : 16,
@@ -133,27 +143,30 @@ class LIEF_API ChainedPointerAnalysis {
               next      : 11,
               bind      :  1,
               auth      :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_auth_bind24_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_auth_bind24_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_64
-  struct dyld_chained_ptr_64_bind_t
-  {
+  struct dyld_chained_ptr_64_bind_t {
+    // clang-format off
     uint64_t  ordinal   : 24,
               addend    :  8,
               reserved  : 19,
               next      : 12,
               bind      :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_64_bind_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os, const dyld_chained_ptr_64_bind_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_64_KERNEL_CACHE
-  struct dyld_chained_ptr_64_kernel_cache_rebase_t
-  {
+  struct dyld_chained_ptr_64_kernel_cache_rebase_t {
+    // clang-format off
     uint64_t  target      : 30,
               cache_level :  2,
               diversity   : 16,
@@ -161,70 +174,80 @@ class LIEF_API ChainedPointerAnalysis {
               key         :  2,
               next        : 12,
               is_auth     :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_64_kernel_cache_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_64_kernel_cache_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_32
-  struct dyld_chained_ptr_32_rebase_t
-  {
+  struct dyld_chained_ptr_32_rebase_t {
+    // clang-format off
     uint32_t  target : 26,
               next   :  5,
               bind   :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_32_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os, const dyld_chained_ptr_32_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_32
-  struct dyld_chained_ptr_32_bind_t
-  {
+  struct dyld_chained_ptr_32_bind_t {
+    // clang-format off
     uint32_t  ordinal : 20,
               addend  :  6,
               next    :  5,
               bind    :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_32_bind_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os, const dyld_chained_ptr_32_bind_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE
-  struct dyld_chained_ptr_32_cache_rebase_t
-  {
+  struct dyld_chained_ptr_32_cache_rebase_t {
+    // clang-format off
     uint32_t  target : 30,
               next   :  2;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_32_cache_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_32_cache_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_FORMAT::PTR_32_FIRMWARE
-  struct dyld_chained_ptr_32_firmware_rebase_t
-  {
+  struct dyld_chained_ptr_32_firmware_rebase_t {
+    // clang-format off
     uint32_t  target : 26,
               next   :  6;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_32_firmware_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_32_firmware_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_ARM64E_SEGMENTED
-  struct dyld_chained_ptr_arm64e_segmented_rebase_t
-  {
+  struct dyld_chained_ptr_arm64e_segmented_rebase_t {
+    // clang-format off
     uint32_t    target_seg_offset : 28,
                 target_seg_index  :  4;
     uint32_t    padding           : 19,
                 next              : 12,
                 auth              :  1;
+    // clang-format on
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_segmented_rebase_t& chain);
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_segmented_rebase_t& chain);
   };
 
   // DYLD_CHAINED_PTR_ARM64E_SEGMENTED
-  struct dyld_chained_ptr_arm64e_auth_segmented_rebase_t
-  {
+  struct dyld_chained_ptr_arm64e_auth_segmented_rebase_t {
+    // clang-format off
       uint32_t    target_seg_offset : 28,
                   target_seg_index  :  4;
       uint32_t    diversity         : 16,
@@ -232,8 +255,11 @@ class LIEF_API ChainedPointerAnalysis {
                   key               :  2,
                   next              : 12,
                   auth              :  1;
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const dyld_chained_ptr_arm64e_auth_segmented_rebase_t& chain);
+    // clang-format on
+
+    friend LIEF_API std::ostream&
+        operator<<(std::ostream& os,
+                   const dyld_chained_ptr_arm64e_auth_segmented_rebase_t& chain);
   };
 
 
@@ -257,68 +283,60 @@ class LIEF_API ChainedPointerAnalysis {
   };
 
   static std::unique_ptr<ChainedPointerAnalysis> from_value(uint64_t value,
-                                                            size_t size)
-  {
+                                                            size_t size) {
     return std::unique_ptr<ChainedPointerAnalysis>(
-        new ChainedPointerAnalysis(value, size));
+        new ChainedPointerAnalysis(value, size)
+    );
   }
 
   static size_t stride(DYLD_CHAINED_PTR_FORMAT fmt) {
     switch (fmt) {
-        case DYLD_CHAINED_PTR_FORMAT::NONE:
-          return 0;
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE:
-          return 8;
+      case DYLD_CHAINED_PTR_FORMAT::NONE: return 0;
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE: return 8;
 
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_KERNEL:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_FIRMWARE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32_FIRMWARE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64_KERNEL_CACHE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SEGMENTED:
-            return 4;
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_KERNEL:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_FIRMWARE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32_FIRMWARE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64_KERNEL_CACHE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SEGMENTED: return 4;
 
-        case DYLD_CHAINED_PTR_FORMAT::PTR_X86_64_KERNEL_CACHE:
-            return 1;
+      case DYLD_CHAINED_PTR_FORMAT::PTR_X86_64_KERNEL_CACHE: return 1;
     }
     return 0;
   }
 
   static size_t ptr_size(DYLD_CHAINED_PTR_FORMAT fmt) {
     switch (fmt) {
-        case DYLD_CHAINED_PTR_FORMAT::NONE:
-          return 0;
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_KERNEL:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_FIRMWARE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_64_KERNEL_CACHE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_X86_64_KERNEL_CACHE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SEGMENTED:
-          return sizeof(uint64_t);
+      case DYLD_CHAINED_PTR_FORMAT::NONE: return 0;
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_KERNEL:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_FIRMWARE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_64_KERNEL_CACHE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_X86_64_KERNEL_CACHE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SEGMENTED: return sizeof(uint64_t);
 
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32_FIRMWARE:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32:
-        case DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE:
-          return sizeof(uint32_t);
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32_FIRMWARE:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32:
+      case DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE: return sizeof(uint32_t);
     }
     return 0;
   }
 
   ChainedPointerAnalysis(uint64_t value, size_t size) :
     value_(value),
-    size_(size)
-  {}
+    size_(size) {}
 
   ChainedPointerAnalysis(const ChainedPointerAnalysis&) = default;
   ChainedPointerAnalysis& operator=(const ChainedPointerAnalysis&) = default;
@@ -337,91 +355,99 @@ class LIEF_API ChainedPointerAnalysis {
   }
 
   const dyld_chained_ptr_arm64e_rebase_t dyld_chained_ptr_arm64e_rebase() const {
-    dyld_chained_ptr_arm64e_rebase_t result;
+    dyld_chained_ptr_arm64e_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_arm64e_bind_t dyld_chained_ptr_arm64e_bind() const {
-    dyld_chained_ptr_arm64e_bind_t result;
+    dyld_chained_ptr_arm64e_bind_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_arm64e_auth_rebase_t dyld_chained_ptr_arm64e_auth_rebase() const {
-    dyld_chained_ptr_arm64e_auth_rebase_t result;
+  const dyld_chained_ptr_arm64e_auth_rebase_t
+      dyld_chained_ptr_arm64e_auth_rebase() const {
+    dyld_chained_ptr_arm64e_auth_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_arm64e_auth_bind_t dyld_chained_ptr_arm64e_auth_bind() const {
-    dyld_chained_ptr_arm64e_auth_bind_t result;
+  const dyld_chained_ptr_arm64e_auth_bind_t
+      dyld_chained_ptr_arm64e_auth_bind() const {
+    dyld_chained_ptr_arm64e_auth_bind_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_64_rebase_t dyld_chained_ptr_64_rebase() const {
-    dyld_chained_ptr_64_rebase_t result;
+    dyld_chained_ptr_64_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_arm64e_bind24_t dyld_chained_ptr_arm64e_bind24() const {
-    dyld_chained_ptr_arm64e_bind24_t result;
+    dyld_chained_ptr_arm64e_bind24_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_arm64e_auth_bind24_t dyld_chained_ptr_arm64e_auth_bind24() const {
-    dyld_chained_ptr_arm64e_auth_bind24_t result;
+  const dyld_chained_ptr_arm64e_auth_bind24_t
+      dyld_chained_ptr_arm64e_auth_bind24() const {
+    dyld_chained_ptr_arm64e_auth_bind24_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_64_bind_t dyld_chained_ptr_64_bind() const {
-    dyld_chained_ptr_64_bind_t result;
+    dyld_chained_ptr_64_bind_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_64_kernel_cache_rebase_t dyld_chained_ptr_64_kernel_cache_rebase() const {
-    dyld_chained_ptr_64_kernel_cache_rebase_t result;
+  const dyld_chained_ptr_64_kernel_cache_rebase_t
+      dyld_chained_ptr_64_kernel_cache_rebase() const {
+    dyld_chained_ptr_64_kernel_cache_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_32_rebase_t dyld_chained_ptr_32_rebase() const {
-    dyld_chained_ptr_32_rebase_t result;
+    dyld_chained_ptr_32_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
   const dyld_chained_ptr_32_bind_t dyld_chained_ptr_32_bind() const {
-    dyld_chained_ptr_32_bind_t result;
+    dyld_chained_ptr_32_bind_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_32_cache_rebase_t dyld_chained_ptr_32_cache_rebase() const {
-    dyld_chained_ptr_32_cache_rebase_t result;
+  const dyld_chained_ptr_32_cache_rebase_t
+      dyld_chained_ptr_32_cache_rebase() const {
+    dyld_chained_ptr_32_cache_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_32_firmware_rebase_t dyld_chained_ptr_32_firmware_rebase() const {
-    dyld_chained_ptr_32_firmware_rebase_t result;
+  const dyld_chained_ptr_32_firmware_rebase_t
+      dyld_chained_ptr_32_firmware_rebase() const {
+    dyld_chained_ptr_32_firmware_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_arm64e_segmented_rebase_t dyld_chained_ptr_arm64e_segmented_rebase() const {
-    dyld_chained_ptr_arm64e_segmented_rebase_t result;
+  const dyld_chained_ptr_arm64e_segmented_rebase_t
+      dyld_chained_ptr_arm64e_segmented_rebase() const {
+    dyld_chained_ptr_arm64e_segmented_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
 
-  const dyld_chained_ptr_arm64e_auth_segmented_rebase_t dyld_chained_ptr_arm64e_auth_segmented_rebase() const {
-    dyld_chained_ptr_arm64e_auth_segmented_rebase_t result;
+  const dyld_chained_ptr_arm64e_auth_segmented_rebase_t
+      dyld_chained_ptr_arm64e_auth_segmented_rebase() const {
+    dyld_chained_ptr_arm64e_auth_segmented_rebase_t result{};
     std::memcpy(&result, &value_, sizeof(result));
     return result;
   }
@@ -429,7 +455,7 @@ class LIEF_API ChainedPointerAnalysis {
   struct union_pointer_t {
     PTR_TYPE type = PTR_TYPE::UNKNOWN;
     union {
-      dyld_chained_ptr_arm64e_rebase_t arm64e_rebase;
+      dyld_chained_ptr_arm64e_rebase_t arm64e_rebase{};
       dyld_chained_ptr_arm64e_bind_t arm64e_bind;
       dyld_chained_ptr_arm64e_auth_rebase_t arm64e_auth_rebase;
       dyld_chained_ptr_arm64e_auth_bind_t arm64e_auth_bind;
@@ -444,7 +470,8 @@ class LIEF_API ChainedPointerAnalysis {
       dyld_chained_ptr_32_firmware_rebase_t ptr_32_firmware_rebase;
 
       dyld_chained_ptr_arm64e_segmented_rebase_t ptr_arm64e_segmented_rebase;
-      dyld_chained_ptr_arm64e_auth_segmented_rebase_t ptr_arm64e_auth_segmented_rebase;
+      dyld_chained_ptr_arm64e_auth_segmented_rebase_t
+          ptr_arm64e_auth_segmented_rebase;
       uint64_t raw;
     };
     uint32_t next() const;
@@ -457,17 +484,18 @@ class LIEF_API ChainedPointerAnalysis {
     }
     bool is_auth() const;
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const union_pointer_t& ptr);
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const union_pointer_t& ptr);
   };
 
-  static_assert(sizeof(union_pointer_t) == 16);
+  static_assert(sizeof(union_pointer_t) == 16, "Wrong sizeof");
 
   union_pointer_t get_as(DYLD_CHAINED_PTR_FORMAT fmt) const;
 
   static uint64_t walk_chain(
       BinaryStream& stream, DYLD_CHAINED_PTR_FORMAT format,
-      const std::function<int(uint64_t, const union_pointer_t& ptr)>& callback);
+      const std::function<int(uint64_t, const union_pointer_t& ptr)>& callback
+  );
 
   private:
   uint64_t value_ = 0;

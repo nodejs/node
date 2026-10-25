@@ -850,13 +850,17 @@ added:
   - v20.18.0
 -->
 
-* Returns: {Object}
+* Type: {Object}
   * `loopCount` {number} Number of event loop iterations.
   * `events` {number} Number of events that have been processed by the event handler.
   * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
 
 This is a wrapper to the `uv_metrics_info` function.
 It returns the current set of event loop metrics.
+
+The values are exact up to `Number.MAX_SAFE_INTEGER`. Use
+[`performanceNodeTiming.uvMetricsInfoBigInt`][] to obtain the full 64-bit
+values reported by libuv.
 
 It is recommended to use this property inside a function whose execution was
 scheduled using `setImmediate` to avoid collecting metrics before finishing all
@@ -875,6 +879,41 @@ import { performance } from 'node:perf_hooks';
 
 setImmediate(() => {
   console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
+
+### `performanceNodeTiming.uvMetricsInfoBigInt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+  * `loopCount` {bigint} Number of event loop iterations.
+  * `events` {bigint} Number of events that have been processed by the event handler.
+  * `eventsWaiting` {bigint} Number of events that were waiting to be processed when the event provider was called.
+
+The same as [`performanceNodeTiming.uvMetricsInfo`][], except that the values
+are {bigint}s carrying the full 64-bit range reported by libuv.
+
+Because `JSON.stringify()` cannot serialize {bigint} values, this property is
+not enumerable and is not included in the output of
+`performanceNodeTiming.toJSON()`. Copies of `performance.nodeTiming` made by
+spreading its enumerable properties, for example, remain serializable.
+
+```cjs
+const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfoBigInt);
+});
+```
+
+```mjs
+import { performance } from 'node:perf_hooks';
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfoBigInt);
 });
 ```
 
@@ -2099,6 +2138,52 @@ added: v24.21.0
 Returns the number of recorded values that fall within the equivalent
 value range of the given value.
 
+### `histogram.diff(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} An earlier snapshot of this histogram.
+* Returns: {Histogram}
+
+Returns a new {Histogram} containing the values recorded in this histogram after
+`other` was taken. Neither histogram is changed. To get the values recorded
+during each interval without calling `reset()`, compute each difference from a
+snapshot and keep that snapshot as the baseline for the next interval:
+
+```js
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+
+const histogram = monitorEventLoopDelay();
+histogram.enable();
+let previous = histogram.snapshot();
+
+setInterval(() => {
+  const current = histogram.snapshot();
+  // After a reset, use everything recorded since the reset.
+  const delta = current.resetCount === previous.resetCount ?
+    current.diff(previous) : current;
+  console.log(delta.percentile(99));
+  previous = current;
+}, 10_000);
+```
+
+The `count`, `exceeds`, and bucket counts of the returned histogram are the
+differences between the two histograms. Its `min` and `max` are computed from
+the buckets of the difference, it has no EWMA state, and its `resetCount` is
+`0`.
+
+This method throws:
+
+* `ERR_INVALID_ARG_VALUE` if `other` has a different `lowest`, `highest`, or
+  `figures` configuration.
+* `ERR_INVALID_STATE` if values have been removed from this histogram since
+  `other` was taken, which is the case when the `resetCount` of the two
+  histograms differs.
+* `ERR_INVALID_ARG_VALUE` if `other` contains values that are not in this
+  histogram, for example because the histograms were passed in the wrong order.
+
 ### `histogram.exceeds`
 
 <!-- YAML
@@ -2564,7 +2649,21 @@ boundaries are equal has an infinite density.
 added: v11.10.0
 -->
 
-Resets the collected histogram data.
+Resets the collected histogram data and increments `histogram.resetCount`.
+
+### `histogram.resetCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The number of times values have been removed from this histogram by `reset()`
+or, for a {RecordableHistogram}, `subtract()`. A snapshot has the `resetCount`
+of its source at the time it was taken, so comparing the `resetCount` of two
+snapshots shows whether the source was reset between them. See
+[`histogram.diff()`][].
 
 ### `histogram.skewness`
 
@@ -2578,6 +2677,38 @@ The skewness of the recorded values. Measures the asymmetry of the
 distribution. A positive value indicates a right-skewed distribution
 (longer right tail, common for latency data); a negative value
 indicates a left-skewed distribution.
+
+### `histogram.snapshot()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Histogram}
+
+Returns a new, independent {Histogram} containing a copy of this histogram's
+current state: its configuration, recorded values, `exceeds` count, and EWMA
+state. Values recorded into this histogram after this method returns, and later
+calls to `reset()`, do not change the returned histogram. This provides a stable
+view of a histogram that is still recording, such as an enabled {ELDHistogram}.
+
+Values cannot be recorded into the returned histogram. Taking a snapshot copies
+every bucket, so both its time and memory cost depend on the histogram's
+`lowest`, `highest`, and `figures` configuration rather than on the number of
+recorded values.
+
+```js
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+
+const histogram = monitorEventLoopDelay();
+histogram.enable();
+
+setTimeout(() => {
+  const snapshot = histogram.snapshot();
+  console.log(snapshot.percentile(99));
+  histogram.disable();
+}, 1000);
+```
 
 ### `histogram.stddev`
 
@@ -2730,7 +2861,7 @@ added: v24.21.0
 
 Subtracts the values of `other` from this histogram. Both histograms should
 have compatible configurations. Bucket counts that would become negative
-are clamped to zero.
+are clamped to zero. Increments `histogram.resetCount`.
 
 ## Class: `SlidingWindowHistogram`
 
@@ -3209,12 +3340,15 @@ dns.promises.resolve('localhost');
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`histogram.diff()`]: #histogramdiffother
 [`histogram.export()`]: #histogramexport
 [`perf_hooks.createSlidingWindowHistogram()`]: #perf_hookscreateslidingwindowhistogramoptions
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
 [`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
+[`performanceNodeTiming.uvMetricsInfoBigInt`]: #performancenodetiminguvmetricsinfobigint
+[`performanceNodeTiming.uvMetricsInfo`]: #performancenodetiminguvmetricsinfo
 [`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON

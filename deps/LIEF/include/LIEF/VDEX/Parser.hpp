@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class VectorStream;
 namespace VDEX {
 class File;
 
-/// Class which parse an VDEX file and transform into a VDEX::File object
+/// Class which parses a VDEX file and transforms it into a VDEX::File object
 class LIEF_API Parser {
   public:
   static std::unique_ptr<File> parse(const std::string& file);
@@ -36,7 +36,7 @@ class LIEF_API Parser {
                                      const std::string& name = "");
 
   Parser& operator=(const Parser& copy) = delete;
-  Parser(const Parser& copy)            = delete;
+  Parser(const Parser& copy) = delete;
 
   private:
   Parser();

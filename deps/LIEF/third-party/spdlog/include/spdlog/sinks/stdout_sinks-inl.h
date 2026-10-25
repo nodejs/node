@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #endif
 
 #include <memory>
@@ -13,17 +13,17 @@
 #include <spdlog/details/os.h>
 
 #ifdef _WIN32
-    // under windows using fwrite to non-binary stream results in \r\r\n (see issue #1675)
-    // so instead we use ::FileWrite
-    #include <spdlog/details/windows_include.h>
+// under windows using fwrite to non-binary stream results in \r\r\n (see issue #1675)
+// so instead we use ::FileWrite
+#include <spdlog/details/windows_include.h>
 
-    #ifndef _USING_V110_SDK71_  // fileapi.h doesn't exist in winxp
-        #include <fileapi.h>    // WriteFile (..)
-    #endif
+#ifndef _USING_V110_SDK71_  // fileapi.h doesn't exist in winxp
+#include <fileapi.h>        // WriteFile (..)
+#endif
 
-    #include <io.h>     // _get_osfhandle(..)
-    #include <stdio.h>  // _fileno(..)
-#endif                  // _WIN32
+#include <io.h>     // _get_osfhandle(..)
+#include <stdio.h>  // _fileno(..)
+#endif              // _WIN32
 
 namespace spdlog {
 

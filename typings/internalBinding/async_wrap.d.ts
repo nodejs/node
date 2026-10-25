@@ -1,5 +1,12 @@
 import { owner_symbol } from './symbols';
 
+export interface AsyncWrap {
+  getAsyncId(): number;
+  asyncReset(resource: object, executionAsyncId?: number): void;
+  getAsyncContextFrameForDebuggingOnly(): unknown;
+  getProviderType(): number;
+}
+
 declare namespace InternalAsyncWrapBinding {
   interface Resource {
     [owner_symbol]?: PublicResource;

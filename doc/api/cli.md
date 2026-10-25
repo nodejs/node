@@ -1311,7 +1311,7 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
 added: v24.19.0
@@ -1319,14 +1319,20 @@ added: v24.19.0
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-transform-types`
 
@@ -2725,6 +2731,21 @@ This option may be specified multiple times to include multiple glob patterns.
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
 
+### `--test-coverage-include-all`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+
+Candidate files are searched for in the current working directory, and are
+subject to the same `--test-coverage-include` and `--test-coverage-exclude`
+filtering as the rest of the report.
+
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
@@ -3531,8 +3552,9 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
-When set to 1, the [module compile cache][]  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the [module compile cache][] can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 
 ### `NODE_DEBUG=module[,…]`
 
@@ -3758,6 +3780,7 @@ one is included in the list below.
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
+* `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
 * `--test-global-setup`

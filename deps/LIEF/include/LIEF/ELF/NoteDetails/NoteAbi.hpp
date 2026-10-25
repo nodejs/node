@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,16 +37,16 @@ class LIEF_API NoteAbi : public Note {
     FREEBSD,
     NETBSD,
     SYLLABLE,
-    NACL
+    NACL,
   };
   /// Version type: (Major, Minor, Patch)
   using version_t = std::array<uint32_t, 3>;
 
-  static constexpr size_t abi_offset      = 0;
-  static constexpr size_t abi_size        = sizeof(uint32_t);
+  static constexpr size_t abi_offset = 0;
+  static constexpr size_t abi_size = sizeof(uint32_t);
 
-  static constexpr size_t version_offset  = abi_size;
-  static constexpr size_t version_size    = 3 * sizeof(uint32_t);
+  static constexpr size_t version_offset = abi_size;
+  static constexpr size_t version_size = 3 * sizeof(uint32_t);
 
   public:
   using Note::Note;
@@ -72,15 +72,14 @@ class LIEF_API NoteAbi : public Note {
     return note->type() == Note::TYPE::GNU_ABI_TAG;
   }
 
-  //// Size of the description content
+  /// Size of the description content
   static constexpr uint8_t description_size() {
     return /* abi */ sizeof(uint32_t) + /* version */ 3 * sizeof(uint32_t);
   }
 
   ~NoteAbi() override = default;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const NoteAbi& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os, const NoteAbi& note) {
     note.dump(os);
     return os;
   }
@@ -88,7 +87,7 @@ class LIEF_API NoteAbi : public Note {
 
 LIEF_API const char* to_string(NoteAbi::ABI abi);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

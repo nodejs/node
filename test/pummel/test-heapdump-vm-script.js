@@ -1,8 +1,10 @@
 'use strict';
 require('../common');
 const { validateByRetainingPath } = require('../common/heap');
+const vm = require('vm');
 const source = 'const foo = 123';
-const script = require('vm').createScript(source);
+const script = new vm.Script(source);
+const context = vm.createContext();
 
 validateByRetainingPath('Node / ContextifyScript', [
   { node_name: '(shared function info)' },  // This is the UnboundScript referenced by ContextifyScript.
@@ -10,4 +12,4 @@ validateByRetainingPath('Node / ContextifyScript', [
   { edge_name: 'source', node_type: 'string', node_name: source },
 ]);
 
-console.log(script); // Keep the script alive.
+console.log(script, context); // Keep the script and context alive.

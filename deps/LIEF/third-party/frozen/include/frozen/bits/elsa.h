@@ -51,7 +51,7 @@ template <> struct elsa<void> {
   }
 };
 
-template <class T> using anna = elsa<T>;
+template <class T=void> using anna = elsa<T>;
 } // namespace frozen
 
 #endif

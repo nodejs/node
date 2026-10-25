@@ -142,7 +142,7 @@ const notSubtle = Reflect.construct(function() {}, [], SubtleCrypto);
 // Test SubtleCrypto.supports
 {
   assert.throws(() => SubtleCrypto.supports.call(undefined), {
-    name: 'TypeError', code: 'ERR_INVALID_THIS',
+    name: 'TypeError', code: 'ERR_MISSING_ARGS',
   });
 }
 

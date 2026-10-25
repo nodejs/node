@@ -88,12 +88,24 @@ if (cluster.isWorker) {
     // Check that the cluster died accidentally (non-zero exit code)
     assert.strictEqual(code, 1);
 
+    // Probe with signal 0. common.isAlive() sends SIGCONT, which discards the
+    // pending SIGSTOP that LeakSanitizer's exit-time stop-the-world waits for
+    // under ASan on Linux, leaving the exiting worker hung forever.
+    const isAlive = (pid) => {
+      try {
+        return process.kill(pid, 0);
+      } catch (err) {
+        if (err.code !== 'ESRCH') throw err;
+        return false;
+      }
+    };
+
     // XXX(addaleax): The fact that this uses raw PIDs makes the test inherently
     // flaky – another process might end up being started right after the
     // workers finished and receive the same PID.
     const pollWorkers = () => {
       // When primary is dead all workers should be dead too
-      if (workers.some((pid) => common.isAlive(pid))) {
+      if (workers.some(isAlive)) {
         setTimeout(pollWorkers, 50);
       }
     };

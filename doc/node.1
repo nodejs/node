@@ -279,6 +279,19 @@ Enable code coverage in the test runner.
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 .
+.It Fl -experimental-test-tag-filter Ns = Ns Ar '<expr>'
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the \fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or
+\fBdescribe()\fR. Tags inherit from suites to nested tests by union.
+The expression supports boolean operators (\fBand\fR/\fB&&\fR, \fBor\fR/\fB||\fR,
+\fBnot\fR/\fB!\fR), parentheses for grouping, and \fB*\fR wildcards inside identifiers.
+Standard precedence applies: \fBnot\fR binds tighter than \fBand\fR, which binds
+tighter than \fBor\fR. See Test tags for the full grammar and behavior.
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
+.
 .It Fl -experimental-transform-types
 Enable transformation of TypeScript-only syntax into JavaScript code.
 .
@@ -607,6 +620,13 @@ Require a minimum threshold for function coverage (0 - 100).
 .It Fl -test-coverage-include
 A glob pattern that only includes matching files in the coverage report
 .
+.It Fl -test-coverage-include-all
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+Candidate files are searched for in the current working directory, and are
+subject to the same \fB--test-coverage-include\fR and \fB--test-coverage-exclude\fR
+filtering as the rest of the report.
+.
 .It Fl -test-coverage-lines Ns = Ns Ar threshold
 Require a minimum threshold for line coverage (0 - 100).
 .
@@ -875,12 +895,10 @@ Enable the
 .Sy module compile cache
 for the Node.js instance.
 .
-.It Ev NODE_COMPILE_CACHE_PORTABLE
-When set to '1' or 'true', the
-.Sy module compile cache
-will be hit as long as the location of the modules relative to the cache directory remain
-consistent. This can be used in conjunction with .Ev NODE_COMPILE_CACHE
-to enable portable on-disk caching.
+.It Ev NODE_COMPILE_CACHE_PORTABLE Ar 1
+When set to 1, the module compile cache can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 .
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
@@ -937,6 +955,13 @@ which are interpreted as if they had been specified on the command line before t
 Node.js will exit with an error if an option that is not allowed in the environment is used, such as
 .Fl -print
 or a script file.
+.
+.It Fl -test-coverage-include-all
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+Candidate files are searched for in the current working directory, and are
+subject to the same \fB--test-coverage-include\fR and \fB--test-coverage-exclude\fR
+filtering as the rest of the report.
 .
 .It Ev NODE_PATH Ar directories...
 A colon-separated list of

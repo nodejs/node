@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@
 #define LIEF_MACHO_DYLD_CHAINED_FORMAT_H
 #include "LIEF/MachO/DyldChainedFormat.hpp"
 #include "frozen.hpp"
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 const char* to_string(DYLD_CHAINED_FORMAT e) {
-  #define ENTRY(X) std::pair(DYLD_CHAINED_FORMAT::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(IMPORT),
-    ENTRY(IMPORT_ADDEND),
-    ENTRY(IMPORT_ADDEND64),
+#define ENTRY(X) std::pair(DYLD_CHAINED_FORMAT::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(IMPORT),
+      ENTRY(IMPORT_ADDEND),
+      ENTRY(IMPORT_ADDEND64),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -35,25 +35,25 @@ const char* to_string(DYLD_CHAINED_FORMAT e) {
   return "UNKNOWN";
 }
 const char* to_string(DYLD_CHAINED_PTR_FORMAT e) {
-  #define ENTRY(X) std::pair(DYLD_CHAINED_PTR_FORMAT::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(NONE),
-    ENTRY(PTR_ARM64E),
-    ENTRY(PTR_64),
-    ENTRY(PTR_32),
-    ENTRY(PTR_32_CACHE),
-    ENTRY(PTR_32_FIRMWARE),
-    ENTRY(PTR_64_OFFSET),
-    ENTRY(PTR_ARM64E_KERNEL),
-    ENTRY(PTR_64_KERNEL_CACHE),
-    ENTRY(PTR_ARM64E_USERLAND),
-    ENTRY(PTR_ARM64E_FIRMWARE),
-    ENTRY(PTR_X86_64_KERNEL_CACHE),
-    ENTRY(PTR_ARM64E_USERLAND24),
-    ENTRY(PTR_ARM64E_SHARED_CACHE),
-    ENTRY(PTR_ARM64E_SEGMENTED),
+#define ENTRY(X) std::pair(DYLD_CHAINED_PTR_FORMAT::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(NONE),
+      ENTRY(PTR_ARM64E),
+      ENTRY(PTR_64),
+      ENTRY(PTR_32),
+      ENTRY(PTR_32_CACHE),
+      ENTRY(PTR_32_FIRMWARE),
+      ENTRY(PTR_64_OFFSET),
+      ENTRY(PTR_ARM64E_KERNEL),
+      ENTRY(PTR_64_KERNEL_CACHE),
+      ENTRY(PTR_ARM64E_USERLAND),
+      ENTRY(PTR_ARM64E_FIRMWARE),
+      ENTRY(PTR_X86_64_KERNEL_CACHE),
+      ENTRY(PTR_ARM64E_USERLAND24),
+      ENTRY(PTR_ARM64E_SHARED_CACHE),
+      ENTRY(PTR_ARM64E_SEGMENTED),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -62,5 +62,5 @@ const char* to_string(DYLD_CHAINED_PTR_FORMAT e) {
 }
 
 }
-}
+
 #endif

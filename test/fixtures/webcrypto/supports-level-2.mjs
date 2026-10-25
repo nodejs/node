@@ -250,12 +250,12 @@ export const vectors = {
     [true, 'X25519'],
   ],
   'wrapKey': [
-    [false, 'AES-KW'],
+    [true, 'AES-KW'],
     [true, 'AES-KW', 'AES-CTR'],
     [true, 'AES-KW', 'HMAC'],
   ],
   'unwrapKey': [
-    [false, 'AES-KW'],
+    [true, 'AES-KW'],
     [true, 'AES-KW', 'AES-CTR'],
   ],
   'unsupported operation': [

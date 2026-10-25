@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/span.hpp"
 #include "LIEF/PE/signature/Attribute.hpp"
@@ -27,20 +28,19 @@ namespace LIEF {
 class VectorStream;
 namespace PE {
 
-/// Interface over an attribute for which the internal structure is not supported by LIEF
+/// Interface over an attribute for which the internal structure is not supported
+/// by LIEF
 class LIEF_API GenericType : public Attribute {
   friend class Parser;
   friend class SignatureParser;
 
   public:
   GenericType() :
-    Attribute(Attribute::TYPE::GENERIC_TYPE)
-  {}
+    Attribute(Attribute::TYPE::GENERIC_TYPE) {}
   GenericType(oid_t oid, std::vector<uint8_t> raw) :
     Attribute(Attribute::TYPE::GENERIC_TYPE),
     oid_{std::move(oid)},
-    raw_{std::move(raw)}
-  {}
+    raw_{std::move(raw)} {}
   GenericType(const GenericType&) = default;
   GenericType& operator=(const GenericType&) = default;
 
@@ -54,7 +54,7 @@ class LIEF_API GenericType : public Attribute {
   }
 
   /// Original DER blob of the attribute
-  span<const uint8_t> raw_content() const {
+  span<const uint8_t> raw_content() const LIEF_LIFETIMEBOUND {
     return raw_;
   }
 

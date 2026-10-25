@@ -317,7 +317,7 @@ std::unique_ptr<worker::TransferData> FileHandle::TransferForMessaging() {
 FileHandle::TransferData::TransferData(int fd) : fd_(fd) {}
 
 FileHandle::TransferData::~TransferData() {
-  if (fd_ > 0) {
+  if (fd_ >= 0) {
     uv_fs_t close_req;
     CHECK_NE(fd_, -1);
     FS_SYNC_TRACE_BEGIN(close);
@@ -450,7 +450,7 @@ void FileHandle::CloseReq::MemoryInfo(MemoryTracker* tracker) const {
 // Closes this FileHandle asynchronously and returns a Promise that will be
 // resolved when the callback is invoked, or rejects with a UVException if
 // there was a problem closing the fd. This is the preferred mechanism for
-// closing the FD object even tho the object will attempt to close
+// closing the FD object even though the object will attempt to close
 // automatically on gc.
 MaybeLocal<Promise> FileHandle::ClosePromise() {
   Isolate* isolate = env()->isolate();

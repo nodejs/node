@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,12 @@
 #include "LIEF/ART/EnumToString.hpp"
 #include "ART/Structures.hpp"
 
-namespace LIEF {
-namespace ART {
+
+namespace LIEF::ART {
 
 template<>
 Header::Header(const details::ART_17::header* header) :
   magic_{{'a', 'r', 't', '\n'}},
-  version_{0},
   image_begin_{header->image_begin},
   image_size_{header->image_size},
   oat_checksum_{header->oat_checksum},
@@ -39,36 +38,21 @@ Header::Header(const details::ART_17::header* header) :
   pointer_size_{header->pointer_size},
   compile_pic_{static_cast<bool>(header->compile_pic)},
   nb_sections_{sizeof(header->sections) / sizeof(header->sections[0])},
-  nb_methods_{sizeof(header->image_methods) / sizeof(header->image_methods[0])},
-
-  is_pic_{false},
-  boot_image_begin_{0},
-  boot_image_size_{0},
-  boot_oat_begin_{0},
-  boot_oat_size_{0},
-  storage_mode_{STORAGE_MODES::STORAGE_UNCOMPRESSED},
-  data_size_{0}
-{
-  std::copy(
-      std::begin(header->magic),
-      std::end(header->magic),
-      std::begin(magic_)
-  );
-  if (std::all_of(
-        header->version,
-        header->version + sizeof(header->version) - 1,
-        ::isdigit))
+  nb_methods_{sizeof(header->image_methods) / sizeof(header->image_methods[0])} {
+  std::copy(std::begin(header->magic), std::end(header->magic),
+            std::begin(magic_));
+  if (std::all_of(header->version, header->version + sizeof(header->version) - 1,
+                  ::isdigit))
   {
-    version_ = static_cast<uint32_t>(
-        std::stoi(std::string{reinterpret_cast<const char*>(header->version), sizeof(header->version)}));
+    version_ = static_cast<uint32_t>(std::stoi(std::string{
+        reinterpret_cast<const char*>(header->version), sizeof(header->version)
+    }));
   }
-
 }
 
 template<class T>
 Header::Header(const T* header) :
   magic_{{'a', 'r', 't', '\n'}},
-  version_{0},
   image_begin_{header->image_begin},
   image_size_{header->image_size},
   oat_checksum_{header->oat_checksum},
@@ -88,25 +72,18 @@ Header::Header(const T* header) :
   boot_oat_begin_{header->boot_oat_begin},
   boot_oat_size_{header->boot_oat_size},
   storage_mode_{static_cast<STORAGE_MODES>(header->storage_mode)},
-  data_size_{header->data_size}
-{
-  std::copy(
-      std::begin(header->magic),
-      std::end(header->magic),
-      std::begin(magic_)
-  );
-  if (std::all_of(
-        header->version,
-        header->version + sizeof(header->version) - 1,
-        ::isdigit))
+  data_size_{header->data_size} {
+  std::copy(std::begin(header->magic), std::end(header->magic),
+            std::begin(magic_));
+  if (std::all_of(header->version, header->version + sizeof(header->version) - 1,
+                  ::isdigit))
   {
-    version_ = static_cast<uint32_t>(
-        std::stoi(std::string{reinterpret_cast<const char*>(header->version), sizeof(header->version)}));
+    version_ = static_cast<uint32_t>(std::stoi(std::string{
+        reinterpret_cast<const char*>(header->version), sizeof(header->version)
+    }));
   }
 
   LIEF_DEBUG("{}", to_string(storage_mode_));
-
 }
 
-} // namespace ART
-} // namespace LIEF
+} // namespace LIEF::ART

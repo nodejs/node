@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class LIEF_API DyldEnvironment : public LoadCommand {
   std::ostream& print(std::ostream& os) const override;
 
   /// The actual environment variable
-  const std::string& value() const {
+  const std::string& value() const LIEF_LIFETIMEBOUND {
     return value_;
   }
 

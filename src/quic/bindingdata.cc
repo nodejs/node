@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <base_object-inl.h>
@@ -303,6 +302,14 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
   MakeWeak();
   // Unref so the check handle doesn't keep the event loop alive on its own.
   flush_check_.Unref();
+  // Ensure Clean() below is called before the tearing anything down.
+  env()->cleanable_queue()->PushFront(this);
+}
+
+void BindingData::Clean() {
+  // Make sure sessions are always properly destroyed. This does nothing in
+  // a clean shutdown, but is required for cases like worker.terminate().
+  if (session_manager_) session_manager_->DestroyAllSessions();
 }
 
 SessionManager& BindingData::session_manager() {
@@ -513,4 +520,3 @@ JS_METHOD_IMPL(IllegalConstructor) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

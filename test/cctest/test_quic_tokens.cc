@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "quic/guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <gtest/gtest.h>
@@ -246,4 +245,3 @@ TEST(RegularToken, Basic) {
   CHECK(!token.Validate(NGTCP2_PROTO_VER_MAX, address, secret, 10000000000));
 }
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

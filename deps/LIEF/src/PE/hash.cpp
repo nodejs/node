@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,79 @@
  */
 
 #include "LIEF/PE/hash.hpp"
-#include "LIEF/PE.hpp"
+#include "LIEF/PE/Parser.hpp"
+#include "LIEF/PE/Section.hpp"
+#include "LIEF/PE/TLS.hpp"
+#include "LIEF/PE/Export.hpp"
+#include "LIEF/PE/ExportEntry.hpp"
+#include "LIEF/PE/Import.hpp"
+#include "LIEF/PE/ImportEntry.hpp"
+#include "LIEF/PE/DelayImport.hpp"
+#include "LIEF/PE/DelayImportEntry.hpp"
+#include "LIEF/PE/DataDirectory.hpp"
+#include "LIEF/PE/ResourcesManager.hpp"
+#include "LIEF/PE/ResourceData.hpp"
+#include "LIEF/PE/ResourceNode.hpp"
+#include "LIEF/PE/ResourceDirectory.hpp"
+#include "LIEF/PE/resources/ResourceAccelerator.hpp"
+#include "LIEF/PE/resources/ResourceDialog.hpp"
+#include "LIEF/PE/resources/ResourceDialogRegular.hpp"
+#include "LIEF/PE/resources/ResourceDialogExtended.hpp"
+#include "LIEF/PE/resources/ResourceIcon.hpp"
+#include "LIEF/PE/resources/ResourceStringFileInfo.hpp"
+#include "LIEF/PE/resources/ResourceStringTable.hpp"
+#include "LIEF/PE/resources/ResourceVarFileInfo.hpp"
+#include "LIEF/PE/resources/ResourceVar.hpp"
+#include "LIEF/PE/resources/ResourceVersion.hpp"
+#include "LIEF/PE/RichEntry.hpp"
+#include "LIEF/PE/RichHeader.hpp"
+#include "LIEF/PE/Relocation.hpp"
+#include "LIEF/PE/RelocationEntry.hpp"
+#include "LIEF/PE/Builder.hpp"
+#include "LIEF/PE/Binary.hpp"
+#include "LIEF/PE/debug/Debug.hpp"
+#include "LIEF/PE/debug/CodeView.hpp"
+#include "LIEF/PE/debug/Pogo.hpp"
+#include "LIEF/PE/debug/PogoEntry.hpp"
+#include "LIEF/PE/debug/Repro.hpp"
+#include "LIEF/PE/debug/CodeViewPDB.hpp"
+#include "LIEF/PE/DosHeader.hpp"
+#include "LIEF/PE/Header.hpp"
+#include "LIEF/PE/OptionalHeader.hpp"
+#include "LIEF/PE/LoadConfigurations/LoadConfiguration.hpp"
+#include "LIEF/PE/CodeIntegrity.hpp"
+#include "LIEF/PE/signature/Attribute.hpp"
+#include "LIEF/PE/signature/ContentInfo.hpp"
+#include "LIEF/PE/signature/GenericContent.hpp"
+#include "LIEF/PE/signature/Signature.hpp"
+#include "LIEF/PE/signature/SignerInfo.hpp"
+#include "LIEF/PE/signature/SpcIndirectData.hpp"
+#include "LIEF/PE/signature/attributes/ContentType.hpp"
+#include "LIEF/PE/signature/attributes/GenericType.hpp"
+#include "LIEF/PE/signature/attributes/MsCounterSign.hpp"
+#include "LIEF/PE/signature/attributes/MsManifestBinaryID.hpp"
+#include "LIEF/PE/signature/attributes/MsSpcNestedSignature.hpp"
+#include "LIEF/PE/signature/attributes/MsSpcStatementType.hpp"
+#include "LIEF/PE/signature/attributes/PKCS9AtSequenceNumber.hpp"
+#include "LIEF/PE/signature/attributes/PKCS9CounterSignature.hpp"
+#include "LIEF/PE/signature/attributes/PKCS9MessageDigest.hpp"
+#include "LIEF/PE/signature/attributes/PKCS9SigningTime.hpp"
+#include "LIEF/PE/signature/attributes/SigningCertificateV2.hpp"
+#include "LIEF/PE/signature/attributes/SpcSpOpusInfo.hpp"
+#include "LIEF/PE/signature/attributes/SpcRelaxedPeMarkerCheck.hpp"
+#include "LIEF/PE/signature/x509.hpp"
+#include "LIEF/PE/signature/RsaInfo.hpp"
+#include "LIEF/PE/signature/SpcIndirectData.hpp"
+#include "LIEF/PE/signature/GenericContent.hpp"
+#include "LIEF/PE/hash.hpp"
+#include "LIEF/PE/enums.hpp"
+#include "LIEF/PE/EnumToString.hpp"
+#include "LIEF/PE/utils.hpp"
+
 #include "Object.tcc"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 Hash::~Hash() = default;
 
@@ -32,14 +100,14 @@ void Hash::visit(const Binary& binary) {
   process(binary.header());
   process(binary.optional_header());
 
-  process(std::begin(binary.data_directories()), std::end(binary.data_directories()));
-  process(std::begin(binary.sections()), std::end(binary.sections()));
-  process(std::begin(binary.imports()), std::end(binary.imports()));
-  process(std::begin(binary.delay_imports()), std::end(binary.delay_imports()));
-  process(std::begin(binary.relocations()), std::end(binary.relocations()));
+  process(binary.data_directories().begin(), binary.data_directories().end());
+  process(binary.sections().begin(), binary.sections().end());
+  process(binary.imports().begin(), binary.imports().end());
+  process(binary.delay_imports().begin(), binary.delay_imports().end());
+  process(binary.relocations().begin(), binary.relocations().end());
 
   if (binary.has_debug()) {
-    process(std::begin(binary.debug()), std::end(binary.debug()));
+    process(binary.debug().begin(), binary.debug().end());
   }
 
   if (const Export* exp = binary.get_export()) {
@@ -53,7 +121,6 @@ void Hash::visit(const Binary& binary) {
   if (const RichHeader* rheader = binary.rich_header()) {
     process(*rheader);
   }
-
 }
 
 
@@ -135,7 +202,6 @@ void Hash::visit(const OptionalHeader& optional_header) {
   process(optional_header.sizeof_heap_commit());
   process(optional_header.loader_flags());
   process(optional_header.numberof_rva_and_size());
-
 }
 
 void Hash::visit(const DataDirectory& data_directory) {
@@ -158,19 +224,17 @@ void Hash::visit(const Section& section) {
   process(section.numberof_line_numbers());
   process(section.characteristics());
   process(section.content());
-
 }
 
 void Hash::visit(const Relocation& relocation) {
   process(relocation.virtual_address());
-  process(std::begin(relocation.entries()), std::end(relocation.entries()));
+  process(relocation.entries().begin(), relocation.entries().end());
 }
 
 void Hash::visit(const RelocationEntry& relocation_entry) {
   process(relocation_entry.data());
   process(relocation_entry.position());
   process(relocation_entry.type());
-
 }
 
 void Hash::visit(const Export& export_) {
@@ -180,7 +244,7 @@ void Hash::visit(const Export& export_) {
   process(export_.minor_version());
   process(export_.ordinal_base());
   process(export_.name());
-  process(std::begin(export_.entries()), std::end(export_.entries()));
+  process(export_.entries().begin(), export_.entries().end());
 }
 
 void Hash::visit(const ExportEntry& export_entry) {
@@ -230,7 +294,7 @@ void Hash::visit(const Import& import) {
   process(import.import_address_table_rva());
   process(import.import_lookup_table_rva());
   process(import.name());
-  process(std::begin(import.entries()), std::end(import.entries()));
+  process(import.entries().begin(), import.entries().end());
 }
 
 void Hash::visit(const ImportEntry& import_entry) {
@@ -268,7 +332,7 @@ void Hash::visit(const ResourceNode& resource_node) {
     process(resource_node.name());
   }
 
-  process(std::begin(resource_node.childs()), std::end(resource_node.childs()));
+  process(resource_node.childs().begin(), resource_node.childs().end());
 }
 
 void Hash::visit(const ResourceData& resource_data) {
@@ -297,11 +361,12 @@ void Hash::visit(const ResourcesManager& resources_manager) {
   }
 
   if (resources_manager.has_icons()) {
-    process(std::begin(resources_manager.icons()), std::end(resources_manager.icons()));
+    process(resources_manager.icons().begin(), resources_manager.icons().end());
   }
 
   if (resources_manager.has_dialogs()) {
-    process(std::begin(resources_manager.dialogs()), std::end(resources_manager.dialogs()));
+    process(resources_manager.dialogs().begin(),
+            resources_manager.dialogs().end());
   }
 }
 
@@ -369,7 +434,6 @@ void Hash::visit(const ResourceIcon& resource_icon) {
   process(resource_icon.planes());
   process(resource_icon.bit_count());
   process(resource_icon.pixels());
-
 }
 
 void Hash::visit(const ResourceStringTable& table) {
@@ -390,8 +454,8 @@ void Hash::visit(const Signature& signature) {
   process(signature.version());
   process(signature.digest_algorithm());
   process(signature.content_info());
-  process(std::begin(signature.certificates()), std::end(signature.certificates()));
-  process(std::begin(signature.signers()), std::end(signature.signers()));
+  process(signature.certificates().begin(), signature.certificates().end());
+  process(signature.signers().begin(), signature.signers().end());
 }
 
 void Hash::visit(const x509& x509) {
@@ -411,8 +475,10 @@ void Hash::visit(const SignerInfo& signerinfo) {
   process(signerinfo.encryption_algorithm());
   process(signerinfo.digest_algorithm());
   process(signerinfo.encrypted_digest());
-  process(std::begin(signerinfo.authenticated_attributes()), std::end(signerinfo.authenticated_attributes()));
-  process(std::begin(signerinfo.unauthenticated_attributes()), std::end(signerinfo.unauthenticated_attributes()));
+  process(signerinfo.authenticated_attributes().begin(),
+          signerinfo.authenticated_attributes().end());
+  process(signerinfo.unauthenticated_attributes().begin(),
+          signerinfo.unauthenticated_attributes().end());
 }
 
 void Hash::visit(const Attribute& attr) {
@@ -434,7 +500,6 @@ void Hash::visit(const SpcIndirectData& content) {
   process(content.file());
   process(content.digest());
   process(content.digest_algorithm());
-
 }
 
 
@@ -502,7 +567,7 @@ void Hash::visit(const SpcRelaxedPeMarkerCheck& attr) {
 
 void Hash::visit(const SigningCertificateV2& attr) {
   visit(*attr.as<Attribute>());
-  //TODO
+  // TODO
 }
 
 void Hash::visit(const CodeIntegrity& code_integrity) {
@@ -569,7 +634,7 @@ void Hash::visit(const Pogo& pogo) {
   Pogo::it_const_entries entries = pogo.entries();
   visit(static_cast<const Debug&>(pogo));
   process(pogo.signature());
-  process(std::begin(entries), std::end(entries));
+  process(entries.begin(), entries.end());
 }
 
 
@@ -644,9 +709,6 @@ void Hash::visit(const ResourceDialogExtended& dialog) {
     process(item.title().string);
     process(item.creation_data());
   }
-
 }
 
-} // namespace PE
-} // namespace LIEF
-
+} // namespace LIEF::PE

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include "LIEF/MachO/FunctionStarts.hpp"
 #include "LIEF/MachO/FunctionVariants.hpp"
 #include "LIEF/MachO/FunctionVariantFixups.hpp"
+#include "LIEF/MachO/LazyLoadDylibInfo.hpp"
 #include "LIEF/MachO/LinkEdit.hpp"
 #include "LIEF/MachO/LinkerOptHint.hpp"
 #include "LIEF/MachO/SegmentSplitInfo.hpp"
@@ -33,21 +34,22 @@
 #include "LIEF/MachO/TwoLevelHints.hpp"
 #include "LIEF/MachO/SegmentCommand.hpp"
 
-namespace LIEF {
-namespace MachO {
 
-/* The DyldInfo object has span fields (rebase_opcodes_, ...) that point to segment data.
- * When resizing the ``SegmentCommand.data_`` we can break this span as the internal buffer of ``data_``
- * might be relocated.
+namespace LIEF::MachO {
+
+/* The DyldInfo object has span fields (rebase_opcodes_, ...) that point to segment
+ * data. When resizing the ``SegmentCommand.data_`` we can break this span as the
+ * internal buffer of ``data_`` might be relocated.
  *
- * The following helpers keep an internal consistent state of the data
+ * The following helpers keep an internally consistent state of the data
  */
 
 inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr,
-                              uintptr_t original_data_end, std::vector<uint8_t>& new_data)
-{
+                              uintptr_t original_data_end,
+                              std::vector<uint8_t>& new_data) {
   auto span_data_addr = reinterpret_cast<uintptr_t>(sp.data());
-  const bool is_encompassed = original_data_addr <= span_data_addr && span_data_addr < original_data_end;
+  const bool is_encompassed =
+      original_data_addr <= span_data_addr && span_data_addr < original_data_end;
   if (!is_encompassed) {
     return ok();
   }
@@ -61,7 +63,8 @@ inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr,
   }
 
   const uintptr_t delta = span_data_addr - original_data_addr;
-  const bool fit_in_data = delta < new_data.size() && (delta + original_size) <= new_data.size();
+  const bool fit_in_data =
+      delta < new_data.size() && (delta + original_size) <= new_data.size();
   if (!fit_in_data) {
     sp = {new_data.data(), static_cast<size_t>(0)};
     return make_error_code(lief_errors::corrupted);
@@ -73,11 +76,12 @@ inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr,
 
 /// @param[in] offset    Offset where the insertion took place
 /// @param[in] size      Size of the inserted data
-inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr, uintptr_t original_data_end,
-                              size_t offset, size_t size, std::vector<uint8_t>& new_data)
-{
+inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr,
+                              uintptr_t original_data_end, size_t offset,
+                              size_t size, std::vector<uint8_t>& new_data) {
   auto span_data_addr = reinterpret_cast<uintptr_t>(sp.data());
-  const bool is_encompassed = original_data_addr <= span_data_addr && span_data_addr < original_data_end;
+  const bool is_encompassed =
+      original_data_addr <= span_data_addr && span_data_addr < original_data_end;
   if (!is_encompassed) {
     // No need to re-span
     return ok();
@@ -92,8 +96,9 @@ inline ok_error_t update_span(span<uint8_t>& sp, uintptr_t original_data_addr, u
     delta_offset = size;
   }
 
-  const bool fit_in_data = (original_rel_offset + delta_offset) < new_data.size() &&
-                           (original_rel_offset + delta_offset + sp.size()) < new_data.size();
+  const bool fit_in_data =
+      (original_rel_offset + delta_offset) < new_data.size() &&
+      (original_rel_offset + delta_offset + sp.size()) < new_data.size();
   if (!fit_in_data) {
     sp = {new_data.data(), static_cast<size_t>(0)};
     return make_error_code(lief_errors::corrupted);
@@ -110,219 +115,320 @@ LinkEdit& LinkEdit::operator=(LinkEdit other) {
 
 void LinkEdit::swap(LinkEdit& other) noexcept {
   SegmentCommand::swap(other);
-  std::swap(dyld_,           other.dyld_);
+  std::swap(dyld_, other.dyld_);
   std::swap(chained_fixups_, other.chained_fixups_);
 }
 
 void LinkEdit::update_data(const update_fnc_t& f) {
-  const auto original_data_addr     = reinterpret_cast<uintptr_t>(data_.data());
-  const auto original_data_size     = static_cast<size_t>(data_.size());
+  const auto original_data_addr = reinterpret_cast<uintptr_t>(data_.data());
+  const auto original_data_size = static_cast<size_t>(data_.size());
   const uintptr_t original_data_end = original_data_addr + original_data_size;
   f(data_);
   if (dyld_ != nullptr) {
-    if (!update_span(dyld_->rebase_opcodes_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning rebase opcodes in segment {}", name_);
+    if (!update_span(dyld_->rebase_opcodes_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span rebase opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->bind_opcodes_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->bind_opcodes_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->weak_bind_opcodes_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning weak bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->weak_bind_opcodes_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span weak bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->lazy_bind_opcodes_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning lazy bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->lazy_bind_opcodes_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span lazy bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->export_trie_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the export trie in segment {}", name_);
+    if (!update_span(dyld_->export_trie_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the export trie in segment {}", name_);
     }
   }
 
   if (chained_fixups_ != nullptr) {
-    if (!update_span(chained_fixups_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the Dyld Chained fixups in segment {}", name_);
+    if (!update_span(chained_fixups_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the Dyld Chained fixups in segment {}", name_);
     }
   }
 
   if (exports_trie_ != nullptr) {
-    if (!update_span(exports_trie_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the Dyld Exports Trie in segment {}", name_);
+    if (!update_span(exports_trie_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the Dyld Exports Trie in segment {}", name_);
     }
   }
 
   if (symtab_ != nullptr) {
-    if (!update_span(symtab_->symbol_table_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SYMTAB.n_list in segment {}", name_);
+    if (!update_span(symtab_->symbol_table_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SYMTAB.n_list in segment {}", name_);
     }
-    if (!update_span(symtab_->string_table_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SYMTAB.string_table in segment {}", name_);
+    if (!update_span(symtab_->string_table_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SYMTAB.string_table in segment {}",
+                name_);
     }
   }
 
   if (fstarts_ != nullptr) {
-    if (!update_span(fstarts_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_STARTS in segment {}", name_);
+    if (!update_span(fstarts_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_STARTS in segment {}", name_);
     }
   }
 
   if (data_code_ != nullptr) {
-    if (!update_span(data_code_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_DATA_IN_CODE in segment {}", name_);
+    if (!update_span(data_code_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_DATA_IN_CODE in segment {}", name_);
     }
   }
 
   if (seg_split_ != nullptr) {
-    if (!update_span(seg_split_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SEGMENT_SPLIT_INFO in segment {}", name_);
+    if (!update_span(seg_split_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SEGMENT_SPLIT_INFO in segment {}",
+                name_);
     }
   }
 
   if (two_lvl_hint_ != nullptr) {
-    if (!update_span(two_lvl_hint_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_TWOLEVEL_HINTS in segment {}", name_);
+    if (!update_span(two_lvl_hint_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_TWOLEVEL_HINTS in segment {}", name_);
     }
   }
 
   if (linker_opt_ != nullptr) {
-    if (!update_span(linker_opt_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_LINKER_OPTIMIZATION_HINT in segment {}", name_);
+    if (!update_span(linker_opt_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_LINKER_OPTIMIZATION_HINT in segment {}",
+                name_);
     }
   }
 
   if (code_sig_ != nullptr) {
-    if (!update_span(code_sig_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_CODE_SIGNATURE in segment {}", name_);
+    if (!update_span(code_sig_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_CODE_SIGNATURE in segment {}", name_);
     }
   }
 
   if (code_sig_dir_ != nullptr) {
-    if (!update_span(code_sig_dir_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_DYLIB_CODE_SIGN_DRS in segment {}", name_);
+    if (!update_span(code_sig_dir_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_DYLIB_CODE_SIGN_DRS in segment {}",
+                name_);
     }
   }
 
   if (atom_info_ != nullptr) {
-    if (!update_span(atom_info_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_ATOM_INFO in segment {}", name_);
+    if (!update_span(atom_info_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_ATOM_INFO in segment {}", name_);
     }
   }
 
   if (func_variants_ != nullptr) {
-    if (!update_span(func_variants_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_VARIANTS in segment {}", name_);
+    if (!update_span(func_variants_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_VARIANTS in segment {}", name_);
     }
   }
 
   if (func_variant_fixups_ != nullptr) {
-    if (!update_span(func_variant_fixups_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_VARIANT_FIXUPS in segment {}", name_);
+    if (!update_span(func_variant_fixups_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_VARIANT_FIXUPS in segment {}",
+                name_);
+    }
+  }
+
+  for (LazyLoadDylibInfo* lazy : lazy_load_dylibs_) {
+    if (!update_span(lazy->content_, original_data_addr, original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_LAZY_LOAD_DYLIB_INFO in segment {}",
+                name_);
     }
   }
 }
 
 void LinkEdit::update_data(const update_fnc_ws_t& f, size_t where, size_t size) {
-  const auto original_data_addr     = reinterpret_cast<uintptr_t>(data_.data());
-  const auto original_data_size     = static_cast<size_t>(data_.size());
+  const auto original_data_addr = reinterpret_cast<uintptr_t>(data_.data());
+  const auto original_data_size = static_cast<size_t>(data_.size());
   const uintptr_t original_data_end = original_data_addr + original_data_size;
   f(data_, where, size);
   if (dyld_ != nullptr) {
-    if (!update_span(dyld_->rebase_opcodes_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning rebase opcodes in segment {}", name_);
+    if (!update_span(dyld_->rebase_opcodes_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span rebase opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->bind_opcodes_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->bind_opcodes_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->weak_bind_opcodes_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning weak bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->weak_bind_opcodes_, original_data_addr,
+                     original_data_end, where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span weak bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->lazy_bind_opcodes_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning lazy bind opcodes in segment {}", name_);
+    if (!update_span(dyld_->lazy_bind_opcodes_, original_data_addr,
+                     original_data_end, where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span lazy bind opcodes in segment {}", name_);
     }
-    if (!update_span(dyld_->export_trie_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the export trie in segment {}", name_);
+    if (!update_span(dyld_->export_trie_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the export trie in segment {}", name_);
     }
   }
 
   if (chained_fixups_ != nullptr) {
-    if (!update_span(chained_fixups_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the Dyld Chained fixups in segment {}", name_);
+    if (!update_span(chained_fixups_->content_, original_data_addr,
+                     original_data_end, where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the Dyld Chained fixups in segment {}", name_);
     }
   }
 
   if (exports_trie_ != nullptr) {
-    if (!update_span(exports_trie_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the Dyld Exports Trie in segment {}", name_);
+    if (!update_span(exports_trie_->content_, original_data_addr,
+                     original_data_end, where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the Dyld Exports Trie in segment {}", name_);
     }
   }
 
   if (symtab_ != nullptr) {
-    if (!update_span(symtab_->symbol_table_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SYMTAB.n_list in segment {}", name_);
+    if (!update_span(symtab_->symbol_table_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SYMTAB.n_list in segment {}", name_);
     }
-    if (!update_span(symtab_->string_table_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SYMTAB.string_table in segment {}", name_);
+    if (!update_span(symtab_->string_table_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SYMTAB.string_table in segment {}",
+                name_);
     }
   }
 
   if (fstarts_ != nullptr) {
-    if (!update_span(fstarts_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_STARTS in segment {}", name_);
+    if (!update_span(fstarts_->content_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_STARTS in segment {}", name_);
     }
   }
 
   if (data_code_ != nullptr) {
-    if (!update_span(data_code_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_DATA_IN_CODE in segment {}", name_);
+    if (!update_span(data_code_->content_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_DATA_IN_CODE in segment {}", name_);
     }
   }
 
   if (seg_split_ != nullptr) {
-    if (!update_span(seg_split_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_SEGMENT_SPLIT_INFO in segment {}", name_);
+    if (!update_span(seg_split_->content_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_SEGMENT_SPLIT_INFO in segment {}",
+                name_);
     }
   }
 
   if (two_lvl_hint_ != nullptr) {
-    if (!update_span(two_lvl_hint_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_TWOLEVEL_HINTS in segment {}", name_);
+    if (!update_span(two_lvl_hint_->content_, original_data_addr,
+                     original_data_end, where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_TWOLEVEL_HINTS in segment {}", name_);
     }
   }
 
   if (linker_opt_ != nullptr) {
-    if (!update_span(linker_opt_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_LINKER_OPTIMIZATION_HINT in segment {}", name_);
+    if (!update_span(linker_opt_->content_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_LINKER_OPTIMIZATION_HINT in segment {}",
+                name_);
     }
   }
 
   if (code_sig_ != nullptr) {
-    if (!update_span(code_sig_->content_, original_data_addr, original_data_end, where, size, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_CODE_SIGNATURE in segment {}", name_);
+    if (!update_span(code_sig_->content_, original_data_addr, original_data_end,
+                     where, size, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_CODE_SIGNATURE in segment {}", name_);
     }
   }
 
   if (code_sig_dir_ != nullptr) {
-    if (!update_span(code_sig_dir_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_DYLIB_CODE_SIGN_DRS in segment {}", name_);
+    if (!update_span(code_sig_dir_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_DYLIB_CODE_SIGN_DRS in segment {}",
+                name_);
     }
   }
 
   if (atom_info_ != nullptr) {
-    if (!update_span(atom_info_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_ATOM_INFO in segment {}", name_);
+    if (!update_span(atom_info_->content_, original_data_addr, original_data_end,
+                     data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_ATOM_INFO in segment {}", name_);
     }
   }
 
   if (func_variants_ != nullptr) {
-    if (!update_span(func_variants_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_VARIANTS in segment {}", name_);
+    if (!update_span(func_variants_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_VARIANTS in segment {}", name_);
     }
   }
 
   if (func_variant_fixups_ != nullptr) {
-    if (!update_span(func_variant_fixups_->content_, original_data_addr, original_data_end, data_)) {
-      LIEF_WARN("Error while re-spanning the LC_FUNCTION_VARIANT_FIXUPS in segment {}", name_);
+    if (!update_span(func_variant_fixups_->content_, original_data_addr,
+                     original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_FUNCTION_VARIANT_FIXUPS in segment {}",
+                name_);
+    }
+  }
+
+  for (LazyLoadDylibInfo* lazy : lazy_load_dylibs_) {
+    if (!update_span(lazy->content_, original_data_addr, original_data_end, data_))
+    {
+      LIEF_WARN("Failed to re-span the LC_LAZY_LOAD_DYLIB_INFO in segment {}",
+                name_);
     }
   }
 }
 
-}
 }

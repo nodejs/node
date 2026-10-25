@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
 #include "LIEF/ART/File.hpp"
 #include "LIEF/ART/Header.hpp"
 
-namespace LIEF {
-namespace ART {
+
+namespace LIEF::ART {
 
 Hash::~Hash() = default;
 
@@ -57,7 +57,4 @@ void Hash::visit(const Header& header) {
 }
 
 
-
-} // namespace ART
-} // namespace LIEF
-
+} // namespace LIEF::ART

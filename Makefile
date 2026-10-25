@@ -1056,6 +1056,7 @@ HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || ech
 SKIP_XZ ?= 0
 XZ = $(shell [ $(HAS_XZ) -eq 1 ] && [ $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
 XZ_COMPRESSION ?= 9e
+GZIP_COMPRESSION ?= 9
 PKG=$(TARNAME).pkg
 MACOSOUTDIR=out/macos
 
@@ -1249,7 +1250,7 @@ $(TARBALL): release-only doc-only
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.xz
 endif
@@ -1294,7 +1295,7 @@ $(TARBALL)-headers: release-only
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.xz
 endif
@@ -1339,7 +1340,7 @@ ifeq ($(OSTYPE),darwin)
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
-	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.xz
 endif
@@ -1410,10 +1411,10 @@ format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the ma
 	@$(call available-node,$(run-format-md))
 
 
-
+ESLINT_CACHE_FLAGS ?= --cache
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js $(ESLINT_CACHE_FLAGS) \
 	--max-warnings=0 --report-unused-disable-directives \
 	--concurrency auto $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix

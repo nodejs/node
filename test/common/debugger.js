@@ -27,6 +27,8 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
     ...args,
   ], spawnOpts);
 
+  const closed = new Promise((resolve) => child.once('close', resolve));
+
   const outputBuffer = [];
   function bufferOutput(chunk) {
     if (this === child.stderr) {
@@ -180,10 +182,8 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
     },
 
     quit() {
-      return new Promise((resolve) => {
-        child.stdin.end();
-        child.on('close', resolve);
-      });
+      child.stdin.end();
+      return closed;
     },
   };
 }

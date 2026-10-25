@@ -2088,9 +2088,13 @@ Since it's not possible to build Node.js without libuv, this value is always `tr
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66436
+    description: Marked as release candidate.
 -->
 
-> Stability: 1.1 - Active Development
+> Stability: 1.2 - Release candidate
 
 * `ref` {Object | Function} The reference to the resource that is being tracked.
 * `callback` {Function} The callback function to be called when the resource
@@ -2197,9 +2201,13 @@ as it is not guaranteed that the callback will be called under all circumstances
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66436
+    description: Marked as release candidate.
 -->
 
-> Stability: 1.1 - Active Development
+> Stability: 1.2 - Release candidate
 
 * `ref` {Object | Function} The reference
   to the resource that is being tracked.
@@ -2218,9 +2226,13 @@ this means that there is a possibility that the callback will not be called unde
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66436
+    description: Marked as release candidate.
 -->
 
-> Stability: 1.1 - Active Development
+> Stability: 1.2 - Release candidate
 
 * `ref` {Object | Function} The reference
   to the resource that was registered previously.
@@ -3349,9 +3361,11 @@ console.log(`The parent process is pid ${ppid}`);
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66213
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "refable".
 
@@ -4445,9 +4459,11 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66213
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "unref'd".
 

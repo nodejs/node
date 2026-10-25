@@ -283,3 +283,73 @@ test('using `run` api', async () => {
   await setTimeout(common.platformTimeout(10)); // Wait for the stream to finish processing
   assert.deepStrictEqual(await getStateFile(), expectedStateFile);
 });
+
+test('failing todo test is rerun even when its parent suite passed', async () => {
+  const fixturePath = fixtures.path('test-runner', 'rerun-todo.js');
+  const fixtureKey = relative(process.cwd(), fixturePath).replaceAll('\\', '/');
+  const topLevelTodo = `${fixtureKey}:3:1`;
+  const suite = `${fixtureKey}:9:1`;
+  const nestedTodo = `${fixtureKey}:10:3`;
+  const ok = `${fixtureKey}:16:3`;
+
+  async function runAttempt() {
+    const results = { __proto__: null, passed: [], failed: [], summaries: [] };
+    const stream = run({ files: [fixturePath], rerunFailuresFilePath: stateFile });
+    for await (const { type, data } of stream) {
+      const { name, todo, details } = data;
+      if (type === 'test:pass') {
+        results.passed.push({ name, todo, attempt: details.attempt, passed_on_attempt: details.passed_on_attempt });
+      } else if (type === 'test:fail') {
+        results.failed.push({ name, todo, attempt: details.attempt });
+      } else if (type === 'test:summary') {
+        results.summaries.push(data);
+      }
+    }
+    await setTimeout(common.platformTimeout(10)); // Wait for the stream to finish processing
+    return results;
+  }
+
+  let results = await runAttempt();
+  assert.deepStrictEqual(results.failed, [
+    { name: 'top-level todo fails on first attempt', todo: true, attempt: 0 },
+    { name: 'nested todo fails on first attempt', todo: true, attempt: 0 },
+  ]);
+  assert.deepStrictEqual(results.passed, [
+    { name: 'ok', todo: undefined, attempt: 0, passed_on_attempt: undefined },
+    { name: 'suite with failing todo', todo: undefined, attempt: 0, passed_on_attempt: undefined },
+  ]);
+  for (const { success, counts } of results.summaries) {
+    assert.strictEqual(success, true);
+    assert.strictEqual(counts.failed, 0);
+    assert.strictEqual(counts.passed, 1);
+    assert.strictEqual(counts.todo, 2);
+  }
+  let state = await getStateFile();
+  assert.strictEqual(state.length, 1);
+  assert.deepStrictEqual(state[0], {
+    [ok]: { passed_on_attempt: 0, name: 'ok' },
+  });
+
+  results = await runAttempt();
+  assert.deepStrictEqual(results.failed, []);
+  assert.deepStrictEqual(results.passed, [
+    { name: 'top-level todo fails on first attempt', todo: true, attempt: 1, passed_on_attempt: undefined },
+    { name: 'nested todo fails on first attempt', todo: true, attempt: 1, passed_on_attempt: undefined },
+    { name: 'ok', todo: undefined, attempt: 1, passed_on_attempt: 0 },
+    { name: 'suite with failing todo', todo: undefined, attempt: 1, passed_on_attempt: undefined },
+  ]);
+  for (const { success, counts } of results.summaries) {
+    assert.strictEqual(success, true);
+    assert.strictEqual(counts.failed, 0);
+    assert.strictEqual(counts.passed, 1);
+    assert.strictEqual(counts.todo, 2);
+  }
+  state = await getStateFile();
+  assert.strictEqual(state.length, 2);
+  assert.deepStrictEqual(state[1], {
+    [topLevelTodo]: { passed_on_attempt: 1, name: 'top-level todo fails on first attempt' },
+    [nestedTodo]: { passed_on_attempt: 1, name: 'nested todo fails on first attempt' },
+    [ok]: { passed_on_attempt: 0, name: 'ok' },
+    [suite]: { passed_on_attempt: 1, name: 'suite with failing todo' },
+  });
+});

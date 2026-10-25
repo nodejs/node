@@ -8417,12 +8417,19 @@ Close the stream gracefully, flushing the internal buffer before closing.
 * `callback` {Function}
   * `err` {Error|null} An error if the flush failed, otherwise `null`.
 
-Writes the current buffer to the file if a write was not in progress. Do
-nothing if `minLength` is zero or if it is already writing.
+Writes the current buffer to the file. The callback is invoked after pending
+writes complete and, unless the `fsync` option is enabled, after the data has
+been synchronized with `fs.fsync()`. `fsync` errors indicating that the file
+descriptor does not support synchronization (for example, a pipe or a TTY)
+are ignored.
 
 #### `utf8Stream.flushSync()`
 
 Flushes the buffered data synchronously. This is a costly operation.
+
+If an asynchronous write is in flight when `flushSync()` is called, only the
+data queued after it is written, and it may reach the file before the data
+of the in-flight write.
 
 #### `utf8Stream.fsync`
 
@@ -8468,12 +8475,12 @@ Reopen the file in place, useful for log rotation.
 
 #### `utf8Stream.write(data)`
 
-* `data` {string|Buffer} The data to write.
+* `data` {string|Buffer|TypedArray|DataView} The data to write.
 * Returns {boolean}
 
 When the `options.contentMode` is set to `'utf8'` when the stream is created,
 the `data` argument must be a string. If the `contentMode` is set to `'buffer'`,
-the `data` argument must be a {Buffer}.
+the `data` argument must be a {Buffer}, {TypedArray}, or {DataView}.
 
 #### `utf8Stream.writing`
 
