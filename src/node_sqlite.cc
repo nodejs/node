@@ -680,6 +680,11 @@ class BackupJob : public ThreadPoolWork {
       return;
     }
 
+    if (backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED) {
+      this->ScheduleWork();
+      return;
+    }
+
     int total_pages = sqlite3_backup_pagecount(backup_.get());
     int remaining_pages = sqlite3_backup_remaining(backup_.get());
     if (remaining_pages != 0) {
