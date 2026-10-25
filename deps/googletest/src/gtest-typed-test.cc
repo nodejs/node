@@ -62,7 +62,6 @@ const char* TypedTestSuitePState::VerifyRegisteredTestNames(
     const char* registered_tests) {
   RegisterTypeParameterizedTestSuite(test_suite_name, CodeLocation(file, line));
 
-  typedef RegisteredTestsMap::const_iterator RegisteredTestIter;
   registered_ = true;
 
   std::vector<std::string> name_vec = SplitIntoTestNames(registered_tests);
@@ -78,7 +77,7 @@ const char* TypedTestSuitePState::VerifyRegisteredTestNames(
       continue;
     }
 
-    if (registered_tests_.count(name) != 0) {
+    if (TestExists(name)) {
       tests.insert(name);
     } else {
       errors << "No test named " << name
@@ -86,10 +85,10 @@ const char* TypedTestSuitePState::VerifyRegisteredTestNames(
     }
   }
 
-  for (RegisteredTestIter it = registered_tests_.begin();
-       it != registered_tests_.end(); ++it) {
-    if (tests.count(it->first) == 0) {
-      errors << "You forgot to list test " << it->first << ".\n";
+  for (const RegisteredTest* it = registered_tests_; it != nullptr;
+       it = it->next) {
+    if (tests.count(it->name) == 0) {
+      errors << "You forgot to list test " << it->name << ".\n";
     }
   }
 
