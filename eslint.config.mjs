@@ -57,6 +57,7 @@ export default [
     'lib/punycode.js',
     'test/.tmp.*/**',
     'test/addons/??_*',
+    'tools/gyp/**',
 
     // We want to lint only a few specific fixtures folders
     'test/fixtures/*',
