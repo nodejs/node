@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-npm-package.js",
+    "check-types": "node scripts/build-npm-package.js && node scripts/check-types.js"
+  },
+  "devDependencies": {
+    "typescript": "7.1.0-beta"
+  }
+}
