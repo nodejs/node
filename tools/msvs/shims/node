@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# This allows calling node (without .exe) from WSL bash
+
+WIN_NODE_DIR=$(cd "$(dirname "$0")" && pwd)
+WIN_NODE_EXE="$WIN_NODE_DIR/node.exe"
+
+exec "$WIN_NODE_EXE" "$@"
