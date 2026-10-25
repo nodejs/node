@@ -1,10 +1,10 @@
 arg:
 let
   repo = "https://github.com/NixOS/nixpkgs";
-  rev = "f20cd90e28fe0403873f473b29e42662cd86e8c4";
+  rev = "901c54c08bdc20e00c2b3c73716b97497b1b3c74";
   nixpkgs = import (builtins.fetchTarball {
     url = "${repo}/archive/${rev}.tar.gz";
-    sha256 = "1vv6crfchmhjk5j61zgajggc3cgkalak2rvng07g41cvlcf6ldhj";
+    sha256 = "0bicjz6w8n0ahwxxj837rbg494siw57vfk7ff3w8v3gvnykzxlia";
   }) arg;
 in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
@@ -22,12 +22,7 @@ else
 
     boringssl =
       let
-        inherit (nixpkgs) callPackage lib writeTextFile;
-        # TODO: remove this override once nixpkgs.boringssl is 0.20261020.0 or newer.
-        boringssl = callPackage (builtins.fetchurl {
-          url = "${repo}/raw/1c17f6e5f086bf6b259e7a28f68657ed8548a25a/pkgs/by-name/bo/boringssl/package.nix";
-          sha256 = "10cw2np6shjanxa2vzfxsrbyz451g1b6qan2v9c1ln75i3n5zn8a";
-        }) { };
+        inherit (nixpkgs) boringssl lib writeTextFile;
       in
       # BoringSSL does not install the openssl.pc metadata required by configure.
       # https://boringssl-review.googlesource.com/c/boringssl/+/104208
