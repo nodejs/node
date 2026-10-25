@@ -966,11 +966,6 @@
               '-Bdeps/zlib/win32/zlib.def'
             ],
           },
-          'conditions': [
-            ['openssl_is_fips=="true"', {
-              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
-            }],
-          ],
           'actions': [
             {
               'action_name': 'mkssldef',
