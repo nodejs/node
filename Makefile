@@ -345,7 +345,13 @@ TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
 # re-downloads it. An overridden path is a build we do not manage and may not
 # be writable, so it gets no prerequisite and is left alone once it exists.
 ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
+# Platforms without a perfetto release get a binary built from
+# tools/perfetto/trace_processor_shell.json instead.
+ifneq ($(filter ppc64le s390x,$(ARCHTYPE)),)
+TRACE_PROCESSOR_SHELL_DEPS = tools/perfetto/trace_processor_shell.json
+else
 TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
+endif
 endif
 
 $(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)

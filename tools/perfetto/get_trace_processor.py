@@ -4,6 +4,7 @@
 # perfetto builds write through this tool.
 
 import io
+import json
 import os
 import platform
 import sys
@@ -12,6 +13,9 @@ import zipfile
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 version_file = os.path.join(script_dir, '..', '..', 'deps', 'perfetto', 'VERSION')
+# Platforms perfetto publishes no release for, cross-compiled and pushed to the
+# nodejs Cachix cache by tools/dep_updaters/update-nixpkgs-pin.sh.
+cross_compile_info = os.path.join(script_dir, 'trace_processor_shell.json')
 is_windows = platform.system() == 'Windows'
 
 # Perfetto names its release archives <os>-<arch>, which does not match what
@@ -29,31 +33,57 @@ def release_name():
   os_name = OS_NAMES.get(platform.system())
   arch = ARCH_NAMES.get(platform.machine())
   if os_name is None or arch is None:
-    sys.exit(f'No perfetto release for {platform.system()} {platform.machine()}')
+    return None
   return f'{os_name}-{arch}'
+
+
+def download(url):
+  print(f'Downloading {url}')
+  # Cachix's CDN rejects urllib's default User-Agent.
+  request = urllib.request.Request(url, headers={'User-Agent': 'node-get-trace-processor'})
+  with urllib.request.urlopen(request) as response:
+    return response.read()
+
+
+def download_from_cachix():
+  name = f'{platform.system().lower()}-{platform.machine()}'
+  with open(cross_compile_info) as f:
+    entry = json.load(f).get(name, {})
+  if 'storePath' not in entry:
+    sys.exit(f'No perfetto release for {platform.system()} {platform.machine()}')
+
+  _, _, _, store_name, artifact = entry['storePath'].split('/', 4)
+  store_hash = store_name.split('-', 1)[0]
+  data = download('https://app.cachix.org/api/v1/cache/nodejs/serve/'
+                  f'{store_hash}/{artifact}')
+  return data
 
 
 def main():
   exe = 'trace_processor_shell.exe' if is_windows else 'trace_processor_shell'
   trace_processor = sys.argv[1] if len(sys.argv) > 1 else os.path.join(script_dir, exe)
 
-  # The tool is current when it is newer than the version file it was
-  # downloaded for, so a version bump re-downloads it.
+  # The tool is current when it is newer than the files it was downloaded
+  # for, so a version bump re-downloads it.
   if (os.path.exists(trace_processor) and
-      os.path.getmtime(trace_processor) > os.path.getmtime(version_file)):
+      os.path.getmtime(trace_processor) > max(os.path.getmtime(version_file),
+                                              os.path.getmtime(cross_compile_info))):
     return
 
-  with open(version_file) as f:
-    version = f.read().strip()
   name = release_name()
-  url = f'https://github.com/google/perfetto/releases/download/v{version}/{name}.zip'
+  if name is None:
+    data = download_from_cachix()
+  else:
+    with open(version_file) as f:
+      version = f.read().strip()
+    url = f'https://github.com/google/perfetto/releases/download/v{version}/{name}.zip'
+    archive = zipfile.ZipFile(io.BytesIO(download(url)))
+    print(f'Extracting {name}/{exe}')
+    data = archive.read(f'{name}/{exe}')
 
-  print(f'Downloading {url}')
-  with urllib.request.urlopen(url) as response:
-    archive = zipfile.ZipFile(io.BytesIO(response.read()))
-  print(f'Extracting {name}/{exe} to {trace_processor}')
+  print(f'Writing {trace_processor}')
   with open(trace_processor, 'wb') as dst:
-    dst.write(archive.read(f'{name}/{exe}'))
+    dst.write(data)
   os.chmod(trace_processor, 0o755)
 
 
