@@ -204,4 +204,6 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     assert.ok(stdout.includes(foundPjsonPath), stdout);
     assert.strictEqual(code, 0);
   });
+
+
 });
