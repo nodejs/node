@@ -888,7 +888,9 @@ const util = require('util');
   const mixed = 'ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255';
   blockList.addAddress(mixed, 'ipv6');
   assert.strictEqual(blockList.check(mixed, 'ipv6'), true);
-  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), false);
+  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'),
+                     // This returns true as of libuv 1.53.0 (there are no 0.53.0 version)
+                     (([major, minor]) => major > 1 || minor > 52)(process.versions.uv.split('.')));
 }
 
 // check() family parameter is case-insensitive.
