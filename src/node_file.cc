@@ -1921,9 +1921,6 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
           std::filesystem::file_type::not_found) {
         return;
       }
-      // remove_all also reports ENOENT for an entry another process removed
-      // during the walk, and stops there. Walk the rest once more; a second
-      // stop means the tree is being modified, which maxRetries exists for.
       if (!rewalked) {
         rewalked = true;
         continue;
