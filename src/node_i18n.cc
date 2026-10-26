@@ -814,13 +814,15 @@ static int GetClusterWidth(const UChar* str,
 
 struct CharacterBreakIterator {
   UBreakIterator* iterator = nullptr;
+  bool unavailable = false;
   ~CharacterBreakIterator() { ubrk_close(iterator); }
 };
 
 // Returns the column width of the given string, counted per grapheme cluster
 // so that an emoji sequence rendered as one glyph counts once. This is what
 // util.getStringWidth() uses. GetStringWidth() above counts code points and
-// is used for cursor movement in readline.
+// is used for cursor movement in readline. Returns undefined when the ICU
+// data has no character break rules, as in a small-icu build.
 static void GetGraphemeStringWidth(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
@@ -837,9 +839,15 @@ static void GetGraphemeStringWidth(const FunctionCallbackInfo<Value>& args) {
   static thread_local CharacterBreakIterator cached;
   UErrorCode status = U_ZERO_ERROR;
   if (cached.iterator == nullptr) {
+    if (cached.unavailable) return;
     cached.iterator = ubrk_open(UBRK_CHARACTER, nullptr, nullptr, 0, &status);
-    // The character break rules are part of the ICU data that Node.js ships.
-    CHECK(U_SUCCESS(status));
+    if (U_FAILURE(status)) {
+      // small-icu ships no break iterator data: the caller falls back to
+      // its own approximation.
+      cached.iterator = nullptr;
+      cached.unavailable = true;
+      return;
+    }
   }
   UBreakIterator* iterator = cached.iterator;
   ubrk_setText(iterator, str, length, &status);

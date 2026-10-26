@@ -982,9 +982,9 @@ console.log(util.getStringWidth(util.styleText('red', 'hi')));
 The result is an estimate because terminals differ in how they render some
 characters. For example, a terminal that does not support an emoji sequence
 displays each emoji of the sequence separately and uses more columns than
-reported. When Node.js is built without ICU, a simpler table of full-width and
-zero-width code points is used, which is less accurate for less common scripts
-and symbols.
+reported. When Node.js is built without ICU, or with `small-icu`, which has no
+grapheme cluster data, a simpler table of full-width and zero-width code points
+is used, which is less accurate for less common scripts and symbols.
 
 ## `util.getSystemErrorName(err)`
 

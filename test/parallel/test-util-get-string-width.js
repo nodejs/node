@@ -66,7 +66,8 @@ assert.strictEqual(getStringWidth('\u1100\u1161'), 2);
 assert.strictEqual(getStringWidth('\u1100\u1161\u11A8'), 2);
 assert.strictEqual(getStringWidth('क\u093F'), 2);  // Devanagari vowel sign.
 
-if (common.hasIntl) {
+// Grapheme clusters need the character break rules, which small-icu lacks.
+if (common.hasFullICU) {
   assert.strictEqual(getStringWidth('\u00A0'), 1);  // No-break space.
   assert.strictEqual(getStringWidth('ก\u0E34'), 1);  // Thai vowel mark.
   assert.strictEqual(getStringWidth('\u00AD'), 0);  // Soft hyphen.
