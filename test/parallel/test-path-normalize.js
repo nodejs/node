@@ -43,6 +43,23 @@ assert.strictEqual(path.win32.normalize('foo/bar\\baz'), 'foo\\bar\\baz');
 assert.strictEqual(path.win32.normalize('\\\\.\\foo'), '\\\\.\\foo');
 assert.strictEqual(path.win32.normalize('\\\\.\\foo\\'), '\\\\.\\foo\\');
 
+// A name that merely starts with a reserved device name is not itself
+// reserved: Windows only treats `NAME` as equivalent to the device when it
+// is bare, followed by a colon, or followed immediately by a single dot
+// (e.g. `NUL.` and `NUL.txt` both refer to the `NUL` device). Any other
+// trailing character makes it an ordinary, unrelated file name and it must
+// be left untouched.
+assert.strictEqual(path.win32.normalize('CONx'), 'CONx');
+assert.strictEqual(path.win32.normalize('NULs'), 'NULs');
+assert.strictEqual(path.win32.normalize('LPT1x'), 'LPT1x');
+assert.strictEqual(path.win32.normalize('PRNzzz'), 'PRNzzz');
+assert.strictEqual(path.win32.normalize('CON'), 'CON');
+// With a trailing colon or a single trailing dot the reserved-name handling
+// still applies.
+assert.strictEqual(path.win32.normalize('CON:'), '.\\CON:.');
+assert.strictEqual(path.win32.normalize('CON.'), '.\\CON.');
+assert.strictEqual(path.win32.normalize('COM9.'), '.\\COM9.');
+
 // Tests related to CVE-2024-36139. Path traversal should not result in changing
 // the root directory on Windows.
 assert.strictEqual(path.win32.normalize('test/../C:/Windows'), '.\\C:\\Windows');
