@@ -966,16 +966,19 @@ rem ***************
 set NODE_VERSION=
 set TAG=
 set FULLVERSION=
+set NODE_FULL_VERSION=
 
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
   echo Cannot determine current version of Node.js
   exit /b 1
 )
+@rem NODE_VERSION stays numeric as it is used as the MSI ProductVersion.
+for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py" --full`) do set NODE_FULL_VERSION=%%i
 
 if not defined DISTTYPE set DISTTYPE=release
 if "%DISTTYPE%"=="release" (
-  set FULLVERSION=%NODE_VERSION%
+  set FULLVERSION=%NODE_FULL_VERSION%
   goto distexit
 )
 if "%DISTTYPE%"=="custom" (

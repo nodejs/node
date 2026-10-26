@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v[0-9]+.[0-9]+.[0-9]+-proposal
+      - v[0-9]+.0.0-alpha.[0-9]+.[0-9]+.[0-9]+-proposal
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -34,8 +35,11 @@ jobs:
             $2 == "NODE_MAJOR_VERSION"  { maj = $3 }
             $2 == "NODE_MINOR_VERSION"  { min = $3 }
             $2 == "NODE_PATCH_VERSION"  { pat = $3 }
+            $2 == "NODE_ALPHA_MAJOR_VERSION" { amaj = $3 }
+            $2 == "NODE_ALPHA_MINOR_VERSION" { amin = $3 }
+            $2 == "NODE_ALPHA_PATCH_VERSION" { apat = $3 }
             $2 == "NODE_VERSION_LTS_CODENAME" { gsub(/^"|"$/, "'"'"'",$3); lts = $3 }
-            END { if (maj) print maj "\\." min "\\." pat " " (lts != "'"''"'" ? lts " \\(LTS" : "\\(Current" ) "\\)" }
+            END { if (maj) print maj "\\." min "\\." pat (amaj != "" ? "-alpha\\." amaj "\\." amin "\\." apat " \\(Alpha" : " " (lts != "'"''"'" ? lts " \\(LTS" : "\\(Current" )) "\\)" }
           ')
           MAJOR=${VERSION%%\\.*}
           EXPECTED_TITLE='^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}, Version '"$VERSION"'$'
