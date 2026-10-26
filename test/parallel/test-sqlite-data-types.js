@@ -256,4 +256,32 @@ suite('data binding and mapping', () => {
       [{ __proto__: null, key: 1, val: 5 }, { __proto__: null, key: 2, val: null }],
     );
   });
+
+  test('omitted named parameters are unbound on each call', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const named = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const mixed = db.prepare('INSERT INTO data (key, val) VALUES ($k, ?)');
+    named.run({ k: 1, v: 5 });
+    named.run({ k: 2 });
+    named.run({ k: 3, v: 6 });
+    named.run({ k: 4, $k: 4 });
+    mixed.run({ k: 5 }, 7);
+    mixed.run({ k: 6 });
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM data ORDER BY key').all(),
+      [
+        { __proto__: null, key: 1, val: 5 },
+        { __proto__: null, key: 2, val: null },
+        { __proto__: null, key: 3, val: 6 },
+        { __proto__: null, key: 4, val: null },
+        { __proto__: null, key: 5, val: 7 },
+        { __proto__: null, key: 6, val: null },
+      ],
+    );
+  });
 });
