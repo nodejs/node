@@ -6,9 +6,10 @@ BOT_TOKEN=${BOT_TOKEN:-}
 RELEASE_DATE=$1
 RELEASE_LINE=$2
 RELEASER=$3
+RELEASE_VERSION=$4
 
 if [ -z "$RELEASE_DATE" ] || [ -z "$RELEASE_LINE" ]; then
-  echo "Usage: $0 <RELEASE_DATE> <RELEASE_LINE>"
+  echo "Usage: $0 <RELEASE_DATE> <RELEASE_LINE> [<RELEASER> [<RELEASE_VERSION>]]"
   exit 1
 fi
 
@@ -28,7 +29,8 @@ done
 
 set -xe
 
-git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
+git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE" \
+  ${RELEASE_VERSION:+--newVersion "$RELEASE_VERSION"}
 
 HEAD_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 HEAD_SHA="$(git rev-parse HEAD^)"

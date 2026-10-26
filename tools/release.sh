@@ -115,7 +115,10 @@ sign() {
   # local version=$1
 
   ghtaggedversion=$(curl -sL "https://raw.githubusercontent.com/nodejs/node/$1/src/node_version.h" \
-      | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
+      | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 }
+             /define NODE_VERSION_IS_RELEASE/{ r = $3 }
+             /define NODE_ALPHA_(MAJOR|MINOR|PATCH)_VERSION/{ a = a "." $3 }
+             END{ v = "v" substr(v, 2); if (r == 1 && a != "") v = v "-alpha" a; print v }')
   if [ "$1" != "${ghtaggedversion}" ]; then
     echo "Could not find tagged version on github.com/nodejs/node, did you push your tag?"
     exit 1

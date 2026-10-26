@@ -21,7 +21,7 @@ jobs:
           MONTH=$(date +'%m')
           DAY=$(date +'%d')
           # We'll create the reminder issue two months prior the release
-          if [[ "$MONTH" == "02" || "$MONTH" == "08" ]] && [[ "$DAY" == "15" ]]; then
+          if [[ "$MONTH" == "02" ]] && [[ "$DAY" == "15" ]]; then
             echo "create_issue=true" >> "$GITHUB_ENV"
           fi
       - name: Retrieve next major release info from nodejs/Release
