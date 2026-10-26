@@ -9,12 +9,13 @@ const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
+const os = require('os');
 
 tmpdir.refresh();
 const blobPath = tmpdir.resolve('snapshot.blob');
 
 // Concat test/fixtures/snapshot/typescript.js with
-// test/fixtures/snapshot/typescript.js into
+// test/fixtures/snapshot/typescript-main.js into
 // tmpdir/snapshot.js.
 const file = tmpdir.resolve('snapshot.js');
 fs.copyFileSync(fixtures.path('snapshot', 'typescript.js'), file);
@@ -57,7 +58,8 @@ fs.appendFileSync(file,
 
   assert.strictEqual(child.status, 0);
   const result = fs.readFileSync(outPath, 'utf8');
-  const expected = fs.readFileSync(
-    fixtures.path('snapshot', 'ts-example.js'), 'utf8');
+  const expected = fs
+    .readFileSync(fixtures.path('snapshot', 'ts-example.js'), 'utf8')
+    .replace(/\r?\n/g, os.EOL);
   assert.strictEqual(result, expected);
 }
