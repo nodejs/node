@@ -431,7 +431,7 @@ GlobRequest::GlobRequest(Environment* env,
                          const std::vector<CompiledPatternPtr>& excludes,
                          std::unique_ptr<JsExcludeFilter> filter)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_GLOBREQUEST),
-      ThreadPoolWork(env, "glob"),
+      ThreadPoolWork(env, ThreadPoolWorkType::kGlob),
       filter_(std::move(filter)),
       walk_(env, options, includes, excludes),
       with_file_types_(options.with_file_types) {
