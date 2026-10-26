@@ -41,12 +41,12 @@ function readTraceEvents(file) {
   }
 
   const converted = spawnSync(traceProcessor, ['convert', 'json', file],
-                              { maxBuffer: kMaxTraceJsonBytes });
+                              { maxBuffer: kMaxTraceJsonBytes, encoding: 'utf8' });
   assert.ifError(converted.error);
-  assert.strictEqual(
-    converted.status, 0,
-    `trace_processor_shell failed: ${converted.stderr}`);
-  return JSON.parse(converted.stdout.toString()).traceEvents;
+  assert.partialDeepStrictEqual(
+    converted, { status: 0 },
+    `trace_processor_shell failed`);
+  return JSON.parse(converted.stdout).traceEvents;
 }
 
 // A perfetto trace event carries the single category it was emitted with. The
