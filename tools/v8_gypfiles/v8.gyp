@@ -52,10 +52,7 @@
       }
     },
     'conditions': [
-      # Build with -fvisibility=hidden and -fvisibility-inlines-hidden to avoid
-      # including unnecessary internal symbols, which may lead to run-time fixups.
-      # This is not done on AIX where symbols are exported by tools/create_expfile.sh
-      # see https://github.com/nodejs/node/pull/56290#issuecomment-2582703109
+      # See the same setting in node.gyp
       ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
