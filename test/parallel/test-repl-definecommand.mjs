@@ -23,7 +23,7 @@ replServer.defineCommand('say2', function() {
 });
 
 await run(['.help\n']);
-assert.match(output.accumulator, /\n\.say1 {5}help for say1\n/);
+assert.match(output.accumulator, /\n\.say1 {6}help for say1\n/);
 assert.match(output.accumulator, /\n\.say2\n/);
 
 await run(['.say1 node developer\n']);
