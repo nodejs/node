@@ -37,9 +37,11 @@ const aliveForeverFile = 'child-process-stay-alive-forever.js';
   const timeout = common.platformTimeout(5000);
   const cp = spawn(process.execPath, ['-e', `
     const { spawn } = require('child_process');
+    // Detached: on Windows a non-detached descendant is killed with the job
+    // object of the child when the child exits.
     const child = spawn(process.execPath,
                         ['-e', 'setTimeout(() => {}, ${common.platformTimeout(30000)})'],
-                        { stdio: 'inherit' });
+                        { stdio: 'inherit', detached: true });
     child.unref();
     process.stdout.write(String(child.pid));
   `], { timeout });
