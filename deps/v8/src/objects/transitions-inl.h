@@ -400,6 +400,14 @@ MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
   return MaybeHandle<Map>(result, isolate);
 }
 
+// static
+std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
+    Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
+  // This helper is supposed to be used only from the main thread.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  return TransitionsAccessor(isolate, map).GetPrototypeTransition(prototype);
+}
+
 // TODO(375937549): Convert to uint32_t.
 int TransitionArray::number_of_transitions() const {
   if (ulength().value() < kFirstIndex) return 0;

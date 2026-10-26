@@ -66,6 +66,7 @@ class Zone;
   V(compile_hints_magic_enabled, bool, 1, _)                    \
   V(compile_hints_per_function_magic_enabled, bool, 1, _)       \
   V(is_hoisted_in_context, bool, 1, _)                          \
+  V(class_initializer_allows_await, bool, 1, _)                 \
   V(allow_heap_allocation, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {

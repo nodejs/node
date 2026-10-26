@@ -450,7 +450,11 @@ class ParserBase {
   class FunctionState final : public BlockState {
    public:
     FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
-                  DeclarationScope* scope);
+                  DeclarationScope* scope)
+        : FunctionState(function_state_stack, scope_stack, scope,
+                        scope->function_kind()) {}
+    FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
+                  DeclarationScope* scope, FunctionKind kind);
     ~FunctionState();
 
     DeclarationScope* scope() const { return scope_->AsDeclarationScope(); }
@@ -467,7 +471,7 @@ class ParserBase {
     int suspend_count() const { return suspend_count_; }
     bool CanSuspend() const { return suspend_count_ > 0; }
 
-    FunctionKind kind() const { return scope()->function_kind(); }
+    FunctionKind kind() const { return kind_; }
 
     bool next_function_is_likely_called() const {
       return next_function_is_likely_called_;
@@ -534,6 +538,7 @@ class ParserBase {
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
     DeclarationScope* scope_;
+    FunctionKind kind_;
     Target* target_stack_ = nullptr;  // for break, continue statements
 
     // A reason, if any, why this function should not be optimized.
@@ -639,6 +644,8 @@ class ParserBase {
         static_elements_scope = parser->NewFunctionScope(kind);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
+        static_elements_scope->set_class_initializer_allows_await(
+            parser->is_await_allowed());
         static_elements_function_id = info_id;
         // Actually consume the id. The id that was passed in might be an
         // earlier id in case of computed property names.
@@ -657,6 +664,8 @@ class ParserBase {
         instance_members_scope = parser->NewFunctionScope(kind);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
+        instance_members_scope->set_class_initializer_allows_await(
+            parser->is_await_allowed());
         instance_members_function_id = info_id;
         // Actually consume the id. The id that was passed in might be an
         // earlier id in case of computed property names.
@@ -1833,13 +1842,14 @@ class ParserBase {
 template <typename Impl>
 ParserBase<Impl>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack,
-    DeclarationScope* scope)
+    DeclarationScope* scope, FunctionKind kind)
     : BlockState(scope_stack, scope),
       expected_property_count_(0),
       suspend_count_(0),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       scope_(scope),
+      kind_(kind),
       dont_optimize_reason_(BailoutReason::kNoReason),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),

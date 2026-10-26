@@ -28,7 +28,8 @@ class WasmGraphAssembler : public GraphAssembler {
  public:
   WasmGraphAssembler(MachineGraph* mcgraph, Zone* zone)
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
-        simplified_(zone) {}
+        simplified_(zone),
+        common_(zone) {}
 
   // While CallBuiltin() translates to a direct call to the address of the
   // builtin, CallBuiltinThroughJumptable instead jumps to a slot in a jump
@@ -177,15 +178,8 @@ class WasmGraphAssembler : public GraphAssembler {
                                            ExternalPointerTagRange tag_range,
                                            Node* isolate_root);
 
-  Node* LoadImmutableTrustedPointerFromObject(Node* object, int offset,
-                                              IndirectPointerTagRange tag);
   Node* LoadTrustedPointerFromObject(Node* object, int offset,
                                      IndirectPointerTagRange tag);
-  // Returns the load node (where the source position for the trap needs to be
-  // set by the caller) and the result.
-  std::pair<Node*, Node*> LoadTrustedPointerFromObjectTrapOnNull(
-      Node* object, int offset, IndirectPointerTagRange tag);
-  Node* BuildDecodeTrustedPointer(Node* handle, IndirectPointerTagRange tag);
 
   Node* IsSmi(Node* object);
 
@@ -345,6 +339,7 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   SimplifiedOperatorBuilder simplified_;
+  CommonOperatorBuilder common_;
 };
 
 }  // namespace compiler

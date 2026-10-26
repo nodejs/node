@@ -85,15 +85,16 @@
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
 
-#define COMMON_OP_LIST(V)      \
-  CONSTANT_OP_LIST(V)          \
-  INNER_OP_LIST(V)             \
-  V(Unreachable)               \
-  V(DeadValue)                 \
-  V(Dead)                      \
-  V(Plug)                      \
-  V(SLVerifierHint)            \
-  V(MajorGCForCompilerTesting) \
+#define COMMON_OP_LIST(V)           \
+  CONSTANT_OP_LIST(V)               \
+  INNER_OP_LIST(V)                  \
+  V(Unreachable)                    \
+  V(DeadValue)                      \
+  V(Dead)                           \
+  V(Plug)                           \
+  V(SLVerifierHint)                 \
+  V(MajorGCForCompilerTesting)      \
+  IF_SANDBOX(V, LoadTrustedPointer) \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.

@@ -385,8 +385,9 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
 
   if (root_map->prototype() != old_map->prototype()) {
-    auto maybe_transition = TransitionsAccessor::GetPrototypeTransition(
-        isolate, root_map, old_map->prototype());
+    auto maybe_transition =
+        TransitionsAccessor(isolate, root_map, IsConcurrent(cmode))
+            .GetPrototypeTransition(old_map->prototype());
     if (!maybe_transition) {
       return {};
     }

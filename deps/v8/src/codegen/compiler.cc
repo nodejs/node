@@ -2852,8 +2852,8 @@ void BackgroundDeserializeTask::Run() {
   LocalHandleScope handle_scope(&isolate);
 
   DirectHandle<SharedFunctionInfo> inner_result;
-  off_thread_data_ =
-      CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
+  CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_,
+                                            &off_thread_data_);
   if (v8_flags.enable_slow_asserts && off_thread_data_.HasResult()) {
 #ifdef ENABLE_SLOW_DCHECKS
     MergeAssumptionChecker checker(&isolate, false);
@@ -2866,6 +2866,11 @@ void BackgroundDeserializeTask::SourceTextAvailable(
     Isolate* isolate, Handle<String> source_text,
     const ScriptDetails& script_details) {
   DCHECK_EQ(isolate, isolate_for_local_isolate_);
+  if (!CodeSerializer::NotifySourceTextAvailable(isolate, &off_thread_data_,
+                                                 &cached_data_, source_text,
+                                                 script_details)) {
+    return;
+  }
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
                                            language_mode);
