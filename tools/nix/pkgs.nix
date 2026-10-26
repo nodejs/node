@@ -1,10 +1,10 @@
 arg:
 let
   repo = "https://github.com/NixOS/nixpkgs";
-  rev = "901c54c08bdc20e00c2b3c73716b97497b1b3c74";
+  rev = "f4b794aaffc0e3d45da81088d492b118224bb476";
   nixpkgs = import (builtins.fetchTarball {
     url = "${repo}/archive/${rev}.tar.gz";
-    sha256 = "0bicjz6w8n0ahwxxj837rbg494siw57vfk7ff3w8v3gvnykzxlia";
+    sha256 = "0vqwmj02vmvw40kvdlf71vn5as7f4kfwrrcw778nbg3k6a1y5q8k";
   }) arg;
 in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
@@ -18,6 +18,8 @@ else
     # OpenSSL 3.0.x was removed from unstable, but we want to keep testing it.
     inherit (import ./pkgs-26.05.nix arg)
       openssl_3
+      openssl_3_6
+      openssl_4_0
       ;
 
     boringssl =
