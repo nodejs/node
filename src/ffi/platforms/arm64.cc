@@ -243,6 +243,11 @@ extern "C" bool node_ffi_create_fast_trampoline(
     if (IsFloatType(args[i])) {
       fp_count++;
     } else {
+      // The buffer helper call clobbers target registers already loaded for
+      // earlier arguments, so only a leading buffer argument is supported.
+      if (IsPointerValueType(args[i]) && gp_count != 0) {
+        return false;
+      }
       gp_count++;
       has_buffer_args = has_buffer_args || IsPointerValueType(args[i]);
     }
