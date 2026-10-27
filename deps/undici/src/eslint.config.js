@@ -4,7 +4,10 @@ const neo = require('neostandard')
 const { installedExports } = require('./lib/global')
 
 module.exports = [
-  ...neo({
+  // neostandard 0.14.0 scopes its `ignores` to its own rule layers, so they no
+  // longer exclude these generated/vendored files from linting entirely.
+  // Declare them as global ignores so ESLint skips them outright.
+  {
     ignores: [
       'deps/milo',
       'lib/milo',
@@ -12,7 +15,9 @@ module.exports = [
       'test/fixtures/cache-tests',
       'undici-fetch.js',
       'test/web-platform-tests/wpt'
-    ],
+    ]
+  },
+  ...neo({
     noJsx: true,
     ts: true
   }),

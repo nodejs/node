@@ -61,6 +61,12 @@ const kRefusedStreamRetry = Symbol('refused stream retry')
 // event loop.
 const MAX_GOAWAY_REPLAY_ATTEMPTS = 1
 
+// Lower bound on how long a liveness PING may take to be acked. Stream
+// timeouts can be tiny (tens of ms), while an ack on a live connection can take
+// longer than that on a loaded event loop; without a floor a slow but healthy
+// connection would be torn down.
+const MIN_PROBE_TIMEOUT = 1e3
+
 let extractBody
 
 /** @type {import('http2')} */
@@ -277,6 +283,9 @@ function connectH2 (client, socket) {
     // Armed while the peer advertises MAX_CONCURRENT_STREAMS = 0 and we have
     // work that cannot start. See setNoStreamsTimeout.
     noStreamsTimeout: null,
+    // Armed while a PING checks whether the peer is still there after a
+    // stream timed out. See probeHttp2Session.
+    probeTimeout: null,
     // Sockets start out ref'd. Session ref/unref proxies to the socket, so a
     // single cached flag lets us skip redundant uv ref/unref calls, provided
     // every ref/unref of the session or its socket goes through
@@ -358,6 +367,11 @@ function connectH2 (client, socket) {
     */
     busy (request) {
       if (session[kRemoteSettings] === false && client[kRunning] > 0) {
+        return true
+      }
+
+      // Do not open streams on a connection that may be dead.
+      if (session[kHTTP2SessionState].probeTimeout != null) {
         return true
       }
 
@@ -490,6 +504,60 @@ function onNoStreamsTimeout (session) {
 
   // Drop the unusable session so the next request gets a fresh connection,
   // whose SETTINGS may well allow streams again.
+  session[kError] = err
+  resetHttp2Session(session, err)
+}
+
+// A stream timeout only resets that stream, unlike HTTP/1.1 which destroys the
+// socket. If the connection itself silently died (dropped by a NAT or load
+// balancer, a hung peer), every new stream would time out in turn and the
+// session would never be replaced. Ask the peer for a PING ack within the
+// timeout that just fired (but at least MIN_PROBE_TIMEOUT): if it answers, only
+// that request was slow; if not, drop the session so queued requests move to a
+// fresh connection.
+function probeHttp2Session (session, timeout) {
+  const state = session[kHTTP2SessionState]
+
+  if (state.probeTimeout != null || session.closed || session.destroyed) {
+    return
+  }
+
+  try {
+    session.ping(onHttp2ProbeAck.bind(session))
+  } catch {
+    // The session is going away on its own.
+    return
+  }
+
+  state.probeTimeout = setTimeout(onHttp2ProbeTimeout, Math.max(timeout, MIN_PROBE_TIMEOUT), session).unref()
+}
+
+function clearHttp2ProbeTimeout (session) {
+  const state = session[kHTTP2SessionState]
+
+  if (state?.probeTimeout != null) {
+    clearTimeout(state.probeTimeout)
+    state.probeTimeout = null
+  }
+}
+
+function onHttp2ProbeAck () {
+  if (this[kHTTP2SessionState].probeTimeout == null) {
+    return
+  }
+
+  clearHttp2ProbeTimeout(this)
+  this[kClient][kResume]()
+}
+
+function onHttp2ProbeTimeout (session) {
+  session[kHTTP2SessionState].probeTimeout = null
+
+  if (session.closed || session.destroyed) {
+    return
+  }
+
+  const err = new SocketError('HTTP/2: connection unresponsive', util.getSocketInfo(session[kSocket]))
   session[kError] = err
   resetHttp2Session(session, err)
 }
@@ -686,6 +754,7 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
+  clearHttp2ProbeTimeout(this)
 
   if (!this.closed && !this.destroyed) {
     this.close()
@@ -711,6 +780,7 @@ function onHttp2SessionClose () {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
+  clearHttp2ProbeTimeout(this)
 
   if (state.ping.interval != null) {
     clearInterval(state.ping.interval)
@@ -1610,9 +1680,14 @@ function onTimeout () {
   // Remove self so timeout doesn't fire again after we handle it
   stream.off('timeout', onTimeout)
 
-  const err = state.responseReceived
-    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
-    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`)
+  const { responseReceived, session, bodyTimeout, headersTimeout } = state
+  const err = responseReceived
+    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${bodyTimeout}"`)
+    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`)
+
+  // Probe before aborting: completing the request resumes the queue, which
+  // must not open new streams until the peer has proven it is alive.
+  probeHttp2Session(session, responseReceived ? bodyTimeout : headersTimeout)
   state.abort(err)
 }
 
