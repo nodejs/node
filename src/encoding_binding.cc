@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <type_traits>
 
 namespace node {
 namespace encoding_binding {
@@ -88,7 +89,7 @@ constexpr bool isSurrogatePair(uint16_t lead, uint16_t trail) {
 
 constexpr size_t simpleUtfEncodingLength(uint16_t c) {
   if (c < 0x80) return 1;
-  if (c < 0x400) return 2;
+  if (c < 0x800) return 2;
   return 3;
 }
 
@@ -162,19 +163,30 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
   }
 
   while (pos < length && utf8Accumulated < bufferSize) {
-    size_t extra = simpleUtfEncodingLength(data[pos]);
-    if (utf8Accumulated + extra > bufferSize) break;
-    pos++;
-    utf8Accumulated += extra;
-  }
-
-  if (UTF16 && pos != 0 && pos != length &&
-      isSurrogatePair(data[pos - 1], data[pos])) {
-    if (utf8Accumulated < bufferSize) {
-      pos++;
+    size_t codeUnits = 1;
+    size_t extra;
+    if constexpr (UTF16) {
+      // A valid surrogate pair must be consumed together: it encodes to 4
+      // UTF-8 bytes total, not 3 for each half measured separately (which
+      // is also what an isolated, unpaired surrogate encodes to).
+      if (pos + 1 < length && isSurrogatePair(data[pos], data[pos + 1])) {
+        codeUnits = 2;
+        extra = 4;
+      } else {
+        extra = simpleUtfEncodingLength(static_cast<uint16_t>(data[pos]));
+      }
     } else {
-      pos--;
+      // `char` is signed on some platforms/ABIs, so widening a byte >= 0x80
+      // straight to uint16_t would sign-extend it into a bogus code point.
+      // Go through the Char type's unsigned counterpart first to get the
+      // right code unit.
+      using UnsignedChar = std::make_unsigned_t<Char>;
+      extra = simpleUtfEncodingLength(
+          static_cast<uint16_t>(static_cast<UnsignedChar>(data[pos])));
     }
+    if (utf8Accumulated + extra > bufferSize) break;
+    pos += codeUnits;
+    utf8Accumulated += extra;
   }
   return pos;
 }
