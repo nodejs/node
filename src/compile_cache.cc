@@ -265,12 +265,12 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
       return nullptr;
     }
     std::string relative_path =
-        GetRelativePath(normalized_file_path, normalized_compile_cache_dir_);
+        GetRelativePath(normalized_file_path, normalized_key_root_);
     if (!relative_path.empty()) {
       file_path = relative_path;
       Debug("[compile cache] using relative path %s from %s\n",
             file_path,
-            compile_cache_dir_);
+            normalized_key_root_);
     }
   }
   uint32_t key = GetCacheKey(file_path, type);
@@ -435,20 +435,8 @@ void CompileCacheHandler::Persist() {
       continue;
     }
 
-    DCHECK_EQ(entry->cache->buffer_policy,
-              ScriptCompiler::CachedData::BufferOwned);
-    char* cache_ptr =
-        reinterpret_cast<char*>(const_cast<uint8_t*>(entry->cache->data));
-    uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
-    uint32_t cache_hash = GetHash(cache_ptr, cache_size);
-
-    // Generating headers.
-    std::vector<uint32_t> headers(kHeaderCount);
-    headers[kMagicNumberOffset] = kCacheMagicNumber;
-    headers[kCodeSizeOffset] = entry->code_size;
-    headers[kCacheSizeOffset] = cache_size;
-    headers[kCodeHashOffset] = entry->code_hash;
-    headers[kCacheHashOffset] = cache_hash;
+    std::vector<char> data = SerializeEntry(entry);
+    const uint32_t* headers = reinterpret_cast<const uint32_t*>(data.data());
 
     // Generate the temporary filename.
     // The temporary file should be placed in a location like:
@@ -489,16 +477,13 @@ void CompileCacheHandler::Persist() {
           headers[kCacheHashOffset]);
 
     // Write to the temporary file.
-    uv_buf_t headers_buf = uv_buf_init(reinterpret_cast<char*>(headers.data()),
-                                       headers.size() * sizeof(uint32_t));
-    uv_buf_t data_buf = uv_buf_init(cache_ptr, entry->cache->length);
-    uv_buf_t bufs[] = {headers_buf, data_buf};
+    uv_buf_t buf = uv_buf_init(data.data(), data.size());
 
     uv_fs_t write_req;
     auto cleanup_write =
         OnScopeLeave([&write_req]() { uv_fs_req_cleanup(&write_req); });
     err = uv_fs_write(
-        nullptr, &write_req, mkstemp_req.result, bufs, 2, 0, nullptr);
+        nullptr, &write_req, mkstemp_req.result, &buf, 1, 0, nullptr);
     if (err < 0) {
       Debug("failed: %s\n", uv_strerror(err));
       continue;
@@ -543,6 +528,47 @@ void CompileCacheHandler::Persist() {
   compiler_cache_store_.clear();
 }
 
+// Serializes an entry in the layout of a cache file, see Persist().
+std::vector<char> CompileCacheHandler::SerializeEntry(
+    const CompileCacheEntry* entry) {
+  DCHECK_NOT_NULL(entry->cache);
+  DCHECK_EQ(entry->cache->buffer_policy,
+            ScriptCompiler::CachedData::BufferOwned);
+  const char* cache_ptr = reinterpret_cast<const char*>(entry->cache->data);
+  uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
+
+  uint32_t headers[kHeaderCount];
+  headers[kMagicNumberOffset] = kCacheMagicNumber;
+  headers[kCodeSizeOffset] = entry->code_size;
+  headers[kCacheSizeOffset] = cache_size;
+  headers[kCodeHashOffset] = entry->code_hash;
+  headers[kCacheHashOffset] = GetHash(cache_ptr, cache_size);
+
+  const char* headers_ptr = reinterpret_cast<const char*>(headers);
+  std::vector<char> data;
+  data.reserve(sizeof(headers) + cache_size);
+  data.insert(data.end(), headers_ptr, headers_ptr + sizeof(headers));
+  data.insert(data.end(), cache_ptr, cache_ptr + cache_size);
+  return data;
+}
+
+std::vector<std::pair<std::string, std::vector<char>>>
+CompileCacheHandler::SerializeEntries() const {
+  std::vector<std::pair<std::string, std::vector<char>>> result;
+  for (const auto& pair : compiler_cache_store_) {
+    const CompileCacheEntry* entry = pair.second.get();
+    if (entry->cache == nullptr) {
+      Debug("[compile cache] skip serializing %s %s because the cache was "
+            "not initialized\n",
+            entry->type_name(),
+            entry->source_filename);
+      continue;
+    }
+    result.emplace_back(Uint32ToHex(entry->cache_key), SerializeEntry(entry));
+  }
+  return result;
+}
+
 CompileCacheHandler::CompileCacheHandler(Environment* env)
     : isolate_(env->isolate()),
       is_debug_(
@@ -553,9 +579,11 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
 //   - $NODE_VERSION-$ARCH-$CACHE_DATA_VERSION_TAG-$UID
 //     ($UID is omitted for a portable cache)
 //     - $FILENAME_AND_MODULE_TYPE_HASH.cache: a hash of filename + module type
-CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
-                                                     const std::string& dir,
-                                                     EnableOption option) {
+CompileCacheEnableResult CompileCacheHandler::Enable(
+    Environment* env,
+    const std::string& dir,
+    EnableOption option,
+    const std::string& key_root) {
   std::string cache_tag = GetCacheVersionTag(option);
   std::string absolute_cache_dir_base = PathResolve(env, {dir});
   std::string cache_dir_with_tag =
@@ -627,8 +655,8 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
   portable_ = option;
   read_only_ = read_only;
   if (HasOption(option, EnableOption::PORTABLE)) {
-    normalized_compile_cache_dir_ =
-        NormalizeFileURLOrPath(env, compile_cache_dir_);
+    normalized_key_root_ = NormalizeFileURLOrPath(
+        env, key_root.empty() ? compile_cache_dir_ : key_root);
   }
   result.status = CompileCacheEnableStatus::ENABLED;
   return result;

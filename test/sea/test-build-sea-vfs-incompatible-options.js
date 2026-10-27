@@ -54,28 +54,6 @@ skipIfBuildSEAIsNotSupported();
     });
 }
 
-// Test: "useVfs" with "useCodeCache"
-{
-  tmpdir.refresh();
-  const config = tmpdir.resolve('vfs-code-cache.json');
-  writeFileSync(config, `
-{
-  "main": "bundle.js",
-  "output": "sea",
-  "useVfs": true,
-  "useCodeCache": true
-}
-  `, 'utf8');
-  spawnSyncAndAssert(
-    process.execPath,
-    ['--build-sea', config], {
-      cwd: tmpdir.path,
-    }, {
-      status: 1,
-      stderr: /"useVfs" is not supported when "useCodeCache" is true/,
-    });
-}
-
 // Test: "vfsArchive" without "useVfs"
 {
   tmpdir.refresh();
