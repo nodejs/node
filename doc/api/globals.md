@@ -336,7 +336,7 @@ added: v0.0.1
 <!-- YAML
 added: v23.0.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/65284
     description: No longer disableable with the `--no-experimental-websocket` CLI flag.
 -->
@@ -1303,7 +1303,7 @@ added:
   - v21.0.0
   - v20.10.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/65284
     description: No longer disableable with the `--no-experimental-websocket` CLI flag.
   - version: v22.4.0

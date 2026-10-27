@@ -2290,7 +2290,7 @@ be listed in the `transferList` argument.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a non-extractable CryptoKey as `key` is no longer
                  supported.
@@ -2753,7 +2753,7 @@ console.log(verify.verify(publicKey, signature));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version: v15.0.0
@@ -2888,7 +2888,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version: v15.0.0
@@ -3668,7 +3668,7 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
@@ -3784,7 +3784,7 @@ and can be transmitted with the ciphertext.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
@@ -3969,7 +3969,7 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64000
     description: The `outputLength` option is now required for XOF
                  hash functions without default output lengths.
@@ -4080,7 +4080,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.0.0
@@ -4349,7 +4349,7 @@ is distinct from provider-specific URI parameters.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
@@ -5298,7 +5298,7 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64000
     description: The `outputLength` option is now required for XOF
                  hash functions without default output lengths.
@@ -5726,7 +5726,7 @@ suitable for HMAC or PBKDF2.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version:
@@ -5799,7 +5799,7 @@ attempting to use `RSA_PKCS1_PADDING` will fail.
 <!-- YAML
 added: v1.1.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version: v15.0.0
@@ -5844,7 +5844,7 @@ object, the `padding` property can be passed. Otherwise, this function uses
 <!-- YAML
 added: v1.1.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version: v15.0.0
@@ -5889,7 +5889,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
@@ -6638,7 +6638,7 @@ disabled when Node.js was started with `--force-fips`.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
@@ -6778,7 +6778,7 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:

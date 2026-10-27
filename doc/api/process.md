@@ -2063,7 +2063,7 @@ Since it's not possible to build Node.js without libuv, this value is always `tr
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/66482
     description: Returns a function that removes the registration.
   - version: v26.12.0
@@ -2191,7 +2191,7 @@ unregister();
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/66482
     description: Returns a function that removes the registration.
   - version: v26.12.0

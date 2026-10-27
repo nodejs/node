@@ -774,7 +774,7 @@ the API is not useful.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/65074
     description: Runtime deprecation.
   - version:
@@ -2232,7 +2232,7 @@ or `module.exports` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: End-of-Life.
   - version: v23.0.0
@@ -2322,7 +2322,7 @@ npx codemod @nodejs/timers-deprecations
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/61095
     description: End-of-Life.
   - version: v10.0.0
@@ -4111,7 +4111,7 @@ that are shorter than the default authentication tag length (i.e., shorter than
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: End-of-Life.
   - version:
@@ -4135,7 +4135,7 @@ replacement API in Node.js. OpenSSL's provider model replaces engines upstream.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64849
     description: End-of-Life.
   - version: v24.0.0
@@ -4286,7 +4286,7 @@ npx codemod@latest @nodejs/repl-builtin-modules
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/60658
     description: End-of-Life.
   - version:
@@ -4354,7 +4354,7 @@ npx codemod@latest @nodejs/http2-priority-signaling
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64853
     description: Runtime deprecation.
   - version:
@@ -4425,7 +4425,7 @@ npx codemod@latest @nodejs/types-is-native-error
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64000
     description: End-of-Life.
   - version: v25.0.0
@@ -4448,7 +4448,7 @@ Creating SHAKE-128 and SHAKE-256 digests without an explicit
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/58535
     description: Runtime deprecation.
   - version:
@@ -4572,7 +4572,7 @@ const server = http2.createSecureServer({
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: End-of-Life.
   - version: v26.0.0
@@ -4593,7 +4593,7 @@ Passing a [`CryptoKey`][] to `node:crypto` functions is no longer supported.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: End-of-Life.
   - version: v26.0.0
@@ -4642,7 +4642,7 @@ removed in a future version of Node.js.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63624
     description: Runtime deprecation.
   - version:
@@ -4663,7 +4663,7 @@ will throw an error in a future version.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63249
     description: Documentation-only deprecation.
 -->
@@ -4717,7 +4717,7 @@ successfully before the response closed.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64794
     description: Runtime deprecation.
   - version:

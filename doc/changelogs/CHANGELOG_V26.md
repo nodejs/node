@@ -36,6 +36,7 @@
 </table>
 
 * Other Versions
+  * [27.x](CHANGELOG_V27.md)
   * [25.x](CHANGELOG_V25.md)
   * [24.x](CHANGELOG_V24.md)
   * [23.x](CHANGELOG_V23.md)

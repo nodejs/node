@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 ### Restricting access to environment variables
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 When the arguments passed to `node::InitializeOncePerProcess()` enable the
