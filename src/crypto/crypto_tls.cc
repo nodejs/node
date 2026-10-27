@@ -1615,11 +1615,19 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     // Store the SNI context for later use.
     w->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
-    if (UseSNIContext(w->ssl_, w->sni_context_) && !w->SetCACerts(sc)) {
-      // Not clear why sometimes we throw error, and sometimes we call
-      // onerror(). Both cause .destroy(), but onerror does a bit more.
-      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-      return ThrowCryptoError(env, err, "CertCbDone");
+    // An SNI context without a certificate keeps the default context's
+    // certificate, but a `ca` it configured must still replace the default
+    // trust store for client certificates. A context with neither keeps the
+    // default context's trust store.
+    const bool has_cert = SSL_CTX_get0_certificate(sc->ctx().get()) != nullptr;
+    if (has_cert || sc->has_own_ca()) {
+      if ((has_cert && !UseSNIContext(w->ssl_, w->sni_context_)) ||
+          !w->SetCACerts(sc)) {
+        // Not clear why sometimes we throw error, and sometimes we call
+        // onerror(). Both cause .destroy(), but onerror does a bit more.
+        unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+        return ThrowCryptoError(env, err, "CertCbDone");
+      }
     }
   } else if (ctx->IsObject()) {
     // Failure: incorrect SNI context object
