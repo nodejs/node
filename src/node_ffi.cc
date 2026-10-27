@@ -578,6 +578,8 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
                   opened ? static_cast<void*>(lib->lib_.handle) : nullptr);
   if (!opened) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
+    // Free the error message. Close() skips uv_dlclose() for a null handle.
+    uv_dlclose(&lib->lib_);
     return;
   }
 }
