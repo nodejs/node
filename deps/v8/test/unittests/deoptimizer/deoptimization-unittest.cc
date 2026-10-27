@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
@@ -44,7 +46,6 @@
 namespace v8 {
 namespace internal {
 
-using ::v8::base::EmbeddedVector;
 using ::v8::base::OS;
 
 class DeoptimizationTest : public TestWithContext {
@@ -389,10 +390,10 @@ class DeoptimizationDisableConcurrentRecompilationTest
   }
   static void SetUpTestSuite() { i::v8_flags.concurrent_recompilation = false; }
   void TestDeoptimizeBinaryOp(const char* binary_op) {
-    v8::base::EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
+    std::array<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
     v8::base::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
                        binary_op);
-    char* f_source = f_source_buffer.begin();
+    char* f_source = f_source_buffer.data();
 
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert binary op stub

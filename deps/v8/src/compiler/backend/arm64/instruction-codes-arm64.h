@@ -94,8 +94,7 @@ namespace compiler {
   V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
-  V(Arm64S32x4Shuffle)                  \
-  V(Arm64I8x16Swizzle)                  \
+  V(Arm64S128Tbl1)                      \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S128Extract)                   \
   V(Arm64S128ExtractNarrow)             \
@@ -107,10 +106,18 @@ namespace compiler {
   V(Arm64Sqxtn2)                        \
   V(Arm64Sqxtun)                        \
   V(Arm64Sqxtun2)                       \
+  V(Arm64Addhn)                         \
+  V(Arm64Addhn2)                        \
+  V(Arm64Subhn)                         \
+  V(Arm64Subhn2)                        \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \
   V(Arm64Uxtl2)                         \
+  V(Arm64Sshll)                         \
+  V(Arm64Sshll2)                        \
+  V(Arm64Ushll)                         \
+  V(Arm64Ushll2)                        \
   V(Arm64FSplat)                        \
   V(Arm64FAbs)                          \
   V(Arm64FSqrt)                         \
@@ -123,6 +130,7 @@ namespace compiler {
   V(Arm64IExtractLane)                  \
   V(Arm64IReplaceLane)                  \
   V(Arm64IShll)                         \
+  V(Arm64IShll2)                        \
   V(Arm64IShl)                          \
   V(Arm64IShrS)                         \
   V(Arm64IShrU)                         \
@@ -201,7 +209,9 @@ namespace compiler {
   V(Arm64Ssubl)                         \
   V(Arm64Ssubl2)                        \
   V(Arm64Usubl)                         \
-  V(Arm64Usubl2)
+  V(Arm64Usubl2)                        \
+  V(Arm64Shadd)                         \
+  V(Arm64Uhadd)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -374,7 +384,7 @@ namespace compiler {
   V(Arm64LdarDecompressTaggedSigned)                 \
   V(Arm64LdarDecompressTagged)                       \
   V(Arm64StlrCompressTagged)                         \
-  V(Arm64StrIndirectPointer)                         \
+  V(Arm64StrTrustedPointer)                          \
   V(Arm64LdrDecodeSandboxedPointer)                  \
   V(Arm64StrEncodeSandboxedPointer)                  \
   V(Arm64DmbIsh)                                     \

@@ -1496,6 +1496,7 @@ void FormatENegativeExpSlow(uint128 mantissa, int exp, bool uppercase,
         if (state.sign_char != '\0') {
           state.sink->Append(1, state.sign_char);
         }
+        state.sink->Append(padding.zeros, '0');
 
         state.sink->Append(1, static_cast<char>(first_digit + '0'));
         if (precision > 0 || state.conv.has_alt_flag()) {
@@ -1599,6 +1600,7 @@ void FormatEPositiveExpSlow(uint128 mantissa, int exp, bool uppercase,
         if (state.sign_char != '\0') {
           state.sink->Append(1, state.sign_char);
         }
+        state.sink->Append(padding.zeros, '0');
         state.sink->Append(1, static_cast<char>(first_digit + '0'));
         --digits_to_go;
         if (print_dot) {

@@ -873,6 +873,19 @@ TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
   EXPECT_EQ(absl::CivilSecond(0, 1, 1, 0, 0, 0), ss);
 }
 
+TEST(CivilTime, ParseYearCarryDoesNotOverflow) {
+  // A ":60" leap second on the last second of the maximum representable year
+  // carries into the year, which would be civil_year_t(max) + 1 and is not
+  // representable, so the parse must fail cleanly rather than overflow.
+  absl::CivilSecond ss;
+  EXPECT_FALSE(absl::ParseCivilTime("9223372036854775807-12-31T23:59:60", &ss))
+      << ss;
+  // The same year without a carry remains valid and round-trips.
+  EXPECT_TRUE(absl::ParseCivilTime("9223372036854775807-12-31T23:59:59", &ss))
+      << ss;
+  EXPECT_EQ("9223372036854775807-12-31T23:59:59", absl::FormatCivilTime(ss));
+}
+
 TEST(CivilTime, AbslStringify) {
   static_assert(absl::HasAbslStringify<absl::CivilSecond>::value);
   static_assert(absl::HasAbslStringify<absl::CivilMinute>::value);

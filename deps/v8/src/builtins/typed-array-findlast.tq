@@ -70,7 +70,7 @@ transitioning javascript builtin TypedArrayPrototypeFindLast(
   } label NotCallable deferred {
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindLast);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation,

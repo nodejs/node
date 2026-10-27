@@ -165,6 +165,7 @@ ALL_VARIANT_FLAGS = {
         "--wasm-random-rescheduling"
     ],
     "validate_generated_code": ["--validate-generated-code"],
+    "ecma402_icu4x_plural_rules": ["--ecma402-icu4x-plural-rules"],
     # Google3 variant.
     "google3": [],
 }
@@ -378,7 +379,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "single_generation": [
         "--shared-strings",
         "--shared-heap",
-        "--harmony-struct",
         "--wasm-shared",
     ],
     "!slow_dchecks": ["--enable-slow-asserts"],

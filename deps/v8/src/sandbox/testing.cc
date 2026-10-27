@@ -25,11 +25,14 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/foreign.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
+#include "src/sandbox/sandbox-zero-segment.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
@@ -40,6 +43,8 @@
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
+// sys/mman.h defines MAP_TYPE, which conflicts with V8's MAP_TYPE InstanceType.
+#undef MAP_TYPE
 #include <sys/ucontext.h>
 #include <unistd.h>
 
@@ -505,8 +510,7 @@ void SandboxUnpublishTrustedHandle(
     return;
   }
 
-  IndirectPointerHandle handle =
-      static_cast<IndirectPointerHandle>(handle_value);
+  TrustedPointerHandle handle = static_cast<TrustedPointerHandle>(handle_value);
   i_isolate->trusted_pointer_table().Unpublish(handle);
 }
 
@@ -1096,6 +1100,12 @@ struct sigaction g_old_handlers[NSIG];
 constexpr int kSignalsToHandle[] = {SIGABRT, SIGTRAP, SIGBUS, SIGILL, SIGSEGV};
 
 std::atomic<bool> g_is_sandbox_violation{false};
+
+void ReportSandboxViolation() {
+  if (g_is_sandbox_violation.exchange(true)) return;
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+}
+
 #ifdef V8_USE_ADDRESS_SANITIZER
 bool g_is_asan_fault_harmless = false;
 #endif
@@ -1249,8 +1259,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      if (faultaddr <
-          (Sandbox::kSmiAddressRange + Sandbox::kSmiAddressRangePadding)) {
+      if (faultaddr < kMinZeroSegmentSize) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
         // We need to add some "padding" to the 4GB since we might access a
@@ -1328,9 +1337,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   }
 
   // If we get here, we've detected a sandbox violation.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
-
-  g_is_sandbox_violation = true;
+  ReportSandboxViolation();
 
   if (access_type == MemoryAccessType::kRead) {
     PrintToStderr(
@@ -1428,7 +1435,7 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   if (!__asan_report_present()) {
     // Should not occur normally, but falling back to treating this as an error
     // as defense-in-depth.
-    g_is_sandbox_violation = true;
+    ReportSandboxViolation();
     return;
   }
 
@@ -1445,7 +1452,7 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   if (IsHarmlessASanFault(description, faultaddr, access_type)) {
     g_is_asan_fault_harmless = true;
   } else {
-    g_is_sandbox_violation = true;
+    ReportSandboxViolation();
   }
 }
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -1473,7 +1480,7 @@ void SanitizerFaultHandler() {
 
   // In case of a sanitizer issue we opt for conservatively reporting a sandbox
   // violation that needs to be investigated.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+  ReportSandboxViolation();
 }
 #endif  // V8_USE_ANY_SANITIZER
 
@@ -1557,6 +1564,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
+    types["HEAP_NUMBER_TYPE"] = HEAP_NUMBER_TYPE;
     types["FOREIGN_TYPE"] = FOREIGN_TYPE;
     types["JS_REG_EXP_TYPE"] = JS_REG_EXP_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
@@ -1579,14 +1587,18 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
     types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
+    types["MAP_TYPE"] = MAP_TYPE;
+    types["CLASS_BOILERPLATE_TYPE"] = CLASS_BOILERPLATE_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
-    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
-    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
-    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
-    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
-    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
     types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
+    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
+    types["WASM_MEMORY_OBJECT_TYPE"] = WASM_MEMORY_OBJECT_TYPE;
+    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
+    types["WASM_STACK_OBJECT_TYPE"] = WASM_STACK_OBJECT_TYPE;
+    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -1601,6 +1613,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[MAP_TYPE]["instance_type"] = offsetof(Map, instance_type_);
+    fields[HEAP_NUMBER_TYPE]["value"] = offsetof(HeapNumber, value_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["length"] =
         offsetof(FixedDoubleArray, length_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["data"] =
@@ -1656,6 +1670,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(SharedFunctionInfo, untrusted_function_data_);
     fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
         offsetof(SharedFunctionInfo, script_);
+    fields[SHARED_FUNCTION_INFO_TYPE]["unique_id"] =
+        offsetof(SharedFunctionInfo, unique_id_);
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
@@ -1674,40 +1690,49 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(WeakFixedArray, length_);
     fields[NATIVE_CONTEXT_TYPE]["microtask_queue"] =
         NativeContext::kMicrotaskQueueOffset;
+    fields[CLASS_BOILERPLATE_TYPE]["instance_properties_template"] =
+        offsetof(ClassBoilerplate, instance_properties_template_);
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         offsetof(JSSegments, icu_iterator_with_text_);
 #endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
-    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
-        offsetof(WasmModuleObject, managed_native_module_);
-    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
-        offsetof(WasmModuleObject, script_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
-        offsetof(WasmInstanceObject, module_object_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmInstanceObject, trusted_data_);
     fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
         offsetof(WasmFuncRef, trusted_internal_);
-    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
-        offsetof(WasmTableObject, entries_);
-    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
-        offsetof(WasmTableObject, current_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
-        offsetof(WasmTableObject, maximum_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
-        offsetof(WasmTableObject, raw_type_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
-        offsetof(WasmTableObject, trusted_dispatch_table_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmTableObject, trusted_data_);
-    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["buffer"] =
         offsetof(WasmGlobalObject, buffer_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
         offsetof(WasmGlobalObject, raw_type_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
+        offsetof(WasmInstanceObject, module_object_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmInstanceObject, trusted_data_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["array_buffer"] =
+        offsetof(WasmMemoryObject, array_buffer_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["instances"] =
+        offsetof(WasmMemoryObject, instances_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["managed_backing_store"] =
+        offsetof(WasmMemoryObject, managed_backing_store_);
+    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
+        offsetof(WasmModuleObject, managed_native_module_);
+    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
+        offsetof(WasmModuleObject, script_);
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
         offsetof(WasmResumeData, trusted_suspender_);
+    fields[WASM_STACK_OBJECT_TYPE]["stack"] = offsetof(WasmStackObject, stack_);
+    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
+        offsetof(WasmTableObject, current_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
+        offsetof(WasmTableObject, entries_);
+    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
+        offsetof(WasmTableObject, maximum_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
+        offsetof(WasmTableObject, raw_type_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmTableObject, trusted_data_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
+        offsetof(WasmTableObject, trusted_dispatch_table_);
+    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

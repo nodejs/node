@@ -40,7 +40,7 @@
 #define LIBC_COMPILER_MSVC_VER (_MSC_VER)
 #ifdef _M_X64
 #define LIBC_COMPILER_IS_MSVC_X64
-#else
+#elif defined(_M_IX86)
 #define LIBC_COMPILER_IS_MSVC_X86
 #endif
 #endif

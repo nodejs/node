@@ -50,3 +50,9 @@ bazel_dep(
     version = "20260708.rc1",
     repo_name = "do_not_use_for_gloop_visibility_only",
 )
+
+bazel_dep(name = "docker_toolchain", version = "0.1", dev_dependency = True)
+local_path_override(
+    module_name = "docker_toolchain",
+    path = "ci/docker_toolchain",
+)

@@ -1,0 +1,19 @@
+Tests import.meta in lazy functions during module debug-evaluate.
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : true
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : SyntaxError
+        }
+    }
+}

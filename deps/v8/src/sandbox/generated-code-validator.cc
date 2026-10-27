@@ -7,6 +7,7 @@
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
 #include <algorithm>
+#include <queue>
 
 #include "src/objects/code-inl.h"
 #include "src/objects/code-kind.h"
@@ -256,9 +257,168 @@ bool GeneratedCodeValidator::Utils::IsDeoptCode(const Tagged<Code> code) {
                    code->builtin_id()) != std::end(entry_builtins);
 }
 
-GeneratedCodeValidator::State::State(const Tagged<Code> code)
-    : is_root_reg_valid_(!Utils::IsEntryCode(code)),
-      is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
+// static
+GeneratedCodeValidator::State GeneratedCodeValidator::State::CreateNewState(
+    const Tagged<Code> code) {
+  const BoolValue initial_reg_state =
+      Utils::IsEntryCode(code) ? BoolValue::kFalse : BoolValue::kTrue;
+  return {
+      .is_root_reg_valid_ = initial_reg_state,
+      .is_cage_base_reg_valid_ = initial_reg_state,
+#if V8_TARGET_ARCH_ARM64
+      .root_reg_init_state_ = {},
+#endif  // V8_TARGET_ARCH_ARM64
+  };
+}
+
+#if V8_TARGET_ARCH_ARM64
+// static
+GeneratedCodeValidator::State::RootRegisterInitState
+GeneratedCodeValidator::State::RootRegisterInitState::Merge(
+    const RootRegisterInitState& state1, const RootRegisterInitState& state2) {
+  return {
+      .current_value = state1.current_value & state2.current_value,
+      .in_progress = MergeBoolValues(state1.in_progress, state2.in_progress),
+  };
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
+// static
+GeneratedCodeValidator::State GeneratedCodeValidator::State::Merge(
+    const State& state1, const State& state2) {
+  return {
+      .is_root_reg_valid_ =
+          MergeBoolValues(state1.is_root_reg_valid_, state2.is_root_reg_valid_),
+      .is_cage_base_reg_valid_ = MergeBoolValues(
+          state1.is_cage_base_reg_valid_, state2.is_cage_base_reg_valid_),
+#if V8_TARGET_ARCH_ARM64
+      .root_reg_init_state_ = RootRegisterInitState::Merge(
+          state1.root_reg_init_state_, state2.root_reg_init_state_),
+#endif  // V8_TARGET_ARCH_ARM64
+  };
+}
+
+bool GeneratedCodeValidator::ControlFlowGraphBase::NodeBase::MergeInputState(
+    const State& state) {
+  if (!input_state_.has_value()) {
+    input_state_ = state;
+    return true;
+  }
+  if (*input_state_ == state) {
+    return false;
+  }
+  State merged = State::Merge(*input_state_, state);
+  if (*input_state_ == merged) {
+    return false;
+  }
+  input_state_ = merged;
+  return true;
+}
+
+bool GeneratedCodeValidator::ControlFlowGraphBase::NodeBase::UpdateOutputState(
+    const State& state) {
+  if (output_state_.has_value() && *output_state_ == state) {
+    return false;
+  }
+  output_state_ = state;
+  return true;
+}
+
+GeneratedCodeValidator::ControlFlowGraphBase::ControlFlowGraphBase(
+    Tagged<Code> code)
+    : code_(code),
+      code_start_(reinterpret_cast<const uint8_t*>(code->instruction_start())),
+      code_end_(code_start_ + code->instruction_size()) {
+  recorded_pcs_.reserve(EstimateInstructionCount(code));
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::ValidateNodes(
+    base::FunctionRef<State(const NodeBase&)> update_state,
+    base::FunctionRef<void(const NodeBase&)> check_state) {
+  // TODO(523128533): Enable successor checks once tail calls are properly
+  // handled.
+  // #ifdef DEBUG
+  //   for (const uint8_t* pc : recorded_pcs_) {
+  //     const NodeBase* node = GetNodeAt(pc);
+  //     DCHECK_NOT_NULL(node);
+  //     for (const uint8_t* successor_pc : node->successors()) {
+  //       DCHECK_NOT_NULL(GetNodeAt(successor_pc));
+  //     }
+  //   }
+  // #endif  // DEBUG
+
+  // Validation is split into two passes:
+  // 1. Data-flow analysis propagates and merges validation states along CFG
+  //    edges until a fixed point is reached for all reachable nodes.
+  // 2. Violation checking iterates over all nodes in ascending PC order and
+  //    validates each instruction against its converged input state.
+  // Separating the two passes ensures that nodes visited multiple times during
+  // fixed-point iteration are not checked against transient pre-convergence
+  // states or reported multiple times, and that violations are reported
+  // deterministically in PC order.
+  PropagateStates(update_state);
+  CheckStates(check_state);
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::PropagateStates(
+    base::FunctionRef<State(const NodeBase&)> update_state) {
+  NodeBase* entry_node = GetNodeAt(code_start_);
+  if (entry_node == nullptr) return;
+
+  std::queue<NodeBase*> worklist;
+
+  auto push_node = [&worklist](NodeBase* node) {
+    if (!node->is_pending()) {
+      node->set_is_pending(true);
+      worklist.push(node);
+    }
+  };
+
+  entry_node->MergeInputState(State::CreateNewState(code_));
+  push_node(entry_node);
+
+  while (!worklist.empty()) {
+    NodeBase* node = worklist.front();
+    worklist.pop();
+    DCHECK(node->is_pending());
+    node->set_is_pending(false);
+    State output_state = update_state(*node);
+    if (node->UpdateOutputState(output_state)) {
+      for (const uint8_t* successor_pc : node->successors()) {
+        if (!IsPcInBounds(successor_pc)) {
+          // TODO(523128533): Handle tail calls.
+          continue;
+        }
+        NodeBase* successor = GetNodeAt(successor_pc);
+        // TODO(523128533): In simulator builds, ASM_LOCATION embeds inline
+        // metadata in the instruction stream that is skipped during
+        // disassembly, but can still be the target of a jump (when a label is
+        // bound right before ASM_LOCATION). Once ASM_LOCATION is properly
+        // handled in the CFG, replace this check with
+        // `DCHECK_NOT_NULL(successor)`.
+        if (successor == nullptr) {
+          continue;
+        }
+        if (successor->MergeInputState(output_state)) {
+          push_node(successor);
+        }
+      }
+    }
+  }
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::CheckStates(
+    base::FunctionRef<void(const NodeBase&)> check_state) {
+  for (const uint8_t* pc : recorded_pcs_) {
+    const NodeBase* node = GetNodeAt(pc);
+    DCHECK_NOT_NULL(node);
+    // TODO(523128533): Check that all instructions have an input state once
+    // jump tables and indirect jumps are handled.
+    if (node->has_input_state()) {
+      check_state(*node);
+    }
+  }
+}
 
 }  // namespace v8::internal
 

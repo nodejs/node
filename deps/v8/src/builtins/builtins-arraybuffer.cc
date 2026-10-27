@@ -119,7 +119,9 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
                     NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
   auto array_buffer = Cast<JSArrayBuffer>(result);
   const bool backing_store_creation_failed = !backing_store;
-  array_buffer->Setup(shared, resizable, std::move(backing_store), isolate);
+  array_buffer->Setup(
+      shared, backing_store_creation_failed ? ResizableFlag{false} : resizable,
+      std::move(backing_store), isolate);
   if (backing_store_creation_failed) {
     CHECK(range_error.has_value());
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewRangeError(range_error.value()));
@@ -729,7 +731,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
   DirectHandle<JSArrayBuffer> result_buffer;
 
   // Case 1: We don't need a BackingStore.
-  if (new_byte_length == 0) {
+  if (new_byte_length == 0 && !resizable) {
     // 15. Perform ! DetachArrayBuffer(arrayBuffer).
     JSArrayBuffer::Detach(array_buffer).Check();
 

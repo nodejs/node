@@ -1,0 +1,25 @@
+Tests that returnByValue serialization limits the total length of strings for shared references.
+
+Running test: testSmallStrings
+{
+    type : object
+    value : [
+        [0] : abc
+        [1] : abc
+        [2] : {
+            t : abc
+        }
+    ]
+}
+
+Running test: testLargeStringInArray
+{
+    code : -32000
+    message : Object is too large to be returned by value
+}
+
+Running test: testLargeStringInObject
+{
+    code : -32000
+    message : Object is too large to be returned by value
+}

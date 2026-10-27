@@ -7,13 +7,17 @@ add_object_library(
     file.h
   DEPENDS
     libc.hdr.fcntl_macros
+    libc.hdr.func.free
     libc.hdr.stdio_macros
     libc.hdr.types.mode_t
     libc.hdr.sys_stat_macros
     libc.hdr.types.FILE
     libc.hdr.types.off_t
+    libc.src.__support.alloc_checker
     libc.src.__support.CPP.new
+    libc.src.__support.CPP.type_traits
     libc.src.__support.OSUtil.linux.syscall_wrappers.close
+    libc.src.__support.OSUtil.linux.syscall_wrappers.dup3
     libc.src.__support.OSUtil.linux.syscall_wrappers.fcntl
     libc.src.__support.OSUtil.linux.syscall_wrappers.lseek
     libc.src.__support.OSUtil.linux.syscall_wrappers.open
@@ -22,6 +26,21 @@ add_object_library(
     libc.src.__support.error_or
     libc.src.__support.File.file
     libc.src.errno.errno
+)
+
+add_object_library(
+  popen_file
+  SRCS
+    popen_file.cpp
+  HDRS
+    popen_file.h
+  DEPENDS
+    .file
+    libc.hdr.types.pid_t
+    libc.src.__support.CPP.new
+    libc.src.__support.File.file
+    libc.src.__support.macros.config
+    libc.src.__support.threads.mutex
 )
 
 add_object_library(

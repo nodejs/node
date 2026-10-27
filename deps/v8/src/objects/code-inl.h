@@ -19,8 +19,9 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instruction-stream-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/trusted-object-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/memcopy.h"
 
@@ -852,9 +853,9 @@ void Code::SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
 void Code::ClearInstructionStartForSerialization(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
   // The instruction start is stored in this object's code pointer table.
-  WriteField<IndirectPointerHandle>(
-      offsetof(ExposedTrustedObject, self_indirect_pointer_),
-      kNullIndirectPointerHandle);
+  WriteField<TrustedPointerHandle>(
+      offsetof(ExposedTrustedObject, self_trusted_pointer_),
+      kNullTrustedPointerHandle);
 #endif  // V8_ENABLE_SANDBOX
   set_instruction_start(isolate, kNullAddress);
   ExternalCodeField<Object>::Release_Store(this, Smi::zero());
@@ -933,6 +934,9 @@ inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
   Relaxed_WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
                                                         handle.value());
 }
+
+CodeWrapper::CodeWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().code_wrapper_map()) {}
 
 Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate) const {
   return code_.load(isolate);

@@ -71,6 +71,7 @@ class V8ConsoleMessage {
   void reportToFrontend(protocol::Runtime::Frontend*, V8InspectorSessionImpl*,
                         bool generatePreview) const;
   ConsoleAPIType type() const;
+  int contextId() const { return m_contextId; }
   void contextDestroyed(int contextId);
 
   int estimatedSize() const {

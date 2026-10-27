@@ -63,8 +63,8 @@ BUILTIN(DateConstructor) {
         static_cast<double>(JSDate::CurrentTimeValue(isolate));
     DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
                                      ToDateStringMode::kLocalDateAndTime);
-    RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+    RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                          {buffer.data(), buffer.size()}));
   }
   // [Construct]
   int const argc = args.length() - 1;
@@ -739,8 +739,8 @@ BUILTIN(DatePrototypeToDateString) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toDateString");
   DateBuffer buffer = ToDateString(date->value(), isolate->date_cache(),
                                    ToDateStringMode::kLocalDate);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        {buffer.data(), buffer.size()}));
 }
 
 // ES6 section 20.3.4.36 Date.prototype.toISOString ( )
@@ -754,8 +754,8 @@ BUILTIN(DatePrototypeToISOString) {
   }
   DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
                                    ToDateStringMode::kISODateAndTime);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        {buffer.data(), buffer.size()}));
 }
 
 // ES6 section 20.3.4.41 Date.prototype.toString ( )
@@ -764,8 +764,8 @@ BUILTIN(DatePrototypeToString) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toString");
   DateBuffer buffer = ToDateString(date->value(), isolate->date_cache(),
                                    ToDateStringMode::kLocalDateAndTime);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        {buffer.data(), buffer.size()}));
 }
 
 // ES6 section 20.3.4.42 Date.prototype.toTimeString ( )
@@ -774,8 +774,8 @@ BUILTIN(DatePrototypeToTimeString) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTimeString");
   DateBuffer buffer = ToDateString(date->value(), isolate->date_cache(),
                                    ToDateStringMode::kLocalTime);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        {buffer.data(), buffer.size()}));
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -846,8 +846,8 @@ BUILTIN(DatePrototypeToUTCString) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toUTCString");
   DateBuffer buffer = ToDateString(date->value(), isolate->date_cache(),
                                    ToDateStringMode::kUTCDateAndTime);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        {buffer.data(), buffer.size()}));
 }
 
 // ES6 section B.2.4.1 Date.prototype.getYear ( )

@@ -165,6 +165,7 @@ class WasmValue {
           if (!(byte & 0xf0)) stream << '0';
           stream << static_cast<uint32_t>(byte);
         }
+        stream << std::dec;
         return stream.str();
       }
       case kRefNull:

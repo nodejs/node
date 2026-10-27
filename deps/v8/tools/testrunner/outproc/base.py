@@ -211,16 +211,17 @@ class ExpectedOutProc(OutProc):
     """
     if not line:
       return True
-    return (line.startswith('==') or
-            line.startswith('**') or
-            line.startswith('ANDROID') or
-            line.startswith('###') or
-            # Android linker warning.
-            line.startswith('WARNING: linker:') or
-            # We don't differentiate release/debug when passing flags. That
-            # might produce some warnings for debug flags missing in release.
-            line.startswith('Warning: unknown flag') or
-            line == 'Try --help for options')
+    return (
+        line.startswith('==') or line.startswith('**') or
+        line.startswith('ANDROID') or line.startswith('###') or
+        # Android linker warning.
+        line.startswith('WARNING: linker:') or
+        # Testing on Android devices mixes stderr into stdout.
+        line.startswith('V8 is running with') or
+        # We don't differentiate release/debug when passing flags. That
+        # might produce some warnings for debug flags missing in release.
+        line.startswith('Warning: unknown flag') or
+        line == 'Try --help for options')
 
   def _ignore_expected_line(self, line):
     return not line

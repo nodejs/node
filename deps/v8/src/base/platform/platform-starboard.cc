@@ -330,7 +330,7 @@ void OS::VPrintError(const char* format, va_list args) {
   SbLogRawFormat(format, args);
 }
 
-int OS::SNPrintF(char* str, int length, const char* format, ...) {
+int OS::SNPrintF(char* str, size_t length, const char* format, ...) {
   va_list args;
   va_start(args, format);
   int result = VSNPrintF(str, length, format, args);
@@ -338,9 +338,9 @@ int OS::SNPrintF(char* str, int length, const char* format, ...) {
   return result;
 }
 
-int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
+int OS::VSNPrintF(char* str, size_t length, const char* format, va_list args) {
   int n = vsnprintf(str, length, format, args);
-  if (n < 0 || n >= length) {
+  if (n < 0 || static_cast<size_t>(n) >= length) {
     // If the length is zero, the assignment fails.
     if (length > 0) str[length - 1] = '\0';
     return -1;
@@ -353,7 +353,7 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 // POSIX string support.
 //
 
-void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
+void OS::StrNCpy(char* dest, size_t length, const char* src, size_t n) {
   strncpy(dest, src, n);
 }
 
@@ -381,6 +381,7 @@ Thread::~Thread() { delete data_; }
 static void SetThreadName(const char* name) { SbThreadSetName(name); }
 
 static void* ThreadEntry(void* arg) {
+  Stack::SetCurrentThreadStackStart();
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new

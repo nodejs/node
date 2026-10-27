@@ -87,17 +87,11 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   HandleScope scope(isolate);
 
   Handle<Object> source_text = args.atOrUndefined(isolate, 1);
-  // 1. Let O be this value.
-  DirectHandle<Object> receiver = args.receiver();
-
   Factory* factory = isolate->factory();
 
+  // 1. Let O be this value.
   // 2. Perform ? ValidateShadowRealmObject(O).
-  if (!IsJSShadowRealm(*receiver)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver));
-  }
-  auto shadow_realm = Cast<JSShadowRealm>(receiver);
+  CHECK_RECEIVER(JSShadowRealm, shadow_realm, "ShadowRealm.prototype.evaluate");
 
   // 3. If Type(sourceText) is not String, throw a TypeError exception.
   if (!IsString(*source_text)) {

@@ -243,8 +243,8 @@ bool CPUSupportsRandenHwAes() {
   // * Rely on compiler-generated target-based dispatch.
   // Using x86/gcc it might look something like this:
   //
-  // int __attribute__((target("aes"))) HasAes() { return 1; }
-  // int __attribute__((target("default"))) HasAes() { return 0; }
+  // __attribute__((target("aes"))) int HasAes() { return 1; }
+  // __attribute__((target("default"))) int HasAes() { return 0; }
   //
   // This does not work on all architecture/compiler combinations.
   //

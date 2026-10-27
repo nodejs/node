@@ -1,0 +1,21 @@
+header: netinet/ether.h
+standards:
+  - bsd
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: ether_ntoa
+    standards:
+      - bsd
+    return_type: char *
+    arguments:
+      - type: const struct ether_addr *
+  - name: ether_ntoa_r
+    standards:
+      - gnu
+    return_type: char *
+    arguments:
+      - type: const struct ether_addr *
+      - type: char *

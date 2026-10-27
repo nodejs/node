@@ -12,7 +12,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/sandbox/external-pointer-table-inl.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8::internal {
 
@@ -35,14 +35,14 @@ JSDispatchTable& IsolateForSandbox::GetJSDispatchTable() {
 }
 
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
-    IndirectPointerTagRange tag_range) {
+    TrustedPointerTagRange tag_range) {
   return IsSharedTrustedPointerType(tag_range)
              ? isolate_->shared_trusted_pointer_table()
              : isolate_->trusted_pointer_table();
 }
 
 TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
-    IndirectPointerTagRange tag_range, Address host) {
+    TrustedPointerTagRange tag_range, Address host) {
   if (V8_UNLIKELY(IsSharedTrustedPointerType(tag_range))) {
     DCHECK(!ReadOnlyHeap::Contains(host));
     return isolate_->shared_trusted_pointer_space();

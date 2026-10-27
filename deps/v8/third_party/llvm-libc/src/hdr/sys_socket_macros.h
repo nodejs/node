@@ -15,7 +15,7 @@
 
 #else // Overlay mode
 
-#include <sys/socket.h>
+#include "hdr/sys_socket_overlay.h"
 
 #endif // LIBC_FULL_BUILD
 

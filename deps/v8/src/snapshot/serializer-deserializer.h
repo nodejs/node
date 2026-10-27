@@ -5,6 +5,9 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
+#include <type_traits>
+
+#include "src/codegen/external-reference-encoder.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -32,32 +35,9 @@ class SerializerDeserializer : public RootVisitor {
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x22..0x2f */                                     \
-                          V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
-  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
-  /* Free range 0x30..0x3f */                                     \
-  V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
-  V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
-  /* Free range 0x97..0x9f */                                     \
-  V(0x98) V(0x99) V(0x9a) V(0x9b) V(0x9c) V(0x9d) V(0x9e) V(0x9f) \
-  /* Free range 0xa0..0xaf */                                     \
-  V(0xa0) V(0xa1) V(0xa2) V(0xa3) V(0xa4) V(0xa5) V(0xa6) V(0xa7) \
-  V(0xa8) V(0xa9) V(0xaa) V(0xab) V(0xac) V(0xad) V(0xae) V(0xaf) \
-  /* Free range 0xb0..0xbf */                                     \
-  V(0xb0) V(0xb1) V(0xb2) V(0xb3) V(0xb4) V(0xb5) V(0xb6) V(0xb7) \
-  V(0xb8) V(0xb9) V(0xba) V(0xbb) V(0xbc) V(0xbd) V(0xbe) V(0xbf) \
-  /* Free range 0xc0..0xcf */                                     \
-  V(0xc0) V(0xc1) V(0xc2) V(0xc3) V(0xc4) V(0xc5) V(0xc6) V(0xc7) \
-  V(0xc8) V(0xc9) V(0xca) V(0xcb) V(0xcc) V(0xcd) V(0xce) V(0xcf) \
-  /* Free range 0xd0..0xdf */                                     \
-  V(0xd0) V(0xd1) V(0xd2) V(0xd3) V(0xd4) V(0xd5) V(0xd6) V(0xd7) \
-  V(0xd8) V(0xd9) V(0xda) V(0xdb) V(0xdc) V(0xdd) V(0xde) V(0xdf) \
-  /* Free range 0xe0..0xef */                                     \
-  V(0xe0) V(0xe1) V(0xe2) V(0xe3) V(0xe4) V(0xe5) V(0xe6) V(0xe7) \
-  V(0xe8) V(0xe9) V(0xea) V(0xeb) V(0xec) V(0xed) V(0xee) V(0xef) \
-  /* Free range 0xf0..0xff */                                     \
-  V(0xf0) V(0xf1) V(0xf2) V(0xf3) V(0xf4) V(0xf5) V(0xf6) V(0xf7) \
-  V(0xf8) V(0xf9) V(0xfa) V(0xfb) V(0xfc) V(0xfd) V(0xfe) V(0xff)
+  /* Free range 0x27..0x2f */                                     \
+                                                          V(0x27) \
+  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)
   // clang-format on
 
   // The static assert below will trigger when the number of preallocated spaces
@@ -73,12 +53,12 @@ class SerializerDeserializer : public RootVisitor {
   // 16 repeats lengths.
   static const int kFixedRepeatRootCount = 0x10;
 
-  // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kHotObjectCount = 8;
+  // Top 128 back-referenced objects.
+  static const int kFixedBackrefCount = 0x80;
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x22 ----------
+    // ---------- byte code range 0x00..0x26 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -151,14 +131,14 @@ class SerializerDeserializer : public RootVisitor {
     // When the sandbox is enabled, a prefix indicating that the following
     // object is referenced through an indirect pointer, i.e. through an entry
     // in a pointer table.
-    kIndirectPointerPrefix,
+    kTrustedPointerPrefix,
     // When the sandbox is enabled, this bytecode instructs the deserializer to
     // initialize the "self" indirect pointer of trusted objects, which
     // references the object's pointer table entry. As the "self" indirect
     // pointer is always the first field after the map word, it is guaranteed
     // that it will be deserialized before any inner objects, which may require
     // the pointer table entry for back reference to the trusted object.
-    kInitializeSelfIndirectPointer,
+    kInitializeSelfTrustedPointer,
     // This bytecode instructs the deserializer to allocate an entry in the
     // JSDispatchTable for the host object and store the corresponding dispatch
     // handle into the current slot.
@@ -168,10 +148,22 @@ class SerializerDeserializer : public RootVisitor {
     // A prefix indicating that the following object is referenced through a
     // protected pointer, i.e. a pointer from one trusted object to another.
     kProtectedPointerPrefix,
+    // Reference to the n-th object exported by the trusted section.
+    kTrustedExportRef,
+    // Back reference to an object in the untrusted section.
+    kUntrustedRef,
+    // Reference to the n-th external reference in the trusted section.
+    kTrustedExternalRef,
+    // Reference to previously allocated object, also registering it in the
+    // fixed backref table for subsequent 1-byte kFixedBackref references.
+    kRegisterFixedBackref,
 
     //
-    // ---------- byte code range 0x40..0x7f ----------
+    // ---------- byte code range 0x30..0x7f ----------
     //
+
+    // 0x30..0x3f
+    kFixedRepeatRoot = 0x30,
 
     // 0x40..0x5f
     kRootArrayConstants = 0x40,
@@ -180,15 +172,64 @@ class SerializerDeserializer : public RootVisitor {
     kFixedRawData = 0x60,
 
     //
-    // ---------- byte code range 0x80..0x9f ----------
+    // ---------- byte code range 0x80..0xff ----------
     //
 
-    // 0x80..0x8f
-    kFixedRepeatRoot = 0x80,
-
-    // 0x90..0x97
-    kHotObject = 0x90,
+    // 0x80..0xff
+    kFixedBackref = 0x80,
   };
+
+  // Bytecodes that could corrupt memory outside the sandbox, which the
+  // deserializer only accepts in trusted sections. There is no default case,
+  // so that every new bytecode has to be classified here.
+  static constexpr bool IsTrustedBytecode(Bytecode bytecode) {
+    switch (bytecode) {
+      case kApiReference:
+      case kExternalReference:
+      case kSandboxedApiReference:
+      case kSandboxedExternalReference:
+      case kSandboxedRawExternalReference:
+      case kInitializeSelfTrustedPointer:
+      case kAllocateJSDispatchEntry:
+      case kProtectedPointerPrefix:
+        return true;
+      case kNewObject:
+      case kBackref:
+      case kReadOnlyHeapRef:
+      case kStartupObjectCache:
+      case kRootArray:
+      case kAttachedReference:
+      case kSharedHeapObjectCache:
+      case kNop:
+      case kSynchronize:
+      case kVariableRepeatRoot:
+      case kOffHeapBackingStore:
+      case kOffHeapResizableBackingStore:
+      case kEmbedderFieldsData:
+      case kApiWrapperFieldsData:
+      case kVariableRawData:
+      case kClearedWeakReference:
+      case kWeakPrefix:
+      case kRegisterPendingForwardRef:
+      case kResolvePendingForwardRef:
+      case kNewContextlessMetaMap:
+      case kNewContextfulMetaMap:
+      case kExtendedMapBitFieldEx:
+      case kTrustedPointerPrefix:
+      case kJSDispatchEntry:
+      case kTrustedExportRef:
+      case kUntrustedRef:
+      case kTrustedExternalRef:
+      case kRegisterFixedBackref:
+      case kRootArrayConstants:
+      case kFixedRawData:
+      case kFixedRepeatRoot:
+      case kFixedBackref:
+        return false;
+    }
+    // The rest of a bytecode range, or an unused bytecode.
+    return false;
+  }
 
   // Helper class for encoding and decoding a value into and from a bytecode.
   //
@@ -275,11 +316,28 @@ class SerializerDeserializer : public RootVisitor {
   using RootArrayConstant =
       BytecodeValueEncoder<kRootArrayConstants, 0, kRootArrayConstantsCount - 1,
                            RootIndex>;
-  using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
+  using FixedBackref =
+      BytecodeValueEncoder<kFixedBackref, 0, kFixedBackrefCount - 1>;
 
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
+
+  // Number of bits used to encode the aligned chunk offset in kReadOnlyHeapRef.
+  static constexpr int kReadOnlyHeapRefOffsetBits =
+      kPageSizeBits - kObjectAlignmentBits;
+
+  // An entry in the table of external references at the start of the trusted
+  // section of a code cache, see kTrustedExternalRef.
+  struct EncodedExternalReference {
+    ExternalReferenceEncoder::Value reference;
+    ExternalPointerTag tag;
+    // Explicit padding, so that code caches are deterministic.
+    uint16_t padding = 0;
+  };
+  static_assert(sizeof(EncodedExternalReference) == sizeof(uint64_t));
+  static_assert(
+      std::has_unique_object_representations_v<EncodedExternalReference>);
 };
 
 struct SerializeEmbedderFieldsCallback {

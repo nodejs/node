@@ -76,9 +76,8 @@ void ParallelMove::ExecuteLoads() {
       case RegisterLoad::kNop:
         break;
       case RegisterLoad::kConstant:
-        asm_->LoadConstant(dst, load->kind == kI64
-                                    ? WasmValue(int64_t{load->value})
-                                    : WasmValue(int32_t{load->value}));
+        asm_->LoadConstant(dst,
+                           VarState{load->kind, load->value, 0}.constant());
         break;
       case RegisterLoad::kStack:
         if (kNeedS128RegPair && load->kind == kS128) {

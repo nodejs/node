@@ -13,6 +13,7 @@
 #include "include/v8-callbacks.h"
 #include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "src/base/growing-circular-queue.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
@@ -279,6 +280,25 @@ class GlobalHandleVector {
 
  private:
   std::vector<Address, StrongRootAllocator<Address>> locations_;
+};
+
+// A circular queue of global Handles which automatically manages the backing of
+// those Handles as a queue of strong-rooted addresses.
+template <typename T>
+class GlobalHandleCircularQueue {
+ public:
+  explicit inline GlobalHandleCircularQueue(Heap* heap);
+  // Usage with LocalHeap is safe.
+  explicit inline GlobalHandleCircularQueue(LocalHeap* local_heap);
+
+  size_t size() const { return locations_.size(); }
+  bool empty() const { return locations_.empty(); }
+
+  void Enqueue(Tagged<T> val) { locations_.Enqueue(val.ptr()); }
+  inline Tagged<T> Dequeue();
+
+ private:
+  base::GrowingCircularQueue<Address, StrongRootAllocator<Address>> locations_;
 };
 
 }  // namespace internal

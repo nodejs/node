@@ -16,7 +16,7 @@ extern class TrustedFixedArray extends TrustedFixedArrayBase {
 
 @cppObjectLayoutDefinition
 extern class ProtectedFixedArray extends TrustedFixedArrayBase {
-  objects[length]: TrustedObject|Smi;
+  objects[length]: ProtectedPointer<TrustedObject|Smi>;
 }
 
 @cppObjectLayoutDefinition
@@ -36,9 +36,7 @@ extern class TrustedWeakFixedArray extends TrustedFixedArrayBase {
 
 @cppObjectLayoutDefinition
 extern class ProtectedWeakFixedArray extends TrustedFixedArrayBase {
-  // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
-  // code accessing these values.
-  objects[length]: TrustedObject|Smi;
+  objects[length]: ProtectedPointer<TrustedObject|Weak<TrustedObject>|Smi>;
 }
 
 @cppObjectLayoutDefinition

@@ -18,8 +18,13 @@ namespace internal {
 void JSDispatchEntry::CheckFieldOffsets() {
   static_assert(JSDispatchEntry::kEntrypointOffset ==
                 offsetof(JSDispatchEntry, entrypoint_));
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  static_assert(JSDispatchEntry::kCodeObjectOffset ==
+                offsetof(JSDispatchEntry, code_object_));
+#else
   static_assert(JSDispatchEntry::kCodeObjectOffset ==
                 offsetof(JSDispatchEntry, encoded_word_));
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
 #if defined(V8_TARGET_ARCH_64_BIT)
 #ifdef V8_TARGET_BIG_ENDIAN
   // 2-byte parameter count is on the least significant side of encoded_word_.

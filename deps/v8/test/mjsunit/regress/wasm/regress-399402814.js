@@ -4,7 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
-let empty_module = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]);
+let empty_module = new Uint8Array([
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+]);
 let module = new WebAssembly.Module(empty_module);
 let instance = new WebAssembly.Instance(module, {});
 

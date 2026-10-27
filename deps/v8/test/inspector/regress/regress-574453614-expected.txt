@@ -1,0 +1,31 @@
+Tests that returnByValue serialization limits the total number of values for shared (non-cyclic) references.
+
+Running test: testSharedReferences
+{
+    type : object
+    value : [
+        [0] : {
+            a : 1
+        }
+        [1] : {
+            a : 1
+        }
+        [2] : {
+            b : {
+                a : 1
+            }
+        }
+    ]
+}
+
+Running test: testExponentialSharedArrays
+{
+    code : -32000
+    message : Object is too large to be returned by value
+}
+
+Running test: testNestedLargeArrays
+{
+    code : -32000
+    message : Object is too large to be returned by value
+}

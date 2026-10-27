@@ -16,7 +16,8 @@
 #include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/properties/types.h"
 
-namespace LIBC_NAMESPACE::fputil {
+namespace LIBC_NAMESPACE_DECL {
+namespace fputil {
 
 // TODO: Add optimization for known good targets with fast
 // float to float16 conversion:
@@ -55,7 +56,7 @@ cast(InType x) {
         }
 
         InStorageType x_mant = x_bits.get_mantissa();
-        if (InFPBits::FRACTION_LEN > OutFPBits::FRACTION_LEN)
+        if constexpr (InFPBits::FRACTION_LEN > OutFPBits::FRACTION_LEN)
           x_mant >>= InFPBits::FRACTION_LEN - OutFPBits::FRACTION_LEN;
         return OutFPBits::quiet_nan(x_bits.sign(),
                                     static_cast<OutStorageType>(x_mant))
@@ -75,6 +76,7 @@ cast(InType x) {
   }
 }
 
-} // namespace LIBC_NAMESPACE::fputil
+} // namespace fputil
+} // namespace LIBC_NAMESPACE_DECL
 
 #endif // LLVM_LIBC_SRC___SUPPORT_FPUTIL_CAST_H

@@ -25,7 +25,13 @@ namespace LIBC_NAMESPACE_DECL {
 namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> setgid(gid_t gid) {
+#if defined(SYS_setgid32)
+  return syscall_checked<int>(SYS_setgid32, gid);
+#elif defined(SYS_setgid)
   return syscall_checked<int>(SYS_setgid, gid);
+#else
+#error "SYS_setgid and SYS_setgid32 syscalls not available."
+#endif
 }
 
 } // namespace linux_syscalls

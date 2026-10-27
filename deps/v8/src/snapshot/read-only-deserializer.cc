@@ -156,7 +156,8 @@ class ReadOnlyHeapImageDeserializer final {
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            const SnapshotData* data,
                                            bool can_rehash)
-    : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), false,
+    : Deserializer(isolate, data->Payload(), /* trusted_payload */ {},
+                   data->GetMagicNumber(), /* deserializing_user_code */ false,
                    can_rehash) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
@@ -167,6 +168,9 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   HandleScope scope(isolate());
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
+  if (should_rehash()) {
+    HashSeed::InitializeRoots(isolate());
+  }
   PostProcessNewObjects();
 
   ReadOnlyRoots roots(isolate());
@@ -177,7 +181,6 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
 #endif
 
   if (should_rehash()) {
-    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 
@@ -204,6 +207,9 @@ class ObjectPostProcessor final {
       : isolate_(isolate), embedded_data_(EmbeddedData::FromBlob(isolate_)) {}
 
   void Finalize() {
+    if (Builtins::kCodeObjectsAreInROSpace) {
+      isolate_->builtins()->MarkInitialized();
+    }
 #ifdef V8_ENABLE_SANDBOX
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
@@ -226,9 +232,13 @@ class ObjectPostProcessor final {
   V8_INLINE void PostProcessIfNeeded(Tagged<HeapObject> o,
                                      InstanceType instance_type) {
     DCHECK_EQ(o->map()->instance_type(), instance_type);
-#define V(TYPE)                                       \
-  if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(TrustedCast<TYPE>(o));   \
+#define V(TYPE)                                        \
+  if (InstanceTypeChecker::Is##TYPE(instance_type)) {  \
+    if constexpr (is_subtype_v<TYPE, TrustedObject>) { \
+      return PostProcess##TYPE(TrustedCast<TYPE>(o));  \
+    } else {                                           \
+      return PostProcess##TYPE(Cast<TYPE>(o));         \
+    }                                                  \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V
@@ -390,13 +400,14 @@ class ObjectPostProcessor final {
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
     Builtin builtin = o->builtin_id();
+    isolate_->builtins()->set_code(builtin, o);
     // Mark disabled builtins as such (RO space serializer resets this flag).
     DCHECK(!o->is_disabled_builtin());
     if (Builtins::IsDisabled(builtin)) {
       o->set_is_disabled_builtin(true);
     }
     o->SetInstructionStartForOffHeapBuiltin(
-        isolate_, EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));
+        isolate_, embedded_data_.InstructionStartOf(builtin));
 
 #if V8_ENABLE_GEARBOX
     UpdateGearboxPlaceholderBuiltin(o);
@@ -438,6 +449,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #ifdef V8_ENABLE_SANDBOX
   std::vector<ReadOnlyArtifacts::TrustedPointerRegistryEntry>
       trusted_pointer_entries;
+  trusted_pointer_entries.reserve(Builtins::kBuiltinCount);
 #endif  // V8_ENABLE_SANDBOX
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (IsInaccessible(o)) continue;
@@ -446,7 +458,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(direct_handle(str, isolate()));
+        str->EnsureHash();
       } else if (o->NeedsRehashing(instance_type)) {
         PushObjectToRehash(direct_handle(o, isolate()));
       }
@@ -457,11 +469,11 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #ifdef V8_ENABLE_SANDBOX
     if (IsExposedTrustedObject(o)) {
       SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(o));
-      IndirectPointerTag tag =
-          IndirectPointerTagFromInstanceType(instance_type, shared);
+      TrustedPointerTag tag =
+          TrustedPointerTagFromInstanceType(instance_type, shared);
       Tagged<ExposedTrustedObject> exposed =
           TrustedCast<ExposedTrustedObject>(o);
-      TrustedPointerHandle handle = exposed->self_indirect_pointer_handle();
+      TrustedPointerHandle handle = exposed->self_trusted_pointer_handle();
       trusted_pointer_entries.emplace_back(handle, exposed.ptr(), tag);
     }
 #endif  // V8_ENABLE_SANDBOX

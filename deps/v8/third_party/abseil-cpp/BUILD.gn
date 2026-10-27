@@ -154,8 +154,34 @@ group("absl_component_deps") {
 # Abseil testing utilities should only be included in test binaries.
 source_set("test_support") {
   testonly = true
-  public_deps = [ "//third_party/abseil-cpp/absl/hash:hash_testing" ]
-  deps = [ ":absl" ]
+  # In component builds, depending on `absl/hash:hash_testing` (`source_set`)
+  # would statically link a duplicate copy of `absl/hash` (and
+  # `MixingHashState::kSeed`) into test binaries alongside `:absl`. Because
+  # `hash_testing` is header-only and its compiled Abseil deps are already in
+  # `:absl`, expose `hash_testing.h` directly and keep its internal headers in
+  # `sources` (private).
+
+  # When `absl/hash:hash_testing` deps change:
+  # - Public Abseil deps are synced into `:absl` automatically by
+  #   `convert_bazel_to_gn.py`.
+  # - Internal headers not in `:absl` will be flagged by `gn check` and should
+  #   be updated in `sources` below.
+  # - Non-testonly internal `.cc` deps should be added to `absl_component_deps`.
+  if (is_component_build) {
+    public = [ "absl/hash/hash_testing.h" ]
+    sources = [
+      "absl/hash/internal/spy_hash_state.h",
+      "absl/hash/internal/weakly_mixed_integer.h",
+    ]
+    public_deps = [
+      ":absl",
+      "//third_party/googletest:gmock",
+      "//third_party/googletest:gtest",
+    ]
+  } else {
+    public_deps = [ "//third_party/abseil-cpp/absl/hash:hash_testing" ]
+    deps = [ ":absl" ]
+  }
 }
 
 # Some third-party libraries use additional parts of absl that are banned in
@@ -306,6 +332,7 @@ if (absl_build_tests) {
         "absl/base:tracing_internal_weak_test",
         "absl/base:unique_small_name_test",
         "absl/cleanup:cleanup_test",
+        "absl/container:btree_instantiate_test",
         "absl/container:chunked_queue_test",
         "absl/container:common_policy_traits_test",
         "absl/container:compressed_tuple_test",

@@ -102,8 +102,7 @@ transitioning builtin ArrayReduceLoopContinuation(
   // this means kPresent is false.
   typeswitch (accumulator) {
     case (TheHole): {
-      ThrowTypeError(
-          MessageTemplate::kReduceNoInitial, 'Array.prototype.reduce');
+      ThrowTypeError(MessageTemplate::kReduceNoInitial);
     }
     case (accumulator: JSAny): {
       return accumulator;
@@ -143,8 +142,7 @@ transitioning macro FastArrayReduce(
   }
   typeswitch (accumulator) {
     case (TheHole): {
-      ThrowTypeError(
-          MessageTemplate::kReduceNoInitial, 'Array.prototype.reduce');
+      ThrowTypeError(MessageTemplate::kReduceNoInitial);
     }
     case (accumulator: JSAny): {
       return accumulator;

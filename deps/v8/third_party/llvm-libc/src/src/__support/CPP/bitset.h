@@ -29,6 +29,10 @@ template <size_t NumberOfBits> struct bitset {
       Data[i] = 0;
   }
 
+  LIBC_INLINE constexpr void reset(size_t Index) {
+    Data[Index / BITS_PER_UNIT] &= ~mask(Index);
+  }
+
   LIBC_INLINE constexpr bool test(size_t Index) const {
     return Data[Index / BITS_PER_UNIT] & mask(Index);
   }

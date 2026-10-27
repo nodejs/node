@@ -18,7 +18,69 @@ const nuke_handle_from_heap_and_hope_nothing_important_is_gone = (dispatch_handl
 }
 
 // From test/mjsunit/sandbox/regress-430960844.js.
-let spray_mod = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 24, 2, 96, 16, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 0, 96, 1, 126, 0, 2, 15, 1, 2, 106, 115, 8, 115, 112, 114, 97, 121, 95, 99, 98, 0, 0, 3, 2, 1, 1, 7, 9, 1, 5, 115, 112, 114, 97, 121, 0, 1, 10, 38, 1, 36, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 0, 16, 0, 11]));
+let spray_mod = new WebAssembly.Module(new Uint8Array([
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x01,                    // section kind: Type
+  0x18,                    // section length 24
+  0x02,                    // types count 2
+  0x60,                    //  kind: func
+  0x10,                    // param count 16
+  0x7e, 0x7e, 0x7e, 0x7e,  // i64 i64 i64 i64
+  0x7e, 0x7e, 0x7e, 0x7e,  // i64 i64 i64 i64
+  0x7e, 0x7e, 0x7e, 0x7e,  // i64 i64 i64 i64
+  0x7e, 0x7e, 0x7e, 0x7e,  // i64 i64 i64 i64
+  0x00,                    // return count 0
+  0x60,                    //  kind: func
+  0x01, 0x7e,              // param count 1:  i64
+  0x00,                    // return count 0
+
+  0x02,                    // section kind: Import
+  0x0f,                    // section length 15
+  0x01, 0x02,              // imports count 1: module name length:  2
+  0x6a, 0x73,              // module name: js
+  0x08,                    // field name length:  8
+  0x73, 0x70, 0x72, 0x61, 0x79, 0x5f, 0x63, 0x62,  // field name: spray_cb
+  0x00, 0x00,              // kind or compact flag: function (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64)
+                           // import #0
+
+  0x03,                    // section kind: Function
+  0x02,                    // section length 2
+  0x01, 0x01,              // functions count 1: 1 $spray (param i64)
+
+  0x07,                    // section kind: Export
+  0x09,                    // section length 9
+  0x01,                    // exports count 1: export # 0
+  0x05,                    // field name length:  5
+  0x73, 0x70, 0x72, 0x61, 0x79,  // field name: spray
+  0x00, 0x01,              // kind: function index:  1
+
+  0x0a,                    // section kind: Code
+  0x26,                    // section length 38
+  0x01,                    // functions count 1
+                           // function #1 $spray
+  0x24,                    // body size 36
+  0x00,                    // 0 entries in locals list
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x20, 0x00,              // local.get $var0
+  0x10, 0x00,              // call $js.spray_cb
+  0x0b,                    // end
+]));
 let { spray } = new WebAssembly.Instance(spray_mod, { js: { spray_cb: () => { } } }).exports;
 
 // Get a clean slate.

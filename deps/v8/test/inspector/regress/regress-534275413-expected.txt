@@ -1,0 +1,7 @@
+Regression test for crbug.com/534275413.
+RangeError: WebAssembly.Memory.grow(): Unable to grow instance memory
+RangeError: WebAssembly.Memory.grow(): Unable to grow instance memory
+[
+    [0] : 42
+    [1] : 42
+]

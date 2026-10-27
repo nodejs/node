@@ -14,8 +14,8 @@
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -197,9 +197,9 @@ CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {
   return CppHeapPointerSlot(field_address(byte_offset));
 }
 
-IndirectPointerSlot HeapObject::RawIndirectPointerField(
-    int byte_offset, IndirectPointerTagRange tag_range) const {
-  return IndirectPointerSlot(field_address(byte_offset), tag_range);
+TrustedPointerSlot HeapObject::RawTrustedPointerField(
+    int byte_offset, TrustedPointerTagRange tag_range) const {
+  return TrustedPointerSlot(field_address(byte_offset), tag_range);
 }
 
 }  // namespace internal

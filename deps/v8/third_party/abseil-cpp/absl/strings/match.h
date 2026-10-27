@@ -80,7 +80,8 @@ inline constexpr bool EndsWith(absl::string_view text,
   if (text.size() < suffix.size()) {
     return false;
   }
-  absl::string_view possible_match = text.substr(text.size() - suffix.size());
+  absl::string_view possible_match =
+      text.substr(text.size() - suffix.size(), suffix.size());
   return possible_match == suffix;
 }
 // StrContainsIgnoreCase()

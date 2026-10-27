@@ -1,0 +1,7 @@
+Tests that execution really stops when Runtime.terminateExecution arrives while the console builds the message string for the first of several console.log() arguments
+
+Running test: setUp
+
+Running test: testTwoArguments
+evaluate error: Execution was terminated
+ran after console.log: false

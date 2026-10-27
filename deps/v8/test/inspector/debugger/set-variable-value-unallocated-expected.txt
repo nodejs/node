@@ -1,0 +1,19 @@
+Checks that Debugger.setVariableValue handles unallocated variables gracefully
+Local scope found: true
+Setting unallocated local variable "unusedLocal":
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+Closure scope found: true
+Setting unallocated outer variable "unusedOuter":
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}

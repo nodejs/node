@@ -41,6 +41,11 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 
+#ifdef V8_FUZZILLI
+#include "src/base/hashing.h"
+#include "src/fuzzilli/cov.h"
+#endif
+
 #ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
 #define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true
 #else
@@ -82,6 +87,45 @@ void PrintAndVerify(Graph* graph, bool printing_condition, MaglevPhase phase) {
   PrintGraph(graph, printing_condition, phase);
   VerifyGraph(graph, phase);
 }
+
+#ifdef V8_FUZZILLI
+void CollectOptimizedCodeCoverageFromNode(
+    NodeBase* node, size_t steps_to_go, size_t hash_so_far,
+    std::set<uint32_t>& accumulated_hashes) {
+  v8::base::Hasher hasher(hash_so_far);
+  hasher.Add(node->opcode());
+
+  bool has_recursed = false;
+  if (steps_to_go > 0) {
+    int input_count = node->input_count();
+    for (int i = 0; i < input_count; ++i) {
+      has_recursed = true;
+      ValueNode* input = node->input_node(i);
+      CollectOptimizedCodeCoverageFromNode(input, steps_to_go - 1,
+                                           hasher.hash(), accumulated_hashes);
+    }
+  }
+  if (!has_recursed) {
+    accumulated_hashes.insert(static_cast<uint32_t>(hasher.hash()));
+  }
+}
+
+void ExtractOptimizedCodeCoverage(Graph* graph) {
+  // We extract information from each node and its input up to this depth:
+  constexpr size_t kMaxPathLength = 3;
+  std::set<uint32_t> hashes;
+
+  for (BasicBlock* block : *graph) {
+    if (block->is_dead()) continue;
+    block->ForEachNodeAndControl([&](NodeBase* node) {
+      CollectOptimizedCodeCoverageFromNode(node, kMaxPathLength, 0, hashes);
+    });
+  }
+
+  cov_add_optimized_code_coverage_edges(hashes);
+}
+#endif
+
 }  // namespace
 
 // static
@@ -285,6 +329,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   // FunctionEntryStackCheck runs. A frame no larger than the smallest OS page
   // cannot step over a guard page, so bail out rather than emit an unchecked
   // stack pointer jump of arbitrary size.
+  // When replacing this bailout with a different strategy, consider doing the
+  // same in Turboshaft as well.
   if (graph->tagged_stack_slots() + graph->untagged_stack_slots() >
       kMaxStackSlots) {
     return false;
@@ -299,6 +345,9 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
     bool success = code_generator->Assemble();
+    if (v8_flags.maglev_build_code_on_background || !success) {
+      compilation_info->broker()->DetachCanonicalHandles(compilation_info);
+    }
     if (!success) {
       return false;
     }
@@ -306,6 +355,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+#ifdef V8_FUZZILLI
+  if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    ExtractOptimizedCodeCoverage(graph);
+  }
+#endif
 
   return true;
 }

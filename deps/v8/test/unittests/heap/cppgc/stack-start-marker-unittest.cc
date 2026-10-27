@@ -44,5 +44,40 @@ TEST_F(StackStartMarkerTest, DefaultWithoutStackStartMarker) {
             internal_heap->stack()->stack_start());
 }
 
+TEST_F(StackStartMarkerTest, StackStartScopeIsUsed) {
+  const void* original_stack_start = v8::base::Stack::GetStackStart();
+  EXPECT_EQ(original_stack_start, v8::base::Stack::GetEffectiveStackStart());
+  {
+    StackStartScope scope;
+    EXPECT_GT(original_stack_start, v8::base::Stack::GetEffectiveStackStart());
+    EXPECT_EQ(original_stack_start, v8::base::Stack::GetStackStart());
+
+    auto heap = Heap::Create(GetPlatformHandle());
+    Heap* internal_heap = Heap::From(heap.get());
+
+    EXPECT_EQ(v8::base::Stack::GetEffectiveStackStart(),
+              internal_heap->stack()->stack_start());
+    EXPECT_TRUE(internal_heap->ShouldCheckForTLSOnStack());
+  }
+  EXPECT_EQ(original_stack_start, v8::base::Stack::GetEffectiveStackStart());
+}
+
+V8_NOINLINE void TestNestedStackStartScope(const void* outer_stack_start) {
+  StackStartScope inner_scope;
+  EXPECT_GT(outer_stack_start, v8::base::Stack::GetEffectiveStackStart());
+}
+
+TEST_F(StackStartMarkerTest, NestedStackStartScopes) {
+  const void* original_stack_start = v8::base::Stack::GetEffectiveStackStart();
+  {
+    StackStartScope outer_scope;
+    const void* outer_stack_start = v8::base::Stack::GetEffectiveStackStart();
+    EXPECT_LT(outer_stack_start, original_stack_start);
+    TestNestedStackStartScope(outer_stack_start);
+    EXPECT_EQ(outer_stack_start, v8::base::Stack::GetEffectiveStackStart());
+  }
+  EXPECT_EQ(original_stack_start, v8::base::Stack::GetEffectiveStackStart());
+}
+
 }  // namespace internal
 }  // namespace cppgc

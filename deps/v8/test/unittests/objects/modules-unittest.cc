@@ -2029,4 +2029,91 @@ TEST_F(ModuleTest, DeferredModuleRejectionInsideApiCallback) {
   isolate()->SetPromiseRejectCallback(nullptr);
 }
 
+static v8::Global<Module> errored_synthetic_dependency;
+MaybeLocal<Module> ResolveErroredSyntheticDependency(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  return errored_synthetic_dependency.Get(Isolate::GetCurrent());
+}
+
+static int synthetic_unhandled_rejections = 0;
+void CountSyntheticUnhandledRejections(v8::PromiseRejectMessage message) {
+  if (message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
+    ++synthetic_unhandled_rejections;
+  } else if (message.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
+    --synthetic_unhandled_rejections;
+  }
+}
+
+TEST_F(ModuleTest, ErroredSyntheticModuleDependency) {
+  i::FlagScope<bool> defer_imports(&i::v8_flags.js_defer_import_eval, true);
+  HandleScope scope(isolate());
+  synthetic_unhandled_rejections = 0;
+  isolate()->SetPromiseRejectCallback(CountSyntheticUnhandledRejections);
+
+  Local<String> export_name = NewString("x");
+  Local<Module> synthetic = Module::CreateSyntheticModule(
+      isolate(), NewString("errored_synthetic"), {&export_name, 1},
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
+        Isolate* isolate = Isolate::GetCurrent();
+        // Re-entrantly evaluating a kEvaluating synthetic module via its
+        // deferred namespace must fail ReadyForSyncExecution with a TypeError.
+        {
+          v8::TryCatch reentrant_catch(isolate);
+          Local<v8::Object> deferred_ns =
+              module->GetModuleNamespace(v8::ModuleImportPhase::kDefer)
+                  .As<v8::Object>();
+          CHECK(deferred_ns
+                    ->Get(context, String::NewFromUtf8Literal(isolate, "x"))
+                    .IsEmpty());
+          CHECK(reentrant_catch.HasCaught());
+        }
+        isolate->ThrowException(v8::Exception::Error(
+            String::NewFromUtf8Literal(isolate, "synthetic eval error")));
+        return MaybeLocal<Promise>();
+      });
+  CHECK(synthetic
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  {
+    v8::TryCatch try_catch(isolate());
+    CHECK(synthetic->Evaluate(context()).IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  CHECK_EQ(Module::kErrored, synthetic->GetStatus());
+  CHECK_EQ(0, synthetic_unhandled_rejections);
+  errored_synthetic_dependency.Reset(isolate(), synthetic);
+
+  ScriptOrigin origin = ModuleOrigin(NewString("importer.js"), isolate());
+  ScriptCompiler::Source source(NewString("import 'errored_synthetic';\n"),
+                                origin);
+  Local<Module> importer =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+  CHECK(
+      importer->InstantiateModule(context(), ResolveErroredSyntheticDependency)
+          .FromJust());
+
+  Local<Value> eval_result = importer->Evaluate(context()).ToLocalChecked();
+  Local<Promise> promise = eval_result.As<Promise>();
+  CHECK_EQ(Module::kErrored, importer->GetStatus());
+  CHECK_EQ(Promise::kRejected, promise->State());
+  CHECK_EQ(synthetic->GetException(), importer->GetException());
+  // Only the outer importer's top-level capability remains unhandled;
+  // EvaluateModuleSync marks the synthetic module's capability as handled when
+  // converting its rejection into a throw.
+  CHECK_EQ(1, synthetic_unhandled_rejections);
+
+  // Re-evaluating the errored synthetic module returns the cached capability
+  // without materializing a second rejected promise.
+  Local<Promise> synthetic_promise =
+      synthetic->Evaluate(context()).ToLocalChecked().As<Promise>();
+  CHECK_EQ(Promise::kRejected, synthetic_promise->State());
+  CHECK_EQ(synthetic->GetException(), synthetic_promise->Result());
+  CHECK_EQ(1, synthetic_unhandled_rejections);
+
+  errored_synthetic_dependency.Reset();
+  isolate()->SetPromiseRejectCallback(nullptr);
+}
+
 }  // anonymous namespace

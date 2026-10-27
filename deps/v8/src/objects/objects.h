@@ -166,12 +166,7 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline Maybe<double> IntegerValue(
       Isolate* isolate, HandleType<T> input);
 
-  // Selects optimal representation and constness for a given value.
-  // Usually, the constness stays unmodified unless the value is a HeapNumber
-  // with the hole NaN pattern. This is necessary to distinguish between
-  // initialized and non-initialized double fields.
-  static inline std::pair<Representation, PropertyConstness>
-  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness);
+  static inline Representation OptimalRepresentation(Tagged<Object> obj);
 
   static inline ElementsKind OptimalElementsKind(Tagged<Object> obj);
 
@@ -188,9 +183,10 @@ class Object : public AllStatic {
                                              Isolate* isolate,
                                              Representation representation);
 
-  V8_EXPORT_PRIVATE static Handle<UnionOf<JSAny, Hole>> NewStorageFor(
-      Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
-      Representation representation);
+  V8_EXPORT_PRIVATE static Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>>
+  NewStorageFor(Isolate* isolate,
+                Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
+                Representation representation);
 
   template <AllocationType allocation_type = AllocationType::kYoung,
             typename IsolateT>
@@ -639,8 +635,9 @@ class Object : public AllStatic {
       Isolate* isolate, HandleType<Object> input);
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
-  V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToUint32(
-      Isolate* isolate, HandleType<Object> input);
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
+      ConvertToUint32(Isolate* isolate, HandleType<Object> input);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Number>
   ConvertToLength(Isolate* isolate, DirectHandle<Object> input);
   template <template <typename> typename HandleType>

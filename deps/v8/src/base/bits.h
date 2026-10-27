@@ -210,64 +210,6 @@ inline constexpr int WhichPowerOfTwo(T value)
 #endif
 }
 
-// RoundUpToPowerOfTwo32(value) returns the smallest power of two which is
-// greater than or equal to |value|. If you pass in a |value| that is already a
-// power of two, it is returned as is. |value| must be less than or equal to
-// 0x80000000u. Uses computation based on leading zeros if we have compiler
-// support for that. Falls back to the implementation from "Hacker's Delight" by
-// Henry S. Warren, Jr., figure 3-3, page 48, where the function is called clp2.
-V8_BASE_EXPORT constexpr uint32_t RoundUpToPowerOfTwo32(uint32_t value) {
-  DCHECK_LE(value, uint32_t{1} << 31);
-  if (value) --value;
-// Use computation based on leading zeros if we have compiler support for that.
-#if V8_HAS_BUILTIN_CLZ || V8_CC_MSVC
-  return 1u << (32 - CountLeadingZeros(value));
-#else
-  value |= value >> 1;
-  value |= value >> 2;
-  value |= value >> 4;
-  value |= value >> 8;
-  value |= value >> 16;
-  return value + 1;
-#endif
-}
-// Same for 64 bit integers. |value| must be <= 2^63
-V8_BASE_EXPORT constexpr uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
-  DCHECK_LE(value, uint64_t{1} << 63);
-  if (value) --value;
-// Use computation based on leading zeros if we have compiler support for that.
-#if V8_HAS_BUILTIN_CLZ
-  return uint64_t{1} << (64 - CountLeadingZeros(value));
-#else
-  value |= value >> 1;
-  value |= value >> 2;
-  value |= value >> 4;
-  value |= value >> 8;
-  value |= value >> 16;
-  value |= value >> 32;
-  return value + 1;
-#endif
-}
-// Same for size_t integers.
-inline constexpr size_t RoundUpToPowerOfTwo(size_t value) {
-  if (sizeof(size_t) == sizeof(uint64_t)) {
-    return RoundUpToPowerOfTwo64(value);
-  } else {
-    // Without windows.h included this line triggers a truncation warning on
-    // 64-bit builds. Presumably windows.h disables the relevant warning.
-    return RoundUpToPowerOfTwo32(static_cast<uint32_t>(value));
-  }
-}
-
-// RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
-// less than or equal to |value|. If you pass in a |value| that is already a
-// power of two, it is returned as is.
-inline constexpr uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
-  if (value > 0x80000000u) return 0x80000000u;
-  uint32_t result = RoundUpToPowerOfTwo32(value);
-  if (result > value) result >>= 1;
-  return result;
-}
 
 // Precondition: 0 <= shift < 32
 inline constexpr uint32_t RotateRight32(uint32_t value, uint32_t shift) {

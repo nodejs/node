@@ -20,6 +20,7 @@
 }],  # not has_webassembly or variant == jitless
 
 ['variant in (jitless, nooptimization)', {
+  'deopt-now-fuzzing': [SKIP],
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
   'js-wasm-wrapper-inlining-type-combos': [SKIP],

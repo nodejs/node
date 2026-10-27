@@ -75,7 +75,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   void setPauseOnNextCall(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
-  void stepOverStatement(int targetContextGroupId);
+  void stepOverStatement(int targetContextGroupId, bool enterFunctions);
   void stepOutOfFunction(int targetContextGroupId);
 
   void terminateExecution(v8::Local<v8::Context> context,
@@ -222,6 +222,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                        int column) override;
+  bool ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                           const v8::debug::Location& start,
+                           const v8::debug::Location& end) override;
   void BreakpointConditionEvaluated(v8::Local<v8::Context> context,
                                     v8::debug::BreakpointId breakpoint_id,
                                     bool exception_thrown,

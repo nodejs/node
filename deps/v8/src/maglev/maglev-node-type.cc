@@ -148,7 +148,7 @@ std::ostream& operator<<(std::ostream& out, const NodeType& type) {
 #undef CASE
     default:
 #define CASE(Name, _)                                        \
-  if (NodeTypeIsForPrinting(NodeType::k##Name, type)) {      \
+  if (NodeTypeCanBeForPrinting(type, NodeType::k##Name)) {   \
     if constexpr (NodeType::k##Name != NodeType::kUnknown) { \
       out << #Name "|";                                      \
     }                                                        \

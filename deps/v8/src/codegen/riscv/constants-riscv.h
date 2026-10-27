@@ -34,6 +34,7 @@ const int kInitialShadowStackSize = 1024;
 
 constexpr uint64_t kFP64DefaultNaN = 0x7FF8000000000000UL;
 constexpr uint32_t kFP32DefaultNaN = 0x7FC00000;
+constexpr uint32_t kFP16DefaultNaN = 0x7E00;
 constexpr uint32_t kFP32FltMin = 0x00800000;
 constexpr uint64_t kFP64DblMin = 0x0010000000000000ULL;
 }  // namespace internal

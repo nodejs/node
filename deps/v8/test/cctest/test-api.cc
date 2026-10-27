@@ -30,12 +30,14 @@
 #include <array>
 #include <climits>
 #include <csignal>
+#include <format>
 #include <map>
 #include <memory>
 #include <optional>
 #include <span>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "test/cctest/cctest.h"
 
@@ -63,6 +65,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
 #include "src/compiler/globals.h"
@@ -231,8 +234,8 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "for (var i = 0; i < 10; i++) {"
                      "  %s"
                      "}",
@@ -241,7 +244,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(10, signature_callback_count);
@@ -258,8 +261,8 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "function test() {"
                      "  %s"
                      "};"
@@ -273,7 +276,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(3, signature_callback_count);
@@ -382,10 +385,10 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
-    v8::base::SNPrintF(source.as_vector(), "var test_object = %s; test_object",
+    std::array<char, 200> source;
+    v8::base::SNPrintF(source, "var test_object = %s; test_object",
                        test_objects[i]);
-    Local<Value> test_object = CompileRun(source.begin());
+    Local<Value> test_object = CompileRun(source.data());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
     TestSignature("test_object[accessor_key];", test_object, isolate);
@@ -3274,10 +3277,9 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
-    v8::base::SNPrintF(source.as_vector(), "(function() { return %s })()",
-                       sources[i]);
-    v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
+    std::array<char, 128> source;
+    v8::base::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::Local<v8::Object> obj = CompileRun(source.data()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
 }
@@ -3355,7 +3357,24 @@ static void CheckAlignedPointerInEmbedderData(LocalContext* env,
                                               v8::Local<v8::Object> some_obj,
                                               int index, void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V2.
   (*env)->SetAlignedPointerInEmbedderData(index, value, kTestTypeTagA);
+  END_ALLOW_USE_DEPRECATED()
+  i::heap::InvokeMajorGC(CcTest::heap());
+  CHECK_EQ(value,
+           (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      CcTest::isolate(), index, kTestTypeTagA));
+}
+
+static void CheckAlignedPointerInEmbedderDataV2(LocalContext* env,
+                                                v8::Local<v8::Object> some_obj,
+                                                int index, void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  (*env)->SetAlignedPointerInEmbedderDataV2(index, value, kTestTypeTagA);
   i::heap::InvokeMajorGC(CcTest::heap());
   CHECK_EQ(value,
            (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
@@ -3377,27 +3396,30 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
 
   CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
-  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int* heap_allocated = new int[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 1, heap_allocated);
-  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(2, (*env)->GetNumberOfEmbedderDataFields());
   delete[] heap_allocated;
 
   int stack_allocated[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 2, stack_allocated);
-  CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(3, (*env)->GetNumberOfEmbedderDataFields());
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
   // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, obj, 3, huge);
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
 
   // Test growing of the embedder data's backing store.
   for (int i = 0; i < 100; i++) {
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i),
                                          i % V8_EMBEDDER_DATA_TAG_COUNT);
+    END_ALLOW_USE_DEPRECATED()
   }
   i::heap::InvokeMajorGC(CcTest::heap());
   for (int i = 0; i < 100; i++) {
@@ -3405,6 +3427,28 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(
                                         i, i % V8_EMBEDDER_DATA_TAG_COUNT));
   }
+}
+
+THREADED_TEST(EmbedderDataAlignedPointersV2) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 0, nullptr);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 1, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 2, stack_allocated);
+
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the sandboxed external pointers are enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 3, huge);
 }
 
 THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
@@ -3415,11 +3459,39 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   v8::Local<v8::Object> obj = env->Global();
 
   CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
-  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int stack_allocated[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 1, stack_allocated);
-  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(2, (*env)->GetNumberOfEmbedderDataFields());
+
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
+
+  env->DetachGlobal();
+
+  // In case the global object is detached the embedder data can be read
+  // directly from current native context as long as its global object IS the
+  // detached global object.
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
+}
+
+THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobalV2) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = env->Global();
+
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 0, nullptr);
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 1, stack_allocated);
 
   i::heap::InvokeMajorGC(CcTest::heap());
 
@@ -3439,7 +3511,17 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
 
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V3.
   (*env)->SetEmbedderDataV2(index, data);
+  END_ALLOW_USE_DEPRECATED()
+  CHECK(v8::Local<v8::Value>::Cast((*env)->GetEmbedderDataV2(index))
+            ->StrictEquals(data));
+}
+
+static void CheckEmbedderDataV3(LocalContext* env, int index,
+                                v8::Local<Value> data) {
+  (*env)->SetEmbedderDataV3(index, data);
   CHECK(v8::Local<v8::Value>::Cast((*env)->GetEmbedderDataV2(index))
             ->StrictEquals(data));
 }
@@ -3449,19 +3531,28 @@ THREADED_TEST(EmbedderData) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  CHECK_EQ(0, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 3, v8_str("The quick brown fox jumps"));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 2, v8_str("over the lazy dog."));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 1, v8::Number::New(isolate, 1.2345));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 0, v8::Boolean::New(isolate, true));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 211, v8::Boolean::New(isolate, true));
   CHECK_EQ(212, (*env)->GetNumberOfEmbedderDataFields());
 }
 
+THREADED_TEST(EmbedderDataV3) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  CheckEmbedderDataV3(&env, 3, v8_str("The quick brown fox jumps"));
+  CheckEmbedderDataV3(&env, 2, v8_str("over the lazy dog."));
+  CheckEmbedderDataV3(&env, 1, v8::Number::New(isolate, 1.2345));
+  CheckEmbedderDataV3(&env, 0, v8::Boolean::New(isolate, true));
+}
 
 THREADED_TEST(IdentityHash) {
   LocalContext env;
@@ -4427,10 +4518,10 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(40);
-    v8::base::SNPrintF(buffer.as_vector(), "%p", static_cast<void*>(this));
+    std::array<char, 40> buffer;
+    v8::base::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
-        v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
+        v8::String::NewFromUtf8(isolate, buffer.data()).ToLocalChecked();
     cell_.Reset(isolate, string);
     metadata_->instance_counter++;
   }
@@ -4552,7 +4643,7 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
-  auto source = v8::base::OwnedVector<uint8_t>::NewForOverwrite(200000);
+  auto source = v8::base::UniqueArray<uint8_t>::NewForOverwrite(200000);
 
   // In the rest of this test, we need to invoke GC without stack, otherwise the
   // weak references may not be cleared because of conservative stack scanning.
@@ -7732,12 +7823,12 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    auto extension_name = v8::base::OwnedVector<char>::NewForOverwrite(32);
-    v8::base::SNPrintF(extension_name.as_vector(), "ext #%d", source_len);
-    v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
+    std::array<char, 32> extension_name;
+    v8::base::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::RegisterExtension(std::make_unique<Extension>(extension_name.data(),
                                                       kEmbeddedExtensionSource,
                                                       0, nullptr, source_len));
-    const char* extension_names[1] = {extension_name.begin()};
+    const char* extension_names[1] = {extension_name.data()};
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
@@ -11306,10 +11397,10 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  auto name_buf = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  std::array<char, 1024> name_buf;
   for (int i = 1; i <= 1000; i++) {
-    v8::base::SNPrintF(name_buf.as_vector(), "sdf%d", i);
-    t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
+    v8::base::SNPrintF(name_buf, "sdf%d", i);
+    t2->InstanceTemplate()->Set(v8_str(name_buf.data()), v8_num(2));
   }
 
   Local<v8::Object> o1 = t1->GetFunction(context.local())
@@ -13508,39 +13599,6 @@ static v8::Isolate::CreateParams CreateTestParams() {
   return create_params;
 }
 
-UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
-  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
-  // In multi-cage mode we create one cage per isolate
-  // and we don't share objects between cages.
-  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) return;
-
-  i::v8_flags.shared_string_table = true;
-  i::v8_flags.harmony_struct = true;
-  i::FlagList::EnforceFlagImplications();
-
-  v8::Isolate::CreateParams create_params = CreateTestParams();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope scope(isolate);
-    LocalContext context(isolate);
-
-    v8_compile(
-        "var s = new (new SharedStructType(['foo']));"
-        "var a = new SharedArray(1);"
-        "var m = new Atomics.Mutex;"
-        "var c = new Atomics.Condition;")
-        ->Run(context.local())
-        .ToLocalChecked();
-
-    CheckGetConstructorNameOfVar(context, "s", "SharedStruct");
-    CheckGetConstructorNameOfVar(context, "a", "SharedArray");
-    CheckGetConstructorNameOfVar(context, "m", "Atomics.Mutex");
-    CheckGetConstructorNameOfVar(context, "c", "Atomics.Condition");
-  }
-  isolate->Dispose();
-}
-
 static void TestAllocateAndNewForTwoIsolateGroups(
     const v8::Isolate::CreateParams& create_params_1,
     const v8::Isolate::CreateParams& create_params_2,
@@ -13625,6 +13683,59 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
         // !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 
 #ifdef V8_ENABLE_SANDBOX
+
+class CustomInSandboxAllocator : public v8::Allocator {
+ public:
+  explicit CustomInSandboxAllocator(v8::IsolateGroup& group)
+      : address_space_(group.GetSandboxAddressSpace()) {}
+
+  void* Allocate(size_t size) override { return AllocateUninitialized(size); }
+
+  void* AllocateUninitialized(size_t size) override {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
+  void* AllocateUninitializedOrCrash(size_t size) override {
+    void* allocation = AllocateUninitialized(size);
+    CHECK_NOT_NULL(allocation);
+    return allocation;
+  }
+
+  void Free(void* allocation) override {
+    if (!allocation) return;
+    address_space_->FreePages(reinterpret_cast<uintptr_t>(allocation), kSIZE);
+  }
+
+  void* allocated_address() const { return allocated_address_; }
+
+ private:
+  static constexpr int kSIZE = 1 << 20;
+  static constexpr int kALIGN = 64 << 10;
+  v8::VirtualAddressSpace* address_space_;
+  void* allocated_address_ = nullptr;
+};
+
+UNINITIALIZED_TEST(SetInSandboxAllocator) {
+  v8::IsolateGroup group = v8::IsolateGroup::GetDefault();
+  auto allocator = std::make_shared<CustomInSandboxAllocator>(group);
+  group.SetInSandboxAllocator(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+
+  v8::Isolate* isolate = v8::Isolate::New(group, create_params);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 200);
+  CHECK_EQ(backing_store->Data(), allocator->allocated_address());
+
+  backing_store.reset();
+  isolate->Dispose();
+}
 
 class CustomArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
@@ -15528,159 +15639,6 @@ TEST(ObjectClone) {
             .FromJust());
 }
 
-
-class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
-      : data_(vector) {}
-  ~OneByteVectorResource() override = default;
-  size_t length() const override { return data_.length(); }
-  const char* data() const override { return data_.begin(); }
-  void Dispose() override {}
-
- private:
-  v8::base::Vector<const char> data_;
-};
-
-
-class UC16VectorResource : public v8::String::ExternalStringResource {
- public:
-  explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
-      : data_(vector) {}
-  ~UC16VectorResource() override = default;
-  size_t length() const override { return data_.length(); }
-  const v8::base::uc16* data() const override { return data_.begin(); }
-  void Dispose() override {}
-
- private:
-  v8::base::Vector<const v8::base::uc16> data_;
-};
-
-static void MorphAString(i::Tagged<i::String> string,
-                         OneByteVectorResource* one_byte_resource,
-                         UC16VectorResource* uc16_resource) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  CHECK(i::StringShape(string).IsExternal());
-  i::ReadOnlyRoots roots(CcTest::heap());
-  if (string->IsOneByteRepresentation()) {
-    // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_one_byte_string_map());
-    // Morph external string to be TwoByte string.
-    string->set_map(isolate, roots.external_two_byte_string_map());
-    i::Tagged<i::ExternalTwoByteString> morphed =
-        i::Cast<i::ExternalTwoByteString>(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, uc16_resource);
-  } else {
-    // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_two_byte_string_map());
-    // Morph external string to be one-byte string.
-    string->set_map(isolate, roots.external_one_byte_string_map());
-    i::Tagged<i::ExternalOneByteString> morphed =
-        i::Cast<i::ExternalOneByteString>(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, one_byte_resource);
-  }
-}
-
-// Test that we can still flatten a string if the components it is built up
-// from have been turned into 16 bit strings in the mean time.
-THREADED_TEST(MorphCompositeStringTest) {
-  char utf_buffer[129];
-  const char* c_string = "Now is the time for all good men"
-                         " to come to the aid of the party";
-  uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
-  {
-    LocalContext env;
-    i::Factory* factory = CcTest::i_isolate()->factory();
-    v8::Isolate* isolate = env.isolate();
-    i::Isolate* i_isolate = CcTest::i_isolate();
-    v8::HandleScope scope(isolate);
-    OneByteVectorResource one_byte_resource(
-        v8::base::Vector<const char>(c_string, strlen(c_string)));
-    UC16VectorResource uc16_resource(
-        v8::base::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
-
-    Local<String> lhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromOneByte(&one_byte_resource)
-            .ToHandleChecked()));
-    Local<String> rhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromOneByte(&one_byte_resource)
-            .ToHandleChecked()));
-
-    CHECK(env->Global()->Set(env.local(), v8_str("lhs"), lhs).FromJust());
-    CHECK(env->Global()->Set(env.local(), v8_str("rhs"), rhs).FromJust());
-
-    CompileRun(
-        "var cons = lhs + rhs;"
-        "var slice = lhs.substring(1, lhs.length - 1);"
-        "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
-
-    CHECK(lhs->IsOneByte());
-    CHECK(rhs->IsOneByte());
-
-    i::DirectHandle<i::String> ilhs = v8::Utils::OpenDirectHandle(*lhs);
-    i::DirectHandle<i::String> irhs = v8::Utils::OpenDirectHandle(*rhs);
-    MorphAString(*ilhs, &one_byte_resource, &uc16_resource);
-    MorphAString(*irhs, &one_byte_resource, &uc16_resource);
-
-    // This should UTF-8 without flattening, since everything is ASCII.
-    Local<String> cons =
-        v8_compile("cons")->Run(env.local()).ToLocalChecked().As<String>();
-    CHECK_EQ(128, cons->Utf8Length(isolate));
-    CHECK_EQ(129, cons->WriteUtf8(isolate, utf_buffer, sizeof(utf_buffer),
-                                  String::WriteFlags::kNullTerminate));
-    CHECK_EQ(0, strcmp(
-        utf_buffer,
-        "Now is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the party"));
-
-    // Now do some stuff to make sure the strings are flattened, etc.
-    CompileRun(
-        "/[^a-z]/.test(cons);"
-        "/[^a-z]/.test(slice);"
-        "/[^a-z]/.test(slice_on_cons);");
-    const char* expected_cons =
-        "Now is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the party";
-    const char* expected_slice =
-        "ow is the time for all good men to come to the aid of the part";
-    const char* expected_slice_on_cons =
-        "ow is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the part";
-    CHECK(v8_str(expected_cons)
-              ->Equals(env.local(), env->Global()
-                                        ->Get(env.local(), v8_str("cons"))
-                                        .ToLocalChecked())
-              .FromJust());
-    CHECK(v8_str(expected_slice)
-              ->Equals(env.local(), env->Global()
-                                        ->Get(env.local(), v8_str("slice"))
-                                        .ToLocalChecked())
-              .FromJust());
-    CHECK(v8_str(expected_slice_on_cons)
-              ->Equals(env.local(),
-                       env->Global()
-                           ->Get(env.local(), v8_str("slice_on_cons"))
-                           .ToLocalChecked())
-              .FromJust());
-
-    // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalOneByteString(*ilhs)) {
-      i::Cast<i::ExternalOneByteString>(*ilhs)->SetResource(i_isolate, nullptr);
-    } else {
-      i::Cast<i::ExternalTwoByteString>(*ilhs)->SetResource(i_isolate, nullptr);
-    }
-    if (IsExternalOneByteString(*irhs)) {
-      i::Cast<i::ExternalOneByteString>(*irhs)->SetResource(i_isolate, nullptr);
-    } else {
-      i::Cast<i::ExternalTwoByteString>(*irhs)->SetResource(i_isolate, nullptr);
-    }
-  }
-  i::DeleteArray(two_byte_string);
-}
-
-
 TEST(CompileExternalTwoByteSource) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
@@ -16362,8 +16320,8 @@ TEST(ErrorLevelWarning) {
                                             v8::Isolate::kMessageAll);
   for (size_t i = 0; i < arraysize(levels); i++) {
     i::MessageLocation location(script, 0, 0);
-    i::DirectHandle<i::String> msg(i_isolate->factory()->InternalizeString(
-        v8::base::StaticCharVector("test")));
+    i::DirectHandle<i::String> msg(
+        i_isolate->factory()->InternalizeString("test"));
     i::DirectHandle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kDataCloneError, &location, msg);
@@ -18222,7 +18180,7 @@ TEST(Regress528) {
 
     context->Enter();
     Local<v8::String> obj = v8_str("");
-    context->SetEmbedderDataV2(0, obj);
+    context->SetEmbedderDataV3(0, obj);
     CompileRun(source_simple);
     context->Exit();
   }
@@ -19406,15 +19364,15 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(),
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code,
                      "function fib(n) {"
                      "  if (n <= 2) return 1;"
                      "  return fib(n-1) + fib(n-2);"
                      "}"
                      "fib(%d)",
                      limit);
-  Local<Value> value = CompileRun(code.begin());
+  Local<Value> value = CompileRun(code.data());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
@@ -19781,17 +19739,25 @@ TEST(RegExp) {
     ExpectTrue("ex instanceof SyntaxError");
   }
 
-  // RegExp::Exec.
+  // RegExp::Exec / RegExp::ExecV2.
   {
     v8::Local<v8::RegExp> regexp =
         v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
-    v8::Local<v8::Object> result0 =
-        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    v8::Local<v8::Value> result0 =
+        regexp->ExecV2(context.local(), v8_str("abc")).ToLocalChecked();
     CHECK(result0->IsArray());
-    v8::Local<v8::Object> result1 =
-        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
-    // TODO(jgruber): Fix the API; `v8::Null` is not a valid `v8::Object`.
+    v8::Local<v8::Value> result1 =
+        regexp->ExecV2(context.local(), v8_str("abd")).ToLocalChecked();
     CHECK(result1->IsNull());
+
+    START_ALLOW_USE_DEPRECATED();
+    v8::Local<v8::Object> deprecated_result0 =
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    CHECK(deprecated_result0->IsArray());
+    v8::Local<v8::Object> deprecated_result1 =
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    CHECK(deprecated_result1->IsNull());
+    END_ALLOW_USE_DEPRECATED();
   }
 }
 
@@ -21994,10 +21960,9 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(source.as_vector(),
-                     "try { %s; } catch (e) { catcher(e); }", script);
-  CompileRun(source.begin());
+  std::array<char, 1024> source;
+  v8::base::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  CompileRun(source.data());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
 
@@ -22896,24 +22861,24 @@ class ApiCallOptimizationChecker {
       }
     }
     // build wrap_function
-    auto wrap_function = v8::base::OwnedVector<char>::NewForOverwrite(200);
+    std::array<char, 200> wrap_function;
     if (global) {
-      v8::base::SNPrintF(wrap_function.as_vector(),
+      v8::base::SNPrintF(wrap_function,
                          "function wrap_f_%d() { var f = g_f; return f(); }\n"
                          "function wrap_get_%d() { return this.g_acc; }\n"
                          "function wrap_set_%d() { return this.g_acc = 1; }\n",
                          key, key, key);
     } else {
       v8::base::SNPrintF(
-          wrap_function.as_vector(),
+          wrap_function,
           "function wrap_f_%d() { return receiver_subclass.f(); }\n"
           "function wrap_get_%d() { return receiver_subclass.acc; }\n"
           "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
           key, key, key);
     }
     // build source string
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(1000);
-    v8::base::SNPrintF(source.as_vector(),
+    std::array<char, 1000> source;
+    v8::base::SNPrintF(source,
                        "%s\n"  // wrap functions
                        "function wrap_f() { return wrap_f_%d(); }\n"
                        "function wrap_get() { return wrap_get_%d(); }\n"
@@ -22942,10 +22907,10 @@ class ApiCallOptimizationChecker {
                        "check(wrap_set());\n"
                        "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
                        "check(wrap_set());\n",
-                       wrap_function.begin(), key, key, key, key, key, key, key,
+                       wrap_function.data(), key, key, key, key, key, key, key,
                        key, key);
     v8::TryCatch try_catch(isolate);
-    CompileRun(source.begin());
+    CompileRun(source.data());
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
 
@@ -24375,6 +24340,60 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
       "function foo() {}\n"
       "//# sourceMappingURL=  data:application/json,{\"version\":3}  \n",
       nullptr, "data:application/json,{\"version\":3}");
+
+  // A value can end at the end of the input.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar25.js",
+                  "bar25.js", nullptr);
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceMappingURL=bar26.js",
+                  nullptr, "bar26.js");
+
+  // Other line terminators.
+  SourceURLHelper(isolate,
+                  "function foo() {}\r\n"
+                  "//# sourceURL=bar27.js\r\n"
+                  "//# sourceMappingURL=bar28.js\r\n"
+                  "function baz() {}\r\n",
+                  "bar27.js", "bar28.js");
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar29.js\xE2\x80\xA8"
+                  "function baz() {}\n",
+                  "bar29.js", nullptr);
+
+  // The deprecated //@ form.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//@ sourceURL=bar30.js\n"
+                  "//@ sourceMappingURL=bar31.js\n",
+                  "bar30.js", "bar31.js");
+
+  // A malformed or empty last comment removes an earlier value.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar32.js\n"
+                  "//# sourceURL=bar33 .js\n"
+                  "//# sourceMappingURL=bar34.js\n"
+                  "//# sourceMappingURL=\n",
+                  nullptr, nullptr);
+
+  // Non-Latin1 characters in the source and in the value.
+  SourceURLHelper(isolate,
+                  "var s = '\xD7\xA9';\n"
+                  "//# sourceURL=b\xC3\xA4r35\xF0\x9F\x98\x80.js\n",
+                  "b\xC3\xA4r35\xF0\x9F\x98\x80.js", nullptr);
+
+  // Long values.
+  std::string long_url = std::format("https://example.com/{:x>1000}.js", "");
+  std::string long_map_url = long_url + ".map";
+  std::string long_source = std::format(
+      "function foo() {{}}\n//# sourceURL={}\n//# sourceMappingURL={}\n",
+      long_url, long_map_url);
+  SourceURLHelper(isolate, long_source.c_str(), long_url.c_str(),
+                  long_map_url.c_str());
 }
 
 
@@ -25783,7 +25802,7 @@ TEST(ModuleEvaluateImportTerminateExecution) {
   // The exception thrown by terminate execution is not catchable by JavaScript
   // so the promise can not be settled.
   CHECK_EQ(promise->State(), v8::Promise::kPending);
-  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
   CHECK(try_catch.HasTerminated());
 }
@@ -26026,6 +26045,322 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
                           "globalThis.Result = foo();", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    nullptr, "bar2.js");
+}
+
+namespace {
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::UnboundScript> script) {
+  return i::direct_handle(
+      i::Cast<i::Script>(v8::Utils::OpenDirectHandle(*script)->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::UnboundModuleScript> script) {
+  return i::direct_handle(
+      i::Cast<i::Script>(v8::Utils::OpenDirectHandle(*script)->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::Function> function) {
+  return i::direct_handle(
+      i::Cast<i::Script>(
+          i::Cast<i::JSFunction>(*v8::Utils::OpenDirectHandle(*function))
+              ->shared()
+              ->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+v8::MaybeLocal<Script> CompileStreamedScript(LocalContext* env,
+                                             const char** chunks,
+                                             Local<v8::String> full_source,
+                                             const v8::ScriptOrigin& origin) {
+  v8::ScriptCompiler::StreamedSource source(
+      std::make_unique<i::TestSourceStream>(chunks),
+      v8::ScriptCompiler::StreamedSource::UTF8);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreaming(env->isolate(), &source));
+  StreamerThread::StartThreadForTaskAndJoin(task.get(), env->i_isolate());
+  return v8::ScriptCompiler::Compile(env->local(), &source, full_source,
+                                     origin);
+}
+
+std::string SourceWithMagicComments(std::string_view body,
+                                    std::string_view value) {
+  return std::format(
+      "{0}\n//# sourceURL={1}\n//# sourceMappingURL={1}\n//# debugId={1}\n",
+      body, value);
+}
+
+// Checks that the debug magic comment values of {script} are {value}: the
+// source map URL as a substring of the script source, the source URL and debug
+// ID as sequential strings.
+void CheckMagicCommentValuesAreSourceSubstrings(
+    i::DirectHandle<i::Script> script, const std::string& value) {
+  i::Tagged<i::Object> source_mapping_url = script->source_mapping_url();
+  CHECK(i::IsSlicedString(source_mapping_url));
+  CHECK_EQ(i::Cast<i::SlicedString>(source_mapping_url)->parent(),
+           script->source());
+  i::Tagged<i::Object> fields[] = {source_mapping_url, script->source_url(),
+                                   script->debug_id()};
+  for (i::Tagged<i::Object> field : fields) {
+    if (field != source_mapping_url) CHECK(i::IsSeqString(field));
+    CHECK(i::Cast<i::String>(field)->IsEqualTo(
+        v8::base::OneByteVector(value.data(), value.size())));
+  }
+}
+
+}  // namespace
+
+TEST(MagicCommentValuesAreSourceSubstrings) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  std::string value = std::format("https://example.com/{:x>100}.js", "");
+
+  {
+    std::string source =
+        SourceWithMagicComments("globalThis.Result = 13;", value);
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, v8_compile(source.c_str())->GetUnboundScript()),
+        value);
+  }
+  {
+    std::string source = SourceWithMagicComments("export const x = 13;", value);
+    v8::ScriptOrigin origin(v8_str("module.js"), 0, 0, false, -1,
+                            Local<Value>(), false, false, true);
+    v8::ScriptCompiler::Source script_source(v8_str(source.c_str()), origin);
+    Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(isolate, &script_source)
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, module->GetUnboundModuleScript()), value);
+  }
+  {
+    std::string source = SourceWithMagicComments("return 13;", value);
+    v8::ScriptCompiler::Source script_source(v8_str(source.c_str()));
+    Local<v8::Function> function =
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(GetScript(isolate, function),
+                                               value);
+  }
+  {
+    // Streaming creates the values from the full source when finalizing.
+    std::string source =
+        SourceWithMagicComments("globalThis.Result = 13;", value);
+    const char* chunks[] = {source.c_str(), nullptr};
+    Local<Script> script =
+        CompileStreamedScript(&env, chunks, v8_str(source.c_str()),
+                              v8::ScriptOrigin(v8_str("streamed.js")))
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, script->GetUnboundScript()), value);
+  }
+  {
+    // Short values are not slices, but still have the right contents.
+    Local<Script> script = v8_compile(
+        "//# sourceURL=a.js\n//# sourceMappingURL=b.js\n//# debugId=c\n");
+    i::DirectHandle<i::Script> i_script =
+        GetScript(isolate, script->GetUnboundScript());
+    CHECK(i::Cast<i::String>(i_script->source_url())->IsOneByteEqualTo("a.js"));
+    CHECK(i::Cast<i::String>(i_script->source_mapping_url())
+              ->IsOneByteEqualTo("b.js"));
+    CHECK(i::Cast<i::String>(i_script->debug_id())->IsOneByteEqualTo("c"));
+  }
+}
+
+// Regression test for https://crbug.com/566467883: the source URL is a
+// sequential string rather than a slice of the source, even if it is long
+// enough to be one, since it is used as the script name (e.g. DevTools reads it
+// from heap snapshots).
+TEST(MagicCommentSourceUrlIsSequential) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  const std::string value = "inside-direct-eval.js";
+  CHECK_GE(value.size(), i::SlicedString::kMinLength);
+  auto check = [&](i::DirectHandle<i::Script> script) {
+    CHECK(i::IsSeqString(script->source_url()));
+    CHECK(!i::IsSlicedString(script->source_url()));
+    CHECK(i::Cast<i::String>(script->source_url())
+              ->IsEqualTo(v8::base::OneByteVector(value.data(), value.size())));
+  };
+
+  {
+    std::string source = "globalThis.Result = 13;\n//# sourceURL=" + value;
+    check(GetScript(isolate, v8_compile(source.c_str())->GetUnboundScript()));
+  }
+  {
+    // Streaming creates the value from the full source when finalizing.
+    std::string source = "globalThis.Result = 13;\n//# sourceURL=" + value;
+    const char* chunks[] = {source.c_str(), nullptr};
+    Local<Script> script =
+        CompileStreamedScript(&env, chunks, v8_str(source.c_str()),
+                              v8::ScriptOrigin(v8_str("streamed.js")))
+            .ToLocalChecked();
+    check(GetScript(isolate, script->GetUnboundScript()));
+  }
+  {
+    // Direct eval.
+    Local<v8::Function> function = Local<v8::Function>::Cast(
+        CompileRun("eval('(function evalFunction() {})\\n"
+                   "//# sourceURL=inside-direct-eval.js');"));
+    check(GetScript(isolate, function));
+  }
+}
+
+TEST(ApiSourceMapURLTakesPrecedenceOverMagicComment) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  std::string value = std::format("https://example.com/{:x>100}.map", "");
+  std::string source =
+      "globalThis.Result = 13;\n//# sourceMappingURL=" + value + "\n";
+  const char* chunks[] = {source.c_str(), nullptr};
+
+  for (bool streaming : {false, true}) {
+    // A non-empty API source map URL takes precedence, an empty one does not.
+    for (const char* api_url : {"api.js.map", ""}) {
+      v8::ScriptOrigin origin(v8_str("origin.js"), 0, 0, false, -1,
+                              v8_str(api_url));
+      Local<Script> script;
+      if (streaming) {
+        script =
+            CompileStreamedScript(&env, chunks, v8_str(source.c_str()), origin)
+                .ToLocalChecked();
+      } else {
+        v8::ScriptCompiler::Source script_source(v8_str(source.c_str()),
+                                                 origin);
+        script = v8::ScriptCompiler::Compile(env.local(), &script_source)
+                     .ToLocalChecked();
+      }
+      v8::String::Utf8Value url(
+          isolate, script->GetUnboundScript()->GetSourceMappingURL());
+      CHECK_EQ(0, strcmp(*api_url != '\0' ? api_url : value.c_str(), *url));
+      // Compile each case from scratch.
+      CcTest::i_isolate()->compilation_cache()->Clear();
+    }
+  }
+}
+
+TEST(StreamingMagicCommentOutsideOfFullSource) {
+  // The embedder passes a full source that does not match the streamed one.
+  // Magic comment locations outside of it must be ignored.
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  const char* chunks[] = {"globalThis.Result = 13;\n",
+                          "//# sourceURL=outside.js\n",
+                          "//# sourceMappingURL=outside.js.map\n", nullptr};
+  Local<Script> script =
+      CompileStreamedScript(&env, chunks, v8_str("globalThis.Result = 13;\n"),
+                            v8::ScriptOrigin(v8_str("streamed.js")))
+          .ToLocalChecked();
+  i::DirectHandle<i::Script> i_script =
+      GetScript(isolate, script->GetUnboundScript());
+  CHECK(i::IsUndefined(i_script->source_url()));
+  CHECK(i::IsUndefined(i_script->source_mapping_url()));
+}
+
+// Regression test for https://github.com/nodejs/node/issues/64155: a huge
+// magic comment value (e.g. an inline source map) must not be copied onto the
+// heap.
+UNINITIALIZED_TEST(HugeMagicCommentValueDoesNotOOM) {
+  i::v8_flags.stress_concurrent_allocation = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.set_max_old_generation_size_in_bytes(16 * i::MB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext env(isolate);
+
+    const std::string url_prefix = "data:application/json;base64,";
+    const size_t kPayloadLength = 40 * i::MB;
+    enum class Mode { kScript, kModule, kFunction, kStreaming };
+    for (Mode mode :
+         {Mode::kScript, Mode::kModule, Mode::kFunction, Mode::kStreaming}) {
+      // The source URL and debug ID are sequential copies, so huge ones are
+      // still copied.
+      for (const char* name : {"sourceMappingURL"}) {
+        v8::HandleScope inner_scope(isolate);
+        std::string header = std::format(
+            "{}\n//# {}=",
+            mode == Mode::kFunction ? "return 13;" : "globalThis.Result = 13;",
+            name);
+        size_t value_offset = header.size();
+        size_t value_length = url_prefix.size() + kPayloadLength;
+        size_t length = value_offset + value_length + 1;
+        char* data = i::NewArray<char>(length + 1);
+        memcpy(data, header.data(), header.size());
+        memcpy(data + value_offset, url_prefix.data(), url_prefix.size());
+        memset(data + value_offset + url_prefix.size(), 'A', kPayloadLength);
+        data[length - 1] = '\n';
+        data[length] = '\0';
+
+        // The source is external, so it does not count against the heap
+        // limit, but a copy of the magic comment value would.
+        Local<v8::String> source = v8::String::NewExternalOneByte(
+                                       isolate, new TestOneByteResource(data))
+                                       .ToLocalChecked();
+        i::DirectHandle<i::Script> script;
+        switch (mode) {
+          case Mode::kScript: {
+            v8::ScriptCompiler::Source script_source(source);
+            script =
+                GetScript(isolate, v8::ScriptCompiler::CompileUnboundScript(
+                                       isolate, &script_source)
+                                       .ToLocalChecked());
+            break;
+          }
+          case Mode::kModule: {
+            v8::ScriptOrigin origin(
+                v8::String::NewFromUtf8Literal(isolate, "module.js"), 0, 0,
+                false, -1, Local<Value>(), false, false, true);
+            v8::ScriptCompiler::Source script_source(source, origin);
+            script = GetScript(isolate, v8::ScriptCompiler::CompileModule(
+                                            isolate, &script_source)
+                                            .ToLocalChecked()
+                                            ->GetUnboundModuleScript());
+            break;
+          }
+          case Mode::kFunction: {
+            v8::ScriptCompiler::Source script_source(source);
+            script = GetScript(isolate, v8::ScriptCompiler::CompileFunction(
+                                            env.local(), &script_source)
+                                            .ToLocalChecked());
+            break;
+          }
+          case Mode::kStreaming: {
+            const char* chunks[] = {data, nullptr};
+            script = GetScript(
+                isolate, CompileStreamedScript(
+                             &env, chunks, source,
+                             v8::ScriptOrigin(v8::String::NewFromUtf8Literal(
+                                 isolate, "streamed.js")))
+                             .ToLocalChecked()
+                             ->GetUnboundScript());
+            break;
+          }
+        }
+        i::Tagged<i::Object> value = script->source_mapping_url();
+        i::DirectHandle<i::String> value_string(
+            i::Cast<i::String>(value), reinterpret_cast<i::Isolate*>(isolate));
+
+        // Force a full GC while the value is alive: a heap copy of the value
+        // would exceed the heap limit here even if its allocation succeeded.
+        isolate->LowMemoryNotification();
+
+        CHECK(value_string->IsEqualTo(
+            v8::base::OneByteVector(data + value_offset, value_length)));
+      }
+    }
+  }
+  isolate->Dispose();
 }
 
 void GetCurrentHostDefinedOptionsTest(
@@ -26809,29 +27144,29 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    auto test_string = v8::base::OwnedVector<char>::NewForOverwrite(64);
+    std::array<char, 64> test_string;
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "function");
+    ExpectString(test_string.data(), "function");
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectTrue(test_string.begin());
+    ExpectTrue(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s = 42",
+    v8::base::SNPrintF(test_string, "obj1.%s = 42",
                        intrinsics_comparisons[i].object_property_name);
-    CompileRun(test_string.begin());
+    CompileRun(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectFalse(test_string.begin());
+    ExpectFalse(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "number");
+    ExpectString(test_string.data(), "number");
   }
 }
 
@@ -27340,10 +27675,10 @@ TEST(CorrectEnteredContext) {
   v8::HandleScope scope(CcTest::isolate());
 
   LocalContext currentContext;
-  currentContext->SetEmbedderDataV2(
+  currentContext->SetEmbedderDataV3(
       1, v8::Integer::New(currentContext.isolate(), CurrentContext));
   LocalContext enteredContext;
-  enteredContext->SetEmbedderDataV2(
+  enteredContext->SetEmbedderDataV3(
       1, v8::Integer::New(enteredContext.isolate(), EnteredContext));
 
   v8::Context::Scope contextScope(enteredContext.local());
@@ -32445,8 +32780,11 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
             cpp_heap->GetAllocationHandle()));
 
     // Null pointer test.
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(
         0, static_cast<TestGarbagedCollectedData*>(nullptr), i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
     CHECK_EQ(
         nullptr,
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
@@ -32455,8 +32793,11 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
                           isolate, 0, i::kTagForTesting));
 
     // Valid cppgc object test.
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(1, cpp_object.Get(),
                                             i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
     CHECK_EQ(
         cpp_object.Get(),
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
@@ -32467,8 +32808,69 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
 
     // Detached global proxy test.
     v8::Local<v8::Object> global_obj = env->Global();
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(2, cpp_object.Get(),
                                             i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, i::kTagForTesting));
+
+    env->DetachGlobal();
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, i::kTagForTesting));
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(EmbedderDataAlignedPointersV2_CppHeapPointer) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+
+  {
+    v8::HandleScope scope(isolate);
+    LocalContext env(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+    cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+
+    // Null pointer test.
+    (*env)->SetAlignedPointerInEmbedderDataV2(
+        0, static_cast<TestGarbagedCollectedData*>(nullptr), i::kTagForTesting);
+    CHECK_EQ(
+        nullptr,
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 0, i::kTagForTesting));
+    CHECK_EQ(nullptr, obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                          isolate, 0, i::kTagForTesting));
+
+    // Valid cppgc object test.
+    (*env)->SetAlignedPointerInEmbedderDataV2(1, cpp_object.Get(),
+                                              i::kTagForTesting);
+    CHECK_EQ(
+        cpp_object.Get(),
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 1, i::kTagForTesting));
+    CHECK_EQ(cpp_object.Get(),
+             obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 1, i::kTagForTesting));
+
+    // Detached global proxy test.
+    v8::Local<v8::Object> global_obj = env->Global();
+    (*env)->SetAlignedPointerInEmbedderDataV2(2, cpp_object.Get(),
+                                              i::kTagForTesting);
     CHECK_EQ(cpp_object.Get(),
              global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
                  isolate, 2, i::kTagForTesting));
@@ -32617,3 +33019,60 @@ TEST(IsolateFree) {
   v8::Isolate::Free(isolate1);
   v8::Isolate::Free(isolate2);
 }
+
+#ifdef V8_ENABLE_MAGLEV
+TEST(MaglevFastProxyCheckTrapResultLazyDeopt) {
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+  if (!i::v8_flags.maglev) return;
+
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.fast_proxy_ic = true;
+  i::v8_flags.optimize_on_next_call_optimizes_to_maglev = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetNativeDataProperty(
+      v8_str("prop"), [](v8::Local<v8::Name> name,
+                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Local<v8::Context> ctx = info.GetIsolate()->GetCurrentContext();
+        v8::Local<v8::Value> trigger =
+            ctx->Global()->Get(ctx, v8_str("trigger_deopt")).ToLocalChecked();
+        if (trigger->BooleanValue(info.GetIsolate())) {
+          CHECK(ctx->Global()
+                    ->Set(ctx, v8_str("global_dep"), v8_num(2))
+                    .FromJust());
+        }
+        info.GetReturnValue().Set(v8_num(100));
+      });
+
+  v8::Local<v8::Object> target = templ->NewInstance(context).ToLocalChecked();
+  v8::Local<v8::Object> target2 = templ->NewInstance(context).ToLocalChecked();
+  CHECK(target2->Set(context, v8_str("extra"), v8_num(1)).FromJust());
+  CHECK(context->Global()->Set(context, v8_str("target"), target).FromJust());
+
+  ExpectInt32(
+      "var global_dep = 1;"
+      "var trigger_deopt = false;"
+      "var mutate_target = false;"
+      "function get_trap(t, p, r) {"
+      "  if (mutate_target) { t.extra = 1; trigger_deopt = true; }"
+      "  return 42;"
+      "}"
+      "%NeverOptimizeFunction(get_trap);"
+      "const handler = { get: get_trap };"
+      "const proxy = new Proxy(target, handler);"
+      "function f(p) { return p.prop + global_dep - global_dep; }"
+      "%PrepareFunctionForOptimization(f);"
+      "f(proxy);"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f(proxy);"
+      "mutate_target = true;"
+      "f(proxy);",
+      42);
+}
+#endif  // V8_ENABLE_MAGLEV

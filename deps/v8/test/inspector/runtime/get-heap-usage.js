@@ -11,5 +11,12 @@ const {session, contextGroup, Protocol} = InspectorTest.start('Checks that Runti
   console.assert(usedSize > 0);
   console.assert(totalSize > 0);
   console.assert(totalSize >= usedSize);
+
+  InspectorTest.log('getHeapUsage is not allowed for untrusted clients');
+  const untrustedSession = contextGroup.connect(/* isFullyTrusted */ false);
+  InspectorTest.logMessage(
+      await untrustedSession.Protocol.Runtime.getHeapUsage());
+  untrustedSession.disconnect();
+
   InspectorTest.completeTest();
 })();

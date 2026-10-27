@@ -332,16 +332,12 @@ class ReducerTest : public TestWithNativeContextAndZone {
     const testing::TestInfo* test_info =
         testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream file_name;
-    const char* debug_name = test_info->name();
-    size_t debug_name_len = std::strlen(debug_name);
-
     CodeKind code_kind =
         is_wasm ? CodeKind::WASM_FUNCTION : CodeKind::FOR_TESTING_JS;
     TurboshaftPipelineKind pipeline_kind =
         is_wasm ? TurboshaftPipelineKind::kWasm : TurboshaftPipelineKind::kJS;
-    info_.reset(new OptimizedCompilationInfo(
-        base::Vector<const char>(debug_name, debug_name_len), this->zone(),
-        code_kind));
+    info_.reset(new OptimizedCompilationInfo(test_info->name(), this->zone(),
+                                             code_kind));
     AssemblerOptions options = AssemblerOptions::Default(this->isolate());
     options.is_wasm = is_wasm;
     pipeline_data_.reset(new turboshaft::PipelineData(

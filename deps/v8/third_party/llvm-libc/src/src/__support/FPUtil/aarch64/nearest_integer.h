@@ -12,24 +12,37 @@
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
+#include "src/__support/macros/properties/compiler.h"
 
 #if !defined(LIBC_TARGET_ARCH_IS_AARCH64)
 #error "Invalid include"
+#endif
+
+#ifdef LIBC_COMPILER_IS_MSVC
+#include <arm64_neon.h>
 #endif
 
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
 
 LIBC_INLINE float nearest_integer(float x) {
+#ifdef LIBC_COMPILER_IS_MSVC
+  return vget_lane_f32(vrndn_f32(vdup_n_f32(x)), 0);
+#else
   float result;
   __asm__ __volatile__("frintn %s0, %s1\n\t" : "=w"(result) : "w"(x));
   return result;
+#endif
 }
 
 LIBC_INLINE double nearest_integer(double x) {
+#ifdef LIBC_COMPILER_IS_MSVC
+  return vget_lane_f64(vrndn_f64(vdup_n_f64(x)), 0);
+#else
   double result;
   __asm__ __volatile__("frintn %d0, %d1\n\t" : "=w"(result) : "w"(x));
   return result;
+#endif
 }
 
 } // namespace fputil

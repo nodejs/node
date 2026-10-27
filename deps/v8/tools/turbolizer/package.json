@@ -23,6 +23,9 @@
     "type": "git",
     "url": "https://github.com/v8/v8.git"
   },
+  "bin": {
+    "turbolizer": "cli.js"
+  },
   "devDependencies": {
     "@types/node": "^17.0.41",
     "chai": "^4.3.6",

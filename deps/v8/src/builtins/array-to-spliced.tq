@@ -224,7 +224,7 @@ transitioning javascript builtin ArrayPrototypeToSpliced(
 
   // 12. If newLen > 2^53 - 1, throw a TypeError exception.
   if (newLen > kMaxSafeInteger) {
-    ThrowTypeError(MessageTemplate::kInvalidArrayLength, newLen);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   if (newLen == 0) return ArrayCreate(0);

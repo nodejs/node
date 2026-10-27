@@ -169,7 +169,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
-                               IndirectPointerSlot slot) {
+                               TrustedPointerSlot slot) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, slot);
 }
@@ -243,13 +243,13 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   return 0;
 }
 
-int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
-                                                 Address raw_slot,
-                                                 Address raw_tag) {
+int WriteBarrier::TrustedPointerMarkingFromCode(Address raw_host,
+                                                Address raw_slot,
+                                                Address raw_tag) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
-  IndirectPointerTag tag = static_cast<IndirectPointerTag>(raw_tag);
-  DCHECK(IsValidIndirectPointerTag(tag));
-  IndirectPointerSlot slot(raw_slot, tag);
+  TrustedPointerTag tag = static_cast<TrustedPointerTag>(raw_tag);
+  DCHECK(IsValidTrustedPointerTag(tag));
+  TrustedPointerSlot slot(raw_slot, tag);
 
 #if DEBUG
   DCHECK(!HeapLayout::InWritableSharedSpace(host));

@@ -1,0 +1,8 @@
+Tests that deep serialization gracefully reports stack overflow.
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}

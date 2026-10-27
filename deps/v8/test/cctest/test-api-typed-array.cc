@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -107,7 +109,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
       "sum;");
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
-  auto test_buf = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  std::array<char, 1024> test_buf;
 
   // Check legal boundary conditions.
   // The repeated loads and stores ensure the ICs are exercised.
@@ -120,12 +122,12 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
       "  }"
       "}"
       "res;";
-  v8::base::SNPrintF(test_buf.as_vector(), boundary_program, low);
-  result = CompileRun(test_buf.begin());
+  v8::base::SNPrintF(test_buf, boundary_program, low);
+  result = CompileRun(test_buf.data());
   CHECK_EQ(low, result->IntegerValue(context).FromJust());
 
-  v8::base::SNPrintF(test_buf.as_vector(), boundary_program, high);
-  result = CompileRun(test_buf.begin());
+  v8::base::SNPrintF(test_buf, boundary_program, high);
+  result = CompileRun(test_buf.data());
   CHECK_EQ(high, result->IntegerValue(context).FromJust());
 
   // Check misprediction of type in IC.
@@ -145,7 +147,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
   // Make sure out-of-range loads do not throw.
-  v8::base::SNPrintF(test_buf.as_vector(),
+  v8::base::SNPrintF(test_buf,
                      "var caught_exception = false;"
                      "try {"
                      "  ext_array[%d];"
@@ -154,11 +156,11 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
                      "}"
                      "caught_exception;",
                      element_count);
-  result = CompileRun(test_buf.begin());
+  result = CompileRun(test_buf.data());
   CHECK(!result->BooleanValue(v8_isolate));
 
   // Make sure out-of-range stores do not throw.
-  v8::base::SNPrintF(test_buf.as_vector(),
+  v8::base::SNPrintF(test_buf,
                      "var caught_exception = false;"
                      "try {"
                      "  ext_array[%d] = 1;"
@@ -167,7 +169,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
                      "}"
                      "caught_exception;",
                      element_count);
-  result = CompileRun(test_buf.begin());
+  result = CompileRun(test_buf.data());
   CHECK(!result->BooleanValue(v8_isolate));
 
   // Check other boundary conditions, values and operations.
@@ -250,7 +252,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
     bool is_pixel_data = array_type == i::kExternalUint8ClampedArray;
 
     v8::base::SNPrintF(
-        test_buf.as_vector(),
+        test_buf,
         "%s"
         "var all_passed = true;"
         "for (var i = 0; i < source_data.length; i++) {"
@@ -263,7 +265,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
         "all_passed;",
         (is_unsigned ? unsigned_data
                      : (is_pixel_data ? pixel_data : signed_data)));
-    result = CompileRun(test_buf.begin());
+    result = CompileRun(test_buf.data());
     CHECK(result->BooleanValue(v8_isolate));
   }
 
@@ -376,7 +378,12 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   CHECK_EQ(kElementCount, static_cast<int>(ta->Length()));
   CHECK_EQ(2 * sizeof(ElementType), ta->ByteOffset());
   CHECK_EQ(kElementCount * sizeof(ElementType), ta->ByteLength());
+  CHECK(ab->Equals(env.local(), ta->GetBuffer()).FromJust());
+  CHECK_EQ((std::is_same_v<ArrayBufferType, v8::SharedArrayBuffer>),
+           ta->GetBuffer()->IsShared());
+  START_ALLOW_USE_DEPRECATED();
   CHECK(ab->Equals(env.local(), ta->Buffer()).FromJust());
+  END_ALLOW_USE_DEPRECATED();
 
   ElementType* data =
       reinterpret_cast<ElementType*>(ab->GetBackingStore()->Data()) + 2;
@@ -453,7 +460,10 @@ THREADED_TEST(DataView) {
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
+  CHECK(ab->Equals(env.local(), dv->GetBuffer()).FromJust());
+  START_ALLOW_USE_DEPRECATED();
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
+  END_ALLOW_USE_DEPRECATED();
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
@@ -521,7 +531,10 @@ THREADED_TEST(SharedDataView) {
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
+  CHECK(ab->Equals(env.local(), dv->GetBuffer()).FromJust());
+  START_ALLOW_USE_DEPRECATED();
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
+  END_ALLOW_USE_DEPRECATED();
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
@@ -696,15 +709,14 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
+  std::array<char, 128> source;
   // Test on-heap sizes.
   for (size_t size = 0; size <= i::JSTypedArray::kMaxSizeInHeap;
        size += elem_size) {
     size_t length = size / elem_size;
-    v8::base::SNPrintF(source.as_vector(), "new %sArray(%zu)", array_name,
-                       length);
+    v8::base::SNPrintF(source, "new %sArray(%zu)", array_name, length);
     auto typed_array =
-        v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
+        v8::Local<v8::TypedArray>::Cast(CompileRun(source.data()));
 
     CHECK_EQ(length, typed_array->Length());
 
@@ -729,15 +741,14 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
+  std::array<char, 128> source;
   // Test off-heap sizes.
   size_t size = i::JSTypedArray::kMaxSizeInHeap;
   for (int i = 0; i < 3; i++) {
     size_t length = 1 + (size / elem_size);
-    v8::base::SNPrintF(source.as_vector(), "new %sArray(%zu)", array_name,
-                       length);
+    v8::base::SNPrintF(source, "new %sArray(%zu)", array_name, length);
     auto typed_array =
-        v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
+        v8::Local<v8::TypedArray>::Cast(CompileRun(source.data()));
     CHECK_EQ(length, typed_array->Length());
 
     // Should already have a buffer.

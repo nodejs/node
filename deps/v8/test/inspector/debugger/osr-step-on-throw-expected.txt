@@ -1,0 +1,5 @@
+Tests step into on throw in OSR function
+Paused in: thrower
+Paused in: thrower
+Paused in: osr_caller
+Paused in: caught_target

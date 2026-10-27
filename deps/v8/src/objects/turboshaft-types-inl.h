@@ -80,10 +80,11 @@ void TurboshaftWord64SetType::set_elements_low(int i, uint32_t value) {
 }
 
 // TurboshaftFloat64Type
-uint32_t TurboshaftFloat64Type::special_values() const {
+TurboshaftFloatSpecialValues TurboshaftFloat64Type::special_values() const {
   return special_values_;
 }
-void TurboshaftFloat64Type::set_special_values(uint32_t value) {
+void TurboshaftFloat64Type::set_special_values(
+    TurboshaftFloatSpecialValues value) {
   special_values_ = value;
 }
 

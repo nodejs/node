@@ -216,10 +216,14 @@ public:
   // Reads and parses the next record from the database into a fixed buffer.
   // Returns true if an entry was read, false if EOF was reached, or an Error on
   // failure. Blank lines are skipped. A record that does not fit in the buffer
-  // is reported as ERANGE.
+  // is reported as ERANGE and leaves the stream positioned at the start of
+  // that record so an iterating caller can retry with a larger buffer; single-
+  // shot lookup callers close their scoped stream on return.
   LIBC_INLINE ErrorOr<bool> getnext(EntryType *entry, cpp::span<char> buffer) {
     if (!entry)
       return Error(EINVAL);
+    if (buffer.size() < 2)
+      return Error(ERANGE);
 
     if (!file) {
       auto res = setdb();
@@ -228,6 +232,7 @@ public:
     }
 
     while (true) {
+      auto original_pos = file->tell();
       auto result = read_line(file, buffer);
       if (!result.has_value())
         return Error(result.error());
@@ -240,16 +245,22 @@ public:
       if (res.bytes_read == 0)
         continue;
 
-      if (res.truncated)
+      if (res.truncated) {
+        if (original_pos.has_value())
+          file->seek(original_pos.value(), SEEK_SET);
         return Error(ERANGE);
+      }
 
       // Slicing at bytes_read + 1 includes the terminating null byte written
       // by read_line; the remainder of the buffer serves as scratch space.
       auto parse_res =
           parse_line<EntryType>(buffer.first(res.bytes_read + 1),
                                 buffer.subspan(res.bytes_read + 1), entry);
-      if (!parse_res.has_value())
+      if (!parse_res.has_value()) {
+        if (parse_res.error() == ERANGE && original_pos.has_value())
+          file->seek(original_pos.value(), SEEK_SET);
         return Error(parse_res.error());
+      }
       return true;
     }
   }

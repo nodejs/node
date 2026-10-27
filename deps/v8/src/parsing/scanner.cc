@@ -277,6 +277,27 @@ void ProcessPerFunctionCompileHints(const base::Vector<const uint8_t>& data,
 
 }  // namespace
 
+template <typename CharCallback>
+Scanner::Location Scanner::ScanMagicCommentValue(CharCallback on_char) {
+  DCHECK_EQ(c0_, '=');
+  Advance();
+  while (IsWhiteSpace(c0_)) {
+    Advance();
+  }
+  int value_beg_pos = source_pos();
+  while (c0_ != kEndOfInput && !IsWhiteSpaceOrLineTerminator(c0_)) {
+    on_char(c0_);
+    Advance();
+  }
+  Location value_location(value_beg_pos, source_pos());
+  // Allow whitespace at the end.
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
+    if (!IsWhiteSpace(c0_)) return Location::invalid();
+    Advance();
+  }
+  return value_location;
+}
+
 void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
@@ -293,12 +314,14 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   }
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
-  LiteralBuffer* value;
-  LiteralBuffer per_function_compile_hints_value;
+  // The debug magic comment values are recorded as source locations, so that
+  // they can be created as substrings of the source instead of being copied.
+  Location* value_location = nullptr;
+  bool is_compile_hints = false;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
-    value = &source_url_;
+    value_location = &debug_magic_comment_locations_.source_url;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
-    value = &source_mapping_url_;
+    value_location = &debug_magic_comment_locations_.source_mapping_url;
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
   } else if (!saw_non_comment_ &&
@@ -309,45 +332,33 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   } else if (name_literal ==
                  base::StaticOneByteVector("functionsCalledOnLoad") &&
              hash_or_at_sign == '#') {
-    value = &per_function_compile_hints_value;
+    is_compile_hints = true;
   } else if (name_literal == base::StaticOneByteVector("debugId") &&
              hash_or_at_sign == '#') {
-    value = &debug_id_;
+    value_location = &debug_magic_comment_locations_.debug_id;
   } else {
     return;
   }
   if (c0_ != '=') {
     return;
   }
-  value->Start();
-  Advance();
-  while (IsWhiteSpace(c0_)) {
-    Advance();
+  if (!is_compile_hints) {
+    DCHECK_NOT_NULL(value_location);
+    *value_location = ScanMagicCommentValue([](base::uc32) {});
+    return;
   }
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (IsWhiteSpace(c0_)) {
-      break;
-    }
-    value->AddChar(c0_);
-    Advance();
-  }
-  // Allow whitespace at the end.
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (!IsWhiteSpace(c0_)) {
-      value->Start();
-      break;
-    }
-    Advance();
-  }
-  if (value == &per_function_compile_hints_value &&
-      per_function_compile_hints_value.is_one_byte()) {
-    base::Vector<const uint8_t> value_literal =
-        per_function_compile_hints_value.one_byte_literal();
-    per_function_compile_hint_positions_.clear();
-    per_function_compile_hint_positions_idx_ = 0;
-    ProcessPerFunctionCompileHints(value_literal, source_pos(),
-                                   per_function_compile_hint_positions_);
-  }
+  LiteralBuffer value;
+  value.Start();
+  Location value_location_in_source =
+      ScanMagicCommentValue([&value](base::uc32 c) { value.AddChar(c); });
+  // A value followed by trailing garbage is treated as empty, which clears
+  // the previously recorded compile hints.
+  if (!value_location_in_source.IsValid()) value.Start();
+  if (!value.is_one_byte()) return;
+  per_function_compile_hint_positions_.clear();
+  per_function_compile_hint_positions_idx_ = 0;
+  ProcessPerFunctionCompileHints(value.one_byte_literal(), source_pos(),
+                                 per_function_compile_hint_positions_);
 }
 
 bool Scanner::HasPerFunctionCompileHint(int position) {
@@ -457,7 +468,7 @@ void Scanner::SeekForward(int pos) {
   int current_pos = source_pos();
   DCHECK_EQ(next().location.end_pos, current_pos);
   // Positions inside the lookahead token aren't supported.
-  DCHECK(pos >= current_pos);
+  CHECK_GE(pos, current_pos);
   if (pos != current_pos) {
     source_->Seek(pos);
     Advance();
@@ -688,43 +699,6 @@ Token::Value Scanner::ScanTemplateSpan() {
 
   return result;
 }
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::SourceUrl(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (source_url_.length() > 0) {
-    tmp = source_url_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::SourceUrl(Isolate* isolate) const;
-template DirectHandle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (source_mapping_url_.length() > 0) {
-    tmp = source_mapping_url_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
-template DirectHandle<String> Scanner::SourceMappingUrl(
-    LocalIsolate* isolate) const;
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::DebugId(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (debug_id_.length() > 0) {
-    tmp = debug_id_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::DebugId(Isolate* isolate) const;
-template DirectHandle<String> Scanner::DebugId(LocalIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(base::uc32 ch),
                                               bool is_check_first_digit) {
@@ -1042,17 +1016,16 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
     base::Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.begin(), chars.length());
-    if (base::IsInRange(token, Token::kIdentifier, Token::kYield)) return token;
-
-    if (token == Token::kFutureStrictReservedWord) {
-      if (escaped) return Token::kEscapedStrictReservedWord;
-      return token;
-    }
-
     if (!escaped) return token;
 
+    if (base::IsInRange(token, Token::kIdentifier, Token::kAsync)) {
+      return Token::kIdentifier;
+    }
+    if (base::IsInRange(token, Token::kAwait, Token::kYield)) return token;
+
     static_assert(Token::kLet + 1 == Token::kStatic);
-    if (base::IsInRange(token, Token::kLet, Token::kStatic)) {
+    static_assert(Token::kStatic + 1 == Token::kFutureStrictReservedWord);
+    if (base::IsInRange(token, Token::kLet, Token::kFutureStrictReservedWord)) {
       return Token::kEscapedStrictReservedWord;
     }
     return Token::kEscapedKeyword;

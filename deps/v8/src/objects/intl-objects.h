@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 
 #include "include/v8-internal.h"
 #include "src/base/compiler-specific.h"
@@ -33,7 +34,6 @@ class ListFormatter;
 class RelativeDateTimeFormatter;
 class SimpleDateFormat;
 class DateIntervalFormat;
-class PluralRules;
 class Collator;
 class FormattedValue;
 class StringEnumeration;
@@ -55,7 +55,6 @@ namespace v8::internal {
   V(icu::RelativeDateTimeFormatter, kIcuRelativeDateTimeFormatterTag) \
   V(icu::ListFormatter, kIcuListFormatterTag)                         \
   V(icu::Collator, kIcuCollatorTag)                                   \
-  V(icu::PluralRules, kIcuPluralRulesTag)                             \
   V(icu::number::LocalizedNumberFormatter, kIcuLocalizedNumberFormatterTag)
 ICU_EXTERNAL_POINTER_TAG_LIST(ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED)
 #undef ICU_EXTERNAL_POINTER_TAG_LIST
@@ -198,6 +197,10 @@ class Intl {
       Isolate* isolate, DirectHandle<Object> key);
 
   // For locale sensitive functions
+  static constexpr std::string_view kCaseMappingSpecialLocales[] = {"az", "el",
+                                                                    "lt", "tr"};
+  static bool LocaleRequiresSpecialCaseMapping(std::string_view locale);
+
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String>
   StringLocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
                           bool is_upper, DirectHandle<Object> locales);

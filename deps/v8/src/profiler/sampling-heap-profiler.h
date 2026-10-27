@@ -107,13 +107,14 @@ class SamplingHeapProfiler {
   struct Sample {
     Sample(size_t size_, AllocationNode* owner_, Local<Value> local_,
            SamplingHeapProfiler* profiler_, uint64_t sample_id_,
-           uint64_t sample_interval_)
+           uint64_t sample_interval_, void* context_)
         : size(size_),
           owner(owner_),
           global(reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_),
           profiler(profiler_),
           sample_id(sample_id_),
-          sample_interval(sample_interval_) {}
+          sample_interval(sample_interval_),
+          context(context_) {}
     Sample(const Sample&) = delete;
     Sample& operator=(const Sample&) = delete;
     const size_t size;
@@ -122,10 +123,12 @@ class SamplingHeapProfiler {
     SamplingHeapProfiler* const profiler;
     const uint64_t sample_id;
     const uint64_t sample_interval;
+    void* const context;
   };
 
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
-                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
+                       int stack_depth, v8::HeapProfiler::SamplingFlags flags,
+                       v8::SampleContextExtractor sample_context_extractor);
   ~SamplingHeapProfiler();
   SamplingHeapProfiler(const SamplingHeapProfiler&) = delete;
   SamplingHeapProfiler& operator=(const SamplingHeapProfiler&) = delete;
@@ -206,6 +209,7 @@ class SamplingHeapProfiler {
   const int stack_depth_;
   std::atomic<uint64_t> interval_;
   v8::HeapProfiler::SamplingFlags flags_;
+  const v8::SampleContextExtractor sample_context_extractor_;
 };
 
 }  // namespace internal

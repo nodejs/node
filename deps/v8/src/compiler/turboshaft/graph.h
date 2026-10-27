@@ -1178,22 +1178,26 @@ class Graph {
 
   template <class Op>
   void IncrementInputUses(const Op& op) {
+    static_assert(!std::is_same_v<Op, Operation>);
+    // MakeTupleOp is a synthetic meta-operation used only to bundle
+    // multi-output projections during graph building; it does not represent a
+    // real dataflow use.
+    if (std::is_same_v<Op, MakeTupleOp>) return;
+
     for (OpIndex input : op.inputs()) {
-      // Tuples should never be used as input, except in other tuples (which is
-      // used for instance in Int64Lowering::LowerCall).
-      DCHECK_IMPLIES(Get(input).Is<MakeTupleOp>(),
-                     op.template Is<MakeTupleOp>());
+      // Tuples should never be used as input (except inside other tuples, which
+      // returned early above).
+      DCHECK(!Get(input).Is<MakeTupleOp>());
       Get(input).saturated_use_count.Incr();
     }
   }
 
-  template <class Op>
-  void DecrementInputUses(const Op& op) {
+  void DecrementInputUses(const Operation& op) {
+    // Avoid underflow since synthetic MakeTupleOp inputs are not use-counted.
+    if (V8_UNLIKELY(op.Is<MakeTupleOp>())) return;
+
     for (OpIndex input : op.inputs()) {
-      // Tuples should never be used as input, except in other tuples (which is
-      // used for instance in Int64Lowering::LowerCall).
-      DCHECK_IMPLIES(Get(input).Is<MakeTupleOp>(),
-                     op.template Is<MakeTupleOp>());
+      DCHECK(!Get(input).Is<MakeTupleOp>());
       Get(input).saturated_use_count.Decr();
     }
   }

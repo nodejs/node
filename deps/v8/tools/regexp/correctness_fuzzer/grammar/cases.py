@@ -4,7 +4,7 @@
 """Flags, subjects, and whole cases."""
 
 from .menus import (LAST_INDEX_SHARE, SUBJECT_LITERAL_SHARE, SUBJECT_MAX_LEN,
-                    SUBJECT_NOISE)
+                    SUBJECT_NOISE, SUBJECT_TAIL_SHARE)
 from .registry import Context
 from .rules import gen_pattern
 
@@ -37,18 +37,23 @@ def gen_flags(rng):
   return flags
 
 
-def gen_subject(rng, literals):
+def gen_subject(rng, literals, tails=()):
   """Build a subject biased toward characters the pattern mentions.
 
   Drawing from the pattern's own literal pool is what makes a meaningful
   share of cases match; a uniformly random subject almost never gets past
   the first character, leaving the match path untested.
+
+  Append a requested tail with probability SUBJECT_TAIL_SHARE, independently
+  of the body length. This exercises assertions before trailing terminators.
   """
   pool = [c for c in literals if c] or ["a"]
   out = []
   for _ in range(rng.randint(0, SUBJECT_MAX_LEN)):
     take_literal = rng.random() < SUBJECT_LITERAL_SHARE
     out.append(rng.choice(pool if take_literal else SUBJECT_NOISE))
+  if tails and rng.random() < SUBJECT_TAIL_SHARE:
+    out.append(rng.choice(tails))
   return "".join(out)
 
 
@@ -63,7 +68,7 @@ def gen_case(rng, max_depth=5, weights=None, coverage=None):
       weights=weights,
       coverage=coverage)
   pattern = gen_pattern(ctx)
-  subject = gen_subject(rng, ctx.literals)
+  subject = gen_subject(rng, ctx.literals, ctx.tails)
   # lastIndex only has an observable effect for sticky/global patterns, but
   # setting it regardless costs nothing and keeps the case shape uniform.
   last_index = 0

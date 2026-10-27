@@ -14,6 +14,7 @@ namespace v8::internal {
 
 class CancelableTaskManager;
 class Isolate;
+class IsolateGroup;
 class LargePage;
 class BasePage;
 class MutablePage;
@@ -86,7 +87,7 @@ class MemoryPool final {
     size_t timeout_in_sec = 8;
   };
 
-  explicit MemoryPool(Config);
+  MemoryPool(IsolateGroup*, Config);
   ~MemoryPool();
 
   MemoryPool(const MemoryPool&) = delete;
@@ -235,6 +236,7 @@ class MemoryPool final {
   void PostDelayedReleaseTask(Isolate* isolate, base::TimeDelta delay);
   void PostDelayedReleaseTaskIfNeeded(Isolate* isolate);
 
+  IsolateGroup* const isolate_group_;
   const Config config_;
   std::atomic<bool> task_disabled_ = false;
 

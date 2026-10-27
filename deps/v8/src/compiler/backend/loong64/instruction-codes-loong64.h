@@ -165,7 +165,7 @@ namespace compiler {
   V(Loong64Float64SilenceNaN)                        \
   V(Loong64LoadDecodeSandboxedPointer)               \
   V(Loong64StoreEncodeSandboxedPointer)              \
-  V(Loong64StoreIndirectPointer)                     \
+  V(Loong64StoreTrustedPointer)                      \
   V(Loong64Push)                                     \
   V(Loong64Peek)                                     \
   V(Loong64Poke)                                     \

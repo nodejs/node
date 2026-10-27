@@ -227,11 +227,15 @@ class Committee final {
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
     const InstanceType itype = o->map()->instance_type();
-#define V(TYPE)                                                \
-  if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
-    return GetPromoRecommendation##TYPE(committee, isolate,    \
-                                        TrustedCast<TYPE>(o)); \
-    /* NOLINTNEXTLINE(readability/braces) */                   \
+#define V(TYPE)                                                               \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {                                 \
+    if constexpr (is_subtype_v<TYPE, TrustedObject>) {                        \
+      return GetPromoRecommendation##TYPE(committee, isolate,                 \
+                                          TrustedCast<TYPE>(o));              \
+    } else {                                                                  \
+      return GetPromoRecommendation##TYPE(committee, isolate, Cast<TYPE>(o)); \
+    }                                                                         \
+    /* NOLINTNEXTLINE(readability/braces) */                                  \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
     /* if { ... } else */ {
@@ -370,11 +374,11 @@ class Committee final {
       VisitPointers(host, slot, slot + 1);
     }
 #ifdef V8_ENABLE_SANDBOX
-    void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode) final {
+    void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                             TrustedPointerMode mode) final {
       if (!all_slots_are_promo_candidates()) return;
-      IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-      if (handle == kNullIndirectPointerHandle) return;
+      TrustedPointerHandle handle = slot.Relaxed_LoadHandle();
+      if (handle == kNullTrustedPointerHandle) return;
 
       Isolate* isolate = committee_->isolate_;
       TrustedPointerTable* tpt =
@@ -458,9 +462,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
-      const int size = src->Size();
+      const SafeHeapObjectSize size = src->SafeSize();
       Tagged<HeapObject> dst =
-          rospace->AllocateRaw(size, kTaggedAligned).ToObjectChecked();
+          rospace->AllocateRaw(size.value(), kTaggedAligned).ToObjectChecked();
       Heap::CopyBlock(dst.address(), src.address(), size);
       moves->emplace(src, dst);
 
@@ -633,14 +637,14 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
 #endif  // V8_ENABLE_SANDBOX
     }
-    void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode) final {
+    void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                             TrustedPointerMode mode) final {
 #ifdef V8_ENABLE_SANDBOX
       VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                       IndirectPointerSlot slot) final {
+                                       TrustedPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
       VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
@@ -662,7 +666,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void ZapOldCodePointerTableEntries() {
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
-              kCodeIndirectPointerTag);
+              kCodeTrustedPointerTag);
       for (auto [old_handle, _new_handle] : code_pointer_moves_) {
         tpt->Zap(old_handle);
       }
@@ -686,21 +690,23 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
     }
     void ProcessSlot(Tagged<HeapObject> host, MaybeObjectSlot slot) {
+      Tagged<MaybeObject> old_value = slot.load(isolate_);
       Tagged<HeapObject> old_slot_value;
-      if (!slot.load(isolate_).GetHeapObject(&old_slot_value)) return;
+      if (!old_value.GetHeapObject(&old_slot_value)) return;
       auto it = moves_->find(old_slot_value);
       if (it == moves_->end()) return;
       Tagged<HeapObject> new_slot_value = it->second;
-      slot.store(new_slot_value);
+      slot.store(old_value.IsWeak() ? MakeWeak(new_slot_value)
+                                    : Tagged<MaybeObject>(new_slot_value));
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedPointer(host, slot, old_slot_value, new_slot_value);
       }
     }
 
 #ifdef V8_ENABLE_SANDBOX
-    void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
-      IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      if (old_handle == kNullIndirectPointerHandle) return;
+    void VisitCodePointer(Tagged<HeapObject> host, TrustedPointerSlot slot) {
+      TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
+      if (old_handle == kNullTrustedPointerHandle) return;
 
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
@@ -715,7 +721,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
             TrustedCast<ExposedTrustedObject>(it->second);
         auto it2 = promoted_code_to_handle_.find(promoted_obj.address());
         if (it2 != promoted_code_to_handle_.end()) {
-          IndirectPointerHandle new_handle = it2->second;
+          TrustedPointerHandle new_handle = it2->second;
           RecordProcessedSlotIfDebug(slot.address());
           slot.Relaxed_StoreHandle(new_handle);
           if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
@@ -724,9 +730,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           return;
         }
       } else if (HeapLayout::InReadOnlySpace(old_obj)) {
-        IndirectPointerHandle new_handle =
+        TrustedPointerHandle new_handle =
             TrustedCast<ExposedTrustedObject>(old_obj)
-                ->self_indirect_pointer_handle();
+                ->self_trusted_pointer_handle();
         slot.Relaxed_StoreHandle(new_handle);
         if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
           LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
@@ -742,14 +748,14 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
       InstanceType instance_type = obj->map()->instance_type();
       SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(obj));
-      IndirectPointerTag tag =
-          IndirectPointerTagFromInstanceType(instance_type, shared);
+      TrustedPointerTag tag =
+          TrustedPointerTagFromInstanceType(instance_type, shared);
 
-      IndirectPointerSlot slot = obj->RawIndirectPointerField(
-          offsetof(ExposedTrustedObject, self_indirect_pointer_), tag);
+      TrustedPointerSlot slot = obj->RawTrustedPointerField(
+          offsetof(ExposedTrustedObject, self_trusted_pointer_), tag);
 
-      IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      if (old_handle == kNullIndirectPointerHandle) return;
+      TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
+      if (old_handle == kNullTrustedPointerHandle) return;
 
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(tag);
@@ -764,7 +770,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       DisallowJavascriptExecution no_js(isolate_);
       TrustedPointerPublishingScope scope(isolate_, no_js);
       SegmentedTableBase::UnsealReadOnlySegmentScope unseal_scope(tpt);
-      IndirectPointerHandle new_handle =
+      TrustedPointerHandle new_handle =
           tpt->AllocateAndInitializeEntry(space, obj.ptr(), tag, &scope);
       scope.MarkSuccess();
 
@@ -807,9 +813,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                 << reinterpret_cast<void*>(slot_value) << "}\n";
     }
     void LogUpdatedCodePointerTableEntry(Tagged<HeapObject> host,
-                                         IndirectPointerSlot slot,
-                                         IndirectPointerHandle old_handle,
-                                         IndirectPointerHandle new_handle) {
+                                         TrustedPointerSlot slot,
+                                         TrustedPointerHandle old_handle,
+                                         TrustedPointerHandle new_handle) {
       std::cout << "ro-promotion: updated code pointer table entry {host "
                 << reinterpret_cast<void*>(host.address()) << " slot "
                 << reinterpret_cast<void*>(slot.address()) << " from "
@@ -839,10 +845,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // (see b/330450848). A new pointer table entry must be allocated for the
     // relocated object, in a RO segment of the table.
 
-    using IndirectPointerHandleMap =
-        std::unordered_map<IndirectPointerHandle, IndirectPointerHandle>;
-    IndirectPointerHandleMap code_pointer_moves_;
-    std::unordered_map<Address, IndirectPointerHandle> promoted_code_to_handle_;
+    using TrustedPointerHandleMap =
+        std::unordered_map<TrustedPointerHandle, TrustedPointerHandle>;
+    TrustedPointerHandleMap code_pointer_moves_;
+    std::unordered_map<Address, TrustedPointerHandle> promoted_code_to_handle_;
 #endif  // V8_ENABLE_SANDBOX
   };
 
@@ -854,8 +860,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
   }
 
   static void LogPromotedCodePointerTableEntry(
-      Tagged<Code> code, IndirectPointerHandle old_handle,
-      IndirectPointerHandle new_handle) {
+      Tagged<Code> code, TrustedPointerHandle old_handle,
+      TrustedPointerHandle new_handle) {
     std::cout << "ro-promotion: promoted code pointer table entry {code "
               << reinterpret_cast<void*>(code.ptr()) << " slot "
               << AsHex(old_handle, 8, true) << " to "

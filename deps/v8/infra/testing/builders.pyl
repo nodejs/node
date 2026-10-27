@@ -520,20 +520,13 @@
       },
     ],
   },
-  'v8_linux64_gcc_rel': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-20.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'v8_linux64_jammy_gcc_rel': {
-    'swarming_dimensions' : {
+  'v8_linux64_icu4x_dbg': {
+    'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'intl', 'variant': 'ecma402_icu4x_plural_rules'},
+      {'name': 'test262', 'variant': 'ecma402_icu4x_plural_rules', 'shards': 4},
     ],
   },
   'v8_linux64_lower_limits_rel': {
@@ -1177,6 +1170,15 @@
   ### luci.v8.ci
   ##############################################################################
   # Main.
+  'Linux64 - icu4x - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'intl', 'variant': 'ecma402_icu4x_plural_rules'},
+      {'name': 'test262', 'variant': 'ecma402_icu4x_plural_rules', 'shards': 4},
+    ],
+  },
   'V8 Linux': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
@@ -1637,22 +1639,6 @@
        'variant': 'default',
        'test_args': ['--extra-flags', '--force-memory-protection-keys']
       },
-    ],
-  },
-  'V8 Linux64 gcc': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-20.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux64 - jammy - gcc': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
     ],
   },
   'V8 Linux64 - gc stress': {

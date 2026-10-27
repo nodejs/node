@@ -201,7 +201,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     if (CanConsiderForInlining(broker(), feedback_cell)) {
       out.shared_info = feedback_cell.shared_function_info(broker()).value();
       out.bytecode[0] = out.shared_info->GetBytecodeArray(broker());
-      CHECK(out.shared_info->equals(n.Parameters().shared_info()));
+      CHECK(out.shared_info->equals(n.shared_info()));
     }
     out.num_functions = 1;
     return out;

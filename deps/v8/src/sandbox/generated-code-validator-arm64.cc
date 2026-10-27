@@ -114,7 +114,7 @@ static bool Da64OpEquals(const Da64Op& op1, const Da64Op& op2) {
     }                                                       \
   } while (false)
 
-class InstructionChecker {
+class InstructionHandler {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   static constexpr int cage_base_register = kPtrComprCageBaseRegister.code();
   static_assert(kRootRegister != no_reg);
@@ -124,35 +124,99 @@ class InstructionChecker {
   using ViolationsReporter = GeneratedCodeValidator::ViolationsReporter;
   using Utils = GeneratedCodeValidator::Utils;
   using State = GeneratedCodeValidator::State;
+  using BoolValue = State::BoolValue;
+  using Node = GeneratedCodeValidator::ControlFlowGraph<Da64Inst>::Node;
 
  public:
-  InstructionChecker(Isolate* isolate, Tagged<Code> code,
+  InstructionHandler(Isolate* isolate, Tagged<Code> code,
                      ViolationsReporter& violations_reporter)
-      : isolate_(isolate),
-        code_(code),
+      : code_(code),
         violations_reporter_(violations_reporter),
-        state_(code_),
-        root_reg_init_state_(isolate_) {}
+        expected_root_reg_value_(
+            ExternalReference::isolate_root(isolate).raw()) {
+    CHECK_NE(expected_root_reg_value_, kNullAddress);
+  }
 
-  void Check(const uint8_t* pc, const Da64Inst& instr) {
+  void CheckStateDataFlowIndependent(const uint8_t* pc, const Da64Inst& instr) {
     static_assert(kMaxOperands == (sizeof(instr.ops) / sizeof(Da64Op)));
-    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
-    if (code_->kind() != CodeKind::REGEXP) {
-      CheckNoWritesToCageBaseRegister(pc, instr);
-      CheckNoWritesToRootRegister(pc, instr);
-    }
     CheckNoSystemRegisterWrites(pc, instr);
   }
 
+  State UpdateState(const Node& node) {
+    State state = node.input_state();
+    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
+    if (code_->kind() != CodeKind::REGEXP) {
+      const Da64Inst& instr = node.instr();
+      UpdateCageBaseRegisterState(instr, state);
+      UpdateRootRegisterState(instr, state);
+    }
+    return state;
+  }
+
+  void CheckState(const Node& node) {
+    const uint8_t* pc = node.pc();
+    const Da64Inst& instr = node.instr();
+    const State& state = node.input_state();
+    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
+    if (code_->kind() != CodeKind::REGEXP) {
+      CheckNoWritesToCageBaseRegister(pc, instr, state);
+      CheckNoWritesToRootRegister(pc, instr, state);
+    }
+  }
+
  private:
+  void UpdateCageBaseRegisterState(const Da64Inst& instr, State& state) {
+    switch (instr.mnem) {
+      case DA64I_LDPX:
+      case DA64I_LDPX_PRE:
+      case DA64I_LDPX_POST:
+        if ((Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) &&
+            (IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]))) {
+          state.is_cage_base_reg_valid_ = BoolValue::kFalse;
+        }
+        break;
+      case DA64I_LDURX:
+        if (IsCageBaseReg(instr.ops[0]) &&
+            IsValidCageBaseRegInitialization(instr)) {
+          state.is_cage_base_reg_valid_ = BoolValue::kTrue;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  void UpdateRootRegisterState(const Da64Inst& instr, State& state) {
+    switch (instr.mnem) {
+      case DA64I_LDPX:
+      case DA64I_LDPX_PRE:
+      case DA64I_LDPX_POST:
+        if ((Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) &&
+            (IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]))) {
+          state.is_root_reg_valid_ = BoolValue::kFalse;
+          state.root_reg_init_state_ = {};
+        }
+        break;
+      case DA64I_ORR_SHIFT:
+      case DA64I_MOVZ:
+      case DA64I_MOVK:
+        if (IsRootReg(instr.ops[0])) {
+          UpdateRootRegInitialization(instr, state);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   // Verifies whether the instruction accesses the pointer compression cage base
   // register (x28) directly or modifies it via writeback. The cage base
   // register must remain read-only across all generated code to preserve
   // sandbox integrity and prevent pointer corruption. This will not block using
   // the cage base register as a base address for a memory operand without
   // writeback.
-  void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
-                                       const Da64Inst& instr) {
+  void CheckNoWritesToCageBaseRegister(const uint8_t* pc, const Da64Inst& instr,
+                                       const State& state) {
     switch (instr.mnem) {
       // Subs is used as a comparison to assert that a register holds a heap
       // object in the main cage.
@@ -201,13 +265,9 @@ class InstructionChecker {
         // register so that the deoptimizer can update register values as
         // needed. Since the cage base register is callee saved and should not
         // change, can we avoid saving and restoring it?
-        if (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) {
-          if ((IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]))) {
-            state_.is_cage_base_reg_valid_ = false;
-          }
-          if (!IsCageBaseWritebackReg(instr.ops[2])) {
-            return;
-          }
+        if ((Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) &&
+            !IsCageBaseWritebackReg(instr.ops[2])) {
+          return;
         }
         break;
       // Ldur is used by entry builtins to initialize the cage base register.
@@ -215,17 +275,12 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr.ops[0])) {
           return;
         }
-        VALIDATOR_CHECK(!state_.is_cage_base_reg_valid_,
+        VALIDATOR_CHECK(state.is_cage_base_reg_valid_ == BoolValue::kFalse,
                         "Instruction overwrites a valid cage base register");
-        if (Utils::IsEntryCode(code_) &&
-            IsExpectedOperand(instr.ops[1],
-                              {.type = DA_OP_MEMSOFF,
-                               .reg = root_register,
-                               .simm16 = IsolateData::cage_base_offset()})) {
+        if (IsValidCageBaseRegInitialization(instr)) {
           VALIDATOR_CHECK(
-              state_.is_root_reg_valid_,
+              state.is_root_reg_valid_ == BoolValue::kTrue,
               "Cage base register initialization uses invalid root register");
-          state_.is_cage_base_reg_valid_ = true;
           return;
         }
         break;
@@ -249,8 +304,10 @@ class InstructionChecker {
   // across all generated code to preserve sandbox integrity and prevent pointer
   // corruption. This will not block using the root register as a base address
   // for a memory operand without writeback.
-  void CheckNoWritesToRootRegister(const uint8_t* pc, const Da64Inst& instr) {
-    const bool expecting_init = root_reg_init_state_.in_progress;
+  void CheckNoWritesToRootRegister(const uint8_t* pc, const Da64Inst& instr,
+                                   const State& state) {
+    const bool expecting_init =
+        state.root_reg_init_state_.in_progress != BoolValue::kFalse;
     bool was_init = false;
     // Flag to skip the generic validation at the end of this method. Used to
     // prevent accidentally skipping the `expecting_init && !was_init` check
@@ -263,19 +320,24 @@ class InstructionChecker {
       case DA64I_ADD_IMM:
       case DA64I_ADD_EXT:
       case DA64I_SUB_IMM:
+        // Check that the target is not the root register.
+        if (!IsRootReg(instr.ops[0])) {
+          // Arithmetic instructions do not support writeback operands.
+          is_validated = true;
+        }
+        break;
       // Orr is used for copying the root register value and by entry builtins
       // to initialize the root register.
       case DA64I_ORR_SHIFT:
-        // Check that the target is not the cage base register or root register.
+        // Check that the target is not the root register.
         if (!IsRootReg(instr.ops[0])) {
-          // Arithmetic and logical instructions do not support writeback
-          // operands.
+          // Logical instructions do not support writeback operands.
           is_validated = true;
           break;
         }
-        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+        VALIDATOR_CHECK(state.is_root_reg_valid_ == BoolValue::kFalse,
                         "Instruction overwrites a valid root register");
-        if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
+        if (IsValidRootRegInitialization(instr, state)) {
           is_validated = true;
         }
         break;
@@ -304,13 +366,9 @@ class InstructionChecker {
         // register so that the deoptimizer can update register values as
         // needed. Since the root register is callee saved and should not
         // change, can we avoid saving and restoring it?
-        if (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) {
-          if ((IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]))) {
-            state_.is_root_reg_valid_ = false;
-          }
-          if (!IsRootWritebackReg(instr.ops[2])) {
-            is_validated = true;
-          }
+        if ((Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) &&
+            !IsRootWritebackReg(instr.ops[2])) {
+          is_validated = true;
         }
         break;
       // Mov is used by entry builtins to initialize the root register.
@@ -320,10 +378,10 @@ class InstructionChecker {
           is_validated = true;
           break;
         }
-        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+        VALIDATOR_CHECK(state.is_root_reg_valid_ == BoolValue::kFalse,
                         "Instruction overwrites a valid root register");
         was_init = true;
-        if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
+        if (IsValidRootRegInitialization(instr, state)) {
           is_validated = true;
         }
         break;
@@ -398,69 +456,183 @@ class InstructionChecker {
     return Da64OpEquals(op, expected);
   }
 
-  bool IsValidRootRegInitialization(const Da64Inst& instr) {
-    DCHECK(IsRootReg(instr.ops[0]));
+  bool IsValidCageBaseRegInitialization(const Da64Inst& instr) const {
+    DCHECK(IsCageBaseReg(instr.ops[0]));
+    return Utils::IsEntryCode(code_) && (instr.mnem == DA64I_LDURX) &&
+           IsExpectedOperand(instr.ops[1],
+                             {.type = DA_OP_MEMSOFF,
+                              .reg = root_register,
+                              .simm16 = IsolateData::cage_base_offset()});
+  }
+
+  void UpdateRootRegInitialization(const Da64Inst& instr, State& state) const {
+    if (!IsValidRootRegInitialization(instr, state)) {
+      state.is_root_reg_valid_ = BoolValue::kFalse;
+      state.root_reg_init_state_ = {};
+      return;
+    }
+    auto& root_reg_init_state = state.root_reg_init_state_;
     switch (instr.mnem) {
       case DA64I_MOVZ:
-        // Movz is the first in a sequence of movs to initialize the root
-        // register.
-        DCHECK_EQ(root_reg_init_state_.current_value, kNullAddress);
-        DCHECK(!root_reg_init_state_.in_progress);
+        DCHECK_EQ(root_reg_init_state.current_value, kNullAddress);
         [[fallthrough]];
       case DA64I_MOVK: {
-        // Movk and Movz are used to construct the expected root register value.
         const Da64Op& op = instr.ops[1];
         DCHECK_EQ(DA_OP_UIMMSHIFT, op.type);
         DCHECK_EQ(0, op.immshift.mask);
-        const Address previous_value = root_reg_init_state_.current_value;
-        root_reg_init_state_.current_value |=
+        const uint64_t mask = 0xFFFFULL << op.immshift.shift;
+        root_reg_init_state.current_value =
+            (root_reg_init_state.current_value & ~mask) |
             (static_cast<uint64_t>(op.uimm16) << op.immshift.shift);
-        state_.is_root_reg_valid_ = root_reg_init_state_.current_value ==
-                                    root_reg_init_state_.expected_value_;
-        root_reg_init_state_.in_progress = !state_.is_root_reg_valid_;
-        // This is a valid initialization as long as it's making progress
-        // towards the expected value.
-        return (previous_value != root_reg_init_state_.current_value) &&
-               ((root_reg_init_state_.current_value &
-                 root_reg_init_state_.expected_value_) ==
-                root_reg_init_state_.current_value);
+        const bool is_complete =
+            root_reg_init_state.current_value == expected_root_reg_value_;
+        state.is_root_reg_valid_ =
+            is_complete ? BoolValue::kTrue : BoolValue::kFalse;
+        if (is_complete) {
+          state.root_reg_init_state_ = {};
+        } else {
+          root_reg_init_state.in_progress = BoolValue::kTrue;
+        }
+        break;
       }
       case DA64I_ORR_SHIFT:
-        DCHECK(!root_reg_init_state_.in_progress);
-        // Assumes builtins receive the correct value as their first
-        // argument.
-        state_.is_root_reg_valid_ = (code_->kind() == CodeKind::BUILTIN) &&
-                                    IsExpectedReg(instr.ops[2], x0.code()) &&
-                                    IsExpectedReg(instr.ops[1], xzr.code());
+        state.is_root_reg_valid_ = BoolValue::kTrue;
         break;
       default:
-        break;
+        UNREACHABLE();
     }
-    return state_.is_root_reg_valid_;
   }
 
-  Isolate* const isolate_;
+  // `state` is the node's input state before executing `instr`.
+  bool IsValidRootRegInitialization(const Da64Inst& instr,
+                                    const State& state) const {
+    DCHECK(IsRootReg(instr.ops[0]));
+    if (!Utils::IsEntryCode(code_)) {
+      return false;
+    }
+    switch (instr.mnem) {
+      case DA64I_MOVZ:
+      case DA64I_MOVK: {
+        // Movz is the first in a sequence of movs to initialize the root
+        // register, followed by Movk instructions to construct the expected
+        // root register value.
+        const BoolValue expected_in_progress =
+            instr.mnem == DA64I_MOVZ ? BoolValue::kFalse : BoolValue::kTrue;
+        if (state.root_reg_init_state_.in_progress != expected_in_progress) {
+          return false;
+        }
+        const Da64Op& op = instr.ops[1];
+        DCHECK_EQ(DA_OP_UIMMSHIFT, op.type);
+        DCHECK_EQ(0, op.immshift.mask);
+        const uint64_t mask = 0xFFFFULL << op.immshift.shift;
+        const uint64_t value = static_cast<uint64_t>(op.uimm16)
+                               << op.immshift.shift;
+        return ((state.root_reg_init_state_.current_value & mask) == 0) &&
+               ((expected_root_reg_value_ & mask) == value);
+      }
+      case DA64I_ORR_SHIFT:
+        // Assumes builtins receive the correct value as their first
+        // argument.
+        return (code_->kind() == CodeKind::BUILTIN) &&
+               IsExpectedReg(instr.ops[2], x0.code()) &&
+               IsExpectedReg(instr.ops[1], xzr.code());
+      default:
+        UNREACHABLE();
+    }
+  }
+
   const Tagged<Code> code_;
   ViolationsReporter& violations_reporter_;
-  State state_;
-  struct RootRegisterInitializationState {
-    explicit RootRegisterInitializationState(Isolate* isolate)
-        : expected_value_(ExternalReference::isolate_root(isolate).raw()) {
-      CHECK_NE(expected_value_, kNullAddress);
-    }
-
-    const Address expected_value_;
-    Address current_value = kNullAddress;
-    bool in_progress = false;
-  } root_reg_init_state_;
+  const Address expected_root_reg_value_;
 };
+
+namespace {
+
+// TODO(523128533): Handle jump tables, indirect calls, and tail calls.
+base::SmallVector<const uint8_t*, 2> GetSuccessors(const uint8_t* pc,
+                                                   const Da64Inst& instr,
+                                                   const uint8_t* next_pc) {
+  bool falls_through = true;
+  const uint8_t* jump_target = nullptr;
+  switch (instr.mnem) {
+    // Unconditional direct branch.
+    case DA64I_B:
+      falls_through = false;
+      jump_target = pc + static_cast<int64_t>(instr.imm64);
+      break;
+    // Conditional direct branches.
+    case DA64I_BCOND:
+    case DA64I_BCCOND:
+      DCHECK_EQ(instr.ops[0].type, DA_OP_COND);
+      if (instr.ops[0].cond == DA_AL || instr.ops[0].cond == DA_NV) {
+        falls_through = false;
+      }
+      jump_target = pc + static_cast<int64_t>(instr.imm64);
+      break;
+    case DA64I_CBZ:
+    case DA64I_CBNZ:
+    case DA64I_TBZ:
+    case DA64I_TBNZ:
+      jump_target = pc + static_cast<int64_t>(instr.imm64);
+      break;
+    // Indirect branches.
+    case DA64I_BR:
+    case DA64I_BRAA:
+    case DA64I_BRAB:
+    case DA64I_BRAAZ:
+    case DA64I_BRABZ:
+      // TODO(523128533): Handle jump tables and indirect jumps.
+      falls_through = false;
+      break;
+    // Return instructions.
+    case DA64I_RET:
+    case DA64I_RETAA:
+    case DA64I_RETAB:
+    case DA64I_ERET:
+    case DA64I_ERETAA:
+    case DA64I_ERETAB:
+    case DA64I_DRPS:
+      falls_through = false;
+      break;
+    // Call instructions are treated as non-control-flow to keep the graph
+    // intra-procedural.
+    // TODO(523128533): Properly handle calls, including handling of register
+    // values across calls.
+    case DA64I_BL:
+    case DA64I_BLR:
+    case DA64I_BLRAA:
+    case DA64I_BLRAB:
+    case DA64I_BLRAAZ:
+    case DA64I_BLRABZ:
+      DCHECK(falls_through);
+      break;
+    default:
+      break;
+  }
+  base::SmallVector<const uint8_t*, 2> successors;
+  if (falls_through && next_pc != nullptr) {
+    successors.push_back(next_pc);
+  }
+  if (jump_target != nullptr && (!falls_through || jump_target != next_pc)) {
+    successors.push_back(jump_target);
+  }
+  return successors;
+}
+
+}  // namespace
+
+// static
+size_t GeneratedCodeValidator::EstimateInstructionCount(Tagged<Code> code) {
+  DCHECK_EQ(code->instruction_size() % kInstrSize, 0);
+  return code->instruction_size() / kInstrSize;
+}
 
 void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
   DCHECK_EQ(code->instruction_size() % kInstrSize, 0);
 
   ViolationsReporter reporter(code);
-
-  InstructionChecker instruction_checker(isolate, code, reporter);
+  InstructionHandler instruction_handler(isolate, code, reporter);
+  ControlFlowGraph<Da64Inst> graph(code);
 
   InstructionIteratorSkippingData it(code);
 
@@ -477,9 +649,13 @@ void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
       reporter.RecordDisassembledInstruction(pc, kInstrSize,
                                              Da64InstFormatter::Format(instr));
     }
-    instruction_checker.Check(pc, instr);
+    instruction_handler.CheckStateDataFlowIndependent(pc, instr);
     it.Advance(kInstrSize);
+    const uint8_t* next_pc = it.IsDone() ? nullptr : it.GetCurrent();
+    graph.AddNode(pc, instr, GetSuccessors(pc, instr, next_pc));
   }
+
+  graph.Validate(instruction_handler);
 }
 
 }  // namespace v8::internal

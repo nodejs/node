@@ -6,7 +6,7 @@
 extern class ObjectBoilerplateDescription extends FixedArrayBase {
   backing_store_size: Smi;
   flags: Smi;
-  raw_entries[length]: Object;
+  objects[length]: Object;
 }
 
 @cppObjectLayoutDefinition

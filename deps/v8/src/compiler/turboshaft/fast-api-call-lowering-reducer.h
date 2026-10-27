@@ -114,7 +114,8 @@ class FastApiCallLoweringReducer : public Next {
 
       V<Object> exception =
           __ Load(__ IsolateField(IsolateFieldId::kException),
-                  LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
+                  LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::AnyUncompressedTagged());
       GOTO_IF_NOT(
           LIKELY(__ TaggedEqual(
               exception, __ template LoadRoot<RootIndex::kTheHoleValue>())),

@@ -13,22 +13,20 @@ using ::wasm::MemoryType;
 
 TEST_F(WasmCapiTest, Memory) {
   builder()->AddMemory(2, 3);
-  builder()->AddExport(base::CStrVector("memory"), kExternalMemory, 0);
+  builder()->AddExport("memory", kExternalMemory, 0);
 
   ValueType i32_type[] = {kWasmI32, kWasmI32};
   FunctionSig return_i32(1, 0, i32_type);
   FunctionSig param_i32_return_i32(1, 1, i32_type);
   FunctionSig param_i32_i32(0, 2, i32_type);
   uint8_t size_code[] = {WASM_MEMORY_SIZE};
-  AddExportedFunction(base::CStrVector("size"), size_code, sizeof(size_code),
-                      &return_i32);
+  AddExportedFunction("size", size_code, sizeof(size_code), &return_i32);
   uint8_t load_code[] = {WASM_LOAD_MEM(MachineType::Int8(), WASM_LOCAL_GET(0))};
-  AddExportedFunction(base::CStrVector("load"), load_code, sizeof(load_code),
+  AddExportedFunction("load", load_code, sizeof(load_code),
                       &param_i32_return_i32);
   uint8_t store_code[] = {WASM_STORE_MEM(MachineType::Int8(), WASM_LOCAL_GET(0),
                                          WASM_LOCAL_GET(1))};
-  AddExportedFunction(base::CStrVector("store"), store_code, sizeof(store_code),
-                      &param_i32_i32);
+  AddExportedFunction("store", store_code, sizeof(store_code), &param_i32_i32);
 
   uint8_t data[] = {0x1, 0x2, 0x3, 0x4};
   builder()->AddDataSegment(data, sizeof(data), 0x1000);

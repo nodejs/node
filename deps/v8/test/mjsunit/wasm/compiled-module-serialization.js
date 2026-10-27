@@ -440,6 +440,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           serialized_bytes_no_builtins, wire_bytes, kStringBuiltins),
       Error, /Deserialization failed/);
 
+  // Exceptions thrown while reading compile-time imports propagate directly.
+  assertThrows(
+      () => d8.wasm.deserializeModule(
+          serialized_bytes_string_builtins, wire_bytes, {
+            get builtins() {
+              throw new TypeError('custom error');
+            }
+          }),
+      TypeError, /custom error/);
+
   // Deserialization succeeds on matching builtins.
   assertInstanceof(
       d8.wasm.deserializeModule(serialized_bytes_no_builtins, wire_bytes),

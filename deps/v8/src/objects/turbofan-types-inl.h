@@ -19,10 +19,16 @@ namespace v8 {
 namespace internal {
 
 // TurbofanBitsetType
-uint32_t TurbofanBitsetType::bitset_low() const { return bitset_low_; }
-void TurbofanBitsetType::set_bitset_low(uint32_t value) { bitset_low_ = value; }
-uint32_t TurbofanBitsetType::bitset_high() const { return bitset_high_; }
-void TurbofanBitsetType::set_bitset_high(uint32_t value) {
+TurbofanTypeLowBits TurbofanBitsetType::bitset_low() const {
+  return bitset_low_;
+}
+void TurbofanBitsetType::set_bitset_low(TurbofanTypeLowBits value) {
+  bitset_low_ = value;
+}
+TurbofanTypeHighBits TurbofanBitsetType::bitset_high() const {
+  return bitset_high_;
+}
+void TurbofanBitsetType::set_bitset_high(TurbofanTypeHighBits value) {
   bitset_high_ = value;
 }
 

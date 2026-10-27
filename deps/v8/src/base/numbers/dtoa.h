@@ -5,7 +5,9 @@
 #ifndef V8_BASE_NUMBERS_DTOA_H_
 #define V8_BASE_NUMBERS_DTOA_H_
 
-#include "src/base/vector.h"
+#include <span>
+
+#include "src/base/base-export.h"
 
 namespace v8 {
 namespace base {
@@ -62,8 +64,8 @@ const int kBase10MaximalLength = 17;
 // at least kBase10MaximalLength + 1. Otherwise, the size of the output is
 // limited to requested_digits digits plus the null terminator.
 V8_BASE_EXPORT void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
-                                  Vector<char> buffer, int* sign, int* length,
-                                  int* point);
+                                  std::span<char> buffer, int* sign,
+                                  int* length, int* point);
 
 }  // namespace base
 }  // namespace v8

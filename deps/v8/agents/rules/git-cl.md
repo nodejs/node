@@ -10,67 +10,80 @@ These rules enforce V8-specific workflow mandates and guardrails when working
 with Chromium's `git cl` tool.
 
 For general Chromium Gerrit CL workflows, commands (such as creating commits,
-running try jobs, polling presubmit status, and commenting), and options, refer
-to the **`git-cl-helper`** skill
-([SKILL.md](agents/shared/skills/git-cl-helper/SKILL.md)).
+uploading CLs, updating descriptions with `git cl description -n +`, running try
+jobs, polling presubmit status, and commenting), and options, refer to the
+**`git-cl-helper`** skill
+([SKILL.md](/agents/shared/skills/git-cl-helper/SKILL.md)).
 
 ## V8 Upload & Commit Mandates
 
 - **Always Format**: Run `git cl format` before creating a commit or uploading a
-  CL (as detailed in the `git-cl-helper` skill). Note that `upload_cl.sh`
-  enforces formatting compliance and will abort if uncommitted formatting diffs
-  exist.
-- **Upload Script**: In V8, all initial and patchset uploads MUST be performed
-  using
-  `agents/scripts/upload_cl.sh <new|cur> <check|nocheck> [patchset_message] [additional flags...]`.
-  This script enforces formatting checks, performs non-interactive uploads, runs
-  release test checks, and validates commit description line lengths.
-  - **Initial Upload**: For a new CL without an existing issue association,
-    execute `agents/scripts/upload_cl.sh new check`.
-  - **Subsequent Uploads**: For updating an existing patchset, run
-    `agents/scripts/upload_cl.sh cur check "Brief patchset description"`.
-  - **Checks**: The "check" flag runs all mjsunit tests. When no code was
-    updated, or tests were already successfully run, "nocheck" can be passed.
+  CL (as detailed in the `git-cl-helper` skill). If it makes any changes, commit
+  them before proceeding with the upload.
+- **Uploading CLs**: Use `git cl upload` (as detailed in the `git-cl-helper`
+  skill) with `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true` to avoid interactive
+  editor or auth prompts:
+  - **Initial Upload (Always WIP)**: For a new CL without an existing issue
+    association (`git cl issue` is `None`), pass `-T -o wip` so the CL starts in
+    **WIP** mode without prompting for a patchset title:
+    `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -T -o wip`
+  - **Subsequent Uploads (Default)**: While iterating on a CL, running
+    self-reviews, fixing bugs/tests, or addressing review comments, pass
+    `-t "Brief patchset description"` (and omit `-o wip`, `--ready`, and
+    `--commit-description`):
+    `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -t "Brief patchset description"`
+    This lets Gerrit preserve the CL's existing WIP or Ready-for-Review state
+    and online description without switching a CL that is already in review back
+    to WIP. Only pass `-o wip` on a subsequent upload if explicitly switching a
+    CL back to WIP.
+  - **Ready for Review (Non-WIP + Mandatory Dry-Run)**: **ALWAYS obtain explicit
+    user confirmation before setting a CL to ready (non-WIP) or passing
+    `--ready`.** Only switch a CL to non-WIP once the user explicitly asks to
+    mark the CL "ready for review", "unjail/un-WIP", or "send to reviewers", and
+    only after a CQ dry-run (`-d` / `--cq-dry-run` or `git cl try`) has passed
+    on the current patchset. (User confirmation to *"upload"*, *"trigger a
+    dry-run"*, or *"watch the CQ"* is **NOT** confirmation to exit WIP.) Once
+    confirmed and the dry-run has passed, exit WIP using `--ready` on upload (if
+    uploading a new patchset) or via `gerrit_client.py`:
+    `gerrit_client.py rawapi --host https://chromium-review.googlesource.com --path "/changes/<cl_number>/ready" --method POST --accept_status "200,204"`
+    If a dry-run fails, do not mark the CL ready; investigate the failing bots
+    (inspecting logs via `gerrit_cq`), determine the root cause, and ask the
+    user about next steps.
 - **Updating Description**: If the changes in a new patchset make the existing
   CL description **out-of-date** or inaccurate, you **MUST** explicitly update
-  it. Choose the approach based on your task:
-  - **When uploading code changes (Default)**: Pass `--commit-description="..."`
-    directly to `upload_cl.sh` so the patchset and description update atomically
-    in one step:
-    `agents/scripts/upload_cl.sh cur check "Patchset title" --commit-description="New cohesive description content"`
-  - **When updating description only**: If you are refining wording, fixing
-    typos, or updating tags without uploading new code changes, run the
-    standalone editor script:
-    `agents/scripts/edit_cl_description.sh "New cohesive description content"`
-    **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description` or
-    running `edit_cl_description.sh`, you must first inspect the live remote
-    description on Gerrit (using either `git cl desc -d` or the
-    `gerrit_get_change_details` MCP tool) to verify whether the user has
-    manually edited it. If manual user edits or refinements are detected, you
-    must carefully evaluate them: preserve any human-authored background
-    context, rationale, or formatting, while surgically updating only the
-    outdated technical statements resulting from the new patchset.
-- **Wrap Commit Message**: Ensure commit message descriptions are strictly
-  wrapped at 78 characters. `upload_cl.sh` automatically enforces this limit.
-- Verify `git diff` is not empty before uploading.
+  it in the local git commit message and sync it to Gerrit:
+  - **When uploading code changes**: Pass `--commit-description=+` to
+    `git cl upload` so the patchset and description update together.
+  - **When updating description only**: Amend the local git commit message and
+    run `git cl description -n +` (as detailed in the `git-cl-helper` skill).
+    **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description=+`
+    or running `git cl description -n +`, you must first inspect the live remote
+    description on Gerrit (using either `git cl description -d` or a Gerrit MCP
+    tool) to verify whether the user has manually edited it. Carry over any
+    human-authored online edits, rationale, or formatting — as well as the
+    `Change-Id:` footer line — into your local commit message while surgically
+    updating only the outdated technical statements.
+- **Commit Message Length Limits**: Keep the commit title at most 72 characters
+  (aiming for ~50 characters) and wrap description body lines at 72 characters.
+- Verify `git diff @{upstream}...HEAD` is not empty before uploading.
 
 ## Safeguards & Code Quality
 
-- **Mandatory Reproducer Rule**: Before running `git cl upload` or
-  `upload_cl.sh`, you MUST verify that the diff contains a valid, working
-  regression test (typically under `test/mjsunit/` or its component-specific
-  subfolders like `compiler/`, `turboshaft/`, `maglev/`, etc.). Uploading
-  code-modifying CLs without an accompanying regression test is strictly
-  forbidden (unless explicitly waived by the user or if it's a
-  process-only/documentation change).
+- **Mandatory Reproducer Rule**: Before running `git cl upload`, you MUST verify
+  that the diff contains a valid, working regression test (typically under
+  `test/mjsunit/` or its component-specific subfolders like `compiler/`,
+  `turboshaft/`, `maglev/`, etc.). Uploading code-modifying CLs without an
+  accompanying regression test is strictly forbidden (unless explicitly waived
+  by the user or if it's a process-only/documentation change).
 - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
   create or modify.
 - **Always Test Before Upload**: Always run tests (using `release` or `optdebug`
   mode, avoiding `debug` mode due to performance) before uploading.
 - **ALWAYS keep CLs separate**: If you are working on more than one task at the
-  same time always use `agents/scripts/create_worktree.sh <task_id>` to create
-  an isolated workspace for each independent task or CL. Worktrees are created
-  at `REPOSITORY_ROOT/worktrees/`. NEVER upload a CL from a workspace containing
+  same time always use
+  `agents/scripts/create_worktree.sh <task_id> [base_branch]` to create an
+  isolated workspace for each independent task or CL. Worktrees are created at
+  `REPOSITORY_ROOT/worktrees/`. NEVER upload a CL from a workspace containing
   unrelated modifications. Always verify that the diff relative to upstream
   contains ONLY the intended changes before uploading.
 - **Consult user on external changes**: When `git cl upload` detects external
@@ -84,33 +97,34 @@ to the **`git-cl-helper`** skill
 - **Verify Issue Description**: Before uploading, run `git cl status` to verify
   the Issue Description matches your task.
 - **Review Modified Files**: Review the modified files (`git show --stat`) or
-  run `git diff --name-only origin/main..HEAD` to ensure no unrelated files are
+  run `git diff --name-only @{upstream}...HEAD` to ensure no unrelated files are
   included. If you see commits or files that are not part of your specific task,
-  reset your branch to `origin/main` and cherry-pick only your intended commits
+  reset your branch to `@{upstream}` and cherry-pick only your intended commits
   instead of uploading.
 - **Verify Alignment**: Verify alignment of the subsystem/context in
   `git cl status` before proceeding, and consult the user if it seems
   mismatched.
 - **Process-Only CLs**: For CLs intended to contain ONLY process/documentation
   changes, verify that no code files (e.g., `.cc`, `.h`, `.js`, `.py`) are
-  modified using `git diff --name-only origin/main`.
+  modified using `git diff --name-only @{upstream}...HEAD`.
 
 ## Proactive Alert Handling & Post-Upload
 
 - **Proactive Alert Handling**: After uploading, check the presubmit and tryjob
-  status. Choose the approach based on your situation:
-  - **Immediate Check (Default)**: Run `git cl status` immediately after
-    uploading to verify branch alignment and quickly check high-level issue
+  status:
+  - Run `git cl status` after uploading to verify branch alignment and issue
     status.
-  - **When Waiting for Trybots**: If the user explicitly asks to monitor or wait
-    for tryjobs to complete, or if you need detailed Buildbucket failure logs to
-    debug presubmit build errors, run the polling script from the
-    `git-cl-helper` skill:
-    `vpython3 agents/shared/skills/git-cl-helper/scripts/git_cl_helper.py poll --gerrit_url <URL>`
-    If you identify failing checks or try jobs, proactively suggest addressing
-    these alerts to the user.
-- **Post-Upload**: Provide the `chromium-review.googlesource.com` link to the
-  user.
+  - When a CQ dry-run is triggered (`-d` / `--cq-dry-run` or `git cl try`), wait
+    for completion asynchronously in a background task (e.g., via
+    `vpython3 agents/shared/skills/git-cl-helper/scripts/git_cl_helper.py poll --gerrit_url <GERRIT_URL>`
+    or monitoring `git cl status --field=status`) and inspect bot results using
+    `gerrit_cq`.
+  - If any builds fail, zoom into the failure logs
+    (`gerrit_cq(builder="<name>")`), triage whether it is an infrastructure
+    issue, a known flake, or a real regression, and ask the user about next
+    steps with proposed fixes.
+- **Post-Upload**: Provide the `chromium-review.googlesource.com` (or
+  `https://crrev.com/c/<number>`) link to the user.
 
 ## Retrieving and Addressing Comments
 
@@ -130,8 +144,9 @@ to the **`git-cl-helper`** skill
 When working on a chain of dependent changes (stacked CLs):
 
 - **Upstream Configuration**: Set the upstream of a child branch to its parent
-  branch (e.g., `git branch --set-upstream-to=parent-branch`). The base branch
-  at the bottom of the stack tracks `origin/main`.
+  branch (e.g., `agents/scripts/create_worktree.sh <task_id> <parent-branch>` or
+  `git branch --set-upstream-to=parent-branch`). The base branch at the bottom
+  of the stack tracks `origin/main`.
 - **Rebasing**: When the parent branch changes, rebase the child branch on top
   of the updated parent.
 - **Unique Change-Ids**: Ensure each CL in the stack has a unique `Change-Id`.
@@ -142,7 +157,7 @@ When working on a chain of dependent changes (stacked CLs):
 - Use `git cl patch <CL_NUMBER>` to fetch and checkout the latest patchset of a
   CL.
 - Use `git cl land` to land the CL after approval.
-- Use `git cl desc -d` to view the CL description.
-- Use `agents/scripts/edit_cl_description.sh "New description"` (or `-f <file>`)
-  to non-interactively update a CL description after validating line lengths and
-  code formatting.
+- Use `git cl description -d` to view the CL description.
+- Use `git cl description -n +` to update a CL description on Gerrit from the
+  latest local git commit (after checking `git cl description -d` and preserving
+  `Change-Id:` and any online edits).

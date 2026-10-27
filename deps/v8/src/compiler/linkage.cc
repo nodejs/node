@@ -379,7 +379,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
               info->bytecode_array()->parameter_count());
     return GetJSCallDescriptor(zone, info->is_osr(),
                                info->bytecode_array()->parameter_count(),
-                               CallDescriptor::kCanUseRoots);
+                               CallDescriptor::kNoFlags);
   }
   return nullptr;  // TODO(titzer): ?
 }
@@ -397,7 +397,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kGrowableSharedArrayBufferByteLength:
     case Runtime::kIncBlockCounter:
     case Runtime::kNewClosure:
-    case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
@@ -531,6 +530,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
 
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int js_parameter_count,
+                                             uint16_t expected_parameter_count,
                                              CallDescriptor::Flags flags,
                                              Operator::Properties properties) {
   const size_t return_count = 1;
@@ -600,7 +600,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kNoCalleeSaved,                // callee-saved
       kNoCalleeSavedFp,              // callee-saved fp
       flags,                         // flags
-      "js-call");                    // debug name
+      "js-call",                     // debug name
+      RegList{},                     // allocatable_registers
+      0,                             // return_slot_count
+      kInvalidWasmSignatureHash,     // signature_hash
+      expected_parameter_count);     // expected_parameter_count
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
@@ -706,18 +710,18 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     DCHECK(!callee_saved_registers.is_empty());
   }
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return zone->New<CallDescriptor>(          // --
-      kind,                                  // kind
-      descriptor.tag(),                      // tag
-      target_type,                           // target MachineType
-      target_loc,                            // target location
-      locations.Get(),                       // location_sig
-      stack_parameter_count,                 // stack_parameter_count
-      properties,                            // properties
-      callee_saved_registers,                // callee-saved registers
-      kNoCalleeSavedFp,                      // callee-saved fp
-      CallDescriptor::kCanUseRoots | flags,  // flags
-      descriptor.DebugName(),                // debug name
+  return zone->New<CallDescriptor>(  // --
+      kind,                          // kind
+      descriptor.tag(),              // tag
+      target_type,                   // target MachineType
+      target_loc,                    // target location
+      locations.Get(),               // location_sig
+      stack_parameter_count,         // stack_parameter_count
+      properties,                    // properties
+      callee_saved_registers,        // callee-saved registers
+      kNoCalleeSavedFp,              // callee-saved fp
+      flags,                         // flags
+      descriptor.DebugName(),        // debug name
       allocatable_registers);
 }
 
@@ -751,8 +755,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   // The target for interpreter dispatches is a code entry address.
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  const CallDescriptor::Flags kFlags =
-      CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister;
+  const CallDescriptor::Flags kFlags = CallDescriptor::kFixedTargetRegister;
   return zone->New<CallDescriptor>(   // --
       CallDescriptor::kCallAddress,   // kind
       kBytecodeHandlerEntrypointTag,  // tag

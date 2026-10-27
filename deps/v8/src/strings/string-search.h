@@ -300,26 +300,30 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
   base::Vector<const PatternChar> pattern = search->pattern_;
   int subject_length = subject.length();
   int pattern_length = pattern.length();
+  CHECK_GE(start_index, 0);
+  CHECK_GE(pattern_length, kBMMinPatternLength);
+  const PatternChar* pattern_data = pattern.data();
+  const SubjectChar* subject_data = subject.data();
   // Only preprocess at most kBMMaxShift last characters of pattern.
   int start = search->start_;
 
   int* bad_char_occurence = search->bad_char_table();
   int* good_suffix_shift = search->good_suffix_shift_table();
 
-  PatternChar last_char = pattern[pattern_length - 1];
+  PatternChar last_char = pattern_data[pattern_length - 1];
   int index = start_index;
   // Continue search from i.
   while (index <= subject_length - pattern_length) {
     int j = pattern_length - 1;
     int c;
-    while (last_char != (c = subject[index + j])) {
+    while (last_char != (c = subject_data[index + j])) {
       int shift = j - CharOccurrence(bad_char_occurence, c);
       index += shift;
       if (index > subject_length - pattern_length) {
         return -1;
       }
     }
-    while (j >= 0 && pattern[j] == (c = subject[index + j])) j--;
+    while (j >= 0 && pattern_data[j] == (c = subject_data[index + j])) j--;
     if (j < 0) {
       return index;
     } else if (j < start) {
@@ -345,10 +349,11 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
   int pattern_length = pattern_.length();
-  const PatternChar* pattern = pattern_.begin();
+  const PatternChar* pattern = pattern_.data();
   // Only look at the last kBMMaxShift characters of pattern (from start_
   // to pattern_length).
   int start = start_;
+  CHECK_GE(start, 0);
   int length = pattern_length - start;
 
   // Biased tables so that we can use pattern indices as table indices,
@@ -419,11 +424,15 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
   base::Vector<const PatternChar> pattern = search->pattern_;
   int subject_length = subject.length();
   int pattern_length = pattern.length();
+  CHECK_GE(start_index, 0);
+  CHECK_GE(pattern_length, kBMMinPatternLength);
+  const PatternChar* pattern_data = pattern.data();
+  const SubjectChar* subject_data = subject.data();
   int* char_occurrences = search->bad_char_table();
   int badness = -pattern_length;
 
   // How bad we are doing without a good-suffix table.
-  PatternChar last_char = pattern[pattern_length - 1];
+  PatternChar last_char = pattern_data[pattern_length - 1];
   int last_char_shift =
       pattern_length - 1 -
       CharOccurrence(char_occurrences, static_cast<SubjectChar>(last_char));
@@ -432,7 +441,7 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
   while (index <= subject_length - pattern_length) {
     int j = pattern_length - 1;
     int subject_char;
-    while (last_char != (subject_char = subject[index + j])) {
+    while (last_char != (subject_char = subject_data[index + j])) {
       int bc_occ = CharOccurrence(char_occurrences, subject_char);
       int shift = j - bc_occ;
       index += shift;
@@ -442,7 +451,7 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (subject[index + j])) j--;
+    while (j >= 0 && pattern_data[j] == (subject_data[index + j])) j--;
     if (j < 0) {
       return index;
     } else {
@@ -465,11 +474,13 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
   int pattern_length = pattern_.length();
+  const PatternChar* pattern = pattern_.data();
 
   int* bad_char_occurrence = bad_char_table();
 
   // Only preprocess at most kBMMaxShift last characters of pattern.
   int start = start_;
+  CHECK_GE(start, 0);
   // Run forwards to populate bad_char_table, so that *last* instance
   // of character equivalence class is the one registered.
   // Notice: Doesn't include the last character.
@@ -482,7 +493,7 @@ void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
     }
   }
   for (int i = start; i < pattern_length - 1; i++) {
-    PatternChar c = pattern_[i];
+    PatternChar c = pattern[i];
     int bucket = (sizeof(PatternChar) == 1) ? c : c % AlphabetSize();
     bad_char_occurrence[bucket] = i;
   }
@@ -500,6 +511,10 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
     base::Vector<const SubjectChar> subject, int index) {
   base::Vector<const PatternChar> pattern = search->pattern_;
   int pattern_length = pattern.length();
+  CHECK_GE(index, 0);
+  CHECK_GE(pattern_length, kBMMinPatternLength);
+  const PatternChar* pattern_data = pattern.data();
+  const SubjectChar* subject_data = subject.data();
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
@@ -515,7 +530,7 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
       DCHECK_LE(i, n);
       int j = 1;
       do {
-        if (pattern[j] != subject[i + j]) {
+        if (pattern_data[j] != subject_data[i + j]) {
           break;
         }
         j++;

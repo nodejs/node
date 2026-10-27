@@ -4,6 +4,7 @@
 
 #include "src/codegen/safepoint-table.h"
 
+#include "src/base/unique-array.h"
 #include "src/codegen/macro-assembler.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
@@ -320,12 +321,9 @@ TEST_F(SafepointTableTest, Bigger) {
 
 TEST_F(SafepointTableTest, DecodeSafepointEntry) {
   static constexpr size_t kSize = 16;  // Bytes. Enough for this test.
-  base::OwnedVector<uint8_t> safepoint(std::make_unique<uint8_t[]>(kSize),
-                                       kSize);
-  base::OwnedVector<uint8_t> tagged_slots(std::make_unique<uint8_t[]>(kSize),
-                                          kSize);
-  base::OwnedVector<uint8_t> expected_vector(std::make_unique<uint8_t[]>(kSize),
-                                             kSize);
+  auto safepoint = base::UniqueArray<uint8_t>::New(kSize);
+  auto tagged_slots = base::UniqueArray<uint8_t>::New(kSize);
+  auto expected_vector = base::UniqueArray<uint8_t>::New(kSize);
   auto Test = [&](std::initializer_list<uint8_t> input,
                   std::initializer_list<uint8_t> expected) {
     std::copy(input.begin(), input.end(), safepoint.data());

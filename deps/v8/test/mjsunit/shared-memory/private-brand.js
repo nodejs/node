@@ -20,7 +20,5 @@ function TestSharedObjectCannotAddPrivateBrand(sharedObj) {
   });
 }
 
-TestSharedObjectCannotAddPrivateBrand(new Atomics.Condition());
-TestSharedObjectCannotAddPrivateBrand(new Atomics.Mutex());
 TestSharedObjectCannotAddPrivateBrand(new (new SharedStructType(['p'])));
 TestSharedObjectCannotAddPrivateBrand(new SharedArray(1));

@@ -1,0 +1,114 @@
+Tests that the skipList of stepInto and stepOver does not suppress breakpoints or debugger statements.
+
+Test: stepInto into a skipped range hits a breakpoint in the skipped range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: ambiguous, hitBreakpoints: 1
+  let a = 1;
+  let b = #2;
+  return a + b;
+
+
+Test: stepInto into a skipped range stops at a debugger statement in the skipped range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+Paused with reason: ambiguous, hitBreakpoints: 0
+  let c = 1;
+  #debugger;
+  return c;
+
+
+Test: stepInto into a skipped range without breakpoints skips the range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+
+Test: stepInto into a skipped range skips a breakpoint with a false condition
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+
+Test: stepOver into a skipped range hits a breakpoint in the skipped range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: ambiguous, hitBreakpoints: 1
+  let a = 1;
+  let b = #2;
+  return a + b;
+
+
+Test: stepOver into a skipped range stops at a debugger statement in the skipped range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+Paused with reason: ambiguous, hitBreakpoints: 0
+  let c = 1;
+  #debugger;
+  return c;
+
+
+Test: stepOver into a skipped range without breakpoints skips the range
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+
+Test: stepOver into a skipped range skips a breakpoint with a false condition
+Paused with reason: step, hitBreakpoints: 0
+  debugger;
+  #inlinedBody();
+  withDebuggerStmt();
+
+Paused with reason: step, hitBreakpoints: 0
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+
+
+Test: stepOver stops at a breakpoint in the skipped range
+Paused with reason: ambiguous, hitBreakpoints: 1
+  inlinedBody();
+  #withDebuggerStmt();
+  return 0;
+

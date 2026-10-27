@@ -82,8 +82,8 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
 
     InstructionSequence* sequence = this->sequence();
 
-    OptimizedCompilationInfo info(base::ArrayVector("testing"),
-                                  sequence->zone(), CodeKind::FOR_TESTING);
+    OptimizedCompilationInfo info("testing", sequence->zone(),
+                                  CodeKind::FOR_TESTING);
     ZoneStats zone_stats(sequence->isolate()->allocator());
     turboshaft::PipelineData data(
         &zone_stats, turboshaft::TurboshaftPipelineKind::kCSA, nullptr, &info,

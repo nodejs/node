@@ -71,7 +71,6 @@ class BackgroundCompilationThread final : public v8::base::Thread {
         job_(job) {}
 
   void Run() override {
-    base::FlushDenormalsScope denormals_scope(isolate_->flush_denormals());
     RuntimeCallStats stats(RuntimeCallStats::kWorkerThread);
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     sema_execute_start_->Wait();

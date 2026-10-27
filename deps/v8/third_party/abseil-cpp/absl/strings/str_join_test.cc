@@ -137,6 +137,16 @@ TEST(StrJoin, APIExamples) {
   //
 
   {
+    // Test the code path where default-constructed string_views are
+    // used. Hopefully a sanitizer will flag it if nullptr gets passed to
+    // memcpy.
+    std::vector<absl::string_view> v = {absl::string_view(),
+                                        absl::string_view()};
+    EXPECT_EQ(absl::StrJoin(v, absl::string_view()), "");
+    EXPECT_EQ(absl::StrJoin(v, ":"), ":");
+  }
+
+  {
     // Empty range yields an empty string.
     std::vector<std::string> v;
     EXPECT_EQ("", absl::StrJoin(v, "-"));

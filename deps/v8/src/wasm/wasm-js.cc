@@ -14,8 +14,8 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
-#include "src/base/fpu.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
@@ -110,7 +110,7 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->SetHasCompiledModuleBytes();
   }
 
-  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+  void SetUrl(std::string_view url) { streaming_decoder_->SetUrl(url); }
 
  private:
   i::Isolate* const i_isolate_;
@@ -160,7 +160,7 @@ void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
 void WasmStreaming::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
   TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
-  impl_->SetUrl(base::VectorOf(url, length));
+  impl_->SetUrl(std::string_view(url, length));
 }
 
 // static
@@ -213,7 +213,7 @@ class WasmModuleCompilation::Impl {
     streaming_decoder_->SetHasCompiledModuleBytes();
   }
 
-  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+  void SetUrl(std::string_view url) { streaming_decoder_->SetUrl(url); }
 
  private:
   class Resolver final : public i::wasm::CompilationResultResolver {
@@ -246,8 +246,7 @@ WasmModuleCompilation::WasmModuleCompilation(const CompileOptions& options)
           i::wasm::CompileTimeImportsFromOptions(options))) {
   TRACE_EVENT("v8.wasm", "wasm.ModuleCompilation");
   if (!options.source_url.empty()) {
-    impl_->SetUrl(
-        base::VectorOf(options.source_url.data(), options.source_url.size()));
+    impl_->SetUrl(options.source_url);
   }
 }
 
@@ -283,7 +282,7 @@ void WasmModuleCompilation::SetMoreFunctionsCanBeSerializedCallback(
 void WasmModuleCompilation::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
   TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
-  impl_->SetUrl(base::VectorOf(url, length));
+  impl_->SetUrl(std::string_view(url, length));
 }
 
 namespace {
@@ -312,7 +311,7 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
+base::UniqueArray<const uint8_t> GetAndCopyFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
     ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
@@ -328,9 +327,9 @@ base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
-    Local<ArrayBuffer> buffer = array->Buffer();
+    Local<ArrayBufferBase> buffer = array->GetBuffer();
 
-    auto backing_store = buffer->GetBackingStore();
+    std::shared_ptr<v8::BackingStore> backing_store = buffer->GetBackingStore();
 
     start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
             array->ByteOffset();
@@ -354,7 +353,7 @@ base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
 
   // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
   // reports in case the buffer is shared and is being modified concurrently.
-  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  auto result = base::UniqueArray<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
                        reinterpret_cast<const base::Atomic8*>(start), length);
   return result;
@@ -756,7 +755,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     resolver->OnCompilationFailed(thrower.Reify());
@@ -790,7 +789,7 @@ void WasmStreamingCallbackForTesting(
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
   size_t unlimited = std::numeric_limits<size_t>::max();
-  base::OwnedVector<const uint8_t> bytes =
+  base::UniqueArray<const uint8_t> bytes =
       GetAndCopyFirstArgumentAsBytes(info, unlimited, &thrower);
   if (bytes.empty()) {
     streaming->Abort(Utils::ToLocal(thrower.Reify()));
@@ -918,7 +917,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   // Always copy. Even if the buffer isn't shared,
   // {WasmJs::CompileTimeImportsFromArgument} could detach it.
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     js_api_scope.AssertException();
@@ -942,8 +941,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   bool validated = i::wasm::GetWasmEngine()->SyncValidate(
-      i_isolate, enabled_features, std::move(compile_imports),
-      bytes.as_vector());
+      i_isolate, enabled_features, std::move(compile_imports), bytes.as_span());
 
   return_value.Set(validated);
 }
@@ -972,7 +970,13 @@ bool TransferPrototype(i::Isolate* isolate,
 void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Module()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  if (i_isolate->wasm_module_callback()(info)) return;
+  if (WasmModuleCallback callback = i_isolate->wasm_module_callback()) {
+    if (callback(isolate, info[0])) return;
+  }
+  if (ExtensionCallback callback =
+          i_isolate->deprecated_wasm_module_callback()) {
+    if (callback(info)) return;
+  }
   RecordCompilationMethod(i_isolate, kSyncCompilation);
 
   if (!info.IsConstructCall()) {
@@ -988,7 +992,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
 
   if (bytes.empty()) return js_api_scope.AssertException();
@@ -1089,7 +1093,13 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  if (i_isolate->wasm_instance_callback()(info)) return;
+  if (WasmInstanceCallback callback = i_isolate->wasm_instance_callback()) {
+    if (callback(isolate, info[0])) return;
+  }
+  if (ExtensionCallback callback =
+          i_isolate->deprecated_wasm_instance_callback()) {
+    if (callback(info)) return;
+  }
 
   i::DirectHandle<i::JSObject> instance_obj;
   {
@@ -1242,7 +1252,7 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     InstantiateModuleResultResolver::FailInstantiation(
@@ -1498,8 +1508,8 @@ std::optional<AddressType> GetAddressType(Isolate* isolate,
     return std::nullopt;
   }
 
-  if (address->IsEqualTo(base::CStrVector("i64"))) return AddressType::kI64;
-  if (address->IsEqualTo(base::CStrVector("i32"))) return AddressType::kI32;
+  if (address->IsEqualTo("i64")) return AddressType::kI64;
+  if (address->IsEqualTo("i32")) return AddressType::kI32;
 
   thrower->TypeError("Unknown address type '%s'; pass 'i32' or 'i64'",
                      address->ToCString().get());
@@ -1537,22 +1547,22 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
     auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
     // The JS api uses 'anyfunc' instead of 'funcref'.
-    if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
+    if (string->IsEqualTo("anyfunc")) {
       type = i::wasm::kWasmFuncRef;
-    } else if (string->IsEqualTo(base::CStrVector("externref"))) {
+    } else if (string->IsEqualTo("externref")) {
       type = i::wasm::kWasmExternRef;
     } else if (enabled_features.has_stringref() &&
-               string->IsEqualTo(base::CStrVector("stringref"))) {
+               string->IsEqualTo("stringref")) {
       type = i::wasm::kWasmStringRef;
-    } else if (string->IsEqualTo(base::CStrVector("anyref"))) {
+    } else if (string->IsEqualTo("anyref")) {
       type = i::wasm::kWasmAnyRef;
-    } else if (string->IsEqualTo(base::CStrVector("eqref"))) {
+    } else if (string->IsEqualTo("eqref")) {
       type = i::wasm::kWasmEqRef;
-    } else if (string->IsEqualTo(base::CStrVector("structref"))) {
+    } else if (string->IsEqualTo("structref")) {
       type = i::wasm::kWasmStructRef;
-    } else if (string->IsEqualTo(base::CStrVector("arrayref"))) {
+    } else if (string->IsEqualTo("arrayref")) {
       type = i::wasm::kWasmArrayRef;
-    } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
+    } else if (string->IsEqualTo("i31ref")) {
       type = i::wasm::kWasmI31Ref;
     } else {
       thrower.TypeError(
@@ -1779,35 +1789,35 @@ std::optional<i::wasm::ValueType> GetValueType(
            .ToHandle(&string)) {
     return std::nullopt;
   }
-  if (string->IsEqualTo(base::CStrVector("i32"))) {
+  if (string->IsEqualTo("i32")) {
     return i::wasm::kWasmI32;
-  } else if (string->IsEqualTo(base::CStrVector("f32"))) {
+  } else if (string->IsEqualTo("f32")) {
     return i::wasm::kWasmF32;
-  } else if (string->IsEqualTo(base::CStrVector("i64"))) {
+  } else if (string->IsEqualTo("i64")) {
     return i::wasm::kWasmI64;
-  } else if (string->IsEqualTo(base::CStrVector("f64"))) {
+  } else if (string->IsEqualTo("f64")) {
     return i::wasm::kWasmF64;
-  } else if (string->IsEqualTo(base::CStrVector("v128"))) {
+  } else if (string->IsEqualTo("v128")) {
     return i::wasm::kWasmS128;
-  } else if (string->IsEqualTo(base::CStrVector("externref"))) {
+  } else if (string->IsEqualTo("externref")) {
     return i::wasm::kWasmExternRef;
-  } else if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
+  } else if (string->IsEqualTo("anyfunc")) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     return i::wasm::kWasmFuncRef;
-  } else if (string->IsEqualTo(base::CStrVector("eqref"))) {
+  } else if (string->IsEqualTo("eqref")) {
     return i::wasm::kWasmEqRef;
   } else if (enabled_features.has_stringref() &&
-             string->IsEqualTo(base::CStrVector("stringref"))) {
+             string->IsEqualTo("stringref")) {
     return i::wasm::kWasmStringRef;
-  } else if (string->IsEqualTo(base::CStrVector("anyref"))) {
+  } else if (string->IsEqualTo("anyref")) {
     return i::wasm::kWasmAnyRef;
-  } else if (string->IsEqualTo(base::CStrVector("structref"))) {
+  } else if (string->IsEqualTo("structref")) {
     return i::wasm::kWasmStructRef;
-  } else if (string->IsEqualTo(base::CStrVector("arrayref"))) {
+  } else if (string->IsEqualTo("arrayref")) {
     return i::wasm::kWasmArrayRef;
-  } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
+  } else if (string->IsEqualTo("i31ref")) {
     return i::wasm::kWasmI31Ref;
-  } else if (string->IsEqualTo(base::CStrVector("exnref"))) {
+  } else if (string->IsEqualTo("exnref")) {
     return i::wasm::kWasmExnRef;
   }
   // Unrecognized type.
@@ -2478,7 +2488,8 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
     thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
     return false;
   }
-  return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
+  return_value.Set(Utils::ToLocal(
+      i::wasm::WasmToJSObject(isolate, value, i::wasm::kUnshareStrings)));
   return true;
 }
 }  // namespace
@@ -2642,7 +2653,8 @@ void WebAssemblyMemoryGrowImpl(
   }
 #endif  // DEBUG
 
-  uint64_t old_pages = backing_store->byte_length() / i::wasm::kWasmPageSize;
+  uint64_t old_pages = backing_store->byte_length(std::memory_order_seq_cst) /
+                       i::wasm::kWasmPageSize;
   uint64_t max_pages = receiver->maximum_pages();
 
   if (delta_pages > max_pages - old_pages) {
@@ -3322,8 +3334,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // By default, make all exported functions an instance of {Function}.
   {
-    DirectHandle<Map> function_map =
-        isolate->sloppy_function_without_prototype_map();
+    DirectHandle<Map> function_map = isolate->function_without_prototype_map();
     native_context->set_wasm_exported_function_map(*function_map);
   }
 
@@ -3590,11 +3601,6 @@ CompileTimeImports CompileTimeImportsFromOptions(
     result.constants_module() = options.imported_string_constants_module;
     result.Add(CompileTimeImport::kStringConstants);
   }
-  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
-  // floats at compile time when the host FPU flushes them.
-  if (base::FPU::GetFlushDenormals()) {
-    result.Add(CompileTimeImport::kDisableDenormalFloats);
-  }
   return result;
 }
 }  // namespace wasm
@@ -3604,9 +3610,6 @@ CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
     DirectHandle<Object> arg, Isolate* isolate,
     WasmEnabledFeatures enabled_features) {
   CompileTimeImports result;
-  if (base::FPU::GetFlushDenormals()) {
-    result.Add(CompileTimeImport::kDisableDenormalFloats);
-  }
   if (!IsJSReceiver(*arg)) return result;
   DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(arg);
 
@@ -3638,23 +3641,23 @@ CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
                                        {});
       if (IsString(*value)) {
         Tagged<String> builtin = Cast<String>(*value);
-        if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
+        if (builtin->IsEqualTo("js-string")) {
           result.Add(CompileTimeImport::kJsString);
           continue;
         }
         if (enabled_features.has_imported_strings_utf8()) {
-          if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
+          if (builtin->IsEqualTo("text-encoder")) {
             result.Add(CompileTimeImport::kTextEncoder);
             continue;
           }
-          if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
+          if (builtin->IsEqualTo("text-decoder")) {
             result.Add(CompileTimeImport::kTextDecoder);
             continue;
           }
         }
         if (enabled_features.has_custom_descriptors() &&
             v8_flags.wasm_js_interop) {
-          if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
+          if (builtin->IsEqualTo("js-prototypes")) {
             result.Add(CompileTimeImport::kJsPrototypes);
             continue;
           }

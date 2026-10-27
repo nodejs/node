@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "src/compiler/backend/instruction.h"
-#include "src/utils/bit-vector.h"
 #include "src/utils/ostreams.h"
 
 namespace v8::internal::compiler {
@@ -60,10 +59,8 @@ int GetValue(const ImmediateOperand* imm) {
 }  // namespace
 
 RegisterAllocatorVerifier::RegisterAllocatorVerifier(
-    Zone* zone, const RegisterConfiguration* config,
-    const InstructionSequence* sequence, const Frame* frame)
+    Zone* zone, const InstructionSequence* sequence, const Frame* frame)
     : zone_(zone),
-      config_(config),
       sequence_(sequence),
       constraints_(zone),
       assessments_(zone),
@@ -437,9 +434,8 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
 
 V8_CLANG_NO_SANITIZE("coverage")
 void RegisterAllocatorVerifier::ValidatePendingAssessment(
-    RpoNumber block_id, InstructionOperand op,
-    const BlockAssessments* current_assessments,
-    PendingAssessment* const assessment, int virtual_register) {
+    RpoNumber block_id, PendingAssessment* const assessment,
+    int virtual_register) {
   if (assessment->IsAliasOf(virtual_register)) return;
 
   // When validating a pending assessment, it is possible some of the
@@ -542,8 +538,7 @@ void RegisterAllocatorVerifier::ValidateUse(
       break;
     case Pending: {
       PendingAssessment* pending = PendingAssessment::cast(assessment);
-      ValidatePendingAssessment(block_id, op, current_assessments, pending,
-                                virtual_register);
+      ValidatePendingAssessment(block_id, pending, virtual_register);
       break;
     }
   }
@@ -624,7 +619,7 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
                    vreg);
           break;
         case Pending:
-          ValidatePendingAssessment(block->rpo_number(), op, block_assessments,
+          ValidatePendingAssessment(block->rpo_number(),
                                     PendingAssessment::cast(found_op->second),
                                     vreg);
           break;

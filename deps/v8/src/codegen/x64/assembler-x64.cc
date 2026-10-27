@@ -1426,6 +1426,14 @@ void Assembler::lfence() {
   emit(0xE8);
 }
 
+void Assembler::stmxcsr(Operand dst) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0x0F);
+  emit(0xAE);
+  emit_operand(3, dst);
+}
+
 void Assembler::rdpkru() {
   EnsureSpace ensure_space(this);
   emit(0x0F);
@@ -4417,6 +4425,7 @@ void Assembler::rorxl(Register dst, Operand src, uint8_t imm8) {
 }
 
 void Assembler::pause() {
+  EnsureSpace ensure_space(this);
   emit(0xF3);
   emit(0x90);
 }

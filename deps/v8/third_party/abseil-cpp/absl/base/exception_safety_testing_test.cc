@@ -842,7 +842,7 @@ struct ExhaustivenessTester {
     return true;
   }
 
-  static unsigned char successes;
+  static unsigned char successes [[maybe_unused]];
 };
 
 struct {

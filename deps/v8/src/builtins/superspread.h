@@ -11,7 +11,8 @@ namespace v8 {
 namespace internal {
 
 struct SuperSpreadArgs {
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || \
+    (V8_TARGET_ARCH_X64 && V8_X64_16BYTE_STACK_ALIGNMENT_BOOL)
   static constexpr int kNumExtraArgs = 5;
 #else
   static constexpr int kNumExtraArgs = 4;

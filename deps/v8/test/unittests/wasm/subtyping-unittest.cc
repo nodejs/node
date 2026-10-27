@@ -73,9 +73,10 @@ void DefineArray(WasmModule* module, FieldInit element_type,
                  bool is_final = false,
                  SharedFlag is_shared = SharedFlag{false},
                  bool in_singleton_rec_group = true) {
-  module->AddArrayTypeForTesting(module->signature_storage.New<ArrayType>(
-                                     element_type.first, element_type.second),
-                                 supertype, is_final, is_shared);
+  module->AddArrayTypeForTesting(
+      module->signature_storage.New<ArrayType>(element_type.first,
+                                               element_type.second, is_shared),
+      supertype, is_final, is_shared);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }

@@ -56,9 +56,14 @@ Response SerializeRegexp(v8::Local<v8::RegExp> value,
   std::unique_ptr<protocol::DictionaryValue> resultValue =
       protocol::DictionaryValue::create();
 
+  v8::Local<v8::String> source = value->GetSource();
+  if (!duplicateTracker.takeCharacters(source)) {
+    return Response::ServerError("Object is too large to be returned by value");
+  }
+
   resultValue->setValue(protocol::String("pattern"),
                         protocol::StringValue::create(toProtocolString(
-                            v8::Isolate::GetCurrent(), value->GetSource())));
+                            v8::Isolate::GetCurrent(), source)));
 
   String16 flags = DescriptionForRegExpFlags(value);
   if (!flags.isEmpty()) {
@@ -91,6 +96,10 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
   std::unique_ptr<protocol::ListValue> serializedValue =
       protocol::ListValue::create();
   uint32_t length = value->Length();
+  if (length > kMaxArrayLength) {
+    return Response::ServerError(
+        "Array length exceeds maximum limit for deep serialization");
+  }
   serializedValue->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> elementValue;
@@ -99,10 +108,14 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
     }
 
     std::unique_ptr<protocol::DictionaryValue> elementProtocolValue;
-    Response response = ValueMirror::create(context, elementValue)
-                            ->buildDeepSerializedValue(
-                                context, maxDepth - 1, additionalParameters,
-                                duplicateTracker, &elementProtocolValue);
+    std::unique_ptr<ValueMirror> elementMirror =
+        ValueMirror::create(context, elementValue);
+    if (!elementMirror) {
+      return Response::ServerError("exception during deep serialization");
+    }
+    Response response = elementMirror->buildDeepSerializedValue(
+        context, maxDepth - 1, additionalParameters, duplicateTracker,
+        &elementProtocolValue);
     if (!response.IsSuccess()) return response;
     serializedValue->pushValue(std::move(elementProtocolValue));
   }
@@ -157,23 +170,35 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
       }
 
       if (keyV8Value->IsString()) {
-        keyProtocolValue = protocol::StringValue::create(toProtocolString(
-            v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
+        v8::Local<v8::String> keyString = keyV8Value.As<v8::String>();
+        if (!duplicateTracker.takeCharacters(keyString)) {
+          return Response::ServerError(
+              "Object is too large to be returned by value");
+        }
+        keyProtocolValue = protocol::StringValue::create(
+            toProtocolString(v8::Isolate::GetCurrent(), keyString));
       } else {
         std::unique_ptr<protocol::DictionaryValue> keyDictionaryProtocolValue;
-        Response response =
-            ValueMirror::create(context, keyV8Value)
-                ->buildDeepSerializedValue(
-                    context, maxDepth - 1, additionalParameters,
-                    duplicateTracker, &keyDictionaryProtocolValue);
+        std::unique_ptr<ValueMirror> keyMirror =
+            ValueMirror::create(context, keyV8Value);
+        if (!keyMirror) {
+          return Response::ServerError("exception during deep serialization");
+        }
+        Response response = keyMirror->buildDeepSerializedValue(
+            context, maxDepth - 1, additionalParameters, duplicateTracker,
+            &keyDictionaryProtocolValue);
         if (!response.IsSuccess()) return response;
         keyProtocolValue = std::move(keyDictionaryProtocolValue);
       }
 
-      Response response = ValueMirror::create(context, propertyV8Value)
-                              ->buildDeepSerializedValue(
-                                  context, maxDepth - 1, additionalParameters,
-                                  duplicateTracker, &propertyProtocolValue);
+      std::unique_ptr<ValueMirror> propertyMirror =
+          ValueMirror::create(context, propertyV8Value);
+      if (!propertyMirror) {
+        return Response::ServerError("exception during deep serialization");
+      }
+      Response response = propertyMirror->buildDeepSerializedValue(
+          context, maxDepth - 1, additionalParameters, duplicateTracker,
+          &propertyProtocolValue);
       if (!response.IsSuccess()) return response;
 
       std::unique_ptr<protocol::ListValue> keyValueList =
@@ -251,17 +276,26 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
     if (!hasRealNamedProperty.FromJust()) {
       continue;
     }
-    keyProtocolValue = protocol::StringValue::create(toProtocolString(
-        v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
+    v8::Local<v8::String> keyString = keyV8Value.As<v8::String>();
+    if (!duplicateTracker.takeCharacters(keyString)) {
+      return Response::ServerError(
+          "Object is too large to be returned by value");
+    }
+    keyProtocolValue = protocol::StringValue::create(
+        toProtocolString(v8::Isolate::GetCurrent(), keyString));
 
     if (!value->Get(context, keyV8Value).ToLocal(&propertyV8Value)) {
       return Response::ServerError("exception during deep serialization");
     }
 
-    Response response = ValueMirror::create(context, propertyV8Value)
-                            ->buildDeepSerializedValue(
-                                context, maxDepth - 1, additionalParameters,
-                                duplicateTracker, &propertyProtocolValue);
+    std::unique_ptr<ValueMirror> propertyMirror =
+        ValueMirror::create(context, propertyV8Value);
+    if (!propertyMirror) {
+      return Response::ServerError("exception during deep serialization");
+    }
+    Response response = propertyMirror->buildDeepSerializedValue(
+        context, maxDepth - 1, additionalParameters, duplicateTracker,
+        &propertyProtocolValue);
     if (!response.IsSuccess()) return response;
 
     std::unique_ptr<protocol::ListValue> keyValueList =

@@ -230,7 +230,7 @@ class InterruptTest {
     TryCatch try_catch(env_.isolate());
 
     isolate_->RequestInterrupt(&SignalSemaphore, this);
-    MaybeLocal<Object> result = regexp_handle_.Get(isolate_)->Exec(
+    MaybeLocal<Value> result = regexp_handle_.Get(isolate_)->ExecV2(
         env_.local(), subject_string_handle_.Get(isolate_));
     CHECK(result.IsEmpty());
 

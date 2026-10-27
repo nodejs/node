@@ -1,0 +1,12 @@
+Tests that termination inside custom preview stops remaining custom preview execution at call depth zero.
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    id : <messageId>
+    result : {
+    }
+}
+["outerHeader","innerHeader","innerGetter","outerHeader","innerHeader","innerGetter"]

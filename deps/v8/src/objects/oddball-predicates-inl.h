@@ -82,6 +82,8 @@ inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
 inline bool IsWasmNullNoSpaceCheck(Tagged<HeapObject> obj) {
 #if V8_STATIC_ROOTS_BOOL && V8_ENABLE_WEBASSEMBLY
   return static_cast<Tagged_t>(obj.ptr()) == StaticReadOnlyRoot::kWasmNull;
+#elif V8_STATIC_ROOTS_GENERATION_BOOL && V8_ENABLE_WEBASSEMBLY
+  return obj == GetReadOnlyRoots().wasm_null();
 #elif V8_ENABLE_WEBASSEMBLY
   return obj->map()->instance_type() == WASM_NULL_TYPE;
 #else

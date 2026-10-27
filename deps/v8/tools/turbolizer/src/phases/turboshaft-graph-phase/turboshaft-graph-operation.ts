@@ -95,7 +95,7 @@ enum MemoryRepresentation {
   TaggedSigned = "TaggedSigned",
   UncompressedTaggedPointer = "UncompressedTaggedPointer",
   ProtectedPointer = "ProtectedPointer",
-  IndirectPointer = "IndirectPointer",
+  TrustedPointer = "TrustedPointer",
   SandboxedPointer = "SandboxedPointer",
   Simd128 = "Simd128",
   Simd256 = "Simd256",
@@ -119,7 +119,7 @@ function mrString(rep: MemoryRepresentation): string {
   case MemoryRepresentation.TaggedSigned: return "ts";
   case MemoryRepresentation.UncompressedTaggedPointer: return "utp";
   case MemoryRepresentation.ProtectedPointer: return "pp";
-  case MemoryRepresentation.IndirectPointer: return "ip";
+  case MemoryRepresentation.TrustedPointer: return "trp";
   case MemoryRepresentation.SandboxedPointer: return "sp";
   case MemoryRepresentation.Simd128: return "s128";
   case MemoryRepresentation.Simd256: return "s256";
@@ -568,7 +568,7 @@ enum WriteBarrierKind {
   AssertNoWriteBarrier = "AssertNoWriteBarrier",
   MapWriteBarrier = "MapWriteBarrier",
   PointerWriteBarrier = "PointerWriteBarrier",
-  IndirectPointerWriteBarrier = "IndirectPointerWriteBarrier",
+  TrustedPointerWriteBarrier = "TrustedPointerWriteBarrier",
   EphemeronKeyWriteBarrier = "EphemeronKeyWriteBarrier",
   FullWriteBarrier = "FullWriteBarrier",
 }

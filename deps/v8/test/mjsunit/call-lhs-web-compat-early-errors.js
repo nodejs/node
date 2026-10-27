@@ -42,6 +42,16 @@ assertLateError("for (foo() of []) {}");
 assertLateError("for (foo() in {}) {}");
 assertLateError("for await (foo() of []) {}");
 
+// The web compatibility behavior does not apply in strict mode.
+assertEarlyError("\"use strict\"; foo() = 0;");
+assertEarlyError("\"use strict\"; foo()++;");
+assertEarlyError("\"use strict\"; ++foo();");
+assertEarlyError("\"use strict\"; foo() += 1;");
+assertEarlyError("\"use strict\"; for (foo() of []) {}");
+assertEarlyError("\"use strict\"; for (foo() in {}) {}");
+assertEarlyError("\"use strict\"; (foo()) = 0;");
+assertEarlyError("\"use strict\"; (foo()) += 1;");
+
 // These are early errors though:
 assertEarlyError("for (let foo() = 0; ;) {}");
 assertEarlyError("for (const foo() = 0; ;) {}");

@@ -649,6 +649,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
+  TNode<UintPtrT> UniqueUintPtrConstant(uintptr_t value) {
+    return Unsigned(UniqueIntPtrConstant(base::bit_cast<intptr_t>(value)));
+  }
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
     return ReinterpretCast<RawPtrT>(
@@ -934,6 +937,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Type> Load(Node* base, TNode<WordT> offset) {
     return UncheckedCast<Type>(Load(MachineTypeOf<Type>::value, base, offset));
   }
+  Node* LoadImmutable(MachineType type, Node* base);
+  Node* LoadImmutable(MachineType type, Node* base, Node* offset);
+  template <class Type>
+  TNode<Type> LoadImmutable(Node* base) {
+    return UncheckedCast<Type>(LoadImmutable(MachineTypeOf<Type>::value, base));
+  }
+  template <class Type>
+  TNode<Type> LoadImmutable(Node* base, TNode<WordT> offset) {
+    return UncheckedCast<Type>(
+        LoadImmutable(MachineTypeOf<Type>::value, base, offset));
+  }
   template <class Type>
   TNode<Type> AtomicLoad(AtomicMemoryOrder order, TNode<RawPtrT> base,
                          TNode<WordT> offset) {
@@ -1011,11 +1025,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                      StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
-  void OptimizedStoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                          IndirectPointerTag tag, Node* value);
-  void OptimizedStoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      Node* value);
+  void OptimizedStoreTrustedPointerField(TNode<HeapObject> object, int offset,
+                                         TrustedPointerTag tag, Node* value);
+  void OptimizedStoreTrustedPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                                       int offset,
+                                                       TrustedPointerTag tag,
+                                                       Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
                                                TNode<HeapObject> object,
                                                int offset, Node* value);

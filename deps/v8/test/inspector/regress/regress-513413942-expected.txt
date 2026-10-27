@@ -1,0 +1,12 @@
+Regression test for crbug.com/513413942.
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 57
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}

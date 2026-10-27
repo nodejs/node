@@ -12,8 +12,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -85,8 +84,8 @@ void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
 
 void ExposedTrustedObject::InitAndPublish(Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  InitSelfIndirectPointerField(&self_indirect_pointer_, isolate,
-                               isolate->trusted_pointer_publishing_scope());
+  InitSelfTrustedPointerField(&self_trusted_pointer_, isolate,
+                              isolate->trusted_pointer_publishing_scope());
 #endif
 #ifdef VERIFY_HEAP
   if (!isolate->has_active_deserializer() && !Is<Code>(this)) {
@@ -99,24 +98,24 @@ void ExposedTrustedObject::InitAndPublish(LocalIsolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
   // Background threads using LocalIsolates don't use
   // TrustedPointerPublishingScopes.
-  InitSelfIndirectPointerField(&self_indirect_pointer_, isolate, nullptr);
+  InitSelfTrustedPointerField(&self_trusted_pointer_, isolate, nullptr);
 #endif
 }
 
 void ExposedTrustedObject::InitDontPublish(Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  i::InitSelfIndirectPointerField(
-      reinterpret_cast<Address>(&self_indirect_pointer_), isolate, this,
-      kUnpublishedIndirectPointerTag,
+  i::InitSelfTrustedPointerField(
+      reinterpret_cast<Address>(&self_trusted_pointer_), isolate, this,
+      kUnpublishedTrustedPointerTag,
       isolate->trusted_pointer_publishing_scope());
 #endif
 }
 
 void ExposedTrustedObject::InitDontPublish(LocalIsolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  i::InitSelfIndirectPointerField(
-      reinterpret_cast<Address>(&self_indirect_pointer_), isolate, this,
-      kUnpublishedIndirectPointerTag, nullptr);
+  i::InitSelfTrustedPointerField(
+      reinterpret_cast<Address>(&self_trusted_pointer_), isolate, this,
+      kUnpublishedTrustedPointerTag, nullptr);
 #endif
 }
 
@@ -137,10 +136,10 @@ void ExposedTrustedObject::Publish(IsolateForSandbox isolate) {
   DCHECK(!HeapLayout::InAnySharedSpace(this));
 
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, SharedFlag{false});
-  IndirectPointerHandle handle =
-      self_indirect_pointer_.load(std::memory_order::acquire);
+  TrustedPointerTag tag =
+      TrustedPointerTagFromInstanceType(instance_type, SharedFlag{false});
+  TrustedPointerHandle handle =
+      self_trusted_pointer_.load(std::memory_order::acquire);
   TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
   return table.Publish(handle, tag);
 #endif
@@ -154,10 +153,10 @@ void ExposedTrustedObject::Unpublish(IsolateForSandbox isolate) {
   DCHECK(!HeapLayout::InAnySharedSpace(this));
 
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, SharedFlag{false});
-  IndirectPointerHandle handle =
-      self_indirect_pointer_.load(std::memory_order::acquire);
+  TrustedPointerTag tag =
+      TrustedPointerTagFromInstanceType(instance_type, SharedFlag{false});
+  TrustedPointerHandle handle =
+      self_trusted_pointer_.load(std::memory_order::acquire);
   TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
   table.Unpublish(handle);
 #endif  // V8_ENABLE_SANDBOX
@@ -166,35 +165,34 @@ void ExposedTrustedObject::Unpublish(IsolateForSandbox isolate) {
 bool ExposedTrustedObject::IsPublished(IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, SharedFlag{false});
+  TrustedPointerTag tag =
+      TrustedPointerTagFromInstanceType(instance_type, SharedFlag{false});
   return !TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      this, offsetof(ExposedTrustedObject, self_indirect_pointer_), tag,
+      this, offsetof(ExposedTrustedObject, self_trusted_pointer_), tag,
       isolate);
 #else
   return true;
 #endif
 }
 
-IndirectPointerHandle ExposedTrustedObject::self_indirect_pointer_handle()
-    const {
+TrustedPointerHandle ExposedTrustedObject::self_trusted_pointer_handle() const {
 #ifdef V8_ENABLE_SANDBOX
-  return self_indirect_pointer_.load(std::memory_order::relaxed);
+  return self_trusted_pointer_.load(std::memory_order::relaxed);
 #else
   UNREACHABLE();
 #endif
 }
 
 #if V8_ENABLE_SANDBOX
-void ExposedTrustedObject::InitSelfIndirectPointerField(
-    std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+void ExposedTrustedObject::InitSelfTrustedPointerField(
+    std::atomic<TrustedPointerHandle>* field_ptr, IsolateForSandbox isolate,
     TrustedPointerPublishingScope* opt_publishing_scope) {
   InstanceType instance_type = map()->instance_type();
   SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(this));
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, shared);
-  i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
-                                  this, tag, opt_publishing_scope);
+  TrustedPointerTag tag =
+      TrustedPointerTagFromInstanceType(instance_type, shared);
+  i::InitSelfTrustedPointerField(reinterpret_cast<Address>(field_ptr), isolate,
+                                 this, tag, opt_publishing_scope);
 }
 #endif  // V8_ENABLE_SANDBOX
 

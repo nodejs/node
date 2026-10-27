@@ -1,0 +1,6 @@
+Tests that DebugEvaluate::Local write-back does not overwrite TDZ stack locals with undefined.
+
+Running test: testTdzPreservedAcrossEvaluateOnCallFrame
+a = 25 -> 25
+x -> ReferenceError: Cannot access 'x' from debugger
+Resumed result: 25: ReferenceError: Cannot access 'x' before initialization

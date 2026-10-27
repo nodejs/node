@@ -79,6 +79,7 @@ class Context:
     self.capture_count = 0
     self.group_names = []
     self.literals = []
+    self.tails = []
     # Nonzero inside a negated class, where a string-valued operand is a
     # static-semantics error rather than merely unusual.
     self.no_strings = 0
@@ -108,6 +109,10 @@ class Context:
   def note_literal(self, s):
     self.literals.append(s)
     return s
+
+  def note_tails(self, tails):
+    """Request suffixes for gen_subject to sample independently of literals."""
+    self.tails.extend(tails)
 
   def describe(self):
     """Parameter summary, for error messages."""
