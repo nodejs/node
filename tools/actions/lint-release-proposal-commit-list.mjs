@@ -20,13 +20,19 @@ import { createInterface } from 'node:readline';
 const stdinLineByLine = createInterface(process.stdin)[Symbol.asyncIterator]();
 
 const changelog = await readFile(CHANGELOG_PATH, 'utf-8');
-const commitListingStart = changelog.indexOf('\n### Commits\n');
+let commitListingStart = changelog.indexOf('\n### Commits\n');
 let commitList;
+// Whether every commit listed in the changelog must be in the proposal.
+let listMustMatchProposal = true;
 if (commitListingStart === -1) {
-  // We're preparing a semver-major release.
-  assert.match(changelog, /\n### Semver-Major Commits\n/);
-  // The proposal should contain only the release commit.
-  commitList = '';
+  // We're preparing the first release of a new release line: the changelog
+  // lists every commit since the previous release line, most of them already on
+  // the release branch, so the proposal only contains a subset of the list.
+  commitListingStart = changelog.indexOf('\n### Semver-Major Commits\n');
+  assert.notStrictEqual(commitListingStart, -1, 'Could not find the commit list');
+  const releaseEnd = changelog.indexOf('\n\n<a', commitListingStart);
+  commitList = changelog.slice(commitListingStart, releaseEnd === -1 ? changelog.length : releaseEnd + 1);
+  listMustMatchProposal = false;
 } else {
   // We can't assume the Commits section is the one for this release in case of
   // a release to transition to LTS (i.e. with no commits).
@@ -50,10 +56,12 @@ for await (const line of stdinLineByLine) {
   const { smallSha, title, prURL } = JSON.parse(line);
 
   if (smallSha === RELEASE_COMMIT_SHA.slice(0, 10)) {
-    assert.strictEqual(
-      expectedNumberOfCommitsLeft, 0,
-      'Some commits are listed without being included in the proposal, or are listed more than once',
-    );
+    if (listMustMatchProposal) {
+      assert.strictEqual(
+        expectedNumberOfCommitsLeft, 0,
+        'Some commits are listed without being included in the proposal, or are listed more than once',
+      );
+    }
     continue;
   }
 
@@ -91,4 +99,6 @@ for await (const line of stdinLineByLine) {
   expectedNumberOfCommitsLeft--;
   console.log(prURL);
 }
-assert.strictEqual(expectedNumberOfCommitsLeft, 0, 'Release commit is not the last commit in the proposal');
+if (listMustMatchProposal) {
+  assert.strictEqual(expectedNumberOfCommitsLeft, 0, 'Release commit is not the last commit in the proposal');
+}
