@@ -13,11 +13,11 @@ const server = net.createServer().listen(0, common.mustCall(() => {
 
     setTimeout(common.mustCall(() => {
       process.nextTick(() => {
-        socket.setTimeout(50);
+        socket.setTimeout(500);
         setImmediate(() => { rearmed = true; });
       });
-    }), 1);
-    socket.setTimeout(1);
+    }), 300);
+    socket.setTimeout(300);
 
     socket.on('timeout', common.mustCall(() => {
       assert.ok(rearmed);
