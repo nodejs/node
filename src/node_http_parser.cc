@@ -853,19 +853,26 @@ class Parser : public AsyncWrap, public StreamListener {
       return;
 
     // Hooks for GetCurrentBuffer
+    const char* const outer_data = current_buffer_data_;
+    const size_t outer_len = current_buffer_len_;
     current_buffer_len_ = nread;
     current_buffer_data_ = buf.base;
 
     MakeCallback(cb.As<Function>(), 1, &ret);
 
-    current_buffer_len_ = 0;
-    current_buffer_data_ = nullptr;
+    current_buffer_len_ = outer_len;
+    current_buffer_data_ = outer_data;
   }
 
 
   Local<Value> Execute(const char* data, size_t len) {
     EscapableHandleScope scope(env()->isolate());
 
+    // A callback can run JS that executes the parser again, for example by
+    // pushing data into the socket synchronously. Restore the caller's buffer
+    // afterwards so that its own callbacks are checked against it.
+    const char* const outer_data = current_buffer_data_;
+    const size_t outer_len = current_buffer_len_;
     current_buffer_len_ = len;
     current_buffer_data_ = data;
     got_exception_ = false;
@@ -897,8 +904,8 @@ class Parser : public AsyncWrap, public StreamListener {
       llhttp_pause(&parser_);
     }
 
-    current_buffer_len_ = 0;
-    current_buffer_data_ = nullptr;
+    current_buffer_len_ = outer_len;
+    current_buffer_data_ = outer_data;
 
     // If there was an exception in one of the callbacks
     if (got_exception_)
@@ -1132,6 +1139,11 @@ class Parser : public AsyncWrap, public StreamListener {
       if (parser->is_being_freed_) {
         return 0;
       }
+      if (!parser->IsInCurrentBuffer(args...)) {
+        llhttp_set_error_reason(
+            p, "HPE_REENTRANT_EXECUTE:Parser re-entered in the middle of data");
+        return HPE_USER;
+      }
       int rv = (parser->*Member)(std::forward<Args>(args)...);
       if (rv == 0) {
         rv = parser->MaybePause();
@@ -1139,6 +1151,20 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
   };
+
+  // A nested Execute() that stops in the middle of a span (e.g. a chunk of the
+  // body) leaves llhttp pointing into the nested call's buffer, which can be
+  // freed by the time the outer call reports the span. Data callbacks must
+  // only ever see the buffer that is being executed.
+  bool IsInCurrentBuffer() const {
+    return true;
+  }
+  bool IsInCurrentBuffer(const char* at, size_t length) const {
+    const uintptr_t begin = reinterpret_cast<uintptr_t>(current_buffer_data_);
+    const uintptr_t pos = reinterpret_cast<uintptr_t>(at);
+    return pos >= begin && pos - begin <= current_buffer_len_ &&
+           length <= current_buffer_len_ - (pos - begin);
+  }
 
   typedef int (Parser::*Call)();
   typedef int (Parser::*DataCall)(const char* at, size_t length);
