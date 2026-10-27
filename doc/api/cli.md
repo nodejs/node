@@ -194,7 +194,7 @@ directly through the process arguments.
 ### `--allow-env`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1649,7 +1649,7 @@ Enable the experimental [`node:stream/iter`][] module.
 ### `--experimental-strip-private-modules`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -2379,7 +2379,7 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v26.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/66318
     description: VFS is unflagged but still experimental.
 -->
@@ -3262,7 +3262,7 @@ the threshold specified, the process will exit with code `1`.
 ### `--test-forbid-only`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 Fails the test run if a test or suite is declared with `only: true`, including

@@ -2001,7 +2001,7 @@ generated code.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/62830
     description: The object is frozen.
 -->

@@ -1281,7 +1281,7 @@ destroyed.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 0 - Deprecated. Use `'close'` and `'error'` plus
@@ -1308,7 +1308,7 @@ the `http2stream.rstCode` property.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       Also emitted on peer-initiated resets that arrive before
@@ -1402,7 +1402,7 @@ option must be set for this event to be emitted.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 * Type: {boolean}
@@ -1759,7 +1759,7 @@ stream.on('push', (headers, flags) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       If no `'response'` listener is attached when the response headers
@@ -4261,7 +4261,7 @@ data.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 0 - Deprecated
@@ -4282,7 +4282,7 @@ Just like `'end'`, this event occurs only once per response.
 
 <!-- YAML
 added: v10.1.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 * Type: {boolean}

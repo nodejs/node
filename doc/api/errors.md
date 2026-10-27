@@ -3942,7 +3942,7 @@ The native call from `process.cpuUsage` could not be processed.
 ### `ERR_CRYPTO_ENGINE_UNKNOWN`
 
 <!-- YAML
-removed: REPLACEME
+removed: v27.0.0-alpha.0.0.0
 -->
 
 An invalid crypto engine identifier was passed to

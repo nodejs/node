@@ -1693,7 +1693,7 @@ exceeds `maxSize`, and an [`ERR_INVALID_STATE`][] error for a streaming entry
 ### `zipEntry.rawContentSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `options` {Object} See [`zipEntry.rawContent()`][].
@@ -1704,7 +1704,7 @@ The synchronous version of [`zipEntry.rawContent()`][].
 ### `zipEntry.rawContentIterator([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `options` {Object}
@@ -2413,7 +2413,7 @@ crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
 ## `zlib.crc32c(data[, value])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a string,

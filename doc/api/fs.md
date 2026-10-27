@@ -1645,7 +1645,7 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
@@ -1700,7 +1700,7 @@ characters directly to the `prefix` string. For instance, given a directory
 <!-- YAML
 added: v24.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
 -->
@@ -1735,7 +1735,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fsPromises.mkstemp(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -4052,7 +4052,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
@@ -4154,7 +4154,7 @@ mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
 ### `fs.mkstemp(prefix[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -6630,7 +6630,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
@@ -6665,7 +6665,7 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v24.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
 -->
@@ -6698,7 +6698,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fs.mkstempSync(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
