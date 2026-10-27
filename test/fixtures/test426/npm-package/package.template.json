@@ -1,0 +1,26 @@
+{
+  "name": "@tc39/source-map-tests",
+  "version": "X.X.X",
+  "description": "Cross-implementation test cases for the ECMA-426 source map specification",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tc39/source-map-tests.git"
+  },
+  "homepage": "https://github.com/tc39/source-map-tests#readme",
+  "bugs": "https://github.com/tc39/source-map-tests/issues",
+  "keywords": [
+    "source-map",
+    "sourcemap",
+    "ecma-426",
+    "test-suite",
+    "tests"
+  ],
+  "files": [
+    "suites.json",
+    "interpreting/",
+    "decoding/",
+    "types/",
+    "LICENSE.md"
+  ]
+}

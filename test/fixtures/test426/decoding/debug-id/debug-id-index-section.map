@@ -4,7 +4,7 @@
   "sections": [{
     "offset": {
       "line": 0,
-      "column": 0,
+      "column": 0
     },
     "map": {
       "version": 3,
@@ -16,7 +16,7 @@
   }, {
     "offset": {
       "line": 1,
-      "column": 0,
+      "column": 0
     },
     "map": {
       "version": 3,
