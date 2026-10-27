@@ -8,6 +8,11 @@ assert.throws(
   { code: 'ERR_ARG_NOT_ITERABLE', name: 'TypeError' },
 );
 
+assert.throws(
+  () => ReadableStream.from('abc'),
+  { code: 'ERR_ARG_NOT_ITERABLE', name: 'TypeError' },
+);
+
 const invalidIterators = [
   { [Symbol.iterator]: () => 42 },
   { [Symbol.asyncIterator]: () => 42 },
