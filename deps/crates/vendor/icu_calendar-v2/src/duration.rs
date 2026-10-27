@@ -22,11 +22,11 @@ use crate::error::DateDurationParseError;
 /// # Example
 ///
 /// ```rust
+/// use icu::calendar::Date;
 /// use icu::calendar::options::DateDifferenceOptions;
 /// use icu::calendar::options::DateDurationUnit;
 /// use icu::calendar::types::DateDuration;
 /// use icu::calendar::types::Weekday;
-/// use icu::calendar::Date;
 ///
 /// // Creating ISO date: 1992-09-02.
 /// let mut date_iso = Date::try_new_iso(1992, 9, 2)

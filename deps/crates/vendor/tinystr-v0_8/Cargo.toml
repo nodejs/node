@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "tinystr"
-version = "0.8.4"
+version = "0.8.5"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -110,7 +110,7 @@ optional = true
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.7"
+version = "0.11.9"
 optional = true
 default-features = false
 

@@ -11,8 +11,9 @@
 
 [package]
 edition = "2021"
+rust-version = "1.83"
 name = "zerovec-derive"
-version = "0.11.6"
+version = "0.11.7"
 authors = ["Manish Goregaokar <manishsmail@gmail.com>"]
 build = false
 autolib = false

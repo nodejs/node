@@ -5,7 +5,7 @@
 [package]
 name = "tinystr"
 description = "A small ASCII-only bounded length string representation."
-version = "0.8.4"
+version = "0.8.5"
 keywords = ["small-string", "ascii", "string", "str"]
 categories = ["data-structures"]
 

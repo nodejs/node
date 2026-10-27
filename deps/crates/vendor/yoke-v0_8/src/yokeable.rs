@@ -194,7 +194,7 @@ pub unsafe trait Yokeable<'a>: 'static {
     /// #     where
     /// #         F: 'static + FnOnce(&'a mut Self::Output),
     /// #     {
-    /// #         unsafe { f(mem::transmute(self)) }
+    /// #         unsafe { f(mem::transmute::<&mut Self, &mut Self::Output>(self)) }
     /// #     }
     /// # }
     /// ```

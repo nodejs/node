@@ -4,11 +4,11 @@
 
 #![allow(clippy::field_reassign_with_default)] // use public API
 
+use crate::Date;
 use crate::error::{DateFromFieldsError, MonthCodeParseError};
 use crate::options::{DateFromFieldsOptions, MissingFieldsStrategy, Overflow};
 use crate::preferences::CalendarAlgorithm;
 use crate::types::{DateFields, Month, MonthCode};
-use crate::Date;
 
 static INVALID_SYNTAX: &[&str] = &[
     "M", "M0", "M1", "01L", "L01", "M001", "M110", "MxxL", "m01", "M02l",

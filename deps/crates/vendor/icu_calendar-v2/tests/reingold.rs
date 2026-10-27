@@ -2,11 +2,11 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use icu_calendar::Date;
+use icu_calendar::cal::Hijri;
 use icu_calendar::cal::hijri::{
     HijriYear, Rules, TabularAlgorithm, TabularAlgorithmEpoch, TabularAlgorithmLeapYears,
 };
-use icu_calendar::cal::Hijri;
-use icu_calendar::Date;
 
 /// [`Hijri`] [`Rules`] based on an astronomical simulation for Mecca.
 ///

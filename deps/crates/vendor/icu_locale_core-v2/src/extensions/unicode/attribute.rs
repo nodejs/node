@@ -12,7 +12,7 @@ impl_tinystr_subtag!(
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{attribute, Attribute};
+    /// use icu::locale::extensions::unicode::{Attribute, attribute};
     ///
     /// let attr: Attribute =
     ///     "buddhist".parse().expect("Failed to parse an Attribute.");

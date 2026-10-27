@@ -18,8 +18,8 @@ repository.workspace = true
 rust-version.workspace = true
 
 [package.metadata.sources]
-cldr = { tagged = "48.2.0" }
-icuexport = { tagged = "release-78.1rc" }
+cldr = { tagged = "49.0.0" }
+unicode = { tagged = "18.0.0" }
 segmenter_lstm = { tagged = "v0.1.0" }
 
 [lints.rust]

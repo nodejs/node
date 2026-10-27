@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
-rust-version = "1.86"
+edition = "2024"
+rust-version = "1.88"
 name = "icu_calendar"
-version = "2.2.1"
+version = "2.4.0"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -48,6 +48,7 @@ categories = [
 ]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
+resolver = "2"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -66,8 +67,8 @@ alloc = [
 ]
 compiled_data = [
     "dep:icu_calendar_data",
-    "dep:icu_locale",
-    "icu_locale?/compiled_data",
+    "dep:icu_locale_fallback",
+    "icu_locale_fallback?/compiled_data",
     "icu_provider/baked",
 ]
 datagen = [
@@ -77,6 +78,7 @@ datagen = [
     "tinystr/databake",
     "alloc",
     "icu_provider/export",
+    "icu_locale_core/databake",
 ]
 default = [
     "compiled_data",
@@ -89,6 +91,7 @@ serde = [
     "zerovec/serde",
     "tinystr/serde",
     "icu_provider/serde",
+    "icu_locale_core/serde",
 ]
 unstable = []
 unstable_chrono_0_4 = ["dep:chrono"]
@@ -127,6 +130,11 @@ path = "benches/date.rs"
 harness = false
 
 [[bench]]
+name = "preferred"
+path = "benches/preferred.rs"
+harness = false
+
+[[bench]]
 name = "until"
 path = "benches/until.rs"
 harness = false
@@ -151,25 +159,25 @@ version = "0.2.3"
 default-features = false
 
 [dependencies.icu_calendar_data]
-version = "~2.2.0"
-optional = true
-default-features = false
-
-[dependencies.icu_locale]
-version = "~2.2.0"
+version = "~2.4.0"
 optional = true
 default-features = false
 
 [dependencies.icu_locale_core]
-version = "2.2.0"
+version = "2.4.0"
+default-features = false
+
+[dependencies.icu_locale_fallback]
+version = "~2.4.0"
+optional = true
 default-features = false
 
 [dependencies.icu_provider]
-version = "2.2.0"
+version = "2.4.0"
 default-features = false
 
 [dependencies.ixdtf]
-version = "0.6.5"
+version = "0.6.7"
 optional = true
 default-features = false
 
@@ -190,17 +198,17 @@ optional = true
 default-features = false
 
 [dependencies.tinystr]
-version = "0.8.3"
+version = "0.8.5"
 features = ["zerovec"]
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.6"
+version = "0.11.9"
 features = ["derive"]
 default-features = false
 
 [dev-dependencies.insta]
-version = "1.38.0"
+version = "1.43.2"
 
 [dev-dependencies.itertools]
 version = "0.14.0"
@@ -231,8 +239,9 @@ version = "3.0.0"
 version = "0.5.0"
 
 [lints.clippy]
-alloc-instead-of-core = "warn"
-branches-sharing-code = "warn"
+alloc_instead_of_core = "warn"
+bool_assert_comparison = "allow"
+branches_sharing_code = "warn"
 collection_is_never_read = "warn"
 crosspointer_transmute = "warn"
 dbg_macro = "warn"
@@ -247,7 +256,7 @@ mismatching_type_param_order = "warn"
 missing_fields_in_debug = "warn"
 missing_transmute_annotations = "warn"
 negative_feature_names = "warn"
-or-fun-call = "warn"
+or_fun_call = "warn"
 same_functions_in_if_condition = "warn"
 todo = "warn"
 transmute_bytes_to_str = "warn"
@@ -258,7 +267,7 @@ transmute_ptr_to_ref = "warn"
 transmute_undefined_repr = "warn"
 transmutes_expressible_as_ptr_casts = "warn"
 trivially_copy_pass_by_ref = "deny"
-unnecessary-wraps = "warn"
+unnecessary_wraps = "warn"
 useless_transmute = "warn"
 wildcard_dependencies = "warn"
 
@@ -275,6 +284,7 @@ priority = 0
 check-cfg = [
     "cfg(icu4c_enable_renaming)",
     "cfg(needs_alloc_error_handler)",
+    "cfg(icu4x_nightly_tests)",
     "cfg(icu4x_run_size_tests)",
     "cfg(icu4x_unstable_fast_trie_only)",
 ]
