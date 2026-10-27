@@ -90,7 +90,7 @@ assert.throws(
 assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
   common.isAIX ? { code: 'ERR_INVALID_PACKAGE_CONFIG' } : {
-    code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
+    code: 'ERR_ACCESS_DENIED',
+    message: /Cannot read package config .*package\.json: /
   }
 );
