@@ -1025,6 +1025,105 @@ TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
   ERR_clear_error();
 }
 
+TEST(NodeCrypto, X509IssuerChecksPreserveUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  ASSERT_EQ(X509_set_version(cert.get(), 2), 1);
+  ASSERT_EQ(ASN1_INTEGER_set(X509_get_serialNumber(cert.get()), 1), 1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notBefore(cert.get()), "20260101000000Z"),
+      1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notAfter(cert.get()), "20270101000000Z"),
+      1);
+  X509NamePointer name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                name.get(),
+                "CN",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("issuer"),
+                -1,
+                -1,
+                0),
+            1);
+  ASSERT_EQ(X509_set_subject_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_issuer_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_pubkey(cert.get(), key.get()), 1);
+  ASSERT_GT(X509_sign(cert.get(), key.get(), EVP_sha256()), 0);
+
+  X509NamePointer mismatch_name(X509_NAME_dup(name.get()));
+  ASSERT_TRUE(mismatch_name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                mismatch_name.get(),
+                "OU",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("other"),
+                -1,
+                -1,
+                0),
+            1);
+
+  ncrypto::DeleteFnPtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> invalid_value(
+      ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(invalid_value);
+  const unsigned char truncated_sequence[] = {0x30};
+  ASSERT_EQ(
+      ASN1_OCTET_STRING_set(
+          invalid_value.get(), truncated_sequence, sizeof(truncated_sequence)),
+      1);
+  X509ExtensionPointer invalid_constraints(X509_EXTENSION_create_by_NID(
+      nullptr, NID_basic_constraints, 0, invalid_value.get()));
+  ASSERT_TRUE(invalid_constraints);
+
+  for (const bool seed_error : {true, false}) {
+    // Reparse each issuer so extension-cache failures are exercised each time.
+    auto matching_issuer = cert.view().clone();
+    auto mismatch = cert.view().clone();
+    auto malformed = cert.view().clone();
+    ASSERT_TRUE(matching_issuer);
+    ASSERT_TRUE(mismatch);
+    ASSERT_TRUE(malformed);
+    ASSERT_EQ(X509_set_subject_name(mismatch.get(), mismatch_name.get()), 1);
+    ASSERT_EQ(X509_add_ext(malformed.get(), invalid_constraints.get(), -1), 1);
+
+    const auto check = [seed_error](ncrypto::X509View subject,
+                                    ncrypto::X509View issuer,
+                                    bool issued) {
+      ERR_clear_error();
+      if (seed_error) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+        ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL
+        ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+      }
+      const auto expected = ERR_peek_error();
+      if (seed_error) ASSERT_NE(expected, 0UL);
+      EXPECT_EQ(subject.isIssuedBy(issuer), issued);
+      EXPECT_EQ(ERR_get_error(), expected);
+      EXPECT_EQ(ERR_get_error(), 0UL);
+    };
+
+    check(cert.view(), matching_issuer.view(), true);
+    check(cert.view(), mismatch.view(), false);
+    check(cert.view(), malformed.view(), false);
+    check({}, matching_issuer.view(), false);
+    check(cert.view(), {}, false);
+  }
+}
+
 TEST(NodeCrypto, X509KeyVisitorsHandleMissingPublicKey) {
   ncrypto::X509Pointer cert(X509_new());
   ASSERT_TRUE(cert);
