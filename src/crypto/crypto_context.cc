@@ -1778,6 +1778,7 @@ inline void SecureContext::Reset() {
   ctx_.reset();
   cert_.reset();
   issuer_.reset();
+  has_own_ca_ = false;
 }
 
 SecureContext::~SecureContext() {
@@ -2144,6 +2145,7 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
              X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
   }
+  has_own_ca_ = true;
 }
 
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
