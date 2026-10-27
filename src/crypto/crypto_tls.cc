@@ -1175,7 +1175,11 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // WriteWrap was accepted by the stream, or that we call Done() on it.
   if (length == 0) {
     Debug(this, "Empty write");
-    ClearOut();
+    // When the write comes from JS running inside Cycle(), for example from a
+    // stream listener in ClearOut(), the cycle reads and encrypts any pending
+    // data once that JS returns. Reading here would hand the next record to
+    // the listener while it is still processing the current one.
+    if (cycle_depth_ == 0) ClearOut();
     if (BIO_pending(enc_out_) == 0) {
       Debug(this, "No pending encrypted output, writing to underlying stream");
       CHECK(!current_empty_write_);
