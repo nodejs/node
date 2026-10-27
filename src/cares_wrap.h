@@ -336,7 +336,7 @@ class QueryWrap final : public AsyncWrap {
       // No need to explicitly call ares_free_string here,
       // as it is a wrapper around free, which is already
       // invoked when MallocedBuffer is destructed.
-      ares_dns_write(dnsrec, &buf_copy, &answer_len);
+      status = ares_dns_write(dnsrec, &buf_copy, &answer_len);
     }
 
     wrap->response_data_ = std::make_unique<ResponseData>();
