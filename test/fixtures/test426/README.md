@@ -58,3 +58,42 @@ More information about running Chrome Devtools without building Chromium can be 
 
 Follow the [running Node.js tests guide](https://github.com/nodejs/node/blob/main/BUILDING.md#running-tests) to build Node.js and run tests locally.
 Read more about running the source map tests at [here](https://github.com/nodejs/node/tree/main/test/test426).
+
+## npm package
+
+The test cases are published to npm as [`@tc39/source-map-tests`](https://www.npmjs.com/package/@tc39/source-map-tests), so that source map implementations can run them in their own test suites. A new version is published for every commit to `main`.
+
+```sh
+npm install --save-dev --save-exact @tc39/source-map-tests
+```
+
+### Usage
+
+`@tc39/source-map-tests/suites.json` lists the test suites:
+
+```json
+{
+  "suites": [
+    { "kind": "interpreting", "file": "interpreting/source-map-spec.json" },
+    { "kind": "decoding", "file": "decoding/scopes.json" }
+  ]
+}
+```
+
+There are two types of test suites: `interpreting` and `decoding`:
+- **interpreting** provided a source map to apply to a generated file, together with some actions to perform through it to check that it has been applied correctly.
+- **decoding** suites check that a source map is correctly decoded into a [Decoded Source Map Record](https://tc39.es/ecma426/#decoded-source-map-record).
+
+### TypeScript
+
+The package's root exports the types of the JSON files:
+
+```ts
+import type { InterpretingSuite, DecodingSuite, TestAction } from "@tc39/source-map-tests";
+```
+
+With TypeScript 7.1 or later, you can load type definitions for the various suites by adding `"types": ["@tc39/source-map-tests"]` to your `tsconfig.json`. Imported JSON modules then will be typed appropriately:
+```ts
+import spec from "@tc39/source-map-tests/interpreting/source-map-spec.json" with { type: "json" };
+spec.tests[0].testActions; // TestAction[]
+```

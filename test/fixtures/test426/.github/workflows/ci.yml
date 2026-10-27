@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Validate tests and build npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Fetch all to count number of commits and compute pkg version
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build npm package
+        run: node scripts/build-npm-package.js
+      - name: Check that JSON files match their TypeScript types
+        run: node scripts/check-types.js
+      - name: Pack npm package
+        run: mkdir -p dist && npm pack ./npm-package --pack-destination dist
+      - name: Upload package tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-package
+          path: dist/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to npm
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'tc39/source-map-tests'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # for npm trusted publishing
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+      - name: Build npm package
+        run: node scripts/build-npm-package.js
+      - name: Publish
+        run: |
+          name=$(node -p "require('./npm-package/package.json').name")
+          version=$(node -p "require('./npm-package/package.json').version")
+          if [ -n "$(npm view "$name@$version" version 2>/dev/null)" ]; then
+            echo "$name@$version is already published, skipping."
+          else
+            npm publish ./npm-package --access public
+          fi
