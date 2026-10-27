@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.22.2">24.22.2</a><br/>
 <a href="#24.22.1">24.22.1</a><br/>
 <a href="#24.22.0">24.22.0</a><br/>
 <a href="#24.21.0">24.21.0</a><br/>
@@ -73,6 +74,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.22.2"></a>
+
+## 2026-10-28, Version 24.22.2 'Krypton' (LTS), @aduh95
+
+### Commits
+
+* \[[`f8bdcd54ed`](https://github.com/nodejs/node/commit/f8bdcd54ed)] - **deps**: V8: backport 786c1c2d88d4 (Eliau Elkouby) [#66249](https://github.com/nodejs/node/pull/66249)
+* \[[`3b93fd6b2b`](https://github.com/nodejs/node/commit/3b93fd6b2b)] - **deps**: V8: backport 1a0089053443 (Jakob Linke) [#65764](https://github.com/nodejs/node/pull/65764)
+* \[[`5aaf62faaa`](https://github.com/nodejs/node/commit/5aaf62faaa)] - **deps**: V8: backport c9c0abfa51f0 (Jakob Linke) [#65764](https://github.com/nodejs/node/pull/65764)
+* \[[`3b8eb1a920`](https://github.com/nodejs/node/commit/3b8eb1a920)] - **deps**: V8: backport ebd15783b7ba (Marja Hölttä) [#65764](https://github.com/nodejs/node/pull/65764)
+* \[[`ab70b5d681`](https://github.com/nodejs/node/commit/ab70b5d681)] - **deps**: V8: cherry-pick 853553fe755c (Victor Gomes) [#66241](https://github.com/nodejs/node/pull/66241)
+* \[[`17ec999f24`](https://github.com/nodejs/node/commit/17ec999f24)] - **stream**: keep async context of parked writes (Matteo Collina) [#66907](https://github.com/nodejs/node/pull/66907)
 
 <a id="24.22.1"></a>
 
