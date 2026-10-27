@@ -313,10 +313,18 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
-  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s and `async function`s) will be run immediately
-    after the script has run. They are included in the `timeout` and
-    `breakOnSigint` scopes in that case.
+  * `microtaskMode` {string|Object}
+    * If set to the string `'afterEvaluate'`, microtasks (tasks
+      scheduled through `Promise`s and `async function`s) will be run
+      immediately after the script has run. They are included in the
+      `timeout` and `breakOnSigint` scopes in that case.
+    * If set to an object of the form `{ type: 'manual', queue }`, where
+      `queue` is a [`vm.MicrotaskQueue`][] created via
+      [`vm.createMicrotaskQueue()`][], microtasks scheduled while running the
+      script are placed on `queue` instead of being drained automatically.
+      `queue` may be shared with other contexts so that microtasks from all
+      of them can be drained together, in the order they were scheduled, via
+      a single explicit [`microtaskQueue.runMicrotasks()`][] call.
 * Returns: {any} the result of the very last statement executed in the script.
 
 This method is a shortcut to `script.runInContext(vm.createContext(options), options)`.
@@ -1318,6 +1326,35 @@ added:
 
 A `ModuleRequest` represents the request to import a module with given import attributes and phase.
 
+## Class: `vm.MicrotaskQueue`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An explicit microtask queue that can be attached to multiple contexts (via
+the `microtaskMode` option of [`vm.createContext()`][],
+[`vm.runInNewContext()`][], and [`script.runInNewContext()`][]) so that they
+share where their microtasks (`Promise` reactions and `async function`
+continuations) are placed, and so that those microtasks are drained together,
+explicitly, by the embedder, instead of automatically by Node.js.
+
+Instances are created with [`vm.createMicrotaskQueue()`][]; the constructor is
+not exported by the `node:vm` module.
+
+### `microtaskQueue.runMicrotasks()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Synchronously runs every microtask currently queued on `microtaskQueue`, in
+the order in which they were scheduled. If running a microtask schedules
+further microtasks on the same queue, those are run as well before this
+method returns.
+
 ## `vm.compileFunction(code[, params[, options]])`
 
 <!-- YAML
@@ -1470,10 +1507,19 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
-  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s and `async function`s) will be run immediately
-    after a script has run through [`script.runInContext()`][].
-    They are included in the `timeout` and `breakOnSigint` scopes in that case.
+  * `microtaskMode` {string|Object}
+    * If set to the string `'afterEvaluate'`, microtasks (tasks
+      scheduled through `Promise`s and `async function`s) will be run
+      immediately after a script has run through [`script.runInContext()`][].
+      They are included in the `timeout` and `breakOnSigint` scopes in that
+      case.
+    * If set to an object of the form `{ type: 'manual', queue }`, where
+      `queue` is a [`vm.MicrotaskQueue`][] created via
+      [`vm.createMicrotaskQueue()`][], microtasks scheduled inside the new
+      context are placed on `queue` instead of being drained automatically.
+      `queue` may be shared with other contexts so that microtasks from all
+      of them can be drained together, in the order they were scheduled, via
+      a single explicit [`microtaskQueue.runMicrotasks()`][] call.
   * `importModuleDynamically`
     {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
     Used to specify the how the modules should be loaded when `import()` is
@@ -1541,6 +1587,19 @@ context.
 
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
+
+## `vm.createMicrotaskQueue()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {vm.MicrotaskQueue}
+
+Creates a new [`vm.MicrotaskQueue`][] that can be passed as the `queue` of a
+`{ type: 'manual', queue }` value for the `microtaskMode` option of
+[`vm.createContext()`][], so that multiple contexts can share where their
+microtasks are placed. See [`vm.MicrotaskQueue`][] for details.
 
 ## `vm.isContext(object)`
 
@@ -1819,10 +1878,18 @@ changes:
     experimental modules API. We do not recommend using it in a production
     environment. For detailed information, see
     [Support of dynamic `import()` in compilation APIs][].
-  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
-    scheduled through `Promise`s and `async function`s) will be run immediately
-    after the script has run. They are included in the `timeout` and
-    `breakOnSigint` scopes in that case.
+  * `microtaskMode` {string|Object}
+    * If set to the string `'afterEvaluate'`, microtasks (tasks
+      scheduled through `Promise`s and `async function`s) will be run
+      immediately after the script has run. They are included in the
+      `timeout` and `breakOnSigint` scopes in that case.
+    * If set to an object of the form `{ type: 'manual', queue }`, where
+      `queue` is a [`vm.MicrotaskQueue`][] created via
+      [`vm.createMicrotaskQueue()`][], microtasks scheduled while running the
+      script are placed on `queue` instead of being drained automatically.
+      `queue` may be shared with other contexts so that microtasks from all
+      of them can be drained together, in the order they were scheduled, via
+      a single explicit [`microtaskQueue.runMicrotasks()`][] call.
 * Returns: {any} the result of the very last statement executed in the script.
 
 This method is a shortcut to
@@ -2352,6 +2419,13 @@ the ECMAScript specification for [enqueuing jobs][], by allowing asynchronous
 tasks from different contexts to run in a different order than they were
 enqueued.
 
+Contexts that need to share promises without departing from the
+specification's ordering guarantees can instead attach the same
+[`vm.MicrotaskQueue`][] to each of them (`microtaskMode: { type: 'manual',
+queue }`) and call [`microtaskQueue.runMicrotasks()`][] explicitly, once,
+whenever a checkpoint is due; microtasks from every context sharing `queue`
+then run together, in the order they were scheduled.
+
 ## Support of dynamic `import()` in compilation APIs
 
 The following APIs support an `importModuleDynamically` option to enable dynamic
@@ -2577,17 +2651,22 @@ const { Script, SyntheticModule } = require('node:vm');
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+[`microtaskQueue.runMicrotasks()`]: #microtaskqueuerunmicrotasks
 [`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
+[`script.runInNewContext()`]: #scriptruninnewcontextcontextobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
 [`sourceTextModule.instantiate()`]: #sourcetextmoduleinstantiate
 [`sourceTextModule.linkRequests(modules)`]: #sourcetextmodulelinkrequestsmodules
 [`sourceTextModule.moduleRequests`]: #sourcetextmodulemodulerequests
 [`url.origin`]: url.md#urlorigin
+[`vm.MicrotaskQueue`]: #class-vmmicrotaskqueue
 [`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.constants.DONT_CONTEXTIFY`]: #vmconstantsdont_contextify
 [`vm.createContext()`]: #vmcreatecontextcontextobject-options
+[`vm.createMicrotaskQueue()`]: #vmcreatemicrotaskqueue
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
+[`vm.runInNewContext()`]: #vmruninnewcontextcode-contextobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
 [enqueuing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
