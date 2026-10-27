@@ -64,6 +64,8 @@ assert.strictEqual(getStringWidth('😀😀'), 4);
 // Hangul jamo form syllable blocks, spacing marks take their own column.
 assert.strictEqual(getStringWidth('\u1100\u1161'), 2);
 assert.strictEqual(getStringWidth('\u1100\u1161\u11A8'), 2);
+assert.strictEqual(getStringWidth('\uAC00\u1161'), 2);  // Not composed by NFC.
+assert.strictEqual(getStringWidth('\uAC01\u11A8'), 2);
 assert.strictEqual(getStringWidth('क\u093F'), 2);  // Devanagari vowel sign.
 
 // Grapheme clusters need the character break rules, which small-icu lacks.

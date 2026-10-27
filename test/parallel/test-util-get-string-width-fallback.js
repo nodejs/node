@@ -39,6 +39,8 @@ const cases = [
   ['a\u200Db', 2],
   ['你\u200D你', 4],
   ['\u1100\u1161', 2],
+  ['\uAC00\u1161', 2],  // Syllable and a vowel jamo, not composed by NFC.
+  ['\uAC01\u11A8', 2],  // Syllable and a trailing jamo.
   ['क\u093F', 2],
 ];
 
