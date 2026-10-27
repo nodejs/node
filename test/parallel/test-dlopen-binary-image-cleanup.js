@@ -7,9 +7,10 @@
 // this checks both halves of the contract:
 //
 //   Linux:       an anonymous memfd loaded through /proc/self/fd - nothing ever
-//                reaches the filesystem, and AfterOpen() closes the descriptor
-//                once the load owns its mapping, so repeated loads must not
-//                accumulate open descriptors.
+//                reaches the filesystem. A loaded memfd stays open until exit,
+//                close-on-exec, so that no later image is loaded through the
+//                same /proc/self/fd/N path (the loader would return this one);
+//                a failed load closes its memfd again.
 //   other POSIX: a mkdtemp() directory unlinked and rmdir()ed right after the
 //                load, so nothing is left even while the process runs.
 //   Windows:     the loader maps the file by path for the DLL's lifetime, so
@@ -45,27 +46,58 @@ const child = `
   // the load can only come from the bytes and their materialized image.
   const virtualPath = ${JSON.stringify(path.join(addonPath, '..', 'nowhere', 'binding.node'))};
 
-  // On Linux the image is a descriptor rather than a file, so count them: each
-  // load must hand its fd to the mapping and close it, leaving no growth.
+  // On Linux the image is a memfd rather than a file, so count those: each
+  // successful load keeps exactly one, close-on-exec, and a failed load none.
   const fdDir = '/proc/self/fd';
-  const countFds = () => {
-    try { return fs.readdirSync(fdDir).length; } catch { return -1; }
+  const imageFds = () => {
+    let fds;
+    try { fds = fs.readdirSync(fdDir); } catch { return null; }
+    return fds.filter((fd) => {
+      try {
+        return fs.readlinkSync(\`\${fdDir}/\${fd}\`).startsWith('/memfd:node-addon');
+      } catch { return false; }
+    });
   };
-  const before = countFds();
+  const before = imageFds();
 
   // Load repeatedly: each load materializes its own image, so a leak of an
-  // image, a descriptor or a retained handle shows up as growth.
-  for (let i = 0; i < 5; i++) {
+  // image or a retained handle shows up as growth.
+  const loads = 5;
+  for (let i = 0; i < loads; i++) {
     const m = { exports: {} };
     // flags undefined: keep the default dlopen(2) mode - 0 is not valid
     // everywhere (glibc rejects it with EINVAL).
     dlopenBinary(m, virtualPath, undefined, bytes);
     if (m.exports.hello() !== 'world') throw new Error('addon did not load');
   }
+  const loaded = imageFds();
 
-  const after = countFds();
-  if (before !== -1 && after > before) {
-    throw new Error(\`descriptor leak: \${before} -> \${after} after 5 loads\`);
+  for (let i = 0; i < loads; i++) {
+    try {
+      dlopenBinary({ exports: {} }, virtualPath, undefined, Buffer.from('nope'));
+      throw new Error('loading garbage bytes did not fail');
+    } catch (err) {
+      if (err.code !== 'ERR_DLOPEN_FAILED') throw err;
+    }
+  }
+  const failed = imageFds();
+
+  if (before !== null) {
+    const kept = loaded.filter((fd) => !before.includes(fd));
+    // Zero when memfd is unavailable and the temp-file fallback was used.
+    if (kept.length !== 0 && kept.length !== loads) {
+      throw new Error(\`expected \${loads} retained images, got \${kept.length}\`);
+    }
+    if (failed.length !== loaded.length) {
+      throw new Error(\`failed loads kept images: \${loaded} -> \${failed}\`);
+    }
+    for (const fd of kept) {
+      const info = fs.readFileSync(\`/proc/self/fdinfo/\${fd}\`, 'utf8');
+      const flags = parseInt(/^flags:\\s*([0-7]+)/m.exec(info)[1], 8);
+      if ((flags & 0o2000000) === 0) {  // O_CLOEXEC
+        throw new Error(\`retained image fd \${fd} is not close-on-exec\`);
+      }
+    }
   }
   process.exit(0);
 `;

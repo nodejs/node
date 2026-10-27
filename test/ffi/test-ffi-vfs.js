@@ -92,3 +92,57 @@ test('a library loaded from a VFS outlives the mount', () => {
     lib.close();
   }
 });
+
+const addonPath = (name) => path.join(
+  __dirname, '..', 'addons', name, 'build', common.buildType, 'binding.node');
+
+test('an addon loaded after a VFS library is its own module', (t) => {
+  const helloPath = addonPath('hello-world');
+  if (!fs.existsSync(helloPath)) {
+    t.skip('the hello-world addon is not built');
+    return;
+  }
+  const seqVfs = vfs.create();
+  seqVfs.writeFileSync(`/${libraryName}`, fs.readFileSync(libraryPath));
+  seqVfs.writeFileSync('/hello.node', fs.readFileSync(helloPath));
+  const seqMount = seqVfs.mount();
+  const { lib, functions } = ffi.dlopen(path.join(seqMount, libraryName), {
+    add_i32: fixtureSymbols.add_i32,
+  });
+
+  try {
+    // Resolved to the library, the addon would fail with "Module did not
+    // self-register".
+    const addon = require(path.join(seqMount, 'hello.node'));
+    assert.strictEqual(addon.hello(), 'world');
+    assert.strictEqual(functions.add_i32(20, 22), 42);
+  } finally {
+    lib.close();
+    seqVfs.unmount();
+  }
+});
+
+test('a VFS library loaded after an addon is its own library', (t) => {
+  const functionPath = addonPath('hello-world-function-export');
+  if (!fs.existsSync(functionPath)) {
+    t.skip('the hello-world-function-export addon is not built');
+    return;
+  }
+  const seqVfs = vfs.create();
+  seqVfs.writeFileSync('/function.node', fs.readFileSync(functionPath));
+  seqVfs.writeFileSync(`/${libraryName}`, fs.readFileSync(libraryPath));
+  const seqMount = seqVfs.mount();
+  const addon = require(path.join(seqMount, 'function.node'));
+  assert.strictEqual(addon(), 'world');
+
+  // Resolved to the addon, the library would have no add_i32 to look up.
+  const { lib, functions } = ffi.dlopen(path.join(seqMount, libraryName), {
+    add_i32: fixtureSymbols.add_i32,
+  });
+  try {
+    assert.strictEqual(functions.add_i32(40, 2), 42);
+  } finally {
+    lib.close();
+    seqVfs.unmount();
+  }
+});

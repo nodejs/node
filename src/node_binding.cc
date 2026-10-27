@@ -709,17 +709,25 @@ bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
 
 void AddonImage::AfterOpen(bool opened, void* module) {
   consumed_ = true;
-  // The right cleanup is the same whether or not the load worked, and the
-  // module never has to be unloaded: the name is already gone by now.
-  (void)opened;
+  // The module never has to be unloaded here: Node keeps addons loaded for
+  // the life of the process, and an FFI library is closed by its owner.
   (void)module;
-  // memfd: the load's mapping (or nothing, on failure) owns it from here.
   if (fd_ != -1) {
-    close(fd_);
+    // The dynamic loader knows a loaded object by the path it was opened
+    // with, and hands back the object already loaded under a path instead of
+    // opening the file again. Closing a loaded memfd would free its number
+    // for the next image, which would then be loaded through the very same
+    // /proc/self/fd/N and silently resolve to this one. So a memfd that was
+    // loaded stays open, keeping its path to itself, for the life of the
+    // process; MFD_CLOEXEC keeps it out of child processes. A failed load
+    // left nothing under that path, so its number can go back.
+    if (!opened) close(fd_);
     fd_ = -1;
     return;
   }
   if (!temp_dir_.empty()) {
+    // A temp file can go at once: it lives in a fresh mkdtemp() directory,
+    // so its path is not handed out again the way an fd number is.
     // On success the mapping keeps the inode alive, so unlinking now leaves no
     // on-disk trace; on failure this just cleans up.
     unlink(path_.c_str());
