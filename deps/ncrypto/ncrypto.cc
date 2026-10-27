@@ -1595,7 +1595,7 @@ bool X509View::isCA() const {
 }
 
 bool X509View::isIssuedBy(const X509View& issuer) const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr || issuer.cert_ == nullptr) return false;
   return X509_check_issued(const_cast<X509*>(issuer.cert_),
                            const_cast<X509*>(cert_)) == X509_V_OK;
