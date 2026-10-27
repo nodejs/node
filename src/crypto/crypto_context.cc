@@ -1731,6 +1731,7 @@ inline void SecureContext::Reset() {
   ctx_.reset();
   cert_.reset();
   issuer_.reset();
+  has_own_ca_ = false;
 }
 
 SecureContext::~SecureContext() {
@@ -2066,6 +2067,7 @@ void SecureContext::SetAllowPartialTrustChain(
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
   AddCACertificates(env(), ctx_.get(), bio, &own_cert_store_cache_);
+  has_own_ca_ = true;
 }
 
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
