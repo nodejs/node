@@ -886,6 +886,8 @@ Maybe<void> Decorate(Environment* env,
   const char* fs = nullptr;
 #elif NCRYPTO_USE_BORINGSSL
   const char* fs = ERR_func_error_string(err);
+#else
+#error "Unsupported crypto backend"
 #endif
   const char* rs = ERR_reason_error_string(err);
 
