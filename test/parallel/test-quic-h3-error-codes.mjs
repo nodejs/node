@@ -128,7 +128,7 @@ const decoder = new TextDecoder();
   const H3_NO_ERROR = 0x100n;
   const reset = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(() => {}), {
+  const serverEndpoint = await listen(mustCall(), {
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function() {
       this.resetStream(H3_NO_ERROR);
