@@ -92,8 +92,6 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 Failure to follow these guidelines may result in:
 
 * Rejection of the vulnerability report.
-* Forfeiture of any potential bug bounty.
-* Temporary or permanent ban from the bug bounty program.
 * Legal action in cases of malicious intent.
 
 ## The Node.js threat model
@@ -103,7 +101,7 @@ underlying operating system. Vulnerabilities that require the compromise
 of these trusted elements are outside the scope of the Node.js threat
 model.
 
-For a vulnerability to be eligible for a bug bounty, it must be a
+For a report to be considered a valid vulnerability, it must be a
 vulnerability in the context of the Node.js threat model. In other
 words, it cannot assume that a trusted element (such as the operating
 system) has been compromised.
@@ -118,7 +116,6 @@ documentation:
 * Security vulnerabilities that only affect experimental platforms will **not** be accepted as valid security issues.
 * Any issues on experimental platforms will be treated as normal bugs.
 * No CVEs will be issued for issues that only affect experimental platforms
-* Bug bounty rewards are not available for experimental platform-specific issues
 
 This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
@@ -163,7 +160,6 @@ acceptable as valid security issues.
   security issues.
 * Any issues with these features will be treated as normal bugs.
 * No CVEs will be issued for issues that only affect compile-time flag or V8 flag features.
-* Bug bounty rewards are not available for compile-time flag or V8 flag feature issues.
 
 This policy recognizes that experimental features behind compile-time flags
 are not ready for public consumption and may have incomplete implementations,
