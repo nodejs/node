@@ -131,6 +131,29 @@ def get_builder_name():
     return NOT_AVAILABLE
 
 
+def get_configure_command(root):
+  """Return the ./configure command that configured the tree, or NOT_AVAILABLE.
+
+  configure.py writes config.status as a shell script ending in
+  `exec ./configure <shlex-quoted argv>`. A quoted argument may contain a
+  newline, so the whole text after `exec ` is tokenized, not just one line.
+  Only argv is recorded there, not environment variables such as CFLAGS.
+  """
+  text = _read_text(Path(root) / 'config.status')
+  if text is None:
+    return NOT_AVAILABLE
+  match = re.search(r'^exec (.*)\Z', text, re.MULTILINE | re.DOTALL)
+  if match is None:
+    return NOT_AVAILABLE
+  try:
+    args = shlex.split(match.group(1))
+  except ValueError:
+    return NOT_AVAILABLE
+  if not args or args[0] != './configure':
+    return NOT_AVAILABLE
+  return shlex.join(args)
+
+
 def collect_build_environment(root, config_vars):
   """Return a dict of build-environment facts for build_sbom().
 
@@ -157,6 +180,7 @@ def collect_build_environment(root, config_vars):
     'git_sha': get_git_sha(root),
     'v8_embedder_string': get_v8_embedder_string(root),
     'builder': get_builder_name(),
+    'configure_command': get_configure_command(root),
   }
 
 
@@ -706,18 +730,23 @@ def build_sbom(node_version, components, lib_files, build_env=None):
     ],
   }
 
+  formula = {'bom-ref': 'build-environment'}
   if compilers:
-    sbom['formulation'] = [{
-      'bom-ref': 'build-environment',
-      'components': [{
-        'bom-ref': f'build-environment:{c["name"]}',
-        'type': 'application',
-        'name': c['name'],
-        'version': (c['output'] if c['output'] == NOT_AVAILABLE
-                    else _parse_version(c['output'])),
-        'description': f'Build tool from `{c["command"]}`',
-      } for c in compilers],
-    }]
+    formula['components'] = [{
+      'bom-ref': f'build-environment:{c["name"]}',
+      'type': 'application',
+      'name': c['name'],
+      'version': (c['output'] if c['output'] == NOT_AVAILABLE
+                  else _parse_version(c['output'])),
+      'description': f'Build tool from `{c["command"]}`',
+    } for c in compilers]
+  configure_command = build_env.get('configure_command')
+  if configure_command:
+    # Published as-is: it may contain local paths (see the header comment).
+    formula['properties'] = [{'name': 'nodejs:configure-command',
+                              'value': configure_command}]
+  if len(formula) > 1:
+    sbom['formulation'] = [formula]
   return sbom
 
 
