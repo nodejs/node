@@ -197,7 +197,7 @@ class Http3ApplicationImpl final : public Session::Application {
 #define V(name) case NGHTTP3_##name:
       HTTP3_APPLICATION_ERRORS(V)
 #undef V
-        return false;
+      return false;
       default:
         // RFC 9114 Section 8 requires unknown HTTP/3 error codes to be
         // treated as equivalent to H3_NO_ERROR.

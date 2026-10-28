@@ -2775,8 +2775,7 @@ bool Session::IsNoError(const QuicError& error) const {
     case QuicError::Type::TRANSPORT:
       return error.code() == NGTCP2_NO_ERROR;
     case QuicError::Type::APPLICATION:
-      return has_application() &&
-             application().IsNoErrorCode(error.code());
+      return has_application() && application().IsNoErrorCode(error.code());
     case QuicError::Type::IDLE_CLOSE:
       return true;
     default:
