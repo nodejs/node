@@ -1,3 +1,5 @@
+import { registerHooks } from 'node:module';
+
 const sources = {
 // Virtual file. Doesn't exist on disk
   "virtual.js": `
@@ -16,10 +18,12 @@ import{describe,it}from"node:test";import assert from"node:assert";import{sum}fr
   //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6ImtIQUFPLFNBQVMsT0FBUSxFQUFHLENBQ3pCLEdBQUksQ0FBQyxFQUFFLE1BQU8sS0FBUSxPQUFPLE1BQVEsUUFBUSxFQUFHLE1BQU0sSUFBSSxNQUFNLGNBQWMsRUFDOUUsT0FBTyxFQUFFLE9BQU8sQ0FBQyxJQUFLLE1BQVEsSUFBTSxHQUFHLENBQ3pDLENBSGdCIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyIuL3N1bS50cyJdLCJzb3VyY2VzQ29udGVudCI6W251bGxdfQ==`,
 };
 
-export async function load(url, context, nextLoad) {
+function load(url, context, nextLoad) {
   const file = url.split('/').at(-1);
   if (sources[file] !== undefined) {
     return { format: "module", source: sources[file], shortCircuit: true };
   }
   return nextLoad(url, context);
 }
+
+registerHooks({ load });
