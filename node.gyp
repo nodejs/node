@@ -592,7 +592,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS=="linux" and clang==1', {
+      ['OS=="linux" and clang==1 and node_use_libatomic=="true"', {
         'libraries': ['-latomic'],
       }],
     ],
