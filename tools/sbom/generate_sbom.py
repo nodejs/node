@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import uuid
@@ -122,6 +123,14 @@ def get_v8_embedder_string(root):
   return NOT_AVAILABLE if value in (UNKNOWN, '') else value
 
 
+def get_builder_name():
+  """Return the hostname of the machine doing the build, or NOT_AVAILABLE."""
+  try:
+    return socket.gethostname().strip() or NOT_AVAILABLE
+  except OSError:
+    return NOT_AVAILABLE
+
+
 def collect_build_environment(root, config_vars):
   """Return a dict of build-environment facts for build_sbom().
 
@@ -147,6 +156,7 @@ def collect_build_environment(root, config_vars):
     'compilers': compilers,
     'git_sha': get_git_sha(root),
     'v8_embedder_string': get_v8_embedder_string(root),
+    'builder': get_builder_name(),
   }
 
 
@@ -659,6 +669,9 @@ def build_sbom(node_version, components, lib_files, build_env=None):
   if v8_embedder_string:
     properties.append({'name': 'nodejs:v8-embedder-string',
                        'value': v8_embedder_string})
+  builder = build_env.get('builder')
+  if builder:
+    properties.append({'name': 'nodejs:builder', 'value': builder})
 
   sbom = {
     '$schema': 'http://cyclonedx.org/schema/bom-1.7.schema.json',
