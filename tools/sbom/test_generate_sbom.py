@@ -310,6 +310,16 @@ class TestBuildSbom(unittest.TestCase):
     self.assertEqual(props['nodejs:v8-embedder-string'], 'N/A')
     self.assertNotIn('externalReferences', doc['metadata']['component'])
 
+  def test_builder_is_emitted(self):
+    doc = sbom.build_sbom('27.0.0', [], [], {'builder': 'build-host-1'})
+    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
+    self.assertEqual(props['nodejs:builder'], 'build-host-1')
+
+  def test_unknown_builder_is_emitted_as_not_available(self):
+    doc = sbom.build_sbom('27.0.0', [], [], {'builder': sbom.NOT_AVAILABLE})
+    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
+    self.assertEqual(props['nodejs:builder'], 'N/A')
+
   def test_no_git_properties_without_build_env(self):
     doc = sbom.build_sbom('27.0.0', [], [])
     names = [p['name'] for p in doc['metadata']['properties']]
@@ -446,6 +456,26 @@ class TestGetV8EmbedderString(unittest.TestCase):
         self.assertEqual(sbom.get_v8_embedder_string(tmp), sbom.NOT_AVAILABLE)
 
 
+class TestGetBuilderName(unittest.TestCase):
+
+  def test_returns_hostname(self):
+    with mock.patch('socket.gethostname', return_value='build-host-1'):
+      self.assertEqual(sbom.get_builder_name(), 'build-host-1')
+
+  def test_strips_whitespace(self):
+    with mock.patch('socket.gethostname', return_value=' build-host-1\n'):
+      self.assertEqual(sbom.get_builder_name(), 'build-host-1')
+
+  def test_empty_hostname_is_not_available(self):
+    for value in ('', '  '):
+      with mock.patch('socket.gethostname', return_value=value):
+        self.assertEqual(sbom.get_builder_name(), sbom.NOT_AVAILABLE)
+
+  def test_error_is_not_available(self):
+    with mock.patch('socket.gethostname', side_effect=OSError('boom')):
+      self.assertEqual(sbom.get_builder_name(), sbom.NOT_AVAILABLE)
+
+
 class TestParseVersion(unittest.TestCase):
 
   def test_extracts_dotted_version(self):
@@ -473,6 +503,11 @@ class TestCollectBuildEnvironment(unittest.TestCase):
       env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
     self.assertEqual(env['git_sha'], sha)
     self.assertRegex(env['v8_embedder_string'], r'^-node\.\d+$')
+
+  def test_reports_builder(self):
+    with mock.patch('socket.gethostname', return_value='build-host-1'):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    self.assertEqual(env['builder'], 'build-host-1')
 
   def test_all_tools_missing(self):
     with mock.patch.object(sbom, '_run', return_value=None):
