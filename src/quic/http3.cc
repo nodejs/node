@@ -37,6 +37,9 @@ constexpr size_t kSessionTicketAppDataHeaderSize = 6;  // type + version + crc
 constexpr size_t kSessionTicketAppDataPayloadSize =
     kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
 
+// RFC 9297 defines H3_DATAGRAM_ERROR, but nghttp3 does not expose it.
+constexpr error_code kH3DatagramError = 0x33;
+
 inline void WriteBE32(uint8_t* buf, uint32_t val) {
   buf[0] = static_cast<uint8_t>((val >> 24) & 0xff);
   buf[1] = static_cast<uint8_t>((val >> 16) & 0xff);
@@ -185,6 +188,22 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
+
+  bool IsNoErrorCode(error_code code) const override {
+    if (code == NGHTTP3_H3_NO_ERROR) return true;
+    if (code == kH3DatagramError) return false;
+
+    switch (code) {
+#define V(name) case NGHTTP3_##name:
+      HTTP3_APPLICATION_ERRORS(V)
+#undef V
+        return false;
+      default:
+        // RFC 9114 Section 8 requires unknown HTTP/3 error codes to be
+        // treated as equivalent to H3_NO_ERROR.
+        return true;
+    }
+  }
 
   // HTTP/3 defines H3_INTERNAL_ERROR (0x102) for non-specific failures
   // initiated by the implementation; this is the right code to send

@@ -285,12 +285,13 @@ class QuicError final : public MemoryRetainer {
 
   std::string ToString() const;
 
-  // Returns an array containing [type, code, reason, error_name], where type
-  // is a string representation of the error type, code is a bigint
-  // representation of the error code, and reason is a string representation
-  // of the error reason, or undefined if the reason is empty. error_name is
-  // the symbolic name of a recognized transport error, or undefined. This is
-  // expected to be used to construct a JS error object.
+  // Returns an array containing [type, code, reason, error_name]. type is a
+  // string representation of the error type, code is a bigint representation
+  // of the error code, reason is a string or undefined, and error_name is the
+  // symbolic name of a recognized transport error or undefined. This lossless
+  // representation is used to construct a JS error object; whether the code
+  // means "no error" depends on the negotiated application and is determined
+  // by Session.
   v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;
   inline v8::MaybeLocal<v8::Value> ToV8Value(Realm* realm) const {
     return ToV8Value(realm->env());
