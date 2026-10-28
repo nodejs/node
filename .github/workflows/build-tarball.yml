@@ -91,7 +91,7 @@ jobs:
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
           ./configure && make tar -j4 SKIP_XZ=1 GZIP_COMPRESSION=6
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           path: '*.tar.gz'
           archive: false
