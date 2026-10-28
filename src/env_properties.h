@@ -128,12 +128,14 @@
   V(dns_aaaa_string, "AAAA")                                                   \
   V(dns_caa_string, "CAA")                                                     \
   V(dns_cname_string, "CNAME")                                                 \
+  V(dns_https_string, "HTTPS")                                                 \
   V(dns_mx_string, "MX")                                                       \
   V(dns_naptr_string, "NAPTR")                                                 \
   V(dns_ns_string, "NS")                                                       \
   V(dns_ptr_string, "PTR")                                                     \
   V(dns_soa_string, "SOA")                                                     \
   V(dns_srv_string, "SRV")                                                     \
+  V(dns_svcb_string, "SVCB")                                                   \
   V(dns_tlsa_string, "TLSA")                                                   \
   V(dns_txt_string, "TXT")                                                     \
   V(done_string, "done")                                                       \
@@ -459,6 +461,7 @@
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
+  V(svcb_record_template, v8::DictionaryTemplate)                              \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
