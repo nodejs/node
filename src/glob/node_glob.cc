@@ -763,10 +763,8 @@ void GlobRequest::Pull(const FunctionCallbackInfo<Value>& args, bool drain) {
   if (request->reader_ != nullptr) {
     // The reader is JavaScript, so the slice runs on the main thread, from
     // a later loop turn as a thread-pool slice would settle in.
-    env->SetImmediate(
-        [self = BaseObjectPtr<GlobRequest>(request)](Environment* env) {
-          self->RunMainThreadSlice();
-        });
+    env->SetImmediate([self = BaseObjectPtr<GlobRequest>(request)](
+                          Environment* env) { self->RunMainThreadSlice(); });
     return;
   }
   request->ScheduleWork();
