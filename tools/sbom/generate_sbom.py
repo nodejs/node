@@ -14,7 +14,10 @@ import argparse
 import datetime
 import glob
 import json
+import os
 import re
+import shlex
+import subprocess
 import sys
 import uuid
 from pathlib import Path
@@ -23,6 +26,9 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 
 # Used when a dependency does not record its version anywhere we can read.
 UNKNOWN = 'unknown'
+
+# Used when a build-environment fact cannot be determined.
+NOT_AVAILABLE = 'N/A'
 
 
 def parse_config_gypi(path):
@@ -44,6 +50,104 @@ def get_node_version(root):
   parts = [re.search(rf'#define\s+NODE_{part}_VERSION\s+(\d+)', header).group(1)
            for part in ('MAJOR', 'MINOR', 'PATCH')]
   return '.'.join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Build environment
+#
+# Facts about the machine and toolchain that produced the binary. Like the
+# version extractors below, they never raise: anything that cannot be
+# determined is recorded as NOT_AVAILABLE so one failed probe never prevents
+# the SBOM from being generated.
+# ---------------------------------------------------------------------------
+
+def _run(cmd_args, timeout=10):
+  """Run `cmd_args` (a list, never a shell string) and return its stdout.
+
+  Returns None if the command is missing, fails, times out or prints nothing.
+  """
+  try:
+    result = subprocess.run(cmd_args, capture_output=True, text=True,
+                            timeout=timeout, check=False)
+  except (OSError, ValueError, subprocess.SubprocessError):
+    return None
+  if result.returncode != 0:
+    return None
+  return result.stdout.strip() or None
+
+
+def get_compiler_version(env_var, default):
+  """Report the tool named by `$env_var` (or `default`) and its version.
+
+  Returns {'command': str, 'output': str} where `output` is the first line of
+  `<tool> --version`, or NOT_AVAILABLE if the tool cannot be run. The variable
+  is split with shlex because it may hold a wrapper or flags (`ccache gcc`).
+  """
+  command = os.environ.get(env_var) or default
+  try:
+    args = shlex.split(command)
+  except ValueError:
+    return {'command': command, 'output': NOT_AVAILABLE}
+  output = _run(args + ['--version']) if args else None
+  first_line = output.splitlines()[0].strip() if output else ''
+  return {'command': command, 'output': first_line or NOT_AVAILABLE}
+
+
+def _parse_version(output):
+  """Pull a dotted version number out of `output`, else return it as is."""
+  match = re.search(r'\d+(?:\.\d+)+', output)
+  return match.group(0) if match else output
+
+
+def get_git_sha(root):
+  """Return the commit `root` is checked out at, or NOT_AVAILABLE.
+
+  Source tarballs are not git checkouts, and git may not be installed.
+  """
+  output = _run(['git', '-C', str(root), 'rev-parse', 'HEAD'])
+  # SHA-1 repositories give 40 hex digits, SHA-256 repositories give 64.
+  if output and re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', output):
+    return output
+  return NOT_AVAILABLE
+
+
+def get_v8_embedder_string(root):
+  """Return V8's embedder string from common.gypi, or NOT_AVAILABLE.
+
+  It is a gyp variable that does not reach config.gypi, so it is read from
+  the source. It identifies the set of V8 patches applied on top of upstream.
+  """
+  value = _search(Path(root) / 'common.gypi',
+                  r"'v8_embedder_string':\s*'([^']*)'")
+  return NOT_AVAILABLE if value in (UNKNOWN, '') else value
+
+
+def collect_build_environment(root, config_vars):
+  """Return a dict of build-environment facts for build_sbom().
+
+  Each fact is a string, with NOT_AVAILABLE when it cannot be determined.
+  """
+  # Same defaults as configure.py, so an unset CC/CXX reports what configure
+  # actually used.
+  if sys.platform == 'darwin':
+    default_cc, default_cxx = 'cc', 'c++'
+  elif sys.platform == 'win32':
+    default_cc, default_cxx = 'clang', 'clang'
+  else:
+    default_cc, default_cxx = 'gcc', 'g++'
+
+  compilers = []
+  for name, env_var, default in (('cc', 'CC', default_cc),
+                                 ('cxx', 'CXX', default_cxx),
+                                 ('rustc', 'RUSTC', 'rustc'),
+                                 ('cargo', 'CARGO', 'cargo')):
+    compilers.append({'name': name,
+                      **get_compiler_version(env_var, default)})
+  return {
+    'compilers': compilers,
+    'git_sha': get_git_sha(root),
+    'v8_embedder_string': get_v8_embedder_string(root),
+  }
 
 
 # ---------------------------------------------------------------------------
@@ -515,7 +619,10 @@ def build_component(dep, version, scope):
   }
 
 
-def build_sbom(node_version, components, lib_files):
+def build_sbom(node_version, components, lib_files, build_env=None):
+  # `build_env` is the dict from collect_build_environment(); fields missing
+  # from it are left out of the document.
+  build_env = build_env or {}
   root_ref = f'nodejs@{node_version}'
   root_component = {
     'bom-ref': root_ref,
@@ -526,7 +633,34 @@ def build_sbom(node_version, components, lib_files):
     'purl': f'pkg:generic/nodejs/node@{node_version}',
   }
 
-  return {
+  properties = [{
+    'name': 'nodejs:bundled-lib-files',
+    'value': json.dumps(lib_files),
+  }]
+  # The raw version line is kept as a property so nothing is lost when the
+  # parsed component version is imprecise.
+  compilers = build_env.get('compilers', [])
+  properties.extend({
+    'name': f'nodejs:{c["name"]}-version',
+    'value': c['output'],
+  } for c in compilers)
+
+  git_sha = build_env.get('git_sha')
+  if git_sha:
+    properties.append({'name': 'nodejs:git-sha', 'value': git_sha})
+    if git_sha != NOT_AVAILABLE:
+      # Pins the exact source tree, which the purl version alone does not.
+      root_component['externalReferences'] = [{
+        'type': 'vcs',
+        'url': 'https://github.com/nodejs/node',
+        'comment': f'commit {git_sha}',
+      }]
+  v8_embedder_string = build_env.get('v8_embedder_string')
+  if v8_embedder_string:
+    properties.append({'name': 'nodejs:v8-embedder-string',
+                       'value': v8_embedder_string})
+
+  sbom = {
     '$schema': 'http://cyclonedx.org/schema/bom-1.7.schema.json',
     'bomFormat': 'CycloneDX',
     'specVersion': '1.7',
@@ -545,10 +679,7 @@ def build_sbom(node_version, components, lib_files):
         }],
       },
       'component': root_component,
-      'properties': [{
-        'name': 'nodejs:bundled-lib-files',
-        'value': json.dumps(lib_files),
-      }],
+      'properties': properties,
     },
     'components': components,
     'dependencies': [
@@ -561,6 +692,20 @@ def build_sbom(node_version, components, lib_files):
       *({'ref': c['bom-ref'], 'dependsOn': []} for c in components),
     ],
   }
+
+  if compilers:
+    sbom['formulation'] = [{
+      'bom-ref': 'build-environment',
+      'components': [{
+        'bom-ref': f'build-environment:{c["name"]}',
+        'type': 'application',
+        'name': c['name'],
+        'version': (c['output'] if c['output'] == NOT_AVAILABLE
+                    else _parse_version(c['output'])),
+        'description': f'Build tool from `{c["command"]}`',
+      } for c in compilers],
+    }]
+  return sbom
 
 
 def validate_sbom(path):
@@ -620,7 +765,8 @@ def generate_sbom(config_vars, node_version):
     components.append(build_component(dep, version, scope))
 
   return build_sbom(node_version, components,
-                    config_vars.get('node_library_files', []))
+                    config_vars.get('node_library_files', []),
+                    collect_build_environment(REPO_ROOT, config_vars))
 
 
 def main():
