@@ -1025,3 +1025,87 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
   assert.deepStrictEqual(result, expected);
   process.argv = holdArgv;
 });
+
+test('explicit option starting with "no-" is not treated as negation when allowNegative is true', () => {
+  const options = {
+    'color': { type: 'boolean' },
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean' },
+    'no-warnings': { type: 'boolean', short: 'W', default: false },
+  };
+  const result = parseArgs({
+    args: ['--no-color', '--no-logfile', '-W'],
+    options,
+    allowNegative: true,
+    tokens: true,
+  });
+  const expected = {
+    values: {
+      '__proto__': null,
+      'color': false,
+      'no-logfile': true,
+      'no-warnings': true,
+    },
+    positionals: [],
+    tokens: [
+      {
+        kind: 'option',
+        name: 'color',
+        rawName: '--no-color',
+        index: 0,
+        value: undefined,
+        inlineValue: undefined,
+      },
+      {
+        kind: 'option',
+        name: 'no-logfile',
+        rawName: '--no-logfile',
+        index: 1,
+        value: undefined,
+        inlineValue: undefined,
+      },
+      {
+        kind: 'option',
+        name: 'no-warnings',
+        rawName: '-W',
+        index: 2,
+        value: undefined,
+        inlineValue: undefined,
+      },
+    ],
+  };
+  assert.deepStrictEqual(result, expected);
+});
+
+test('explicit boolean option starting with "no-" can itself be negated with "--no-no-"', () => {
+  const options = {
+    'no-warnings': { type: 'boolean', default: true },
+  };
+  const result = parseArgs({
+    args: ['--no-no-warnings'],
+    options,
+    allowNegative: true,
+  });
+  const expected = {
+    values: { '__proto__': null, 'no-warnings': false },
+    positionals: [],
+  };
+  assert.deepStrictEqual(result, expected);
+});
+
+test('strict:false with allowNegative does not negate configured string option or __proto__', () => {
+  const options = {
+    alpha: { type: 'string' },
+  };
+  const result = parseArgs({
+    args: ['--alpha', 'val', '--no-alpha', '--no-__proto__'],
+    options,
+    strict: false,
+    allowNegative: true,
+  });
+  const expected = {
+    values: { '__proto__': null, 'alpha': 'val', 'no-alpha': true },
+    positionals: [],
+  };
+  assert.deepStrictEqual(result, expected);
+});
