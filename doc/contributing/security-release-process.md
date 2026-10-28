@@ -79,6 +79,13 @@ The current security stewards are documented in the main Node.js
   * Make sure to have a green CI before requesting a CVE.
   * Check if there is a need to issue a CVE for any version that became
     EOL after the last security release through [this issue](https://github.com/nodejs/security-wg/issues/1419).
+  * If `cve_source: openjs-cna` is set in `.ncurc`, the CVE ids are reserved
+    through the [OpenJS Foundation CNA][] instead of HackerOne. The HackerOne
+    report is updated with the id either way. On a supervised bucket the
+    reservation waits for a CNA coordinator; the command saves the pending
+    request in `vulnerabilities.json` and can be re-run to resume it.
+    Publication to MITRE then happens from the [security-release][]
+    repository, see [Post-Release](#post-release).
 
 * [ ] 5\. **Choosing or Updating Release Date:**
   * Get agreement on the planned date for the release.
@@ -177,7 +184,8 @@ security announcements for more information.
   * Close HackerOne reports:
     * Close Resolved
     * Request Disclosure
-    * Request publication of H1 CVE requests
+    * Request publication of H1 CVE requests _(skip when the CVEs were
+      reserved through the OpenJS Foundation CNA, see the next step)_
     * In case the reporter doesn't accept the disclosure follow this process:
       Remove the original report reference within the reference text box and
       insert the public URL you would like to be attached to this CVE.
@@ -187,6 +195,22 @@ security announcements for more information.
   * PR machine-readable JSON descriptions of the vulnerabilities to the [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
     vulnerability DB.
   * [ ] Add yourself as a steward in the [Security Release Stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards)
+
+* [ ] 2\. **Publish CVEs to MITRE (OpenJS Foundation CNA path only):**
+  * Skip this step if `cve_source` is `hackerone` (the default): HackerOne
+    publishes to MITRE automatically during disclosure.
+  * Merging the security release pull request in the [security-release][]
+    repository triggers its `Publish CVEs` workflow. It publishes every
+    reserved CVE listed in `vulnerabilities.json` through the OpenJS
+    Foundation CNA. Nothing has to be run by hand.
+  * The workflow refuses to publish until every patched version is available
+    on <https://nodejs.org/dist/>, so do not expect records before the
+    release is out, and do not merge the pull request earlier than usual.
+  * [ ] Check the workflow run summary. A failed run opens an issue in the
+    `security-release` repository assigned to the CNA coordinator and to the
+    person who merged, with the per-CVE details to forward to the OpenJS CNA.
+  * Records appear on <https://www.cve.org/> about 15 minutes after a
+    successful run.
 
 ## Adding a security revert option
 
@@ -248,7 +272,7 @@ then we later change the `fixed in` value for the CVE.
 
 ### Updating CVEs
 
-The steps to correct CVE information are:
+For CVEs issued by HackerOne, the steps to correct CVE information are:
 
 * Go to the “CVE IDs” section in your program
   sections (<https://hackerone.com/nodejs/cve_requests>)
@@ -257,4 +281,9 @@ The steps to correct CVE information are:
 * Include all the details that need updating within the form
 * Submit the request
 
+For CVEs issued by the OpenJS Foundation CNA, fix `vulnerabilities.json` in
+the [security-release][] repository and ask the OpenJS CNA coordinators to
+update the record. Automatic updates are planned, see the repository README.
+
+[OpenJS Foundation CNA]: https://github.com/openjs-foundation/security-advisories
 [security-release]: https://github.com/nodejs-private/security-release
