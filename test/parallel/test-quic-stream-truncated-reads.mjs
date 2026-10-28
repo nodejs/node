@@ -3,8 +3,8 @@
 // Test: a stream read that ends without a FIN is a truncation. What the read
 // reports is decided in this order:
 //
-//   1. the peer reset the stream with a non-zero code: ERR_QUIC_STREAM_RESET
-//      carrying that code, under either policy;
+//   1. the peer reset the stream with an application error code:
+//      ERR_QUIC_STREAM_RESET carrying that code, under either policy;
 //   2. the stream was already being torn down and its closed promise rejected:
 //      that same error, under either policy;
 //   3. otherwise the truncation carries no error of its own and the
@@ -53,8 +53,8 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
   assert.strictEqual(threw, undefined);
 }
 
-// A peer reset with a nonzero code is rule 1: an error under either policy,
-// carrying the peer's code. It also rejects the closed promise on both sides.
+// A peer reset whose code represents an application error is rule 1 under
+// either policy, carrying the peer's code. It also rejects closed on both sides.
 {
   const serverClosed = Promise.withResolvers();
   const { received, threw, closedError } = await readStream(async (stream) => {

@@ -284,11 +284,11 @@ class QuicError final : public MemoryRetainer {
 
   std::string ToString() const;
 
-  // Returns an array containing [type, code, reason], where type is a string
-  // representation of the error type, code is a bigint representation of the
-  // error code, and reason is a string representation of the error reason, or
-  // undefined if the reason is the empty string. This is expected to be used
-  // to construct a JS error object from the information in JS.
+  // Returns an array containing [type, code, reason, name], where type is a
+  // string representation of the error type, code is a bigint representation
+  // of the error code, and reason and name are strings or undefined. This is a
+  // lossless representation; whether the code means "no error" depends on the
+  // negotiated application and is determined by Session.
   v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;
   inline v8::MaybeLocal<v8::Value> ToV8Value(Realm* realm) const {
     return ToV8Value(realm->env());
