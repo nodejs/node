@@ -54,7 +54,7 @@ jobs:
               AFTER=$(wc -l < "requisites-${PLATFORM}-after.list")
               TOTAL_AFTER=$(($TOTAL_AFTER + $AFTER))
               DIFF="_no changes_"
-              [ "$BEFORE" = "$AFTER" ] || DIFF="**$([ "$AFTER" < "$BEFORE" ] || echo '+')$(($AFTER - $BEFORE))**"
+              [ "$BEFORE" = "$AFTER" ] || DIFF="**$([ "$AFTER" -lt "$BEFORE" ] || echo '+')$(($AFTER - $BEFORE))**"
               CHANGED=$(git diff --no-index "requisites-${PLATFORM}-before.list" "requisites-${PLATFORM}-after.list" | grep -c '^+[^+]')
               TOTAL_CHANGED=$(($TOTAL_CHANGED + $CHANGED))
               PERCENT=100
@@ -68,7 +68,7 @@ jobs:
             done
 
             DIFF="_no changes_"
-            [ "$TOTAL_BEFORE" = "$TOTAL_AFTER" ] || DIFF="**$([ "$TOTAL_AFTER" < "$TOTAL_BEFORE" ] || echo '+')$(($TOTAL_AFTER - $TOTAL_BEFORE))**"
+            [ "$TOTAL_BEFORE" = "$TOTAL_AFTER" ] || DIFF="**$([ "$TOTAL_AFTER" -lt "$TOTAL_BEFORE" ] || echo '+')$(($TOTAL_AFTER - $TOTAL_BEFORE))**"
             PERCENT=100
             [ "$TOTAL_CHANGED" = "$TOTAL_AFTER" ] || {
               PERMILLE=$((1000 * $TOTAL_CHANGED / $TOTAL_AFTER))
