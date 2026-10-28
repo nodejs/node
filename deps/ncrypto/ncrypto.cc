@@ -326,14 +326,22 @@ constexpr BoringSSLCipher kBoringSSLCiphers[] = {
 
 // ============================================================================
 
+namespace {
+// ERR_clear_error() resets every slot of the error queue even when it is
+// empty, which costs several times more than checking for an error first.
+void ClearErrorQueue() {
+  if (ERR_peek_error() != 0) ERR_clear_error();
+}
+}  // namespace
+
 ClearErrorOnReturn::ClearErrorOnReturn(CryptoErrorList* errors)
     : errors_(errors) {
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 ClearErrorOnReturn::~ClearErrorOnReturn() {
   if (errors_ != nullptr) errors_->capture();
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 unsigned long ClearErrorOnReturn::peekError() {  // NOLINT(runtime/int)
