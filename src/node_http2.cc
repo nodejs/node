@@ -2442,8 +2442,8 @@ void Http2Stream::CompleteDestroyCleanup() {
   // may still be some pending operations queued for this stream.
   BaseObjectPtr<Http2Stream> strong_ref = session_->RemoveStream(id_);
   if (strong_ref) {
-    env()->SetImmediate([this, strong_ref = std::move(strong_ref)](
-        Environment* env) {
+    env()->SetImmediate([this,
+                         strong_ref = std::move(strong_ref)](Environment* env) {
       // Free any remaining outgoing data chunks here. This should be done
       // here because it's possible for destroy to have been called while
       // we still have queued outbound writes.
