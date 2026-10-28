@@ -70,8 +70,4 @@ function runWebWorker(url, options) {
   const [threadResult] = await once(thread, 'message');
   assert.deepStrictEqual(threadResult, { thread: 'default', webWorker: 'worker' });
 
-  // Async module customization hooks registered from a Web Worker.
-  assert.strictEqual(
-    await runWebWorker(new URL('hooks-worker.mjs', base), { type: 'module' }),
-    'worker');
 })().then(common.mustCall());

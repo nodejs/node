@@ -1362,7 +1362,7 @@ static Maybe<void> DefaultImportMetaObjectInitializer(Realm* realm,
   }
 
   // Set a lazy getter of import.meta.resolve - only if the initializer is set,
-  // which is only the case when run on a non-loader-hook thread.
+  // which happens once the cascaded loader has been initialized.
   Local<Function> import_meta_resolve_initializer =
       realm->host_import_meta_resolve_initializer();
   if (!import_meta_resolve_initializer.IsEmpty() &&
