@@ -371,8 +371,9 @@ changes:
 
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
 method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
-whenever Node.js compiles a CommonJS, an ECMAScript Module, or a TypeScript module, it will
-use on-disk [V8 code cache][] persisted in the specified directory to speed up the compilation.
+whenever Node.js compiles a CommonJS, an ECMAScript Module, a TypeScript module, or a
+WebAssembly module, it will use on-disk [V8 code cache][] persisted in the specified
+directory to speed up the compilation.
 This may slow down the first load of a module graph, but subsequent loads of the same module
 graph may get a significant speedup if the contents of the modules do not change.
 
@@ -432,6 +433,25 @@ There are two ways to enable the portable mode:
    ```
 
 2. Setting the environment variable: [`NODE_COMPILE_CACHE_PORTABLE=1`][]
+
+### WebAssembly modules in the compile cache
+
+For WebAssembly modules loaded through the ES module integration, the compile cache stores
+the machine code that V8 has generated for the module when it is compiled. V8 only
+serializes code produced by its optimizing compiler. By default WebAssembly functions are
+compiled lazily with a baseline compiler and only optimized once they run hot, so at the time
+a module is compiled there is typically no optimized code and no cache entry is written.
+
+To cache WebAssembly modules, compile all functions with the optimizing compiler when the
+module is created:
+
+```console
+$ NODE_COMPILE_CACHE=/path/to/cache node --no-liftoff --no-wasm-lazy-compilation app.js
+```
+
+This makes the first, uncached load of a module slower in exchange for later loads skipping
+compilation entirely. Since V8 flags are part of the cache key, the same flags must be
+used for all processes sharing the cache.
 
 ### Read-only compile cache
 
