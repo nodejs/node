@@ -102,6 +102,24 @@ def _parse_version(output):
   return match.group(0) if match else output
 
 
+def get_apple_clang_llvm_version(version_output):
+  """Return the inferred upstream LLVM major version for Apple Clang, or None.
+
+  Apple encodes the LLVM major version in the build number inside parentheses:
+    Apple clang version 21.0.0 (clang-2100.3.34.2)
+                                        ^^^^
+  LLVM major = first 4+-digit cluster after 'clang-' // 100.
+  Returns None if the output is not from Apple Clang or the build number
+  cannot be parsed.
+  """
+  if not version_output or 'Apple clang' not in version_output:
+    return None
+  m = re.search(r'clang-(\d{4,})', version_output)
+  if not m:
+    return None
+  return str(int(m.group(1)) // 100)
+
+
 def get_git_sha(root):
   """Return (alg, digest) for the commit `root` is checked out at.
 
@@ -810,9 +828,15 @@ def build_sbom(node_version, components, lib_files, build_env=None):
                     else _parse_version(c['output'])),
         'description': f'Build tool from `{c["command"]}`',
       }
+      comp_props = []
       if pkg_version != NOT_AVAILABLE:
-        comp['properties'] = [{'name': 'nodejs:package-version',
-                                'value': pkg_version}]
+        comp_props.append({'name': 'nodejs:package-version',
+                           'value': pkg_version})
+      llvm_ver = get_apple_clang_llvm_version(c.get('output', ''))
+      if llvm_ver:
+        comp_props.append({'name': 'nodejs:llvm-version', 'value': llvm_ver})
+      if comp_props:
+        comp['properties'] = comp_props
       formula_components.append(comp)
   glibc_version = build_env.get('glibc_version')
   if glibc_version and glibc_version != NOT_AVAILABLE:

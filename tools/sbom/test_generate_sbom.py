@@ -287,6 +287,27 @@ class TestBuildSbom(unittest.TestCase):
     self.assertEqual(components[0]['type'], 'application')
     self.assertIn('ccache gcc', components[0]['description'])
 
+  def test_apple_clang_emits_llvm_version_property(self):
+    build_env = {'compilers': [
+      {'name': 'cc', 'command': 'cc',
+       'output': 'Apple clang version 21.0.0 (clang-2100.3.34.2)'},
+    ]}
+    doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    cc_comp = doc['formulation'][0]['components'][0]
+    self.assertEqual(cc_comp['version'], '21.0.0')
+    props = {p['name']: p['value'] for p in cc_comp.get('properties', [])}
+    self.assertEqual(props['nodejs:llvm-version'], '21')
+
+  def test_non_apple_clang_omits_llvm_version_property(self):
+    build_env = {'compilers': [
+      {'name': 'cc', 'command': 'gcc',
+       'output': 'gcc (GCC) 13.2.1 20240101'},
+    ]}
+    doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    cc_comp = doc['formulation'][0]['components'][0]
+    props = {p['name']: p['value'] for p in cc_comp.get('properties', [])}
+    self.assertNotIn('nodejs:llvm-version', props)
+
   def test_git_sha1_and_embedder_string_are_emitted(self):
     sha = 'a' * 40
     doc = sbom.build_sbom('27.0.0', [], [],
@@ -563,6 +584,37 @@ class TestParseVersion(unittest.TestCase):
 
   def test_falls_back_to_input(self):
     self.assertEqual(sbom._parse_version('mystery tool'), 'mystery tool')
+
+
+class TestGetAppleClangLlvmVersion(unittest.TestCase):
+
+  def test_extracts_llvm_major_from_build_number(self):
+    # clang-2100 -> LLVM 21
+    self.assertEqual(
+      sbom.get_apple_clang_llvm_version(
+        'Apple clang version 21.0.0 (clang-2100.3.34.2)'),
+      '21')
+
+  def test_extracts_llvm_major_xcode_16(self):
+    # clang-1600 -> LLVM 16
+    self.assertEqual(
+      sbom.get_apple_clang_llvm_version(
+        'Apple clang version 16.0.0 (clang-1600.0.26.4)'),
+      '16')
+
+  def test_returns_none_for_non_apple_clang(self):
+    self.assertIsNone(
+      sbom.get_apple_clang_llvm_version('gcc (GCC) 13.2.1 20240101'))
+    self.assertIsNone(
+      sbom.get_apple_clang_llvm_version('clang version 18.0.0'))
+
+  def test_returns_none_for_empty_or_none(self):
+    self.assertIsNone(sbom.get_apple_clang_llvm_version(''))
+    self.assertIsNone(sbom.get_apple_clang_llvm_version(None))
+
+  def test_returns_none_when_build_number_missing(self):
+    self.assertIsNone(
+      sbom.get_apple_clang_llvm_version('Apple clang version 21.0.0'))
 
 
 class TestCollectBuildEnvironment(unittest.TestCase):
