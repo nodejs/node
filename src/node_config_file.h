@@ -23,7 +23,7 @@ namespace node {
 enum ParseResult { Valid, FileError, InvalidContent };
 
 // ConfigReader is the class that parses the configuration JSON file.
-// It reads the file provided by --experimental-config-file and
+// It reads the file provided by --config-file and
 // extracts the flags.
 class ConfigReader {
  public:
@@ -39,6 +39,14 @@ class ConfigReader {
   size_t GetFlagsSize();
 
  private:
+  ParseResult ParseConfigObject(simdjson::ondemand::object* config_object,
+                                const std::string_view& config_path,
+                                bool allow_version_selection);
+  ParseResult ParseNodeVersion(simdjson::ondemand::value* version_value,
+                               const std::string_view& config_path);
+  ParseResult ParseConfigs(simdjson::ondemand::array* configs,
+                           const std::string_view& config_path);
+
   // Parse options for a specific namespace (including nodeOptions for backward
   // compatibility)
   ParseResult ParseOptions(simdjson::ondemand::object* options_object,
