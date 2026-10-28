@@ -2,7 +2,9 @@ import contextlib
 import io
 import os
 import sys
+import tempfile
 import unittest
+from unittest import mock
 from os import path
 
 ROOT = path.abspath(path.join(path.dirname(__file__), '..', '..'))
@@ -230,12 +232,28 @@ class TestBuildSbom(unittest.TestCase):
     self.assertEqual(doc['metadata']['component']['version'], '27.0.0')
     self.assertEqual(len(doc['components']), 1)
 
-  def test_excluded_components_are_not_root_dependencies(self):
+  def test_root_depends_on_all_given_components(self):
     components = [
       self._component('zlib', '1.3.0'),
-      self._component('googletest', 'unknown', scope='excluded'),
+      self._component('openssl', '3.0.0', scope='optional'),
     ]
     doc = sbom.build_sbom('27.0.0', components, [])
+    root = doc['dependencies'][0]
+    self.assertEqual(root['ref'], 'nodejs@27.0.0')
+    self.assertEqual(root['dependsOn'], ['zlib@1.3.0', 'openssl@3.0.0'])
+
+  def test_generate_omits_excluded_components(self):
+    # Excluded deps are filtered out by generate_sbom() before build_sbom().
+    catalog = [
+      {'name': 'zlib', 'description': '', 'purl_base': 'pkg:generic/zlib',
+       'version_fn': lambda root: '1.3.0'},
+      {'name': 'googletest', 'description': '',
+       'purl_base': 'pkg:generic/googletest', 'scope': 'excluded',
+       'version_fn': lambda root: 'unknown'},
+    ]
+    with mock.patch.object(sbom, 'DEP_CATALOG', catalog):
+      doc = sbom.generate_sbom({}, '27.0.0')
+    self.assertEqual([c['name'] for c in doc['components']], ['zlib'])
     root = doc['dependencies'][0]
     self.assertEqual(root['ref'], 'nodejs@27.0.0')
     self.assertEqual(root['dependsOn'], ['zlib@1.3.0'])
@@ -243,6 +261,237 @@ class TestBuildSbom(unittest.TestCase):
   def test_serial_number_is_unique(self):
     self.assertNotEqual(sbom.build_sbom('27.0.0', [], [])['serialNumber'],
                         sbom.build_sbom('27.0.0', [], [])['serialNumber'])
+
+  def test_build_env_is_optional(self):
+    # An empty build_env adds nothing to the document.
+    without = sbom.build_sbom('27.0.0', [], [])
+    with_env = sbom.build_sbom('27.0.0', [], [], {})
+    for doc in (without, with_env):
+      del doc['serialNumber']
+      del doc['metadata']['timestamp']
+    self.assertEqual(without, with_env)
+
+  def test_compilers_are_emitted(self):
+    build_env = {'compilers': [
+      {'name': 'cc', 'command': 'ccache gcc',
+       'output': 'gcc (GCC) 13.2.1 20240101'},
+      {'name': 'rustc', 'command': 'rustc', 'output': sbom.NOT_AVAILABLE},
+    ]}
+    doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
+    self.assertEqual(props['nodejs:cc-version'], 'gcc (GCC) 13.2.1 20240101')
+    self.assertEqual(props['nodejs:rustc-version'], 'N/A')
+    components = doc['formulation'][0]['components']
+    self.assertEqual([(c['name'], c['version']) for c in components],
+                     [('cc', '13.2.1'), ('rustc', 'N/A')])
+    self.assertEqual(components[0]['type'], 'application')
+    self.assertIn('ccache gcc', components[0]['description'])
+
+  def test_git_sha_and_embedder_string_are_emitted(self):
+    sha = 'a' * 40
+    doc = sbom.build_sbom('27.0.0', [], [],
+                          {'git_sha': sha, 'v8_embedder_string': '-node.15'})
+    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
+    self.assertEqual(props['nodejs:git-sha'], sha)
+    self.assertEqual(props['nodejs:v8-embedder-string'], '-node.15')
+    refs = doc['metadata']['component']['externalReferences']
+    self.assertEqual(refs, [{
+      'type': 'vcs',
+      'url': 'https://github.com/nodejs/node',
+      'comment': 'commit ' + sha,
+    }])
+
+  def test_unknown_git_sha_omits_vcs_reference(self):
+    doc = sbom.build_sbom('27.0.0', [], [],
+                          {'git_sha': sbom.NOT_AVAILABLE,
+                           'v8_embedder_string': sbom.NOT_AVAILABLE})
+    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
+    self.assertEqual(props['nodejs:git-sha'], 'N/A')
+    self.assertEqual(props['nodejs:v8-embedder-string'], 'N/A')
+    self.assertNotIn('externalReferences', doc['metadata']['component'])
+
+  def test_no_git_properties_without_build_env(self):
+    doc = sbom.build_sbom('27.0.0', [], [])
+    names = [p['name'] for p in doc['metadata']['properties']]
+    self.assertEqual(names, ['nodejs:bundled-lib-files'])
+    self.assertNotIn('externalReferences', doc['metadata']['component'])
+
+  def test_no_formulation_without_build_env(self):
+    self.assertNotIn('formulation', sbom.build_sbom('27.0.0', [], []))
+
+
+class TestRun(unittest.TestCase):
+
+  def test_returns_stdout(self):
+    self.assertEqual(sbom._run([sys.executable, '-c', 'print("hi")']), 'hi')
+
+  def test_missing_binary_returns_none(self):
+    self.assertIsNone(sbom._run(['this-binary-does-not-exist-sbom']))
+
+  def test_nonzero_exit_returns_none(self):
+    self.assertIsNone(sbom._run([sys.executable, '-c', 'raise SystemExit(1)']))
+
+  def test_empty_output_returns_none(self):
+    self.assertIsNone(sbom._run([sys.executable, '-c', 'pass']))
+
+  def test_timeout_returns_none(self):
+    self.assertIsNone(sbom._run(
+      [sys.executable, '-c', 'import time; time.sleep(5)'], timeout=0.1))
+
+
+class TestGetCompilerVersion(unittest.TestCase):
+
+  def test_set_and_working(self):
+    with mock.patch.dict(os.environ, {'CC': 'gcc'}), \
+         mock.patch.object(sbom, '_run',
+                           return_value='gcc 13.2.1\nCopyright') as run:
+      result = sbom.get_compiler_version('CC', 'cc')
+    run.assert_called_once_with(['gcc', '--version'])
+    self.assertEqual(result, {'command': 'gcc', 'output': 'gcc 13.2.1'})
+
+  def test_unset_uses_default(self):
+    env = {k: v for k, v in os.environ.items() if k != 'CC'}
+    with mock.patch.dict(os.environ, env, clear=True), \
+         mock.patch.object(sbom, '_run', return_value='cc 1.0') as run:
+      result = sbom.get_compiler_version('CC', 'cc')
+    run.assert_called_once_with(['cc', '--version'])
+    self.assertEqual(result['command'], 'cc')
+    self.assertEqual(result['output'], 'cc 1.0')
+
+  def test_empty_variable_uses_default(self):
+    with mock.patch.dict(os.environ, {'CC': ''}), \
+         mock.patch.object(sbom, '_run', return_value='cc 1.0') as run:
+      sbom.get_compiler_version('CC', 'cc')
+    run.assert_called_once_with(['cc', '--version'])
+
+  def test_missing_binary_is_not_available(self):
+    with mock.patch.dict(os.environ, {'CC': 'nonexistent-cc'}), \
+         mock.patch.object(sbom, '_run', return_value=None):
+      result = sbom.get_compiler_version('CC', 'cc')
+    self.assertEqual(result,
+                     {'command': 'nonexistent-cc', 'output': sbom.NOT_AVAILABLE})
+
+  def test_wrapper_and_flags_are_split(self):
+    with mock.patch.dict(os.environ, {'CC': 'ccache gcc -m64'}), \
+         mock.patch.object(sbom, '_run', return_value='gcc 13') as run:
+      result = sbom.get_compiler_version('CC', 'cc')
+    run.assert_called_once_with(['ccache', 'gcc', '-m64', '--version'])
+    self.assertEqual(result['command'], 'ccache gcc -m64')
+
+  def test_unbalanced_quotes_are_not_available(self):
+    with mock.patch.dict(os.environ, {'CC': 'gcc "unterminated'}), \
+         mock.patch.object(sbom, '_run') as run:
+      result = sbom.get_compiler_version('CC', 'cc')
+    run.assert_not_called()
+    self.assertEqual(result['output'], sbom.NOT_AVAILABLE)
+
+
+class TestGetGitSha(unittest.TestCase):
+
+  def test_valid_sha1(self):
+    sha = '0123456789abcdef' * 2 + '01234567'
+    with mock.patch.object(sbom, '_run', return_value=sha) as run:
+      self.assertEqual(sbom.get_git_sha('/some/root'), sha)
+    run.assert_called_once_with(['git', '-C', '/some/root', 'rev-parse', 'HEAD'])
+
+  def test_valid_sha256(self):
+    sha = 'ab' * 32
+    with mock.patch.object(sbom, '_run', return_value=sha):
+      self.assertEqual(sbom.get_git_sha('.'), sha)
+
+  def test_garbage_is_not_available(self):
+    for output in ('HEAD', 'fatal: not a git repository', 'ABC' * 14,
+                   'g' * 40, 'a' * 39, 'a' * 41, '0' * 40 + '\n' + '0' * 40):
+      with mock.patch.object(sbom, '_run', return_value=output):
+        self.assertEqual(sbom.get_git_sha('.'), sbom.NOT_AVAILABLE, output)
+
+  def test_git_failure_is_not_available(self):
+    with mock.patch.object(sbom, '_run', return_value=None):
+      self.assertEqual(sbom.get_git_sha('.'), sbom.NOT_AVAILABLE)
+
+  def test_outside_a_repository(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      # Stop git searching parent directories for a repository.
+      with mock.patch.dict(os.environ, {'GIT_CEILING_DIRECTORIES': tmp}):
+        self.assertEqual(sbom.get_git_sha(tmp), sbom.NOT_AVAILABLE)
+
+
+class TestGetV8EmbedderString(unittest.TestCase):
+
+  def test_read_from_real_common_gypi(self):
+    value = sbom.get_v8_embedder_string(sbom.REPO_ROOT)
+    self.assertRegex(value, r'^-node\.\d+$')
+
+  def _read(self, content):
+    with tempfile.TemporaryDirectory() as tmp:
+      with open(path.join(tmp, 'common.gypi'), 'w', encoding='utf-8') as f:
+        f.write(content)
+      with contextlib.redirect_stderr(io.StringIO()):
+        return sbom.get_v8_embedder_string(tmp)
+
+  def test_custom_value(self):
+    self.assertEqual(self._read("{'v8_embedder_string': '-custom.2',}"),
+                     '-custom.2')
+
+  def test_missing_variable_is_not_available(self):
+    self.assertEqual(self._read("{'other': 'x'}"), sbom.NOT_AVAILABLE)
+
+  def test_empty_value_is_not_available(self):
+    self.assertEqual(self._read("{'v8_embedder_string': '',}"),
+                     sbom.NOT_AVAILABLE)
+
+  def test_missing_file_is_not_available(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      with contextlib.redirect_stderr(io.StringIO()):
+        self.assertEqual(sbom.get_v8_embedder_string(tmp), sbom.NOT_AVAILABLE)
+
+
+class TestParseVersion(unittest.TestCase):
+
+  def test_extracts_dotted_version(self):
+    self.assertEqual(sbom._parse_version('gcc (GCC) 13.2.1 2024'), '13.2.1')
+    self.assertEqual(sbom._parse_version('rustc 1.85.0 (abc 2025-01-01)'),
+                     '1.85.0')
+
+  def test_falls_back_to_input(self):
+    self.assertEqual(sbom._parse_version('mystery tool'), 'mystery tool')
+
+
+class TestCollectBuildEnvironment(unittest.TestCase):
+
+  def test_reports_all_tools(self):
+    with mock.patch.object(sbom, '_run', return_value='tool 1.2.3'):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    self.assertEqual([c['name'] for c in env['compilers']],
+                     ['cc', 'cxx', 'rustc', 'cargo'])
+    self.assertTrue(all(c['output'] == 'tool 1.2.3'
+                        for c in env['compilers']))
+
+  def test_reports_git_sha_and_embedder_string(self):
+    sha = 'c' * 40
+    with mock.patch.object(sbom, '_run', return_value=sha):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    self.assertEqual(env['git_sha'], sha)
+    self.assertRegex(env['v8_embedder_string'], r'^-node\.\d+$')
+
+  def test_all_tools_missing(self):
+    with mock.patch.object(sbom, '_run', return_value=None):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    self.assertTrue(all(c['output'] == sbom.NOT_AVAILABLE
+                        for c in env['compilers']))
+
+  def test_platform_defaults(self):
+    for platform, cc, cxx in (('darwin', 'cc', 'c++'),
+                              ('win32', 'clang', 'clang'),
+                              ('linux', 'gcc', 'g++')):
+      env = {k: v for k, v in os.environ.items()
+             if k not in ('CC', 'CXX')}
+      with mock.patch.dict(os.environ, env, clear=True), \
+           mock.patch.object(sys, 'platform', platform), \
+           mock.patch.object(sbom, '_run', return_value='x 1.0'):
+        result = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+      commands = {c['name']: c['command'] for c in result['compilers']}
+      self.assertEqual((commands['cc'], commands['cxx']), (cc, cxx), platform)
 
 
 if __name__ == '__main__':
