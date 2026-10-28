@@ -359,21 +359,6 @@
               "type": "boolean",
               "description": "experimental support for importing source as text with import attributes"
             },
-            "experimental-loader": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ],
-              "description": "use the specified module as a custom loader"
-            },
             "experimental-package-map": {
               "type": "string",
               "description": "use the specified file for package map resolution"

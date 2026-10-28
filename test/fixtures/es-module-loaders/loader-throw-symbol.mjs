@@ -1,1 +1,0 @@
-throw Symbol('symbol descriptor');

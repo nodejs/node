@@ -854,11 +854,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             true);
   AddOption("--experimental-global-webcrypto", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-loader",
-            "use the specified module as a custom loader",
-            &EnvironmentOptions::userland_loaders,
-            kAllowedInEnvvar);
-  AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-import-text",
