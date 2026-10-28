@@ -287,10 +287,11 @@ class TestBuildSbom(unittest.TestCase):
     self.assertEqual(components[0]['type'], 'application')
     self.assertIn('ccache gcc', components[0]['description'])
 
-  def test_git_sha_and_embedder_string_are_emitted(self):
+  def test_git_sha1_and_embedder_string_are_emitted(self):
     sha = 'a' * 40
     doc = sbom.build_sbom('27.0.0', [], [],
-                          {'git_sha': sha, 'v8_embedder_string': '-node.15'})
+                          {'git_alg': 'SHA-1', 'git_sha': sha,
+                           'v8_embedder_string': '-node.15'})
     props = {p['name']: p['value'] for p in doc['metadata']['properties']}
     self.assertEqual(props['nodejs:git-sha'], sha)
     self.assertEqual(props['nodejs:v8-embedder-string'], '-node.15')
@@ -298,15 +299,28 @@ class TestBuildSbom(unittest.TestCase):
     self.assertEqual(refs, [{
       'type': 'vcs',
       'url': 'https://github.com/nodejs/node',
-      'comment': 'commit ' + sha,
+      'hashes': [{'alg': 'SHA-1', 'content': sha}],
+    }])
+
+  def test_git_sha256_is_emitted_with_correct_alg(self):
+    sha = 'b' * 64
+    doc = sbom.build_sbom('27.0.0', [], [],
+                          {'git_alg': 'SHA-256', 'git_sha': sha,
+                           'v8_embedder_string': '-node.15'})
+    refs = doc['metadata']['component']['externalReferences']
+    self.assertEqual(refs, [{
+      'type': 'vcs',
+      'url': 'https://github.com/nodejs/node',
+      'hashes': [{'alg': 'SHA-256', 'content': sha}],
     }])
 
   def test_unknown_git_sha_omits_vcs_reference(self):
     doc = sbom.build_sbom('27.0.0', [], [],
                           {'git_sha': sbom.NOT_AVAILABLE,
+                           'git_alg': sbom.NOT_AVAILABLE,
                            'v8_embedder_string': sbom.NOT_AVAILABLE})
     props = {p['name']: p['value'] for p in doc['metadata']['properties']}
-    self.assertEqual(props['nodejs:git-sha'], 'N/A')
+    self.assertNotIn('nodejs:git-sha', props)
     self.assertEqual(props['nodejs:v8-embedder-string'], 'N/A')
     self.assertNotIn('externalReferences', doc['metadata']['component'])
 
@@ -419,29 +433,32 @@ class TestGetGitSha(unittest.TestCase):
   def test_valid_sha1(self):
     sha = '0123456789abcdef' * 2 + '01234567'
     with mock.patch.object(sbom, '_run', return_value=sha) as run:
-      self.assertEqual(sbom.get_git_sha('/some/root'), sha)
+      self.assertEqual(sbom.get_git_sha('/some/root'), ('SHA-1', sha))
     run.assert_called_once_with(['git', '-C', '/some/root', 'rev-parse', 'HEAD'])
 
   def test_valid_sha256(self):
     sha = 'ab' * 32
     with mock.patch.object(sbom, '_run', return_value=sha):
-      self.assertEqual(sbom.get_git_sha('.'), sha)
+      self.assertEqual(sbom.get_git_sha('.'), ('SHA-256', sha))
 
   def test_garbage_is_not_available(self):
     for output in ('HEAD', 'fatal: not a git repository', 'ABC' * 14,
                    'g' * 40, 'a' * 39, 'a' * 41, '0' * 40 + '\n' + '0' * 40):
       with mock.patch.object(sbom, '_run', return_value=output):
-        self.assertEqual(sbom.get_git_sha('.'), sbom.NOT_AVAILABLE, output)
+        self.assertEqual(sbom.get_git_sha('.'),
+                         (sbom.NOT_AVAILABLE, sbom.NOT_AVAILABLE), output)
 
   def test_git_failure_is_not_available(self):
     with mock.patch.object(sbom, '_run', return_value=None):
-      self.assertEqual(sbom.get_git_sha('.'), sbom.NOT_AVAILABLE)
+      self.assertEqual(sbom.get_git_sha('.'),
+                       (sbom.NOT_AVAILABLE, sbom.NOT_AVAILABLE))
 
   def test_outside_a_repository(self):
     with tempfile.TemporaryDirectory() as tmp:
       # Stop git searching parent directories for a repository.
       with mock.patch.dict(os.environ, {'GIT_CEILING_DIRECTORIES': tmp}):
-        self.assertEqual(sbom.get_git_sha(tmp), sbom.NOT_AVAILABLE)
+        self.assertEqual(sbom.get_git_sha(tmp),
+                         (sbom.NOT_AVAILABLE, sbom.NOT_AVAILABLE))
 
 
 class TestGetV8EmbedderString(unittest.TestCase):
@@ -571,6 +588,7 @@ class TestCollectBuildEnvironment(unittest.TestCase):
     with mock.patch.object(sbom, '_run', return_value=sha):
       env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
     self.assertEqual(env['git_sha'], sha)
+    self.assertEqual(env['git_alg'], 'SHA-1')
     self.assertRegex(env['v8_embedder_string'], r'^-node\.\d+$')
 
   def test_reports_builder(self):
