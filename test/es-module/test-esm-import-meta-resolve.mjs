@@ -94,7 +94,10 @@ await assert.rejects(import('data:text/javascript,export default import.meta.res
   const result = await spawnPromisified(execPath, [
     '--no-warnings',
     '--input-type=module',
-    '--import', 'data:text/javascript,import{register}from"node:module";register("data:text/javascript,")',
+    '--import', 'data:text/javascript,' + encodeURIComponent(
+      'import { registerHooks } from "node:module";' +
+      'registerHooks({ resolve: (s, c, next) => next(s, c) });',
+    ),
     '--eval',
     'console.log(import.meta.resolve(new URL("http://example.com")))',
   ]);
