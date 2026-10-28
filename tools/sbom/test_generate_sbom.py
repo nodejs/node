@@ -329,6 +329,24 @@ class TestBuildSbom(unittest.TestCase):
   def test_no_formulation_without_build_env(self):
     self.assertNotIn('formulation', sbom.build_sbom('27.0.0', [], []))
 
+  def test_configure_command_is_a_formulation_property(self):
+    doc = sbom.build_sbom('27.0.0', [], [],
+                          {'configure_command': './configure --debug'})
+    formula = doc['formulation'][0]
+    self.assertNotIn('components', formula)
+    self.assertEqual(formula['properties'],
+                     [{'name': 'nodejs:configure-command',
+                       'value': './configure --debug'}])
+
+  def test_configure_command_alongside_compilers(self):
+    doc = sbom.build_sbom('27.0.0', [], [], {
+      'compilers': [{'name': 'cc', 'command': 'gcc', 'output': 'gcc 13.2.1'}],
+      'configure_command': sbom.NOT_AVAILABLE,
+    })
+    formula = doc['formulation'][0]
+    self.assertEqual(len(formula['components']), 1)
+    self.assertEqual(formula['properties'][0]['value'], 'N/A')
+
 
 class TestRun(unittest.TestCase):
 
@@ -456,6 +474,49 @@ class TestGetV8EmbedderString(unittest.TestCase):
         self.assertEqual(sbom.get_v8_embedder_string(tmp), sbom.NOT_AVAILABLE)
 
 
+class TestGetConfigureCommand(unittest.TestCase):
+
+  def _command_for(self, content):
+    with tempfile.TemporaryDirectory() as tmp:
+      if content is not None:
+        with open(path.join(tmp, 'config.status'), 'w',
+                  encoding='utf-8') as f:
+          f.write(content)
+      with contextlib.redirect_stderr(io.StringIO()):
+        return sbom.get_configure_command(tmp)
+
+  def test_typical_file(self):
+    content = ("#!/bin/sh\nset -x\nexec ./configure --prefix=/opt/node "
+               "--without-intl\n")
+    self.assertEqual(self._command_for(content),
+                     './configure --prefix=/opt/node --without-intl')
+
+  def test_no_arguments(self):
+    self.assertEqual(self._command_for('#!/bin/sh\nset -x\nexec ./configure \n'),
+                     './configure')
+
+  def test_quoted_arguments_with_spaces(self):
+    content = ("#!/bin/sh\nset -x\nexec ./configure "
+               "'--prefix=/opt/my node' --debug\n")
+    self.assertEqual(self._command_for(content),
+                     "./configure '--prefix=/opt/my node' --debug")
+
+  def test_argument_containing_newline(self):
+    content = "#!/bin/sh\nset -x\nexec ./configure 'a\nb' --debug\n"
+    self.assertEqual(self._command_for(content),
+                     "./configure 'a\nb' --debug")
+
+  def test_missing_file_is_not_available(self):
+    self.assertEqual(self._command_for(None), sbom.NOT_AVAILABLE)
+
+  def test_malformed_content_is_not_available(self):
+    for content in ('', 'garbage\n', '#!/bin/sh\nset -x\n',
+                    '#!/bin/sh\nexec ./other --debug\n',
+                    "#!/bin/sh\nexec ./configure 'unbalanced\n"):
+      self.assertEqual(self._command_for(content), sbom.NOT_AVAILABLE,
+                       repr(content))
+
+
 class TestGetBuilderName(unittest.TestCase):
 
   def test_returns_hostname(self):
@@ -488,6 +549,14 @@ class TestParseVersion(unittest.TestCase):
 
 
 class TestCollectBuildEnvironment(unittest.TestCase):
+
+  def test_reports_configure_command(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      with open(path.join(tmp, 'config.status'), 'w', encoding='utf-8') as f:
+        f.write('#!/bin/sh\nset -x\nexec ./configure --debug\n')
+      with contextlib.redirect_stderr(io.StringIO()):
+        env = sbom.collect_build_environment(tmp, {})
+    self.assertEqual(env['configure_command'], './configure --debug')
 
   def test_reports_all_tools(self):
     with mock.patch.object(sbom, '_run', return_value='tool 1.2.3'):
