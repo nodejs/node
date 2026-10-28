@@ -1026,86 +1026,139 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
   process.argv = holdArgv;
 });
 
-test('explicit option starting with "no-" is not treated as negation when allowNegative is true', () => {
-  const options = {
-    'color': { type: 'boolean' },
-    'logfile': { type: 'string' },
-    'no-logfile': { type: 'boolean' },
-    'no-warnings': { type: 'boolean', short: 'W', default: false },
-  };
-  const result = parseArgs({
-    args: ['--no-color', '--no-logfile', '-W'],
-    options,
-    allowNegative: true,
-    tokens: true,
+for (const flag of ['--no-logfile', '-L']) {
+  for (const args of [[flag], ['--logfile', 'out.log', flag]]) {
+    test(`strict mode rejects negating an explicit string target: ${args.join(' ')}`, () => {
+      const options = {
+        'logfile': { type: 'string' },
+        'no-logfile': { type: 'boolean', short: 'L' },
+      };
+      assert.throws(() => {
+        parseArgs({ args, options, allowNegative: true });
+      }, {
+        code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+      });
+    });
+  }
+}
+
+for (const flag of ['--no-alpha', '-A']) {
+  test(`strict mode rejects an explicit negative option without a target: ${flag}`, () => {
+    const options = { 'no-alpha': { type: 'boolean', short: 'A' } };
+    assert.throws(() => {
+      parseArgs({ args: [flag], options, allowNegative: true });
+    }, {
+      code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+    });
   });
+}
+
+test('explicit negative boolean options and short aliases retain negated tokens', () => {
+  const args = ['--alpha', '-A', '--no-alpha'];
+  const options = {
+    'alpha': { type: 'boolean', short: 'a' },
+    'no-alpha': { type: 'boolean', short: 'A' },
+  };
   const expected = {
-    values: {
-      '__proto__': null,
-      'color': false,
-      'no-logfile': true,
-      'no-warnings': true,
-    },
+    values: { __proto__: null, alpha: false },
     positionals: [],
     tokens: [
-      {
-        kind: 'option',
-        name: 'color',
-        rawName: '--no-color',
-        index: 0,
-        value: undefined,
-        inlineValue: undefined,
-      },
-      {
-        kind: 'option',
-        name: 'no-logfile',
-        rawName: '--no-logfile',
-        index: 1,
-        value: undefined,
-        inlineValue: undefined,
-      },
-      {
-        kind: 'option',
-        name: 'no-warnings',
-        rawName: '-W',
-        index: 2,
-        value: undefined,
-        inlineValue: undefined,
-      },
+      { kind: 'option', name: 'alpha', rawName: '--alpha',
+        index: 0, value: undefined, inlineValue: undefined },
+      { kind: 'option', name: 'alpha', rawName: '-A',
+        index: 1, value: undefined, inlineValue: undefined },
+      { kind: 'option', name: 'alpha', rawName: '--no-alpha',
+        index: 2, value: undefined, inlineValue: undefined },
     ],
   };
-  assert.deepStrictEqual(result, expected);
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true, tokens: true }), expected);
 });
 
-test('explicit boolean option starting with "no-" can itself be negated with "--no-no-"', () => {
+test('explicit negative aliases use the target multiple setting and replace its default', () => {
+  const args = ['-A', '--alpha', '-A'];
   const options = {
-    'no-warnings': { type: 'boolean', default: true },
+    'alpha': { type: 'boolean', multiple: true, default: [true] },
+    'no-alpha': { type: 'boolean', short: 'A' },
   };
-  const result = parseArgs({
-    args: ['--no-no-warnings'],
-    options,
-    allowNegative: true,
-  });
-  const expected = {
-    values: { '__proto__': null, 'no-warnings': false },
-    positionals: [],
-  };
-  assert.deepStrictEqual(result, expected);
+  const expected = { values: { __proto__: null, alpha: [false, true, false] }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
 });
 
-test('strict:false with allowNegative does not negate configured string option or __proto__', () => {
-  const options = {
-    alpha: { type: 'string' },
-  };
-  const result = parseArgs({
-    args: ['--alpha', 'val', '--no-alpha', '--no-__proto__'],
-    options,
-    strict: false,
-    allowNegative: true,
+test('explicit negative boolean options can themselves be negated', () => {
+  const args = ['--no-no-alpha'];
+  const options = { 'no-alpha': { type: 'boolean', default: true } };
+  const expected = { values: { '__proto__': null, 'no-alpha': false }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
+});
+
+for (const args of [['--no-logfile=out.log'], ['--no-logfile', 'out.log'], ['-L', 'out.log']]) {
+  test(`explicit negative string options retain their values: ${args.join(' ')}`, () => {
+    const options = {
+      'logfile': { type: 'string' },
+      'no-logfile': { type: 'string', short: 'L' },
+    };
+    const expected = { values: { '__proto__': null, 'no-logfile': 'out.log' }, positionals: [] };
+    assert.deepStrictEqual(parseArgs({ args, options, allowNegative: true }), expected);
   });
+}
+
+for (const flag of ['--no-logfile', '-L']) {
+  test(`explicit negative string options still require a value: ${flag}`, () => {
+    const options = {
+      'logfile': { type: 'string' },
+      'no-logfile': { type: 'string', short: 'L' },
+    };
+    assert.throws(() => {
+      parseArgs({ args: [flag], options, allowNegative: true });
+    }, {
+      code: 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE'
+    });
+  });
+}
+
+test('explicit negative boolean options still reject values in strict mode', () => {
+  const args = ['--no-alpha=value'];
+  const options = {
+    'alpha': { type: 'boolean' },
+    'no-alpha': { type: 'boolean' },
+  };
+  assert.throws(() => {
+    parseArgs({ args, options, allowNegative: true });
+  }, {
+    code: 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE'
+  });
+});
+
+test('allowNegative:false preserves explicitly configured negative options', () => {
+  const args = ['--no-alpha', '-A'];
+  const options = {
+    'alpha': { type: 'string', default: 'value' },
+    'no-alpha': { type: 'boolean', short: 'A', default: false },
+  };
+  const expected = { values: { '__proto__': null, 'alpha': 'value', 'no-alpha': true }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, allowNegative: false }), expected);
+});
+
+test('strict:false preserves negation of explicit string and unknown targets', () => {
+  const args = ['--logfile', 'out.log', '--no-logfile', '-L', '--no-warnings', '-W', '--no-other'];
+  const options = {
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean', short: 'L' },
+    'no-warnings': { type: 'boolean', short: 'W' },
+  };
   const expected = {
-    values: { '__proto__': null, 'alpha': 'val', 'no-alpha': true },
+    values: { __proto__: null, logfile: false, warnings: false, other: false },
     positionals: [],
   };
-  assert.deepStrictEqual(result, expected);
+  assert.deepStrictEqual(parseArgs({ args, options, strict: false, allowNegative: true }), expected);
+});
+
+test('strict:false preserves explicit values on negative boolean options', () => {
+  const args = ['--no-alpha=value'];
+  const options = {
+    'alpha': { type: 'boolean' },
+    'no-alpha': { type: 'boolean' },
+  };
+  const expected = { values: { '__proto__': null, 'no-alpha': 'value' }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args, options, strict: false, allowNegative: true }), expected);
 });
