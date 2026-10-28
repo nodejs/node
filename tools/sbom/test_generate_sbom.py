@@ -6,7 +6,7 @@ import unittest
 from os import path
 
 ROOT = path.abspath(path.join(path.dirname(__file__), '..', '..'))
-sys.path.insert(0, path.join(ROOT, 'tools'))
+sys.path.insert(0, path.join(ROOT, 'tools', 'sbom'))
 import generate_sbom as sbom
 
 
