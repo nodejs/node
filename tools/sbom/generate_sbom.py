@@ -15,8 +15,10 @@ import datetime
 import glob
 import json
 import os
+import platform
 import re
 import shlex
+import shutil
 import socket
 import subprocess
 import sys
@@ -154,6 +156,54 @@ def get_configure_command(root):
   return shlex.join(args)
 
 
+def get_glibc_version():
+  """Return the build host's glibc version string, or NOT_AVAILABLE.
+
+  Uses platform.libc_ver() (pure Python, no subprocess). Only meaningful on
+  Linux; returns NOT_AVAILABLE on all other platforms and for musl or other
+  non-glibc libc implementations.
+
+  Note: this is the host's glibc version. Because Node.js does not build
+  against a sysroot targeting an older glibc, this version becomes the
+  binary's minimum glibc requirement at run time.
+  """
+  if sys.platform != 'linux':
+    return NOT_AVAILABLE
+  lib, version = platform.libc_ver()
+  if lib == 'glibc' and version:
+    return version
+  return NOT_AVAILABLE
+
+
+def get_compiler_package_version(binary_path):
+  """Return the distro package version that owns `binary_path`, or NOT_AVAILABLE.
+
+  Tries dpkg (Debian/Ubuntu) then rpm (RHEL/Fedora). `binary_path` must be an
+  absolute path string as returned by shutil.which(). Only runs on Linux.
+  """
+  if sys.platform != 'linux' or not binary_path:
+    return NOT_AVAILABLE
+
+  # --- dpkg (Debian / Ubuntu) ---
+  # dpkg -S resolves the package name from the file path.
+  dpkg_s = _run(['dpkg', '-S', binary_path])
+  if dpkg_s:
+    # Output is "pkgname: /path/to/binary"; extract the package name.
+    pkg_name = dpkg_s.split(':')[0].strip()
+    if pkg_name:
+      version = _run(['dpkg-query', '-W', '-f=${Version}', pkg_name])
+      if version:
+        return version
+
+  # --- rpm (RHEL / Fedora / SUSE) ---
+  rpm_out = _run(['rpm', '-qf', '--queryformat', '%{VERSION}-%{RELEASE}',
+                  binary_path])
+  if rpm_out:
+    return rpm_out
+
+  return NOT_AVAILABLE
+
+
 def collect_build_environment(root, config_vars):
   """Return a dict of build-environment facts for build_sbom().
 
@@ -173,10 +223,19 @@ def collect_build_environment(root, config_vars):
                                  ('cxx', 'CXX', default_cxx),
                                  ('rustc', 'RUSTC', 'rustc'),
                                  ('cargo', 'CARGO', 'cargo')):
-    compilers.append({'name': name,
-                      **get_compiler_version(env_var, default)})
+    info = get_compiler_version(env_var, default)
+    # Resolve the actual binary path for the package-version probe. Only the
+    # first token is the executable (shlex.split handles wrappers like ccache).
+    try:
+      binary = shlex.split(info['command'])[0] if info['command'] else None
+    except ValueError:
+      binary = None
+    info['binary_path'] = shutil.which(binary) if binary else None
+    compilers.append({'name': name, **info})
+
   return {
     'compilers': compilers,
+    'glibc_version': get_glibc_version(),
     'git_sha': get_git_sha(root),
     'v8_embedder_string': get_v8_embedder_string(root),
     'builder': get_builder_name(),
@@ -731,15 +790,33 @@ def build_sbom(node_version, components, lib_files, build_env=None):
   }
 
   formula = {'bom-ref': 'build-environment'}
+  formula_components = []
   if compilers:
-    formula['components'] = [{
-      'bom-ref': f'build-environment:{c["name"]}',
-      'type': 'application',
-      'name': c['name'],
-      'version': (c['output'] if c['output'] == NOT_AVAILABLE
-                  else _parse_version(c['output'])),
-      'description': f'Build tool from `{c["command"]}`',
-    } for c in compilers]
+    for c in compilers:
+      pkg_version = get_compiler_package_version(c.get('binary_path'))
+      comp = {
+        'bom-ref': f'build-environment:{c["name"]}',
+        'type': 'application',
+        'name': c['name'],
+        'version': (c['output'] if c['output'] == NOT_AVAILABLE
+                    else _parse_version(c['output'])),
+        'description': f'Build tool from `{c["command"]}`',
+      }
+      if pkg_version != NOT_AVAILABLE:
+        comp['properties'] = [{'name': 'nodejs:package-version',
+                                'value': pkg_version}]
+      formula_components.append(comp)
+  glibc_version = build_env.get('glibc_version')
+  if glibc_version and glibc_version != NOT_AVAILABLE:
+    formula_components.append({
+      'bom-ref': 'build-environment:glibc',
+      'type': 'library',
+      'name': 'glibc',
+      'version': glibc_version,
+      'description': 'GNU C Library on the build host',
+    })
+  if formula_components:
+    formula['components'] = formula_components
   configure_command = build_env.get('configure_command')
   if configure_command:
     # Published as-is: it may contain local paths (see the header comment).

@@ -585,17 +585,185 @@ class TestCollectBuildEnvironment(unittest.TestCase):
                         for c in env['compilers']))
 
   def test_platform_defaults(self):
-    for platform, cc, cxx in (('darwin', 'cc', 'c++'),
-                              ('win32', 'clang', 'clang'),
-                              ('linux', 'gcc', 'g++')):
+    for plat, cc, cxx in (('darwin', 'cc', 'c++'),
+                          ('win32', 'clang', 'clang'),
+                          ('linux', 'gcc', 'g++')):
       env = {k: v for k, v in os.environ.items()
              if k not in ('CC', 'CXX')}
       with mock.patch.dict(os.environ, env, clear=True), \
-           mock.patch.object(sys, 'platform', platform), \
-           mock.patch.object(sbom, '_run', return_value='x 1.0'):
+           mock.patch.object(sys, 'platform', plat), \
+           mock.patch.object(sbom, '_run', return_value='x 1.0'), \
+           mock.patch('shutil.which', return_value='/usr/bin/cc'):
         result = sbom.collect_build_environment(sbom.REPO_ROOT, {})
       commands = {c['name']: c['command'] for c in result['compilers']}
-      self.assertEqual((commands['cc'], commands['cxx']), (cc, cxx), platform)
+      self.assertEqual((commands['cc'], commands['cxx']), (cc, cxx), plat)
+
+
+class TestGetGlibcVersion(unittest.TestCase):
+
+  def test_returns_version_on_linux(self):
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch('platform.libc_ver', return_value=('glibc', '2.34')):
+      self.assertEqual(sbom.get_glibc_version(), '2.34')
+
+  def test_non_linux_is_not_available(self):
+    for plat in ('darwin', 'win32', 'freebsd7'):
+      with mock.patch.object(sys, 'platform', plat):
+        self.assertEqual(sbom.get_glibc_version(), sbom.NOT_AVAILABLE, plat)
+
+  def test_musl_is_not_available(self):
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch('platform.libc_ver', return_value=('', '')):
+      self.assertEqual(sbom.get_glibc_version(), sbom.NOT_AVAILABLE)
+
+  def test_empty_version_is_not_available(self):
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch('platform.libc_ver', return_value=('glibc', '')):
+      self.assertEqual(sbom.get_glibc_version(), sbom.NOT_AVAILABLE)
+
+
+class TestGetCompilerPackageVersion(unittest.TestCase):
+
+  def test_non_linux_is_not_available(self):
+    for plat in ('darwin', 'win32'):
+      with mock.patch.object(sys, 'platform', plat):
+        self.assertEqual(
+          sbom.get_compiler_package_version('/usr/bin/gcc'), sbom.NOT_AVAILABLE)
+
+  def test_no_binary_path_is_not_available(self):
+    with mock.patch.object(sys, 'platform', 'linux'):
+      for bad in (None, ''):
+        self.assertEqual(
+          sbom.get_compiler_package_version(bad), sbom.NOT_AVAILABLE)
+
+  def test_dpkg_hit(self):
+    def fake_run(args, **kw):
+      if args[:2] == ['dpkg', '-S']:
+        return 'gcc-13: /usr/bin/gcc'
+      if args[:2] == ['dpkg-query', '-W']:
+        return '13.2.1-6ubuntu1'
+      return None
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch.object(sbom, '_run', side_effect=fake_run):
+      self.assertEqual(
+        sbom.get_compiler_package_version('/usr/bin/gcc'), '13.2.1-6ubuntu1')
+
+  def test_rpm_hit(self):
+    def fake_run(args, **kw):
+      if args[:2] == ['dpkg', '-S']:
+        return None
+      if args[:1] == ['rpm']:
+        return '13.3.1-1.el9'
+      return None
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch.object(sbom, '_run', side_effect=fake_run):
+      self.assertEqual(
+        sbom.get_compiler_package_version('/usr/bin/gcc'), '13.3.1-1.el9')
+
+  def test_neither_package_manager_found(self):
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch.object(sbom, '_run', return_value=None):
+      self.assertEqual(
+        sbom.get_compiler_package_version('/usr/bin/gcc'), sbom.NOT_AVAILABLE)
+
+  def test_dpkg_without_colon_falls_through_to_rpm(self):
+    # malformed dpkg -S output → falls through to rpm
+    def fake_run(args, **kw):
+      if args[:2] == ['dpkg', '-S']:
+        return 'no colon here'
+      if args[:1] == ['rpm']:
+        return '13.3.1-1.el9'
+      return None
+    with mock.patch.object(sys, 'platform', 'linux'), \
+         mock.patch.object(sbom, '_run', side_effect=fake_run):
+      self.assertEqual(
+        sbom.get_compiler_package_version('/usr/bin/gcc'), '13.3.1-1.el9')
+
+
+class TestBuildSbomGlibc(unittest.TestCase):
+  """Verify that glibc and compiler package-version appear correctly in build_sbom."""
+
+  def _compiler(self, name='cc', command='gcc', output='gcc 13.2.1',
+                binary_path='/usr/bin/gcc'):
+    return {'name': name, 'command': command, 'output': output,
+            'binary_path': binary_path}
+
+  def test_glibc_component_present(self):
+    build_env = {
+      'compilers': [],
+      'glibc_version': '2.34',
+    }
+    doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    comps = doc['formulation'][0]['components']
+    glibc = next(c for c in comps if c['name'] == 'glibc')
+    self.assertEqual(glibc['version'], '2.34')
+    self.assertEqual(glibc['bom-ref'], 'build-environment:glibc')
+    self.assertEqual(glibc['type'], 'library')
+
+  def test_glibc_not_available_not_emitted_as_component(self):
+    build_env = {'glibc_version': sbom.NOT_AVAILABLE}
+    doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    # N/A glibc should not produce a formulation at all (no other fields set).
+    self.assertNotIn('formulation', doc)
+
+  def test_compiler_package_version_property(self):
+    def fake_pkg(path):
+      return '13.2.1-6ubuntu1' if path else sbom.NOT_AVAILABLE
+    with mock.patch.object(sbom, 'get_compiler_package_version',
+                           side_effect=fake_pkg):
+      build_env = {'compilers': [self._compiler()]}
+      doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    comp = doc['formulation'][0]['components'][0]
+    self.assertEqual(comp['properties'],
+                     [{'name': 'nodejs:package-version',
+                       'value': '13.2.1-6ubuntu1'}])
+
+  def test_compiler_without_package_version_has_no_properties(self):
+    with mock.patch.object(sbom, 'get_compiler_package_version',
+                           return_value=sbom.NOT_AVAILABLE):
+      build_env = {'compilers': [self._compiler(binary_path=None)]}
+      doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    comp = doc['formulation'][0]['components'][0]
+    self.assertNotIn('properties', comp)
+
+  def test_glibc_alongside_compilers(self):
+    with mock.patch.object(sbom, 'get_compiler_package_version',
+                           return_value=sbom.NOT_AVAILABLE):
+      build_env = {
+        'compilers': [self._compiler()],
+        'glibc_version': '2.38',
+      }
+      doc = sbom.build_sbom('27.0.0', [], [], build_env)
+    names = [c['name'] for c in doc['formulation'][0]['components']]
+    self.assertIn('cc', names)
+    self.assertIn('glibc', names)
+    # glibc comes last (after compilers)
+    self.assertEqual(names[-1], 'glibc')
+
+
+class TestCollectBuildEnvironmentGlibc(unittest.TestCase):
+
+  def test_glibc_version_key_present(self):
+    with mock.patch.object(sbom, '_run', return_value='tool 1.0'), \
+         mock.patch.object(sbom, 'get_glibc_version', return_value='2.34'):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    self.assertEqual(env['glibc_version'], '2.34')
+
+  def test_binary_path_resolved_for_compilers(self):
+    with mock.patch.object(sbom, '_run', return_value='gcc 13.2.1'), \
+         mock.patch.object(sbom, 'get_glibc_version', return_value='2.34'), \
+         mock.patch('shutil.which', return_value='/usr/bin/gcc'):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    for c in env['compilers']:
+      self.assertIn('binary_path', c)
+
+  def test_binary_path_is_none_when_which_fails(self):
+    with mock.patch.object(sbom, '_run', return_value='gcc 13.2.1'), \
+         mock.patch.object(sbom, 'get_glibc_version', return_value=sbom.NOT_AVAILABLE), \
+         mock.patch('shutil.which', return_value=None):
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+    for c in env['compilers']:
+      self.assertIsNone(c['binary_path'])
 
 
 if __name__ == '__main__':
