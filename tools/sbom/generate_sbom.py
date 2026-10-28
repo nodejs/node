@@ -780,12 +780,12 @@ def build_sbom(node_version, components, lib_files, build_env=None):
     'components': components,
     'dependencies': [
       # All components in the list are linked into the binary; excluded
-      # deps are omitted before reaching here. None declare sub-dependencies.
+      # deps are omitted before reaching here. Leaf entries (no
+      # sub-dependencies) are intentionally omitted.
       {
         'ref': root_ref,
         'dependsOn': [c['bom-ref'] for c in components],
       },
-      *({'ref': c['bom-ref'], 'dependsOn': []} for c in components),
     ],
   }
 
