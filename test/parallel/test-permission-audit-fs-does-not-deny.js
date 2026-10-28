@@ -81,7 +81,10 @@ test('--permission takes precedence over --permission-audit', () => {
   runEnforced(['--permission', '--permission-audit']);
 });
 
-test('--permission takes precedence over --permission-audit in NODE_OPTIONS', () => {
+test('--permission takes precedence over --permission-audit in NODE_OPTIONS', {
+  skip: process.config.variables.node_without_node_options &&
+    'missing NODE_OPTIONS support',
+}, () => {
   runEnforced(['--permission'], { NODE_OPTIONS: '--permission-audit' });
   runEnforced(['--permission-audit'], { NODE_OPTIONS: '--permission' });
 });
