@@ -89,6 +89,9 @@ const url = require('url');
     assert.throws(() => url.pathToFileURL('\\\\\\no-server'), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
+    assert.throws(() => url.pathToFileURL('\\\\?\\UNC\\\\no-server'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
 
     // Missing share or resource:
     assert.throws(() => url.pathToFileURL('\\\\host'), {
@@ -127,6 +130,8 @@ const windowsTestCases = [
   { path: 'C:\\dir\\foo', expected: 'file:///C:/dir/foo' },
   // trailing separator
   { path: 'C:\\dir\\', expected: 'file:///C:/dir/' },
+  { path: 'C:\\', expected: 'file:///C:/' },
+  { path: 'C:/', expected: 'file:///C:/' },
   // dot
   { path: 'C:\\foo.mjs', expected: 'file:///C:/foo.mjs' },
   // space
@@ -184,6 +189,7 @@ const posixTestCases = [
   { path: '/dir/foo', expected: 'file:///dir/foo' },
   // trailing separator
   { path: '/dir/', expected: 'file:///dir/' },
+  { path: '/', expected: 'file:///' },
   // dot
   { path: '/foo.mjs', expected: 'file:///foo.mjs' },
   // space
