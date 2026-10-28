@@ -3,8 +3,8 @@
 # bundled runtime dependencies of the Node.js binary.
 #
 # Usage:
-#   python tools/generate_sbom.py [--output PATH]
-#   python tools/generate_sbom.py --validate [--output PATH]
+#   python tools/sbom/generate_sbom.py [--output PATH]
+#   python tools/sbom/generate_sbom.py --validate [--output PATH]
 #
 # The output defaults to out/Release/node-v{version}-sbom.json. Generating
 # requires ./configure to have been run first, as the set of dependencies that
@@ -19,7 +19,7 @@ import sys
 import uuid
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).parent.parent.parent
 
 # Used when a dependency does not record its version anywhere we can read.
 UNKNOWN = 'unknown'

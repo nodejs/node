@@ -876,11 +876,11 @@ VERSION=v$(RAWVER)
 
 .PHONY: sbom
 sbom: config.gypi ## Write a CycloneDX SBOM of the bundled dependencies to out/Release/node-$(VERSION)-sbom.json.
-	$(PYTHON) tools/generate_sbom.py
+	$(PYTHON) tools/sbom/generate_sbom.py
 
 .PHONY: test-sbom
 test-sbom: ## Validate the SBOM written by `make sbom`.
-	$(PYTHON) tools/generate_sbom.py --validate
+	$(PYTHON) tools/sbom/generate_sbom.py --validate
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
