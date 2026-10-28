@@ -791,13 +791,13 @@ statement for future use.
 > literals, where it performs string interpolation.
 >
 > ```js
-> // This a safe example of binding a parameter to a tagged statement.
+> // This is a safe example of binding a parameter to a tagged statement.
 > sqlTagStore.run`INSERT INTO t1 (id) VALUES (${id})`;
 >
 > // This is an *unsafe* example of an untagged template string.
 > // `id` is interpolated into the query text as a string.
 > // This can lead to SQL injection and data corruption.
-> db.run(`INSERT INTO t1 (id) VALUES (${id})`);
+> db.exec(`INSERT INTO t1 (id) VALUES (${id})`);
 > ```
 
 The tag store will match a statement from the cache if the query strings
