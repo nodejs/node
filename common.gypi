@@ -595,6 +595,13 @@
           '_HAS_EXCEPTIONS=0',
           'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
+          # Node.js is built with clang-cl but native addons may be built
+          # with MSVC, which does not support preserve_most.
+          # As preserve_most changes the mangled name of a function in the
+          # Microsoft C++ ABI, the addons would fail to link against the
+          # exported symbols. So this define must be consistely set for
+          # both the V8 build and addon builds.
+          'V8_DISABLE_PRESERVE_MOST',
           # Stop <windows.h> from defining macros that conflict with
           # std::min() and std::max().  We don't use <windows.h> (much)
           # but we still inherit it from uv.h.
