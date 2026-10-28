@@ -103,15 +103,20 @@ def _parse_version(output):
 
 
 def get_git_sha(root):
-  """Return the commit `root` is checked out at, or NOT_AVAILABLE.
+  """Return (alg, digest) for the commit `root` is checked out at.
 
-  Source tarballs are not git checkouts, and git may not be installed.
+  Returns (NOT_AVAILABLE, NOT_AVAILABLE) when the repo is a source tarball
+  or git is not installed.  SHA-1 repositories produce a 40-hex-digit digest
+  (alg 'SHA-1'); SHA-256 repositories produce a 64-hex-digit digest
+  (alg 'SHA-256').
   """
   output = _run(['git', '-C', str(root), 'rev-parse', 'HEAD'])
-  # SHA-1 repositories give 40 hex digits, SHA-256 repositories give 64.
-  if output and re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', output):
-    return output
-  return NOT_AVAILABLE
+  if output:
+    if re.fullmatch(r'[0-9a-f]{40}', output):
+      return 'SHA-1', output
+    if re.fullmatch(r'[0-9a-f]{64}', output):
+      return 'SHA-256', output
+  return NOT_AVAILABLE, NOT_AVAILABLE
 
 
 def get_v8_embedder_string(root):
@@ -233,10 +238,12 @@ def collect_build_environment(root, config_vars):
     info['binary_path'] = shutil.which(binary) if binary else None
     compilers.append({'name': name, **info})
 
+  git_alg, git_sha = get_git_sha(root)
   return {
     'compilers': compilers,
     'glibc_version': get_glibc_version(),
-    'git_sha': get_git_sha(root),
+    'git_alg': git_alg,
+    'git_sha': git_sha,
     'v8_embedder_string': get_v8_embedder_string(root),
     'builder': get_builder_name(),
     'configure_command': get_configure_command(root),
@@ -739,15 +746,16 @@ def build_sbom(node_version, components, lib_files, build_env=None):
   } for c in compilers)
 
   git_sha = build_env.get('git_sha')
-  if git_sha:
+  git_alg = build_env.get('git_alg')
+  if git_sha and git_sha != NOT_AVAILABLE:
     properties.append({'name': 'nodejs:git-sha', 'value': git_sha})
-    if git_sha != NOT_AVAILABLE:
-      # Pins the exact source tree, which the purl version alone does not.
-      root_component['externalReferences'] = [{
-        'type': 'vcs',
-        'url': 'https://github.com/nodejs/node',
-        'comment': f'commit {git_sha}',
-      }]
+    # Pins the exact source tree, which the purl version alone does not.
+    # Uses the hashes array so the algorithm is explicit and machine-readable.
+    root_component['externalReferences'] = [{
+      'type': 'vcs',
+      'url': 'https://github.com/nodejs/node',
+      'hashes': [{'alg': git_alg, 'content': git_sha}],
+    }]
   v8_embedder_string = build_env.get('v8_embedder_string')
   if v8_embedder_string:
     properties.append({'name': 'nodejs:v8-embedder-string',
