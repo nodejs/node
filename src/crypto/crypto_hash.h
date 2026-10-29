@@ -12,6 +12,18 @@
 
 namespace node {
 namespace crypto {
+// Like ncrypto::Digest::FromName(), but caches provider implementations per
+// Environment so that later lookups do not have to fetch them again.
+const ncrypto::Digest GetDigest(Environment* env, const char* name);
+
+// GetDigest() for synchronous jobs. Jobs on the thread pool keep using
+// ncrypto::Digest::FromName(): there, the cache lowered Web Crypto digest and
+// HMAC throughput, because workers that finish sooner have to be woken up for
+// each new job more often.
+const ncrypto::Digest GetDigestForJob(Environment* env,
+                                      CryptoJobMode mode,
+                                      const char* name);
+
 class Hash final : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);

@@ -1,6 +1,7 @@
 #include "crypto/crypto_pbkdf2.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_hash.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
@@ -11,7 +12,6 @@
 
 namespace node {
 
-using ncrypto::Digest;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::JustVoid;
@@ -104,7 +104,7 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
-  params->digest = Digest::FromName(*name);
+  params->digest = GetDigestForJob(env, mode, *name);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", name);
     return Nothing<void>();
