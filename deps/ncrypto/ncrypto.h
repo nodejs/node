@@ -357,6 +357,9 @@ class Digest final {
 
   static const Digest FromName(const char* name);
   static const Digest Fetch(const char* name);
+  // Returns a Digest that holds its own reference to md if md was fetched from
+  // a provider.
+  static const Digest Ref(const EVP_MD* md);
 
  private:
   const EVP_MD* md_ = nullptr;

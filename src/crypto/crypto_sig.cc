@@ -2,6 +2,7 @@
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "crypto/crypto_ec.h"
+#include "crypto/crypto_hash.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
@@ -315,7 +316,7 @@ bool VerifyPrehashed(const EVPKeyPointer& key,
 
 SignBase::Error SignBase::Init(const char* digest) {
   CHECK_NULL(mdctx_);
-  auto md = Digest::FromName(digest);
+  auto md = GetDigest(env(), digest);
   if (!md) [[unlikely]]
     return Error::UnknownDigest;
 
@@ -666,7 +667,7 @@ Maybe<void> SignTraits::AdditionalConfig(
 
   if (args[offset + 7]->IsString()) {
     Utf8Value digest(env->isolate(), args[offset + 7]);
-    params->digest = Digest::FromName(*digest);
+    params->digest = GetDigestForJob(env, mode, *digest);
     if (!params->digest) [[unlikely]] {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
       return Nothing<void>();

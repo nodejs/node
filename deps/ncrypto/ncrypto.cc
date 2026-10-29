@@ -8580,6 +8580,16 @@ const Digest Digest::Fetch(const char* name) {
   return Digest();
 }
 
+const Digest Digest::Ref(const EVP_MD* md) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  if (md != nullptr && EVP_MD_get0_provider(md) != nullptr) {
+    if (EVP_MD_up_ref(const_cast<EVP_MD*>(md)) != 1) return Digest();
+    return Digest(DeleteFnPtr<EVP_MD, EVP_MD_free>(const_cast<EVP_MD*>(md)));
+  }
+#endif
+  return Digest(md);
+}
+
 // ============================================================================
 // KEM Implementation
 #if OPENSSL_WITH_KEM

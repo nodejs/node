@@ -357,6 +357,25 @@ const EVP_MD* GetDigestImplementation(
 #endif
 }
 
+const ncrypto::Digest GetDigest(Environment* env, const char* name) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  MaybeCachedMD result = FetchAndMaybeCacheMD(env, name);
+  if (result.cached_md != nullptr) {
+    return ncrypto::Digest::Ref(result.cached_md);
+  }
+  return result.digest;
+#elif NCRYPTO_USE_BORINGSSL
+  return ncrypto::Digest::FromName(name);
+#endif
+}
+
+const ncrypto::Digest GetDigestForJob(Environment* env,
+                                      CryptoJobMode mode,
+                                      const char* name) {
+  if (mode == kCryptoJobSync) return GetDigest(env, name);
+  return ncrypto::Digest::FromName(name);
+}
+
 void MarkInvalidXofLength() {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
