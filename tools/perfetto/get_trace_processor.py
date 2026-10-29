@@ -12,6 +12,10 @@ import urllib.request
 import zipfile
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.insert(0, os.path.join(script_dir, '..', 'gyp', 'pylib'))
+from packaging._musllinux import _get_musl_version
+
 version_file = os.path.join(script_dir, '..', '..', 'deps', 'perfetto', 'VERSION')
 # Platforms perfetto publishes no release for, cross-compiled and pushed to the
 # nodejs Cachix cache by tools/dep_updaters/update-nixpkgs-pin.sh.
@@ -29,6 +33,11 @@ def release_name():
   # under emulation.
   if is_windows:
     return 'windows-amd64'
+
+  # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
+  # the static musl build from Cachix instead.
+  if _get_musl_version(sys.executable) is not None:
+    return None
 
   os_name = OS_NAMES.get(platform.system())
   arch = ARCH_NAMES.get(platform.machine())
