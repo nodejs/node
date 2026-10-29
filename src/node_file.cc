@@ -3588,10 +3588,12 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
 // contention when many files are read at once. Files whose size exceeds
 // `limit` are not read here: the job hands the open fd and the size back so
 // that the caller continues with the chunked reader (which stays fair and
-// abortable for large files); it then only saved the fstat() round trip.
+// abortable for large files); it then only saved the fstat() round trip. A
+// file that reports size 0 but yields more than 2 GiB is handed back the same
+// way, with size = the bytes read so far (the data is dropped).
 //
 // JS: const job = new ReadFileJob(path, flags, limit, trackFd);
-//     job.ondone = (err, buffer, fd, size, closeErr) => {...}; job.run(path);
+//     job.ondone = (err, buffer, fd, size, closeErr) => {...}; job.run();
 // Exactly one of these outcomes is reported:
 //   err            -- open/fstat/read failed (any fd opened here was closed);
 //   fd >= 0, size  -- file is larger than `limit`: caller owns fd now (it is
@@ -3629,11 +3631,9 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
     ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
     Environment* env = job->AsyncWrap::env();
     CHECK(!job->scheduled_);
-    BufferValue path(env->isolate(), args[0]);
-    CHECK_NOT_NULL(*path);
-    ToNamespacedPath(env, &path);
     Local<Value> access_error;
-    if (OpenPermissionError(env, path, job->flags_).ToLocal(&access_error)) {
+    if (OpenPermissionError(env, job->path_, job->flags_)
+            .ToLocal(&access_error)) {
       args.GetReturnValue().Set(access_error);
       return;
     }
@@ -3671,7 +3671,8 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
 
     // Known size: read exactly that much (like the chunked reader, stop when
     // it has been read or at EOF, whichever comes first). Unknown size (0,
-    // e.g. procfs): grow until EOF.
+    // e.g. procfs): grow until EOF, but never past kMaxUnknownSizeRead bytes
+    // (/dev/zero and friends have no EOF and this memory is not V8 heap).
     size_t cap = size > 0 ? static_cast<size_t>(size) : kUnknownSizeChunk;
     data_ = UncheckedMalloc<char>(cap);
     if (data_ == nullptr) {
@@ -3683,8 +3684,20 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
       if (len_ == cap) {
         if (size > 0) break;  // Read all of the announced size.
         // A file that claims size 0 keeps growing until EOF (or ENOMEM),
-        // like the chunked reader's buffer list did.
-        size_t new_cap = cap * 2;
+        // like the chunked reader's buffer list did, up to the 2 GiB that
+        // fs.readFile() accepts for any file (kIoMaxLength in
+        // lib/internal/fs/utils.js). Past that, give the fd back with a size
+        // above that limit so the caller fails with ERR_FS_FILE_TOO_LARGE and
+        // closes it, exactly as for a regular file that large.
+        if (cap > kMaxUnknownSizeRead) {
+          free(data_);
+          data_ = nullptr;
+          fd_ = fd;
+          size_ = len_;
+          len_ = 0;
+          return;
+        }
+        size_t new_cap = std::min(cap * 2, kMaxUnknownSizeRead + 1);
         char* grown = UncheckedRealloc<char>(data_, new_cap);
         if (grown == nullptr) {
           Fail("read", UV_ENOMEM);
@@ -3779,6 +3792,7 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
  private:
   friend class WriteFileJob;
   static constexpr size_t kUnknownSizeChunk = 64 * 1024;
+  static constexpr size_t kMaxUnknownSizeRead = 0x7fffffff;
   static constexpr size_t kMaxReadChunk = 256 * 1024 * 1024;
 
   ReadFileJob(Environment* env,
@@ -3802,9 +3816,12 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
   }
 
   // The permission checks AsyncCheckOpenPermissions() performs for open(),
-  // producing the error object instead of rejecting a request wrap.
+  // producing the error object instead of rejecting a request wrap. The path
+  // is the one the job stored at construction, not a value re-read from JS at
+  // schedule time, so the check cannot be steered to a different path than the
+  // one the thread pool opens.
   static MaybeLocal<Value> OpenPermissionError(Environment* env,
-                                               const BufferValue& path,
+                                               std::string_view path_view,
                                                int flags) {
     if (!env->permission()->enabled()) [[likely]]
       return {};
@@ -3813,7 +3830,6 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
     const int write_as_side_effect =
         flags &
         (UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_TRUNC | UV_FS_O_TEMPORARY);
-    const auto path_view = path.ToStringView();
     auto denied = [&](permission::PermissionScope scope) -> MaybeLocal<Value> {
       if (env->permission()->is_granted(env, scope, path_view) ||
           env->permission()->warning_only()) {
@@ -3867,7 +3883,7 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
 // step.
 //
 // JS: const job = new WriteFileJob(path, flags, mode, buffer);
-//     job.ondone = (err) => {...}; job.run(path);
+//     job.ondone = (err) => {...}; job.run();
 // `err` carries the syscall that failed ('open', 'write' or 'close'); the file
 // descriptor opened here is always closed.
 class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
@@ -3897,11 +3913,8 @@ class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
     ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
     Environment* env = job->AsyncWrap::env();
     CHECK(!job->scheduled_);
-    BufferValue path(env->isolate(), args[0]);
-    CHECK_NOT_NULL(*path);
-    ToNamespacedPath(env, &path);
     Local<Value> access_error;
-    if (ReadFileJob::OpenPermissionError(env, path, job->flags_)
+    if (ReadFileJob::OpenPermissionError(env, job->path_, job->flags_)
             .ToLocal(&access_error)) {
       args.GetReturnValue().Set(access_error);
       return;
