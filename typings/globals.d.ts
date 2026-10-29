@@ -41,6 +41,7 @@ import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
 import { TaskQueueBinding } from './internalBinding/task_queue';
 import { TimersBinding } from './internalBinding/timers';
+import { TraceEventsBinding } from './internalBinding/trace_events';
 import { TypesBinding } from './internalBinding/types';
 import { URLBinding } from './internalBinding/url';
 import { URLPatternBinding } from "./internalBinding/url_pattern";
@@ -95,6 +96,7 @@ interface InternalBindingMap {
   symbols: SymbolsBinding;
   task_queue: TaskQueueBinding;
   timers: TimersBinding;
+  trace_events: TraceEventsBinding;
   types: TypesBinding;
   url: URLBinding;
   url_pattern: URLPatternBinding;
