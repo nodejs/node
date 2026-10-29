@@ -424,6 +424,29 @@ int SyncCallAndThrowOnError(Environment* env,
   return SyncCallAndThrowIf(is_uv_error, env, req_wrap, fn, args...);
 }
 
+// Delivers the value produced by `produce`, or the exception it threw, to
+// `req_wrap`. The TryCatch is left before calling into JS: exceptions thrown
+// by the callback, or by the tick queue drained afterwards, must not be caught
+// by it.
+template <typename Fn>
+void ResolveOrReject(FSReqBase* req_wrap, Fn&& produce) {
+  v8::Isolate* isolate = req_wrap->env()->isolate();
+  v8::Local<v8::Value> value;
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(isolate);
+    if (!produce().ToLocal(&value)) {
+      CHECK(try_catch.CanContinue());
+      error = try_catch.Exception();
+    }
+  }
+  if (error.IsEmpty()) {
+    req_wrap->Resolve(value);
+  } else {
+    req_wrap->Reject(error);
+  }
+}
+
 // Closes a file created by mkstemp() whose descriptor cannot be handed to JS.
 inline void CloseMkstempFd(int fd) {
   uv_fs_t close_req;
@@ -464,28 +487,16 @@ v8::MaybeLocal<v8::Value> MkstempResult(v8::Isolate* isolate,
 }
 
 // Resolves `req_wrap` with the result of mkstemp(), or rejects it with the
-// exception thrown while building it. The TryCatch is left before calling
-// into JS.
+// exception thrown while building it.
 template <typename EncodePath, typename MakeFile>
 void ResolveMkstemp(FSReqBase* req_wrap,
                     int fd,
                     EncodePath&& encode_path,
                     MakeFile&& make_file) {
   v8::Isolate* isolate = req_wrap->env()->isolate();
-  v8::Local<v8::Value> result;
-  v8::Local<v8::Value> error;
-  {
-    v8::TryCatch try_catch(isolate);
-    if (!MkstempResult(isolate, fd, encode_path, make_file).ToLocal(&result)) {
-      CHECK(try_catch.CanContinue());
-      error = try_catch.Exception();
-    }
-  }
-  if (error.IsEmpty()) {
-    req_wrap->Resolve(result);
-  } else {
-    req_wrap->Reject(error);
-  }
+  ResolveOrReject(req_wrap, [&]() {
+    return MkstempResult(isolate, fd, encode_path, make_file);
+  });
 }
 
 }  // namespace fs
