@@ -96,6 +96,7 @@ class TLSWrap : public AsyncWrap,
   }
   inline void enable_session_callbacks() { flags_.session_callbacks = true; }
   bool BindSessionsToServerName(std::string_view servername);
+  bool PinServerName(std::string_view servername);
   inline bool is_server() const { return kind_ == Kind::kServer; }
   inline bool is_client() const { return kind_ == Kind::kClient; }
   inline bool is_awaiting_new_session() const {
@@ -231,8 +232,6 @@ class TLSWrap : public AsyncWrap,
 
   int SetCACerts(SecureContext* sc);
 
-  static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
-
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClientHelloDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -316,6 +315,7 @@ class TLSWrap : public AsyncWrap,
   v8::Global<v8::ArrayBufferView> ocsp_response_;
   BaseObjectPtr<SecureContext> sni_context_;
   BaseObjectPtr<SecureContext> sc_;
+  std::string servername_;
 
   // BIO buffers hold encrypted data.
   BIO* enc_in_ = nullptr;   // StreamListener fills this for SSL_read().
@@ -353,6 +353,7 @@ class TLSWrap : public AsyncWrap,
     bool write_callback_scheduled : 1;
     bool has_active_write_issued_by_prev_listener : 1;
     bool alpn_callback_enabled : 1;
+    bool servername_pinned : 1;
   };
   Flags flags_{};
 
