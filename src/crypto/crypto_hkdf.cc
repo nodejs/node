@@ -1,6 +1,7 @@
 #include "crypto/crypto_hkdf.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_hash.h"
 #include "crypto/crypto_keys.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -9,7 +10,6 @@
 
 namespace node {
 
-using ncrypto::Digest;
 using v8::FunctionCallbackInfo;
 using v8::JustVoid;
 using v8::Maybe;
@@ -54,7 +54,7 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   CHECK(args[offset + 4]->IsUint32());  // Length
 
   Utf8Value hash(env->isolate(), args[offset]);
-  params->digest = Digest::FromName(*hash);
+  params->digest = GetDigestForJob(env, mode, *hash);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", hash);
     return Nothing<void>();
