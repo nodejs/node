@@ -626,6 +626,9 @@ Http2Session::~Http2Session() {
   // Ensure that all `Http2Stream` instances and the memory they hold
   // on to are destroyed before the nghttp2 session is.
   for (const auto& [id, stream] : streams_) {
+    // Detach() only frees the stream if nothing else holds a strong
+    // reference to it.
+    stream->ClearHeaders();
     stream->Detach();
   }
   streams_.clear();
@@ -935,6 +938,11 @@ BaseObjectPtr<Http2Stream> Http2Session::RemoveStream(int32_t id) {
   stream = FindStream(id);
   if (stream) {
     streams_.erase(id);
+    // The stream can outlive the session, for example while one of its writes
+    // is still on the socket. Headers that were not passed to JS, such as an
+    // oversized block that caused the stream to be reset, hold nghttp2 memory
+    // that has to be released before the session is.
+    stream->ClearHeaders();
     if (stream->current_headers_length_ > 0) {
       DecrementCurrentSessionMemory(stream->current_headers_length_);
       stream->current_headers_length_ = 0;
