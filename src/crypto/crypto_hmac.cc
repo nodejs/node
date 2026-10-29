@@ -79,7 +79,7 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
     key = "";
   }
 
-  ctx_ = HMACCtxPointer::New();
+  ctx_ = NewHmacContext(env(), md);
   ncrypto::Buffer<const void> key_buf{
       .data = key,
       .len = static_cast<size_t>(key_len),
