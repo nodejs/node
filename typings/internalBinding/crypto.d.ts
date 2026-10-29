@@ -665,9 +665,12 @@ declare namespace InternalCryptoBinding {
     setPrivateKey(key: ByteSource): void;
   }
 
-  interface SignHandle {
+  interface SignBaseHandle {
     init(algorithm: string): void;
     update(data: ByteSource, encoding?: string): void;
+  }
+
+  interface SignHandle extends SignBaseHandle {
     sign(
       ...args: [
         ...key: PreparedAsymmetricKeyArgs,
@@ -678,9 +681,7 @@ declare namespace InternalCryptoBinding {
     ): Buffer;
   }
 
-  interface VerifyHandle {
-    init(algorithm: string): void;
-    update(data: ByteSource, encoding?: string): void;
+  interface VerifyHandle extends SignBaseHandle {
     verify(
       ...args: [
         ...key: PreparedAsymmetricKeyArgs,
