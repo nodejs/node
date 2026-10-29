@@ -1420,6 +1420,17 @@ created as forks of the `main` branch. Alpha releases should be released picking
 up commits from `main`. Target the first alpha release to be released the same
 day as the previous release line is graduated to LTS status.
 
+Pushing the new branches is rejected by the [Require linear history][]
+repository rule, because creating a branch evaluates its whole history and
+`main` contains merge commits from 2015. A repository admin must disable the
+rule, push the branches, and enable it again:
+
+```bash
+gh api -X PUT repos/nodejs/node/rulesets/714811 -f enforcement=disabled
+git push upstream main:refs/heads/vN.x main:refs/heads/vN.x-staging
+gh api -X PUT repos/nodejs/node/rulesets/714811 -f enforcement=active
+```
+
 If a `SEMVER-MAJOR` pull request lands on the default branch within one month
 prior to the major release date, it must not be included on the new major
 staging branch, unless there is consensus from the Node.js releasers team to
@@ -1708,6 +1719,7 @@ Typical resolution: sign the release again.
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Release repository]: https://github.com/nodejs/Release
+[Require linear history]: https://github.com/nodejs/node/rules/714811
 [Semantic Versioning]: https://semver.org/
 [Snap]: https://snapcraft.io/node
 [`create-release-post.yml`]: https://github.com/nodejs/nodejs.org/actions/workflows/create-release-post.yml
