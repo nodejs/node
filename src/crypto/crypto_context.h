@@ -55,6 +55,7 @@ class SecureContext final : public BaseObject {
   // True if CA certificates were added with addCACert(), as opposed to the
   // context relying on the default root store.
   bool has_own_ca() const { return has_own_ca_; }
+  const std::string& session_id_context() const { return session_id_context_; }
 
   // Non-const ctx() that allows for non-default initialization of
   // the SecureContext.
@@ -208,6 +209,7 @@ class SecureContext final : public BaseObject {
   ncrypto::EnginePointer private_key_engine_;
 #endif  // !OPENSSL_NO_ENGINE
   bool has_own_ca_ = false;
+  std::string session_id_context_;
 
   unsigned char ticket_key_name_[16];
   unsigned char ticket_key_aes_[16];
