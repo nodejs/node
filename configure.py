@@ -2383,7 +2383,7 @@ def configure_lief(o):
   configure_library('lief', o, pkgname='LIEF')
 
 def perfetto_supported():
-  return flavor not in ('aix', 'cloudabi', 'openbsd', 'os400', 'solaris') and !(flavor == 'mac' and options.dest_cpu in ('x86', 'x64'))
+  return flavor not in ('aix', 'cloudabi', 'openbsd', 'os400', 'solaris') and not (flavor == 'mac' and options.dest_cpu in ('x86', 'x64'))
 
 def configure_perfetto(o):
   if options.without_perfetto:
