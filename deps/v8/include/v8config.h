@@ -402,6 +402,7 @@ path. Add it with -I<path> to the command line
      || ((defined(__AARCH64EL__) || defined(_M_ARM64)) /* arm64, but ... */    \
          && !defined(_WIN32)))                         /* not on windows */    \
      && !defined(COMPONENT_BUILD)                      /* no component build */\
+     && !defined(V8_DISABLE_PRESERVE_MOST)             /* embedder opt-out */  \
      && __clang_major__ >= 17                          /* clang >= 17 */
 # define V8_HAS_ATTRIBUTE_PRESERVE_MOST (__has_attribute(preserve_most))
 #endif
