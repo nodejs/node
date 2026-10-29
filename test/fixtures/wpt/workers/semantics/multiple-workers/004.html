@@ -1,0 +1,37 @@
+<!doctype html>
+<title>shared worker with multiple documents</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({ single_test: true });
+
+var i = 0;
+var load_count = 0;
+
+var w1 = new SharedWorker('004-2.js', 'x');
+w1.port.onmessage = function(e) {
+  i++;
+  check_result();
+};
+
+
+function iframe_loaded() {
+  load_count++;
+  check_result();
+}
+
+function check_result() {
+  //timeout to allow for extra, unexpected, messages to arrive
+  if (i == 3 && load_count == 2) {
+    setTimeout(function() {
+      assert_equals(load_count, 2);
+      assert_equals(i, 3);
+      done();
+    }, 500);
+  }
+}
+</script>
+<iframe src=004-1.html onload="iframe_loaded()"></iframe>
+<iframe src=004-1.html onload="iframe_loaded()"></iframe>

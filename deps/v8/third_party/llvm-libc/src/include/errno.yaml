@@ -1,0 +1,16 @@
+header: errno.h
+header_template: errno.h.def
+standards:
+  - stdc
+  - linux
+  - posix
+macros: []
+types:
+  - type_name: errno_t
+enums: []
+objects:
+  - object_name: program_invocation_name
+    object_type: char *
+  - object_name: program_invocation_short_name
+    object_type: char *
+functions: []

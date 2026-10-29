@@ -1,0 +1,110 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_HEAP_MAIN_ALLOCATOR_INL_H_
+#define V8_HEAP_MAIN_ALLOCATOR_INL_H_
+
+#include "src/heap/main-allocator.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/marking-state-inl.h"
+
+namespace v8 {
+namespace internal {
+
+AllocationResult MainAllocator::AllocateRaw(SafeHeapObjectSize size_in_bytes,
+                                            AllocationAlignment alignment,
+                                            AllocationOrigin origin,
+                                            AllocationHint hint) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+
+  DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);
+  DCHECK_EQ(in_gc(), isolate_heap()->IsInGC());
+
+  AllocationResult result;
+
+  if (alignment != kTaggedAligned) [[unlikely]] {
+    result = AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
+  } else {
+    result = AllocateFastUnaligned(size_in_bytes, origin);
+  }
+
+  if (result.IsFailure()) [[unlikely]] {
+    return AllocateRawSlow(size_in_bytes, alignment, origin);
+  }
+  return result;
+}
+
+AllocationResult MainAllocator::AllocateFastUnaligned(
+    SafeHeapObjectSize size_in_bytes, AllocationOrigin origin) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  if (!allocation_info().CanIncrementTop(size_in_bytes.value())) {
+    return AllocationResult::Failure();
+  }
+  Tagged<HeapObject> obj = HeapObject::FromAddress(
+      allocation_info().IncrementTop(size_in_bytes.value()));
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes.value());
+
+  DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
+                 space_heap()->marking_state()->IsMarked(obj));
+
+  return AllocationResult::FromObject(obj);
+}
+
+AllocationResult MainAllocator::AllocateFastAligned(
+    SafeHeapObjectSize size_in_bytes,
+    SafeHeapObjectSize* result_aligned_size_in_bytes,
+    AllocationAlignment alignment, AllocationOrigin origin) {
+  Address top = allocation_info().top();
+  int filler_size = GetFillToAlign(top, alignment);
+  SafeHeapObjectSize aligned_size_in_bytes = SafeHeapObjectSize(
+      size_in_bytes.value() + static_cast<uint32_t>(filler_size));
+
+  if (!allocation_info().CanIncrementTop(aligned_size_in_bytes.value())) {
+    return AllocationResult::Failure();
+  }
+  Tagged<HeapObject> obj = HeapObject::FromAddress(
+      allocation_info().IncrementTop(aligned_size_in_bytes.value()));
+  if (result_aligned_size_in_bytes) {
+    *result_aligned_size_in_bytes = aligned_size_in_bytes;
+  }
+
+  if (filler_size > 0) {
+    obj = space_heap()->PrecedeWithFiller(obj, filler_size);
+  }
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes.value());
+
+  DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
+                 space_heap()->marking_state()->IsMarked(obj));
+
+  return AllocationResult::FromObject(obj);
+}
+
+bool MainAllocator::TryFreeLast(Address object_address, int object_size) {
+  if (top() != kNullAddress) {
+    return allocation_info().DecrementTopIfAdjacent(object_address,
+                                                    object_size);
+  }
+  return false;
+}
+
+// static
+int MainAllocator::GetFillToAlign(Address address,
+                                  AllocationAlignment alignment) {
+  if (V8_COMPRESS_POINTERS_8GB_BOOL) return 0;
+  if (alignment == kDoubleAligned && (address & kDoubleAlignmentMask) != 0) {
+    return kTaggedSize;
+  }
+  if (alignment == kDoubleUnaligned && (address & kDoubleAlignmentMask) == 0) {
+    return kDoubleSize - kTaggedSize;
+  }
+  return 0;
+}
+
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_HEAP_MAIN_ALLOCATOR_INL_H_

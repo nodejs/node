@@ -1,0 +1,47 @@
+{
+  "name": "mute-stream",
+  "version": "4.0.0",
+  "main": "lib/index.js",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^6.0.0",
+    "@npmcli/template-oss": "5.0.0"
+  },
+  "scripts": {
+    "test": "node --test './test/**/*.js'",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "node --test --test-update-snapshots './test/**/*.js'",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:node20": "node --test test",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 './test/**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/mute-stream.git"
+  },
+  "keywords": [
+    "mute",
+    "stream",
+    "pipe"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "description": "Bytes go in, but they don't come out (when muted).",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.0.0",
+    "publish": true,
+    "testRunner": "node:test",
+    "latestCiVersion": 24
+  }
+}

@@ -1,0 +1,26 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --allow-natives-syntax
+
+const Probe =function() {
+    function probeWithErrorHandling() {
+    }
+    return {
+        probe: probeWithErrorHandling,
+    };
+}();
+function f0() {
+    let v5 = -1866501390;
+    for (let i = 0; i < 5; i++) {
+        v5++;
+        function f7() {
+        }
+    }
+    Probe.probe( Math["max"](v5, v5));
+}
+%PrepareFunctionForOptimization(f0);
+f0();
+%OptimizeFunctionOnNextCall(f0);
+f0();

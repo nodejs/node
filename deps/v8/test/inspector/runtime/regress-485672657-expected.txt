@@ -1,0 +1,5 @@
+Regression test for 485672657: UAF in RuntimeAgent
+Script added, messages will be cached upon context creation.
+
+Running test: test
+Runtime.enable finished without crash.

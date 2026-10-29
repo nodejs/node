@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>Test Worker.terminate() for a worker that tries to run forever after top-level script evaluation is started.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+// The tests here are to provide execution coverage for the code paths for
+// forcible worker termination.
+// Expectation here is:
+// - Not to crash, not to cause assertion failures
+// - No WorkerGlobalScope error events and thus Worker error events are fired
+//   (#report-the-exception is not called when a script is terminated during
+//   #run-a-classic-script/#run-a-module-script according to the spec)
+// - Nothing after infinte loop, promise resolusion/rejection etc. occurs.
+
+for (const test of [
+  {
+    url: 'support/Worker-run-forever.js',
+    description: 'Worker is terminated during top-level script evaluation'
+  },
+  {
+    url: 'support/Worker-run-forever.js',
+    options: {type: 'module'},
+    description: 'Worker is terminated during top-level script evaluation (module)'
+  },
+  {
+    url: 'support/Worker-run-forever-during-importScripts.js',
+    description: 'Worker is terminated during importScripts() call'
+  },
+  {
+    url: 'support/Worker-run-forever-during-nested-importScripts.js',
+    description: 'Worker is terminated during nested importScripts() call'
+  },
+  {
+    url: 'support/Worker-run-forever-during-dynamic-import.js',
+    description: 'Worker is terminated during dynamic import()'
+  },
+  {
+    url: 'support/Worker-run-forever-during-dynamic-import.js',
+    options: {type: 'module'},
+    description: 'Worker is terminated during dynamic import() (module)'
+  },
+  {
+    url: 'support/Worker-run-forever-during-top-level-await.js',
+    options: {type: 'module'},
+    description: 'Worker is terminated during top-level await'
+  }
+]) {
+  async_test((t) => {
+    const worker = new Worker(test.url, test.options);
+    worker.onerror = t.step_func(e => {
+      // Calls preventDefault() to prevent this event from being considered
+      // as an uncaught exception.
+      e.preventDefault();
+      assert_unreached('onerror');
+    });
+    worker.onmessage = t.step_func((e) => {
+      if (e.data === 'start') {
+        worker.terminate();
+        // To make the worker forcibly terminated, because in Chromium worker is
+        // forcibly terminated after 2 seconds.
+        t.step_timeout(function() { t.done(); }, 4000);
+      }
+      else {
+        assert_unreached('Unexpected message received: ' + e.data);
+      }
+    });
+  }, test.description);
+}
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>This test validates that setResourceTimingBufferFull behaves appropriately when set to the current buffer level.</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performance-onresourcetimingbufferfull">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+    let result = '';
+    performance.addEventListener('resourcetimingbufferfull', () => {
+        result += 'Event Fired with '  +
+            performance.getEntriesByType('resource').length + ' entries.';
+        performance.clearResourceTimings();
+    });
+    result += 'Before adding entries. ';
+    await fillUpTheBufferWithTwoResources();
+    result += 'After adding entries. ';
+    load.script(scriptResources[2]);
+    await bufferFullFirePromise;
+    assert_equals(result, 'Before adding entries. After adding entries. Event Fired with 2 entries.');
+    const entries = performance.getEntriesByType('resource');
+    assert_equals(entries.length, 1,
+        'Number of entries in resource timing buffer is unexpected');
+    assert_true(entries[0].name.includes(scriptResources[2]),
+        'The entry must correspond to the last resource loaded.')
+}, "Test that adding entries and firing the buffer full event happen in the right order.");
+</script>

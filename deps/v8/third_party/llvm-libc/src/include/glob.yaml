@@ -1,0 +1,45 @@
+header: glob.h
+standards:
+  - posix
+macros:
+  - macro_name: GLOB_APPEND
+    macro_header: glob-macros.h
+  - macro_name: GLOB_DOOFFS
+    macro_header: glob-macros.h
+  - macro_name: GLOB_ERR
+    macro_header: glob-macros.h
+  - macro_name: GLOB_MARK
+    macro_header: glob-macros.h
+  - macro_name: GLOB_NOCHECK
+    macro_header: glob-macros.h
+  - macro_name: GLOB_NOESCAPE
+    macro_header: glob-macros.h
+  - macro_name: GLOB_NOSORT
+    macro_header: glob-macros.h
+  - macro_name: GLOB_ABORTED
+    macro_header: glob-macros.h
+  - macro_name: GLOB_NOMATCH
+    macro_header: glob-macros.h
+  - macro_name: GLOB_NOSPACE
+    macro_header: glob-macros.h
+types:
+  - type_name: glob_t
+  - type_name: size_t
+enums: []
+objects: []
+functions:
+  - name: glob
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: int
+      - type: int (*)(const char *, int)
+      - type: glob_t *__restrict
+  - name: globfree
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: glob_t *

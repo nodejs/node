@@ -1,0 +1,17 @@
+<!doctype html>
+<title>postMessage in importScripts</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var worker = new Worker('007.js');
+  var i = 0;
+  worker.onmessage = this.step_func(function(e) {
+    i++;
+    assert_equals(e.data, i);
+    if (i == 2)
+      this.done();
+  });
+});
+</script>

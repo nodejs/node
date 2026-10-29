@@ -1,0 +1,360 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef INCLUDE_V8_WASM_H_
+#define INCLUDE_V8_WASM_H_
+
+#include <functional>
+#include <memory>
+#include <span>
+#include <string>
+#include <string_view>
+#include <variant>
+
+#include "v8-internal.h"      // NOLINT(build/include_directory)
+#include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-object.h"        // NOLINT(build/include_directory)
+#include "v8-platform.h"      // NOLINT(build/include_directory)
+#include "v8config.h"         // NOLINT(build/include_directory)
+
+namespace v8 {
+
+class ArrayBuffer;
+class Promise;
+
+namespace internal::wasm {
+class NativeModule;
+}  // namespace internal::wasm
+
+/**
+ * An owned byte buffer with associated size.
+ */
+struct OwnedBuffer {
+  std::unique_ptr<const uint8_t[]> buffer;
+  size_t size = 0;
+  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
+      : buffer(std::move(buffer)), size(size) {}
+  OwnedBuffer() = default;
+};
+
+/**
+ * Wrapper around a compiled WebAssembly module, which is potentially shared by
+ * different WasmModuleObjects.
+ */
+class V8_EXPORT CompiledWasmModule {
+ public:
+  /**
+   * Serialize the compiled module. The serialized data does not include the
+   * wire bytes.
+   */
+  OwnedBuffer Serialize();
+
+  /**
+   * Get the (wasm-encoded) wire bytes that were used to compile this module.
+   */
+  std::span<const uint8_t> GetWireBytesRef();
+
+  const std::string& source_url() const { return source_url_; }
+
+ private:
+  friend class WasmModuleCompilation;
+  friend class WasmModuleObject;
+  friend class WasmStreaming;
+
+  explicit CompiledWasmModule(std::shared_ptr<internal::wasm::NativeModule>,
+                              std::string source_url);
+
+  const std::shared_ptr<internal::wasm::NativeModule> native_module_;
+  const std::string source_url_;
+};
+
+// An instance of WebAssembly.Memory.
+class V8_EXPORT WasmMemoryObject : public Object {
+ public:
+  WasmMemoryObject() = delete;
+
+  /**
+   * Returns underlying ArrayBuffer.
+   */
+  Local<ArrayBuffer> Buffer();
+
+  V8_INLINE static WasmMemoryObject* Cast(Value* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<WasmMemoryObject*>(value);
+  }
+
+ private:
+  static void CheckCast(Value* object);
+};
+
+// An instance of WebAssembly.Module.
+class V8_EXPORT WasmModuleObject : public Object {
+ public:
+  WasmModuleObject() = delete;
+
+  /**
+   * Efficiently re-create a WasmModuleObject, without recompiling, from
+   * a CompiledWasmModule.
+   */
+  static MaybeLocal<WasmModuleObject> FromCompiledModule(
+      Isolate* isolate, const CompiledWasmModule&);
+
+  /**
+   * Get the compiled module for this module object. The compiled module can be
+   * shared by several module objects.
+   */
+  CompiledWasmModule GetCompiledModule();
+
+  /**
+   * Options that influence how a Wasm module is compiled. The compile-time
+   * import options mirror those accepted by the JS `WebAssembly.Module`
+   * constructor (`{ builtins, importedStringConstants }`).
+   */
+  struct CompileOptions {
+    // Builtin compile-time imports, mirroring the strings accepted in the
+    // `builtins` array of the JS `WebAssembly.Module` constructor options.
+    // Combine values with bitwise-or to enable multiple builtins.
+    struct Builtins {
+      enum {
+        kNone = 0,
+        kJsString = 1 << 0,  // "js-string"
+      };
+    };
+    // Bitwise-or of `Builtins` values to enable as compile-time imports.
+    int builtins = Builtins::kNone;
+    // If non-null, enable imported string constants from the named module
+    // (e.g. "wasm:js/string-constants"). The string must be null-terminated and
+    // remain valid for the duration of the compile call.
+    const char* imported_string_constants_module = nullptr;
+    // If non-empty, associated with the module's script as its source URL, for
+    // use in stack traces and developer tooling. If a script already exists in
+    // the isolate for the same module, its existing URL is retained. The
+    // string must remain valid for the duration of the compile call.
+    std::string_view source_url = {};
+  };
+
+  /**
+   * Compile a Wasm module from the provided uncompiled bytes.
+   */
+  static MaybeLocal<WasmModuleObject> Compile(
+      Isolate* isolate, std::span<const uint8_t> wire_bytes);
+
+  /**
+   * Compile a Wasm module from the provided uncompiled bytes, applying the
+   * given compile options.
+   */
+  static MaybeLocal<WasmModuleObject> Compile(
+      Isolate* isolate, std::span<const uint8_t> wire_bytes,
+      const CompileOptions& options);
+
+  V8_INLINE static WasmModuleObject* Cast(Value* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<WasmModuleObject*>(value);
+  }
+
+ private:
+  static void CheckCast(Value* obj);
+};
+
+/**
+ * The V8 interface for WebAssembly streaming compilation. When streaming
+ * compilation is initiated, V8 passes a {WasmStreaming} object to the embedder
+ * such that the embedder can pass the input bytes for streaming compilation to
+ * V8.
+ */
+class V8_EXPORT WasmStreaming final {
+ public:
+  static constexpr internal::ManagedTypeId kTypeID =
+      internal::ManagedTypeId::kWasmStreaming;
+  class WasmStreamingImpl;
+
+  class ModuleCachingInterface {
+   public:
+    // Get the full wire bytes, to check against the cached version.
+    virtual std::span<const uint8_t> GetWireBytes() const = 0;
+    // Pass serialized (cached) compiled module bytes, to be deserialized and
+    // used as the result of this streaming compilation.
+    // The passed bytes will only be accessed inside this callback, i.e.
+    // lifetime can end after the call.
+    // The return value indicates whether V8 could use the passed bytes; {false}
+    // would be returned on e.g. version mismatch.
+    // This method can only be called once.
+    virtual bool SetCachedCompiledModuleBytes(std::span<const uint8_t>) = 0;
+  };
+
+  using ModuleCachingCallback = std::function<void(ModuleCachingInterface&)>;
+
+  explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
+
+  ~WasmStreaming();
+
+  /**
+   * Pass a new chunk of bytes to WebAssembly streaming compilation.
+   * The buffer passed into {OnBytesReceived} is owned by the caller.
+   */
+  void OnBytesReceived(const uint8_t* bytes, size_t size);
+
+  /**
+   * {Finish} should be called after all received bytes where passed to
+   * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
+   * must not be called after {Abort} has been called already.
+   * If {SetHasCompiledModuleBytes()} was called before, a {caching_callback}
+   * can be passed which can inspect the full received wire bytes and set cached
+   * module bytes which will be deserialized then. This callback will happen
+   * synchronously within this call; the callback is not stored.
+   */
+  void Finish(const ModuleCachingCallback& caching_callback);
+
+  /**
+   * Abort streaming compilation. If {exception} has a value, then the promise
+   * associated with streaming compilation is rejected with that value. If
+   * {exception} does not have value, the promise does not get rejected.
+   * {Abort} must not be called repeatedly, or after {Finish}.
+   */
+  void Abort(MaybeLocal<Value> exception);
+
+  /**
+   * Mark that the embedder has (potentially) cached compiled module bytes (i.e.
+   * a serialized {CompiledWasmModule}) that could match this streaming request.
+   * This will cause V8 to skip streaming compilation.
+   * The embedder should then pass a callback to the {Finish} method to pass the
+   * serialized bytes, after potentially checking their validity against the
+   * full received wire bytes.
+   */
+  void SetHasCompiledModuleBytes();
+
+  /**
+   * Sets a callback which is called whenever a significant number of new
+   * functions are ready for serialization.
+   */
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)>);
+
+  /*
+   * Sets the UTF-8 encoded source URL for the {Script} object. This must be
+   * called before {Finish}.
+   */
+  void SetUrl(const char* url, size_t length);
+
+  /**
+   * Unpacks a {WasmStreaming} object wrapped in a {CppGCManaged} for the
+   * embedder. Since the embedder is on the other side of the API, it cannot
+   * unpack the {CppGCManaged} itself.
+   */
+  static std::shared_ptr<WasmStreaming> Unpack(Isolate* isolate,
+                                               Local<Data> data);
+
+ private:
+  std::unique_ptr<WasmStreamingImpl> impl_;
+};
+
+/**
+ * An interface for asynchronous WebAssembly module compilation, to be used e.g.
+ * for implementing source phase imports.
+ * Note: This interface is experimental and can change or be removed without
+ * notice.
+ */
+class V8_EXPORT WasmModuleCompilation final {
+ public:
+  using ModuleCachingCallback = WasmStreaming::ModuleCachingCallback;
+  using CompileOptions = WasmModuleObject::CompileOptions;
+
+  /**
+   * Start an asynchronous module compilation, applying the given compile
+   * options. This can be called on any thread. Providing
+   * {CompileOptions::source_url} is equivalent to calling {SetUrl}.
+   * TODO(clemensb): Add some way to pass enabled features.
+   */
+  explicit WasmModuleCompilation(const CompileOptions& options = {});
+
+  ~WasmModuleCompilation();
+
+  WasmModuleCompilation(const WasmModuleCompilation&) = delete;
+  WasmModuleCompilation& operator=(const WasmModuleCompilation&) = delete;
+
+  /**
+   * Pass a new chunk of bytes to WebAssembly compilation.
+   * The buffer passed into {OnBytesReceived} is owned by the caller and will
+   * not be accessed any more after this call returns.
+   */
+  void OnBytesReceived(const uint8_t* bytes, size_t size);
+
+  /**
+   * {Finish} must be called on the main thread after all bytes were passed to
+   * {OnBytesReceived}.
+   * It eventually calls the provided callback to deliver the compiled module or
+   * an error. This callback will also be called in foreground, but not
+   * necessarily within this call.
+   * {Finish} must not be called after {Abort} has been called already.
+   * If {SetHasCompiledModuleBytes()} was called before, a {caching_callback}
+   * can be passed which can inspect the full received wire bytes and set cached
+   * module bytes which will be deserialized then. This callback will happen
+   * synchronously within this call; the callback is not stored.
+   */
+  void Finish(
+      Isolate*, const ModuleCachingCallback& caching_callback,
+      const std::function<void(
+          std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error)>&
+          resolution_callback);
+
+  /**
+   * Abort compilation. This can be called from any thread.
+   * {Abort} must not be called repeatedly, or after {Finish}.
+   */
+  void Abort();
+
+  /**
+   * Mark that the embedder has (potentially) cached compiled module bytes (i.e.
+   * a serialized {CompiledWasmModule}) that could match this streaming request.
+   * This will cause V8 to skip streaming compilation.
+   * The embedder should then pass a callback to the {Finish} method to pass the
+   * serialized bytes, after potentially checking their validity against the
+   * full received wire bytes.
+   */
+  void SetHasCompiledModuleBytes();
+
+  /**
+   * Sets a callback which is called whenever a significant number of new
+   * functions are ready for serialization.
+   */
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)>);
+
+  /*
+   * Sets the UTF-8 encoded source URL for the {Script} object. This must be
+   * called before {Finish}.
+   */
+  void SetUrl(const char* url, size_t length);
+
+ private:
+  class Impl;
+  const std::unique_ptr<Impl> impl_;
+};
+
+/**
+ * The V8 interface for a WebAssembly memory map descriptor. This is an
+ * experimental feature that may change and be removed without further
+ * communication.
+ */
+class V8_EXPORT WasmMemoryMapDescriptor : public Object {
+ public:
+  WasmMemoryMapDescriptor() = delete;
+
+  using WasmFileDescriptor = SharedMemoryHandle::PlatformHandle;
+
+  static Local<WasmMemoryMapDescriptor> New(Isolate* isolate,
+                                            WasmFileDescriptor fd);
+
+  static bool Unmap(Isolate* isolate, Local<Object> wasm_memory_map_descriptor);
+
+  static size_t Map(Isolate* isolate, Local<Object> wasm_memory_map_descriptor,
+                    Local<WasmMemoryObject> memory, size_t offset);
+};
+}  // namespace v8
+
+#endif  // INCLUDE_V8_WASM_H_

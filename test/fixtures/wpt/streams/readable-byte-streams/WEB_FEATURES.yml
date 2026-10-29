@@ -1,0 +1,2 @@
+rules:
+- "**": [readable-byte-streams]

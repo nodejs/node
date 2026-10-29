@@ -1,0 +1,4 @@
+{
+  "crash_type": "Data race\nWRITE 8",
+  "crash_state": "ClearCellRangeRelaxed\nClear\nClearMarkBitsAndHandleLivenessStatistics"
+}

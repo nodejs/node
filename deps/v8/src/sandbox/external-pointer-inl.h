@@ -1,0 +1,284 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_SANDBOX_EXTERNAL_POINTER_INL_H_
+#define V8_SANDBOX_EXTERNAL_POINTER_INL_H_
+
+#include "src/sandbox/external-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
+#include "src/codegen/external-reference.h"
+#include "src/objects/slots-inl.h"
+#include "src/sandbox/external-pointer-table-inl.h"
+#include "src/sandbox/isolate-inl.h"
+#include "src/sandbox/isolate.h"
+
+namespace v8 {
+namespace internal {
+
+template <ExternalPointerTagRange kTagRange>
+template <ExternalPointerTag tag>
+inline void ExternalPointerMember<kTagRange>::Init(Address host_address,
+                                                   IsolateForSandbox isolate,
+                                                   Address value) {
+  static_assert(kTagRange.Contains(tag));
+  InitExternalPointerField<tag>(
+      host_address, reinterpret_cast<Address>(storage_), isolate, value);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void ExternalPointerMember<kTagRange>::Init(Address host_address,
+                                                   IsolateForSandbox isolate,
+                                                   Address value) {
+  InitExternalPointerField<kTag>(host_address,
+                                 reinterpret_cast<Address>(storage_), isolate,
+                                 RedirectValue(isolate, value));
+}
+
+template <ExternalPointerTagRange kTagRange>
+template <ExternalPointerTagRange tag_range>
+inline Address ExternalPointerMember<kTagRange>::load(
+    const IsolateForSandbox isolate) const {
+  static_assert(kTagRange.Contains(tag_range));
+  return ReadExternalPointerField<tag_range>(
+      reinterpret_cast<Address>(storage_), isolate);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline Address ExternalPointerMember<kTagRange>::load(
+    const IsolateForSandbox isolate) const {
+  Address value = load_raw(isolate);
+  if (!USE_SIMULATOR_BOOL) return value;
+  if (value == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(value);
+}
+
+template <ExternalPointerTagRange kTagRange>
+template <ExternalPointerTag tag>
+inline void ExternalPointerMember<kTagRange>::store(IsolateForSandbox isolate,
+                                                    Address value) {
+  static_assert(kTagRange.Contains(tag));
+  WriteExternalPointerField<tag>(reinterpret_cast<Address>(storage_), isolate,
+                                 value);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void ExternalPointerMember<kTagRange>::store(IsolateForSandbox isolate,
+                                                    Address value) {
+  store_raw(isolate, RedirectValue(isolate, value));
+}
+
+template <ExternalPointerTagRange kTagRange>
+template <ExternalPointerTag tag>
+inline Address ExternalPointerMember<kTagRange>::exchange(
+    IsolateForSandbox isolate, Address value) {
+  static_assert(kTagRange.Contains(tag));
+  return ExchangeExternalPointerField<tag>(reinterpret_cast<Address>(storage_),
+                                           isolate, value);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline Address ExternalPointerMember<kTagRange>::load_raw(
+    const IsolateForSandbox isolate) const {
+  return ReadExternalPointerField<kTag>(reinterpret_cast<Address>(storage_),
+                                        isolate);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void ExternalPointerMember<kTagRange>::store_raw(
+    IsolateForSandbox isolate, Address value) {
+  WriteExternalPointerField<kTag>(reinterpret_cast<Address>(storage_), isolate,
+                                  value);
+}
+
+template <ExternalPointerTagRange kTagRange>
+inline ExternalPointer_t ExternalPointerMember<kTagRange>::load_encoded()
+    const {
+  return base::bit_cast<ExternalPointer_t>(storage_);
+}
+
+template <ExternalPointerTagRange kTagRange>
+inline void ExternalPointerMember<kTagRange>::store_encoded(
+    ExternalPointer_t value) {
+  memcpy(storage_, &value, sizeof(ExternalPointer_t));
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline ExternalPointer_t ExternalPointerMember<kTagRange>::load_encoded()
+    const {
+  return base::bit_cast<ExternalPointer_t>(storage_);
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void ExternalPointerMember<kTagRange>::store_encoded(
+    ExternalPointer_t value) {
+  memcpy(storage_, &value, sizeof(ExternalPointer_t));
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void
+ExternalPointerMember<kTagRange>::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  store_raw(isolate, load(isolate));
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline void ExternalPointerMember<kTagRange>::
+    RestoreCallbackRedirectionAfterDeserialization(IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  store(isolate, load_raw(isolate));
+}
+
+template <ExternalPointerTagRange kTagRange>
+  requires TagWithRedirection<kTagRange>
+inline Address ExternalPointerMember<kTagRange>::RedirectValue(
+    IsolateForSandbox isolate, Address value) {
+  if (!USE_SIMULATOR_BOOL) return value;
+  if (value == kNullAddress) return kNullAddress;
+  return ExternalReference::Redirect(value, kRedirectionType);
+}
+
+template <ExternalPointerTag tag>
+V8_INLINE ExternalPointerHandle
+InitExternalPointerField(Address host_address, Address field_address,
+                         IsolateForSandbox isolate, Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(tag != kExternalPointerNullTag);
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+      isolate.GetExternalPointerTableSpaceFor(tag, host_address), value, tag);
+  // Use a Release_Store to ensure that the store of the pointer into the
+  // table is not reordered after the store of the handle. Otherwise, other
+  // threads may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+  return handle;
+#else
+  WriteExternalPointerField<tag>(field_address, isolate, value);
+  return kNullExternalPointerHandle;
+#endif  // V8_ENABLE_SANDBOX
+}
+
+V8_INLINE ExternalPointerHandle InitExternalPointerField(
+    Address host_address, Address field_address, IsolateForSandbox isolate,
+    ExternalPointerTag tag, Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+      isolate.GetExternalPointerTableSpaceFor(tag, host_address), value, tag);
+  // Use a Release_Store to ensure that the store of the pointer into the
+  // table is not reordered after the store of the handle. Otherwise, other
+  // threads may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+  return handle;
+#else
+  WriteExternalPointerField(field_address, isolate, tag, value);
+  return kNullExternalPointerHandle;
+#endif  // V8_ENABLE_SANDBOX
+}
+
+#ifdef V8_ENABLE_SANDBOX
+V8_INLINE ExternalPointerHandle
+Relaxed_ReadExternalPointerHandle(Address field_address) {
+  // Handles may be written to objects from other threads so the handle needs
+  // to be loaded atomically. We assume that the access to the table cannot
+  // be reordered before the load of the handle due to the data dependency
+  // between the two accesses and therefore use relaxed memory ordering, but
+  // technically we should use memory_order_consume here.
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  return base::AsAtomic32::Relaxed_Load(location);
+}
+#endif
+
+template <ExternalPointerTagRange tag_range>
+V8_INLINE Address ReadExternalPointerField(Address field_address,
+                                           IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(!tag_range.IsEmpty());
+  ExternalPointerHandle handle =
+      Relaxed_ReadExternalPointerHandle(field_address);
+  return isolate.GetExternalPointerTableFor(tag_range).Get(handle, tag_range);
+#else
+  return ReadMaybeUnalignedValue<Address>(field_address);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+V8_INLINE Address ReadExternalPointerField(Address field_address,
+                                           IsolateForSandbox isolate,
+                                           ExternalPointerTagRange tag_range) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag_range.first, kExternalPointerNullTag);
+  ExternalPointerHandle handle =
+      Relaxed_ReadExternalPointerHandle(field_address);
+  return isolate.GetExternalPointerTableFor(tag_range).Get(handle, tag_range);
+#else
+  return ReadMaybeUnalignedValue<Address>(field_address);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <ExternalPointerTag tag>
+V8_INLINE void WriteExternalPointerField(Address field_address,
+                                         IsolateForSandbox isolate,
+                                         Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(tag != kExternalPointerNullTag);
+  ExternalPointerHandle handle =
+      Relaxed_ReadExternalPointerHandle(field_address);
+  isolate.GetExternalPointerTableFor(tag).Set(handle, value, tag);
+#else
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+V8_INLINE void WriteExternalPointerField(Address field_address,
+                                         IsolateForSandbox isolate,
+                                         ExternalPointerTag tag,
+                                         Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerHandle handle =
+      Relaxed_ReadExternalPointerHandle(field_address);
+  isolate.GetExternalPointerTableFor(tag).Set(handle, value, tag);
+#else
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <ExternalPointerTag tag>
+V8_INLINE Address ExchangeExternalPointerField(Address field_address,
+                                               IsolateForSandbox isolate,
+                                               Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(tag != kExternalPointerNullTag);
+  ExternalPointerHandle handle =
+      Relaxed_ReadExternalPointerHandle(field_address);
+  return isolate.GetExternalPointerTableFor(tag).Exchange(handle, value, tag);
+#else
+  Address old_value = ReadMaybeUnalignedValue<Address>(field_address);
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+  return old_value;
+#endif  // V8_ENABLE_SANDBOX
+}
+
+V8_INLINE void SetupLazilyInitializedExternalPointerField(
+    Address field_address) {}
+
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_SANDBOX_EXTERNAL_POINTER_INL_H_

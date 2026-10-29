@@ -1,0 +1,227 @@
+// Copyright 2017 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/d8/d8-console.h"
+
+#include <stdio.h>
+
+#include <fstream>
+#include <memory>
+#include <string>
+
+#include "include/v8-profiler.h"
+#include "src/d8/d8.h"
+#include "src/execution/isolate.h"
+#include "src/sandbox/trap-fuzzer.h"
+#include "src/utils/output-stream.h"
+
+namespace v8 {
+
+namespace {
+V8_WARN_UNUSED_RESULT bool WriteToFile(
+    const char* prefix, FILE* file, Isolate* isolate,
+    const debug::ConsoleCallArguments& args) {
+  if (prefix) fprintf(file, "%s: ", prefix);
+  v8::TryCatch try_catch(isolate);
+  for (int i = 0; i < args.Length(); i++) {
+    HandleScope handle_scope(isolate);
+    if (i > 0) fprintf(file, " ");
+
+    Local<Value> arg = args[i];
+    Local<String> str_obj;
+
+    if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Description(isolate);
+    if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) {
+      if (try_catch.HasCaught()) {
+        try_catch.ReThrow();
+      }
+      return false;
+    }
+
+    v8::String::Utf8Value str(isolate, str_obj);
+    size_t n = fwrite(*str, sizeof(**str), str.length(), file);
+    if (n != str.length()) {
+      printf("Error in fwrite\n");
+      base::OS::ExitProcess(1);
+    }
+  }
+  fprintf(file, "\n");
+  // Flush the file to avoid output to pile up in a buffer. Console output is
+  // often used for timing, so it should appear as soon as the code is executed.
+  fflush(file);
+  return true;
+}
+
+static constexpr const char* kCpuProfileOutputFilename = "v8.prof";
+
+std::optional<std::string> GetTimerLabel(
+    const debug::ConsoleCallArguments& args) {
+  if (args.Length() == 0) return "default";
+  SafeUtf8Value label(args.GetIsolate(), args[0]);
+  if (!label) return std::nullopt;
+  return std::string(*label, label.length());
+}
+
+}  // anonymous namespace
+
+D8Console::D8Console(Isolate* isolate)
+    : isolate_(isolate), origin_(base::TimeTicks::Now()) {}
+
+D8Console::~D8Console() { CHECK(!profiler_); }
+
+void D8Console::DisposeProfiler() {
+  if (profiler_) {
+    if (profiler_active_) {
+      profiler_->StopProfiling(String::Empty(isolate_));
+      profiler_active_ = false;
+    }
+    profiler_->Dispose();
+    profiler_ = nullptr;
+  }
+}
+
+void D8Console::Assert(const debug::ConsoleCallArguments& args,
+                       const v8::debug::ConsoleContext&) {
+  // If no arguments given, the "first" argument is undefined which is
+  // false-ish.
+  if (args.Length() > 0 && args[0]->BooleanValue(isolate_)) return;
+  if (!WriteToFile("console.assert", stdout, isolate_, args)) return;
+  isolate_->ThrowError("console.assert failed");
+}
+
+void D8Console::Log(const debug::ConsoleCallArguments& args,
+                    const v8::debug::ConsoleContext&) {
+  USE(WriteToFile(nullptr, stdout, isolate_, args));
+}
+
+void D8Console::Error(const debug::ConsoleCallArguments& args,
+                      const v8::debug::ConsoleContext&) {
+  USE(WriteToFile("console.error", stderr, isolate_, args));
+}
+
+void D8Console::Warn(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
+  USE(WriteToFile("console.warn", stdout, isolate_, args));
+}
+
+void D8Console::Info(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
+  USE(WriteToFile("console.info", stdout, isolate_, args));
+}
+
+void D8Console::Debug(const debug::ConsoleCallArguments& args,
+                      const v8::debug::ConsoleContext&) {
+  USE(WriteToFile("console.debug", stdout, isolate_, args));
+}
+
+void D8Console::Profile(const debug::ConsoleCallArguments& args,
+                        const v8::debug::ConsoleContext&) {
+#ifdef V8_SANDBOX_TRAP_FUZZER_AVAILABLE
+  // The profiler is currently not robust in combination with the sandbox trap
+  // fuzzer as its signal handler accesses in-sandbox data and may crash if the
+  // fuzzer mutates that data. This will then generate a lot of false positive
+  // reports (as the crashes happen inside a signal handler, they aren't
+  // handled by the sandbox crash filter, which is itself a signal handler).
+  // TODO(saelo): make the profiler's signal handler more robust.
+  if (i::SandboxTrapFuzzer::IsEnabled()) return;
+#endif  // V8_SANDBOX_TRAP_FUZZER_AVAILABLE
+  if (!profiler_) {
+    profiler_ = CpuProfiler::New(isolate_);
+  }
+  profiler_active_ = true;
+  profiler_->StartProfiling(String::Empty(isolate_), CpuProfilingOptions{});
+}
+
+void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
+                           const v8::debug::ConsoleContext&) {
+  if (!profiler_) return;
+  CpuProfile* profile = profiler_->StopProfiling(String::Empty(isolate_));
+  profiler_active_ = false;
+  if (!profile) return;
+  if (Shell::HasOnProfileEndListener(isolate_)) {
+    i::StringOutputStream out;
+    profile->Serialize(&out);
+    std::string profile_str = out.str();
+    // Triggering the listener may cause recursion into `ProfileEnd`. To avoid
+    // use-after-free of `profile`, we delete it before triggering the
+    // listener. To avoid use-after-free of `profiler_`, we also dispose it
+    // before triggering the listener.
+    profile->Delete();
+    DisposeProfiler();
+    Shell::TriggerOnProfileEndListener(isolate_, std::move(profile_str));
+  } else {
+    i::FileOutputStream out(kCpuProfileOutputFilename);
+    profile->Serialize(&out);
+    profile->Delete();
+    // Currently the profiler does not work correctly if it is started and
+    // stopped multiple times. One problem is that logged code gets cleared in
+    // `StopProfiling`, but builtins only get logged in the constructor and are
+    // therefore only available in the first profiling session.
+    // TODO(ahaas): Either fix the profiler to support multiple sessions, or
+    // introduce a CHECK that the profiler is only used once.
+    DisposeProfiler();
+  }
+}
+
+void D8Console::Time(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
+  std::optional label = GetTimerLabel(args);
+  if (!label.has_value()) return;
+  if (!timers_.try_emplace(label.value(), base::TimeTicks::Now()).second) {
+    printf("console.time: Timer '%s' already exists\n", label.value().c_str());
+  }
+}
+
+void D8Console::TimeLog(const debug::ConsoleCallArguments& args,
+                        const v8::debug::ConsoleContext&) {
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
+  std::optional label = GetTimerLabel(args);
+  if (!label.has_value()) return;
+  auto it = timers_.find(label.value());
+  if (it == timers_.end()) {
+    printf("console.timeLog: Timer '%s' does not exist\n",
+           label.value().c_str());
+    return;
+  }
+  base::TimeDelta delta = base::TimeTicks::Now() - it->second;
+  printf("console.timeLog: %s, %f\n", label.value().c_str(),
+         delta.InMillisecondsF());
+}
+
+void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
+                        const v8::debug::ConsoleContext&) {
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
+  std::optional label = GetTimerLabel(args);
+  if (!label.has_value()) return;
+  auto it = timers_.find(label.value());
+  if (it == timers_.end()) {
+    printf("console.timeEnd: Timer '%s' does not exist\n",
+           label.value().c_str());
+    return;
+  }
+  base::TimeDelta delta = base::TimeTicks::Now() - it->second;
+  printf("console.timeEnd: %s, %f\n", label.value().c_str(),
+         delta.InMillisecondsF());
+  timers_.erase(it);
+}
+
+void D8Console::TimeStamp(const debug::ConsoleCallArguments& args,
+                          const v8::debug::ConsoleContext&) {
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
+  std::optional label = GetTimerLabel(args);
+  if (!label.has_value()) return;
+  base::TimeDelta delta = base::TimeTicks::Now() - origin_;
+  printf("console.timeStamp: %s, %f\n", label.value().c_str(),
+         delta.InMillisecondsF());
+}
+
+void D8Console::Trace(const debug::ConsoleCallArguments& args,
+                      const v8::debug::ConsoleContext&) {
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+  i_isolate->PrintStack(stderr, i::Isolate::kPrintStackConcise);
+}
+
+}  // namespace v8

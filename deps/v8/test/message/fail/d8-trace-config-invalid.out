@@ -1,0 +1,6 @@
+Failed to parse trace config.
+
+undefined:1: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+{ invalid_json
+  ^
+SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)

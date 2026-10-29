@@ -1,0 +1,61 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+action("fadec_decode_table") {
+  script = "src/parseinstrs.py"
+  inputs = [ "src/instrs.txt" ]
+  outputs = [
+    "$target_gen_dir/fadec-decode-public.inc",
+    "$target_gen_dir/fadec-decode-private.inc",
+  ]
+  args = [
+    "--32",
+    "--64",
+    "decode",
+    rebase_path("src/instrs.txt", root_build_dir),
+    rebase_path("$target_gen_dir/fadec-decode-public.inc", root_build_dir),
+    rebase_path("$target_gen_dir/fadec-decode-private.inc", root_build_dir),
+  ]
+}
+
+action("fadec_encode_table") {
+  script = "src/parseinstrs.py"
+  inputs = [ "src/instrs.txt" ]
+  outputs = [
+    "$target_gen_dir/fadec-encode-public.inc",
+    "$target_gen_dir/fadec-encode-private.inc",
+  ]
+  args = [
+    "--32",
+    "--64",
+    "encode",
+    rebase_path("src/instrs.txt", root_build_dir),
+    rebase_path("$target_gen_dir/fadec-encode-public.inc", root_build_dir),
+    rebase_path("$target_gen_dir/fadec-encode-private.inc", root_build_dir),
+  ]
+}
+
+config("fadec_config") {
+  include_dirs = [
+    "src",
+    target_gen_dir,
+  ]
+}
+
+static_library("fadec") {
+  sources = [
+    "src/decode.c",
+    "src/encode.c",
+    "src/fadec-enc.h",
+    "src/fadec.h",
+    "src/format.c",
+  ]
+  deps = [
+    ":fadec_decode_table",
+    ":fadec_encode_table",
+  ]
+  public_configs = [ ":fadec_config" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}

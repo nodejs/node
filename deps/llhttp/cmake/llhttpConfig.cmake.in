@@ -1,0 +1,19 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/llhttp-targets.cmake")
+
+if(NOT TARGET llhttp::llhttp)
+  if(TARGET llhttp::llhttp_shared)
+    add_library(llhttp::llhttp INTERFACE IMPORTED)
+    set_property(TARGET llhttp::llhttp PROPERTY
+      INTERFACE_LINK_LIBRARIES llhttp::llhttp_shared
+    )
+  elseif(TARGET llhttp::llhttp_static)
+    add_library(llhttp::llhttp INTERFACE IMPORTED)
+    set_property(TARGET llhttp::llhttp PROPERTY
+      INTERFACE_LINK_LIBRARIES llhttp::llhttp_static
+    )
+  endif()
+endif()
+
+check_required_components(llhttp)

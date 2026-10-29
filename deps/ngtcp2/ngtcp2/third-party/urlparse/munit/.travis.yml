@@ -1,0 +1,149 @@
+language: c
+sudo: false
+dist: trusty
+branches:
+  except:
+    - /^(wip\/)?(appveyor|msvc|mingw|windows)(\-.+)?$/
+    # https://github.com/travis-ci/travis-ci/issues/6632
+    # - /^master$/
+matrix:
+  include:
+    ###
+    ## Linux builds using various versions of GCC.
+    ###
+    - env: C_COMPILER=gcc-6
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-6
+          - g++-6
+    - env: C_COMPILER=gcc-5
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+    # - env: C_COMPILER=gcc-4.9
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - gcc-4.9
+    #       - g++-4.9
+    - env: C_COMPILER=gcc-4.8
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-4.8
+          - g++-4.8
+    # - env: C_COMPILER=gcc-4.7
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - gcc-4.7
+    #       - g++-4.7
+    - env: C_COMPILER=gcc-4.6
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-4.6
+          - g++-4.6
+    # - os: linux
+    #   env: C_COMPILER=gcc-4.5
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - gcc-4.5
+    #       - g++-4.5
+    - env: C_COMPILER=gcc-4.4
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-4.4
+          - g++-4.4
+
+    ###
+    ## clang on Linux
+    ###
+    - env: C_COMPILER=clang-3.9
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.9
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.9
+    # - env: C_COMPILER=clang-3.8
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - llvm-toolchain-precise-3.8
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - clang-3.8
+    - env: C_COMPILER=clang-3.7
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.7
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.7
+    # - env: C_COMPILER=clang-3.6
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - llvm-toolchain-precise-3.6
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - clang-3.6
+    - env: C_COMPILER=clang-3.5
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.5
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.5
+
+    ###
+    ## PGI
+    ###
+    - env: C_COMPILER=pgcc OPENMP=y
+
+    ###
+    ## OS X
+    ###
+    - os: osx
+
+    ###
+    ## Meson
+    ###
+    - env: BUILD_SYSTEM=meson
+
+before_install:
+- if [ -n "${C_COMPILER}" ]; then export CC="${C_COMPILER}"; fi
+- if [ "${C_COMPILER}" = "pgcc" ]; then wget -q -O /dev/stdout 'https://raw.githubusercontent.com/nemequ/pgi-travis/master/install-pgi.sh' | /bin/sh; fi
+- if [ "${BUILD_SYSTEM}" = "meson" ]; then wget -O /tmp/ninja-linux.zip $(curl -s https://api.github.com/repos/ninja-build/ninja/releases/latest | grep -oP 'https://github.com/ninja-build/ninja/releases/download/v[0-9\.]+/ninja-linux.zip') && unzip -q /tmp/ninja-linux.zip -d ~/bin && pyenv local 3.6 && pip3 install meson; fi
+
+script:
+ - if [ "${BUILD_SYSTEM}" = "meson" ]; then meson build && ninja -Cbuild; else make CC="${CC}" AGGRESSIVE_WARNINGS=y EXTENSION="${EXTENSION}" OPENMP="${OPENMP}" ASAN="${ASAN}" UBSAN="${UBSAN}"; fi
+ - if [ "${BUILD_SYSTEM}" = "meson" ]; then ninja -Cbuild test; else make test; fi
+
+notifications:
+  email: false

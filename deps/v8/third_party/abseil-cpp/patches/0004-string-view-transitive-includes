@@ -1,0 +1,13 @@
+TODO: crbug.com/472445608 - Remove when when third_party project would stop relying on these transitive includes.
+diff --git a/third_party/abseil-cpp/absl/strings/string_view.h b/third_party/abseil-cpp/absl/strings/string_view.h
+index 97f7729db9f67..4855e5bfdf1f1 100644
+--- a/third_party/abseil-cpp/absl/strings/string_view.h
++++ b/third_party/abseil-cpp/absl/strings/string_view.h
+@@ -25,6 +25,7 @@
+ #define ABSL_STRINGS_STRING_VIEW_H_
+ 
+ #include <algorithm>
++#include <string>
+ #include <string_view>
+ 
+ #include "absl/base/attributes.h"

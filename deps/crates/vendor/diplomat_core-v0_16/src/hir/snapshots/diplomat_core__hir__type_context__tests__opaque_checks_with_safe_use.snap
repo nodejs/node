@@ -1,0 +1,5 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in NonOpaqueStruct: Methods on ZST structs are not yet implemented: NonOpaqueStruct

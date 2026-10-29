@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>respondWith with response body having invalid chunks</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const WORKER =
+  'resources/fetch-event-respond-with-response-body-with-invalid-chunk-worker.js';
+const SCOPE =
+  'resources/fetch-event-respond-with-response-body-with-invalid-chunk-iframe.html';
+
+// Called by the iframe when it has the reader promise we should watch.
+var set_reader_promise;
+let reader_promise = new Promise(resolve => set_reader_promise = resolve);
+
+var set_fetch_promise;
+let fetch_promise = new Promise(resolve => set_fetch_promise = resolve);
+
+// This test creates an controlled iframe that makes a fetch request. The
+// service worker returns a response with a body stream containing an invalid
+// chunk.
+promise_test(async t => {
+    // Start off the process.
+    let errorConstructor;
+    await service_worker_unregister_and_register(t, WORKER, SCOPE)
+      .then(reg => {
+           add_completion_callback(() => reg.unregister());
+           return wait_for_state(t, reg.installing, 'activated');
+         })
+      .then(() => with_iframe(SCOPE))
+      .then(frame => {
+          t.add_cleanup(() => frame.remove())
+          errorConstructor = frame.contentWindow.TypeError;
+        });
+
+    await promise_rejects_js(t, errorConstructor, reader_promise,
+                             "read() should be rejected");
+    // Fetch should complete properly, because the reader error is caught in
+    // the subframe.  That is, there should be no errors _other_ than the
+    // reader!
+    return fetch_promise;
+  }, 'Response with a ReadableStream having non-Uint8Array chunks should be transferred as errored');
+</script>

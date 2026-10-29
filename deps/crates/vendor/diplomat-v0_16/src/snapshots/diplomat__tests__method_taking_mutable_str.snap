@@ -1,0 +1,26 @@
+---
+source: macro/src/lib.rs
+expression: "rustfmt_code(&gen_bridge(parse_quote! {\n                            mod ffi\n                            {\n                                struct Foo {} impl Foo\n                                {\n                                    pub fn make_uppercase(s : & mut str) { unimplemented! () }\n                                }\n                            }\n                        }).to_token_stream().to_string())"
+---
+mod ffi {
+    #[repr(C)]
+    struct Foo {}
+    impl Foo {
+        pub fn make_uppercase(s: &mut str) {
+            unimplemented!()
+        }
+    }
+    #[no_mangle]
+    extern "C" fn Foo_make_uppercase(s_diplomat_data: *mut u8, s_diplomat_len: usize) {
+        Foo::make_uppercase(unsafe {
+            core::str::from_utf8_mut(core::slice::from_raw_parts_mut(
+                s_diplomat_data,
+                s_diplomat_len,
+            ))
+            .unwrap()
+        })
+    }
+    #[no_mangle]
+    extern "C" fn Foo_destroy(this: Box<Foo>) {}
+}
+

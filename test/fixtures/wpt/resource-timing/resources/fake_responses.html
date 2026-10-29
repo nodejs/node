@@ -1,0 +1,19 @@
+<body>
+<script>
+function request(type) {
+  var client = new XMLHttpRequest,
+    identifier = type == "tag" ? Math.random() : new Date().toGMTString(),
+    url = "fake_responses.py?" + type + "=" + identifier
+    client.open("GET", url, false)
+    client.send(null)
+    client.open("GET", url, false)
+    client.setRequestHeader(type == "tag" ? "If-None-Match" : "If-Modified-Since", identifier)
+    client.send(null)
+}
+
+if(window.parent.setup_iframe) {
+  window.parent.setup_iframe();
+  request("tag");
+}
+</script>
+</body>

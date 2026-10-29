@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script>
+var SCOPE = './redirect.py?Redirect=' + encodeURI('http://example.com');
+var SCRIPT = 'navigation-redirect-to-http-worker.js';
+var host_info = get_host_info();
+
+navigator.serviceWorker.getRegistration(SCOPE)
+  .then(function(registration) {
+      if (registration)
+        return registration.unregister();
+    })
+  .then(function() {
+      return navigator.serviceWorker.register(SCRIPT, {scope: SCOPE});
+    })
+  .then(function(registration) {
+      return new Promise(function(resolve) {
+          registration.addEventListener('updatefound', function() {
+              resolve(registration.installing);
+            });
+        });
+    })
+  .then(function(worker) {
+      worker.addEventListener('statechange', on_state_change);
+    })
+  .catch(function(reason) {
+      window.parent.postMessage({results: 'FAILURE: ' + reason.message},
+                                host_info['HTTPS_ORIGIN']);
+     });
+
+function on_state_change(event) {
+  if (event.target.state != 'activated')
+    return;
+  with_iframe(SCOPE, {auto_remove: false})
+    .then(function(frame) {
+        window.parent.postMessage(
+            {results: frame.contentDocument.body.textContent},
+            host_info['HTTPS_ORIGIN']);
+      });
+}
+</script>

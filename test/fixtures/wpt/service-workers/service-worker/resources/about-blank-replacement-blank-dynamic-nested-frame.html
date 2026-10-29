@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<body>
+<script>
+function nestedLoaded() {
+  parent.postMessage({ type: 'NESTED_LOADED' }, '*');
+}
+
+// dynamically add an about:blank iframe
+var f = document.createElement('iframe');
+f.onload = nestedLoaded;
+document.body.appendChild(f);
+
+// Helper routine to make it slightly easier for our parent to find
+// the nested frame.
+function nested() {
+  return f.contentWindow;
+}
+</script>
+</body>
+</html>

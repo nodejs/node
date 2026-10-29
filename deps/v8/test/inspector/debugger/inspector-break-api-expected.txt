@@ -1,0 +1,38 @@
+Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API
+
+Running test: testBreakProgram
+Stack:
+callBreakProgram (:9:12)
+(anonymous) (:0:0)
+Other data:
+{
+    method : Debugger.paused
+    params : {
+        data : {
+            a : 42
+        }
+        hitBreakpoints : [
+        ]
+        reason : reason
+    }
+}
+
+
+Running test: testSchedulePauseOnNextStatement
+Stack:
+(anonymous) (expr1.js:0:0)
+Other data:
+{
+    method : Debugger.paused
+    params : {
+        data : {
+            a : 42
+        }
+        hitBreakpoints : [
+        ]
+        reason : reason
+    }
+}
+
+
+Running test: testCancelPauseOnNextStatement

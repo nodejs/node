@@ -1,0 +1,78 @@
+<!doctype html>
+<title>Clicks on input element</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=dump style=display:none></div>
+<script>
+var dump = document.getElementById("dump")
+
+test(t => {
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.disabled = true;
+  const label = document.createElement("label");
+  label.append(input);
+  dump.append(label);
+  label.click();
+  assert_false(input.checked);
+}, "disabled checkbox should not be checked from label click");
+
+test(t => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.disabled = true;
+  const label = document.createElement("label");
+  label.append(input);
+  dump.append(label);
+  label.click();
+  assert_false(input.checked);
+}, "disabled radio should not be checked from label click");
+
+test(t => {
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.disabled = true;
+  const label = document.createElement("label");
+  label.append(input);
+  dump.append(label);
+  label.dispatchEvent(new MouseEvent("click"));
+  assert_false(input.checked);
+}, "disabled checkbox should not be checked from label click by dispatchEvent");
+
+test(t => {
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.disabled = true;
+  const label = document.createElement("label");
+  label.append(input);
+  dump.append(label);
+  label.dispatchEvent(new MouseEvent("click"));
+  assert_false(input.checked);
+}, "disabled radio should not be checked from label click by dispatchEvent");
+
+test(t => {
+  const checkbox = dump.appendChild(document.createElement("input"));
+  checkbox.type = "checkbox";
+  checkbox.onclick = ev => {
+    checkbox.type = "date";
+    ev.preventDefault();
+  };
+  checkbox.dispatchEvent(new MouseEvent("click", { cancelable: true }));
+  assert_false(checkbox.checked);
+}, "checkbox morphed into another type should not mutate checked state");
+
+test(t => {
+  const radio1 = dump.appendChild(document.createElement("input"));
+  const radio2 = dump.appendChild(radio1.cloneNode());
+  radio1.type = radio2.type = "radio";
+  radio1.name = radio2.name = "foo";
+  radio2.checked = true;
+  radio1.onclick = ev => {
+    radio1.type = "date";
+    ev.preventDefault();
+  };
+  radio1.dispatchEvent(new MouseEvent("click", { cancelable: true }));
+  assert_false(radio1.checked);
+  assert_true(radio2.checked);
+}, "radio morphed into another type should not steal the existing checked state");
+</script>

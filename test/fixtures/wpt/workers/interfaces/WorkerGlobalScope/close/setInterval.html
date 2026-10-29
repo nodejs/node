@@ -1,0 +1,17 @@
+<!doctype html>
+<title>close() and setInterval</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+setup({ single_test: true });
+
+var worker = new Worker('setInterval.js');
+worker.onmessage = function(e) {
+  assert_unreached("Got message");
+};
+worker.onerror = function(e) {
+  assert_unreached("Got error");
+};
+setTimeout(done, 2000);
+</script>

@@ -1,0 +1,129 @@
+'use strict';
+
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const assert = require('node:assert');
+const {
+  openSync,
+  readFile,
+} = require('node:fs');
+const { Utf8Stream } = require('node:fs');
+const { join } = require('node:path');
+const { isMainThread } = require('node:worker_threads');
+
+tmpdir.refresh();
+let fileCounter = 0;
+
+if (isMainThread) {
+  process.umask(0o000);
+}
+function getTempFile() {
+  return join(tmpdir.path, `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+}
+
+runTests(false);
+runTests(true);
+
+function runTests(sync) {
+
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const stream = new Utf8Stream({ fd, sync, minLength: 5000 });
+
+    assert.ok(stream.write('hello world\n'));
+
+    setTimeout(common.mustCall(() => {
+      readFile(dest, 'utf8', common.mustSucceed((data) => {
+        assert.strictEqual(data, '');
+      }));
+    }), 1500);
+
+    stream.destroy();
+  }
+
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+
+    // Test that periodicFlush property is set correctly
+    const stream1 = new Utf8Stream({ fd, sync, minLength: 5000 });
+    assert.strictEqual(stream1.periodicFlush, 0);
+    stream1.destroy();
+
+    const fd2 = openSync(dest, 'w');
+    const stream2 = new Utf8Stream({ fd: fd2, sync, minLength: 5000, periodicFlush: 1000 });
+    assert.strictEqual(stream2.periodicFlush, 1000);
+    stream2.destroy();
+  }
+
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const stream = new Utf8Stream({ fd, sync, minLength: 5000 });
+
+    assert.ok(stream.write('hello world\n'));
+
+    // Manually flush to test that data can be written
+    stream.flush(common.mustSucceed());
+
+    setTimeout(common.mustCall(() => {
+      readFile(dest, 'utf8', common.mustSucceed((data) => {
+        assert.strictEqual(data, 'hello world\n');
+      }));
+    }), 500);
+
+    stream.destroy();
+  }
+
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const stream = new Utf8Stream({
+      fd,
+      sync,
+      minLength: 5000,
+      periodicFlush: common.platformTimeout(10),
+    });
+    // Periodic flush timers are unrefed. Keep the event loop alive until the
+    // write completes, and let the test runner enforce the timeout.
+    const keepAlive = setInterval(() => {}, 1000);
+
+    stream.once('drain', common.mustCall(() => {
+      clearInterval(keepAlive);
+      stream.destroy();
+      readFile(dest, 'utf8', common.mustSucceed((data) => {
+        assert.strictEqual(data, 'periodic flush\n');
+      }));
+    }));
+    assert.ok(stream.write('periodic flush\n'));
+  }
+
+  if (!sync) {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    let fsyncCalls = 0;
+    const stream = new Utf8Stream({
+      fd,
+      minLength: 5000,
+      periodicFlush: common.platformTimeout(10),
+      fs: {
+        fsync: common.mustCall((_fd, callback) => {
+          fsyncCalls++;
+          if (fsyncCalls === 1) {
+            setTimeout(common.mustCall(() => {
+              assert.strictEqual(fsyncCalls, 1);
+              stream.destroy();
+              callback();
+            }), common.platformTimeout(50));
+          } else {
+            process.nextTick(callback);
+          }
+        }, 2),
+      },
+    });
+
+    stream.on('close', common.mustCall());
+    assert.ok(stream.write('slow fsync\n'));
+  }
+}

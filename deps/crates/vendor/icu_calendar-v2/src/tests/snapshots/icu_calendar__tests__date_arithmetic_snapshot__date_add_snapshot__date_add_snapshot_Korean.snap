@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(39-12-10, ISO year 2022, for calendar Korean))
+    +10d → Date(39-12-20, ISO year 2022, for calendar Korean)
+    +2m → Date(40-2-10, ISO year 2023, for calendar Korean)
+    +1y → Date(40-13-10, ISO year 2023, for calendar Korean)
+    +1y 3m 15d → Date(41-3-25, ISO year 2024, for calendar Korean)
+
+2024-6-15
+  (start: Date(41-5-10, ISO year 2024, for calendar Korean))
+    +10d → Date(41-5-20, ISO year 2024, for calendar Korean)
+    +2m → Date(41-7-10, ISO year 2024, for calendar Korean)
+    +1y → Date(42-5-10, ISO year 2025, for calendar Korean)
+    +1y 3m 15d → Date(42-8-25, ISO year 2025, for calendar Korean)
+
+2025-12-31
+  (start: Date(42-12-12, ISO year 2025, for calendar Korean))
+    +10d → Date(42-12-22, ISO year 2025, for calendar Korean)
+    +2m → Date(43-1-12, ISO year 2026, for calendar Korean)
+    +1y → Date(43-11-12, ISO year 2026, for calendar Korean)
+    +1y 3m 15d → Date(44-2-27, ISO year 2027, for calendar Korean)

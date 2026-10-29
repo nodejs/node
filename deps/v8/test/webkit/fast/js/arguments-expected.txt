@@ -1,0 +1,206 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test thoroughly checks the behaviour of the 'arguments' object.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS access_1(1, 2, 3) is 1
+PASS access_2(1, 2, 3) is 2
+PASS access_3(1, 2, 3) is 3
+PASS access_4(1, 2, 3) is undefined
+PASS access_5(1, 2, 3) is undefined
+PASS access_1(1) is 1
+PASS access_2(1) is undefined
+PASS access_3(1) is undefined
+PASS access_4(1) is undefined
+PASS access_5(1) is undefined
+PASS access_1(1, 2, 3, 4, 5) is 1
+PASS access_2(1, 2, 3, 4, 5) is 2
+PASS access_3(1, 2, 3, 4, 5) is 3
+PASS access_4(1, 2, 3, 4, 5) is 4
+PASS access_5(1, 2, 3, 4, 5) is 5
+PASS argumentLengthIs5() is 5
+PASS argumentLengthIs5(1,2,3,4,5) is 5
+PASS argumentLengthIs5(1,2,3,4,5,6,7,8,9,10) is 5
+PASS duplicateArgumentAndReturnLast_call(1) is 1
+PASS duplicateArgumentAndReturnFirst_call(1) is 1
+PASS duplicateArgumentAndReturnLast_apply(1) is 1
+PASS duplicateArgumentAndReturnFirst_apply(1) is 1
+PASS tear_off_equal_access_1(1, 2, 3) is 1
+PASS tear_off_equal_access_2(1, 2, 3) is 2
+PASS tear_off_equal_access_3(1, 2, 3) is 3
+PASS tear_off_equal_access_4(1, 2, 3) is undefined
+PASS tear_off_equal_access_5(1, 2, 3) is undefined
+PASS tear_off_too_few_access_1(1) is 1
+PASS tear_off_too_few_access_2(1) is undefined
+PASS tear_off_too_few_access_3(1) is undefined
+PASS tear_off_too_few_access_4(1) is undefined
+PASS tear_off_too_few_access_5(1) is undefined
+PASS tear_off_too_many_access_1(1, 2, 3, 4, 5) is 1
+PASS tear_off_too_many_access_2(1, 2, 3, 4, 5) is 2
+PASS tear_off_too_many_access_3(1, 2, 3, 4, 5) is 3
+PASS tear_off_too_many_access_4(1, 2, 3, 4, 5) is 4
+PASS tear_off_too_many_access_5(1, 2, 3, 4, 5) is 5
+PASS live_1(0, 2, 3) is 1
+PASS live_2(1, 0, 3) is 2
+PASS live_3(1, 2, 0) is 3
+PASS live_1(0) is 1
+PASS live_2(1) is undefined
+PASS live_3(1) is undefined
+PASS live_1(0, 2, 3, 4, 5) is 1
+PASS live_2(1, 0, 3, 4, 5) is 2
+PASS live_3(1, 2, 0, 4, 5) is 3
+PASS extra_args_modify_4(1, 2, 3, 0, 5) is 4
+PASS extra_args_modify_5(1, 2, 3, 4, 0) is 5
+PASS tear_off_live_1(0, 2, 3)() is 1
+PASS tear_off_live_2(1, 0, 3)() is 2
+PASS tear_off_live_3(1, 2, 0)() is 3
+PASS tear_off_live_1(0)() is 1
+PASS tear_off_live_2(1)() is undefined
+PASS tear_off_live_3(1)() is undefined
+PASS tear_off_live_1(0, 2, 3, 4, 5)() is 1
+PASS tear_off_live_2(1, 0, 3, 4, 5)() is 2
+PASS tear_off_live_3(1, 2, 0, 4, 5)() is 3
+PASS tear_off_extra_args_modify_4(1, 2, 3, 0, 5)() is 4
+PASS tear_off_extra_args_modify_5(1, 2, 3, 4, 0)() is 5
+PASS delete_1(1, 2, 3) is undefined
+PASS delete_2(1, 2, 3) is undefined
+PASS delete_3(1, 2, 3) is undefined
+PASS delete_4(1, 2, 3) is undefined
+PASS delete_5(1, 2, 3) is undefined
+PASS delete_1(1) is undefined
+PASS delete_2(1) is undefined
+PASS delete_3(1) is undefined
+PASS delete_4(1) is undefined
+PASS delete_5(1) is undefined
+PASS delete_1(1, 2, 3, 4, 5) is undefined
+PASS delete_2(1, 2, 3, 4, 5) is undefined
+PASS delete_3(1, 2, 3, 4, 5) is undefined
+PASS delete_4(1, 2, 3, 4, 5) is undefined
+PASS delete_5(1, 2, 3, 4, 5) is undefined
+PASS tear_off_delete_1(1, 2, 3)() is undefined
+PASS tear_off_delete_2(1, 2, 3)() is undefined
+PASS tear_off_delete_3(1, 2, 3)() is undefined
+PASS tear_off_delete_4(1, 2, 3)() is undefined
+PASS tear_off_delete_5(1, 2, 3)() is undefined
+PASS tear_off_delete_1(1)() is undefined
+PASS tear_off_delete_2(1)() is undefined
+PASS tear_off_delete_3(1)() is undefined
+PASS tear_off_delete_4(1)() is undefined
+PASS tear_off_delete_5(1)() is undefined
+PASS tear_off_delete_1(1, 2, 3, 4, 5)() is undefined
+PASS tear_off_delete_2(1, 2, 3, 4, 5)() is undefined
+PASS tear_off_delete_3(1, 2, 3, 4, 5)() is undefined
+PASS tear_off_delete_4(1, 2, 3, 4, 5)() is undefined
+PASS tear_off_delete_5(1, 2, 3, 4, 5)() is undefined
+PASS delete_not_live_1(1, 2, 3) is 1
+PASS delete_not_live_2(1, 2, 3) is 2
+PASS delete_not_live_3(1, 2, 3) is 3
+PASS delete_not_live_1(1) is 1
+PASS delete_not_live_2(1) is undefined
+PASS delete_not_live_3(1) is undefined
+PASS delete_not_live_1(1, 2, 3, 4, 5) is 1
+PASS delete_not_live_2(1, 2, 3, 4, 5) is 2
+PASS delete_not_live_3(1, 2, 3, 4, 5) is 3
+PASS tear_off_delete_not_live_1(1, 2, 3)() is 1
+PASS tear_off_delete_not_live_2(1, 2, 3)() is 2
+PASS tear_off_delete_not_live_3(1, 2, 3)() is 3
+PASS tear_off_delete_not_live_1(1)() is 1
+PASS tear_off_delete_not_live_2(1)() is undefined
+PASS tear_off_delete_not_live_3(1)() is undefined
+PASS tear_off_delete_not_live_1(1, 2, 3, 4, 5)() is 1
+PASS tear_off_delete_not_live_2(1, 2, 3, 4, 5)() is 2
+PASS tear_off_delete_not_live_3(1, 2, 3, 4, 5)() is 3
+PASS access_after_delete_named_2(1, 2, 3) is 2
+PASS access_after_delete_named_3(1, 2, 3) is 3
+PASS access_after_delete_named_4(1, 2, 3) is undefined
+PASS access_after_delete_named_2(1) is undefined
+PASS access_after_delete_named_3(1) is undefined
+PASS access_after_delete_named_4(1) is undefined
+PASS access_after_delete_named_2(1, 2, 3, 4) is 2
+PASS access_after_delete_named_3(1, 2, 3, 4) is 3
+PASS access_after_delete_named_4(1, 2, 3, 4) is 4
+PASS access_after_delete_extra_1(1, 2, 3) is 1
+PASS access_after_delete_extra_2(1, 2, 3) is 2
+PASS access_after_delete_extra_3(1, 2, 3) is 3
+PASS access_after_delete_extra_5(1, 2, 3) is undefined
+PASS access_after_delete_extra_1(1) is 1
+PASS access_after_delete_extra_2(1) is undefined
+PASS access_after_delete_extra_3(1) is undefined
+PASS access_after_delete_extra_5(1) is undefined
+PASS access_after_delete_extra_1(1, 2, 3, 4, 5) is 1
+PASS access_after_delete_extra_2(1, 2, 3, 4, 5) is 2
+PASS access_after_delete_extra_3(1, 2, 3, 4, 5) is 3
+PASS access_after_delete_extra_5(1, 2, 3, 4, 5) is 5
+PASS argumentsParam(true) is true
+PASS argumentsFunctionConstructorParam(true) is true
+PASS argumentsVarUndefined() is '[object Arguments]'
+PASS argumentCalleeInException() is argumentCalleeInException
+PASS shadowedArgumentsApply([true]) is true
+PASS shadowedArgumentsLength([]) is 0
+PASS shadowedArgumentsLength() threw exception TypeError: Cannot read properties of undefined (reading 'length').
+PASS shadowedArgumentsCallee([]) is undefined.
+PASS shadowedArgumentsIndex([true]) is true
+PASS descriptor.value is "one"
+PASS descriptor.writable is true
+PASS descriptor.enumerable is true
+PASS descriptor.configurable is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS true is true
+PASS false is false
+PASS true is true
+PASS false is false
+PASS false is false
+PASS undefined is undefined.
+PASS true is true
+PASS false is false
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

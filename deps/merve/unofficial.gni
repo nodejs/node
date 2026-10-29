@@ -1,0 +1,20 @@
+# This file is used by GN for building, which is NOT the build system used for
+# building official binaries.
+# Please edit the gyp files if you are making changes to build system.
+
+# The actual configurations are put inside a template in unofficial.gni to
+# prevent accidental edits from contributors.
+template("merve_gn_build") {
+  config("merve_config") {
+    include_dirs = [ "." ]
+  }
+  gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                            [ rebase_path("merve.gyp") ],
+                            "scope",
+                            [ "merve.gyp" ])
+  source_set(target_name) {
+    forward_variables_from(invoker, "*")
+    public_configs = [ ":merve_config" ]
+    sources = gypi_values.merve_sources
+  }
+}

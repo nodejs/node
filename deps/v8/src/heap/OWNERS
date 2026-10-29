@@ -1,0 +1,10 @@
+bikineev@chromium.org
+dinfuehr@chromium.org
+hpayer@chromium.org
+mlippautz@chromium.org
+nikolaos@chromium.org
+omerkatz@chromium.org
+
+per-file *factory*=file:../objects/OWNERS
+per-file read-only-promotion.*=file:../snapshot/OWNERS
+per-file static-roots.h=file:../../COMMON_OWNERS

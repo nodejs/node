@@ -1,0 +1,4 @@
+Checks that it is possible to disable agent on pause.
+set breakpoint, call foo, wait for pause..
+disable agent..
+call finished

@@ -1,0 +1,104 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_OBJECTS_FEEDBACK_CELL_INL_H_
+#define V8_OBJECTS_FEEDBACK_CELL_INL_H_
+
+#include "src/objects/feedback-cell.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
+
+#include "src/execution/tiering-manager.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/feedback-vector-inl.h"
+#include "src/objects/object-predicates-inl.h"
+#include "src/objects/struct-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
+namespace v8::internal {
+
+Tagged<FeedbackCell::Value> FeedbackCell::value() const {
+  return value_.load();
+}
+
+Tagged<FeedbackCell::Value> FeedbackCell::value(AcquireLoadTag) const {
+  return value_.Acquire_Load();
+}
+
+void FeedbackCell::set_value(Tagged<FeedbackCell::Value> value,
+                             WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+void FeedbackCell::set_value(Tagged<FeedbackCell::Value> value, ReleaseStoreTag,
+                             WriteBarrierMode mode) {
+  value_.Release_Store(this, value, mode);
+}
+
+int32_t FeedbackCell::interrupt_budget() const { return interrupt_budget_; }
+
+void FeedbackCell::set_interrupt_budget(int32_t value) {
+  interrupt_budget_ = value;
+}
+
+JSDispatchHandle FeedbackCell::dispatch_handle() const {
+  return dispatch_handle_.Relaxed_Load();
+}
+
+void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
+  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
+  dispatch_handle_.Relaxed_Store(this, new_handle);
+}
+
+void FeedbackCell::clear_padding() {}
+
+void FeedbackCell::reset_feedback_vector(
+    std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                                     Tagged<HeapObject> target)>>
+        gc_notify_updated_slot) {
+  clear_interrupt_budget();
+  if (IsUndefined(value()) || IsClosureFeedbackCellArray(value())) return;
+
+  CHECK(IsFeedbackVector(value()));
+  Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      Cast<FeedbackVector>(value())->closure_feedback_cell_array();
+  set_value(closure_feedback_cell_array, kReleaseStore);
+  if (gc_notify_updated_slot) {
+    (*gc_notify_updated_slot)(
+        Tagged<FeedbackCell>(this),
+        ObjectSlot(address() + offsetof(FeedbackCell, value_)),
+        closure_feedback_cell_array);
+  }
+}
+
+void FeedbackCell::clear_interrupt_budget() {
+  // This value is always reset to a proper budget before it's used.
+  set_interrupt_budget(0);
+}
+
+void FeedbackCell::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
+
+FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
+    Isolate* isolate) {
+  ReadOnlyRoots r(isolate);
+  if (map() == r.no_closures_cell_map()) {
+    set_map(isolate, r.one_closure_cell_map());
+    return kNoneToOne;
+  } else if (map() == r.one_closure_cell_map()) {
+    set_map(isolate, r.many_closures_cell_map());
+    return kOneToMany;
+  } else {
+    DCHECK(map() == r.many_closures_cell_map());
+    return kMany;
+  }
+}
+
+}  // namespace v8::internal
+
+#include "src/objects/object-macros-undef.h"
+
+#endif  // V8_OBJECTS_FEEDBACK_CELL_INL_H_

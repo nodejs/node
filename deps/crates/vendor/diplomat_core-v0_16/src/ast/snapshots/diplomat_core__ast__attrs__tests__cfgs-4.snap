@@ -1,0 +1,8 @@
+---
+source: core/src/ast/attrs.rs
+expression: attr_cfg
+---
+NameValue:
+  - has
+  - overloading
+

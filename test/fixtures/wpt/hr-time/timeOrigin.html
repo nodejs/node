@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+const windowOrigin = performance.timeOrigin;
+
+test(() => {
+  // Use a 30ms cushion when comparing with Date() to account for inaccuracy.
+  const startTime = Date.now();
+  assert_greater_than_equal(startTime + 30, windowOrigin, 'Date.now() should be at least as large as the window timeOrigin.');
+  const startNow = performance.now();
+  assert_less_than_equal(startTime, windowOrigin + startNow + 30, 'Date.now() should be close to window timeOrigin.');
+}, 'Window timeOrigin is close to Date.now() when there is no system clock adjustment.');
+
+const workerScript = 'postMessage({timeOrigin: performance.timeOrigin})';
+const blob = new Blob([workerScript]);
+
+async_test(function(t) {
+  const beforeWorkerCreation = performance.now();
+  const worker = new Worker(URL.createObjectURL(blob));
+  worker.addEventListener('message', t.step_func_done(function(event) {
+    const workerOrigin = event.data.timeOrigin;
+    assert_greater_than_equal(workerOrigin, windowOrigin + beforeWorkerCreation, 'Worker timeOrigin should be greater than the window timeOrigin.');
+    const afterWorkerCreation = performance.now();
+    assert_less_than_equal(workerOrigin - windowOrigin, afterWorkerCreation, 'Window and worker timeOrigins should be close.');
+  }));
+}, 'Window and worker timeOrigins are close when created one after another.');
+
+async_test(function(t) {
+  this.step_timeout(function() {
+    const workerCreation = performance.now();
+    const worker = new Worker(URL.createObjectURL(blob));
+    worker.addEventListener('message', t.step_func_done(function(event) {
+      const workerOrigin = event.data.timeOrigin;
+      assert_greater_than_equal(workerOrigin - windowOrigin, 200, 'We waited 200ms to spawn the second worker, so its timeOrigin should be greater than that of the window.');
+    }));
+  }, 200);
+}, 'Window and worker timeOrigins differ when worker is created after a delay.');
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+rules:
+- redirect-sharedworker.html: [shared-workers]
+- "*": [dedicated-workers]

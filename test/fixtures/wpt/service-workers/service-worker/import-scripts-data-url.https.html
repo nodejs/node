@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: data: URL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(async t => {
+    const scope = 'resources/import-scripts-data-url';
+    await service_worker_unregister(t, scope);
+    let reg = await navigator.serviceWorker.register(
+      'resources/import-scripts-data-url-worker.js', { scope: scope });
+    t.add_cleanup(_ => reg.unregister());
+    assert_not_equals(reg.installing, null, 'worker is installing');
+  }, 'importScripts() supports data URLs');
+</script>
+</body>

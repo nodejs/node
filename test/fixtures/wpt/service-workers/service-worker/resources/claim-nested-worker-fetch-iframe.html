@@ -1,0 +1,16 @@
+<!doctype html>
+<script>
+// An iframe that starts a nested worker. Our parent frame (the test page) calls
+// fetch_in_worker() to ask the nested worker to perform a fetch to see whether
+// it's controlled by a service worker.
+var worker = new Worker('./claim-nested-worker-fetch-parent-worker.js');
+
+function fetch_in_worker(url) {
+  return new Promise((resolve) => {
+    worker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    worker.postMessage(url);
+  });
+}
+</script>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<body>
+<iframe id="srcdocFrame" srcdoc="
+<script>
+  function reportTestResult(result) {
+    top.postMessage({ type: 'TEST_RESULT', result: result }, '*');
+  }
+
+  async function postMessageToController() {
+    let controller = navigator.serviceWorker.controller;
+    if (!controller) {
+      reportTestResult('no navigator.serviceWorker.controller');
+    }
+    try {
+      controller.postMessage('test');
+    } catch (e) {
+      reportTestResult('Unexpected Error ' + e.name + ' : ' + e.message);
+    }
+  }
+
+  async function getServiceWorkerRegistration(scope) {
+    try {
+      let reg = await navigator.serviceWorker.getRegistration(scope);
+      if (!reg) {
+        reportTestResult('no regsitration for ' + scope);
+      }
+      if (reg.scope !==  scope) {
+        reportTestResult('regsitration scope does not match');
+      }
+
+      if (!reg.active) {
+        reportTestResult('regsitration.active is not valid' + reg.active);
+      }
+      reportTestResult('passed');
+    } catch (e) {
+      reportTestResult('Unexpected Error ' + e.name + ' : ' + e.message);
+    }
+  }
+
+  function addSrcdocIframeWithSandbox(sandbox) {
+    let frame = document.createElement('iframe');
+    frame.sandbox = sandbox;
+    frame.srcdoc = `
+    <script>
+      function reportTestResult(result) {
+        top.postMessage({ type: 'TEST_RESULT', result: result }, '*');
+      }
+
+      window.onload = function onLoad() {
+        try {
+          let controller = navigator.serviceWorker.controller;
+          reportTestResult(controller ? 'HasController' : 'NoController');
+        } catch (e) {
+          reportTestResult((e.name == 'SecurityError') ?
+              'NoController' : 'UnexpectedError:' + e.message);
+        }
+      }
+    <\/script>`;
+    document.body.appendChild(frame);
+  }
+
+  function addSandboxedSrcdocFrame() {
+    addSrcdocIframeWithSandbox('allow-scripts');
+  }
+
+  function addSameOriginSandboxedSrcdocFrame() {
+    addSrcdocIframeWithSandbox('allow-scripts allow-same-origin');
+  }
+
+  async function fetchResource() {
+    let response = await fetch('?test_resource=1');
+    reportTestResult(await response.text());
+  }
+
+  window.navigator.serviceWorker.addEventListener(
+      'message', function onMsg(evt) {
+    // Forward the message as test result.
+    reportTestResult(evt.data);
+  });
+</script>
+"></iframe>
+
+<script>
+// Helper routine to make it slightly easier for our parent to find
+// the srcdoc frame.
+function srcdocFrame() {
+  return document.getElementById('srcdocFrame').contentWindow;
+}
+</script>
+</body>
+</html>

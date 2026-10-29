@@ -1,0 +1,5 @@
+header: sys/signal.h
+public_includes:
+  - signal.h
+standards:
+  - posix

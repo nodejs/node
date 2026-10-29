@@ -1,0 +1,6 @@
+<project-root>/test/fixtures/errors/test-no-extra-info-on-fatal-exception.js:7
+throw new Error('foo');
+^
+
+Error: foo
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/test-no-extra-info-on-fatal-exception.js:7:7)

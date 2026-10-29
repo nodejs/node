@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>Service Worker: Visibility of headers during fetch.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+  var worker = 'resources/fetch-rewrite-worker.js';
+  var path = base_path() + 'resources/fetch-access-control.py';
+  var host_info = get_host_info();
+  var frame;
+
+  promise_test(function(t) {
+    var scope = 'resources/fetch-header-visibility-iframe.html';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+        t.add_cleanup(function() {
+            return service_worker_unregister(t, scope);
+          });
+
+        return wait_for_state(t, reg.installing, 'activated');
+      })
+      .then(function() {
+        frame = document.createElement('iframe');
+        frame.src = scope;
+        document.body.appendChild(frame);
+
+        // Resolve a promise when we recieve 2 success messages
+        return new Promise(function(resolve, reject) {
+          var remaining = 4;
+          function onMessage(e) {
+            if (e.data == 'PASS') {
+              remaining--;
+              if (remaining == 0) {
+                resolve();
+              } else {
+                return;
+              }
+            } else {
+              reject(e.data);
+            }
+
+            window.removeEventListener('message', onMessage);
+          }
+          window.addEventListener('message', onMessage);
+        });
+      })
+      .then(function(result) {
+        frame.remove();
+      });
+  }, 'Visibility of defaulted headers during interception');
+</script>
+</body>

@@ -1,0 +1,793 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_REGEXP_REGEXP_COMPILER_H_
+#define V8_REGEXP_REGEXP_COMPILER_H_
+
+#include <bitset>
+
+#include "include/v8config.h"
+#include "src/base/bit-field.h"
+#include "src/base/small-vector.h"
+#include "src/base/strings.h"
+#include "src/codegen/label.h"
+#include "src/regexp/regexp-flags.h"
+#include "src/regexp/regexp-nodes.h"
+
+namespace v8 {
+namespace internal {
+
+class Isolate;
+
+namespace regexp {
+
+class Diagnostics;
+class DynamicBitSet;
+class SpecialLoopState;
+
+class NonAssertingLabel : public Label {
+ public:
+  explicit NonAssertingLabel(Compiler* compiler) : compiler_(compiler) {}
+  ~NonAssertingLabel();
+
+ private:
+  Compiler* compiler_;
+};
+
+namespace compiler_constants {
+
+// The '2' variant is has inclusive from and exclusive to.
+// This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
+// which include WhiteSpace (7.2) or LineTerminator (7.3) values.
+constexpr base::uc32 kRangeEndMarker = 0x110000;
+constexpr int kSpaceRanges[] = {
+    '\t',   '\r' + 1, ' ',    ' ' + 1, 0x00A0, 0x00A1, 0x1680,
+    0x1681, 0x2000,   0x200B, 0x2028,  0x202A, 0x202F, 0x2030,
+    0x205F, 0x2060,   0x3000, 0x3001,  0xFEFF, 0xFF00, kRangeEndMarker};
+constexpr int kSpaceRangeCount = arraysize(kSpaceRanges);
+
+constexpr int kWordRanges[] = {'0',     '9' + 1, 'A',     'Z' + 1,        '_',
+                               '_' + 1, 'a',     'z' + 1, kRangeEndMarker};
+constexpr int kWordRangeCount = arraysize(kWordRanges);
+constexpr int kDigitRanges[] = {'0', '9' + 1, kRangeEndMarker};
+constexpr int kDigitRangeCount = arraysize(kDigitRanges);
+constexpr int kSurrogateRanges[] = {kLeadSurrogateStart,
+                                    kLeadSurrogateStart + 1, kRangeEndMarker};
+constexpr int kSurrogateRangeCount = arraysize(kSurrogateRanges);
+constexpr int kLineTerminatorRanges[] = {0x000A, 0x000B, 0x000D,         0x000E,
+                                         0x2028, 0x202A, kRangeEndMarker};
+constexpr int kLineTerminatorRangeCount = arraysize(kLineTerminatorRanges);
+
+// More makes code generation slower, less makes V8 benchmark score lower.
+constexpr uint32_t kMaxLookaheadForBoyerMoore = 8;
+// In a 3-character pattern you can maximally step forwards 3 characters
+// at a time, which is not always enough to pay for the extra logic.
+constexpr uint32_t kPatternTooShortForBoyerMoore = 2;
+
+}  // namespace compiler_constants
+
+inline bool NeedsUnicodeCaseEquivalents(Flags flags) {
+  // Both unicode (or unicode sets) and ignore_case flags are set. We need to
+  // use ICU to find the closure over case equivalents.
+  return IsEitherUnicode(flags) && IsIgnoreCase(flags);
+}
+
+// Details of a quick mask-compare check that can look ahead in the
+// input stream.
+class QuickCheckDetails {
+ public:
+  QuickCheckDetails() : characters_(0), mask_(0), value_(0) {}
+  explicit QuickCheckDetails(int characters)
+      : characters_(characters), mask_(0), value_(0) {
+    DCHECK_LE(characters, kMaxPositions);
+  }
+  bool Rationalize(bool one_byte);
+  // Merge in the information from another branch of an alternation.
+  void Merge(QuickCheckDetails* other, int from_index);
+  // Advance the current position by some amount.
+  void Advance(int by, bool one_byte);
+  void Clear();
+  bool cannot_match() const {
+    for (int i = 0; i < characters(); i++) {
+      if (positions_[i].cannot_match) return true;
+    }
+    return false;
+  }
+  void set_cannot_match_from(int index) {
+    DCHECK_GE(index, 0);
+    for (int i = index; i < characters(); i++) {
+      positions_[i].cannot_match = true;
+    }
+  }
+  struct Position {
+    Position()
+        : mask(0), value(0), determines_perfectly(false), cannot_match(false) {}
+    void Clear() {
+      mask = 0;
+      value = 0;
+      determines_perfectly = false;
+      cannot_match = false;
+    }
+    base::uc32 mask;
+    base::uc32 value;
+    bool determines_perfectly;
+    bool cannot_match;
+  };
+  int characters() const { return characters_; }
+  void set_characters(int characters) {
+    DCHECK(0 <= characters && characters <= kMaxPositions);
+    characters_ = characters;
+  }
+  Position* positions(int index) {
+    DCHECK_LE(0, index);
+    DCHECK_GT(characters_, index);
+    return positions_ + index;
+  }
+  const Position* positions(int index) const {
+    DCHECK_LE(0, index);
+    DCHECK_GT(characters_, index);
+    return positions_ + index;
+  }
+  uint32_t mask() const { return mask_; }
+  uint32_t value() const { return value_; }
+  void set_mask(uint32_t mask) { mask_ = mask; }
+  void set_value(uint32_t value) { value_ = value; }
+
+ private:
+  static constexpr int kMaxPositions = 4;
+  // How many characters do we have quick check information from.  This is
+  // the same for all branches of a choice node.
+  int characters_;
+  Position positions_[kMaxPositions];
+  // These values are the condensate of the above array after Rationalize().
+  uint32_t mask_;
+  uint32_t value_;
+};
+
+// Improve the speed that we scan for an initial point where a non-anchored
+// regexp can match by using a Boyer-Moore-like table. This is done by
+// identifying non-greedy non-capturing loops in the nodes that eat any
+// character one at a time.  For example in the middle of the regexp
+// /foo[\s\S]*?bar/ we find such a loop.  There is also such a loop implicitly
+// inserted at the start of any non-anchored regexp.
+//
+// When we have found such a loop we look ahead in the nodes to find the set of
+// characters that can come at given distances. For example for the regexp
+// /.?foo/ we know that there are at least 3 characters ahead of us, and the
+// sets of characters that can occur are [any, [f, o], [o]]. We find a range in
+// the lookahead info where the set of characters is reasonably constrained. In
+// our example this is from index 1 to 2 (0 is not constrained). We can now
+// look 3 characters ahead and if we don't find one of [f, o] (the union of
+// [f, o] and [o]) then we can skip forwards by the range size (in this case 2).
+//
+// For Unicode input strings we do the same, but modulo 128.
+//
+// We also look at the first string fed to the regexp and use that to get a hint
+// of the character frequencies in the inputs. This affects the assessment of
+// whether the set of characters is 'reasonably constrained'.
+//
+// We also have another lookahead mechanism (called quick check in the code),
+// which uses a wide load of multiple characters followed by a mask and compare
+// to determine whether a match is possible at this point.
+enum ContainedInLattice {
+  kNotYet = 0,
+  kLatticeIn = 1,
+  kLatticeOut = 2,
+  kLatticeUnknown = 3  // Can also mean both in and out.
+};
+
+inline ContainedInLattice Combine(ContainedInLattice a, ContainedInLattice b) {
+  return static_cast<ContainedInLattice>(a | b);
+}
+
+class BoyerMoorePositionInfo : public ZoneObject {
+ public:
+  bool at(int i) const { return map_[i]; }
+
+  static constexpr int kMapSize = 128;
+  static constexpr int kMask = kMapSize - 1;
+
+  int map_count() const { return map_count_; }
+
+  void Set(int character);
+  void SetInterval(const Interval& interval);
+  void SetAll();
+
+  bool is_non_word() { return w_ == kLatticeOut; }
+  bool is_word() { return w_ == kLatticeIn; }
+
+  using Bitset = std::bitset<kMapSize>;
+  Bitset raw_bitset() const { return map_; }
+
+ private:
+  Bitset map_;
+  int map_count_ = 0;               // Number of set bits in the map.
+  ContainedInLattice w_ = kNotYet;  // The \w character class.
+};
+
+class BoyerMooreLookahead : public ZoneObject {
+ public:
+  BoyerMooreLookahead(int length, Compiler* compiler, Zone* zone);
+
+  int length() const { return length_; }
+  int max_char() { return max_char_; }
+  Compiler* compiler() { return compiler_; }
+
+  int Count(int map_number) { return bitmaps_->at(map_number)->map_count(); }
+
+  BoyerMoorePositionInfo* at(int i) { return bitmaps_->at(i); }
+  const BoyerMoorePositionInfo* at(int i) const { return bitmaps_->at(i); }
+
+  void Set(int map_number, int character) {
+    if (character > max_char_) return;
+    BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
+    info->Set(character);
+  }
+
+  void SetInterval(int map_number, const Interval& interval) {
+    if (interval.from() > max_char_) return;
+    BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
+    if (interval.to() > max_char_) {
+      info->SetInterval(Interval(interval.from(), max_char_));
+    } else {
+      info->SetInterval(interval);
+    }
+  }
+
+  void SetAll(int map_number) { bitmaps_->at(map_number)->SetAll(); }
+
+  void SetRest(int from_map) {
+    for (int i = from_map; i < length_; i++) SetAll(i);
+  }
+  // Emits a Boyer-Moore skip-scan prelude for the unanchored search, if
+  // profitable. Returns true iff code that owns the search was emitted: either
+  // a skip-scan, or an unconditional Fail() when some lookahead position can
+  // never match. In both cases the caller must not emit a competing scan over
+  // the same loop. Returns false iff nothing was emitted (PC unchanged) and the
+  // caller should fall back to another strategy.
+  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
+
+  // Exposes the BitInTable skip-scan inputs without emitting: picks the most
+  // discriminating lookahead interval and builds the boolean (and SIMD nibble)
+  // table for it. *offset is the lookahead position to test (the SkipUntil*
+  // cp_offset); *advance_by is the per-iteration stride. Returns false if no
+  // worthwhile interval exists. Used by ChoiceNode::EmitOneOfMasked3Search to
+  // build the leading scan of a fused SkipUntilOneOfMasked3.
+  bool BuildSkipTable(RegExpMacroAssembler* masm, int* offset, int* advance_by,
+                      Handle<ByteArray>* table,
+                      Handle<ByteArray>* nibble_table);
+
+  // Fills |boolean_skip_table| (one byte per character, indexed mod kTableSize)
+  // with 1 for every character in the lookahead maps [min_lookahead,
+  // max_lookahead] and 0 elsewhere, and optionally the SIMD |nibble_table|.
+  // Returns the resulting skip stride. With a single map (min == max) this is
+  // just that position's membership table.
+  int GetSkipTable(
+      int min_lookahead, int max_lookahead,
+      DirectHandle<ByteArray> boolean_skip_table,
+      DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
+
+  // Transient probes opt out so they don't clobber the shared bm_info_ (see
+  // Node::set_bm_info).
+  bool caches_node_info() const { return caches_node_info_; }
+  void set_caches_node_info(bool value) { caches_node_info_ = value; }
+
+ private:
+  // This is the value obtained by EatsAtLeast.  If we do not have at least this
+  // many characters left in the sample string then the match is bound to fail.
+  // Therefore it is OK to read a character this far ahead of the current match
+  // point.
+  int length_;
+  Compiler* compiler_;
+  // 0xff for Latin1, 0xffff for UTF-16.
+  int max_char_;
+  ZoneList<BoyerMoorePositionInfo*>* bitmaps_;
+  bool caches_node_info_ = true;
+
+  bool FindWorthwhileInterval(int* from, int* to);
+  int FindBestInterval(int max_number_of_chars, int old_biggest_points,
+                       int* from, int* to);
+};
+
+// There are many ways to generate code for a node.  This class encapsulates
+// the current way we should be generating.  In other words it encapsulates
+// the current state of the code generator.  The effect of this is that we
+// generate code for paths that the matcher can take through the regular
+// expression.  A given node in the regexp can be code-generated several times
+// as it can be part of several traces.  For example for the regexp:
+// /foo(bar|ip)baz/ the code to match baz will be generated twice, once as part
+// of the foo-bar-baz trace and once as part of the foo-ip-baz trace.  The code
+// to match foo is generated only once (the traces have a common prefix).  The
+// code to store the capture is deferred and generated (twice) after the places
+// where baz has been matched.
+class Trace {
+ public:
+  // A value for a property that is either known to be true, known to be false,
+  // or not known.
+  enum TriBool { FALSE_VALUE = 0, TRUE_VALUE = 1, UNKNOWN = 2 };
+
+  Trace()
+      : cp_offset_(0),
+        flush_budget_(100),  // Note: this is a 16 bit field.
+        flags_(AtStartField::encode(UNKNOWN) |
+               HasAnyActionsField::encode(false) |
+               ParkedGrantField::encode(ParkedGrant::kNone)),
+        action_(nullptr),
+        backtrack_(nullptr),
+        special_loop_state_(nullptr),
+        characters_preloaded_(0),
+        bound_checked_up_to_(0),
+        next_(nullptr) {}
+
+  Trace(const Trace& other) V8_NOEXCEPT
+      : cp_offset_(other.cp_offset_),
+        flush_budget_(other.flush_budget_),
+        flags_(other.flags_),
+        action_(nullptr),
+        backtrack_(other.backtrack_),
+        special_loop_state_(other.special_loop_state_),
+        characters_preloaded_(other.characters_preloaded_),
+        bound_checked_up_to_(other.bound_checked_up_to_),
+        quick_check_performed_(other.quick_check_performed_),
+        next_(&other) {}
+
+  // End the trace.  This involves flushing the deferred actions in the trace
+  // and pushing a backtrack location onto the backtrack stack.  Once this is
+  // done we can start a new trace or go to one that has already been
+  // generated.
+  enum FlushMode {
+    // Normal flush of the deferred actions, generates code for backtracking.
+    kFlushFull,
+    // Matching has succeeded, so current position and backtrack stack will be
+    // ignored and need not be written.
+    kFlushSuccess
+  };
+  EmitResult Flush(Compiler* compiler, Node* successor,
+                   FlushMode mode = kFlushFull);
+
+  // Some callers add/subtract 1 from cp_offset, assuming that the result is
+  // still valid. That's obviously not the case when our `cp_offset` is only
+  // checked against kMinCPOffset/kMaxCPOffset, so we need to apply the some
+  // slack.
+  // TODO(jgruber): It would be better if all callers checked against limits
+  // themselves when doing so; but unfortunately not all callers have
+  // abort-compilation mechanisms.
+  static constexpr int kCPOffsetSlack = 1;
+  int cp_offset() const { return cp_offset_; }
+
+  // Does any trace in the chain have an action?
+  bool has_any_actions() const { return HasAnyActionsField::decode(flags_); }
+  // Does this particular trace object have an action?
+  bool has_action() const { return action_ != nullptr; }
+  ActionNode* action() const { return action_; }
+  // A trivial trace is one that has no deferred actions or other state that
+  // affects the assumptions used when generating code.  There is no recorded
+  // backtrack location in a trivial trace, so with a trivial trace we will
+  // generate code that, on a failure to match, gets the backtrack location
+  // from the backtrack stack rather than using a direct jump instruction.  We
+  // always start code generation with a trivial trace and non-trivial traces
+  // are created as we emit code for nodes or add to the list of deferred
+  // actions in the trace.  The location of the code generated for a node using
+  // a trivial trace is recorded in a label in the node so that gotos can be
+  // generated to that code.
+  bool is_trivial() const {
+    return backtrack_ == nullptr && !has_any_actions() && cp_offset_ == 0 &&
+           characters_preloaded_ == 0 && bound_checked_up_to_ == 0 &&
+           quick_check_performed_.characters() == 0 && at_start() == UNKNOWN;
+  }
+  TriBool at_start() const { return AtStartField::decode(flags_); }
+  void set_at_start(TriBool at_start) {
+    flags_ = AtStartField::update(flags_, at_start);
+  }
+  Label* backtrack() const { return backtrack_; }
+  // What the loop-exit backtrack target tolerates when a drain-omitted loop
+  // unwinds to it with the input position parked at the loop's greedy extent
+  // (see ParkedGrant for the levels, and the terminology block in
+  // regexp-nodes.h for "loop-exit backtrack").  The parked position can be
+  // anywhere in [trace position, subject end] -- including the end itself, so
+  // the search-retry re-entry reloads with a bounds check.
+  //
+  // The grant is issued only at emission sites where the target's behavior is
+  // known by construction, and is revoked automatically whenever the backtrack
+  // target changes (see set_backtrack).  Crossing a choice into an alternative
+  // additionally requires that no sibling can match at a skipped position
+  // (see ChoiceNode::EmitChoices).
+  ParkedGrant parked_grant() const { return ParkedGrantField::decode(flags_); }
+  SpecialLoopState* special_loop_state() const { return special_loop_state_; }
+  int characters_preloaded() const { return characters_preloaded_; }
+  int bound_checked_up_to() const { return bound_checked_up_to_; }
+  int flush_budget() const { return flush_budget_; }
+  QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
+  bool mentions_reg(int reg) const;
+  // Returns true if a deferred position store exists to the specified
+  // register and stores the offset in the out-parameter.  Otherwise
+  // returns false.
+  bool GetStoredPosition(int reg, int* cp_offset) const;
+  // These set methods and AdvanceCurrentPositionInTrace should be used only on
+  // new traces - the intention is that traces are immutable after creation.
+  void add_action(ActionNode* new_action) {
+    DCHECK(action_ == nullptr);  // Otherwise we lose an action.
+    action_ = new_action;
+    flags_ = HasAnyActionsField::update(flags_, true);
+  }
+  // Clears any inherited parked-position grant; see parked_grant() for when
+  // an alternative must do this.
+  void reset_parked_grant() {
+    flags_ = ParkedGrantField::update(flags_, ParkedGrant::kNone);
+  }
+  void set_backtrack(Label* backtrack) {
+    backtrack_ = backtrack;
+    // A parked-position grant is tied to the specific target it was issued
+    // for; a new target must obtain its own.
+    reset_parked_grant();
+  }
+  void set_parked_grant(ParkedGrant grant) {
+    DCHECK_NOT_NULL(backtrack_);
+    DCHECK_NE(grant, ParkedGrant::kNone);
+    flags_ = ParkedGrantField::update(flags_, grant);
+  }
+  void set_special_loop_state(SpecialLoopState* state) {
+    special_loop_state_ = state;
+  }
+  void set_characters_preloaded(int count) { characters_preloaded_ = count; }
+  void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
+  void set_flush_budget(int to) {
+    DCHECK(to <= UINT16_MAX);  // Flush-budget is 16 bit.
+    flush_budget_ = to;
+  }
+  void set_quick_check_performed(QuickCheckDetails* d) {
+    quick_check_performed_ = *d;
+  }
+  void InvalidateCurrentCharacter();
+  EmitResult AdvanceCurrentPositionInTrace(int by, Compiler* compiler);
+  const Trace* next() const { return next_; }
+
+  class V8_GSL_POINTER ConstIterator final {
+   public:
+    ConstIterator& operator++() {
+      trace_ = trace_->next();
+      return *this;
+    }
+    bool operator==(const ConstIterator& other) const {
+      return trace_ == other.trace_;
+    }
+    const Trace* operator*() const { return trace_; }
+
+   private:
+    explicit ConstIterator(const Trace* trace) : trace_(trace) {}
+
+    const Trace* trace_;
+
+    friend class Trace;
+  };
+
+  ConstIterator begin() const { return ConstIterator(this); }
+  ConstIterator end() const { return ConstIterator(nullptr); }
+
+ private:
+  enum DeferredActionUndoType { IGNORE, RESTORE, CLEAR };
+  static constexpr int kNoStore = kMinInt;
+  // For a given register, records the actions recorded in the trace.
+  // See ScanDeferredActions.
+  struct RegisterFlushInfo {
+    DeferredActionUndoType undo_action = IGNORE;
+    int value = 0;
+    bool absolute = false;  // Set register to value.
+    bool clear = false;     // Clear register (set to zero):
+    int store_position =
+        kNoStore;  // Store current position plus value to register.
+  };
+
+  int FindAffectedRegisters(DynamicBitSet* affected_registers, Zone* zone);
+  void PerformDeferredActions(RegExpMacroAssembler* macro, int max_register,
+                              const DynamicBitSet& affected_registers,
+                              DynamicBitSet* registers_to_pop,
+                              DynamicBitSet* registers_to_clear, Zone* zone);
+  void RestoreAffectedRegisters(RegExpMacroAssembler* macro, int max_register,
+                                const DynamicBitSet& registers_to_pop,
+                                const DynamicBitSet& registers_to_clear);
+  void ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info);
+
+  // Whether we are at the start of the string.
+  using AtStartField = base::BitField<TriBool, 0, 2>;
+  // Whether any trace in the chain has an action.
+  using HasAnyActionsField = AtStartField::Next<bool, 1>;
+  // See parked_grant.
+  using ParkedGrantField = HasAnyActionsField::Next<ParkedGrant, 2>;
+
+  int cp_offset_;
+  uint16_t flush_budget_;
+  uint32_t flags_;
+  ActionNode* action_;
+  Label* backtrack_;
+  SpecialLoopState* special_loop_state_;
+  int characters_preloaded_;
+  int bound_checked_up_to_;
+  QuickCheckDetails quick_check_performed_;
+  const Trace* next_;
+};
+
+// Used for fixed length greedy loops (counted loops like .*) and for
+// omnivorous non-greedy loops (the initial loop ahead of a non-anchored
+// regexp).
+class SpecialLoopState {
+ public:
+  SpecialLoopState(Compiler* compiler, bool not_at_start,
+                   ChoiceNode* loop_choice_node);
+
+  void BindStepLabel(RegExpMacroAssembler* macro_assembler);
+  void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  void GoToLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  ChoiceNode* loop_choice_node() const { return loop_choice_node_; }
+  Trace* backtrack_trace() { return &backtrack_trace_; }
+
+ private:
+  // Step backwards (fixed length greed loop) or forwards (non-greedy
+  // omnivourous loop.
+  NonAssertingLabel step_label_;
+  NonAssertingLabel loop_top_label_;
+  ChoiceNode* loop_choice_node_;
+  Trace backtrack_trace_;
+};
+
+struct PreloadState {
+  static constexpr int kEatsAtLeastNotYetInitialized = -1;
+  bool preload_is_current_;
+  bool preload_has_checked_bounds_;
+  int preload_characters_;
+  int eats_at_least_;
+  void init() { eats_at_least_ = kEatsAtLeastNotYetInitialized; }
+};
+
+// Analysis performs assertion propagation and computes eats_at_least_ values.
+// See the comments on AssertionPropagator and EatsAtLeastPropagator for more
+// details.
+Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Node* node);
+
+class FrequencyCollator {
+ public:
+  FrequencyCollator() : total_samples_(0) {
+    for (int i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
+      frequencies_[i] = CharacterFrequency(i);
+    }
+  }
+
+  void CountCharacter(int character) {
+    int index = (character & RegExpMacroAssembler::kTableMask);
+    frequencies_[index].Increment();
+    total_samples_++;
+  }
+
+  // Does not measure in percent, but rather per-128 (the table size from the
+  // regexp macro assembler).
+  int Frequency(int in_character) {
+    DCHECK((in_character & RegExpMacroAssembler::kTableMask) == in_character);
+    if (total_samples_ < 1) return 1;  // Division by zero.
+    int freq_in_per128 =
+        (frequencies_[in_character].counter() * 128) / total_samples_;
+    return freq_in_per128;
+  }
+
+ private:
+  class CharacterFrequency {
+   public:
+    CharacterFrequency() : counter_(0), character_(-1) {}
+    explicit CharacterFrequency(int character)
+        : counter_(0), character_(character) {}
+
+    void Increment() { counter_++; }
+    int counter() { return counter_; }
+    int character() { return character_; }
+
+   private:
+    int counter_;
+    int character_;
+  };
+
+ private:
+  CharacterFrequency frequencies_[RegExpMacroAssembler::kTableSize];
+  int total_samples_;
+};
+
+class V8_EXPORT_PRIVATE Compiler {
+ public:
+  Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,
+           bool is_one_byte);
+
+  int AllocateRegister() {
+    if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
+      reg_exp_too_big_ = true;
+      return next_register_;
+    }
+    return next_register_++;
+  }
+
+  // Lookarounds to match lone surrogates for unicode character class matches
+  // are never nested. We can therefore reuse registers.
+  int UnicodeLookaroundStackRegister() {
+    if (unicode_lookaround_stack_register_ == kNoRegister) {
+      unicode_lookaround_stack_register_ = AllocateRegister();
+    }
+    return unicode_lookaround_stack_register_;
+  }
+
+  int UnicodeLookaroundPositionRegister() {
+    if (unicode_lookaround_position_register_ == kNoRegister) {
+      unicode_lookaround_position_register_ = AllocateRegister();
+    }
+    return unicode_lookaround_position_register_;
+  }
+
+  struct CompilationResult final {
+    explicit CompilationResult(Error err) : error(err) {}
+    CompilationResult(DirectHandle<Object> code, int registers)
+        : code(code), num_registers(registers) {}
+
+    static CompilationResult RegExpTooBig() {
+      return CompilationResult(Error::kTooLarge);
+    }
+
+    bool Succeeded() const { return error == Error::kNone; }
+
+    const Error error = Error::kNone;
+    DirectHandle<Object> code;
+    int num_registers = 0;
+  };
+
+  CompilationResult Assemble(Isolate* isolate, RegExpMacroAssembler* assembler,
+                             Node* start, int capture_count,
+                             DirectHandle<RegExpData> re_data);
+
+  // Preprocessing is the final step of node creation before analysis
+  // and assembly. It includes:
+  // - Wrapping the body of the regexp in capture 0.
+  // - Inserting the implicit .* before/after the regexp if necessary.
+  // - If the input is a one-byte string, filtering out nodes that can't match.
+  // - Fixing up regexp matches that start within a surrogate pair.
+  Node* PreprocessRegExp(CompileData* data, bool is_one_byte);
+
+  // If the regexp matching starts within a surrogate pair, step back to the
+  // lead surrogate and start matching from there.
+  Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
+
+  struct WorkItem {
+    Node* node;
+  };
+
+  inline void AddWork(Node* node) {
+    if (!node->on_work_list() && !node->label()->is_bound()) {
+      node->set_on_work_list(true);
+      work_list_->push_back({node});
+    }
+  }
+
+  static const int kImplementationOffset = 0;
+  static const int kNumberOfRegistersOffset = 0;
+  static const int kCodeOffset = 1;
+
+  RegExpMacroAssembler* macro_assembler() { return macro_assembler_; }
+  EndNode* accept() { return accept_; }
+
+#if defined(V8_TARGET_OS_MACOS)
+  // Looks like MacOS needs a lower recursion limit since "secondary threads"
+  // get a smaller stack by default (512kB vs. 8MB).
+  // See https://crbug.com/408820921.
+  static constexpr int kMaxRecursion = 50;
+#else
+  static constexpr int kMaxRecursion = 100;
+#endif
+  inline int recursion_depth() { return recursion_depth_; }
+  inline void IncrementRecursionDepth() { recursion_depth_++; }
+  inline void DecrementRecursionDepth() { recursion_depth_--; }
+
+  inline Flags flags() const { return flags_; }
+  inline void set_flags(Flags flags) { flags_ = flags; }
+
+  void SetRegExpTooBig() { reg_exp_too_big_ = true; }
+  bool IsRegExpTooBig() const { return reg_exp_too_big_; }
+
+  inline bool one_byte() { return one_byte_; }
+  inline bool optimize() { return optimize_; }
+  inline void set_optimize(bool value) { optimize_ = value; }
+  inline bool limiting_recursion() { return limiting_recursion_; }
+  inline void set_limiting_recursion(bool value) {
+    limiting_recursion_ = value;
+  }
+  bool read_backward() { return read_backward_; }
+  void set_read_backward(bool value) { read_backward_ = value; }
+  bool has_search_prefix() const { return has_search_prefix_; }
+  FrequencyCollator* frequency_collator() { return &frequency_collator_; }
+
+  int current_expansion_factor() { return current_expansion_factor_; }
+  void set_current_expansion_factor(int value) {
+    current_expansion_factor_ = value;
+  }
+
+  // The recursive nature of ToNode node generation means we may run into stack
+  // overflow issues. We introduce periodic checks to detect these, and the
+  // tick counter helps limit overhead of these checks.
+  // TODO(jgruber): This is super hacky and should be replaced by an abort
+  // mechanism or iterative node generation.
+  void ToNodeMaybeCheckForStackOverflow() {
+    if ((to_node_overflow_check_ticks_++ % 64 == 0)) {
+      ToNodeCheckForStackOverflow();
+    }
+  }
+  void ToNodeCheckForStackOverflow();
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  Diagnostics* diagnostics() { return diagnostics_.get(); }
+  void set_diagnostics(std::unique_ptr<Diagnostics> diagnostics);
+#endif
+  Isolate* isolate() const { return isolate_; }
+  Zone* zone() const { return zone_; }
+
+  static const int kNoRegister = -1;
+
+ private:
+  // Computes the filters that let RegExpExecInternal reject a match attempt
+  // without entering the engine. Defined next to the match-set helpers it
+  // shares.
+  void ComputeQuickCheckFilters(Node* start, DirectHandle<RegExpData> re_data);
+
+  EndNode* accept_;
+  int next_register_;
+  int unicode_lookaround_stack_register_;
+  int unicode_lookaround_position_register_;
+  ZoneVector<WorkItem>* work_list_;
+  int recursion_depth_;
+  Flags flags_;
+  RegExpMacroAssembler* macro_assembler_;
+  bool one_byte_;
+  bool reg_exp_too_big_;
+  bool limiting_recursion_;
+  int to_node_overflow_check_ticks_ = 0;
+  bool optimize_;
+  bool read_backward_;
+  // Set by PreprocessRegExp when it prepends the `.*?` search loop.
+  bool has_search_prefix_ = false;
+  int current_expansion_factor_;
+  FrequencyCollator frequency_collator_;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  std::unique_ptr<Diagnostics> diagnostics_;
+#endif
+  Isolate* isolate_;
+  Zone* zone_;
+};
+
+// Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
+class UnicodeRangeSplitter {
+ public:
+  V8_EXPORT_PRIVATE UnicodeRangeSplitter(ZoneList<CharacterRange>* base);
+
+  static constexpr int kInitialSize = 8;
+  using CharacterRangeVector = base::SmallVector<CharacterRange, kInitialSize>;
+
+  const CharacterRangeVector* bmp() const { return &bmp_; }
+  const CharacterRangeVector* lead_surrogates() const {
+    return &lead_surrogates_;
+  }
+  const CharacterRangeVector* trail_surrogates() const {
+    return &trail_surrogates_;
+  }
+  const CharacterRangeVector* non_bmp() const { return &non_bmp_; }
+
+ private:
+  void AddRange(CharacterRange range);
+
+  CharacterRangeVector bmp_;
+  CharacterRangeVector lead_surrogates_;
+  CharacterRangeVector trail_surrogates_;
+  CharacterRangeVector non_bmp_;
+};
+
+// We need to check for the following characters: 0x39C 0x3BC 0x178.
+// TODO(jgruber): Move to CharacterRange.
+bool RangeContainsLatin1Equivalents(CharacterRange range);
+
+}  // namespace regexp
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_REGEXP_REGEXP_COMPILER_H_

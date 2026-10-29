@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Web Locks API: Client IDs in query() vs. Service Worker</title>
+<link rel=help href="https://w3c.github.io/web-locks/">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+
+// Returns a promise resolved by the next message event.
+function nextMessage() {
+  return new Promise(resolve => {
+    window.addEventListener('message', event => {
+      resolve(event.data);
+    }, {once: true});
+  });
+}
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const iframe_url = 'resources/sw-controlled-iframe.html';
+
+  // Register a service worker that will control an iframe.
+  const registration = await service_worker_unregister_and_register(
+    t, 'resources/service-worker.js', iframe_url);
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const iframe = await with_iframe(iframe_url);
+
+  iframe.contentWindow.postMessage('get_sw_client_id', '*');
+  const sw_client_id = await nextMessage();
+
+  iframe.contentWindow.postMessage('get_lock_client_id', '*');
+  const lock_client_id = await nextMessage();
+
+  // NOTE: Not assert_equals(), as we don't want log the randomly generated
+  // clientIds, since they would not match any failure expectation files.
+  assert_equals(lock_client_id, sw_client_id,
+              'clientIds should match, but are different');
+
+  await registration.unregister();
+
+}, 'Client IDs match between Locks API and Service Workers');
+
+</script>

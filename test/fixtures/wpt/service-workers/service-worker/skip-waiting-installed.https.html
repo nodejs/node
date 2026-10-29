@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>Service Worker: Skip waiting installed worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html?skip-waiting-installed';
+    var url1 = 'resources/empty.js';
+    var url2 = 'resources/skip-waiting-installed-worker.js';
+    var frame, frame_sw, service_worker, registration, onmessage, oncontrollerchanged;
+    var saw_message = new Promise(function(resolve) {
+        onmessage = function(e) {
+            resolve(e.data);
+          };
+        })
+      .then(function(message) {
+          assert_equals(
+            message, 'PASS',
+            'skipWaiting promise should be resolved with undefined');
+        });
+    var saw_controllerchanged = new Promise(function(resolve) {
+        oncontrollerchanged = function() {
+            assert_equals(
+                frame_sw.controller.scriptURL, normalizeURL(url2),
+                'Controller scriptURL should change to the second one');
+            assert_equals(registration.active.scriptURL, normalizeURL(url2),
+                          'Worker which calls skipWaiting should be active by controllerchange');
+            resolve();
+        };
+      });
+    return service_worker_unregister_and_register(t, url1, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          frame_sw = f.contentWindow.navigator.serviceWorker;
+          assert_equals(
+              frame_sw.controller.scriptURL, normalizeURL(url1),
+              'Document controller scriptURL should equal to the first one');
+          frame_sw.oncontrollerchange = t.step_func(oncontrollerchanged);
+          return navigator.serviceWorker.register(url2, {scope: scope});
+        })
+      .then(function(r) {
+          registration = r;
+          service_worker = r.installing;
+          return wait_for_state(t, service_worker, 'installed');
+        })
+      .then(function() {
+          var channel = new MessageChannel();
+          channel.port1.onmessage = t.step_func(onmessage);
+          service_worker.postMessage({port: channel.port2}, [channel.port2]);
+          return Promise.all([saw_message, saw_controllerchanged]);
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Test skipWaiting when a installed worker is waiting');
+
+</script>

@@ -1,0 +1,10 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Found non-static lifetime on trait
+In src/ast/snapshots/span_testing/ns_lifetime.rs:3:41:
+...) + 'a){}
+}...
+        ^
+Only 'static lifetimes are supported on trait objects right now.

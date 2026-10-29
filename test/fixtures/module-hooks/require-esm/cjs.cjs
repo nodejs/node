@@ -1,0 +1,1 @@
+exports.cjsValue = require('./inner.cjs');

@@ -1,0 +1,71 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<script>
+var image_path = base_path() + 'fetch-access-control.py?PNGIMAGE';
+var host_info = get_host_info();
+var results = '';
+
+function test1() {
+  var img = document.createElement('img');
+  document.body.appendChild(img);
+  img.onload = function() {
+    test2();
+  };
+  img.onerror = function() {
+    results += 'FAIL(1)';
+    test2();
+  };
+  img.src = './sample?url=' +
+            encodeURIComponent(host_info['HTTPS_ORIGIN'] + image_path);
+}
+
+function test2() {
+  var img = document.createElement('img');
+  document.body.appendChild(img);
+  img.onload = function() {
+    test3();
+  };
+  img.onerror = function() {
+    results += 'FAIL(2)';
+    test3();
+  };
+  img.src = './sample?mode=no-cors&url=' +
+            encodeURIComponent(host_info['HTTPS_REMOTE_ORIGIN'] + image_path);
+}
+
+function test3() {
+  var img = document.createElement('img');
+  document.body.appendChild(img);
+  img.onload = function() {
+    results += 'FAIL(3)';
+    test4();
+  };
+  img.onerror = function() {
+    test4();
+  };
+  img.src = './sample?mode=no-cors&url=' +
+            encodeURIComponent(host_info['HTTP_ORIGIN'] + image_path);
+}
+
+function test4() {
+  var img = document.createElement('img');
+  document.body.appendChild(img);
+  img.onload = function() {
+    results += 'FAIL(4)';
+    finish();
+  };
+  img.onerror = function() {
+    finish();
+  };
+  img.src = './sample?mode=no-cors&url=' +
+            encodeURIComponent(host_info['HTTP_REMOTE_ORIGIN'] + image_path);
+}
+
+function finish() {
+  results += 'finish';
+  window.parent.postMessage({results: results}, host_info['HTTPS_ORIGIN']);
+}
+</script>
+
+<body onload='test1();'>
+</body>

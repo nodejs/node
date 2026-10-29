@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing: test behavior for cached resources</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/observe-entry.js"></script>
+</head>
+<body>
+<h1>Description</h1>
+<p>Test that a reused resource only appears in the buffer once.</p>
+<script>
+// Need our own image loading helper because the one in resource-loaders.js
+// is designed to always side-step the HTTP cache but this test relies on the
+// second request being resolved from the cache.
+const load_image = path => new Promise(resolve => {
+  const img = document.createElement('img');
+  img.onload = img.onerror = () => resolve();
+  img.src = path;
+  document.body.append(img);
+});
+
+promise_test(async () => {
+  const blue = "resources/blue.png";
+
+  // First request. Should appear in the timeline.
+  await load_image(blue + "?cacheable");
+
+  // Second request. Should not appear in the timeline.
+  await load_image(blue + "?cacheable");
+
+  // Third request. When this request shows up in the timeline, we know that, if
+  // the second request would generate an entry, that entry would have already
+  // shown up in the timeline. Without this, we'd need to guess at how long to
+  // wait which tends to be flaky.
+  await load_image(blue + "?avoid-cache");
+
+  const entries = await new Promise(resolve => {
+    const accumulator = [];
+    new PerformanceObserver(entry_list => {
+      entry_list.getEntries().forEach(entry => {
+        if (!entry.name.includes("blue.png")) {
+          // Ignore resources other than blue images.
+          return;
+        }
+        accumulator.push(entry);
+
+        // Once we see the 'canary' resource, we don't need to wait anymore.
+        if (entry.name.endsWith('avoid-cache')) {
+          resolve(accumulator);
+        }
+      });
+    }).observe({'type': 'resource', 'buffered': true});
+  });
+
+  assert_equals(entries.length, 2, "There must be exactly 2 entries in the " +
+    "Performance Timeline");
+  assert_true(entries[0].name.endsWith("blue.png?cacheable"));
+  assert_true(entries[1].name.endsWith("blue.png?avoid-cache"));
+}, "When a resource is resolved from cache, there must not be a " +
+  "corresponding entry in the Performance Timeline");
+</script>
+</body>
+</html>

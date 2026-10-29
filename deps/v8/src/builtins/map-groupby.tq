@@ -1,0 +1,38 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@incrementUseCounter('v8::Isolate::kArrayGroup')
+transitioning javascript builtin MapGroupBy(
+    js-implicit context: NativeContext, receiver: JSAny)(items: JSAny,
+    callback: JSAny): JSAny {
+  // 1. Let groups be ? GroupBy(items, callbackfn, zero).
+  const groups: OrderedHashMap =
+      GroupByImpl(items, callback, /* coerceToProperty */ False, 'Map.groupBy');
+
+  // 2. Let map be ! Construct(%Map%).
+  // 3. For each Record { [[Key]], [[Elements]] } g of groups, do
+  //   a. Let elements be CreateArrayFromList(g.[[Elements]]).
+  //   b. Let entry be the Record { [[Key]]: g.[[Key]], [[Value]]: elements }.
+  //   c. Append entry to map.[[MapData]].
+
+  // TODO(v8:12499): Determine more specific elements map if worth it.
+  try {
+    let iter = collections::NewUnmodifiedOrderedHashMapIterator(groups);
+    const arrayMap = GetFastPackedElementsJSArrayMap();
+    while (true) {
+      const entry = iter.Next() otherwise Done;
+      const elements = ArrayListElements(UnsafeCast<ArrayList>(entry.value));
+      const array = NewJSArray(arrayMap, elements);
+      iter.UnsafeStoreValueAtCurrentEntry(array);
+    }
+  } label Done {}
+
+  // 4. Return map.
+  return new JSMap{
+    map: *NativeContextSlot(ContextSlot::JS_MAP_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    table: groups
+  };
+}

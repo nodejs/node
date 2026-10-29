@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<title>Service Worker: FetchEvent for resources</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+let url_count = 0;
+const expected_results = {};
+
+function add_promise_to_test(url)
+{
+  const expected = expected_results[url];
+  return new Promise((resolve) => {
+    expected.resolve = resolve;
+  });
+}
+
+function image_test(frame, url, cross_origin, expected_mode,
+                    expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      cross_origin: cross_origin,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'image',
+      message: `Image load (url:${actual_url} cross_origin:${cross_origin})`
+    };
+  frame.contentWindow.load_image(actual_url, cross_origin);
+  return add_promise_to_test(actual_url);
+}
+
+function script_test(frame, url, cross_origin, expected_mode,
+                     expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      cross_origin: cross_origin,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'script',
+      message: `Script load (url:${actual_url} cross_origin:${cross_origin})`
+    };
+  frame.contentWindow.load_script(actual_url, cross_origin);
+  return add_promise_to_test(actual_url);
+}
+
+function css_test(frame, url, cross_origin, expected_mode,
+                  expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      cross_origin: cross_origin,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'style',
+      message: `CSS load (url:${actual_url} cross_origin:${cross_origin})`
+    };
+  frame.contentWindow.load_css(actual_url, cross_origin);
+  return add_promise_to_test(actual_url);
+}
+
+function font_face_test(frame, url, expected_mode, expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'font',
+      message: `FontFace load (url: ${actual_url})`
+    };
+  frame.contentWindow.load_font(actual_url);
+  return add_promise_to_test(actual_url);
+}
+
+function script_integrity_test(frame, url, integrity, expected_integrity) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'no-cors',
+      credentials: 'include',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'script',
+      message: `Script load (url:${actual_url})`
+    };
+  frame.contentWindow.load_script_with_integrity(actual_url, integrity, /*type=*/null);
+  return add_promise_to_test(actual_url);
+}
+
+function module_script_integrity_test(frame, url, integrity, expected_integrity) {
+  const actual_url = url + "_module";
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'cors',
+      credentials: 'same-origin',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'script',
+      message: `Module Script load (url:${actual_url})`
+    };
+  frame.contentWindow.load_script_with_integrity(actual_url, integrity, "module");
+  return add_promise_to_test(actual_url);
+}
+
+function modulepreload_integrity_test(frame, url, integrity, expected_integrity) {
+  const actual_url = url + "_modulepreload";
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'cors',
+      credentials: 'same-origin',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'script',
+      message: `Module Script load (url:${actual_url})`
+    };
+  frame.contentWindow.load_modulepreload_with_integrity(actual_url, integrity);
+  return add_promise_to_test(actual_url);
+}
+
+function import_module_integrity_test(frame, url, expected_integrity) {
+  const actual_url = url + "_moduleimport";
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'cors',
+      credentials: 'same-origin',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'script',
+      message: `Module Script load (url:${actual_url})`
+    };
+  frame.contentWindow.import_modulescript(actual_url);
+  return add_promise_to_test(actual_url);
+}
+
+function import_dynamic_module_integrity_test(frame, url, expected_integrity) {
+  const actual_url = url + "_moduleimportdynamic";
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'cors',
+      credentials: 'same-origin',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'script',
+      message: `Module Script load (url:${actual_url})`
+    };
+  frame.contentWindow.import_dynamic_modulescript(actual_url);
+  return add_promise_to_test(actual_url);
+}
+
+function css_integrity_test(frame, url, integrity, expected_integrity) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      url: actual_url,
+      mode: 'no-cors',
+      credentials: 'include',
+      redirect: 'follow',
+      integrity: expected_integrity,
+      destination: 'style',
+      message: `CSS load (url:${actual_url})`
+    };
+  frame.contentWindow.load_css_with_integrity(actual_url, integrity);
+  return add_promise_to_test(actual_url);
+}
+
+function fetch_test(frame, url, mode, credentials,
+                    expected_mode, expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: '',
+      message: `fetch (url:${actual_url} mode:${mode} ` +
+               `credentials:${credentials})`
+    };
+  frame.contentWindow.fetch(
+      new Request(actual_url, {mode: mode, credentials: credentials}));
+  return add_promise_to_test(actual_url);
+}
+
+function audio_test(frame, url, cross_origin,
+                    expected_mode, expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'audio',
+      message: `Audio load (url:${actual_url} cross_origin:${cross_origin})`
+    };
+  frame.contentWindow.load_audio(actual_url, cross_origin);
+  return add_promise_to_test(actual_url);
+}
+
+
+function video_test(frame, url, cross_origin,
+                    expected_mode, expected_credentials) {
+  const actual_url = url + (++url_count);
+  expected_results[actual_url] = {
+      mode: expected_mode,
+      credentials: expected_credentials,
+      redirect: 'follow',
+      integrity: '',
+      destination: 'video',
+      message: `Video load (url:${actual_url} cross_origin:${cross_origin})`
+    };
+  frame.contentWindow.load_video(actual_url, cross_origin);
+  return add_promise_to_test(actual_url);
+}
+
+promise_test(async t => {
+  const SCOPE = 'resources/fetch-request-resources-iframe.https.html';
+  const SCRIPT = 'resources/fetch-request-resources-worker.js';
+  const host_info = get_host_info();
+  const LOCAL_URL =
+      host_info['HTTPS_ORIGIN'] + base_path() + 'resources/sample?test';
+  const REMOTE_URL =
+      host_info['HTTPS_REMOTE_ORIGIN'] + base_path() + 'resources/sample?test';
+
+  const registration =
+      await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+  t.add_cleanup(() => registration.unregister());
+  const worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+
+  await new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = t.step_func(msg => {
+      if (msg.data.ready) {
+        resolve();
+        return;
+      }
+      const result = msg.data;
+      const expected = expected_results[result.url];
+      if (!expected) {
+        return;
+      }
+      test(() => {
+        assert_equals(
+            result.mode, expected.mode,
+            `mode of must be ${expected.mode}.`);
+        assert_equals(
+            result.credentials, expected.credentials,
+            `credentials of ${expected.message} must be ` +
+            `${expected.credentials}.`);
+        assert_equals(
+            result.redirect, expected.redirect,
+            `redirect mode of ${expected.message} must be ` +
+            `${expected.redirect}.`);
+        assert_equals(
+            result.integrity, expected.integrity,
+            `integrity of ${expected.message} must be ` +
+            `${expected.integrity}.`);
+        assert_equals(
+            result.destination, expected.destination,
+            `destination of ${expected.message} must be ` +
+            `${expected.destination}.`);
+      }, expected.message);
+      expected.resolve();
+      delete expected_results[result.url];
+    });
+    worker.postMessage({port: channel.port2}, [channel.port2]);
+  });
+
+  const f = await with_iframe(SCOPE);
+  t.add_cleanup(() => f.remove());
+
+  await image_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await image_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await css_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await css_test(f, REMOTE_URL, '', 'no-cors', 'include');
+
+  await image_test(f, LOCAL_URL, 'anonymous', 'cors', 'same-origin');
+  await image_test(f, LOCAL_URL, 'use-credentials', 'cors', 'include');
+  await image_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await image_test(f, REMOTE_URL, 'anonymous', 'cors', 'same-origin');
+  await image_test(f, REMOTE_URL, 'use-credentials', 'cors', 'include');
+
+  await script_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await script_test(f, LOCAL_URL, 'anonymous', 'cors', 'same-origin');
+  await script_test(f, LOCAL_URL, 'use-credentials', 'cors', 'include');
+  await script_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await script_test(f, REMOTE_URL, 'anonymous', 'cors', 'same-origin');
+  await script_test(f, REMOTE_URL, 'use-credentials', 'cors', 'include');
+
+  await css_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await css_test(f, LOCAL_URL, 'anonymous', 'cors', 'same-origin');
+  await css_test(f, LOCAL_URL, 'use-credentials', 'cors', 'include');
+  await css_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await css_test(f, REMOTE_URL, 'anonymous', 'cors', 'same-origin');
+  await css_test(f, REMOTE_URL, 'use-credentials', 'cors', 'include');
+
+  await font_face_test(f, LOCAL_URL, 'cors', 'same-origin');
+  await font_face_test(f, REMOTE_URL, 'cors', 'same-origin');
+
+  await script_integrity_test(f, LOCAL_URL, '     ', '     ');
+  await script_integrity_test(
+      f, LOCAL_URL,
+      'This is not a valid integrity because it has no dashes',
+      'This is not a valid integrity because it has no dashes');
+  await script_integrity_test(f, LOCAL_URL, 'sha256-', 'sha256-');
+  await script_integrity_test(f, LOCAL_URL, 'sha256-foo?123', 'sha256-foo?123');
+  await script_integrity_test(f, LOCAL_URL, 'sha256-foo sha384-abc ',
+                              'sha256-foo sha384-abc ');
+  await script_integrity_test(f, LOCAL_URL, 'sha256-foo sha256-abc',
+                              'sha256-foo sha256-abc');
+  await module_script_integrity_test(f, LOCAL_URL,
+                                     null,
+                                     'sha384-foobar');
+
+  await modulepreload_integrity_test(f, LOCAL_URL,
+                                     null,
+                                     'sha384-foobar');
+
+  await import_module_integrity_test(f, LOCAL_URL,
+                                     'sha384-foobar');
+
+  await import_dynamic_module_integrity_test(f, LOCAL_URL,
+                                     'sha384-foobar');
+
+  await css_integrity_test(f, LOCAL_URL, '     ', '     ');
+  await css_integrity_test(
+      f, LOCAL_URL,
+      'This is not a valid integrity because it has no dashes',
+      'This is not a valid integrity because it has no dashes');
+  await css_integrity_test(f, LOCAL_URL, 'sha256-', 'sha256-');
+  await css_integrity_test(f, LOCAL_URL, 'sha256-foo?123', 'sha256-foo?123');
+  await css_integrity_test(f, LOCAL_URL, 'sha256-foo sha384-abc ',
+                           'sha256-foo sha384-abc ');
+  await css_integrity_test(f, LOCAL_URL, 'sha256-foo sha256-abc',
+                           'sha256-foo sha256-abc');
+
+  await fetch_test(f, LOCAL_URL, 'same-origin', 'omit', 'same-origin', 'omit');
+  await fetch_test(f, LOCAL_URL, 'same-origin', 'same-origin',
+                   'same-origin', 'same-origin');
+  await fetch_test(f, LOCAL_URL, 'same-origin', 'include',
+                   'same-origin', 'include');
+  await fetch_test(f, LOCAL_URL, 'no-cors', 'omit', 'no-cors', 'omit');
+  await fetch_test(f, LOCAL_URL, 'no-cors', 'same-origin',
+                   'no-cors', 'same-origin');
+  await fetch_test(f, LOCAL_URL, 'no-cors', 'include', 'no-cors', 'include');
+  await fetch_test(f, LOCAL_URL, 'cors', 'omit', 'cors', 'omit');
+  await fetch_test(f, LOCAL_URL, 'cors', 'same-origin', 'cors', 'same-origin');
+  await fetch_test(f, LOCAL_URL, 'cors', 'include', 'cors', 'include');
+  await fetch_test(f, REMOTE_URL, 'no-cors', 'omit', 'no-cors', 'omit');
+  await fetch_test(f, REMOTE_URL, 'no-cors', 'same-origin', 'no-cors', 'same-origin');
+  await fetch_test(f, REMOTE_URL, 'no-cors', 'include', 'no-cors', 'include');
+  await fetch_test(f, REMOTE_URL, 'cors', 'omit', 'cors', 'omit');
+  await fetch_test(f, REMOTE_URL, 'cors', 'same-origin', 'cors', 'same-origin');
+  await fetch_test(f, REMOTE_URL, 'cors', 'include', 'cors', 'include');
+
+  await audio_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await audio_test(f, LOCAL_URL, 'anonymous', 'cors', 'same-origin');
+  await audio_test(f, LOCAL_URL, 'use-credentials', 'cors', 'include');
+  await audio_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await audio_test(f, REMOTE_URL, 'anonymous', 'cors', 'same-origin');
+  await audio_test(f, REMOTE_URL, 'use-credentials', 'cors', 'include');
+
+  await video_test(f, LOCAL_URL, '', 'no-cors', 'include');
+  await video_test(f, LOCAL_URL, 'anonymous', 'cors', 'same-origin');
+  await video_test(f, LOCAL_URL, 'use-credentials', 'cors', 'include');
+  await video_test(f, REMOTE_URL, '', 'no-cors', 'include');
+  await video_test(f, REMOTE_URL, 'anonymous', 'cors', 'same-origin');
+  await video_test(f, REMOTE_URL, 'use-credentials', 'cors', 'include');
+}, 'Verify FetchEvent for resources.');
+</script>

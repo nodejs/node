@@ -1,0 +1,263 @@
+// Flags: --experimental-stream-iter
+'use strict';
+
+const common = require('../common');
+const assert = require('assert');
+const {
+  from,
+  fromSync,
+  share,
+  Share,
+  SyncShare,
+  text,
+  textSync,
+} = require('stream/iter');
+
+const { setImmediate } = require('timers/promises');
+
+// =============================================================================
+// Share.from
+// =============================================================================
+
+async function testShareFrom() {
+  const shared = Share.from(from('share-from'));
+  const consumer = shared.pull();
+
+  const data = await text(consumer);
+  assert.strictEqual(data, 'share-from');
+}
+
+function testShareFromRejectsNonStreamable() {
+  assert.throws(
+    () => Share.from(12345),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
+// =============================================================================
+// SyncShare.fromSync
+// =============================================================================
+
+async function testSyncShareFromSync() {
+  const shared = SyncShare.fromSync(fromSync('sync-share-from'));
+  const consumer = shared.pull();
+
+  const data = textSync(consumer);
+  assert.strictEqual(data, 'sync-share-from');
+}
+
+function testSyncShareFromRejectsNonStreamable() {
+  assert.throws(
+    () => SyncShare.fromSync(12345),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
+// =============================================================================
+// Protocol validation
+// =============================================================================
+
+function testShareProtocolReturnsNull() {
+  const obj = {
+    [Symbol.for('Stream.shareProtocol')]() { return null; },
+  };
+  assert.throws(
+    () => Share.from(obj),
+    { code: 'ERR_INVALID_RETURN_VALUE' },
+  );
+}
+
+function testShareProtocolReturnsNonObject() {
+  const obj = {
+    [Symbol.for('Stream.shareProtocol')]() { return 42; },
+  };
+  assert.throws(
+    () => Share.from(obj),
+    { code: 'ERR_INVALID_RETURN_VALUE' },
+  );
+}
+
+function testSyncShareProtocolReturnsNull() {
+  const obj = {
+    [Symbol.for('Stream.shareSyncProtocol')]() { return null; },
+  };
+  assert.throws(
+    () => SyncShare.fromSync(obj),
+    { code: 'ERR_INVALID_RETURN_VALUE' },
+  );
+}
+
+function testSyncShareProtocolReturnsNonObject() {
+  const obj = {
+    [Symbol.for('Stream.shareSyncProtocol')]() { return 'bad'; },
+  };
+  assert.throws(
+    () => SyncShare.fromSync(obj),
+    { code: 'ERR_INVALID_RETURN_VALUE' },
+  );
+}
+
+// =============================================================================
+// Unbounded backpressure: two consumers, slow consumer blocks the source
+// =============================================================================
+
+async function testShareBlockBackpressure() {
+  // A source that yields 5 items. With two consumers and budget: 16384,
+  // the fast consumer drives the source forward. The slow consumer holds back
+  // trimming, causing the buffer to fill. 'unbounded' mode should stall the
+  // source pull until the slow consumer catches up.
+  const enc = new TextEncoder();
+  async function* source() {
+    for (let i = 0; i < 5; i++) {
+      yield [enc.encode(`item${i}`)];
+    }
+  }
+  const shared = share(source(), { budget: 16384, backpressure: 'unbounded' });
+  const fast = shared.pull();
+  const slow = shared.pull();
+
+  // Both consumers should ultimately receive all 5 items
+  const [fastData, slowData] = await Promise.all([
+    text(fast),
+    text(slow),
+  ]);
+
+  assert.strictEqual(fastData, 'item0item1item2item3item4');
+  assert.strictEqual(slowData, 'item0item1item2item3item4');
+}
+
+// =============================================================================
+// Drop backpressure modes: use a fast + stalled consumer to trigger drops
+// =============================================================================
+
+async function testShareDropOldest() {
+  // Two consumers, fast reads eagerly then slow reads. With drop-oldest,
+  // the slow consumer's cursor is advanced past dropped items, so it
+  // misses old data and only sees recent items.
+  async function* source() {
+    for (let i = 0; i < 4; i++) {
+      const chunk = new Uint8Array(16384);
+      chunk[0] = i; // Tag first byte with index
+      yield [chunk];
+    }
+  }
+  const shared = share(source(), { budget: 32768, backpressure: 'drop-oldest' });
+  const fast = shared.pull();
+  const slow = shared.pull();
+
+  // Fast consumer reads all items
+  const fastIndices = [];
+  for await (const batch of fast) {
+    for (const chunk of batch) {
+      fastIndices.push(chunk[0]);
+    }
+  }
+  assert.strictEqual(fastIndices.length, 4);
+
+  // Slow consumer reads after fast is done — old items were dropped
+  const slowIndices = [];
+  for await (const batch of slow) {
+    for (const chunk of batch) {
+      slowIndices.push(chunk[0]);
+    }
+  }
+  // The slow consumer should see fewer items than were produced
+  assert.ok(slowIndices.length < 4,
+            `Expected < 4 items after drop-oldest, got ${slowIndices.length}`);
+  assert.ok(slowIndices.length > 0,
+            'Expected at least some items after drop-oldest');
+  // The last item should always be present (most recent items kept)
+  assert.strictEqual(slowIndices[slowIndices.length - 1], 3);
+}
+
+async function testShareDropNewest() {
+  let pulls = 0;
+  let secondPull;
+  const secondPullStarted = new Promise((resolve) => {
+    secondPull = resolve;
+  });
+
+  async function* source() {
+    for (let i = 0; i < 7; i++) {
+      pulls++;
+      if (pulls === 2) secondPull();
+      const chunk = new Uint8Array(16384);
+      chunk[0] = i;
+      yield [chunk];
+    }
+  }
+  const shared = share(source(), {
+    budget: 16384,
+    backpressure: 'drop-newest',
+  });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+
+  const first = await fast.next();
+  assert.strictEqual(first.value[0][0], 0);
+
+  let nextSettled = false;
+  const next = fast.next().then((result) => {
+    nextSettled = true;
+    return result;
+  });
+
+  await secondPullStarted;
+  await setImmediate();
+  assert.strictEqual(pulls, 2);
+  assert.strictEqual(nextSettled, false);
+
+  const slowResult = await slow.next();
+  assert.strictEqual(slowResult.value[0][0], 0);
+
+  const nextResult = await next;
+  assert.strictEqual(nextResult.value[0][0], 2);
+  assert.strictEqual(pulls, 3);
+
+  shared.cancel();
+}
+
+// =============================================================================
+// Strict backpressure: should throw when buffer overflows
+// =============================================================================
+
+async function testShareStrictBackpressure() {
+  for (const transformed of [false, true]) {
+    async function* source() {
+      for (let i = 0; i < 10; i++) {
+        yield [new Uint8Array(16384)];
+      }
+    }
+    const shared = share(source(), {
+      budget: 32768,
+      backpressure: 'strict',
+    });
+    const consumer = transformed ?
+      shared.pull((chunks) => chunks) : shared.pull();
+    const fast = consumer[Symbol.asyncIterator]();
+    // This consumer prevents the buffer from being trimmed.
+    shared.pull();
+
+    await fast.next();
+    await fast.next();
+    await assert.rejects(fast.next(), { code: 'ERR_OUT_OF_RANGE' });
+    assert.strictEqual(shared.consumerCount, 1);
+    assert.strictEqual((await fast.next()).done, true);
+    shared.cancel();
+  }
+}
+
+Promise.all([
+  testShareFrom(),
+  testShareFromRejectsNonStreamable(),
+  testSyncShareFromSync(),
+  testSyncShareFromRejectsNonStreamable(),
+  testShareProtocolReturnsNull(),
+  testShareProtocolReturnsNonObject(),
+  testSyncShareProtocolReturnsNull(),
+  testSyncShareProtocolReturnsNonObject(),
+  testShareBlockBackpressure(),
+  testShareDropOldest(),
+  testShareDropNewest(),
+  testShareStrictBackpressure(),
+]).then(common.mustCall());

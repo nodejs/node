@@ -1,0 +1,110 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
+transitioning builtin ArrayFindLastIndexLoopContinuation(
+    implicit context: Context)(predicate: Callable, thisArg: JSAny,
+    o: JSReceiver, initialK: Number): Number {
+  // 5. Repeat, while k >= 0
+  for (let k: Number = initialK; k >= 0; k--) {
+    // 5a. Let Pk be ! ToString(𝔽(k)).
+    // k is guaranteed to be a positive integer, hence ToString is
+    // side-effect free and HasProperty/GetProperty do the conversion inline.
+
+    // 5b. Let kValue be ? Get(O, Pk).
+    const value: JSAny = GetProperty(o, k);
+
+    // 5c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
+    // 𝔽(k), O »)).
+    const testResult: JSAny = Call(context, predicate, thisArg, value, k, o);
+
+    // 5d. If testResult is true, return 𝔽(k).
+    if (ToBoolean(testResult)) {
+      return k;
+    }
+
+    // 5e. Set k to k - 1. (done by the loop).
+  }
+
+  // 6. Return -1𝔽.
+  return Convert<Smi>(-1);
+}
+
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
+transitioning macro FastArrayFindLastIndex(
+    implicit context: Context)(o: JSReceiver, len: Number, predicate: Callable,
+    thisArg: JSAny): Number
+    labels Bailout(Number) {
+  const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1);
+  // 4. Let k be len - 1.
+  let k: Smi = smiLen - 1;
+  const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+  let fastOW = NewFastJSArrayWitness(fastO);
+
+  // 5. Repeat, while k ≥ 0
+  // Build a fast loop over the smi array.
+  for (; k >= 0; k--) {
+    fastOW.Recheck() otherwise goto Bailout(k);
+
+    // Ensure that we haven't walked beyond a possibly updated length.
+    if (k >= fastOW.Get().length) goto Bailout(k);
+
+    // 5a. Let Pk be ! ToString(𝔽(k)).
+    // k is guaranteed to be a positive integer, hence there is no need to
+    // cast ToString for LoadElementOrUndefined.
+
+    // 5b. Let kValue be ? Get(O, Pk).
+    const value: JSAny = fastOW.LoadElementOrUndefined(k);
+    // 5c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
+    // 𝔽(k), O »)).
+    const testResult: JSAny =
+        Call(context, predicate, thisArg, value, k, fastOW.Get());
+    // 5d. If testResult is true, return 𝔽(k).
+    if (ToBoolean(testResult)) {
+      return k;
+    }
+
+    // 5e. Set k to k - 1. (done by the loop).
+  }
+
+  // 6. Return -1𝔽.
+  return -1;
+}
+
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
+transitioning javascript builtin ArrayPrototypeFindLastIndex(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    RequireObjectCoercible(receiver, 'Array.prototype.findLastIndex');
+
+    // 1. Let O be ? ToObject(this value).
+    const o: JSReceiver = ToObject_Inline(context, receiver);
+
+    // 2. Let len be ? LengthOfArrayLike(O).
+    const len: Number = GetLengthProperty(o);
+
+    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+    if (arguments.length == 0) {
+      goto NotCallableError;
+    }
+    const predicate = Cast<Callable>(arguments[0]) otherwise NotCallableError;
+
+    // If a thisArg parameter is provided, it will be used as the this value for
+    // each invocation of predicate. If it is not provided, undefined is used
+    // instead.
+    const thisArg: JSAny = arguments[1];
+
+    // Special cases.
+    try {
+      return FastArrayFindLastIndex(o, len, predicate, thisArg)
+          otherwise Bailout;
+    } label Bailout(k: Number) deferred {
+      return ArrayFindLastIndexLoopContinuation(predicate, thisArg, o, k);
+    }
+  } label NotCallableError deferred {
+    ThrowCalledNonCallable(arguments[0]);
+  }
+}
+}

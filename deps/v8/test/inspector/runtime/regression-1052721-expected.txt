@@ -1,0 +1,12 @@
+Deleting REPL let does not crash V8 crbug.com/105271
+
+Running test: deleteReplLetDeclaration
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : false
+        }
+    }
+}

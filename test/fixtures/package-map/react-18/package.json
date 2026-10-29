@@ -1,0 +1,8 @@
+{
+  "name": "react",
+  "version": "18.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

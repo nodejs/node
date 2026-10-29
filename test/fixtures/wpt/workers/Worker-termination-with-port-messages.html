@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>This test terminates a worker when there are many undelivered MessagePort messages still waiting to be dispatched into the Worker Context. This causes termination of JS execution and test should not try to dispatch the remaining messages. Test succeeds if it does not hang or crash (if worker thread is running in the separate process, that process could hang or crash).</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(function(t) {
+    var worker = new Worker("support/Worker-termination-with-port-messages.js");
+    var channel = new MessageChannel();
+
+    channel.port2.onmessage = function(evt)
+    {
+        // On first message back from worker, terminate it.
+        worker.terminate();
+        t.done();
+    }
+    channel.port2.start();
+
+    worker.postMessage("", [channel.port1]);
+    for (i = 0; i < 1000; i++)
+        channel.port2.postMessage("message to worker");
+});
+</script>

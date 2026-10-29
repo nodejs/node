@@ -1,0 +1,64 @@
+[config]
+  skip_core_tasks = true
+
+[env]
+  TARGET = { script = ["rustc -vV | sed -n 's|host: ||p'"] }
+
+[tasks.default]
+  dependencies = ["build"]
+
+[tasks.build]
+  dependencies = ["cpp", "wasm"]
+
+[tasks.test]
+  dependencies = ["build", "test:rust", "test:wasm"]
+
+[tasks."test:rust"]
+  command = "cargo"
+  args    = ["test"]
+
+[tasks."test:wasm"]
+  dependencies = ["wasm:release"]
+  command      = "node"
+  args         = ["--test", "--test-reporter=cleaner-spec-reporter", "wasm/test/*.test.js"]
+
+[tasks.cpp]
+  dependencies = ["cpp:headers", "cpp:libs"]
+
+[tasks.wasm]
+  dependencies = ["wasm:release", "wasm:debug"]
+
+[tasks."cpp:libs"]
+  dependencies = ["cpp:release", "cpp:debug"]
+
+[tasks."cpp:release"]
+  env      = { CONFIGURATION = "release", "CARGO_OPTIONS" = "--release" }
+  run_task = "cpp:lib"
+
+[tasks."cpp:debug"]
+  env      = { CONFIGURATION = "debug", "CARGO_OPTIONS" = "--release --features debug" }
+  run_task = "cpp:lib"
+
+[tasks."cpp:lib"]
+  dependencies = ["scripts:build"]
+  script       = ["mkdir -p ../dist/cpp/${CONFIGURATION}", "rm -rf ../dist/cpp/${CONFIGURATION}/*", "cargo build --locked -Z unstable-options --target ${TARGET} ${CARGO_OPTIONS} --artifact-dir target/cpp/${CONFIGURATION}", "cp target/cpp/${CONFIGURATION}/libmilo_parser.a ../dist/cpp/${CONFIGURATION}/libmilo.a", "cp target/headers/milo.h ../dist/cpp/${CONFIGURATION}", "../scripts/target/release/postbuild-cpp ${CONFIGURATION}"]
+
+[tasks."scripts:build"]
+  command = "cargo"
+  args    = ["build", "--locked", "--release", "--manifest-path", "../scripts/Cargo.toml", "--target-dir", "../scripts/target", "--bins"]
+
+[tasks."cpp:headers"]
+  command = "cbindgen"
+  args    = ["--quiet", "--output", "target/headers/milo.h"]
+
+[tasks."wasm:release"]
+  env      = { CONFIGURATION = "release", CARGO_BUILD_OPTIONS = "-Z unstable-options -Z build-std=std,panic_abort", CARGO_OPTIONS = "--release", RUSTFLAGS_BASE = "-Z unstable-options -C panic=immediate-abort", WASMPACK_OPTIONS = "--release" }
+  run_task = "wasm:module"
+
+[tasks."wasm:debug"]
+  env      = { CONFIGURATION = "debug", CARGO_BUILD_OPTIONS = "-Z unstable-options", CARGO_OPTIONS = "--release --features debug", RUSTFLAGS_BASE = "", WASMPACK_OPTIONS = "--release" }
+  run_task = "wasm:module"
+
+[tasks."wasm:module"]
+  dependencies = ["scripts:build"]
+  script       = ["mkdir -p ../dist/wasm", "rm -rf ../dist/wasm/${CONFIGURATION}", "mkdir -p ../dist/wasm/${CONFIGURATION}/binary", "RUSTFLAGS=\"${RUSTFLAGS_BASE} -C target-feature=+simd128\" cargo build --locked --lib ${CARGO_BUILD_OPTIONS} --target wasm32-unknown-unknown ${CARGO_OPTIONS}", "cp -a target/wasm32-unknown-unknown/release/milo_parser.wasm ../dist/wasm/${CONFIGURATION}/binary/simd.wasm", "wasm-opt -O3 --enable-bulk-memory-opt --enable-simd -o ../dist/wasm/${CONFIGURATION}/binary/simd.wasm ../dist/wasm/${CONFIGURATION}/binary/simd.wasm", "RUSTFLAGS=\"${RUSTFLAGS_BASE}\" cargo build --locked --lib ${CARGO_BUILD_OPTIONS} --target wasm32-unknown-unknown ${CARGO_OPTIONS}", "cp -a target/wasm32-unknown-unknown/release/milo_parser.wasm ../dist/wasm/${CONFIGURATION}/binary/no-simd.wasm", "wasm-opt -O3 --enable-bulk-memory-opt -o ../dist/wasm/${CONFIGURATION}/binary/no-simd.wasm ../dist/wasm/${CONFIGURATION}/binary/no-simd.wasm", "../scripts/target/release/postbuild-wasm ${CONFIGURATION}"]

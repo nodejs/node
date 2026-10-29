@@ -1,0 +1,100 @@
+Checks that console messages before Runtime.enable include a single stack frame
+
+Running test: testEnable
+{
+    args : [
+        [0] : {
+            type : string
+            value : Error on toplevel
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : 
+                lineNumber : 10
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+    }
+    timestamp : <timestamp>
+    type : error
+}
+{
+    args : [
+        [0] : {
+            type : string
+            value : Hello from foo!
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 10
+                functionName : foo
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+    }
+    timestamp : <timestamp>
+    type : log
+}
+{
+    args : [
+        [0] : {
+            type : string
+            value : Hello from bar!
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 10
+                functionName : bar
+                lineNumber : 6
+                scriptId : <scriptId>
+                url : test.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 12
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+    }
+    timestamp : <timestamp>
+    type : trace
+}
+{
+    args : [
+        [0] : {
+            type : string
+            value : Hello from foo!
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 10
+                functionName : foo
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+    }
+    timestamp : <timestamp>
+    type : log
+}
+
+Running test: testEnableAfterDiscard

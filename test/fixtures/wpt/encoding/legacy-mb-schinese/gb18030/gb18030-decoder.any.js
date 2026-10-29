@@ -1,0 +1,101 @@
+// META: script=./resources/ranges.js
+
+const decode = (input, output, desc) => {
+  test(function () {
+    for (const encoding of ["gb18030", "gbk"]) {
+      assert_equals(
+        new TextDecoder(encoding).decode(new Uint8Array(input)),
+        output,
+      );
+    }
+  }, "gb18030 decoder: " + desc);
+};
+
+decode([115], "s", "ASCII");
+decode([0x80], "\u20AC", "euro");
+decode([0xFF], "\uFFFD", "initial byte out of accepted ranges");
+decode([0x81], "\uFFFD", "end of queue, gb18030 first not 0");
+decode([0x81, 0x28], "\ufffd(", "two bytes 0x81 0x28");
+decode([0x81, 0x40], "\u4E02", "two bytes 0x81 0x40");
+decode([0x81, 0x7E], "\u4E8A", "two bytes 0x81 0x7e");
+decode([0x81, 0x7F], "\ufffd\u007f", "two bytes 0x81 0x7f");
+decode([0x81, 0x80], "\u4E90", "two bytes 0x81 0x80");
+decode([0x81, 0xFE], "\u4FA2", "two bytes 0x81 0xFE");
+decode([0x81, 0xFF], "\ufffd", "two bytes 0x81 0xFF");
+decode([0xFE, 0x40], "\uFA0C", "two bytes 0xFE 0x40");
+decode([0xFE, 0xFE], "\uE4C5", "two bytes 0xFE 0xFE");
+decode([0xFE, 0xFF], "\ufffd", "two bytes 0xFE 0xFF");
+decode([0x81, 0x30], "\ufffd", "two bytes 0x81 0x30");
+decode([0x81, 0x30, 0xFE], "\ufffd", "three bytes 0x81 0x30 0xFE");
+decode([0x81, 0x30, 0xFF], "\ufffd0\ufffd", "three bytes 0x81 0x30 0xFF");
+decode(
+  [0x81, 0x30, 0xFE, 0x29],
+  "\ufffd0\ufffd)",
+  "four bytes 0x81 0x30 0xFE 0x29",
+);
+decode([0xFE, 0x39, 0xFE, 0x39], "\ufffd", "four bytes 0xFE 0x39 0xFE 0x39");
+decode([0x81, 0x35, 0xF4, 0x36], "\u1E3E", "pointer 7458");
+decode([0x81, 0x35, 0xF4, 0x37], "\ue7c7", "pointer 7457");
+decode([0x81, 0x35, 0xF4, 0x38], "\u1E40", "pointer 7459");
+decode([0x84, 0x31, 0xA4, 0x39], "\uffff", "pointer 39419");
+decode([0x84, 0x31, 0xA5, 0x30], "\ufffd", "pointer 39420");
+decode([0x8F, 0x39, 0xFE, 0x39], "\ufffd", "pointer 189999");
+decode([0x90, 0x30, 0x81, 0x30], "\u{10000}", "pointer 189000");
+decode([0xE3, 0x32, 0x9A, 0x35], "\u{10FFFF}", "pointer 1237575");
+decode([0xE3, 0x32, 0x9A, 0x36], "\ufffd", "pointer 1237576");
+decode([0x83, 0x36, 0xC8, 0x30], "\uE7C8", "legacy ICU special case 1");
+decode([0xA1, 0xAD], "\u2026", "legacy ICU special case 2");
+decode([0xA1, 0xAB], "\uFF5E", "legacy ICU special case 3");
+
+// GB18030-2022
+decode([0xA6, 0xD9], "\uFE10", "GB18030-2022 1");
+decode([0xA6, 0xDA], "\uFE12", "GB18030-2022 2");
+decode([0xA6, 0xDB], "\uFE11", "GB18030-2022 3");
+decode([0xA6, 0xDC], "\uFE13", "GB18030-2022 4");
+decode([0xA6, 0xDD], "\uFE14", "GB18030-2022 5");
+decode([0xA6, 0xDE], "\uFE15", "GB18030-2022 6");
+decode([0xA6, 0xDF], "\uFE16", "GB18030-2022 7");
+decode([0xA6, 0xEC], "\uFE17", "GB18030-2022 8");
+decode([0xA6, 0xED], "\uFE18", "GB18030-2022 9");
+decode([0xA6, 0xF3], "\uFE19", "GB18030-2022 10");
+decode([0xFE, 0x59], "\u9FB4", "GB18030-2022 11");
+decode([0xFE, 0x61], "\u9FB5", "GB18030-2022 12");
+decode([0xFE, 0x66], "\u9FB6", "GB18030-2022 13");
+decode([0xFE, 0x67], "\u9FB7", "GB18030-2022 14");
+decode([0xFE, 0x6D], "\u9FB8", "GB18030-2022 15");
+decode([0xFE, 0x7E], "\u9FB9", "GB18030-2022 16");
+decode([0xFE, 0x90], "\u9FBA", "GB18030-2022 17");
+decode([0xFE, 0xA0], "\u9FBB", "GB18030-2022 18");
+decode([0x82, 0x35, 0x90, 0x37], "\u9FB4", "GB18030-2022 19");
+decode([0x82, 0x35, 0x90, 0x38], "\u9FB5", "GB18030-2022 20");
+decode([0x82, 0x35, 0x90, 0x39], "\u9FB6", "GB18030-2022 21");
+decode([0x82, 0x35, 0x91, 0x30], "\u9FB7", "GB18030-2022 22");
+decode([0x82, 0x35, 0x91, 0x31], "\u9FB8", "GB18030-2022 23");
+decode([0x82, 0x35, 0x91, 0x32], "\u9FB9", "GB18030-2022 24");
+decode([0x82, 0x35, 0x91, 0x33], "\u9FBA", "GB18030-2022 25");
+decode([0x82, 0x35, 0x91, 0x34], "\u9FBB", "GB18030-2022 26");
+decode([0x84, 0x31, 0x82, 0x36], "\uFE10", "GB18030-2022 27");
+decode([0x84, 0x31, 0x82, 0x37], "\uFE11", "GB18030-2022 28");
+decode([0x84, 0x31, 0x82, 0x38], "\uFE12", "GB18030-2022 29");
+decode([0x84, 0x31, 0x82, 0x39], "\uFE13", "GB18030-2022 30");
+decode([0x84, 0x31, 0x83, 0x30], "\uFE14", "GB18030-2022 31");
+decode([0x84, 0x31, 0x83, 0x31], "\uFE15", "GB18030-2022 32");
+decode([0x84, 0x31, 0x83, 0x32], "\uFE16", "GB18030-2022 33");
+decode([0x84, 0x31, 0x83, 0x33], "\uFE17", "GB18030-2022 34");
+decode([0x84, 0x31, 0x83, 0x34], "\uFE18", "GB18030-2022 35");
+decode([0x84, 0x31, 0x83, 0x35], "\uFE19", "GB18030-2022 36");
+
+let i = 0;
+for (const range of ranges) {
+  const pointer = range[0];
+  decode(
+    [
+      Math.floor(pointer / 12600) + 0x81,
+      Math.floor((pointer % 12600) / 1260) + 0x30,
+      Math.floor((pointer % 1260) / 10) + 0x81,
+      pointer % 10 + 0x30,
+    ],
+    range[1],
+    "range " + i++,
+  );
+}

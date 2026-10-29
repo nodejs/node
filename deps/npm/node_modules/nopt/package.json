@@ -1,0 +1,50 @@
+{
+  "name": "nopt",
+  "version": "10.0.1",
+  "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+  "author": "GitHub Inc.",
+  "main": "lib/nopt.js",
+  "scripts": {
+    "test": "node --test './test/**/*.js'",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "node --test --test-update-snapshots './test/**/*.js'",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:node20": "node --test test",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 './test/**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/nopt.git"
+  },
+  "bin": {
+    "nopt": "bin/nopt.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "abbrev": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^7.0.0",
+    "@npmcli/template-oss": "5.1.0"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "windowsCI": false,
+    "version": "5.1.0",
+    "publish": true,
+    "testRunner": "node:test",
+    "latestCiVersion": 24,
+    "updateNpm": false
+  }
+}

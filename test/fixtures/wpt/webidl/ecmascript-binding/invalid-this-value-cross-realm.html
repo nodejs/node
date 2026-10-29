@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm getter / setter / operation doesn't use lexical global object to throw an error for incompatible |this| value</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-attribute-getter">
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-attribute-setter">
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-create-operation-function">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="support/create-realm.js"></script>
+
+<body>
+<script>
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notElement = Object.create(other.HTMLElement.prototype);
+
+    assert_throws_js(other.TypeError, () => { Object.create(other.document).head; });
+    assert_throws_js(other.TypeError, () => { Object.getOwnPropertyDescriptor(other.HTMLElement.prototype, "title").get.call(notElement); });
+    assert_throws_js(other.TypeError, () => { Reflect.get(other.document.createElement("div"), "hidden", notElement); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other.text, {}).nodeType; });
+}, "Cross-realm getter throws when called on incompatible object");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notElement = Object.create(other.HTMLElement.prototype);
+    const notText = Object.create(other.Text.prototype);
+
+    assert_throws_js(other.TypeError, () => { Object.create(other.element).innerHTML = ""; });
+    assert_throws_js(other.TypeError, () => { Object.getOwnPropertyDescriptor(other.HTMLElement.prototype, "onclick").set.call(notElement, null); });
+    assert_throws_js(other.TypeError, () => { Reflect.set(new other.Text("foo"), "data", "foo", notText); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other.document, {}).title = ""; });
+}, "Cross-realm setter throws when called on incompatible object");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notDocument = Object.create(other.HTMLDocument.prototype);
+    const notText = Object.create(other.Text.prototype);
+
+    assert_throws_js(other.TypeError, () => { Object.create(other.element).click(); });
+    assert_throws_js(other.TypeError, () => { other.document.querySelector.call(notDocument, "*"); });
+    assert_throws_js(other.TypeError, () => { Reflect.apply(other.text.remove, notText, []); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other.document.createElement("a"), {}).addEventListener("foo", () => {}); });
+}, "Cross-realm operation throws when called on incompatible object");
+</script>

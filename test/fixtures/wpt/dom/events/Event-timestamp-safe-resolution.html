@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script type="text/javascript">
+'use strict';
+
+// Computes greatest common divisor of a and b using Euclid's algorithm
+function computeGCD(a, b) {
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    throw new Error('Parameters must be integer numbers');
+  }
+
+  var r;
+  while (b != 0) {
+    r = a % b;
+    a = b;
+    b = r;
+  }
+  return (a < 0) ? -a : a;
+}
+
+// Finds minimum resolution Δ given a set of samples which are known to be in the form of N*Δ.
+// We use GCD of all samples as a simple estimator.
+function estimateMinimumResolution(samples) {
+  var gcd;
+  for (const sample of samples) {
+    gcd = gcd ? computeGCD(gcd, sample) : sample;
+  }
+
+  return gcd;
+}
+
+test(function() {
+  const samples = [];
+  for (var i = 0; i < 1e3; i++) {
+    var deltaInMicroSeconds = 0;
+    const e1 = new MouseEvent('test1');
+    do {
+      const e2 = new MouseEvent('test2');
+      deltaInMicroSeconds = Math.round((e2.timeStamp - e1.timeStamp) * 1000);
+    } while (deltaInMicroSeconds == 0) // only collect non-zero samples
+
+    samples.push(deltaInMicroSeconds);
+  }
+
+  const minResolution = estimateMinimumResolution(samples);
+  assert_greater_than_equal(minResolution, 5);
+}, 'Event timestamp should not have a resolution better than 5 microseconds');
+</script>

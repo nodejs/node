@@ -1,0 +1,16 @@
+<!doctype html>
+<script>
+const baseLocation = window.location;
+const workerUrl = new URL('create-blob-url-worker.js', baseLocation).href;
+const worker = new Worker(workerUrl);
+
+function fetch_in_worker(url) {
+  const resourceUrl = new URL(url, baseLocation).href;
+  return new Promise((resolve) => {
+    worker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    worker.postMessage(resourceUrl);
+  });
+}
+</script>

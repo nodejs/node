@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# find the name of the log file to process, it must not start with a dash.
+log_file="v8.log"
+for arg in "$@"
+do
+  if ! expr "X${arg}" : "^X-" > /dev/null; then
+    log_file=${arg}
+  fi
+done
+
+tools_path=`cd $(dirname "$0");pwd`
+d8_exec=$("${tools_path}/find-d8.sh" "$log_file") || exit 1
+
+# nm spits out 'no symbols found' messages to stderr.
+cat $log_file | $d8_exec \
+  --module $tools_path/ic-processor-driver.mjs -- $@ 2>/dev/null

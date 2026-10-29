@@ -1,0 +1,540 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_OBJECTS_TEMPLATES_INL_H_
+#define V8_OBJECTS_TEMPLATES_INL_H_
+
+#include "src/objects/templates.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/codegen/external-reference.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
+#include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
+#include "src/sandbox/external-pointer-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
+namespace v8 {
+namespace internal {
+
+Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
+FunctionTemplateRareData::prototype_template() const {
+  return prototype_template_.load();
+}
+void FunctionTemplateRareData::set_prototype_template(
+    Tagged<UnionOf<Undefined, ObjectTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  prototype_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::prototype_provider_template() const {
+  return prototype_provider_template_.load();
+}
+void FunctionTemplateRareData::set_prototype_provider_template(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  prototype_provider_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::parent_template() const {
+  return parent_template_.load();
+}
+void FunctionTemplateRareData::set_parent_template(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  parent_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, InterceptorInfo>>
+FunctionTemplateRareData::named_property_handler() const {
+  return named_property_handler_.load();
+}
+void FunctionTemplateRareData::set_named_property_handler(
+    Tagged<UnionOf<Undefined, InterceptorInfo>> value, WriteBarrierMode mode) {
+  named_property_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, InterceptorInfo>>
+FunctionTemplateRareData::indexed_property_handler() const {
+  return indexed_property_handler_.load();
+}
+void FunctionTemplateRareData::set_indexed_property_handler(
+    Tagged<UnionOf<Undefined, InterceptorInfo>> value, WriteBarrierMode mode) {
+  indexed_property_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
+FunctionTemplateRareData::instance_template() const {
+  return instance_template_.load();
+}
+void FunctionTemplateRareData::set_instance_template(
+    Tagged<UnionOf<Undefined, ObjectTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  instance_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::instance_call_handler() const {
+  return instance_call_handler_.load();
+}
+void FunctionTemplateRareData::set_instance_call_handler(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  instance_call_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, AccessCheckInfo>>
+FunctionTemplateRareData::access_check_info() const {
+  return access_check_info_.load();
+}
+void FunctionTemplateRareData::set_access_check_info(
+    Tagged<UnionOf<Undefined, AccessCheckInfo>> value, WriteBarrierMode mode) {
+  access_check_info_.store(this, value, mode);
+}
+
+Tagged<FixedArray> FunctionTemplateRareData::c_function_overloads() const {
+  return c_function_overloads_.load();
+}
+void FunctionTemplateRareData::set_c_function_overloads(
+    Tagged<FixedArray> value, WriteBarrierMode mode) {
+  c_function_overloads_.store(this, value, mode);
+}
+
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
+               is_object_template_call_handler,
+               IsObjectTemplateCallHandlerBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, has_side_effects,
+               HasSideEffectsBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
+               UndetectableBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
+               NeedsAccessCheckBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, read_only_prototype,
+               ReadOnlyPrototypeBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
+               RemovePrototypeBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
+               AcceptAnyReceiverBit::kShift)
+
+bool FunctionTemplateInfo::published() const {
+  return BooleanBit::get(relaxed_flag(), PublishedBit::kShift);
+}
+
+void FunctionTemplateInfo::set_published(bool value) {
+  DCHECK(value);
+  if (published()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(this));
+  set_relaxed_flag(
+      BooleanBit::set(relaxed_flag(), PublishedBit::kShift, value));
+}
+
+InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_start()
+    const {
+  return AllowedReceiverInstanceTypeRangeStartBits::decode(relaxed_flag());
+}
+void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_start(
+    InstanceType value) {
+  set_relaxed_flag(
+      AllowedReceiverInstanceTypeRangeStartBits::update(relaxed_flag(), value));
+}
+
+InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_end()
+    const {
+  return AllowedReceiverInstanceTypeRangeEndBits::decode(relaxed_flag());
+}
+void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_end(
+    InstanceType value) {
+  set_relaxed_flag(
+      AllowedReceiverInstanceTypeRangeEndBits::update(relaxed_flag(), value));
+}
+
+uint32_t FunctionTemplateInfo::flag() const { return flag_; }
+void FunctionTemplateInfo::set_flag(uint32_t value) { flag_ = value; }
+uint32_t FunctionTemplateInfo::flag(RelaxedLoadTag tag) const {
+  return base::AsAtomic32::Relaxed_Load(&flag_);
+}
+void FunctionTemplateInfo::set_flag(uint32_t value, RelaxedStoreTag tag) {
+  base::AsAtomic32::Relaxed_Store(&flag_, value);
+}
+
+int32_t FunctionTemplateInfo::relaxed_flag() const {
+  return flag(kRelaxedLoad);
+}
+void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
+  return set_flag(flags, kRelaxedStore);
+}
+
+Address FunctionTemplateInfo::callback(IsolateForSandbox isolate) const {
+  return callback_.load(isolate);
+}
+
+void FunctionTemplateInfo::set_callback(IsolateForSandbox isolate,
+                                        Address value) {
+  callback_.store(isolate, value);
+}
+
+void FunctionTemplateInfo::init_callback(IsolateForSandbox isolate,
+                                         Address value) {
+  callback_.Init(address(), isolate, value);
+}
+
+void FunctionTemplateInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  callback_.RemoveCallbackRedirectionForSerialization(isolate);
+}
+
+void FunctionTemplateInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
+  callback_.RestoreCallbackRedirectionAfterDeserialization(isolate);
+}
+
+template <class IsolateT>
+bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {
+  return !IsTheHole(callback_data(kAcquireLoad));
+}
+
+// static
+Tagged<FunctionTemplateRareData>
+FunctionTemplateInfo::EnsureFunctionTemplateRareData(
+    Isolate* isolate,
+    DirectHandle<FunctionTemplateInfo> function_template_info) {
+  Tagged<HeapObject> extra = function_template_info->rare_data(kAcquireLoad);
+  if (IsUndefined(extra)) {
+    return AllocateFunctionTemplateRareData(isolate, function_template_info);
+  } else {
+    return Cast<FunctionTemplateRareData>(extra);
+  }
+}
+
+#define RARE_ACCESSORS(Name, CamelName, Default, ...)                          \
+  inline Tagged<__VA_ARGS__> FunctionTemplateInfo::Get##CamelName() const {    \
+    Tagged<HeapObject> extra = rare_data(kAcquireLoad);                        \
+    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();        \
+    return extra == undefined ? Default                                        \
+                              : Cast<FunctionTemplateRareData>(extra)->Name(); \
+  }                                                                            \
+  inline void FunctionTemplateInfo::Set##CamelName(                            \
+      Isolate* isolate,                                                        \
+      DirectHandle<FunctionTemplateInfo> function_template_info,               \
+      DirectHandle<__VA_ARGS__> Name) {                                        \
+    Tagged<FunctionTemplateRareData> rare_data =                               \
+        EnsureFunctionTemplateRareData(isolate, function_template_info);       \
+    rare_data->set_##Name(*Name);                                              \
+  }
+
+RARE_ACCESSORS(prototype_template, PrototypeTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
+RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate,
+               undefined, UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(parent_template, ParentTemplate, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(instance_template, InstanceTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
+RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(access_check_info, AccessCheckInfo, undefined,
+               UnionOf<Undefined, AccessCheckInfo>)
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads,
+               GetReadOnlyRoots().empty_fixed_array(), FixedArray)
+#undef RARE_ACCESSORS
+
+InstanceType FunctionTemplateInfo::GetInstanceType() const {
+  int type = instance_type();
+  DCHECK(base::IsInRange(type, Internals::kFirstJSApiObjectType,
+                         Internals::kLastJSApiObjectType));
+  return static_cast<InstanceType>(type);
+}
+
+void FunctionTemplateInfo::SetInstanceType(int api_instance_type) {
+  // Translate |api_instance_type| value from range
+  // [Internals::kFirstEmbedderJSApiObjectType,
+  //  Internals::kLastEmbedderJSApiObjectType] to range
+  // [Internals::kFirstJSApiObjectType, Internals::kLastJSApiObjectType].
+  DCHECK_LE(Internals::kFirstEmbedderJSApiObjectType, api_instance_type);
+  DCHECK_LE(api_instance_type, Internals::kLastEmbedderJSApiObjectType);
+  // kNoJSApiObjectType must correspond to JS_API_OBJECT_TYPE.
+  static_assert(kNoJSApiObjectType == 0);
+  static_assert(JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
+  set_instance_type(static_cast<InstanceType>(
+      api_instance_type + Internals::kFirstJSApiObjectType));
+}
+
+void FunctionTemplateInfo::SetAllowedReceiverInstanceTypeRange(
+    int api_instance_type_start, int api_instance_type_end) {
+  // Translate |api_instance_type_start| and |api_instance_type_end| values
+  // from range [Internals::kFirstEmbedderJSApiObjectType,
+  //             Internals::kLastEmbedderJSApiObjectType] to range
+  // [Internals::kFirstJSApiObjectType, Internals::kLastJSApiObjectType].
+  DCHECK_LE(Internals::kFirstEmbedderJSApiObjectType, api_instance_type_start);
+  DCHECK_LE(api_instance_type_start, api_instance_type_end);
+  DCHECK_LE(api_instance_type_end, Internals::kLastEmbedderJSApiObjectType);
+  // kNoJSApiObjectType must correspond to JS_API_OBJECT_TYPE.
+  static_assert(kNoJSApiObjectType == 0);
+  static_assert(JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
+  set_allowed_receiver_instance_type_range_start(static_cast<InstanceType>(
+      api_instance_type_start + Internals::kFirstJSApiObjectType));
+  set_allowed_receiver_instance_type_range_end(static_cast<InstanceType>(
+      api_instance_type_end + Internals::kFirstJSApiObjectType));
+}
+// Ensure that instance type fields in FunctionTemplateInfo are big enough
+// to fit the whole JSApiObject type range.
+static_assert(
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits::is_valid(
+        LAST_JS_API_OBJECT_TYPE));
+static_assert(
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits::is_valid(
+        LAST_JS_API_OBJECT_TYPE));
+
+bool FunctionTemplateInfo::instantiated() {
+  return IsSharedFunctionInfo(shared_function_info());
+}
+
+Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
+  Tagged<Object> parent = GetParentTemplate();
+  return IsUndefined(parent) ? Tagged<FunctionTemplateInfo>{}
+                             : Cast<FunctionTemplateInfo>(parent);
+}
+
+Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
+  Tagged<Object> maybe_ctor = constructor();
+  if (IsUndefined(maybe_ctor)) return {};
+  Tagged<FunctionTemplateInfo> constructor_val =
+      Cast<FunctionTemplateInfo>(maybe_ctor);
+  while (true) {
+    constructor_val = constructor_val->GetParent(isolate);
+    if (constructor_val.is_null()) return {};
+    Tagged<Object> maybe_obj = constructor_val->GetInstanceTemplate();
+    if (!IsUndefined(maybe_obj)) {
+      return Cast<ObjectTemplateInfo>(maybe_obj);
+    }
+  }
+  return {};
+}
+
+int ObjectTemplateInfo::embedder_field_count() const {
+  return EmbedderFieldCountBits::decode(data());
+}
+
+void ObjectTemplateInfo::set_embedder_field_count(int count) {
+  DCHECK_LE(count, JSObject::kMaxEmbedderFields);
+  return set_data(EmbedderFieldCountBits::update(data(), count));
+}
+
+bool ObjectTemplateInfo::immutable_proto() const {
+  return IsImmutablePrototypeBit::decode(data());
+}
+
+void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
+  return set_data(IsImmutablePrototypeBit::update(data(), immutable));
+}
+
+bool ObjectTemplateInfo::code_like() const {
+  return IsCodeKindBit::decode(data());
+}
+
+void ObjectTemplateInfo::set_code_like(bool is_code_like) {
+  return set_data(IsCodeKindBit::update(data(), is_code_like));
+}
+
+bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
+  return IsTemplateFor(object->map());
+}
+
+uint32_t TemplateInfo::template_info_flags() const {
+  return template_info_flags_.load().value();
+}
+void TemplateInfo::set_template_info_flags(uint32_t value) {
+  template_info_flags_.store(this, Smi::From31BitPattern(value));
+}
+
+bool TemplateInfo::is_cacheable() const {
+  return IsCacheableBit::decode(template_info_flags());
+}
+void TemplateInfo::set_is_cacheable(bool is_cacheable) {
+  set_template_info_flags(
+      IsCacheableBit::update(template_info_flags(), is_cacheable));
+}
+
+bool TemplateInfo::should_promote_to_read_only() const {
+  return ShouldPromoteToReadOnlyBit::decode(template_info_flags());
+}
+void TemplateInfo::set_should_promote_to_read_only(
+    bool should_promote_to_read_only) {
+  DCHECK(should_promote_to_read_only);
+  set_template_info_flags(ShouldPromoteToReadOnlyBit::update(
+      template_info_flags(), should_promote_to_read_only));
+}
+
+uint32_t TemplateInfo::serial_number() const {
+  return SerialNumberBits::decode(template_info_flags());
+}
+void TemplateInfo::set_serial_number(uint32_t value) {
+  set_template_info_flags(
+      SerialNumberBits::update(template_info_flags(), value));
+}
+
+uint32_t TemplateInfo::GetHash() const { return SmiHash32(serial_number()); }
+
+Tagged<UnionOf<String, Undefined>> FunctionTemplateInfo::class_name() const {
+  return class_name_.load();
+}
+void FunctionTemplateInfo::set_class_name(
+    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
+  class_name_.store(this, value, mode);
+}
+
+Tagged<UnionOf<String, Undefined>> FunctionTemplateInfo::interface_name()
+    const {
+  return interface_name_.load();
+}
+void FunctionTemplateInfo::set_interface_name(
+    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
+  interface_name_.store(this, value, mode);
+}
+
+Tagged<UnionOf<FunctionTemplateInfo, Undefined>>
+FunctionTemplateInfo::signature() const {
+  return signature_.load();
+}
+void FunctionTemplateInfo::set_signature(
+    Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  signature_.store(this, value, mode);
+}
+
+Tagged<UnionOf<FunctionTemplateRareData, Undefined>>
+FunctionTemplateInfo::rare_data() const {
+  return rare_data_.load();
+}
+Tagged<UnionOf<FunctionTemplateRareData, Undefined>>
+FunctionTemplateInfo::rare_data(AcquireLoadTag tag) const {
+  return rare_data_.Acquire_Load();
+}
+void FunctionTemplateInfo::set_rare_data(
+    Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+    WriteBarrierMode mode) {
+  rare_data_.store(this, value, mode);
+}
+void FunctionTemplateInfo::set_rare_data(
+    Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+    ReleaseStoreTag tag, WriteBarrierMode mode) {
+  rare_data_.Release_Store(this, value, mode);
+}
+
+Tagged<UnionOf<SharedFunctionInfo, Undefined>>
+FunctionTemplateInfo::shared_function_info() const {
+  return shared_function_info_.load();
+}
+void FunctionTemplateInfo::set_shared_function_info(
+    Tagged<UnionOf<SharedFunctionInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  shared_function_info_.store(this, value, mode);
+}
+
+Tagged<Object> FunctionTemplateInfo::cached_property_name() const {
+  return cached_property_name_.load();
+}
+void FunctionTemplateInfo::set_cached_property_name(Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
+  cached_property_name_.store(this, value, mode);
+}
+
+Tagged<Object> FunctionTemplateInfo::callback_data() const {
+  return callback_data_.load();
+}
+Tagged<Object> FunctionTemplateInfo::callback_data(AcquireLoadTag tag) const {
+  return callback_data_.Acquire_Load();
+}
+void FunctionTemplateInfo::set_callback_data(Tagged<Object> value,
+                                             WriteBarrierMode mode) {
+  callback_data_.store(this, value, mode);
+}
+void FunctionTemplateInfo::set_callback_data(Tagged<Object> value,
+                                             ReleaseStoreTag tag,
+                                             WriteBarrierMode mode) {
+  callback_data_.Release_Store(this, value, mode);
+}
+
+int16_t FunctionTemplateInfo::length() const { return length_; }
+void FunctionTemplateInfo::set_length(int16_t value) { length_ = value; }
+
+InstanceType FunctionTemplateInfo::instance_type() const {
+  return instance_type_;
+}
+void FunctionTemplateInfo::set_instance_type(InstanceType value) {
+  instance_type_ = value;
+}
+
+uint32_t FunctionTemplateInfo::exception_context() const {
+  return exception_context_;
+}
+void FunctionTemplateInfo::set_exception_context(uint32_t value) {
+  exception_context_ = value;
+}
+
+Tagged<UnionOf<FunctionTemplateInfo, Undefined>>
+ObjectTemplateInfo::constructor() const {
+  return constructor_.load();
+}
+void ObjectTemplateInfo::set_constructor(
+    Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  constructor_.store(this, value, mode);
+}
+
+int ObjectTemplateInfo::data() const { return data_.load().value(); }
+void ObjectTemplateInfo::set_data(int value) {
+  data_.store(this, Smi::FromInt(value));
+}
+
+Tagged<FixedArray> DictionaryTemplateInfo::property_names() const {
+  return property_names_.load();
+}
+void DictionaryTemplateInfo::set_property_names(Tagged<FixedArray> value,
+                                                WriteBarrierMode mode) {
+  property_names_.store(this, value, mode);
+}
+
+int TemplateInfoWithProperties::number_of_properties() const {
+  return number_of_properties_.load().value();
+}
+void TemplateInfoWithProperties::set_number_of_properties(int value) {
+  number_of_properties_.store(this, Smi::FromInt(value));
+}
+
+Tagged<UnionOf<ArrayList, Undefined>>
+TemplateInfoWithProperties::property_list() const {
+  return property_list_.load();
+}
+void TemplateInfoWithProperties::set_property_list(
+    Tagged<UnionOf<ArrayList, Undefined>> value, WriteBarrierMode mode) {
+  property_list_.store(this, value, mode);
+}
+
+Tagged<UnionOf<ArrayList, Undefined>>
+TemplateInfoWithProperties::property_accessors() const {
+  return property_accessors_.load();
+}
+void TemplateInfoWithProperties::set_property_accessors(
+    Tagged<UnionOf<ArrayList, Undefined>> value, WriteBarrierMode mode) {
+  property_accessors_.store(this, value, mode);
+}
+
+}  // namespace internal
+}  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
+
+#endif  // V8_OBJECTS_TEMPLATES_INL_H_

@@ -1,0 +1,19 @@
+Name: Fadec: Fast x86-32/64 instruction decoder and x86-64 encoder
+Short Name: fadec
+URL: https://github.com/aengelke/fadec
+Version: N/A
+Date: 2026-03-22
+Revision: 340a7a86117895b7b71e56deac99d96340eab587
+Update Mechanism: Autoroll
+License: BSD-3-Clause
+License File: LICENSE
+Security Critical: no
+Shipped: no
+CPEPrefix: unknown
+
+Description:
+Fadec is a fast and lightweight decoder for x86-32 and x86-64, and an encoder for x86-64.
+This library is not used in production and is intended for security tooling in V8.
+
+Local Modifications:
+None.

@@ -1,0 +1,35 @@
+{
+  "name": "@tufjs/canonical-json",
+  "version": "2.0.0",
+  "description": "OLPC JSON canonicalization",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "license": "MIT",
+  "keywords": [
+    "json",
+    "canonical",
+    "canonicalize",
+    "canonicalization",
+    "crypto",
+    "signature",
+    "olpc"
+  ],
+  "author": "bdehamer@github.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theupdateframework/tuf-js.git"
+  },
+  "homepage": "https://github.com/theupdateframework/tuf-js/tree/main/packages/canonical-json#readme",
+  "bugs": {
+    "url": "https://github.com/theupdateframework/tuf-js/issues"
+  },
+  "files": [
+    "lib/"
+  ],
+  "scripts": {
+    "test": "jest"
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  }
+}

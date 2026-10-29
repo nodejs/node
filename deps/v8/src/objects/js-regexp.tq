@@ -1,0 +1,126 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@cppScope('JSRegExp')
+bitfield struct JSRegExpFlags extends uint31 {
+  global: bool: 1 bit;
+  ignore_case: bool: 1 bit;
+  multiline: bool: 1 bit;
+  sticky: bool: 1 bit;
+  unicode: bool: 1 bit;
+  dot_all: bool: 1 bit;
+  linear: bool: 1 bit;
+  has_indices: bool: 1 bit;
+  unicode_sets: bool: 1 bit;
+}
+
+@cppObjectLayoutDefinition
+extern class RegExpData extends ExposedTrustedObject {
+  type_tag: Smi;
+  original_source: String;
+  escaped_source: String;
+  flags: Smi;
+  wrapper: RegExpDataWrapper;
+  quick_check_mask: uint32;
+  quick_check_value: uint32;
+  // One bit per latin-1 character; see RegExpData::kQuickCheckBitsetWords.
+  quick_check_reject_bitset[8]: uint32;
+  internal_flags: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+}
+
+@cppObjectLayoutDefinition
+extern class AtomRegExpData extends RegExpData {
+  pattern: String;
+}
+
+@cppScope('IrRegExpData::Bits')
+bitfield struct IrRegExpDataBitField extends uint31 {
+  can_be_zero_length: bool: 1 bit;
+  is_linear_executable: bool: 1 bit;
+}
+
+@cppObjectLayoutDefinition
+extern class IrRegExpData extends RegExpData {
+  // TODO(pthier): Change code pointers to ProtectedPointer<Code> once builtins
+  // reside in trusted space.
+  latin1_bytecode: ProtectedPointer<TrustedByteArray>;
+  uc16_bytecode: ProtectedPointer<TrustedByteArray>;
+  capture_name_map: ProtectedPointer<TrustedFixedArray>;
+  latin1_code: TrustedPointer<Code>;
+  uc16_code: TrustedPointer<Code>;
+  max_register_count: Smi;
+  capture_count: Smi;
+  ticks_until_tier_up: Smi;
+  backtrack_limit: Smi;
+  bit_field: SmiTagged<IrRegExpDataBitField>;
+}
+
+@cppObjectLayoutDefinition
+extern class RegExpDataWrapper extends Struct {
+  data: TrustedPointer<RegExpData>;
+}
+
+@cppObjectLayoutDefinition
+extern class JSRegExp extends JSObject {
+  data: TrustedPointer<RegExpData>;
+  flags: SmiTagged<JSRegExpFlags>|Undefined;
+}
+
+// Note: Although a condition for a FastJSRegExp is having a positive smi
+// lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
+// for this to change without transitioning the transient type. As a precaution,
+// validate the lastIndex is positive smi when used in fast paths.
+transient type FastJSRegExp extends JSRegExp;
+
+extern operator '.global' macro RegExpBuiltinsAssembler::FastFlagGetterGlobal(
+    FastJSRegExp): bool;
+extern operator '.unicode' macro RegExpBuiltinsAssembler::FastFlagGetterUnicode(
+    FastJSRegExp): bool;
+extern operator '.unicodeSets' macro
+    RegExpBuiltinsAssembler::FastFlagGetterUnicodeSets(FastJSRegExp): bool;
+extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
+    FastJSRegExp): Smi;
+extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
+    FastJSRegExp, Smi): void;
+
+const kJSRegExpRegExpDataOffset: constexpr int31
+    generates 'static_cast<int>(offsetof(JSRegExp, data_))';
+const kRegExpDataIndirectPointerTag:
+    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
+
+extern macro RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
+    HeapObject, constexpr int31): RegExpData;
+
+operator '.source' macro RegExpSource(regexp: JSRegExp): String {
+  const data: RegExpData =
+      LoadRegExpDataFromObject(regexp, kJSRegExpRegExpDataOffset);
+  return data.escaped_source;
+}
+
+@doNotGenerateCast
+extern class JSRegExpConstructor extends JSFunctionWithPrototype
+    generates 'JSFunction';
+
+extern shape JSRegExpResult extends JSArray {
+  // In-object properties:
+  // The below fields are externally exposed.
+  index: JSAny;
+  input: JSAny;
+  groups: JSAny;
+
+  // The below fields are for internal use only.
+  regexp_input: String;
+  regexp_last_index: Smi;
+}
+
+extern shape JSRegExpResultWithIndices extends JSRegExpResult {
+  indices: JSAny;
+}
+
+extern shape JSRegExpResultIndices extends JSArray {
+  // In-object properties:
+  // The groups field is externally exposed.
+  groups: JSAny;
+}

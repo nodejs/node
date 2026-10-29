@@ -1,0 +1,26 @@
+✖ failing test (*ms)
+✔ test has ran (*ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+test at test/<tmpdir>/failing-test.js:3:3
+✖ failing test (*ms)
+  Error: failed
+      at TestContext.<anonymous> (<project-root>/test/<tmpdir>/failing-test.js:4:11)
+      at <node-internal-frames>
+ℹ tests 0
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *

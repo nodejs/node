@@ -1,0 +1,15 @@
+prefix client-proxy
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+
+[$system==ibmi]
+# https://github.com/nodejs/node/issues/58582
+test-http-proxy-fetch: SKIP
+test-https-proxy-fetch: SKIP
+test-use-env-proxy-cli-http: SKIP
+test-use-env-proxy-cli-https: SKIP

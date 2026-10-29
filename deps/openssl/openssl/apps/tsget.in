@@ -1,0 +1,186 @@
+#!{- $config{HASHBANGPERL} -}
+# Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright (c) 2002 The OpenTSA Project. All rights reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+use strict;
+use warnings;
+use IO::Handle;
+use Getopt::Std;
+use File::Basename;
+use File::Temp qw(tempfile);
+use Net::Curl::Easy qw(:constants);
+
+use vars qw(%options);
+
+sub usage {
+    print STDERR "usage: $0 -h <server_url> [-e <extension>] [-o <output>] ";
+    print STDERR "[-v] [-d] [-k <private_key.pem>] [-p <key_password>] ";
+    print STDERR "[-c <client_cert.pem>] [-C <CA_certs.pem>] [-P <CA_path>] ";
+    print STDERR "[-r <file:file...>] [-g <EGD_socket>] [<request>]...\n";
+    exit 1;
+}
+
+sub progress {
+    return unless $options{v};
+    STDERR->printflush(@_);
+}
+
+# Initialise a new Curl object.
+sub create_curl {
+    my ($url) = @_;
+
+    my $curl = Net::Curl::Easy->new();
+
+    $curl->setopt(CURLOPT_VERBOSE, 1) if $options{d};
+    $curl->setopt(CURLOPT_FAILONERROR, 1);
+    $curl->setopt(CURLOPT_USERAGENT,
+        "OpenTSA tsget.pl/openssl-{- $config{full_version} -}");
+
+    $curl->setopt(CURLOPT_HTTPHEADER,
+        ["Content-Type: application/timestamp-query",
+        "Accept: application/timestamp-reply,application/timestamp-response"]);
+
+    # SSL related options.
+    $curl->setopt(CURLOPT_SSLKEYTYPE, "PEM");
+    $curl->setopt(CURLOPT_SSL_VERIFYPEER, 1);    # Verify server's certificate.
+    $curl->setopt(CURLOPT_SSL_VERIFYHOST, 2);    # Check server's CN.
+    $curl->setopt(CURLOPT_SSLKEY, $options{k}) if defined($options{k});
+    $curl->setopt(CURLOPT_SSLKEYPASSWD, $options{p}) if defined($options{p});
+    $curl->setopt(CURLOPT_SSLCERT, $options{c}) if defined($options{c});
+    $curl->setopt(CURLOPT_CAINFO, $options{C}) if defined($options{C});
+    $curl->setopt(CURLOPT_CAPATH, $options{P}) if defined($options{P});
+
+    # CURLOPT_RANDOM_FILE and CURLOPT_EGDSOCKET are deprecated no-ops in libcurl;
+    # they still exist as constants and return success, so no eval is needed.
+    $curl->setopt(CURLOPT_RANDOM_FILE, $options{r}) if defined($options{r});
+    $curl->setopt(CURLOPT_EGDSOCKET, $options{g}) if defined($options{g});
+
+    # Setting destination.
+    $curl->setopt(CURLOPT_URL, $url);
+
+    return $curl;
+}
+
+# Send a request, writing the response to the given filehandle.
+# Returns an error string on network/protocol failure, undef on success.
+sub send_request {
+    my ($curl, $body, $out_fh) = @_;
+
+    $curl->setopt(CURLOPT_POST, 1);
+    $curl->setopt(CURLOPT_POSTFIELDS, $body);
+    $curl->setopt(CURLOPT_POSTFIELDSIZE, length($body));
+    $curl->setopt(CURLOPT_WRITEDATA, $out_fh);
+
+    my $ok = eval { $curl->perform(); 1; };
+
+    if (!$ok) {
+        my $http_code = eval { $curl->getinfo(CURLINFO_HTTP_CODE) } // 0;
+        my $curl_err  = eval { $curl->error() } // "";
+        my $err = "could not get timestamp";
+        $err .= ", http code: $http_code" if $http_code != 0;
+        $err .= " ($curl_err)" if length($curl_err);
+        return $err;
+    }
+
+    my $downloaded = $curl->getinfo(CURLINFO_SIZE_DOWNLOAD);
+    if (!defined($downloaded) || $downloaded == 0) {
+        return "empty response received";
+    }
+
+    my $ct = $curl->getinfo(CURLINFO_CONTENT_TYPE);
+    if (!defined($ct)
+            || (lc($ct) ne "application/timestamp-reply"
+                && lc($ct) ne "application/timestamp-response")) {
+        return "unexpected content type returned: "
+            . (defined($ct) ? $ct : "(none)");
+    }
+
+    return undef;
+}
+
+my $getopt_arg = "h:e:o:vdk:p:c:C:P:r:g:";
+
+# Getting command-line options (default comes from TSGET environment variable).
+if (exists $ENV{TSGET}) {
+    my @saved_argv = @ARGV;
+    @ARGV = split /\s+/, $ENV{TSGET};
+    getopts($getopt_arg, \%options) or usage;
+    @ARGV = @saved_argv;
+}
+getopts($getopt_arg, \%options) or usage;
+
+if (!defined($options{h}) || (@ARGV == 0 && !defined($options{o}))
+    || (@ARGV > 1 && defined($options{o}))) {
+    print STDERR "Inconsistent command line options.\n";
+    usage;
+}
+@ARGV = ("-") unless @ARGV;
+$options{e} = ".tsr" unless defined($options{e});
+
+my $curl = create_curl($options{h});
+undef $/;
+
+REQUEST: for my $input (@ARGV) {
+    my ($base, $path) = fileparse($input, '\.[^.]*');
+    my $output = defined($options{o}) ? $options{o} : $path . $base . $options{e};
+
+    progress("$input: ");
+    my $body;
+    if ($input eq "-") {
+        binmode STDIN;
+        $body = <STDIN>;
+    } else {
+        open my $in, '<', $input
+            or warn("$input: could not open input file: $!\n"), next REQUEST;
+        binmode $in;
+        $body = <$in>;
+        close $in
+            or warn("$input: could not close input file: $!\n"), next REQUEST;
+    }
+
+    progress("sending request");
+
+    my $error;
+    if ($output eq "-") {
+        # Write to STDOUT directly.
+        binmode STDOUT;
+        $error = send_request($curl, $body, \*STDOUT);
+        die "$input: fatal error: $error\n" if defined($error);
+    } else {
+        # Write to a temp file first; rename to $output only on success so
+        # that a pre-existing output file is not clobbered on failure.
+        # Preserve the existing file's permissions; fall back to umask defaults.
+        my @st = stat($output);
+        my $mode = @st ? ($st[2] & 07777) : (0666 & ~umask());
+        my ($tmp_fh, $tmp_path) = eval {
+            tempfile(DIR => dirname($output), UNLINK => 1);
+        };
+        if (!defined($tmp_fh)) {
+            warn("$output: could not create temp file: $@\n");
+            next REQUEST;
+        }
+        chmod($mode, $tmp_path);
+        binmode $tmp_fh;
+
+        $error = send_request($curl, $body, $tmp_fh);
+        close $tmp_fh;
+
+        if (defined($error)) {
+            unlink $tmp_path;
+            die "$input: fatal error: $error\n";
+        }
+
+        rename($tmp_path, $output)
+            or do { unlink $tmp_path;
+                    warn("$output: could not rename temp file: $!\n");
+                    next REQUEST; };
+    }
+
+    progress(", reply received");
+    progress(", $output written.\n");
+}

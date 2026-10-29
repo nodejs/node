@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker Navigation Timing</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+
+<body>
+  <script>
+
+    promise_test(async t => {
+      var script = 'resources/pass-through-worker.js';
+      var scope = 'resources/blank.html';
+
+      const registration = await service_worker_unregister_and_register(t, script, scope);
+      t.add_cleanup(() => registration.unregister());
+      await wait_for_state(t, registration.installing, 'activated');
+
+      const iframe = await with_iframe(scope);
+
+      // Sanity, to check that we actually loaded the document.
+      assert_equals(iframe.contentWindow.document.title, "Empty doc");
+      t.add_cleanup(() => iframe.remove());
+      const navigationEntry = iframe.contentWindow.performance.getEntriesByType("navigation")[0];
+
+      const main_page_resource_timing = performance.getEntriesByType("resource").filter(
+        e => e.name.includes('blank'))[0];
+
+      assert_greater_than(navigationEntry.encodedBodySize, 0,
+        'Navigation timing should have encodedBodySize larger than 0.');
+
+      assert_equals(navigationEntry.decodedBodySize, navigationEntry.encodedBodySize,
+        'Navigation timing\'s decodedBodySize and encodedBodySize should be equal.');
+
+      assert_greater_than(main_page_resource_timing.encodedBodySize, 0,
+        'Corresponding resource timing emitted on parent page should have decodedBodySize larger than 0.');
+
+      assert_equals(main_page_resource_timing.encodedBodySize, main_page_resource_timing.decodedBodySize,
+        'Corresponding resource timing emitted on parent page should have equal\
+        decodedBodySize and encodedBodySize.');
+
+    }, 'Body sizes in a regular pass-through');
+
+    promise_test(async t => {
+      var script = 'resources/pass-through-worker.js';
+      var scope = 'resources/simple.txt';
+
+      const registration = await service_worker_unregister_and_register(t, script, scope);
+      t.add_cleanup(() => registration.unregister());
+      await wait_for_state(t, registration.installing, 'activated');
+
+      const iframe = await with_iframe(scope);
+
+      // Sanity, to check that we actually loaded the text file.
+      assert_equals(iframe.contentWindow.document.body.textContent, "a simple text file\n");
+      t.add_cleanup(() => iframe.remove());
+      const navigationEntry = iframe.contentWindow.performance.getEntriesByType("navigation")[0];
+
+      const main_page_resource_timing = performance.getEntriesByType("resource").filter(
+        e => e.name.includes('blank'))[0];
+
+      assert_greater_than(navigationEntry.encodedBodySize, 0,
+        'Navigation timing should have encodedBodySize larger than 0.');
+
+      assert_equals(navigationEntry.decodedBodySize, navigationEntry.encodedBodySize,
+        'Navigation timing\'s decodedBodySize and encodedBodySize should be equal.');
+
+      assert_greater_than(main_page_resource_timing.encodedBodySize, 0,
+        'Corresponding resource timing emitted on parent page should have decodedBodySize larger than 0.');
+
+      assert_equals(main_page_resource_timing.encodedBodySize, main_page_resource_timing.decodedBodySize,
+        'Corresponding resource timing emitted on parent page should have equal\
+        decodedBodySize and encodedBodySize.');
+
+    }, 'Body sizes in a pass-through with non html content');
+
+    promise_test(async t => {
+      var script = 'resources/pass-through-worker.js';
+      var scope = 'resources/blank.html';
+
+      const registration = await service_worker_unregister_and_register(t, script, scope);
+      t.add_cleanup(() => registration.unregister());
+      await wait_for_state(t, registration.installing, 'activated');
+
+      const iframe = await with_iframe(scope + "?pipe=gzip");
+      // Sanity, to check that we actually loaded the document.
+      assert_equals(iframe.contentWindow.document.title, "Empty doc");
+      t.add_cleanup(() => iframe.remove());
+
+      const navigationEntry = iframe.contentWindow.performance.getEntriesByType("navigation")[0];
+
+      const main_page_resource_timing = performance.getEntriesByType("resource").filter(
+        e => e.name.includes('blank'))[0];
+
+      assert_greater_than(navigationEntry.decodedBodySize, 0,
+        'Navigation timing should have decodedBodySize larger than 0.');
+
+      // The response body that comes from a service worker respondWith promise
+      // should have identical encoded and decoded body sizes, regardless of what
+      // the service worker itself saw, according to the spec.
+      assert_equals(navigationEntry.encodedBodySize, navigationEntry.decodedBodySize,
+        'Navigation timing should have equal decodedBodySize and encodedBodySize.');
+
+      assert_greater_than(main_page_resource_timing.decodedBodySize, 0,
+        'Corresponding resource timing emitted on parent page should have decodedBodySize larger than 0.');
+
+      assert_equals(main_page_resource_timing.encodedBodySize, navigationEntry.decodedBodySize,
+        'Corresponding resource timing emitted on parent page should have equal decodedBodySize and \
+        encodedBodySize.');
+
+    }, 'Body sizes in a regular pass-through with gzip');
+  </script>
+</body>

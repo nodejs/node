@@ -1,0 +1,42 @@
+LIBS=../../libcrypto
+
+$COMMON=ml_dsa_encoders.c ml_dsa_key_compress.c ml_dsa_key.c \
+        ml_dsa_matrix.c ml_dsa_ntt.c ml_dsa_params.c ml_dsa_sample.c \
+        ml_dsa_sign.c
+
+$ML_DSA_ASM=
+IF[{- !$disabled{asm} -}]
+  $ML_DSA_ASM_x86_64=ml_dsa_ntt-x86_64.s
+
+  IF[{- $target{sys_id} ne "AIX" && $target{sys_id} ne "MACOSX" -}]
+    $ML_DSA_ASM_ppc64=asm/mldsa_ntt_ppc64le.S asm/mldsa_intt_ppc64le.S
+  ENDIF
+
+  # Now that we have defined all the arch specific variables, use the
+  # appropriate one, and define the appropriate macros
+  IF[$ML_DSA_ASM_{- $target{asm_arch} -}]
+    $ML_DSA_ASM=$ML_DSA_ASM_{- $target{asm_arch} -}
+  ENDIF
+ENDIF
+
+IF[{- !$disabled{'ml-dsa'} -}]
+  IF[{- ($target{perlasm_scheme} // '') ne '31' -}]
+    $ML_DSA_VX_s390x=ml_dsa_ntt_vec128.c
+    $ML_DSA_DEF_s390x=OPENSSL_ML_DSA_S390X
+  ENDIF
+
+  # Now that we have defined all the arch specific variables, use the
+  # appropriate ones, and define the appropriate macros
+  IF[$ML_DSA_VX_{- $target{asm_arch} -}]
+    $ML_DSA_VX=$ML_DSA_VX_{- $target{asm_arch} -}
+    $ML_DSA_DEF=$ML_DSA_DEF_{- $target{asm_arch} -}
+  ENDIF
+ENDIF
+
+IF[{- !$disabled{'ml-dsa'} -}]
+  SOURCE[../../libcrypto]=$COMMON $ML_DSA_ASM $ML_DSA_VX
+  SOURCE[../../providers/libfips.a]=$COMMON $ML_DSA_ASM $ML_DSA_VX
+ENDIF
+
+# Assembly implementations
+GENERATE[ml_dsa_ntt-x86_64.s]=asm/ml_dsa_ntt-x86_64.pl

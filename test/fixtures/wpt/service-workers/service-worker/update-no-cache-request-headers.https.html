@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test that cache is being bypassed/validated in no-cache mode on update</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// Tests a service worker script fetch during an update check which
+// bypasses/validates the browser cache. The fetch should have the
+// 'if-none-match' request header.
+//
+// This tests the Update step:
+//  "Set request’s cache mode to "no-cache" if any of the following are true..."
+// https://w3c.github.io/ServiceWorker/#update-algorithm
+//
+// The test works by registering a service worker with |updateViaCache|
+// set to "none". It then does an update. The test server responds with
+// an updated worker script that remembers the http request headers.
+// The updated worker reports back these headers to the test page.
+promise_test(async (t) => {
+  const script = "resources/test-request-headers-worker.py";
+  const scope = "resources/";
+
+  // Register the service worker.
+  await service_worker_unregister(t, scope);
+  const registration = await navigator.serviceWorker.register(
+      script, {scope, updateViaCache: 'none'});
+  await wait_for_state(t, registration.installing, 'activated');
+
+  // Do an update.
+  await registration.update();
+
+  // Ask the new worker what the request headers were.
+  const newWorker = registration.installing;
+  const sawMessage = new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+  });
+  newWorker.postMessage('getHeaders');
+  const result = await sawMessage;
+
+  // Test the result.
+  assert_equals(result['service-worker'], 'script');
+  assert_equals(result['if-none-match'], 'etag');
+}, 'headers in no-cache mode');
+
+</script>

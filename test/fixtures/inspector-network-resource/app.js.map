@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "file": "app.js",
+  "sourceRoot": "",
+  "sources": [
+    "http://localhost:3000/app.ts"
+  ],
+  "names": [],
+  "mappings": ";AAAA,SAAS,GAAG,CAAC,CAAS,EAAE,CAAS;IAC/B,OAAO,CAAC,GAAG,CAAC,CAAC;AACf,CAAC;AAED,GAAG,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC"
+}

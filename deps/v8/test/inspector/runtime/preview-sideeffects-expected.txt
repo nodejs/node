@@ -1,0 +1,17 @@
+Checks that console preview does not run user code
+
+Running test: ObjectGetter
+{
+    getterCalled : false
+}
+
+Running test: ObjectGetterBoundBuiltin
+{
+    callBindCalled : false
+    reflectApplyCalled : false
+}
+
+Running test: ObjectGetterCallableProxy
+{
+    proxyCalled : false
+}

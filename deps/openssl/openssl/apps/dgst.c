@@ -1,0 +1,817 @@
+/*
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#include "apps.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "progs.h"
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/hmac.h>
+#include <ctype.h>
+#include <sys/stat.h>
+
+#undef BUFSIZE
+#define BUFSIZE 1024 * 8
+
+static int do_fp_oneshot_sign(BIO *out, EVP_MD_CTX *ctx, BIO *in, int sep, int binout,
+    EVP_PKEY *key, unsigned char *sigin, int siglen,
+    const char *sig_name, const char *file);
+int do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout, int xoflen,
+    EVP_PKEY *key, unsigned char *sigin, int siglen,
+    const char *sig_name, const char *md_name,
+    const char *file);
+static void show_digests(const OBJ_NAME *name, void *bio_);
+
+struct doall_dgst_digests {
+    BIO *bio;
+    int n;
+};
+
+typedef enum OPTION_choice {
+    OPT_COMMON,
+    OPT_LIST,
+    OPT_C,
+    OPT_R,
+    OPT_OUT,
+    OPT_SIGN,
+    OPT_PASSIN,
+    OPT_VERIFY,
+    OPT_PRVERIFY,
+    OPT_SIGNATURE,
+    OPT_KEYFORM,
+    OPT_HEX,
+    OPT_BINARY,
+    OPT_DEBUG,
+    OPT_FIPS_FINGERPRINT,
+    OPT_HMAC,
+    OPT_HMAC_ENV,
+    OPT_HMAC_STDIN,
+    OPT_MAC,
+    OPT_SIGOPT,
+    OPT_MACOPT,
+    OPT_XOFLEN,
+    OPT_DIGEST,
+    OPT_R_ENUM,
+    OPT_PROV_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS dgst_options[] = {
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] [file...]\n" },
+
+    OPT_SECTION("General"),
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "list", OPT_LIST, '-', "List digests" },
+    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+
+    OPT_SECTION("Output"),
+    { "c", OPT_C, '-', "Print the digest with separating colons" },
+    { "r", OPT_R, '-', "Print the digest in coreutils format" },
+    { "out", OPT_OUT, '>', "Output to filename rather than stdout" },
+    { "keyform", OPT_KEYFORM, 'f', "Key file format (DER/PEM)" },
+    { "hex", OPT_HEX, '-', "Print as hex dump" },
+    { "binary", OPT_BINARY, '-', "Print in binary form" },
+    { "xoflen", OPT_XOFLEN, 'p', "Output length for XOF algorithms. To obtain the maximum security strength set this to 32 (or greater) for SHAKE128, and 64 (or greater) for SHAKE256" },
+    { "d", OPT_DEBUG, '-', "Print debug info" },
+    { "debug", OPT_DEBUG, '-', "Print debug info" },
+
+    OPT_SECTION("Signing"),
+    { "sign", OPT_SIGN, 's', "Sign digest using private key" },
+    { "verify", OPT_VERIFY, 's', "Verify a signature using public key" },
+    { "prverify", OPT_PRVERIFY, 's', "Verify a signature using private key" },
+    { "sigopt", OPT_SIGOPT, 's', "Signature parameter in n:v form" },
+    { "signature", OPT_SIGNATURE, '<', "File with signature to verify" },
+    { "hmac", OPT_HMAC, 's', "Create hashed MAC with key" },
+    { "hmac-env", OPT_HMAC_ENV, 's', "Create hashed MAC with key from environment variable" },
+    { "hmac-stdin", OPT_HMAC_STDIN, '-', "Create hashed MAC with key from stdin" },
+    { "mac", OPT_MAC, 's', "Create MAC (not necessarily HMAC)" },
+    { "macopt", OPT_MACOPT, 's', "MAC algorithm parameters in n:v form or key" },
+    { "", OPT_DIGEST, '-', "Any supported digest" },
+    { "fips-fingerprint", OPT_FIPS_FINGERPRINT, '-',
+        "Compute HMAC with the key used in OpenSSL-FIPS fingerprint" },
+
+    OPT_R_OPTIONS,
+    OPT_PROV_OPTIONS,
+
+    OPT_PARAMETERS(),
+    { "file", 0, 0, "Files to digest (optional; default is stdin)" },
+    { NULL }
+};
+
+int dgst_main(int argc, char **argv)
+{
+    BIO *in = NULL, *inp = NULL, *bmd = NULL, *out = NULL;
+    EVP_PKEY *sigkey = NULL;
+    STACK_OF(OPENSSL_STRING) *sigopts = NULL, *macopts = NULL;
+    char *hmac_key = NULL;
+    char *mac_name = NULL, *digestname = NULL;
+    char *passinarg = NULL, *passin = NULL;
+    EVP_MD *md = NULL;
+    const char *outfile = NULL, *keyfile = NULL, *prog = NULL;
+    const char *sigfile = NULL;
+    const char *md_name = NULL;
+    char *env_var = NULL;
+    char *new_opt = NULL;
+    char *key_from_stdin = NULL;
+    OPTION_CHOICE o;
+    int separator = 0, debug = 0, keyform = FORMAT_UNDEF, siglen = 0;
+    int i, ret = EXIT_FAILURE, out_bin = -1, want_pub = 0, do_verify = 0;
+    int xoflen = 0;
+    unsigned char *buf = NULL, *sigbuf = NULL;
+    struct doall_dgst_digests dec;
+    EVP_MD_CTX *signctx = NULL;
+    int oneshot_sign = 0;
+
+    buf = app_malloc(BUFSIZE, "I/O buffer");
+    md = EVP_MD_fetch(app_get0_libctx(), argv[0], app_get0_propq());
+    if (md != NULL)
+        digestname = argv[0];
+
+    opt_set_unknown_name("digest");
+    prog = opt_init(argc, argv, dgst_options);
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_EOF:
+        case OPT_ERR:
+        opthelp:
+            BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
+            goto end;
+        case OPT_HELP:
+            opt_help(dgst_options);
+            ret = EXIT_SUCCESS;
+            goto end;
+        case OPT_LIST:
+            BIO_puts(bio_out, "Supported digests:\n");
+            dec.bio = bio_out;
+            dec.n = 0;
+            OBJ_NAME_do_all_sorted(OBJ_NAME_TYPE_MD_METH,
+                show_digests, &dec);
+            BIO_puts(bio_out, "\n");
+            ret = EXIT_SUCCESS;
+            goto end;
+        case OPT_C:
+            separator = 1;
+            break;
+        case OPT_R:
+            separator = 2;
+            break;
+        case OPT_R_CASES:
+            if (!opt_rand(o))
+                goto end;
+            break;
+        case OPT_OUT:
+            outfile = opt_arg();
+            break;
+        case OPT_SIGN:
+            keyfile = opt_arg();
+            break;
+        case OPT_PASSIN:
+            passinarg = opt_arg();
+            break;
+        case OPT_VERIFY:
+            keyfile = opt_arg();
+            want_pub = do_verify = 1;
+            break;
+        case OPT_PRVERIFY:
+            keyfile = opt_arg();
+            do_verify = 1;
+            break;
+        case OPT_SIGNATURE:
+            sigfile = opt_arg();
+            break;
+        case OPT_KEYFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_ANY, &keyform))
+                goto opthelp;
+            break;
+        case OPT_HEX:
+            out_bin = 0;
+            break;
+        case OPT_BINARY:
+            out_bin = 1;
+            break;
+        case OPT_XOFLEN:
+            xoflen = opt_int_arg();
+            break;
+        case OPT_DEBUG:
+            debug = 1;
+            break;
+        case OPT_FIPS_FINGERPRINT:
+            hmac_key = "etaonrishdlcupfm";
+            break;
+        case OPT_HMAC:
+            hmac_key = opt_arg();
+            break;
+        case OPT_HMAC_ENV:
+            env_var = opt_arg();
+            hmac_key = getenv(env_var);
+            if (hmac_key == NULL) {
+                BIO_printf(bio_err, "No environment variable %s\n", env_var);
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            break;
+        case OPT_HMAC_STDIN:
+            if (key_from_stdin == NULL)
+                key_from_stdin = get_str_from_file(NULL);
+            if (key_from_stdin == NULL) {
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            if (strlen(key_from_stdin) == 0) {
+                BIO_printf(bio_err, "Empty key\n");
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            hmac_key = key_from_stdin;
+            break;
+        case OPT_MAC:
+            mac_name = opt_arg();
+            break;
+        case OPT_SIGOPT:
+            if (!sigopts)
+                sigopts = sk_OPENSSL_STRING_new_null();
+            if (!sigopts || !sk_OPENSSL_STRING_push(sigopts, opt_arg()))
+                goto opthelp;
+            break;
+        case OPT_MACOPT:
+            new_opt = process_additional_mac_key_arguments(opt_arg());
+            if (new_opt == NULL) {
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            if (!macopts)
+                macopts = sk_OPENSSL_STRING_new_null();
+            if (!macopts || !sk_OPENSSL_STRING_push(macopts, new_opt)) {
+                clear_free(new_opt);
+                goto opthelp;
+            }
+            break;
+        case OPT_DIGEST:
+            digestname = opt_unknown();
+            break;
+        case OPT_PROV_CASES:
+            if (!opt_provider(o))
+                goto end;
+            break;
+        }
+    }
+
+    /* Remaining args are files to digest. */
+    argc = opt_num_rest();
+    argv = opt_rest();
+    if (keyfile != NULL && argc > 1) {
+        BIO_printf(bio_err, "%s: Can only sign or verify one file.\n", prog);
+        goto end;
+    }
+    if (!app_RAND_load())
+        goto end;
+
+    if (digestname != NULL) {
+        if (!opt_md(digestname, &md))
+            goto opthelp;
+    }
+
+    if (do_verify && sigfile == NULL) {
+        BIO_puts(bio_err,
+            "No signature to verify: use the -signature option\n");
+        goto end;
+    }
+
+    in = BIO_new(BIO_s_file());
+    bmd = BIO_new(BIO_f_md());
+    if (in == NULL || bmd == NULL)
+        goto end;
+
+    if (debug) {
+        BIO_set_callback_ex(in, BIO_debug_callback_ex);
+        /* needed for windows 3.1 */
+        BIO_set_callback_arg(in, (char *)bio_err);
+    }
+
+    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+        BIO_puts(bio_err, "Error getting password\n");
+        goto end;
+    }
+
+    if (out_bin == -1) {
+        if (keyfile != NULL)
+            out_bin = 1;
+        else
+            out_bin = 0;
+    }
+
+    out = bio_open_default(outfile, 'w', out_bin ? FORMAT_BINARY : FORMAT_TEXT);
+    if (out == NULL)
+        goto end;
+
+    if ((!(mac_name == NULL) + !(keyfile == NULL) + !(hmac_key == NULL)) > 1) {
+        BIO_puts(bio_err, "MAC and signing key cannot both be specified\n");
+        goto end;
+    }
+
+    if (keyfile != NULL) {
+        if (want_pub)
+            sigkey = load_pubkey(keyfile, keyform, 0, NULL, "public key");
+        else
+            sigkey = load_key(keyfile, keyform, 0, passin, "private key");
+        if (sigkey == NULL) {
+            /*
+             * load_[pub]key() has already printed an appropriate message
+             */
+            goto end;
+        }
+        {
+            char def_md[80];
+
+            if (EVP_PKEY_get_default_digest_name(sigkey, def_md,
+                    sizeof(def_md))
+                    == 2
+                && strcmp(def_md, "UNDEF") == 0)
+                oneshot_sign = 1;
+            signctx = EVP_MD_CTX_new();
+            if (signctx == NULL)
+                goto end;
+        }
+    }
+
+    if (mac_name != NULL) {
+        EVP_PKEY_CTX *mac_ctx = NULL;
+
+        if (!init_gen_str(&mac_ctx, mac_name, 0, NULL, NULL))
+            goto end;
+        if (macopts != NULL) {
+            for (i = 0; i < sk_OPENSSL_STRING_num(macopts); i++) {
+                char *macopt = sk_OPENSSL_STRING_value(macopts, i);
+
+                if (pkey_ctrl_string(mac_ctx, macopt) <= 0) {
+                    EVP_PKEY_CTX_free(mac_ctx);
+                    BIO_printf(bio_err, "MAC parameter error \"%s\"\n", macopt);
+                    goto end;
+                }
+            }
+        }
+
+        sigkey = app_keygen(mac_ctx, mac_name, 0, 0 /* not verbose */);
+        EVP_PKEY_CTX_free(mac_ctx);
+        if (sigkey == NULL)
+            goto end;
+    }
+
+    if (hmac_key != NULL) {
+        if (md == NULL) {
+            md = (EVP_MD *)EVP_sha256();
+            digestname = SN_sha256;
+        }
+        sigkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, NULL,
+            (unsigned char *)hmac_key,
+            strlen(hmac_key));
+        if (sigkey == NULL)
+            goto end;
+    }
+
+    if (sigkey != NULL) {
+        EVP_MD_CTX *mctx = NULL;
+        EVP_PKEY_CTX *pctx = NULL;
+        int res;
+
+        if (oneshot_sign) {
+            mctx = signctx;
+        } else if (BIO_get_md_ctx(bmd, &mctx) <= 0) {
+            BIO_puts(bio_err, "Error getting context\n");
+            goto end;
+        }
+        if (do_verify)
+            res = EVP_DigestVerifyInit_ex(mctx, &pctx, digestname,
+                app_get0_libctx(),
+                app_get0_propq(), sigkey, NULL);
+        else
+            res = EVP_DigestSignInit_ex(mctx, &pctx, digestname,
+                app_get0_libctx(),
+                app_get0_propq(), sigkey, NULL);
+        if (res == 0) {
+            BIO_puts(bio_err, "Error setting context\n");
+            goto end;
+        }
+        if (sigopts != NULL) {
+            for (i = 0; i < sk_OPENSSL_STRING_num(sigopts); i++) {
+                char *sigopt = sk_OPENSSL_STRING_value(sigopts, i);
+
+                if (pkey_ctrl_string(pctx, sigopt) <= 0) {
+                    BIO_printf(bio_err, "Signature parameter error \"%s\"\n",
+                        sigopt);
+                    goto end;
+                }
+            }
+        }
+    }
+    /* we use md as a filter, reading from 'in' */
+    else {
+        EVP_MD_CTX *mctx = NULL;
+
+        if (oneshot_sign) {
+            BIO_puts(bio_err, "Oneshot algorithms don't use a digest\n");
+            goto end;
+        }
+        if (BIO_get_md_ctx(bmd, &mctx) <= 0) {
+            BIO_puts(bio_err, "Error getting context\n");
+            goto end;
+        }
+        if (md == NULL)
+            md = (EVP_MD *)EVP_sha256();
+        if (!EVP_DigestInit_ex(mctx, md, NULL)) {
+            BIO_puts(bio_err, "Error setting digest\n");
+            goto end;
+        }
+    }
+
+    if (sigfile != NULL && sigkey != NULL) {
+        BIO *sigbio = BIO_new_file(sigfile, "rb");
+
+        if (sigbio == NULL) {
+            BIO_printf(bio_err, "Error opening signature file %s\n", sigfile);
+            goto end;
+        }
+        siglen = EVP_PKEY_get_size(sigkey);
+        sigbuf = app_malloc(siglen, "signature buffer");
+        siglen = BIO_read(sigbio, sigbuf, siglen);
+        BIO_free(sigbio);
+        if (siglen <= 0) {
+            BIO_printf(bio_err, "Error reading signature file %s\n", sigfile);
+            goto end;
+        }
+    }
+    if (!oneshot_sign) {
+        inp = BIO_push(bmd, in);
+
+        if (md == NULL) {
+            EVP_MD_CTX *tctx;
+
+            BIO_get_md_ctx(bmd, &tctx);
+            md = EVP_MD_CTX_get1_md(tctx);
+        }
+        if (md != NULL)
+            md_name = EVP_MD_get0_name(md);
+    }
+    if (xoflen > 0) {
+        if (!EVP_MD_xof(md)) {
+            BIO_puts(bio_err, "Length can only be specified for XOF\n");
+            goto end;
+        }
+        /*
+         * Signing using XOF is not supported by any algorithms currently since
+         * each algorithm only calls EVP_DigestFinal_ex() in their sign_final
+         * and verify_final methods.
+         */
+        if (sigkey != NULL) {
+            BIO_puts(bio_err, "Signing key cannot be specified for XOF\n");
+            goto end;
+        }
+    }
+
+    if (argc == 0) {
+        BIO_set_fp(in, stdin, BIO_NOCLOSE);
+        if (oneshot_sign)
+            ret = do_fp_oneshot_sign(out, signctx, in, separator, out_bin,
+                      sigkey, sigbuf, siglen, NULL, NULL)
+                ? EXIT_SUCCESS
+                : EXIT_FAILURE;
+        else
+            ret = do_fp(out, buf, inp, separator, out_bin, xoflen,
+                      sigkey, sigbuf, siglen, NULL, md_name, "stdin")
+                ? EXIT_SUCCESS
+                : EXIT_FAILURE;
+    } else {
+        const char *sig_name = NULL;
+
+        if (out_bin == 0) {
+            if (sigkey != NULL)
+                sig_name = EVP_PKEY_get0_type_name(sigkey);
+        }
+        ret = EXIT_SUCCESS;
+        for (i = 0; i < argc; i++) {
+            if (BIO_read_filename(in, argv[i]) <= 0) {
+                perror(argv[i]);
+                ret = EXIT_FAILURE;
+                continue;
+            } else {
+                if (oneshot_sign) {
+                    if (!do_fp_oneshot_sign(out, signctx, in, separator, out_bin,
+                            sigkey, sigbuf, siglen, sig_name,
+                            argv[i]))
+                        ret = EXIT_FAILURE;
+                } else {
+                    if (!do_fp(out, buf, inp, separator, out_bin, xoflen,
+                            sigkey, sigbuf, siglen, sig_name, md_name, argv[i]))
+                        ret = EXIT_FAILURE;
+                }
+            }
+            (void)BIO_reset(bmd);
+        }
+    }
+end:
+    if (ret != EXIT_SUCCESS)
+        ERR_print_errors(bio_err);
+    OPENSSL_clear_free(buf, BUFSIZE);
+    if (key_from_stdin != NULL)
+        clear_free(key_from_stdin);
+    BIO_free(in);
+    OPENSSL_free(passin);
+    BIO_free_all(out);
+    EVP_MD_free(md);
+    EVP_PKEY_free(sigkey);
+    EVP_MD_CTX_free(signctx);
+    sk_OPENSSL_STRING_free(sigopts);
+    sk_OPENSSL_STRING_pop_free(macopts, clear_free);
+    OPENSSL_free(sigbuf);
+    BIO_free(bmd);
+    return ret;
+}
+
+static void show_digests(const OBJ_NAME *name, void *arg)
+{
+    struct doall_dgst_digests *dec = (struct doall_dgst_digests *)arg;
+    EVP_MD *md = NULL;
+
+    /* Filter out signed digests (a.k.a signature algorithms) */
+    if (strstr(name->name, "rsa") != NULL || strstr(name->name, "RSA") != NULL)
+        return;
+
+    if (!islower((unsigned char)*name->name))
+        return;
+
+    /* Filter out message digests that we cannot use */
+    md = EVP_MD_fetch(app_get0_libctx(), name->name, app_get0_propq());
+    if (md == NULL)
+        return;
+
+    BIO_printf(dec->bio, "-%-25s", name->name);
+    if (++dec->n == 3) {
+        BIO_puts(dec->bio, "\n");
+        dec->n = 0;
+    } else {
+        BIO_puts(dec->bio, " ");
+    }
+
+    EVP_MD_free(md);
+}
+
+/*
+ * The newline_escape_filename function performs newline escaping for any
+ * filename that contains a newline.  This function also takes a pointer
+ * to backslash. The backslash pointer is a flag to indicating whether a newline
+ * is present in the filename.  If a newline is present, the backslash flag is
+ * set and the output format will contain a backslash at the beginning of the
+ * digest output. This output format is to replicate the output format found
+ * in the '*sum' checksum programs. This aims to preserve backward
+ * compatibility.
+ */
+static const char *newline_escape_filename(const char *file, int *backslash)
+{
+    size_t i, e = 0, length = strlen(file), newline_count = 0, mem_len = 0;
+    char *file_cpy = NULL;
+
+    for (i = 0; i < length; i++)
+        if (file[i] == '\n')
+            newline_count++;
+
+    mem_len = length + newline_count + 1;
+    file_cpy = app_malloc(mem_len, file);
+    i = 0;
+
+    while (e < length) {
+        const char c = file[e];
+        if (c == '\n') {
+            file_cpy[i++] = '\\';
+            file_cpy[i++] = 'n';
+            *backslash = 1;
+        } else {
+            file_cpy[i++] = c;
+        }
+        e++;
+    }
+    file_cpy[i] = '\0';
+    return (const char *)file_cpy;
+}
+
+static void print_out(BIO *out, unsigned char *buf, size_t len,
+    int sep, int binout,
+    const char *sig_name, const char *md_name, const char *file)
+{
+    int i, backslash = 0;
+
+    if (binout) {
+        BIO_write(out, buf, (int)len);
+    } else if (sep == 2) {
+        file = newline_escape_filename(file, &backslash);
+
+        if (backslash == 1)
+            BIO_puts(out, "\\");
+
+        for (i = 0; i < (int)len; i++)
+            BIO_printf(out, "%02x", buf[i]);
+
+        BIO_printf(out, " *%s\n", file);
+        OPENSSL_free((char *)file);
+    } else {
+        if (sig_name != NULL) {
+            BIO_puts(out, sig_name);
+            if (md_name != NULL)
+                BIO_printf(out, "-%s", md_name);
+            BIO_printf(out, "(%s)= ", file);
+        } else if (md_name != NULL) {
+            BIO_printf(out, "%s(%s)= ", md_name, file);
+        } else {
+            BIO_printf(out, "(%s)= ", file);
+        }
+        for (i = 0; i < (int)len; i++) {
+            if (sep && (i != 0))
+                BIO_puts(out, ":");
+            BIO_printf(out, "%02x", buf[i]);
+        }
+        BIO_puts(out, "\n");
+    }
+}
+
+static void print_verify_result(BIO *out, int i)
+{
+    if (i > 0)
+        BIO_puts(out, "Verified OK\n");
+    else if (i == 0)
+        BIO_puts(out, "Verification failure\n");
+    else
+        BIO_puts(bio_err, "Error verifying data\n");
+}
+
+/*
+ * Returns 1 on success, 0 on failure.  Do not use EXIT_SUCCESS / EXIT_FAILURE
+ * here; reserve those for main() and exit(3) (issue #30562).
+ */
+int do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout, int xoflen,
+    EVP_PKEY *key, unsigned char *sigin, int siglen,
+    const char *sig_name, const char *md_name,
+    const char *file)
+{
+    size_t len = BUFSIZE;
+    int i, ret = 0;
+    unsigned char *allocated_buf = NULL;
+
+    while (BIO_pending(bp) || !BIO_eof(bp)) {
+        i = BIO_read(bp, (char *)buf, BUFSIZE);
+        if (i < 0) {
+            BIO_printf(bio_err, "Read error in %s\n", file);
+            goto end;
+        }
+        if (i == 0)
+            break;
+    }
+    if (sigin != NULL) {
+        EVP_MD_CTX *ctx;
+        BIO_get_md_ctx(bp, &ctx);
+        i = EVP_DigestVerifyFinal(ctx, sigin, (unsigned int)siglen);
+        print_verify_result(out, i);
+        if (i > 0)
+            ret = 1;
+        goto end;
+    }
+    if (key != NULL) {
+        EVP_MD_CTX *ctx;
+        size_t tmplen;
+
+        BIO_get_md_ctx(bp, &ctx);
+        if (!EVP_DigestSignFinal(ctx, NULL, &tmplen)) {
+            BIO_puts(bio_err, "Error getting maximum length of signed data\n");
+            goto end;
+        }
+        if (tmplen > BUFSIZE) {
+            len = tmplen;
+            allocated_buf = app_malloc(len, "Signature buffer");
+            buf = allocated_buf;
+        }
+        if (!EVP_DigestSignFinal(ctx, buf, &len)) {
+            BIO_puts(bio_err, "Error signing data\n");
+            goto end;
+        }
+    } else if (xoflen > 0) {
+        EVP_MD_CTX *ctx;
+
+        len = xoflen;
+        if (len > BUFSIZE) {
+            allocated_buf = app_malloc(len, "Digest buffer");
+            buf = allocated_buf;
+        }
+
+        BIO_get_md_ctx(bp, &ctx);
+
+        if (!EVP_DigestFinalXOF(ctx, buf, len)) {
+            BIO_puts(bio_err, "Error Digesting Data\n");
+            goto end;
+        }
+    } else {
+        len = BIO_gets(bp, (char *)buf, BUFSIZE);
+        if ((int)len < 0)
+            goto end;
+    }
+    print_out(out, buf, len, sep, binout, sig_name, md_name, file);
+    ret = 1;
+end:
+    if (allocated_buf != NULL)
+        OPENSSL_clear_free(allocated_buf, len);
+
+    return ret;
+}
+
+/*
+ * Perform one-shot verify or sign on a contiguous data buffer.
+ * Returns 0 on failure, 1 on success.
+ */
+static int do_oneshot_verify_sign(EVP_MD_CTX *ctx, BIO *out,
+    unsigned char *sigin, int siglen, EVP_PKEY *key,
+    const unsigned char *data, size_t len,
+    int sep, int binout, const char *sig_name, const char *file)
+{
+    int res;
+    size_t siglen_out = 0;
+    unsigned char *sig = NULL;
+
+    if (sigin != NULL) {
+        res = EVP_DigestVerify(ctx, sigin, siglen, data, len);
+        print_verify_result(out, res);
+        return res > 0;
+    }
+    if (key != NULL) {
+        if (EVP_DigestSign(ctx, NULL, &siglen_out, data, len) != 1) {
+            BIO_puts(bio_err, "Error getting maximum length of signed data\n");
+            return 0;
+        }
+        sig = app_malloc(siglen_out, "Signature buffer");
+        if (EVP_DigestSign(ctx, sig, &siglen_out, data, len) != 1) {
+            BIO_puts(bio_err, "Error signing data\n");
+            OPENSSL_free(sig);
+            return 0;
+        }
+        print_out(out, sig, siglen_out, sep, binout, sig_name, NULL, file);
+        OPENSSL_free(sig);
+        return 1;
+    }
+    BIO_puts(bio_err, "key must be set for one-shot algorithms\n");
+    return 0;
+}
+
+/*
+ * Some new algorithms only support one shot operations.
+ * For these we need to buffer all input and then do the sign on the
+ * total buffered input. These algorithms set a NULL digest name which is
+ * then used inside EVP_DigestVerify() and EVP_DigestSign().
+ * Returns 1 on success, 0 on failure.  Do not use EXIT_SUCCESS / EXIT_FAILURE
+ * here; reserve those for main() and exit(3) (issue #30562).
+ */
+static int do_fp_oneshot_sign(BIO *out, EVP_MD_CTX *ctx, BIO *in, int sep, int binout,
+    EVP_PKEY *key, unsigned char *sigin, int siglen,
+    const char *sig_name, const char *file)
+{
+    int ret = 0;
+    size_t buflen = 0;
+    size_t maxlen = 16 * 1024 * 1024;
+    uint8_t *buf = NULL;
+
+#if defined(OPENSSL_SYS_UNIX) && defined(_POSIX_MAPPED_FILES) && _POSIX_MAPPED_FILES > 0
+    if (file != NULL) {
+        const unsigned char *data = NULL;
+        size_t filesize = 0;
+        int r = app_mmap_file(file, bio_err, (size_t)-1, &data, &filesize);
+
+        if (r == 1) {
+            ret = do_oneshot_verify_sign(ctx, out, sigin, siglen, key, data,
+                filesize, sep, binout, sig_name, file);
+            munmap((void *)data, filesize);
+            return ret;
+        }
+        if (r == -1)
+            return 0; /* error already printed */
+        /* r == 0: empty file, fall through to buffer path */
+    }
+#endif
+
+    {
+        const char *display_file = file != NULL ? file : "stdin";
+
+        if (!bio_to_mem(&buf, &buflen, maxlen, in))
+            return 0;
+        ret = do_oneshot_verify_sign(ctx, out, sigin, siglen, key, buf, buflen,
+            sep, binout, sig_name, display_file);
+        OPENSSL_clear_free(buf, buflen);
+    }
+
+    return ret;
+}

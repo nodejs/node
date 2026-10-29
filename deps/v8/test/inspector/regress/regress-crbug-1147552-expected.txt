@@ -1,0 +1,2 @@
+Regression test for crbug.com/1147552. Found by Clusterfuzz.
+Test must not have crashed.

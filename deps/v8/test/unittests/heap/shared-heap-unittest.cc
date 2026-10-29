@@ -1,0 +1,1080 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include <optional>
+
+#include "src/base/platform/platform.h"
+#include "src/base/platform/semaphore.h"
+#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap.h"
+#include "src/heap/parked-scope-inl.h"
+#include "src/objects/bytecode-array.h"
+#include "src/objects/fixed-array.h"
+#include "test/common/noop-bytecode-verifier.h"
+#include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+// In multi-cage mode we create one cage per isolate
+// and we don't share objects between cages.
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
+
+namespace v8 {
+namespace internal {
+
+using SharedHeapTest = TestJSSharedMemoryWithIsolate;
+
+class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
+ public:
+  SharedHeapNoClientsTest() {
+    shared_space_isolate_wrapper.emplace(kNoCounters);
+    shared_space_isolate_ = shared_space_isolate_wrapper->i_isolate();
+  }
+
+  ~SharedHeapNoClientsTest() override { shared_space_isolate_ = nullptr; }
+
+  v8::Isolate* shared_space_isolate() {
+    return reinterpret_cast<v8::Isolate*>(i_shared_space_isolate());
+  }
+
+  Isolate* i_shared_space_isolate() { return shared_space_isolate_; }
+
+ private:
+  Isolate* shared_space_isolate_;
+  std::optional<IsolateWrapper> shared_space_isolate_wrapper;
+};
+
+namespace {
+const int kDefaultNumIterations = 2000;
+
+template <typename Callback>
+void SetupClientIsolateAndRunCallback(Callback callback) {
+  IsolateWrapper isolate_wrapper(kNoCounters, false);
+  v8::Isolate* client_isolate = isolate_wrapper.isolate();
+  Isolate* i_client_isolate = reinterpret_cast<Isolate*>(client_isolate);
+  v8::Isolate::Scope isolate_scope(client_isolate);
+
+  callback(client_isolate, i_client_isolate);
+}
+
+class SharedOldSpaceAllocationThread final : public ParkingThread {
+ public:
+  SharedOldSpaceAllocationThread()
+      : ParkingThread(base::Thread::Options("SharedOldSpaceAllocationThread")) {
+  }
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+
+          for (int i = 0; i < kDefaultNumIterations; i++) {
+            i_client_isolate->factory()->NewFixedArray(
+                10, AllocationType::kSharedOld);
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedOldSpaceAllocationThread>> threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedOldSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
+class SharedTrustedSpaceAllocationThread final : public ParkingThread {
+ public:
+  SharedTrustedSpaceAllocationThread()
+      : ParkingThread(
+            base::Thread::Options("SharedTrustedSpaceAllocationThread")) {}
+
+  void Run() override {
+    constexpr int kNumIterations = 2000;
+
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+
+          for (int i = 0; i < kNumIterations; i++) {
+            i_client_isolate->factory()->NewTrustedByteArray(
+                10, AllocationType::kSharedTrusted);
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedSpace) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedTrustedSpaceAllocationThread>>
+            threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedTrustedSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
+class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
+ public:
+  SharedLargeOldSpaceAllocationThread()
+      : ParkingThread(base::Thread::Options("SharedOldSpaceAllocationThread")) {
+  }
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          const int kNumIterations = 50;
+
+          for (int i = 0; i < kNumIterations; i++) {
+            HandleScope inner_scope(i_client_isolate);
+            DirectHandle<FixedArray> fixed_array =
+                i_client_isolate->factory()->NewFixedArray(
+                    kMaxRegularHeapObjectSize / kTaggedSize,
+                    AllocationType::kSharedOld);
+            CHECK(BasePage::FromHeapObject(i_client_isolate, *fixed_array)
+                      ->is_large());
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedLargeOldSpace) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedLargeOldSpaceAllocationThread>>
+            threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedLargeOldSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
+class SharedTrustedLargeObjectSpaceAllocationThread final
+    : public ParkingThread {
+ public:
+  SharedTrustedLargeObjectSpaceAllocationThread()
+      : ParkingThread(base::Thread::Options(
+            "SharedTrustedLargeObjectSpaceAllocationThread")) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          constexpr int kNumIterations = 50;
+
+          for (int i = 0; i < kNumIterations; i++) {
+            HandleScope inner_scope(i_client_isolate);
+            DirectHandle<TrustedByteArray> fixed_array =
+                i_client_isolate->factory()->NewTrustedByteArray(
+                    kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
+            CHECK(BasePage::FromHeapObject(i_client_isolate, *fixed_array)
+                      ->is_large());
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedLargeObjectSpace) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<
+            std::unique_ptr<SharedTrustedLargeObjectSpaceAllocationThread>>
+            threads;
+        constexpr int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread =
+              std::make_unique<SharedTrustedLargeObjectSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+TEST_F(SharedHeapTest, TrustedToSharedTrustedPointer) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  DirectHandle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(0);
+  DirectHandle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
+               ->Metadata()
+               ->owner()
+               ->identity(),
+           SHARED_TRUSTED_SPACE);
+
+  // Use random bytes here since we don't ever run the bytecode.
+  constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
+  constexpr int kRawBytesSize = sizeof(kRawBytes);
+  constexpr int32_t kFrameSize = 32;
+  constexpr uint16_t kParameterCount = 2;
+  constexpr uint16_t kMaxArguments = 0;
+
+  Handle<BytecodeArray> bc = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
+  // We still need to verify the bytecode, otherwise the bytecode array won't
+  // be published (be sandbox-accessible), causing the GC to be surprised. We
+  // use a no-op verifier here since this test uses invalid bytecode.
+  NoOpBytecodeVerifier::Verify(i_isolate(), bc);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*bc)->Metadata()->owner()->identity(),
+           TRUSTED_SPACE);
+
+  InvokeMajorGC(isolate);
+
+  USE(bc);
+}
+
+namespace {
+class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
+ public:
+  explicit TrustedToSharedTrustedPointerOnClient(ParkingSemaphore* sem_ready,
+                                                 ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("TrustedToSharedTrustedPointerOnClient")),
+        sema_ready_(sem_ready),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback([this](v8::Isolate* client_isolate,
+                                            Isolate* i_client_isolate) {
+      Factory* factory = i_client_isolate->factory();
+      HandleScope scope(i_client_isolate);
+      DirectHandle<BytecodeArray> keep_alive_bc;
+
+      {
+        HandleScope nested_scope(i_client_isolate);
+        DirectHandle<TrustedFixedArray> constant_pool =
+            factory->NewTrustedFixedArray(0);
+        DirectHandle<TrustedByteArray> handler_table =
+            factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+        CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
+                     ->Metadata()
+                     ->owner()
+                     ->identity(),
+                 SHARED_TRUSTED_SPACE);
+
+        // Use random bytes here since we don't ever run the bytecode.
+        constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
+        constexpr int kRawBytesSize = sizeof(kRawBytes);
+        constexpr int32_t kFrameSize = 32;
+        constexpr uint16_t kParameterCount = 2;
+        constexpr uint16_t kMaxArguments = 0;
+
+        Handle<BytecodeArray> bc = factory->NewBytecodeArray(
+            kRawBytesSize, kRawBytes, kFrameSize, kParameterCount,
+            kMaxArguments, constant_pool, handler_table);
+        keep_alive_bc = nested_scope.CloseAndEscape(bc);
+      }
+
+      sema_ready_->Signal();
+      sema_done_->ParkedWait(i_client_isolate->main_thread_local_isolate());
+
+      Tagged<TrustedByteArray> handler_table = keep_alive_bc->handler_table();
+      CHECK(IsTrustedByteArray(handler_table));
+      CHECK_EQ(handler_table->length().value(), 3u);
+
+      v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                    client_isolate);
+    });
+  }
+
+ private:
+  ParkingSemaphore* sema_ready_;
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, TrustedToSharedTrustedPointerOnClient) {
+  std::vector<std::unique_ptr<TrustedToSharedTrustedPointerOnClient>> threads;
+  const int kThreads = 4;
+
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_done(0);
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread = std::make_unique<TrustedToSharedTrustedPointerOnClient>(
+        &sema_ready, &sema_done);
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  for (int i = 0; i < kThreads; i++) {
+    sema_ready.ParkedWait(local_isolate);
+  }
+
+  InvokeMajorGC(i_isolate());
+
+  for (int i = 0; i < kThreads; i++) {
+    sema_done.Signal();
+  }
+
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
+}
+
+namespace {
+class SharedMapSpaceAllocationThread final : public ParkingThread {
+ public:
+  SharedMapSpaceAllocationThread()
+      : ParkingThread(base::Thread::Options("SharedMapSpaceAllocationThread")) {
+  }
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+
+          for (int i = 0; i < kDefaultNumIterations; i++) {
+            i_client_isolate->factory()->NewContextlessMap(
+                NATIVE_CONTEXT_TYPE, kVariableSizeSentinel,
+                TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedMapSpaceAllocationThread>> threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedMapSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
+  // Set a "current isolate" so we can access pointer tables etc during GC.
+  ::i::SetCurrentIsolateScope isolate_scope{i_shared_space_isolate()};
+  ::i::SetCurrentLocalHeapScope thread_local_scope{i_shared_space_isolate()};
+  ::v8::internal::InvokeMajorGC(i_shared_space_isolate());
+}
+
+void AllocateInSharedHeap(int iterations = 100) {
+  SetupClientIsolateAndRunCallback([iterations](v8::Isolate* client_isolate,
+                                                Isolate* i_client_isolate) {
+    HandleScope outer_scope(i_client_isolate);
+    std::vector<Handle<FixedArray>> arrays_in_handles;
+    const int kKeptAliveInHandle = 1000;
+    const int kKeptAliveInHeap = 100;
+    DirectHandle<FixedArray> arrays_in_heap =
+        i_client_isolate->factory()->NewFixedArray(kKeptAliveInHeap,
+                                                   AllocationType::kYoung);
+
+    for (int i = 0; i < kDefaultNumIterations * iterations; i++) {
+      HandleScope scope(i_client_isolate);
+      Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
+          100, AllocationType::kSharedOld);
+      if (i < kKeptAliveInHandle) {
+        // Keep some of those arrays alive across GCs through handles.
+        arrays_in_handles.push_back(scope.CloseAndEscape(array));
+      }
+
+      if (i < kKeptAliveInHeap) {
+        // Keep some of those arrays alive across GCs through client heap
+        // references.
+        arrays_in_heap->set(i, *array);
+      }
+
+      i_client_isolate->factory()->NewFixedArray(100, AllocationType::kYoung);
+    }
+
+    for (DirectHandle<FixedArray> array : arrays_in_handles) {
+      CHECK_EQ(array->length().value(), 100u);
+    }
+
+    for (int i = 0; i < kKeptAliveInHeap; i++) {
+      Tagged<FixedArray> array = Cast<FixedArray>(arrays_in_heap->get(i));
+      CHECK_EQ(array->length().value(), 100u);
+    }
+  });
+}
+
+TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
+  v8_flags.max_old_space_size = 8;
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      []() { AllocateInSharedHeap(); });
+}
+
+namespace {
+class SharedFixedArrayAllocationThread final : public ParkingThread {
+ public:
+  SharedFixedArrayAllocationThread()
+      : ParkingThread(
+            base::Thread::Options("SharedFixedArrayAllocationThread")) {}
+
+  void Run() override { AllocateInSharedHeap(5); }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
+  v8_flags.max_old_space_size = 8;
+
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedFixedArrayAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
+
+/**
+ * The following two classes implement a recurring pattern for testing the
+ * shared heap: two isolates (main and client), used respectively by the main
+ * thread and a concurrent thread, that execute arbitrary fragments of code
+ * (shown below in angular brackets) and synchronize in the following way
+ * using parked semaphores:
+ *
+ *      main thread                    concurrent thread
+ * ---------------------------------------------------------------
+ *        <SETUP>
+ *           |
+ *      start thread ----------\
+ *           |                  \---------> <SETUP>
+ *           |                                 |
+ *           |                  /-------- signal ready
+ *     wait for ready <--------/               |
+ *       <EXECUTE>                             |
+ *     signal execute ---------\               |
+ *           |                  \-----> wait for execute
+ *           |                             <EXECUTE>
+ *           |                  /------ signal complete
+ *    wait for complete <------/               |
+ *           |                                 |
+ *      <COMPLETE>                        <COMPLETE>
+ *           |                  /----------- exit
+ *      join thread <----------/
+ *      <TEARDOWN>
+ *
+ * Both threads allocate an arbitrary state object on their stack, which
+ * may contain information that is shared between the executed fragments
+ * of code.
+ */
+
+template <typename State>
+class ConcurrentThread final : public ParkingThread {
+ public:
+  using ThreadType = ConcurrentThread<State>;
+  using Callback = void(ThreadType*);
+
+  explicit ConcurrentThread(
+      bool wait_while_parked, v8::base::Semaphore* sema_ready = nullptr,
+      v8::base::Semaphore* sema_execute_start = nullptr,
+      v8::base::Semaphore* sema_execute_complete = nullptr)
+      : ParkingThread(Options("ConcurrentThread")),
+        sema_ready_(sema_ready),
+        sema_execute_start_(sema_execute_start),
+        sema_execute_complete_(sema_execute_complete),
+        wait_while_parked_(wait_while_parked) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    i_client_isolate_ = isolate_wrapper.i_isolate();
+
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
+
+    // Allocate the state on the stack, so that handles, direct handles or raw
+    // pointers are stack-allocated.
+    State state;
+    state_ = &state;
+
+    if (setup_callback_) setup_callback_(this);
+
+    if (sema_ready_) sema_ready_->Signal();
+    if (sema_execute_start_) {
+      if (wait_while_parked_) {
+        // Park and wait.
+        i_client_isolate_->main_thread_local_isolate()
+            ->ExecuteMainThreadWhileParked(
+                [this]() { sema_execute_start_->Wait(); });
+      } else {
+        // Do not park, but enter a safepoint every now and then.
+        const auto timeout = base::TimeDelta::FromMilliseconds(100);
+        do {
+          i_client_isolate_->main_thread_local_isolate()->heap()->Safepoint();
+        } while (!sema_execute_start_->WaitFor(timeout));
+      }
+    }
+
+    if (execute_callback_) execute_callback_(this);
+
+    if (sema_execute_complete_) sema_execute_complete_->Signal();
+
+    if (complete_callback_) complete_callback_(this);
+
+    i_client_isolate_ = nullptr;
+    state_ = nullptr;
+  }
+
+  Isolate* i_client_isolate() const {
+    DCHECK_NOT_NULL(i_client_isolate_);
+    return i_client_isolate_;
+  }
+
+  v8::Isolate* client_isolate() const {
+    return reinterpret_cast<v8::Isolate*>(i_client_isolate_);
+  }
+
+  State* state() {
+    DCHECK_NOT_NULL(state_);
+    return state_;
+  }
+
+  void with_setup(Callback* callback) { setup_callback_ = callback; }
+  void with_execute(Callback* callback) { execute_callback_ = callback; }
+  void with_complete(Callback* callback) { complete_callback_ = callback; }
+
+ private:
+  Isolate* i_client_isolate_ = nullptr;
+  State* state_ = nullptr;
+  v8::base::Semaphore* sema_ready_ = nullptr;
+  v8::base::Semaphore* sema_execute_start_ = nullptr;
+  v8::base::Semaphore* sema_execute_complete_ = nullptr;
+  Callback* setup_callback_ = nullptr;
+  Callback* execute_callback_ = nullptr;
+  Callback* complete_callback_ = nullptr;
+  bool wait_while_parked_;
+};
+
+template <typename State, typename ThreadState, bool wait_while_parked>
+class SharedHeapTestBase : public TestJSSharedMemoryWithNativeContext {
+ public:
+  using TestType = SharedHeapTestBase<State, ThreadState, wait_while_parked>;
+  using Callback = void(TestType*);
+  using ThreadType = ConcurrentThread<ThreadState>;
+  using ThreadCallback = typename ThreadType::Callback;
+
+  SharedHeapTestBase()
+      : thread_(std::make_unique<ThreadType>(wait_while_parked, &sema_ready_,
+                                             &sema_execute_start_,
+                                             &sema_execute_complete_)) {}
+
+  void Interact() {
+    // Allocate the state on the stack, so that handles, direct handles or raw
+    // pointers are stack-allocated.
+    State state;
+    state_ = &state;
+
+    if (setup_callback_) setup_callback_(this);
+    CHECK(thread()->Start());
+    sema_ready_.Wait();
+    if (execute_callback_) execute_callback_(this);
+    sema_execute_start_.Signal();
+    sema_execute_complete_.Wait();
+    if (complete_callback_) complete_callback_(this);
+    thread()->ParkedJoin(i_isolate()->main_thread_local_isolate());
+    if (teardown_callback_) teardown_callback_(this);
+
+    state_ = nullptr;
+  }
+
+  ConcurrentThread<State>* thread() const {
+    DCHECK(thread_);
+    return thread_.get();
+  }
+
+  State* state() {
+    DCHECK_NOT_NULL(state_);
+    return state_;
+  }
+
+  void with_setup(Callback* callback) { setup_callback_ = callback; }
+  void with_execute(Callback* callback) { execute_callback_ = callback; }
+  void with_complete(Callback* callback) { complete_callback_ = callback; }
+  void with_teardown(Callback* callback) { teardown_callback_ = callback; }
+
+ private:
+  State* state_ = nullptr;
+  std::unique_ptr<ConcurrentThread<State>> thread_;
+  v8::base::Semaphore sema_ready_{0};
+  v8::base::Semaphore sema_execute_start_{0};
+  v8::base::Semaphore sema_execute_complete_{0};
+  Callback* setup_callback_ = nullptr;
+  Callback* execute_callback_ = nullptr;
+  Callback* complete_callback_ = nullptr;
+  Callback* teardown_callback_ = nullptr;
+};
+
+}  // namespace
+
+#define TEST_SCENARIO(test_class, test_method, test_name, allocation, space) \
+  TEST_F(test_class, test_name) {                                            \
+    test_method<test_class, allocation, space>(this);                        \
+  }
+
+#define TEST_ALL_SCENARIA(test_class, test_prefix, test_method)    \
+  TEST_SCENARIO(test_class, test_method, test_prefix##YoungYoung,  \
+                AllocationType::kYoung, NEW_SPACE)                 \
+  TEST_SCENARIO(test_class, test_method, test_prefix##YoungOld,    \
+                AllocationType::kYoung, OLD_SPACE)                 \
+  TEST_SCENARIO(test_class, test_method, test_prefix##OldYoung,    \
+                AllocationType::kOld, NEW_SPACE)                   \
+  TEST_SCENARIO(test_class, test_method, test_prefix##OldOld,      \
+                AllocationType::kOld, OLD_SPACE)                   \
+  TEST_SCENARIO(test_class, test_method, test_prefix##SharedYoung, \
+                AllocationType::kSharedOld, NEW_SPACE)             \
+  TEST_SCENARIO(test_class, test_method, test_prefix##SharedOld,   \
+                AllocationType::kSharedOld, OLD_SPACE)
+
+namespace {
+
+// Testing the shared heap using ordinary (indirect) handles.
+
+struct StateWithHandle {
+  std::optional<HandleScope> scope;
+  Handle<FixedArray> handle;
+  Global<v8::FixedArray> weak;
+};
+
+template <AllocationType allocation, AllocationSpace space, int size>
+void AllocateWithHandle(Isolate* isolate, StateWithHandle* state) {
+  // Install a handle scope.
+  state->scope.emplace(isolate);
+  // Allocate a fixed array, keep a handle and a weak reference.
+  state->handle = isolate->factory()->NewFixedArray(size, allocation);
+  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(state->handle);
+  state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
+  state->weak.SetWeak();
+}
+
+using SharedHeapTestStateWithHandleParked =
+    SharedHeapTestBase<StateWithHandle, StateWithHandle, true>;
+using SharedHeapTestStateWithHandleUnparked =
+    SharedHeapTestBase<StateWithHandle, StateWithHandle, false>;
+
+void InvokeGC(AllocationSpace space, Isolate* isolate) {
+  space == NEW_SPACE ? InvokeMinorGC(isolate) : InvokeMajorGC(isolate);
+}
+
+template <typename TestType, AllocationType allocation, AllocationSpace space>
+void ToEachTheirOwnWithHandle(TestType* test) {
+  using ThreadType = typename TestType::ThreadType;
+  ThreadType* thread = test->thread();
+
+  // Install all the callbacks.
+  test->with_setup([](TestType* test) {
+    AllocateWithHandle<allocation, space, 10>(test->i_isolate(), test->state());
+  });
+
+  thread->with_setup([](ThreadType* thread) {
+    AllocateWithHandle<allocation, space, 20>(thread->i_client_isolate(),
+                                              thread->state());
+  });
+
+  test->with_execute(
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
+
+  thread->with_execute(
+      [](ThreadType* thread) { InvokeGC(space, thread->i_client_isolate()); });
+
+  test->with_complete([](TestType* test) {
+    // The handle should keep the fixed array from being reclaimed.
+    EXPECT_FALSE(test->state()->weak.IsEmpty());
+  });
+
+  thread->with_complete([](ThreadType* thread) {
+    // The handle should keep the fixed array from being reclaimed.
+    EXPECT_FALSE(thread->state()->weak.IsEmpty());
+    thread->state()->scope.reset();  // Deallocate the handle scope.
+    InvokeGC(space, thread->i_client_isolate());
+  });
+
+  test->with_teardown([](TestType* test) {
+    test->state()->scope.reset();  // Deallocate the handle scope.
+    InvokeGC(space, test->i_isolate());
+  });
+
+  // Perform the test.
+  test->Interact();
+}
+
+}  // namespace
+
+TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleParked, ToEachTheirOwn,
+                  ToEachTheirOwnWithHandle)
+TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleUnparked, ToEachTheirOwn,
+                  ToEachTheirOwnWithHandle)
+
+namespace {
+
+// Testing the shared heap using raw pointers.
+// This works only with conservative stack scanning.
+
+struct StateWithRawPointer {
+  Address ptr;
+  Global<v8::FixedArray> weak;
+};
+
+template <AllocationType allocation, AllocationSpace space, int size>
+void AllocateWithRawPointer(Isolate* isolate, StateWithRawPointer* state) {
+  // Allocate a fixed array, keep a raw pointer and a weak reference.
+  HandleScope scope(isolate);
+  DirectHandle<FixedArray> h =
+      isolate->factory()->NewFixedArray(size, allocation);
+  state->ptr = (*h).ptr();
+  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
+  state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
+  state->weak.SetWeak();
+}
+
+using SharedHeapTestStateWithRawPointerParked =
+    SharedHeapTestBase<StateWithRawPointer, StateWithRawPointer, true>;
+using SharedHeapTestStateWithRawPointerUnparked =
+    SharedHeapTestBase<StateWithRawPointer, StateWithRawPointer, false>;
+
+template <typename TestType, AllocationType allocation, AllocationSpace space>
+void ToEachTheirOwnWithRawPointer(TestType* test) {
+  if (!v8_flags.conservative_stack_scanning) return;
+
+  using ThreadType = typename TestType::ThreadType;
+  ThreadType* thread = test->thread();
+
+  // Install all the callbacks.
+  test->with_setup([](TestType* test) {
+    AllocateWithRawPointer<allocation, space, 10>(test->i_isolate(),
+                                                  test->state());
+  });
+
+  thread->with_setup([](ThreadType* thread) {
+    AllocateWithRawPointer<allocation, space, 20>(thread->i_client_isolate(),
+                                                  thread->state());
+  });
+
+  test->with_execute(
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
+
+  thread->with_execute(
+      [](ThreadType* thread) { InvokeGC(space, thread->i_client_isolate()); });
+
+  test->with_complete([](TestType* test) {
+    // With conservative stack scanning, the raw pointer should keep the fixed
+    // array from being reclaimed.
+    EXPECT_FALSE(test->state()->weak.IsEmpty());
+  });
+
+  thread->with_complete([](ThreadType* thread) {
+    // With conservative stack scanning, the raw pointer should keep the fixed
+    // array from being reclaimed.
+    EXPECT_FALSE(thread->state()->weak.IsEmpty());
+    InvokeGC(space, thread->i_client_isolate());
+  });
+
+  test->with_teardown(
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
+
+  // Perform the test.
+  test->Interact();
+}
+
+}  // namespace
+
+TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerParked, ToEachTheirOwn,
+                  ToEachTheirOwnWithRawPointer)
+TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
+                  ToEachTheirOwnWithRawPointer)
+
+#undef TEST_SCENARIO
+#undef TEST_ALL_SCENARIA
+
+namespace {
+class UpdateExternalMemoryWorkerThread : public ParkingThread {
+ public:
+  explicit UpdateExternalMemoryWorkerThread(ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("UpdateExternalMemoryWorkerThread")),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate* client = isolate_wrapper.isolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    {
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
+      Heap* shared_heap = i_client->shared_space_isolate()->heap();
+      static constexpr int64_t kAllocatedSize = GB;
+      shared_heap->UpdateExternalMemory(kAllocatedSize);
+      EXPECT_GE(shared_heap->external_memory(),
+                static_cast<uint64_t>(kAllocatedSize));
+      shared_heap->UpdateExternalMemory(-kAllocatedSize);
+    }
+
+    sema_done_->Signal();
+  }
+
+ private:
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, UpdateExternalMemoryWorkerIsolate) {
+  ParkingSemaphore sema_done(0);
+  auto thread = std::make_unique<UpdateExternalMemoryWorkerThread>(&sema_done);
+  CHECK(thread->Start());
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  sema_done.ParkedWait(local_isolate);
+
+  thread->ParkedJoin(local_isolate);
+}
+
+TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
+  Isolate* isolate = i_isolate();
+  ManualGCScope manual_gc_scope(isolate);
+
+  HandleScope scope(isolate);
+  Handle<FixedArray> source =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+  Handle<FixedArray> value =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+
+  // Start incremental marking (shared GC) on the main isolate.
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+
+  // Setup client isolate and run the write barrier.
+  SetupClientIsolateAndRunCallback([raw_source = *source, raw_value = *value](
+                                       v8::Isolate* client_isolate,
+                                       Isolate* i_client_isolate) {
+    HandleScope scope(i_client_isolate);
+
+    // Perform a raw store. The write barrier will be triggered manually.
+    ObjectSlot slot = raw_source->RawFieldOfElementAt(0);
+    slot.store(raw_value);
+
+    // Assert that object and value are still unmarked before the write barrier.
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_value));
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_source));
+
+    // Invoke the range write barrier on the client isolate.
+    WriteBarrier::ForRange(i_client_isolate->heap(), raw_source, slot,
+                           slot + 1);
+
+    // The range write barrier should unconditionally mark the value.
+    EXPECT_TRUE(i_client_isolate->heap()->marking_state()->IsMarked(raw_value));
+  });
+
+  InvokeMajorGC(isolate);
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+
+// The index the shared rtts array is grown to up front, and the larger one the
+// blocking thread asks for so that it has to grow the array again.
+constexpr uint32_t kPreparedTypeIndex = 8;
+constexpr uint32_t kBlockingTypeIndex = 4096;
+
+// Runs into wasm_shared_canonical_types_mutex_ through production code, while
+// the main thread holds it.
+class PrepareSharedCanonicalTypeThread final : public ParkingThread {
+ public:
+  PrepareSharedCanonicalTypeThread(base::Semaphore* sema_mutex_held,
+                                   base::Semaphore* sema_done)
+      : ParkingThread(Options("PrepareSharedCanonicalTypeThread")),
+        sema_mutex_held_(sema_mutex_held),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [this](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          // Only start once the main thread holds the mutex, so that this call
+          // is guaranteed to block on it.
+          sema_mutex_held_->Wait();
+          wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+              i_client_isolate, wasm::CanonicalTypeIndex{kBlockingTypeIndex},
+              SharedFlag{true});
+          sema_done_->Signal();
+        });
+  }
+
+ private:
+  base::Semaphore* sema_mutex_held_;
+  base::Semaphore* sema_done_;
+};
+
+// Fails the process if the interaction below does not finish. The deadlocked
+// threads cannot report anything themselves, and a hung test would otherwise
+// only be caught by the test runner's global timeout.
+class DeadlockWatchdogThread final : public base::Thread {
+ public:
+  explicit DeadlockWatchdogThread(base::Semaphore* sema_done)
+      : Thread(Options("DeadlockWatchdogThread")), sema_done_(sema_done) {}
+
+  void Run() override {
+    if (!sema_done_->WaitFor(base::TimeDelta::FromSeconds(30))) {
+      FATAL(
+          "deadlock: an isolate blocked on wasm_shared_canonical_types_mutex_ "
+          "never reached a safepoint, so the shared GC could not complete");
+    }
+  }
+
+ private:
+  base::Semaphore* sema_done_;
+};
+
+}  // namespace
+
+// Regression test for b/538572369: wasm_shared_canonical_types_mutex_ is held
+// across shared-heap allocations in PrepareForCanonicalTypeId and
+// CreateMapForType, so it has to be acquired in a parked state. A client
+// isolate blocked on it without parking never reaches the safepoint that a
+// concurrent shared GC waits for, and both threads hang.
+TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
+  Isolate* isolate = i_isolate();
+  CHECK(isolate->is_shared_space_isolate());
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+
+  // Grow the shared rtts array once, so that the background thread's request
+  // for a larger index gets past the fast path and has to take the mutex.
+  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+      isolate, wasm::CanonicalTypeIndex{kPreparedTypeIndex}, SharedFlag{true});
+
+  base::Semaphore sema_mutex_held(0);
+  base::Semaphore sema_done(0);
+
+  auto blocker = std::make_unique<PrepareSharedCanonicalTypeThread>(
+      &sema_mutex_held, &sema_done);
+  CHECK(blocker->Start());
+
+  DeadlockWatchdogThread watchdog(&sema_done);
+  CHECK(watchdog.Start());
+
+  {
+    base::MutexGuard lock(isolate->wasm_shared_canonical_types_mutex());
+    sema_mutex_held.Signal();
+    // There is no way to observe that the other thread is blocked inside
+    // base::Mutex::Lock, so give it a moment to get there. Losing this race
+    // makes the test pass spuriously, never fail spuriously.
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(200));
+    // Waits for a global safepoint, which the blocked isolate cannot reach.
+    isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
+                                          GarbageCollectionReason::kTesting);
+  }
+
+  blocker->ParkedJoin(local_isolate);
+  watchdog.Join();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+template <typename TMixin>
+class WithEmptySharedHeapFlagsMixin : public TMixin {
+ public:
+  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap = true; }
+};
+
+using SharedHeapEmptyTestPlatform =
+    WithDefaultPlatformMixin<WithEmptySharedHeapFlagsMixin<::testing::Test>>;
+
+using SharedHeapEmptyTest = WithInternalIsolateMixin<
+    WithIsolateScopeMixin<WithIsolateMixin<SharedHeapEmptyTestPlatform>>>;
+
+TEST_F(SharedHeapEmptyTest, FlagImplications) {
+  EXPECT_TRUE(v8_flags.empty_shared_heap);
+  EXPECT_TRUE(v8_flags.shared_heap);
+  EXPECT_FALSE(v8_flags.shared_string_table);
+}
+
+TEST_F(SharedHeapEmptyTest, EmptySharedHeapPasses) {
+  i_isolate()->factory()->NewFixedArray(10, AllocationType::kYoung);
+  i_isolate()->factory()->NewFixedArray(10, AllocationType::kOld);
+  InvokeMajorGC(i_isolate());
+}
+
+TEST_F(SharedHeapEmptyTest, EmptySharedHeapCrashes) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        i_isolate()->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+        InvokeMajorGC(i_isolate());
+      },
+      "");
+}
+
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL

@@ -1,0 +1,301 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include <limits>
+#ifdef V8_ENABLE_MAGLEV
+
+#include "src/execution/simulator.h"
+#include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/maglev-assembler.h"
+#include "test/unittests/maglev/maglev-test.h"
+
+namespace v8 {
+namespace internal {
+namespace maglev {
+
+class MaglevAssemblerTest : public MaglevTest {
+ public:
+  MaglevAssemblerTest()
+      : MaglevTest(),
+        codegen_state(nullptr, nullptr, nullptr, 0),
+        as(isolate(), zone(), &codegen_state) {
+#if V8_TARGET_ARCH_PPC64
+    // Default scratch list {r26, ip} includes callee-saved r26. Since
+    // test-generated code has no prologue, restrict to volatile ip only.
+    *as.GetScratchRegisterList() = RegList{ip};
+#endif
+  }
+
+  void FinalizeAndRun(Label* pass, Label* fail) {
+    as.bind(pass);
+    as.Ret();
+    as.bind(fail);
+    as.AssertUnreachable(AbortReason::kNoReason);
+    CodeDesc desc;
+    as.GetCode(isolate(), &desc);
+    Factory::CodeBuilder build(isolate(), desc, CodeKind::FOR_TESTING);
+    auto res = build.TryBuild().ToHandleChecked();
+    using Function = GeneratedCode<Address()>;
+    auto fun = Function::FromAddress(isolate(), res->instruction_start());
+    fun.Call();
+  }
+
+  MaglevCodeGenState codegen_state;
+  MaglevAssembler as;
+};
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32One) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 1.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.Cmp(kReturnRegister0, 1);
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32Zero) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 0.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.Cmp(kReturnRegister0, 0);
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32Large) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<uint32_t>::max());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.Cmp(kReturnRegister0, std::numeric_limits<uint32_t>::max());
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32TooLarge) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0,
+          static_cast<double>(std::numeric_limits<uint32_t>::max()) + 1.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32Negative) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -1.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32NegativeZero) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -0.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32NotItegral) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 1.1);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToUint32(kReturnRegister0, kFPReturnRegister0,
+                               &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32One) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 1.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.Cmp(kReturnRegister0, 1);
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32MinusOne) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -1.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.Cmp(kReturnRegister0, static_cast<uint32_t>(-1));
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Zero) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 0.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.Cmp(kReturnRegister0, 0);
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Large) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<int32_t>::max());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.Cmp(kReturnRegister0, std::numeric_limits<int32_t>::max());
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Small) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<int32_t>::min());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.Cmp(kReturnRegister0,
+         static_cast<uint32_t>(std::numeric_limits<int32_t>::min()));
+  as.Assert(Condition::kEqual, AbortReason::kNoReason);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&can_convert, &cannot_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32NegativeZero) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -0.0);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32NotItegral) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, 1.1);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32TooLarge) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0,
+          static_cast<double>(std::numeric_limits<int32_t>::max()) + 1);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32TooSmall) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0,
+          static_cast<double>(std::numeric_limits<int32_t>::min()) - 1);
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Denormal) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::denorm_min());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32DenormalNegative) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -std::numeric_limits<double>::denorm_min());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32NaN) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::quiet_NaN());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Inf) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::infinity());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32InfNegative) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -std::numeric_limits<double>::infinity());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
+TEST_F(MaglevAssemblerTest, SetSlotAddressForFixedArrayElementLargeIndex) {
+  as.CodeEntry();
+  intptr_t base = intptr_t{0x300000000};
+  uint32_t index = static_cast<uint32_t>(std::numeric_limits<int32_t>::min());
+  as.Move(kReturnRegister1, base);
+  as.Move(kReturnRegister2, static_cast<int32_t>(index));
+  as.SetSlotAddressForFixedArrayElement(kReturnRegister0, kReturnRegister1,
+                                        kReturnRegister2);
+  intptr_t expected = base + OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag +
+                      (intptr_t{index} << kTaggedSizeLog2);
+  as.Move(kReturnRegister1, expected);
+  Label pass, fail;
+  as.CompareIntPtrAndJumpIf(kReturnRegister0, kReturnRegister1, kEqual, &pass);
+  as.jmp(&fail);
+  FinalizeAndRun(&pass, &fail);
+}
+#endif  // V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
+
+}  // namespace maglev
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_ENABLE_MAGLEV

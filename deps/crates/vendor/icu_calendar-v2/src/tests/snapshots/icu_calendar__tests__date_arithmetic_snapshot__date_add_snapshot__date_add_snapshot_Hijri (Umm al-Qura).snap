@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(1444-6-8, ah era, for calendar Hijri (Umm al-Qura)))
+    +10d → Date(1444-6-18, ah era, for calendar Hijri (Umm al-Qura))
+    +2m → Date(1444-8-8, ah era, for calendar Hijri (Umm al-Qura))
+    +1y → Date(1445-6-8, ah era, for calendar Hijri (Umm al-Qura))
+    +1y 3m 15d → Date(1445-9-23, ah era, for calendar Hijri (Umm al-Qura))
+
+2024-6-15
+  (start: Date(1445-12-9, ah era, for calendar Hijri (Umm al-Qura)))
+    +10d → Date(1445-12-19, ah era, for calendar Hijri (Umm al-Qura))
+    +2m → Date(1446-2-9, ah era, for calendar Hijri (Umm al-Qura))
+    +1y → Date(1446-12-9, ah era, for calendar Hijri (Umm al-Qura))
+    +1y 3m 15d → Date(1447-3-24, ah era, for calendar Hijri (Umm al-Qura))
+
+2025-12-31
+  (start: Date(1447-7-11, ah era, for calendar Hijri (Umm al-Qura)))
+    +10d → Date(1447-7-21, ah era, for calendar Hijri (Umm al-Qura))
+    +2m → Date(1447-9-11, ah era, for calendar Hijri (Umm al-Qura))
+    +1y → Date(1448-7-11, ah era, for calendar Hijri (Umm al-Qura))
+    +1y 3m 15d → Date(1448-10-26, ah era, for calendar Hijri (Umm al-Qura))

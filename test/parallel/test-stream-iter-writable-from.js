@@ -1,0 +1,834 @@
+// Flags: --experimental-stream-iter
+'use strict';
+
+// Tests for toWritable() - creating a classic stream.Writable
+// backed by a stream/iter Writer.
+
+const common = require('../common');
+const assert = require('assert');
+const { once } = require('events');
+const { setImmediate, setTimeout } = require('timers/promises');
+const {
+  push,
+  text,
+  toWritable,
+} = require('stream/iter');
+
+// =============================================================================
+// Basic: write through fromStreamIter writable, read from readable
+// =============================================================================
+
+async function testBasicWrite() {
+  const { writer, readable } = push({ backpressure: 'unbounded' });
+  const writable = toWritable(writer);
+
+  writable.write('hello');
+  writable.write(' world');
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, 'hello world');
+}
+
+async function testFalsyWriterRejectionBecomesClassicError() {
+  const nonCoercible = { __proto__: null };
+  const trapped = new Proxy({}, {
+    getPrototypeOf() { throw new Error('unexpected coercion'); },
+  });
+  for (const [reason, code] of [
+    [null, 'ERR_FALSY_VALUE_REJECTION'],
+    [nonCoercible, 'ERR_OPERATION_FAILED'],
+    [trapped, 'ERR_OPERATION_FAILED'],
+  ]) {
+    let failed = false;
+    let failReason;
+    const writable = toWritable({
+      __proto__: null,
+      write() { return Promise.reject(reason); },
+      fail(error) { failed = true; failReason = error; },
+    });
+    writable.on('error', common.mustCall());
+
+    const { promise, resolve, reject } = Promise.withResolvers();
+    writable.write('data', common.mustCall((error) => {
+      for (const symbol of Object.getOwnPropertySymbols(error)) {
+        delete error[symbol];
+      }
+      if (error) reject(error);
+      else resolve();
+    }));
+
+    await assert.rejects(promise, (error) => {
+      return error.code === code && error.reason === reason;
+    });
+    await setImmediate();
+    assert.strictEqual(failed, true);
+    assert.strictEqual(failReason, reason);
+  }
+}
+
+async function testClassicWrapperReusePreservesErrorIdentity() {
+  const first = toWritable({
+    __proto__: null,
+    write() { return Promise.reject(null); },
+    fail() {},
+  });
+  first.on('error', common.mustCall());
+  let wrapper;
+  {
+    const { promise, resolve } = Promise.withResolvers();
+    first.write('first', common.mustCall((error) => {
+      wrapper = error;
+      resolve();
+    }));
+    await promise;
+  }
+
+  let failReason;
+  const second = toWritable({
+    __proto__: null,
+    write() { return Promise.reject(wrapper); },
+    fail(reason) { failReason = reason; },
+  });
+  second.on('error', common.mustCall());
+  {
+    const { promise, resolve } = Promise.withResolvers();
+    second.write('second', common.mustCall((error) => {
+      assert.strictEqual(error, wrapper);
+      resolve();
+    }));
+    await promise;
+  }
+  await setImmediate();
+  assert.strictEqual(failReason, wrapper);
+}
+
+// =============================================================================
+// _write delegates to writer.write()
+// =============================================================================
+
+async function testWriteDelegatesToWriter() {
+  const chunks = [];
+  // Create a minimal Writer that records writes.
+  const writer = {
+    write(chunk) {
+      chunks.push(Buffer.from(chunk));
+      return Promise.resolve();
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('hello', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
+
+  assert.strictEqual(Buffer.concat(chunks).toString(), 'hello');
+}
+
+// =============================================================================
+// _writev delegates to writer.writev() when available
+// =============================================================================
+
+async function testWritevDelegation() {
+  const batches = [];
+  const writer = {
+    write(chunk) {
+      return Promise.resolve();
+    },
+    writev(chunks) {
+      batches.push(chunks.map((c) => Buffer.from(c)));
+      return Promise.resolve();
+    },
+    writevSync(chunks) {
+      return false;
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  // Cork to batch writes, then uncork to trigger _writev
+  writable.cork();
+  writable.write('a');
+  writable.write('b');
+  writable.write('c');
+  writable.uncork();
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
+
+  // Writev should have been called with the batched chunks
+  assert.ok(batches.length > 0, 'writev should have been called');
+}
+
+// =============================================================================
+// _writev not defined when writer lacks writev
+// =============================================================================
+
+function testNoWritevWithoutWriterWritev() {
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+  };
+
+  const writable = toWritable(writer);
+  // The _writev should be null (Writable default) when writer lacks writev
+  assert.strictEqual(writable._writev, null);
+}
+
+// =============================================================================
+// Try-sync-first: writeSync is attempted before write
+// =============================================================================
+
+async function testWriteSyncFirst() {
+  let syncCalled = false;
+  let asyncCalled = false;
+
+  const writer = {
+    writeSync(chunk) {
+      syncCalled = true;
+      return true;  // Sync path accepted
+    },
+    write(chunk) {
+      asyncCalled = true;
+      return Promise.resolve();
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', resolve);
+  await promise;
+
+  assert.ok(syncCalled, 'writeSync should have been called');
+  assert.ok(!asyncCalled, 'write should not have been called');
+}
+
+// =============================================================================
+// Try-sync-first: falls back to async when writeSync returns false
+// =============================================================================
+
+async function testWriteSyncFallback() {
+  let syncCalled = false;
+  let asyncCalled = false;
+
+  const writer = {
+    writeSync(chunk) {
+      syncCalled = true;
+      return false;  // Sync path rejected
+    },
+    write(chunk) {
+      asyncCalled = true;
+      return Promise.resolve();
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', resolve);
+  await promise;
+
+  assert.ok(syncCalled, 'writeSync should have been called');
+  assert.ok(asyncCalled, 'write should have been called as fallback');
+}
+
+// =============================================================================
+// Try-sync-first: endSync attempted before end
+// =============================================================================
+
+async function testEndSyncFirst() {
+  let endSyncCalled = false;
+  let endAsyncCalled = false;
+
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    endSync() {
+      endSyncCalled = true;
+      return 5;  // Success, returns byte count
+    },
+    end() {
+      endAsyncCalled = true;
+      return Promise.resolve(5);
+    },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
+
+  assert.ok(endSyncCalled, 'endSync should have been called');
+  assert.ok(!endAsyncCalled, 'end should not have been called');
+}
+
+// =============================================================================
+// Try-sync-first: endSync returns -1, falls back to async end
+// =============================================================================
+
+async function testEndSyncFallback() {
+  let endSyncCalled = false;
+  let endAsyncCalled = false;
+
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    endSync() {
+      endSyncCalled = true;
+      return -1;  // Can't complete synchronously
+    },
+    end() {
+      endAsyncCalled = true;
+      return Promise.resolve(0);
+    },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
+
+  assert.ok(endSyncCalled, 'endSync should have been called');
+  assert.ok(endAsyncCalled, 'end should have been called as fallback');
+}
+
+// =============================================================================
+// _final delegates to writer.end()
+// =============================================================================
+
+async function testFinalDelegatesToEnd() {
+  let endCalled = false;
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    end() {
+      endCalled = true;
+      return Promise.resolve(0);
+    },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
+
+  assert.ok(endCalled, 'writer.end() should have been called');
+}
+
+// =============================================================================
+// _destroy delegates to writer.fail()
+// =============================================================================
+
+async function testDestroyDelegatesToFail() {
+  let failReason = null;
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    end() { return Promise.resolve(0); },
+    fail(reason) { failReason = reason; },
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const testErr = new Error('destroy test');
+  writable.destroy(testErr);
+
+  // Give a tick for destroy to propagate
+  await setTimeout(10);
+
+  assert.strictEqual(failReason, testErr);
+}
+
+// =============================================================================
+// Error from writer.write() propagates to writable
+// =============================================================================
+
+async function testWriteErrorPropagation() {
+  const writer = {
+    write(chunk) {
+      return Promise.reject(new Error('write failed'));
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('data', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await assert.rejects(promise, { message: 'write failed' });
+}
+
+// =============================================================================
+// Invalid writer argument throws
+// =============================================================================
+
+function testInvalidWriterThrows() {
+  assert.throws(
+    () => toWritable(null),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.throws(
+    () => toWritable({}),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.throws(
+    () => toWritable('not a writer'),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  // Object with write is valid (only write is required).
+  // This should not throw.
+  toWritable({
+    write() { return Promise.resolve(); },
+  });
+}
+
+// =============================================================================
+// Round-trip: push writer -> fromStreamIter -> write -> read from readable
+// =============================================================================
+
+async function testRoundTrip() {
+  const { writer, readable } = push({ backpressure: 'unbounded' });
+  const writable = toWritable(writer);
+
+  const data = 'round trip test data';
+  writable.write(data);
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, data);
+}
+
+// =============================================================================
+// PushWriter writeSync false accepted as backpressure is not retried
+// =============================================================================
+
+async function testPushWriterBlockBackpressureNoDuplicate() {
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
+  const writable = toWritable(writer);
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('a', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
+
+  writable.write('b');
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, 'ab');
+}
+
+// =============================================================================
+// PushWriter writevSync false accepted as backpressure is not retried
+// =============================================================================
+
+async function testPushWriterBlockBackpressureWritevNoDuplicate() {
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
+  const writable = toWritable(writer);
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('a', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
+
+  writable.cork();
+  writable.write('b');
+  writable.write('c');
+  writable.uncork();
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, 'abc');
+}
+
+// =============================================================================
+// Multiple sequential writes
+// =============================================================================
+
+async function testSequentialWrites() {
+  const { writer, readable } = push({ backpressure: 'unbounded' });
+  const writable = toWritable(writer);
+
+  for (let i = 0; i < 10; i++) {
+    writable.write(`chunk${i}`);
+  }
+  writable.end();
+
+  let expected = '';
+  for (let i = 0; i < 10; i++) {
+    expected += `chunk${i}`;
+  }
+  const result = await text(readable);
+  assert.strictEqual(result, expected);
+}
+
+// =============================================================================
+// Sync callback is deferred via queueMicrotask
+// =============================================================================
+
+async function testSyncCallbackDeferred() {
+  let callbackTick = false;
+
+  const writer = {
+    writeSync(chunk) {
+      return true;
+    },
+    write(chunk) {
+      return Promise.resolve();
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', common.mustCall(() => {
+    callbackTick = true;
+    resolve();
+  }));
+  // Callback should NOT have fired synchronously
+  assert.strictEqual(callbackTick, false);
+  await promise;
+  assert.strictEqual(callbackTick, true);
+}
+
+// =============================================================================
+// Minimal writer: only write() is required
+// =============================================================================
+
+async function testMinimalWriter() {
+  const chunks = [];
+  const writer = {
+    write(chunk) {
+      chunks.push(Buffer.from(chunk));
+      return Promise.resolve();
+    },
+    // No end, fail, writeSync, writev, etc.
+  };
+
+  const writable = toWritable(writer);
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('minimal');
+  writable.end(resolve);
+  await promise;
+
+  assert.strictEqual(Buffer.concat(chunks).toString(), 'minimal');
+}
+
+async function testNormalEndWithoutWriterEndDoesNotFail() {
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    fail: common.mustNotCall(),
+  });
+  const closed = once(writable, 'close');
+
+  writable.end();
+  await closed;
+}
+
+// =============================================================================
+// Destroy without error calls fail()
+// =============================================================================
+
+async function testDestroyWithoutError() {
+  let failCalled = false;
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    fail: common.mustCall(function(reason) {
+      assert.strictEqual(arguments.length, 0);
+      assert.strictEqual(reason, undefined);
+      failCalled = true;
+    }),
+  };
+
+  const writable = toWritable(writer);
+  writable.destroy();
+
+  await setTimeout(10);
+
+  assert.ok(failCalled, 'fail should be called on clean destroy');
+}
+
+async function testDestroyUsesDisposeFallback() {
+  let disposed = false;
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.dispose]() { disposed = true; },
+  });
+
+  writable.destroy();
+  await setTimeout(10);
+
+  assert.strictEqual(disposed, true);
+}
+
+async function testDestroyUsesAsyncDisposeFallback() {
+  const { promise: disposing, resolve } = Promise.withResolvers();
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => disposing),
+  });
+  let closed = false;
+  writable.on('close', () => { closed = true; });
+
+  writable.destroy();
+  await setImmediate();
+  // Destruction completes only once the async dispose settles.
+  assert.strictEqual(closed, false);
+  resolve();
+  await once(writable, 'close');
+}
+
+async function testDestroyWithErrorUsesAsyncDisposeFallback() {
+  const reason = new Error('destroyed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => Promise.resolve()),
+  });
+
+  writable.destroy(reason);
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
+async function testAsyncDisposeRejectionErrorsDestroy() {
+  const reason = new Error('dispose failed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => Promise.reject(reason)),
+  });
+
+  writable.destroy();
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
+async function testDisposeThrowErrorsDestroy() {
+  const reason = new Error('dispose failed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.dispose]: common.mustCall(() => { throw reason; }),
+  });
+
+  writable.destroy();
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
+// =============================================================================
+// Destroy with error calls fail() when available
+// =============================================================================
+
+async function testDestroyWithError() {
+  let failReason = null;
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    fail(reason) { failReason = reason; },
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const err = new Error('test');
+  writable.destroy(err);
+
+  await setTimeout(10);
+
+  assert.strictEqual(failReason, err);
+}
+
+// =============================================================================
+// Destroy with error when writer lacks fail()
+// =============================================================================
+
+async function testDestroyWithoutFail() {
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    // No fail method
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  // Should not throw even though writer has no fail()
+  writable.destroy(new Error('test'));
+
+  await setTimeout(10);
+  assert.ok(writable.destroyed);
+}
+
+// =============================================================================
+// Classic Writable backpressure
+// =============================================================================
+
+function testUsesBoundedHighWaterMark() {
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+  };
+
+  const writable = toWritable(writer);
+  assert.ok(writable.writableHighWaterMark > 0);
+  assert.ok(writable.writableHighWaterMark < Number.MAX_SAFE_INTEGER);
+}
+
+async function testAppliesClassicBackpressure() {
+  let resolveWrite;
+  const writable = toWritable({
+    write: common.mustCall(() => new Promise((resolve) => {
+      resolveWrite = resolve;
+    })),
+  });
+  const chunk = Buffer.alloc(writable.writableHighWaterMark);
+
+  assert.strictEqual(writable.write(chunk), false);
+  const finished = once(writable, 'finish');
+  resolveWrite();
+  writable.end();
+  await finished;
+}
+
+// =============================================================================
+// writeSync throws -- error propagates, does NOT fall back to async
+// =============================================================================
+
+async function testWriteSyncThrowsPropagation() {
+  const writer = {
+    writeSync() {
+      throw new Error('sync broken');
+    },
+    write() {
+      return Promise.resolve();
+    },
+    end() { return Promise.resolve(0); },
+    fail() {},
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('test', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await assert.rejects(promise, { message: 'sync broken' });
+}
+
+// =============================================================================
+// =============================================================================
+// writer.write() throws synchronously -- error propagates to callback
+// =============================================================================
+
+async function testWriteThrowsSyncPropagation() {
+  const writer = {
+    write() {
+      throw new Error('sync throw from write');
+    },
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('data', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+
+  await assert.rejects(promise, { message: 'sync throw from write' });
+}
+
+// =============================================================================
+// writer.end() throws synchronously -- error propagates to callback
+// =============================================================================
+
+async function testEndThrowsSyncPropagation() {
+  const writer = {
+    write(chunk) { return Promise.resolve(); },
+    endSync() { return -1; },
+    end() {
+      throw new Error('sync throw from end');
+    },
+  };
+
+  const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
+
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(common.mustCall((err) => {
+    assert.ok(err);
+    assert.strictEqual(err.message, 'sync throw from end');
+    resolve();
+  }));
+
+  await promise;
+}
+
+// =============================================================================
+// Run all tests
+// =============================================================================
+
+testInvalidWriterThrows();
+testNoWritevWithoutWriterWritev();
+testUsesBoundedHighWaterMark();
+
+Promise.all([
+  testBasicWrite(),
+  testAppliesClassicBackpressure(),
+  testFalsyWriterRejectionBecomesClassicError(),
+  testClassicWrapperReusePreservesErrorIdentity(),
+  testWriteDelegatesToWriter(),
+  testWritevDelegation(),
+  testWriteSyncFirst(),
+  testWriteSyncFallback(),
+  testWriteSyncThrowsPropagation(),
+  testEndSyncFirst(),
+  testEndSyncFallback(),
+  testFinalDelegatesToEnd(),
+  testDestroyDelegatesToFail(),
+  testDestroyWithoutError(),
+  testDestroyUsesDisposeFallback(),
+  testDestroyUsesAsyncDisposeFallback(),
+  testDestroyWithErrorUsesAsyncDisposeFallback(),
+  testAsyncDisposeRejectionErrorsDestroy(),
+  testDisposeThrowErrorsDestroy(),
+  testDestroyWithError(),
+  testDestroyWithoutFail(),
+  testWriteErrorPropagation(),
+  testWriteThrowsSyncPropagation(),
+  testEndThrowsSyncPropagation(),
+  testRoundTrip(),
+  testPushWriterBlockBackpressureNoDuplicate(),
+  testPushWriterBlockBackpressureWritevNoDuplicate(),
+  testSequentialWrites(),
+  testSyncCallbackDeferred(),
+  testMinimalWriter(),
+  testNormalEndWithoutWriterEndDoesNotFail(),
+]).then(common.mustCall());

@@ -1,0 +1,1 @@
+exports.loaded = 'from parent';

@@ -1,0 +1,27 @@
+{
+  'targets': [
+    {
+      'target_name': 'binding',
+      'conditions': [
+        ['OS in "aix os400"', {
+          'variables': {
+            # Used to differentiate `AIX` and `OS400`(IBM i).
+            'aix_variant_name': '<!(uname -s)',
+          },
+          'conditions': [
+            [ '"<(aix_variant_name)"=="OS400"', { # OS400 (IBM i): no sources, skip link
+              'type': 'none',
+            }],
+            [ '"<(aix_variant_name)"!="OS400"', { # Not `OS400`(IBM i)
+              'sources': ['binding.cc'],
+            }],
+          ],
+        }, {
+          'sources': ['binding.cc'],
+        }],
+      ],
+      'includes': ['../common.gypi'],
+      'include_dirs': ['<@(node_shared_zlib_include_dirs)'],
+    },
+  ]
+}

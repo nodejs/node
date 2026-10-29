@@ -1,0 +1,21 @@
+<!doctype html>
+<title>creating 3 sibling dedicated workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var w1 = new Worker('002.js');
+  var w2 = new Worker('002.js');
+  var w3 = new Worker('002.js');
+  var got = [false, false, false];
+  var check_done = t.step_func(function() {
+                       if (got.every(function(x) {return x})) {
+                           t.done();
+                       }
+                   });
+  w1.onmessage = t.step_func(function(e) {got[0] = true; check_done()});
+  w2.onmessage = t.step_func(function(e) {got[1] = true; check_done()});
+  w3.onmessage = t.step_func(function(e) {got[2] = true; check_done()});
+});
+</script>

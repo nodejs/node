@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<!-- Pull in executor_path needed by newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"></script>
+<!-- Pull in importScript / newPopup / newIframe -->
+<script src="/html/anonymous-iframe/resources/common.js"></script>
+<script src="resources/common.js"></script>
+<body>
+<script>
+
+const navigation_handle_null = "Navigation handle returns null";
+const navigation_handle_not_null = "Navigation handle returns not null";
+const opener_null_response = "Window.opener is null";
+const opener_not_null_response = "Window.opener isn't null";
+
+const does_blob_url_open_return_handle = (blob_url, response_queue_name) => `
+  async function test() {
+    const handle = window.open("${blob_url}")
+    if (!handle) {
+      return send("${response_queue_name}", "${navigation_handle_null}");
+    }
+
+    return send("${response_queue_name}", "${navigation_handle_not_null}");
+  }
+  await test();
+`;
+
+const opener_check_frame_html = (noopener_response_queue) => `
+  <!doctype html>
+  <!-- dispatcher.js requires the baseURI to be set in order to compute
+    the server path correctly in the blob URL page. -->
+  <base href="${window.location.href}">
+  <script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"><\/script>
+  <script src="/html/anonymous-iframe/resources/common.js"><\/script>
+  <script src="/common/utils.js"><\/script>
+  <script src="/common/dispatcher/dispatcher.js"><\/script>
+  <script>
+    if (window.opener === null) {
+      send("${noopener_response_queue}", "${opener_null_response}")
+    } else {
+      send("${noopener_response_queue}", "${opener_not_null_response}")
+    }
+  <\/script>
+`;
+
+// Tests blob URL window.open for same and cross partition iframes.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Creates same and cross partition iframes.
+      const response_queue_uuid = token();
+      const noopener_response_queue = token();
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      const blob = new Blob([opener_check_frame_html(noopener_response_queue)], {type : "text/html"});
+      const blob_url = URL.createObjectURL(blob);
+
+      // Attempt to open blob URL in cross partition iframe.
+      await send(cross_site_iframe_uuid, does_blob_url_open_return_handle(blob_url, response_queue_uuid));
+      const response_1 = await receive(response_queue_uuid);
+      if (response_1 !== navigation_handle_null) {
+        reject(`Blob URL handle wasn't null in not-same-top-level-site iframe: ${response_1}`);
+      }
+      const noopener_response_1 = await receive(noopener_response_queue);
+      if (noopener_response_1 !== opener_null_response) {
+        reject(`Blob URL page opener wasn't null in not-same-top-level-site iframe.`);
+      }
+
+      // Attempt to open blob URL in same partition iframe.
+      await send(same_site_iframe_uuid, does_blob_url_open_return_handle(blob_url, response_queue_uuid));
+      const response_2 = await receive(response_queue_uuid);
+      if (response_2 !== navigation_handle_not_null) {
+        reject(`Blob URL wasn't opened in same-top-level-site iframe: ${response_2}`);
+      }
+      const noopener_response_2 = await receive(noopener_response_queue);
+      if (noopener_response_2 !== opener_not_null_response) {
+        reject(`Blob URL page opener was null in same-top-level-site iframe`);
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL window.open should enforce noopener for a cross-top-level-site navigation");
+
+const blob_url_iframe_html = (response_queue_uuid, message) => `
+  <!doctype html>
+  <!-- dispatcher.js requires the baseURI to be set in order to compute
+    the server path correctly in the blob URL page. -->
+  <base href="${window.location.href}">
+  <script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"><\/script>
+  <script src="/html/anonymous-iframe/resources/common.js"><\/script>
+  <script src="/common/utils.js"><\/script>
+  <script src="/common/dispatcher/dispatcher.js"><\/script>
+  <script>
+      send("${response_queue_uuid}", "${message}");
+  <\/script>
+`;
+
+const create_iframe_with_blob_url = (blob_url, response_queue_uuid) => `
+  const iframe = document.createElement('iframe');
+  iframe.src = "${blob_url}";
+  iframe.onload = () => {
+    const same_site_message = "same_partition_loaded";
+    const blob_url_iframe_html = ${blob_url_iframe_html};
+    const same_top_level_site_blob = new Blob([blob_url_iframe_html("${response_queue_uuid}", same_site_message)], {type : "text/html"});
+    const same_top_level_site_blob_url = URL.createObjectURL(same_top_level_site_blob);
+    const iframe2 = document.createElement('iframe');
+    iframe2.src = same_top_level_site_blob_url;
+    document.body.appendChild(iframe2);
+  };
+  document.body.appendChild(iframe);
+`;
+
+// Tests blob URL subframe navigations for same and cross partition iframes.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Creates same and cross partition iframes.
+      const response_queue_uuid = token();
+      const cross_site_message = "cross_partition_loaded";
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      // Create blob URL for the cross-site test.
+      const cross_site_blob = new Blob([blob_url_iframe_html(response_queue_uuid, cross_site_message)], {type: "text/html"});
+      const cross_site_blob_url = URL.createObjectURL(cross_site_blob);
+
+      // Attempt to open blob URL in cross partition iframe.
+      await send(cross_site_iframe_uuid, create_iframe_with_blob_url(cross_site_blob_url, response_queue_uuid));
+
+      const response = await receive(response_queue_uuid);
+      if (response === cross_site_message) {
+        reject(`Blob URL subframe navigation succeeded in not-same-top-level-site iframe.`);
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL should partition subframe navigation.");
+
+const open_blob_url_window_via_a_click = (blob_url) => `
+  const link = document.createElement("a");
+  link.href = "${blob_url}";
+  link.target = "_blank";
+  link.rel = "opener";
+  document.body.appendChild(link);
+  link.click();
+`;
+
+// Tests blob URL `<a target="_blank" rel="opener">` click for same and cross partition iframes.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Creates same and cross partition iframes.
+      const noopener_response_queue = token();
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] = await create_test_iframes(t, token());
+
+      const blob = new Blob([opener_check_frame_html(noopener_response_queue)], {type : "text/html"});
+      const blob_url = URL.createObjectURL(blob);
+
+      // Attempt to click blob URL in cross partition iframe.
+      await send(cross_site_iframe_uuid, open_blob_url_window_via_a_click(blob_url));
+      const noopener_response_1 = await receive(noopener_response_queue);
+      if (noopener_response_1 !== opener_null_response) {
+        reject(`Blob URL page opener wasn't null in not-same-top-level-site iframe.`);
+      }
+
+      // Attempt to click blob URL in same partition iframe.
+      await send(same_site_iframe_uuid, open_blob_url_window_via_a_click(blob_url));
+      const noopener_response_2 = await receive(noopener_response_queue);
+      if (noopener_response_2 !== opener_not_null_response) {
+        reject(`Blob URL page opener was null in same-top-level-site iframe`);
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL link click should enforce noopener for a cross-top-level-site navigation");
+
+const open_blob_url_window_via_area_click = (blob_url) => `
+  const canvas = document.createElement("canvas");
+  canvas.height = 1;
+  canvas.width = 1;
+  const dataURL = canvas.toDataURL();
+
+  const image = document.createElement("img");
+  image.src = dataURL;
+  document.body.appendChild(image);
+
+  const map = document.createElement("map");
+  map.name = "map";
+  image.useMap = "#map";
+  document.body.appendChild(map);
+
+  const area = document.createElement("area");
+  area.shape = "rect";
+  area.coords = "0,0,1,1";
+  area.href = "${blob_url}";
+  area.target = "_blank";
+  area.rel = "opener";
+  map.appendChild(area);
+  area.click();
+`;
+
+// Tests blob URL `<area target="_blank" rel="opener">` click for same and cross partition iframes.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Creates same and cross partition iframes.
+      const noopener_response_queue = token();
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] = await create_test_iframes(t, token());
+
+      const blob = new Blob([opener_check_frame_html(noopener_response_queue)], {type : "text/html"});
+      const blob_url = URL.createObjectURL(blob);
+
+      // Attempt to click blob URL in cross partition iframe.
+      await send(cross_site_iframe_uuid, open_blob_url_window_via_area_click(blob_url));
+      const noopener_response_1 = await receive(noopener_response_queue);
+      if (noopener_response_1 !== opener_null_response) {
+        reject(`Blob URL page opener wasn't null in not-same-top-level-site iframe.`);
+      }
+
+      // Attempt to click blob URL in same partition iframe.
+      await send(same_site_iframe_uuid, open_blob_url_window_via_area_click(blob_url));
+      const noopener_response_2 = await receive(noopener_response_queue);
+      if (noopener_response_2 !== opener_not_null_response) {
+        reject(`Blob URL page opener was null in same-top-level-site iframe`);
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL area element click should enforce noopener for a cross-top-level-site navigation");
+
+</script>
+</body>

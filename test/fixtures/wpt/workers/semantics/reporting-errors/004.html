@@ -1,0 +1,26 @@
+<!doctype html>
+<title>shared worker in two documents and window.onerror</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({allow_uncaught_exception:true});
+var t = async_test(function() {
+  window.onerror = this.step_func(function(a) {
+    assert_unreached('(outer) window.onerror invoked: ' + a);
+  });
+  var worker = new SharedWorker('004.js', '');
+  worker.addEventListener('error', this.step_func(function(e) {
+    assert_unreached('(outer) error on worker');
+  }), false);
+  worker.port.addEventListener('error', this.step_func(function(e) {
+    assert_unreached('(outer) error on port');
+  }), false);
+  worker.port.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, 1);
+    var iframe = document.createElement('iframe');
+    iframe.src = '004-1.html';
+    document.body.appendChild(iframe);
+  });
+});
+</script>

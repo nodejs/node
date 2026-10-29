@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates Resource Timing for cross origin content fetched by Service Worker from an originally same-origin URL.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+</head>
+
+<body>
+<script>
+function test_sw_resource_timing({ mode }) {
+    promise_test(async t => {
+      const worker_url = `resources/worker-fetching-cross-origin.js?mode=${mode}`;
+      const scope = 'resources/iframe-with-image.html';
+      const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+      await wait_for_state(t, registration.installing, 'activated');
+      const frame = await with_iframe(scope);
+      const frame_performance = frame.contentWindow.performance;
+      // Check that there is one entry for which the timing allow check algorithm failed.
+      const entries = frame_performance.getEntriesByType('resource');
+      assert_equals(entries.length, 1);
+      const entry = entries[0];
+      assert_equals(entry.redirectStart, 0, 'redirectStart should be 0 in cross-origin request.');
+      assert_equals(entry.redirectEnd, 0, 'redirectEnd should be 0 in cross-origin request.');
+
+      assert_equals(entry.domainLookupStart, entry.fetchStart, 'domainLookupStart and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.domainLookupEnd, entry.fetchStart, 'domainLookupEnd and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.connectStart, entry.fetchStart, 'connectStart and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.connectEnd, entry.fetchStart, 'connectEnd and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.responseStart, entry.fetchStart, 'responseStart and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.secureConnectionStart, entry.fetchStart, 'secureConnectionStart and fetchStart should be the same in cross-origin request.');
+      assert_equals(entry.transferSize, 300, 'transferSize should be 300 in cross-origin request.');
+      frame.remove();
+      await registration.unregister();
+  }, `Test that timing allow check fails when service worker changes origin from same to cross origin (${mode}).`);
+}
+
+test_sw_resource_timing({ mode: "cors" });
+test_sw_resource_timing({ mode: "no-cors" });
+
+
+</script>
+</body>
+</html>

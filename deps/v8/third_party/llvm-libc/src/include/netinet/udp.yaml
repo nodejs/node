@@ -1,0 +1,9 @@
+header: netinet/udp.h
+standards:
+  - linux
+macros: []
+types:
+  - type_name: struct_udphdr
+enums: []
+objects: []
+functions: []

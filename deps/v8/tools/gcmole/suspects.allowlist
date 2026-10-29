@@ -1,0 +1,5 @@
+IsConstructor
+IsEval
+IsAsync
+IsPromiseAll
+IsPromiseAny

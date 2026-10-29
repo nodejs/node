@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- This test requires browser to treat all registrations are older than 24 hours.
+     Preference 'dom.serviceWorkers.testUpdateOverOneDay' should be enabled during
+     the execution of the test -->
+<title>Service Worker: Functional events should trigger update if last update time is over 24 hours</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+    var script = 'resources/update-nocookie-worker.py';
+    var scope = 'resources/update/update-after-oneday.https.html';
+    var expected_url = normalizeURL(script);
+    var registration;
+    var frame;
+
+    return service_worker_unregister_and_register(t, expected_url, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(f) {
+          frame = f;
+          return wait_for_update(t, registration);
+        })
+      .then(function() {
+          assert_equals(registration.installing.scriptURL, expected_url,
+                        'new installing should be set after update resolves.');
+          assert_equals(registration.waiting, null,
+                        'waiting should still be null after update resolves.');
+          assert_equals(registration.active.scriptURL, expected_url,
+                        'active should still exist after update found.');
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          // Trigger a non-navigation fetch event
+          frame.contentWindow.load_image(normalizeURL('resources/update/sample'));
+          return wait_for_update(t, registration);
+       })
+       .then(function() {
+          frame.remove();
+       })
+  }, 'Update should be triggered after a functional event when last update time is over 24 hours');
+
+</script>

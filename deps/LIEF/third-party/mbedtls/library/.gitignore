@@ -1,0 +1,12 @@
+libmbed*
+*.sln
+*.vcxproj
+
+###START_GENERATED_FILES###
+/error.c
+/mbedtls_config_check_before.h
+/mbedtls_config_check_final.h
+/mbedtls_config_check_user.h
+/version_features.c
+/ssl_debug_helpers_generated.c
+###END_GENERATED_FILES###

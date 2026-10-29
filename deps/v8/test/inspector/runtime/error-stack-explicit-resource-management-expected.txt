@@ -1,0 +1,61 @@
+Checks that Error.stack works correctly in Explicit Resource Management.
+
+Running test: testErrorStackWithRuntimeDisabled
+{
+    className : Error
+    description : Error: Error thrown in using.     at [Symbol.dispose] (test.js:6:13)     at testUsing (test.js:3:22)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in await using.     at [Symbol.asyncDispose] (test.js:15:13)     at testAwaitUsing (test.js:12:28)     at callTestAwaitUsing (test.js:20:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in DisposableStack.     at [Symbol.dispose] (test.js:28:13)     at DisposableStack.dispose (<anonymous>)     at testDisposableStack (test.js:32:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in AsyncDisposableStack.     at [Symbol.asyncDispose] (test.js:40:13)     at AsyncDisposableStack.disposeAsync (<anonymous>)     at testAsyncDisposableStack (test.js:44:15)     at callTestAsyncDisposableStack (test.js:47:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+
+Running test: testErrorStackWithRuntimeEnabled
+{
+    className : Error
+    description : Error: Error thrown in using.     at [Symbol.dispose] (test.js:6:13)     at testUsing (test.js:3:22)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in await using.     at [Symbol.asyncDispose] (test.js:15:13)     at testAwaitUsing (test.js:12:28)     at callTestAwaitUsing (test.js:20:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in DisposableStack.     at [Symbol.dispose] (test.js:28:13)     at DisposableStack.dispose (<anonymous>)     at testDisposableStack (test.js:32:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+{
+    className : Error
+    description : Error: Error thrown in AsyncDisposableStack.     at [Symbol.asyncDispose] (test.js:40:13)     at AsyncDisposableStack.disposeAsync (<anonymous>)     at testAsyncDisposableStack (test.js:44:15)     at callTestAsyncDisposableStack (test.js:47:9)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}

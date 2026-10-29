@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: await is only valid in async functions and the top level bodies of modules
+function f() { await Promise.resolve(); }
+               ^^^^^
+SyntaxError: await is only valid in async functions and the top level bodies of modules

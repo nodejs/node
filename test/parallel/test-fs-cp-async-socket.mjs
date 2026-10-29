@@ -1,0 +1,30 @@
+// This tests that cp() returns an error if attempt is made to copy socket.
+
+import * as common from '../common/index.mjs';
+import assert from 'node:assert';
+import { cp } from 'node:fs';
+import { createServer } from 'node:net';
+import { nextdir } from '../common/fs.js';
+import tmpdir from '../common/tmpdir.js';
+
+const isWindows = process.platform === 'win32';
+if (isWindows) {
+  common.skip('No socket support on Windows');
+}
+
+// See https://github.com/nodejs/node/pull/48409
+if (common.isInsideDirWithUnusualChars) {
+  common.skip('Test is broken in directories with unusual characters');
+}
+
+tmpdir.refresh();
+
+{
+  const dest = nextdir();
+  const server = createServer();
+  server.listen(common.PIPE);
+  cp(common.PIPE, dest, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_FS_CP_SOCKET');
+    server.close();
+  }));
+}

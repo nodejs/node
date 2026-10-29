@@ -1,0 +1,46 @@
+{
+  "name": "json-parse-even-better-errors",
+  "version": "6.0.0",
+  "description": "JSON.parse with context information on error",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "test": "node --test './test/**/*.js'",
+    "snap": "node --test --test-update-snapshots './test/**/*.js'",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:node20": "node --test test",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 './test/**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/json-parse-even-better-errors.git"
+  },
+  "keywords": [
+    "JSON",
+    "parser"
+  ],
+  "author": "GitHub Inc.",
+  "license": "MIT",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^6.0.0",
+    "@npmcli/template-oss": "5.0.0"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.0.0",
+    "publish": true,
+    "testRunner": "node:test",
+    "latestCiVersion": 24
+  }
+}

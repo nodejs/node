@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<!-- Pull in the with_iframe helper function from the service worker tests -->
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+const BC0_FIRST_MSG = 'from BC0 - first';
+const BC1_FIRST_MSG = 'from BC1 - first';
+const BC2_FIRST_MSG = 'from BC2 - first';
+const BC3_FIRST_MSG = 'from BC3 - first';
+const BC0_SECOND_MSG = 'from BC0 - second';
+const BC1_SECOND_MSG = 'from BC1 - second';
+const BC2_SECOND_MSG = 'from BC2 - second';
+const BC3_SECOND_MSG = 'done';
+const BC0_TARGET_NAME = 'BC1';
+const BC1_TARGET_NAME = 'BC1';
+const BC2_TARGET_NAME = 'BC2';
+const BC3_TARGET_NAME = 'BC3';
+const MULTI_FRAME_ORDERING_TEST_CHANNEL_NAME = 'multi-frame-order';
+
+const bc0 = new BroadcastChannel(MULTI_FRAME_ORDERING_TEST_CHANNEL_NAME);
+const messages = [];
+
+function logReceivedMessage(targetname, e) {
+  messages.push({'target': targetname, 'data': e.data});
+}
+
+function postMessagesToChannel() {
+  return new Promise((resolve) => {
+    bc0.postMessage(BC0_FIRST_MSG);
+    bc0.postMessage(BC0_SECOND_MSG);
+    resolve();
+  });
+}
+
+// Expected flow of messages between the BroadcastChannel objects (based on
+// the requirement that messages get delivered to BroadcastChannel objects
+// "in creation order, oldest first") and comments describing the actions
+// taken in response to each event
+const EXPECTED_RESULTS = [
+  // -> BC0 sends two messages, BC1 and BC2 are connected to the channel
+
+  {'data': BC0_FIRST_MSG, 'target': BC1_TARGET_NAME},
+  // -> BC1 Creates BC3 and sends first message
+
+  {'data': BC0_FIRST_MSG, 'target': BC2_TARGET_NAME},
+  // -> BC2 sends two messages
+
+  // BC3 isn't expected to receive the messages sent before it was created, so
+  // no corresponding entries here for messages from BC0.
+
+  {'data': BC0_SECOND_MSG, 'target': BC1_TARGET_NAME},
+  // -> BC1 sends second message
+
+  {'data': BC0_SECOND_MSG, 'target': BC2_TARGET_NAME},
+  // -> BC2 closes
+
+  {'data': BC1_FIRST_MSG, 'target': BC0_TARGET_NAME},
+
+  {'data': BC1_FIRST_MSG, 'target': BC3_TARGET_NAME},
+  // -> BC3 sends first message
+
+  {'data': BC2_FIRST_MSG, 'target': BC0_TARGET_NAME},
+
+  {'data': BC2_FIRST_MSG, 'target': BC1_TARGET_NAME},
+  // -> BC1 closes
+
+  {'data': BC2_FIRST_MSG, 'target': BC3_TARGET_NAME},
+  // -> BC3 sends second message
+
+  {'data': BC2_SECOND_MSG, 'target': BC0_TARGET_NAME},
+
+  {'data': BC2_SECOND_MSG, 'target': BC3_TARGET_NAME},
+  // -> BC3 closes
+
+  {'data': BC1_SECOND_MSG, 'target': BC0_TARGET_NAME},
+
+  {'data': BC3_FIRST_MSG, 'target': BC0_TARGET_NAME},
+
+  {'data': BC3_SECOND_MSG, 'target': BC0_TARGET_NAME},
+];
+
+function testCompletion(t) {
+  return new Promise((resolve) => {
+    bc0.onmessage = t.step_func(e => {
+      logReceivedMessage(BC0_TARGET_NAME, e);
+      if (e.data == BC3_SECOND_MSG) {
+        assert_equals(messages.length, EXPECTED_RESULTS.length);
+        for(var i = 0; i < messages.length; i++) {
+          assert_equals(messages[i].target, EXPECTED_RESULTS[i].target, `Message ${i+1} has unexpected target`);
+          assert_equals(messages[i].data, EXPECTED_RESULTS[i].data, `Message ${i+1} has unexpected message contents`);
+        }
+        resolve();
+      }
+    });
+  });
+}
+
+promise_test(async t => {
+
+  const testResults = testCompletion(t);
+  // Await them sequentially because we need the BroadcastChannel object in
+  // iframe1 to be created first, we need the BroadcastChannel object in
+  // iframe2 to be created second, and then we only want to call
+  // postMessagesToChannel once both BroadcastChannels have been created.
+  await with_iframe('resources/ordering.html?id=iframe1');
+  await with_iframe('resources/ordering.html?id=iframe2');
+  await postMessagesToChannel();
+  return testResults;
+}, "Messages are delivered in port creation order across multiple frames");
+
+</script>
+</body>

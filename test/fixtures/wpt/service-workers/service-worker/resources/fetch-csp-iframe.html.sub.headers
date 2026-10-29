@@ -1,0 +1,1 @@
+Content-Security-Policy: img-src https://{{host}}:{{ports[https][0]}}; connect-src 'unsafe-inline' 'self'

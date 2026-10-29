@@ -1,0 +1,37 @@
+header: setjmp.h
+standards:
+  - stdc
+types:
+  - type_name: jmp_buf
+functions:
+  - name: longjmp
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: jmp_buf
+      - type: int
+  - name: setjmp
+    standards:
+      - stdc
+    return_type: int
+    attributes:
+      - _Returns_twice
+    arguments:
+      - type: jmp_buf
+  - name: sigsetjmp
+    standards:
+      - posix
+    return_type: int
+    attributes:
+      - _Returns_twice
+    arguments:
+      - type: sigjmp_buf
+      - type: int
+  - name: siglongjmp
+    standards:
+      - posix
+    return_type: _Noreturn void
+    arguments:
+      - type: sigjmp_buf
+      - type: int

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<title>Service Worker: claim client using registration</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+    var scope = 'resources/';
+    var frame_url = 'resources/blank.html?using-different-registration';
+    var url1 = 'resources/empty.js';
+    var url2 = 'resources/claim-worker.js';
+    var worker, sw_registration, frame;
+    return service_worker_unregister_and_register(t, url1, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(frame_url);
+        })
+      .then(function(f) {
+          frame = f;
+          return navigator.serviceWorker.register(url2, {scope: frame_url});
+        })
+      .then(function(registration) {
+          worker = registration.installing;
+          sw_registration = registration;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var saw_controllerchanged = new Promise(function(resolve) {
+              frame.contentWindow.navigator.serviceWorker.oncontrollerchange =
+                  function() { resolve(); }
+            });
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = t.step_func(function(e) {
+                  assert_equals(e.data, 'PASS',
+                                'Worker call to claim() should fulfill.');
+                  resolve();
+                });
+            });
+          worker.postMessage({port: channel.port2}, [channel.port2]);
+          return Promise.all([saw_controllerchanged, saw_message]);
+        })
+      .then(function() {
+          assert_equals(
+              frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+              normalizeURL(url2),
+              'Frame1 controller scriptURL should be changed to url2');
+          frame.remove();
+          return sw_registration.unregister();
+        });
+  }, 'Test worker claims client which is using another registration');
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html?using-same-registration';
+    var url1 = 'resources/empty.js';
+    var url2 = 'resources/claim-worker.js';
+    var frame, worker;
+    return service_worker_unregister_and_register(t, url1, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          return navigator.serviceWorker.register(url2, {scope: scope});
+        })
+      .then(function(registration) {
+          worker = registration.installing;
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = t.step_func(function(e) {
+                  assert_equals(e.data, 'FAIL: exception: InvalidStateError',
+                                'Worker call to claim() should reject with ' +
+                                'InvalidStateError');
+                  resolve();
+                });
+            });
+          worker.postMessage({port: channel.port2}, [channel.port2]);
+          return saw_message;
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Test for the waiting worker claims a client which is using the ' +
+     'same registration');
+
+</script>

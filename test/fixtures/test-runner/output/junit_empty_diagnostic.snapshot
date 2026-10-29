@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="failing" time="*" classname="test" file="*" failure="error">
+		<failure type="testCodeFailure" message="error">
+[Error [ERR_TEST_FAILURE]: error] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: Error: error
+      at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/junit_empty_diagnostic.js:7:9)
+      at <node-internal-frames>
+}
+		</failure>
+	</testcase>
+	<!--  -->
+	<!-- tests 1 -->
+	<!-- suites 0 -->
+	<!-- pass 0 -->
+	<!-- fail 1 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms * -->
+</testsuites>

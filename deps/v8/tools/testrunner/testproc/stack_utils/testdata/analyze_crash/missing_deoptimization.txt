@@ -1,0 +1,24 @@
+
+
+#
+# Fatal error in , line 0
+# Missing deoptimization information for OptimizedFrame::Summarize.
+#
+#
+#
+#FailureMessage Object: 0x7ffc291ecd70
+==== C stack trace ===============================
+
+    /b/s/w/ir/out/build/d8(__interceptor_backtrace+0xca) [0x559a3689f74a]
+    /b/s/w/ir/out/build/d8(+0x1d3da40) [0x559a380f9a40]
+    /b/s/w/ir/out/build/d8(+0x1d3cd54) [0x559a380f8d54]
+    /b/s/w/ir/out/build/d8(+0x1d2af46) [0x559a380e6f46]
+    /b/s/w/ir/out/build/d8(+0x803da6) [0x559a36bbfda6]
+    /b/s/w/ir/out/build/d8(+0x7fc16d) [0x559a36bb816d]
+    /b/s/w/ir/out/build/d8(+0x8180f8) [0x559a36bd40f8]
+    /b/s/w/ir/out/build/d8(+0x816ad4) [0x559a36bd2ad4]
+    /b/s/w/ir/out/build/d8(+0x8163a4) [0x559a36bd23a4]
+    /b/s/w/ir/out/build/d8(+0xf772fc) [0x559a373332fc]
+    [0x5599bfe6fe78]
+Received signal 6
+Aborted (core dumped)

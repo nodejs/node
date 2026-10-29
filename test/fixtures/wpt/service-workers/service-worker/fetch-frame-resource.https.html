@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<title>Service Worker: Fetch for the frame loading.</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var worker = 'resources/fetch-rewrite-worker.js';
+var path = base_path() + 'resources/fetch-access-control.py';
+var host_info = get_host_info();
+
+function getLoadedObject(t, win, contentFunc, closeFunc) {
+  return new Promise(function(resolve) {
+      function done(contentString) {
+        var result = null;
+        // fetch-access-control.py returns a string like "report( <json> )".
+        // Eval the returned string with a report functionto get the json
+        // object.
+        try {
+          function report(obj) { result = obj };
+          eval(contentString);
+        } catch(e) {
+          // just resolve null if we get unexpected page content
+        }
+        closeFunc(win);
+        resolve(result);
+      }
+
+      // We can't catch the network error on window. So we use the timer.
+      var timeout = t.step_timeout(function() {
+          // Failure pages are considered cross-origin in some browsers.  This
+          // means you cannot even .resolve() the window because the check for
+          // the .then property will throw.  Instead, treat cross-origin
+          // failure pages as the empty string which will fail to parse as the
+          // expected json result.
+          var content = '';
+          try {
+            content = contentFunc(win);
+          } catch(e) {
+            // use default empty string for cross-domain window
+          }
+          done(content);
+        // TODO(https://github.com/w3c/ServiceWorker/issues/1194): adjust timeout.
+        // 10,000 ms was set when `setTimeout()` was used here, which can be too large.
+        }, 10000);
+
+      win.onload = function() {
+          clearTimeout(timeout);
+          let content = '';
+          try {
+            content = contentFunc(win);
+          } catch(e) {
+            // use default empty string for cross-domain window (see above)
+          }
+          done(content);
+        };
+    });
+}
+
+function getLoadedFrameAsObject(t, frame) {
+  return getLoadedObject(t, frame, function(f) {
+      return f.contentDocument.body.textContent;
+    }, function(f) {
+      f.parentNode.removeChild(f);
+    });
+}
+
+function getLoadedWindowAsObject(t, win) {
+  return getLoadedObject(t, win, function(w) {
+      return w.document.body.textContent
+    }, function(w) {
+      w.close();
+    });
+}
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/frame-basic';
+    var frame;
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          frame = document.createElement('iframe');
+          frame.src =
+            scope + '?url=' +
+            encodeURIComponent(host_info['HTTPS_ORIGIN'] + path);
+          document.body.appendChild(frame);
+          return getLoadedFrameAsObject(t, frame);
+        })
+      .then(function(result) {
+          assert_equals(
+            result.jsonpResult,
+            'success',
+            'Basic type response could be loaded in the iframe.');
+          frame.remove();
+        });
+  }, 'Basic type response could be loaded in the iframe.');
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/frame-cors';
+    var frame;
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          frame = document.createElement('iframe');
+          frame.src =
+            scope + '?mode=cors&url=' +
+            encodeURIComponent(host_info['HTTPS_REMOTE_ORIGIN'] + path +
+                               '?ACAOrigin=' + host_info['HTTPS_ORIGIN'] +
+                               '&ACACredentials=true');
+          document.body.appendChild(frame);
+          return getLoadedFrameAsObject(t, frame);
+        })
+      .then(function(result) {
+          assert_equals(
+            result.jsonpResult,
+            'success',
+            'CORS type response could be loaded in the iframe.');
+          frame.remove();
+        });
+  }, 'CORS type response could be loaded in the iframe.');
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/frame-opaque';
+    var frame;
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          frame = document.createElement('iframe');
+          frame.src =
+            scope + '?mode=no-cors&url=' +
+            encodeURIComponent(host_info['HTTPS_REMOTE_ORIGIN'] + path);
+          document.body.appendChild(frame);
+          return getLoadedFrameAsObject(t, frame);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            null,
+            'Opaque type response could not be loaded in the iframe.');
+          frame.remove();
+        });
+  }, 'Opaque type response could not be loaded in the iframe.');
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/window-basic';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          var win = window.open(
+            scope + '?url=' +
+            encodeURIComponent(host_info['HTTPS_ORIGIN'] + path));
+          return getLoadedWindowAsObject(t, win);
+        })
+      .then(function(result) {
+          assert_equals(
+            result.jsonpResult,
+            'success',
+            'Basic type response could be loaded in the new window.');
+        });
+  }, 'Basic type response could be loaded in the new window.');
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/window-cors';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          var win = window.open(
+            scope + '?mode=cors&url=' +
+            encodeURIComponent(host_info['HTTPS_REMOTE_ORIGIN'] + path +
+                               '?ACAOrigin=' + host_info['HTTPS_ORIGIN'] +
+                               '&ACACredentials=true'));
+          return getLoadedWindowAsObject(t, win);
+        })
+      .then(function(result) {
+          assert_equals(
+            result.jsonpResult,
+            'success',
+            'CORS type response could be loaded in the new window.');
+        });
+  }, 'CORS type response could be loaded in the new window.');
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-frame-resource/window-opaque';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          var win = window.open(
+            scope + '?mode=no-cors&url=' +
+            encodeURIComponent(host_info['HTTPS_REMOTE_ORIGIN'] + path));
+          return getLoadedWindowAsObject(t, win);
+        })
+      .then(function(result) {
+          assert_equals(
+            result,
+            null,
+            'Opaque type response could not be loaded in the new window.');
+        });
+  }, 'Opaque type response could not be loaded in the new window.');
+</script>
+</body>

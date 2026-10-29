@@ -1,0 +1,13 @@
+<!doctype html>
+<title>clearInterval</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var worker = new Worker('004.js');
+  var i = 0;
+  worker.onmessage = function() { i++; }
+  setTimeout(this.step_func(function() { assert_equals(i, 0); this.done(); }), 100);
+});
+</script>

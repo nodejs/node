@@ -1,0 +1,277 @@
+// Copyright 2017 The Abseil Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Tests for pointer utilities.
+
+#include "absl/memory/memory.h"
+
+#include <sys/types.h>
+
+#include <cstddef>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace {
+
+using ::testing::ElementsAre;
+using ::testing::Return;
+
+// This class creates observable behavior to verify that a destructor has
+// been called, via the instance_count variable.
+class DestructorVerifier {
+ public:
+  DestructorVerifier() { ++instance_count_; }
+  DestructorVerifier(const DestructorVerifier&) = delete;
+  DestructorVerifier& operator=(const DestructorVerifier&) = delete;
+  ~DestructorVerifier() { --instance_count_; }
+
+  // The number of instances of this class currently active.
+  static int instance_count() { return instance_count_; }
+
+ private:
+  // The number of instances of this class currently active.
+  static int instance_count_;
+};
+
+int DestructorVerifier::instance_count_ = 0;
+
+TEST(WrapUniqueTest, WrapUnique) {
+  // Test that the unique_ptr is constructed properly by verifying that the
+  // destructor for its payload gets called at the proper time.
+  {
+    auto dv = new DestructorVerifier;
+    EXPECT_EQ(1, DestructorVerifier::instance_count());
+    std::unique_ptr<DestructorVerifier> ptr = absl::WrapUnique(dv);
+    EXPECT_EQ(1, DestructorVerifier::instance_count());
+  }
+  EXPECT_EQ(0, DestructorVerifier::instance_count());
+}
+
+TEST(MakeUniqueForOverwriteTest, Basic) {
+  std::unique_ptr<int> p = absl::make_unique_for_overwrite<int>();
+  p = absl::make_unique_for_overwrite<int>();
+}
+
+// The initialization tests needs to suppress dead-store elimination, otherwise
+// memset is optimized away, and lifetime is assumed begin after new, triggering
+// uninitalized variable warnings. Various tricks to prevent memset from being
+// optimized away still result in uninitialized variable warnings.  Once we move
+// to a C++20 floor we can delegate to std::make_unique_for_overwrite and avoid
+// testing absl::make_unique_for_overwrite.
+// https://github.com/gcc-mirror/gcc/blob/be1da01067c898a3e3979bfb1edd05f115ab2e3e/libstdc%2B%2B-v3/testsuite/20_util/unique_ptr/creation/for_overwrite.cc#L1
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+#endif
+
+// InitializationVerifier fills in a pattern when allocated so we can
+// distinguish between its default and value initialized states (without
+// accessing truly uninitialized memory).
+struct InitializationVerifier {
+  static constexpr int kDefaultScalar = 0x43;
+  static constexpr int kDefaultArray = 0x4B;
+
+  static void* operator new(size_t n) {
+    void* ret = ::operator new(n);
+    memset(ret, kDefaultScalar, n);
+    return ret;
+  }
+
+  static void* operator new[](size_t n) {
+    void* ret = ::operator new[](n);
+    memset(ret, kDefaultArray, n);
+    return ret;
+  }
+
+  int a;
+  int b;
+};
+
+TEST(Initialization, MakeUniqueForOverwrite) {
+  auto p = absl::make_unique_for_overwrite<InitializationVerifier>();
+
+  int pattern;
+  memset(&pattern, InitializationVerifier::kDefaultScalar, sizeof(pattern));
+
+  EXPECT_EQ(pattern, p->a);
+  EXPECT_EQ(pattern, p->b);
+}
+
+TEST(Initialization, MakeUniqueForOverwriteArray) {
+  auto p = absl::make_unique_for_overwrite<InitializationVerifier[]>(2);
+
+  int pattern;
+  memset(&pattern, InitializationVerifier::kDefaultArray, sizeof(pattern));
+
+  EXPECT_EQ(pattern, p[0].a);
+  EXPECT_EQ(pattern, p[0].b);
+  EXPECT_EQ(pattern, p[1].a);
+  EXPECT_EQ(pattern, p[1].b);
+}
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC pop_options
+#endif
+
+struct ArrayWatch {
+  void* operator new[](size_t n) {
+    allocs().push_back(n);
+    return ::operator new[](n);
+  }
+  void operator delete[](void* p) { return ::operator delete[](p); }
+  static std::vector<size_t>& allocs() {
+    static auto& v = *new std::vector<size_t>;
+    return v;
+  }
+};
+
+TEST(MakeUniqueForOverwriteTest, Array) {
+  // Ensure state is clean before we start so that these tests
+  // are order-agnostic.
+  ArrayWatch::allocs().clear();
+
+  auto p = absl::make_unique_for_overwrite<ArrayWatch[]>(5);
+  static_assert(std::is_same_v<decltype(p), std::unique_ptr<ArrayWatch[]>>,
+                "unexpected return type");
+  EXPECT_THAT(ArrayWatch::allocs(), ElementsAre(5 * sizeof(ArrayWatch)));
+}
+
+TEST(RawPtrTest, RawPointer) {
+  int i = 5;
+  EXPECT_EQ(&i, absl::RawPtr(&i));
+}
+
+TEST(RawPtrTest, SmartPointer) {
+  int* o = new int(5);
+  std::unique_ptr<int> p(o);
+  EXPECT_EQ(o, absl::RawPtr(p));
+}
+
+class IntPointerNonConstDeref {
+ public:
+  explicit IntPointerNonConstDeref(int* p) : p_(p) {}
+  friend bool operator!=(const IntPointerNonConstDeref& a, std::nullptr_t) {
+    return a.p_ != nullptr;
+  }
+  int& operator*() { return *p_; }
+
+ private:
+  std::unique_ptr<int> p_;
+};
+
+TEST(RawPtrTest, SmartPointerNonConstDereference) {
+  int* o = new int(5);
+  IntPointerNonConstDeref p(o);
+  EXPECT_EQ(o, absl::RawPtr(p));
+}
+
+TEST(RawPtrTest, NullValuedRawPointer) {
+  int* p = nullptr;
+  EXPECT_EQ(nullptr, absl::RawPtr(p));
+}
+
+TEST(RawPtrTest, NullValuedSmartPointer) {
+  std::unique_ptr<int> p;
+  EXPECT_EQ(nullptr, absl::RawPtr(p));
+}
+
+TEST(RawPtrTest, Nullptr) {
+  auto p = absl::RawPtr(nullptr);
+  EXPECT_TRUE((std::is_same_v<std::nullptr_t, decltype(p)>));
+  EXPECT_EQ(nullptr, p);
+}
+
+TEST(RawPtrTest, Null) {
+  auto p = absl::RawPtr(nullptr);
+  EXPECT_TRUE((std::is_same_v<std::nullptr_t, decltype(p)>));
+  EXPECT_EQ(nullptr, p);
+}
+
+TEST(RawPtrTest, Zero) {
+  auto p = absl::RawPtr(nullptr);
+  EXPECT_TRUE((std::is_same_v<std::nullptr_t, decltype(p)>));
+  EXPECT_EQ(nullptr, p);
+}
+
+TEST(ShareUniquePtrTest, Share) {
+  auto up = std::make_unique<int>();
+  int* rp = up.get();
+  auto sp = absl::ShareUniquePtr(std::move(up));
+  EXPECT_EQ(sp.get(), rp);
+}
+
+TEST(ShareUniquePtrTest, ShareNull) {
+  struct NeverDie {
+    using pointer = void*;
+    void operator()(pointer) {
+      ASSERT_TRUE(false) << "Deleter should not have been called.";
+    }
+  };
+
+  std::unique_ptr<void, NeverDie> up;
+  auto sp = absl::ShareUniquePtr(std::move(up));
+}
+
+TEST(WeakenPtrTest, Weak) {
+  auto sp = std::make_shared<int>();
+  auto wp = absl::WeakenPtr(sp);
+  EXPECT_EQ(sp.get(), wp.lock().get());
+  sp.reset();
+  EXPECT_TRUE(wp.expired());
+}
+
+// Should not compile.
+/*
+TEST(RawPtrTest, NotAPointer) {
+  absl::RawPtr(1.5);
+}
+*/
+
+TEST(AllocatorNoThrowTest, DefaultAllocator) {
+#if defined(ABSL_ALLOCATOR_NOTHROW) && ABSL_ALLOCATOR_NOTHROW
+  EXPECT_TRUE(absl::default_allocator_is_nothrow::value);
+#else
+  EXPECT_FALSE(absl::default_allocator_is_nothrow::value);
+#endif
+}
+
+TEST(AllocatorNoThrowTest, StdAllocator) {
+#if defined(ABSL_ALLOCATOR_NOTHROW) && ABSL_ALLOCATOR_NOTHROW
+  EXPECT_TRUE(absl::allocator_is_nothrow<std::allocator<int>>::value);
+#else
+  EXPECT_FALSE(absl::allocator_is_nothrow<std::allocator<int>>::value);
+#endif
+}
+
+TEST(AllocatorNoThrowTest, CustomAllocator) {
+  struct NoThrowAllocator {
+    using is_nothrow = std::true_type;
+  };
+  struct CanThrowAllocator {
+    using is_nothrow = std::false_type;
+  };
+  struct UnspecifiedAllocator {};
+  EXPECT_TRUE(absl::allocator_is_nothrow<NoThrowAllocator>::value);
+  EXPECT_FALSE(absl::allocator_is_nothrow<CanThrowAllocator>::value);
+  EXPECT_FALSE(absl::allocator_is_nothrow<UnspecifiedAllocator>::value);
+}
+
+}  // namespace

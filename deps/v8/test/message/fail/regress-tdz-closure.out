@@ -1,0 +1,10 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+*%(basename)s:9: ReferenceError: Cannot access 'v1' before initialization
+        v5.set(v1);
+               ^
+ReferenceError: Cannot access 'v1' before initialization
+    at __f_9 (*%(basename)s:9:16)
+    at *%(basename)s:6:16
+    at *%(basename)s:12:3

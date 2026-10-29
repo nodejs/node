@@ -1,0 +1,84 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_OBJECTS_FOREIGN_INL_H_
+#define V8_OBJECTS_FOREIGN_INL_H_
+
+#include "src/objects/foreign.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/globals.h"
+#include "src/execution/isolate-utils-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/isolate-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
+namespace v8::internal {
+
+template <ExternalPointerTag tag>
+Address Foreign::foreign_address(IsolateForSandbox isolate) const {
+  return foreign_address_.load<tag>(isolate);
+}
+
+template <ExternalPointerTag tag>
+Address Foreign::foreign_address() const {
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return foreign_address<tag>(isolate);
+}
+
+template <ExternalPointerTag tag>
+void Foreign::set_foreign_address(IsolateForSandbox isolate,
+                                  const Address value) {
+  foreign_address_.store<tag>(isolate, value);
+}
+
+template <ExternalPointerTag tag>
+void Foreign::init_foreign_address(IsolateForSandbox isolate,
+                                   const Address initial_value) {
+  foreign_address_.Init<tag>(address(), isolate, initial_value);
+}
+
+Address Foreign::foreign_address_unchecked(IsolateForSandbox isolate) const {
+  if (HeapLayout::InAnySharedSpace(this)) {
+    // We differentiate this case because we have to look in the isolate's
+    // shared external pointer table.
+    return foreign_address_.load<kAnySharedManagedExternalPointerTagRange>(
+        isolate);
+  } else {
+    return foreign_address_.load<kAnyForeignExternalPointerTagRange>(isolate);
+  }
+}
+
+Address Foreign::foreign_address_unchecked() const {
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return foreign_address_unchecked(isolate);
+}
+
+ExternalPointerTag Foreign::GetTag() const {
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerHandle handle = foreign_address_.load_encoded();
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return isolate.GetExternalPointerTableTagFor(this, handle);
+#endif  // V8_ENABLE_SANDBOX
+  // Without the sandbox the address is stored untagged.
+  return kExternalPointerNullTag;
+}
+
+Address TrustedForeign::foreign_address() const {
+  return foreign_address_.value();
+}
+
+void TrustedForeign::set_foreign_address(Address value) {
+  foreign_address_.set_value(value);
+}
+
+}  // namespace v8::internal
+
+#include "src/objects/object-macros-undef.h"
+
+#endif  // V8_OBJECTS_FOREIGN_INL_H_

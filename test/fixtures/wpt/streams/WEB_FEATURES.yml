@@ -1,0 +1,3 @@
+rules:
+# Top-level only. Subdirectories have their own mapping.
+- "*": [streams]

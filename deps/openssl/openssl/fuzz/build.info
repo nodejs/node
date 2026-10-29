@@ -1,0 +1,384 @@
+{- use File::Spec::Functions;
+   our $ex_inc = $withargs{fuzzer_include} &&
+       (file_name_is_absolute($withargs{fuzzer_include}) ?
+        $withargs{fuzzer_include} : catdir(updir(), $withargs{fuzzer_include}));
+   our $ex_lib = $withargs{fuzzer_lib} &&
+       (file_name_is_absolute($withargs{fuzzer_lib}) ?
+        $withargs{fuzzer_lib} : catfile(updir(), $withargs{fuzzer_lib}));
+   ""
+-}
+
+IF[{- !$disabled{"fuzz-afl"} || !$disabled{"fuzz-libfuzzer"} -}]
+  PROGRAMS{noinst}=asn1 asn1parse bignum bndiv client conf crl server smime
+  PROGRAMS{noinst}=pkcs7_verify
+  PROGRAMS{noinst}=pkcs12 punycode pem decoder hashtable acert
+  PROGRAMS{noinst}=v3name x509v3
+  PROGRAMS{noinst}=provider
+
+  IF[{- !$disabled{"ml-kem"} -}]
+    PROGRAMS{noinst}=ml-kem
+  ENDIF
+
+  IF[{- !$disabled{"ml-dsa"} -}]
+    PROGRAMS{noinst}=ml-dsa
+  ENDIF
+
+  IF[{- !$disabled{"slh-dsa"} -}]
+    PROGRAMS{noinst}=slh-dsa
+  ENDIF
+
+  IF[{- !$disabled{"cmp"} -}]
+    PROGRAMS{noinst}=cmp
+  ENDIF
+
+  IF[{- !$disabled{"cms"} -}]
+    PROGRAMS{noinst}=cms
+  ENDIF
+
+  IF[{- !$disabled{"ct"} -}]
+    PROGRAMS{noinst}=ct
+  ENDIF
+
+  IF[{- !$disabled{"ocsp"} -}]
+    PROGRAMS{noinst}=x509
+  ENDIF
+
+  IF[{- !$disabled{"quic"} -}]
+    PROGRAMS{noinst}=quic-client quic-server quic-srtm quic-lcidm quic-rcidm
+  ENDIF
+
+  IF[{- !$disabled{"dtls"} -}]
+    PROGRAMS{noinst}=dtlsclient dtlsserver
+  ENDIF
+
+  IF[{- !$disabled{"ech"} -}]
+    PROGRAMS{noinst}=echconfiglist_parser
+  ENDIF
+
+  SOURCE[asn1]=asn1.c driver.c fuzz_rand.c
+  INCLUDE[asn1]=../include {- $ex_inc -}
+  DEPEND[asn1]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[asn1parse]=asn1parse.c driver.c
+  INCLUDE[asn1parse]=../include {- $ex_inc -}
+  DEPEND[asn1parse]=../libcrypto {- $ex_lib -}
+
+  SOURCE[bignum]=bignum.c driver.c
+  INCLUDE[bignum]=../include {- $ex_inc -}
+  DEPEND[bignum]=../libcrypto {- $ex_lib -}
+
+  SOURCE[bndiv]=bndiv.c driver.c
+  INCLUDE[bndiv]=../include {- $ex_inc -}
+  DEPEND[bndiv]=../libcrypto {- $ex_lib -}
+
+  SOURCE[client]=client.c driver.c fuzz_rand.c
+  INCLUDE[client]=../include {- $ex_inc -}
+  DEPEND[client]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[cmp]=cmp.c driver.c fuzz_rand.c
+  INCLUDE[cmp]=../include {- $ex_inc -}
+  DEPEND[cmp]=../libcrypto {- $ex_lib -}
+
+  SOURCE[slh-dsa]=slh-dsa.c driver.c fuzz_rand.c
+  INCLUDE[slh-dsa]=../include {- $ex_inc -}
+  DEPEND[slh-dsa]=../libcrypto {- $ex_lib -}
+
+  SOURCE[cms]=cms.c driver.c
+  INCLUDE[cms]=../include {- $ex_inc -}
+  DEPEND[cms]=../libcrypto {- $ex_lib -}
+
+  SOURCE[pkcs12]=pkcs12.c driver.c
+  INCLUDE[pkcs12]=../include {- $ex_inc -}
+  DEPEND[pkcs12]=../libcrypto {- $ex_lib -}
+
+  SOURCE[conf]=conf.c driver.c
+  INCLUDE[conf]=../include {- $ex_inc -}
+  DEPEND[conf]=../libcrypto {- $ex_lib -}
+
+  SOURCE[crl]=crl.c driver.c
+  INCLUDE[crl]=../include {- $ex_inc -}
+  DEPEND[crl]=../libcrypto {- $ex_lib -}
+
+  SOURCE[ct]=ct.c driver.c
+  INCLUDE[ct]=../include {- $ex_inc -}
+  DEPEND[ct]=../libcrypto {- $ex_lib -}
+
+  SOURCE[dtlsclient]=dtlsclient.c driver.c fuzz_rand.c
+  INCLUDE[dtlsclient]=../include {- $ex_inc -}
+  DEPEND[dtlsclient]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[dtlsserver]=dtlsserver.c driver.c fuzz_rand.c
+  INCLUDE[dtlsserver]=../include {- $ex_inc -}
+  DEPEND[dtlsserver]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[echconfiglist_parser]=echconfiglist_parser.c driver.c
+  INCLUDE[echconfiglist_parser]=../include {- $ex_inc -}
+  DEPEND[echconfiglist_parser]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[pem]=pem.c driver.c
+  INCLUDE[pem]=../include {- $ex_inc -}
+  DEPEND[pem]=../libcrypto.a {- $ex_lib -}
+
+  SOURCE[decoder]=decoder.c driver.c fuzz_rand.c
+  INCLUDE[decoder]=../include {- $ex_inc -}
+  DEPEND[decoder]=../libcrypto {- $ex_lib -}
+
+  SOURCE[hashtable]=hashtable.c driver.c
+  INCLUDE[hashtable]=../include {- $ex_inc -}
+  DEPEND[hashtable]=../libcrypto {- $ex_lib -}
+
+  SOURCE[acert]=acert.c driver.c
+  INCLUDE[acert]=../include {- $ex_inc -}
+  DEPEND[acert]=../libcrypto {- $ex_lib -}
+
+  SOURCE[punycode]=punycode.c driver.c
+  INCLUDE[punycode]=../include {- $ex_inc -}
+  DEPEND[punycode]=../libcrypto.a {- $ex_lib -}
+
+  SOURCE[smime]=smime.c driver.c
+  INCLUDE[smime]=../include {- $ex_inc -}
+  DEPEND[smime]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[pkcs7_verify]=pkcs7_verify.c driver.c
+  INCLUDE[pkcs7_verify]=../include {- $ex_inc -}
+  DEPEND[pkcs7_verify]=../libcrypto {- $ex_lib -}
+
+  SOURCE[v3name]=v3name.c driver.c
+  INCLUDE[v3name]=../include {- $ex_inc -}
+  DEPEND[v3name]=../libcrypto.a {- $ex_lib -}
+
+  SOURCE[x509v3]=x509v3.c driver.c
+  INCLUDE[x509v3]=../include {- $ex_inc -}
+  DEPEND[x509v3]=../libcrypto.a {- $ex_lib -}
+
+  SOURCE[quic-client]=quic-client.c driver.c fuzz_rand.c
+  INCLUDE[quic-client]=../include {- $ex_inc -}
+  DEPEND[quic-client]=../libcrypto.a ../libssl.a {- $ex_lib -}
+
+  SOURCE[quic-server]=quic-server.c driver.c fuzz_rand.c
+  INCLUDE[quic-server]=../include {- $ex_inc -}
+  DEPEND[quic-server]=../libcrypto.a ../libssl.a {- $ex_lib -}
+
+  SOURCE[quic-srtm]=quic-srtm.c driver.c fuzz_rand.c
+  INCLUDE[quic-srtm]=../include {- $ex_inc -}
+  DEPEND[quic-srtm]=../libcrypto.a ../libssl.a {- $ex_lib -}
+
+  SOURCE[quic-lcidm]=quic-lcidm.c driver.c fuzz_rand.c
+  INCLUDE[quic-lcidm]=../include {- $ex_inc -}
+  DEPEND[quic-lcidm]=../libcrypto.a ../libssl.a {- $ex_lib -}
+
+  SOURCE[quic-rcidm]=quic-rcidm.c driver.c fuzz_rand.c
+  INCLUDE[quic-rcidm]=../include {- $ex_inc -}
+  DEPEND[quic-rcidm]=../libcrypto.a ../libssl.a {- $ex_lib -}
+
+  SOURCE[server]=server.c driver.c fuzz_rand.c
+  INCLUDE[server]=../include {- $ex_inc -}
+  DEPEND[server]=../libcrypto ../libssl {- $ex_lib -}
+
+  SOURCE[x509]=x509.c driver.c fuzz_rand.c
+  INCLUDE[x509]=../include {- $ex_inc -}
+  DEPEND[x509]=../libcrypto {- $ex_lib -}
+
+  SOURCE[provider]=provider.c driver.c
+  INCLUDE[provider]=../include {- $ex_inc -}
+  DEPEND[provider]=../libcrypto {- $ex_lib -}
+
+  SOURCE[ml-kem]=ml-kem.c driver.c
+  INCLUDE[ml-kem]=../include {- $ex_inc -}
+  DEPEND[ml-kem]=../libcrypto {- $ex_lib -}
+
+  SOURCE[ml-dsa]=ml-dsa.c driver.c
+  INCLUDE[ml-dsa]=../include {- $ex_inc -}
+  DEPEND[ml-dsa]=../libcrypto {- $ex_lib -}
+ENDIF
+
+IF[{- !$disabled{tests} -}]
+  $FUZZTESTSRC=test-corpus.c ../test/mfail/mfail.c
+
+  PROGRAMS{noinst}=asn1-test asn1parse-test bignum-test bndiv-test client-test conf-test crl-test server-test smime-test
+  PROGRAMS{noinst}=pkcs7_verify-test
+  PROGRAMS{noinst}=pkcs12-test punycode-test pem-test decoder-test hashtable-test acert-test
+  PROGRAMS{noinst}=v3name-test x509v3-test
+  PROGRAMS{noinst}=provider-test
+
+  IF[{- !$disabled{"ml-kem"} -}]
+    PROGRAMS{noinst}=ml-kem-test
+  ENDIF
+
+  IF[{- !$disabled{"ml-dsa"} -}]
+    PROGRAMS{noinst}=ml-dsa-test
+  ENDIF
+
+  IF[{- !$disabled{"slh-dsa"} -}]
+    PROGRAMS{noinst}=slh-dsa-test
+  ENDIF
+
+  IF[{- !$disabled{"cmp"} -}]
+    PROGRAMS{noinst}=cmp-test
+  ENDIF
+
+  IF[{- !$disabled{"cms"} -}]
+    PROGRAMS{noinst}=cms-test
+  ENDIF
+
+  IF[{- !$disabled{"ct"} -}]
+    PROGRAMS{noinst}=ct-test
+  ENDIF
+
+  IF[{- !$disabled{"ocsp"} -}]
+    PROGRAMS{noinst}=x509-test
+  ENDIF
+
+  IF[{- !$disabled{"quic"} -}]
+    PROGRAMS{noinst}=quic-client-test quic-server-test quic-srtm-test quic-lcidm-test
+    PROGRAMS{noinst}=quic-rcidm-test
+  ENDIF
+
+  IF[{- !$disabled{"dtls"} -}]
+    PROGRAMS{noinst}=dtlsclient-test dtlsserver-test
+  ENDIF
+
+  IF[{- !$disabled{"ech"} -}]
+    PROGRAMS{noinst}=echconfiglist_parser-test
+  ENDIF
+
+  SOURCE[asn1-test]=asn1.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[asn1-test]=../include ../test/mfail
+  DEPEND[asn1-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[asn1parse-test]=asn1parse.c $FUZZTESTSRC
+  INCLUDE[asn1parse-test]=../include ../test/mfail
+  DEPEND[asn1parse-test]=../libcrypto.a
+
+  SOURCE[bignum-test]=bignum.c $FUZZTESTSRC
+  INCLUDE[bignum-test]=../include ../test/mfail
+  DEPEND[bignum-test]=../libcrypto.a
+
+  SOURCE[bndiv-test]=bndiv.c $FUZZTESTSRC
+  INCLUDE[bndiv-test]=../include ../test/mfail
+  DEPEND[bndiv-test]=../libcrypto.a
+
+  SOURCE[client-test]=client.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[client-test]=../include ../test/mfail
+  DEPEND[client-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[cmp-test]=cmp.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[cmp-test]=../include ../test/mfail
+  DEPEND[cmp-test]=../libcrypto.a
+  # referring to static lib allows using non-exported functions
+
+  SOURCE[ml-kem-test]=ml-kem.c $FUZZTESTSRC
+  INCLUDE[ml-kem-test]=../include ../test/mfail
+  DEPEND[ml-kem-test]=../libcrypto.a
+  # referring to static lib allows using non-exported functions
+
+  SOURCE[ml-dsa-test]=ml-dsa.c $FUZZTESTSRC
+  INCLUDE[ml-dsa-test]=../include ../test/mfail
+  DEPEND[ml-dsa-test]=../libcrypto.a
+  # referring to static lib allows using non-exported functions
+
+  SOURCE[slh-dsa-test]=slh-dsa.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[slh-dsa-test]=../include ../test/mfail
+  DEPEND[slh-dsa-test]=../libcrypto.a
+  # referring to static lib allows using non-exported functions
+
+  SOURCE[cms-test]=cms.c $FUZZTESTSRC
+  INCLUDE[cms-test]=../include ../test/mfail
+  DEPEND[cms-test]=../libcrypto.a
+
+  SOURCE[pkcs12-test]=pkcs12.c $FUZZTESTSRC
+  INCLUDE[pkcs12-test]=../include ../test/mfail
+  DEPEND[pkcs12-test]=../libcrypto.a
+
+  SOURCE[conf-test]=conf.c $FUZZTESTSRC
+  INCLUDE[conf-test]=../include ../test/mfail
+  DEPEND[conf-test]=../libcrypto.a
+
+  SOURCE[crl-test]=crl.c $FUZZTESTSRC
+  INCLUDE[crl-test]=../include ../test/mfail
+  DEPEND[crl-test]=../libcrypto.a
+
+  SOURCE[ct-test]=ct.c $FUZZTESTSRC
+  INCLUDE[ct-test]=../include ../test/mfail
+  DEPEND[ct-test]=../libcrypto.a
+
+  SOURCE[dtlsclient-test]=dtlsclient.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[dtlsclient-test]=../include ../test/mfail
+  DEPEND[dtlsclient-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[dtlsserver-test]=dtlsserver.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[dtlsserver-test]=../include ../test/mfail
+  DEPEND[dtlsserver-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[echconfiglist_parser-test]=echconfiglist_parser.c $FUZZTESTSRC
+  INCLUDE[echconfiglist_parser-test]=../include ../test/mfail
+  DEPEND[echconfiglist_parser-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[pem-test]=pem.c $FUZZTESTSRC
+  INCLUDE[pem-test]=../include ../test/mfail
+  DEPEND[pem-test]=../libcrypto.a
+
+  SOURCE[decoder-test]=decoder.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[decoder-test]=../include ../test/mfail
+  DEPEND[decoder-test]=../libcrypto.a
+
+  SOURCE[hashtable-test]=hashtable.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[hashtable-test]=../include ../test/mfail
+  DEPEND[hashtable-test]=../libcrypto.a
+
+  SOURCE[acert-test]=acert.c $FUZZTESTSRC
+  INCLUDE[acert-test]=../include ../test/mfail
+  DEPEND[acert-test]=../libcrypto.a
+
+  SOURCE[punycode-test]=punycode.c $FUZZTESTSRC
+  INCLUDE[punycode-test]=../include ../test/mfail
+  DEPEND[punycode-test]=../libcrypto.a
+
+  SOURCE[smime-test]=smime.c $FUZZTESTSRC
+  INCLUDE[smime-test]=../include ../test/mfail
+  DEPEND[smime-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[pkcs7_verify-test]=pkcs7_verify.c $FUZZTESTSRC
+  INCLUDE[pkcs7_verify-test]=../include ../test/mfail
+  DEPEND[pkcs7_verify-test]=../libcrypto.a
+
+  SOURCE[v3name-test]=v3name.c $FUZZTESTSRC
+  INCLUDE[v3name-test]=../include ../test/mfail
+  DEPEND[v3name-test]=../libcrypto.a
+
+  SOURCE[x509v3-test]=x509v3.c $FUZZTESTSRC
+  INCLUDE[x509v3-test]=../include ../test/mfail
+  DEPEND[x509v3-test]=../libcrypto.a
+
+  SOURCE[quic-client-test]=quic-client.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[quic-client-test]=../include ../test/mfail
+  DEPEND[quic-client-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[quic-server-test]=quic-server.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[quic-server-test]=../include ../test/mfail
+  DEPEND[quic-server-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[quic-srtm-test]=quic-srtm.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[quic-srtm-test]=../include ../test/mfail
+  DEPEND[quic-srtm-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[quic-lcidm-test]=quic-lcidm.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[quic-lcidm-test]=../include ../test/mfail
+  DEPEND[quic-lcidm-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[quic-rcidm-test]=quic-rcidm.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[quic-rcidm-test]=../include ../test/mfail
+  DEPEND[quic-rcidm-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[server-test]=server.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[server-test]=../include ../test/mfail
+  DEPEND[server-test]=../libcrypto.a ../libssl.a
+
+  SOURCE[x509-test]=x509.c $FUZZTESTSRC fuzz_rand.c
+  INCLUDE[x509-test]=../include ../test/mfail
+  DEPEND[x509-test]=../libcrypto.a
+
+  SOURCE[provider-test]=provider.c $FUZZTESTSRC
+  INCLUDE[provider-test]=../include ../test/mfail
+  DEPEND[provider-test]=../libcrypto.a
+ENDIF

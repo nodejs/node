@@ -1,0 +1,270 @@
+// Copyright 2024 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_WASM_INTERPRETER_WASM_INTERPRETER_RUNTIME_INL_H_
+#define V8_WASM_INTERPRETER_WASM_INTERPRETER_RUNTIME_INL_H_
+
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
+#include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/arguments-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/wasm/interpreter/wasm-interpreter-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+
+inline Address WasmInterpreterRuntime::EffectiveAddress(uint32_t memory_index,
+                                                        uint64_t index) const {
+  DirectHandle<WasmTrustedInstanceData> trusted_data =
+      wasm_trusted_instance_data();
+  SBXCHECK_LT(memory_index, module_->memories.size());
+  DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+            trusted_data->memory_size(memory_index));
+  DCHECK_GE(trusted_data->memory_size(memory_index), index);
+  // Compute the effective address of the access, making sure to condition
+  // the index even in the in-bounds case.
+  return reinterpret_cast<Address>(trusted_data->memory_base(memory_index)) +
+         index;
+}
+
+inline bool WasmInterpreterRuntime::BoundsCheckMemRange(
+    uint32_t memory_index, uint64_t index, uint64_t* size,
+    Address* out_address) const {
+  DirectHandle<WasmTrustedInstanceData> trusted_data =
+      wasm_trusted_instance_data();
+  SBXCHECK_LT(memory_index, module_->memories.size());
+  DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+            trusted_data->memory_size(memory_index));
+  if (!base::ClampToBounds<uint64_t>(index, size,
+                                     trusted_data->memory_size(memory_index))) {
+    return false;
+  }
+  *out_address = EffectiveAddress(memory_index, index);
+  return true;
+}
+
+inline Address WasmInterpreterRuntime::GetGlobalAddress(uint32_t index) {
+  DCHECK_LT(index, module_->globals.size());
+  DisallowGarbageCollection no_gc;
+  const WasmGlobal& global = module_->globals[index];
+  return wasm_trusted_instance_data()->GetGlobalStorage(global, no_gc);
+}
+
+inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(
+    uint32_t index) const {
+  // This function assumes that it is executed in a HandleScope.
+  const wasm::WasmGlobal& global = module_->globals[index];
+  DCHECK(global.type.is_ref());
+  return wasm_trusted_instance_data()
+      ->GetGlobalValue(isolate_, global)
+      .to_ref();
+}
+
+inline void WasmInterpreterRuntime::SetGlobalRef(
+    uint32_t index, DirectHandle<Object> ref) const {
+  // This function assumes that it is executed in a HandleScope.
+  DisallowGarbageCollection no_gc;
+  const wasm::WasmGlobal& global = module_->globals[index];
+  DCHECK(global.type.is_ref());
+  Address storage;
+  Tagged<HeapObject> buffer;
+  if (global.mutability && global.imported) {
+    buffer = Cast<HeapObject>(
+        wasm_trusted_instance_data()->imported_mutable_globals_buffers()->get(
+            global.mutable_imported_global_index));
+    uint32_t offset =
+        wasm_trusted_instance_data()->imported_mutable_globals_offsets()->get(
+            global.mutable_imported_global_index);
+    storage = buffer.ptr() + offset;
+  } else {
+    buffer = wasm_trusted_instance_data()->tagged_globals_buffer();
+    int offset = FixedArray::OffsetOfElementAt(global.index_in_buffer);
+    storage = buffer.address() + offset;
+  }
+  MaybeObjectSlot slot{storage};
+  // Relaxed store to avoid races with concurrent marking.
+  slot.Relaxed_Store(*ref);
+  WriteBarrier::ForValue(buffer, slot, *ref, UPDATE_WRITE_BARRIER);
+}
+
+inline void WasmInterpreterRuntime::InitMemoryAddresses() {
+  DirectHandle<WasmTrustedInstanceData> trusted_data =
+      wasm_trusted_instance_data();
+  DCHECK_LE(module_->memories.size(), kV8MaxWasmMemories);
+  const uint32_t bases_and_sizes_length =
+      trusted_data->memory_bases_and_sizes()->length().value();
+  SBXCHECK_EQ(bases_and_sizes_length % 2u, 0u);
+  const size_t trusted_memory_count =
+      static_cast<size_t>(bases_and_sizes_length / 2u);
+  SBXCHECK_EQ(trusted_memory_count, module_->memories.size());
+  memory_start_ = trusted_data->memory0_start();
+  memory_starts_.resize(trusted_memory_count);
+  is_memory64_.resize(trusted_memory_count);
+  for (size_t i = 0; i < trusted_memory_count; ++i) {
+    memory_starts_[i] = trusted_data->memory_base(static_cast<uint32_t>(i));
+    is_memory64_[i] = module_->memories[i].is_memory64();
+  }
+}
+
+inline uint8_t* WasmInterpreterRuntime::GetMemoryStart(
+    uint32_t memory_index) const {
+  SBXCHECK_LT(memory_index, memory_starts_.size());
+  return memory_starts_[memory_index];
+}
+
+inline uint8_t* WasmInterpreterRuntime::GetMemoryStart() const {
+  return memory_start_;
+}
+
+inline uint64_t WasmInterpreterRuntime::MemorySize(
+    uint32_t memory_index) const {
+  SBXCHECK_LT(memory_index, module_->memories.size());
+  return wasm_trusted_instance_data()->memory_size(memory_index) /
+         kWasmPageSize;
+}
+
+inline bool WasmInterpreterRuntime::IsMemory64(uint32_t memory_index) const {
+  SBXCHECK_LT(memory_index, is_memory64_.size());
+  return is_memory64_[memory_index];
+}
+
+inline size_t WasmInterpreterRuntime::GetMemorySize(
+    uint32_t memory_index) const {
+  SBXCHECK_LT(memory_index, module_->memories.size());
+  return wasm_trusted_instance_data()->memory_size(memory_index);
+}
+
+inline size_t WasmInterpreterRuntime::GetMemorySize() const {
+  return wasm_trusted_instance_data()->memory0_size();
+}
+
+inline void WasmInterpreterRuntime::DataDrop(uint32_t index) {
+  wasm_trusted_instance_data()->data_segments()->set(index, WireBytesRef{});
+}
+
+inline void WasmInterpreterRuntime::ElemDrop(uint32_t index) {
+  wasm_trusted_instance_data()->element_segments()->set(
+      index, *isolate_->factory()->empty_fixed_array());
+}
+
+inline WasmBytecode* WasmInterpreterRuntime::GetFunctionBytecode(
+    uint32_t func_index) {
+  return codemap_->GetFunctionBytecode(func_index);
+}
+
+inline bool WasmInterpreterRuntime::IsNullTypecheck(
+    const WasmRef obj, const ValueType obj_type) const {
+  return IsNull(isolate_, obj, obj_type);
+}
+
+// static
+inline Tagged<Object> WasmInterpreterRuntime::GetNullValue(
+    const ValueType obj_type) const {
+  if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
+    return *isolate_->factory()->null_value();
+  } else {
+    return *isolate_->factory()->wasm_null();
+  }
+}
+
+// static
+inline bool WasmInterpreterRuntime::IsNull(Isolate* isolate, const WasmRef obj,
+                                           const ValueType obj_type) {
+  if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
+    return i::IsNull(*obj);
+  } else {
+    return i::IsWasmNull(*obj);
+  }
+}
+
+inline bool WasmInterpreterRuntime::IsRefNull(
+    DirectHandle<Object> object) const {
+  // This function assumes that it is executed in a HandleScope.
+  return i::IsNull(*object) || IsWasmNull(*object);
+}
+
+inline DirectHandle<Object> WasmInterpreterRuntime::GetFunctionRef(
+    uint32_t index) const {
+  // This function assumes that it is executed in a HandleScope.
+  return WasmTrustedInstanceData::GetOrCreateFuncRef(
+      isolate_, wasm_trusted_instance_data(), index);
+}
+
+inline const ArrayType* WasmInterpreterRuntime::GetArrayType(
+    uint32_t array_index) const {
+  return module_->array_type(ModuleTypeIndex{array_index});
+}
+
+inline DirectHandle<Object> WasmInterpreterRuntime::GetWasmArrayRefElement(
+    Tagged<WasmArray> array, uint32_t index) const {
+  return WasmArray::GetElement(isolate_, handle(array, isolate_), index);
+}
+
+inline bool WasmInterpreterRuntime::WasmStackCheck(
+    const uint8_t* current_bytecode, const uint8_t*& code) {
+  StackLimitCheck stack_check(isolate_);
+
+  current_frame_.current_bytecode_ = current_bytecode;
+  current_thread_->SetCurrentFrame(current_frame_);
+
+  if (stack_check.InterruptRequested()) {
+    if (stack_check.HasOverflowed()) {
+      SealHandleScope shs(isolate_);
+      current_frame_.current_function_ = nullptr;
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
+      isolate_->StackOverflow();
+      return false;
+    }
+    if (isolate_->stack_guard()->HasTerminationRequest()) {
+      SealHandleScope shs(isolate_);
+      current_frame_.current_function_ = nullptr;
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
+      isolate_->TerminateExecution();
+      return false;
+    }
+    isolate_->stack_guard()->HandleInterrupts();
+  }
+
+  if (V8_UNLIKELY(v8_flags.drumbrake_fuzzer_timeout &&
+                  base::TimeTicks::Now() - fuzzer_start_time_ >
+                      base::TimeDelta::FromMilliseconds(
+                          v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
+    SealHandleScope shs(isolate_);
+    current_frame_.current_function_ = nullptr;
+    SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
+    return false;
+  }
+
+  return true;
+}
+
+inline DirectHandle<WasmTrustedInstanceData>
+WasmInterpreterRuntime::wasm_trusted_instance_data() const {
+  // Must be called from within a WasmInterpreterRuntime::InstanceScope, which
+  // publishes the (already trusted) {current_trusted_data_} at scope entry. We
+  // deliberately return that stored, off-cage value rather than re-loading an
+  // in-cage WasmInstanceObject::trusted_data_ handle on every call: re-reading
+  // that handle is a sandbox hole (a Wasm-to-JS callback can same-tag swap it
+  // mid-execution).
+  DCHECK(!current_trusted_data_.is_null());
+  return current_trusted_data_;
+}
+
+inline WasmInterpreterThread::State InterpreterHandle::ContinueExecution(
+    WasmInterpreterThread* thread, bool called_from_js) {
+  return interpreter_.ContinueExecution(thread, called_from_js);
+}
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_WASM_INTERPRETER_WASM_INTERPRETER_RUNTIME_INL_H_

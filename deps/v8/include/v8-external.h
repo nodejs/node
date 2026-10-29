@@ -1,0 +1,77 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef INCLUDE_V8_EXTERNAL_H_
+#define INCLUDE_V8_EXTERNAL_H_
+
+#include "v8-value.h"  // NOLINT(build/include_directory)
+#include "v8config.h"  // NOLINT(build/include_directory)
+
+namespace v8 {
+
+class Isolate;
+
+/**
+ * A tag for external pointers. Objects with different C++ types should use
+ * different values of ExternalPointerTypeTag when using v8::External. The
+ * allowed range is 0..V8_EXTERNAL_POINTER_TAG_COUNT - 1. If this is not
+ * sufficient, V8_EXTERNAL_POINTER_TAG_COUNT can be increased.
+ */
+using ExternalPointerTypeTag = uint16_t;
+
+constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
+
+enum InternalExternalPointerTypeTag : uint16_t {
+  kFirstInternalExternalPointerTypeTag = V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+  kDictionaryValueTag = kFirstInternalExternalPointerTypeTag,
+  kLastInternalExternalPointerTypeTag = kDictionaryValueTag,
+};
+
+static_assert(kLastInternalExternalPointerTypeTag ==
+                  V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+              "Internal external pointer tags must be the last tags in the "
+              "range below V8_EXTERNAL_POINTER_TAG_COUNT.");
+
+/**
+ * A JavaScript value that wraps a C++ void*. This type of value is mainly used
+ * to associate C++ data structures with JavaScript objects.
+ */
+class V8_EXPORT External : public Value {
+ public:
+  /**
+   * Creates a new External object.
+   *
+   * \param isolate The isolate for the external object.
+   * \param value The C++ pointer value.
+   * \param tag The type tag of the external pointer. If type tags are not used
+   * in the embedder, the default value `kExternalPointerTypeTagDefault` can be
+   * used.
+   * \return The new External object.
+   */
+  static Local<External> New(Isolate* isolate, void* value,
+                             ExternalPointerTypeTag tag);
+  V8_INLINE static External* Cast(Data* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<External*>(value);
+  }
+
+  /**
+   * Returns the value of the external pointer.
+   *
+   * \param tag The type tag of the external pointer. If type tags are not used
+   * in the embedder, the default value `kExternalPointerTypeTagDefault` can be
+   * used.
+   * \return The value of the external pointer.
+   */
+  void* Value(ExternalPointerTypeTag tag) const;
+
+ private:
+  static void CheckCast(v8::Data* obj);
+};
+
+}  // namespace v8
+
+#endif  // INCLUDE_V8_EXTERNAL_H_

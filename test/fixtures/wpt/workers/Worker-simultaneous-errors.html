@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Test simultaneous errors on workers.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+    var workers = 4;
+    var promises = [];
+
+    for (i = 0; i < workers; ++i) {
+        var worker = new Worker('support/throw-on-message-Worker.js');
+        promises.push(new Promise(function(resolve, reject) {
+            var error = 0;
+            worker.onmessage = function(event) {
+                if (event.data === 'second')
+                    resolve(error);
+                else if (event.data === 'error')
+                    ++error;
+            }
+        }));
+        worker.postMessage('first');
+        worker.postMessage('second');
+    }
+
+    return Promise.all(promises).then(e => {
+        var sum = 0;
+        for (var key in e) {
+            sum += e[key]
+        }
+        assert_equals(sum, workers);
+    });
+});
+</script>

@@ -1,0 +1,179 @@
+# Copyright 2019 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/snapshot_toolchain.gni")
+import("../../gni/v8.gni")
+
+config("internal_config") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  if (is_component_build) {
+    defines = [ "BUILDING_V8_DEBUG_HELPER" ]
+  }
+
+  configs = [ "../..:v8_tracing_config" ]
+
+  include_dirs = [
+    ".",
+    "../..",
+    "$target_gen_dir",
+    "$target_gen_dir/../..",
+  ]
+}
+
+# This config should be applied to code using v8_debug_helper.
+config("external_config") {
+  if (is_component_build) {
+    defines = [ "USING_V8_DEBUG_HELPER" ]
+  }
+
+  configs = [ "../..:external_config" ]
+
+  include_dirs = [ "." ]
+}
+
+action("run_mkgrokdump") {
+  testonly = true
+  visibility = [ ":*" ]
+
+  deps = [
+    "../..:run_mksnapshot_default",
+    "../../test/mkgrokdump:mkgrokdump($v8_generator_toolchain)",
+  ]
+
+  script = "../run.py"
+
+  outputs = [ "$target_gen_dir/v8heapconst.py" ]
+
+  args = [
+    "./" + rebase_path(
+            get_label_info(
+                    "../../test/mkgrokdump:mkgrokdump($v8_generator_toolchain)",
+                    "root_out_dir") + "/mkgrokdump",
+            root_build_dir),
+    "--outfile",
+    rebase_path("$target_gen_dir/v8heapconst.py", root_build_dir),
+  ]
+}
+
+action("gen_heap_constants") {
+  testonly = true
+  visibility = [ ":*" ]
+  deps = [ ":run_mkgrokdump" ]
+  script = "gen-heap-constants.py"
+  outputs = [ "$target_gen_dir/heap-constants-gen.cc" ]
+  args = [
+    rebase_path(target_gen_dir, root_build_dir),
+    rebase_path("$target_gen_dir/heap-constants-gen.cc", root_build_dir),
+  ]
+}
+
+# Common sources and deps shared by the component and shared library targets.
+_debug_helper_sources = [
+  "$target_gen_dir/../../torque-generated/class-debug-readers.cc",
+  "$target_gen_dir/../../torque-generated/class-debug-readers.h",
+  "$target_gen_dir/../../torque-generated/debug-macros.cc",
+  "$target_gen_dir/../../torque-generated/debug-macros.h",
+  "$target_gen_dir/../../torque-generated/debug-reader-classes-list.h",
+  "$target_gen_dir/heap-constants-gen.cc",
+  "../../src/common/ptr-compr.cc",
+  "compiler-types.cc",
+  "debug-helper-internal.cc",
+  "debug-helper-internal.h",
+  "debug-helper.h",
+  "get-object-properties.cc",
+  "heap-constants.cc",
+  "heap-constants.h",
+]
+
+_debug_helper_deps = [
+  ":gen_heap_constants",
+  "../..:generate_bytecode_builtins_list",
+  "../..:run_torque",
+  "../..:v8_abseil",
+  "../..:v8_headers",
+  "../..:v8_internal_headers",
+  "../..:v8_libbase",
+  "../..:v8_shared_internal_headers",
+  "../..:v8_tracing",
+]
+if (v8_use_metagen_instance_types) {
+  _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
+  _debug_helper_deps += [ "../..:metagen_instance_types_h" ]
+}
+if (v8_enable_temporal_support) {
+  _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
+}
+
+_debug_helper_extra_configs = [ "//build/config/compiler:rtti" ]
+if (v8_enable_i18n_support) {
+  _debug_helper_extra_configs += [ "$v8_icu_path:icu_config" ]
+}
+
+_debug_helper_remove_configs = [ "//build/config/compiler:no_rtti" ]
+
+v8_component("v8_debug_helper_internal") {
+  testonly = true
+
+  public = [ "debug-helper.h" ]
+  sources = _debug_helper_sources
+  deps = _debug_helper_deps
+
+  configs = [ ":internal_config" ] + _debug_helper_extra_configs
+  remove_configs = _debug_helper_remove_configs
+}
+
+group("v8_debug_helper") {
+  testonly = true
+  public_deps = [ ":v8_debug_helper_internal" ]
+  public_configs = [ ":external_config" ]
+}
+
+# A standalone shared library that always exports the debug_helper C API,
+# regardless of is_component_build. Use this to load via dlopen/FFI.
+config("shared_config") {
+  visibility = [ ":*" ]
+  defines = [ "BUILDING_V8_DEBUG_HELPER" ]
+  configs = [ "../..:v8_tracing_config" ]
+  include_dirs = [
+    ".",
+    "../..",
+    "$target_gen_dir",
+    "$target_gen_dir/../..",
+  ]
+}
+
+v8_shared_library("v8_debug_helper_shared") {
+  testonly = true
+
+  output_name = "v8_debug_helper"
+  sources = _debug_helper_sources
+  deps = _debug_helper_deps
+
+  configs = [ ":shared_config" ] + _debug_helper_extra_configs
+  remove_configs = _debug_helper_remove_configs
+}
+
+v8_executable("corruption_harness") {
+  testonly = true
+
+  sources = [ "corruption-harness.cc" ]
+
+  configs = [
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+  ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_internal_headers",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../..:v8_tracing",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}

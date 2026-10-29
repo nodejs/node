@@ -1,0 +1,10 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Failed to parse diplomat::include
+In src/ast/snapshots/span_testing/malformed_include.rs:2:21:
+...lude(abc123)]
+mo...
+        ^^^^^^
+expected string literal

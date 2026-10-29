@@ -1,0 +1,62 @@
+{
+  "name": "libnpmsearch",
+  "version": "10.0.0",
+  "description": "Programmatic API for searching in npm and compatible registries.",
+  "author": "GitHub Inc.",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "keywords": [
+    "npm",
+    "search",
+    "api",
+    "libnpm"
+  ],
+  "license": "ISC",
+  "scripts": {
+    "posttest": "npm run lint",
+    "test": "tap",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/template-oss": "5.1.1",
+    "nock": "^14.0.0",
+    "tap": "^16.3.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmsearch"
+  },
+  "bugs": "https://github.com/npm/libnpmsearch/issues",
+  "homepage": "https://npmjs.com/package/libnpmsearch",
+  "dependencies": {
+    "npm-registry-fetch": "^20.0.1"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.1.1",
+    "content": "../../scripts/template-oss/index.js"
+  },
+  "tap": {
+    "node-arg": [
+      "--require",
+      "../../scripts/disable-agent-for-tests.js"
+    ],
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

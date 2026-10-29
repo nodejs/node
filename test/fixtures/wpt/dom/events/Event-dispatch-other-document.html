@@ -1,0 +1,23 @@
+<!doctype html>
+<title>Custom event on an element in another document</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var doc = document.implementation.createHTMLDocument("Demo");
+  var element = doc.createElement("div");
+  var called = false;
+  element.addEventListener("foo", this.step_func(function(ev) {
+    assert_false(called);
+    called = true;
+    assert_equals(ev.target, element);
+    assert_equals(ev.srcElement, element);
+  }));
+  doc.body.appendChild(element);
+
+  var event = new Event("foo");
+  element.dispatchEvent(event);
+  assert_true(called);
+});
+</script>

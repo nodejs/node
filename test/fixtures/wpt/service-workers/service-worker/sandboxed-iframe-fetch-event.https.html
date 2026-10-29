@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<title>ServiceWorker FetchEvent for sandboxed iframe.</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var lastCallbackId = 0;
+var callbacks = {};
+function doTest(frame, type) {
+  return new Promise(function(resolve) {
+    var id = ++lastCallbackId;
+    callbacks[id] = resolve;
+    frame.contentWindow.postMessage({id: id, type: type}, '*');
+  });
+}
+
+// Asks the service worker for data about requests and clients seen. The
+// worker posts a message back with |data| where:
+// |data.requests|: the requests the worker received FetchEvents for
+// |data.clients|: the URLs of all the worker's clients
+// The worker clears its data after responding.
+function getResultsFromWorker(worker) {
+  return new Promise(resolve => {
+    let channel = new MessageChannel();
+    channel.port1.onmessage = msg => {
+      resolve(msg.data);
+    };
+    worker.postMessage({port: channel.port2}, [channel.port2]);
+  });
+}
+
+window.onmessage = function (e) {
+  message = e.data;
+  var id = message['id'];
+  var callback = callbacks[id];
+  delete callbacks[id];
+  callback(message['result']);
+};
+
+const SCOPE = 'resources/sandboxed-iframe-fetch-event-iframe.py';
+const SCRIPT = 'resources/sandboxed-iframe-fetch-event-worker.js';
+const expected_base_url = new URL(SCOPE, location.href);
+// Service worker controlling |SCOPE|.
+let worker;
+// A normal iframe.
+// This should be controlled by a service worker.
+let normal_frame;
+// An iframe created by <iframe sandbox='allow-scripts'>.
+// This should NOT be controlled by a service worker.
+let sandboxed_frame;
+// An iframe created by <iframe sandbox='allow-scripts allow-same-origin'>.
+// This should be controlled by a service worker.
+let sandboxed_same_origin_frame;
+// An iframe whose response header has
+// 'Content-Security-Policy: allow-scripts'.
+// This should NOT be controlled by a service worker.
+let sandboxed_frame_by_header;
+// An iframe whose response header has
+// 'Content-Security-Policy: allow-scripts allow-same-origin'.
+// This should be controlled by a service worker.
+let sandboxed_same_origin_frame_by_header;
+
+promise_test(t => {
+  return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+    .then(function(registration) {
+      add_completion_callback(() => registration.unregister());
+      worker = registration.installing;
+      return wait_for_state(t, registration.installing, 'activated');
+    });
+}, 'Prepare a service worker.');
+
+promise_test(t => {
+  return with_iframe(SCOPE + '?iframe')
+    .then(f => {
+      normal_frame = f;
+      add_completion_callback(() => f.remove());
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1);
+      assert_equals(requests[0], expected_base_url + '?iframe');
+      assert_true(data.clients.includes(expected_base_url + '?iframe'));
+    });
+}, 'Prepare a normal iframe.');
+
+promise_test(t => {
+  return with_sandboxed_iframe(SCOPE + '?sandboxed-iframe', 'allow-scripts')
+    .then(f => {
+      sandboxed_frame = f;
+      add_completion_callback(() => f.remove());
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0);
+      assert_false(data.clients.includes(expected_base_url +
+                                         '?sandboxed-iframe'));
+    });
+}, 'Prepare an iframe sandboxed by <iframe sandbox="allow-scripts">.');
+
+promise_test(t => {
+  return with_sandboxed_iframe(SCOPE + '?sandboxed-iframe-same-origin',
+                               'allow-scripts allow-same-origin')
+    .then(f => {
+      sandboxed_same_origin_frame = f;
+      add_completion_callback(() => f.remove());
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1);
+      assert_equals(requests[0],
+                    expected_base_url + '?sandboxed-iframe-same-origin');
+      assert_true(data.clients.includes(
+        expected_base_url + '?sandboxed-iframe-same-origin'));
+    })
+}, 'Prepare an iframe sandboxed by ' +
+   '<iframe sandbox="allow-scripts allow-same-origin">.');
+
+promise_test(t => {
+  const iframe_full_url = expected_base_url + '?sandbox=allow-scripts&' +
+                          'sandboxed-frame-by-header';
+  return with_iframe(iframe_full_url)
+    .then(f => {
+      sandboxed_frame_by_header = f;
+      add_completion_callback(() => f.remove());
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'Service worker should provide the response');
+      assert_equals(requests[0], iframe_full_url);
+      assert_false(data.clients.includes(iframe_full_url),
+                   'Service worker should NOT control the sandboxed page');
+    });
+}, 'Prepare an iframe sandboxed by CSP HTTP header with allow-scripts.');
+
+promise_test(t => {
+  const iframe_full_url =
+    expected_base_url + '?sandbox=allow-scripts%20allow-same-origin&' +
+    'sandboxed-iframe-same-origin-by-header';
+  return with_iframe(iframe_full_url)
+    .then(f => {
+      sandboxed_same_origin_frame_by_header = f;
+      add_completion_callback(() => f.remove());
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1);
+      assert_equals(requests[0], iframe_full_url);
+      assert_true(data.clients.includes(iframe_full_url));
+    })
+}, 'Prepare an iframe sandboxed by CSP HTTP header with allow-scripts and ' +
+   'allow-same-origin.');
+
+promise_test(t => {
+  let frame = normal_frame;
+  return doTest(frame, 'fetch')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The fetch request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=fetch');
+    });
+}, 'Fetch request from a normal iframe');
+
+promise_test(t => {
+  let frame = normal_frame;
+  return doTest(frame, 'fetch-from-worker')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The fetch request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=fetch-from-worker');
+    });
+}, 'Fetch request from a worker in a normal iframe');
+
+promise_test(t => {
+  let frame = normal_frame;
+  return doTest(frame, 'iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=iframe');
+      assert_true(data.clients.includes(frame.src + '&test=iframe'));
+
+    });
+}, 'Request for an iframe in the normal iframe');
+
+promise_test(t => {
+  let frame = normal_frame;
+  return doTest(frame, 'sandboxed-iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts flag in the normal ' +
+   'iframe');
+
+promise_test(t => {
+  let frame = normal_frame;
+  return doTest(frame, 'sandboxed-iframe-same-origin')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0],
+                    frame.src + '&test=sandboxed-iframe-same-origin');
+      assert_true(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe-same-origin'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts and ' +
+   'allow-same-origin flag in the normal iframe');
+
+promise_test(t => {
+  let frame = sandboxed_frame;
+  return doTest(frame, 'fetch')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The fetch request should NOT be handled by SW.');
+    });
+}, 'Fetch request from iframe sandboxed by an attribute with allow-scripts ' +
+   'flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame;
+  return doTest(frame, 'fetch-from-worker')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The fetch request should NOT be handled by SW.');
+    });
+}, 'Fetch request from a worker in iframe sandboxed by an attribute with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame;
+  return doTest(frame, 'iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(frame.src + '&test=iframe'));
+    });
+}, 'Request for an iframe in the iframe sandboxed by an attribute with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame;
+  return doTest(frame, 'sandboxed-iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts flag in the iframe ' +
+   'sandboxed by an attribute with allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame;
+  return doTest(frame, 'sandboxed-iframe-same-origin')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe-same-origin'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts and ' +
+   'allow-same-origin flag in the iframe sandboxed by an attribute with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame;
+  return doTest(frame, 'fetch')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The fetch request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=fetch');
+    });
+}, 'Fetch request from iframe sandboxed by an attribute with allow-scripts ' +
+   'and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame;
+  return doTest(frame, 'fetch-from-worker')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The fetch request should be handled by SW.');
+      assert_equals(requests[0],
+                    frame.src + '&test=fetch-from-worker');
+    });
+}, 'Fetch request from a worker in iframe sandboxed by an attribute with ' +
+   'allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame;
+  return doTest(frame, 'iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=iframe');
+      assert_true(data.clients.includes(frame.src + '&test=iframe'));
+    });
+}, 'Request for an iframe in the iframe sandboxed by an attribute with ' +
+   'allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame;
+  return doTest(frame, 'sandboxed-iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts flag in the iframe ' +
+   'sandboxed by attribute with allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame;
+  return doTest(frame, 'sandboxed-iframe-same-origin')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0],
+                    frame.src + '&test=sandboxed-iframe-same-origin');
+      assert_true(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe-same-origin'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts and ' +
+   'allow-same-origin flag in the iframe sandboxed by attribute with ' +
+   'allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame_by_header;
+  return doTest(frame, 'fetch')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+    });
+}, 'Fetch request from iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame_by_header;
+  return doTest(frame, 'iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(frame.src + '&test=iframe'));
+    });
+}, 'Request for an iframe in the iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame_by_header;
+  return doTest(frame, 'sandboxed-iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts flag in the iframe ' +
+   'sandboxed by CSP HTTP header with allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_frame_by_header;
+  return doTest(frame, 'sandboxed-iframe-same-origin')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe-same-origin'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts and ' +
+   'allow-same-origin flag in the iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame_by_header;
+  return doTest(frame, 'fetch')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=fetch');
+    });
+}, 'Fetch request from iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame_by_header;
+  return doTest(frame, 'iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0], frame.src + '&test=iframe');
+      assert_true(data.clients.includes(frame.src + '&test=iframe'));
+    });
+}, 'Request for an iframe in the iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts and allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame_by_header;
+  return doTest(frame, 'sandboxed-iframe')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      assert_equals(data.requests.length, 0,
+                    'The request should NOT be handled by SW.');
+      assert_false(
+        data.clients.includes(frame.src + '&test=sandboxed-iframe'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts flag in the ' +
+   'iframe sandboxed by CSP HTTP header with allow-scripts and ' +
+   'allow-same-origin flag');
+
+promise_test(t => {
+  let frame = sandboxed_same_origin_frame_by_header;
+  return doTest(frame, 'sandboxed-iframe-same-origin')
+    .then(result => {
+      assert_equals(result, 'done');
+      return getResultsFromWorker(worker);
+    })
+    .then(data => {
+      let requests = data.requests;
+      assert_equals(requests.length, 1,
+                    'The request should be handled by SW.');
+      assert_equals(requests[0],
+                    frame.src + '&test=sandboxed-iframe-same-origin');
+      assert_true(data.clients.includes(
+        frame.src + '&test=sandboxed-iframe-same-origin'));
+    });
+}, 'Request for an sandboxed iframe with allow-scripts and ' +
+   'allow-same-origin flag in the iframe sandboxed by CSP HTTP header with ' +
+   'allow-scripts and allow-same-origin flag');
+</script>
+</body>

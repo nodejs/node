@@ -1,0 +1,269 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/sandbox/external-pointer-table.h"
+
+#include <inttypes.h>
+
+#include "src/execution/isolate.h"
+#include "src/heap/read-only-spaces.h"
+#include "src/logging/counters.h"
+#include "src/sandbox/external-pointer-table-inl.h"
+
+#ifdef V8_COMPRESS_POINTERS
+
+namespace v8::internal {
+
+void ExternalPointerTable::SetUpFromReadOnlyArtifacts(
+    Space* read_only_space, const ReadOnlyArtifacts* artifacts) {
+  UnsealReadOnlySegmentScope unseal_scope(this);
+  for (const auto& registry_entry : artifacts->external_pointer_registry()) {
+    ExternalPointerHandle handle = AllocateAndInitializeEntry(
+        read_only_space, registry_entry.value, registry_entry.tag);
+    CHECK_EQ(handle, registry_entry.handle);
+  }
+}
+
+// An iterator over a set of sets of segments that returns a total ordering of
+// segments in highest to lowest address order.  This lets us easily build a
+// sorted singly-linked freelist.
+//
+// When given a single set of segments, it's the same as iterating over
+// std::set<Segment> in reverse order.
+//
+// With multiple segment sets, we still produce a total order.  Sets are
+// annotated so that we can associate some data with their segments.  This is
+// useful when evacuating the young ExternalPointerTable::Space into the old
+// generation in a major collection, as both spaces could have been compacting,
+// with different starts to the evacuation area.
+template <typename Segment, typename Data>
+class SegmentsIterator {
+  using iterator = typename std::set<Segment>::reverse_iterator;
+  using const_iterator = typename std::set<Segment>::const_reverse_iterator;
+
+ public:
+  SegmentsIterator() = default;
+
+  void AddSegments(const std::set<Segment>& segments, Data data) {
+    streams_.emplace_back(segments.rbegin(), segments.rend(), data);
+  }
+
+  std::optional<std::pair<Segment, Data>> Next() {
+    int stream = -1;
+    int min_stream = -1;
+    std::optional<std::pair<Segment, Data>> result;
+    for (auto [iter, end, data] : streams_) {
+      stream++;
+      if (iter != end) {
+        Segment segment = *iter;
+        if (!result || result.value().first < segment) {
+          min_stream = stream;
+          result.emplace(segment, data);
+        }
+      }
+    }
+    if (result) {
+      streams_[min_stream].iter++;
+      return result;
+    }
+    return {};
+  }
+
+ private:
+  struct Stream {
+    iterator iter;
+    const_iterator end;
+    Data data;
+
+    Stream(iterator iter, const_iterator end, Data data)
+        : iter(iter), end(end), data(data) {}
+  };
+
+  std::vector<Stream> streams_;
+};
+
+uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
+                                                          Space* from_space,
+                                                          Counters* counters) {
+  DCHECK(space->BelongsTo(this));
+  DCHECK(!space->is_internal_read_only_space());
+
+  DCHECK_IMPLIES(from_space, from_space->BelongsTo(this));
+  DCHECK_IMPLIES(from_space, !from_space->is_internal_read_only_space());
+
+  // Lock the space. Technically this is not necessary since no other thread can
+  // allocate entries at this point, but some of the methods we call on the
+  // space assert that the lock is held.
+  base::MutexGuard guard(&space->mutex_);
+  // Same for the invalidated fields mutex.
+  base::MutexGuard invalidated_fields_guard(&space->invalidated_fields_mutex_);
+
+  // There must not be any entry allocations while the table is being swept as
+  // that would not be safe. Set the freelist to this special marker value to
+  // easily catch any violation of this requirement.
+  space->freelist_head_.store(kEntryAllocationIsForbiddenMarker,
+                              std::memory_order_relaxed);
+
+  SegmentsIterator<Segment, CompactionResult> segments_iter;
+  Histogram* counter = counters->external_pointer_table_compaction_outcome();
+  CompactionResult space_compaction = FinishCompaction(space, counter);
+  segments_iter.AddSegments(space->segments_, space_compaction);
+
+  // If from_space is present, take its segments and add them to the sweep
+  // iterator.  Wait until after the sweep to actually give from_space's
+  // segments to the other space, to avoid invalidating the iterator.
+  std::set<Segment> from_space_segments;
+  if (from_space) {
+    base::MutexGuard from_space_guard(&from_space->mutex_);
+    base::MutexGuard from_space_invalidated_fields_guard(
+        &from_space->invalidated_fields_mutex_);
+
+    std::swap(from_space->segments_, from_space_segments);
+    DCHECK(from_space->segments_.empty());
+
+    CompactionResult from_space_compaction =
+        FinishCompaction(from_space, counter);
+    segments_iter.AddSegments(from_space_segments, from_space_compaction);
+
+    FreelistHead empty_freelist;
+    from_space->freelist_head_.store(empty_freelist, std::memory_order_relaxed);
+
+    for (Address field : from_space->invalidated_fields_) {
+      space->invalidated_fields_.push_back(field);
+    }
+    from_space->ClearInvalidatedFields();
+  }
+
+  // Sweep top to bottom and rebuild the freelist from newly dead and
+  // previously freed entries while also clearing the marking bit on live
+  // entries and resolving evacuation entries table when compacting the table.
+  // This way, the freelist ends up sorted by index which already makes the
+  // table somewhat self-compacting and is required for the compaction
+  // algorithm so that evacuated entries are evacuated to the start of a space.
+  // This method must run either on the mutator thread or while the mutator is
+  // stopped.
+  uint32_t current_freelist_head = 0;
+  uint32_t current_freelist_length = 0;
+
+  std::vector<Segment> segments_to_deallocate;
+  while (auto current = segments_iter.Next()) {
+    Segment segment = current->first;
+    CompactionResult compaction = current->second;
+
+    bool segment_will_be_evacuated =
+        compaction.success &&
+        segment.first_entry() >= compaction.start_of_evacuation_area;
+
+    if (SweepAndCompactSegment(
+            space, segment, compaction.start_of_evacuation_area,
+            segment_will_be_evacuated, &current_freelist_head,
+            &current_freelist_length)) {
+      segments_to_deallocate.push_back(segment);
+    }
+  }
+
+  space->segments_.merge(from_space_segments);
+
+  // We cannot deallocate the segments during the above loop, so do it now.
+  for (auto segment : segments_to_deallocate) {
+    // Ensure any managed resources in deallocated segments are freed even if
+    // their evacuation bailed out.
+    for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
+      FreeManagedResourceIfPresent(i);
+    }
+    FreeTableSegment(segment);
+    space->segments_.erase(segment);
+  }
+
+  space->ClearInvalidatedFields();
+
+  FreelistHead new_freelist(current_freelist_head, current_freelist_length);
+  space->freelist_head_.store(new_freelist, std::memory_order_release);
+  DCHECK_EQ(space->freelist_length(), current_freelist_length);
+
+  uint32_t num_live_entries = space->capacity() - current_freelist_length;
+  counters->external_pointers_count()->AddSample(num_live_entries);
+  return num_live_entries;
+}
+
+uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
+                                               Counters* counters) {
+  return EvacuateAndSweepAndCompact(space, nullptr, counters);
+}
+
+uint32_t ExternalPointerTable::Sweep(Space* space, Counters* counters) {
+  DCHECK(!space->IsCompacting());
+  return SweepAndCompact(space, counters);
+}
+
+void ExternalPointerTable::Verify(Isolate* isolate, Space* space) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto payload = at(index).GetRawPayload();
+    ExternalPointerTag tag = payload.ExtractTag();
+    if (tag == kExternalPointerFreeEntryTag ||
+        tag == kExternalPointerEvacuationEntryTag ||
+        tag == kExternalPointerZappedEntryTag) {
+      return;
+    }
+
+    Address pointer = payload.Untag(tag);
+    if (pointer == kNullAddress) return;
+
+    // We don't know the C++ type of the referenced object, so we cannot do
+    // much verification on it. What we can do is try to load the first byte of
+    // the object (we assume we don't have zero-sized objects). This way, we
+    // can at least detect issues like use-after-free on ASan builds.
+    USE(*reinterpret_cast<const uint8_t*>(pointer));
+  });
+}
+
+
+#ifdef OBJECT_PRINT
+
+namespace {
+
+constexpr std::string_view entry_spacer =
+    "+-----------------------------------------+\n";
+
+}  // namespace
+
+// static
+void ExternalPointerTableEntryPrinter::PrintHeader(const char* space_name) {
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "| %*s |\n", static_cast<int>(entry_spacer.size() - 5),
+         space_name);
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "|     handle |   tag |   external pointer |\n");
+  PrintF(stderr, "%s", entry_spacer.data());
+}
+
+// static
+void ExternalPointerTableEntryPrinter::PrintIfInUse(
+    ExternalPointerHandle handle, const ExternalPointerTableEntry& entry,
+    std::function<bool(ExternalPointerTag)> entry_callback) {
+  const auto payload = entry.GetRawPayload();
+  const ExternalPointerTag tag = payload.ExtractTag();
+  if (tag == kExternalPointerFreeEntryTag ||
+      tag == kExternalPointerZappedEntryTag) {
+    return;
+  }
+  if (!entry_callback(tag)) {
+    return;
+  }
+
+  Address address = payload.Untag(tag);
+  PrintF(stderr, "| %10" PRIu32 " | %5" PRIu16 " | 0x%016" PRIxPTR " |\n",
+         handle, tag, address);
+}
+
+// static
+void ExternalPointerTableEntryPrinter::PrintFooter() {
+  PrintF(stderr, "%s", entry_spacer.data());
+}
+
+#endif  // OBJECT_PRINT
+
+}  // namespace v8::internal
+
+#endif  // V8_COMPRESS_POINTERS

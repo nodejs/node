@@ -1,0 +1,196 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-objects.h'
+#include 'src/objects/intl-objects.h'
+
+extern macro IntlAsciiCollationWeightsL1(): RawPtr<uint8>;
+extern macro IntlAsciiCollationWeightsL3(): RawPtr<uint8>;
+const kIntlAsciiCollationWeightsLength:
+    constexpr int31 generates 'Intl::kAsciiCollationWeightsLength';
+
+macro IntlAsciiCollationWeightL1(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL1(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
+}
+
+macro IntlAsciiCollationWeightL3(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL3(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
+}
+
+
+macro CheckNextIs1Byte(
+    _slice: ConstSlice<char8>, _index: intptr): void labels _Bailout {
+  // char8 is always within 0xFF.
+}
+macro CheckNextIs1Byte(
+    slice: ConstSlice<char16>, index: intptr): void labels Bailout {
+  if (index + 1 < slice.length) {
+    const nextChar = *slice.UncheckedAtIndex(index + 1);
+    if (Convert<uint32>(nextChar) > 0xFF) goto Bailout;
+  }
+}
+
+// This fast path works for ASCII-only strings and is based on the assumption
+// that most strings are either bytewise equal or differ on L1 (i.e., not just
+// in capitalization). So we first compare the strings on L1 and only afterwards
+// consider L3. This makes use of the 256-entry L1 and L3 tables defined in
+// src/objects/intl-objects.cc.
+macro LocaleCompareFastPath<T1: type, T2: type>(
+    left: ConstSlice<T1>, right: ConstSlice<T2>): Number labels Bailout {
+  let skip: intptr = 0;
+  const minLengthIntptr =
+      left.length < right.length ? left.length : right.length;
+  while (skip < minLengthIntptr) {
+    const lChar = *left.UncheckedAtIndex(skip);
+    const rChar = *right.UncheckedAtIndex(skip);
+
+    if (lChar != rChar) break;
+
+    // Restrict fast prefix skipping to standard ASCII characters. We cannot
+    // skip non-ASCII characters because they could form a contraction with the
+    // following differing character.
+    if (Convert<uint32>(lChar) >= 128) break;
+
+    skip++;
+  }
+
+  if (skip == left.length && skip == right.length) return 0;
+
+  let i: intptr = skip;
+  while (i < minLengthIntptr) {
+    const lChar = *left.UncheckedAtIndex(i);
+    const rChar = *right.UncheckedAtIndex(i);
+
+    const leftWeight = IntlAsciiCollationWeightL1(lChar) otherwise Bailout;
+    if (leftWeight == 0) goto Bailout;
+
+    const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+    if (rightWeight == 0) goto Bailout;
+
+    if (leftWeight != rightWeight) {
+      // The result is only valid if the last processed character is not
+      // followed by a unicode combining character (we are overly strict and
+      // restrict to code points up to 0xFF).
+      CheckNextIs1Byte(left, i) otherwise Bailout;
+      CheckNextIs1Byte(right, i) otherwise Bailout;
+      if (leftWeight < rightWeight) return -1;
+      return 1;
+    }
+    i++;
+  }
+
+  if (i < left.length) {
+    // If right is exhausted, we must check if the next char of the left string
+    // is ignorable or a combining character.
+    const lChar = *left.UncheckedAtIndex(i);
+    const leftWeight = IntlAsciiCollationWeightL1(lChar) otherwise Bailout;
+    if (leftWeight == 0) goto Bailout;
+    return 1;
+  } else if (i < right.length) {
+    // If left is exhausted, we must check if the next char of the right string
+    // is ignorable or a combining character.
+    const rChar = *right.UncheckedAtIndex(i);
+    const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+    if (rightWeight == 0) goto Bailout;
+    return -1;
+  }
+
+  i = skip;
+  while (i < minLengthIntptr) {
+    const lChar = *left.UncheckedAtIndex(i);
+    const rChar = *right.UncheckedAtIndex(i);
+    const leftWeight = IntlAsciiCollationWeightL3(lChar) otherwise unreachable;
+    const rightWeight = IntlAsciiCollationWeightL3(rChar) otherwise unreachable;
+    dcheck(leftWeight != 0 && rightWeight != 0);
+    if (leftWeight != rightWeight) {
+      if (leftWeight < rightWeight) return -1;
+      return 1;
+    }
+    i++;
+  }
+  return 0;
+}
+
+transitioning builtin StringFastLocaleCompare(
+    implicit context: Context)(localeCompareFn: JSFunction, left: JSAny,
+    right: JSAny, locales: JSAny): JSAny {
+  try {
+    const leftStr = Cast<String>(left) otherwise Bailout;
+    const rightStr = Cast<String>(right) otherwise Bailout;
+    if (TaggedEqual(leftStr, rightStr)) goto Done(SmiConstant(0));
+
+    // TODO(mrcvtl): Investigate why StringToSlice slows down SeqOneByteString
+    // comparisons.
+    typeswitch (leftStr) {
+      case (lSeq: SeqOneByteString): {
+        typeswitch (rightStr) {
+          case (rSeq: SeqOneByteString): {
+            const leftLength = Convert<intptr>(lSeq.length);
+            const rightLength = Convert<intptr>(rSeq.length);
+            const leftSlice =
+                Subslice(&lSeq.chars, 0, leftLength) otherwise unreachable;
+            const rightSlice =
+                Subslice(&rSeq.chars, 0, rightLength) otherwise unreachable;
+            const result = LocaleCompareFastPath(leftSlice, rightSlice)
+                otherwise Bailout;
+            goto Done(result);
+          }
+          case (String): {
+          }
+        }
+      }
+      case (String): {
+      }
+    }
+
+    StringToSlice(leftStr) otherwise LeftOneByte, LeftTwoByte;
+  } label LeftOneByte(leftSlice: ConstSlice<char8>) {
+    try {
+      const rightStr = Cast<String>(right) otherwise Bailout;
+      StringToSlice(rightStr) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
+    }
+  } label LeftTwoByte(leftSlice: ConstSlice<char16>) {
+    try {
+      const rightStr = Cast<String>(right) otherwise Bailout;
+      StringToSlice(rightStr) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
+    }
+  } label Bailout deferred {
+    const result = Call(context, localeCompareFn, left, right, locales);
+    goto Done(result);
+  } label Done(result: JSAny) {
+    // The Turboshaft StringLocaleCompareIntlOp narrows the result to
+    // V<Smi> from {-1, 0, 1}; keep the invariant explicit.
+    dcheck(TaggedIsSmi(result));
+    dcheck(
+        UnsafeCast<Smi>(result) == -1 || UnsafeCast<Smi>(result) == 0 ||
+        UnsafeCast<Smi>(result) == 1);
+    return result;
+  }
+}

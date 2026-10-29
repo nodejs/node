@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Assures navigator.serviceWorker.register() doesn't crash when rejecting being called in a detached frame</title>
+<link rel="author" href="mailto:caseq@chromium.org">
+<link rel="help" href="http://crbug.com/398910931">
+<body>
+<iframe></iframe>
+<script>
+const frame = document.getElementsByTagName("iframe")[0];
+const container = frame.contentWindow.navigator.serviceWorker;
+frame.remove();
+container.register("data:,");
+</script>
+</body>

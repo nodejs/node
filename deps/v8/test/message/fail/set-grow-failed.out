@@ -1,0 +1,6 @@
+*%(basename)s:{NUMBER}: RangeError: Set maximum size exceeded
+  s.add(i);
+    ^
+RangeError: Set maximum size exceeded
+    at Set.add (<anonymous>)
+    at *%(basename)s:{NUMBER}:{NUMBER}

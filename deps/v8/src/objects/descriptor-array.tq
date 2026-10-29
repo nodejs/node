@@ -1,0 +1,34 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@cppObjectLayoutDefinition
+extern class EnumCache extends Struct {
+  keys: FixedArray;
+  indices: FixedArray;
+}
+
+@export
+struct DescriptorEntry {
+  key: Name|Undefined;
+  details: Smi|Undefined;
+  value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions|
+      NumberDictionary;
+}
+
+type FastIterableState extends uint8
+    constexpr 'DescriptorArray::FastIterableState';
+
+@cppScope('DescriptorArray')
+bitfield struct DescriptorArrayFlags extends uint32 {
+  fast_iterable: FastIterableState: 2 bit;
+}
+
+@cppObjectLayoutDefinition
+extern class DescriptorArray extends HeapObject {
+  const number_of_all_descriptors: uint16;
+  number_of_descriptors: uint16;
+  flags: DescriptorArrayFlags;
+  enum_cache: EnumCache;
+  descriptors[number_of_all_descriptors]: DescriptorEntry;
+}

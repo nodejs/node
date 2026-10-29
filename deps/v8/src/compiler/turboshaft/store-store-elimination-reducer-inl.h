@@ -1,0 +1,611 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_REDUCER_INL_H_
+#define V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_REDUCER_INL_H_
+
+#include <optional>
+
+#include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
+#include "src/compiler/turboshaft/uniform-reducer-adapter.h"
+#include "src/compiler/turboshaft/utils.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/objects/heap-object-inl.h"
+
+namespace v8::internal::compiler::turboshaft {
+
+// 1. StoreStoreEliminationReducer tries to identify and remove redundant
+// stores. E.g. for an input like
+//
+//   let o = {};
+//   o.x = 2;
+//   o.y = 3;
+//   o.x = 4;
+//   use(o.x);
+//
+// we don't need the first store to `o.x` because the value is overwritten
+// before it can be observed.
+//
+// The analysis considers loads and stores as corresponding pairs of `base` (the
+// OpIndex that defines `o` in the above example) and `offset` (that is the
+// static offset at which the field is stored inside the object). We run the
+// analysis backwards and track potentially redundant stores in a
+// `MaybeRedundantStoresTable` roughly as follows:
+//
+//   1. When we see a `base`+`offset` store and
+//     a. `base`+`offset` is observable in the table, we keep the store, but
+//        track following `base`+`offset` stores as unobservable in the table.
+//     b. `base`+`offset` is unobservable in the table, we can eliminate the
+//        store and keep the table unchanged.
+//     c. `base`+`offset` is gc-observable in the table, we eliminate it only
+//        if it is not an initializing store, otherwise, we keep it and update
+//        the table accordingly.
+//   2. When we see a `base`+`offset` load, we mark all stores to this `offset`
+//      as observable in the table. Notice that we do this regardless of the
+//      `base`, because they might alias potentially.
+//   3. When we see an allocation, we mark all stores that are currently
+//      unobservable, as gc-observable. The idea behind gc-observability is
+//      that we do not observe the actual value stored, but we need to make
+//      sure that the fields are written at least once, so that the GC does not
+//      see uninitialized fields.
+//   4. When we see another operation that can observe memory, we mark all
+//      stores as observable.
+//
+// Notice that the table also tracks the `size` of the store, such that if
+// fields are partially written, we don't incorrectly treat them as redundant to
+// the full store (this can happen in strings for example).
+//
+// When the analysis reaches a branch, we combine values using traditional least
+// upper bound operation on the `StoreObservability` lattice. After processing a
+// loop header, we revisit the loop if the resulting state has changed until we
+// reach a fixpoint.
+//
+//
+// 2. StoreStoreEliminationReducer tries to merge 2 continuous 32-bits stores
+// into a 64-bits one.
+// When v8 create a new js object, it will initialize it's in object fields to
+// some constant value after allocation, like `undefined`. When pointer
+// compression is enabled, they are continuous 32-bits stores, and the store
+// values are usually constants (heap object). This reducer will try to merge 2
+// continuous 32-bits stores into a 64-bits one.
+
+#ifdef DEBUG
+#define TRACE(x)                                           \
+  do {                                                     \
+    if (v8_flags.turboshaft_trace_store_store_elimination) \
+      StdoutStream() << x << std::endl;                    \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+enum class StoreObservability {
+  kUnobservable = 0,
+  kGCObservable = 1,
+  kObservable = 2,
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                StoreObservability observability) {
+  switch (observability) {
+    case StoreObservability::kUnobservable:
+      return os << "Unobservable";
+    case StoreObservability::kGCObservable:
+      return os << "GCObservable";
+    case StoreObservability::kObservable:
+      return os << "Observable";
+  }
+  UNREACHABLE();
+}
+
+struct MaybeRedundantStoresKeyData {
+  OpIndex base;
+  int32_t offset;
+  uint8_t size;
+  IntrusiveSetIndex active_keys_index = {};
+};
+
+class MaybeRedundantStoresTable
+    : public ChangeTrackingSnapshotTable<MaybeRedundantStoresTable,
+                                         StoreObservability,
+                                         MaybeRedundantStoresKeyData> {
+  using super =
+      ChangeTrackingSnapshotTable<MaybeRedundantStoresTable, StoreObservability,
+                                  MaybeRedundantStoresKeyData>;
+
+ public:
+  explicit MaybeRedundantStoresTable(const Graph& graph, Zone* zone)
+      : ChangeTrackingSnapshotTable(zone),
+        graph_(graph),
+        block_to_snapshot_mapping_(zone),
+        key_mapping_(zone),
+        active_keys_(zone),
+        successor_snapshots_(zone) {}
+
+  void OnNewKey(Key key, StoreObservability value) {
+    DCHECK_EQ(value, StoreObservability::kObservable);
+    DCHECK(!active_keys_.Contains(key));
+  }
+
+  void OnValueChange(Key key, StoreObservability old_value,
+                     StoreObservability new_value) {
+    DCHECK_NE(old_value, new_value);
+    TRACE(">> OnValueChange( " << key.data().base.id() << "@"
+                               << key.data().offset << " ) old=" << old_value
+                               << ", new=" << new_value);
+    if (new_value == StoreObservability::kObservable) {
+      active_keys_.Remove(key);
+    } else if (old_value == StoreObservability::kObservable) {
+      active_keys_.Add(key);
+    }
+  }
+
+  void BeginBlock(const Block* block) {
+    // Seal the current block first.
+    if (IsSealed()) {
+      DCHECK_NULL(current_block_);
+    } else {
+      // If we bind a new block while the previous one is still unsealed, we
+      // finalize it.
+      Seal();
+    }
+
+    // Collect the snapshots of all successors.
+    {
+      auto successors = SuccessorBlocks(block->LastOperation(graph_));
+      successor_snapshots_.clear();
+      for (const Block* successor : successors) {
+        std::optional<Snapshot> successor_snapshot =
+            block_to_snapshot_mapping_[successor->index()];
+        // When we visit the loop for the first time, the loop header hasn't
+        // been visited yet, so we ignore it.
+        DCHECK_IMPLIES(!successor_snapshot.has_value(), successor->IsLoop());
+        if (!successor_snapshot.has_value()) continue;
+        successor_snapshots_.push_back(*successor_snapshot);
+      }
+    }
+
+    // Start a new snapshot for this block by merging information from
+    // successors.
+    StartNewSnapshot(
+        base::VectorOf(successor_snapshots_),
+        [](Key key, base::Vector<const StoreObservability> successors) {
+          StoreObservability new_observability =
+              static_cast<StoreObservability>(
+                  *std::max_element(successors.begin(), successors.end()));
+          TRACE("> Block start for " << key.data().base.id() << "@"
+                                     << key.data().offset << " : "
+                                     << new_observability);
+          return new_observability;
+        });
+
+    current_block_ = block;
+  }
+
+  StoreObservability GetObservability(OpIndex base, int32_t offset,
+                                      uint8_t size) {
+    Key key = map_to_key(base, offset, size);
+    if (key.data().size < size) return StoreObservability::kObservable;
+    return Get(key);
+  }
+
+  void MarkStoreAsUnobservable(OpIndex base, int32_t offset, uint8_t size) {
+    // We can only shadow stores to the exact same `base`+`offset` and keep
+    // everything else because they might or might not alias.
+    Key key = map_to_key(base, offset, size);
+    // If the `size` we want to mark unobservable here is less than the size we
+    // have seen for this key before, we do not overwrite the entire field, so
+    // preceeding stores are not (fully) unobservable.
+    if (size < key.data().size) return;
+    Set(key, StoreObservability::kUnobservable);
+  }
+
+  void MarkPotentiallyAliasingStoresAsObservable(OpIndex base, int32_t offset) {
+    TRACE("> MarkPotentiallyAliasingStoresAsObservable(base="
+          << base.id() << ", offset=" << offset << ")");
+    // For now, we consider all stores to the same offset as potentially
+    // aliasing. We might improve this to eliminate more precisely, if we have
+    // some sort of aliasing information.
+    for (Key key : active_keys_) {
+      if (key.data().offset == offset) {
+        Set(key, StoreObservability::kObservable);
+      }
+    }
+  }
+
+  void MarkAllStoresAsObservable() {
+    TRACE("> MarkAllStoresAsObservable");
+    for (Key key : active_keys_) {
+      TRACE(">> " << key.data().base << "@" << key.data().offset
+                  << "  ==> Observable");
+      Set(key, StoreObservability::kObservable);
+    }
+  }
+
+  void InvalidateBasesInRange(BlockIndex start, BlockIndex end) {
+    for (Key key : active_keys_) {
+      BlockIndex base_block = graph_.BlockOf(key.data().base);
+      if (base_block >= start && base_block <= end) {
+        Set(key, StoreObservability::kObservable);
+      }
+    }
+  }
+
+  void MarkAllStoresAsGCObservable() {
+    TRACE("> MarkAllStoresAsGCObservable");
+    for (Key key : active_keys_) {
+      auto current = Get(key);
+      DCHECK_NE(current, StoreObservability::kObservable);
+      if (current == StoreObservability::kUnobservable) {
+        TRACE(">> " << key.data().base << "@" << key.data().offset
+                    << "  ==> GCObservable");
+        Set(key, StoreObservability::kGCObservable);
+      }
+    }
+  }
+
+  void Seal(bool* snapshot_has_changed = nullptr) {
+    DCHECK(!IsSealed());
+    DCHECK_NOT_NULL(current_block_);
+    DCHECK(current_block_->index().valid());
+    auto& snapshot = block_to_snapshot_mapping_[current_block_->index()];
+    if (!snapshot_has_changed) {
+      snapshot = super::Seal();
+    } else if (!snapshot.has_value()) {
+      // Finishing a loop for the 1st time; we'll always reprocess it.
+      DCHECK(current_block_->IsLoop());
+      *snapshot_has_changed = true;
+      snapshot = super::Seal();
+    } else {
+      // Finishing a loop for the 2nd time or more; we'll reprocess it only if
+      // the previous and current snapshots disagree.
+      DCHECK(current_block_->IsLoop());
+      auto new_snapshot = super::Seal();
+      *snapshot_has_changed = false;
+      StartNewSnapshot(
+          base::VectorOf({snapshot.value(), new_snapshot}),
+          [&](Key key, base::Vector<const StoreObservability> successors) {
+            if (successors[0] != successors[1]) *snapshot_has_changed = true;
+            return static_cast<StoreObservability>(
+                *std::max_element(successors.begin(), successors.end()));
+          });
+      snapshot = super::Seal();
+    }
+    current_block_ = nullptr;
+  }
+
+  void Print(std::ostream& os, const char* sep = "\n") const {
+    bool first = true;
+    for (Key key : active_keys_) {
+      os << (first ? "" : sep) << key.data().base.id() << "@"
+         << key.data().offset << ": " << Get(key);
+      first = false;
+    }
+  }
+
+ private:
+  Key map_to_key(OpIndex base, int32_t offset, uint8_t size) {
+    std::pair p{base, offset};
+    auto it = key_mapping_.find(p);
+    if (it != key_mapping_.end()) return it->second;
+    Key new_key = NewKey(MaybeRedundantStoresKeyData{base, offset, size},
+                         StoreObservability::kObservable);
+    key_mapping_.emplace(p, new_key);
+    return new_key;
+  }
+  struct GetActiveKeysIndex {
+    IntrusiveSetIndex& operator()(Key key) const {
+      return key.data().active_keys_index;
+    }
+  };
+
+  const Graph& graph_;
+  GrowingBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_;
+  ZoneAbslFlatHashMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
+  // In `active_keys_`, we track the keys of all stores that arge gc-observable
+  // or unobservable. Keys that are mapped to the default value (observable) are
+  // removed from the `active_keys_`.
+  ZoneIntrusiveSet<Key, GetActiveKeysIndex> active_keys_;
+  const Block* current_block_ = nullptr;
+  // {successor_snapshots_} and {temp_key_vector_} are used as temporary vectors
+  // inside functions. We store them as members to avoid reallocation.
+  ZoneVector<Snapshot> successor_snapshots_;
+};
+
+class RedundantStoreAnalysis {
+ public:
+  RedundantStoreAnalysis(const Graph& graph, Zone* phase_zone)
+      : graph_(graph), table_(graph, phase_zone) {}
+
+  void Run(ZoneSet<OpIndex>& eliminable_stores,
+           ZoneMap<OpIndex, uint64_t>& mergeable_store_pairs) {
+    eliminable_stores_ = &eliminable_stores;
+    mergeable_store_pairs_ = &mergeable_store_pairs;
+    for (uint32_t processed = graph_.block_count(); processed > 0;
+         --processed) {
+      BlockIndex block_index = static_cast<BlockIndex>(processed - 1);
+
+      const Block& block = graph_.Get(block_index);
+      ProcessBlock(block);
+
+      // If this block is a loop header, check if this loop needs to be
+      // revisited.
+      if (block.IsLoop()) {
+        Block* back_edge = block.LastPredecessor();
+        DCHECK_GE(back_edge->index(), block_index);
+        // Objects allocated inside the loop body belong to a specific loop
+        // iteration and are distinct across iterations. We must invalidate
+        // their store observability across the backedge so that stores to a
+        // fresh object in one iteration are not incorrectly eliminated by
+        // stores to an object from the next iteration.
+        // Note that checking the BlockIndex range [block_index,
+        // back_edge->index()] is a slight overapproximation since some blocks
+        // in this range might not belong to the loop. However, this is
+        // conservative and safe, and using LoopFinder here would be both more
+        // complicated and significantly more expensive.
+        table_.InvalidateBasesInRange(block_index, back_edge->index());
+
+        TRACE("Considering Loop revisit for " << block.index());
+        DCHECK(!table_.IsSealed());
+        bool needs_revisit = false;
+        table_.Seal(&needs_revisit);
+        TRACE("> needs_revisit=" << needs_revisit);
+        if (needs_revisit) {
+          // We need a +2 to process the backedge at the next iteration:
+          //   - the `--processed` at the end of the loop will undo a +1.
+          //   - `block_index` is computed with `processed - 1`, which will undo
+          //     another +1.
+          static constexpr int kBackedgeAdjust = 2;
+          processed = back_edge->index().id() + kBackedgeAdjust;
+        }
+      }
+    }
+    eliminable_stores_ = nullptr;
+    mergeable_store_pairs_ = nullptr;
+  }
+
+  void ProcessBlock(const Block& block) {
+    TRACE("\nProcessBlock(" << block.index() << ")");
+    table_.BeginBlock(&block);
+
+    auto op_range = graph_.OperationIndices(block);
+    for (auto it = op_range.end(); it != op_range.begin();) {
+      --it;
+      OpIndex index = *it;
+      const Operation& op = graph_.Get(index);
+      if (ShouldSkipOperation(op)) continue;
+
+      switch (op.opcode) {
+        case Opcode::kStore: {
+          TRACE("Processing store " << index.id());
+          const StoreOp& store = op.Cast<StoreOp>();
+          // TODO(nicohartmann@): Use the new effect flags to distinguish heap
+          // access once available.
+          const bool is_on_heap_store = store.kind.tagged_base;
+          const bool is_fixed_offset_store = !store.index().valid();
+          const uint8_t size = store.stored_rep.SizeInBytes();
+          // For now we consider only stores of fixed offsets of objects on the
+          // heap.
+          if (is_on_heap_store && is_fixed_offset_store) {
+            // If we're revisiting a loop, then {eliminable_stores_} and
+            // {mergeable_store_pairs_} might contain {index} because a previous
+            // visit of the loop decided that it could be eliminated/merged; we
+            // remove it now and might add it back below if it can still be
+            // eliminated.
+            eliminable_stores_->erase(index);
+            mergeable_store_pairs_->erase(index);
+
+            bool is_eliminable_store = false;
+            switch (table_.GetObservability(store.base(), store.offset, size)) {
+              case StoreObservability::kUnobservable:
+                TRACE("> Unobservale");
+                eliminable_stores_->insert(index);
+                last_field_initialization_store_ = OpIndex::Invalid();
+                is_eliminable_store = true;
+                break;
+              case StoreObservability::kGCObservable:
+                TRACE("> kGCObservable");
+                if (store.maybe_initializing_or_transitioning) {
+                  TRACE(">> initializing/transitionin)");
+                  // We cannot eliminate this store, but we mark all following
+                  // stores to the same `base+offset` as unobservable.
+                  table_.MarkStoreAsUnobservable(store.base(), store.offset,
+                                                 size);
+                } else {
+                  TRACE(">> regular store");
+                  eliminable_stores_->insert(index);
+                  last_field_initialization_store_ = OpIndex::Invalid();
+                  is_eliminable_store = true;
+                }
+                break;
+              case StoreObservability::kObservable:
+                TRACE("> kObservable");
+                // We cannot eliminate this store, but we mark all following
+                // stores to the same `base+offset` as unobservable.
+                table_.MarkStoreAsUnobservable(store.base(), store.offset,
+                                               size);
+                break;
+            }
+
+            // Try to merge 2 consecutive 32-bit stores into a single 64-bit
+            // one.
+            if (COMPRESS_POINTERS_BOOL && !is_eliminable_store &&
+                store.maybe_initializing_or_transitioning &&
+                store.kind == StoreOp::Kind::TaggedBase() &&
+                store.write_barrier == WriteBarrierKind::kNoWriteBarrier &&
+                store.stored_rep.IsCompressibleTagged()) {
+              if (last_field_initialization_store_.valid() &&
+                  graph_.NextIndex(index) == last_field_initialization_store_) {
+                const StoreOp& store0 = store;
+                const StoreOp& store1 =
+                    graph_.Get(last_field_initialization_store_)
+                        .Cast<StoreOp>();
+
+                DCHECK(!store0.index().valid());
+                DCHECK(!store1.index().valid());
+
+                std::optional<uint32_t> low =
+                    TryGetRawUint32Constant(store0.value());
+                std::optional<uint32_t> high =
+                    TryGetRawUint32Constant(store1.value());
+
+                // TODO(dmercadier): for now, we only apply this optimization
+                // when storing read-only values, because otherwise the GC will
+                // lose track of Handles when we convert them to a raw Word64.
+                // However, if we were to keep the reloc info up-to-date, then
+                // this might work for any object. To do this, we might need to
+                // delay this optimization to later (instruction selector for
+                // instance).
+                if (store0.base() == store1.base() && high.has_value() &&
+                    low.has_value() && store1.offset - store0.offset == 4) {
+                  TRACE("> Preparging combined store with "
+                        << last_field_initialization_store_.id());
+#if V8_TARGET_BIG_ENDIAN
+                  uint64_t merged = make_uint64(*low, *high);
+#else
+                  uint64_t merged = make_uint64(*high, *low);
+#endif
+                  mergeable_store_pairs_->insert({index, merged});
+
+                  eliminable_stores_->insert(last_field_initialization_store_);
+                  last_field_initialization_store_ = OpIndex::Invalid();
+                }
+
+              } else {
+                last_field_initialization_store_ = index;
+              }
+            }
+          }
+          break;
+        }
+        case Opcode::kLoad: {
+          TRACE("Processing load " << index.id());
+          const LoadOp& load = op.Cast<LoadOp>();
+          // TODO(nicohartmann@): Use the new effect flags to distinguish heap
+          // access once available.
+          const bool is_on_heap_load = load.kind.tagged_base;
+          const bool is_fixed_offset_load = !load.index().valid();
+          // For now we consider only loads of fields of objects on the heap.
+          if (is_on_heap_load) {
+            if (is_fixed_offset_load) {
+              TRACE("> could alias at offset " << load.offset);
+              table_.MarkPotentiallyAliasingStoresAsObservable(load.base(),
+                                                               load.offset);
+            } else {
+              TRACE("> could alias with anything");
+              // A dynamically indexed load might alias any fixed offset.
+              table_.MarkAllStoresAsObservable();
+            }
+          }
+          break;
+        }
+        default: {
+          OpEffects effects = op.Effects();
+          if (effects.can_read_mutable_memory()) {
+            TRACE("Processing other: " << index.id() << " ==> can_read");
+            table_.MarkAllStoresAsObservable();
+          } else if (effects.requires_consistent_heap()) {
+            TRACE("Processing other: " << index.id() << " ==> can_allocate");
+            table_.MarkAllStoresAsGCObservable();
+          }
+        } break;
+      }
+    }
+  }
+
+ private:
+  // If {index} is a non-movable constant (ie, either a Int32/Smi or a read-only
+  // HeapObject), then returns its value as a uint32_t.
+  std::optional<uint32_t> TryGetRawUint32Constant(OpIndex index) {
+    const ConstantOp* cst = graph_.Get(index).TryCast<ConstantOp>();
+    if (!cst) return {};
+    switch (cst->kind) {
+      case ConstantOp::Kind::kWord32:
+        return cst->word32();
+      case ConstantOp::Kind::kSmi:
+        return cst->smi().ptr();
+      case ConstantOp::Kind::kHeapObject:
+      case ConstantOp::Kind::kCompressedHeapObject:
+        DCHECK(COMPRESS_POINTERS_BOOL);
+        if (HeapLayout::InReadOnlySpace(*cst->handle())) {
+          return static_cast<uint32_t>(cst->handle()->ptr());
+        } else {
+          return {};
+        }
+
+      case ConstantOp::Kind::kWord64:
+      case ConstantOp::Kind::kFloat32:
+      case ConstantOp::Kind::kFloat64:
+      case ConstantOp::Kind::kNumber:
+      case ConstantOp::Kind::kTaggedIndex:
+      case ConstantOp::Kind::kExternal:
+      case ConstantOp::Kind::kTrustedHeapObject:
+      case ConstantOp::Kind::kRelocatableWasmCall:
+      case ConstantOp::Kind::kRelocatableWasmStubCall:
+      case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
+      case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
+      case ConstantOp::Kind::kRelocatableWasmCodePointer:
+        return {};
+    }
+    UNREACHABLE();
+  }
+
+  const Graph& graph_;
+  MaybeRedundantStoresTable table_;
+  ZoneSet<OpIndex>* eliminable_stores_ = nullptr;
+
+  ZoneMap<OpIndex, uint64_t>* mergeable_store_pairs_ = nullptr;
+  OpIndex last_field_initialization_store_ = OpIndex::Invalid();
+};
+
+template <class Next>
+class StoreStoreEliminationReducer : public Next {
+ public:
+  TURBOSHAFT_REDUCER_BOILERPLATE(StoreStoreElimination)
+
+  void Analyze() {
+    if (v8_flags.turbo_store_elimination) {
+      analysis_.Run(eliminable_stores_, mergeable_store_pairs_);
+    }
+    Next::Analyze();
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Store)(OpIndex ig_index, const StoreOp& store) {
+    if (ShouldSkipOptimizationStep()) {
+      return Next::ReduceInputGraphStore(ig_index, store);
+    }
+
+    if (eliminable_stores_.count(ig_index) > 0) {
+      return OpIndex::Invalid();
+    } else if (mergeable_store_pairs_.count(ig_index) > 0) {
+      DCHECK(COMPRESS_POINTERS_BOOL);
+      OpIndex value = __ Word64Constant(mergeable_store_pairs_[ig_index]);
+      __ Store(__ MapToNewGraph(store.base()), value,
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::Uint64(),
+               WriteBarrierKind::kNoWriteBarrier, store.offset);
+      return OpIndex::Invalid();
+    }
+    return Next::ReduceInputGraphStore(ig_index, store);
+  }
+
+ private:
+  RedundantStoreAnalysis analysis_{Asm().input_graph(), Asm().phase_zone()};
+  ZoneSet<OpIndex> eliminable_stores_{Asm().phase_zone()};
+  ZoneMap<OpIndex, uint64_t> mergeable_store_pairs_{Asm().phase_zone()};
+};
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
+
+#undef TRACE
+
+}  // namespace v8::internal::compiler::turboshaft
+
+#endif  // V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_REDUCER_INL_H_

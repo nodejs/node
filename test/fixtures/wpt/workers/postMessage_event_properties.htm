@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title> postMessage(): MessageEvent properties </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var channel = new MessageChannel();
+  var targetPort = channel.port2;
+  targetPort.start();
+  targetPort.addEventListener("message", t.step_func_done(function (evt) {
+    assert_class_string(evt, "MessageEvent");
+    assert_equals(evt.type, "message");
+    assert_false(evt.bubbles, "bubbles should be false");
+    assert_false(evt.cancelable, "cancelable should be false");
+    assert_equals(evt.data, "ping", "data");
+    assert_equals(evt.origin, "", "origin");
+    assert_equals(evt.lastEventId, "", "lastEventId");
+    assert_equals(evt.source, null, "source");
+    assert_array_equals(evt.ports, [], "ports");
+  }), true);
+  channel.port1.postMessage("ping");
+});
+</script>

@@ -1,0 +1,5 @@
+Tests Debugger.setScriptSource
+{
+    code : -32000
+    message : setScriptSource functionality no longer available
+}

@@ -1,0 +1,2265 @@
+// Copyright 2016 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/json/json-parser.h"
+
+#include <optional>
+
+#include "hwy/highway.h"
+#include "include/v8config.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/base/small-vector.h"
+#include "src/base/strings.h"
+#include "src/builtins/builtins.h"
+#include "src/common/assert-scope.h"
+#include "src/common/globals.h"
+#include "src/common/message-template.h"
+#include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
+#include "src/heap/factory.h"
+#include "src/numbers/conversions.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/elements-kind.h"
+#include "src/objects/field-type.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/js-data-object-builder-inl.h"
+#include "src/objects/object-conversions-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
+#include "src/objects/string-inl.h"
+#include "src/objects/string-table.h"
+#include "src/roots/roots.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-hasher.h"
+#include "src/utils/boxed-float.h"
+
+namespace v8 {
+namespace internal {
+
+namespace {
+
+constexpr JsonToken GetOneCharJsonToken(uint8_t c) {
+  // clang-format off
+  return
+     c == '"' ? JsonToken::STRING :
+     IsDecimalDigit(c) ?  JsonToken::NUMBER :
+     c == '-' ? JsonToken::NUMBER :
+     c == '[' ? JsonToken::LBRACK :
+     c == '{' ? JsonToken::LBRACE :
+     c == ']' ? JsonToken::RBRACK :
+     c == '}' ? JsonToken::RBRACE :
+     c == 't' ? JsonToken::TRUE_LITERAL :
+     c == 'f' ? JsonToken::FALSE_LITERAL :
+     c == 'n' ? JsonToken::NULL_LITERAL :
+     c == ' ' ? JsonToken::WHITESPACE :
+     c == '\t' ? JsonToken::WHITESPACE :
+     c == '\r' ? JsonToken::WHITESPACE :
+     c == '\n' ? JsonToken::WHITESPACE :
+     c == ':' ? JsonToken::COLON :
+     c == ',' ? JsonToken::COMMA :
+     JsonToken::ILLEGAL;
+  // clang-format on
+}
+
+// Table of one-character tokens, by character (0x00..0xFF only).
+static const constexpr JsonToken one_char_json_tokens[256] = {
+#define CALL_GET_SCAN_FLAGS(N) GetOneCharJsonToken(N),
+    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+#define CALL_GET_SCAN_FLAGS(N) GetOneCharJsonToken(128 + N),
+        INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+};
+
+enum class EscapeKind : uint8_t {
+  kIllegal,
+  kSelf,
+  kBackspace,
+  kTab,
+  kNewLine,
+  kFormFeed,
+  kCarriageReturn,
+  kUnicode
+};
+
+using EscapeKindField = base::BitField8<EscapeKind, 0, 3>;
+using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
+using NumberPartField = MayTerminateStringField::Next<bool, 1>;
+
+constexpr bool MayTerminateJsonString(uint8_t flags) {
+  return MayTerminateStringField::decode(flags);
+}
+
+constexpr EscapeKind GetEscapeKind(uint8_t flags) {
+  return EscapeKindField::decode(flags);
+}
+
+constexpr bool IsNumberPart(uint8_t flags) {
+  return NumberPartField::decode(flags);
+}
+
+constexpr uint8_t GetJsonScanFlags(uint8_t c) {
+  // clang-format off
+  return (c == 'b' ? EscapeKindField::encode(EscapeKind::kBackspace)
+          : c == 't' ? EscapeKindField::encode(EscapeKind::kTab)
+          : c == 'n' ? EscapeKindField::encode(EscapeKind::kNewLine)
+          : c == 'f' ? EscapeKindField::encode(EscapeKind::kFormFeed)
+          : c == 'r' ? EscapeKindField::encode(EscapeKind::kCarriageReturn)
+          : c == 'u' ? EscapeKindField::encode(EscapeKind::kUnicode)
+          : c == '"' ? EscapeKindField::encode(EscapeKind::kSelf)
+          : c == '\\' ? EscapeKindField::encode(EscapeKind::kSelf)
+          : c == '/' ? EscapeKindField::encode(EscapeKind::kSelf)
+          : EscapeKindField::encode(EscapeKind::kIllegal)) |
+         (c < 0x20 ? MayTerminateStringField::encode(true)
+          : c == '"' ? MayTerminateStringField::encode(true)
+          : c == '\\' ? MayTerminateStringField::encode(true)
+          : MayTerminateStringField::encode(false)) |
+         NumberPartField::encode(c == '.' ||
+                                 c == 'e' ||
+                                 c == 'E' ||
+                                 IsDecimalDigit(c) ||
+                                 c == '-' ||
+                                 c == '+');
+  // clang-format on
+}
+
+// Table of one-character scan flags, by character (0x00..0xFF only).
+static const constexpr uint8_t character_json_scan_flags[256] = {
+#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(N),
+    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(128 + N),
+        INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+};
+
+#define EXPECT_RETURN_ON_ERROR(token, msg, ret) \
+  if (V8_UNLIKELY(!Expect<token>(msg))) {       \
+    return ret;                                 \
+  }
+#define EXPECT_NEXT_RETURN_ON_ERROR(token, msg, ret) \
+  if (V8_UNLIKELY(!ExpectNext<token>(msg))) {        \
+    return ret;                                      \
+  }
+
+}  // namespace
+
+MaybeHandle<Object> JsonParseInternalizer::Internalize(
+    Isolate* isolate, DirectHandle<Object> result, Handle<Object> reviver,
+    Handle<String> source, MaybeHandle<Object> val_node,
+    bool pass_context_argument) {
+  DCHECK(IsCallable(*reviver));
+  JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
+                                     source);
+  DirectHandle<JSObject> holder =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  DirectHandle<String> name = isolate->factory()->empty_string();
+  JSObject::AddProperty(isolate, holder, name, result, NONE);
+  if (pass_context_argument) {
+    // Three-argument reviver, so we add a context argument to each
+    // callback to the reviver, and that context object will normally
+    // have a source property.
+    return internalizer.InternalizeJsonProperty<kWithSource>(holder, name,
+                                                             val_node, result);
+  } else {
+    // Faster two-argument reviver.
+    return internalizer.InternalizeJsonProperty<kWithoutContext>(
+        holder, name, val_node, DirectHandle<Object>());
+  }
+}
+
+template <JsonParseInternalizer::ReviverMode initial_reviver_mode>
+MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
+    DirectHandle<JSReceiver> holder, DirectHandle<String> name,
+    MaybeHandle<Object> val_node, DirectHandle<Object> snapshot) {
+  DCHECK_EQ(val_node.is_null(), snapshot.is_null());
+  DCHECK_NE(initial_reviver_mode == kWithSource, val_node.is_null());
+  DCHECK(IsCallable(*reviver_));
+  HandleScope outer_scope(isolate_);
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name));
+
+  // When reviver_mode == kWithSource, the source text is passed
+  // to the reviver if the reviver has not mucked with the originally parsed
+  // value.
+  ReviverMode reviver_mode;
+  if (initial_reviver_mode == kWithSource &&
+      !Object::SameValue(*value, *snapshot)) {
+    reviver_mode = NoSource(initial_reviver_mode);
+  } else {
+    reviver_mode = initial_reviver_mode;
+  }
+
+  if (IsJSReceiver(*value)) {
+    // Value is non-primitive, so we may have to recurse deeper.
+    Handle<JSReceiver> object = Cast<JSReceiver>(value);
+    Maybe<bool> is_array = Object::IsArray(object);
+    if (is_array.IsNothing()) return MaybeHandle<Object>();
+    if (is_array.FromJust()) {
+      DirectHandle<Object> length_object;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate_, length_object,
+          Object::GetLengthFromArrayLike(isolate_, object));
+      double length = Object::NumberValue(*length_object);
+      if (reviver_mode == kWithSource) {
+        auto val_nodes_and_snapshots =
+            Cast<FixedArray>(val_node.ToHandleChecked());
+        uint32_t snapshot_length =
+            val_nodes_and_snapshots->ulength().value() / 2;
+        for (uint32_t i = 0; i < length; i++) {
+          HandleScope inner_scope(isolate_);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
+          Handle<String> index_name =
+              isolate_->factory()->NumberToString(index);
+          // Even if the array pointer snapshot matched, it's possible the
+          // array had new elements added that are not in the snapshotted
+          // elements.
+          const bool rv =
+              i < snapshot_length
+                  ? RecurseAndApply<kWithSource>(
+                        object, index_name,
+                        handle(val_nodes_and_snapshots->get(i * 2), isolate_),
+                        handle(val_nodes_and_snapshots->get(i * 2 + 1),
+                               isolate_))
+                  : RecurseAndApply<kWithoutSource>(
+                        object, index_name, Handle<Object>(), Handle<Object>());
+          if (!rv) {
+            return MaybeHandle<Object>();
+          }
+        }
+      } else {
+        DCHECK(reviver_mode == kWithoutSource ||
+               reviver_mode == kWithoutContext);
+        for (int i = 0; i < length; i++) {
+          HandleScope inner_scope(isolate_);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
+          Handle<String> index_name =
+              isolate_->factory()->NumberToString(index);
+          if (!RecurseAndApply<NoSource(initial_reviver_mode)>(
+                  object, index_name, Handle<Object>(), Handle<Object>())) {
+            return MaybeHandle<Object>();
+          }
+        }
+      }
+    } else {
+      DCHECK(!is_array.FromJust());  // It's a non-primitive, non-array.
+      DirectHandle<FixedArray> contents;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate_, contents,
+          KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
+                                  ENUMERABLE_STRINGS,
+                                  GetKeysConversion::kConvertToString));
+      if (reviver_mode == kWithSource) {
+        auto val_nodes_and_snapshots =
+            Cast<ObjectTwoHashTable>(val_node.ToHandleChecked());
+        uint32_t contents_len = contents->ulength().value();
+        for (uint32_t i = 0; i < contents_len; i++) {
+          HandleScope inner_scope(isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
+          auto property_val_node_and_snapshot =
+              val_nodes_and_snapshots->Lookup(key_name);
+          Handle<Object> property_val_node(property_val_node_and_snapshot[0],
+                                           isolate_);
+          Handle<Object> property_snapshot(property_val_node_and_snapshot[1],
+                                           isolate_);
+          // Even if the object pointer snapshot matched, it's possible the
+          // object had new properties added that are not in the snapshotted
+          // contents.
+          const bool rv =
+              !IsTheHole(*property_snapshot)
+                  ? RecurseAndApply<kWithSource>(
+                        object, key_name, property_val_node, property_snapshot)
+                  : RecurseAndApply<kWithoutSource>(
+                        object, key_name, Handle<Object>(), Handle<Object>());
+          if (!rv) {
+            return MaybeHandle<Object>();
+          }
+        }
+      } else {
+        DCHECK(reviver_mode == kWithoutSource ||
+               reviver_mode == kWithoutContext);
+        uint32_t contents_len = contents->ulength().value();
+        for (uint32_t i = 0; i < contents_len; i++) {
+          HandleScope inner_scope(isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
+          if (!RecurseAndApply<NoSource(initial_reviver_mode)>(
+                  object, key_name, Handle<Object>(), Handle<Object>())) {
+            return MaybeHandle<Object>();
+          }
+        }
+      }
+    }
+  }
+  // Done recursing.
+
+  if (reviver_mode == kWithoutContext) {
+    DirectHandle<Object> args[] = {name, value};
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate_, result,
+        Execution::Call(isolate_, reviver_, holder, base::VectorOf(args)));
+    return outer_scope.CloseAndEscape(result);
+  }
+
+  DirectHandle<JSObject> context =
+      isolate_->factory()->NewJSObject(isolate_->object_function());
+  if (reviver_mode == kWithSource) {
+    auto val = val_node.ToHandleChecked();
+    if (IsString(*val)) {
+      JSReceiver::CreateDataProperty(isolate_, context,
+                                     isolate_->factory()->source_string(), val,
+                                     Just(kThrowOnError))
+          .Check();
+    }
+  }
+  DirectHandle<Object> args[] = {name, value, context};
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, result,
+      Execution::Call(isolate_, reviver_, holder, base::VectorOf(args)));
+  return outer_scope.CloseAndEscape(result);
+}
+
+template <JsonParseInternalizer::ReviverMode reviver_mode>
+bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
+                                            Handle<String> name,
+                                            Handle<Object> val_node,
+                                            Handle<Object> snapshot) {
+  STACK_CHECK(isolate_, false);
+  DCHECK(IsCallable(*reviver_));
+  DirectHandle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, result,
+      InternalizeJsonProperty<reviver_mode>(holder, name, val_node, snapshot),
+      false);
+  Maybe<bool> change_result = Nothing<bool>();
+  if (IsUndefined(*result)) {
+    change_result = JSReceiver::DeletePropertyOrElement(isolate_, holder, name,
+                                                        LanguageMode::kSloppy);
+  } else {
+    PropertyDescriptor desc;
+    desc.set_value(Cast<JSAny>(result));
+    desc.set_configurable(true);
+    desc.set_enumerable(true);
+    desc.set_writable(true);
+    change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
+                                                  Just(kDontThrow));
+  }
+  MAYBE_RETURN(change_result, false);
+  return true;
+}
+
+template <typename Char>
+JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
+                             std::optional<ScriptDetails> script_details)
+    : isolate_(isolate),
+      object_constructor_(isolate_->object_function()),
+      original_source_(source),
+      script_details_(script_details),
+      parsed_val_node_(),
+      remaining_heuristic_internalizations_(
+          v8_flags.json_parse_max_heuristically_internalized_strings) {
+  size_t start = 0;
+  size_t length = source->length();
+  if (IsSlicedString(*source)) {
+    Tagged<SlicedString> string = Cast<SlicedString>(*source);
+    start = string->offset();
+    Tagged<String> parent = string->parent();
+    if (IsThinString(parent)) parent = Cast<ThinString>(parent)->actual();
+    source_ = handle(parent, isolate);
+  } else {
+    source_ = String::Flatten(isolate, source);
+  }
+
+  // JsonParser with --shared-string-table is currently not supported on worker
+  // threads due to known issues (see crbug.com/486551890).
+  // We still allow fuzzers to explore this path further.
+  DCHECK_IMPLIES(v8_flags.shared_string_table && !v8_flags.fuzzing,
+                 isolate->is_shared_space_isolate());
+
+  if (StringShape(*source_).IsExternal()) {
+    chars_ =
+        static_cast<const Char*>(Cast<SeqExternalString>(*source_)->GetChars());
+    chars_may_relocate_ = false;
+  } else {
+    DisallowGarbageCollection no_gc;
+    isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+        UpdatePointersCallback, this);
+    // Keeping the `GetChars()` result is safe because we update the pointer in
+    // the GCEpilogueCallback.
+    START_IGNORE_LIFETIME_SAFETY_WARNINGS();
+    chars_ = Cast<SeqString>(*source_)->GetChars(no_gc);
+    END_IGNORE_LIFETIME_SAFETY_WARNINGS();
+    chars_may_relocate_ = true;
+  }
+  cursor_ = chars_ + start;
+  end_ = cursor_ + length;
+}
+
+template <typename Char>
+bool JsonParser<Char>::IsSpecialString() {
+  // The special cases are undefined, NaN, Infinity, and {} being passed to the
+  // parse method
+  int offset = IsSlicedString(*original_source_)
+                   ? Cast<SlicedString>(*original_source_)->offset()
+                   : 0;
+  size_t length = original_source_->length();
+#define CASES(V)       \
+  V("[object Object]") \
+  V("undefined")       \
+  V("Infinity")        \
+  V("NaN")
+  switch (length) {
+#define CASE(n)          \
+  case arraysize(n) - 1: \
+    return CompareCharsEqual(chars_ + offset, n, arraysize(n) - 1);
+    CASES(CASE)
+    default:
+      return false;
+  }
+#undef CASE
+#undef CASES
+}
+
+template <typename Char>
+MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
+    DirectHandle<Object>& arg, DirectHandle<Object>& arg2, int pos) {
+  MessageTemplate message;
+  Factory* factory = this->factory();
+  arg = factory->LookupSingleCharacterStringFromCode(*cursor_);
+  int origin_source_length = original_source_->length();
+  // Only provide context for strings with at least
+  // kMinOriginalSourceLengthForContext characters in length.
+  if (origin_source_length >= kMinOriginalSourceLengthForContext) {
+    int substring_start = 0;
+    int substring_end = origin_source_length;
+    if (pos < kMaxContextCharacters) {
+      message =
+          MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext;
+      // Output the string followed by ellipses.
+      substring_end = pos + kMaxContextCharacters;
+    } else if (pos >= kMaxContextCharacters &&
+               pos < origin_source_length - kMaxContextCharacters) {
+      message =
+          MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext;
+      // Add context before and after position of bad token surrounded by
+      // ellipses.
+      substring_start = pos - kMaxContextCharacters;
+      substring_end = pos + kMaxContextCharacters;
+    } else {
+      message = MessageTemplate::kJsonParseUnexpectedTokenEndStringWithContext;
+      // Add ellipses followed by some context before bad token.
+      substring_start = pos - kMaxContextCharacters;
+    }
+    arg2 =
+        factory->NewSubString(original_source_, substring_start, substring_end);
+  } else {
+    arg2 = original_source_;
+    // Output the entire string without ellipses but provide the token which
+    // was unexpected.
+    message = MessageTemplate::kJsonParseUnexpectedTokenShortString;
+  }
+  return message;
+}
+
+template <typename Char>
+MessageTemplate JsonParser<Char>::LookUpErrorMessageForJsonToken(
+    JsonToken token, DirectHandle<Object>& arg, DirectHandle<Object>& arg2,
+    int pos) {
+  MessageTemplate message;
+  switch (token) {
+    case JsonToken::EOS:
+      message = MessageTemplate::kJsonParseUnexpectedEOS;
+      break;
+    case JsonToken::NUMBER:
+      message = MessageTemplate::kJsonParseUnexpectedTokenNumber;
+      break;
+    case JsonToken::STRING:
+      message = MessageTemplate::kJsonParseUnexpectedTokenString;
+      break;
+    default:
+      // Output entire string without ellipses and don't provide the token
+      // that was unexpected because it makes the error messages more confusing
+      if (IsSpecialString()) {
+        arg = original_source_;
+        message = MessageTemplate::kJsonParseShortString;
+      } else {
+        message = GetErrorMessageWithEllipses(arg, arg2, pos);
+      }
+  }
+  return message;
+}
+
+template <typename Char>
+void JsonParser<Char>::CalculateFileLocation(DirectHandle<Object>& line,
+                                             DirectHandle<Object>& column) {
+  // JSON allows only \r and \n as line terminators.
+  // (See https://www.json.org/json-en.html - "whitespace")
+  int line_number = 1;
+  const Char* start =
+      chars_ + (IsSlicedString(*original_source_)
+                    ? Cast<SlicedString>(*original_source_)->offset()
+                    : 0);
+  const Char* last_line_break = start;
+  const Char* cursor = start;
+  const Char* end = cursor_;  // cursor_ points to the position of the error.
+  for (; cursor < end; ++cursor) {
+    if (*cursor == '\r' && cursor < end - 1 && cursor[1] == '\n') {
+      // \r\n counts as a single line terminator, as of
+      // https://tc39.es/ecma262/#sec-line-terminators. JSON itself does not
+      // have a notion of lines or line terminators.
+      ++cursor;
+    }
+    if (*cursor == '\r' || *cursor == '\n') {
+      ++line_number;
+      last_line_break = cursor + 1;
+    }
+  }
+  int column_number = 1 + static_cast<int>(cursor - last_line_break);
+  line = direct_handle(Smi::FromInt(line_number), isolate());
+  column = direct_handle(Smi::FromInt(column_number), isolate());
+}
+
+template <typename Char>
+void JsonParser<Char>::ReportUnexpectedToken(
+    JsonToken token, std::optional<MessageTemplate> errorMessage) {
+  // Some exception (for example stack overflow) was already thrown.
+  if (isolate_->has_exception()) return;
+
+  // Parse failed. Current character is the unexpected token.
+  Factory* factory = this->factory();
+  int offset = IsSlicedString(*original_source_)
+                   ? Cast<SlicedString>(*original_source_)->offset()
+                   : 0;
+  int pos = position() - offset;
+  DirectHandle<Object> arg(Smi::FromInt(pos), isolate());
+  DirectHandle<Object> arg2;
+  DirectHandle<Object> arg3;
+  CalculateFileLocation(arg2, arg3);
+
+  MessageTemplate message =
+      errorMessage ? errorMessage.value()
+                   : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
+
+  Handle<Script> script(factory->NewScript(original_source_));
+  DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
+  if (script_details_.has_value()) {
+    const ScriptDetails& details = script_details_.value();
+    script->set_origin_options(details.origin_options);
+    {
+      DisallowGarbageCollection no_gc;
+      SetScriptFieldsFromDetails(isolate_, *script, details, &no_gc);
+    }
+  } else {
+    DebuggableStackFrameIterator it(isolate_);
+    if (!it.done() && it.is_javascript()) {
+      FrameSummary summary = it.GetTopValidFrame();
+      script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
+      if (IsScript(*summary.script())) {
+        script->set_origin_options(
+            Cast<Script>(*summary.script())->origin_options());
+      }
+    }
+  }
+
+  // We should sent compile error event because we compile JSON object in
+  // separated source file.
+  isolate()->debug()->OnCompileError(script);
+  MessageLocation location(script, pos, pos + 1);
+  isolate()->ThrowAt(factory->NewSyntaxError(message, arg, arg2, arg3),
+                     &location);
+
+  // Move the cursor to the end so we won't be able to proceed parsing.
+  cursor_ = end_;
+}
+
+template <typename Char>
+void JsonParser<Char>::ReportUnexpectedCharacter(base::uc32 c) {
+  JsonToken token = JsonToken::ILLEGAL;
+  if (c == kEndOfString) {
+    token = JsonToken::EOS;
+  } else if (c <= unibrow::Latin1::kMaxChar) {
+    token = one_char_json_tokens[c];
+  }
+  return ReportUnexpectedToken(token);
+}
+
+template <typename Char>
+JsonParser<Char>::~JsonParser() {
+  if (chars_may_relocate_) {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    Cast<SeqString>(*source_);
+    isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        UpdatePointersCallback, this);
+  } else {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    Cast<SeqExternalString>(*source_);
+  }
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJson(bool should_track_json_source) {
+  Handle<Object> result;
+  if (V8_UNLIKELY(should_track_json_source)) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>());
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
+  }
+
+  EXPECT_NEXT_RETURN_ON_ERROR(
+      JsonToken::EOS,
+      MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter, {});
+  if (isolate_->has_exception()) {
+    return MaybeHandle<Object>();
+  }
+  return result;
+}
+
+MaybeDirectHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
+                                                  Handle<String> key);
+
+namespace {
+template <typename Char>
+JsonToken GetTokenForCharacter(Char c) {
+  return V8_LIKELY(c <= unibrow::Latin1::kMaxChar) ? one_char_json_tokens[c]
+                                                   : JsonToken::ILLEGAL;
+}
+}  // namespace
+
+template <typename Char>
+JsonToken JsonParser<Char>::peek() const {
+  // Check that the next token was scanned before using peek().
+  DCHECK_IMPLIES(!is_at_end(),
+                 GetTokenForCharacter(CurrentCharacter()) == next_);
+  return next_;
+}
+
+template <typename Char>
+void JsonParser<Char>::GetNextNonWhitespaceToken() {
+  JsonToken local_next = JsonToken::EOS;
+
+  cursor_ = std::find_if(cursor_, end_, [&](Char c) {
+    JsonToken current = GetTokenForCharacter(c);
+    bool result = current != JsonToken::WHITESPACE;
+    if (V8_LIKELY(result)) local_next = current;
+    return result;
+  });
+
+  next_ = local_next;
+}
+
+template <typename Char>
+base::uc32 JsonParser<Char>::ScanUnicodeCharacter() {
+  base::uc32 value = 0;
+  for (int i = 0; i < 4; i++) {
+    int digit = base::HexValue(NextCharacter());
+    if (V8_UNLIKELY(digit < 0)) return kInvalidUnicodeCharacter;
+    value = value * 16 + digit;
+  }
+  return value;
+}
+
+// Parse any JSON value.
+template <typename Char>
+JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
+  {
+    DisallowGarbageCollection no_gc;
+    const Char* start = cursor_;
+    base::uc32 first = CurrentCharacter();
+    if (first == '\\' && NextCharacter() == 'u') first = ScanUnicodeCharacter();
+    if (IsDecimalDigit(first)) {
+      if (first == '0') {
+        if (NextCharacter() == '"') {
+          advance();
+          // Record element information.
+          cont->elements++;
+          DCHECK_LE(0, cont->max_index);
+          return JsonString(0);
+        }
+      } else {
+        uint32_t index = first - '0';
+        while (true) {
+          cursor_ = std::find_if(cursor_ + 1, end_, [&index](Char c) {
+            return !IsDecimalDigit(c) || !TryAddArrayIndexChar(&index, c);
+          });
+
+          if (CurrentCharacter() == '"') {
+            advance();
+            // Record element information.
+            cont->elements++;
+            cont->max_index = std::max(cont->max_index, index);
+            return JsonString(index);
+          }
+
+          if (CurrentCharacter() == '\\' && NextCharacter() == 'u') {
+            base::uc32 c = ScanUnicodeCharacter();
+            if (IsDecimalDigit(c) && TryAddArrayIndexChar(&index, c)) continue;
+          }
+
+          break;
+        }
+      }
+    }
+    // Reset cursor_ to start if the key is not an index.
+    cursor_ = start;
+  }
+  return ScanJsonString(true);
+}
+
+class NamedPropertyValueIterator {
+ public:
+  NamedPropertyValueIterator(const JsonProperty* it, const JsonProperty* end)
+      : it_(it), end_(end) {
+    DCHECK_LE(it_, end_);
+    DCHECK_IMPLIES(it_ != end_, !it_->string.is_index());
+  }
+
+  Tagged<Object> GetNext() {
+    DCHECK_LT(it_, end_);
+    Tagged<Object> value = *it_->value;
+    do {
+      it_++;
+    } while (it_ != end_ && it_->string.is_index());
+    return value;
+  }
+
+ private:
+  // We need to store both the current iterator and the iterator end, since we
+  // don't want to iterate past the end on operator++ if the last property is an
+  // index property.
+  const JsonProperty* it_;
+  const JsonProperty* end_;
+};
+
+template <typename Char>
+class JsonParser<Char>::NamedPropertyIterator {
+ public:
+  static constexpr bool kSupportsRawKeys = true;
+  static constexpr bool kMayHaveDuplicateKeys = true;
+
+  NamedPropertyIterator(JsonParser<Char>& parser, const JsonProperty* it,
+                        const JsonProperty* end)
+      : parser_(parser), it_(it), end_(end) {
+    DCHECK_LE(it_, end_);
+    while (it_ != end_ && it_->string.is_index()) {
+      it_++;
+    }
+    start_ = it_;
+  }
+
+  void Advance() {
+    DCHECK_LT(it_, end_);
+    do {
+      it_++;
+    } while (it_ != end_ && it_->string.is_index());
+  }
+
+  bool Done() const {
+    DCHECK_LE(it_, end_);
+    return it_ == end_;
+  }
+
+  base::Vector<const Char> GetKeyChars() {
+    return parser_.GetKeyChars(it_->string);
+  }
+  Handle<InternalizedString> GetKey(Handle<String> expected_key_hint) {
+    return Cast<InternalizedString>(
+        parser_.MakeString(it_->string, expected_key_hint));
+  }
+  Handle<Object> GetValue(bool will_revisit_value) {
+    // Revisiting values is free, so we don't need to cache the value anywhere.
+    return it_->value;
+  }
+  NamedPropertyValueIterator RevisitValues() {
+    return NamedPropertyValueIterator(start_, end_);
+  }
+
+ private:
+  JsonParser<Char>& parser_;
+
+  const JsonProperty* start_;
+  const JsonProperty* it_;
+  const JsonProperty* end_;
+};
+
+template <typename Char>
+template <bool should_track_json_source>
+Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
+                                                   DirectHandle<Map> feedback) {
+  bool feedback_was_deprecated = false;
+  if (!feedback.is_null() && feedback->is_deprecated()) {
+    feedback = Map::Update(isolate_, feedback);
+    feedback_was_deprecated = true;
+  }
+  size_t start = cont.index();
+  DCHECK_LE(start, property_stack_.size());
+  int length = static_cast<int>(property_stack_.size() - start);
+  int named_length = length - cont.elements;
+  DCHECK_LE(0, named_length);
+
+  // Fast path for homogeneous object arrays:
+  // If ParseJsonObjectProperties<FastIterableState::kJsonFast> matched all
+  // property keys against the feedback map in exact sequence without any
+  // trailing properties (fast_keys_matched == true) and the object contains no
+  // indexed array elements (cont.elements == 0), we can bypass
+  // JSDataObjectBuilder entirely.
+  //
+  // Note:
+  // 1. If the original feedback map was deprecated, we must skip the fast path
+  //    because fast_keys_matched was verified against the old map and the
+  //    updated map may have a different descriptor layout or be a dictionary
+  //    map.
+  // 2. IsFastElementsKind(feedback->elements_kind()) is required because we
+  //    initialize object->set_elements(empty_fixed_array()). An empty fixed
+  //    array is a valid backing store for any fast elements kind when element
+  //    capacity is 0, but is invalid for dictionary elements maps.
+  if (cont.fast_keys_matched && cont.elements == 0 && !feedback.is_null() &&
+      !feedback_was_deprecated &&
+      IsFastElementsKind(feedback->elements_kind())) {
+    // fast_keys_matched guarantees exact descriptor count alignment.
+    DCHECK_EQ(length, feedback->NumberOfOwnDescriptors());
+    bool fast_path_valid = true;
+    DirectHandle<DescriptorArray> descriptors(feedback->instance_descriptors(),
+                                              isolate_);
+
+    // Verify that every parsed property value satisfies the representation and
+    // field type expected by the feedback map's descriptors.
+    uint32_t extra_heap_numbers_needed = 0;
+    for (int i = 0; i < length; i++) {
+      InternalIndex descriptor_index(i);
+      PropertyDetails details = descriptors->GetDetails(descriptor_index);
+      // Fast iterable keys (kJsonFast) are guaranteed to be in-object data
+      // fields.
+      DCHECK_EQ(details.kind(), PropertyKind::kData);
+      DCHECK_EQ(details.location(), PropertyLocation::kField);
+      Tagged<Object> value = *property_stack_[start + i].value;
+      Representation rep = details.representation();
+      if (!Object::FitsRepresentation(value, rep)) {
+        fast_path_valid = false;
+        break;
+      }
+      if (rep.IsHeapObject() &&
+          !FieldType::NowContains(descriptors->GetFieldType(descriptor_index),
+                                  value)) {
+        fast_path_valid = false;
+        break;
+      }
+      if (rep.IsDouble()) {
+        if (IsSmi(value) || should_track_json_source) {
+          extra_heap_numbers_needed++;
+        }
+      }
+    }
+
+    if (fast_path_valid) {
+      // Create a folded mutable HeapNumber allocation area before allocating
+      // the object -- this ensures that there is no allocation between the
+      // object allocation and its initial fields being initialized, where the
+      // verifier would see invalid double field state.
+      FoldedMutableHeapNumberAllocation hn_allocation(
+          isolate_, extra_heap_numbers_needed);
+
+      Handle<JSObject> object = factory()->NewJSObjectFromMap(
+          feedback, AllocationType::kYoung,
+          DirectHandle<AllocationSite>::null(),
+          NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper);
+
+      DisallowGarbageCollection no_gc;
+      Tagged<JSObject> raw_object = *object;
+      ReadOnlyRoots roots(isolate_);
+
+      raw_object->set_elements(roots.empty_fixed_array());
+
+      FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
+                                                    no_gc);
+      int current_property_offset = raw_object->GetInObjectPropertyOffset(0);
+      for (int i = 0; i < length; i++) {
+        Tagged<Object> value = *property_stack_[start + i].value;
+        PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
+        if (details.representation().IsDouble()) {
+          if (IsSmi(value)) {
+            value = hn_allocator.AllocateNext(
+                roots, Float64::FromMaybeNaN(Smi::ToInt(value)));
+          } else if constexpr (should_track_json_source) {
+            value = hn_allocator.AllocateNext(
+                roots, Float64::FromMaybeNaN(Object::NumberValue(value)));
+          }
+        }
+        FieldIndex index = FieldIndex::ForInObjectOffset(
+            current_property_offset, FieldIndex::kTagged);
+        raw_object->RawFastInobjectPropertyAtPut(index, value,
+                                                 SKIP_WRITE_BARRIER);
+        current_property_offset += kTaggedSize;
+      }
+      return object;
+    }
+  }
+
+  Handle<FixedArrayBase> elements;
+  ElementsKind elements_kind = HOLEY_ELEMENTS;
+
+  // First store the elements.
+  if (cont.elements > 0) {
+    // Store as dictionary elements if that would use less memory.
+    if (ShouldConvertToSlowElements(cont.elements, cont.max_index + 1)) {
+      Handle<NumberDictionary> elms =
+          NumberDictionary::New(isolate_, cont.elements);
+      for (int i = 0; i < length; i++) {
+        const JsonProperty& property = property_stack_[start + i];
+        if (!property.string.is_index()) continue;
+        uint32_t index = property.string.index();
+        DirectHandle<Object> value = property.value;
+        NumberDictionary::UncheckedSet(isolate_, elms, index, value);
+      }
+      elms->SetInitialNumberOfElements(cont.elements);
+      elms->UpdateMaxNumberKey(cont.max_index, Handle<JSObject>::null());
+      elements_kind = DICTIONARY_ELEMENTS;
+      elements = elms;
+    } else {
+      Handle<FixedArray> elms = factory()->NewFixedArrayWithHoles(
+          cont.max_index + 1, AllocationType::kYoung);
+      DisallowGarbageCollection no_gc;
+      Tagged<FixedArray> raw_elements = *elms;
+
+      for (int i = 0; i < length; i++) {
+        const JsonProperty& property = property_stack_[start + i];
+        if (!property.string.is_index()) continue;
+        uint32_t index = property.string.index();
+        DirectHandle<Object> value = property.value;
+        // FixedArray is the most recent young allocation, so no write barrier
+        // required.
+        raw_elements->set(static_cast<int>(index), *value, SKIP_WRITE_BARRIER);
+      }
+      elements = elms;
+    }
+  } else {
+    elements = factory()->empty_fixed_array();
+  }
+
+  // When tracking JSON source with a reviver, do not use mutable HeapNumbers.
+  // In this mode, values are snapshotted at the beginning because the source is
+  // only passed to the reviver if the reviver does not muck with the original
+  // value. Mutable HeapNumbers would make the snapshot incorrect.
+  JSDataObjectBuilder js_data_object_builder(
+      isolate_, elements_kind, named_length, feedback,
+      should_track_json_source
+          ? JSDataObjectBuilder::kNormalHeapNumbers
+          : JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
+
+  NamedPropertyIterator it(*this, property_stack_.begin() + start,
+                           property_stack_.end());
+
+  return js_data_object_builder.BuildFromIterator(it, elements);
+}
+
+template <typename Char>
+Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
+  const uint32_t length = static_cast<uint32_t>(element_stack_.size() - start);
+
+  ElementsKind kind = PACKED_SMI_ELEMENTS;
+  for (size_t i = start; i < element_stack_.size(); i++) {
+    Tagged<Object> value = *element_stack_[i];
+    if (IsHeapObject(value)) {
+      if (IsHeapNumber(Cast<HeapObject>(value))) {
+        kind = PACKED_DOUBLE_ELEMENTS;
+      } else {
+        kind = PACKED_ELEMENTS;
+        break;
+      }
+    }
+  }
+
+  HandleScope inner_scope(isolate());
+  Handle<FixedArrayBase> elements =
+      (kind == PACKED_DOUBLE_ELEMENTS)
+          ? FixedDoubleArray::New(
+                isolate(), length,
+                [this, start](uint32_t i) {
+                  return Object::NumberValue(*element_stack_[start + i]);
+                })
+          : FixedArray::New(isolate(), length, [this, start](uint32_t i) {
+              return *element_stack_[start + i];
+            });
+  return inner_scope.CloseAndEscape(
+      factory()->NewJSArrayWithElements(elements, kind, length));
+}
+
+// Parse rawJSON value.
+template <typename Char>
+bool JsonParser<Char>::ParseRawJson() {
+  if (is_at_end()) {
+    isolate_->Throw(*isolate_->factory()->NewSyntaxError(
+        MessageTemplate::kInvalidRawJsonValue));
+    return false;
+  }
+  next_ = GetTokenForCharacter(*cursor_);
+  switch (peek()) {
+    case JsonToken::STRING:
+      Consume(JsonToken::STRING);
+      ScanJsonString(false);
+      break;
+
+    case JsonToken::NUMBER:
+      ParseJsonNumber();
+      break;
+
+    case JsonToken::TRUE_LITERAL:
+      ScanLiteral("true");
+      break;
+
+    case JsonToken::FALSE_LITERAL:
+      ScanLiteral("false");
+      break;
+
+    case JsonToken::NULL_LITERAL:
+      ScanLiteral("null");
+      break;
+
+    default:
+      ReportUnexpectedCharacter(CurrentCharacter());
+      return false;
+  }
+  if (isolate_->has_exception()) return false;
+  if (cursor_ != end_) {
+    isolate_->Throw(*isolate_->factory()->NewSyntaxError(
+        MessageTemplate::kInvalidRawJsonValue));
+    return false;
+  }
+  return true;
+}
+
+template <typename Char>
+V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
+    Handle<Map> feedback) {
+  GetNextNonWhitespaceToken();
+  switch (peek()) {
+    case JsonToken::NUMBER:
+      return ParseJsonNumber();
+    case JsonToken::STRING:
+      Consume(JsonToken::STRING);
+      return MakeString(ScanJsonString(false));
+
+    case JsonToken::TRUE_LITERAL:
+      ScanLiteral("true");
+      return factory()->true_value();
+    case JsonToken::FALSE_LITERAL:
+      ScanLiteral("false");
+      return factory()->false_value();
+    case JsonToken::NULL_LITERAL:
+      ScanLiteral("null");
+      return factory()->null_value();
+
+    case JsonToken::LBRACE:
+      return ParseJsonObject(feedback);
+    case JsonToken::LBRACK:
+      return ParseJsonArray();
+
+    case JsonToken::COLON:
+    case JsonToken::COMMA:
+    case JsonToken::ILLEGAL:
+    case JsonToken::RBRACE:
+    case JsonToken::RBRACK:
+    case JsonToken::EOS:
+      ReportUnexpectedCharacter(CurrentCharacter());
+      // Pop the continuation stack to correctly tear down handle scopes.
+      return MaybeHandle<Object>();
+
+    case JsonToken::WHITESPACE:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+template <typename Char>
+bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
+                                    uint32_t key_length) {
+  return key_length < remaining_chars() && *(cursor_ + key_length) == '"' &&
+         CompareCharsEqual(key_chars, cursor_, key_length);
+}
+
+template <typename Char>
+bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
+                                    uint32_t key_length,
+                                    JsonString scanned_key) {
+  return key_length == scanned_key.length() &&
+         CompareCharsEqual(key_chars, chars_ + scanned_key.start(), key_length);
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseJsonPropertyValue(const JsonString& key) {
+  EXPECT_NEXT_RETURN_ON_ERROR(
+      JsonToken::COLON,
+      MessageTemplate::kJsonParseExpectedColonAfterPropertyName, false);
+  Handle<Object> value;
+  if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return false;
+  property_stack_.emplace_back(key, value);
+  return true;
+}
+
+namespace {
+
+const uint8_t* GetFastKeyChars(
+    Isolate* isolate, Tagged<String> key, Tagged<Map> map,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
+  DCHECK(InstanceTypeChecker::IsOneByteString(map));
+#if V8_STATIC_ROOTS_BOOL
+  ReadOnlyRoots roots(isolate);
+  if (map == roots.internalized_one_byte_string_map()) {
+    return Cast<SeqOneByteString>(key)->GetChars(no_gc);
+  } else {
+    DCHECK(map == roots.external_internalized_one_byte_string_map() ||
+           map == roots.uncached_external_internalized_one_byte_string_map());
+    return Cast<ExternalOneByteString>(key)->GetChars();
+  }
+#else
+  InstanceType instance_type = map->instance_type();
+  switch (instance_type) {
+    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
+      return Cast<SeqOneByteString>(key)->GetChars(no_gc);
+    case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
+      return Cast<ExternalOneByteString>(key)->GetChars();
+    default:
+      UNREACHABLE();
+  }
+#endif
+}
+
+}  // namespace
+
+template <typename Char>
+template <DescriptorArray::FastIterableState fast_iterable_state>
+bool JsonParser<Char>::ParseJsonObjectProperties(
+    JsonContinuation* cont, MessageTemplate first_token_msg,
+    Handle<DescriptorArray> descriptors, uint16_t nof_descriptors) {
+  using FastIterableState = DescriptorArray::FastIterableState;
+  if constexpr (fast_iterable_state == FastIterableState::kJsonSlow) {
+    do {
+      EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
+      first_token_msg =
+          MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
+      JsonString key = ScanJsonPropertyKey(cont);
+      if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+    } while (Check<JsonToken::COMMA>());
+  } else {
+    DCHECK_GT(nof_descriptors, 0);
+    InternalIndex idx{0};
+    InternalIndex descriptors_end = InternalIndex{nof_descriptors};
+    do {
+      EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
+      first_token_msg =
+          MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
+      bool key_match;
+      if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
+        uint32_t key_length;
+        {
+          DisallowGarbageCollection no_gc;
+          Tagged<String> expected_key = Cast<String>(descriptors->GetKey(idx));
+          Tagged<Map> key_map = expected_key->map();
+          // Fast iterable keys are guaranteed to be 1-byte.
+          const uint8_t* expected_chars =
+              GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
+          key_length = expected_key->length();
+          key_match = FastKeyMatch(expected_chars, key_length);
+        }
+        if (V8_LIKELY(key_match)) {
+          JsonString key =
+              JsonString(position(), key_length, false, true, false);
+          ++idx;
+          cursor_ += key_length + 1 /* double quote */;
+          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+        } else {
+          JsonString key = ScanJsonPropertyKey(cont);
+          if (!key.is_index()) {
+            // Feedback doesn't match. Finish processing the current property
+            // and continue in slow-path if we have more properties.
+            if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+            if (Check<JsonToken::COMMA>()) {
+              return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+                  cont, first_token_msg, {}, nof_descriptors);
+            }
+            return true;
+          }
+          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+        }
+      } else {
+        DCHECK_EQ(fast_iterable_state, FastIterableState::kUnknown);
+        JsonString key = ScanJsonPropertyKey(cont);
+        // Indices don't participate in fast iterable key checks.
+        if (key.is_index()) {
+          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+          continue;
+        }
+        DCHECK_LT(idx, InternalIndex(descriptors->number_of_descriptors()));
+        // Check if the key is fast iterable.
+        // Some of the checks below are not relevant for the parser, but are
+        // requirements for fast iterable keys in general (e.g. for
+        // JSON.stringify).
+        Tagged<Name> property_name = descriptors->GetKey(idx);
+        bool is_slow = key.has_escape();
+        // Check that the property is enumerable and located in field.
+        PropertyDetails details = descriptors->GetDetails(idx);
+        if (V8_UNLIKELY(details.IsDontEnum() ||
+                        details.location() != PropertyLocation::kField)) {
+          is_slow = true;
+        }
+        // Symbol property keys are slow.
+        if (V8_UNLIKELY(IsSymbol(property_name))) {
+          is_slow = true;
+        }
+
+        key_match = false;
+        if (V8_LIKELY(!is_slow)) {
+          DisallowGarbageCollection no_gc;
+          // Property key is known to be fast so far, so it is guaranteed to
+          // be a string.
+          Tagged<String> expected_key = Cast<String>(property_name);
+          Tagged<Map> key_map = expected_key->map();
+          if (InstanceTypeChecker::IsTwoByteString(key_map)) {
+            // Two-byte keys are slow.
+            is_slow = true;
+          } else {
+            const uint8_t* expected_chars =
+                GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
+            const uint32_t key_length = expected_key->length();
+            key_match = FastKeyMatch(expected_chars, key_length, key);
+          }
+        }
+
+        if (V8_UNLIKELY(is_slow)) {
+          // The key is not fast iterable. Mark it as slow in the descriptor
+          // array.
+          descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
+        }
+
+        // Finish parsing the property.
+        if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+
+        // If key is not fast iterable or doesn't match the feedback, we
+        // continue on the slow-path.
+        if (V8_UNLIKELY(is_slow || !key_match)) {
+          if (Check<JsonToken::COMMA>()) {
+            return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+                cont, first_token_msg, {}, nof_descriptors);
+          }
+          // No more properties to scan, we are done.
+          return true;
+        }
+        ++idx;
+      }
+    } while (idx < descriptors_end && Check<JsonToken::COMMA>());
+    // Additional, unknown properties. Scan them slow.
+    if (Check<JsonToken::COMMA>()) {
+      return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+          cont, first_token_msg, descriptors, nof_descriptors);
+    }
+    if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
+      // If we matched every descriptor in the feedback map and there are no
+      // trailing properties, signal to BuildJsonObject that keys matched the
+      // map's layout in exact sequence.
+      if (idx == descriptors_end) {
+        cont->fast_keys_matched = true;
+      }
+    } else if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
+      // All properties are fast iterable. Update DescriptorArray flags.
+      if (idx == InternalIndex(descriptors->number_of_descriptors())) {
+        descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
+                                          FastIterableState::kUnknown);
+      }
+    }
+  }
+
+  return true;
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
+  {
+    StackLimitCheck check(isolate_);
+    if (V8_UNLIKELY(check.HasOverflowed())) {
+      return ParseJsonValue<false>();
+    }
+  }
+
+  Consume(JsonToken::LBRACE);
+  if (Check<JsonToken::RBRACE>()) {
+    return factory()->NewJSObject(object_constructor_);
+  }
+
+  JsonContinuation cont(isolate_, JsonContinuation::kObjectProperty,
+                        property_stack_.size());
+  bool success;
+  using FastIterableState = DescriptorArray::FastIterableState;
+  const MessageTemplate first_token_msg =
+      MessageTemplate::kJsonParseExpectedPropNameOrRBrace;
+  if (!feedback.is_null()) {
+    Handle<DescriptorArray> descriptors =
+        handle(feedback->instance_descriptors(), isolate_);
+    uint16_t nof_descriptors = feedback->NumberOfOwnDescriptors();
+    if (nof_descriptors == 0) {
+      // Empty descriptor array is technically fast iterable, but the fast
+      // iteration expects at least 1 property.
+      success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+          &cont, first_token_msg, {}, nof_descriptors);
+    } else {
+      switch (descriptors->fast_iterable()) {
+        case FastIterableState::kJsonFast:
+          success = ParseJsonObjectProperties<FastIterableState::kJsonFast>(
+              &cont, first_token_msg, descriptors, nof_descriptors);
+          break;
+        case FastIterableState::kJsonSlow:
+          success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+              &cont, first_token_msg, {}, nof_descriptors);
+          break;
+        case FastIterableState::kUnknown:
+          success = ParseJsonObjectProperties<FastIterableState::kUnknown>(
+              &cont, first_token_msg, descriptors, nof_descriptors);
+          break;
+      }
+    }
+  } else {
+    success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
+        &cont, first_token_msg, {}, 0 /* unused */);
+  }
+  if (V8_UNLIKELY(!success)) {
+    return {};
+  }
+
+  EXPECT_RETURN_ON_ERROR(JsonToken::RBRACE,
+                         MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
+  Handle<Object> result = BuildJsonObject<false>(cont, feedback);
+  property_stack_.resize(cont.index());
+  return cont.scope.CloseAndEscape(result);
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
+  {
+    StackLimitCheck check(isolate_);
+    if (V8_UNLIKELY(check.HasOverflowed())) {
+      return ParseJsonValue<false>();
+    }
+  }
+
+  Consume(JsonToken::LBRACK);
+  if (Check<JsonToken::RBRACK>()) {
+    return factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
+  }
+
+  HandleScope handle_scope(isolate_);
+  size_t start = element_stack_.size();
+
+  // Avoid allocating HeapNumbers until we really need to.
+  bool saw_double = false;
+  bool success = false;
+  DCHECK_EQ(double_elements_.size(), 0);
+  DCHECK_EQ(smi_elements_.size(), 0);
+  // GetNextNonWhitespaceToken was performed by Check(JsonToken::RBRACK).
+  while (peek() == JsonToken::NUMBER) {
+    double current_double;
+    int current_smi;
+    if (ParseJsonNumberAsDoubleOrSmi(&current_double, &current_smi)) {
+      saw_double = true;
+      double_elements_.push_back(current_double);
+    } else {
+      if (saw_double) {
+        double_elements_.push_back(current_smi);
+      } else {
+        smi_elements_.push_back(current_smi);
+      }
+    }
+    if (Check<JsonToken::COMMA>()) {
+      GetNextNonWhitespaceToken();
+      continue;
+    } else {
+      EXPECT_RETURN_ON_ERROR(JsonToken::RBRACK,
+                             MessageTemplate::kJsonParseExpectedCommaOrRBrack,
+                             {});
+      success = true;
+      break;
+    }
+  }
+
+  if (success) {
+    // We managed to parse the whole array either as Smis or doubles. Empty
+    // arrays are handled above, so here we will have some elements.
+    DCHECK(smi_elements_.size() != 0 || double_elements_.size() != 0);
+    int length =
+        static_cast<int>(smi_elements_.size() + double_elements_.size());
+    Handle<JSArray> array;
+    if (!saw_double) {
+      array = factory()->NewJSArray(PACKED_SMI_ELEMENTS, length, length);
+      DisallowGarbageCollection no_gc;
+      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
+      for (int i = 0; i < length; i++) {
+        elements->set(i, Smi::FromInt(smi_elements_[i]));
+      }
+    } else {
+      array = factory()->NewJSArray(PACKED_DOUBLE_ELEMENTS, length, length);
+      DisallowGarbageCollection no_gc;
+      Tagged<FixedDoubleArray> elements =
+          Cast<FixedDoubleArray>(array->elements());
+      int i = 0;
+      for (int element : smi_elements_) {
+        elements->set(i++, element);
+      }
+      for (double element : double_elements_) {
+        elements->set(i++, element);
+      }
+    }
+    smi_elements_.resize(0);
+    double_elements_.resize(0);
+    return handle_scope.CloseAndEscape(array);
+  }
+  // Otherwise, we fell out of the while loop above because the next element
+  // is not a number. Move the smi_elements_ and double_elements_ to
+  // element_stack_ and continue parsing the next element.
+  for (int element : smi_elements_) {
+    element_stack_.emplace_back(handle(Smi::FromInt(element), isolate_));
+  }
+  smi_elements_.resize(0);
+  for (double element : double_elements_) {
+    element_stack_.emplace_back(factory()->NewNumber(element));
+  }
+  double_elements_.resize(0);
+
+  Handle<Object> value;
+  if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
+  element_stack_.emplace_back(value);
+  while (Check<JsonToken::COMMA>()) {
+    Handle<Map> feedback;
+    if (IsJSObject(*value)) {
+      Tagged<Map> maybe_feedback = Cast<JSObject>(*value)->map();
+      // Don't consume feedback from objects with a map that's detached
+      // from the transition tree.
+      if (!maybe_feedback->IsDetached(isolate_)) {
+        feedback = handle(maybe_feedback, isolate_);
+      }
+    }
+    if (V8_UNLIKELY(!ParseJsonValueRecursive(feedback).ToHandle(&value))) {
+      return {};
+    }
+    element_stack_.emplace_back(value);
+  }
+
+  EXPECT_RETURN_ON_ERROR(JsonToken::RBRACK,
+                         MessageTemplate::kJsonParseExpectedCommaOrRBrack, {});
+  Handle<Object> result = BuildJsonArray(start);
+  element_stack_.resize(start);
+  return handle_scope.CloseAndEscape(result);
+}
+
+// Parse any JSON value.
+template <typename Char>
+template <bool should_track_json_source>
+MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
+  std::vector<JsonContinuation> cont_stack;
+
+  cont_stack.reserve(16);
+
+  JsonContinuation cont(isolate_, JsonContinuation::kReturn, 0);
+
+  Handle<Object> value;
+
+  // When should_track_json_source is true, we use val_node to record current
+  // JSON value's parse node.
+  //
+  // For primitive values, the val_node is the source string of the JSON value.
+  //
+  // For JSObject values, the val_node is an ObjectHashTable in which the key is
+  // the property name and the first value is the property value's parse
+  // node. The order in which properties are defined may be different from the
+  // order in which properties are enumerated when calling
+  // InternalizeJSONProperty for the JSObject value. E.g., the JSON source
+  // string is '{"a": 1, "1": 2}', and the properties enumerate order is ["1",
+  // "a"]. Moreover, properties may be defined repeatedly in the JSON string.
+  // E.g., the JSON string is '{"a": 1, "a": 1}', and the properties enumerate
+  // order is ["a"]. So we cannot use the FixedArray to record the properties's
+  // parse node by the order in which properties are defined and we use a
+  // ObjectHashTable here to record the property name and the property's parse
+  // node. We then look up the property's parse node by the property name when
+  // calling InternalizeJSONProperty. The second value associated with the key
+  // is the property value's snapshot.
+  //
+  // For JSArray values, the val_node is a FixedArray containing the parse nodes
+  // and snapshots of the elements.
+  //
+  // For information about snapshotting, see below.
+  Handle<Object> val_node;
+  // Record the start position and end position for the primitive values.
+  uint32_t start_position;
+
+  // Workaround for -Wunused-but-set-variable on old gcc versions (version < 8).
+  USE(start_position);
+
+  // element_val_node_stack is used to track all the elements's
+  // parse nodes. And we use this to construct the JSArray's
+  // parse node and value snapshot.
+  SmallVector<Handle<Object>> element_val_node_stack;
+  // property_val_node_stack is used to track all the property
+  // value's parse nodes. And we use this to construct the
+  // JSObject's parse node and value snapshot.
+  SmallVector<Handle<Object>> property_val_node_stack;
+  while (true) {
+    // Produce a json value.
+    //
+    // Iterate until a value is produced. Starting but not immediately finishing
+    // objects and arrays will cause the loop to continue until a first member
+    // is completed.
+    while (true) {
+      GetNextNonWhitespaceToken();
+      // The switch is immediately followed by 'break' so we can use 'break' to
+      // break out of the loop, and 'continue' to continue the loop.
+
+      if constexpr (should_track_json_source) {
+        start_position = position();
+      }
+      switch (peek()) {
+        case JsonToken::STRING:
+          Consume(JsonToken::STRING);
+          value = MakeString(ScanJsonString(false));
+          if constexpr (should_track_json_source) {
+            uint32_t end_position = position();
+            val_node = isolate_->factory()->NewSubString(
+                source_, start_position, end_position);
+          }
+          break;
+
+        case JsonToken::NUMBER:
+          value = ParseJsonNumber();
+          if constexpr (should_track_json_source) {
+            uint32_t end_position = position();
+            val_node = isolate_->factory()->NewSubString(
+                source_, start_position, end_position);
+          }
+          break;
+
+        case JsonToken::LBRACE: {
+          Consume(JsonToken::LBRACE);
+          if (Check<JsonToken::RBRACE>()) {
+            // TODO(verwaest): Directly use the map instead.
+            value = factory()->NewJSObject(object_constructor_);
+            if constexpr (should_track_json_source) {
+              val_node = ObjectTwoHashTable::New(isolate_, 0);
+            }
+            break;
+          }
+
+          // Start parsing an object with properties.
+          cont_stack.emplace_back(std::move(cont));
+          cont = JsonContinuation(isolate_, JsonContinuation::kObjectProperty,
+                                  property_stack_.size());
+
+          // Parse the property key.
+          // GetNextNonWhitespaceToken was already performed by
+          // Check(JsonToken::RBRACE).
+          EXPECT_RETURN_ON_ERROR(
+              JsonToken::STRING,
+              MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
+          property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+          if constexpr (should_track_json_source) {
+            property_val_node_stack.emplace_back(Handle<Object>());
+          }
+
+          EXPECT_NEXT_RETURN_ON_ERROR(
+              JsonToken::COLON,
+              MessageTemplate::kJsonParseExpectedColonAfterPropertyName, {});
+
+          // Continue to start producing the first property value.
+          continue;
+        }
+
+        case JsonToken::LBRACK:
+          Consume(JsonToken::LBRACK);
+          if (Check<JsonToken::RBRACK>()) {
+            value = factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
+            if constexpr (should_track_json_source) {
+              val_node = factory()->NewFixedArray(0);
+            }
+            break;
+          }
+
+          // Start parsing an array with elements.
+          cont_stack.emplace_back(std::move(cont));
+          cont = JsonContinuation(isolate_, JsonContinuation::kArrayElement,
+                                  element_stack_.size());
+
+          // Continue to start producing the first array element.
+          continue;
+
+        case JsonToken::TRUE_LITERAL:
+          ScanLiteral("true");
+          value = factory()->true_value();
+          if constexpr (should_track_json_source) {
+            val_node = isolate_->factory()->true_string();
+          }
+          break;
+
+        case JsonToken::FALSE_LITERAL:
+          ScanLiteral("false");
+          value = factory()->false_value();
+          if constexpr (should_track_json_source) {
+            val_node = isolate_->factory()->false_string();
+          }
+          break;
+
+        case JsonToken::NULL_LITERAL:
+          ScanLiteral("null");
+          value = factory()->null_value();
+          if constexpr (should_track_json_source) {
+            val_node = isolate_->factory()->null_string();
+          }
+          break;
+
+        case JsonToken::COLON:
+        case JsonToken::COMMA:
+        case JsonToken::ILLEGAL:
+        case JsonToken::RBRACE:
+        case JsonToken::RBRACK:
+        case JsonToken::EOS:
+          ReportUnexpectedCharacter(CurrentCharacter());
+          // Pop the continuation stack to correctly tear down handle scopes.
+          while (!cont_stack.empty()) {
+            cont = std::move(cont_stack.back());
+            cont_stack.pop_back();
+          }
+          return MaybeHandle<Object>();
+
+        case JsonToken::WHITESPACE:
+          UNREACHABLE();
+      }
+      // Done producing a value, consume it.
+      break;
+    }
+
+    // Consume a produced json value.
+    //
+    // Iterate as long as values are produced (arrays or object literals are
+    // finished).
+    while (true) {
+      // The switch is immediately followed by 'break' so we can use 'break' to
+      // break out of the loop, and 'continue' to continue the loop.
+      switch (cont.type()) {
+        case JsonContinuation::kReturn:
+          if constexpr (should_track_json_source) {
+            DCHECK(!val_node.is_null());
+            Tagged<Object> raw_value = *value;
+            parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
+            return cont.scope.CloseAndEscape(handle(raw_value, isolate_));
+          } else {
+            return cont.scope.CloseAndEscape(value);
+          }
+
+        case JsonContinuation::kObjectProperty: {
+          // Store the previous property value into its property info.
+          property_stack_.back().value = value;
+          if constexpr (should_track_json_source) {
+            property_val_node_stack.back() = val_node;
+          }
+
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) {
+            // Parse the property key.
+            EXPECT_NEXT_RETURN_ON_ERROR(
+                JsonToken::STRING,
+                MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName,
+                {});
+
+            property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+            if constexpr (should_track_json_source) {
+              property_val_node_stack.emplace_back(Handle<Object>());
+            }
+            EXPECT_NEXT_RETURN_ON_ERROR(
+                JsonToken::COLON,
+                MessageTemplate::kJsonParseExpectedColonAfterPropertyName, {});
+
+            // Break to start producing the subsequent property value.
+            break;
+          }
+
+          Handle<Map> feedback;
+          if (cont_stack.size() > 0 &&
+              cont_stack.back().type() == JsonContinuation::kArrayElement &&
+              cont_stack.back().index() < element_stack_.size() &&
+              IsJSObject(*element_stack_.back())) {
+            Tagged<Map> maybe_feedback =
+                Cast<JSObject>(*element_stack_.back())->map();
+            // Don't consume feedback from objects with a map that's detached
+            // from the transition tree.
+            if (!maybe_feedback->IsDetached(isolate_)) {
+              feedback = handle(maybe_feedback, isolate_);
+            }
+          }
+          value = BuildJsonObject<should_track_json_source>(cont, feedback);
+          EXPECT_RETURN_ON_ERROR(
+              JsonToken::RBRACE,
+              MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
+          // Return the object.
+          if constexpr (should_track_json_source) {
+            size_t start = cont.index();
+            int num_properties =
+                static_cast<int>(property_stack_.size() - start);
+            Handle<ObjectTwoHashTable> table =
+                ObjectTwoHashTable::New(isolate(), num_properties);
+            for (int i = 0; i < num_properties; i++) {
+              const JsonProperty& property = property_stack_[start + i];
+              DirectHandle<Object> property_val_node =
+                  property_val_node_stack[start + i];
+              DirectHandle<Object> property_snapshot = property.value;
+              DirectHandle<String> key;
+              if (property.string.is_index()) {
+                key = factory()->Uint32ToString(property.string.index());
+              } else {
+                key = MakeString(property.string);
+              }
+              table = ObjectTwoHashTable::Put(
+                  isolate(), table, key,
+                  {property_val_node, property_snapshot});
+            }
+            property_val_node_stack.resize(cont.index());
+            DisallowGarbageCollection no_gc;
+            Tagged<ObjectTwoHashTable> raw_table = *table;
+            value = cont.scope.CloseAndEscape(value);
+            val_node = cont.scope.CloseAndEscape(handle(raw_table, isolate_));
+          } else {
+            value = cont.scope.CloseAndEscape(value);
+          }
+          property_stack_.resize(cont.index());
+
+          // Pop the continuation.
+          cont = std::move(cont_stack.back());
+          cont_stack.pop_back();
+          // Consume to produced object.
+          continue;
+        }
+
+        case JsonContinuation::kArrayElement: {
+          // Store the previous element on the stack.
+          element_stack_.emplace_back(value);
+          if constexpr (should_track_json_source) {
+            element_val_node_stack.emplace_back(val_node);
+          }
+          // Break to start producing the subsequent element value.
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
+
+          value = BuildJsonArray(cont.index());
+          EXPECT_RETURN_ON_ERROR(
+              JsonToken::RBRACK,
+              MessageTemplate::kJsonParseExpectedCommaOrRBrack, {});
+          // Return the array.
+          if constexpr (should_track_json_source) {
+            size_t start = cont.index();
+            int num_elements = static_cast<int>(element_stack_.size() - start);
+            DirectHandle<FixedArray> val_node_and_snapshot_array =
+                factory()->NewFixedArray(num_elements * 2);
+            DisallowGarbageCollection no_gc;
+            Tagged<FixedArray> raw_val_node_and_snapshot_array =
+                *val_node_and_snapshot_array;
+            for (int i = 0; i < num_elements; i++) {
+              raw_val_node_and_snapshot_array->set(
+                  i * 2, *element_val_node_stack[start + i]);
+              raw_val_node_and_snapshot_array->set(i * 2 + 1,
+                                                   *element_stack_[start + i]);
+            }
+            element_val_node_stack.resize(cont.index());
+            value = cont.scope.CloseAndEscape(value);
+            val_node = cont.scope.CloseAndEscape(
+                handle(raw_val_node_and_snapshot_array, isolate_));
+          } else {
+            value = cont.scope.CloseAndEscape(value);
+          }
+          element_stack_.resize(cont.index());
+          // Pop the continuation.
+          cont = std::move(cont_stack.back());
+          cont_stack.pop_back();
+          // Consume the produced array.
+          continue;
+        }
+      }
+
+      // Done consuming a value. Produce next value.
+      break;
+    }
+  }
+}
+
+template <typename Char>
+void JsonParser<Char>::AdvanceToNonDecimal() {
+  cursor_ =
+      std::find_if(cursor_, end_, [](Char c) { return !IsDecimalDigit(c); });
+}
+
+template <typename Char>
+Handle<Object> JsonParser<Char>::ParseJsonNumber() {
+  double double_number;
+  int smi_number;
+  if (ParseJsonNumberAsDoubleOrSmi(&double_number, &smi_number)) {
+    return factory()->NewHeapNumber(double_number);
+  }
+  return handle(Smi::FromInt(smi_number), isolate_);
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
+                                                    int* result_smi) {
+  int sign = 1;
+
+  {
+    const Char* start = cursor_;
+    DisallowGarbageCollection no_gc;
+
+    base::uc32 c = *cursor_;
+    if (c == '-') {
+      sign = -1;
+      c = NextCharacter();
+    }
+
+    if (c == '0') {
+      // Prefix zero is only allowed if it's the only digit before
+      // a decimal point or exponent.
+      c = NextCharacter();
+      if (base::IsInRange(c, 0,
+                          static_cast<int32_t>(unibrow::Latin1::kMaxChar)) &&
+          IsNumberPart(character_json_scan_flags[c])) {
+        if (V8_UNLIKELY(IsDecimalDigit(c))) {
+          AllowGarbageCollection allow_before_exception;
+          ReportUnexpectedToken(JsonToken::NUMBER);
+          *result_smi = 0;
+          return false;
+        }
+      } else if (sign > 0) {
+        *result_smi = 0;
+        return false;
+      }
+    } else {
+      const Char* smi_start = cursor_;
+      static_assert(Smi::IsValid(-999999999));
+      static_assert(Smi::IsValid(999999999));
+      const int kMaxSmiLength = 9;
+      int32_t i = 0;
+      const Char* stop = cursor_ + kMaxSmiLength;
+      if (stop > end_) stop = end_;
+      while (cursor_ < stop && IsDecimalDigit(*cursor_)) {
+        i = (i * 10) + ((*cursor_) - '0');
+        cursor_++;
+      }
+      if (V8_UNLIKELY(smi_start == cursor_)) {
+        AllowGarbageCollection allow_before_exception;
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
+        *result_smi = 0;
+        return false;
+      }
+      c = CurrentCharacter();
+      if (!base::IsInRange(c, 0,
+                           static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
+          !IsNumberPart(character_json_scan_flags[c])) {
+        // Smi.
+        // TODO(verwaest): Cache?
+        *result_smi = i * sign;
+        return false;
+      }
+      AdvanceToNonDecimal();
+    }
+
+    if (CurrentCharacter() == '.') {
+      c = NextCharacter();
+      if (!IsDecimalDigit(c)) {
+        AllowGarbageCollection allow_before_exception;
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseUnterminatedFractionalNumber);
+        *result_smi = 0;
+        return false;
+      }
+      AdvanceToNonDecimal();
+    }
+
+    if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
+      c = NextCharacter();
+      if (c == '-' || c == '+') c = NextCharacter();
+      if (!IsDecimalDigit(c)) {
+        AllowGarbageCollection allow_before_exception;
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseExponentPartMissingNumber);
+        *result_smi = 0;
+        return false;
+      }
+      AdvanceToNonDecimal();
+    }
+
+    base::Vector<const Char> chars(start, cursor_ - start);
+    *result_double =
+        StringToDouble(chars,
+                       NO_CONVERSION_FLAG,  // Hex, octal or trailing junk.
+                       std::numeric_limits<double>::quiet_NaN());
+    DCHECK(!std::isnan(*result_double));
+
+    // The result might still be a smi even if it has a decimal part.
+    return !DoubleToSmiInteger(*result_double, result_smi);
+  }
+}
+
+namespace {
+
+template <typename Char>
+bool Matches(base::Vector<const Char> chars, DirectHandle<String> string) {
+  DCHECK(!string.is_null());
+  return string->IsEqualTo(chars);
+}
+
+}  // namespace
+
+template <typename Char>
+template <typename SinkSeqString>
+Handle<String> JsonParser<Char>::DecodeString(
+    const JsonString& string, Handle<SinkSeqString> intermediate,
+    Handle<String> hint) {
+  using SinkChar = typename SinkSeqString::Char;
+  {
+    DisallowGarbageCollection no_gc;
+    SinkChar* dest = intermediate->GetChars(no_gc);
+    if (!string.has_escape()) {
+      DCHECK(!string.internalize());
+      CopyChars(dest, chars_ + string.start(), string.length());
+      return intermediate;
+    }
+    DecodeString(dest, string.start(), string.length());
+
+    if (!string.internalize()) return intermediate;
+
+    base::Vector<const SinkChar> data(dest, string.length());
+    if (!hint.is_null() && Matches(data, hint)) return hint;
+  }
+
+  DCHECK_EQ(intermediate->length(), string.length());
+  return factory()->InternalizeString(intermediate);
+}
+
+template <typename Char>
+Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
+                                            Handle<String> hint) {
+  if (string.length() == 0) return factory()->empty_string();
+  if (string.length() == 1) {
+    uint16_t first_char;
+    if (!string.has_escape()) {
+      first_char = chars_[string.start()];
+    } else {
+      DecodeString(&first_char, string.start(), 1);
+    }
+    return factory()->LookupSingleCharacterStringFromCode(first_char);
+  }
+
+  if (!string.has_escape()) {
+    bool should_internalize = string.internalize();
+    // For non-escaped strings, try to internalize the following candidates:
+    // 1. Property keys (string.internalize() is true in that case).
+    // 2. Short one-byte strings. If we have a budget for heuristic,
+    //    we can consider inserting them. Otherwise, at least try to reuse
+    //    existing internalized strings without inserting new ones.
+    constexpr int kMaxInternalizedStringValueLength = 10;
+    if (!should_internalize && sizeof(Char) == 1 &&
+        string.length() < kMaxInternalizedStringValueLength) {
+      if (remaining_heuristic_internalizations_ > 0) {
+        --remaining_heuristic_internalizations_;
+        should_internalize = true;
+      } else {
+        if (chars_may_relocate_) {
+          SeqSubStringKey<SeqOneByteString> key(
+              isolate_, Cast<SeqOneByteString>(source_), string.start(),
+              string.length(), string.needs_conversion());
+          auto existing =
+              isolate_->string_table()->TryLookupKey(isolate_, &key);
+          if (existing) return handle(*existing.value(), isolate_);
+        } else {
+          base::Vector<const Char> chars(chars_ + string.start(),
+                                         string.length());
+          SequentialStringKey<Char> key(chars, HashSeed(isolate_),
+                                        string.needs_conversion());
+          auto existing =
+              isolate_->string_table()->TryLookupKey(isolate_, &key);
+          if (existing) return handle(*existing.value(), isolate_);
+        }
+      }
+    }
+    if (should_internalize) {
+      if (!hint.is_null()) {
+        base::Vector<const Char> data(chars_ + string.start(), string.length());
+        if (Matches(data, hint)) return hint;
+      }
+      if (chars_may_relocate_) {
+        return factory()->InternalizeSubString(Cast<SeqString>(source_),
+                                               string.start(), string.length(),
+                                               string.needs_conversion());
+      }
+      base::Vector<const Char> chars(chars_ + string.start(), string.length());
+      return factory()->InternalizeString(chars, string.needs_conversion());
+    }
+  }
+
+  if (sizeof(Char) == 1 ? V8_LIKELY(!string.needs_conversion())
+                        : string.needs_conversion()) {
+    Handle<SeqOneByteString> intermediate =
+        factory()->NewRawOneByteString(string.length()).ToHandleChecked();
+    return DecodeString(string, intermediate, hint);
+  }
+
+  Handle<SeqTwoByteString> intermediate =
+      factory()->NewRawTwoByteString(string.length()).ToHandleChecked();
+  return DecodeString(string, intermediate, hint);
+}
+
+template <typename Char>
+template <typename SinkChar>
+void JsonParser<Char>::DecodeString(SinkChar* sink, uint32_t start,
+                                    uint32_t length) {
+  const Char* cursor = chars_ + start;
+  while (length > 0) {
+    // Copy everything until the first escape character
+    const Char* backslash_pos = std::find(cursor, cursor + length, '\\');
+    size_t to_copy = backslash_pos - cursor;
+    std::copy_n(cursor, to_copy, sink);
+    length -= to_copy;
+    cursor += to_copy;
+    sink += to_copy;
+
+    if (length == 0) return;
+
+    cursor++;
+
+    switch (GetEscapeKind(character_json_scan_flags[*cursor])) {
+      case EscapeKind::kSelf:
+        *sink++ = *cursor;
+        length--;
+        break;
+
+      case EscapeKind::kBackspace:
+        *sink++ = '\x08';
+        length--;
+        break;
+
+      case EscapeKind::kTab:
+        *sink++ = '\x09';
+        length--;
+        break;
+
+      case EscapeKind::kNewLine:
+        *sink++ = '\x0A';
+        length--;
+        break;
+
+      case EscapeKind::kFormFeed:
+        *sink++ = '\x0C';
+        length--;
+        break;
+
+      case EscapeKind::kCarriageReturn:
+        *sink++ = '\x0D';
+        length--;
+        break;
+
+      case EscapeKind::kUnicode: {
+        base::uc32 value = 0;
+        for (int i = 0; i < 4; i++) {
+          value = value * 16 + base::HexValue(*++cursor);
+        }
+        if (value <=
+            static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+          *sink++ = value;
+          length--;
+        } else {
+          SBXCHECK_GE(length, 2);
+          *sink++ = unibrow::Utf16::LeadSurrogate(value);
+          *sink++ = unibrow::Utf16::TrailSurrogate(value);
+          length -= 2;
+        }
+        break;
+      }
+
+      case EscapeKind::kIllegal:
+        UNREACHABLE();
+    }
+    cursor++;
+  }
+}
+
+template <typename Char>
+JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
+  namespace hw = hwy::HWY_NAMESPACE;
+
+  DisallowGarbageCollection no_gc;
+  uint32_t start = position();
+  uint32_t offset = start;
+  bool has_escape = false;
+  base::uc32 bits = 0;
+
+  // SIMD constants for one-byte string scanning, hoisted out of the loop.
+  // Only used in the sizeof(Char)==1 path; dead-store-eliminated for two-byte.
+  [[maybe_unused]] hw::FixedTag<uint8_t, 16> tag;
+  [[maybe_unused]] const size_t stride = hw::Lanes(tag);
+  [[maybe_unused]] const auto mask_0x20 = hw::Set(tag, 0x20);
+  [[maybe_unused]] const auto mask_quote = hw::Set(tag, '"');
+  [[maybe_unused]] const auto mask_backslash = hw::Set(tag, '\\');
+
+  while (true) {
+    if constexpr (sizeof(Char) == 1) {
+      // SIMD fast path: scan 16 bytes at a time looking for characters that
+      // may terminate a JSON string: '"', '\', or control characters (< 0x20).
+      for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+        const auto input =
+            hw::LoadU(tag, reinterpret_cast<const uint8_t*>(cursor_));
+        // TODO(floitsch): use operators for the comparisons when they are
+        // available on RISC-V.
+        const auto result =
+            hw::Or(hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+                   hw::Eq(input, mask_backslash));
+        if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+        cursor_ += hw::FindKnownFirstTrue(tag, result);
+        break;
+      }
+      // Scalar fallback for remaining tail bytes after the last full SIMD
+      // block. When the SIMD loop found a match, *cursor_ is already a
+      // special character and this immediately breaks.
+      for (; cursor_ < end_; ++cursor_) {
+        if (MayTerminateJsonString(character_json_scan_flags[*cursor_])) break;
+      }
+    } else {
+      cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
+        if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
+          bits |= c;
+          return false;
+        }
+        return MayTerminateJsonString(character_json_scan_flags[c]);
+      });
+    }
+
+    if (V8_UNLIKELY(is_at_end())) {
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(JsonToken::ILLEGAL,
+                            MessageTemplate::kJsonParseUnterminatedString);
+      break;
+    }
+
+    if (*cursor_ == '"') {
+      uint32_t end = position();
+      advance();
+      uint32_t length = end - offset;
+      bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
+                                       : bits <= unibrow::Latin1::kMaxChar;
+      return JsonString(start, length, convert, needs_internalization,
+                        has_escape);
+    }
+
+    if (*cursor_ == '\\') {
+      has_escape = true;
+      base::uc32 c = NextCharacter();
+      if (V8_UNLIKELY(!base::IsInRange(
+              c, 0, static_cast<int32_t>(unibrow::Latin1::kMaxChar)))) {
+        AllowGarbageCollection allow_before_exception;
+        ReportUnexpectedCharacter(c);
+        break;
+      }
+
+      switch (GetEscapeKind(character_json_scan_flags[c])) {
+        case EscapeKind::kSelf:
+        case EscapeKind::kBackspace:
+        case EscapeKind::kTab:
+        case EscapeKind::kNewLine:
+        case EscapeKind::kFormFeed:
+        case EscapeKind::kCarriageReturn:
+          offset += 1;
+          break;
+
+        case EscapeKind::kUnicode: {
+          base::uc32 value = ScanUnicodeCharacter();
+          if (value == kInvalidUnicodeCharacter) {
+            AllowGarbageCollection allow_before_exception;
+            ReportUnexpectedToken(JsonToken::ILLEGAL,
+                                  MessageTemplate::kJsonParseBadUnicodeEscape);
+            return JsonString();
+          }
+          bits |= value;
+          // \uXXXX results in either 1 or 2 Utf16 characters, depending on
+          // whether the decoded value requires a surrogate pair.
+          offset += 5 - (value > static_cast<base::uc32>(
+                                     unibrow::Utf16::kMaxNonSurrogateCharCode));
+          break;
+        }
+
+        case EscapeKind::kIllegal:
+          AllowGarbageCollection allow_before_exception;
+          ReportUnexpectedToken(JsonToken::ILLEGAL,
+                                MessageTemplate::kJsonParseBadEscapedCharacter);
+          return JsonString();
+      }
+
+      advance();
+      continue;
+    }
+
+    DCHECK_LT(*cursor_, 0x20);
+    AllowGarbageCollection allow_before_exception;
+    ReportUnexpectedToken(JsonToken::ILLEGAL,
+                          MessageTemplate::kJsonParseBadControlCharacter);
+    break;
+  }
+
+  return JsonString();
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::Parse(
+    Isolate* isolate, Handle<String> source, Handle<Object> reviver,
+    std::optional<ScriptDetails> script_details) {
+  HighAllocationThroughputScope high_throughput_scope(V8::GetCurrentPlatform());
+  bool collect_source_strings = IsCallable(*reviver);
+  if (IsJSFunction(*reviver)) {
+    Handle<SharedFunctionInfo> reviver_sfi(Cast<JSFunction>(*reviver)->shared(),
+                                           isolate);
+    if (reviver_sfi->CanOnlyAccessFixedFormalParameters() &&
+        reviver_sfi->internal_formal_parameter_count_without_receiver() < 3) {
+      // The reviver function has only one or two arguments, so we don't need
+      // to collect the information on the source for each primitive value.
+      //
+      // Note that on the first run, we don't get here because the optimizers
+      // have not set enough information on the shared function info.  So we
+      // will do the slow JSON parsing initially until the compiler has
+      // optimized more.
+      collect_source_strings = false;
+    }
+  }
+  Handle<Object> result;
+  MaybeHandle<Object> val_node;
+  {
+    JsonParser parser(isolate, source, script_details);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               parser.ParseJson(collect_source_strings));
+    val_node = parser.parsed_val_node_;
+    if (v8_flags.trace_json_parse_internalization) {
+      PrintF(
+          "[JSON.parse internalization] source length=%d "
+          "remaining budget for heuristic-based string internalization=%u\n",
+          source->length(), parser.remaining_heuristic_internalizations_);
+    }
+  }
+  if (IsCallable(*reviver)) {
+    return JsonParseInternalizer::Internalize(isolate, result, reviver, source,
+                                              val_node, collect_source_strings);
+  }
+  return result;
+}
+
+// Explicit instantiation.
+template class JsonParser<uint8_t>;
+template class JsonParser<uint16_t>;
+
+}  // namespace internal
+}  // namespace v8

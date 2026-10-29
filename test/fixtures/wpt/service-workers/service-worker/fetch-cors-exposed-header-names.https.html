@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Service Worker: CORS-exposed header names should be transferred correctly</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(async function(t) {
+    const SCOPE = 'resources/simple.html';
+    const SCRIPT = 'resources/fetch-cors-exposed-header-names-worker.js';
+    const host_info = get_host_info();
+
+    const URL = get_host_info().HTTPS_REMOTE_ORIGIN +
+      '/service-workers/service-worker/resources/simple.txt?pipe=' +
+      'header(access-control-allow-origin,*)|' +
+      'header(access-control-expose-headers,*)|' +
+      'header(foo,bar)|' +
+      'header(set-cookie,X)';
+
+    const reg = await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+    await wait_for_state(t, reg.installing, 'activated');
+    const frame = await with_iframe(SCOPE);
+
+    const response = await frame.contentWindow.fetch(URL);
+    const headers = response.headers;
+    assert_equals(headers.get('foo'), 'bar');
+    assert_equals(headers.get('set-cookie'), null);
+    assert_equals(headers.get('access-control-expose-headers'), '*');
+  }, 'CORS-exposed header names for a response from sw');
+</script>

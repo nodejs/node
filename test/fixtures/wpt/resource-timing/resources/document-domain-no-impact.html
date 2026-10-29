@@ -1,0 +1,28 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="resource-loaders.js"></script>
+<script src="entry-invariants.js"></script>
+<body>
+<script>
+const path = location.origin +
+             "/resource-timing/resources/iframe-setdomain.sub.html";
+attribute_test_with_validator(load.iframe, path,
+  el => {
+    try {
+      el.contentWindow.document;
+      throw new Error("iframe document.domain was not set");
+    } catch(error) {
+      if (error.name != "SecurityError") {
+        throw(error);
+      }
+    }
+  },
+  invariants.assert_tao_pass_no_redirect_http,
+  "test that document.domain being set doesn't have an impact on the " +
+  "resource timing entry."
+);
+</script>
+

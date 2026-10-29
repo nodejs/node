@@ -1,0 +1,56 @@
+<html>
+<head>
+<title>Service Worker cancelling a fetch upload stream body</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+</head>
+<body>
+<script>
+var scope = "resources";
+var activeWorker;
+
+promise_test(async (test) => {
+    var registration = await navigator.serviceWorker.register("fetch-request-body-cancel-worker.js", { scope : scope });
+    activeWorker = registration.active;
+    if (activeWorker)
+        return;
+    activeWorker = registration.installing;
+    return new Promise(resolve => {
+        activeWorker.addEventListener('statechange', () => {
+            if (activeWorker.state === "activated")
+                resolve();
+        });
+    });
+}, "Setup worker");
+
+promise_test(async (test) => {
+    const iframe = await with_iframe("resources/empty.html");
+
+    const cancelPromise = new Promise((resolve, reject) => {
+        test.step_timeout(() => reject("cancel timed out"), 3000);
+        var stream = new ReadableStream({
+            start: controller => {
+                controller.enqueue(new Uint8Array([1, 2, 3]));
+            },
+            cancel: reason => {
+                resolve(reason);
+            }
+        });
+
+        var options = { method: "POST", body: stream, duplex: "half" };
+        test.fetchPromise = iframe.contentWindow.fetch("cancel-body-test", options);
+    });
+    const response = await test.fetchPromise;
+    assert_true(response.ok, "fetch should succeed even though the request stream was cancelled");
+    const text = await response.text();
+    assert_equals(text, "PASS");
+
+    iframe.remove();
+
+    // FIXME: We should be able to validate cancelPromise value.
+    await cancelPromise;
+}, "Service worker cancelling event.request.body should cancel the page's upload stream");
+</script>
+</body>
+</html>

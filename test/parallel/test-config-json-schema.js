@@ -1,0 +1,57 @@
+// Flags: --no-warnings --expose-internals
+
+'use strict';
+
+const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+}
+
+const { isBoringSSL } = require('../common/crypto');
+
+if (isBoringSSL) {
+  common.skip('this test is not supported with BoringSSL');
+}
+
+if (!common.hasIntl) {
+  // A handful of the tests fail when ICU is not included.
+  common.skip('missing Intl');
+}
+
+if (process.config.variables.icu_small) {
+  common.skip('this test assumes full ICU build');
+}
+
+if (!common.hasFFI) {
+  common.skip('missing FFI');
+}
+
+// The JSON schema is generated from a build with the default configuration
+// options, where these are disabled and their options are not available.
+if (process.config.variables.node_use_quic ||
+    process.config.variables.node_use_dtls || common.hasV8Sandbox) {
+  common.skip('this test assumes default configuration options');
+}
+
+const {
+  generateConfigJsonSchema,
+} = require('internal/options');
+const schemaInDoc = require('../../doc/node-config-schema.json');
+const assert = require('assert');
+
+// Round-trip through JSON so that the null-prototype objects returned by
+// generateConfigJsonSchema() show up as plain objects in the diff.
+const schema = JSON.parse(JSON.stringify(generateConfigJsonSchema()));
+
+// This assertion ensures that whenever we add a new env option, we also add it
+// to the JSON schema. The function getEnvOptionsInputType() returns all the available
+// env options, so we can generate the JSON schema from it and compare it to the
+// current JSON schema.
+// To regenerate the JSON schema, run:
+// out/Release/node --expose-internals tools/doc/generate-json-schema.mjs
+// And then run make doc to update the out/doc/node-config-schema.json file.
+assert.deepStrictEqual(schema, schemaInDoc, 'JSON schema is outdated. Run ' +
+  '`out/Release/node --expose-internals tools/doc/generate-json-schema.mjs` to update it.');

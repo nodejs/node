@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Service Worker: Rejection Types</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+(function() {
+    var t = async_test('Rejections are DOMExceptions');
+    t.step(function() {
+
+        navigator.serviceWorker.register('http://example.com').then(
+            t.step_func(function() { assert_unreached('Registration should fail'); }),
+            t.step_func(function(reason) {
+                assert_true(reason instanceof DOMException);
+                assert_true(reason instanceof Error);
+                t.done();
+            }));
+    });
+}());
+
+</script>

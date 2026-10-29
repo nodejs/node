@@ -1,0 +1,593 @@
+// Copyright 2024 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/base/vector.h"
+#include "src/common/globals.h"
+#include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
+#include "src/compiler/turboshaft/machine-optimization-reducer.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
+#include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
+#include "test/common/flag-utils.h"
+#include "test/unittests/compiler/turboshaft/reducer-test.h"
+
+namespace v8::internal::compiler::turboshaft {
+
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+class WasmSimdTest : public ReducerTest {};
+
+TEST_F(WasmSimdTest, UpperToLowerF32x4AddReduce) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto SplatKind = Simd128SplatOp::Kind::kF32x4;
+    auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
+    auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+
+    constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
+        8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0};
+    constexpr uint8_t upper_to_lower_2[kSimd128Size] = {4, 5, 6, 7, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
+    V<Simd128> first_shuffle =
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
+    V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
+    V<Simd128> second_shuffle =
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
+    V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
+    __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+  // We can only match pairwise fp operations.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+}
+
+TEST_F(WasmSimdTest, AlmostUpperToLowerI16x8AddReduce) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto SplatKind = Simd128SplatOp::Kind::kI16x8;
+    auto AddKind = Simd128BinopOp::Kind::kI16x8Add;
+    auto ExtractKind = Simd128ExtractLaneOp::Kind::kI16x8U;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+
+    constexpr uint8_t almost_upper_to_lower_1[kSimd128Size] = {
+        0, 0, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0,
+    };
+    constexpr uint8_t upper_to_lower_2[kSimd128Size] = {4, 5, 6, 7, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 0, 0};
+    constexpr uint8_t upper_to_lower_3[kSimd128Size] = {2, 3, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> input = __ Simd128Splat(Asm.GetParameter(0), SplatKind);
+    V<Simd128> first_shuffle =
+        __ Simd128Shuffle(input, input, ShuffleKind, almost_upper_to_lower_1);
+    V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
+    V<Simd128> second_shuffle =
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
+    V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
+    V<Simd128> third_shuffle = __ Simd128Shuffle(second_add, second_add,
+                                                 ShuffleKind, upper_to_lower_3);
+    V<Simd128> third_add = __ Simd128Binop(second_add, third_shuffle, AddKind);
+    __ Return(__ Simd128ExtractLane(third_add, ExtractKind, 0));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  // The first shuffle is not the one we're looking for.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+}
+
+TEST_F(WasmSimdTest, UpperToLowerI32x4AddReduce) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+    auto AddKind = Simd128BinopOp::Kind::kI32x4Add;
+    auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+
+    constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
+        8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0};
+    constexpr uint8_t upper_to_lower_2[kSimd128Size] = {4, 5, 6, 7, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> input = __ Simd128Splat(Asm.GetParameter(0), SplatKind);
+    V<Simd128> first_shuffle =
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
+    V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
+    V<Simd128> second_shuffle =
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
+    V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
+    __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, PairwiseF32x4AddReduce) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto SplatKind = Simd128SplatOp::Kind::kF32x4;
+    auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
+    auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+
+    constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
+        4, 5, 6, 7, 0, 0, 0, 0, 12, 13, 14, 15, 0, 0, 0, 0};
+    constexpr uint8_t upper_to_lower_2[kSimd128Size] = {
+        8, 9, 10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
+    V<Simd128> first_shuffle =
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
+    V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
+    V<Simd128> second_shuffle =
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
+    V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
+    __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, AlmostPairwiseF32x4AddReduce) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto SplatKind = Simd128SplatOp::Kind::kF32x4;
+    auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
+    auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+
+    constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
+        4, 5, 6, 7, 0, 0, 0, 0, 12, 13, 14, 15, 0, 0, 0, 0};
+    constexpr uint8_t upper_to_lower_2[kSimd128Size] = {
+        8, 9, 10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
+    V<Simd128> first_shuffle =
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
+    V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
+    V<Simd128> second_shuffle =
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
+    V<Simd128> tricksy_add = __ Simd128Binop(first_add, first_add, AddKind);
+    V<Simd128> second_add =
+        __ Simd128Binop(tricksy_add, second_shuffle, AddKind);
+    __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  // There's an additional addition.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+}
+
+TEST_F(WasmSimdTest, SingleExtMulI8Dot) {
+  std::array converts = {
+      Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
+      Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
+  };
+
+  for (Simd128UnaryOp::Kind unop_kind : converts) {
+    auto test = CreateFromGraph(1, [&unop_kind](auto& Asm) {
+      constexpr auto SplatKind = Simd128SplatOp::Kind::kI8x16;
+      V<Simd128> input = __ Simd128Splat(__ Word32Constant(16), SplatKind);
+      V<Simd128> left = __ Simd128Unary(input, unop_kind);
+      V<Simd128> right = __ Simd128Unary(input, unop_kind);
+      __ Return(
+          __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    test.Run<DeadCodeEliminationReducer>();
+
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 1u);
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+  }
+}
+
+TEST_F(WasmSimdTest, AddPairwiseMulI8Dot) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr auto SplatKind = Simd128SplatOp::Kind::kI8x16;
+    V<Simd128> input = __ Simd128Splat(__ Word32Constant(16), SplatKind);
+    V<Simd128> left =
+        __ Simd128Unary(input, Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low);
+    V<Simd128> right =
+        __ Simd128Unary(input, Simd128UnaryOp::Kind::kI16x8UConvertI8x16High);
+    __ Return(
+        __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 3u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+#endif
+}
+
+#ifdef V8_TARGET_ARCH_ARM64
+TEST_F(WasmSimdTest, AddExtMulPairwiseToI8x16DotProduct) {
+  const RegisterRepresentation simd128 = RegisterRepresentation::Simd128();
+  base::SmallVector<RegisterRepresentation, 2> reps = {simd128, simd128};
+  auto test = CreateFromGraph(base::VectorOf(reps), [](auto& Asm) {
+    V<Simd128> left = Asm.template GetParameter<Simd128>(0);
+    V<Simd128> right = Asm.template GetParameter<Simd128>(1);
+
+    V<Simd128> ext_mul_low = __ Simd128Binop(
+        left, right, Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S);
+    V<Simd128> ext_mul_high = __ Simd128Binop(
+        left, right, Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S);
+    V<Simd128> pairwise_low = __ Simd128Unary(
+        ext_mul_low, Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S);
+    V<Simd128> pairwise_high = __ Simd128Unary(
+        ext_mul_high, Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S);
+
+    V<Simd128> add =
+        Asm.Capture(__ Simd128Binop(pairwise_low, pairwise_high,
+                                    Simd128BinopOp::Kind::kI32x4Add),
+                    "add");
+    __ Return(add);
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  constexpr uint8_t expected_shuffle[kSimd128Size] = {
+      0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
+  };
+
+  const Simd128BinopOp* dot = test.GetCapture("add").GetFirst<Simd128BinopOp>();
+  EXPECT_TRUE(dot);
+  if (CpuFeatures::IsSupported(DOTPROD)) {
+    EXPECT_EQ(Simd128BinopOp::Kind::kI32x4DotI8x16S, dot->kind);
+    const Simd128ShuffleOp* shuffle_left =
+        test.graph().Get(dot->left()).TryCast<Simd128ShuffleOp>();
+    const Simd128ShuffleOp* shuffle_right =
+        test.graph().Get(dot->right()).TryCast<Simd128ShuffleOp>();
+    EXPECT_TRUE(shuffle_left);
+    EXPECT_TRUE(shuffle_right);
+    EXPECT_EQ(Simd128ShuffleOp::Kind::kI8x16, shuffle_left->kind);
+    EXPECT_EQ(Simd128ShuffleOp::Kind::kI8x16, shuffle_right->kind);
+    EXPECT_TRUE(std::equal(std::begin(expected_shuffle),
+                           std::end(expected_shuffle),
+                           std::begin(shuffle_left->shuffle)));
+    EXPECT_TRUE(std::equal(std::begin(expected_shuffle),
+                           std::end(expected_shuffle),
+                           std::begin(shuffle_right->shuffle)));
+  } else {
+    EXPECT_EQ(Simd128BinopOp::Kind::kI32x4Add, dot->kind);
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+
+TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {
+  auto test = CreateFromGraph(0, [](auto& Asm) {
+    const uint8_t cst[kSimd256Size] = {
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+    V<Simd256> simd256_cst = __ Simd256Constant(cst);
+
+    V<Simd128> low = __ Simd256Extract128Lane(simd256_cst, 0);
+    DCHECK(__ output_graph().Get(low).template Is<Simd256Extract128LaneOp>());
+    Asm.Capture(low, "low");
+
+    V<Simd128> high = __ Simd256Extract128Lane(simd256_cst, 1);
+    DCHECK(__ output_graph().Get(high).template Is<Simd256Extract128LaneOp>());
+    Asm.Capture(high, "high");
+
+    __ Return(__ Simd128Binop(high, low, Simd128BinopOp::Kind::kF16x8Add));
+  });
+
+  // Running MachineOptimizationReduce to optimize the Extract.
+  test.Run<MachineOptimizationReducer>();
+  // Running an empty phase to remove the unused operations.
+  test.Run<>();
+
+  // The Simd256Constant and the Extract should have been eliminated.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Extract128Lane), 0u);
+
+  // Testing that `low` and `high` have the right value.
+  const uint8_t expected_low[kSimd128Size] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                              8, 9, 10, 11, 12, 13, 14, 15};
+  const uint8_t expected_high[kSimd128Size] = {16, 17, 18, 19, 20, 21, 22, 23,
+                                               24, 25, 26, 27, 28, 29, 30, 31};
+
+  const uint8_t* actual_low =
+      test.GetCapture("low").GetAs<Simd128ConstantOp>()->value.data();
+  const uint8_t* actual_high =
+      test.GetCapture("high").GetAs<Simd128ConstantOp>()->value.data();
+
+  for (int i = 0; i < kSimd128Size; i++) {
+    ASSERT_EQ(expected_low[i], actual_low[i]);
+    ASSERT_EQ(expected_high[i], actual_high[i]);
+  }
+}
+
+#endif
+
+TEST_F(WasmSimdTest, OptimizationCaseAsymmetricalI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.3 ADD (i.2 ADD (i.1 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#endif
+}
+
+TEST_F(WasmSimdTest, OptimizationCaseSymmetricalI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like ((i.3 ADD i.2) ADD (i.1 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(extract3, extract4);
+        V<Word32> add3 = __ Word32Add(add1, add2);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseDuplicateInputsI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.0 ADD (i.0 ADD (i.0 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseDuplicateInputs2I32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract3, extract4);
+        V<Word32> add_nop = __ Word32Add(extract3, extract3);
+        V<Word32> add2 = __ Word32Add(extract2, extract1);
+        V<Word32> add3 = __ Word32Add(extract2, add1);
+        V<Word32> add4 = __ Word32Add(add2, add3);
+        __ Return(add4);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseMixedInputsI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.3 ADD (i.2 ADD (j.1 ADD j.0)))
+        V<Simd128> input1 = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Simd128> input2 = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input1, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input1, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input2, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input2, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+// GVN has to see through the member arrays of {Simd128ConstantOp},
+// {Simd128ShuffleOp} and {Simd256ConstantOp}.
+
+TEST_F(WasmSimdTest, Simd128ConstantValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 16};
+    V<Simd128> a = __ Simd128Constant(kValue);
+    V<Simd128> b = __ Simd128Constant(kValue);
+    __ Return(__ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 2u);
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 1u);
+}
+
+// Counterpart to the test above: distinct constants must not collapse.
+TEST_F(WasmSimdTest, Simd128ConstantValueNumberingDistinctValues) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 16};
+    // Differs from {kValue} in the last byte only.
+    constexpr uint8_t kOther[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 17};
+    V<Simd128> a = __ Simd128Constant(kValue);
+    V<Simd128> b = __ Simd128Constant(kOther);
+    __ Return(__ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 2u);
+}
+
+TEST_F(WasmSimdTest, Simd128ShuffleValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kShuffle[kSimd128Size] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                                8, 9, 10, 11, 12, 13, 14, 15};
+    // Differs in the first byte, which selects from the second operand.
+    constexpr uint8_t kOther[kSimd128Size] = {16, 1, 2,  3,  4,  5,  6,  7,
+                                              8,  9, 10, 11, 12, 13, 14, 15};
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+    V<Simd128> input =
+        __ Simd128Splat(__ Float32Constant(1.0), Simd128SplatOp::Kind::kF32x4);
+    V<Simd128> a = __ Simd128Shuffle(input, input, ShuffleKind, kShuffle);
+    V<Simd128> b = __ Simd128Shuffle(input, input, ShuffleKind, kShuffle);
+    V<Simd128> c = __ Simd128Shuffle(input, input, ShuffleKind, kOther);
+    V<Simd128> ab = __ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor);
+    __ Return(__ Simd128Binop(ab, c, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 3u);
+  test.Run<ValueNumberingReducer>();
+  // {a} and {b} collapse; {c} has a different shuffle and stays.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 2u);
+}
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST_F(WasmSimdTest, Simd256ConstantValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd256Size] = {
+        1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+    V<Simd256> a = __ Simd256Constant(kValue);
+    V<Simd256> b = __ Simd256Constant(kValue);
+    __ Return(__ Simd256Binop(a, b, Simd256BinopOp::Kind::kS256Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 2u);
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 1u);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
+
+}  // namespace v8::internal::compiler::turboshaft

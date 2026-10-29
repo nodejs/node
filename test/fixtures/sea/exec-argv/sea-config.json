@@ -1,0 +1,6 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "disableExperimentalSEAWarning": true,
+  "execArgv": ["--no-warnings", "--max-old-space-size=2048"]
+}

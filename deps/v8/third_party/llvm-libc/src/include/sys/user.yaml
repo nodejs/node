@@ -1,0 +1,5 @@
+header: sys/user.h
+standards:
+  - linux
+types:
+  - type_name: struct_user_regs_struct

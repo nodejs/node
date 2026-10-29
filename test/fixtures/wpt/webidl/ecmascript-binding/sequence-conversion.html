@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Sequence conversion</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#es-sequence">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<canvas></canvas>
+
+<script>
+"use strict";
+
+const canvas = document.querySelector("canvas");
+const ctx = canvas.getContext("2d");
+
+test(() => {
+  ctx.setLineDash([1, 2]);
+  assert_array_equals(ctx.getLineDash(), [1, 2]);
+}, "An array");
+
+test(() => {
+  function* generatorFunc() {
+    yield 4;
+    yield 5;
+  }
+  const generator = generatorFunc();
+
+  ctx.setLineDash(generator);
+  assert_array_equals(ctx.getLineDash(), [4, 5]);
+}, "A generator");
+
+test(() => {
+  function* generatorFunc() {
+    yield 6;
+    yield 7;
+  }
+
+  let callCount = 0;
+  const array = [1, 2];
+  Object.defineProperty(array, Symbol.iterator, {
+    get() {
+      ++callCount;
+      return generatorFunc;
+    }
+  });
+
+  ctx.setLineDash(array);
+  assert_array_equals(ctx.getLineDash(), [6, 7]);
+  assert_equals(callCount, 1, "@@iterator must only have been gotten once");
+}, "An array with an overridden Symbol.iterator");
+
+test(t => {
+  function* generatorFunc() {
+    yield ["foo", "bar"];
+    yield ["baz", "quux"];
+  }
+
+  let callCount = 0;
+  const obj = {};
+  Object.defineProperty(obj, Symbol.iterator, {
+    get() {
+      ++callCount;
+      return generatorFunc;
+    }
+  });
+
+  const searchParams = new URLSearchParams(obj);
+  assert_equals(searchParams.get("foo"), "bar");
+  assert_equals(searchParams.get("baz"), "quux");
+  assert_equals(callCount, 1, "@@iterator must only have been gotten once");
+}, "An object with an overriden Symbol.iterator");
+
+test(t => {
+  const originalIterator = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator);
+  t.add_cleanup(() => {
+    Object.defineProperty(Array.prototype, Symbol.iterator, originalIterator);
+  });
+
+  function* generatorFunc() {
+    yield 11;
+    yield 12;
+  }
+
+  let callCount = 0;
+  const array = [1, 2];
+  Object.defineProperty(Array.prototype, Symbol.iterator, {
+    get() {
+      ++callCount;
+      return generatorFunc;
+    }
+  });
+
+  ctx.setLineDash(array);
+  assert_array_equals(ctx.getLineDash(), [11, 12]);
+  assert_equals(callCount, 1, "@@iterator must only have been gotten once");
+}, "An array with an overridden Symbol.iterator on the prototype");
+
+test(t => {
+  const arrayIteratorPrototype = Object.getPrototypeOf(Array.prototype[Symbol.iterator]());
+  const nextBefore = arrayIteratorPrototype.next;
+  t.add_cleanup(() => {
+    arrayIteratorPrototype.next = nextBefore;
+  });
+
+  let callCount = 0;
+  arrayIteratorPrototype.next = () => {
+    switch (callCount) {
+      case 0: {
+        ++callCount;
+        return { done: false, value: 8 };
+      }
+      case 1: {
+        ++callCount;
+        return { done: false, value: 9 };
+      }
+      case 2: {
+        ++callCount;
+        return { done: true, value: 10 }; // value should be ignored this time
+      }
+      default: {
+        assert_unreached("next() should be called three times exactly");
+      }
+    }
+  };
+
+  const array = [1, 2];
+  ctx.setLineDash(array);
+  assert_array_equals(ctx.getLineDash(), [8, 9]);
+  assert_equals(callCount, 3, "next() must have been called thrice");
+}, "An array with an overridden %ArrayIterator%.prototype.next");
+
+test(t => {
+  t.add_cleanup(() => {
+    delete Array.prototype[1];
+  });
+
+  Object.defineProperty(Array.prototype, "1", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return 14;
+    }
+  });
+
+  const array = [13, , 15, 16];
+  ctx.setLineDash(array);
+  assert_array_equals(ctx.getLineDash(), [13, 14, 15, 16]);
+}, "A holey array with fallback to an accessor on the prototype");
+
+test(t => {
+  // Should fail rather than falling back to record
+  assert_throws_js(TypeError, function() { new URLSearchParams(["key", "value"]); });
+}, "A string array in sequence<sequence> or record");
+
+</script>

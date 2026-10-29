@@ -1,0 +1,31 @@
+[32m✔ should pass [90m(*ms)[39m[39m
+[31m✖ should fail [90m(*ms)[39m[39m
+[90m﹣ should skip [90m(*ms)[39m # SKIP[39m
+▶ parent
+  [31m✖ should fail [90m(*ms)[39m[39m
+  [32m✔ should pass but parent fail [90m(*ms)[39m[39m
+[31m✖ parent [90m(*ms)[39m[39m
+[34mℹ tests 6[39m
+[34mℹ suites 0[39m
+[34mℹ pass 2[39m
+[34mℹ fail 3[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 1[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms *[39m
+
+[31m✖ failing tests:[39m
+
+test at test/fixtures/test-runner/output/default_output.js:10:1
+[31m✖ should fail [90m(*ms)[39m[39m
+  Error: fail
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:10:35[90m)[39m
+  [90m    at <node-internal-frames>[39m
+
+test at test/fixtures/test-runner/output/default_output.js:13:5
+[31m✖ should fail [90m(*ms)[39m[39m
+  Error: fail
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:13:39[90m)[39m
+  [90m    at <node-internal-frames>[39m
+      at TestContext.<anonymous> [90m(<project-root>/[39mtest/fixtures/test-runner/output/default_output.js:13:5[90m)[39m
+  [90m    at <node-internal-frames>[39m

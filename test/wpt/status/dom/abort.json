@@ -1,0 +1,5 @@
+{
+  "timeout-shadowrealm.any.js": {
+    "skip": "ShadowRealm support is not enabled"
+  }
+}

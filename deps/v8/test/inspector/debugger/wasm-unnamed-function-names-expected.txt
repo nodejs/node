@@ -1,0 +1,11 @@
+Tests unnamed function in wasm scripts
+
+Running test: test
+Running testFunction with generated wasm bytes...
+Paused on 'debugger;'
+Number of frames: 5
+  - [0] call_debugger
+  - [1] $func1
+  - [2] $main
+  - [3] testFunction
+  - [4] 

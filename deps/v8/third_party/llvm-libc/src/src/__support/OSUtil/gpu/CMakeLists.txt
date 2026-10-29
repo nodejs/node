@@ -1,0 +1,13 @@
+add_object_library(
+  gpu_util
+  SRCS
+    exit.cpp
+    io.cpp
+  HDRS
+    io.h
+  DEPENDS
+    libc.src.__support.common
+    libc.src.__support.CPP.string_view
+    libc.src.__support.RPC.rpc_client
+    libc.src.string.memory_utils.inline_memcpy
+)

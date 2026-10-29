@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>SharedWorker extendedLifetime (Data URL)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script>
+
+const dataUrl = "data:application/javascript," + encodeURIComponent(`
+  let stored_data = null;
+  self.onconnect = e => {
+    const port = e.ports[0];
+    port.onmessage = msg => {
+      if (msg.data.op === 'store') {
+        stored_data = msg.data.data;
+        port.postMessage({status: 'OK', reqid: msg.data.reqid});
+      } else if (msg.data.op === 'load') {
+        port.postMessage({status: 'OK', data: stored_data, reqid: msg.data.reqid});
+      }
+    };
+  };
+`);
+
+const createDataWorkerAndStore = async (uuid, dataUrl) => {
+  window.worker = new SharedWorker(dataUrl, {extendedLifetime: true});
+  worker.port.start();
+  await new Promise(resolve => {
+    const listener = e => {
+      if (e.data.reqid === 1) {
+        worker.port.removeEventListener('message', listener);
+        resolve(e.data);
+      }
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage({op: 'store', data: uuid, reqid: 1});
+  });
+};
+
+const connectAndLoad = async (dataUrl) => {
+  window.worker = new SharedWorker(dataUrl, {extendedLifetime: true});
+  worker.port.start();
+  return new Promise(resolve => {
+    const listener = e => {
+      if (e.data.reqid === 2) {
+        worker.port.removeEventListener('message', listener);
+        resolve(e.data);
+      }
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage({op: 'load', reqid: 2});
+  });
+};
+
+promise_test(async t => {
+  const uuid = token();
+  const ctx = new RemoteContext(token());
+  const popup = window.open(remoteExecutorUrl(ctx.context_id));
+  await ctx.execute_script(createDataWorkerAndStore, [uuid, dataUrl]);
+  popup.close();
+
+  // The SharedWorker created with data: URL should survive because of extendedLifetime.
+  const response = await connectAndLoad(dataUrl);
+  assert_equals(response.status, 'OK');
+  assert_equals(response.data, uuid);
+}, "Data URL SharedWorker should survive across navigations with extendedLifetime");
+
+</script>

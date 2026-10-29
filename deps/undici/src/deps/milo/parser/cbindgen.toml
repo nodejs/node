@@ -1,0 +1,21 @@
+language      = "C++"
+include_guard = "MILO_H"
+namespace     = "milo_parser"
+
+[parse.expand]
+  crates = ["milo-parser"]
+
+[export]
+  include = [
+    "Parser",
+    "ParserCallbacks",
+    "CStringWithLength",
+    "Callback",
+    "MessageTypes",
+    "Connections",
+    "Methods",
+    "States",
+    "Errors",
+    "Callbacks",
+    "Events",
+  ]

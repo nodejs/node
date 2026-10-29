@@ -1,0 +1,3 @@
+rules:
+- dedicated-worker-*: [js-modules-workers]
+- shared-worker-*: [js-modules-shared-workers]

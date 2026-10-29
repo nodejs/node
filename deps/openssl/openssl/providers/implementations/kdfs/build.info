@@ -1,0 +1,76 @@
+# We make separate GOAL variables for each algorithm, to make it easy to
+# switch each to the Legacy provider when needed.
+
+$TLS1_PRF_GOAL=../../libdefault.a ../../libfips.a
+$HKDF_GOAL=../../libdefault.a ../../libfips.a
+$IKEV2_GOAL=../../libdefault.a ../../libfips.a
+$KBKDF_GOAL=../../libdefault.a ../../libfips.a
+$KRB5KDF_GOAL=../../libdefault.a
+$PBKDF1_GOAL=../../liblegacy.a
+$PBKDF2_GOAL=../../libdefault.a ../../libfips.a
+$PVKKDF_GOAL=../../liblegacy.a
+$PKCS12KDF_GOAL=../../libdefault.a
+$SSKDF_GOAL=../../libdefault.a ../../libfips.a
+$SCRYPT_GOAL=../../libdefault.a
+$SNMPKDF_GOAL=../../libdefault.a ../../libfips.a
+$SRTPKDF_GOAL=../../libdefault.a ../../libfips.a
+$SSHKDF_GOAL=../../libdefault.a ../../libfips.a
+$X942KDF_GOAL=../../libdefault.a ../../libfips.a
+$HMAC_DRBG_KDF_GOAL=../../libdefault.a ../../libfips.a
+$ARGON2_GOAL=../../libdefault.a
+
+SOURCE[$TLS1_PRF_GOAL]=tls1_prf.c
+
+SOURCE[$HKDF_GOAL]=hkdf.c
+
+IF[{- !$disabled{ikev2kdf} -}]
+  SOURCE[$IKEV2_GOAL]=ikev2kdf.c
+ENDIF
+IF[{- !$disabled{kbkdf} -}]
+  SOURCE[$KBKDF_GOAL]=kbkdf.c
+ENDIF
+
+IF[{- !$disabled{krb5kdf} -}]
+  SOURCE[$KRB5KDF_GOAL]=krb5kdf.c
+ENDIF
+
+SOURCE[$PBKDF1_GOAL]=pbkdf1.c
+
+SOURCE[$PBKDF2_GOAL]=pbkdf2.c
+
+IF[{- !$disabled{pvkkdf} -}]
+  SOURCE[$PVKKDF_GOAL]=pvkkdf.c
+ENDIF
+
+SOURCE[$PKCS12KDF_GOAL]=pkcs12kdf.c
+
+IF[{- !$disabled{sskdf} || !$disabled{x963kdf} -}]
+  SOURCE[$SSKDF_GOAL]=sskdf.c
+ENDIF
+
+IF[{- !$disabled{scrypt} -}]
+  SOURCE[$SCRYPT_GOAL]=scrypt.c
+ENDIF
+
+IF[{- !$disabled{snmpkdf} -}]
+  SOURCE[$SNMPKDF_GOAL]=snmpkdf.c
+ENDIF
+
+IF[{- !$disabled{srtpkdf} -}]
+  SOURCE[$SRTPKDF_GOAL]=srtpkdf.c
+ENDIF
+
+IF[{- !$disabled{sshkdf} -}]
+  SOURCE[$SSHKDF_GOAL]=sshkdf.c
+ENDIF
+
+IF[{- !$disabled{x942kdf} -}]
+  SOURCE[$X942KDF_GOAL]=x942kdf.c
+  DEPEND[x942kdf.o]=../../common/include/prov/der_wrap.h
+ENDIF
+
+IF[{- !$disabled{hmac-drbg-kdf} -}]
+  SOURCE[$HMAC_DRBG_KDF_GOAL]=hmacdrbg_kdf.c
+ENDIF
+
+SOURCE[$ARGON2_GOAL]=argon2.c

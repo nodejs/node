@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const worker = 'resources/fetch-event-test-worker.js';
+
+const method = 'POST';
+const duplex = 'half';
+
+function createBody(t) {
+  const rs = new ReadableStream({start(c) {
+    c.enqueue('i a');
+    c.enqueue('m the request');
+    step_timeout(t.step_func(() => {
+      c.enqueue(' body');
+      c.close();
+    }, 10));
+  }});
+  return rs.pipeThrough(new TextEncoderStream());
+}
+
+promise_test(async t => {
+  const scope = 'resources/';
+  const registration =
+    await service_worker_unregister_and_register(t, worker, scope);
+  await wait_for_state(t, registration.installing, 'activated');
+
+  // This will happen after all other tests
+  promise_test(t => {
+    return registration.unregister();
+  }, 'restore global state');
+}, 'global setup');
+
+// Test that the service worker can read FetchEvent#body when it is made from
+// a ReadableStream. It responds with request body it read.
+promise_test(async t => {
+  const body = createBody(t);
+  // Set page_url to "?ignore" so the service worker falls back to network
+  // for the main resource request, and add a suffix to avoid colliding
+  // with other tests.
+  const page_url = `resources/simple.html?ignore&id=${token()}`;
+  const frame = await with_iframe(page_url);
+  t.add_cleanup(() => { frame.remove(); });
+  const response = await frame.contentWindow.fetch('simple.html?request-body', {
+    method, body, duplex});
+  assert_equals(response.status, 200, 'status');
+  const text = await response.text();
+  assert_equals(text, 'i am the request body', 'body');
+}, 'The streaming request body is readable in the service worker.');
+
+// Network fallback
+promise_test(async t => {
+  const body = createBody(t);
+  // Set page_url to "?ignore" so the service worker falls back to network
+  // for the main resource request, and add a suffix to avoid colliding
+  // with other tests.
+  const page_url = `resources/simple.html?ignore&id=${token()}`;
+  const frame = await with_iframe(page_url);
+  t.add_cleanup(() => { frame.remove(); });
+  // Add "?ignore" so that the service worker falls back to
+  // echo-content.h2.py.
+  const echo_url = '/fetch/api/resources/echo-content.h2.py?ignore';
+  const response =
+    await frame.contentWindow.fetch(echo_url, { method, body, duplex});
+  assert_equals(response.status, 200, 'status');
+  const text = await response.text();
+  assert_equals(text, 'i am the request body', 'body');
+}, 'Network fallback for streaming upload.');
+
+// When the streaming body is used in the service worker, network fallback
+// fails.
+promise_test(async t => {
+  const body = createBody(t);
+  // Set page_url to "?ignore" so the service worker falls back to network
+  // for the main resource request, and add a suffix to avoid colliding
+  // with other tests.
+  const page_url = `resources/simple.html?ignore&id=${token()}`;
+  const frame = await with_iframe(page_url);
+  t.add_cleanup(() => { frame.remove(); });
+  const echo_url = '/fetch/api/resources/echo-content.h2.py?use-and-ignore';
+  const w = frame.contentWindow;
+  await promise_rejects_js(t, w.TypeError, w.fetch(echo_url, {
+    method, body, duplex}));
+}, 'When the streaming request body is used, network fallback fails.');
+
+// When the streaming body is used by clone() in the service worker, network
+// fallback succeeds.
+promise_test(async t => {
+  const body = createBody(t);
+  // Set page_url to "?ignore" so the service worker falls back to network
+  // for the main resource request, and add a suffix to avoid colliding
+  // with other tests.
+  const page_url = `resources/simple.html?ignore&id=${token()}`;
+  const frame = await with_iframe(page_url);
+  t.add_cleanup(() => { frame.remove(); });
+  // Add "?clone-and-ignore" so that the service worker falls back to
+  // echo-content.h2.py.
+  const echo_url = '/fetch/api/resources/echo-content.h2.py?clone-and-ignore';
+  const response = await frame.contentWindow.fetch(echo_url, {
+    method, body, duplex});
+  assert_equals(response.status, 200, 'status');
+  const text = await response.text();
+  assert_equals(text, 'i am the request body', 'body');
+}, 'Running clone() in the service worker does not prevent network fallback.');
+
+</script>
+</body>

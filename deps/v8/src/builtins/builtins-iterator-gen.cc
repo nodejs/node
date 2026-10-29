@@ -1,0 +1,664 @@
+// Copyright 2017 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/builtins/builtins-iterator-gen.h"
+
+#include <optional>
+
+#include "src/builtins/builtins-collections-gen.h"
+#include "src/builtins/builtins-string-gen.h"
+#include "src/builtins/builtins-utils-gen.h"
+#include "src/builtins/builtins.h"
+#include "src/builtins/growable-fixed-array-gen.h"
+#include "src/codegen/code-stub-assembler-inl.h"
+#include "src/compiler/code-assembler.h"
+#include "src/heap/factory-inl.h"
+#include "src/objects/oddball.h"
+
+namespace v8 {
+namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
+using IteratorRecord = TorqueStructIteratorRecord;
+
+TNode<JSAny> IteratorBuiltinsAssembler::GetIteratorMethod(
+    TNode<Context> context, TNode<JSAny> object) {
+  return GetProperty(context, object, factory()->iterator_symbol());
+}
+
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
+                                                      TNode<JSAny> object) {
+  TNode<Object> method = GetIteratorMethod(context, object);
+  return GetIterator(context, object, method);
+}
+
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
+                                                      TNode<JSAny> object,
+                                                      TNode<Object> method) {
+  Label if_not_callable(this, Label::kDeferred), if_callable(this);
+  GotoIf(TaggedIsSmi(method), &if_not_callable);
+  Branch(IsCallable(CAST(method)), &if_callable, &if_not_callable);
+
+  BIND(&if_not_callable);
+  CallRuntime(Runtime::kThrowIteratorError, context, object);
+  Unreachable();
+
+  BIND(&if_callable);
+  {
+    TNode<JSAny> iterator = Call(context, method, object);
+
+    Label get_next(this), if_notobject(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(iterator), &if_notobject);
+    Branch(JSAnyIsNotPrimitive(CAST(iterator)), &get_next, &if_notobject);
+
+    BIND(&if_notobject);
+    CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+    Unreachable();
+
+    BIND(&get_next);
+    TNode<JSAny> next =
+        GetProperty(context, iterator, factory()->next_string());
+    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator), next};
+  }
+}
+
+TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
+    TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
+    std::optional<TNode<Map>> fast_iterator_result_map) {
+  DCHECK_NOT_NULL(if_done);
+  // IteratorStep is used at the top of iterator loops, so check for stack
+  // overflow and process pending interrupts here.
+  PerformStackCheck(context);
+  // 1. a. Let result be ? Invoke(iterator, "next", « »).
+  TNode<JSAny> result = Call(context, iterator.next, iterator.object);
+
+  // 3. If Type(result) is not Object, throw a TypeError exception.
+  Label if_notobject(this, Label::kDeferred), return_result(this);
+  GotoIf(TaggedIsSmi(result), &if_notobject);
+  TNode<JSAnyNotSmi> heap_object_result = CAST(result);
+  TNode<Map> result_map = LoadMap(heap_object_result);
+  GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
+
+  // IteratorComplete
+  // 2. Return ToBoolean(? Get(iterResult, "done")).
+  IteratorComplete(context, heap_object_result, if_done,
+                   fast_iterator_result_map);
+  Goto(&return_result);
+
+  BIND(&if_notobject);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
+  Unreachable();
+
+  BIND(&return_result);
+  return CAST(heap_object_result);
+}
+
+void IteratorBuiltinsAssembler::IteratorComplete(
+    TNode<Context> context, const TNode<JSAnyNotSmi> iterator, Label* if_done,
+    std::optional<TNode<Map>> fast_iterator_result_map) {
+  DCHECK_NOT_NULL(if_done);
+
+  Label return_result(this);
+
+  TNode<Map> result_map = LoadMap(iterator);
+
+  if (fast_iterator_result_map) {
+    // Fast iterator result case:
+    Label if_generic(this);
+
+    // 4. Return result.
+    GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
+
+    // 2. Return ToBoolean(? Get(iterResult, "done")).
+    TNode<Object> done =
+        LoadObjectField(iterator, JSIteratorResult::kDoneOffset);
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
+
+    BIND(&if_generic);
+  }
+
+  // Generic iterator result case:
+  {
+    // 2. Return ToBoolean(? Get(iterResult, "done")).
+    TNode<JSAny> done =
+        GetProperty(context, iterator, factory()->done_string());
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
+  }
+
+  BIND(&return_result);
+}
+
+TNode<JSAny> IteratorBuiltinsAssembler::IteratorValue(
+    TNode<Context> context, TNode<JSReceiver> result,
+    std::optional<TNode<Map>> fast_iterator_result_map) {
+  Label exit(this);
+  TVARIABLE(JSAny, var_value);
+  if (fast_iterator_result_map) {
+    // Fast iterator result case:
+    Label if_generic(this);
+    TNode<Map> map = LoadMap(result);
+    GotoIfNot(TaggedEqual(map, *fast_iterator_result_map), &if_generic);
+    var_value = CAST(LoadObjectField(result, JSIteratorResult::kValueOffset));
+    Goto(&exit);
+
+    BIND(&if_generic);
+  }
+
+  // Generic iterator result case:
+  var_value = GetProperty(context, result, factory()->value_string());
+  Goto(&exit);
+
+  BIND(&exit);
+  return var_value.value();
+}
+
+void IteratorBuiltinsAssembler::Iterate(
+    TNode<Context> context, TNode<JSAny> iterable,
+    std::function<void(TNode<Object>)> func,
+    std::initializer_list<compiler::CodeAssemblerVariable*> merged_variables) {
+  Iterate(context, iterable, GetIteratorMethod(context, iterable), func,
+          merged_variables);
+}
+
+void IteratorBuiltinsAssembler::Iterate(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterable_fn,
+    std::function<void(TNode<Object>)> func,
+    std::initializer_list<compiler::CodeAssemblerVariable*> merged_variables) {
+  Iterate(
+      context, iterable, iterable_fn, [this]() { return Int32TrueConstant(); },
+      func, merged_variables);
+}
+
+void IteratorBuiltinsAssembler::Iterate(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterable_fn,
+    std::function<TNode<BoolT>()> condition,
+    std::function<void(TNode<Object>)> func,
+    std::initializer_list<compiler::CodeAssemblerVariable*> merged_variables) {
+  Label done(this), early_break(this);
+
+  IteratorRecord iterator_record = GetIterator(context, iterable, iterable_fn);
+
+  Label if_exception(this, Label::kDeferred);
+  TVARIABLE(Object, var_exception);
+
+  Label loop_start(this, merged_variables);
+  Goto(&loop_start);
+
+  BIND(&loop_start);
+  {
+    GotoIfNot(condition(), &early_break);
+
+    TNode<JSReceiver> next = IteratorStep(context, iterator_record, &done);
+    TNode<Object> next_value = IteratorValue(context, next);
+
+    {
+      compiler::ScopedExceptionHandler handler(this, &if_exception,
+                                               &var_exception);
+      func(next_value);
+    }
+
+    Goto(&loop_start);
+  }
+
+  if (early_break.is_used()) {
+    BIND(&early_break);
+    IteratorClose(context, iterator_record);
+    Goto(&done);
+  }
+
+  if (if_exception.is_used()) {
+    BIND(&if_exception);
+    TNode<HeapObject> message = GetPendingMessage();
+    SetPendingMessage(TheHoleConstant());
+    IteratorCloseOnException(context, iterator_record.object);
+    CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                message);
+    Unreachable();
+  }
+
+  BIND(&done);
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterator_fn) {
+  GrowableFixedArray values(state());
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+  return values.ToJSArray(context);
+}
+
+TNode<FixedArray> IteratorBuiltinsAssembler::IterableToFixedArray(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterator_fn) {
+  GrowableFixedArray values(state());
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+  TNode<FixedArray> new_array = values.ToFixedArray();
+  return new_array;
+}
+
+void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterator_fn,
+    GrowableFixedArray* values) {
+  // 1. Let iteratorRecord be ? GetIterator(items, method) (handled by Iterate).
+
+  // 2. Let values be a new empty List.
+
+  // The GrowableFixedArray has already been created. It's ok if we do this step
+  // out of order, since creating an empty List is not observable.
+
+  // 3. Let next be true. (handled by Iterate)
+  // 4. Repeat, while next is not false (handled by Iterate)
+  Iterate(context, iterable, iterator_fn,
+          [&values](TNode<Object> value) {
+            // Handled by Iterate:
+            //  a. Set next to ? IteratorStep(iteratorRecord).
+            //  b. If next is not false, then
+            //   i. Let nextValue be ? IteratorValue(next).
+
+            //   ii. Append nextValue to the end of the List values.
+            values->Push(value);
+          },
+          {values->var_array(), values->var_capacity(), values->var_length()});
+}
+
+// https://tc39.es/ecma262/#sec-iterabletolist
+TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
+
+  Return(IterableToList(context, iterable, iterator_fn));
+}
+
+TF_BUILTIN(IterableToFixedArray, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
+
+  Return(IterableToFixedArray(context, iterable, iterator_fn));
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+  auto expected_length = Parameter<Smi>(Descriptor::kExpectedLength);
+
+  TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
+  GrowableFixedArray values(state());
+
+  Label done(this);
+
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+
+  GotoIf(WordEqual(PositiveSmiUntag(expected_length),
+                   values.var_length()->value()),
+         &done);
+  Return(CallRuntime(
+      Runtime::kThrowTypeError, context,
+      SmiConstant(MessageTemplate::kWasmTrapMultiReturnLengthMismatch)));
+
+  BIND(&done);
+  Return(values.var_array()->value());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
+    TNode<Context> context, TNode<JSAny> iterable) {
+  Label done(this);
+  GrowableFixedArray list(state());
+  // 1. If iterable is undefined, then
+  //   a. Return a new empty List.
+  GotoIf(IsUndefined(iterable), &done);
+
+  // 2. Let iteratorRecord be ? GetIterator(items) (handled by Iterate).
+
+  // 3. Let list be a new empty List.
+
+  // 4. Let next be true (handled by Iterate).
+  // 5. Repeat, while next is not false (handled by Iterate).
+  Iterate(
+      context, iterable,
+      [&](TNode<Object> next_value) {
+        // Handled by Iterate:
+        //  a. Set next to ? IteratorStep(iteratorRecord).
+        //  b. If next is not false, then
+        //   i. Let nextValue be ? IteratorValue(next).
+
+        //   ii. If Type(nextValue) is not String, then
+        Label if_isnotstringtype(this, Label::kDeferred), loop_body_end(this);
+        GotoIf(TaggedIsSmi(next_value), &if_isnotstringtype);
+        TNode<Uint16T> next_value_type = LoadInstanceType(CAST(next_value));
+        GotoIfNot(IsStringInstanceType(next_value_type), &if_isnotstringtype);
+
+        //   iii. Append nextValue to the end of the List list.
+        list.Push(next_value);
+
+        Goto(&loop_body_end);
+
+        // 5.b.ii
+        BIND(&if_isnotstringtype);
+        {
+          // 1. Let error be ThrowCompletion(a newly created TypeError object).
+
+          CallRuntime(Runtime::kThrowTypeError, context,
+                      SmiConstant(MessageTemplate::kIterableYieldedNonString),
+                      next_value);
+          // 2. Return ? IteratorClose(iteratorRecord, error). (handled by
+          // Iterate).
+          Unreachable();
+        }
+
+        BIND(&loop_body_end);
+      },
+      {list.var_array(), list.var_length(), list.var_capacity()});
+  Goto(&done);
+
+  BIND(&done);
+  // 6. Return list.
+  return list.ToFixedArray();
+}
+
+// https://tc39.es/ecma262/#sec-createstringlistfromiterable
+TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+
+  Return(StringListFromIterable(context, iterable));
+}
+
+// This builtin always returns a new JSArray and is thus safe to use even in the
+// presence of code that may call back into user-JS. This builtin will take the
+// fast path if the iterable is a fast array and the Array prototype and the
+// Symbol.iterator is untouched. The fast path skips the iterator and copies the
+// backing store to the new array. Note that if the array has holes, the holes
+// will be copied to the new array, which is inconsistent with the behavior of
+// an actual iteration, where holes should be replaced with undefined (if the
+// prototype has no elements). To maintain the correct behavior for holey
+// arrays, use the builtins IterableToList or IterableToListWithSymbolLookup or
+// IterableToListConvertHoles.
+TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
+
+  Label slow_path(this);
+
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable), &slow_path);
+
+  // The fast path will copy holes to the new array.
+  TailCallBuiltin(Builtin::kCloneFastJSArray, context, iterable);
+
+  BIND(&slow_path);
+  TailCallBuiltin(Builtin::kIterableToList, context, iterable, iterator_fn);
+}
+
+// This builtin always returns a new JSArray and is thus safe to use even in the
+// presence of code that may call back into user-JS. This builtin will take the
+// fast path if the iterable is a fast array and the Array prototype and the
+// Symbol.iterator is untouched. The fast path skips the iterator and copies the
+// backing store to the new array. Note that if the array has holes, the holes
+// will be converted to undefined values in the new array (unlike
+// IterableToListMayPreserveHoles builtin).
+TF_BUILTIN(IterableToListConvertHoles, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
+
+  Label slow_path(this);
+
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable), &slow_path);
+
+  // The fast path will convert holes to undefined values in the new array.
+  TailCallBuiltin(Builtin::kCloneFastJSArrayFillingHoles, context, iterable);
+
+  BIND(&slow_path);
+  TailCallBuiltin(Builtin::kIterableToList, context, iterable, iterator_fn);
+}
+
+void IteratorBuiltinsAssembler::FastIterableToList(
+    TNode<Context> context, TNode<JSAny> maybe_iterable,
+    TVariable<JSArray>* var_result, Label* slow) {
+  Label done(this);
+
+  GotoIfForceSlowPath(slow);
+
+  // Always call the `next()` builtins when the debugger is
+  // active, to ensure we capture side-effects correctly.
+  GotoIf(IsDebugActive(), slow);
+
+  GotoIf(TaggedIsSmi(maybe_iterable), slow);
+  TNode<JSAnyNotSmi> iterable = CAST(maybe_iterable);
+
+  // Check FastJSArrayForReadWithNoCustomIteration case.
+  {
+    Label check_next(this);
+    GotoIfNot(IsFastJSArrayForReadWithNoCustomIteration(context, iterable),
+              &check_next);
+
+    // Fast path for fast JSArray.
+    *var_result = CAST(
+        CallBuiltin(Builtin::kCloneFastJSArrayFillingHoles, context, iterable));
+    Goto(&done);
+
+    BIND(&check_next);
+  }
+  // Check StringPrimitiveWithNoCustomIteration case.
+  {
+    Label if_fast(this), check_next(this);
+    StringBuiltinsAssembler string_assembler(state());
+    string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
+        iterable, &if_fast, &check_next);
+
+    BIND(&if_fast);
+    {
+      const TNode<Uint32T> length = LoadStringLengthAsWord32(CAST(iterable));
+      // Use string length as conservative approximation of number of
+      // codepoints.
+      GotoIf(Uint32GreaterThan(length,
+                               Uint32Constant(JSArray::kMaxFastArrayLength)),
+             slow);
+      *var_result =
+          CAST(CallBuiltin(Builtin::kStringToList, context, iterable));
+      Goto(&done);
+    }
+
+    BIND(&check_next);
+  }
+  // Check FastIterableToListInterceptor case.
+  {
+    Label if_fast(this), check_next(this);
+    BranchIfFastIterableToListInterceptor(iterable, &if_fast, &check_next);
+
+    BIND(&if_fast);
+    {
+      TNode<Object> result = CallRuntime(
+          Runtime::kIterableToListWithInterceptor, context, iterable);
+      *var_result = CAST(result);
+      Goto(&done);
+    }
+
+    BIND(&check_next);
+  }
+  // Check IterableWithOriginalKeyOrValueMapIterator case.
+  {
+    Label if_fast(this), check_next(this);
+    BranchIfIterableWithOriginalKeyOrValueMapIterator(
+        state(), iterable, context, &if_fast, &check_next);
+
+    BIND(&if_fast);
+    {
+      *var_result =
+          CAST(CallBuiltin(Builtin::kMapIteratorToList, context, iterable));
+      Goto(&done);
+    }
+
+    BIND(&check_next);
+  }
+  // Check IterableWithOriginalValueSetIterator case.
+  {
+    Label if_fast(this), check_next(this);
+    BranchIfIterableWithOriginalValueSetIterator(state(), iterable, context,
+                                                 &if_fast, &check_next);
+
+    BIND(&if_fast);
+    {
+      *var_result = CAST(
+          CallBuiltin(Builtin::kSetOrSetIteratorToList, context, iterable));
+      Goto(&done);
+    }
+
+    BIND(&check_next);
+  }
+  Goto(slow);
+
+  BIND(&done);
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::FastIterableToList(
+    TNode<Context> context, TNode<JSAny> iterable, Label* slow) {
+  TVARIABLE(JSArray, var_fast_result);
+  FastIterableToList(context, iterable, &var_fast_result, slow);
+  return var_fast_result.value();
+}
+
+// This builtin loads the property Symbol.iterator as the iterator, and has fast
+// paths for fast arrays, for primitive strings, for sets and set iterators, and
+// for map iterators. These fast paths will only be taken if Symbol.iterator and
+// the Iterator prototype are not modified in a way that changes the original
+// iteration behavior.
+// * In case of fast holey arrays, holes will be converted to undefined to
+//   reflect iteration semantics. Note that replacement by undefined is only
+//   correct when the NoElements protector is valid.
+// * In case of map/set iterators, there is an additional requirement that the
+//   iterator is not partially consumed. To be spec-compliant, after spreading
+//   the iterator is set to be exhausted.
+TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+
+  Label slow_path(this);
+
+  GotoIfForceSlowPath(&slow_path);
+
+  TVARIABLE(JSArray, var_result);
+  FastIterableToList(context, iterable, &var_result, &slow_path);
+  Return(var_result.value());
+
+  BIND(&slow_path);
+  {
+    TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
+    TailCallBuiltin(Builtin::kIterableToList, context, iterable, iterator_fn);
+  }
+}
+
+TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  auto call_slot_smi = Parameter<Smi>(Descriptor::kCallSlot);
+  auto feedback = Parameter<FeedbackVector>(Descriptor::kFeedback);
+  auto iterator_method = Parameter<Object>(Descriptor::kResult);
+
+  // Note, that the builtin also expects the call_slot as a Smi.
+  TNode<Object> result =
+      CallBuiltin(Builtin::kCallIteratorWithFeedback, context, receiver,
+                  iterator_method, call_slot_smi, feedback);
+  Return(result);
+}
+
+TF_BUILTIN(CallIteratorWithFeedbackLazyDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  TNode<Object> iterator = Parameter<Object>(Descriptor::kArgument);
+
+  ThrowIfNotJSReceiver(context, iterator,
+                       MessageTemplate::kSymbolIteratorInvalid, "");
+  Return(iterator);
+}
+
+TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
+  BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
+  BIND(&is_jsreceiver);
+
+  TNode<Object> var_done =
+      GetProperty(context, CAST(result_object), factory()->done_string());
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(var_done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+
+  BIND(&if_notjsreceiver);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
+  Unreachable();
+}
+
+TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+  auto done = Parameter<Object>(Descriptor::kDone);
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+}
+
+TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  TNode<Object> value =
+      GetProperty(context, CAST(result_object), factory()->value_string());
+
+  Return(value);
+}
+
+TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto value = Parameter<Object>(Descriptor::kValue);
+  Return(value);
+}
+
+// This builtin creates a FixedArray based on an Iterable and doesn't have a
+// fast path for anything.
+TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,
+           IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
+
+  TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
+  TailCallBuiltin(Builtin::kIterableToFixedArray, context, iterable,
+                  iterator_fn);
+}
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
+
+}  // namespace internal
+}  // namespace v8

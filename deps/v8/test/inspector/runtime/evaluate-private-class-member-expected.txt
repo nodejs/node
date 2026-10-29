@@ -1,0 +1,231 @@
+Evaluate private class member out of class scope in Runtime.evaluate()
+
+class Klass {
+   #field = "string";
+   get #getterOnly() { return "getterOnly"; }
+   set #setterOnly(val) { this.#field = "setterOnlyCalled"; }
+   get #accessor() { return this.#field }
+   set #accessor(val) { this.#field = val; }
+   #method() { return "method"; }
+}
+const obj = new Klass();
+
+
+Running test: evaluatePrivateMembers
+Checking private fields
+Runtime.evaluate: `obj.#field`
+{
+    type : string
+    value : string
+}
+Runtime.evaluate: `obj.#field = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#field++`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 2
+    type : number
+    value : 2
+}
+Runtime.evaluate: `++obj.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Runtime.evaluate: `obj.#field -= 3`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Checking private getter-only accessors
+Runtime.evaluate: `obj.#getterOnly`
+{
+    type : string
+    value : getterOnly
+}
+Runtime.evaluate: `obj.#getterOnly = 1`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:17
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#getterOnly++`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:16
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#getterOnly -= 3`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:17
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#getterOnly`
+{
+    type : string
+    value : getterOnly
+}
+Checking private setter-only accessors
+Runtime.evaluate: `obj.#setterOnly`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#setterOnly = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#setterOnly++`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#setterOnly -= 3`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#field`
+{
+    type : string
+    value : setterOnlyCalled
+}
+Checking private accessors
+Runtime.evaluate: `obj.#accessor`
+{
+    type : string
+    value : setterOnlyCalled
+}
+Runtime.evaluate: `obj.#accessor = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#accessor++`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 2
+    type : number
+    value : 2
+}
+Runtime.evaluate: `++obj.#accessor`
+{
+    type : undefined
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Runtime.evaluate: `obj.#accessor -= 3`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Runtime.evaluate: `obj.#field`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Checking private methods
+Runtime.evaluate: `obj.#method`
+{
+    className : Function
+    description : #method() { return "method"; }
+    objectId : <objectId>
+    type : function
+}
+Runtime.evaluate: `obj.#method = 1`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:13
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#method++`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:12
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `++obj.#method`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:7
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `obj.#method -= 3`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:13
+    objectId : <objectId>
+    subtype : error
+    type : object
+}

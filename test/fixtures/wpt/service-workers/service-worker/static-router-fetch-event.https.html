@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated with the fetch-event source.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY = 'condition-urlpattern-string-source-fetch-event';
+const REGISTERED_ROUTE = 'resources/simple.html';
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_KEY);
+  const rnd = randomString();
+  const iframe = await createIframe(t, `${REGISTERED_ROUTE}?nonce=${rnd}`);
+  const {errors, requests} = await get_info_from_worker(worker);
+
+  assert_equals(errors.length, 0);
+  assert_equals(requests.length, 1);
+  assert_equals(iframe.contentWindow.document.body.innerText, rnd);
+}, 'Main resource matched the rule with fetch-event source');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_KEY, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const response = await iwin.fetch(`?nonce=${rnd}`);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), rnd);
+  const {requests} = await get_info_from_worker(worker);
+  // Main resource request + subreosurce request = 2.
+  assert_equals(requests.length, 2);
+}, 'Subresource load matched the rule fetch-event source');
+</script>
+</body>
