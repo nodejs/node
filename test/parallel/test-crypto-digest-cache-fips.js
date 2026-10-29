@@ -4,8 +4,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { isBoringSSL } = require('../common/crypto');
-if (isBoringSSL)
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+if (isBoringSSL || !hasOpenSSL(3))
   common.skip('this test requires OpenSSL provider support');
 
 const { isMainThread } = require('worker_threads');
