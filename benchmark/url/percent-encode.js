@@ -6,7 +6,7 @@ const querystring = require('node:querystring');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
-  api: ['querystring', 'URLSearchParams', 'URLSearchParams-new'],
+  api: ['querystring', 'URLSearchParams', 'URLSearchParams-new-instance'],
   type: ['ascii', 'latin1', 'mixed', 'twobyte', 'bmp', 'astral'],
   size: [16, 256],
 });
