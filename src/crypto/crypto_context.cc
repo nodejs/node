@@ -2403,8 +2403,11 @@ void SecureContext::SetSessionIdContext(
       reinterpret_cast<const unsigned char*>(*sessionIdContext);
   unsigned int sid_ctx_len = sessionIdContext.length();
 
-  if (SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len) == 1)
+  int ok = SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len);
+  if (ok == 1) {
+    sc->session_id_context_.assign(*sessionIdContext, sid_ctx_len);
     return;
+  }
 
   Local<String> message;
 
