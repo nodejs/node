@@ -376,6 +376,18 @@ const ncrypto::Digest GetDigestForJob(Environment* env,
   return ncrypto::Digest::FromName(name);
 }
 
+ncrypto::HMACCtxPointer NewHmacContext(Environment* env,
+                                       const ncrypto::Digest& md) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  SynchronizeHashCache(env);
+  if (const auto* hmac_template = env->provider_digest_cache->getHmacTemplate(
+          md, env->hash_cache_generation)) {
+    if (auto ctx = hmac_template->clone()) return ctx;
+  }
+#endif
+  return ncrypto::HMACCtxPointer::New();
+}
+
 void MarkInvalidXofLength() {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
