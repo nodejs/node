@@ -539,6 +539,7 @@ class Http2Stream : public AsyncWrap,
   // signalling the end of the HEADERS frame.
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
   uint32_t current_headers_length_ = 0;  // total number of octets
+  bool current_headers_are_final_response_ = false;
   // Charged against maxSessionMemory while headers stay alive in JS.
   uint64_t retained_headers_length_ = 0;
   std::vector<Http2Header> current_headers_;
@@ -811,6 +812,17 @@ class Http2Session : public AsyncWrap,
   void UpdateLocalCustomSettings(size_t count_,
                                  nghttp2_settings_entry* entries_);
 
+  void IncrementQueuedOutboundMemory(uint64_t amount) {
+    queued_outbound_memory_ += amount;
+    IncrementCurrentSessionMemory(amount);
+  }
+
+  void DecrementQueuedOutboundMemory(uint64_t amount) {
+    DCHECK_LE(amount, queued_outbound_memory_);
+    queued_outbound_memory_ -= amount;
+    DecrementCurrentSessionMemory(amount);
+  }
+
   // Tell our custom memory allocator that this rcbuf is independent of
   // this session now, and may outlive it.
   void StopTrackingRcbuf(nghttp2_rcbuf* buf);
@@ -824,9 +836,17 @@ class Http2Session : public AsyncWrap,
     return total;
   }
 
-  // Return true if current_session_memory + amount is less than the max
-  bool has_available_session_memory(uint64_t amount) const {
-    return current_session_memory() + amount <= max_session_memory_;
+  // Final responses to local requests may exclude queued outbound DATA, but
+  // retained headers and all other session memory still count towards the
+  // limit.
+  bool has_available_session_memory(uint64_t amount,
+                                    bool exclude_outbound = false) const {
+    uint64_t memory = current_session_memory();
+    if (exclude_outbound) {
+      DCHECK_LE(queued_outbound_memory_, memory);
+      memory -= queued_outbound_memory_;
+    }
+    return memory + amount <= max_session_memory_;
   }
 
   struct Statistics {
@@ -966,6 +986,8 @@ class Http2Session : public AsyncWrap,
   // The maximum amount of memory allocated for this session
   uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
   uint64_t current_session_memory_ = 0;
+  // Part of current_session_memory_: DATA not yet consumed by nghttp2.
+  uint64_t queued_outbound_memory_ = 0;
   // The amount of memory allocated by nghttp2 internals
   uint64_t current_nghttp2_memory_ = 0;
 
