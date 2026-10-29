@@ -170,6 +170,8 @@ class SecureContext final : public BaseObject {
                                EVP_MAC_CTX* hctx,
 #elif NCRYPTO_USE_BORINGSSL
                                HMAC_CTX* hctx,
+#else
+#error "Unsupported crypto backend"
 #endif
                                int enc);
 
@@ -181,6 +183,8 @@ class SecureContext final : public BaseObject {
                                          EVP_MAC_CTX* hctx,
 #elif NCRYPTO_USE_BORINGSSL
                                          HMAC_CTX* hctx,
+#else
+#error "Unsupported crypto backend"
 #endif
                                          int enc);
 

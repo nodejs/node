@@ -1876,6 +1876,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
                                        TicketCompatibilityCallback);
 #elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -2140,6 +2142,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     if (params && params.isA(KeyAlgorithm::DH)) dh.reset(params.release());
 #elif NCRYPTO_USE_BORINGSSL
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
+#else
+#error "Unsupported crypto backend"
 #endif
   }
 
@@ -2164,6 +2168,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
 #elif NCRYPTO_USE_BORINGSSL
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
+#else
+#error "Unsupported crypto backend"
 #endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
@@ -2515,6 +2521,8 @@ void SecureContext::EnableTicketKeyCallback(
   SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
 #elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -2536,6 +2544,8 @@ bool InitTicketHmac(EVP_MAC_CTX* hctx,
 bool InitTicketHmac(HMAC_CTX* hctx, const unsigned char* key, size_t key_len) {
   return HMAC_Init_ex(hctx, key, key_len, Digest::SHA256, nullptr) == 1;
 }
+#else
+#error "Unsupported crypto backend"
 #endif
 }  // namespace
 
@@ -2547,6 +2557,8 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                      EVP_MAC_CTX* hctx,
 #elif NCRYPTO_USE_BORINGSSL
                                      HMAC_CTX* hctx,
+#else
+#error "Unsupported crypto backend"
 #endif
                                      int enc) {
   static const int kTicketPartSize = 16;
@@ -2644,6 +2656,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                EVP_MAC_CTX* hctx,
 #elif NCRYPTO_USE_BORINGSSL
                                                HMAC_CTX* hctx,
+#else
+#error "Unsupported crypto backend"
 #endif
                                                int enc) {
   SecureContext* sc = static_cast<SecureContext*>(

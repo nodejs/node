@@ -955,6 +955,8 @@ void TLSWrap::ClearOut() {
           const char* fs = nullptr;
 #elif NCRYPTO_USE_BORINGSSL
           const char* fs = ERR_func_error_string(ssl_err);
+#else
+#error "Unsupported crypto backend"
 #endif
           const char* rs = ERR_reason_error_string(ssl_err);
           if (!Set(env(), obj, env()->library_string(), ls) ||

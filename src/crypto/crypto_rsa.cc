@@ -53,6 +53,8 @@ bool IsRsaPssDigestEncodable(const Digest& digest) {
 #elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(digest);
   return true;
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 }  // namespace
@@ -403,6 +405,8 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   }
 
   ncrypto::Rsa rsa_view(rsa.get());
+#else
+#error "Unsupported crypto backend"
 #endif
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
@@ -511,6 +515,8 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   auto pkey = EVPKeyPointer::NewRSA(rsa_view);
 #elif NCRYPTO_USE_BORINGSSL
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
+#else
+#error "Unsupported crypto backend"
 #endif
   if (!pkey) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create key pointer");
