@@ -455,6 +455,8 @@ TEST(NodeCrypto, EcKeyComponents) {
     EXPECT_EQ(memcmp(raw_public.get(), point.get(), point.size()), 0);
 #elif NCRYPTO_USE_BORINGSSL
     EXPECT_FALSE(raw_public);
+#else
+#error "Unsupported crypto backend"
 #endif
     EXPECT_FALSE(
         ncrypto::Ec::TryExportPublic(key, POINT_CONVERSION_COMPRESSED));
@@ -1015,6 +1017,8 @@ TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
   ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
   ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
   ASSERT_NE(expected, 0UL);
@@ -1147,6 +1151,8 @@ TEST(NodeCrypto, X509KeyVisitorsHandleMissingPublicKey) {
   ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
   ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
   ASSERT_NE(expected, 0UL);
@@ -1179,6 +1185,8 @@ TEST(NodeCrypto, X509UsageVisitorPreservesCallbackErrors) {
     ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
     ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   }));
   EXPECT_EQ(calls, 1);

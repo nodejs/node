@@ -52,9 +52,11 @@
 #ifdef OPENSSL_IS_BORINGSSL
 #define NCRYPTO_USE_BORINGSSL 1
 #define NCRYPTO_USE_OPENSSL_PROVIDER 0
-#else
+#elif OPENSSL_VERSION_PREREQ(3, 0)
 #define NCRYPTO_USE_BORINGSSL 0
 #define NCRYPTO_USE_OPENSSL_PROVIDER 1
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #define NCRYPTO_USE_LEGACY_KEY_TYPES NCRYPTO_USE_BORINGSSL
@@ -404,6 +406,8 @@ class DigestCache final {
     static_cast<void>(id);
     static_cast<void>(generation);
     return {};
+#else
+#error "Unsupported crypto backend"
 #endif
   }
   Result insert(const char* name, const EVP_MD* digest, uint64_t generation);
@@ -591,6 +595,8 @@ class Dsa final {
   explicit Dsa(const EVP_PKEY* pkey);
 #elif NCRYPTO_USE_BORINGSSL
   Dsa(OSSL3_CONST DSA* dsa);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
 
@@ -600,6 +606,8 @@ class Dsa final {
   }
 #elif NCRYPTO_USE_BORINGSSL
   inline operator bool() const { return dsa_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
 #if NCRYPTO_USE_LEGACY_KEY_TYPES
   inline operator OSSL3_CONST DSA*() const { return dsa_; }
@@ -617,6 +625,8 @@ class Dsa final {
   DeleteFnPtr<BIGNUM, BN_free> q_;
 #elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST DSA* dsa_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -632,6 +642,8 @@ class Rsa final {
   explicit Rsa(const EVP_PKEY* pkey, Selection selection = Selection::Private);
 #elif NCRYPTO_USE_BORINGSSL
   Rsa(OSSL3_CONST RSA* rsa);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
 
@@ -641,6 +653,8 @@ class Rsa final {
   }
 #elif NCRYPTO_USE_BORINGSSL
   inline operator bool() const { return rsa_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
 #if NCRYPTO_USE_LEGACY_KEY_TYPES
   inline operator OSSL3_CONST RSA*() const { return rsa_; }
@@ -724,6 +738,8 @@ class Rsa final {
   std::optional<PssParams> pss_params_;
 #elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST RSA* rsa_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -734,6 +750,8 @@ class Ec final {
   explicit Ec(const EVP_PKEY* pkey);
 #elif NCRYPTO_USE_BORINGSSL
   Ec(OSSL3_CONST EC_KEY* key);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Ec)
 
@@ -772,6 +790,8 @@ class Ec final {
   point_conversion_form_t form_ = POINT_CONVERSION_UNCOMPRESSED;
 #elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST EC_KEY* ec_ = nullptr;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -1216,6 +1236,8 @@ class EVPKeyPointer final {
   static EVPKeyPointer NewRSA(const Rsa& rsa);
 #elif NCRYPTO_USE_BORINGSSL
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
+#else
+#error "Unsupported crypto backend"
 #endif
 
   enum class PKEncodingType {
@@ -1404,6 +1426,8 @@ class DHPointer final {
   DHPointer(BignumPointer&& p, BignumPointer&& g, const char* group_name);
 #elif NCRYPTO_USE_BORINGSSL
   explicit DHPointer(DH* dh);
+#else
+#error "Unsupported crypto backend"
 #endif
   DHPointer(DHPointer&& other) noexcept;
   DHPointer& operator=(DHPointer&& other) noexcept;
@@ -1420,17 +1444,21 @@ class DHPointer final {
 #elif NCRYPTO_USE_BORINGSSL
   inline bool operator==(std::nullptr_t) noexcept { return dh_ == nullptr; }
   inline operator bool() const { return dh_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline DH* get() const { return dh_.get(); }
   void reset(DH* dh = nullptr);
   DH* release();
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   inline EVP_PKEY* get() const {
     return dh_.get();
   }
   void reset(EVP_PKEY* dh = nullptr);
   EVP_PKEY* release();
+#else
+#error "Unsupported crypto backend"
 #endif
 
   enum class CheckResult {
@@ -1488,6 +1516,8 @@ class DHPointer final {
   const char* group_name_ = nullptr;
 #elif NCRYPTO_USE_BORINGSSL
   DeleteFnPtr<DH, DH_free> dh_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -1824,14 +1854,18 @@ class ECKeyPointer final {
 #elif NCRYPTO_USE_BORINGSSL
   inline bool operator==(std::nullptr_t) noexcept { return key_ == nullptr; }
   inline operator bool() const { return key_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline EC_KEY* get() const { return key_.get(); }
   inline operator EC_KEY*() const { return key_.get(); }
   void reset(EC_KEY* key = nullptr);
   EC_KEY* release();
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   void reset();
+#else
+#error "Unsupported crypto backend"
 #endif
 
   ECKeyPointer clone() const;
@@ -1865,6 +1899,8 @@ class ECKeyPointer final {
   DeleteFnPtr<BIGNUM, BN_clear_free> priv_;
 #elif NCRYPTO_USE_BORINGSSL
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
