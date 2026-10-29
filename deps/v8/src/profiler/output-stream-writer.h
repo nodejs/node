@@ -67,6 +67,7 @@ class OutputStreamWriter {
       AddNumber(n);
     }
   }
+  void AddJsonEscapedString(const unsigned char* s);
   void Finalize() {
     if (aborted_) return;
     DCHECK(chunk_pos_ < chunk_size_);
