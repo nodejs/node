@@ -37,6 +37,7 @@ def release_name():
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
   if _get_musl_version(sys.executable) is not None:
+    print('musl detected, needs a special build of trace_processor_shell')
     return None
 
   os_name = OS_NAMES.get(platform.system())
