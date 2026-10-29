@@ -332,7 +332,7 @@ Along with Chrome, V8 has several
 A V8 release only reaches stable after the stable cut has been rolled out and tested
 in several Chrome release channels, where regressions and bugs are discovered and fixed.
 
-In the Node.js `main` branch, we upgrade the version of V8 whenever a
+In the Node.js `main` branch, we typically upgrade the version of V8 whenever a
 release of V8 finishes stable promotion and a _stable release_ is out.
 The schedule of V8 release cycles can be found
 [here](https://chromiumdash.appspot.com/schedule).
