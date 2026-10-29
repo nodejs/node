@@ -826,74 +826,6 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(static_cast<uint64_t>(str->Utf8LengthV2(isolate)));
 }
 
-uint32_t FastByteLengthUtf8(
-    Local<Value> receiver,
-    Local<Value> sourceValue,
-    FastApiCallbackOptions& options) {  // NOLINT(runtime/references)
-  TRACK_V8_FAST_API_CALL("Buffer::FastByteLengthUtf8");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  CHECK(sourceValue->IsString());
-  Local<String> sourceStr = sourceValue.As<String>();
-
-  if (!sourceStr->IsExternalOneByte()) {
-    // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
-    if (sourceStr->Length() >= 512 && !sourceStr->IsOneByte()) {
-      String::ValueView view(isolate, sourceStr);
-      if (!view.is_one_byte()) {
-        // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
-        return simdutf::utf8_length_from_utf16_with_replacement(
-                   reinterpret_cast<const char16_t*>(view.data16()),
-                   view.length())
-            .count;
-      }
-    }
-    return sourceStr->Utf8LengthV2(isolate);
-  }
-  auto source = sourceStr->GetExternalOneByteStringResource();
-  // For short inputs, the function call overhead to simdutf is maybe
-  // not worth it, reserve simdutf for long strings.
-  if (source->length() > 128) {
-    return simdutf::utf8_length_from_latin1(source->data(), source->length());
-  }
-
-  uint32_t length = source->length();
-  const auto input = reinterpret_cast<const uint8_t*>(source->data());
-
-  uint32_t answer = length;
-  uint32_t i = 0;
-
-  auto pop = [](uint64_t v) {
-    return static_cast<size_t>(((v >> 7) & UINT64_C(0x0101010101010101)) *
-                                   UINT64_C(0x0101010101010101) >>
-                               56);
-  };
-
-  for (; i + 32 <= length; i += 32) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 8, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 16, 8);
-    answer += pop(v);
-    memcpy(&v, input + i + 24, 8);
-    answer += pop(v);
-  }
-  for (; i + 8 <= length; i += 8) {
-    uint64_t v;
-    memcpy(&v, input + i, 8);
-    answer += pop(v);
-  }
-  for (; i + 1 <= length; i += 1) {
-    answer += input[i] >> 7;
-  }
-
-  return answer;
-}
-
-static CFunction fast_byte_length_utf8(CFunction::Make(FastByteLengthUtf8));
-
 // Normalize val to be an integer in the range of [1, -1] since
 // implementations of memcmp() can vary by platform.
 static int normalizeCompareVal(int val, size_t a_length, size_t b_length) {
@@ -2029,11 +1961,7 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
 
-  SetFastMethodNoSideEffect(context,
-                            target,
-                            "byteLengthUtf8",
-                            SlowByteLengthUtf8,
-                            &fast_byte_length_utf8);
+  SetMethodNoSideEffect(context, target, "byteLengthUtf8", SlowByteLengthUtf8);
   SetFastMethod(context, target, "copy", SlowCopy, &fast_copy);
   SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
@@ -2123,7 +2051,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
 
   registry->Register(SlowByteLengthUtf8);
-  registry->Register(fast_byte_length_utf8);
   registry->Register(SlowCopy);
   registry->Register(fast_copy);
   registry->Register(Compare);
