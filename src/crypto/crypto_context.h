@@ -55,6 +55,7 @@ class SecureContext final : public BaseObject {
   // True if CA certificates were added with addCACert(), as opposed to the
   // context relying on the default root store.
   bool has_own_ca() const { return has_own_ca_; }
+  const std::string& session_id_context() const { return session_id_context_; }
 
   // Non-const ctx() that allows for non-default initialization of
   // the SecureContext.
@@ -192,6 +193,7 @@ class SecureContext final : public BaseObject {
   // Non-owning cache for SSL_CTX_get_cert_store(ctx_.get())
   X509_STORE* own_cert_store_cache_ = nullptr;
   bool has_own_ca_ = false;
+  std::string session_id_context_;
 
   unsigned char ticket_key_name_[16];
   unsigned char ticket_key_aes_[16];

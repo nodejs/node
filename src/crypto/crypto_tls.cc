@@ -121,6 +121,21 @@ SSL_SESSION* GetSessionCallback(
 // the handshake is suspended here and resumed once JS has answered.
 ClientHelloResult EarlyClientHelloCallback(const ClientHelloContext& hello) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(hello.ssl()));
+
+  auto servername = hello.servername();
+  // If we can't parse the hello SNI, reject it explicitly:
+  if (!servername.has_value()) {
+    hello.set_alert(SSL_AD_DECODE_ERROR);
+    return ClientHelloResult::kFail;
+  }
+
+  // Session resumption must only be allowed for sessions with exactly the same
+  // SNI. We use the SNI to derive the session id, so no handshake can resume
+  // from a mismatched SNI value. Mismatches fall back to full handshakes:
+  if (!w->BindSessionsToServerName(*servername)) {
+    return ClientHelloResult::kFail;
+  }
+
   if (!w->should_suspend_for_client_hello()) {
     return ClientHelloResult::kContinue;
   }
@@ -1569,8 +1584,8 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   Local<Value> ctx = p->object()->Get(env->context(), env->sni_context_string())
       .FromMaybe(Local<Value>());
 
-  if (ctx.IsEmpty() || !ctx->IsObject()) [[unlikely]]
-    return SSL_TLSEXT_ERR_NOACK;
+  // Acknowlege the name so it's correctly stored on the session:
+  if (ctx.IsEmpty() || !ctx->IsObject()) return SSL_TLSEXT_ERR_OK;
 
   if (!env->secure_context_constructor_template()->HasInstance(ctx)) {
     // Failure: incorrect SNI context object
@@ -1588,6 +1603,24 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->SetCACerts(sc);
 
   return SSL_TLSEXT_ERR_OK;
+}
+
+bool TLSWrap::BindSessionsToServerName(std::string_view servername) {
+  if (sc_->session_id_context().empty()) return true;
+
+  // Server names can't contain NULs, so a NUL keeps the parts apart.
+  std::string input = sc_->session_id_context();
+  input += '\0';
+  input += servername;
+  // Hash this to guarantee the value fits in 32 bytes while keeping
+  // values distinct:
+  auto digest = ncrypto::hashDigest(
+      {reinterpret_cast<const unsigned char*>(input.data()), input.size()},
+      ncrypto::Digest::SHA256);
+  return digest && SSL_set_session_id_context(
+                       ssl_.get(),
+                       static_cast<const unsigned char*>(digest.get()),
+                       digest.size()) == 1;
 }
 
 int TLSWrap::SetCACerts(SecureContext* sc) {
