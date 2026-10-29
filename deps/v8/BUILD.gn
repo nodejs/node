@@ -6100,6 +6100,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/profiler/cpu-profiler.cc",
     "src/profiler/heap-profiler.cc",
     "src/profiler/heap-snapshot-generator.cc",
+    "src/profiler/output-stream-writer.cc",
     "src/profiler/profile-generator.cc",
     "src/profiler/profiler-listener.cc",
     "src/profiler/profiler-stats.cc",

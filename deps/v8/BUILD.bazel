@@ -2393,6 +2393,7 @@ filegroup(
         "src/profiler/heap-profiler.h",
         "src/profiler/heap-snapshot-common.h",
         "src/profiler/heap-snapshot-generator.cc",
+        "src/profiler/output-stream-writer.cc",
         "src/profiler/heap-snapshot-generator.h",
         "src/profiler/heap-snapshot-generator-inl.h",
         "src/profiler/output-stream-writer.h",
