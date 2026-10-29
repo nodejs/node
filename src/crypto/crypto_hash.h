@@ -24,6 +24,12 @@ const ncrypto::Digest GetDigestForJob(Environment* env,
                                       CryptoJobMode mode,
                                       const char* name);
 
+// Returns an HMAC context to be keyed with md. Contexts for digests from
+// GetDigest() are duplicated from a cached template, so keying them does not
+// fetch HMAC or md again.
+ncrypto::HMACCtxPointer NewHmacContext(Environment* env,
+                                       const ncrypto::Digest& md);
+
 class Hash final : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
