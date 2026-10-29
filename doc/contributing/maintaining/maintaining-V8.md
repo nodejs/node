@@ -327,8 +327,15 @@ Revision_ from the 5.4 branch that can be useful in the update process above.
 
 ### Major updates
 
-We upgrade the version of V8 in Node.js `main` whenever a V8 release goes stable
-upstream, that is, whenever a new release of Chrome comes out.
+Along with Chrome, V8 has several
+[different release channels](https://chromium.googlesource.com/chromium/src/+/lkgr/docs/process/release_cycle.md).
+A V8 release only reaches stable after the stable cut has been rolled out and tested
+in several Chrome release channels, where regressions and bugs are discovered and fixed.
+
+In the Node.js `main` branch, we upgrade the version of V8 whenever a
+release of V8 finishes stable promotion and a _stable release_ is out.
+The schedule of V8 release cycles can be found
+[here](https://chromiumdash.appspot.com/schedule).
 
 V8 updates can require a `NODE_MODULE_VERSION` bump if they change the native
 addon ABI. See the release process documentation for when
