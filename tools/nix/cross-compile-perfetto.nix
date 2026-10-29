@@ -32,12 +32,12 @@ let
                 };
               in
               perfetto.overrideAttrs (old: {
-                patches = [
-                  (final.fetchpatch2 {
-                    url = "https://github.com/google/perfetto/commit/624afa18b239d8a28d0e24adde572abece09b32b.patch?full_index=1";
-                    hash = "sha256-wtKqzbK+ydUkL3BjBtz/CT2mbPpzD/P28uYQKj1sEO4=";
-                  })
-                ];
+                src = final.fetchFromGitHub {
+                  owner = "iii-i";
+                  repo = "perfetto_protos";
+                  tag = "iii/s390x/2026-10-27";
+                  hash = "sha256-hQvCrko3/lRVAy51TvaZLtKn23dCTvr96uHC5qUEkJE=";
+                };
 
                 ninjaFlags = [ "trace_processor_shell" ];
                 installPhase = "install -Dt $tools/bin $ninjaFlags";

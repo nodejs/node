@@ -5,6 +5,6 @@
   },
   "linux-s390x": {
     "crossSystem": "s390x",
-    "storePath": "/nix/store/vrc4f65ivcls8h1yr96wj73sw1br4yvw-perfetto-static-s390x-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/xjxfy3jd1w5bxy26h6b4akas6fs3rivm-perfetto-static-s390x-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   }
 }
