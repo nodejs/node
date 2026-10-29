@@ -118,6 +118,12 @@ class CodeSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  // Slices usually refer to the script source (e.g. debug magic comment
+  // values), which is an attached object: off-thread deserialization attaches
+  // a placeholder instead of the source.
+  bool SerializeSlicedStringsAsSequentialStrings() const override {
+    return true;
+  }
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
