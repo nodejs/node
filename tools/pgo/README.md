@@ -54,6 +54,57 @@ Clang installation.
 python tools\pgo\pgo.py --duration=30
 ```
 
+### GitHub Actions: Windows PGO profdata generation
+
+The [Windows PGO workflow](../../.github/workflows/pgo-windows.yml)
+is manually dispatched and only runs in `JaneaSystems/node`. Once it is on the
+fork's default branch, open
+**Actions > Windows PGO profdata generation > Run workflow** and select the
+branch containing the workflow definition. Set `source_ref` to a full commit
+SHA, branch, or tag to fetch from `JaneaSystems/node`; this input does not select
+another fork. The repository condition checks where the workflow runs, not the
+origin of the selected commit. Choose the target `architecture`: `arm64`
+(the default) or `x64`. The selected source commit does not need to contain the
+workflow file. Supply `committer_name` and `committer_email` with your full name
+and email for the commit identity and `Signed-off-by` trailer, attesting to the
+[Developer Certificate of Origin](https://developercertificate.org/).
+
+The workflow builds with
+`vcbuild.bat build-release <architecture> pgo-generate nosign` on `windows-2025`.
+The `nosign` option avoids the Azure Trusted Signing credentials otherwise
+required by `build-release`. The source ref is resolved once at checkout, and
+every job uses that exact commit even if the source branch moves during the run.
+The selected revision must support the Windows PGO build command and contain
+`tools/pgo/pgo.py`; revisions predating that support cannot use this workflow.
+The workflow sets up Python 3.15 and Rust 1.88, adds the
+`aarch64-pc-windows-msvc` Rust target for ARM64, and installs NASM for x64.
+
+For ARM64, the workflow transfers `Release/node.exe` and the matching
+`llvm-profdata` tool to `windows-11-arm` for training. Only the x64 profile merge
+tool runs under Windows emulation; Node.js and the workloads run natively on
+ARM64. For x64, `pgo.py` runs directly after compilation in the same job on the
+same machine. The separate ARM64 training job and binary transfer are skipped.
+
+After `pgo.py` succeeds, the workflow places `node.profdata` in
+`tools/pgo/profdata/windows/<architecture>/` and pushes a new branch named
+`pgo-windows-<architecture>-<source_sha>-YYYY-MM-DD` to `JaneaSystems/node`, using
+the full source commit SHA and its committer date converted to UTC. Immediately
+after resolving the source commit, the build job checks whether this branch
+exists, before setting up tools or compiling. If it does, the build job fails
+and reports that the action was already done previously; training and publication
+are skipped. The generated commit is based on that source commit.
+Its subject is `win,build: add <architecture> pgo profdata`, with
+your sign-off and an `Assisted-by: GitHub Copilot` trailer. The downloaded profile
+replaces any existing file, and both new and modified profiles are staged. The
+workflow commits and pushes even if the profile is unchanged, allowing an empty
+commit in that case.
+
+Only the publication job receives `contents: write`, using the fork's
+`GITHUB_TOKEN`; no personal access token is needed. Review the generated commit
+before using it in a contribution. Profiles are retained as workflow artifacts
+for seven days. ARM64 runs also retain the instrumented build transferred to the
+training runner.
+
 ## Quick Start: Linux with GCC
 
 ```bash
