@@ -15,6 +15,8 @@
 #ifndef ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 
+#include <cstddef>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -26,6 +28,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 #include "absl/meta/type_traits.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -76,12 +79,18 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   //
   // TODO(b/402804213): Remove these traits and simplify the overloads whenever
   // we have a better mechanism available to handle lifetime analysis.
-  template <class K, bool Value, typename = void>
-  using LifetimeBoundK = HasValue<
-      Value, std::conditional_t<policy_trait_element_is_owner<Policy>::value,
-                                std::false_type,
-                                type_traits_internal::IsLifetimeBoundAssignment<
-                                    typename Policy::key_type, K>>>;
+  //
+  // MovableOrVoid is an optional, extra constraint (via SFINAE) to guard
+  // separate move-only overloads.
+  template <class K, bool Value, typename MovableOrVoid = void>
+  using LifetimeBoundK = std::bool_constant<
+      (std::is_void_v<MovableOrVoid> ||
+       !IsAllocMoveSameAsCopy<absl::remove_cvref_t<K>, Alloc>::value) &&
+      HasValue<Value, std::conditional_t<
+                          policy_trait_element_is_owner<Policy>::value,
+                          std::false_type,
+                          type_traits_internal::IsLifetimeBoundAssignment<
+                              typename Policy::key_type, K>>>::value>;
   template <class V, bool Value, typename = void>
   using LifetimeBoundV =
       HasValue<Value, type_traits_internal::IsLifetimeBoundAssignment<
@@ -365,9 +374,41 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
     if (res.second) {
-      this->emplace_at(res.first, std::piecewise_construct,
-                       std::forward_as_tuple(std::forward<K>(k)),
-                       std::forward_as_tuple(std::forward<Args>(args)...));
+      // Try to avoid using std::tuple since that slows compilation.
+      // (example: https://godbolt.org/z/nefW93T6K)
+
+      // Simple trick to bypass instantiating a bunch of templates in cases
+      // where they're irrelevant.
+      using V = std::conditional_t<
+          sizeof...(Args) == 0 &&
+              std::is_same_v<typename std::allocator_traits<
+                                 Alloc>::template rebind_alloc<char>,
+                             std::allocator<char>>,
+          mapped_type, void>;
+
+      if constexpr (std::is_trivially_move_constructible_v<V> &&
+                    std::is_trivially_destructible_v<V> &&
+                    // Check if size is a power of 2, to ensure cheap calls.
+                    absl::has_single_bit(sizeof(mapped_type)) &&
+                    // Check if copying 1-2 registers is enough. We don't want
+                    // (for example) 32 one-byte values to move around.
+                    alignof(mapped_type) * 2 >= sizeof(mapped_type) &&
+                    sizeof(mapped_type) <= sizeof(std::pair<void*, size_t>)) {
+        // Common case: operator[]
+        // Note: This has a different run-time performance characteristic than
+        // the other branches, due to the usage of a temporary object. In the
+        // event that this causes problems (such as a performance regression or
+        // a stack overflow), this branch should be modified or removed.
+        this->emplace_at(res.first, std::forward<K>(k), mapped_type());
+      } else if constexpr (sizeof...(Args) == 1) {
+        this->emplace_at(res.first, std::forward<K>(k),
+                         std::forward<Args>(args)...);
+      } else {
+        // This is expensive to compile, so only use it as a last resort.
+        this->emplace_at(res.first, std::piecewise_construct,
+                         std::forward_as_tuple(std::forward<K>(k)),
+                         std::forward_as_tuple(std::forward<Args>(args)...));
+      }
     }
     return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }

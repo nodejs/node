@@ -2578,6 +2578,11 @@ struct TorqueGrammar : Grammar {
             Token(";")},
            MakeClassField)};
 
+  // Result: std::vector<ClassFieldExpression>
+  // Entry point for V8_TQ_TAIL_SECTIONS payloads; not reachable from
+  // `declaration`.
+  Symbol* classFieldList = List<ClassFieldExpression>(&classField);
+
   // Result: StructFieldExpression
   Symbol structField = {
       Rule({CheckIf(Token("const")), &name, Token(":"), &type, Token(";")},
@@ -2979,6 +2984,51 @@ struct TorqueGrammar : Grammar {
 void ParseTorque(const std::string& input) {
   BuildFlags::Scope build_flags_scope;
   TorqueGrammar().Parse(input);
+}
+
+namespace {
+
+// The annotation argument parsers run once per V8_TQ_TYPE / V8_TQ_EXTENT_NAME
+// argument; the grammar is immutable after construction, so build it once.
+TorqueGrammar& AnnotationGrammar() {
+  static TorqueGrammar* grammar = new TorqueGrammar();
+  return *grammar;
+}
+
+}  // namespace
+
+TypeExpression* ParseTorqueTypeExpression(const std::string& input) {
+  BuildFlags::Scope build_flags_scope;
+  TorqueGrammar& grammar = AnnotationGrammar();
+  std::optional<ParseResult> result =
+      grammar.Parse(&grammar.type, input, CurrentSourcePosition::Get());
+  if (!result.has_value()) {
+    ReportError("cannot parse Torque type expression: ", input);
+  }
+  return std::move(*result).Cast<TypeExpression*>();
+}
+
+std::vector<ClassFieldExpression> ParseTorqueClassFields(
+    const std::string& input) {
+  BuildFlags::Scope build_flags_scope;
+  TorqueGrammar& grammar = AnnotationGrammar();
+  std::optional<ParseResult> result = grammar.Parse(
+      grammar.classFieldList, input, CurrentSourcePosition::Get());
+  if (!result.has_value()) {
+    ReportError("cannot parse Torque field declarations: ", input);
+  }
+  return std::move(*result).Cast<std::vector<ClassFieldExpression>>();
+}
+
+Expression* ParseTorqueExpression(const std::string& input) {
+  BuildFlags::Scope build_flags_scope;
+  TorqueGrammar& grammar = AnnotationGrammar();
+  std::optional<ParseResult> result =
+      grammar.Parse(grammar.expression, input, CurrentSourcePosition::Get());
+  if (!result.has_value()) {
+    ReportError("cannot parse Torque expression: ", input);
+  }
+  return std::move(*result).Cast<Expression*>();
 }
 
 }  // namespace v8::internal::torque

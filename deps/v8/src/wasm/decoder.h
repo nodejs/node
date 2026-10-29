@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <array>
 #include <cinttypes>
 #include <cstdarg>
 #include <memory>
@@ -426,13 +427,13 @@ class Decoder {
     // Only report the first error.
     if (!ok()) return;
     constexpr int kMaxErrorMsg = 256;
-    base::EmbeddedVector<char, kMaxErrorMsg> buffer;
+    std::array<char, kMaxErrorMsg> buffer;
     va_list args;
     va_start(args, format);
     int len = base::VSNPrintF(buffer, format, args);
     va_end(args);
     CHECK_LT(0, len);
-    error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
+    error_ = {offset, {buffer.data(), static_cast<size_t>(len)}};
     onFirstError();
   }
 

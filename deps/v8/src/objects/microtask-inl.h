@@ -13,6 +13,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,37 +21,70 @@
 namespace v8 {
 namespace internal {
 
+Microtask::Microtask(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                     ,
+                     Tagged<Object> continuation_preserved_embedder_data
+#endif
+                     )
+    : Struct(map)
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ,
+      continuation_preserved_embedder_data_(
+          witness, continuation_preserved_embedder_data)
+#endif
+{
+  USE(witness);
+}
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 Tagged<Object> Microtask::continuation_preserved_embedder_data() const {
   return continuation_preserved_embedder_data_.load();
 }
-void Microtask::set_continuation_preserved_embedder_data(
-    Tagged<Object> value, WriteBarrierMode mode) {
-  continuation_preserved_embedder_data_.store(this, value, mode);
-}
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-Tagged<Foreign> CallbackTask::callback() const { return callback_.load(); }
-void CallbackTask::set_callback(Tagged<Foreign> value, WriteBarrierMode mode) {
-  callback_.store(this, value, mode);
+CallbackTask::CallbackTask(const AllocationWitness& witness,
+                           Tagged<Foreign> callback, Tagged<Object> data
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                           ,
+                           Tagged<Object> continuation_preserved_embedder_data
+#endif
+                           )
+    : Microtask(witness, witness.roots().callback_task_map()
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                             ,
+                continuation_preserved_embedder_data
+#endif
+                ),
+      callback_(witness, callback),
+      data_(witness, data) {
 }
 
+Tagged<Foreign> CallbackTask::callback() const { return callback_.load(); }
+
 Tagged<Object> CallbackTask::data() const { return data_.load(); }
-void CallbackTask::set_data(Tagged<Object> value, WriteBarrierMode mode) {
-  data_.store(this, value, mode);
+
+CallableTask::CallableTask(const AllocationWitness& witness,
+                           Tagged<JSReceiver> callable,
+                           Tagged<NativeContext> context
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                           ,
+                           Tagged<Object> continuation_preserved_embedder_data
+#endif
+                           )
+    : Microtask(witness, witness.roots().callable_task_map()
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                             ,
+                continuation_preserved_embedder_data
+#endif
+                ),
+      callable_(witness, callable),
+      context_(witness, context) {
 }
 
 Tagged<JSReceiver> CallableTask::callable() const { return callable_.load(); }
-void CallableTask::set_callable(Tagged<JSReceiver> value,
-                                WriteBarrierMode mode) {
-  callable_.store(this, value, mode);
-}
 
 Tagged<NativeContext> CallableTask::context() const { return context_.load(); }
-void CallableTask::set_context(Tagged<NativeContext> value,
-                               WriteBarrierMode mode) {
-  context_.store(this, value, mode);
-}
 
 Tagged<JSGeneratorObject> AsyncResumeTask::generator() const {
   return generator_.load();

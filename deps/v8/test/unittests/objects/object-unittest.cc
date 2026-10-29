@@ -286,7 +286,7 @@ static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
   DirectHandle<String> print_string = String::Flatten(
       isolate,
       indirect_handle(Object::NoSideEffectsToString(isolate, obj), isolate));
-  CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(print_string->IsOneByteEqualTo(string));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {

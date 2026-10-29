@@ -42,6 +42,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
@@ -712,7 +713,7 @@ bool IC::UpdateOneMapManyNamesIC(DirectHandle<Name> new_name) {
   // For JS objects, using the generic stub is faster. Wasm objects benefit
   // from collecting a map that the optimizing compiler can use.
   Tagged<Map> old_map = nexus()->GetFirstMap();
-  if (old_map.is_null() || !IsWasmObjectMap(old_map)) return false;
+  if (old_map.is_null() || !IsAnyWasmObjectMap(old_map)) return false;
   if (old_map != *lookup_start_object_map()) return false;
   Tagged<Name> old_name = nexus()->GetName();
   if (old_name.is_null()) return false;     // Saw indexed access before.
@@ -850,10 +851,10 @@ Builtin CalculatePatchingTarget(Builtin current_builtin, Builtin handler) {
   static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
   // Currently we only have LoadIC handlers. {current_builtin} should not be the
   // generic handler because we should be able to return early in that case.
-  DCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
-         current_builtin < Builtin::kLastLoadICHandler);
-  DCHECK(handler > Builtin::kFirstLoadICHandler &&
-         handler <= Builtin::kLastLoadICHandler);
+  SBXCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
+           current_builtin < Builtin::kLastLoadICHandler);
+  SBXCHECK(handler > Builtin::kFirstLoadICHandler &&
+           handler <= Builtin::kLastLoadICHandler);
   // No need to patch when the current and target handlers are the same.
   if (current_builtin == handler) return Builtin::kNoBuiltinId;
   // Uninitialized handler can be patch to any other handlers.
@@ -1651,14 +1652,8 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
       // the {receiver}s prototype is either the initial Object.prototype
       // or the initial Array.prototype, which are both guarded by the
       // "no elements" protector checked above.
-      DirectHandle<HeapObject> receiver_prototype(receiver_map->prototype(),
-                                                  isolate);
-      InstanceType prototype_type = receiver_prototype->map()->instance_type();
-      if (prototype_type == JS_OBJECT_PROTOTYPE_TYPE ||
-          (prototype_type == JS_ARRAY_TYPE &&
-           isolate->IsInCreationContext(
-               Cast<JSObject>(*receiver_prototype),
-               Context::INITIAL_ARRAY_PROTOTYPE_INDEX))) {
+      Tagged<HeapObject> receiver_prototype = receiver_map->prototype();
+      if (receiver_prototype->map()->IsMapInArrayPrototypeChain(isolate)) {
         return true;
       }
     }
@@ -2885,7 +2880,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     }
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObjectMap(*receiver_map)) {
+    if (IsAnyWasmObjectMap(*receiver_map)) {
       set_slow_stub_reason("wasm object");
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3149,7 +3144,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
 #if V8_ENABLE_WEBASSEMBLY
-        } else if (IsWasmObjectMap(*old_receiver_map)) {
+        } else if (IsAnyWasmObjectMap(*old_receiver_map)) {
           // Handle object types for which we don't need to check for
           // read-only prototype elements because we'll use the slow handler
           // anyway.
@@ -3313,8 +3308,8 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
   // Get target builtin's address.
   FeedbackNexus nexus(isolate, vector, vector_slot);
   Builtin target_builtin = nexus.ic_handler();
-  DCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
-         target_builtin <= Builtin::kLastLoadICHandler);
+  SBXCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
+           target_builtin <= Builtin::kLastLoadICHandler);
   Address target = Builtins::EntryOf(target_builtin, isolate);
 
   {

@@ -316,11 +316,12 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId,
   continueProgram(targetContextGroupId);
 }
 
-void V8Debugger::stepOverStatement(int targetContextGroupId) {
+void V8Debugger::stepOverStatement(int targetContextGroupId,
+                                   bool enterFunctions) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
-  v8::debug::PrepareStep(m_isolate, v8::debug::StepOver);
+  v8::debug::PrepareStep(m_isolate, v8::debug::StepOver, enterFunctions);
   continueProgram(targetContextGroupId);
 }
 
@@ -735,6 +736,23 @@ bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
   return hasAgents && allShouldBeSkipped;
 }
 
+bool V8Debugger::ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                                     const v8::debug::Location& start,
+                                     const v8::debug::Location& end) {
+  int contextId;
+  if (!script->ContextId().To(&contextId)) return false;
+  bool shouldEnter = false;
+  String16 scriptId = String16::fromInteger(script->Id());
+  m_inspector->forEachSession(
+      m_inspector->contextGroupId(contextId),
+      [&](V8InspectorSessionImpl* session) {
+        V8DebuggerAgentImpl* agent = session->debuggerAgent();
+        if (!agent->enabled()) return;
+        shouldEnter |= agent->shouldEnterFunction(scriptId, start, end);
+      });
+  return shouldEnter;
+}
+
 void V8Debugger::BreakpointConditionEvaluated(
     v8::Local<v8::Context> context, v8::debug::BreakpointId breakpoint_id,
     bool exception_thrown, v8::Local<v8::Value> exception) {
@@ -850,7 +868,8 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   };
   for (; iterator && !iterator->Done(); advance()) {
     if (iterator->GetType() != v8::debug::ScopeIterator::ScopeTypeLocal &&
-        !iterator->DeclaresLocals()) {
+        iterator->GetVariableInfo() ==
+            v8::debug::ScopeIterator::VariableInfo::kEmpty) {
       continue;
     }
     v8::Local<v8::Object> scope = v8::Object::New(m_isolate);

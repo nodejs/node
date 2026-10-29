@@ -225,8 +225,10 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   static const int kHeaderSize;
 
  public:
-  TaggedMember<Smi> style_flags_;
-  TaggedMember<Smi> display_flags_;
+  TaggedMember<Smi> style_flags_
+      V8_TQ_TYPE(SmiTagged<JSDurationFormatStyleFlags>);
+  TaggedMember<Smi> display_flags_
+      V8_TQ_TYPE(SmiTagged<JSDurationFormatDisplayFlags>);
   TaggedMember<Foreign> icu_locale_;
   TaggedMember<Foreign> icu_number_formatter_;
 } V8_OBJECT_END;

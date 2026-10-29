@@ -1747,7 +1747,7 @@ RUNTIME_FUNCTION(Runtime_CheckFastIterableToListPrototype) {
 
   // Switch prototype to fast mode in order to ensure that constness tracking
   // will invalidate the prototype's validity cell in case of modification.
-  JSObject::OptimizeAsPrototype(prototype);
+  JSObject::MakePrototypesFast(prototype, kStartAtReceiver, isolate);
 
   // 1. Check if the prototype has expected [Symbol.iterator] property (kData
   // and kConst).

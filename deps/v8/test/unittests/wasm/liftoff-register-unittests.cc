@@ -82,12 +82,8 @@ TEST_F(WasmRegisterTest, SpreadSetBitsToAdjacentFpRegs) {
 using LiftoffFrameAlignmentTest = TestWithIsolateAndZone;
 
 TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
-  auto check_frame_alignment = [&](bool enforce_16byte_alignment,
-                                   bool feedback_vector_slot,
+  auto check_frame_alignment = [&](bool feedback_vector_slot,
                                    int used_spill_offset) {
-    FlagScope<bool> flag_scope(&v8_flags.enforce_x64_16byte_alignment,
-                               enforce_16byte_alignment);
-
     auto buffer = AllocateAssemblerBuffer();
     LiftoffAssembler assm(zone(), buffer->CreateView());
     assm.set_root_array_available(false);
@@ -107,7 +103,8 @@ TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
     assm.RecordUsedSpillOffset(used_spill_offset);
     assm.AlignFrameSize();
     assm.PatchPrepareStackFrame(prepare_offset, &safepoint_table_builder,
-                                feedback_vector_slot, /*stack_param_slots=*/0);
+                                feedback_vector_slot, /*stack_param_slots=*/0,
+                                /*stack_return_slots=*/0);
 
     assm.movq(rax, rbp);
     assm.subq(rax, rsp);
@@ -121,7 +118,7 @@ TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
     int64_t allocated_bytes_below_rbp = fn.Call();
 
     EXPECT_EQ(allocated_bytes_below_rbp, assm.GetTotalFrameSize());
-    if (enforce_16byte_alignment) {
+    if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
       int expected_bytes = RoundUp(used_spill_offset, 2 * kSystemPointerSize);
       EXPECT_EQ(expected_bytes, assm.GetTotalFrameSize());
       EXPECT_EQ(0, allocated_bytes_below_rbp % (2 * kSystemPointerSize));
@@ -136,8 +133,7 @@ TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
   // 44 bytes (5.5 slots), 48 bytes (6 slots, even).
   for (bool feedback_vector_slot : {false, true}) {
     for (int spill_offset : {32, 36, 40, 44, 48}) {
-      check_frame_alignment(false, feedback_vector_slot, spill_offset);
-      check_frame_alignment(true, feedback_vector_slot, spill_offset);
+      check_frame_alignment(feedback_vector_slot, spill_offset);
     }
   }
 }

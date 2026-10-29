@@ -136,7 +136,7 @@ int MaglevSafepointTableBuilder::UpdateDeoptimizationInfo(int pc,
                                                           int deopt_index) {
   DCHECK_NE(MaglevSafepointEntry::kNoTrampolinePC, trampoline);
   DCHECK_NE(MaglevSafepointEntry::kNoDeoptIndex, deopt_index);
-  auto it = entries_.Find(start);
+  auto it = entries_.begin() + start;
   DCHECK(std::any_of(it, entries_.end(),
                      [pc](auto& entry) { return entry.pc == pc; }));
   int index = start;

@@ -550,7 +550,7 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
   // permissions for the entire range (to be RW), so the operating system
   // should deal with that raciness. We know we succeeded when we can
   // compare/swap the old length with the new length.
-  size_t old_length = byte_length_.load(std::memory_order_relaxed);
+  size_t old_length = byte_length_.load(std::memory_order_seq_cst);
 
   if (delta_pages == 0) {
     return {old_length / wasm::kWasmPageSize};  // degenerate grow.
@@ -575,7 +575,7 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
       return {};
     }
     if (byte_length_.compare_exchange_weak(old_length, new_length,
-                                           std::memory_order_acq_rel)) {
+                                           std::memory_order_seq_cst)) {
       // Successfully updated both the length and permissions.
       break;
     }
@@ -921,7 +921,6 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     Tagged<WasmMemoryObject> memory_object = Cast<WasmMemoryObject>(obj);
 
-    memory_object->UpdateInstances(isolate);
     if (Tagged<JSArrayBuffer> shared_ab;
         TryCast<JSArrayBuffer>(memory_object->array_buffer(), &shared_ab) &&
         !shared_ab->is_resizable_by_js()) {

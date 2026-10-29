@@ -846,9 +846,9 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
   }
 
   DirectHandle<SeqOneByteString> output;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, output,
-      isolate->factory()->NewRawOneByteString(static_cast<int>(output_length)));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, output,
+                                     isolate->factory()->NewRawOneByteString(
+                                         static_cast<uint32_t>(output_length)));
   {
     DisallowGarbageCollection no_gc;
     // 8. Let toEncode be ? GetUint8ArrayBytes(O).
@@ -1113,9 +1113,9 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
 
   //   4. Let out be the empty String.
   DirectHandle<SeqOneByteString> output;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, output,
-      isolate->factory()->NewRawOneByteString(static_cast<int>(length) * 2));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, output,
+                                     isolate->factory()->NewRawOneByteString(
+                                         static_cast<uint32_t>(length) * 2));
   //  5. For each byte byte of toEncode, do
   //    a. Let hex be Number::toString(𝔽(byte), 16).
   //    b. Set hex to StringPad(hex, 2, "0", start).

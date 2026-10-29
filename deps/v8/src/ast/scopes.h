@@ -1075,6 +1075,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Declaration* CheckConflictingVarDeclarations(
       bool* allowed_catch_binding_var_redeclaration);
 
+  bool HasConflictingArgumentsVarDeclaration(
+      AstValueFactory* ast_value_factory);
+
   void set_has_checked_syntax(bool value) {
     flags_ = HasCheckedSyntaxField::update(flags_, value);
   }

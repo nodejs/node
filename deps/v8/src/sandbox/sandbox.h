@@ -85,7 +85,11 @@ class V8_EXPORT_PRIVATE Sandbox {
   // unaddressable accesses (e.g. on ARM64). Note that this is only a testing
   // heuristic and does not reflect the actual virtual address space size,
   // which is determined dynamically during sandbox initialization.
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  static constexpr int kMaxVirtualAddressBitsForCrashFilter = 57;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   static constexpr int kMaxVirtualAddressBitsForCrashFilter = 48;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 
   /**
    * Initializes this sandbox.

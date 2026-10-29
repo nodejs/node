@@ -114,7 +114,7 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   // was not settled yet, otherwise the result.
   TaggedMember<UnionOf<PromiseReaction, JSAny>> reactions_or_result_;
   // SmiTagged<JSPromiseFlags>.
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSPromiseFlags>);
 
  private:
   // https://tc39.es/ecma262/#sec-triggerpromisereactions

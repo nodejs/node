@@ -529,7 +529,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   // Do not try to use the enum-cache for dict-mode objects.
   if (map->is_dictionary_map()) {
     return GetOwnKeysWithElements<false>(isolate_, object, keys_conversion,
-                                         skip_indices_);
+                                         skip_indices_ || !may_have_elements_);
   }
   int enum_length = receiver_->map()->EnumLength();
   if (enum_length == kInvalidEnumCacheSentinel) {
@@ -548,7 +548,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   // The properties-only case failed because there were probably elements on the
   // receiver.
   return GetOwnKeysWithElements<true>(isolate_, object, keys_conversion,
-                                      skip_indices_);
+                                      skip_indices_ || !may_have_elements_);
 }
 
 // static

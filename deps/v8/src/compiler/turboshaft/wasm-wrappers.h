@@ -166,7 +166,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       __ Goto(done);
       __ Bind(not_null);
     }
-    V<Map> map = LoadMap(input);
+    // We might be passed a shared object. However, since such object can only
+    // originate from Wasm for now, and we (plan to) put a barrier on the
+    // Wasm->JS transition, we do not need another one here.
+    V<Map> map = LoadMap(input, SharedFlag{false});
     V<Word32> instance_type = __ LoadInstanceTypeField(map);
     V<Word32> check = __ Uint32LessThan(
         instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
@@ -185,6 +188,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   // otherwise jumps to `not_i31`.
   void CanonicalizeHeapNumber(V<HeapNumber> input, Block* not_i31,
                               ScopedVar<Object>& result) {
+    // The heap number might be shared, but we already checked its map, so no
+    // need to mark the Load as shared here.
     V<Float64> float_value = __ LoadHeapNumberValue(input);
 
     // Check if value is integral.
@@ -352,7 +357,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
     __ GotoIf(__ IsSmi(input), process_smi);
 
-    __ GotoIf(__ HasInstanceType(input, HEAP_NUMBER_TYPE), process_heap_number);
+    // A shared object could flow here.
+    __ GotoIf(__ HasInstanceType(input, HEAP_NUMBER_TYPE,
+                                 SharedFlag{v8_flags.wasm_shared}),
+              process_heap_number);
 
     __ Goto(ensure_sharedness);
 
@@ -408,7 +416,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
     __ GotoIf(__ IsSmi(input), check_number);
 
-    V<Map> map = LoadMap(input);
+    // We might be passed a shared object.
+    V<Map> map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
     V<Word32> instance_type = __ LoadInstanceTypeField(map);
     V<Word32> is_wasm_object =
         __ Word32BitwiseOr(__ Word32Equal(instance_type, WASM_STRUCT_TYPE),
@@ -440,7 +449,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     CheckSmiInI31Range(V<Smi>::Cast(input), done, type_error, result);
 
     __ Bind(is_heap_object);
-    __ GotoIfNot(__ HasInstanceType(input, HEAP_NUMBER_TYPE), type_error);
+    // A shared object could flow here.
+    __ GotoIfNot(__ HasInstanceType(input, HEAP_NUMBER_TYPE,
+                                    SharedFlag{v8_flags.wasm_shared}),
+                 type_error);
 
     CanonicalizeHeapNumber(V<HeapNumber>::Cast(input), type_error, result);
     __ Goto(done);
@@ -487,7 +499,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
           done);
     }
 
-    V<Map> map = LoadMap(input);
+    V<Map> map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
     V<Word32> is_wasm_object_of_instance_type =
         __ Word32Equal(__ LoadInstanceTypeField(map), instance_type);
     __ GotoIfNot(is_wasm_object_of_instance_type, type_error,
@@ -523,7 +535,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
           done);
     }
 
-    V<Map> object_map = LoadMap(input);
+    V<Map> object_map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
     // Fetch the canonical-types array from isolate roots.
     V<WeakFixedArray> canonical_rtts =
         __ template LoadRoot<RootIndex::kWasmCanonicalRtts>();
@@ -610,7 +622,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       // is a valid optimization so we conservatively keep it.
       result = __ ChangeInt32ToFloat32(__ UntagSmi(V<Smi>::Cast(value)));
     } ELSE {
-      V<Map> map = LoadMap(value);
+      // A a shared wasm object could flow here, but we don't need to mark it as
+      // shared for TSAN purposes, because we already did so when it flowed into
+      // JS.
+      V<Map> map = LoadMap(value, SharedFlag{false});
       // TODO(thibaudm): Handle map packing.
       V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
@@ -645,7 +660,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     IF (__ IsSmi(value)) {
       result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(value)));
     } ELSE {
-      V<Map> map = LoadMap(value);
+      // A a shared wasm object could flow here, but we don't need to mark it as
+      // shared for TSAN purposes, because we already did so when it flowed into
+      // JS.
+      V<Map> map = LoadMap(value, SharedFlag{false});
       // TODO(thibaudm): Handle map packing.
       V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
@@ -869,9 +887,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
                               inputs, context);
   }
 
-  V<Map> LoadMap(V<Object> object) {
+  V<Map> LoadMap(V<Object> object, SharedFlag shared_base) {
     // TODO(thibaudm): Handle map packing.
-    V<Map> map_word = __ LoadMapField(object);
+    V<Map> map_word = __ LoadMapField(object, shared_base);
 #ifdef V8_MAP_PACKING
     map_word = __ BitcastTaggedToWordPtrForTagAndSmiBits(map_word);
     // TODO(wenyuzhao): Clear header metadata.
@@ -884,7 +902,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 #endif
   }
 
-  // Must be called in the first block to emit the Parameter ops.
   int AddArgumentNodes(base::Vector<OpIndex> args, int pos,
                        base::SmallVector<OpIndex, 16> wasm_params,
                        const wasm::CanonicalSig* sig, V<Context> context) {
@@ -919,7 +936,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     IF (strict_check) {
       strict_d = undefined_node;
     } ELSE {
-      V<Map> context_map = LoadMap(callee_context);
+      V<Map> context_map = LoadMap(callee_context, SharedFlag{false});
       V<NativeContext> callee_native_context =
           __ template LoadField<NativeContext>(
               context_map, compiler::AccessBuilder::ForMapNativeContext());

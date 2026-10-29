@@ -1641,7 +1641,6 @@ TEST(AssembleTailCallGap) {
 
 #if V8_TARGET_ARCH_X64
 TEST(TurboFanFrameSlotAlignment) {
-  FLAG_SCOPE(enforce_x64_16byte_alignment);
   TestEnvironment env;
   Isolate* isolate = env.main_isolate();
   Linkage linkage(env.test_descriptor());
@@ -1667,8 +1666,14 @@ TEST(TurboFanFrameSlotAlignment) {
             AssemblerOptions::Default(isolate), Builtin::kNoBuiltinId, 0, 0);
 
         // FinishFrame() has now run via CodeGenerator's constructor.
-        CHECK_EQ(0, frame.GetTotalFrameSlotCount() % 2);
-        CHECK_EQ(0, frame.GetReturnSlotCount() % 2);
+        if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+          CHECK_EQ(0, frame.GetTotalFrameSlotCount() % 2);
+          CHECK_EQ(0, frame.GetReturnSlotCount() % 2);
+        } else {
+          CHECK_EQ(fixed_slots + spill_slots + return_slots,
+                   frame.GetTotalFrameSlotCount());
+          CHECK_EQ(return_slots, frame.GetReturnSlotCount());
+        }
 
         CodeGeneratorTester::AssembleConstructFrameForTest(&codegen);
       }

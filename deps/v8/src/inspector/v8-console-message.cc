@@ -606,6 +606,18 @@ void V8ConsoleMessageStorage::addMessage(
     return;
   }
 
+  // Notifying the sessions above can run arbitrary JavaScript (i.e. custom
+  // formatters when generating previews for the message arguments), which
+  // might destroy the context that the message belongs to. In that case
+  // contextDestroyed() was already called on this storage, but since the
+  // message is not yet in m_messages, its arguments were not released, and
+  // would keep objects from the destroyed context alive. So we release them
+  // here, just like contextDestroyed() would have done.
+  if (int contextId = message->contextId();
+      contextId && inspector->contextGroupId(contextId) != contextGroupId) {
+    message->contextDestroyed(contextId);
+  }
+
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
   if (m_messages.size() == maxConsoleMessageCount) {
     m_estimatedSize -= m_messages.front()->estimatedSize();

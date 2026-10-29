@@ -7,14 +7,14 @@
 
 // Selects which instance-type generator's output is compiled into V8:
 // metagen (tools/metagen/) or Torque's emission. Controlled by the build arg
-// v8_use_metagen_instance_types (GN and Bazel): when off, the build sets
-// V8_USE_METAGEN_INSTANCE_TYPES=0 (the "features" config in BUILD.gn,
+// v8_use_metagen (GN and Bazel): when off, the build sets
+// V8_USE_METAGEN=0 (the "features" config in BUILD.gn,
 // ":define_flags" in BUILD.bazel); when on it is left undefined and the
 // fallback below selects metagen, so every translation unit agrees regardless
 // of which configs it picks up. Torque runs either way; the metagen harvest is
 // only in the build graph when the arg is on.
-#if !defined(V8_USE_METAGEN_INSTANCE_TYPES)
-#define V8_USE_METAGEN_INSTANCE_TYPES 1
+#if !defined(V8_USE_METAGEN)
+#define V8_USE_METAGEN 1
 #endif
 
 // The harvest pass is checked before the switch, not inside it: the
@@ -32,20 +32,20 @@
 #define INSTANCE_TYPE_LIST_SINGLE(V)
 #define INSTANCE_TYPE_LIST_MULTIPLE(V)
 #define INSTANCE_TYPE_LIST_RANGE(V)
-#elif V8_USE_METAGEN_INSTANCE_TYPES
+#elif V8_USE_METAGEN
 #include "metagen/instance-types.h"
 #else
 #include "torque-generated/instance-types.h"
 // metagen emits the INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets
 // inside metagen/instance-types.h; on the Torque path they come from this
 // separate generated header. Remove with the
-// V8_USE_METAGEN_INSTANCE_TYPES switch.
+// V8_USE_METAGEN switch.
 #include "torque-generated/instance-type-checker-lists.h"
 // metagen derives HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST from Name##Print /
 // Name##Verify declarations, which Torque knows nothing about. The debug-
 // reader lists (classes with a Torque body) are the exact set that carried
 // the Print/Verify dispatch before the metagen cutover, so alias them here.
-// Remove with the V8_USE_METAGEN_INSTANCE_TYPES switch.
+// Remove with the V8_USE_METAGEN switch.
 #include "torque-generated/debug-reader-classes-list.h"
 #define HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST(V) \
   TORQUE_DEBUG_READER_CLASSES_SINGLE(V)         \

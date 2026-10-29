@@ -1,0 +1,231 @@
+Tests that the scope chain includes outer scopes without a context.
+
+Running test: setUp
+
+Running test: testContextlessOuterScopes
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 6:19-6:35
+[1] block emptyReason=all-unavailable 4:2-7:3
+    blockVar : <value_unavailable>
+[2] closure emptyReason=all-unavailable 2:20-8:1
+    param : <value_unavailable>
+    shadowed : <value_unavailable>
+[3] global
+  scopeNumber 0: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 0: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 0: param = ReferenceError: param is not defined
+  scopeNumber 1: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 1: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 1: param = ReferenceError: param is not defined
+  scopeNumber 2: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 2: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 2: param = ReferenceError: param is not defined
+  scopeNumber 3: shadowed = "global"
+  scopeNumber 3: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 3: param = ReferenceError: param is not defined
+
+Running test: testContextfulOuterScopes
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 14:19-14:45
+[1] block name=withContext emptyReason=all-unavailable 12:2-15:3
+    blockVar : <value_unavailable>
+[2] closure name=withContext 10:20-16:1
+    captured : "captured"
+[3] global
+  scopeNumber 0: captured = "captured"
+  scopeNumber 0: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 1: captured = "captured"
+  scopeNumber 1: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 2: captured = "captured"
+  scopeNumber 2: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 3: captured = ReferenceError: captured is not defined
+  scopeNumber 3: blockVar = ReferenceError: blockVar is not defined
+
+Running test: testEmptyOuterFunction
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 19:23-19:39
+[1] closure emptyReason=no-variables 18:19-20:1
+[2] global
+  scopeNumber 0: shadowed = "global"
+  scopeNumber 1: shadowed = "global"
+  scopeNumber 2: shadowed = "global"
+
+Running test: testFunctionConstructor
+Paused in innerCtor:
+[0] local name=innerCtor emptyReason=no-variables 2:25-2:41 [anonymous #1]
+[1] closure emptyReason=all-unavailable 0:19-3:1 [anonymous #1]
+    a : <value_unavailable>
+[2] global
+  scopeNumber 0: a = ReferenceError: a is not defined
+  scopeNumber 1: a = ReferenceError: a is not defined
+  scopeNumber 2: a = ReferenceError: a is not defined
+
+Running test: testWrappedFunction
+[0] local name=inner emptyReason=no-variables 0:55-0:71 [wrapped.js]
+[1] block emptyReason=all-unavailable 0:20-0:77 [wrapped.js]
+    blockVar : <value_unavailable>
+[2] closure emptyReason=all-unavailable 0:0-0:77 [wrapped.js]
+    wrappedVar : <value_unavailable>
+[3] global
+
+Running test: testGeneratorScopesKeepEmptyLocalScope
+0: Local (emptyGenerator)
+1: Global
+
+Running test: testDirectEvalOuterScopes
+Paused in innerEval:
+[0] local name=innerEval emptyReason=no-variables 0:36-0:52 [anonymous #1]
+[1] closure 0:0-0:56 [anonymous #1]
+    evalVar : 1
+[2] block 30:4-33:5
+    blockVar : "block"
+[3] closure emptyReason=no-variables 29:3-34:3
+[4] closure name=directEvalOuter 26:24-35:1
+    param : 42
+    outerVar : "outer"
+    arguments : Arguments(1)
+[5] global
+  scopeNumber 0: outerVar = "outer"
+  scopeNumber 0: evalVar = 1
+  scopeNumber 0: param = 42
+  scopeNumber 1: outerVar = "outer"
+  scopeNumber 1: evalVar = 1
+  scopeNumber 1: param = 42
+  scopeNumber 2: outerVar = "outer"
+  scopeNumber 2: evalVar = ReferenceError: evalVar is not defined
+  scopeNumber 2: param = 42
+  scopeNumber 3: outerVar = "outer"
+  scopeNumber 3: evalVar = ReferenceError: evalVar is not defined
+  scopeNumber 3: param = 42
+  scopeNumber 4: outerVar = "outer"
+  scopeNumber 4: evalVar = ReferenceError: evalVar is not defined
+  scopeNumber 4: param = 42
+  scopeNumber 5: outerVar = ReferenceError: outerVar is not defined
+  scopeNumber 5: evalVar = ReferenceError: evalVar is not defined
+  scopeNumber 5: param = ReferenceError: param is not defined
+
+Running test: testChainedDirectEvalOuterScopes
+Paused in innerMost:
+[0] local name=innerMost emptyReason=no-variables 0:30-0:46 [anonymous #1]
+[1] closure 0:0-0:50 [anonymous #1]
+    e : 5
+[2] block 0:11-0:85 [anonymous #2]
+    d : 4
+[3] closure 0:0-0:85 [anonymous #2]
+    c : 3
+[4] block name=chainedDirectEval 39:2-42:3
+    b : 2
+[5] closure name=chainedDirectEval 37:26-43:1
+    a : 1
+    arguments : Arguments(0)
+[6] global
+  scopeNumber 0: a = 1
+  scopeNumber 0: b = 2
+  scopeNumber 0: c = 3
+  scopeNumber 0: d = 4
+  scopeNumber 0: e = 5
+  scopeNumber 1: a = 1
+  scopeNumber 1: b = 2
+  scopeNumber 1: c = 3
+  scopeNumber 1: d = 4
+  scopeNumber 1: e = 5
+  scopeNumber 2: a = 1
+  scopeNumber 2: b = 2
+  scopeNumber 2: c = 3
+  scopeNumber 2: d = 4
+  scopeNumber 2: e = ReferenceError: e is not defined
+  scopeNumber 3: a = 1
+  scopeNumber 3: b = 2
+  scopeNumber 3: c = 3
+  scopeNumber 3: d = ReferenceError: d is not defined
+  scopeNumber 3: e = ReferenceError: e is not defined
+  scopeNumber 4: a = 1
+  scopeNumber 4: b = 2
+  scopeNumber 4: c = ReferenceError: c is not defined
+  scopeNumber 4: d = ReferenceError: d is not defined
+  scopeNumber 4: e = ReferenceError: e is not defined
+  scopeNumber 5: a = 1
+  scopeNumber 5: b = ReferenceError: b is not defined
+  scopeNumber 5: c = ReferenceError: c is not defined
+  scopeNumber 5: d = ReferenceError: d is not defined
+  scopeNumber 5: e = ReferenceError: e is not defined
+  scopeNumber 6: a = ReferenceError: a is not defined
+  scopeNumber 6: b = ReferenceError: b is not defined
+  scopeNumber 6: c = ReferenceError: c is not defined
+  scopeNumber 6: d = ReferenceError: d is not defined
+  scopeNumber 6: e = ReferenceError: e is not defined
+
+Running test: testPauseInDirectEvalCode
+Paused in :
+[0] eval 0:0-0:34 [anonymous #1]
+    evalLet : "evalLet"
+[1] block name=pauseInEvalCode 47:2-50:3
+    blockLet : "blockLet"
+[2] closure name=pauseInEvalCode 45:24-51:1
+    outerLet : "outerLet"
+    arguments : Arguments(0)
+[3] global
+  scopeNumber 0: outerLet = "outerLet"
+  scopeNumber 0: blockLet = "blockLet"
+  scopeNumber 0: evalLet = "evalLet"
+  scopeNumber 1: outerLet = "outerLet"
+  scopeNumber 1: blockLet = "blockLet"
+  scopeNumber 1: evalLet = ReferenceError: evalLet is not defined
+  scopeNumber 2: outerLet = "outerLet"
+  scopeNumber 2: blockLet = ReferenceError: blockLet is not defined
+  scopeNumber 2: evalLet = ReferenceError: evalLet is not defined
+  scopeNumber 3: outerLet = ReferenceError: outerLet is not defined
+  scopeNumber 3: blockLet = ReferenceError: blockLet is not defined
+  scopeNumber 3: evalLet = ReferenceError: evalLet is not defined
+
+Running test: testSloppyDirectEvalInCatchAndWith
+Paused in sloppyInner:
+[0] local name=sloppyInner emptyReason=no-variables 0:44-0:60 [anonymous #1]
+[1] with name=sloppyDirectEval 56:32-58:5
+    withProp : "withProp"
+[2] catch name=sloppyDirectEval 55:29-59:3
+    caught : "err"
+[3] closure name=sloppyDirectEval 53:25-60:1
+    param : 42
+    fnVar : "fnVar"
+    arguments : Arguments(1)
+    leaked : "leaked"
+[4] global
+  scopeNumber 0: fnVar = "fnVar"
+  scopeNumber 0: caught = "err"
+  scopeNumber 0: withProp = "withProp"
+  scopeNumber 0: leaked = "leaked"
+  scopeNumber 0: param = 42
+  scopeNumber 1: fnVar = "fnVar"
+  scopeNumber 1: caught = "err"
+  scopeNumber 1: withProp = "withProp"
+  scopeNumber 1: leaked = "leaked"
+  scopeNumber 1: param = 42
+  scopeNumber 2: fnVar = "fnVar"
+  scopeNumber 2: caught = "err"
+  scopeNumber 2: withProp = ReferenceError: withProp is not defined
+  scopeNumber 2: leaked = "leaked"
+  scopeNumber 2: param = 42
+  scopeNumber 3: fnVar = "fnVar"
+  scopeNumber 3: caught = ReferenceError: caught is not defined
+  scopeNumber 3: withProp = ReferenceError: withProp is not defined
+  scopeNumber 3: leaked = "leaked"
+  scopeNumber 3: param = 42
+  scopeNumber 4: fnVar = ReferenceError: fnVar is not defined
+  scopeNumber 4: caught = ReferenceError: caught is not defined
+  scopeNumber 4: withProp = ReferenceError: withProp is not defined
+  scopeNumber 4: leaked = ReferenceError: leaked is not defined
+  scopeNumber 4: param = ReferenceError: param is not defined
+
+Running test: testSetVariableValueInDirectEvalCaller
+Paused in setInner:
+[0] local name=setInner emptyReason=no-variables 0:18-0:34 [anonymous #1]
+[1] block name=setVariableInCaller 64:2-68:3
+    blockVar : "block"
+[2] closure name=setVariableInCaller 62:28-69:1
+    outerVar : "outer"
+    arguments : Arguments(0)
+[3] global
+  setVariableValue(1, blockVar): ok
+  setVariableValue(2, outerVar): ok
+Result: "new outerVar new blockVar"

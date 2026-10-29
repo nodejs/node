@@ -41,18 +41,16 @@ void BytecodeLoopAssignments::Add(interpreter::Register r) {
 
 void BytecodeLoopAssignments::AddList(interpreter::Register r, uint32_t count) {
   if (r.is_parameter()) {
-    for (uint32_t i = 0; i < count; i++) {
-      DCHECK(interpreter::Register(r.index() + i).is_parameter());
-      bit_vector_->Add(r.ToParameterIndex() + i);
-    }
+    DCHECK_IMPLIES(count > 0,
+                   interpreter::Register(r.index() + count - 1).is_parameter());
+    bit_vector_->Add(r.ToParameterIndex(), count);
   } else {
-    for (uint32_t i = 0; i < count; i++) {
-      DCHECK(!interpreter::Register(r.index() + i).is_parameter());
-      bit_vector_->Add(parameter_count_ + r.index() + i);
-    }
+    DCHECK_IMPLIES(
+        count > 0,
+        !interpreter::Register(r.index() + count - 1).is_parameter());
+    bit_vector_->Add(parameter_count_ + r.index(), count);
   }
 }
-
 
 void BytecodeLoopAssignments::Union(const BytecodeLoopAssignments& other) {
   bit_vector_->Union(*other.bit_vector_);
@@ -102,26 +100,17 @@ void UpdateInLivenessForOutOperand(
     Register r = iterator.GetRegisterOperand(i);
     uint32_t reg_count = iterator.GetRegisterCountOperand(i + 1);
     if (!r.is_parameter()) {
-      for (uint32_t j = 0; j < reg_count; ++j) {
-        DCHECK(!Register(r.index() + j).is_parameter());
-        in_liveness->MarkRegisterDead(r.index() + j);
-      }
+      in_liveness->MarkRegistersDead(r.index(), reg_count);
     }
   } else if constexpr (operand_type == OperandType::kRegOutPair) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
-      DCHECK(!Register(r.index() + 1).is_parameter());
-      in_liveness->MarkRegisterDead(r.index());
-      in_liveness->MarkRegisterDead(r.index() + 1);
+      in_liveness->MarkRegistersDead(r.index(), 2);
     }
   } else if constexpr (operand_type == OperandType::kRegOutTriple) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
-      DCHECK(!Register(r.index() + 1).is_parameter());
-      DCHECK(!Register(r.index() + 2).is_parameter());
-      in_liveness->MarkRegisterDead(r.index());
-      in_liveness->MarkRegisterDead(r.index() + 1);
-      in_liveness->MarkRegisterDead(r.index() + 2);
+      in_liveness->MarkRegistersDead(r.index(), 3);
     }
   } else {
     DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_type));
@@ -141,18 +130,13 @@ void UpdateInLivenessForInOperand(
   } else if constexpr (operand_type == OperandType::kRegPair) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
-      DCHECK(!Register(r.index() + 1).is_parameter());
-      in_liveness->MarkRegisterLive(r.index());
-      in_liveness->MarkRegisterLive(r.index() + 1);
+      in_liveness->MarkRegistersLive(r.index(), 2);
     }
   } else if constexpr (operand_type == OperandType::kRegList) {
     Register r = iterator.GetRegisterOperand(i);
     uint32_t reg_count = iterator.GetRegisterCountOperand(i + 1);
     if (!r.is_parameter()) {
-      for (uint32_t j = 0; j < reg_count; ++j) {
-        DCHECK(!interpreter::Register(r.index() + j).is_parameter());
-        in_liveness->MarkRegisterLive(r.index() + j);
-      }
+      in_liveness->MarkRegistersLive(r.index(), reg_count);
     }
   } else {
     DCHECK(!Bytecodes::IsRegisterInputOperandType(operand_type));

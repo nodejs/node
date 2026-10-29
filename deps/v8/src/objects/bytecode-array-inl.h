@@ -12,6 +12,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -243,6 +244,9 @@ void BytecodeArray::MarkVerified(IsolateForSandbox isolate) {
   // expect to see in-sandbox references to unpublished objects.
   wrapper()->set_bytecode(Tagged(this));
 }
+
+BytecodeWrapper::BytecodeWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().bytecode_wrapper_map()) {}
 
 Tagged<BytecodeArray> BytecodeWrapper::bytecode(
     IsolateForSandbox isolate) const {

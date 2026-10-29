@@ -1,0 +1,11 @@
+[
+  [0.2, "--regexp-tier-up-ticks=1"],
+  [0.2, "--no-regexp-optimization"],
+  [0.2, "--no-regexp-atomic-loop"],
+  [0.2, "--no-regexp-quick-check"],
+  [0.2, "--no-regexp-masked-dispatch"],
+  [0.2, "--no-regexp-unroll"],
+  [0.2, "--no-regexp-peephole-optimization"],
+  [0.15, "--regexp-assemble-from-bytecode"],
+  [0.1, "--no-enable-regexp-unaligned-accesses"]
+]

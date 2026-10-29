@@ -35,7 +35,10 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
   }
 
   size_t constant_pool_index() const { return constant_pool_index_; }
-  size_t switch_bytecode_offset() const { return switch_bytecode_offset_; }
+  size_t switch_bytecode_offset() const {
+    DCHECK_NE(switch_bytecode_offset_, kInvalidOffset);
+    return switch_bytecode_offset_;
+  }
   OperandScale switch_bytecode_operand_scale() const {
     return switch_bytecode_operand_scale_;
   }

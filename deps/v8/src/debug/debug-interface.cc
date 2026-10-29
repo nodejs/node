@@ -395,13 +395,14 @@ void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
   isolate->debug()->set_break_points_active(is_active);
 }
 
-void PrepareStep(Isolate* v8_isolate, StepAction action) {
+void PrepareStep(Isolate* v8_isolate, StepAction action, bool enter_functions) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8BasicScope api_scope(isolate);
   CHECK(isolate->debug()->CheckExecutionState());
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
   // Prepare step.
+  isolate->debug()->set_step_over_enters_functions(enter_functions);
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
@@ -1371,6 +1372,17 @@ DisableBreakScope::DisableBreakScope(v8::Isolate* isolate)
           reinterpret_cast<i::Isolate*>(isolate)->debug())) {}
 
 DisableBreakScope::~DisableBreakScope() = default;
+
+SideEffectCheckScope::SideEffectCheckScope(v8::Isolate* isolate)
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
+      disable_break_scope_(
+          std::make_unique<i::DisableBreak>(isolate_->debug())) {
+  isolate_->debug()->StartSideEffectCheckMode();
+}
+
+SideEffectCheckScope::~SideEffectCheckScope() {
+  isolate_->debug()->StopSideEffectCheckMode();
+}
 
 int Coverage::BlockData::StartOffset() const { return block_->start; }
 

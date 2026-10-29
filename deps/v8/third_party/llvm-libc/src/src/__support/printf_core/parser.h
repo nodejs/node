@@ -119,7 +119,7 @@ public:
   LIBC_INLINE BasicFormatSection<CharT> get_next_section() {
     BasicFormatSection<CharT> section;
     size_t starting_pos = cur_pos;
-    if (str[cur_pos] == char_constant_v<CharT, '%'>) {
+    if (str[cur_pos] == CharT{'%'}) {
       // format section
       section.has_conv = true;
 
@@ -134,7 +134,7 @@ public:
 
       // handle width
       section.min_width = 0;
-      if (str[cur_pos] == char_constant_v<CharT, '*'>) {
+      if (str[cur_pos] == CharT{'*'}) {
         ++cur_pos;
 
         WRITE_ARG_VAL_SIMPLEST(section.min_width, int, parse_index(&cur_pos));
@@ -152,11 +152,11 @@ public:
 
       // handle precision
       section.precision = -1; // negative precisions are ignored.
-      if (str[cur_pos] == char_constant_v<CharT, '.'>) {
+      if (str[cur_pos] == CharT{'.'}) {
         ++cur_pos;
         section.precision = 0; // if there's a . but no specified precision, the
                                // precision is implicitly 0.
-        if (str[cur_pos] == char_constant_v<CharT, '*'>) {
+        if (str[cur_pos] == CharT{'*'}) {
           ++cur_pos;
 
           WRITE_ARG_VAL_SIMPLEST(section.precision, int, parse_index(&cur_pos));
@@ -173,7 +173,7 @@ public:
       section.conv_name = str[cur_pos];
       section.bit_width = bw;
       switch (str[cur_pos]) {
-      case (char_constant_v<CharT, '%'>):
+      case (CharT{'%'}):
         // Regardless of options, a % conversion is always safe. The standard
         // says that "The complete conversion specification shall be %%" but it
         // also says that "If a conversion specification is invalid, the
@@ -182,7 +182,7 @@ public:
         // valid or invalid options.
         section.has_conv = true;
         break;
-      case (char_constant_v<CharT, 'c'>):
+      case (CharT{'c'}):
         if (section.length_modifier == LengthModifier::l) {
 #ifdef LIBC_COPT_PRINTF_DISABLE_WIDE
           using WideCharArgType = int;
@@ -195,14 +195,14 @@ public:
           WRITE_ARG_VAL_SIMPLEST(section.conv_val_raw, int, conv_index);
         }
         break;
-      case (char_constant_v<CharT, 'd'>):
-      case (char_constant_v<CharT, 'i'>):
-      case (char_constant_v<CharT, 'o'>):
-      case (char_constant_v<CharT, 'x'>):
-      case (char_constant_v<CharT, 'X'>):
-      case (char_constant_v<CharT, 'u'>):
-      case (char_constant_v<CharT, 'b'>):
-      case (char_constant_v<CharT, 'B'>):
+      case (CharT{'d'}):
+      case (CharT{'i'}):
+      case (CharT{'o'}):
+      case (CharT{'x'}):
+      case (CharT{'X'}):
+      case (CharT{'u'}):
+      case (CharT{'b'}):
+      case (CharT{'B'}):
         switch (lm) {
         case (LengthModifier::hh):
         case (LengthModifier::h):
@@ -255,14 +255,14 @@ public:
         }
         break;
 #ifndef LIBC_COPT_PRINTF_DISABLE_FLOAT
-      case (char_constant_v<CharT, 'f'>):
-      case (char_constant_v<CharT, 'F'>):
-      case (char_constant_v<CharT, 'e'>):
-      case (char_constant_v<CharT, 'E'>):
-      case (char_constant_v<CharT, 'a'>):
-      case (char_constant_v<CharT, 'A'>):
-      case (char_constant_v<CharT, 'g'>):
-      case (char_constant_v<CharT, 'G'>):
+      case (CharT{'f'}):
+      case (CharT{'F'}):
+      case (CharT{'e'}):
+      case (CharT{'E'}):
+      case (CharT{'a'}):
+      case (CharT{'A'}):
+      case (CharT{'g'}):
+      case (CharT{'G'}):
         switch (lm) {
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
         case (LengthModifier::Q):
@@ -283,15 +283,15 @@ public:
 #ifdef LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
       // Capitalization represents sign, but we only need to get the right
       // bitwidth here so we ignore that.
-      case (char_constant_v<CharT, 'r'>):
-      case (char_constant_v<CharT, 'R'>):
+      case (CharT{'r'}):
+      case (CharT{'R'}):
         // all fract sizes we support are less than 32 bits, and currently doing
         // va_args with fixed point types just doesn't work.
         // TODO: Move to fixed point types once va_args supports it.
         WRITE_ARG_VAL_SIMPLEST(section.conv_val_raw, uint32_t, conv_index);
         break;
-      case (char_constant_v<CharT, 'k'>):
-      case (char_constant_v<CharT, 'K'>):
+      case (CharT{'k'}):
+      case (CharT{'K'}):
         if (lm == LengthModifier::l) {
           WRITE_ARG_VAL_SIMPLEST(section.conv_val_raw, uint64_t, conv_index);
         } else {
@@ -300,7 +300,7 @@ public:
         break;
 #endif // LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
 #ifndef LIBC_COPT_PRINTF_DISABLE_STRERROR
-      case (char_constant_v<CharT, 'm'>):
+      case (CharT{'m'}):
         // %m is an odd conversion in that it doesn't consume an argument, it
         // just takes the current value of errno as its argument.
         section.conv_val_raw =
@@ -308,12 +308,12 @@ public:
         break;
 #endif // LIBC_COPT_PRINTF_DISABLE_STRERROR
 #ifndef LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-      case (char_constant_v<CharT, 'n'>): // Intentional fallthrough
+      case (CharT{'n'}): // Intentional fallthrough
 #endif            // LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-      case (char_constant_v<CharT, 'p'>):
+      case (CharT{'p'}):
         WRITE_ARG_VAL_SIMPLEST(section.conv_val_ptr, void *, conv_index);
         break;
-      case (char_constant_v<CharT, 's'>):
+      case (CharT{'s'}):
         WRITE_ARG_VAL_SIMPLEST(section.conv_val_ptr, void *, conv_index);
         break;
       default:
@@ -323,14 +323,13 @@ public:
       }
       // If the end of the format section is on the '\0'. This means we need to
       // not advance the cur_pos.
-      if (str[cur_pos] != char_constant_v<CharT, '\0'>)
+      if (str[cur_pos] != CharT{'\0'})
         ++cur_pos;
 
     } else {
       // raw section
       section.has_conv = false;
-      while (str[cur_pos] != char_constant_v<CharT, '%'> &&
-             str[cur_pos] != char_constant_v<CharT, '\0'>)
+      while (str[cur_pos] != CharT{'%'} && str[cur_pos] != CharT{'\0'})
         ++cur_pos;
     }
     section.raw_string = {str + starting_pos, cur_pos - starting_pos};
@@ -347,19 +346,19 @@ private:
     FormatFlags flags = FormatFlags(0);
     while (found_flag) {
       switch (str[*local_pos]) {
-      case char_constant_v<CharT, '-'>:
+      case CharT{'-'}:
         flags = static_cast<FormatFlags>(flags | FormatFlags::LEFT_JUSTIFIED);
         break;
-      case char_constant_v<CharT, '+'>:
+      case CharT{'+'}:
         flags = static_cast<FormatFlags>(flags | FormatFlags::FORCE_SIGN);
         break;
-      case char_constant_v<CharT, ' '>:
+      case CharT{' '}:
         flags = static_cast<FormatFlags>(flags | FormatFlags::SPACE_PREFIX);
         break;
-      case char_constant_v<CharT, '#'>:
+      case CharT{'#'}:
         flags = static_cast<FormatFlags>(flags | FormatFlags::ALTERNATE_FORM);
         break;
-      case char_constant_v<CharT, '0'>:
+      case CharT{'0'}:
         flags = static_cast<FormatFlags>(flags | FormatFlags::LEADING_ZEROES);
         break;
       default:
@@ -377,8 +376,8 @@ private:
   // after the format specifier if one is found.
   LIBC_INLINE LengthSpec parse_length_modifier(size_t *local_pos) {
     switch (str[*local_pos]) {
-    case (char_constant_v<CharT, 'l'>):
-      if (str[*local_pos + 1] == char_constant_v<CharT, 'l'>) {
+    case (CharT{'l'}):
+      if (str[*local_pos + 1] == CharT{'l'}) {
         *local_pos += 2;
         return {LengthModifier::ll, 0};
       } else {
@@ -386,9 +385,9 @@ private:
         return {LengthModifier::l, 0};
       }
 #ifndef LIBC_COPT_PRINTF_DISABLE_BITINT
-    case (char_constant_v<CharT, 'w'>): {
+    case (CharT{'w'}): {
       LengthModifier lm;
-      if (str[*local_pos + 1] == char_constant_v<CharT, 'f'>) {
+      if (str[*local_pos + 1] == CharT{'f'}) {
         *local_pos += 2;
         lm = LengthModifier::wf;
       } else {
@@ -403,29 +402,29 @@ private:
       return {lm, 0};
     }
 #endif // LIBC_COPT_PRINTF_DISABLE_BITINT
-    case (char_constant_v<CharT, 'h'>):
-      if (str[*local_pos + 1] == char_constant_v<CharT, 'h'>) {
+    case (CharT{'h'}):
+      if (str[*local_pos + 1] == CharT{'h'}) {
         *local_pos += 2;
         return {LengthModifier::hh, 0};
       } else {
         ++*local_pos;
         return {LengthModifier::h, 0};
       }
-    case (char_constant_v<CharT, 'L'>):
+    case (CharT{'L'}):
       ++*local_pos;
       return {LengthModifier::L, 0};
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
-    case (char_constant_v<CharT, 'Q'>):
+    case (CharT{'Q'}):
       ++*local_pos;
       return {LengthModifier::Q, 0};
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
-    case (char_constant_v<CharT, 'j'>):
+    case (CharT{'j'}):
       ++*local_pos;
       return {LengthModifier::j, 0};
-    case (char_constant_v<CharT, 'z'>):
+    case (CharT{'z'}):
       ++*local_pos;
       return {LengthModifier::z, 0};
-    case (char_constant_v<CharT, 't'>):
+    case (CharT{'t'}):
       ++*local_pos;
       return {LengthModifier::t, 0};
     default:
@@ -454,7 +453,7 @@ private:
       auto result = internal::strtointeger<int>(str + *local_pos, 10);
       size_t index = static_cast<size_t>(result.value);
       if (str[*local_pos + static_cast<size_t>(result.parsed_len)] !=
-          char_constant_v<CharT, '$'>)
+          CharT{'$'})
         return 0;
       *local_pos = static_cast<size_t>(1 + result.parsed_len) + *local_pos;
       return index;
@@ -564,7 +563,7 @@ private:
     size_t local_pos = 0;
 
     while (str[local_pos]) {
-      if (str[local_pos] == char_constant_v<CharT, '%'>) {
+      if (str[local_pos] == CharT{'%'}) {
         ++local_pos;
 
         size_t conv_index = parse_index(&local_pos);
@@ -574,7 +573,7 @@ private:
         parse_flags(&local_pos);
 
         // handle width
-        if (str[local_pos] == char_constant_v<CharT, '*'>) {
+        if (str[local_pos] == CharT{'*'}) {
           ++local_pos;
 
           size_t width_index = parse_index(&local_pos);
@@ -588,9 +587,9 @@ private:
         }
 
         // handle precision
-        if (str[local_pos] == char_constant_v<CharT, '.'>) {
+        if (str[local_pos] == CharT{'.'}) {
           ++local_pos;
-          if (str[local_pos] == char_constant_v<CharT, '*'>) {
+          if (str[local_pos] == CharT{'*'}) {
             ++local_pos;
 
             size_t precision_index = parse_index(&local_pos);
@@ -611,17 +610,17 @@ private:
         // logic has been for skipping past this conversion properly to avoid
         // weirdness with %%.
         if (conv_index == 0) {
-          if (str[local_pos] != char_constant_v<CharT, '\0'>)
+          if (str[local_pos] != CharT{'\0'})
             ++local_pos;
           continue;
         }
 
         TypeDesc conv_size = type_desc_from_type<void>();
         switch (str[local_pos]) {
-        case (char_constant_v<CharT, '%'>):
+        case (CharT{'%'}):
           conv_size = type_desc_from_type<void>();
           break;
-        case (char_constant_v<CharT, 'c'>):
+        case (CharT{'c'}):
           if (lm == LengthModifier::l) {
 #ifdef LIBC_COPT_PRINTF_DISABLE_WIDE
             using WideCharArgType = int;
@@ -633,14 +632,14 @@ private:
             conv_size = type_desc_from_type<int>();
           }
           break;
-        case (char_constant_v<CharT, 'd'>):
-        case (char_constant_v<CharT, 'i'>):
-        case (char_constant_v<CharT, 'o'>):
-        case (char_constant_v<CharT, 'x'>):
-        case (char_constant_v<CharT, 'X'>):
-        case (char_constant_v<CharT, 'u'>):
-        case (char_constant_v<CharT, 'b'>):
-        case (char_constant_v<CharT, 'B'>):
+        case (CharT{'d'}):
+        case (CharT{'i'}):
+        case (CharT{'o'}):
+        case (CharT{'x'}):
+        case (CharT{'X'}):
+        case (CharT{'u'}):
+        case (CharT{'b'}):
+        case (CharT{'B'}):
           switch (lm) {
           case (LengthModifier::hh):
           case (LengthModifier::h):
@@ -686,14 +685,14 @@ private:
           }
           break;
 #ifndef LIBC_COPT_PRINTF_DISABLE_FLOAT
-        case (char_constant_v<CharT, 'f'>):
-        case (char_constant_v<CharT, 'F'>):
-        case (char_constant_v<CharT, 'e'>):
-        case (char_constant_v<CharT, 'E'>):
-        case (char_constant_v<CharT, 'a'>):
-        case (char_constant_v<CharT, 'A'>):
-        case (char_constant_v<CharT, 'g'>):
-        case (char_constant_v<CharT, 'G'>):
+        case (CharT{'f'}):
+        case (CharT{'F'}):
+        case (CharT{'e'}):
+        case (CharT{'E'}):
+        case (CharT{'a'}):
+        case (CharT{'A'}):
+        case (CharT{'g'}):
+        case (CharT{'G'}):
           switch (lm) {
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
           case LengthModifier::Q:
@@ -714,12 +713,12 @@ private:
 #ifdef LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
         // Capitalization represents sign, but we only need to get the right
         // bitwidth here so we ignore that.
-        case (char_constant_v<CharT, 'r'>):
-        case (char_constant_v<CharT, 'R'>):
+        case (CharT{'r'}):
+        case (CharT{'R'}):
           conv_size = type_desc_from_type<uint32_t>();
           break;
-        case (char_constant_v<CharT, 'k'>):
-        case (char_constant_v<CharT, 'K'>):
+        case (CharT{'k'}):
+        case (CharT{'K'}):
           if (lm == LengthModifier::l) {
             conv_size = type_desc_from_type<uint64_t>();
           } else {
@@ -728,10 +727,10 @@ private:
           break;
 #endif // LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
 #ifndef LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-        case (char_constant_v<CharT, 'n'>):
+        case (CharT{'n'}):
 #endif // LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-        case (char_constant_v<CharT, 'p'>):
-        case (char_constant_v<CharT, 's'>):
+        case (CharT{'p'}):
+        case (CharT{'s'}):
           conv_size = type_desc_from_type<void *>();
           break;
         default:
@@ -745,7 +744,7 @@ private:
       }
       // If the end of the format section is on the '\0'. This means we need to
       // not advance the local_pos.
-      if (str[local_pos] != char_constant_v<CharT, '\0'>)
+      if (str[local_pos] != CharT{'\0'})
         ++local_pos;
     }
 

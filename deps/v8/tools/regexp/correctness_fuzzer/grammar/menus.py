@@ -16,6 +16,8 @@ bodies.
 # operator alternation has.
 LITERAL = list("abcxyzABXY019") + list("=:;,~!@%&<>")
 LITERAL_WIDE = ["é", "Ω", "\U0001f0a1"]
+# Halves of U+1F0A1, which is already in the subject noise pool.
+SURROGATES = ["\ud83c", "\udca1"]
 
 # `\xHH` reaches U+00FF and no further, so its pool is the Latin-1 subset:
 # LITERAL_WIDE's other members would silently truncate ("x%02x" % 0x3A9 is

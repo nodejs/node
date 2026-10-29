@@ -48,6 +48,66 @@ Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
                : Cast<Boolean>(impl()->false_value());
 }
 
+namespace detail {
+template <typename T>
+struct is_safe_allocation_arg : std::true_type {};
+template <typename U>
+struct is_safe_allocation_arg<Tagged<U>>
+    : std::bool_constant<is_subtype_v<U, Smi> || is_read_only_v<U>> {};
+template <typename U>
+  requires(std::is_base_of_v<HeapObject, U>)
+struct is_safe_allocation_arg<U*> : std::false_type {};
+
+template <typename Arg>
+decltype(auto) UnwrapAllocationArg(Arg&& arg) {
+  using Decayed = std::decay_t<Arg>;
+  if constexpr (is_direct_handle_v<Decayed> ||
+                std::is_base_of_v<HandleBase, Decayed>) {
+    return *arg;
+  } else {
+    static_assert(
+        is_safe_allocation_arg<Decayed>::value,
+        "Pass handles, not raw Tagged<HeapObject>, to Factory::New<T> "
+        "since allocation can trigger GC.");
+    return std::forward<Arg>(arg);
+  }
+}
+}  // namespace detail
+
+template <typename Impl>
+template <typename T, typename... Args>
+DirectHandle<T> FactoryBase<Impl>::New(AllocationType allocation,
+                                       Args&&... args) {
+  static_assert(
+      !requires { &T::template OffsetOfDataStart<T>; },
+      "Cannot use Factory::New<T> with variable-sized types "
+      "(FLEXIBLE_ARRAY_MEMBER).");
+  static_assert(sizeof(T) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(sizeof(T), allocation);
+  T* result = new (witness)
+      T(witness, detail::UnwrapAllocationArg(std::forward<Args>(args))...);
+  return direct_handle(result, isolate());
+}
+
+template <typename Impl>
+template <typename T, AllocationType kAllocation, typename... Args>
+DirectHandle<T> FactoryBase<Impl>::New(Args&&... args) {
+  return New<T>(kAllocation, std::forward<Args>(args)...);
+}
+
+template <typename Impl>
+template <AllocationType allocation>
+Handle<UninitializedHeapNumber>
+FactoryBase<Impl>::NewUninitializedHeapNumber() {
+  static_assert(sizeof(HeapNumber) == sizeof(UninitializedHeapNumber));
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(UninitializedHeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  return handle(new (witness) UninitializedHeapNumber(witness), isolate());
+}
+
 template <typename Impl>
 template <AllocationType allocation>
 Handle<Number> FactoryBase<Impl>::NewNumber(double value) {
@@ -103,66 +163,36 @@ DirectHandle<Number> FactoryBase<Impl>::NewNumberFromInt64(int64_t value) {
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value(value);
-  return heap_number;
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(HeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  std::optional<SharedObjectConditionalSafePublishGuard> publish_guard;
+  if constexpr (IsSharedAllocationType(allocation)) {
+    publish_guard.emplace(witness.object(), allocation);
+  }
+  return handle(new (witness) HeapNumber(witness, value), isolate());
 }
 
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value_as_bits(bits);
-  return heap_number;
-}
-
-template <typename Impl>
-template <AllocationType allocation>
-Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberWithHoleNaN() {
-  return NewHeapNumberFromBits<allocation>(kHoleNanInt64);
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(HeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  return handle(new (witness) HeapNumber(witness, Float64::FromBits(bits)),
+                isolate());
 }
 
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value_as_bits(
-      (static_cast<uint64_t>(kHoleNanUpper32) << 32) | value);
-  return heap_number;
-}
-
-template <typename Impl>
-template <typename StructType>
-Tagged<StructType> FactoryBase<Impl>::NewStructInternal(
-    InstanceType type, AllocationType allocation, bool initialize_fields) {
-  static_assert(std::is_base_of_v<Struct, StructType>);
-  ReadOnlyRoots roots = read_only_roots();
-  Tagged<Map> map = Map::GetMapFor(roots, type);
-  int size = sizeof(StructType);
-  return Cast<StructType>(
-      NewStructInternal(roots, map, size, allocation, initialize_fields));
-}
-
-template <typename Impl>
-Tagged<Struct> FactoryBase<Impl>::NewStructInternal(ReadOnlyRoots roots,
-                                                    Tagged<Map> map, int size,
-                                                    AllocationType allocation,
-                                                    bool initialize_fields) {
-  DCHECK_EQ(size, map->instance_size());
-  Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
-
-  const int length = (size >> kTaggedSizeLog2) - 1;
-  if (initialize_fields) {
-    MemsetTagged(result->RawField(sizeof(Struct)), roots.undefined_value(),
-                 length);
-
-  } else if (DEBUG_BOOL) {
-    // Zap the whole object in order to ensure that the caller initializes
-    // all fields.
-    MemsetTagged(result->RawField(sizeof(Struct)),
-                 Tagged<Object>(kDebugZapValue), length);
-  }
-  return Cast<Struct>(result);
+  return NewHeapNumberFromBits<allocation>(
+      (static_cast<uint64_t>(kHoleNanUpper32) << 32) |
+      static_cast<uint32_t>(value));
 }
 
 }  // namespace internal

@@ -11,7 +11,7 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (uint8_t* pc = begin; pc < end;) {
-//     v8::base::EmbeddedVector<char, 256> buffer;
+//     std::array<char, 256> buffer;
 //     uint8_t* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <array>
 #include <cmath>
 
 #include "src/base/platform/platform.h"
@@ -3507,7 +3508,7 @@ namespace disasm {
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfConstant(uint8_t* addr) const {
@@ -3551,12 +3552,12 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (uint8_t* pc = begin; pc < end;) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     buffer[0] = '\0';
     uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
-                         *reinterpret_cast<uint32_t*>(prev_pc), buffer.begin());
+                         *reinterpret_cast<uint32_t*>(prev_pc), buffer.data());
   }
 }
 

@@ -49,6 +49,7 @@ eval("'use strict';      \n" +
 // We cannot access stack-allocated values in the eval-scope.
 delegate = function(exec_state) {
   assertEquals([ debug.ScopeType.Local,
+                 debug.ScopeType.Closure,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global ],
                exec_state.frame(0).allScopes().map(s => s.scopeType()));
@@ -68,6 +69,7 @@ eval("'use strict';       \n" +
 // Current function is an escaped inner function.
 delegate = function(exec_state) {
   assertEquals([ debug.ScopeType.Local,
+                 debug.ScopeType.Closure,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global ],
                exec_state.frame(0).allScopes().map(s => s.scopeType()));

@@ -94,3 +94,16 @@ Running test: testConsoleTimeInDifferentConsoleContexts
         value : foo: 2 ms
     }
 ]
+
+Running test: testConsoleAssertInConsoleContext
+assert-context#13
+[
+    [0] : {
+        type : string
+        value : failed %s
+    }
+    [1] : {
+        type : string
+        value : assertion
+    }
+]

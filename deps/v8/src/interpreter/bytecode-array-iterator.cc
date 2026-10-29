@@ -374,6 +374,25 @@ int BytecodeArrayIterator::GetJumpTargetOffset() const {
   return GetAbsoluteOffset(GetRelativeJumpTargetOffset());
 }
 
+std::pair<int, int> BytecodeArrayIterator::GetNextJumpOffsets() {
+  DCHECK(Bytecodes::IsJump(next_bytecode()));
+  DisallowGarbageCollection no_gc;
+  uint8_t* saved_cursor = cursor_;
+  Bytecode saved_bytecode = current_bytecode_;
+  OperandScale saved_scale = operand_scale_;
+  int saved_prefix_size = prefix_size_;
+
+  Advance();
+  std::pair<int, int> offsets{GetJumpTargetOffset(), next_offset()};
+
+  // Restore the iterator state.
+  cursor_ = saved_cursor;
+  current_bytecode_ = saved_bytecode;
+  operand_scale_ = saved_scale;
+  prefix_size_ = saved_prefix_size;
+  return offsets;
+}
+
 JumpTableTargetOffsets BytecodeArrayIterator::GetJumpTableTargetOffsets()
     const {
   uint32_t table_start, table_size;

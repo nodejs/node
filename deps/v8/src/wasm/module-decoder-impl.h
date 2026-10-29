@@ -9,6 +9,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <array>
+
 #include "src/base/platform/wrappers.h"
 #include "src/strings/unicode.h"
 #include "src/utils/ostreams.h"
@@ -292,9 +294,9 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
   // File are named `<hash>.{ok,failed}.wasm`.
   // Limit the hash to 8 characters (32 bits).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
-  base::EmbeddedVector<char, 32> buf;
-  SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
-  path += buf.begin();
+  std::array<char, 32> buf;
+  base::SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
+  path += buf.data();
   size_t rv = 0;
   if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
     rv = fwrite(module_bytes.begin(), module_bytes.size(), 1, file);
@@ -409,13 +411,6 @@ class ModuleDecoderImpl : public Decoder {
         // TODO(12868): If there's a tag section, assert that we're after the
         // tag section.
         return check_order(kMemorySectionCode, kGlobalSectionCode);
-      case kInstTraceSectionCode:
-        // Custom section following code.metadata tool convention containing
-        // offsets specifying where trace marks should be emitted.
-        // Be lenient with placement of instruction trace section. All except
-        // first occurrence after function section and before code section are
-        // ignored.
-        return true;
       default:
         return true;
     }
@@ -591,7 +586,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array();
+        const ArrayType* type = consume_array(is_shared);
         if (V8_UNLIKELY(type == nullptr)) {
           CHECK(!ok());
           return {};
@@ -2880,12 +2875,13 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  const ArrayType* consume_array() {
+  const ArrayType* consume_array(SharedFlag is_shared) {
     ValueType element_type = consume_storage_type();
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (V8_UNLIKELY(failed())) return nullptr;
-    return module_->signature_storage.New<ArrayType>(element_type, mutability);
+    return module_->signature_storage.New<ArrayType>(element_type, mutability,
+                                                     is_shared);
   }
 
   // Consume the attribute field of an exception.

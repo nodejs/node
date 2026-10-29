@@ -5,6 +5,7 @@
 #include "src/wasm/interpreter/wasm-interpreter.h"
 
 #include <atomic>
+#include <bit>
 #include <limits>
 #include <optional>
 #include <type_traits>
@@ -567,7 +568,7 @@ WasmInterpreterThread::~WasmInterpreterThread() {
 
 void WasmInterpreterThread::EnsureRefStackSpace(size_t new_size) {
   if (V8_LIKELY(current_ref_stack_size_ >= new_size)) return;
-  size_t requested_size = base::bits::RoundUpToPowerOfTwo64(new_size);
+  size_t requested_size = std::bit_ceil(new_size);
   new_size = std::max(size_t{8},
                       std::max(2 * current_ref_stack_size_, requested_size));
   int grow_by = static_cast<int>(new_size - current_ref_stack_size_);
