@@ -102,6 +102,12 @@ SSL_SESSION* GetSessionCallback(
   return w->ReleaseSession();
 }
 
+// The server name is handled in EarlyClientHelloCallback, so this only
+// acknowledges it, which also has the TLS library store it in new sessions.
+int AcknowledgeServerName(SSL* s, int* ad, void* arg) {
+  return SSL_TLSEXT_ERR_OK;
+}
+
 // The TLS library invokes this before version negotiation and before session
 // or ticket resumption, which makes async session lookup possible. If required
 // the handshake is suspended here and resumed once JS has answered.
@@ -115,10 +121,8 @@ ClientHelloResult EarlyClientHelloCallback(const ClientHelloContext& hello) {
     return ClientHelloResult::kFail;
   }
 
-  // Session resumption must only be allowed for sessions with exactly the same
-  // SNI. We use the SNI to derive the session id, so no handshake can resume
-  // from a mismatched SNI value. Mismatches fall back to full handshakes:
-  if (!w->BindSessionsToServerName(*servername)) {
+  if (!w->PinServerName(*servername)) {
+    hello.set_alert(SSL_AD_ILLEGAL_PARAMETER);
     return ClientHelloResult::kFail;
   }
 
@@ -579,8 +583,7 @@ void TLSWrap::InitSSL() {
   //   https://github.com/openssl/openssl/issues/7199#issuecomment-420670544
   SSL_set_info_callback(ssl_.get(), SSLInfoCallback);
 
-  if (is_server())
-    sc_->SetSelectSNIContextCallback(SelectSNIContextCallback);
+  if (is_server()) sc_->SetSelectSNIContextCallback(AcknowledgeServerName);
 
   ConfigureSecureContext(sc_.get());
 
@@ -1516,39 +1519,34 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
   SSL_set_tlsext_host_name(wrap->ssl_.get(), *servername);
 }
 
-int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
-  TLSWrap* p = static_cast<TLSWrap*>(SSL_get_app_data(s));
-  Environment* env = p->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+// The connection's server name is fixed by its first ClientHello: later ones (a
+// renegotiation, or the second of a HelloRetryRequest) must ask for exactly the
+// same, as the connection's secure context was chosen for it.
+bool TLSWrap::PinServerName(std::string_view servername) {
+  if (flags_.servername_pinned) {
+    if (servername == servername_) return true;
+    Debug(this,
+          "ClientHello asked for server name '%s', connection pinned to '%s'",
+          servername,
+          servername_);
+    return false;
+  }
+  flags_.servername_pinned = true;
+  servername_ = servername;
 
-  auto servername = SSLPointer::GetServerName(s);
-  if (!servername.has_value() ||
-      !Set(env, p->GetOwner(), env->servername_string(), servername.value()))
-    return SSL_TLSEXT_ERR_NOACK;
-
-  Local<Value> ctx = p->object()->Get(env->context(), env->sni_context_string())
-      .FromMaybe(Local<Value>());
-
-  // Acknowlege the name so it's correctly stored on the session:
-  if (ctx.IsEmpty() || !ctx->IsObject()) return SSL_TLSEXT_ERR_OK;
-
-  if (!env->secure_context_constructor_template()->HasInstance(ctx)) {
-    // Failure: incorrect SNI context object
-    Local<Value> err = Exception::TypeError(env->sni_context_err_string());
-    p->MakeCallback(env->onerror_string(), 1, &err);
-    return SSL_TLSEXT_ERR_NOACK;
+  if (!servername.empty()) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+    if (!Set(env(), GetOwner(), env()->servername_string(), servername_)) {
+      return false;
+    }
   }
 
-  SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
-  CHECK_NOT_NULL(sc);
-  p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
-
-  ConfigureSecureContext(sc);
-  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx().get()), sc->ctx().get());
-  p->SetCACerts(sc);
-
-  return SSL_TLSEXT_ERR_OK;
+  // Session resumption must only be allowed for sessions with exactly the same
+  // SNI. We use the SNI to derive the session id context, so no handshake can
+  // resume from a mismatched SNI value. Mismatches fall back to full
+  // handshakes:
+  return BindSessionsToServerName(servername);
 }
 
 bool TLSWrap::BindSessionsToServerName(std::string_view servername) {
@@ -1727,6 +1725,7 @@ void TLSWrap::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("ocsp_response", ocsp_response_);
   tracker->TrackField("sni_context", sni_context_);
   tracker->TrackField("error", error_);
+  tracker->TrackField("servername", servername_);
   if (pending_cleartext_input_)
     tracker->TrackField("pending_cleartext_input", pending_cleartext_input_);
   if (enc_in_ != nullptr)
