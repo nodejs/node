@@ -1,14 +1,14 @@
 {
   "linux-ppc64le": {
     "crossSystem": "musl-power",
-    "storePath": "/nix/store/yhnsk9d4b4qawb5iwj6j6ai101appa2m-perfetto-static-powerpc64le-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/j9wfgm3528ai3hlxgm12p5npvgqac4c2-perfetto-static-powerpc64le-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   },
   "linux-s390x": {
     "crossSystem": "s390x",
-    "storePath": "/nix/store/xjxfy3jd1w5bxy26h6b4akas6fs3rivm-perfetto-static-s390x-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/7x4b59d98wizbp16f6rxsps921za4lw8-perfetto-static-s390x-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   },
   "linux-x86_64": {
     "crossSystem": "musl64",
-    "storePath": "/nix/store/hgycj4zyhi1hrlvrc61xgqfkdn856x36-perfetto-static-x86_64-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/7rf69wn33cshhahwry3ihdb8liinvy86-perfetto-static-x86_64-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   }
 }
