@@ -4,7 +4,6 @@
 # perfetto builds write through this tool.
 
 import ctypes
-import glob
 import io
 import json
 import os
