@@ -52,12 +52,12 @@ def get_glibc_version():
 
     return None
 
-def cpu_supports_perfetto_prebuilt():
+def cpu_supports_perfetto_prebuilt(arch):
     """
     Checks if the x86_64 CPU supports AVX2 and BMI2 required by
     Perfetto's release prebuilts.
     """
-    if sys.platform != "linux":
+    if sys.platform != "linux" or arch != "x86_64":
         return True
 
     flags = set()
@@ -70,7 +70,10 @@ def cpu_supports_perfetto_prebuilt():
     except Exception:
         return False
 
-    return {"avx2", "bmi2", "sse4_2"}.issubset(flags)
+    has_flags = {"avx2", "bmi2", "sse4_2"}.issubset(flags) and ("abm" in flags or "lzcnt" in flags)
+    if not has_flags:
+      print(f'get_trace_processor: Pre-built binaries for x64 require a cpu that supports SSE4.2, BMI2, AVX2 and LZCNT. Got ${flags}')
+    return has_flags
 
 def release_name():
   # Perfetto releases only an x64 build for Windows. Windows on arm64 runs it
@@ -79,6 +82,7 @@ def release_name():
     return 'windows-amd64'
 
   os_name = OS_NAMES.get(platform.system())
+  arch = ARCH_NAMES.get(platform.machine())
 
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
@@ -88,14 +92,13 @@ def release_name():
       print('get_trace_processor: No glibc detected, switching to musl build')
       return None
     print(f'get_trace_processor: Found glibc {glibc_ver}')
-    if glibc_ver < (2, 34):
+    if glibc_ver < (2, 29):
       print('get_trace_processor: Insufficient glibc version, switching to musl build')
       return None
-    if not cpu_supports_perfetto_prebuilt():
+    if not cpu_supports_perfetto_prebuilt(arch):
       print('get_trace_processor: Current platform does not support pre-built binaries, switching to musl build')
       return None
 
-  arch = ARCH_NAMES.get(platform.machine())
   if os_name is None or arch is None:
     return None
   return f'{os_name}-{arch}'
