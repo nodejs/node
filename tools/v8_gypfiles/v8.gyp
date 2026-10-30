@@ -559,6 +559,23 @@
       },
     },  # v8_version
     {
+      'target_name': 'v8_version_string',
+      'type': 'static_library',
+      'toolsets': ['host', 'target'],
+      'dependencies': [
+        'v8_headers',
+        'v8_libbase',
+      ],
+      'sources': [
+        '<(V8_ROOT)/src/utils/version.cc',
+      ],
+      'conditions': [
+        ['v8_embedder_string!=""', {
+          'defines': ['V8_EMBEDDER_STRING="<(v8_embedder_string)"',],
+        }],
+      ],
+    },  # v8_version_string
+    {
       'target_name': 'v8_config_headers',
       'type': 'none',
       'toolsets': ['host', 'target'],
@@ -1106,6 +1123,7 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_version',
+        'v8_version_string',
         'cppgc_base',
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -1127,6 +1145,9 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?sources = ")',
 
         '<@(inspector_all_sources)',
+      ],
+      'sources!': [
+        '<(V8_ROOT)/src/utils/version.cc', # now compiled in v8_version_string target
       ],
       'conditions': [
         ['v8_use_perfetto==1', {

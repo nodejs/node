@@ -339,9 +339,6 @@
 
   'target_defaults': {
     'conditions': [
-      ['v8_embedder_string!=""', {
-        'defines': ['V8_EMBEDDER_STRING="<(v8_embedder_string)"',],
-      }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
       }],
