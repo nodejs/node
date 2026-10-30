@@ -157,7 +157,7 @@ void StartStreamingCompilation(const FunctionCallbackInfo<Value>& info) {
 
   // Create the wrapper object.
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   Environment* env = Environment::GetCurrent(info);
   Local<Object> obj;
   if (!WasmStreamingObject::Create(env, streaming).ToLocal(&obj)) {

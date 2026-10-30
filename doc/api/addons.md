@@ -214,7 +214,7 @@ class AddonData {
 static void Method(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Retrieve the per-addon-instance data.
   AddonData* data =
-      reinterpret_cast<AddonData*>(info.Data().As<External>()->Value());
+      reinterpret_cast<AddonData*>(info.DataV2().As<External>()->Value());
   data->call_count++;
   info.GetReturnValue().Set((double)data->call_count);
 }
@@ -982,7 +982,7 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons =
-        args.Data().As<Object>()->GetInternalField(0)
+        args.DataV2().As<Value>().As<Object>()->GetInternalField(0)
             .As<Value>().As<Function>();
     Local<Object> result =
         cons->NewInstance(context, argc, argv).ToLocalChecked();
