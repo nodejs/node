@@ -9,6 +9,6 @@
   },
   "linux-x86_64": {
     "crossSystem": "musl64",
-    "storePath": "/nix/store/7rf69wn33cshhahwry3ihdb8liinvy86-perfetto-static-x86_64-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/i47sqi4j2mycja0xhmb31jzv2s98xnp4-perfetto-static-x86_64-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   }
 }
