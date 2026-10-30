@@ -4784,8 +4784,8 @@ An error occurred trying to allocate memory. This should never happen.
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
 [`'uncaughtException'`]: process.md#event-uncaughtexception
-[`--enable-async-hooks`]: cli.md#--enable-async-hooks
 [`--disable-proto=throw`]: cli.md#--disable-protomode
+[`--enable-async-hooks`]: cli.md#--enable-async-hooks
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
