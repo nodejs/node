@@ -56,6 +56,17 @@ class AutocannonBenchmarker {
     }
     return result.requests.average;
   }
+
+  processLatency(output) {
+    // Autocannon records latencies in whole milliseconds.
+    const { latency } = JSON.parse(output);
+    return {
+      p50: latency.p50,
+      p90: latency.p90,
+      p99: latency.p99,
+      p99_9: latency.p99_9,
+    };
+  }
 }
 
 class WrkBenchmarker {
@@ -72,6 +83,7 @@ class WrkBenchmarker {
       options.duration;
     const scheme = options.scheme || 'http';
     const args = [
+      '--latency',
       '-d', duration,
       '-c', options.connections,
       '-t', Math.min(options.connections, require('os').availableParallelism() || 8),
@@ -92,6 +104,20 @@ class WrkBenchmarker {
       return undefined;
     }
     return throughput;
+  }
+
+  processLatency(output) {
+    // Lines of the "Latency Distribution" table printed with --latency,
+    // e.g. "     99%    1.05ms".
+    const lineRe = /^\s+(\d+(?:\.\d+)?)%\s+([0-9.]+)(us|ms|s)$/gm;
+    const unitToMs = { us: 1e-3, ms: 1, s: 1e3 };
+    const keys = { '50': 'p50', '90': 'p90', '99': 'p99', '99.9': 'p99_9' };
+    const latency = {};
+    for (const [, percentile, value, unit] of output.matchAll(lineRe)) {
+      const key = keys[String(Number(percentile))];
+      if (key) latency[key] = Number(value) * unitToMs[unit];
+    }
+    return Object.keys(latency).length > 0 ? latency : undefined;
   }
 }
 
@@ -132,6 +158,10 @@ class TestDoubleBenchmarker {
       return undefined;
     }
     return result.throughput;
+  }
+
+  processLatency(output) {
+    return JSON.parse(output).latency;
   }
 }
 
@@ -259,8 +289,9 @@ exports.run = function(options, callback) {
       return;
     }
 
+    const latency = benchmarker.processLatency?.(stdout);
     const elapsed = benchmark_end - benchmarker_start;
-    callback(null, code, options.benchmarker, result, elapsed);
+    callback(null, code, options.benchmarker, result, elapsed, latency);
   });
 
 };

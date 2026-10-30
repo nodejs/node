@@ -183,7 +183,7 @@ class Benchmark {
                                  this.extra_options.benchmarker ||
                                  http_benchmarkers.default_http_benchmarker;
     http_benchmarkers.run(
-      http_options, (error, code, used_benchmarker, result, elapsed) => {
+      http_options, (error, code, used_benchmarker, result, elapsed, latency) => {
         if (cb) {
           cb(code);
         }
@@ -192,7 +192,7 @@ class Benchmark {
           process.exit(code || 1);
         }
         this.config.benchmarker = used_benchmarker;
-        this.report(result, elapsed);
+        this.report(result, elapsed, latency);
       },
     );
   }
@@ -319,14 +319,19 @@ class Benchmark {
     this.report(rate, elapsed);
   }
 
-  report(rate, elapsed) {
-    sendResult({
+  report(rate, elapsed, latency) {
+    const data = {
       name: this.name,
       conf: this.config,
       rate,
       time: nanoSecondsToString(elapsed),
       type: 'report',
-    });
+    };
+    // Latency percentiles in milliseconds, only reported by HTTP benchmarks.
+    if (latency !== undefined) {
+      data.latency = latency;
+    }
+    sendResult(data);
   }
 }
 
@@ -349,7 +354,17 @@ function formatResult(data) {
   let rate = data.rate.toString().split('.');
   rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
   rate = (rate[1] ? rate.join('.') : rate[0]);
-  return `${data.name}${conf}: ${rate}\n`;
+  return `${data.name}${conf}: ${rate}${formatLatency(data.latency)}\n`;
+}
+
+function formatLatency(latency) {
+  if (latency === undefined) {
+    return '';
+  }
+  const percentiles = Object.entries(latency)
+    .map(([key, ms]) => `${key.slice(1).replace('_', '.')}%=${+ms.toFixed(3)}`)
+    .join(' ');
+  return ` (latency ms: ${percentiles})`;
 }
 
 function sendResult(data) {
