@@ -2,11 +2,23 @@
   pinFile ? ./pkgs.nix,
   shellFile ? ../../shell.nix,
   jsonFile ? ../perfetto/trace_processor_shell.json,
-  system ? "aarch64-linux",
+  system ? "x86_64-linux",
 }:
 let
   pkgs = import pinFile {
     inherit system;
+    overlays = [
+      (
+        final: prev:
+        prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == "x86_64-linux") {
+          perfetto = prev.perfetto.overrideAttrs (old: {
+            gnFlags = old.gnFlags ++ [
+              "enable_perfetto_x64_cpu_opt=false"
+            ];
+          });
+        }
+      )
+    ];
     crossOverlays = [
       (
         final: prev:
