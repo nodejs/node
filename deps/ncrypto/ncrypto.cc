@@ -707,6 +707,8 @@ BignumPointer BignumPointer::clone() {
 int BignumPointer::isPrime(int nchecks,
                            BignumPointer::PrimeCheckCallback innerCb) const {
   BignumCtxPointer ctx(BN_CTX_new());
+  if (!ctx) [[unlikely]]
+    return -1;
   BignumGenCallbackPointer cb(nullptr);
   if (innerCb != nullptr) {
     cb = BignumGenCallbackPointer(BN_GENCB_new());
@@ -724,7 +726,14 @@ int BignumPointer::isPrime(int nchecks,
         &innerCb);
   }
 #if NCRYPTO_USE_OPENSSL_PROVIDER
-  return BN_check_prime(get(), ctx.get(), cb.get());
+  const int minimum_checks = GetBitCount(get()) > 2048 ? 128 : 64;
+  const int repetitions =
+      nchecks > minimum_checks ? 1 + (nchecks - 1) / minimum_checks : 1;
+  for (int i = 0; i < repetitions; i++) {
+    const int result = BN_check_prime(get(), ctx.get(), cb.get());
+    if (result != 1) return result;
+  }
+  return 1;
 #elif NCRYPTO_USE_BORINGSSL
   int is_probably_prime = 0;
   if (BN_primality_test(
@@ -4309,6 +4318,9 @@ int WriteDERView(const void* x, unsigned char** out) {
 
 bool WriteEncryptedTraditionalPEM(BIO* bio,
                                   const EVP_PKEY* pkey,
+                                  int selection,
+                                  const char* structure,
+                                  const char* label,
                                   const EVP_CIPHER* cipher,
                                   Buffer<char> passphrase) {
   if (passphrase.len > static_cast<size_t>(INT_MAX)) return false;
@@ -4316,7 +4328,7 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   unsigned char* der = nullptr;
   size_t der_len = 0;
   OSSLEncoderCtxPointer ctx(OSSL_ENCODER_CTX_new_for_pkey(
-      pkey, OSSL_KEYMGMT_SELECT_KEYPAIR, "DER", "pkcs1", nullptr));
+      pkey, selection, "DER", structure, nullptr));
   if (!ctx) return false;
 
   const int result = OSSL_ENCODER_to_data(ctx.get(), &der, &der_len);
@@ -4326,7 +4338,7 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   DERView der_view{der_storage.get<const unsigned char>(), der_len};
   return PEM_ASN1_write_bio(
              WriteDERView,
-             PEM_STRING_RSA,
+             label,
              bio,
              &der_view,
              cipher,
@@ -4539,8 +4551,13 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       if (cipher != nullptr && passphrase.len == 0) {
-        err =
-            !WriteEncryptedTraditionalPEM(bio.get(), get(), cipher, passphrase);
+        err = !WriteEncryptedTraditionalPEM(bio.get(),
+                                            get(),
+                                            OSSL_KEYMGMT_SELECT_KEYPAIR,
+                                            "pkcs1",
+                                            PEM_STRING_RSA,
+                                            cipher,
+                                            passphrase);
       } else {
         err = !WriteEncodedPKey(bio.get(),
                                 get(),
@@ -4633,13 +4650,23 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 #if NCRYPTO_USE_OPENSSL_PROVIDER
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
-      err = !WriteEncodedPKey(bio.get(),
-                              get(),
-                              OSSL_KEYMGMT_SELECT_ALL,
-                              config.format,
-                              "type-specific",
-                              cipher,
-                              passphrase);
+      if (cipher != nullptr && passphrase.len == 0) {
+        err = !WriteEncryptedTraditionalPEM(bio.get(),
+                                            get(),
+                                            OSSL_KEYMGMT_SELECT_ALL,
+                                            "type-specific",
+                                            PEM_STRING_ECPRIVATEKEY,
+                                            cipher,
+                                            passphrase);
+      } else {
+        err = !WriteEncodedPKey(bio.get(),
+                                get(),
+                                OSSL_KEYMGMT_SELECT_ALL,
+                                config.format,
+                                "type-specific",
+                                cipher,
+                                passphrase);
+      }
 #elif NCRYPTO_USE_BORINGSSL
       EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
       if (ec == nullptr) return Result<BIOPointer, bool>(false);

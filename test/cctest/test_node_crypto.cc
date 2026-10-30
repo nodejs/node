@@ -387,6 +387,67 @@ TEST(NodeCrypto, RsaPrimeProduct) {
   EXPECT_FALSE(rsa.checkPrimeProduct());
 }
 
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+namespace {
+constexpr int kMinimumPrimeChecks = 64;
+
+bool CheckMersennePrime(int exponent, int requested_checks) {
+  auto candidate = ncrypto::BignumPointer::New();
+  if (!candidate || BN_set_bit(candidate.get(), exponent) != 1 ||
+      BN_sub_word(candidate.get(), 1) != 1) {
+    return false;
+  }
+
+  int completed_checks = 0;
+  const int result = candidate.isPrime(
+      requested_checks, [&completed_checks](int event, int iteration) {
+        if (event == 1 && iteration >= 0) completed_checks++;
+        return true;
+      });
+  return result == 1 && completed_checks >= requested_checks;
+}
+}  // namespace
+
+TEST(NodeCrypto, BignumPrimeChecksHonorRequestedCount) {
+  EXPECT_TRUE(CheckMersennePrime(127, kMinimumPrimeChecks + 1));
+  EXPECT_TRUE(CheckMersennePrime(2203, 129));
+}
+
+TEST(NodeCrypto, BignumPrimeCheckCancellation) {
+  auto candidate = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(candidate);
+  ASSERT_EQ(BN_set_bit(candidate.get(), 127), 1);
+  ASSERT_EQ(BN_sub_word(candidate.get(), 1), 1);
+
+  int invocations = 0;
+  int completed_checks = 0;
+  bool valid_events = true;
+  const int result =
+      candidate.isPrime(kMinimumPrimeChecks + 1, [&](int event, int iteration) {
+        if (event != 1) {
+          valid_events = false;
+          return false;
+        }
+        if (iteration == -1) {
+          invocations++;
+          return true;
+        }
+        if (iteration != completed_checks % kMinimumPrimeChecks) {
+          valid_events = false;
+          return false;
+        }
+        if (completed_checks == kMinimumPrimeChecks) return false;
+        completed_checks++;
+        return true;
+      });
+  EXPECT_EQ(result, -1);
+  EXPECT_TRUE(valid_events);
+  EXPECT_EQ(invocations, 2);
+  EXPECT_EQ(completed_checks, kMinimumPrimeChecks);
+  ERR_clear_error();
+}
+#endif
+
 TEST(NodeCrypto, EcKeyComponents) {
   ncrypto::ClearErrorOnReturn clear_errors;
   ncrypto::BignumPointer x;
