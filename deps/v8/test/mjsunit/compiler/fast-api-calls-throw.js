@@ -8,8 +8,8 @@
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
 // Flags: --no-liftoff --wasm-fast-api
-// --wasm-lazy-compilation is needed so that wellknown imports work in the
-// absence of dynamic tiering.
+// The --wasm-lazy-compilation flag is needed so that wellknown imports work in
+// the absence of dynamic tiering.
 // Flags: --wasm-lazy-compilation
 // Flags: --fast-api-allow-float-in-sim
 

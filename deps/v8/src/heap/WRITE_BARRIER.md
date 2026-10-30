@@ -81,7 +81,7 @@ This barrier is only active during incremental marking.
 Therefore the fast path of this barrier only jumps into the deferred code path if marking is active.
 Checking the host object flags is not necessary.
 
-The Turbofan indirect pointer write barrier is implemented as a separate instruction opcode [kArchStoreIndirectWithWriteBarrier](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/compiler/backend/x64/code-generator-x64.cc?q=kArchStoreIndirectWithWriteBarrier).
+The Turbofan indirect pointer write barrier is implemented as a separate instruction opcode [kArchStoreTrustedWithWriteBarrier](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/compiler/backend/x64/code-generator-x64.cc?q=kArchStoreTrustedWithWriteBarrier).
 The deferred code path is implemented in the [OutOfLineRecordWrite](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/compiler/backend/x64/code-generator-x64.cc?q=OutOfLineRecordWrite) class along with the regular write barrier.
 
 Assembler builtins can emit this barrier using [MacroAssembler::RecordWrite](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/codegen/x64/macro-assembler-x64.cc?q=MacroAssembler::RecordWrite%28). This method handles both the indirect pointer but also the regular write barrier.

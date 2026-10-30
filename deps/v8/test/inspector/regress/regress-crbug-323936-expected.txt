@@ -1,0 +1,8 @@
+Tests regress-crbug-323936.
+step 0 e: error
+step 1 e: argument
+{
+    result : {
+        type : undefined
+    }
+}

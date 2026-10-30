@@ -257,6 +257,12 @@ class V8_EXPORT_PRIVATE Debug {
   void OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
                     StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
+  // Must only be called for breaks that are caused purely by stepping (i.e.
+  // not by breakpoints, debugger statements, scheduled pauses, asserts, ...)
+  // after stepping was cleared. If the current location is covered by the skip
+  // list of the last StepInto/StepOver, stepping is re-armed and true is
+  // returned. In that case the caller must not pause.
+  bool ContinueSteppingIfSkipped(StepAction last_step_action);
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
   std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception,
@@ -267,7 +273,11 @@ class V8_EXPORT_PRIVATE Debug {
   void OnCompileError(DirectHandle<Script> script);
   void OnAfterCompile(DirectHandle<Script> script);
 
-  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
+  // Breaks execution at the current statement if possible, or schedules a break
+  // on function entry / next function call. Returns true if the break was
+  // delivered or scheduled; false if it was dropped (e.g. breaks disabled,
+  // ignore_events, or stack overflow).
+  bool HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
                         debug::BreakReasons break_reasons);
 
   // The break target may not be the top-most frame, since we may be
@@ -309,6 +319,9 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(DirectHandle<Script> script);
+  DirectHandle<WeakArrayList> wasm_scripts_with_break_points() const {
+    return wasm_scripts_with_break_points_;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check
@@ -345,6 +358,7 @@ class V8_EXPORT_PRIVATE Debug {
                             const int end);
   bool IsBlackboxed(DirectHandle<SharedFunctionInfo> shared);
   bool ShouldBeSkipped();
+  bool ShouldEnterFunction(DirectHandle<SharedFunctionInfo> shared);
 
   bool CanBreakAtEntry(DirectHandle<SharedFunctionInfo> shared);
 
@@ -417,6 +431,7 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       DirectHandle<InterceptorInfo> interceptor_info);
+  void FailSideEffectCheckForDeferredModuleEvaluation();
 
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(DirectHandle<Object> object);
@@ -457,12 +472,25 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.break_on_next_function_call_;
   }
 
+  void set_step_over_enters_functions(bool value) {
+    thread_local_.step_over_enters_functions_ = value;
+  }
+  // Whether the current StepOver enters functions selected by the delegate.
+  bool step_over_enters_functions() const {
+    return thread_local_.last_step_action_ == StepOver &&
+           thread_local_.step_over_enters_functions_;
+  }
+
   bool scheduled_break_on_function_call() const {
     return !thread_local_.scheduled_break_on_next_function_call_.empty();
   }
+  v8::debug::BreakReasons scheduled_break_on_next_function_call() const {
+    return thread_local_.scheduled_break_on_next_function_call_;
+  }
 
   bool IsRestartFrameScheduled() const {
-    return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+    return !in_debug_scope() &&
+           thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
   }
   bool ShouldRestartFrame(StackFrameId id) const {
     return IsRestartFrameScheduled() && thread_local_.restart_frame_id_ == id;
@@ -506,6 +534,9 @@ class V8_EXPORT_PRIVATE Debug {
                           DirectHandle<DebugScriptScopeInfo> info);
   void ClearScriptScopeInfos();
 
+  void GetContextScripts(
+      std::map<int, std::unordered_set<int>>& context_scripts);
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -537,6 +568,7 @@ class V8_EXPORT_PRIVATE Debug {
                    bool is_stack_overflow = false);
 
   void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);
+  void RecordScriptContext(DirectHandle<Script> script);
 
   // Find the closest source position for a break point for a given position.
   int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);
@@ -546,9 +578,12 @@ class V8_EXPORT_PRIVATE Debug {
   void ClearBreakPoints(Handle<DebugInfo> debug_info);
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
-  // Instrument a function with one-shots.
+  // Instrument a function with one-shots. Blackboxed functions are ignored.
   void FloodWithOneShot(Handle<SharedFunctionInfo> function,
                         bool returns_only = false);
+  // Same as {FloodWithOneShot}, but also instruments blackboxed functions.
+  void FloodWithOneShotIncludingBlackboxed(Handle<SharedFunctionInfo> function,
+                                           bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
@@ -645,6 +680,12 @@ class V8_EXPORT_PRIVATE Debug {
     // If set then we need to repeat StepOut action at return.
     bool fast_forward_to_return_;
 
+    // If set, StepOver also enters functions selected by the delegate. Set by
+    // StepOver with enter_functions and preserved across internally re-prepared
+    // steps (e.g. stepping out of entered functions or generator initial
+    // yield).
+    bool step_over_enters_functions_;
+
     // Source statement position from last step next action.
     int last_statement_position_;
 
@@ -711,6 +752,13 @@ class V8_EXPORT_PRIVATE Debug {
   // Ephemeron table caching DebugScriptScopeInfo for Scripts.
   // This is a global handle, lazily initialized.
   IndirectHandle<EphemeronHashTable> script_scope_infos_;
+
+  // Ephemeron table mapping Scripts to WeakArrayLists of NativeContexts.
+  // This is a global handle, lazily initialized.
+  // Unlike script_scope_infos_, this intentionally survives Debug::Unload():
+  // it is populated regardless of whether a delegate is attached, since it has
+  // to be able to reconstruct the mapping on a later Debugger.enable.
+  IndirectHandle<EphemeronHashTable> script_to_contexts_;
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().

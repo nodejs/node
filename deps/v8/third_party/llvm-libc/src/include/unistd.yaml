@@ -34,6 +34,8 @@ macros:
     macro_header: unistd-macros.h
   - macro_name: _SC_GETPW_R_SIZE_MAX
     macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_DESTRUCTOR_ITERATIONS
+    macro_header: unistd-macros.h
   - macro_name: _SC_THREAD_ATTR_STACKADDR
     macro_header: unistd-macros.h
   - macro_name: _SC_THREAD_ATTR_STACKSIZE
@@ -85,6 +87,14 @@ macros:
   - macro_name: _POSIX_THREAD_ROBUST_PRIO_PROTECT
     macro_header: unistd-macros.h
   - macro_name: _POSIX_THREAD_SPORADIC_SERVER
+    macro_header: unistd-macros.h
+  - macro_name: F_ULOCK
+    macro_header: unistd-macros.h
+  - macro_name: F_LOCK
+    macro_header: unistd-macros.h
+  - macro_name: F_TLOCK
+    macro_header: unistd-macros.h
+  - macro_name: F_TEST
     macro_header: unistd-macros.h
 types:
   - type_name: uid_t
@@ -212,6 +222,14 @@ functions:
       - type: const char *
       - type: const char *
       - type: '...'
+  - name: execlp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: '...'
   - name: execv
     standards:
       - posix
@@ -222,6 +240,21 @@ functions:
   - name: execve
     standards:
       - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: __exec_argv_t
+      - type: __exec_envp_t
+  - name: execvp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: __exec_argv_t
+  - name: execvpe
+    standards:
+      - gnu
     return_type: int
     arguments:
       - type: const char *
@@ -250,6 +283,30 @@ functions:
       - type: int
       - type: uid_t
       - type: gid_t
+  - name: fchownat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: uid_t
+      - type: gid_t
+      - type: int
+  - name: fdatasync
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: fexecve
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: char *const []
+      - type: char *const []
   - name: fpathconf
     standards:
       - posix
@@ -347,6 +404,22 @@ functions:
     return_type: int
     arguments:
       - type: void
+  - name: getresgid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: gid_t *
+      - type: gid_t *
+      - type: gid_t *
+  - name: getresuid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: uid_t *
+      - type: uid_t *
+      - type: uid_t *
   - name: getsid
     standards:
       - posix
@@ -379,6 +452,14 @@ functions:
       - type: int
     guard: null
     attributes: []
+  - name: lchown
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: uid_t
+      - type: gid_t
   - name: link
     standards:
       - posix
@@ -396,6 +477,14 @@ functions:
       - type: int
       - type: const char *
       - type: int
+  - name: lockf
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: off_t
   - name: lseek
     standards:
       - posix
@@ -417,6 +506,12 @@ functions:
     arguments:
       - type: const char *
       - type: int
+  - name: pause
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void
   - name: pipe
     standards:
       - posix
@@ -487,6 +582,18 @@ functions:
       - type: const void *__restrict
       - type: void *
       - type: ssize_t
+  - name: setegid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: gid_t
+  - name: seteuid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: uid_t
   - name: setgid
     standards:
       - posix
@@ -507,11 +614,27 @@ functions:
     arguments:
       - type: gid_t
       - type: gid_t
+  - name: setresgid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: gid_t
+      - type: gid_t
+      - type: gid_t
   - name: setreuid
     standards:
       - posix
     return_type: int
     arguments:
+      - type: uid_t
+      - type: uid_t
+  - name: setresuid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: uid_t
       - type: uid_t
       - type: uid_t
   - name: setsid
@@ -547,6 +670,18 @@ functions:
       - type: const char *
       - type: int
       - type: const char *
+  - name: sync
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void
+  - name: syncfs
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
   - name: sysconf
     standards:
       - posix

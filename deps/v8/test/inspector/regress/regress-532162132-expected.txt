@@ -1,0 +1,11 @@
+Tests that numeric property keys are skipped when synchronizing scopes.
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}

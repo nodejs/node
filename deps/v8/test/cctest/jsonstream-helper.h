@@ -6,7 +6,7 @@
 #define V8_CCTEST_JSONTREAM_HELPER_H_
 
 #include "include/v8-profiler.h"
-#include "test/cctest/collector.h"
+#include "test/common/collector.h"
 
 namespace v8 {
 namespace internal {

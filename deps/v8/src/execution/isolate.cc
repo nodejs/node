@@ -28,7 +28,6 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/base/fpu.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
@@ -607,7 +606,7 @@ std::atomic<int> isolate_counter{0};
 
 Isolate::PerIsolateThreadData*
 Isolate::FindOrAllocatePerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   PerIsolateThreadData* per_thread = nullptr;
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -625,7 +624,7 @@ Isolate::FindOrAllocatePerThreadDataForThisThread() {
 }
 
 void Isolate::DiscardPerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::TryGetCurrent();
+  base::ThreadId thread_id = base::ThreadId::TryGetCurrent();
   if (thread_id.IsValid()) {
     DCHECK_NE(thread_manager_->mutex_owner_.load(std::memory_order_relaxed),
               thread_id);
@@ -639,12 +638,12 @@ void Isolate::DiscardPerThreadDataForThisThread() {
 }
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   return FindPerThreadDataForThread(thread_id);
 }
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
-    ThreadId thread_id) {
+    base::ThreadId thread_id) {
   PerIsolateThreadData* per_thread = nullptr;
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -874,8 +873,6 @@ StackTraceFailureMessage::StackTraceFailureMessage(
     }
   }
 }
-
-bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
 namespace {
 
@@ -1409,7 +1406,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
     } else if (DirectHandle<WasmSuspenderObject> suspender;
                TryGetWasmSuspender(isolate, reaction->fulfill_handler())
                    .ToHandle(&suspender)) {
-      DCHECK_NOT_NULL(suspender->stack());
+      SBXCHECK_NE(suspender->stack(), nullptr);
+      SBXCHECK_EQ(suspender->stack()->jmpbuf()->state,
+                  wasm::JumpBuffer::Suspended);
       for (StackFrameIterator it(isolate, suspender->stack()); !it.done();
            it.Advance()) {
         StackFrame* frame = it.frame();
@@ -1589,7 +1588,6 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1635,7 +1633,10 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
                 CallSiteInfo::kIsDeferredBaselineFrame)) {
           return;
         }
-        skipped_last_frame = true;
+        // Visibility (incl. security origin) is tracked by skipped_prev_frame_
+        // in AppendDeferredFrame; count this frame as appended so the caller's
+        // inlined construct stub can still flag it.
+        skipped_last_frame = false;
         break;
       case StackFrame::API_CALLBACK_EXIT:
       case StackFrame::API_CONSTRUCT_EXIT:
@@ -1649,7 +1650,6 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -2078,7 +2078,9 @@ class CurrentScriptIdsAndContextsStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
@@ -2128,7 +2130,9 @@ class CurrentScriptDataStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
@@ -2386,7 +2390,7 @@ class MinimalStackPrinter {
 }  // namespace
 
 std::string Isolate::BuildMinimalStack(size_t max_length) {
-  DCHECK_EQ(thread_id(), ThreadId::Current());
+  DCHECK_EQ(thread_id(), base::ThreadId::Current());
   DisallowGarbageCollection no_gc;
   HandleScope scope(this);
 
@@ -2525,7 +2529,7 @@ Tagged<Object> Isolate::StackOverflow() {
 #endif
 
   if (v8_flags.correctness_fuzzer_suppressions) {
-    FATAL("Aborting on stack overflow");
+    base::FatalNoSecurityImpact("Aborting on stack overflow");
   }
 
 #if USE_SIMULATOR
@@ -2927,9 +2931,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
           // Exception escapes the current suspender, unwind to the parent.
-          // Clear the external stack pointer to avoid a UAF.
-          suspender->set_stack(this, nullptr);
+          DCHECK_NULL(suspender->stack());
           suspender = suspender->parent();
+          suspender->set_stack(nullptr);
         }
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -3124,8 +3128,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       } break;
 #endif  // V8_ENABLE_DRUMBRAKE
 
-      case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START: {
+      case StackFrame::WASM: {
         if (!is_catchable_by_wasm(exception)) break;
 
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
@@ -3299,6 +3302,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         break;
       }
       case StackFrame::INTERNAL: {
+        if (!catchable_by_js) break;
         auto code = frame->GcSafeLookupCode();
         if (code->builtin_id() ==
             Builtin::kDeoptimizationEntry_LazyAfterFastCall) {
@@ -3997,9 +4001,9 @@ PromiseMethod GetPromiseMethod(
   auto str = Cast<String>(object);
   if (str->Equals(ReadOnlyRoots(isolate).then_string())) {
     return kThen;
-  } else if (str->IsEqualTo(base::StaticCharVector("catch"))) {
+  } else if (str->IsEqualTo("catch")) {
     return kCatch;
-  } else if (str->IsEqualTo(base::StaticCharVector("finally"))) {
+  } else if (str->IsEqualTo("finally")) {
     return kFinally;
   } else {
     return kInvalid;
@@ -4532,17 +4536,21 @@ void Isolate::IterateRegistersAndStackOfSimulator(
 #if V8_ENABLE_WEBASSEMBLY
 bool Isolate::IsOnCentralStack(Address addr) {
   auto stack = SimulatorStack::GetCentralStackView(this);
+  Address stack_base = reinterpret_cast<Address>(stack.end());
+  if (addr > stack_base) return false;
   Address stack_top = reinterpret_cast<Address>(stack.begin());
+  if (stack_top < addr) return true;
 #if !USE_SIMULATOR
-  // Try to use the stack limit reported by the system instead of V8's own
-  // conservative limit to avoid false positives.
+  // V8's stack limit is a conservative estimate.
+  // Try to use the real stack limit now to avoid false negatives.
+  // This is a slow operation on some configurations, so only use this as a
+  // fallback.
   Address real_stack_top = base::Stack::GetReservedStackLimit();
-  if (real_stack_top) {
-    stack_top = real_stack_top;
+  if (real_stack_top != kNullAddress && real_stack_top < addr) {
+    return true;
   }
 #endif
-  Address stack_base = reinterpret_cast<Address>(stack.end());
-  return stack_top < addr && addr <= stack_base;
+  return false;
 }
 
 bool Isolate::IsOnCentralStack() {
@@ -4704,7 +4712,7 @@ Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 }
 
 Isolate::PerIsolateThreadData* Isolate::ThreadDataTable::Lookup(
-    ThreadId thread_id) {
+    base::ThreadId thread_id) {
   auto t = table_.find(thread_id);
   if (t == table_.end()) return nullptr;
   return t->second;
@@ -4778,7 +4786,7 @@ void Isolate::Deinitialize(Isolate* isolate) {
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
-  isolate->set_thread_id(ThreadId::Current());
+  isolate->set_thread_id(base::ThreadId::Current());
   isolate->heap()->SetStackStart();
 
   isolate->Deinit();
@@ -4886,15 +4894,17 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 }
 
 void Isolate::CheckIsolateLayout() {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static_assert(static_cast<int>(ExternalPointerTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
+  static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
+                Internals::kExternalEntityTableSize);
+#endif
+#ifdef V8_ENABLE_SANDBOX
   static_assert(static_cast<int>(TrustedPointerTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(JSDispatchTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
-  static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
-                Internals::kExternalEntityTableSize);
   static_assert(static_cast<int>(sizeof(TrustedPointerTable)) ==
                 Internals::kExternalEntityTableSize);
   static_assert(static_cast<int>(sizeof(JSDispatchTable)) ==
@@ -5411,6 +5421,8 @@ Isolate::~Isolate() {
   store_stub_cache_ = nullptr;
   delete define_own_stub_cache_;
   define_own_stub_cache_ = nullptr;
+  delete has_stub_cache_;
+  has_stub_cache_ = nullptr;
 
   delete materialized_object_store_;
   materialized_object_store_ = nullptr;
@@ -5666,7 +5678,6 @@ void Isolate::NotifyExceptionPropagationCallback() {
       return;
 #if V8_ENABLE_WEBASSEMBLY
     case StackFrame::WASM:
-    case StackFrame::WASM_SEGMENT_START:
       // No more info.
       return;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5957,7 +5968,7 @@ bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
 namespace {
 static std::string ToHexString(uintptr_t address) {
   std::stringstream stream_address;
-  stream_address << "0x" << std::hex << address;
+  stream_address << "0x" << std::hex << address << std::dec;
   return stream_address.str();
 }
 }  // namespace
@@ -6204,8 +6215,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   force_slow_path_ = v8_flags.force_slow_path;
 
-  flush_denormals_ = base::FPU::GetFlushDenormals();
-
   has_fatal_error_ = false;
 
   // The initialization process does not handle memory exhaustion.
@@ -6223,6 +6232,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   load_stub_cache_ = new StubCache(this);
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);
+  has_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = regexp::Stack::New();
   isolate_data_.set_regexp_static_result_offsets_vector(
@@ -6553,9 +6563,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
   InitializeBuiltinJSDispatchTable();
   if (DEBUG_BOOL) VerifyStaticRoots();
-  load_stub_cache_->Initialize();
-  store_stub_cache_->Initialize();
-  define_own_stub_cache_->Initialize();
   interpreter_->Initialize();
   heap_.NotifyDeserializationComplete();
 
@@ -6636,32 +6643,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
   }
 
-#ifdef V8_ENABLE_WEBASSEMBLY
-#if V8_STATIC_ROOTS_BOOL
-  // Protect the payload of wasm null.
-  if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->address()),
-          WasmNull::kSize)) {
-    V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
-  }
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_WEBASSEMBLY
+  // A read-only heap deserialized from a snapshot was already protected when
+  // it was set up. One created from scratch only has its holes now.
+  if (create_heap_objects) read_only_heap()->DecommitGuardRegions(this);
 
-  if (v8_flags.unmap_holes) {
-// Protect the payload of each hole.
-#define UNMAP_HOLE(CamelName, snake_name, _)                                  \
-  if (!page_allocator()->DecommitPages(                                       \
-          reinterpret_cast<void*>(&factory()->snake_name()->payload_),        \
-          Hole::kPayloadSize)) {                                              \
-    V8::FatalProcessOutOfMemory(this, "decommitting " #CamelName " payload"); \
-  }
-
-    HOLE_LIST(UNMAP_HOLE)
-#undef UNMAP_HOLE
-  }
-
-  // Isolate initialization allocates long living objects that should be
-  // pretenured to old space.
+  // Isolate initialization allocates long-lived objects directly in old space.
   DCHECK_IMPLIES(heap()->new_space(), heap()->new_space()->Size() == 0);
   DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
   DCHECK_EQ(heap()->gc_count(), kInitialGCEpoch);
@@ -6688,7 +6674,7 @@ void Isolate::Enter() {
 
 #ifdef V8_ENABLE_CHECKS
   // No different thread must have entered the isolate. Allow re-entering.
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   if (current_thread_id_.IsValid()) {
     CHECK_EQ(current_thread_id_, thread_id);
   } else {
@@ -6710,7 +6696,7 @@ void Isolate::Enter() {
       DCHECK_NOT_NULL(entry_stack);
       DCHECK(entry_stack->previous_thread_data == nullptr ||
              entry_stack->previous_thread_data->thread_id() ==
-                 ThreadId::Current());
+                 base::ThreadId::Current());
       // Same thread re-enters the isolate, no need to re-init anything.
       entry_stack->entry_count++;
       return;
@@ -6736,12 +6722,14 @@ void Isolate::Exit() {
   DCHECK_NOT_NULL(current_entry_stack);
   DCHECK(current_entry_stack->previous_thread_data == nullptr ||
          current_entry_stack->previous_thread_data->thread_id() ==
-             ThreadId::Current());
+             base::ThreadId::Current());
 
 #ifdef V8_ENABLE_CHECKS
   // The current thread must have entered the isolate.
-  CHECK_EQ(current_thread_id_, ThreadId::Current());
-  if (--current_thread_counter_ == 0) current_thread_id_ = ThreadId::Invalid();
+  CHECK_EQ(current_thread_id_, base::ThreadId::Current());
+  if (--current_thread_counter_ == 0) {
+    current_thread_id_ = base::ThreadId::Invalid();
+  }
 #endif
 
   if (--current_entry_stack->entry_count > 0) return;
@@ -7266,7 +7254,6 @@ void Isolate::WasmInitJSPIFeature() {
     HandleScope scope(this);
     DirectHandle<WasmSuspenderObject> suspender =
         factory()->NewWasmSuspenderObject();
-    suspender->set_stack(this, wasm_stacks()[0].get());
     isolate_data_.set_active_suspender(*suspender);
   }
 }
@@ -7688,12 +7675,16 @@ void Isolate::SetCrashKeyStringCallbacks(
 }
 
 bool Isolate::HasCrashKeyStringCallbacks() {
+  if (V8::HasCrashKeyCallbacks()) return true;
   DCHECK_EQ(static_cast<bool>(allocate_crash_key_string_callback_),
             static_cast<bool>(set_crash_key_string_callback_));
   return static_cast<bool>(allocate_crash_key_string_callback_);
 }
 
 CrashKey Isolate::AllocateCrashKeyString(const char key[], CrashKeySize size) {
+  if (V8::HasCrashKeyCallbacks()) {
+    return V8::AllocateCrashKey(key, size);
+  }
   CHECK(HasCrashKeyStringCallbacks());
 #if DEBUG
   // Keys are limited in their length, see
@@ -7713,6 +7704,11 @@ CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
 }
 
 void Isolate::SetCrashKeyString(CrashKey key, std::string_view value) {
+  if (!key) return;
+  if (V8::HasCrashKeyCallbacks()) {
+    V8::SetCrashKey(key, value);
+    return;
+  }
   if (!set_crash_key_string_callback_) return;
   set_crash_key_string_callback_(key, value);
 }
@@ -8184,8 +8180,16 @@ const std::string& Isolate::DefaultLocale() {
   return default_locale_;
 }
 
+void Isolate::set_default_locale(const std::string& locale) {
+  DCHECK_EQ(default_locale_.length(), 0);
+  default_locale_ = locale;
+  isolate_data_.default_locale_may_require_special_case_mapping_ =
+      Intl::LocaleRequiresSpecialCaseMapping(default_locale_);
+}
+
 void Isolate::ResetDefaultLocale() {
   default_locale_.clear();
+  isolate_data_.default_locale_may_require_special_case_mapping_ = true;
   clear_cached_icu_objects();
   // We inline fast paths assuming certain locales. Since this path is rarely
   // taken, we deoptimize everything to keep things simple.

@@ -60,20 +60,26 @@ void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
   if (!generate_value()) return;
   switch (opcode) {
     case kExprExternConvertAny: {
-      result->runtime_value =
-          WasmValue(WasmToJSObject(isolate_, input.runtime_value.to_ref()),
-                    CanonicalValueType::RefMaybeNull(kWasmExternRef,
-                                                     input.type.nullability()));
+      result->runtime_value = WasmValue(
+          // We should not unshare strings; otherwise we might end up with an
+          // unshared string in a shared externref field. Note: for non-shared
+          // anyref it is not possible to get a shared string here, because that
+          // could only come from any.convert_extern, or via the JS->Wasm
+          // boundary; but JS strings are unshared.
+          WasmToJSObject(isolate_, input.runtime_value.to_ref(),
+                         kKeepSharedStrings),
+          CanonicalValueType::RefMaybeNull(CanonicalValueType{result->type},
+                                           input.type.nullability()));
       break;
     }
     case kExprAnyConvertExtern: {
       const char* error_message = nullptr;
-      result->runtime_value =
-          WasmValue(JSToWasmObject(isolate_, input.runtime_value.to_ref(),
-                                   kWasmAnyRef, &error_message)
-                        .ToHandleChecked(),
-                    CanonicalValueType::RefMaybeNull(kWasmAnyRef,
-                                                     input.type.nullability()));
+      result->runtime_value = WasmValue(
+          JSToWasmObject(isolate_, input.runtime_value.to_ref(),
+                         CanonicalValueType{result->type}, &error_message)
+              .ToHandleChecked(),
+          CanonicalValueType::RefMaybeNull(CanonicalValueType{result->type},
+                                           input.type.nullability()));
       break;
     }
     default:
@@ -175,9 +181,13 @@ DirectHandle<Map> ConstantExpressionInterface::GetRtt(
     error_ = MessageTemplate::kWasmTrapNullDereference;
     return {};
   }
-  DCHECK(IsWasmStruct(*maybe_obj));
   DCHECK_EQ(desc.type().ref_index(),
             module_->canonical_type_id(type.descriptor));
+  if (v8_flags.wasm_merged_descriptors) {
+    DCHECK(IsWasmCustomMap(*maybe_obj));
+    return Cast<WasmCustomMap>(maybe_obj);
+  }
+  DCHECK(IsWasmStruct(*maybe_obj));
   return direct_handle(Cast<WasmStruct>(*maybe_obj)->described_rtt(), isolate_);
 }
 
@@ -200,7 +210,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   DirectHandle<Map> rtt = GetRtt(imm.index, type, descriptor);
   if (rtt.is_null()) return;  // Trap (descriptor was null).
 
-  DirectHandle<WasmStruct> obj;
+  DirectHandle<HeapObject> obj;
+  int header_size;
   if (type.is_descriptor()) {
     // TODO(14616): Support shared custom descriptors.
     if (type.is_shared) UNIMPLEMENTED();
@@ -208,26 +219,38 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
             : direct_handle(Smi::zero(), isolate_);
-    obj = WasmStruct::AllocateDescriptorUninitialized(
-        isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+    if (v8_flags.wasm_merged_descriptors) {
+      obj = WasmCustomMap::AllocateUninitialized(
+          isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+      header_size = WasmCustomMap::kHeaderSize;
+    } else {
+      obj = WasmStruct::AllocateDescriptorUninitialized(
+          isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+      header_size = WasmStruct::kHeaderSize;
+    }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
+    header_size = WasmStruct::kHeaderSize;
   }
 
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
   SharedObjectConditionalSafePublishGuard publish_guard(*obj, type.is_shared);
 
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    int offset = struct_type->field_offset(i);
+    int offset = header_size + struct_type->field_offset(i);
     if (struct_type->field(i).is_numeric()) {
       uint8_t* address =
-          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+          reinterpret_cast<uint8_t*>(obj->GetFieldAddress(offset));
       args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
     } else {
-      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref());
+      Tagged<Object> value = *args[i].runtime_value.to_ref();
+      TaggedField<Object>::store(*obj, offset, value);
+      WriteBarrier::ForValue(*obj, obj->RawMaybeWeakField(offset), value,
+                             UPDATE_WRITE_BARRIER);
     }
   }
 
@@ -308,35 +331,45 @@ void ConstantExpressionInterface::StructNewDefault(
   DirectHandle<Map> rtt = GetRtt(imm.index, type, descriptor);
   if (rtt.is_null()) return;  // Trap (descriptor was null).
 
-  DirectHandle<WasmStruct> obj;
+  DirectHandle<HeapObject> obj;
+  int header_size;
   if (type.is_descriptor()) {
     // TODO(14616): Implement shared custom descriptors.
     if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
-    obj = WasmStruct::AllocateDescriptorUninitialized(
-        isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+    if (v8_flags.wasm_merged_descriptors) {
+      obj = WasmCustomMap::AllocateUninitialized(
+          isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+      header_size = WasmCustomMap::kHeaderSize;
+    } else {
+      obj = WasmStruct::AllocateDescriptorUninitialized(
+          isolate_, trusted_instance_data_, imm.index, rtt, first_field);
+      header_size = WasmStruct::kHeaderSize;
+    }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
+    header_size = WasmStruct::kHeaderSize;
   }
 
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
   SharedObjectConditionalSafePublishGuard publish_guard(*obj, type.is_shared);
 
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    int offset = struct_type->field_offset(i);
+    int offset = header_size + struct_type->field_offset(i);
     ValueType ftype = struct_type->field(i);
     if (ftype.is_numeric()) {
       uint8_t* address =
-          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+          reinterpret_cast<uint8_t*>(obj->GetFieldAddress(offset));
       DefaultValueForType(ftype, isolate_, module_)
           .Packed(ftype)
           .CopyTo(address);
     } else {
       // No write barrier needed, as read-only-space objects never move.
-      TaggedField<Object, WasmStruct::kHeaderSize>::store(
+      TaggedField<Object>::store(
           *obj, offset,
           *DefaultValueForType(ftype, isolate_, module_).to_ref());
     }

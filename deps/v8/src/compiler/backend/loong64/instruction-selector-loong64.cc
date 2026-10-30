@@ -47,6 +47,9 @@ class Loong64OperandGenerator final : public OperandGenerator {
       if (constant->IsIntegral()) {
         return constant->integral() == 0;
       }
+      if (constant->kind == ConstantOp::Kind::kSmi) {
+        return constant->smi().value() == 0;
+      }
       if (constant->kind == ConstantOp::Kind::kFloat32) {
         return constant->float32().get_bits() == 0;
       }
@@ -209,15 +212,6 @@ static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
                    g.UseRegister(op.input(1)));
   }
-}
-
-static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
-                      OpIndex node) {
-  Loong64OperandGenerator g(selector);
-  const turboshaft::Simd128ReplaceLaneOp& op =
-      selector->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
-  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                 g.UseImmediate(op.lane), g.UseUniqueRegister(op.input(1)));
 }
 
 static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
@@ -744,8 +738,6 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kLoong64LoadDecompressProtected;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
@@ -789,10 +781,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
-      return kLoong64StoreIndirectPointer;
+      return kLoong64StoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kLoong64StoreEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -843,7 +832,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(loong64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -859,16 +848,16 @@ void InstructionSelector::VisitStore(OpIndex node) {
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
     InstructionCode code;
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+    if (rep == MachineRepresentation::kTrustedPointer) {
+      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectSkippedWriteBarrier
-                 : kArchStoreIndirectWithWriteBarrier;
-      code |= RecordWriteModeField::encode(
-          RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+                 ? kArchStoreTrustedSkippedWriteBarrier
+                 : kArchStoreTrustedWithWriteBarrier;
+      code |=
+          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
+      TrustedPointerTag tag = store_view.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
@@ -1384,13 +1373,21 @@ void InstructionSelector::VisitWord64Clz(OpIndex node) {
   VisitRR(this, kLoong64Clz_d, node);
 }
 
-void InstructionSelector::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_w, node);
+}
 
-void InstructionSelector::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_d, node);
+}
 
-void InstructionSelector::VisitWord32Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_w, node);
+}
 
-void InstructionSelector::VisitWord64Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_d, node);
+}
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -2249,6 +2246,16 @@ void InstructionSelector::EmitPrepareArguments(
     OpIndex node) {
   Loong64OperandGenerator g(this);
 
+  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
+  // register, but only for non-FP parameters: the code generator dispatches
+  // FP pokes on the operand being an FP register.
+  auto poke_value = [&](const PushParameter& input) {
+    if (IsFloatingPoint(input.location.GetType().representation())) {
+      return g.UseRegister(input.node);
+    }
+    return g.UseRegisterOrImmediateZero(input.node);
+  };
+
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
@@ -2258,11 +2265,11 @@ void InstructionSelector::EmitPrepareArguments(
     Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
-    int slot = 0;
-    for (PushParameter input : (*arguments)) {
-      Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
-           g.TempImmediate(slot << kSystemPointerSizeLog2));
-      ++slot;
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      PushParameter input = (*arguments)[n];
+      if (!input.node.valid()) continue;
+      Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
+           g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
     }
   } else {
     int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -2280,7 +2287,7 @@ void InstructionSelector::EmitPrepareArguments(
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node.valid()) {
-        Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
+        Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
              g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
       }
     }
@@ -3678,10 +3685,31 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 
 #define SIMD_VISIT_REPLACE_LANE(Type)                                \
   void InstructionSelector::Visit##Type##ReplaceLane(OpIndex node) { \
-    VisitRRIR(this, kLoong64##Type##ReplaceLane, node);              \
+    Loong64OperandGenerator g(this);                                 \
+    const turboshaft::Simd128ReplaceLaneOp& op =                     \
+        Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>(); \
+    Emit(kLoong64##Type##ReplaceLane, g.DefineSameAsFirst(node),     \
+         g.UseRegister(op.input(0)), g.UseImmediate(op.lane),        \
+         g.UseRegister(op.input(1)));                                \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
+
+#define SIMD_VISIT_MOVE_LANE(Type)                                     \
+  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) {      \
+    Loong64OperandGenerator g(this);                                   \
+    const Simd128MoveLaneOp& op = Get(node).Cast<Simd128MoveLaneOp>(); \
+    Emit(kLoong64##Type##MoveLane, g.DefineSameAsFirst(node),          \
+         g.UseRegister(op.into()), g.UseRegister(op.from()),           \
+         g.UseImmediate(op.from_lane), g.UseImmediate(op.into_lane));  \
+  }
+SIMD_VISIT_MOVE_LANE(F64x2)
+SIMD_VISIT_MOVE_LANE(F32x4)
+SIMD_VISIT_MOVE_LANE(I64x2)
+SIMD_VISIT_MOVE_LANE(I32x4)
+SIMD_VISIT_MOVE_LANE(I16x8)
+SIMD_VISIT_MOVE_LANE(I8x16)
+#undef SIMD_VISIT_MOVE_LANE
 
 #define SIMD_VISIT_UNOP(Name, instruction)              \
   void InstructionSelector::Visit##Name(OpIndex node) { \
@@ -4035,6 +4063,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord64Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
          MachineOperatorBuilder::kWord64Select;
 }
 

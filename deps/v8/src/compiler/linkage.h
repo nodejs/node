@@ -60,28 +60,24 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
-  // NOTE: The lowest 9 bits of the Flags field are encoded in InstructionCode
-  // (for use in the code generator). All higher bits are lost.
-  static constexpr int kFlagsBitsEncodedInInstructionCode = 9;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kCanUseRoots = 1u << 2,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 3,
+    kInitializeRootRegister = 1u << 2,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 4,
+    kNoAllocate = 1u << 3,
     // Repurpose this bit during instruction selection. Signal the presence of
     // an effect handler to code generation.
     kHasEffectHandler = kNoAllocate,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 5,
-    kCallerSavedRegisters = 1u << 6,
+    kFixedTargetRegister = 1u << 4,
+    kCallerSavedRegisters = 1u << 5,
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
-    kCallerSavedFPRegisters = 1u << 7,
+    kCallerSavedFPRegisters = 1u << 6,
     // Tail calls for tier up are special (in fact they are different enough
     // from normal tail calls to warrant a dedicated opcode; but they also have
     // enough similar aspects that reusing the TailCall opcode is pragmatic).
@@ -97,27 +93,23 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     //
     // In other words, behavior is identical to a jmp instruction prior caller
     // frame construction.
-    kIsTailCallForTierUp = 1u << 8,
-
-    // Flags past here are *not* encoded in InstructionCode and are thus not
-    // accessible from the code generator. See also
-    // kFlagsBitsEncodedInInstructionCode.
+    kIsTailCallForTierUp = 1u << 7,
 
     // AIX has a function descriptor by default but it can be disabled for a
     // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 9,
+    kNoFunctionDescriptor = 1u << 8,
   };
   using Flags = base::Flags<Flag>;
 
-  CallDescriptor(Kind kind, CodeEntrypointTag tag, MachineType target_type,
-                 LinkageLocation target_loc, LocationSignature* location_sig,
-                 size_t param_slot_count, Operator::Properties properties,
-                 RegList callee_saved_registers,
-                 DoubleRegList callee_saved_fp_registers, Flags flags,
-                 const char* debug_name = "",
-                 const RegList allocatable_registers = {},
-                 size_t return_slot_count = 0,
-                 uint64_t signature_hash = kInvalidWasmSignatureHash)
+  CallDescriptor(
+      Kind kind, CodeEntrypointTag tag, MachineType target_type,
+      LinkageLocation target_loc, LocationSignature* location_sig,
+      size_t param_slot_count, Operator::Properties properties,
+      RegList callee_saved_registers, DoubleRegList callee_saved_fp_registers,
+      Flags flags, const char* debug_name = "",
+      const RegList allocatable_registers = {}, size_t return_slot_count = 0,
+      uint64_t signature_hash = kInvalidWasmSignatureHash,
+      uint16_t expected_parameter_count = kDontAdaptArgumentsSentinel)
       : kind_(kind),
         tag_(tag),
         target_type_(target_type),
@@ -125,6 +117,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         location_sig_(location_sig),
         param_slot_count_(param_slot_count),
         return_slot_count_(return_slot_count),
+        expected_parameter_count_(expected_parameter_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
@@ -238,6 +231,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of stack return value slots from the call.
   size_t ReturnSlotCount() const { return return_slot_count_; }
 
+  // The expected formal parameter count of the target JSFunction. It's used
+  // for ensuring that potentially adapted number of arguments pushed on the
+  // stack matches the target function's parameter count read from the dispatch
+  // table entry (V8 sandbox only).
+  uint16_t expected_parameter_count() const {
+    DCHECK(IsJSFunctionCall());
+    return expected_parameter_count_;
+  }
+
   // The number of parameters to the JS function call.
   size_t JSParameterCount() const {
     DCHECK(IsJSFunctionCall());
@@ -349,6 +351,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const LocationSignature* const location_sig_;
   const size_t param_slot_count_;
   const size_t return_slot_count_;
+  const uint16_t expected_parameter_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const DoubleRegList callee_saved_fp_registers_;
@@ -410,9 +413,19 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // Calls to JSFunctions should never overwrite the {properties}, but calls to
   // known builtins might.
   static CallDescriptor* GetJSCallDescriptor(
-      Zone* zone, bool is_osr, int parameter_count, CallDescriptor::Flags flags,
+      Zone* zone, bool is_osr, int js_parameter_count,
+      uint16_t expected_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties =
           Operator::kNoProperties /* use with care! */);
+
+  static CallDescriptor* GetJSCallDescriptor(
+      Zone* zone, bool is_osr, int js_parameter_count,
+      CallDescriptor::Flags flags,
+      Operator::Properties properties =
+          Operator::kNoProperties /* use with care! */) {
+    return GetJSCallDescriptor(zone, is_osr, js_parameter_count,
+                               js_parameter_count, flags, properties);
+  }
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,

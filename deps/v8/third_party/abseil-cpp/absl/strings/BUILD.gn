@@ -61,6 +61,7 @@ absl_source_set("strings") {
     ":internal",
     ":resize_and_overwrite",
     ":string_view",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -84,7 +85,6 @@ absl_source_set("strings") {
     # :string_view.
     ":string_view",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_source_set("internal") {
@@ -411,10 +411,10 @@ absl_source_set("cord") {
     ":cordz_info",
     ":cordz_update_scope",
     ":cordz_update_tracker",
-    ":internal",
     ":resize_and_overwrite",
     ":string_view",
     ":strings",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:endian",
@@ -433,7 +433,6 @@ absl_source_set("cord") {
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/abseil-cpp/absl/types:span",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_source_set("cordz_handle") {
@@ -733,6 +732,7 @@ absl_test("str_split_test") {
   deps = [
     ":string_view",
     ":strings",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
     "//third_party/abseil-cpp/absl/container:btree",
@@ -1021,7 +1021,6 @@ absl_source_set("generic_printer") {
     "//third_party/abseil-cpp/absl/log/internal:container",
     "//third_party/abseil-cpp/absl/meta:requires",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_test("generic_printer_test") {

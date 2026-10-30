@@ -21,13 +21,13 @@ class ModuleGenerationTest
     isolate()->SetStackLimit(base::Stack::GetStackStart() - 100 * KB);
 
     // Enable GC, required by `ResetTypeCanonicalizer`.
-    v8_flags.expose_gc = true;
+    v8_flags.expose_gc.Set(true);
 
     // Random module generation mixed the old and new EH proposal; allow that
     // generally.
     // Note that for libfuzzer fuzzers this is implied by `--fuzzing`, but for
     // now we are more selective here and only enable this one flag.
-    v8_flags.wasm_allow_mixed_eh_for_testing = true;
+    v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
     EnableExperimentalWasmFeatures(isolate());
   }
 

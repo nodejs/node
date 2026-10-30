@@ -1,0 +1,33 @@
+Tests regress-crbug-465298.
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 21
+            exception : {
+                type : string
+                value : boom
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 5
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            type : string
+            value : boom
+        }
+    }
+}
+frame 0: debugme
+frame 1: foo
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 23
+            type : number
+            value : 23
+        }
+    }
+}

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
@@ -32,9 +33,9 @@ V8_OBJECT class SourceTextModule : public Module {
   void VerifyRequestedModules() const;
 #endif
 
-  // The shared function info in case {status} is not kEvaluating, kEvaluated or
-  // kErrored.
-  Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
+  // The shared function info of the module body, retrieved through {code}
+  // according to {status}. Valid in every status.
+  V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
   Tagged<Script> GetScript() const;
 
@@ -90,7 +91,7 @@ V8_OBJECT class SourceTextModule : public Module {
   // https://tc39.es/proposal-defer-import-eval/#sec-IsModuleSCCEvaluated
   // This function checks if the Strongly Connected Component (SCC) that the
   // module participates is evaluated.
-  static bool IsModuleSCCEvaluated(Handle<SourceTextModule> module);
+  static bool IsModuleSCCEvaluated(DirectHandle<SourceTextModule> module);
 
   static void GatherAsynchronousTransitiveDependencies(
       Isolate* isolate, Handle<Module> module,
@@ -101,11 +102,8 @@ V8_OBJECT class SourceTextModule : public Module {
   static bool ReadyForSyncExecution(Isolate* isolate, Handle<Module> module,
                                     UnorderedModuleSet* seen);
 
-  inline Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
-  code() const;
-  inline void set_code(
-      Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  template <Status... kStates>
+  using InState = Module::InState<SourceTextModule, kStates...>;
 
   inline Tagged<FixedArray> regular_exports() const;
   inline void set_regular_exports(Tagged<FixedArray> value,
@@ -124,6 +122,36 @@ V8_OBJECT class SourceTextModule : public Module {
                               ReleaseStoreTag,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using HasToplevelAwaitBit = First<bool, 1>;
+    using AsyncEvaluationOrdinalBits = HasToplevelAwaitBit::Next<uint32_t, 30>;
+
+    BIT_FIELD_GROUP_ACCESSORS(has_toplevel_await, HasToplevelAwaitBit)
+    BIT_FIELD_GROUP_ACCESSORS(async_evaluation_ordinal,
+                              AsyncEvaluationOrdinalBits)
+  };
+
+ private:
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
+
+  friend class Factory;
+  friend class Module;
+  template <typename ModuleT, Status... kStates>
+  friend class Module::InState;
+
+  inline Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
+  code() const;
+  inline void set_code(
+      Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // [[CycleRoot]]: the root of this module's strongly connected component, set
+  // when the component transitions out of kEvaluating. It stays TheHole if the
+  // component fails synchronously; a module that fails asynchronously keeps
+  // it, and its cycle root fails as well.
   inline Tagged<UnionOf<SourceTextModule, TheHole>> cycle_root() const;
   inline void set_cycle_root(Tagged<UnionOf<SourceTextModule, TheHole>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -134,32 +162,21 @@ V8_OBJECT class SourceTextModule : public Module {
 
   inline int dfs_index() const;
   inline void set_dfs_index(int value);
-
   inline int dfs_ancestor_index() const;
   inline void set_dfs_ancestor_index(int value);
-
   inline int pending_async_dependencies() const;
   inline void set_pending_async_dependencies(int value);
-
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
-
- private:
-  friend class Factory;
-  friend class Module;
 
   struct AsyncEvaluationOrdinalCompare;
   using AvailableAncestorsSet =
       ZoneSet<Handle<SourceTextModule>, AsyncEvaluationOrdinalCompare>;
 
-  // Appends a tuple of module and generator to the async parent modules
-  // ArrayList.
+  // Appends a parent module to the async parent modules ArrayList of an
+  // async-evaluating module.
   inline static void AddAsyncParentModule(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
-      DirectHandle<SourceTextModule> parent);
-
-  // Get the non-hole cycle root. Only valid when status >= kEvaluated.
-  inline Handle<SourceTextModule> GetCycleRoot(Isolate* isolate) const;
+      Isolate* isolate,
+      DirectHandle<InState<kEvaluating, kEvaluatingAsync>> module,
+      DirectHandle<InState<kEvaluating>> parent);
 
   // Returns a SourceTextModule, the
   // ith parent in depth first traversal order of a given async child.
@@ -174,11 +191,6 @@ V8_OBJECT class SourceTextModule : public Module {
   inline bool HasPendingAsyncDependencies();
   inline void IncrementPendingAsyncDependencies();
   inline void DecrementPendingAsyncDependencies();
-
-  // Bits for flags.
-  using HasToplevelAwaitBit = base::BitField<bool, 0, 1, uint32_t>;
-  using AsyncEvaluationOrdinalBits = HasToplevelAwaitBit::Next<uint32_t, 30>;
-  friend class TorqueGeneratedBitFieldAsserts;
 
   // async_evaluation_ordinal, top_level_capability, pending_async_dependencies,
   // and async_parent_modules are used exclusively during evaluation of async
@@ -199,101 +211,139 @@ V8_OBJECT class SourceTextModule : public Module {
   static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluationOrdinal);
   DECL_PRIMITIVE_ACCESSORS(async_evaluation_ordinal, unsigned)
 
+  // Atomic state transitions:
+  static Handle<InState<kLinking>> TransitionToLinking(
+      Isolate* isolate, Handle<InState<kPreLinking>> module,
+      ZoneForwardList<Handle<InState<kLinking>>>* stack, unsigned* dfs_index);
+  template <Status kFromState, typename TransitionFn>
+  static void TransitionComponent(
+      DirectHandle<InState<kFromState>> module,
+      ZoneForwardList<Handle<InState<kFromState>>>* stack, Status trace_status,
+      TransitionFn&& transition_ancestor);
+  static V8_WARN_UNUSED_RESULT bool TransitionComponentToLinked(
+      Isolate* isolate, DirectHandle<InState<kLinking>> module,
+      ZoneForwardList<Handle<InState<kLinking>>>* stack);
+  static void TransitionComponentAfterEvaluation(
+      DirectHandle<InState<kEvaluating>> module,
+      ZoneForwardList<Handle<InState<kEvaluating>>>* stack);
+  static Handle<InState<kEvaluated>> TransitionAsyncToEvaluated(
+      Isolate* isolate, Handle<InState<kEvaluatingAsync>> module);
+
   // Helpers for Instantiate and Evaluate.
   static void CreateExport(Isolate* isolate,
-                           DirectHandle<SourceTextModule> module,
+                           DirectHandle<InState<kPreLinking>> module,
                            int cell_index, DirectHandle<FixedArray> names);
   static void CreateIndirectExport(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<InState<kPreLinking>> module,
       DirectHandle<String> name, DirectHandle<SourceTextModuleInfoEntry> entry);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
-      Isolate* isolate, Handle<SourceTextModule> module,
+      Isolate* isolate,
+      Handle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                     kEvaluated, kEvaluatedError>>
+          module,
       DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Isolate* isolate,
+      DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                           kEvaluated, kEvaluatedError>>
+          module,
       MaybeHandle<String> name, int module_request_index, MessageLocation loc,
       bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Isolate* isolate,
+      DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                           kEvaluated, kEvaluatedError>>
+          module,
       DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<InState<kPreLinking>> module,
       v8::Local<v8::Context> context,
       const Module::UserResolveCallbacks& callbacks);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
-      Isolate* isolate, Handle<SourceTextModule> module,
-      ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
+      Isolate* isolate, Handle<InState<kPreLinking>> module,
+      ZoneForwardList<Handle<InState<kLinking>>>* stack, unsigned* dfs_index,
       Zone* zone, unsigned depth, unsigned* max_depth);
-  static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
-      Isolate* isolate, DirectHandle<SourceTextModule> module);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSGeneratorObject>
+  RunInitializationCode(Isolate* isolate,
+                        DirectHandle<InState<kLinking>> module);
 
-  static void FetchStarExports(Isolate* isolate,
-                               Handle<SourceTextModule> module, Zone* zone,
-                               UnorderedModuleSet* visited);
+  static void FetchStarExports(
+      Isolate* isolate,
+      Handle<InState<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                     kEvaluated, kEvaluatedError>>
+          module,
+      Zone* zone, UnorderedModuleSet* visited);
 
   static void GatherAvailableAncestors(Isolate* isolate, Zone* zone,
-                                       Handle<SourceTextModule> start,
+                                       Handle<InState<kEvaluated>> start,
                                        AvailableAncestorsSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate, Handle<SourceTextModule> module);
+      Isolate* isolate, Handle<InState<kLinked>> module, bool debug_event,
+      bool* body_threw);
 
-  // Implementation of spec abstract operation InnerModuleEvaluation.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> InnerModuleEvaluation(
+  // Implementation of spec abstract operation InnerModuleEvaluation. Sets
+  // |body_threw| to true if a module body threw.
+  static V8_WARN_UNUSED_RESULT bool InnerModuleEvaluation(
       Isolate* isolate, Handle<SourceTextModule> module,
-      ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
-
-  // Returns true if the evaluation exception was catchable by js, and false
-  // for termination exceptions.
-  bool MaybeHandleEvaluationException(
-      Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack);
-
-  static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
-      ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status);
+      ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index,
+      bool* body_threw);
 
   // Implementation of spec ExecuteModule is broken up into
   // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule
   // for synchronous modules.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object>
-  InnerExecuteAsyncModule(Isolate* isolate,
-                          DirectHandle<SourceTextModule> module,
-                          DirectHandle<JSPromise> capability);
+  InnerExecuteAsyncModule(
+      Isolate* isolate,
+      DirectHandle<InState<kEvaluating, kEvaluatingAsync>> module,
+      DirectHandle<JSPromise> capability);
 
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> ExecuteModule(
-      Isolate* isolate, DirectHandle<SourceTextModule> module,
+  static V8_WARN_UNUSED_RESULT bool ExecuteModule(
+      Isolate* isolate,
+      DirectHandle<InState<kEvaluating, kEvaluatingAsync>> module,
       MaybeDirectHandle<Object>* exception_out);
 
   // Implementation of spec ExecuteAsyncModule. Return Nothing if the execution
   // is been terminated.
   static V8_WARN_UNUSED_RESULT Maybe<bool> ExecuteAsyncModule(
-      Isolate* isolate, DirectHandle<SourceTextModule> module);
+      Isolate* isolate,
+      DirectHandle<InState<kEvaluating, kEvaluatingAsync>> module);
 
-  static void Reset(Isolate* isolate, DirectHandle<SourceTextModule> module);
+  static void Reset(Isolate* isolate,
+                    DirectHandle<InState<kPreLinking, kLinking>> module);
 
   V8_EXPORT_PRIVATE void InnerGetStalledTopLevelAwaitModule(
       Isolate* isolate, UnorderedModuleSet* visited,
       DirectHandleVector<SourceTextModule>* result);
 
- public:
+  friend class TorqueGeneratedSourceTextModuleAsserts;
+  friend struct ObjectTraits<SourceTextModule>;
+  friend class CodeStubAssembler;
+
   TaggedMember<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
       code_;
+
+ public:
+  // Public for offsetof() in interpreter/baseline/compiler assemblers (some in
+  // anonymous namespaces that cannot be friended).
   TaggedMember<FixedArray> regular_exports_;
   TaggedMember<FixedArray> regular_imports_;
+
+ private:
   TaggedMember<FixedArray> requested_modules_;
-  TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
+  V8_TQ_ACQ_REL TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
   TaggedMember<UnionOf<SourceTextModule, TheHole>> cycle_root_;
   TaggedMember<ArrayList> async_parent_modules_;
   TaggedMember<Smi> dfs_index_;
   TaggedMember<Smi> dfs_ancestor_index_;
   TaggedMember<Smi> pending_async_dependencies_;
-  TaggedMember<Smi> flags_;
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 template <>
@@ -353,16 +403,24 @@ class SourceTextModuleInfo : public FixedArray {
 
 V8_OBJECT class ModuleRequest : public Struct {
  public:
+  inline ModuleRequest(const AllocationWitness& witness,
+                       Tagged<String> specifier, ModuleImportPhase phase,
+                       Tagged<FixedArray> import_attributes, int position);
+
   inline Tagged<String> specifier() const;
-  inline void set_specifier(Tagged<String> value,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> import_attributes() const;
-  inline void set_import_attributes(
-      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using PhaseBits = First<ModuleImportPhase, 2>;
+    using PositionBits = PhaseBits::Next<uint32_t, 29>;
+
+    BIT_FIELD_GROUP_ACCESSORS(phase, PhaseBits)
+    BIT_FIELD_GROUP_ACCESSORS(position, PositionBits)
+  };
+
+  inline Flags flags() const;
 
   DECL_VERIFIER(ModuleRequest)
   DECL_PRINTER(ModuleRequest)
@@ -377,48 +435,35 @@ V8_OBJECT class ModuleRequest : public Struct {
   // a single attribute.
   static const size_t kAttributeEntrySize = 3;
 
-  // Bits for flags.
-  using PhaseBits = base::BitField<ModuleImportPhase, 0, 2, uint32_t>;
-  using PositionBits = PhaseBits::Next<uint32_t, 29>;
-  static_assert(PositionBits::kMax >= String::kMaxLength,
+  static_assert(Flags::PositionBits::kMax >= String::kMaxLength,
                 "String::kMaxLength should fit in PositionBits::kMax");
-  DECL_PRIMITIVE_ACCESSORS(position, unsigned)
-  inline void set_phase(ModuleImportPhase phase);
+  inline unsigned position() const;
   inline ModuleImportPhase phase() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 
  public:
-  TaggedMember<String> specifier_;
-  TaggedMember<FixedArray> import_attributes_;
-  TaggedMember<Smi> flags_;
+  const TaggedMember<String> specifier_;
+  const TaggedMember<FixedArray> import_attributes_;
+  const SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 V8_OBJECT class SourceTextModuleInfoEntry : public Struct {
  public:
+  inline SourceTextModuleInfoEntry(
+      const AllocationWitness& witness,
+      Tagged<UnionOf<String, Undefined>> export_name,
+      Tagged<UnionOf<String, Undefined>> local_name,
+      Tagged<UnionOf<String, Undefined>> import_name, int module_request,
+      int cell_index, int beg_pos, int end_pos);
+
   inline Tagged<UnionOf<String, Undefined>> export_name() const;
-  inline void set_export_name(Tagged<UnionOf<String, Undefined>> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<UnionOf<String, Undefined>> local_name() const;
-  inline void set_local_name(Tagged<UnionOf<String, Undefined>> value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<UnionOf<String, Undefined>> import_name() const;
-  inline void set_import_name(Tagged<UnionOf<String, Undefined>> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline int module_request() const;
-  inline void set_module_request(int value);
-
   inline int cell_index() const;
-  inline void set_cell_index(int value);
-
   inline int beg_pos() const;
-  inline void set_beg_pos(int value);
-
   inline int end_pos() const;
-  inline void set_end_pos(int value);
 
   DECL_VERIFIER(SourceTextModuleInfoEntry)
   DECL_PRINTER(SourceTextModuleInfoEntry)
@@ -433,13 +478,13 @@ V8_OBJECT class SourceTextModuleInfoEntry : public Struct {
   using BodyDescriptor = StructBodyDescriptor;
 
  public:
-  TaggedMember<UnionOf<String, Undefined>> export_name_;
-  TaggedMember<UnionOf<String, Undefined>> local_name_;
-  TaggedMember<UnionOf<String, Undefined>> import_name_;
-  TaggedMember<Smi> module_request_;
-  TaggedMember<Smi> cell_index_;
-  TaggedMember<Smi> beg_pos_;
-  TaggedMember<Smi> end_pos_;
+  const TaggedMember<UnionOf<String, Undefined>> export_name_;
+  const TaggedMember<UnionOf<String, Undefined>> local_name_;
+  const TaggedMember<UnionOf<String, Undefined>> import_name_;
+  const TaggedMember<Smi> module_request_;
+  const TaggedMember<Smi> cell_index_;
+  const TaggedMember<Smi> beg_pos_;
+  const TaggedMember<Smi> end_pos_;
 } V8_OBJECT_END;
 
 }  // namespace internal

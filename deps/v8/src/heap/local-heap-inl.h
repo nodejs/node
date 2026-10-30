@@ -79,7 +79,7 @@ V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
     heap()->stack().SetMarkerAndCallback(std::move(callback));
   } else {
     heap()->stack().SetMarkerForBackgroundThreadAndCallback(
-        ThreadId::Current().ToInteger(), std::move(callback));
+        base::ThreadId::Current().ToInteger(), std::move(callback));
   }
 }
 
@@ -104,7 +104,7 @@ V8_INLINE void LocalHeap::ExecuteBackgroundThreadWhileParked(
     Callback callback) {
   DCHECK(!is_main_thread());
   heap()->stack().SetMarkerForBackgroundThreadAndCallback(
-      ThreadId::Current().ToInteger(),
+      base::ThreadId::Current().ToInteger(),
       [this, callback = std::move(callback)]() mutable {
         ParkAndExecuteCallback(std::move(callback));
       });
@@ -115,7 +115,7 @@ V8_INLINE bool LocalHeap::is_in_trampoline() const {
     return heap_->stack().IsMarkerSet();
   } else {
     return heap_->stack().IsMarkerSetForBackgroundThread(
-        ThreadId::Current().ToInteger());
+        base::ThreadId::Current().ToInteger());
   }
 }
 

@@ -199,7 +199,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationHint hint);
 
   void CollectGarbage(AllocationType allocation,
-                      PerformHeapLimitCheck perform_heap_limit_check,
                       GarbageCollectionReason gc_reason);
   void CollectAllAvailableGarbage(AllocationType allocation);
 

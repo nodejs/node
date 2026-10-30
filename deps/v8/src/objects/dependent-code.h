@@ -59,18 +59,15 @@ class DependentCode : public WeakArrayList {
     // Group of code objects that omit run-time type checks for initial maps of
     // constructors.
     kInitialMapChangedGroup = 1 << 6,
-    // Group of code objects that depend on tenuring information in
-    // AllocationSites not being changed.
-    kAllocationSiteTenuringChangedGroup = 1 << 7,
     // Group of code objects that depend on element transition information in
     // AllocationSites not being changed.
-    kAllocationSiteTransitionChangedGroup = 1 << 8,
+    kAllocationSiteTransitionChangedGroup = 1 << 7,
     // Group of code objects that depend on a slot side table property of
     // a ScriptContext not being changed.
-    kContextCellChangedGroup = 1 << 9,
+    kContextCellChangedGroup = 1 << 8,
     // Group of code objects that depend on particular context's extension
     // slot to be empty.
-    kEmptyContextExtensionGroup = 1 << 10,
+    kEmptyContextExtensionGroup = 1 << 9,
     // IMPORTANT: The last bit must fit into a Smi, i.e. into 31 bits.
   };
   using DependencyGroups = base::Flags<DependencyGroup, uint32_t>;

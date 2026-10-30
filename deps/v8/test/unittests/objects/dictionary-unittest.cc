@@ -286,9 +286,9 @@ TEST_F(DictionaryTest, HashTableRehash) {
 
 #ifdef DEBUG
 TEST_F(DictionaryTest, ObjectHashTableCausesGC) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
   // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
-  i::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation.Set(false);
   TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate(), 1));
 }
 #endif

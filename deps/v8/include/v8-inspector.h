@@ -155,6 +155,11 @@ class V8_EXPORT V8StackTrace {
   virtual int topColumnNumber() const = 0;
   virtual int topScriptId() const = 0;
   virtual StringView topFunctionName() const = 0;
+  // Returns true if the script of the top frame was compiled with
+  // resource_is_opaque set in its ScriptOrigin (code created via eval or
+  // new Function inherits this from the calling script). Like the other
+  // top*() accessors, this must only be called if !isEmpty().
+  virtual bool isTopScriptOpaque() const = 0;
 
   virtual ~V8StackTrace() = default;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>

@@ -14,6 +14,11 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/objects-inl.h"
 
+#ifdef V8_FUZZILLI
+#include "src/base/hashing.h"
+#include "src/fuzzilli/cov.h"
+#endif
+
 namespace v8::internal::maglev {
 
 void Graph::UnwrapDeoptFrames() {
@@ -167,7 +172,7 @@ bool Graph::MayNeedContextPhis() const {
 #endif  // DEBUG
 
 ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
-                                     IndirectPointerTag tag) {
+                                     TrustedPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   auto it = trusted_constants_.find(ref);
   if (it == trusted_constants_.end()) {
@@ -181,5 +186,48 @@ ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
   return GetConstant(ref);
 #endif
 }
+
+#ifdef V8_FUZZILLI
+namespace {
+void CollectOptimizedCodeCoverageFromNode(
+    NodeBase* node, size_t steps_to_go, size_t hash_so_far,
+    std::set<uint32_t>& accumulated_hashes) {
+  v8::base::Hasher hasher(hash_so_far);
+  hasher.Add(node->opcode());
+
+  bool has_recursed = false;
+  if (steps_to_go > 0) {
+    int input_count = node->input_count();
+    for (int i = 0; i < input_count; ++i) {
+      has_recursed = true;
+      ValueNode* input = node->input_node(i);
+      CollectOptimizedCodeCoverageFromNode(input, steps_to_go - 1,
+                                           hasher.hash(), accumulated_hashes);
+    }
+  }
+  if (!has_recursed) {
+    accumulated_hashes.insert(static_cast<uint32_t>(hasher.hash()));
+  }
+}
+}  // namespace
+
+void Graph::ExtractOptimizedCodeCoverage() {
+  // We extract information from each node and its input up to this depth:
+  constexpr size_t kMaxPathLength = 3;
+  std::set<uint32_t> hashes;
+  size_t initial_hash =
+      v8::base::Hasher::Combine(compilation_info_->is_turbolev());
+
+  for (BasicBlock* block : *this) {
+    if (block->is_dead()) continue;
+    block->ForEachNodeAndControl([&](NodeBase* node) {
+      CollectOptimizedCodeCoverageFromNode(node, kMaxPathLength, initial_hash,
+                                           hashes);
+    });
+  }
+
+  cov_add_optimized_code_coverage_edges(hashes);
+}
+#endif
 
 }  // namespace v8::internal::maglev

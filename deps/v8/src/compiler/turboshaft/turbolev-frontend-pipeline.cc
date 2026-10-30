@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include "src/base/logging.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"
@@ -400,6 +400,8 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
 #endif
   Phase phase;
   SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
+  // Covers phases that don't go through maglev::GraphProcessor.
+  graph_->broker()->local_isolate_or_isolate()->heap()->Safepoint();
   PhaseResult result = phase.Run(graph_, std::forward<Args>(args)...);
   if (result == PhaseResult::kContinue) {
     if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {
@@ -462,6 +464,11 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     PrintInliningTreeDebugInfo();
   }
+#ifdef V8_FUZZILLI
+  if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    graph_->ExtractOptimizedCodeCoverage();
+  }
+#endif
   return graph_;
 }
 

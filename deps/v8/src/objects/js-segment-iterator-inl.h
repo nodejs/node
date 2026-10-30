@@ -40,10 +40,10 @@ void JSSegmentIterator::set_raw_string(Tagged<String> value,
   raw_string_.store(this, value, mode);
 }
 
-int JSSegmentIterator::flags() const { return flags_.load().value(); }
-void JSSegmentIterator::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+JSSegmentIterator::Flags JSSegmentIterator::flags() const {
+  return flags_.load();
 }
+void JSSegmentIterator::set_flags(Flags value) { flags_.store(value); }
 
 Tagged<String> JSSegmentDataObject::segment() const { return segment_.load(); }
 void JSSegmentDataObject::set_segment(Tagged<String> value,
@@ -73,14 +73,11 @@ void JSSegmentDataObjectWithIsWordLike::set_is_word_like(
 
 inline void JSSegmentIterator::set_granularity(
     JSSegmenter::Granularity granularity) {
-  DCHECK(GranularityBits::is_valid(granularity));
-  int hints = flags();
-  hints = GranularityBits::update(hints, granularity);
-  set_flags(hints);
+  set_flags(flags().with_granularity(granularity));
 }
 
 inline JSSegmenter::Granularity JSSegmentIterator::granularity() const {
-  return GranularityBits::decode(flags());
+  return flags().granularity();
 }
 
 }  // namespace internal

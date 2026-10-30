@@ -42,6 +42,7 @@
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 
 namespace tcmalloc {
@@ -174,6 +175,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
 
   // Provide access to protected method above.  Use for testing only.
   friend struct SpinLockTest;
+  friend struct SpinLockProfilingTestPeer;
   friend class tcmalloc::tcmalloc_internal::AllocationGuardSpinLockHolder;
   friend class tcmalloc::tcmalloc_internal::Static;
 
@@ -231,8 +233,8 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
   }
 
   uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
-  void SlowLock() ABSL_ATTRIBUTE_COLD;
-  void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD void SlowLock();
+  ABSL_ATTRIBUTE_COLD void SlowUnlock(uint32_t lock_value);
   uint32_t SpinLoop();
 
   inline bool TryLockImpl() {
@@ -256,21 +258,37 @@ class ABSL_SCOPED_LOCKABLE [[nodiscard]] SpinLockHolder
       ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : std::lock_guard<SpinLock>(l) {}
   ABSL_DEPRECATE_AND_INLINE()
-  inline explicit SpinLockHolder(SpinLock* l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
+  inline explicit SpinLockHolder(SpinLock* absl_nonnull l)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : SpinLockHolder(*l) {}
 
   inline ~SpinLockHolder() ABSL_UNLOCK_FUNCTION() = default;
 };
 
-// Register a hook for profiling support.
+// Register hooks for profiling support.
 //
-// The function pointer registered here will be called whenever a spinlock is
-// contended.  The callback is given an opaque handle to the contended spinlock
-// and the number of wait cycles.  This is thread-safe, but only a single
-// profiler can be registered.  It is an error to call this function multiple
+// The callbacks are given an opaque handle to the contended spinlock and a
+// number of wait cycles as measured by
+// //absl/base/internal/cycleclock.h, which may not be real "cycle"
+// counts.  Registration is thread-safe, but only a single profiler can be
+// registered for each hook.  It is an error to call these functions multiple
 // times with different arguments.
-void RegisterSpinLockProfiler(void (*fn)(const void* lock,
-                                         int64_t wait_cycles));
+//
+// The function registered with RegisterSpinLockProfiler() is called when a
+// thread releases a spinlock whose acquisition was contended.  `wait_cycles` is
+// the time the releasing thread spent waiting to acquire the lock, as stored
+// in the lock word by its acquisition.
+void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull lock, int64_t wait_cycles));
+
+// The function registered with RegisterSpinLockLockProfiler() is called when a
+// thread acquires a spinlock that it could not acquire by spinning.
+// `wait_cycles` is the time for which the acquiring thread was blocked,
+// measured from the point at which it gave up spinning.  Acquisitions that
+// spinning resolves are not reported, so this undercounts the time spent
+// waiting for spinlocks by at most one spin per acquisition.
+void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull lock, int64_t wait_cycles));
 
 //------------------------------------------------------------------------------
 // Public interface ends here.

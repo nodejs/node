@@ -146,6 +146,11 @@ TEST_P(TurboshaftInstructionSelectorDPITest, Immediate) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Emit(dpi.op, m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
+    if (imm == 0 &&
+        (dpi.op == TSBinop::kWord32Add || dpi.op == TSBinop::kWord32Sub)) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
@@ -157,6 +162,10 @@ TEST_P(TurboshaftInstructionSelectorDPITest, Immediate) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Emit(dpi.op, m.Int32Constant(imm), m.Parameter(0)));
     Stream s = m.Build();
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.reverse_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
@@ -260,8 +269,14 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
+    if (imm == 0 &&
+        (dpi.op == TSBinop::kWord32Add || dpi.op == TSBinop::kWord32Sub)) {
+      EXPECT_EQ(kArmTst, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
+    }
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -276,8 +291,13 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      EXPECT_EQ(kArmTst, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
+    }
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -429,7 +449,11 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchIfZeroWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    }
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
@@ -446,7 +470,11 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchIfZeroWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    }
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
@@ -468,7 +496,11 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    }
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
@@ -486,7 +518,11 @@ TEST_P(TurboshaftInstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    if (imm == 0 && dpi.op == TSBinop::kWord32Add) {
+      EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    } else {
+      EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
+    }
     EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());

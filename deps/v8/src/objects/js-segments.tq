@@ -4,7 +4,7 @@
 
 #include 'src/objects/js-segments.h'
 
-@cppScope('JSSegments')
+@cppScope('JSSegments::Flags')
 bitfield struct JSSegmentsFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }

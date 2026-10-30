@@ -1,0 +1,6 @@
+Tests regress-131994.
+    var x = 3;  // Allocated in the local scope.
+    #debugger;  // Break.
+  };
+
+x -> 3

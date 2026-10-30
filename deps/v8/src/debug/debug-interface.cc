@@ -43,6 +43,8 @@ namespace debug {
 void SetContextId(Local<Context> context, int id) {
   auto v8_context = Utils::OpenDirectHandle(*context);
   auto* i_isolate = i::Isolate::Current();
+  Utils::ApiCheck(!i_isolate->serializer_enabled(), "v8::debug::SetContextId",
+                  "Cannot set debug context ID while creating a snapshot");
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   v8_context->set_debug_context_id(i::Smi::FromInt(id));
@@ -61,6 +63,9 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+  // Setting a passive V8Inspector pointer is allowed during snapshot creation
+  // (e.g. Blink's v8_context_snapshot_generator creates MainThreadDebugger).
+  // It does not allocate global/eternal handles or activate Debug.
   if (inspector == nullptr) {
     i_isolate->set_inspector(nullptr);
   } else {
@@ -82,9 +87,26 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
   // For large BigInts computing the decimal string representation
   // can take a long time, so we go with hexadecimal in that case.
   int radix = (i_bigint->Words64Count() > 100 * 1000) ? 16 : 10;
-  i::Handle<i::String> string_value =
-      i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
-          .ToHandleChecked();
+  i::Handle<i::String> string_value;
+  if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+           .ToHandle(&string_value)) {
+    // If ToString was interrupted by a termination request, clear the
+    // internal termination exception from V8 so subsequent allocations do
+    // not fail, but re-arm the stack guard so that termination will be
+    // delivered at the next interrupt check.
+    if (i_isolate->is_execution_terminating()) {
+      i_isolate->clear_internal_exception();
+      i_isolate->stack_guard()->RequestTerminateExecution();
+    }
+    // Retry with radix 16. Power-of-two radix conversion in the bigint
+    // processor uses the linear base-case algorithm which does not check
+    // InterruptRequested() and therefore cannot be interrupted.
+    radix = 16;
+    if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+             .ToHandle(&string_value)) {
+      return i_isolate->factory()->empty_string();
+    }
+  }
   if (radix == 16) {
     if (i_bigint->IsNegative()) {
       string_value =
@@ -141,7 +163,7 @@ Local<String> GetDateDescription(Local<Date> date) {
   auto buffer = i::ToDateString(jsdate->value(), i_isolate->date_cache(),
                                 i::ToDateStringMode::kLocalDateAndTime);
   return Utils::ToLocal(i_isolate->factory()
-                            ->NewStringFromUtf8(base::VectorOf(buffer))
+                            ->NewStringFromUtf8({buffer.data(), buffer.size()})
                             .ToHandleChecked());
 }
 
@@ -395,13 +417,15 @@ void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
   isolate->debug()->set_break_points_active(is_active);
 }
 
-void PrepareStep(Isolate* v8_isolate, StepAction action) {
+void PrepareStep(Isolate* v8_isolate, StepAction action, bool enter_functions) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8BasicScope api_scope(isolate);
   CHECK(isolate->debug()->CheckExecutionState());
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
   // Prepare step.
+  isolate->debug()->set_step_over_enters_functions(action == StepOver &&
+                                                   enter_functions);
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
@@ -415,6 +439,7 @@ bool PrepareRestartFrame(Isolate* v8_isolate, int callFrameOrdinal) {
 
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
   it.PrepareRestart();
   return true;
 }
@@ -424,14 +449,19 @@ void ClearStepping(Isolate* v8_isolate) {
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
 }
 
-void BreakRightNow(Isolate* v8_isolate,
+bool BreakRightNow(Isolate* v8_isolate,
                    base::EnumSet<debug::BreakReason> break_reasons) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8BasicScope api_scope(isolate);
-  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
-                                     break_reasons);
+  bool delivered = isolate->debug()->HandleDebugBreak(
+      i::kIgnoreIfAllFramesBlackboxed, break_reasons);
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    isolate->TerminateExecution();
+  }
+  return delivered;
 }
 
 void SetTerminateOnResume(Isolate* v8_isolate) {
@@ -497,8 +527,7 @@ bool Script::WasCompiled() const {
 }
 
 bool Script::IsEmbedded() const {
-  auto script = Utils::OpenDirectHandle(this);
-  return script->context_data() == i::GetReadOnlyRoots().uninitialized_symbol();
+  return Utils::OpenDirectHandle(this)->is_embedded();
 }
 
 int Script::Id() const { return Utils::OpenDirectHandle(this)->id(); }
@@ -583,13 +612,6 @@ MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::String> value =
       i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
-}
-
-Maybe<int> Script::ContextId() const {
-  auto script = Utils::OpenDirectHandle(this);
-  i::Tagged<i::Object> value = script->context_data();
-  if (IsSmi(value)) return Just(i::Smi::ToInt(value));
-  return {};
 }
 
 Local<ScriptSource> Script::Source() const {
@@ -1028,6 +1050,14 @@ void GetLoadedScripts(Isolate* v8_isolate,
   }
 }
 
+void GetContextScripts(
+    Isolate* v8_isolate,
+    std::map<int, std::unordered_set<int>>& context_scripts) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  isolate->debug()->GetContextScripts(context_scripts);
+}
+
 std::optional<v8::ScriptOrigin> GetScriptOrigin(Isolate* v8_isolate,
                                                 int script_id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -1100,6 +1130,11 @@ void LeaveDebuggingForIsolate(Isolate* v8_isolate) {
 
 void SetDebugDelegate(Isolate* v8_isolate, DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (delegate != nullptr) {
+    Utils::ApiCheck(!isolate->serializer_enabled(),
+                    "v8::debug::SetDebugDelegate",
+                    "Cannot set debug delegate while creating a snapshot");
+  }
   isolate->debug()->SetDebugDelegate(delegate);
 }
 
@@ -1173,7 +1208,7 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
       i::Factory::JSFunctionBuilder{isolate, info, context}
-          .set_map(isolate->strict_function_without_prototype_map())
+          .set_map(isolate->function_without_prototype_map())
           .Build();
 
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
@@ -1295,6 +1330,22 @@ bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value) {
   return info->has_side_effects();
 }
 
+bool IsBuiltinOrApiFunction(v8::Local<v8::Function> function) {
+  if (function.IsEmpty()) return false;
+  auto self = v8::Utils::OpenDirectHandle(*function);
+  if (!i::IsJSFunction(*self)) return false;
+  i::DirectHandle<i::JSFunction> js_function = i::Cast<i::JSFunction>(self);
+  i::Tagged<i::SharedFunctionInfo> shared = js_function->shared();
+  return (shared->HasBuiltinId() &&
+          shared->builtin_id() != i::Builtin::kCompileLazy) ||
+         shared->IsApiFunction();
+}
+
+bool IsBuiltinOrApiFunction(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsFunction()) return false;
+  return IsBuiltinOrApiFunction(value.As<v8::Function>());
+}
+
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
                              std::vector<v8::Global<v8::String>>* names) {
   auto context = Utils::OpenDirectHandle(*v8_context);
@@ -1371,6 +1422,22 @@ DisableBreakScope::DisableBreakScope(v8::Isolate* isolate)
           reinterpret_cast<i::Isolate*>(isolate)->debug())) {}
 
 DisableBreakScope::~DisableBreakScope() = default;
+
+SideEffectCheckScope::SideEffectCheckScope(v8::Isolate* isolate)
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
+      disable_break_scope_(
+          std::make_unique<i::DisableBreak>(isolate_->debug())) {
+  isolate_->debug()->StartSideEffectCheckMode();
+}
+
+SideEffectCheckScope::~SideEffectCheckScope() {
+  isolate_->debug()->StopSideEffectCheckMode();
+}
+
+// static
+bool SideEffectCheckScope::IsActive(v8::Isolate* isolate) {
+  return reinterpret_cast<i::Isolate*>(isolate)->should_check_side_effects();
+}
 
 int Coverage::BlockData::StartOffset() const { return block_->start; }
 

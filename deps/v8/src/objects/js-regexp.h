@@ -5,12 +5,14 @@
 #ifndef V8_OBJECTS_JS_REGEXP_H_
 #define V8_OBJECTS_JS_REGEXP_H_
 
+#include <array>
 #include <optional>
 #include <utility>
 
 #include "include/v8-regexp.h"
 #include "src/base/bit-field.h"
 #include "src/base/vector.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
 #include "src/objects/trusted-object.h"
@@ -80,10 +82,10 @@ V8_OBJECT class JSRegExp : public JSObject {
     return static_cast<Flag>(f);
   }
   static constexpr Flags AsJSRegExpFlags(regexp::Flags f) {
-    return Flags{static_cast<int>(f)};
+    return Flags{static_cast<Flags::mask_type>(f)};
   }
   static constexpr regexp::Flags AsRegExpFlags(Flags f) {
-    return regexp::Flags{static_cast<int>(f)};
+    return regexp::Flags{static_cast<regexp::Flags::mask_type>(f)};
   }
 
   static std::optional<regexp::Flag> FlagFromChar(char c) {
@@ -162,7 +164,7 @@ V8_OBJECT class JSRegExp : public JSObject {
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
 
-  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  using FlagsBuffer = std::array<char, kFlagCount + 1>;
   inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
 
   class BodyDescriptor;
@@ -174,8 +176,8 @@ V8_OBJECT class JSRegExp : public JSObject {
   friend class TorqueGeneratedJSRegExpAsserts;
 
  public:
-  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
-  TaggedMember<Object> flags_;
+  TrustedPointerMember<RegExpData, kRegExpDataTrustedPointerTag> data_;
+  TaggedMember<Object> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpFlags> | Undefined);
 } V8_OBJECT_END;
 
 inline constexpr int JSRegExp::kHeaderSize = sizeof(JSRegExp);
@@ -292,6 +294,8 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
 
 V8_OBJECT class RegExpDataWrapper : public Struct {
  public:
+  inline explicit RegExpDataWrapper(const AllocationWitness& witness);
+
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
   DECL_PRINTER(RegExpDataWrapper)
@@ -299,7 +303,7 @@ V8_OBJECT class RegExpDataWrapper : public Struct {
 
   class BodyDescriptor;
 
-  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  TrustedPointerMember<RegExpData, kRegExpDataTrustedPointerTag> data_;
 } V8_OBJECT_END;
 
 V8_OBJECT class AtomRegExpData : public RegExpData {
@@ -341,15 +345,20 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   inline int backtrack_limit() const;
   inline void set_backtrack_limit(int value);
 
-  inline uint32_t bit_field() const;
-  inline void set_bit_field(uint32_t value);
+  struct Bits : BitFieldGroup<Bits, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using CanBeZeroLengthBit = First<bool, 1>;
+    using IsLinearExecutableBit = CanBeZeroLengthBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(can_be_zero_length, CanBeZeroLengthBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_linear_executable, IsLinearExecutableBit)
+  };
+
+  inline Bits bit_field() const;
+  inline void set_bit_field(Bits value);
   DECL_BOOLEAN_ACCESSORS(can_be_zero_length)
   DECL_BOOLEAN_ACCESSORS(is_linear_executable)
-
-  struct Bits {
-    using CanBeZeroLengthBit = base::BitField<bool, 0, 1, uint32_t>;
-    using IsLinearExecutableBit = CanBeZeroLengthBit::Next<bool, 1>;
-  };
 
   bool CanTierUp();
   bool MarkedForTierUp();
@@ -379,7 +388,7 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   TaggedMember<Smi> capture_count_;
   TaggedMember<Smi> ticks_until_tier_up_;
   TaggedMember<Smi> backtrack_limit_;
-  TaggedMember<Smi> bit_field_;
+  SmiBitFieldMember<Bits> bit_field_;
 } V8_OBJECT_END;
 
 // JSRegExpResult is just a JSArray with a specific initial map.

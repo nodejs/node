@@ -258,7 +258,7 @@ bytecodes: [
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   29 S> */ B(Ldar), R(0),
   /*   29 E> */ B(StaCurrentContextSlotNoCell), C8(2),
-  /*   41 S> */ B(CreateClosure), U8(4:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   41 S> */ B(CreateClosure), U8(4:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star11),
   /*   67 E> */ B(CallUndefinedReceiver0), R(11), FBV(12),
                 B(PopContext), R(10),

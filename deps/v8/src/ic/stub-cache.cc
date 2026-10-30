@@ -4,6 +4,8 @@
 
 #include "src/ic/stub-cache.h"
 
+#include <algorithm>
+
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/heap/heap-inl.h"  // For InYoungGeneration().
@@ -18,12 +20,6 @@ StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   // Ensure the nullptr (aka Smi::zero()) which StubCache::Get() returns
   // when the entry is not found is not considered as a handler.
   DCHECK(!IC::IsHandler(Tagged<MaybeObject>()));
-}
-
-void StubCache::Initialize() {
-  DCHECK(base::bits::IsPowerOfTwo(kPrimaryTableSize));
-  DCHECK(base::bits::IsPowerOfTwo(kSecondaryTableSize));
-  Clear();
 }
 
 // Hash algorithm for the primary table. This algorithm is replicated in
@@ -93,15 +89,9 @@ void StubCache::Set(Tagged<Name> name, Tagged<Map> map,
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
-  Tagged<MaybeObject> old_handler(
-      TaggedValue::ToMaybeObject(isolate(), primary->value));
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  // We need SafeEquals here while Builtin Code objects still live in the RO
-  // space inside the sandbox.
-  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
-  if (!old_handler.SafeEquals(isolate()->builtins()->code(Builtin::kIllegal)) &&
-      !primary->map.IsSmi()) {
+  if (!primary->map.IsSmi()) {
     Tagged<Map> old_map =
         Cast<Map>(StrongTaggedValue::ToObject(isolate(), primary->map));
     Tagged<Name> old_name =
@@ -134,18 +124,8 @@ Tagged<MaybeObject> StubCache::Get(Tagged<Name> name, Tagged<Map> map) {
 }
 
 void StubCache::Clear() {
-  Tagged<MaybeObject> empty = isolate_->builtins()->code(Builtin::kIllegal);
-  Tagged<Name> empty_string = ReadOnlyRoots(isolate()).empty_string();
-  for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = StrongTaggedValue(empty_string);
-    primary_[i].map = StrongTaggedValue(Smi::zero());
-    primary_[i].value = TaggedValue(empty);
-  }
-  for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = StrongTaggedValue(empty_string);
-    secondary_[j].map = StrongTaggedValue(Smi::zero());
-    secondary_[j].value = TaggedValue(empty);
-  }
+  std::ranges::fill(primary_, Entry{});
+  std::ranges::fill(secondary_, Entry{});
 }
 
 }  // namespace internal

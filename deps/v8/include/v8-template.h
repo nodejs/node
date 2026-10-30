@@ -104,7 +104,7 @@ class V8_EXPORT Template : public Data {
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallbackV2 setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -114,7 +114,7 @@ class V8_EXPORT Template : public Data {
    */
   void SetLazyDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -216,11 +216,6 @@ using NamedPropertyGetterCallback = Intercepted (*)(
 using NamedPropertySetterCallbackV2 =
     Intercepted (*)(Local<Name> property, Local<Value> value,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using NamedPropertySetterCallback  //
-    V8_DEPRECATE_SOON("Use NamedPropertySetterCallbackV2 instead.") =
-        Intercepted (*)(Local<Name> property, Local<Value> value,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * Intercepts all requests that query the attributes of the property,
@@ -316,11 +311,6 @@ using NamedPropertyEnumeratorCallback =
 using NamedPropertyDefinerCallbackV2 =
     Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using NamedPropertyDefinerCallback  //
-    V8_DEPRECATE_SOON("Use NamedPropertyDefinerCallbackV2 instead.") =
-        Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * Interceptor for [[GetOwnProperty]] requests on an object.
@@ -351,10 +341,6 @@ using NamedPropertyDescriptorCallback = Intercepted (*)(
  */
 using IndexedPropertyGetterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyGetterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyGetterCallback instead.") =
-        IndexedPropertyGetterCallback;
 
 /**
  * See `v8::NamedPropertySetterCallback`.
@@ -362,31 +348,18 @@ using IndexedPropertyGetterCallbackV2  //
 using IndexedPropertySetterCallback =
     Intercepted (*)(uint32_t index, Local<Value> value,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertySetterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertySetterCallback instead.") =
-        Intercepted (*)(uint32_t index, Local<Value> value,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * See `v8::NamedPropertyQueryCallback`.
  */
 using IndexedPropertyQueryCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyQueryCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyQueryCallback instead.") =
-        IndexedPropertyQueryCallback;
 
 /**
  * See `v8::NamedPropertyDeleterCallback`.
  */
 using IndexedPropertyDeleterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDeleterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDeleterCallback instead.") =
-        IndexedPropertyDeleterCallback;
 
 /**
  * Returns an array containing the indices of the properties the indexed
@@ -403,21 +376,12 @@ using IndexedPropertyEnumeratorCallback =
 using IndexedPropertyDefinerCallback =
     Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDefinerCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDefinerCallback instead.") =
-        Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * See `v8::NamedPropertyDescriptorCallback`.
  */
 using IndexedPropertyDescriptorCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDescriptorCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDescriptorCallback instead.") =
-        IndexedPropertyDescriptorCallback;
 
 /**
  * Experimental API, do not use!
@@ -554,7 +518,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(
       Isolate* isolate, FunctionCallback callback = nullptr,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
@@ -565,7 +529,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
       Isolate* isolate, FunctionCallback callback = nullptr,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
@@ -576,7 +540,7 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   static Local<FunctionTemplate> NewWithCache(
       Isolate* isolate, FunctionCallback callback,
-      Local<Private> cache_property, Local<Value> data = Local<Value>(),
+      Local<Private> cache_property, Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -765,7 +729,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyEnumeratorCallback enumerator,  //
       NamedPropertyDefinerCallbackV2 definer,      //
       NamedPropertyDescriptorCallback descriptor,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -783,7 +747,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyQueryCallback query = nullptr,            //
       NamedPropertyDeleterCallback deleter = nullptr,        //
       NamedPropertyEnumeratorCallback enumerator = nullptr,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -802,7 +766,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
       NamedPropertyDefinerCallbackV2 definer,      //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -821,7 +785,7 @@ struct NamedPropertyHandlerConfiguration {
   NamedPropertyEnumeratorCallback enumerator;
   NamedPropertyDefinerCallbackV2 definer;
   NamedPropertyDescriptorCallback descriptor;
-  Local<Value> data;
+  Local<Data> data;
   PropertyHandlerFlags flags;
 };
 
@@ -844,7 +808,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyEnumeratorCallback enumerator,  //
       IndexedPropertyDefinerCallback definer,        //
       IndexedPropertyDescriptorCallback descriptor,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -862,7 +826,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyQueryCallback query = nullptr,            //
       IndexedPropertyDeleterCallback deleter = nullptr,        //
       IndexedPropertyEnumeratorCallback enumerator = nullptr,  //
-      Local<Value> data = Local<Value>(),                      //
+      Local<Data> data = Local<Data>(),                        //
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -881,7 +845,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDeleterCallback deleter,        //
       IndexedPropertyEnumeratorCallback enumerator,  //
       IndexedPropertyDefinerCallback definer,        //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -904,7 +868,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDefinerCallback definer,        //
       IndexedPropertyDescriptorCallback descriptor,  //
       IndexedPropertyIndexOfCallback index_of,       //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -928,7 +892,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDescriptorCallback descriptor,  //
       IndexedPropertyIndexOfCallback index_of,       //
       IndexedPropertyIterableToListCallback iterable_to_list,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -951,7 +915,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyDescriptorCallback descriptor;
   IndexedPropertyIndexOfCallback index_of = nullptr;
   IndexedPropertyIterableToListCallback iterable_to_list = nullptr;
-  Local<Value> data;
+  Local<Data> data;
   PropertyHandlerFlags flags;
 };
 
@@ -1007,7 +971,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * function.
    */
   void SetCallAsFunctionHandler(FunctionCallback callback,
-                                Local<Value> data = Local<Value>());
+                                Local<Data> data = Local<Data>());
 
   /**
    * Mark object instances of the template as undetectable.

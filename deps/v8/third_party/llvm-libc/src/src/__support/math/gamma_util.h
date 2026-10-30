@@ -9,7 +9,6 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_GAMMA_UTIL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_GAMMA_UTIL_H
 
-#include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/macros/attributes.h"
@@ -20,19 +19,6 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
 namespace gamma_internal {
-
-template <typename T> LIBC_INLINE constexpr bool is_integer(T x) {
-  using FPBits = fputil::FPBits<T>;
-  using StorageType = typename FPBits::StorageType;
-  FPBits xbits(x);
-  StorageType x_u = xbits.uintval();
-  unsigned x_e = static_cast<unsigned>(xbits.get_biased_exponent());
-  unsigned lsb = static_cast<unsigned>(
-      cpp::countr_zero(static_cast<StorageType>(x_u | FPBits::EXP_MASK)));
-  constexpr unsigned UNIT_EXPONENT =
-      static_cast<unsigned>(FPBits::EXP_BIAS + FPBits::FRACTION_LEN);
-  return x_e + lsb >= UNIT_EXPONENT;
-}
 
 // sin(pi*x) for x in (0, 1), written as (0.25 - u^2) * P(u^2) where u = x-0.5.
 // Coefficients for P are a degree-7 polynomial in u^2

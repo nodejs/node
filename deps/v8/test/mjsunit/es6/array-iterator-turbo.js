@@ -193,15 +193,16 @@ let tests = {
       }
     };
 
+    function sum_template(array) {
+      let ret = 0;
+      for (let x of array) ret += x;
+      return ret;
+    }
+
     for (let key of Object.keys(tests)) {
       let test = tests[key];
       let { array, expected, array2, expected2 } = test;
-
-      let sum = function(array) {
-        let ret = 0;
-        for (let x of array) ret += x;
-        return ret;
-      };
+      let sum = copyFunctionWithFreshFeedback(sum_template);
 
       // Warmup
       %PrepareFunctionForOptimization(sum);
@@ -221,10 +222,6 @@ let tests = {
       let clone = new array.constructor(array);
       %ArrayBufferDetach(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
-
-      // Clear the slate for the next iteration.
-      %DeoptimizeFunction(sum);
-      %ClearFunctionFeedback(sum);
     }
   }
 };

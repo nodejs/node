@@ -76,7 +76,7 @@ macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
   const descriptors: DescriptorArray =
       UnsafeCast<DescriptorArray>(map.instance_descriptors);
   const descriptor:&DescriptorEntry =
-      &descriptors.descriptors[kLengthDescriptorIndex];
+      &descriptors.entries[kLengthDescriptorIndex];
   dcheck(TaggedEqual(descriptor->key, LengthStringConstant()));
   const details: Smi = UnsafeCast<Smi>(descriptor->details);
   if ((details & kAttributesReadOnlyMask) != 0) {

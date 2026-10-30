@@ -91,14 +91,14 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
 V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  if (!m_terminateExecutionCallbackContext.IsEmpty()) {
-    v8::HandleScope handles(m_isolate);
-    v8::MicrotaskQueue* microtask_queue =
-        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
+  if (v8::MicrotaskQueue* microtask_queue =
+          m_terminateExecutionCallbackMicrotaskQueue.Get()) {
     microtask_queue->RemoveMicrotasksCompletedCallback(
         &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
         microtask_queue);
   }
+  m_terminateExecutionCallbackMicrotaskQueue.Clear();
+  m_terminateExecutionCallbackContext.Reset();
 }
 
 void V8Debugger::enable() {
@@ -157,20 +157,35 @@ bool V8Debugger::enabled() const { return m_enableCount > 0; }
 
 std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
     int contextGroupId, V8DebuggerAgentImpl* agent) {
+  DCHECK_NE(contextGroupId, 0);
   std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
   std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(m_isolate, scripts);
+  std::map<int, std::unordered_set<int>> contextScripts;
+  v8::debug::GetContextScripts(m_isolate, contextScripts);
   for (size_t i = 0; i < scripts.size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts[i].Get(m_isolate);
     if (!script->WasCompiled()) continue;
+    int contextId = 0;
     if (!script->IsEmbedded()) {
-      int contextId;
-      if (!script->ContextId().To(&contextId)) continue;
-      if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
+      int scriptId = script->Id();
+      for (const auto& [candidateContextId, scriptIds] : contextScripts) {
+        if (m_inspector->contextGroupId(candidateContextId) != contextGroupId) {
+          continue;
+        }
+        std::shared_ptr<InspectedContext> context =
+            m_inspector->getContext(candidateContextId);
+        if (!context || context->context().IsEmpty()) continue;
+        if (scriptIds.find(scriptId) != scriptIds.end()) {
+          contextId = candidateContextId;
+          break;
+        }
+      }
+      if (!contextId) continue;
     }
     result.push_back(std::make_unique<V8DebuggerScript>(
-        m_isolate, script, false, agent, m_inspector->client()));
+        m_isolate, script, false, contextId, agent, m_inspector->client()));
   }
   return result;
 }
@@ -281,11 +296,13 @@ void V8Debugger::continueProgram(int targetContextGroupId,
     } else if (terminateOnResume) {
       v8::debug::SetTerminateOnResume(m_isolate);
 
-      v8::HandleScope handles(m_isolate);
-      v8::Local<v8::Context> context =
-          m_inspector->client()->ensureDefaultContextInGroup(
-              targetContextGroupId);
-      installTerminateExecutionCallbacks(context);
+      if (m_terminateExecutionReported) {
+        v8::HandleScope handles(m_isolate);
+        v8::Local<v8::Context> context =
+            m_inspector->client()->ensureDefaultContextInGroup(
+                targetContextGroupId);
+        installTerminateExecutionCallbacks(context);
+      }
 
       m_inspector->client()->quitMessageLoopOnPause();
     } else {
@@ -297,6 +314,7 @@ void V8Debugger::continueProgram(int targetContextGroupId,
 void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
   if (!enabled()) return;
   if (m_pauseOnExceptionsState == v8::debug::NoBreakOnException) return;
+  if (m_isolate->IsExecutionTerminating()) return;
   // Don't allow nested breaks.
   if (isPaused()) return;
   if (!canBreakProgram()) return;
@@ -316,11 +334,12 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId,
   continueProgram(targetContextGroupId);
 }
 
-void V8Debugger::stepOverStatement(int targetContextGroupId) {
+void V8Debugger::stepOverStatement(int targetContextGroupId,
+                                   bool enterFunctions) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
-  v8::debug::PrepareStep(m_isolate, v8::debug::StepOver);
+  v8::debug::PrepareStep(m_isolate, v8::debug::StepOver, enterFunctions);
   continueProgram(targetContextGroupId);
 }
 
@@ -352,13 +371,17 @@ void V8Debugger::installTerminateExecutionCallbacks(
   m_isolate->AddCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
 
+  m_terminateExecutionCallbackMicrotaskQueue.Clear();
   if (!context.IsEmpty()) {
     m_terminateExecutionCallbackContext.Reset(m_isolate, context);
     m_terminateExecutionCallbackContext.SetWeak();
     v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
-    microtask_queue->AddMicrotasksCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-        microtask_queue);
+    if (microtask_queue) {
+      m_terminateExecutionCallbackMicrotaskQueue = microtask_queue;
+      microtask_queue->AddMicrotasksCompletedCallback(
+          &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+          microtask_queue);
+    }
   }
 
   DCHECK(m_terminateExecutionReported);
@@ -373,15 +396,13 @@ void V8Debugger::reportTermination() {
   v8::HandleScope handles(m_isolate);
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  if (!m_terminateExecutionCallbackContext.IsEmpty()) {
-    v8::MicrotaskQueue* microtask_queue =
-        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
-    if (microtask_queue) {
-      microtask_queue->RemoveMicrotasksCompletedCallback(
-          &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-          microtask_queue);
-    }
+  if (v8::MicrotaskQueue* microtask_queue =
+          m_terminateExecutionCallbackMicrotaskQueue.Get()) {
+    microtask_queue->RemoveMicrotasksCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+        microtask_queue);
   }
+  m_terminateExecutionCallbackMicrotaskQueue.Clear();
   m_isolate->CancelTerminateExecution();
   if (m_terminateExecutionCallback) {
     m_terminateExecutionCallback->sendSuccess();
@@ -394,6 +415,7 @@ void V8Debugger::reportTermination() {
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+  if (!inspector) return;
   V8Debugger* debugger = inspector->debugger();
   debugger->reportTermination();
 }
@@ -524,6 +546,11 @@ void V8Debugger::handleProgramBreak(
   DCHECK(contextGroupId);
   m_pausedContextGroupId = contextGroupId;
 
+  // Breaks scheduled through an API interrupt (Debugger.pause, OOM) arrive
+  // here with JavaScript execution disallowed. Like the pause message loop,
+  // the paused and resumed notifications can reach an embedder channel that
+  // runs JavaScript.
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(m_isolate);
   m_inspector->forEachSession(
       contextGroupId,
       [&pausedContext, &exception, &breakpointIds, &exceptionType, &isUncaught,
@@ -535,7 +562,6 @@ void V8Debugger::handleProgramBreak(
         }
       });
   {
-    v8::Isolate::AllowJavascriptExecutionScope allow_script(m_isolate);
     v8::Context::Scope scope(pausedContext);
 
     m_inspector->forEachSession(
@@ -587,15 +613,25 @@ size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
   thisPtr->m_targetContextGroupId =
       context.IsEmpty() ? 0 : thisPtr->m_inspector->contextGroupId(context);
   thisPtr->m_isolate->RequestInterrupt(
-      [](v8::Isolate* isolate, void*) {
-        // There's a redundancy  between setting `m_scheduledOOMBreak` and
+      [](v8::Isolate* isolate, void* data) {
+        V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
+        // There's a redundancy between setting `m_scheduledOOMBreak` and
         // passing the reason along in `BreakRightNow`. The
         // `m_scheduledOOMBreak` is used elsewhere, so we cannot remove it. And
         // for being explicit, we still pass the break reason along.
-        v8::debug::BreakRightNow(
+        bool delivered = v8::debug::BreakRightNow(
             isolate, v8::debug::BreakReasons({v8::debug::BreakReason::kOOM}));
+        // If the break was dropped (e.g. breaks disabled, ignore_events, or
+        // stack overflow), clear m_scheduledOOMBreak so a future
+        // near-heap-limit callback can schedule another break attempt.
+        if (!delivered && thisPtr->m_scheduledOOMBreak) {
+          // RestoreOriginalHeapLimit is a no-op in V8, so the limit stays
+          // raised.
+          thisPtr->m_isolate->RestoreOriginalHeapLimit();
+          thisPtr->m_scheduledOOMBreak = false;
+        }
       },
-      nullptr);
+      thisPtr);
   return HeapLimitForDebugging(initial_heap_limit);
 }
 
@@ -603,20 +639,21 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool has_compile_error) {
   if (m_ignoreScriptParsedEventsCounter != 0) return;
 
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return;
+  if (!m_isolate->InContext()) return;
+  int contextId = InspectedContext::contextId(m_isolate->GetCurrentContext());
+  if (!contextId) return;
 
   v8::Isolate* isolate = m_isolate;
   V8InspectorClient* client = m_inspector->client();
 
   m_inspector->forEachSession(
       m_inspector->contextGroupId(contextId),
-      [isolate, &script, has_compile_error,
+      [isolate, &script, has_compile_error, contextId,
        client](V8InspectorSessionImpl* session) {
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         agent->didParseSource(std::make_unique<V8DebuggerScript>(
-            isolate, script, has_compile_error, agent, client));
+            isolate, script, has_compile_error, contextId, agent, client));
       });
 }
 
@@ -697,15 +734,14 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                       const v8::debug::Location& start,
                                       const v8::debug::Location& end) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return false;
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
   bool hasAgents = false;
   bool allBlackboxed = true;
   String16 scriptId = String16::fromInteger(script->Id());
   m_inspector->forEachSession(
-      m_inspector->contextGroupId(contextId),
-      [&hasAgents, &allBlackboxed, &scriptId, &start,
-       &end](V8InspectorSessionImpl* session) {
+      contextGroupId, [&hasAgents, &allBlackboxed, &scriptId, &start,
+                       &end](V8InspectorSessionImpl* session) {
         V8DebuggerAgentImpl* agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         hasAgents = true;
@@ -716,16 +752,15 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
 
 bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                                  int column) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return false;
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
 
   bool hasAgents = false;
   bool allShouldBeSkipped = true;
   String16 scriptId = String16::fromInteger(script->Id());
   m_inspector->forEachSession(
-      m_inspector->contextGroupId(contextId),
-      [&hasAgents, &allShouldBeSkipped, &scriptId, line,
-       column](V8InspectorSessionImpl* session) {
+      contextGroupId, [&hasAgents, &allShouldBeSkipped, &scriptId, line,
+                       column](V8InspectorSessionImpl* session) {
         V8DebuggerAgentImpl* agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         hasAgents = true;
@@ -733,6 +768,22 @@ bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
         allShouldBeSkipped &= skip;
       });
   return hasAgents && allShouldBeSkipped;
+}
+
+bool V8Debugger::ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                                     const v8::debug::Location& start,
+                                     const v8::debug::Location& end) {
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
+  bool shouldEnter = false;
+  String16 scriptId = String16::fromInteger(script->Id());
+  m_inspector->forEachSession(
+      contextGroupId, [&](V8InspectorSessionImpl* session) {
+        V8DebuggerAgentImpl* agent = session->debuggerAgent();
+        if (!agent->enabled()) return;
+        shouldEnter |= agent->shouldEnterFunction(scriptId, start, end);
+      });
+  return shouldEnter;
 }
 
 void V8Debugger::BreakpointConditionEvaluated(
@@ -850,7 +901,8 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   };
   for (; iterator && !iterator->Done(); advance()) {
     if (iterator->GetType() != v8::debug::ScopeIterator::ScopeTypeLocal &&
-        !iterator->DeclaresLocals()) {
+        iterator->GetVariableInfo() ==
+            v8::debug::ScopeIterator::VariableInfo::kEmpty) {
       continue;
     }
     v8::Local<v8::Object> scope = v8::Object::New(m_isolate);
@@ -1479,9 +1531,9 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
       toProtocolString(isolate(), v8Frame->GetScriptNameOrSourceURL());
   auto hasSourceURLComment =
       v8Frame->GetScriptName() != v8Frame->GetScriptNameOrSourceURL();
-  stackFrame = std::make_shared<StackFrame>(std::move(functionName), scriptId,
-                                            std::move(sourceURL), lineNumber,
-                                            columnNumber, hasSourceURLComment);
+  stackFrame = std::make_shared<StackFrame>(
+      std::move(functionName), scriptId, std::move(sourceURL), lineNumber,
+      columnNumber, hasSourceURLComment, v8Frame->IsScriptOpaque());
   m_cachedStackFrames.emplace(key, stackFrame);
   return stackFrame;
 }

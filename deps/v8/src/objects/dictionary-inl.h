@@ -212,16 +212,16 @@ DirectHandle<Map> NameDictionary::GetMap(RootsTable& roots) {
   return roots.name_dictionary_map();
 }
 
-uint32_t NameDictionary::flags() const {
-  return Smi::ToInt(this->get(kFlagsIndex));
+NameDictionary::Flags NameDictionary::flags() const {
+  return Flags(Smi::ToInt(this->get(kFlagsIndex)));
 }
 
-void NameDictionary::set_flags(uint32_t flags) {
-  this->set(kFlagsIndex, Smi::FromInt(flags));
+void NameDictionary::set_flags(Flags flags) {
+  this->set(kFlagsIndex, Smi::FromInt(flags.value()));
 }
 
 BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
-                    NameDictionary::MayHaveInterestingPropertiesBit)
+                    NameDictionary::Flags::MayHaveInterestingPropertiesBit)
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(InternalIndex entry) {
   DCHECK(IsPropertyCell(KeyAt(entry)));

@@ -47,8 +47,12 @@ from .cases import gen_case, gen_flags, gen_subject
 from .profiles import PROFILES, parse_weights
 from .registry import Context, GrammarError, all_rules, expand
 
+# Match foozzie's staged syntax support. See README.md for flag overrides.
+D8_FLAGS = ("--js-staging",)
+
 __all__ = [
     "Context",
+    "D8_FLAGS",
     "GrammarError",
     "PROFILES",
     "all_rules",

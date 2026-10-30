@@ -35,13 +35,18 @@
 #ifndef ABSL_META_TYPE_TRAITS_H_
 #define ABSL_META_TYPE_TRAITS_H_
 
+#include <limits.h>
+
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <typeindex>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -65,6 +70,10 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+#ifndef ABSL_USES_STD_STRING_VIEW
+class string_view;
+#endif
 
 namespace type_traits_internal {
 
@@ -243,9 +252,7 @@ using remove_cvref_t = std::remove_cvref_t<T>;
 // C++17 compatible implementation of std::remove_cvref which was added in
 // C++20.
 template <typename T>
-struct remove_cvref {
-  using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
+using remove_cvref = std::remove_cv<std::remove_reference_t<T>>;
 
 template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
@@ -262,9 +269,7 @@ using type_identity_t = std::type_identity_t<T>;
 //
 // Back-fill of C++20's `std::type_identity`.
 template <typename T>
-struct type_identity {
-  typedef T type;
-};
+using type_identity = std::enable_if<true, T>;
 
 // type_identity_t
 //
@@ -632,6 +637,97 @@ using IsLifetimeBoundAssignment =
     std::conjunction<std::bool_constant<!std::is_lvalue_reference_v<U>>,
                      IsOwner<absl::remove_cvref_t<U>>,
                      IsView<absl::remove_cvref_t<T>>>;
+
+template <class T>
+using HasTrivialCopyAndMove =
+    std::bool_constant<std::is_trivially_copy_constructible_v<T> &&
+                       std::is_trivially_move_constructible_v<T>>;
+
+// In principle, being trivially copy- and move-constructible is sufficient
+// (though not necessary) for proving copy and move equivalence. However, we
+// can't even test that for all types, because not all types are complete at the
+// point of evaluation of this trait. Therefore, we restrict this trait to a
+// subset of common types that we know to be complete at the point of evaluation
+// of this trait.
+template <class T>
+inline constexpr bool kIsMoveSameAsCopy =
+    HasTrivialCopyAndMove<std::conditional_t<
+        std::is_class_v<T> || std::is_union_v<T>, void, T>>::value;
+
+template <class T, class Traits>
+inline constexpr bool kIsMoveSameAsCopy<std::basic_string_view<T, Traits>> =
+    std::is_trivially_copy_constructible_v<std::basic_string_view<T, Traits>>;
+
+template <class T, size_t N>
+inline constexpr bool kIsMoveSameAsCopy<std::array<T, N>> =
+    kIsMoveSameAsCopy<T>;
+
+template <class T>
+inline constexpr bool kIsMoveSameAsCopy<std::optional<T>> =
+    kIsMoveSameAsCopy<T>;
+
+template <class T1, class T2>
+inline constexpr bool kIsMoveSameAsCopy<std::pair<T1, T2>> =
+    kIsMoveSameAsCopy<T1> && kIsMoveSameAsCopy<T2>;
+
+template <class... T>
+inline constexpr bool kIsMoveSameAsCopy<std::tuple<T...>> =
+    (true && ... && kIsMoveSameAsCopy<T>);
+
+template <>
+inline constexpr bool kIsMoveSameAsCopy<std::type_index> = true;
+
+template <class... T>
+inline constexpr bool kIsMoveSameAsCopy<std::variant<T...>> =
+    (true && ... && kIsMoveSameAsCopy<T>);
+
+#ifndef ABSL_USES_STD_STRING_VIEW
+template <>
+inline constexpr bool kIsMoveSameAsCopy<absl::string_view> =
+    kIsMoveSameAsCopy<std::string_view>;
+#endif
+
+template <class Alloc>
+using IsDefaultAlloc = std::is_same<
+    std::allocator<typename std::allocator_traits<Alloc>::value_type>,
+    typename std::allocator_traits<Alloc>::template rebind_alloc<
+        typename std::allocator_traits<Alloc>::value_type>>;
+
+template <class T, class Alloc = std::allocator<T>>
+using IsAllocMoveSameAsCopy =
+    std::bool_constant<type_traits_internal::kIsMoveSameAsCopy<
+        std::conditional_t<IsDefaultAlloc<Alloc>::value, T, void>>>;
+
+template <class T>
+using ShouldStructurallyPreferPassByValue = std::bool_constant<
+    // Check if size is a power of 2, to ensure cheap calls.
+    (sizeof(T) & (sizeof(T) - 1)) == 0 &&
+    // Check if copying 1-2 registers is enough. We don't want (for example) 32
+    // one-byte values to move around, since that sometimes results in poor
+    // codegen.
+    alignof(T) * 2 >= sizeof(T) &&
+    sizeof(T) <= sizeof(std::pair<void*, size_t>)>;
+
+// Checks the given type to see if it is a good candidate for accepting by value
+// instead of by rvalue-reference. This includes both a semantic constraint
+// (to ensure correctness), as well as a structural constraint (to ensure
+// performance).
+template <class T>
+using ShouldPreferPassByValueOverRRef = ShouldStructurallyPreferPassByValue<
+    std::conditional_t<std::is_trivially_move_constructible_v<T> &&
+                           std::is_trivially_destructible_v<T>,
+                       T, char[SHRT_MAX]>>;
+
+// As above, but for const-lvalue-reference.
+template <class T>
+using ShouldPreferPassByValueOverConstRef =
+    std::bool_constant<ShouldPreferPassByValueOverRRef<T>::value &&
+                       std::is_trivially_copy_constructible_v<T>>;
+
+template <class T>
+using AddConstRefIfExpensiveToCopy =
+    std::conditional_t<ShouldPreferPassByValueOverConstRef<T>::value, T,
+                       std::add_lvalue_reference_t<std::add_const_t<T>>>;
 
 }  // namespace type_traits_internal
 

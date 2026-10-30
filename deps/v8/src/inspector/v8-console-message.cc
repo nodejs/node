@@ -125,6 +125,7 @@ class V8ValueStringBuilder {
       if (object->ObjectProtoToString(m_context).ToLocal(&stringValue)) {
         return append(stringValue);
       }
+      if (m_tryCatch.HasTerminated()) return false;
     }
     v8::Local<v8::String> stringValue;
     if (!value->ToString(m_context).ToLocal(&stringValue)) return false;
@@ -145,8 +146,15 @@ class V8ValueStringBuilder {
     for (uint32_t i = 0; i < length; ++i) {
       if (i) m_builder.append(',');
       v8::Local<v8::Value> value;
-      if (!array->Get(m_context, i).ToLocal(&value)) continue;
-      if (!append(value, IgnoreNull | IgnoreUndefined)) {
+      if (!array->Get(m_context, i).ToLocal(&value)) {
+        if (m_tryCatch.HasTerminated()) {
+          result = false;
+          break;
+        }
+        continue;
+      }
+      if (!append(value, IgnoreNull | IgnoreUndefined) ||
+          m_tryCatch.HasTerminated()) {
         result = false;
         break;
       }
@@ -267,6 +275,11 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   if (!inspectedContext) return nullptr;
 
   v8::Isolate* isolate = inspectedContext->isolate();
+  // Wrapping the arguments can run JavaScript (i.e. getters while building
+  // previews or custom formatters), which might terminate execution. Don't
+  // call into V8 anymore in that case, since the next V8 API call would clear
+  // the pending termination exception.
+  if (isolate->IsExecutionTerminating()) return nullptr;
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
 
@@ -287,6 +300,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
         if (array->Set(context, 0, secondArgument).IsJust()) {
           columns = array;
         }
+        if (tryCatch.HasTerminated()) return nullptr;
       }
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
@@ -480,6 +494,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   }
   bool sep = false;
   for (v8::Local<v8::Value> arg : arguments) {
+    if (isolate->IsExecutionTerminating()) break;
     if (sep) {
       message->m_message += String16(" ");
     } else {
@@ -604,6 +619,18 @@ void V8ConsoleMessageStorage::addMessage(
       inspector->consoleMessageStorage(contextGroupId);
   if (!inspectorStorage || inspectorStorage->id() != currentId) {
     return;
+  }
+
+  // Notifying the sessions above can run arbitrary JavaScript (i.e. custom
+  // formatters when generating previews for the message arguments), which
+  // might destroy the context that the message belongs to. In that case
+  // contextDestroyed() was already called on this storage, but since the
+  // message is not yet in m_messages, its arguments were not released, and
+  // would keep objects from the destroyed context alive. So we release them
+  // here, just like contextDestroyed() would have done.
+  if (int contextId = message->contextId();
+      contextId && inspector->contextGroupId(contextId) != contextGroupId) {
+    message->contextDestroyed(contextId);
   }
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);

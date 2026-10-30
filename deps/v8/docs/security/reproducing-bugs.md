@@ -10,6 +10,7 @@ Reproductions (POCs) should work on `d8`.
 To help identify whether a bug is a valid vulnerability or a regular correctness bug, various flags are used to filter out configurations that are not relevant for security testing.
 
 The recommended way to verify if a bug is a security vulnerability is to run the reproduction with `--run-as-security-poc` as first argument in addition to any provided flags.
+While security impact is always reasoned about against a release configuration, reproducing a `DCHECK` failure in a debugging build with `--run-as-security-poc` is sufficient and the unmodified POC does not need to crash a release build.
 If the crash still occurs with this flag enabled, it is likely a valid security vulnerability (**Type=Vulnerability**).
 
 ### Fine-grained control over configurations

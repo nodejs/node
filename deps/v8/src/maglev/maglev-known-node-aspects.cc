@@ -65,20 +65,6 @@ void TraceMerge(ValueNode* node, NodeInfo& lhs, const NodeInfo& rhs) {
   std::cout << " (stale=" << rhs.maps_are_stale() << ")" << std::endl;
 }
 
-struct DefaultMergeFunc {
-  template <typename Key, typename Value>
-  bool operator()(const Key&, const Value& lhs, const Value& rhs) {
-    return lhs == rhs;
-  }
-};
-
-struct NeverKeepLhsOnly {
-  template <typename Key, typename Value>
-  bool operator()(const Key&, Value&) {
-    return false;
-  }
-};
-
 // Destructively merges the right map into the left map, such that the left
 // map is mutated to become the result. Values that are in both maps are
 // passed to `merge` to be merged with each other -- the LHS here is expected
@@ -88,60 +74,11 @@ struct NeverKeepLhsOnly {
 // ascending order.
 template <typename Key, typename Value, typename MergeFunc,
           typename KeepLhsOnlyFunc>
-void DestructivelyMerge(ZoneMap<Key, Value>& lhs_map,
-                        const ZoneMap<Key, Value>& rhs_map, MergeFunc&& merge,
+void DestructivelyMerge(KnaMap<Key, Value>& lhs_map,
+                        const KnaMap<Key, Value>& rhs_map, MergeFunc&& merge,
                         KeepLhsOnlyFunc&& keep_lhs_only) {
-  // Walk the two maps in lock step. This relies on the fact that ZoneMaps are
-  // sorted.
-  typename ZoneMap<Key, Value>::iterator lhs_it = lhs_map.begin();
-  typename ZoneMap<Key, Value>::const_iterator rhs_it = rhs_map.begin();
-  while (lhs_it != lhs_map.end() && rhs_it != rhs_map.end()) {
-    if (lhs_it->first < rhs_it->first) {
-      if (keep_lhs_only(lhs_it->first, lhs_it->second)) {
-        ++lhs_it;
-      } else {
-        lhs_it = lhs_map.erase(lhs_it);
-      }
-    } else if (rhs_it->first < lhs_it->first) {
-      // Skip over elements that are only in RHS.
-      ++rhs_it;
-    } else {
-      // Apply the merge function to the values of the two iterators. If the
-      // function returns false, remove the value.
-      bool keep_value = merge(lhs_it->first, lhs_it->second, rhs_it->second);
-      if constexpr (std::is_same_v<decltype(lhs_it->second), ValueNode*>) {
-        if (!keep_value && lhs_it->second && rhs_it->second) {
-          auto l = lhs_it->second->UnwrapIdentities();
-          auto r = rhs_it->second->UnwrapIdentities();
-          if (l != lhs_it->second || r != rhs_it->second) {
-            lhs_it->second = l;
-            keep_value = merge(lhs_it->first, l, r);
-          }
-        }
-      }
-      if (keep_value) {
-        ++lhs_it;
-      } else {
-        lhs_it = lhs_map.erase(lhs_it);
-      }
-      ++rhs_it;
-    }
-  }
-  // The remaining LHS items have no RHS counterpart.
-  if constexpr (std::is_same_v<std::decay_t<KeepLhsOnlyFunc>,
-                               NeverKeepLhsOnly>) {
-    if (lhs_it != lhs_map.end()) {
-      lhs_map.erase(lhs_it, lhs_map.end());
-    }
-  } else {
-    while (lhs_it != lhs_map.end()) {
-      if (keep_lhs_only(lhs_it->first, lhs_it->second)) {
-        ++lhs_it;
-      } else {
-        lhs_it = lhs_map.erase(lhs_it);
-      }
-    }
-  }
+  lhs_map.DestructivelyMergeWith(rhs_map, std::forward<MergeFunc>(merge),
+                                 std::forward<KeepLhsOnlyFunc>(keep_lhs_only));
 }
 
 // Destructively intersects the right map into the left map, such that the
@@ -149,8 +86,8 @@ void DestructivelyMerge(ZoneMap<Key, Value>& lhs_map,
 // are in both maps are passed to the merging function to be merged with each
 // other -- again, the LHS here is expected to be mutated.
 template <typename Key, typename Value, typename MergeFunc = DefaultMergeFunc>
-void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
-                            const ZoneMap<Key, Value>& rhs_map,
+void DestructivelyIntersect(KnaMap<Key, Value>& lhs_map,
+                            const KnaMap<Key, Value>& rhs_map,
                             MergeFunc&& func = DefaultMergeFunc()) {
   DestructivelyMerge(lhs_map, rhs_map, std::forward<MergeFunc>(func),
                      NeverKeepLhsOnly());
@@ -241,28 +178,7 @@ template <typename As, typename Bs, typename CompareFunction,
           typename IsEmptyFunction = std::nullptr_t>
 bool AspectIncludes(const As& as, const Bs& bs, const CompareFunction& Compare,
                     const IsEmptyFunction IsEmpty = nullptr) {
-  typename As::const_iterator a = as.begin();
-  typename Bs::const_iterator b = bs.begin();
-  while (a != as.end()) {
-    if constexpr (!std::is_same_v<IsEmptyFunction, std::nullptr_t>) {
-      if (IsEmpty(a->second)) {
-        ++a;
-        continue;
-      }
-    }
-    if (b == bs.end()) return false;
-    while (b->first < a->first) {
-      ++b;
-      if (b == bs.end()) return false;
-    }
-    if (!(a->first == b->first)) return false;
-    if (!Compare(a->second, b->second)) {
-      return false;
-    }
-    ++a;
-    ++b;
-  }
-  return true;
+  return as.Includes(bs, Compare, IsEmpty);
 }
 
 // Same as above but allows `as` to contain empty collections as values, which
@@ -270,8 +186,8 @@ bool AspectIncludes(const As& as, const Bs& bs, const CompareFunction& Compare,
 template <typename As, typename Bs, typename Function>
 bool MaybeEmptyAspectIncludes(const As& as, const Bs& bs,
                               const Function& Compare) {
-  return AspectIncludes<As, Bs, Function>(as, bs, Compare,
-                                          [](auto x) { return x.empty(); });
+  return AspectIncludes<As, Bs, Function>(
+      as, bs, Compare, [](const auto& x) { return x.empty(); });
 }
 
 template <typename As, typename Bs, typename Function>
@@ -365,14 +281,13 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 
   side_effects_require_invalidation_ = side_effects_require_invalidation;
 
-  auto merge_loaded_properties =
-      [](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
-         const ZoneMap<ValueNode*, ValueNode*>& rhs) {
-        // Loaded properties are maps of maps, so just do the destructive
-        // intersection recursively.
-        DestructivelyIntersect(lhs, rhs);
-        return !lhs.empty();
-      };
+  auto merge_loaded_properties = [](PropertyKey key, PropertyObjectMap& lhs,
+                                    const PropertyObjectMap& rhs) {
+    // Loaded properties are maps of maps, so just do the destructive
+    // intersection recursively.
+    DestructivelyIntersect(lhs, rhs);
+    return !lhs.empty();
+  };
   DestructivelyIntersect(loaded_constant_properties_,
                          other.loaded_constant_properties_,
                          merge_loaded_properties);
@@ -398,21 +313,15 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
   if (side_effects_require_invalidation_ &&
       (loop_effects == nullptr || loop_effects->unstable_aspects_cleared ||
        loop_effects->elements_kind_transitioned)) {
-    ZoneMap<ValueNode*, NodeInfo> cleared(zone);
-    for (auto& entry : node_infos_) {
-      cleared.emplace(entry.first,
-                      NodeInfo::ClearUnstableMapsOnCopy{entry.second});
-    }
-    node_infos_ = std::move(cleared);
-    side_effects_require_invalidation_ = false;
+    OnSideEffect();
   }
 
   // TODO(jgruber): Recompute loop effects after lazy inlining, which can
   // replace effectful calls with pure operations.
   if (loop_has_effects) increment_effect_epoch();
 
-  std::erase_if(available_expressions_, [&](const auto& entry) {
-    const AvailableExpression& expr = entry.second;
+  available_expressions_.EraseIf([&](uint32_t,
+                                     const AvailableExpression& expr) {
     DCHECK_NE(expr.effect_epoch, kEffectEpochOverflow);
     DCHECK_IMPLIES(!expr.node->Is<Identity>(),
                    Node::needs_epoch_check(expr.node->opcode()) ==
@@ -432,15 +341,14 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
            lhs->UnwrapIdentities()->IsStructurallyEqualTo(
                rhs->UnwrapIdentities());
   };
-  auto merge_constant_properties =
-      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
-          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
-        DestructivelyIntersect(lhs, rhs,
-                               [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
-                                 return l == r || same_load(l, r);
-                               });
-        return !lhs.empty();
-      };
+  auto merge_constant_properties = [&](PropertyKey key, PropertyObjectMap& lhs,
+                                       const PropertyObjectMap& rhs) {
+    DestructivelyIntersect(lhs, rhs,
+                           [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
+                             return l == r || same_load(l, r);
+                           });
+    return !lhs.empty();
+  };
   ZoneSet<ValueNode*> objects_written(zone);
   if (keep_invariant_loads) {
     for (ValueNode* obj : loop_effects->objects_written) {
@@ -464,25 +372,20 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
     if (!r) return l != nullptr && entry_invariant(obj);
     return l == r || (entry_invariant(obj) && same_load(l, r));
   };
-  auto merge_properties_of_key =
-      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
-          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
-        if (filter) filter->StartKey(key);
-        DestructivelyMerge(lhs, rhs, merge_object_fact, keep_forward_fact);
-        return !lhs.empty();
-      };
-  auto keep_forward_properties_of_key =
-      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs) {
-        if (!filter || !filter->StartKey(key)) return false;
-        for (auto it = lhs.begin(); it != lhs.end();) {
-          if (keep_forward_fact(it->first, it->second)) {
-            ++it;
-          } else {
-            it = lhs.erase(it);
-          }
-        }
-        return !lhs.empty();
-      };
+  auto merge_properties_of_key = [&](PropertyKey key, PropertyObjectMap& lhs,
+                                     const PropertyObjectMap& rhs) {
+    if (filter) filter->StartKey(key);
+    DestructivelyMerge(lhs, rhs, merge_object_fact, keep_forward_fact);
+    return !lhs.empty();
+  };
+  auto keep_forward_properties_of_key = [&](PropertyKey key,
+                                            PropertyObjectMap& lhs) {
+    if (!filter || !filter->StartKey(key)) return false;
+    lhs.EraseIf([&](ValueNode* obj, ValueNode*& val) {
+      return !keep_forward_fact(obj, val);
+    });
+    return !lhs.empty();
+  };
   DestructivelyIntersect(loaded_constant_properties_,
                          backedge.loaded_constant_properties_,
                          merge_constant_properties);
@@ -530,56 +433,35 @@ void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
   };
 
   // node_infos_ is keyed by value node.
-  NodeInfos remapped_infos(zone);
-  for (auto& entry : node_infos_) {
-    ValueNode* key = unwrap(entry.first);
-    auto it = remapped_infos.find(key);
-    if (it == remapped_infos.end()) {
-      remapped_infos.emplace(key, entry.second);
-    } else {
-      // A phi and its single input normalize to the same node; both entries
-      // then describe the same value, so combine their facts.
-      it->second.CombineSameValueFrom(entry.second);
-    }
-  }
-  node_infos_ = std::move(remapped_infos);
+  node_infos_.RemapKeys(unwrap, [](NodeInfo& dst, const NodeInfo& src) {
+    // A phi and its single input normalize to the same node; both entries
+    // then describe the same value, so combine their facts.
+    dst.CombineSameValueFrom(src);
+  });
 
   // Cached property loads: key -> object -> value. Only the object is a node
   // key; values are left as-is (the merge already unwraps identities on value
   // comparison, and available_expressions_ is not remapped at all).
   auto remap_loaded_properties = [&](LoadedPropertyMap& map) {
-    LoadedPropertyMap remapped(zone);
-    for (auto& [property_key, objects] : map) {
-      ZoneMap<ValueNode*, ValueNode*> remapped_objects(zone);
-      for (auto& [object, value] : objects) {
-        remapped_objects[unwrap(object)] = value;
-      }
-      remapped.emplace(property_key, std::move(remapped_objects));
-    }
-    map = std::move(remapped);
+    map.MutateValues([&](PropertyKey, PropertyObjectMap& objects) {
+      objects.RemapKeys(unwrap);
+    });
   };
   remap_loaded_properties(loaded_properties_);
   remap_loaded_properties(loaded_constant_properties_);
 
-  {
-    ZoneMap<std::pair<ValueNode*, ValueNode*>, ValueNode*> remapped(zone);
-    for (auto& [key, value] : loaded_tagged_keyed_properties_) {
-      remapped[{unwrap(key.first), unwrap(key.second)}] = value;
-    }
-    loaded_tagged_keyed_properties_ = std::move(remapped);
-  }
+  loaded_tagged_keyed_properties_.RemapKeys(
+      [&](std::pair<ValueNode*, ValueNode*> key) {
+        return std::make_pair(unwrap(key.first), unwrap(key.second));
+      });
 
   // Context slot loads: (context node, offset) -> value. Only the context node
   // in the key is remapped.
-  auto remap_context_slots =
-      [&](ZoneMap<LoadedContextSlotsKey, ValueNode*>& m) {
-        ZoneMap<LoadedContextSlotsKey, ValueNode*> remapped(zone);
-        for (auto& [key, value] : m) {
-          remapped[LoadedContextSlotsKey{unwrap(std::get<0>(key)),
-                                         std::get<1>(key)}] = value;
-        }
-        m = std::move(remapped);
-      };
+  auto remap_context_slots = [&](LoadedContextSlots& m) {
+    m.RemapKeys([&](const LoadedContextSlotsKey& key) {
+      return LoadedContextSlotsKey{unwrap(std::get<0>(key)), std::get<1>(key)};
+    });
+  };
   remap_context_slots(loaded_context_constants_);
   remap_context_slots(loaded_context_slots_);
 }
@@ -589,22 +471,36 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     ValueNode* context) {
   if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kAlways) return;
 
-  while (true) {
-    if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
-      DCHECK_EQ(load_prev_ctxt->offset(),
-                Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-      // Recurse until we find the root.
-      context = load_prev_ctxt->input(0).node();
-      continue;
-    }
-    break;
-  }
-
   switch (context->opcode()) {
+    case Opcode::kLoadContextSlotNoCells:
+      do {
+        LoadContextSlotNoCells* load_prev_ctxt =
+            context->Cast<LoadContextSlotNoCells>();
+        DCHECK_EQ(load_prev_ctxt->offset(),
+                  Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+        context = load_prev_ctxt->input(0).node();
+      } while (context->Is<LoadContextSlotNoCells>());
+      // Walking PREVIOUS_INDEX loads is only non-aliasing if rooted at the
+      // incoming context InitialValue, since any other root (such as an
+      // allocated context or a HeapConstant) can have its parent context
+      // represented directly by a distinct ValueNode in the graph.
+      if (!context->Is<InitialValue>()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+        break;
+      }
+      [[fallthrough]];
     case Opcode::kInitialValue:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-          may_have_aliasing_contexts_,
-          ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      // In OSR, local registers also start as InitialValues and may hold outer
+      // contexts saved by PushContext, which can alias PREVIOUS_INDEX loads
+      // from the incoming context.
+      if (context->Cast<InitialValue>()->source() ==
+          interpreter::Register::current_context()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+            may_have_aliasing_contexts_,
+            ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      } else {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+      }
       break;
     case Opcode::kHeapConstant:
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
@@ -665,8 +561,8 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
 }
 
 void KnownNodeAspects::ClearUnstableNodeAspectsForMigration(
-    Node* node, bool is_tracing_enabled) {
-  if (MarkSingleMapAsStale(node->input_node(0), is_tracing_enabled)) {
+    ValueNode* object, bool is_tracing_enabled) {
+  if (MarkSingleMapAsStale(object, is_tracing_enabled)) {
     return;
   }
 
@@ -702,13 +598,12 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForElementsTransition(
   // nodes whose map is unknown or already stale).
   auto it = loaded_properties_.find(PropertyKey::Elements());
   if (it == loaded_properties_.end()) return;
-  bool dropped_any =
-      std::erase_if(it->second, [&](const auto& entry) {
-        const NodeInfo* info = TryGetInfoWithFreshMaps(entry.first);
-        if (!info) return true;
-        const auto& maps = info->possible_maps();
-        return std::any_of(maps.begin(), maps.end(), MaybeAliases);
-      }) > 0;
+  bool dropped_any = it->second.EraseIf([&](ValueNode* obj, ValueNode* const&) {
+    const NodeInfo* info = TryGetInfoWithFreshMaps(obj);
+    if (!info) return true;
+    const auto& maps = info->possible_maps();
+    return std::any_of(maps.begin(), maps.end(), MaybeAliases);
+  }) > 0;
   if (dropped_any &&
       V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
     std::cout << kRed << "[KNA] ElementsTransition: Drop aliased [Elements]"
@@ -775,10 +670,9 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     side_effects_require_invalidation_ =
         other.side_effects_require_invalidation_;
   } else {
-    for (const auto& it : other.node_infos_) {
-      node_infos_.emplace(it.first,
-                          NodeInfo::ClearUnstableMapsOnCopy{it.second});
-    }
+    node_infos_ = NodeInfos(other.node_infos_, [](ValueNode*, NodeInfo& info) {
+      info.OnSideEffect();
+    });
   }
   // LINT.IfChange(CloneForLoopHeader)
   if (optimistic_initial_state && !loop_effects->unstable_aspects_cleared) {
@@ -791,16 +685,15 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     } else {
       LoopInvariantPropertyFilter filter(loop_effects,
                                          loop_effects->objects_written, this);
-      for (auto loaded_key : other.loaded_properties_) {
-        if (!filter.StartKey(loaded_key.first)) continue;
-        auto& props_for_key =
-            loaded_properties_.try_emplace(loaded_key.first, zone)
-                .first->second;
-        for (auto loaded_obj : loaded_key.second) {
-          if (!filter.ObjectInvariant(loaded_obj.first)) continue;
-          props_for_key.emplace(loaded_obj);
-        }
-      }
+      loaded_properties_ = other.loaded_properties_;
+      loaded_properties_.EraseIf(
+          [&](const PropertyKey& key, PropertyObjectMap& props_for_key) {
+            if (!filter.StartKey(key)) return true;
+            props_for_key.EraseIf([&](ValueNode* obj, ValueNode* val) {
+              return !filter.ObjectInvariant(obj);
+            });
+            return false;
+          });
     }
     if (loop_effects->context_slot_written.empty()) {
       loaded_context_slots_ = other.loaded_context_slots_;
@@ -915,9 +808,11 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     return false;
   }
 
-  if (!MaybeEmptyAspectIncludes(
-          loop_header.loaded_properties_, loaded_properties_,
-          [](auto a, auto b) { return AspectIncludes(a, b, SameValue); })) {
+  if (!MaybeEmptyAspectIncludes(loop_header.loaded_properties_,
+                                loaded_properties_,
+                                [](const auto& a, const auto& b) {
+                                  return AspectIncludes(a, b, SameValue);
+                                })) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_properties\n";
     }
@@ -945,23 +840,21 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   UpdateMayHaveAliasingContexts(graph->broker(),
                                 graph->broker()->local_isolate(), context);
   if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kAlways) {
-    for (auto& cache : loaded_context_slots_) {
-      int cached_offset = std::get<int>(cache.first);
-      ValueNode* cached_context = std::get<ValueNode*>(cache.first);
-      if (cached_offset == offset && cached_context != context) {
-        if (graph->ContextMayAlias(cached_context, {}) &&
-            cache.second != value) {
-          if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
-            std::cout << kRed << "[KNA] Clear context slot: "
-                      << PrintNodeLabel(std::get<ValueNode*>(cache.first))
-                      << "[" << offset << "] alias " << PrintNode(value)
-                      << kReset << std::endl;
-          }
-          cache.second = nullptr;
-          aliased_slots_.push_back(cache.first);
+    loaded_context_slots_.MutateValues([&](const LoadedContextSlotsKey& key,
+                                           ValueNode*& cached_val) {
+      int cached_offset = std::get<int>(key);
+      ValueNode* cached_context = std::get<ValueNode*>(key);
+      if (cached_offset == offset && cached_context != context &&
+          cached_val != value && graph->ContextMayAlias(cached_context, {})) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+          std::cout << kRed << "[KNA] Clear context slot: "
+                    << PrintNodeLabel(cached_context) << "[" << offset
+                    << "] alias " << PrintNode(value) << kReset << std::endl;
         }
+        cached_val = nullptr;
+        aliased_slots_.push_back(key);
       }
-    }
+    });
   }
   return aliased_slots_;
 }
@@ -1032,7 +925,7 @@ bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
 }
 
 #ifdef DEBUG
-bool IsStringRootIndex(RootIndex index) {
+V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index) {
   if (index > RootIndex::kLastReadOnlyRoot) return false;
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Tagged<Object> obj = roots.object_at(index);

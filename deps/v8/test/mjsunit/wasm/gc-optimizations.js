@@ -1190,3 +1190,34 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wasm = instance.exports;
   assertTraps(kTrapIllegalCast, () => wasm.deadBranchBasedOnIsNull({}));
 })();
+
+(function TypePropagationBrOnCastFailNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let s0 = builder.addStruct([makeField(kWasmI32, true)]);
+  let s1 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: s0});
+  let s2 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: s0});
+
+  builder.addFunction('brOnCastFailNotNull',
+      makeSig([wasmRefNullType(s0)], [kWasmI32]))
+    .addBody([
+      kExprBlock, kWasmRef, s0,
+        kExprLocalGet, 0,
+        // Branch if not (ref null $s1); on the fail branch, null is excluded so
+        // the value is refined to non-null (ref $s0).
+        kGCPrefix, kExprBrOnCastFail, 0b11, 0, s0, s1,
+        kExprDrop,
+        kExprI32Const, 0,
+        kExprReturn,
+      kExprEnd,
+      kGCPrefix, kExprRefTest, s2,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertEquals(0, wasm.brOnCastFailNotNull(null));
+})();

@@ -33,20 +33,15 @@ void JSSegmenter::set_icu_break_iterator(
   icu_break_iterator_.store(this, value, mode);
 }
 
-int JSSegmenter::flags() const { return flags_.load().value(); }
-void JSSegmenter::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSSegmenter::Flags JSSegmenter::flags() const { return flags_.load(); }
+void JSSegmenter::set_flags(Flags value) { flags_.store(value); }
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {
-  DCHECK(GranularityBits::is_valid(granularity));
-  int hints = flags();
-  hints = GranularityBits::update(hints, granularity);
-  set_flags(hints);
+  set_flags(flags().with_granularity(granularity));
 }
 
 inline JSSegmenter::Granularity JSSegmenter::granularity() const {
-  return GranularityBits::decode(flags());
+  return flags().granularity();
 }
 
 }  // namespace internal

@@ -9,9 +9,9 @@
 #include <ostream>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
@@ -82,6 +82,7 @@ void PrintAndVerify(Graph* graph, bool printing_condition, MaglevPhase phase) {
   PrintGraph(graph, printing_condition, phase);
   VerifyGraph(graph, phase);
 }
+
 }  // namespace
 
 // static
@@ -285,6 +286,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   // FunctionEntryStackCheck runs. A frame no larger than the smallest OS page
   // cannot step over a guard page, so bail out rather than emit an unchecked
   // stack pointer jump of arbitrary size.
+  // When replacing this bailout with a different strategy, consider doing the
+  // same in Turboshaft as well.
   if (graph->tagged_stack_slots() + graph->untagged_stack_slots() >
       kMaxStackSlots) {
     return false;
@@ -299,6 +302,9 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
     bool success = code_generator->Assemble();
+    if (v8_flags.maglev_build_code_on_background || !success) {
+      compilation_info->broker()->DetachCanonicalHandles(compilation_info);
+    }
     if (!success) {
       return false;
     }
@@ -306,6 +312,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+#ifdef V8_FUZZILLI
+  if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    graph->ExtractOptimizedCodeCoverage();
+  }
+#endif
 
   return true;
 }

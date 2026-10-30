@@ -1,0 +1,4 @@
+Tests regress-5164.
+0: 1
+1: 2
+length: 2

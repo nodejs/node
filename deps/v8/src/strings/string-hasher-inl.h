@@ -294,10 +294,9 @@ static_assert(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
 }  // namespace detail
 
 template <typename char_t>
-uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
-                                            uint32_t length,
-                                            const HashSeed seed,
-                                            bool* out_one_byte_content) {
+uint32_t StringHasher::HashSequentialString(
+    const char_t* chars_raw, uint32_t length, const HashSeed seed,
+    std::optional<bool>* out_one_byte_content) {
   static_assert(std::is_integral_v<char_t>);
   static_assert(sizeof(char_t) <= 2);
   using uchar = std::make_unsigned_t<char_t>;
@@ -330,9 +329,10 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
           switch (detail::TryParseIntegerIndex(chars, length, i, index)) {
             case detail::kSuccess: {
               uint32_t hash = String::CreateHashFieldValue(
-                  detail::GetUsableRapidHash(chars, length, seed.seed(),
-                                             seed.secret(),
-                                             out_one_byte_content),
+                  detail::GetUsableRapidHash(
+                      chars, length, seed.seed(), seed.secret(),
+                      out_one_byte_content ? &out_one_byte_content->emplace()
+                                           : nullptr),
                   String::HashFieldType::kIntegerIndex);
               if (Name::ContainsCachedArrayIndex(hash)) {
                 // The hash accidentally looks like a cached index. Fix that by
@@ -367,8 +367,9 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
   // Non-index hash.
   return String::CreateHashFieldValue(
-      detail::GetUsableRapidHash(chars, length, seed.seed(), seed.secret(),
-                                 out_one_byte_content),
+      detail::GetUsableRapidHash(
+          chars, length, seed.seed(), seed.secret(),
+          out_one_byte_content ? &out_one_byte_content->emplace() : nullptr),
       String::HashFieldType::kHash);
 }
 

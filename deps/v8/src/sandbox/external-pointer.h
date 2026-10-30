@@ -146,9 +146,10 @@ V8_INLINE ExternalPointerHandle InitExternalPointerField(
     Address host_address, Address field_address, IsolateForSandbox isolate,
     ExternalPointerTag tag, Address value);
 
-// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
-// loads the corresponding external pointer from the external pointer table. If
-// the sandbox is disabled: load the external pointer from the field.
+// If pointer compression is enabled: reads the ExternalPointerHandle from the
+// field and loads the corresponding external pointer from the external pointer
+// table. If pointer compression is disabled: loads the external pointer from
+// the field.
 //
 // This can be used for both regular and lazily-initialized external pointer
 // fields since lazily-initialized field will initially contain
@@ -162,10 +163,10 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate,
                                            ExternalPointerTagRange tag_range);
 
-// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
-// stores the external pointer to the corresponding entry in the external
-// pointer table. If the sandbox is disabled: stores the external pointer to the
-// field.
+// If pointer compression is enabled: reads the ExternalPointerHandle from the
+// field and stores the external pointer to the corresponding entry in the
+// external pointer table. If pointer compression is disabled: stores the
+// external pointer to the field.
 template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          IsolateForSandbox isolate,

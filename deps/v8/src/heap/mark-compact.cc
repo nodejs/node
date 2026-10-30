@@ -80,6 +80,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
@@ -87,8 +88,8 @@
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -974,7 +975,7 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
 // they should keep alive its embedded pointers (which would otherwise be
 // dropped).
 // - Prefix of the string table.
-// - If V8_ENABLE_SANDBOX, client Isolates' waiter queue node
+// - If V8_COMPRESS_POINTERS, client Isolates' waiter queue node
 // ExternalPointer_t in shared Isolates.
 class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     : public ObjectVisitorWithCageBases {
@@ -1180,7 +1181,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
   int pointers_removed_ = 0;
 };
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 class MarkExternalPointerFromExternalStringTable : public RootVisitor {
  public:
   explicit MarkExternalPointerFromExternalStringTable(
@@ -1246,7 +1247,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
   MarkExternalPointerTableVisitor visitor;
 };
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
@@ -1384,12 +1385,12 @@ class RecordMigratedSlotVisitor
   inline void VisitExternalPointer(Tagged<HeapObject> host,
                                    ExternalPointerSlot slot) final {}
 
-  inline void VisitIndirectPointer(Tagged<HeapObject> host,
-                                   IndirectPointerSlot slot,
-                                   IndirectPointerMode mode) final {}
+  inline void VisitTrustedPointer(Tagged<HeapObject> host,
+                                  TrustedPointerSlot slot,
+                                  TrustedPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                            IndirectPointerSlot slot) final {}
+                                            TrustedPointerSlot slot) final {}
 
   inline void VisitProtectedPointer(Tagged<TrustedObject> host,
                                     ProtectedPointerSlot slot) final {
@@ -1611,7 +1612,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (V8_LIKELY(dest != CODE_SPACE)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      Heap::CopyBlock(dst_addr, src_addr, object_size);
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
@@ -2124,8 +2125,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     }
   }
 
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
   // All ExternalString resources are stored in the shared external pointer
   // table. Mark entries from client heaps.
@@ -2135,7 +2135,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table, shared_space);
   client_heap->external_string_table_.Iterate(&external_string_visitor);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 bool MarkCompactCollector::MarkTransitiveClosureFixpoint() {
@@ -2539,17 +2539,7 @@ void MarkCompactCollector::RetainMaps() {
                 MarkingHelper::WorklistTarget::kRegular, map);
           }
         }
-        Tagged<Object> prototype = map->prototype();
-        if (age > 0 && IsHeapObject(prototype) &&
-            MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                heap_, marking_state_, Cast<HeapObject>(prototype))) {
-          // The prototype is not marked, age the map.
-          new_age = age - 1;
-        } else {
-          // The prototype and the constructor are marked, this map keeps only
-          // transition tree alive, not JSObjects. Do not age the map.
-          new_age = age;
-        }
+        new_age = age > 0 ? age - 1 : 0;
       } else {
         new_age = v8_flags.retain_maps_for_n_gc;
       }
@@ -3720,7 +3710,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the new entry in the trusted pointer table as alive.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  table.Mark(space, uncompiled_data->self_indirect_pointer_handle());
+  table.Mark(space, uncompiled_data->self_trusted_pointer_handle());
 #endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
@@ -3762,13 +3752,13 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     bool is_unpublished =
         flushing_candidate->HasUnpublishedTrustedData(isolate);
     if (is_unpublished) {
-      IndirectPointerHandle handle =
-          flushing_candidate->Relaxed_ReadField<IndirectPointerHandle>(
+      TrustedPointerHandle handle =
+          flushing_candidate->Relaxed_ReadField<TrustedPointerHandle>(
               offsetof(SharedFunctionInfo, trusted_function_data_));
 
       // Read the object from the table. It is now an UncompiledData.
       Address obj_addr = isolate->trusted_pointer_table().GetMaybeUnpublished(
-          handle, kBytecodeArrayIndirectPointerTag);
+          handle, kBytecodeArrayTrustedPointerTag);
       Tagged<TrustedObject> trusted_obj =
           UncheckedCast<TrustedObject>(Tagged<Object>(obj_addr));
       Tagged<UncompiledData> uncompiled_data =
@@ -4074,13 +4064,13 @@ void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
       array->GetDescriptorSlot(old_nof_all_descriptors).address();
   MutablePage* chunk = MutablePage::FromHeapObject(heap->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-      chunk, start, end, SlotSet::FREE_EMPTY_BUCKETS);
+      chunk, start, end, SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(chunk, start, end,
-                                            SlotSet::FREE_EMPTY_BUCKETS);
+                                            SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   const Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
   const Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
   if (aligned_start < aligned_end) {
@@ -4130,12 +4120,35 @@ void MarkCompactCollector::TrimDescriptorArray(
   DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
                                    number_of_own_descriptors);
   if (to_trim > 0) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    const int old_nof_descriptors = descriptors->number_of_descriptors();
+    // TODO(572302954): add heuristics for trimming the lookup table too.
+    if (number_of_own_descriptors <=
+        DescriptorArray::kMaxElementsForLinearSearch) {
+      descriptors->set_lookup_table(ReadOnlyRoots(heap_).undefined_value(),
+                                    SKIP_WRITE_BARRIER);
+    } else if (old_nof_descriptors - number_of_own_descriptors <=
+               number_of_own_descriptors) {
+      descriptors->RemoveFromLookupTable(old_nof_descriptors,
+                                         number_of_own_descriptors);
+    } else {
+      descriptors->RebuildLookupTable(number_of_own_descriptors);
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    } else {
+      MemsetTagged(descriptors->GetDescriptorSlot(number_of_own_descriptors),
+                   ReadOnlyRoots(heap_).undefined_value(),
+                   to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    DCHECK(descriptors->VerifyLookupTable());
+#else
     descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   }
   DCHECK_IMPLIES(can_trim, descriptors->number_of_all_descriptors() ==
                                number_of_own_descriptors);
@@ -5964,7 +5977,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
                                             Address content) {
       Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
       if (relocated_object.is_null()) return;
-      DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+      DCHECK_EQ(handle, relocated_object->self_trusted_pointer_handle());
       table.Update(handle, relocated_object.ptr());
     });
   };

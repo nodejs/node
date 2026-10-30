@@ -419,13 +419,18 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
       [](MaglevAssembler* masm, DoubleRegister src, Register dst,
          ZoneLabelRef done) {
         // Push the double register onto the stack as an input argument.
-        __ AllocateStackSpace(kDoubleSize);
+        // With V8_X64_16BYTE_STACK_ALIGNMENT, reserve 16 bytes instead of 8 so
+        // that rsp stays 16-byte aligned at the call (the extra 8 bytes sit
+        // above the double; DoubleToI still finds its argument at [rsp]).
+        constexpr int kScratchSize =
+            V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kDoubleSize : kDoubleSize;
+        __ AllocateStackSpace(kScratchSize);
         __ Movsd(MemOperand(rsp, 0), src);
         __ CallBuiltin(Builtin::kDoubleToI);
         // DoubleToI sets the result on the stack, pop the result off the stack.
         // Avoid using `pop` to not mix implicit and explicit rsp updates.
         __ movl(dst, MemOperand(rsp, 0));
-        __ addq(rsp, Immediate(kDoubleSize));
+        __ addq(rsp, Immediate(kScratchSize));
         __ jmp(*done);
       },
       src, dst, done);
@@ -520,6 +525,14 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  // When source_frame_size is even, the incoming unoptimized frame has an extra
+  // alignment padding slot (already initialized to undefined), so include it in
+  // source_frame_size.
+  if (source_frame_size % 2 == 0) source_frame_size++;
+#endif
+
   if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
@@ -531,6 +544,11 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 
   uint32_t target_frame_size =
       graph->tagged_stack_slots() + graph->untagged_stack_slots();
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  // The register allocator makes the frame body odd so that, together with
+  // the odd fixed header, the frame is 16-byte aligned.
+  CHECK_EQ(target_frame_size % 2, 1);
+#endif
   CHECK_LE(source_frame_size, target_frame_size);
 
   if (source_frame_size < target_frame_size) {

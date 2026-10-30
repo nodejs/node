@@ -44,20 +44,18 @@ void JSRelativeTimeFormat::set_icu_formatter(
   icu_formatter_.store(this, value, mode);
 }
 
-int JSRelativeTimeFormat::flags() const { return flags_.load().value(); }
-void JSRelativeTimeFormat::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+JSRelativeTimeFormat::Flags JSRelativeTimeFormat::flags() const {
+  return flags_.load();
 }
+void JSRelativeTimeFormat::set_flags(Flags value) { flags_.store(value); }
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
-  DCHECK(NumericBit::is_valid(numeric));
-  int hints = flags();
-  hints = NumericBit::update(hints, numeric);
-  set_flags(hints);
+  DCHECK(Flags::NumericBit::is_valid(numeric));
+  set_flags(flags().with_numeric(numeric));
 }
 
 inline JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::numeric() const {
-  return NumericBit::decode(flags());
+  return flags().numeric();
 }
 
 }  // namespace internal

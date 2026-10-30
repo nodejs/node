@@ -76,7 +76,7 @@ TEST_F(AccessorTest, CachedAccessor) {
 }
 
 TEST_F(AccessorTest, CachedAccessorTurboFan) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = this->isolate();
   v8::HandleScope scope(isolate);
 
@@ -159,7 +159,7 @@ TEST_F(AccessorTest, CachedAccessorTurboFan) {
 }
 
 TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());

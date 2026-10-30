@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
@@ -17,9 +18,10 @@
 namespace v8 {
 namespace internal {
 
-class TurbofanTypeLowBits {
- public:
-  using UnusedPaddingField1Bit = base::BitField<bool, 0, 1, uint32_t>;
+struct TurbofanTypeLowBits : BitFieldGroup<TurbofanTypeLowBits, uint32_t> {
+  using BitFieldGroup::BitFieldGroup;
+
+  using UnusedPaddingField1Bit = First<bool, 1>;
   using OtherUnsigned31Bit = UnusedPaddingField1Bit::Next<bool, 1>;
   using OtherUnsigned32Bit = OtherUnsigned31Bit::Next<bool, 1>;
   using OtherSigned32Bit = OtherUnsigned32Bit::Next<bool, 1>;
@@ -31,8 +33,8 @@ class TurbofanTypeLowBits {
   using BooleanBit = UndefinedBit::Next<bool, 1>;
   using Unsigned30Bit = BooleanBit::Next<bool, 1>;
   using MinusZeroBit = Unsigned30Bit::Next<bool, 1>;
-  using NaNBit = MinusZeroBit::Next<bool, 1>;
-  using SymbolBit = NaNBit::Next<bool, 1>;
+  using NanBit = MinusZeroBit::Next<bool, 1>;
+  using SymbolBit = NanBit::Next<bool, 1>;
   using InternalizedStringBit = SymbolBit::Next<bool, 1>;
   using OtherCallableBit = InternalizedStringBit::Next<bool, 1>;
   using OtherObjectBit = OtherCallableBit::Next<bool, 1>;
@@ -65,7 +67,7 @@ class TurbofanTypeLowBits {
     kBoolean = BooleanBit::kMask,
     kUnsigned30 = Unsigned30Bit::kMask,
     kMinusZero = MinusZeroBit::kMask,
-    kNaN = NaNBit::kMask,
+    kNaN = NanBit::kMask,
     kSymbol = SymbolBit::kMask,
     kInternalizedString = InternalizedStringBit::kMask,
     kOtherCallable = OtherCallableBit::kMask,
@@ -86,13 +88,13 @@ class TurbofanTypeLowBits {
     kWasmObject = WasmObjectBit::kMask,
     kSandboxedPointer = SandboxedPointerBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
   static constexpr int kFlagCount = 32;
 };
 
-class TurbofanTypeHighBits {
- public:
-  using MachineBit = base::BitField<bool, 0, 1, uint32_t>;
+struct TurbofanTypeHighBits : BitFieldGroup<TurbofanTypeHighBits, uint32_t> {
+  using BitFieldGroup::BitFieldGroup;
+
+  using MachineBit = First<bool, 1>;
   using HoleBit = MachineBit::Next<bool, 1>;
   using StringWrapperBit = HoleBit::Next<bool, 1>;
   using TypedArrayBit = StringWrapperBit::Next<bool, 1>;
@@ -103,7 +105,6 @@ class TurbofanTypeHighBits {
     kStringWrapper = StringWrapperBit::kMask,
     kTypedArray = TypedArrayBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
   static constexpr int kFlagCount = 4;
 };
 
@@ -113,10 +114,10 @@ V8_OBJECT class TurbofanType : public HeapObject {
 
 V8_OBJECT class TurbofanBitsetType : public TurbofanType {
  public:
-  inline uint32_t bitset_low() const;
-  inline void set_bitset_low(uint32_t value);
-  inline uint32_t bitset_high() const;
-  inline void set_bitset_high(uint32_t value);
+  inline TurbofanTypeLowBits bitset_low() const;
+  inline void set_bitset_low(TurbofanTypeLowBits value);
+  inline TurbofanTypeHighBits bitset_high() const;
+  inline void set_bitset_high(TurbofanTypeHighBits value);
 
   static constexpr int SizeFor() { return sizeof(TurbofanBitsetType); }
 
@@ -128,8 +129,8 @@ V8_OBJECT class TurbofanBitsetType : public TurbofanType {
  private:
   friend class TorqueGeneratedTurbofanBitsetTypeAsserts;
 
-  uint32_t bitset_low_;
-  uint32_t bitset_high_;
+  TurbofanTypeLowBits bitset_low_;
+  TurbofanTypeHighBits bitset_high_;
 } V8_OBJECT_END;
 
 V8_OBJECT class TurbofanUnionType : public TurbofanType {
@@ -192,7 +193,7 @@ V8_OBJECT class TurbofanHeapConstantType : public TurbofanType {
  private:
   friend class TorqueGeneratedTurbofanHeapConstantTypeAsserts;
 
-  TaggedMember<Object> constant_;
+  TaggedMember<HeapObject> constant_;
 } V8_OBJECT_END;
 
 V8_OBJECT class TurbofanOtherNumberConstantType : public TurbofanType {

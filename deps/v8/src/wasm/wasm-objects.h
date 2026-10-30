@@ -123,6 +123,12 @@ class ImportedFunctionEntry {
       std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
       wasm::Suspend suspend, const wasm::CanonicalSig* sig);
 
+  // Initialize this entry as a call to a re-exported JS function, reusing the
+  // existing WasmImportData and import wrapper from the exporting instance.
+  void SetReexportedJSFunction(
+      Tagged<WasmImportData> import_data,
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
+
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
@@ -169,7 +175,8 @@ V8_OBJECT class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} for an existing {Script} of type {kWasm}.
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
-      Isolate* isolate, DirectHandle<Script> script);
+      Isolate* isolate, DirectHandle<Script> script,
+      MaybeDirectHandle<Map> maybe_map = {});
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(
@@ -274,7 +281,8 @@ V8_OBJECT class WasmTableObject : public JSObject {
       wasm::ValueType type, wasm::CanonicalValueType canonical_type,
       uint32_t initial, bool has_maximum, uint64_t maximum,
       DirectHandle<Object> initial_value, wasm::AddressType address_type,
-      DirectHandle<WasmDispatchTable>* out_dispatch_table = nullptr);
+      DirectHandle<WasmDispatchTable>* out_dispatch_table = nullptr,
+      MaybeDirectHandle<Map> maybe_map = {});
 
   inline bool is_in_bounds(uint32_t entry_index);
 
@@ -321,29 +329,27 @@ V8_OBJECT class WasmTableObject : public JSObject {
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index);
 
-  static const int kCurrentLengthOffsetEnd;
-  static const int kTrustedDispatchTableOffsetEnd;
-  static const int kTrustedDataOffsetEnd;
-  static const int kHeaderSize;
-
- private:
-  // {entry} is either {Null} or a {WasmInternalFunction}.
+  // {entry} is either {WasmNull} or a {WasmFuncRef}.
   static void SetFunctionTableEntry(
       Isolate* isolate, DirectHandle<WasmTableObject> table,
       DirectHandle<WasmDispatchTable> dispatch_table, int entry_index,
       DirectHandle<Object> entry);
 
- public:
+  static const int kCurrentLengthOffsetEnd;
+  static const int kTrustedDispatchTableOffsetEnd;
+  static const int kTrustedDataOffsetEnd;
+  static const int kHeaderSize;
+
   TaggedMember<FixedArray> entries_;
   TaggedMember<Smi> current_length_;
   TaggedMember<UnionOf<Smi, HeapNumber, BigInt, Undefined>> maximum_length_;
   TaggedMember<Smi> raw_type_;
-  TrustedPointerMember<WasmDispatchTable, kWasmDispatchTableIndirectPointerTag>
+  TrustedPointerMember<WasmDispatchTable, kWasmDispatchTableTrustedPointerTag>
       trusted_dispatch_table_;
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
-  uint8_t address_type_;
+  uint8_t address_type_ V8_TQ_TYPE(AddressType);
   uint8_t padding_for_address_type_0_;
   uint16_t padding_for_address_type_1_;
 #if TAGGED_SIZE_8_BYTES
@@ -401,10 +407,10 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   inline CppGCManaged<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
-  // internal weak list of instances that use this memory and also updates the
-  // fields of the instance to reference this memory's buffer.
-  // Note that we update both the non-shared and shared (if any) parts of the
-  // instance for faster access to shared memory.
+  // fields of the instance to reference this memory's buffer, and either
+  // keeps the BackingStore alive in trusted space (for shared memories) or
+  // records the instance in the weak `instances` list (for non-shared
+  // memories).
   V8_EXPORT_PRIVATE static void UseInInstance(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
@@ -416,11 +422,11 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryObject> New(
       Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
       std::shared_ptr<BackingStore> backing_store, int maximum,
-      wasm::AddressType address_type);
+      wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map = {});
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryObject> New(
       Isolate* isolate, int initial, int maximum, SharedFlag shared,
-      wasm::AddressType address_type);
+      wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map = {});
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.
@@ -428,8 +434,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
                            DirectHandle<WasmMemoryObject> memory,
                            DirectHandle<JSArrayBuffer> new_buffer);
 
-  // Updates all WebAssembly instances that use this Memory as a memory, after
-  // growing or refreshing the memory.
+  // Updates all WebAssembly instances that use this (non-shared) Memory, after
+  // growing the memory. Shared memories do not need to update instances because
+  // their buffer start and byte_length_ address never change.
   void UpdateInstances(Isolate* isolate);
 
   // Fix up a resizable ArrayBuffer that exposes Wasm memory.
@@ -460,7 +467,8 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
-                                        uint32_t pages);
+                                        uint32_t pages,
+                                        GrowMode mode = GrowMode::kGrowBy);
 
   // Returns the current JSArrayBuffer bound to this memory object. If there is
   // none yet it will be allocated and stored in the `array_buffer` field.
@@ -483,8 +491,10 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   TaggedMember<UnionOf<JSArrayBuffer, Undefined>> array_buffer_;
   TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_;
   TaggedMember<Smi> maximum_pages_;
+  // Weak list of instances using this memory (populated only for non-shared
+  // memories, since shared memories always grow in place).
   TaggedMember<WeakArrayList> instances_;
-  uint8_t address_type_;
+  uint8_t address_type_ V8_TQ_TYPE(AddressType);
   uint8_t padding_for_flags_0_;
   uint16_t padding_for_flags_1_;
 #if TAGGED_SIZE_8_BYTES
@@ -526,7 +536,7 @@ V8_OBJECT class WasmGlobalObject : public JSObject {
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmGlobalObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
       MaybeDirectHandle<BufferType> maybe_buffer, wasm::ValueType type,
-      int32_t offset, bool is_mutable);
+      int32_t offset, bool is_mutable, MaybeDirectHandle<Map> maybe_map = {});
 
   inline int32_t GetI32() const;
   inline int64_t GetI64() const;
@@ -546,7 +556,7 @@ V8_OBJECT class WasmGlobalObject : public JSObject {
   static const int kHeaderSize;
 
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
   TaggedMember<BufferType> buffer_;
   TaggedMember<Smi> offset_;
@@ -617,7 +627,9 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(memory0_start, uint8_t*)
-  DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
+  // For unshared memory, stores the byte size directly. For shared memory,
+  // stores the address of the atomic byte length (std::atomic<size_t>*).
+  DECL_PRIMITIVE_ACCESSORS(memory0_size_or_address, Address)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
@@ -625,6 +637,13 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, std::atomic<uint32_t>*)
   DECL_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                    TrustedFixedAddressArray)
+  // Indexed by memory index: holds a TrustedManaged<BackingStore> for each
+  // shared memory (and Smi::zero() for non-shared memories) to keep the
+  // BackingStore and its atomic byte_length_ (referenced by
+  // memory0_size_or_address and memory_bases_and_sizes) alive from trusted
+  // space. Empty if the module has no shared memories.
+  DECL_PROTECTED_POINTER_ACCESSORS(shared_memory_backing_stores,
+                                   ProtectedFixedArray)
   DECL_PROTECTED_POINTER_ACCESSORS(data_segments,
                                    TrustedPodArray<wasm::WireBytesRef>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
@@ -659,7 +678,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemory0StartOffset, kSystemPointerSize)                              \
-  V(kMemory0SizeOffset, kSizetSize)                                       \
+  V(kMemory0SizeOrAddressOffset, kSystemPointerSize)                      \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
@@ -667,6 +686,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
   V(kProtectedMemoryBasesAndSizesOffset, kTaggedSize)                     \
+  V(kProtectedSharedMemoryBackingStoresOffset, kTaggedSize)               \
   V(kProtectedDataSegmentsOffset, kTaggedSize)                            \
   V(kElementSegmentsOffset, kTaggedSize)                                  \
   V(kInstanceObjectOffset, kTaggedSize)                                   \
@@ -721,15 +741,16 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   IF_WASM_DRUMBRAKE(V, kImportedFunctionIndicesOffset,                        \
                     "imported_function_indices")                              \
   V(kElementSegmentsOffset, "element_segments")
-#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                             \
-  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")         \
-  V(kProtectedDataSegmentsOffset, "data_segments")                         \
-  V(kProtectedDispatchTable0Offset, "dispatch_table0")                     \
-  V(kProtectedDispatchTablesOffset, "dispatch_tables")                     \
-  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports") \
-  V(kProtectedTagsTableOffset, "tags_table")                               \
-  IF_WASM_DRUMBRAKE(V, kProtectedInterpreterHandleOffset,                  \
-                    "interpreter_handle")                                  \
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                                 \
+  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")             \
+  V(kProtectedSharedMemoryBackingStoresOffset, "shared_memory_backing_stores") \
+  V(kProtectedDataSegmentsOffset, "data_segments")                             \
+  V(kProtectedDispatchTable0Offset, "dispatch_table0")                         \
+  V(kProtectedDispatchTablesOffset, "dispatch_tables")                         \
+  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports")     \
+  V(kProtectedTagsTableOffset, "tags_table")                                   \
+  IF_WASM_DRUMBRAKE(V, kProtectedInterpreterHandleOffset,                      \
+                    "interpreter_handle")                                      \
   V(kProtectedManagedNativeModuleOffset, "managed_native_module")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
@@ -765,12 +786,20 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
 
-  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start, size_t mem_size);
-
+  // Sets memory base and size/address for {memory_index}.
+  // For unshared memories, {size_or_address} is the byte length.
+  // For shared memories, it is the Address of the backing store's atomic
+  // byte_length_ (std::atomic<size_t>*), and shared_memory_backing_stores()
+  // must already hold the corresponding TrustedManaged<BackingStore> at
+  // {memory_index}. To read the actual byte length, callers must use
+  // memory_size(index).
+  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start,
+                    Address size_or_address);
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,
-      std::shared_ptr<wasm::NativeModule>);
+      std::shared_ptr<wasm::NativeModule>,
+      MaybeDirectHandle<Map> maybe_instance_map = {});
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 
@@ -851,7 +880,7 @@ V8_OBJECT class WasmInstanceObject : public JSObject {
   static const int kHeaderSize;
 
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
   TaggedMember<WasmModuleObject> module_object_;
   TaggedMember<JSObject> exports_object_;
@@ -890,7 +919,8 @@ V8_OBJECT class WasmTagObject : public JSObject {
   static DirectHandle<WasmTagObject> New(
       Isolate* isolate, const wasm::FunctionSig* sig,
       wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
-      DirectHandle<WasmTrustedInstanceData> instance);
+      DirectHandle<WasmTrustedInstanceData> instance,
+      MaybeDirectHandle<Map> maybe_map = {});
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
@@ -900,7 +930,7 @@ V8_OBJECT class WasmTagObject : public JSObject {
   TaggedMember<HeapObject> tag_;
   TaggedMember<Smi> canonical_type_index_;
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
 } V8_OBJECT_END;
 
@@ -1170,11 +1200,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
-      int encoded_size);
+      int encoded_size, MaybeDirectHandle<Map> maybe_map = {});
 
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
-      DirectHandle<FixedArray> values);
+      DirectHandle<FixedArray> values, MaybeDirectHandle<Map> maybe_map = {});
 
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
@@ -1413,7 +1443,7 @@ V8_OBJECT class WasmImportData : public TrustedObject {
   TaggedMember<NativeContext> native_context_;
   TaggedMember<UnionOf<JSReceiver, Undefined>> callable_;
   TaggedMember<Cell> wrapper_budget_;
-  UnalignedValueMember<Address> sig_;
+  UnalignedValueMember<Address> sig_ V8_TQ_TYPE(RawFunctionSigPtr);
   uint32_t bit_field_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
@@ -1422,6 +1452,8 @@ V8_OBJECT class WasmImportData : public TrustedObject {
 
 inline constexpr int WasmImportData::kHeaderSize = sizeof(WasmImportData);
 inline constexpr int WasmImportData::kSize = sizeof(WasmImportData);
+
+using WasmImplicitArg = UnionOf<WasmTrustedInstanceData, WasmImportData>;
 
 V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
  public:
@@ -1437,7 +1469,7 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   // target instance data (for wasm functions), or a WasmImportData object (for
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
-  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
+  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, WasmImplicitArg)
 
   // Returns the instance data associated with the implicit_arg.
   // If the implicit_arg is a WasmTrustedInstanceData, it is returned directly.
@@ -1475,14 +1507,15 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ProtectedTaggedMember<TrustedObject> protected_implicit_arg_;
+  ProtectedTaggedMember<UnionOf<WasmTrustedInstanceData, WasmImportData>>
+      protected_implicit_arg_;
   TaggedMember<UnionOf<JSFunction, Undefined>> external_;
   TaggedMember<Smi> function_index_;
-  uint32_t raw_call_target_;
+  WasmCodePointer raw_call_target_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES
-  UnalignedValueMember<Address> sig_;
+  UnalignedValueMember<Address> sig_ V8_TQ_TYPE(RawFunctionSigPtr);
 } V8_OBJECT_END;
 
 inline constexpr int WasmInternalFunction::kHeaderSize =
@@ -1510,7 +1543,7 @@ V8_OBJECT class WasmFuncRef : public HeapObject {
   static const int kSize;
 
   TrustedPointerMember<WasmInternalFunction,
-                       kWasmInternalFunctionIndirectPointerTag>
+                       kWasmInternalFunctionTrustedPointerTag>
       trusted_internal_;
 } V8_OBJECT_END;
 
@@ -1565,7 +1598,7 @@ V8_OBJECT class WasmResumeData : public HeapObject {
   static const int kHeaderSize;
   static const int kSize;
 
-  TrustedPointerMember<WasmSuspenderObject, kWasmSuspenderIndirectPointerTag>
+  TrustedPointerMember<WasmSuspenderObject, kWasmSuspenderTrustedPointerTag>
       trusted_suspender_;
   TaggedMember<Smi> on_resume_;
 } V8_OBJECT_END;
@@ -1645,11 +1678,12 @@ class WasmScript : public AllStatic {
 //  - {WasmInstanceObject::tags_table}: List of tags used by an instance.
 V8_OBJECT class WasmExceptionTag : public Struct {
  public:
+  inline WasmExceptionTag(const AllocationWitness& witness, int index);
+
   V8_EXPORT_PRIVATE static DirectHandle<WasmExceptionTag> New(Isolate* isolate,
                                                               int index);
 
   inline int index() const;
-  inline void set_index(int value);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -1659,7 +1693,7 @@ V8_OBJECT class WasmExceptionTag : public Struct {
  private:
   friend class TorqueGeneratedWasmExceptionTagAsserts;
 
-  TaggedMember<Smi> index_;
+  const TaggedMember<Smi> index_;
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmTypeInfo : public HeapObject {
@@ -1694,7 +1728,8 @@ V8_OBJECT class WasmTypeInfo : public HeapObject {
 
   uint32_t canonical_type_;
   uint32_t canonical_element_type_;
-  TaggedMember<Smi> supertypes_length_;
+  V8_TQ_CONST TaggedMember<Smi> supertypes_length_;
+  V8_TQ_TAIL_LENGTH(supertypes_length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, supertypes);
 } V8_OBJECT_END;
 
@@ -1766,9 +1801,13 @@ V8_OBJECT class WasmStruct : public WasmObject {
   class BodyDescriptor;
 
   static const int kHeaderSize;
+  static const int kMaxInstanceSize;
 } V8_OBJECT_END;
 
 inline constexpr int WasmStruct::kHeaderSize = sizeof(WasmStruct);
+inline constexpr int WasmStruct::kMaxInstanceSize =
+    WasmStruct::kHeaderSize +
+    wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields;
 
 int WasmStruct::Size(const wasm::StructType* type) {
   // Object size must fit into a Smi (because of runtime functions), and its
@@ -1827,15 +1866,28 @@ V8_OBJECT class WasmCustomMap : public Map {
   class BodyDescriptor;
 
   static const int kHeaderSize;
+  static const int kMaxInstanceSize;
 
   TaggedMember<Union<WasmCustomMapWrapper, Null>> js_wrapper_;
   // To save memory, we could store the NativeContext in the {js_wrapper} field
   // before allocating the wrapper, but that would make checking for the
   // wrapper's presence more expensive.
+  // We currently also need the NC for prototype chain validity cells.
+  // TODO(jkummerow): Find a more elegant solution.
   TaggedMember<NativeContext> native_context_for_wrapper_;
 } V8_OBJECT_END;
 
 inline constexpr int WasmCustomMap::kHeaderSize = sizeof(WasmCustomMap);
+inline constexpr int WasmCustomMap::kMaxInstanceSize =
+    WasmCustomMap::kHeaderSize +
+    wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields;
+
+int WasmStruct::FieldOffset(const wasm::StructType* type, int field_index) {
+  int header_size = type->is_descriptor() && v8_flags.wasm_merged_descriptors
+                        ? WasmCustomMap::kHeaderSize
+                        : WasmStruct::kHeaderSize;
+  return header_size + type->field_offset(field_index);
+}
 
 int WasmCustomMap::Size(const wasm::StructType* type) {
   // Object size must fit into a Smi (because of runtime functions), and its
@@ -1889,8 +1941,19 @@ V8_OBJECT class WasmArray : public WasmObject {
   inline ObjectSlot ElementSlot(uint32_t index);
   V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
+  // Unshared WasmArrays have a 12-byte header (when kTaggedSize == 4). Shared
+  // WasmArrays are allocated with 8-byte alignment (`kDoubleAligned`, which is
+  // also the only alignment supported by Large Object Space) and pad their
+  // header to a multiple of 8 bytes (`kDoubleSize`, i.e. 16 bytes when
+  // kTaggedSize == 4), so that their elements are 8-byte aligned as required
+  // for atomic 8-byte-wide accesses on some platforms.
+  static constexpr int HeaderSize(SharedFlag is_shared);
+  static inline int HeaderSize(Tagged<Map> map);
+  inline int header_size() const;
+
   static inline int SizeFor(Tagged<Map> map, int length);
-  static constexpr int SizeFor(int element_size, int length);
+  static constexpr int SizeFor(int element_size, int length,
+                               SharedFlag is_shared);
 
   // Returns boxed value of the array's element.
   static inline DirectHandle<Object> GetElement(Isolate* isolate,
@@ -1904,14 +1967,7 @@ V8_OBJECT class WasmArray : public WasmObject {
   inline uint32_t element_offset(uint32_t index);
   inline Address ElementAddress(uint32_t index);
 
-  static constexpr int MaxLength(uint32_t element_size_bytes) {
-    // The total object size must fit into a Smi, for filler objects. To make
-    // the behavior of Wasm programs independent from the Smi configuration,
-    // we hard-code the smaller of the two supported ranges.
-    return RoundDown(
-        (int{SmiTagging<4>::kSmiMaxValue} - kHeaderSize) / element_size_bytes,
-        kTaggedSize);
-  }
+  static constexpr int MaxLength(uint32_t element_size_bytes);
 
   static int MaxLength(const wasm::ArrayType* type) {
     return MaxLength(type->element_type().value_kind_size());
@@ -1925,22 +1981,39 @@ V8_OBJECT class WasmArray : public WasmObject {
 
   class BodyDescriptor;
 
-  static const int kHeaderSize;
-
   uint32_t length_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
+
+ private:
+  static const int kHeaderSize;  // Use {HeaderSize(...)} instead.
 } V8_OBJECT_END;
 
-inline constexpr int WasmArray::kHeaderSize = sizeof(WasmArray);
+constexpr int WasmArray::HeaderSize(SharedFlag is_shared) {
+  return is_shared ? RoundUp(int{sizeof(WasmArray)}, kDoubleSize)
+                   : sizeof(WasmArray);
+}
+
+constexpr int WasmArray::MaxLength(uint32_t element_size_bytes) {
+  // The total object size must fit into a Smi, for filler objects. To make
+  // the behavior of Wasm programs independent from the Smi configuration,
+  // we hard-code the smaller of the two supported ranges. We use the larger
+  // shared header size so that the maximum length is independent of
+  // sharedness.
+  return RoundDown(
+      (int{SmiTagging<4>::kSmiMaxValue} - HeaderSize(SharedFlag{true})) /
+          element_size_bytes,
+      kTaggedSize);
+}
 
 // The suspender object provides an API to suspend and resume wasm code using
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 V8_OBJECT class WasmSuspenderObject : public ExposedTrustedObject {
  public:
   enum State : int { kInactive = 0, kActive, kSuspended };
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  inline wasm::StackMemory* stack() const;
+  inline void set_stack(wasm::StackMemory* value);
   DECL_PROTECTED_POINTER_ACCESSORS(parent, WasmSuspenderObject)
 
   inline Tagged<UnionOf<JSPromise, Undefined>> promise() const;
@@ -1964,7 +2037,7 @@ V8_OBJECT class WasmSuspenderObject : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ExternalPointerMember<kWasmStackMemoryTag> stack_;
+  UnalignedValueMember<Address> stack_;
   ProtectedTaggedMember<WasmSuspenderObject> parent_;
   TaggedMember<UnionOf<JSPromise, Undefined>> promise_;
   TaggedMember<UnionOf<JSObject, Undefined>> resume_;
@@ -1982,7 +2055,8 @@ V8_OBJECT class WasmSuspendingObject : public JSObject {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   V8_EXPORT_PRIVATE static DirectHandle<WasmSuspendingObject> New(
-      Isolate* isolate, DirectHandle<JSReceiver> callable);
+      Isolate* isolate, DirectHandle<JSReceiver> callable,
+      MaybeDirectHandle<Map> maybe_map = {});
   DECL_PRINTER(WasmSuspendingObject)
   DECL_VERIFIER(WasmSuspendingObject)
 
@@ -2048,8 +2122,8 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
   inline void set_callback_data(Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<MaybeObject> cached_map() const;
-  inline void set_cached_map(Tagged<MaybeObject> value,
+  inline Tagged<UnionOf<Null, Weak<Map>>> cached_map() const;
+  inline void set_cached_map(Tagged<UnionOf<Null, Weak<Map>>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmFastApiCallData)
@@ -2061,7 +2135,7 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
 
   TaggedMember<HeapObject> signature_;
   TaggedMember<Object> callback_data_;
-  TaggedMember<MaybeObject> cached_map_;
+  TaggedMember<UnionOf<Null, Weak<Map>>> cached_map_;
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmStringViewIter : public HeapObject {
@@ -2120,7 +2194,7 @@ V8_OBJECT class WasmNull : public HeapObject {
 // If {opt_native_context} is not null, creates a contextful map bound to
 // that context; otherwise creates a context-independent map (which must then
 // not point to any context-specific objects!).
-DirectHandle<Map> CreateStructMap(
+V8_EXPORT_PRIVATE DirectHandle<Map> CreateStructMap(
     Isolate* isolate, wasm::CanonicalTypeIndex type,
     DirectHandle<Map> opt_rtt_parent, int num_supertypes,
     DirectHandle<NativeContext> opt_native_context);
@@ -2154,11 +2228,16 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          ValueType expected,
                                          const char** error_message);
 
+enum UnshareStringsMode : bool {
+  kKeepSharedStrings = false,
+  kUnshareStrings = true
+};
 // Takes a {value} in the Wasm representation and transforms it to the
 // respective JS representation. The caller is responsible for not providing an
 // object which cannot be transformed to JS.
 DirectHandle<Object> WasmToJSObject(Isolate* isolate,
-                                    DirectHandle<Object> value);
+                                    DirectHandle<Object> value,
+                                    UnshareStringsMode unshare_strings);
 
 }  // namespace wasm
 }  // namespace internal

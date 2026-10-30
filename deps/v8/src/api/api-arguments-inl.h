@@ -558,7 +558,7 @@ PropertyCallbackArguments::CallPropertyEnumerator(
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
   DirectHandle<JSAny> result = GetReturnValue<JSAny>();
-  DCHECK(IsUndefined(*result) || IsJSObject(*result));
+  DCHECK(IsUndefined(*result) || IsJSArray(*result));
   return Cast<JSObjectOrUndefined>(result);
 }
 

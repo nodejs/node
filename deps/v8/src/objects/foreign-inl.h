@@ -60,13 +60,14 @@ Address Foreign::foreign_address_unchecked() const {
 }
 
 ExternalPointerTag Foreign::GetTag() const {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerHandle handle = foreign_address_.load_encoded();
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   return isolate.GetExternalPointerTableTagFor(this, handle);
-#endif  // V8_ENABLE_SANDBOX
-  // Without the sandbox the address is stored untagged.
+#else
+  // Without pointer compression the address is stored untagged.
   return kExternalPointerNullTag;
+#endif  // V8_COMPRESS_POINTERS
 }
 
 Address TrustedForeign::foreign_address() const {

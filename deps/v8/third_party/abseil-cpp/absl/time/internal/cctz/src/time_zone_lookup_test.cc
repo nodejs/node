@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -36,6 +37,19 @@
 #include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
 #include "absl/time/internal/cctz/src/test_time_zone_names.h"
 #include "absl/time/internal/cctz/src/tzfile.h"
+
+#if __cplusplus < 201402L && !(defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
+namespace {
+template <typename T, typename... Args>
+typename std::enable_if<!std::is_array<T>::value, std::unique_ptr<T>>::type
+cxx11_make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+}  // namespace
+#define make_unique cxx11_make_unique
+#else
+using std::make_unique;
+#endif
 
 namespace chrono = std::chrono;
 
@@ -470,7 +484,7 @@ TEST(MakeTime, SysSecondsLimits) {
   if (sizeof(std::time_t) >= 8) {
     // Checks that "tm_year + 1900", as used by the "libc" implementation,
     // can produce year values beyond the range on an int without overflow.
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
     // localtime_s() and gmtime_s() don't believe in years outside [1970:3000].
 #else
     const time_zone cut = LoadZone("libc:UTC");
@@ -948,6 +962,8 @@ TEST(TimeZoneEdgeCase, UTC5DigitYear) {
   ExpectTime(tp, tz, 10000, 1, 1, 0, 0, 0, 0 * 3600, false, "UTC");
 }
 
+namespace {
+
 // A ZoneInfoSource implementation backed by an in-memory string buffer.
 class StringZoneInfoSource : public ZoneInfoSource {
  public:
@@ -976,10 +992,8 @@ class StringZoneInfoSource : public ZoneInfoSource {
 // at the given transition time and a future POSIX rule. The abbreviation
 // area holds abbr verbatim, so a valid file's abbr must include the
 // trailing '\0' (e.g., std::string{"EST", 4}).
-std::string MakeExtendedTzif(std::int_fast64_t unix_time,
-                             std::int_fast32_t utc_offset,
-                             const std::string& abbr,
-                             const std::string& future_spec) {
+std::string MakeTZif(std::int_fast64_t unix_time, std::int_fast32_t utc_offset,
+                     const std::string& abbr, const std::string& future_spec) {
   std::string s;
   auto append32 = [&s](std::int_fast32_t v) {
     const std::int_fast32_t s32max = 0x7fffffff;
@@ -1053,97 +1067,145 @@ std::string MakeExtendedTzif(std::int_fast64_t unix_time,
   return s;
 }
 
-std::unique_ptr<ZoneInfoSource> ExtendedTestFactory(
+std::unique_ptr<ZoneInfoSource> TestZoneInfoSourceFactory(
     const std::string& name,
     const std::function<std::unique_ptr<ZoneInfoSource>(const std::string&)>&
         fallback) {
   if (name == "test:ExtendedBeforeEpoch") {
     // -1 (1969-12-31T23:59:59Z) is the latest final transition before the
     // epoch, so the zone is rejected despite the future specification.
-    return std::unique_ptr<ZoneInfoSource>(
-        new StringZoneInfoSource(MakeExtendedTzif(
-            -1, -5 * 3600, std::string{"EST", 4}, "EST5EDT,M3.2.0,M11.1.0")));
+    return make_unique<StringZoneInfoSource>(MakeTZif(
+        -1, -5 * 3600, std::string{"EST", 4}, "EST5EDT,M3.2.0,M11.1.0"));
   }
   if (name == "test:ExtendedFarFuture") {
     // 0 (1970-01-01T00:00:00Z) is the earliest final transition an extended
     // zone may have, which maximizes the 400-year shift that BreakTime()
     // needs for a lookup at the maximum time.
-    return std::unique_ptr<ZoneInfoSource>(
-        new StringZoneInfoSource(MakeExtendedTzif(
-            0, -5 * 3600, std::string{"EST", 4}, "EST5EDT,M3.2.0,M11.1.0")));
+    return make_unique<StringZoneInfoSource>(MakeTZif(
+        0, -5 * 3600, std::string{"EST", 4}, "EST5EDT,M3.2.0,M11.1.0"));
   }
   if (name == "test:ExtendedOverlappingRules") {
     // The daylight time of one year starts more than four days after its
     // nominal date, while the next year's ends more than five days before
     // its own, so the two years' generated transitions overlap.
-    return std::unique_ptr<ZoneInfoSource>(
-        new StringZoneInfoSource(MakeExtendedTzif(
-            0, -5 * 3600, std::string{"STD", 4},
-            "STD-12:00:00DST12:00:00,358/100:00:00,1/-139:00:00")));
+    return make_unique<StringZoneInfoSource>(
+        MakeTZif(0, -5 * 3600, std::string{"STD", 4},
+                 "STD-12:00:00DST12:00:00,358/100:00:00,1/-139:00:00"));
+  }
+  if (name == "test:ExtendedCrossingChanges") {
+    // Daylight time ends at 01:00, falling back to 23:00 standard time,
+    // and restarts at 00:00 standard time, springing forward to 02:00.
+    // So the civil times repeated by the first change (23:00 to 00:59)
+    // run into those skipped by the second (00:00 to 01:59).
+    return make_unique<StringZoneInfoSource>(
+        MakeTZif(0, 0, std::string{"STD", 4}, "STD0DST-2,M3.2.0/0,M3.2.0/1"));
+  }
+  if (name == "test:ExtendedCrossingChangesReversed") {
+    // The reverse order: daylight time starts at 02:00, springing forward
+    // to 04:00, and ends at 05:00, falling back to 03:00. So the civil
+    // times skipped by the first change (02:00 to 03:59) run into those
+    // repeated by the second (03:00 to 04:59).
+    return make_unique<StringZoneInfoSource>(
+        MakeTZif(0, 0, std::string{"STD", 4}, "STD0DST-2,M3.2.0/2,M3.2.0/5"));
   }
   if (name == "test:UnterminatedAbbreviation") {
     // The abbreviation area is missing its final NUL, so the abbreviation
     // would run into whatever ExtendTransitions() appends behind it.
-    return std::unique_ptr<ZoneInfoSource>(new StringZoneInfoSource(
-        MakeExtendedTzif(0, -5 * 3600, "EST", "EST5EDT,M3.2.0,M11.1.0")));
+    return make_unique<StringZoneInfoSource>(
+        MakeTZif(0, -5 * 3600, "EST", "EST5EDT,M3.2.0,M11.1.0"));
   }
+  if (name == "test:ExtendedLargeOffset") {
+    // A file-supplied UTC offset of 25h is more than a day from UTC but still
+    // within the (-25h < utoff < 26h) range RFC 9636 allows, so the reader
+    // must accept it.
+    return make_unique<StringZoneInfoSource>(MakeTZif(
+        0, 25 * 3600, std::string{"EST", 4}, "EST5EDT,M3.2.0,M11.1.0"));
+  }
+  if (name == "test:MinUtcOffset") {
+    // The minimum 32-bit UTC offset is far outside the (-25h < utoff < 26h)
+    // range RFC 9636 allows, and is the one offset whose negation overflows
+    // in FormatOffset(), so the reader must reject it.
+    const std::int_fast32_t min_offset = -2147483647 - 1;
+    return make_unique<StringZoneInfoSource>(
+        MakeTZif(0, min_offset, std::string{"X", 2}, ""));
+  }
+  EXPECT_NE(name.compare(0, 5, "test:"), 0);
   return fallback(name);
 }
 
+class TZifTest : public ::testing::Test {
+ protected:
+  TZifTest() {
+    saved_factory = cctz_extension::zone_info_source_factory;
+    cctz_extension::zone_info_source_factory = TestZoneInfoSourceFactory;
+  }
+
+  ~TZifTest() { cctz_extension::zone_info_source_factory = saved_factory; }
+
+ private:
+  cctz_extension::ZoneInfoSourceFactory saved_factory;
+};
+
+}  // namespace
+
 // Tests that a TZif file whose abbreviation area is not NUL-terminated
 // is rejected.
-TEST(TimeZoneEdgeCase, UnterminatedAbbreviation) {
-  auto prev_factory = cctz_extension::zone_info_source_factory;
-  cctz_extension::zone_info_source_factory = ExtendedTestFactory;
-
+TEST_F(TZifTest, UnterminatedAbbreviation) {
   time_zone tz;
   EXPECT_FALSE(load_time_zone("test:UnterminatedAbbreviation", &tz));
-
-  cctz_extension::zone_info_source_factory = prev_factory;
 }
 
 // Tests that a TZif file whose explicit transitions end before epoch
 // is rejected when it has a POSIX DST footer string.
-TEST(TimeZoneEdgeCase, ExtendedBeforeEpoch) {
-  auto prev_factory = cctz_extension::zone_info_source_factory;
-  cctz_extension::zone_info_source_factory = ExtendedTestFactory;
-
+TEST_F(TZifTest, ExtendedBeforeEpoch) {
   // Extended zones must end with a non-negative explicit transition.
   time_zone tz;
   EXPECT_FALSE(load_time_zone("test:ExtendedBeforeEpoch", &tz));
-
-  cctz_extension::zone_info_source_factory = prev_factory;
 }
 
 // A transition time may include a day offset of up to +/-167 hours, so the
 // rules for consecutive years can overlap, producing transitions that go
 // backward in unix time. BreakTime() binary searches the transitions by
 // unix time, so such a zone must be rejected.
-TEST(TimeZoneEdgeCase, ExtendedOverlappingRules) {
-  auto prev_factory = cctz_extension::zone_info_source_factory;
-  cctz_extension::zone_info_source_factory = ExtendedTestFactory;
-
+TEST_F(TZifTest, ExtendedOverlappingRules) {
   time_zone tz;
   EXPECT_FALSE(load_time_zone("test:ExtendedOverlappingRules", &tz));
+}
 
-  cctz_extension::zone_info_source_factory = prev_factory;
+// Two offset changes can be close enough that the civil times skipped or
+// repeated by one overlap those of the other, even though the transitions
+// are ordered by both absolute and civil time. MakeTime() cannot represent
+// that, so such a zone must be rejected.
+TEST_F(TZifTest, ExtendedCrossingChanges) {
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone("test:ExtendedCrossingChanges", &tz));
+  EXPECT_FALSE(load_time_zone("test:ExtendedCrossingChangesReversed", &tz));
+}
+
+// A file-supplied UTC offset more than a day from UTC is still valid per
+// RFC 9636 (which allows -25h < utoff < 26h), so loading must succeed.
+TEST_F(TZifTest, ExtendedLargeOffset) {
+  time_zone tz;
+  EXPECT_TRUE(load_time_zone("test:ExtendedLargeOffset", &tz));
+}
+
+// A file-supplied UTC offset outside the range RFC 9636 allows (which is
+// -25h < utoff < 26h) would break the fixed-width offset formatting, so
+// loading must fail.
+TEST_F(TZifTest, MinUtcOffset) {
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone("test:MinUtcOffset", &tz));
 }
 
 // Looking up the maximum time in an extended zone must fold back through the
 // 400-year cycle without overflowing when BreakTime() computes the shift.
-TEST(TimeZoneEdgeCase, ExtendedFarFuture) {
-  auto prev_factory = cctz_extension::zone_info_source_factory;
-  cctz_extension::zone_info_source_factory = ExtendedTestFactory;
-
+TEST_F(TZifTest, ExtendedFarFuture) {
   time_zone tz;
   ASSERT_TRUE(load_time_zone("test:ExtendedFarFuture", &tz));
-
   auto tp_max = time_point<absl::time_internal::cctz::seconds>::max();
   ExpectTime(tp_max, tz, 292277026596, 12, 4, 10, 30, 7, -5 * 3600, false,
              "EST");
   EXPECT_STREQ("EST", tz.lookup(tp_max).abbr);
-
-  cctz_extension::zone_info_source_factory = prev_factory;
 }
 
 }  // namespace cctz

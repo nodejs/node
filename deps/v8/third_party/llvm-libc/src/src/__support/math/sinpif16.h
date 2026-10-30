@@ -17,6 +17,7 @@
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/cast.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
@@ -51,9 +52,13 @@ LIBC_INLINE float16 sinpif16(float16 x) {
   //               = sin(k * pi/32) * cos(y * pi/32) +
   //                 sin(y * pi/32) * cos(k * pi/32)
 
-  // For signed zeros
-  if (LIBC_UNLIKELY(x_abs == 0U))
-    return x;
+  // sinpi(x) underflows for 0 < |x| <= 0x1.45p-16.
+  if (LIBC_UNLIKELY(x_abs <= 0x0145U)) {
+    if (x_abs == 0U)
+      return x;
+    fputil::set_errno_if_required(ERANGE);
+    fputil::raise_underflow_except_if_required<float>();
+  }
 
   // Numbers greater or equal to 2^10 are integers, or infinity, or NaN
   if (LIBC_UNLIKELY(x_abs >= 0x6400)) {
@@ -73,6 +78,10 @@ LIBC_INLINE float16 sinpif16(float16 x) {
     }
     return FPBits::zero(xbits.sign()).get_val();
   }
+
+  // Half-integers have exact results of +1 or -1.
+  if (LIBC_UNLIKELY(fputil::is_odd_integer(2.0f * xf)))
+    return fputil::is_odd_integer(xf - 0.5f) ? -1.0f16 : 1.0f16;
 
   float sin_k = 0, cos_k = 0, sin_y = 0, cosm1_y = 0;
   sincospif16_eval(xf, sin_k, cos_k, sin_y, cosm1_y);

@@ -48,8 +48,8 @@ struct FlattenedLengthResult {
 
 // Fast path safety valve: avoid unbounded explicit stack growth on
 // cyclic nesting by bailing out to the slow path after a fixed depth.
-// 3 entries per depth: array, index, depth (depth limit = 1024).
-const kMaxFlatFastStackEntries: intptr = 3072;
+// 4 entries per depth: array, length, index, depth (depth limit = 1024).
+const kMaxFlatFastStackEntries: intptr = 4096;
 
 transitioning macro CalculateFlattenedLengthFast(
     implicit context: Context)(source: FastJSArray, sourceLength: Smi,
@@ -82,6 +82,7 @@ transitioning macro CalculateFlattenedLengthFast(
   let didDescend: bool = false;
 
   while (true) {
+    PerformStackCheck();
     // Rechecking once per array is enough: nothing in the inner loop
     // invokes JS.
     fastOW.Recheck() otherwise goto Bailout;
@@ -114,6 +115,9 @@ transitioning macro CalculateFlattenedLengthFast(
               Cast<Smi>(elementArray.length) otherwise goto Bailout;
           targetLength =
               math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
+          if (targetLength > kFixedArrayMaxLength) deferred {
+              ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+            }
           index++;
           continue;
         }
@@ -123,6 +127,9 @@ transitioning macro CalculateFlattenedLengthFast(
               Cast<Smi>(elementArray.length) otherwise goto Bailout;
           targetLength =
               math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
+          if (targetLength > kFixedArrayMaxLength) deferred {
+              ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+            }
           index++;
           continue;
         }
@@ -131,6 +138,7 @@ transitioning macro CalculateFlattenedLengthFast(
         const nextIndex: Smi = math::TrySmiAdd(index, 1) otherwise goto Bailout;
         if (stack.length >= kMaxFlatFastStackEntries) goto Bailout;
         stack.Push(currentArray);
+        stack.Push(currentLength);
         stack.Push(nextIndex);
         stack.Push(currentDepth);
 
@@ -152,6 +160,9 @@ transitioning macro CalculateFlattenedLengthFast(
         seenSmi = true;
       }
       targetLength = math::TrySmiAdd(targetLength, 1) otherwise goto Bailout;
+      if (targetLength > kFixedArrayMaxLength) deferred {
+          ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+        }
       index++;
     }
 
@@ -166,9 +177,10 @@ transitioning macro CalculateFlattenedLengthFast(
     stack.length = stack.length - 1;
     index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
     stack.length = stack.length - 1;
+    currentLength = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
     currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
         otherwise goto Bailout;
-    currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
     fastOW = NewFastJSArrayForReadWitness(currentArray);
   }
 
@@ -220,6 +232,7 @@ transitioning macro TryFastFlat(
     let didDescend: bool = false;
 
     while (true) {
+      PerformStackCheck();
       fastOW.Recheck() otherwise goto Bailout;
 
       while (index < currentLength) {
@@ -266,6 +279,7 @@ transitioning macro TryFastFlat(
           const nextIndex: Smi =
               math::TrySmiAdd(index, 1) otherwise goto Bailout;
           stack.Push(currentArray);
+          stack.Push(currentLength);
           stack.Push(nextIndex);
           stack.Push(currentDepth);
 
@@ -298,9 +312,10 @@ transitioning macro TryFastFlat(
       stack.length = stack.length - 1;
       index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
       stack.length = stack.length - 1;
+      currentLength = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+      stack.length = stack.length - 1;
       currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
           otherwise goto Bailout;
-      currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
       fastOW = NewFastJSArrayForReadWitness(currentArray);
     }
 
@@ -321,6 +336,7 @@ transitioning macro TryFastFlat(
   let didDescend: bool = false;
 
   while (true) {
+    PerformStackCheck();
     fastOW.Recheck() otherwise goto Bailout;
 
     while (index < currentLength) {
@@ -363,6 +379,7 @@ transitioning macro TryFastFlat(
         const nextIndex: Smi = math::TrySmiAdd(index, 1) otherwise goto Bailout;
         if (stack.length >= kMaxFlatFastStackEntries) goto Bailout;
         stack.Push(currentArray);
+        stack.Push(currentLength);
         stack.Push(nextIndex);
         stack.Push(currentDepth);
 
@@ -395,9 +412,10 @@ transitioning macro TryFastFlat(
     stack.length = stack.length - 1;
     index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
     stack.length = stack.length - 1;
+    currentLength = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
     currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
         otherwise goto Bailout;
-    currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
     fastOW = NewFastJSArrayForReadWitness(currentArray);
   }
 

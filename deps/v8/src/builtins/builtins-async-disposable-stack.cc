@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
@@ -107,6 +108,9 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
     isolate->clear_internal_exception();
     isolate->clear_pending_message();
     JSPromise::Reject(promise, direct_handle(exception, isolate));
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
   }
 
   //        f. Return promiseCapability.[[Promise]].
@@ -210,6 +214,9 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
     JSPromise::Reject(promise,
                       isolate->factory()->NewTypeError(
                           MessageTemplate::kNotAnAsyncDisposableStack));
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
     //   b. Return promiseCapability.[[Promise]].
     return *promise;
   }

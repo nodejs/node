@@ -10,6 +10,7 @@
 #include "src/base/bit-field.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/sandbox/check.h"
@@ -63,31 +64,41 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
       Isolate* isolate,
       const DisallowGarbageCollection& disallow_gc V8_LIFETIME_BOUND);
 
-  // [bit_field]: boolean flags
-  inline uint32_t bit_field() const;
-  inline void set_bit_field(uint32_t value);
-
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
 
   // Bit positions for [bit_field].
-  using IsExternalBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsDetachableBit = IsExternalBit::Next<bool, 1>;
-  using WasDetachedBit = IsDetachableBit::Next<bool, 1>;
-  using IsSharedBit = WasDetachedBit::Next<SharedFlag, 1>;
-  using IsResizableByJsBit = IsSharedBit::Next<ResizableFlag, 1>;
-  using IsImmutableBit = IsResizableByJsBit::Next<ImmutableFlag, 1>;
+  struct Bits : BitFieldGroup<Bits, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsExternalBit = First<bool, 1>;
+    using IsDetachableBit = IsExternalBit::Next<bool, 1>;
+    using WasDetachedBit = IsDetachableBit::Next<bool, 1>;
+    using IsSharedBit = WasDetachedBit::Next<SharedFlag, 1>;
+    using IsResizableByJsBit = IsSharedBit::Next<ResizableFlag, 1>;
+    using IsImmutableBit = IsResizableByJsBit::Next<ImmutableFlag, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_external, IsExternalBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_detachable, IsDetachableBit)
+    BIT_FIELD_GROUP_ACCESSORS(was_detached, WasDetachedBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_shared, IsSharedBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_resizable_by_js, IsResizableByJsBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_immutable, IsImmutableBit)
+  };
+
+  inline Bits bit_field() const;
+  inline void set_bit_field(Bits value);
+
   enum Flag : uint32_t {
     kNone = 0,
-    kIsExternal = IsExternalBit::kMask,
-    kIsDetachable = IsDetachableBit::kMask,
-    kWasDetached = WasDetachedBit::kMask,
-    kIsShared = IsSharedBit::kMask,
-    kIsResizableByJs = IsResizableByJsBit::kMask,
-    kIsImmutable = IsImmutableBit::kMask,
+    kIsExternal = Bits::IsExternalBit::kMask,
+    kIsDetachable = Bits::IsDetachableBit::kMask,
+    kWasDetached = Bits::WasDetachedBit::kMask,
+    kIsShared = Bits::IsSharedBit::kMask,
+    kIsResizableByJs = Bits::IsResizableByJsBit::kMask,
+    kIsImmutable = Bits::IsImmutableBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
   static constexpr int kFlagCount = 6;
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
@@ -126,9 +137,11 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // An ArrayBuffer with a size greater than zero is never empty.
   inline bool IsEmpty() const;
 
-  inline Tagged<MaybeObject> views_or_detach_key() const;
+  inline Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+  views_or_detach_key() const;
   inline void set_views_or_detach_key(
-      Tagged<MaybeObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<MaybeObject> views() const;
   inline void set_views(Tagged<MaybeObject> value,
@@ -137,6 +150,7 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   void AttachView(Tagged<JSArrayBufferView> view);
 
   inline Tagged<Object> DetachKey(Isolate* isolate);
+  inline bool has_detach_key() const;
   static void SetDetachKey(DirectHandle<JSArrayBuffer> array_buffer,
                            DirectHandle<Object> key, Isolate* isolate);
 
@@ -198,10 +212,10 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   static uint32_t NotValidMask(TypedArrayAccessMode mode) {
     switch (mode) {
       case TypedArrayAccessMode::kRead:
-        return JSArrayBuffer::WasDetachedBit::kMask;
+        return JSArrayBuffer::Bits::WasDetachedBit::kMask;
       case TypedArrayAccessMode::kWrite:
-        return JSArrayBuffer::WasDetachedBit::kMask |
-               JSArrayBuffer::IsImmutableBit::kMask;
+        return JSArrayBuffer::Bits::WasDetachedBit::kMask |
+               JSArrayBuffer::Bits::IsImmutableBit::kMask;
     }
     UNREACHABLE();
   }
@@ -219,7 +233,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   inline Tagged<Cell> detach_key() const;
   inline void set_detach_key(Tagged<Cell> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool has_detach_key() const;
 
   static void DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
                              bool force_for_wasm_memory, Isolate* isolate);
@@ -238,12 +251,13 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 #endif  // V8_COMPRESS_POINTERS
 
  public:
-  TaggedMember<MaybeObject> views_or_detach_key_;
+  TaggedMember<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+      views_or_detach_key_;
   UnalignedValueMember<uintptr_t> raw_byte_length_;
   UnalignedValueMember<uintptr_t> raw_max_byte_length_;
   UnalignedValueMember<Address> backing_store_;
   ExternalPointerMember<kArrayBufferExtensionTag> extension_;
-  uint32_t bit_field_;
+  std::atomic<Bits> bit_field_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -294,18 +308,7 @@ class ArrayBufferExtension final
                               backing_store_->PerIsolateAccountingLength())) |
                           AgeField::encode(static_cast<uint8_t>(age))),
         is_shared_(is_shared),
-        is_resizable_by_js_(is_resizable_by_js) {
-    initialized_for_gc_.store(true, std::memory_order_release);
-  }
-
-  // Barrier used for publishing the object. This barrier must be used whenever
-  // the extension is accessed off the main thread.
-  //
-  // The constructor sets a value with release that is read with acquire in this
-  // varrier.
-  void InitializationBarrier() const {
-    std::ignore = initialized_for_gc_.load(std::memory_order_acquire);
-  }
+        is_resizable_by_js_(is_resizable_by_js) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
@@ -313,13 +316,23 @@ class ArrayBufferExtension final
 
   void YoungMark() {
     SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
-    set_young_gc_state(GcState::Copied);
+    GcState old_state = set_young_gc_state(GcState::Copied);
+    if (v8_flags.minor_ms) {
+      SBXCHECK_NE(old_state, GcState::Promoted);
+    } else {
+      SBXCHECK_EQ(old_state, GcState::Dead);
+    }
   }
   void YoungMarkPromoted() {
     // When iterating promoted pages the extension object is already set as
     // being promoted which happens before the page iteration. This may even run
     // racefully between AB sweeping and page iteration.
-    set_young_gc_state(GcState::Promoted);
+    GcState old_state = set_young_gc_state(GcState::Promoted);
+    if (v8_flags.minor_ms) {
+      SBXCHECK_NE(old_state, GcState::Promoted);
+    } else {
+      SBXCHECK_EQ(old_state, GcState::Dead);
+    }
   }
   void YoungUnmark() {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
@@ -399,14 +412,13 @@ class ArrayBufferExtension final
     return young_gc_state_.load(std::memory_order_relaxed);
   }
 
-  void set_young_gc_state(GcState value) {
-    young_gc_state_.store(value, std::memory_order_relaxed);
+  GcState set_young_gc_state(GcState value) {
+    return young_gc_state_.exchange(value, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_ = nullptr;
   std::atomic<uint64_t> accounting_state_;
-  std::atomic<bool> initialized_for_gc_{false};
   std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
 
@@ -435,21 +447,27 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
   inline size_t byte_length() const;
   inline void set_byte_length(size_t value);
 
-  // [bit_field]: boolean flags
-  inline uint32_t bit_field() const;
-  inline void set_bit_field(uint32_t value);
-
   DECL_VERIFIER(JSArrayBufferView)
 
   // Bit positions for [bit_field].
-  using IsLengthTrackingBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsBackedByRabBit = IsLengthTrackingBit::Next<bool, 1>;
+  struct Bits : BitFieldGroup<Bits, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsLengthTrackingBit = First<bool, 1>;
+    using IsBackedByRabBit = IsLengthTrackingBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_length_tracking, IsLengthTrackingBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_backed_by_rab, IsBackedByRabBit)
+  };
+
+  inline Bits bit_field() const;
+  inline void set_bit_field(Bits value);
+
   enum Flag : uint32_t {
     kNone = 0,
-    kIsLengthTracking = IsLengthTrackingBit::kMask,
-    kIsBackedByRab = IsBackedByRabBit::kMask,
+    kIsLengthTracking = Bits::IsLengthTrackingBit::kMask,
+    kIsBackedByRab = Bits::IsBackedByRabBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
   static constexpr int kFlagCount = 2;
 
   inline bool WasDetached() const;
@@ -465,7 +483,7 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
 
  public:
   TaggedMember<JSArrayBuffer> buffer_;
-  uint32_t bit_field_;
+  std::atomic<Bits> bit_field_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -495,8 +513,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
 
   // [base_pointer]: the ByteArray containing the backing store, if it is
   // on-heap, or Smi::zero() if it is off-heap.
-  inline Tagged<Object> base_pointer() const;
-  inline Tagged<Object> base_pointer(AcquireLoadTag) const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer() const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer(AcquireLoadTag) const;
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -587,9 +605,10 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   inline Address external_pointer() const;
   inline Address external_pointer(PtrComprCageBase cage_base) const;
 
-  inline void set_base_pointer(Tagged<Object> value,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                               ReleaseStoreTag,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void set_external_pointer(Isolate* isolate, Address value);
@@ -597,7 +616,7 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
  public:
   UnalignedValueMember<uintptr_t> raw_length_;
   UnalignedValueMember<Address> external_pointer_;
-  TaggedMember<Object> base_pointer_;
+  TaggedMember<UnionOf<ByteArray, Smi>> base_pointer_;
 } V8_OBJECT_END;
 
 inline constexpr int JSTypedArray::kHeaderSize = sizeof(JSTypedArray);
@@ -613,6 +632,10 @@ V8_OBJECT class JSDetachedTypedArray : public JSTypedArray {
  public:
   DECL_PRINTER(JSDetachedTypedArray)
   DECL_VERIFIER(JSDetachedTypedArray)
+} V8_OBJECT_END;
+
+V8_OBJECT class Uint8JSTypedArray : public JSTypedArray {
+  V8_IT_NO_AUTO_CHECKER;
 } V8_OBJECT_END;
 
 V8_OBJECT class JSDataViewOrRabGsabDataView : public JSArrayBufferView {

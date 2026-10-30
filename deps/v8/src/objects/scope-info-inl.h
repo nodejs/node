@@ -25,29 +25,27 @@ namespace v8 {
 namespace internal {
 
 bool ScopeInfo::HasSimpleParameters() const {
-  return HasSimpleParametersBit::decode(Flags());
+  return flags().has_simple_parameters();
 }
 
-bool ScopeInfo::HasContextCells() const {
-  return HasContextCellsBit::decode(Flags());
-}
+bool ScopeInfo::HasContextCells() const { return flags().has_context_cells(); }
 
 bool ScopeInfo::is_hoisted_in_context() const {
-  return IsHoistedInContextBit::decode(Flags());
+  return flags().is_hoisted_in_context();
 }
 
-uint32_t ScopeInfo::Flags() const { return flags(kRelaxedLoad); }
+ScopeInfo::Flags ScopeInfo::flags() const { return flags(kRelaxedLoad); }
 int ScopeInfo::ParameterCount() const { return parameter_count(); }
 int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
 
 // -----------------------------------------------------------------------
 // Named field accessors.
 
-uint32_t ScopeInfo::flags(RelaxedLoadTag) const {
+ScopeInfo::Flags ScopeInfo::flags(RelaxedLoadTag) const {
   return flags_.load(std::memory_order_relaxed);
 }
 
-void ScopeInfo::set_flags(uint32_t value, RelaxedStoreTag) {
+void ScopeInfo::set_flags(Flags value, RelaxedStoreTag) {
   flags_.store(value, std::memory_order_relaxed);
 }
 
@@ -68,19 +66,19 @@ void ScopeInfo::set_context_local_count(int value) {
 }
 
 int ScopeInfo::position_info_start() const {
-  return position_info_start_.load().value();
+  return position_info_.start_.load().value();
 }
 
 void ScopeInfo::set_position_info_start(int value) {
-  position_info_start_.store(this, Smi::FromInt(value));
+  position_info_.start_.store(this, Smi::FromInt(value));
 }
 
 int ScopeInfo::position_info_end() const {
-  return position_info_end_.load().value();
+  return position_info_.end_.load().value();
 }
 
 void ScopeInfo::set_position_info_end(int value) {
-  position_info_end_.store(this, Smi::FromInt(value));
+  position_info_.end_.store(this, Smi::FromInt(value));
 }
 
 // -----------------------------------------------------------------------
@@ -89,6 +87,7 @@ void ScopeInfo::set_position_info_end(int value) {
 // (context_local_count, module_variable_count). Each returned offset is
 // the byte offset from the start of the object.
 
+// LINT.IfChange(ContextLocalOffsets)
 int ScopeInfo::ModuleVariableCountOffset() const {
   // ModuleVariableCount is the first slot of the variable tail. It's
   // always at OFFSET_OF_DATA_START(ScopeInfo) regardless of whether the
@@ -97,8 +96,7 @@ int ScopeInfo::ModuleVariableCountOffset() const {
 }
 
 int ScopeInfo::ContextLocalNamesOffset() const {
-  const bool is_module =
-      ScopeTypeBits::decode(Flags()) == ScopeType::MODULE_SCOPE;
+  const bool is_module = flags().scope_type() == ScopeType::MODULE_SCOPE;
   return ModuleVariableCountOffset() + (is_module ? kTaggedSize : 0);
 }
 
@@ -114,44 +112,42 @@ int ScopeInfo::ContextLocalInfosOffset() const {
   const bool has_hashtable = local_count >= kScopeInfoMaxInlinedLocalNamesSize;
   return ContextLocalNamesHashtableOffset() + (has_hashtable ? kTaggedSize : 0);
 }
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:ScopeInfoContextLocalOffsets)
 
 int ScopeInfo::SavedClassVariableInfoOffset() const {
   return ContextLocalInfosOffset() + context_local_count() * kTaggedSize;
 }
 
 int ScopeInfo::FunctionVariableInfoOffset() const {
-  const bool has_saved_class_variable =
-      HasSavedClassVariableBit::decode(Flags());
+  const bool has_saved_class_variable = flags().has_saved_class_variable();
   return SavedClassVariableInfoOffset() +
          (has_saved_class_variable ? kTaggedSize : 0);
 }
 
 int ScopeInfo::InferredFunctionNameOffset() const {
   const bool has_function_variable =
-      FunctionVariableBits::decode(Flags()) != VariableAllocationInfo::NONE;
+      flags().function_variable() != VariableAllocationInfo::NONE;
   return FunctionVariableInfoOffset() +
          (has_function_variable ? sizeof(FunctionVariableInfo) : 0);
 }
 
 int ScopeInfo::OuterScopeInfoOffset() const {
-  const bool has_inferred_name = HasInferredFunctionNameBit::decode(Flags());
+  const bool has_inferred_name = flags().has_inferred_function_name();
   return InferredFunctionNameOffset() + (has_inferred_name ? kTaggedSize : 0);
 }
 
 int ScopeInfo::ModuleInfoOffset() const {
-  const bool has_outer = HasOuterScopeInfoBit::decode(Flags());
+  const bool has_outer = flags().has_outer_scope_info();
   return OuterScopeInfoOffset() + (has_outer ? kTaggedSize : 0);
 }
 
 int ScopeInfo::ModuleVariablesOffset() const {
-  const bool is_module =
-      ScopeTypeBits::decode(Flags()) == ScopeType::MODULE_SCOPE;
+  const bool is_module = flags().scope_type() == ScopeType::MODULE_SCOPE;
   return ModuleInfoOffset() + (is_module ? kTaggedSize : 0);
 }
 
 int ScopeInfo::ModuleVariablesHashtableOffset() const {
-  const bool is_module =
-      ScopeTypeBits::decode(Flags()) == ScopeType::MODULE_SCOPE;
+  const bool is_module = flags().scope_type() == ScopeType::MODULE_SCOPE;
   const int mod_var_count = is_module ? module_variable_count() : 0;
   return ModuleVariablesOffset() + mod_var_count * sizeof(ModuleVariableInfo);
 }
@@ -162,13 +158,12 @@ int ScopeInfo::DependentCodeOffset() const {
 }
 
 int ScopeInfo::UnusedParameterBitsOffset() const {
-  const bool has_dependent_code = SloppyEvalCanExtendVarsBit::decode(Flags());
+  const bool has_dependent_code = flags().sloppy_eval_can_extend_vars();
   return DependentCodeOffset() + (has_dependent_code ? kTaggedSize : 0);
 }
 
 int ScopeInfo::AllocatedSize() const {
-  const bool is_function =
-      ScopeTypeBits::decode(Flags()) == ScopeType::FUNCTION_SCOPE;
+  const bool is_function = flags().scope_type() == ScopeType::FUNCTION_SCOPE;
   return UnusedParameterBitsOffset() + (is_function ? kTaggedSize : 0);
 }
 
@@ -185,12 +180,12 @@ constexpr int DataSlotIndex(int byte_offset) {
 
 int ScopeInfo::module_variable_count() const {
   // Only valid when scope_type == MODULE_SCOPE.
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::MODULE_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::MODULE_SCOPE);
   return Cast<Smi>(data()[0].load()).value();
 }
 
 void ScopeInfo::set_module_variable_count(int value) {
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::MODULE_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::MODULE_SCOPE);
   data()[0].store(this, Smi::FromInt(value));
 }
 
@@ -245,7 +240,7 @@ void ScopeInfo::set_context_local_infos(int i, int value) {
 }
 
 Tagged<Union<Name, Smi>> ScopeInfo::saved_class_variable_info() const {
-  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  DCHECK(flags().has_saved_class_variable());
   const int slot =
       scope_info_internal::DataSlotIndex(SavedClassVariableInfoOffset());
   return Cast<Union<Name, Smi>>(data()[slot].load());
@@ -253,15 +248,14 @@ Tagged<Union<Name, Smi>> ScopeInfo::saved_class_variable_info() const {
 
 void ScopeInfo::set_saved_class_variable_info(Tagged<Union<Name, Smi>> value,
                                               WriteBarrierMode mode) {
-  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  DCHECK(flags().has_saved_class_variable());
   const int slot =
       scope_info_internal::DataSlotIndex(SavedClassVariableInfoOffset());
   data()[slot].store(this, value, mode);
 }
 
 Tagged<Union<Smi, String>> ScopeInfo::function_variable_info_name() const {
-  DCHECK_NE(FunctionVariableBits::decode(Flags()),
-            VariableAllocationInfo::NONE);
+  DCHECK_NE(flags().function_variable(), VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() + offsetof(FunctionVariableInfo, name));
   return Cast<Union<Smi, String>>(data()[slot].load());
@@ -269,16 +263,14 @@ Tagged<Union<Smi, String>> ScopeInfo::function_variable_info_name() const {
 
 void ScopeInfo::set_function_variable_info_name(
     Tagged<Union<Smi, String>> value, WriteBarrierMode mode) {
-  DCHECK_NE(FunctionVariableBits::decode(Flags()),
-            VariableAllocationInfo::NONE);
+  DCHECK_NE(flags().function_variable(), VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() + offsetof(FunctionVariableInfo, name));
   data()[slot].store(this, value, mode);
 }
 
 int ScopeInfo::function_variable_info_context_or_stack_slot_index() const {
-  DCHECK_NE(FunctionVariableBits::decode(Flags()),
-            VariableAllocationInfo::NONE);
+  DCHECK_NE(flags().function_variable(), VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() +
       offsetof(FunctionVariableInfo, context_or_stack_slot_index));
@@ -287,8 +279,7 @@ int ScopeInfo::function_variable_info_context_or_stack_slot_index() const {
 
 void ScopeInfo::set_function_variable_info_context_or_stack_slot_index(
     int value) {
-  DCHECK_NE(FunctionVariableBits::decode(Flags()),
-            VariableAllocationInfo::NONE);
+  DCHECK_NE(flags().function_variable(), VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() +
       offsetof(FunctionVariableInfo, context_or_stack_slot_index));
@@ -296,7 +287,7 @@ void ScopeInfo::set_function_variable_info_context_or_stack_slot_index(
 }
 
 Tagged<Union<String, Undefined>> ScopeInfo::inferred_function_name() const {
-  DCHECK(HasInferredFunctionNameBit::decode(Flags()));
+  DCHECK(flags().has_inferred_function_name());
   const int slot =
       scope_info_internal::DataSlotIndex(InferredFunctionNameOffset());
   return Cast<Union<String, Undefined>>(data()[slot].load());
@@ -304,34 +295,34 @@ Tagged<Union<String, Undefined>> ScopeInfo::inferred_function_name() const {
 
 void ScopeInfo::set_inferred_function_name(
     Tagged<Union<String, Undefined>> value, WriteBarrierMode mode) {
-  DCHECK(HasInferredFunctionNameBit::decode(Flags()));
+  DCHECK(flags().has_inferred_function_name());
   const int slot =
       scope_info_internal::DataSlotIndex(InferredFunctionNameOffset());
   data()[slot].store(this, value, mode);
 }
 
 Tagged<ScopeInfo> ScopeInfo::outer_scope_info() const {
-  DCHECK(HasOuterScopeInfoBit::decode(Flags()));
+  DCHECK(flags().has_outer_scope_info());
   const int slot = scope_info_internal::DataSlotIndex(OuterScopeInfoOffset());
   return Cast<ScopeInfo>(data()[slot].load());
 }
 
 void ScopeInfo::set_outer_scope_info(Tagged<ScopeInfo> value,
                                      WriteBarrierMode mode) {
-  DCHECK(HasOuterScopeInfoBit::decode(Flags()));
+  DCHECK(flags().has_outer_scope_info());
   const int slot = scope_info_internal::DataSlotIndex(OuterScopeInfoOffset());
   data()[slot].store(this, value, mode);
 }
 
 Tagged<FixedArray> ScopeInfo::module_info() const {
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::MODULE_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::MODULE_SCOPE);
   const int slot = scope_info_internal::DataSlotIndex(ModuleInfoOffset());
   return Cast<FixedArray>(data()[slot].load());
 }
 
 void ScopeInfo::set_module_info(Tagged<FixedArray> value,
                                 WriteBarrierMode mode) {
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::MODULE_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::MODULE_SCOPE);
   const int slot = scope_info_internal::DataSlotIndex(ModuleInfoOffset());
   data()[slot].store(this, value, mode);
 }
@@ -392,7 +383,7 @@ void ScopeInfo::set_module_variables_properties(int i, int value) {
 }
 
 bool ScopeInfo::HasModuleVariablesHashtable() const {
-  return ScopeTypeBits::decode(Flags()) == ScopeType::MODULE_SCOPE &&
+  return flags().scope_type() == ScopeType::MODULE_SCOPE &&
          module_variable_count() >= kScopeInfoMaxInlinedLocalNamesSize;
 }
 
@@ -412,27 +403,27 @@ void ScopeInfo::set_module_variables_hashtable(
 }
 
 Tagged<DependentCode> ScopeInfo::dependent_code() const {
-  DCHECK(SloppyEvalCanExtendVarsBit::decode(Flags()));
+  DCHECK(flags().sloppy_eval_can_extend_vars());
   const int slot = scope_info_internal::DataSlotIndex(DependentCodeOffset());
   return Cast<DependentCode>(data()[slot].load());
 }
 
 void ScopeInfo::set_dependent_code(Tagged<DependentCode> value,
                                    WriteBarrierMode mode) {
-  DCHECK(SloppyEvalCanExtendVarsBit::decode(Flags()));
+  DCHECK(flags().sloppy_eval_can_extend_vars());
   const int slot = scope_info_internal::DataSlotIndex(DependentCodeOffset());
   data()[slot].store(this, value, mode);
 }
 
 uint32_t ScopeInfo::unused_parameter_bits() const {
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::FUNCTION_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::FUNCTION_SCOPE);
   const int slot =
       scope_info_internal::DataSlotIndex(UnusedParameterBitsOffset());
   return Smi::To31BitPattern(data()[slot].load());
 }
 
 void ScopeInfo::set_unused_parameter_bits(uint32_t value) {
-  DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::FUNCTION_SCOPE);
+  DCHECK_EQ(flags().scope_type(), ScopeType::FUNCTION_SCOPE);
   const int slot =
       scope_info_internal::DataSlotIndex(UnusedParameterBitsOffset());
   data()[slot].store(this, Smi::From31BitPattern(static_cast<int>(value)));

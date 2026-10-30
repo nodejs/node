@@ -41,12 +41,13 @@ struct WasmModule;
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class ImportCallKind : uint8_t {
-  kLinkError,         // static Wasm->Wasm type error
-  kRuntimeTypeError,  // runtime Wasm->JS type error
-  kWasmToCapi,        // fast Wasm->C-API call
-  kWasmToJSFastApi,   // fast Wasm->JS Fast API C call
-  kWasmToWasm,        // fast Wasm->Wasm call
-  kJSFunction,        // fast Wasm->JS call
+  kLinkError,             // static Wasm->Wasm type error
+  kRuntimeTypeError,      // runtime Wasm->JS type error
+  kWasmToCapi,            // fast Wasm->C-API call
+  kWasmToJSFastApi,       // fast Wasm->JS Fast API C call
+  kWasmToWasm,            // fast Wasm->Wasm call
+  kReexportedJSFunction,  // Wasm->JS call reusing an existing wrapper
+  kJSFunction,            // fast Wasm->JS call
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
@@ -101,7 +102,8 @@ class ResolvedWasmImport {
 MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     DirectHandle<WasmModuleObject> module_object,
-    MaybeDirectHandle<JSReceiver> imports);
+    MaybeDirectHandle<JSReceiver> imports,
+    MaybeDirectHandle<Map> maybe_instance_map);
 
 // Initializes a segment at index {segment_index} of the segment array of
 // {instance}. If successful, returns the empty {Optional}, otherwise an

@@ -188,16 +188,19 @@ int StringTable::NumberOfElements() const {
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey final : public StringTableKey {
  public:
-  // `known_one_byte_content` is set by callers that just hashed `string` and
-  // observed via the hasher's IsOnly8Bit pass that the content fits in one
-  // byte. Used to canonicalize a 2-byte representation source string to a
-  // 1-byte internalized copy without a second content scan; false is always
-  // safe.
+  enum class Encoding { kUnknown, kOneByte, kTwoByte };
+
+  // `encoding` is set to `kOneByte` or `kTwoByte` by callers that just hashed
+  // `string` and observed via the hasher whether the content fits in one byte.
+  // If `encoding` is `kUnknown` (e.g., `string` was already hashed prior to
+  // LookupString), PrepareForInsertion will inspect the string on a table miss
+  // to ensure strings with one-byte content are always internalized as
+  // one-byte.
   InternalizedStringKey(DirectHandle<String> string, uint32_t hash,
-                        bool known_one_byte_content = false)
+                        Encoding encoding = Encoding::kUnknown)
       : StringTableKey(hash, string->length()),
         string_(string),
-        known_one_byte_content_(known_one_byte_content) {
+        encoding_(encoding) {
     DCHECK_NE(0, length());
     // When sharing the string table, it's possible that another thread already
     // internalized the key, in which case StringTable::LookupKey will perform a
@@ -214,9 +217,10 @@ class InternalizedStringKey final : public StringTableKey {
   }
 
   void PrepareForInsertion(Isolate* isolate) {
+    const bool known_one_byte_content = IsOneByte(isolate);
     StringTransitionStrategy strategy =
         isolate->factory()->ComputeInternalizationStrategyForString(
-            string_, &maybe_internalized_map_, known_one_byte_content_);
+            string_, &maybe_internalized_map_, known_one_byte_content);
     switch (strategy) {
       case StringTransitionStrategy::kCopy:
         break;
@@ -254,7 +258,7 @@ class InternalizedStringKey final : public StringTableKey {
           isolate->factory()->InternalizeExternalString<ExternalOneByteString>(
               string_);
     } else if (can_move_resource && shape.IsExternalTwoByte() &&
-               !known_one_byte_content_) {
+               !known_one_byte_content) {
       // Shared external strings are always in-place internalizable.
       // If this assumption is invalidated in the future, make sure that we
       // fully initialize (copy contents) for shared external strings, as the
@@ -271,7 +275,7 @@ class InternalizedStringKey final : public StringTableKey {
     } else {
       // Otherwise allocate a new internalized string.
       internalized_string_ = isolate->factory()->NewInternalizedStringImpl(
-          string_, length(), raw_hash_field(), known_one_byte_content_);
+          string_, length(), raw_hash_field(), known_one_byte_content);
     }
   }
 
@@ -304,6 +308,30 @@ class InternalizedStringKey final : public StringTableKey {
   }
 
  private:
+  bool IsOneByte(Isolate* isolate) {
+    switch (encoding_) {
+      case Encoding::kOneByte:
+        return true;
+      case Encoding::kTwoByte:
+        return false;
+      case Encoding::kUnknown:
+        if (string_->IsOneByteRepresentation() ||
+            Name::IsIntegerIndex(raw_hash_field())) {
+          encoding_ = Encoding::kOneByte;
+          return true;
+        }
+        DisallowGarbageCollection no_gc;
+        SharedStringAccessGuardIfNeeded access_guard(isolate);
+        String::FlatContent flat = string_->GetFlatContent(no_gc, access_guard);
+        DCHECK(flat.IsFlat());
+        const bool is_one_byte =
+            flat.IsOneByte() ||
+            detail::IsOnly8Bit(flat.ToUC16Vector().begin(), length());
+        encoding_ = is_one_byte ? Encoding::kOneByte : Encoding::kTwoByte;
+        return is_one_byte;
+    }
+  }
+
   DirectHandle<String> string_;
   // Copy of the string to be internalized (only set if the string is not
   // in-place internalizable). We can't override the original string, as
@@ -312,7 +340,7 @@ class InternalizedStringKey final : public StringTableKey {
   // equality checks in case of hash collisions.
   MaybeDirectHandle<InternalizedString> internalized_string_;
   MaybeDirectHandle<Map> maybe_internalized_map_;
-  bool known_one_byte_content_;
+  Encoding encoding_;
 };
 
 namespace {
@@ -411,17 +439,21 @@ DirectHandle<InternalizedString> StringTable::LookupString(
     } else {
       // Capture whether the hasher's IsOnly8Bit pass observed all-one-byte
       // content, so the table key can ask for a canonicalized one-byte
-      // internalized copy without a second scan. Only meaningful if we run
-      // the hasher here; for already-hashed strings or strings hashed via a
-      // forwarding-table lookup the value stays false and we fall back to
-      // map-keyed encoding.
-      bool one_byte_content = false;
+      // internalized copy without a second scan. If the hash was already
+      // computed or EnsureRawHash did not scan the content, the encoding stays
+      // kUnknown and PrepareForInsertion will inspect the string on a miss.
+      InternalizedStringKey::Encoding encoding =
+          InternalizedStringKey::Encoding::kUnknown;
       if (!Name::IsHashFieldComputed(raw_hash_field)) {
+        std::optional<bool> one_byte_content;
         raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
-      } else if (Name::IsIntegerIndex(raw_hash_field)) {
-        one_byte_content = true;
+        if (one_byte_content.has_value()) {
+          encoding = *one_byte_content
+                         ? InternalizedStringKey::Encoding::kOneByte
+                         : InternalizedStringKey::Encoding::kTwoByte;
+        }
       }
-      InternalizedStringKey key(flat_string, raw_hash_field, one_byte_content);
+      InternalizedStringKey key(flat_string, raw_hash_field, encoding);
       result = LookupKey(isolate, &key);
     }
   }
@@ -820,14 +852,10 @@ void StringTable::InsertForIsolateDeserialization(
     Data* const data = EnsureCapacity(isolate, length);
 
     for (const DirectHandle<InternalizedString>& s : strings) {
-      StringTableInsertionKey key(
-          isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
       InternalIndex entry =
-          data->table().FindEntryOrInsertionEntry(isolate, &key, key.hash());
-
-      DirectHandle<String> inserted_string = key.GetHandleForInsertion(isolate);
-      DCHECK_IMPLIES(v8_flags.shared_string_table, inserted_string->IsShared());
-      data->table().AddAt(isolate, entry, *inserted_string);
+          data->table().FindInsertionEntry(isolate, s->EnsureHash());
+      DCHECK_IMPLIES(v8_flags.shared_string_table, s->IsShared());
+      data->table().AddAt(isolate, entry, *s);
     }
   }
 

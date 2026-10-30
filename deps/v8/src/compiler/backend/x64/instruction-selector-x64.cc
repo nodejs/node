@@ -902,8 +902,6 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kX64MovqDecompressProtected;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
@@ -980,7 +978,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
-    case MachineRepresentation::kIndirectPointer:  // Fall through.
+    case MachineRepresentation::kTrustedPointer:  // Fall through.
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
@@ -1019,10 +1017,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
-      return kX64MovqStoreIndirectPointer;
+      return kX64MovqStoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kX64MovqEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -1410,6 +1405,9 @@ void InstructionSelector::VisitLoad(OpIndex node, OpIndex value,
     if (load.is_trapping()) {
       code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
+    if (load.has_shared_base()) {
+      code |= SharedBaseField::encode(SharedFlag{true});
+    }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
@@ -1483,8 +1481,7 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(
-        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(store_rep.representation()));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -1503,16 +1500,16 @@ void VisitStoreCommon(InstructionSelector* selector,
     inputs[input_count++] = g.UseUniqueRegister(value);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     InstructionCode code;
-    if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
-      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+    if (store_rep.representation() == MachineRepresentation::kTrustedPointer) {
+      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectSkippedWriteBarrier
-                 : kArchStoreIndirectWithWriteBarrier;
-      code |= RecordWriteModeField::encode(
-          RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store.indirect_pointer_tag();
+                 ? kArchStoreTrustedSkippedWriteBarrier
+                 : kArchStoreTrustedWithWriteBarrier;
+      code |=
+          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
+      TrustedPointerTag tag = store.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
@@ -1869,7 +1866,6 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 namespace {
 
 // Shared routine for multiple 32-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord64Shift using template magic?
 void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -1892,7 +1888,6 @@ void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
 }
 
 // Shared routine for multiple 64-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord32Shift using template magic?
 void VisitWord64Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -2258,23 +2253,14 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   if (g.CanBeImmediate(right)) {
     int32_t imm = g.GetImmediateIntegerValue(right);
-    if (imm == 0) {
-      if (ZeroExtendsWord32ToWord64(left)) {
-        // {EmitIdentity} reuses the virtual register of the first input
-        // for the output. This is only safe if it is known to zero-extend
-        // (as the int32 subtraction advertises itself as zero-extending.)
-        EmitIdentity(node);
-      } else {
-        // Emit "movl" for subtraction of 0.
-        Emit(kX64Movl, g.DefineAsRegister(node), g.UseRegister(left));
-      }
-    } else {
-      // Omit truncation and turn subtractions of constant values into immediate
-      // "leal" instructions by negating the value.
-      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(left),
-           g.TempImmediate(base::NegateWithWraparound(imm)));
-    }
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(imm, 0);
+    // Omit truncation and turn subtractions of constant values into immediate
+    // "leal" instructions by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(left),
+         g.TempImmediate(base::NegateWithWraparound(imm)));
     return;
   }
 
@@ -2297,6 +2283,9 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
     int64_t immediate_value = -*constant;
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(immediate_value, 0);
     if (ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
@@ -3798,7 +3787,7 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
 
 void VisitWord64EqualImpl(InstructionSelector* selector, OpIndex node,
                           FlagsContinuation* cont) {
-  if (selector->CanUseRootsRegister()) {
+  if (selector->isolate() != nullptr) {
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
@@ -3855,16 +3844,13 @@ void VisitWord32EqualImpl(InstructionSelector* selector, OpIndex node,
                   root_index, selector->isolate())),
               cont);
         }
-        if (selector->CanUseRootsRegister()) {
-          InstructionCode opcode =
-              kX64Cmp32 | AddressingModeField::encode(kMode_Root);
-          return VisitCompare(
-              selector, opcode,
-              g.TempImmediate(
-                  MacroAssemblerBase::RootRegisterOffsetForRootIndex(
-                      root_index)),
-              g.UseRegister(left), cont);
-        }
+        InstructionCode opcode =
+            kX64Cmp32 | AddressingModeField::encode(kMode_Root);
+        return VisitCompare(
+            selector, opcode,
+            g.TempImmediate(
+                MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+            g.UseRegister(left), cont);
       }
     }
   }
@@ -4783,9 +4769,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S256Xor, SXor, LaneSize::kL8, VectorLength::kV256)
 
 #define SIMD_F16x8_BINOP_LIST(V) \
-  V(F16x8Add, FAdd)              \
-  V(F16x8Sub, FSub)              \
-  V(F16x8Mul, FMul)              \
   V(F16x8Div, FDiv)              \
   V(F16x8Min, FMin)              \
   V(F16x8Max, FMax)              \
@@ -5263,6 +5246,60 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
 
+void InstructionSelector::VisitF16x8Add(OpIndex node) {
+  X64OperandGenerator g(this);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  InstructionCode code = kX64FAdd | LaneSizeField::encode(LaneSize::kL16) |
+                         VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    Emit(code, g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
+  } else {
+    InstructionOperand temps[] = {g.TempSimd256Register(),
+                                  g.TempSimd256Register()};
+    Emit(code, g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseUniqueRegister(op.right()), arraysize(temps), temps);
+  }
+}
+
+void InstructionSelector::VisitF16x8Sub(OpIndex node) {
+  X64OperandGenerator operands(this);
+  const Simd128BinopOp& operation = Cast<Simd128BinopOp>(node);
+  InstructionCode code = kX64FSub | LaneSizeField::encode(LaneSize::kL16) |
+                         VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    Emit(code, operands.DefineAsRegister(node),
+         operands.UseRegister(operation.left()),
+         operands.UseRegister(operation.right()));
+  } else {
+    InstructionOperand temps[] = {operands.TempSimd256Register(),
+                                  operands.TempSimd256Register()};
+    Emit(code, operands.DefineAsRegister(node),
+         operands.UseUniqueRegister(operation.left()),
+         operands.UseUniqueRegister(operation.right()), arraysize(temps),
+         temps);
+  }
+}
+
+void InstructionSelector::VisitF16x8Mul(OpIndex node) {
+  X64OperandGenerator operands(this);
+  const Simd128BinopOp& operation = Cast<Simd128BinopOp>(node);
+  InstructionCode code = kX64FMul | LaneSizeField::encode(LaneSize::kL16) |
+                         VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    Emit(code, operands.DefineAsRegister(node),
+         operands.UseRegister(operation.left()),
+         operands.UseRegister(operation.right()));
+  } else {
+    InstructionOperand temps[] = {operands.TempSimd256Register(),
+                                  operands.TempSimd256Register()};
+    Emit(code, operands.DefineAsRegister(node),
+         operands.UseUniqueRegister(operation.left()),
+         operands.UseUniqueRegister(operation.right()), arraysize(temps),
+         temps);
+  }
+}
+
 #define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                         \
   void InstructionSelector::Visit##Name(OpIndex node) {              \
     X64OperandGenerator g(this);                                     \
@@ -5449,6 +5486,13 @@ VISIT_SIMD_QFMOP(F32x8Qfms)
     X64OperandGenerator g(this);                                              \
     const Operation& op = Get(node);                                          \
     DCHECK_EQ(op.input_count, 3);                                             \
+    if (UseAvx10_1()) {                                                       \
+      /* The 213 form reads and overwrites the first multiplicand. */         \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),            \
+           g.UseAny(op.input(2)));                                            \
+      return;                                                                 \
+    }                                                                         \
     InstructionOperand temps[] = {g.TempSimd256Register(),                    \
                                   g.TempSimd256Register()};                   \
     Emit(kX64##Opcode, g.UseRegister(node), g.UseUniqueRegister(op.input(0)), \
@@ -6456,7 +6500,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    // TODO(wasm): Support vector f16 operations with AVX512 or AVX10.2.
+    // TODO(wasm): Use native AVX10.1 instructions for the remaining vector f16
+    // operations. F16C is still needed for their conversion-based lowering.
     flags |= MachineOperatorBuilder::kFloat16Arithmetic |
              MachineOperatorBuilder::kFloat16MemAccess;
     if (CpuFeatures::IsSupported(AVX)) {

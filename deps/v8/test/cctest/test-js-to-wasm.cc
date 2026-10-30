@@ -282,24 +282,23 @@ class FastJSWasmCallTester {
         builder_(zone_.New<WasmModuleBuilder>(&zone_)),
         old_budget_(i::v8_flags.invocation_count_for_turbofan) {
     builder_->AddMemory(16);
-    i::v8_flags.allow_natives_syntax = true;
-    i::v8_flags.turbo_inline_js_wasm_calls = true;
-    i::v8_flags.stress_background_compile = false;
-    i::v8_flags.concurrent_osr = false;  // Seems to mess with %ObserveNode.
-    i::v8_flags.invocation_count_for_turbofan = 20;
+    i::v8_flags.allow_natives_syntax.Set(true);
+    i::v8_flags.turbo_inline_js_wasm_calls.Set(true);
+    i::v8_flags.stress_background_compile.Set(false);
+    i::v8_flags.concurrent_osr.Set(false);  // Seems to mess with %ObserveNode.
+    i::v8_flags.invocation_count_for_turbofan.Set(20);
 #ifdef V8_ENABLE_MAGLEV
-    i::v8_flags.maglev = false;
+    i::v8_flags.maglev.Set(false);
 #endif  // V8_ENABLE_MAGLEV
   }
 
   ~FastJSWasmCallTester() {
-    i::v8_flags.invocation_count_for_turbofan = old_budget_;
+    i::v8_flags.invocation_count_for_turbofan.Set(old_budget_);
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
-    builder_->AddImport(base::CStrVector(name), signature,
-                        base::CStrVector(module));
+    builder_->AddImport(name, signature, module);
   }
 
   void AddExportedFunction(const ExportedFunction& exported_func) {
@@ -308,8 +307,8 @@ class FastJSWasmCallTester {
     func->EmitCode(exported_func.code.data(),
                    static_cast<uint32_t>(exported_func.code.size()));
     func->Emit(kExprEnd);
-    builder_->AddExport(base::CStrVector(exported_func.name.c_str()),
-                        kExternalFunction, func->func_index());
+    builder_->AddExport(exported_func.name, kExternalFunction,
+                        func->func_index());
 
     // JS-to-Wasm inlining is disabled when targeting 32 bits if the Wasm
     // function signature contains an I64.
@@ -590,7 +589,8 @@ class FastJSWasmCallTester {
                               ModuleTypeIndex supertype = kNoSuperType,
                               bool is_final = false) {
     return builder_->AddArrayType(
-        zone_.New<ArrayType>(element_type, mutability), is_final, supertype);
+        zone_.New<ArrayType>(element_type, mutability, SharedFlag{false}),
+        is_final, supertype);
   }
 
  private:
@@ -606,11 +606,11 @@ class FastJSWasmCallTester {
     auto it = buffer.begin();
     if (it != buffer.end()) {
       string_stream << "0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     while (it != buffer.end()) {
       string_stream << ", 0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     string_stream << "]";
     return string_stream.str();

@@ -329,7 +329,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -425,9 +426,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  IndirectPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Operand offset,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
@@ -1381,8 +1381,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, MemOperand field_operand,
-                               IndirectPointerTag tag);
-  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+                               TrustedPointerTagRange tag_range);
+  // As above, but for kUnknownTrustedPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
   // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
@@ -1397,13 +1397,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
       Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
-  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
+  void StoreTrustedPointerField(
+      Register value, MemOperand dst_field_operand,
+      Trapper&& trapper = [](int) {});
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
-  // enabled, reference code objects through the code pointer table.
+  // enabled, reference code objects through the trusted pointer table.
   void LoadCodePointerField(Register destination, MemOperand field_operand) {
-    LoadTrustedPointerField(destination, field_operand,
-                            kCodeIndirectPointerTag);
+    LoadTrustedPointerField(destination, field_operand, kCodeTrustedPointerTag);
   }
   // Store a code pointer field.
   void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
@@ -1470,21 +1471,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                   const MemOperand& dst_field_operand,
                                   Trapper&& trapper = [](int){});
 
-  // Loads an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
-                                IndirectPointerTagRange tag_range);
-  // Store an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
-                                 Trapper&& trapper = [](int){});
-
 #ifdef V8_ENABLE_SANDBOX
-  // Retrieve the heap object referenced by the given indirect pointer handle.
-  void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    IndirectPointerTagRange tag_range);
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   TrustedPointerTagRange tag_range);
 #endif
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src,

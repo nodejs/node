@@ -101,9 +101,22 @@ class BitField final {
     return static_cast<U>(to_value(value)) << kShift;
   }
 
+  // Returns a type U with the bit field value encoded, assuming that the
+  // value is known to fit into the bit field.
+  static constexpr U encode_unchecked(T value) {
+    DCHECK(is_valid(value));
+    return static_cast<U>(to_value(value)) << kShift;
+  }
+
   // Returns a type U with the bit field value updated.
   V8_NODISCARD static constexpr U update(U previous, T value) {
     return (previous & ~kMask) | encode(value);
+  }
+
+  // Returns a type U with the bit field value updated, assuming that the
+  // value is known to fit into the bit field.
+  V8_NODISCARD static constexpr U update_unchecked(U previous, T value) {
+    return (previous & ~kMask) | encode_unchecked(value);
   }
 
   // Extracts the bit field from the value.

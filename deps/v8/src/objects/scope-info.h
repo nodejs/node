@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -44,7 +45,8 @@ struct VariableLookupResult {
   int initializer_position;
 };
 
-// LINT.IfChange(ScopeInfoStructs)
+// Layout of the function_variable_info / module_variables sections of the
+// ScopeInfo tail (see the layout comment at the end of the class).
 struct FunctionVariableInfo {
   TaggedMember<Object> name;
   TaggedMember<Smi> context_or_stack_slot_index;
@@ -55,7 +57,6 @@ struct ModuleVariableInfo {
   TaggedMember<Smi> index;
   TaggedMember<Smi> properties;
 };
-// LINT.ThenChange(src/objects/scope-info.tq)
 
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
@@ -66,33 +67,69 @@ struct ModuleVariableInfo {
 // routines.
 V8_OBJECT class ScopeInfo : public HeapObject {
  public:
-  // Bit positions in |flags|.
-  using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint32_t>;
-  using SloppyEvalCanExtendVarsBit = ScopeTypeBits::Next<bool, 1>;
-  using LanguageModeBit = SloppyEvalCanExtendVarsBit::Next<LanguageMode, 1>;
-  using DeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
-  using ReceiverVariableBits =
-      DeclarationScopeBit::Next<VariableAllocationInfo, 2>;
-  using ClassScopeHasPrivateBrandBit = ReceiverVariableBits::Next<bool, 1>;
-  using HasSavedClassVariableBit = ClassScopeHasPrivateBrandBit::Next<bool, 1>;
-  using AllocatesArgumentsBit = HasSavedClassVariableBit::Next<bool, 1>;
-  using FunctionVariableBits =
-      AllocatesArgumentsBit::Next<VariableAllocationInfo, 2>;
-  using HasInferredFunctionNameBit = FunctionVariableBits::Next<bool, 1>;
-  using HasSimpleParametersBit = HasInferredFunctionNameBit::Next<bool, 1>;
-  using FunctionKindBits = HasSimpleParametersBit::Next<FunctionKind, 5>;
-  using HasOuterScopeInfoBit = FunctionKindBits::Next<bool, 1>;
-  using IsDebugEvaluateScopeBit = HasOuterScopeInfoBit::Next<bool, 1>;
-  using ForceContextAllocationBit = IsDebugEvaluateScopeBit::Next<bool, 1>;
-  using PrivateNameLookupSkipsOuterClassBit =
-      ForceContextAllocationBit::Next<bool, 1>;
-  using HasContextExtensionSlotBit =
-      PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
-  using SomeContextHasExtensionBit = HasContextExtensionSlotBit::Next<bool, 1>;
-  using IsHiddenBit = SomeContextHasExtensionBit::Next<bool, 1>;
-  using IsWrappedFunctionBit = IsHiddenBit::Next<bool, 1>;
-  using HasContextCellsBit = IsWrappedFunctionBit::Next<bool, 1>;
-  using IsHoistedInContextBit = HasContextCellsBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint32_t>;
+    using SloppyEvalCanExtendVarsBit = ScopeTypeBits::Next<bool, 1>;
+    using LanguageModeBit = SloppyEvalCanExtendVarsBit::Next<LanguageMode, 1>;
+    using DeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
+    using ReceiverVariableBits =
+        DeclarationScopeBit::Next<VariableAllocationInfo, 2>;
+    using ClassScopeHasPrivateBrandBit = ReceiverVariableBits::Next<bool, 1>;
+    using HasSavedClassVariableBit =
+        ClassScopeHasPrivateBrandBit::Next<bool, 1>;
+    using AllocatesArgumentsBit = HasSavedClassVariableBit::Next<bool, 1>;
+    using FunctionVariableBits =
+        AllocatesArgumentsBit::Next<VariableAllocationInfo, 2>;
+    using HasInferredFunctionNameBit = FunctionVariableBits::Next<bool, 1>;
+    using HasSimpleParametersBit = HasInferredFunctionNameBit::Next<bool, 1>;
+    using FunctionKindBits = HasSimpleParametersBit::Next<FunctionKind, 5>;
+    using HasOuterScopeInfoBit = FunctionKindBits::Next<bool, 1>;
+    using IsDebugEvaluateScopeBit = HasOuterScopeInfoBit::Next<bool, 1>;
+    using ForceContextAllocationBit = IsDebugEvaluateScopeBit::Next<bool, 1>;
+    using PrivateNameLookupSkipsOuterClassBit =
+        ForceContextAllocationBit::Next<bool, 1>;
+    using HasContextExtensionSlotBit =
+        PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+    using SomeContextHasExtensionBit =
+        HasContextExtensionSlotBit::Next<bool, 1>;
+    using IsHiddenBit = SomeContextHasExtensionBit::Next<bool, 1>;
+    using IsWrappedFunctionBit = IsHiddenBit::Next<bool, 1>;
+    using HasContextCellsBit = IsWrappedFunctionBit::Next<bool, 1>;
+    using IsHoistedInContextBit = HasContextCellsBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(scope_type, ScopeTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(sloppy_eval_can_extend_vars,
+                              SloppyEvalCanExtendVarsBit)
+    BIT_FIELD_GROUP_ACCESSORS(language_mode, LanguageModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(declaration_scope, DeclarationScopeBit)
+    BIT_FIELD_GROUP_ACCESSORS(receiver_variable, ReceiverVariableBits)
+    BIT_FIELD_GROUP_ACCESSORS(class_scope_has_private_brand,
+                              ClassScopeHasPrivateBrandBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_saved_class_variable,
+                              HasSavedClassVariableBit)
+    BIT_FIELD_GROUP_ACCESSORS(allocates_arguments, AllocatesArgumentsBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_variable, FunctionVariableBits)
+    BIT_FIELD_GROUP_ACCESSORS(has_inferred_function_name,
+                              HasInferredFunctionNameBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_simple_parameters, HasSimpleParametersBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_kind, FunctionKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(has_outer_scope_info, HasOuterScopeInfoBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_debug_evaluate_scope, IsDebugEvaluateScopeBit)
+    BIT_FIELD_GROUP_ACCESSORS(force_context_allocation,
+                              ForceContextAllocationBit)
+    BIT_FIELD_GROUP_ACCESSORS(private_name_lookup_skips_outer_class,
+                              PrivateNameLookupSkipsOuterClassBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_context_extension_slot,
+                              HasContextExtensionSlotBit)
+    BIT_FIELD_GROUP_ACCESSORS(some_context_has_extension,
+                              SomeContextHasExtensionBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_hidden, IsHiddenBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_wrapped_function, IsWrappedFunctionBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_context_cells, HasContextCellsBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_hoisted_in_context, IsHoistedInContextBit)
+  };
 
   DECL_PRINTER(ScopeInfo)
   DECL_VERIFIER(ScopeInfo)
@@ -319,7 +356,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);
 
-  inline uint32_t Flags() const;
+  inline Flags flags() const;
   inline int ParameterCount() const;
   inline int ContextLocalCount() const;
 
@@ -336,12 +373,13 @@ V8_OBJECT class ScopeInfo : public HeapObject {
     kVariablePartStart
   };
 
-  static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  static_assert(FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
+  static_assert(LanguageModeSize == 1 << Flags::LanguageModeBit::kSize);
+  static_assert(
+      Flags::FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
 
   // Named field accessors.
-  inline uint32_t flags(RelaxedLoadTag) const;
-  inline void set_flags(uint32_t value, RelaxedStoreTag);
+  inline Flags flags(RelaxedLoadTag) const;
+  inline void set_flags(Flags value, RelaxedStoreTag);
 
   inline int parameter_count() const;
   inline void set_parameter_count(int value);
@@ -552,19 +590,52 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   friend class TorqueGeneratedBitFieldAsserts;
 
  public:
-  // Relaxed-atomic flags word (ScopeFlags bit layout).
-  std::atomic<uint32_t> flags_;
+  V8_TQ_CONST V8_TQ_RELAXED std::atomic<Flags> flags_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
   // TODO(jgruber): Consider plain uint32_t (or similar) for these.
   TaggedMember<Smi> parameter_count_;
-  TaggedMember<Smi> context_local_count_;
-  TaggedMember<Smi> position_info_start_;
-  TaggedMember<Smi> position_info_end_;
+  V8_TQ_CONST TaggedMember<Smi> context_local_count_;
+  // Match the Torque PositionInfo struct as one struct-typed field.
+  struct PositionInfo {
+    TaggedMember<Smi> start_;
+    TaggedMember<Smi> end_;
+  };
+  PositionInfo position_info_;
   // Variable-length tagged tail. The presence and position of each
-  // sub-section is determined by flags and by header counts; see the
-  // Foo...Offset() accessors below.
+  // sub-section is determined by flags and by header counts; the layout is
+  // defined by the Foo...Offset() accessors above (scope-info-inl.h). In
+  // order:
+  //
+  //   module_variable_count      [scope_type == MODULE_SCOPE]: Smi
+  //   context_local_names        [context_local_count < kMax ? count : 0]:
+  //                              String
+  //   context_local_names_hashtable [kMax <= context_local_count]:
+  //                              NameToIndexHashTable
+  //   context_local_infos        [context_local_count]:
+  //                              SmiTagged<VariableProperties>
+  //   saved_class_variable_info  [has_saved_class_variable]: Smi|Name
+  //   function_variable_info     [function_variable != NONE]:
+  //                              {name: String|Zero, slot_index: Smi}
+  //   inferred_function_name     [has_inferred_function_name]:
+  //                              String|Undefined
+  //   outer_scope_info           [has_outer_scope_info]: ScopeInfo
+  //   module_info                [scope_type == MODULE_SCOPE]:
+  //                              SourceTextModuleInfo
+  //   module_variables           [module_variable_count]:
+  //                              {name: String, index: Smi,
+  //                               properties: SmiTagged<VariableProperties>}
+  //   module_variables_hashtable [MODULE_SCOPE && kMax <= module_var_count]:
+  //                              NameToIndexHashTable
+  //   dependent_code             [sloppy_eval_can_extend_vars]: DependentCode
+  //   unused_parameter_bits      [scope_type == FUNCTION_SCOPE]: Smi
+  //
+  // where kMax is kScopeInfoMaxInlinedLocalNamesSize. Torque only sees the
+  // fixed header; CSA reaches context_local_names / _hashtable /
+  // context_local_infos through CodeStubAssembler::IndexOfLocalName and
+  // GetFunctionContextSlotInitialValue.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data);
 } V8_OBJECT_END;
 

@@ -6,7 +6,7 @@
 
 type JSRelativeTimeFormatNumeric extends int32
     constexpr 'JSRelativeTimeFormat::Numeric';
-@cppScope('JSRelativeTimeFormat')
+@cppScope('JSRelativeTimeFormat::Flags')
 bitfield struct JSRelativeTimeFormatFlags extends uint31 {
   numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }

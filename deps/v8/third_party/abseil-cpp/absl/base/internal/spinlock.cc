@@ -28,6 +28,7 @@
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/internal/sysinfo.h" /* For NumCPUs() */
 #include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/nullability.h"
 
 // Description of lock-word:
 //  31..00: [............................3][2][1][0]
@@ -62,12 +63,38 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static AtomicHook<void (*)(
-    const void *lock, int64_t wait_cycles)>
-    submit_profile_data;
+    const void* lock, int64_t wait_cycles)>
+    submit_unlock_profile_data;
 
-void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
-                                         int64_t wait_cycles)) {
-  submit_profile_data.Store(fn);
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static AtomicHook<void (*)(
+    const void* lock, int64_t wait_cycles)>
+    submit_lock_profile_data;
+
+void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull contendedlock, int64_t wait_cycles)) {
+  submit_unlock_profile_data.Store(fn);
+}
+
+void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull contendedlock, int64_t wait_cycles)) {
+  submit_lock_profile_data.Store(fn);
+}
+
+// Waits shorter than one profiling timestamp unit (see
+// kProfileTimestampShift below) are not reported.
+static constexpr int64_t kMinProfiledWaitCycles = 1 << 7;
+
+// Report how long an acquiring thread was blocked, measured from the point
+// at which it gave up spinning for the lock.
+static void ReportLockWait(SpinLock& lock, int64_t wait_start_time,
+                           int64_t wait_end_time) {
+  const int64_t wait_cycles = wait_end_time - wait_start_time;
+  if (wait_cycles < kMinProfiledWaitCycles) {
+    return;
+  }
+  ABSL_TSAN_MUTEX_PRE_DIVERT(&lock, 0);
+  submit_lock_profile_data(&lock, wait_cycles);
+  ABSL_TSAN_MUTEX_POST_DIVERT(&lock, 0);
 }
 
 // Monitor the lock to see if its value changes within some time period
@@ -111,9 +138,10 @@ void SpinLock::SlowLock() {
 
   // The lock was not obtained initially, so this thread needs to wait for
   // it.  Record the current timestamp in the local variable wait_start_time
-  // so the total wait time can be stored in the lockword once this thread
-  // obtains the lock.
-  int64_t wait_start_time = CycleClock::Now();
+  // so the total wait time can be reported once this thread obtains the lock,
+  // and stored in the lockword for the unlock-side profiler.
+  const int64_t wait_start_time = CycleClock::Now();
+  int64_t now = wait_start_time;
   uint32_t wait_cycles = 0;
   int lock_wait_call_count = 0;
   while ((lock_value & kSpinLockHeld) != 0) {
@@ -158,9 +186,12 @@ void SpinLock::SlowLock() {
     // Spin again after returning from the wait routine to give this thread
     // some chance of obtaining the lock.
     lock_value = SpinLoop();
-    wait_cycles = EncodeWaitCycles(wait_start_time, CycleClock::Now());
+    now = CycleClock::Now();
+    wait_cycles = EncodeWaitCycles(wait_start_time, now);
     lock_value = TryLockInternal(lock_value, wait_cycles);
   }
+
+  ReportLockWait(*this, wait_start_time, now);
 }
 
 void SpinLock::SlowUnlock(uint32_t lock_value) {
@@ -173,7 +204,7 @@ void SpinLock::SlowUnlock(uint32_t lock_value) {
   if ((lock_value & kWaitTimeMask) != kSpinLockSleeper) {
     const int64_t wait_cycles = DecodeWaitCycles(lock_value);
     ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
-    submit_profile_data(this, wait_cycles);
+    submit_unlock_profile_data(this, wait_cycles);
     ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
   }
 }

@@ -14,7 +14,7 @@
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope
 #include "test/unittests/test-utils.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8::internal {
 
@@ -33,7 +33,7 @@ struct PointerTableTraits<ExternalPointerTable> {
 
 class PointerTableTest : public TestWithContext {
  public:
-  PointerTableTest() { v8_flags.stress_compaction = true; }
+  PointerTableTest() { v8_flags.stress_compaction.Set(true); }
 
   template <typename Table>
   class SpaceScope {
@@ -430,4 +430,4 @@ TEST_F(PointerTableTest, ExternalPointerTableHandleOverwriteBailouts) {
 
 }  // namespace v8::internal
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS

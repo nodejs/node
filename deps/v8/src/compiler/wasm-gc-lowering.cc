@@ -141,11 +141,25 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                      gasm_.Int32Constant(0));
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
@@ -244,7 +258,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
       break;
     }
     if (to_kind == wasm::GenericKind::kStruct) {
-      result = gasm_.HasInstanceType(object, WASM_STRUCT_TYPE);
+      result =
+          gasm_.Word32Or(gasm_.HasInstanceType(object, WASM_STRUCT_TYPE),
+                         gasm_.HasInstanceType(object, WASM_CUSTOM_MAP_TYPE));
       break;
     }
     if (to_kind == wasm::GenericKind::kString ||
@@ -304,13 +320,30 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
     UpdateSourcePosition(gasm_.effect(), node);
     gasm_.Goto(&end_label);
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
+                     TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
+    gasm_.Goto(&end_label);
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
@@ -422,7 +455,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       break;
     }
     if (to_kind == wasm::GenericKind::kStruct) {
-      gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_STRUCT_TYPE),
+      gasm_.GotoIf(gasm_.HasInstanceType(object, WASM_STRUCT_TYPE), &end_label,
+                   BranchHint::kTrue);
+      gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_CUSTOM_MAP_TYPE),
                        TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
@@ -476,7 +511,8 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
         UpdateSourcePosition(gasm_.effect(), node);
       } else {
         static_assert(WasmStruct::kHeaderSize > kTaggedSize);
-        static_assert(WasmArray::kHeaderSize > kTaggedSize);
+        static_assert(WasmCustomMap::kHeaderSize > kTaggedSize);
+        static_assert(WasmArray::HeaderSize(SharedFlag{false}) > kTaggedSize);
         static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
         Node* trap_null = gasm_.LoadTrapOnNull(
             MachineType::Int32(), object,
@@ -539,11 +575,14 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   auto smi_label = gasm_.MakeLabel();
   auto int_to_smi_label = gasm_.MakeLabel();
   auto heap_number_label = gasm_.MakeLabel();
+  auto custom_map_wrapper_label = gasm_.MakeLabel();
 
   gasm_.GotoIf(IsNull(input, wasm::kWasmExternRef), &null_label);
   gasm_.GotoIf(gasm_.IsSmi(input), &smi_label);
   Node* is_heap_number = gasm_.HasInstanceType(input, HEAP_NUMBER_TYPE);
   gasm_.GotoIf(is_heap_number, &heap_number_label);
+  gasm_.GotoIf(gasm_.HasInstanceType(input, WASM_CUSTOM_MAP_WRAPPER_TYPE),
+               &custom_map_wrapper_label);
   // For anything else, just pass through the value.
   gasm_.Goto(&end_label, input);
 
@@ -617,6 +656,12 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   gasm_.Bind(&int_to_smi_label);
   gasm_.Goto(&end_label, gasm_.BuildChangeInt32ToSmi(int_value));
 
+  gasm_.Bind(&custom_map_wrapper_label);
+  gasm_.Goto(&end_label,
+             gasm_.LoadFromObject(
+                 MachineType::TaggedPointer(), input,
+                 offsetof(WasmCustomMapWrapper, wrapped_) - kHeapObjectTag));
+
   gasm_.Bind(&end_label);
   ReplaceWithValue(node, end_label.PhiAt(0), gasm_.effect(), gasm_.control());
   node->Kill();
@@ -628,13 +673,26 @@ Reduction WasmGCLowering::ReduceWasmExternConvertAny(Node* node) {
   Node* object = node->InputAt(0);
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
-  auto label = gasm_.MakeLabel(MachineRepresentation::kTagged);
-  gasm_.GotoIfNot(IsNull(object, wasm::kWasmAnyRef), &label, object);
-  gasm_.Goto(&label, Null(wasm::kWasmExternRef));
-  gasm_.Bind(&label);
-  ReplaceWithValue(node, label.PhiAt(0), gasm_.effect(), gasm_.control());
+  auto done = gasm_.MakeLabel(MachineRepresentation::kTagged);
+  gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &done,
+               Null(wasm::kWasmExternRef));
+  gasm_.GotoIf(gasm_.IsSmi(object), &done, object);
+  gasm_.GotoIfNot(gasm_.HasInstanceType(object, WASM_CUSTOM_MAP_TYPE), &done,
+                  object);
+
+  // {object} is a WasmCustomMap.
+  Node* maybe_wrapper = gasm_.LoadFromObject(
+      MachineType::TaggedPointer(), object,
+      offsetof(WasmCustomMap, js_wrapper_) - kHeapObjectTag);
+  gasm_.GotoIfNot(IsNull(maybe_wrapper, wasm::kWasmExternRef), &done,
+                  maybe_wrapper);
+  gasm_.Goto(&done, gasm_.CallBuiltin(Builtin::kWasmExternConvertAny,
+                                      Operator::kEliminatable, object));
+
+  gasm_.Bind(&done);
+  ReplaceWithValue(node, done.PhiAt(0), gasm_.effect(), gasm_.control());
   node->Kill();
-  return Replace(label.PhiAt(0));
+  return Replace(done.PhiAt(0));
 }
 
 Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
@@ -734,7 +792,7 @@ Reduction WasmGCLowering::ReduceWasmArrayGet(Node* node) {
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
-  Node* offset = gasm_.WasmArrayElementOffset(index, info.type->element_type());
+  Node* offset = gasm_.WasmArrayElementOffset(index, info.type);
 
   MachineType type = MachineType::TypeForRepresentation(
       info.type->element_type().machine_representation(), info.is_signed);
@@ -757,7 +815,7 @@ Reduction WasmGCLowering::ReduceWasmArraySet(Node* node) {
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));
 
-  Node* offset = gasm_.WasmArrayElementOffset(index, type->element_type());
+  Node* offset = gasm_.WasmArrayElementOffset(index, type);
 
   ObjectAccess access = ObjectAccessForGCStores(type->element_type());
 

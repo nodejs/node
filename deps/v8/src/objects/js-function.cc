@@ -991,8 +991,9 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
   // system.
   // TODO(leszeks): Figure out if this CHECK is needed.
   CHECK(IsJSReceiver(*prototype));
-  JSFunction::SetInitialMap(isolate, function, map, prototype);
+  // Initialize slack tracking before publishing the map to concurrent readers.
   map->StartInobjectSlackTracking();
+  JSFunction::SetInitialMap(isolate, function, map, prototype);
 }
 
 namespace {
@@ -1075,11 +1076,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
@@ -1183,11 +1187,12 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
+  // Initialize slack tracking before publishing the map to concurrent readers.
+  map->set_construction_counter(Map::kNoSlackTracking);
+  map->StartInobjectSlackTracking();
   DirectHandle<JSReceiver> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(IsJSReceiver(new_target->instance_prototype()));
-  map->set_construction_counter(Map::kNoSlackTracking);
-  map->StartInobjectSlackTracking();
   return true;
 }
 
@@ -1484,7 +1489,8 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   }
 
   // Check if we have source code for the {function}.
-  if (!shared_info->HasSourceCode()) {
+  if (!shared_info->HasSourceCode() ||
+      shared_info->StartPosition() == shared_info->EndPosition()) {
     return NativeCodeFunctionSourceString(isolate, shared_info);
   }
 

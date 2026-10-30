@@ -1,0 +1,5 @@
+{
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
+    "generators": {"strategy": "adaptive", "params": {"weights": {
+      "WasmModule": 6, "JitOptimize": 6, "OsrLoop": 2, "TypedArrayOps": 3}}}}
+}

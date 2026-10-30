@@ -31,6 +31,14 @@
   'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
+
+  # Sandbox regression tests requiring the memory corruption API.
+  'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-507490539': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-513048538': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-568338771': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-570558888': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-crbug-568986689': [PASS, ['not memory_corruption_api', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -74,7 +82,32 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'runtime/wasm-getter': [SKIP],
+  'regress/regress-502287689': [SKIP],
+  'regress/regress-513413942': [SKIP],
+  'regress/regress-517316174': [SKIP],
+  'regress/regress-519715438': [SKIP],
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
+  'regress/regress-527985808': [SKIP],
+  'regress/regress-529880019': [SKIP],
+  'regress/regress-530658019': [SKIP],
+  'regress/regress-534275413': [SKIP],
+  'regress/regress-534579660': [SKIP],
+  'regress/regress-537219980': [SKIP],
+  'regress/regress-569886678': [SKIP],
+  'regress/regress-570538338': [SKIP],
+  'regress/regress-570547314': [SKIP],
+  'regress/regress-571960156': [SKIP],
+  'regress/regress-571965281': [SKIP],
+  'regress/regress-572276045': [SKIP],
+  'regress/regress-572403047': [SKIP],
+  'regress/regress-572834323': [SKIP],
+  'regress/regress-577352626': [SKIP],
+  'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
+  'regress/regress-crbug-840288': [SKIP],
+  'regress/regress-nested-stack-switch-catch': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
@@ -117,6 +150,9 @@
   'debugger/wasm-stepping-with-source-map': [SKIP],
   # Generic wasm-to-js wrapper must be enabled.
   'cpu-profiler/console-profile-wasm': [SKIP],
+  # Wasm code coverage is not supported yet.
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
@@ -253,5 +289,12 @@
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x)
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Wasm code coverage is not currently supported.
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
+}],  # sandbox_hardware_support
 
 ]

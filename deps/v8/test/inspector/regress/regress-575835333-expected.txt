@@ -1,0 +1,6 @@
+Checks that custom formatters cannot return strings that cause OOM.
+
+Running test: setUp
+
+Running test: testOOM
+no custom preview

@@ -20,6 +20,7 @@
 #include "src/base/sanitizer/tsan.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -302,10 +303,6 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
   std::string fn_name = DebugName();
   WasmName name = base::VectorOf(fn_name);
 
-  if (native_module_) {
-    TryLoadSourceMap(isolate);
-  }
-
   // Record source positions before adding code, otherwise when code is added,
   // there are no source positions to associate with the added code.
   if (!source_positions().empty()) {
@@ -414,31 +411,6 @@ void WasmCode::Validate() const {
 #endif
 }
 
-void WasmCode::TryLoadSourceMap(Isolate* isolate) const {
-  auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
-  if (!load_wasm_source_map) return;
-
-  if (native_module_->GetWasmSourceMap()) return;
-
-  const WasmModule* module = native_module_->module();
-  const WasmDebugSymbols& symbol =
-      module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
-  if (symbol.type != WasmDebugSymbols::Type::SourceMap) return;
-  if (symbol.external_url.is_empty()) return;
-
-  ModuleWireBytes wire_bytes(native_module_->wire_bytes());
-  WasmName external_url = wire_bytes.GetNameOrNull(symbol.external_url);
-  std::string external_url_string(external_url.data(), external_url.size());
-  HandleScope scope(isolate);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  Local<v8::String> source_map_str =
-      load_wasm_source_map(v8_isolate, external_url_string.c_str());
-  if (source_map_str.IsEmpty()) return;
-
-  native_module_->SetWasmSourceMapIfUnset(
-      std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
-}
-
 void WasmCode::MaybePrint() const {
   // Determines whether flags want this code to be printed.
   bool function_index_matches =
@@ -512,8 +484,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (trapping_instructions_size_ > 0) {
     os << "Trapping instructions:\n pc offset\n";
     for (auto& data : trapping_instructions()) {
-      os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
-         << "\n";
+      os << std::setw(10) << std::hex << data.instr_offset << std::dec
+         << std::setw(10) << "\n";
     }
     os << "\n";
   }
@@ -1098,13 +1070,39 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   }
 }
 
-void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
-  DisallowGarbageCollection no_gc;
+void NativeModule::TryLoadSourceMap(Isolate* isolate) {
+  auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
+  if (!load_wasm_source_map) return;
+
+  if (GetWasmSourceMap()) return;
+
+  const WasmDebugSymbols& symbol =
+      module_->debug_symbols[WasmDebugSymbols::Type::SourceMap];
+  if (symbol.type != WasmDebugSymbols::Type::SourceMap) return;
+  if (symbol.external_url.is_empty()) return;
+
+  ModuleWireBytes wire_bytes(this->wire_bytes());
+  WasmName external_url = wire_bytes.GetNameOrNull(symbol.external_url);
+  std::string external_url_string(external_url.data(), external_url.size());
+  HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  Local<v8::String> source_map_str =
+      load_wasm_source_map(v8_isolate, external_url_string.c_str());
+  if (source_map_str.IsEmpty()) return;
+
+  SetWasmSourceMapIfUnset(
+      std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
+}
+
+void NativeModule::LogWasmCodes(Isolate* isolate, DirectHandle<Script> script) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT("v8.wasm", "wasm.LogWasmCodes", "functions",
               module_->num_declared_functions);
 
+  TryLoadSourceMap(isolate);
+
+  DisallowGarbageCollection no_gc;
   Tagged<Object> url_obj = script->name();
   DCHECK(IsString(url_obj) || IsUndefined(url_obj));
   std::unique_ptr<char[]> source_url =
@@ -1204,30 +1202,30 @@ WasmCode* NativeModule::AddCodeForTesting(const WasmCompilationResult& result,
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
-  std::unique_ptr<WasmCode> unique_code{new (reserved_code) WasmCode{
-      this,
-      kAnonymousFuncIndex,
-      dst_code_bytes,
-      static_cast<int>(result.frame_slot_count),
-      static_cast<int>(result.ool_spill_count),
-      result.tagged_parameter_slots,
-      safepoint_table_offset,
-      handler_table_offset,
-      constant_pool_offset,
-      code_comments_offset,
-      jump_table_info_offset,
-      instr_size,
-      result.trapping_instructions_data.as_vector(),
-      reloc_info,
-      result.source_positions.as_vector(),
-      result.inlining_positions.as_vector(),
-      result.deopt_data.as_vector(),
-      GetCodeKind(result),
-      result.result_tier,
-      result.for_debugging,
-      signature_hash,
-      result.effect_handlers.as_vector(),
-      result.frame_has_feedback_slot}};
+  std::unique_ptr<WasmCode> unique_code{
+      new (reserved_code) WasmCode{this,
+                                   kAnonymousFuncIndex,
+                                   dst_code_bytes,
+                                   static_cast<int>(result.frame_slot_count),
+                                   static_cast<int>(result.ool_spill_count),
+                                   result.tagged_parameter_slots,
+                                   safepoint_table_offset,
+                                   handler_table_offset,
+                                   constant_pool_offset,
+                                   code_comments_offset,
+                                   jump_table_info_offset,
+                                   instr_size,
+                                   result.trapping_instructions_data.as_span(),
+                                   reloc_info,
+                                   result.source_positions.as_span(),
+                                   result.inlining_positions.as_span(),
+                                   result.deopt_data.as_span(),
+                                   GetCodeKind(result),
+                                   result.result_tier,
+                                   result.for_debugging,
+                                   signature_hash,
+                                   result.effect_handlers.as_span(),
+                                   result.frame_has_feedback_slot}};
 
   unique_code->MaybePrint();
   unique_code->Validate();
@@ -1423,7 +1421,8 @@ WasmCode* NativeModule::PublishCode(UnpublishedWasmCode unpublished_code) {
               "wasm.PublishCode");
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(unpublished_code.code),
-                           unpublished_code.assumptions.get());
+                           unpublished_code.assumptions.get(),
+                           unpublished_code.for_deopt);
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
@@ -1436,7 +1435,8 @@ std::vector<WasmCode*> NativeModule::PublishCode(
   // The published code is put into the top-most surrounding {WasmCodeRefScope}.
   for (auto& unpublished_code : unpublished_codes) {
     WasmCode* code = PublishCodeLocked(std::move(unpublished_code.code),
-                                       unpublished_code.assumptions.get());
+                                       unpublished_code.assumptions.get(),
+                                       unpublished_code.for_deopt);
     if (code == nullptr) {
       // There were invalid assumptions in the code.
       DCHECK_NOT_NULL(unpublished_code.assumptions);
@@ -1478,7 +1478,8 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
 }
 
 WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
-                                          AssumptionsJournal* assumptions) {
+                                          AssumptionsJournal* assumptions,
+                                          bool for_deopt) {
   allocation_mutex_.AssertHeld();
   DCHECK_LT(owned_code->index(), num_functions());
 
@@ -1535,7 +1536,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
       kForDebugging > kNotForDebugging && kWithBreakpoints > kForDebugging,
       "for_debugging is ordered");
 
-  if (should_update_code_table(code, prior_code)) {
+  if (should_update_code_table(code, prior_code, for_deopt)) {
     code_table_[slot_idx] = code;
     if (prior_code) {
       // Code in the code table is always live, so `AddRef` can be used instead
@@ -1559,7 +1560,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
 }
 
 bool NativeModule::should_update_code_table(WasmCode* new_code,
-                                            WasmCode* prior_code) const {
+                                            WasmCode* prior_code,
+                                            bool for_deopt) const {
+  DCHECK_IMPLIES(for_deopt, v8_flags.wasm_deopt && new_code->is_liftoff());
   if (new_code->for_debugging() == kForStepping) {
     // Never install stepping code.
     return false;
@@ -1576,14 +1579,10 @@ bool NativeModule::should_update_code_table(WasmCode* new_code,
   }
   // In kNoDebugging:
   // Install if the tier is higher than before or we replace debugging code with
-  // non-debugging code.
-  // Also allow installing a lower tier if deopt support is enabled and the
-  // prior code has deopt data. (The check for deopt_data is needed as with
-  // compilation hints, both baseline and top tier compilation run concurrently
-  // in the background and can finish in any order.)
+  // non-debugging code. Also allow installing a lower tier if we are
+  // deopting.
   if (prior_code && !prior_code->for_debugging() &&
-      prior_code->tier() > new_code->tier() &&
-      (!v8_flags.wasm_deopt || prior_code->deopt_data().empty())) {
+      prior_code->tier() > new_code->tier() && !for_deopt) {
     return false;
   }
   return true;
@@ -1958,28 +1957,26 @@ namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
   explicit NativeModuleWireBytesStorage(
-      std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes)
+      std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes)
       : wire_bytes_(std::move(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return std::atomic_load(&wire_bytes_)
-        ->as_vector()
-        .SubVector(ref.offset(), ref.end_offset());
+    return std::atomic_load(&wire_bytes_)->subspan(ref.offset(), ref.length());
   }
 
   std::optional<ModuleWireBytes> GetModuleBytes() const final {
     return std::optional<ModuleWireBytes>(
-        std::atomic_load(&wire_bytes_)->as_vector());
+        std::atomic_load(&wire_bytes_)->as_span());
   }
 
  private:
-  const std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
+  const std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes_;
 };
 }  // namespace
 
-void NativeModule::SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes) {
+void NativeModule::SetWireBytes(base::UniqueArray<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
-      std::make_shared<base::OwnedVector<const uint8_t>>(std::move(wire_bytes));
+      std::make_shared<base::UniqueArray<const uint8_t>>(std::move(wire_bytes));
   std::atomic_store(&wire_bytes_, shared_wire_bytes);
   if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
@@ -2537,7 +2534,7 @@ Isolate* GetCurrentIsolateForGc() {
   if (Isolate* isolate = Isolate::TryGetCurrent()) {
     // Note: instead of failing, this CHECK could also crash if `isolate` was
     // deallocated in the meantime (and hence is *not* the current isolate).
-    CHECK_EQ(isolate->thread_id(), ThreadId::Current());
+    CHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
     return isolate;
   }
   return nullptr;
@@ -2596,11 +2593,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
   // reduce the maximum size of the initial code space reservation (in MB).
-  if (v8_flags.wasm_max_initial_code_space_reservation > 0) {
+  if (v8_flags.wasm_max_initial_code_space_reservation > 0 &&
+      static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) <=
+          code_vmem_size / MB) {
     size_t flag_max_bytes =
         static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) *
         MB;
-    if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
+    size_t min_bytes = 2 * OverheadPerCodeSpace(module->num_declared_functions);
+    code_vmem_size = std::max(flag_max_bytes, min_bytes);
   }
 
   VirtualMemory code_space;
@@ -2787,12 +2787,11 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
         AddCodeWithCodeSpace(
             result.func_index, result.code_desc, result.frame_slot_count,
             result.ool_spill_count, result.tagged_parameter_slots,
-            result.trapping_instructions_data.as_vector(),
-            result.source_positions.as_vector(),
-            result.inlining_positions.as_vector(),
-            result.deopt_data.as_vector(), GetCodeKind(result),
-            result.result_tier, result.for_debugging,
-            result.effect_handlers.as_vector(), result.frame_has_feedback_slot,
+            result.trapping_instructions_data.as_span(),
+            result.source_positions.as_span(),
+            result.inlining_positions.as_span(), result.deopt_data.as_span(),
+            GetCodeKind(result), result.result_tier, result.for_debugging,
+            result.effect_handlers.as_span(), result.frame_has_feedback_slot,
             this_code_space, jump_tables),
         std::move(result.assumptions));
   }
@@ -2922,14 +2921,11 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
-  std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
+  std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes =
       std::atomic_load(&wire_bytes_);
   size_t wire_bytes_size = wire_bytes ? wire_bytes->size() : 0;
   result += wire_bytes_size;
 
-  if (source_map_) {
-    result += source_map_->EstimateCurrentMemoryConsumption();
-  }
   result += compilation_state_->EstimateCurrentMemoryConsumption();
   // For {tiering_budgets_}.
   result += module_->num_declared_functions * sizeof(uint32_t);
@@ -2959,6 +2955,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
     result += module_->num_declared_functions * sizeof(void*);
     result += ContentSize(code_space_data_);
     debug_info = debug_info_.get();
+    if (source_map_) {
+      result += source_map_->EstimateCurrentMemoryConsumption();
+    }
     if (names_provider_) {
       result += names_provider_->EstimateCurrentMemoryConsumption();
     }

@@ -242,8 +242,8 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallCounterId counter_id,
 }
 
 bool RuntimeCallStats::IsCalledOnTheSameThread() {
-  if (thread_id_.IsValid()) return thread_id_ == ThreadId::Current();
-  thread_id_ = ThreadId::Current();
+  if (thread_id_.IsValid()) return thread_id_ == base::ThreadId::Current();
+  thread_id_ = base::ThreadId::Current();
   return true;
 }
 
@@ -289,7 +289,7 @@ void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
 }
 
 WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats()
-    : isolate_thread_id_(ThreadId::Current()) {}
+    : isolate_thread_id_(base::ThreadId::Current()) {}
 
 WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
   if (tls_key_) base::Thread::DeleteThreadLocalKey(*tls_key_);

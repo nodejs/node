@@ -1,0 +1,4 @@
+Checks that inspect() does not swallow an exception thrown by the "focus" option getter, and does not continue after termination.
+focus getter throws: threw boom
+paused: other
+ran after termination: false

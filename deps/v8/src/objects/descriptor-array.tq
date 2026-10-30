@@ -16,13 +16,16 @@ struct DescriptorEntry {
       NumberDictionary;
 }
 
-type FastIterableState extends uint8
+type DescriptorArrayFastIterableState extends uint8
     constexpr 'DescriptorArray::FastIterableState';
 
-@cppScope('DescriptorArray')
+@cppScope('DescriptorArray::Flags')
 bitfield struct DescriptorArrayFlags extends uint32 {
-  fast_iterable: FastIterableState: 2 bit;
+  fast_iterable: DescriptorArrayFastIterableState: 2 bit;
 }
+
+type DescriptorLookupTable extends FixedUInt32Array
+    constexpr 'DescriptorLookupTable';
 
 @cppObjectLayoutDefinition
 extern class DescriptorArray extends HeapObject {
@@ -30,5 +33,7 @@ extern class DescriptorArray extends HeapObject {
   number_of_descriptors: uint16;
   flags: DescriptorArrayFlags;
   enum_cache: EnumCache;
-  descriptors[number_of_all_descriptors]: DescriptorEntry;
+  @if(V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
+  lookup_table: DescriptorLookupTable|Undefined;
+  entries[number_of_all_descriptors]: DescriptorEntry;
 }

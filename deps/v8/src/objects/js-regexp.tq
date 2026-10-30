@@ -36,7 +36,7 @@ extern class AtomRegExpData extends RegExpData {
 }
 
 @cppScope('IrRegExpData::Bits')
-bitfield struct IrRegExpDataBitField extends uint31 {
+bitfield struct IrRegExpDataBits extends uint31 {
   can_be_zero_length: bool: 1 bit;
   is_linear_executable: bool: 1 bit;
 }
@@ -54,7 +54,7 @@ extern class IrRegExpData extends RegExpData {
   capture_count: Smi;
   ticks_until_tier_up: Smi;
   backtrack_limit: Smi;
-  bit_field: SmiTagged<IrRegExpDataBitField>;
+  bit_field: SmiTagged<IrRegExpDataBits>;
 }
 
 @cppObjectLayoutDefinition
@@ -87,8 +87,8 @@ extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
 
 const kJSRegExpRegExpDataOffset: constexpr int31
     generates 'static_cast<int>(offsetof(JSRegExp, data_))';
-const kRegExpDataIndirectPointerTag:
-    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
+const kRegExpDataTrustedPointerTag:
+    constexpr uint64 generates 'kRegExpDataTrustedPointerTag';
 
 extern macro RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
     HeapObject, constexpr int31): RegExpData;

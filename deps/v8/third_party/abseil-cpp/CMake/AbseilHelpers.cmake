@@ -130,13 +130,15 @@ function(absl_cc_library)
   # 4. "static"  -- This target does not depend on the DLL and should be built
   #                 statically.
   if (${ABSL_BUILD_DLL})
-    if(ABSL_ENABLE_INSTALL)
-      absl_internal_dll_contains(TARGET ${_NAME} OUTPUT _in_dll)
-      absl_internal_test_dll_contains(TARGET ${_NAME} OUTPUT _in_test_dll)
-    else()
-      absl_internal_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_dll)
-      absl_internal_test_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_test_dll)
-    endif()
+    absl_internal_dll_contains(
+      FILES ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS}
+      OUTPUT _in_dll
+    )
+    absl_internal_dll_contains(
+      TEST
+      FILES ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS}
+      OUTPUT _in_test_dll
+    )
     if (${_in_dll} OR ${_in_test_dll})
       # This target should be replaced by the DLL
       set(_build_type "dll")
@@ -227,17 +229,11 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
 
   if(NOT ABSL_CC_LIB_IS_INTERFACE)
     if(_build_type STREQUAL "dll_dep")
-      # This target depends on the DLL. When adding dependencies to this target,
-      # any depended-on-target which is contained inside the DLL is replaced
-      # with a dependency on the DLL.
+      # This target depends on the DLL.
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
-      absl_internal_dll_targets(
-        DEPS ${ABSL_CC_LIB_DEPS}
-        OUTPUT _dll_deps
-      )
       target_link_libraries(${_NAME}
-        PUBLIC ${_dll_deps}
+        PUBLIC ${ABSL_CC_LIB_DEPS}
         PRIVATE
           ${ABSL_CC_LIB_LINKOPTS}
           ${ABSL_DEFAULT_LINKOPTS}
@@ -372,6 +368,7 @@ endfunction()
 # COPTS: List of private compile options
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
+# SHARD_COUNT: Number of shards to split the test into for ctest
 #
 # Note:
 # By default, absl_cc_test will always create a binary named absl_${NAME}.
@@ -405,7 +402,7 @@ function(absl_cc_test)
 
   cmake_parse_arguments(ABSL_CC_TEST
     ""
-    "NAME"
+    "NAME;SHARD_COUNT"
     "SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
     ${ARGN}
   )
@@ -426,16 +423,6 @@ function(absl_cc_test)
         ABSL_CONSUME_DLL
         ABSL_CONSUME_TEST_DLL
         GTEST_LINKED_AS_SHARED_LIBRARY=1
-    )
-
-    # Replace dependencies on targets inside the DLL with abseil_dll itself.
-    absl_internal_dll_targets(
-      DEPS ${ABSL_CC_TEST_DEPS}
-      OUTPUT ABSL_CC_TEST_DEPS
-    )
-    absl_internal_dll_targets(
-      DEPS ${ABSL_CC_TEST_LINKOPTS}
-      OUTPUT ABSL_CC_TEST_LINKOPTS
     )
   else()
     target_compile_definitions(${_NAME}
@@ -461,5 +448,16 @@ function(absl_cc_test)
     target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
   endif()
 
-  add_test(NAME ${_NAME} COMMAND ${_NAME})
+  if(ABSL_CC_TEST_SHARD_COUNT AND ABSL_CC_TEST_SHARD_COUNT GREATER 1)
+    math(EXPR _LAST_SHARD "${ABSL_CC_TEST_SHARD_COUNT} - 1")
+    foreach(_SHARD RANGE 0 ${_LAST_SHARD})
+      add_test(NAME "${_NAME}_shard_${_SHARD}" COMMAND ${_NAME})
+      set_tests_properties("${_NAME}_shard_${_SHARD}" PROPERTIES
+        ENVIRONMENT "GTEST_TOTAL_SHARDS=${ABSL_CC_TEST_SHARD_COUNT};GTEST_SHARD_INDEX=${_SHARD}"
+        COST 100
+      )
+    endforeach()
+  else()
+    add_test(NAME ${_NAME} COMMAND ${_NAME})
+  endif()
 endfunction()

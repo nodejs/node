@@ -425,12 +425,13 @@ bool operator==(const ElementsTransitionWithMultipleSources& lhs,
   return lhs.sources() == rhs.sources();
 }
 
-size_t hash_value(ElementsTransition transition) {
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransition transition) {
   return base::hash_combine(static_cast<uint8_t>(transition.mode()),
                             transition.source(), transition.target());
 }
 
-size_t hash_value(ElementsTransitionWithMultipleSources transition) {
+V8_EXPORT_PRIVATE size_t
+hash_value(ElementsTransitionWithMultipleSources transition) {
   return base::hash_combine(transition.target(), transition.sources());
 }
 
@@ -772,10 +773,6 @@ const AllocateParameters& AllocateParametersOf(const Operator* op) {
 }
 
 AllocationType AllocationTypeOf(const Operator* op) {
-  if (op->opcode() == IrOpcode::kNewDoubleElements ||
-      op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
-    return OpParameter<AllocationType>(op);
-  }
   return AllocateParametersOf(op).allocation_type();
 }
 
@@ -2494,24 +2491,20 @@ bool operator==(FastApiCallParameters const& lhs,
          lhs.descriptor() == rhs.descriptor();
 }
 
-const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewDoubleElements,               // opcode
-      Operator::kEliminatable,                    // flags
-      "NewDoubleElements",                        // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewDoubleElements() {
+  return zone()->New<Operator>(      // --
+      IrOpcode::kNewDoubleElements,  // opcode
+      Operator::kEliminatable,       // flags
+      "NewDoubleElements",           // name
+      1, 1, 1, 1, 1, 0);             // counts
 }
 
-const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewSmiOrObjectElements,          // opcode
-      Operator::kEliminatable,                    // flags
-      "NewSmiOrObjectElements",                   // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements() {
+  return zone()->New<Operator>(           // --
+      IrOpcode::kNewSmiOrObjectElements,  // opcode
+      Operator::kEliminatable,            // flags
+      "NewSmiOrObjectElements",           // name
+      1, 1, 1, 1, 1, 0);                  // counts
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(

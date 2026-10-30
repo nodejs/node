@@ -95,13 +95,13 @@ bool ThreadManager::RestoreThread() {
   // First check whether the current thread has been 'lazily archived', i.e.
   // not archived at all.  If that is the case we put the state storage we
   // had prepared back in the free list, since we didn't need it after all.
-  if (lazily_archived_thread_ == ThreadId::Current()) {
-    lazily_archived_thread_ = ThreadId::Invalid();
+  if (lazily_archived_thread_ == base::ThreadId::Current()) {
+    lazily_archived_thread_ = base::ThreadId::Invalid();
     Isolate::PerIsolateThreadData* per_thread =
         isolate_->FindPerThreadDataForThisThread();
     DCHECK_NOT_NULL(per_thread);
     DCHECK(per_thread->thread_state() == lazily_archived_thread_state_);
-    lazily_archived_thread_state_->set_id(ThreadId::Invalid());
+    lazily_archived_thread_state_->set_id(base::ThreadId::Invalid());
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
     lazily_archived_thread_state_ = nullptr;
     per_thread->set_thread_state(nullptr);
@@ -140,7 +140,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
   per_thread->set_thread_state(nullptr);
-  state->set_id(ThreadId::Invalid());
+  state->set_id(base::ThreadId::Invalid());
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
   return true;
@@ -148,12 +148,12 @@ bool ThreadManager::RestoreThread() {
 
 void ThreadManager::Lock() {
   mutex_.Lock();
-  mutex_owner_.store(ThreadId::Current(), std::memory_order_relaxed);
+  mutex_owner_.store(base::ThreadId::Current(), std::memory_order_relaxed);
   DCHECK(IsLockedByCurrentThread());
 }
 
 void ThreadManager::Unlock() {
-  mutex_owner_.store(ThreadId::Invalid(), std::memory_order_relaxed);
+  mutex_owner_.store(base::ThreadId::Invalid(), std::memory_order_relaxed);
   mutex_.Unlock();
 }
 
@@ -167,7 +167,7 @@ static int ArchiveSpacePerThread() {
 }
 
 ThreadState::ThreadState(ThreadManager* thread_manager)
-    : id_(ThreadId::Invalid()),
+    : id_(base::ThreadId::Invalid()),
       data_(nullptr),
       next_(this),
       previous_(this),
@@ -218,8 +218,8 @@ ThreadState* ThreadState::Next() {
 // be distinguished from not having a thread id at all (since NULL is
 // defined as 0.)
 ThreadManager::ThreadManager(Isolate* isolate)
-    : mutex_owner_(ThreadId::Invalid()),
-      lazily_archived_thread_(ThreadId::Invalid()),
+    : mutex_owner_(base::ThreadId::Invalid()),
+      lazily_archived_thread_(base::ThreadId::Invalid()),
       lazily_archived_thread_state_(nullptr),
       free_anchor_(nullptr),
       in_use_anchor_(nullptr),
@@ -244,7 +244,7 @@ void ThreadManager::DeleteThreadStateList(ThreadState* anchor) {
 }
 
 void ThreadManager::ArchiveThread() {
-  DCHECK_EQ(lazily_archived_thread_, ThreadId::Invalid());
+  DCHECK_EQ(lazily_archived_thread_, base::ThreadId::Invalid());
   DCHECK(!IsArchived());
   DCHECK(IsLockedByCurrentThread());
   ThreadState* state = GetFreeThreadState();
@@ -252,11 +252,11 @@ void ThreadManager::ArchiveThread() {
   Isolate::PerIsolateThreadData* per_thread =
       isolate_->FindOrAllocatePerThreadDataForThisThread();
   per_thread->set_thread_state(state);
-  lazily_archived_thread_ = ThreadId::Current();
+  lazily_archived_thread_ = base::ThreadId::Current();
   lazily_archived_thread_state_ = state;
-  DCHECK_EQ(state->id(), ThreadId::Invalid());
+  DCHECK_EQ(state->id(), base::ThreadId::Invalid());
   state->set_id(CurrentId());
-  DCHECK_NE(state->id(), ThreadId::Invalid());
+  DCHECK_NE(state->id(), base::ThreadId::Invalid());
 }
 
 void ThreadManager::EagerlyArchiveThread() {
@@ -273,7 +273,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->debug()->ArchiveDebug(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
-  lazily_archived_thread_ = ThreadId::Invalid();
+  lazily_archived_thread_ = base::ThreadId::Invalid();
   lazily_archived_thread_state_ = nullptr;
 }
 
@@ -321,7 +321,7 @@ void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
   }
 }
 
-ThreadId ThreadManager::CurrentId() { return ThreadId::Current(); }
+base::ThreadId ThreadManager::CurrentId() { return base::ThreadId::Current(); }
 
 }  // namespace internal
 }  // namespace v8

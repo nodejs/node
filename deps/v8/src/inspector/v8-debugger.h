@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "include/cppgc/persistent.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/inspected-context.h"
@@ -20,6 +21,10 @@
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger-script.h"
+
+namespace v8 {
+class MicrotaskQueue;
+}  // namespace v8
 
 namespace v8_inspector {
 
@@ -75,7 +80,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   void setPauseOnNextCall(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
-  void stepOverStatement(int targetContextGroupId);
+  void stepOverStatement(int targetContextGroupId, bool enterFunctions);
   void stepOutOfFunction(int targetContextGroupId);
 
   void terminateExecution(v8::Local<v8::Context> context,
@@ -222,6 +227,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                        int column) override;
+  bool ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                           const v8::debug::Location& start,
+                           const v8::debug::Location& end) override;
   void BreakpointConditionEvaluated(v8::Local<v8::Context> context,
                                     v8::debug::BreakpointId breakpoint_id,
                                     bool exception_thrown,
@@ -328,6 +336,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
+  cppgc::WeakPersistent<v8::MicrotaskQueue>
+      m_terminateExecutionCallbackMicrotaskQueue;
   bool m_terminateExecutionReported = true;
 };
 

@@ -1125,7 +1125,6 @@ class AggregateLiteral : public MaterializedLiteral {
     kIsShallow = 1,
     kDisableMementos = 1 << 1,
     kNeedsInitialAllocationSite = 1 << 2,
-    kIsShallowAndDisableMementos = kIsShallow | kDisableMementos,
   };
 
  protected:
@@ -1163,10 +1162,9 @@ class LiteralBoilerplateBuilder {
     return NeedsInitialAllocationSiteField::decode(bit_field_);
   }
 
-  int ComputeFlags(bool disable_mementos = false) const {
+  int ComputeFlags() const {
     int flags = AggregateLiteral::kNoFlags;
     if (is_shallow()) flags |= AggregateLiteral::kIsShallow;
-    if (disable_mementos) flags |= AggregateLiteral::kDisableMementos;
     if (needs_initial_allocation_site()) {
       flags |= AggregateLiteral::kNeedsInitialAllocationSite;
     }
@@ -1382,7 +1380,7 @@ class ObjectLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
            properties()->length() == 0;
   }
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
-  int ComputeFlags(bool disable_mementos = false) const;
+  int ComputeFlags() const;
 
   bool IsEmptyObjectLiteral() const {
     return is_empty() && !has_null_prototype();
@@ -1474,9 +1472,7 @@ class ArrayLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
   bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
-  int ComputeFlags(bool disable_mementos = false) const {
-    return LiteralBoilerplateBuilder::ComputeFlags(disable_mementos);
-  }
+  int ComputeFlags() const { return LiteralBoilerplateBuilder::ComputeFlags(); }
 
   int first_spread_index() const { return first_spread_index_; }
 
@@ -2413,9 +2409,6 @@ class FunctionLiteral final : public Expression {
   // This should only be called if we don't have a shared function info yet.
   void set_raw_inferred_name(AstConsString* raw_inferred_name);
 
-  bool pretenure() const { return Pretenure::decode(bit_field_); }
-  void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
-
   bool has_duplicate_parameters() const {
     // Not valid for lazy functions.
     DCHECK(ShouldEagerCompile());
@@ -2510,7 +2503,6 @@ class FunctionLiteral final : public Expression {
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparse_data_(produced_preparse_data) {
     bit_field_ |= FunctionSyntaxKindBits::encode(function_syntax_kind) |
-                  Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   RequiresInstanceMembersInitializer::encode(false) |
@@ -2521,8 +2513,7 @@ class FunctionLiteral final : public Expression {
 
   using FunctionSyntaxKindBits =
       Expression::NextBitField<FunctionSyntaxKind, 3>;
-  using Pretenure = FunctionSyntaxKindBits::Next<bool, 1>;
-  using HasDuplicateParameters = Pretenure::Next<bool, 1>;
+  using HasDuplicateParameters = FunctionSyntaxKindBits::Next<bool, 1>;
   using RequiresInstanceMembersInitializer =
       HasDuplicateParameters::Next<bool, 1>;
   using HasStaticPrivateMethodsOrAccessorsField =
@@ -3470,10 +3461,6 @@ class AstNodeFactory final {
     DCHECK(Token::IsAssignmentOp(op));
     DCHECK_NOT_NULL(target);
     DCHECK_NOT_NULL(value);
-
-    if (op != Token::kInit && target->IsVariableProxy()) {
-      target->AsVariableProxy()->set_is_assigned();
-    }
 
     if (op == Token::kAssign || op == Token::kInit) {
       return zone_->New<Assignment>(AstNode::kAssignment, op, target, value,

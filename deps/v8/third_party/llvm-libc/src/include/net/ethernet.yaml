@@ -1,0 +1,10 @@
+header: net/ethernet.h
+standards:
+  - bsd
+macros: []
+types:
+  - type_name: struct_ether_addr
+enums: []
+objects: []
+functions: []
+

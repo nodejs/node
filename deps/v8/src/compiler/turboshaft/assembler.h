@@ -2953,14 +2953,15 @@ class AssemblerOpInterface : public Next {
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range, int offset) {
+                               TrustedPointerTagRange tag_range, int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
+    V<WordPtr> table_address =
+        IsolateField(IsolateFieldId::kTrustedPointerTable);
     V<WordPtr> table =
-        Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+        Load(table_address, LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
-             IsolateData::trusted_pointer_table_offset() +
-                 Internals::kExternalEntityTableBasePointerOffset);
+             Internals::kExternalEntityTableBasePointerOffset);
     return LoadTrustedPointer(base, table, kind, tag_range, offset);
 #else
     return Load(base, kind, MemoryRepresentation::TaggedPointer(), offset);
@@ -2970,7 +2971,7 @@ class AssemblerOpInterface : public Next {
 #if V8_ENABLE_SANDBOX
   V<Object> LoadTrustedPointer(V<HeapObject> base, V<WordPtr> table,
                                LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
+                               TrustedPointerTagRange tag_range,
                                int32_t offset) {
     return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
                                                offset);
@@ -2979,14 +2980,14 @@ class AssemblerOpInterface : public Next {
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
                                            ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
                                MemoryRepresentation::Uint32(), offset);
     return __ LoadExternalPointer(handle, tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::UintPtr(), offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
   V<Object> LoadFixedArrayElement(V<FixedArray> array, int index) {
@@ -3101,31 +3102,31 @@ class AssemblerOpInterface : public Next {
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
       uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     DCHECK_EQ(kind.is_atomic, memory_order.has_value());
     ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
                            memory_order, offset, element_size_log2,
                            maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
+                           maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, index, value, kind, stored_rep, write_barrier, std::nullopt,
           offset, element_size_log2, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
@@ -3133,10 +3134,10 @@ class AssemblerOpInterface : public Next {
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
       uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           memory_order, offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
 
   template <typename T>
@@ -3178,12 +3179,6 @@ class AssemblerOpInterface : public Next {
     return LoadFieldImpl<T>(object, field);
   }
 
-  template <typename Obj, typename Field>
-  V<typename Field::field_type> LoadField(V<Obj> object, const Field& field) {
-    LoadOp::Kind kind = LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase);
-    return Load(object, kind, field.rep, static_cast<int32_t>(field.offset));
-  }
-
   template <typename Rep>
   V<Rep> LoadFieldImpl(OpIndex object, const compiler::FieldAccess& access) {
     MachineType machine_type = access.machine_type;
@@ -3195,27 +3190,39 @@ class AssemblerOpInterface : public Next {
     }
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(machine_type);
-#ifdef V8_ENABLE_SANDBOX
-    bool is_sandboxed_external =
+#ifdef V8_COMPRESS_POINTERS
+    bool is_external_pointer_handle =
         access.type.Is(compiler::Type::ExternalPointer());
-    if (is_sandboxed_external) {
-      // Fields for sandboxed external pointer contain a 32-bit handle, not a
+#ifndef V8_ENABLE_SANDBOX
+    // When the sandbox is disabled, SandboxedPointer fields (e.g.
+    // JSTypedArray::external_pointer_ and JSDataView::data_pointer_) are
+    // represented as raw pointers with Type::ExternalPointer() and
+    // kExternalPointerNullTag rather than ExternalPointerTable handles.
+    if (access.external_pointer_tag == kExternalPointerNullTag) {
+      is_external_pointer_handle = false;
+    }
+#endif  // !V8_ENABLE_SANDBOX
+    if (is_external_pointer_handle) {
+      // Fields in the external pointer table contain a 32-bit handle, not a
       // 64-bit raw pointer.
       rep = MemoryRepresentation::Uint32();
     }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
     if (access.is_immutable) {
       kind = kind.Immutable();
     }
+    if (access.shared_base) kind = kind.SharedBase();
     V<Rep> value = Load(object, kind, rep, access.offset);
-#ifdef V8_ENABLE_SANDBOX
-    if (is_sandboxed_external) {
+#ifdef V8_COMPRESS_POINTERS
+    if (is_external_pointer_handle) {
       value = V<Rep>::CastIfNeeded(LoadExternalPointer(
           V<Word32>::CastIfNeeded(value), access.external_pointer_tag));
     }
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     if (access.is_bounded_size_access) {
-      DCHECK(!is_sandboxed_external);
+      DCHECK(!is_external_pointer_handle);
       value = V<Rep>::CastIfNeeded(
           ShiftRightLogical(V<WordPtr>::CastIfNeeded(value), kBoundedSizeShift,
                             WordRepresentation::WordPtr()));
@@ -3226,8 +3233,16 @@ class AssemblerOpInterface : public Next {
 
   // Helpers to read the most common fields.
   // TODO(nicohartmann@): Strengthen this to `V<HeapObject>`.
-  V<Map> LoadMapField(V<Object> object) {
-    return LoadField<Map>(object, AccessBuilder::ForMap());
+  V<Map> LoadMapField(V<Object> object,
+                      SharedFlag shared_base = SharedFlag{false}) {
+    return LoadField<Map>(object,
+                          AccessBuilder::ForMap(kMapWriteBarrier, shared_base));
+  }
+
+  V<Map> LoadImmutableMapField(V<HeapObject> object) {
+    FieldAccessTS<Object, Map> access = AccessBuilderTS::ForMap();
+    access.is_immutable = true;
+    return LoadField<Map>(object, access);
   }
 
   V<Word32> LoadInstanceTypeField(V<Map> map) {
@@ -3240,8 +3255,9 @@ class AssemblerOpInterface : public Next {
     return DecodeWord32<Map::Bits2::ElementsKindBits>(bit_field2);
   }
 
-  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
-    return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
+  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type,
+                            SharedFlag shared_base) {
+    return Word32Equal(LoadInstanceTypeField(LoadMapField(object, shared_base)),
                        instance_type);
   }
 
@@ -3291,7 +3307,9 @@ class AssemblerOpInterface : public Next {
     }
     // External pointer must never be stored by optimized code.
     DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
-           !V8_ENABLE_SANDBOX_BOOL);
+           !COMPRESS_POINTERS_BOOL ||
+           (!V8_ENABLE_SANDBOX_BOOL &&
+            access.external_pointer_tag == kExternalPointerNullTag));
     // SandboxedPointers are not currently stored by optimized code.
     DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
@@ -3467,24 +3485,15 @@ class AssemblerOpInterface : public Next {
     return __ FinishInitialization(std::move(result));
   }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V<WordPtr> LoadExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
     return ReduceIfReachableLoadExternalPointer(handle, tag);
   }
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
-  // {trusted_instance_data} must be provided when at least one of
-  // {memory_start} or {memory_size} are provided.
-  // Returns V<None> when no input values are provided.
-  // Returns a V<WordPtr> when *either* {memory_start} or {memory_size} is
-  // provided; the return value is the potentially-updated value.
-  // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
-  // {memory_size} are provided.
-  V<None> WasmStackCheck(
-      WasmStackCheckOp::Kind kind,
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data = {}) {
-    return ReduceIfReachableWasmStackCheck(trusted_instance_data, kind);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    ReduceIfReachableWasmStackCheck(kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
@@ -3646,9 +3655,8 @@ class AssemblerOpInterface : public Next {
     return Parameter(index, V<T>::rep, debug_name);
   }
   V<Object> OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
-  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values,
-              bool spill_caller_frame_slots = false) {
-    ReduceIfReachableReturn(pop_count, return_values, spill_caller_frame_slots);
+  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values) {
+    ReduceIfReachableReturn(pop_count, return_values);
   }
   void Return(OpIndex result) {
     Return(Word32Constant(0), base::VectorOf({result}));
@@ -4162,7 +4170,8 @@ class AssemblerOpInterface : public Next {
   // where appropriate.
   OpIndex WasmCallRuntime(Zone* zone, Runtime::FunctionId f,
                           std::initializer_list<const OpIndex> args,
-                          V<Context> context) {
+                          V<Context> context,
+                          CanThrow can_throw = CanThrow{true}) {
     const Runtime::Function* fun = Runtime::FunctionForId(f);
     OpIndex isolate_root = __ LoadRootRegister();
     DCHECK_EQ(1, fun->result_size);
@@ -4183,8 +4192,8 @@ class AssemblerOpInterface : public Next {
             __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow{true},
-        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
+        call_descriptor, can_throw, compiler::LazyDeoptOnThrow{false},
+        __ graph_zone());
     return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
                    ts_call_descriptor);
   }
@@ -4360,19 +4369,19 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableCheckMaglevType(input, type);
   }
 
+#ifdef DEBUG
   // This is currently only usable during graph building on the main thread.
-  void Dcheck(V<Word32> condition, const char* message, const char* file,
+  template <typename Condition>
+  void Dcheck(Condition condition, const char* message, const char* file,
               int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
-    USE(isolate);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-#ifdef DEBUG
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     if (v8_flags.debug_code) {
-      Check(condition, message, file, line, loc);
+      Check(condition(), message, file, line, loc);
     }
-#endif
   }
+#endif
 
   // This is currently only usable during graph building on the main thread.
   void Check(V<Word32> condition, const char* message, const char* file,
@@ -4380,7 +4389,7 @@ class AssemblerOpInterface : public Next {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
     if (message != nullptr) {
       CodeComment({"[ Assert: ", loc}, message);
@@ -4416,10 +4425,10 @@ class AssemblerOpInterface : public Next {
 
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     const std::string str = stream.str();
-    Handle<String> internalized_string = isolate->factory()->InternalizeString(
-        base::OneByteVector(str.c_str(), str.length()));
+    Handle<String> internalized_string =
+        isolate->factory()->InternalizeString(str);
     CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     V<String> string_constant = __ HeapConstantNoHole(internalized_string);
 
@@ -4662,17 +4671,15 @@ class AssemblerOpInterface : public Next {
       if (broker) {
         UnparkedScopeIfNeeded scope(broker);
         LocalIsolate* isolate = broker->local_isolate_or_isolate();
-        internalized_string = isolate->factory()->InternalizeString(
-            base::OneByteVector(label.c_str(), label.length()));
+        internalized_string = isolate->factory()->InternalizeString(label);
         internalized_string =
             broker->CanonicalPersistentHandle(internalized_string);
       } else {
         Isolate* isolate = Asm().data()->isolate();
         // If we don't have a broker, we can only allocate the string on the
         // main thread.
-        DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-        internalized_string = isolate->factory()->InternalizeString(
-            base::OneByteVector(label.c_str(), label.length()));
+        DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
+        internalized_string = isolate->factory()->InternalizeString(label);
         CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
       }
       label_string = __ HeapConstantNoHole(internalized_string);
@@ -4690,17 +4697,15 @@ class AssemblerOpInterface : public Next {
     if (broker) {
       UnparkedScopeIfNeeded scope(broker);
       LocalIsolate* isolate = broker->local_isolate_or_isolate();
-      internalized_string = isolate->factory()->InternalizeString(
-          base::OneByteVector(str.c_str(), str.length()));
+      internalized_string = isolate->factory()->InternalizeString(str);
       internalized_string =
           broker->CanonicalPersistentHandle(internalized_string);
     } else {
       Isolate* isolate = Asm().data()->isolate();
       // If we don't have a broker, we can only allocate the string on the main
       // thread.
-      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-      internalized_string = isolate->factory()->InternalizeString(
-          base::OneByteVector(str.c_str(), str.length()));
+      DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
+      internalized_string = isolate->factory()->InternalizeString(str);
       CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     }
     V<String> string_constant = __ HeapConstantNoHole(internalized_string);
@@ -5178,6 +5183,11 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableRootConstant(index);
   }
 
+  template <RootIndex index>
+  V<root_type_t<index>> RootConstant() {
+    return V<root_type_t<index>>::Cast(RootConstant(index));
+  }
+
   V<Word32> IsRootConstant(V<Object> input, RootIndex index) {
     return ReduceIfReachableIsRootConstant(input, index);
   }
@@ -5307,36 +5317,40 @@ class AssemblerOpInterface : public Next {
   V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
                         V<Any> value, OptionalV<Any> expected,
                         ArrayAtomicRMWOp::BinOp bin_op,
-                        wasm::ValueType element_type,
+                        wasm::ValueType element_type, SharedFlag is_shared,
                         AtomicMemoryOrder memory_order) {
     return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
-                                           bin_op, element_type, memory_order);
+                                           bin_op, element_type, is_shared,
+                                           memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
                   const wasm::ArrayType* array_type, bool is_signed,
-                  std::optional<AtomicMemoryOrder> memory_order) {
+                  std::optional<AtomicMemoryOrder> memory_order,
+                  SharedFlag shared_base) {
     return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
-                                     memory_order);
+                                     memory_order, shared_base);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type,
+                wasm::ValueType element_type, SharedFlag is_shared,
                 std::optional<AtomicMemoryOrder> memory_order,
                 WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
-                              write_barrier, kind);
+    ReduceIfReachableArraySet(array, index, value, element_type, is_shared,
+                              memory_order, write_barrier, kind);
   }
 
-  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
+  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check,
+                        SharedFlag shared_base) {
     return ReduceIfReachableArrayLength(array, OptionalV<EagerFrameState>{},
-                                        null_check);
+                                        null_check, shared_base);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array,
                         OptionalV<EagerFrameState> frame_state,
-                        CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(array, frame_state, null_check);
+                        CheckForNull null_check, SharedFlag shared_base) {
+    return ReduceIfReachableArrayLength(array, frame_state, null_check,
+                                        shared_base);
   }
 
   // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
@@ -5349,10 +5363,11 @@ class AssemblerOpInterface : public Next {
                          TrapId::kTrapNullDereference);
       }
     } else {
-      V<Word32> length = __ ArrayLength(array, frame_state,
-                                        array_type.is_nullable()
-                                            ? compiler::kWithNullCheck
-                                            : compiler::kWithoutNullCheck);
+      V<Word32> length =
+          __ ArrayLength(array, frame_state,
+                         array_type.is_nullable() ? compiler::kWithNullCheck
+                                                  : compiler::kWithoutNullCheck,
+                         array_type.is_shared());
       __ TrapIfNot(__ Uint32LessThan(index, length), frame_state,
                    TrapId::kTrapArrayOutOfBounds);
     }
@@ -5388,10 +5403,8 @@ class AssemblerOpInterface : public Next {
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
-                                 const wasm::ArrayType* array_type,
-                                 SharedFlag is_shared) {
-    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
-                                              is_shared);
+                                 const wasm::ArrayType* array_type) {
+    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,

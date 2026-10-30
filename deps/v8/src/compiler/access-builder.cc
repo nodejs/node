@@ -34,11 +34,13 @@ FieldAccess AccessBuilder::ForExternalIntPtr() {
 }
 
 // static
-FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier) {
+FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier,
+                                  SharedFlag shared_base) {
   FieldAccess access = {kTaggedBase,           offsetof(HeapObject, map_),
                         MaybeHandle<Name>(),   OptionalMapRef(),
                         Type::OtherInternal(), MachineType::MapInHeader(),
                         write_barrier,         "Map"};
+  access.shared_base = shared_base;
   return access;
 }
 
@@ -252,7 +254,7 @@ FieldAccess AccessBuilder::ForJSExternalObjectValue() {
   return access;
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 // static
 FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
   FieldAccess access = {kTaggedBase,
@@ -282,32 +284,6 @@ FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSProxyTarget() {
-  FieldAccess access = {kTaggedBase,
-                        offsetof(JSProxy, target_),
-                        MaybeHandle<Name>(),
-                        OptionalMapRef(),
-                        Type::ReceiverOrNull(),
-                        MachineType::TaggedPointer(),
-                        kPointerWriteBarrier,
-                        "JSProxyTarget"};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForJSProxyHandler() {
-  FieldAccess access = {kTaggedBase,
-                        offsetof(JSProxy, handler_),
-                        MaybeHandle<Name>(),
-                        OptionalMapRef(),
-                        Type::ReceiverOrNull(),
-                        MachineType::TaggedPointer(),
-                        kPointerWriteBarrier,
-                        "JSProxyHandler"};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSFunctionContext() {
   FieldAccess access = {kTaggedBase,          offsetof(JSFunction, context_),
                         MaybeHandle<Name>(),  OptionalMapRef(),
@@ -324,6 +300,7 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "JSFunctionSharedFunctionInfo"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -758,13 +735,13 @@ FieldAccess AccessBuilder::ForJSRegExpData() {
                         MaybeHandle<Name>(),
                         OptionalMapRef(),
                         Type::OtherInternal(),
-                        MachineType::IndirectPointer(),
-                        kIndirectPointerWriteBarrier,
+                        MachineType::TrustedPointer(),
+                        kTrustedPointerWriteBarrier,
                         "JSRegExpData",
                         ConstFieldInfo::None(),
                         false,
                         kExternalPointerNullTag,
-                        kRegExpDataIndirectPointerTag,
+                        kRegExpDataTrustedPointerTag,
                         false,
                         false};
   return access;

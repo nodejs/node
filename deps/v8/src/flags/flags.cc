@@ -19,11 +19,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags-impl.h"
 #include "src/logging/tracing-flags.h"
@@ -92,7 +92,7 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
   if (change_flag) {
     DCHECK(!IsReadOnly());
     if (owns_ptr_) DeleteArray(old_value);
-    *reinterpret_cast<FlagValue<const char*>*>(valptr_) = new_value;
+    reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(new_value);
     owns_ptr_ = owns_new_value;
   } else {
     if (owns_new_value) DeleteArray(new_value);
@@ -122,7 +122,7 @@ FlagProcessingMode FlagList::GetFlagProcessingMode() {
     } else {
       base::FatalNoSecurityImpact(
           "Invalid value for --flag-processing-mode: %s\n",
-          v8_flags.flag_processing_mode);
+          v8_flags.flag_processing_mode.value());
     }
   }
 
@@ -158,22 +158,16 @@ struct FlagError : public std::ostringstream {
   }
 };
 
-bool ShouldCheckDisallowUnsafeFlagContradictions(const char* implied_by) {
-  static constexpr char kDisallowUnsafeFlagsStr[] = "disallow_unsafe_flags";
-  return implied_by && v8_flags.disallow_unsafe_flags &&
-         !std::strcmp(implied_by, kDisallowUnsafeFlagsStr);
-}
-
 }  // namespace
 
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
                            const char* implied_by) {
+  CHECK_NE(SetBy::kDefault, new_set_by);
   if (new_set_by == SetBy::kWeakImplication &&
       (set_by_ == SetBy::kImplication || set_by_ == SetBy::kCommandLine)) {
     return false;
   }
-  if (ShouldCheckFlagContradictions() ||
-      ShouldCheckDisallowUnsafeFlagContradictions(implied_by)) {
+  if (ShouldCheckFlagContradictions()) {
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
       if (implied_by == nullptr) {
@@ -290,34 +284,49 @@ bool Flag::IsDefault() const {
 
 void Flag::ReleaseDynamicAllocations() {
   if (type_ != TYPE_STRING) return;
-  if (owns_ptr_) DeleteArray(string_value());
+  if (owns_ptr_) {
+    DeleteArray(string_value());
+    owns_ptr_ = false;
+  }
 }
 
 void Flag::Reset() {
+  set_by_ = SetBy::kDefault;
+  implied_by_ = nullptr;
+#ifdef DEBUG
+  implied_by_ptr_ = nullptr;
+#endif
+  if (IsReadOnly()) return;
   switch (type_) {
     case TYPE_BOOL:
-      set_bool_variable(bool_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<bool>*>(valptr_)->Overwrite(bool_default());
       break;
     case TYPE_MAYBE_BOOL:
-      set_maybe_bool_variable(std::nullopt, SetBy::kDefault);
+      reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_)->Overwrite(
+          std::nullopt);
       break;
     case TYPE_INT:
-      set_int_variable(int_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<int>*>(valptr_)->Overwrite(int_default());
       break;
     case TYPE_UINT:
-      set_uint_variable(uint_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<unsigned int>*>(valptr_)->Overwrite(
+          uint_default());
       break;
     case TYPE_UINT64:
-      set_uint64_variable(uint64_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<uint64_t>*>(valptr_)->Overwrite(
+          uint64_default());
       break;
     case TYPE_FLOAT:
-      set_float_variable(float_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<double>*>(valptr_)->Overwrite(float_default());
       break;
     case TYPE_SIZE_T:
-      set_size_t_variable(size_t_default(), SetBy::kDefault);
+      reinterpret_cast<FlagValue<size_t>*>(valptr_)->Overwrite(
+          size_t_default());
       break;
     case TYPE_STRING:
-      set_string_value(string_default(), false, SetBy::kDefault);
+      ReleaseDynamicAllocations();
+      reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(
+          string_default());
       break;
   }
 }
@@ -345,11 +354,6 @@ struct FlagMetadata {
   // Index of the primary flag in this 'kFlagsMetadata' array.
   int canonical_index;
 };
-
-constexpr bool IsTestOnlyComment(const char* comment) {
-  return comment &&
-         std::string_view{comment}.ends_with(" (test-only / unsafe)");
-}
 
 constexpr auto kFlagsMetadata = []() {
   struct RawMetadata {
@@ -402,34 +406,6 @@ constexpr auto kFlagsMetadata = []() {
 
   return metadata;
 }();
-
-// Number of primary test-only flags.
-constexpr size_t kNumTestOnlyFlags = []() {
-  size_t count = 0;
-  for (size_t i = 0; i < kFlagsMetadata.size(); ++i) {
-    if (static_cast<int>(i) == kFlagsMetadata[i].canonical_index &&
-        IsTestOnlyComment(kFlagsMetadata[i].comment)) {
-      count++;
-    }
-  }
-  return count;
-}();
-
-// Indices of all test-only flags (primary flags only, no aliases).
-constexpr std::array<int, kNumTestOnlyFlags> kTestOnlyFlagIndices = []() {
-  std::array<int, kNumTestOnlyFlags> indices{};
-  size_t count = 0;
-  for (size_t i = 0; i < kFlagsMetadata.size(); ++i) {
-    if (static_cast<int>(i) == kFlagsMetadata[i].canonical_index &&
-        IsTestOnlyComment(kFlagsMetadata[i].comment)) {
-      indices[count++] = kFlagsMetadata[i].flag_index;
-    }
-  }
-  DCHECK_EQ(count, kNumTestOnlyFlags);
-  return indices;
-}();
-
-static_assert(kNumTestOnlyFlags > 0, "Must have test-only flags");
 
 // Number of flags plus aliases.
 constexpr size_t kNumAllFlags = kFlagsMetadata.size();
@@ -515,6 +491,73 @@ Flag* FindImplicationFlagByName(const char* name) {
 // line flags).
 Flag* FindFlagByName(const char* name) { return GetFlagByName(name, false); }
 
+// Optimized look-up of flags by pointer using binary search. The mutable
+// entries in 'flags' are in the exact declaration order of 'FlagValues'
+// ('v8_flags'), so their 'valptr_' addresses are strictly increasing.
+Flag* FindFlagByPointer(const void* ptr) {
+  DCHECK_LE(&v8_flags, ptr);
+  DCHECK_LT(ptr, &v8_flags + 1);
+  Flag* flag = std::lower_bound(std::begin(flags), std::end(flags), ptr,
+                                [](const Flag& flag, const void* ptr) {
+                                  // Read-only flags have a null 'valptr_'; scan
+                                  // back to the preceding mutable flag to
+                                  // preserve the monotonic pointer order.
+                                  const Flag* f = &flag;
+                                  while (f->IsReadOnly()) {
+                                    if (f == std::begin(flags)) return true;
+                                    --f;
+                                  }
+                                  return f->valptr_ < ptr;
+                                });
+  DCHECK_NE(flag, std::end(flags));
+  DCHECK(flag->PointsTo(ptr));
+  return flag;
+}
+
+template <typename T>
+void FlagValue<T>::Set(T new_value) {
+  Flag* flag = FindFlagByPointer(this);
+  // {size_t} may alias {unsigned int} or {uint64_t} depending on the platform,
+  // so check the runtime {Flag::FlagType} first.
+  if constexpr (std::is_same_v<T, size_t>) {
+    if (flag->type() == Flag::TYPE_SIZE_T) {
+      flag->set_size_t_variable(new_value, Flag::SetBy::kCommandLine);
+      return;
+    }
+  }
+  if constexpr (std::is_same_v<T, bool>) {
+    flag->set_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, std::optional<bool>>) {
+    flag->set_maybe_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, int>) {
+    flag->set_int_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    flag->set_uint_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    flag->set_uint64_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, double>) {
+    flag->set_float_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    flag->set_string_value(new_value ? StrDup(new_value) : nullptr,
+                           new_value != nullptr, Flag::SetBy::kCommandLine);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+#define INSTANTIATE_FLAG_VALUE_SET(type) \
+  template EXPORT_TEMPLATE_DEFINE(       \
+      V8_EXPORT_PRIVATE) void FlagValue<type>::Set(type);
+INSTANTIATE_FLAG_VALUE_SET(bool)
+INSTANTIATE_FLAG_VALUE_SET(std::optional<bool>)
+INSTANTIATE_FLAG_VALUE_SET(int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long)       // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long long)  // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(double)
+INSTANTIATE_FLAG_VALUE_SET(const char*)
+#undef INSTANTIATE_FLAG_VALUE_SET
+
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
     case Flag::TYPE_BOOL:
@@ -593,8 +636,8 @@ uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
-  if (base::FPU::GetFlushDenormals()) {
-    modified_args_as_string << "flush-denormals";
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    modified_args_as_string << "x64-stack-16";
   }
 
 #ifdef DEBUG
@@ -965,7 +1008,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // Allocate argument array.
-  auto argv = base::OwnedVector<char*>::NewForOverwrite(argc);
+  auto argv = base::UniqueArray<char*>::NewForOverwrite(argc);
 
   // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()
@@ -1186,6 +1229,26 @@ void FlagList::PrintFeatureFlagsJSON() {
 
 namespace {
 
+template <typename T>
+bool FlagValueEquals(T a, T b) {
+  return a == b;
+}
+bool FlagValueEquals(const char* a, const char* b) {
+  if (a == b) return true;
+  if (a == nullptr || b == nullptr) return false;
+  return std::strcmp(a, b) == 0;
+}
+
+template <typename T>
+constexpr const char* NegValuePremiseName(T when_val, const char* name,
+                                          const char* neg_name) {
+  if constexpr (std::is_same_v<T, bool>) {
+    return when_val ? neg_name : name;
+  } else {
+    return name;
+  }
+}
+
 class ImplicationProcessor {
  public:
   // Returns {true} if any flag value was changed.
@@ -1221,18 +1284,21 @@ class ImplicationProcessor {
     implied_by_map_.erase(implier_flag_name);
   }
 
+  enum ImplicationStrength { kStrongImplication, kWeakImplication };
+
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
                           FlagValue<T>* conclusion_value,
                           const char* conclusion_name, T value,
-                          bool weak_implication) {
+                          ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    const bool is_conclusion_value_change = conclusion_value->value() != value;
+    const bool is_conclusion_value_change =
+        !FlagValueEquals(conclusion_value->value(), value);
     if (!conclusion_flag->CheckFlagChange(
-            weak_implication ? Flag::SetBy::kWeakImplication
-                             : Flag::SetBy::kImplication,
+            strength == kWeakImplication ? Flag::SetBy::kWeakImplication
+                                         : Flag::SetBy::kImplication,
             is_conclusion_value_change, premise_name)) {
       return false;
     }
@@ -1251,7 +1317,7 @@ class ImplicationProcessor {
           conclusion_flag->owns_ptr_ = false;
         }
       }
-      *conclusion_value = value;
+      conclusion_value->Overwrite(value);
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
       // implied by some other flag, they will be reimplied in the next
@@ -1269,36 +1335,21 @@ class ImplicationProcessor {
   bool TriggerImplication(bool premise, const char* premise_name,
                           const FlagValue<T>* conclusion_value,
                           const char* conclusion_name, T value,
-                          bool weak_implication) {
+                          ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     // Because this is the `const FlagValue*` overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
-            weak_implication ? Flag::SetBy::kWeakImplication
-                             : Flag::SetBy::kImplication,
-            conclusion_value->value() != value, premise_name)) {
+            strength == kWeakImplication ? Flag::SetBy::kWeakImplication
+                                         : Flag::SetBy::kImplication,
+            !FlagValueEquals(conclusion_value->value(), value), premise_name)) {
       return false;
     }
     // Must equal the default value, otherwise CheckFlagChange should've
     // returned false.
-    DCHECK_EQ(value, conclusion_flag->GetDefaultValue<T>());
+    DCHECK(FlagValueEquals(value, conclusion_flag->GetDefaultValue<T>()));
     return true;
-  }
-
-  // Called from DEFINE_NOT_EXPLICITLY_SET_IMPLICATION in flag-definitions.h.
-  void TriggerNotExplicitlySetImplication(bool premise,
-                                          const char* premise_name,
-                                          const char* conclusion_name) {
-    if (!premise) {
-      return;
-    }
-    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
-      return;
-    }
-    FlagError{} << "Command-line provided flag " << FlagName{conclusion_name}
-                << " is prohibited by " << FlagName{premise_name};
   }
 
   void CheckForCycle() {
@@ -1357,12 +1408,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   if (!i::v8_flags.fuzzing) return;
 
   std::vector<std::tuple<Flag*, Flag*>> contradictions;
-
-  // Automatically reset all test-only flags.
-  static constexpr int fuzzing_flag_index = FindFlagIndexByName("fuzzing");
-  for (int index : kTestOnlyFlagIndices) {
-    contradictions.emplace_back(&flags[index], &flags[fuzzing_flag_index]);
-  }
 
   // List of flags that lead to known contradictory cycles when both
   // deviate from their defaults. One of them will be reset with precedence
@@ -1424,12 +1469,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(optimize_for_size, predictable_gc_schedule);
   CONTRADICTION(predictable, stress_concurrent_inlining_attach_code);
   CONTRADICTION(predictable_gc_schedule, stress_compaction);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning,
+                predictable_gc_schedule);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning_random,
+                predictable_gc_schedule);
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(wasm_test_streaming, predictable);
-  CONTRADICTION(single_threaded, wasm_pgo_to_file);
-  CONTRADICTION(single_threaded, wasm_generate_compilation_hints);
-  CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints);
 #endif  // V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(stress_concurrent_inlining, turboshaft_assert_types);
   CONTRADICTION(stress_concurrent_inlining_attach_code,
@@ -1478,11 +1524,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // Not useful for differential fuzzing: https://crbug.com/496356383
   RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc);
 
-  // https://crbug.com/550629905
-#if V8_ENABLE_WEBASSEMBLY
-  RESET_WHEN_CORRECTNESS_FUZZING(wasm_pgo_to_file);
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // https://crbug.com/369974230
   RESET_WHEN_FUZZING(expose_async_hooks);
 
@@ -1495,10 +1536,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // https://crbug.com/393401455
   RESET_WHEN_FUZZING(turboshaft);
 
-  if (v8_flags.turbofan && !v8_flags.turbolev) {
-    RESET_WHEN_FUZZING(array_destructure_bytecode);
-  }
-
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_max_code_space_size_mb > kDefaultMaxWasmCodeSpaceSizeMb) {
     // Skip the warning on correctness (differential) fuzzing to prevent false
@@ -1510,7 +1547,8 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                 << kDefaultMaxWasmCodeSpaceSizeMb
                 << ", larger values are unsupported";
     }
-    v8_flags.wasm_max_code_space_size_mb = kDefaultMaxWasmCodeSpaceSizeMb;
+    v8_flags.wasm_max_code_space_size_mb.Overwrite(
+        kDefaultMaxWasmCodeSpaceSizeMb);
   }
 #endif
 
@@ -1521,6 +1559,8 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     // Ensure we never reset the fuzzing or POC verification flags.
     CHECK(!flag1->PointsTo(&v8_flags.fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
+    CHECK(
+        !flag1->PointsTo(&v8_flags.correctness_fuzzer_cross_arch_suppressions));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
     CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));

@@ -40,3 +40,33 @@ let emptyModuleBinary = new WasmModuleBuilder().toBuffer();
   assertInstanceof(global, _Global);
   assertInstanceof(global, WebAssembly.Global);
 })();
+
+(function TagPrototype() {
+  class _Tag extends WebAssembly.Tag {}
+  let tag = new _Tag({parameters: []});
+  assertInstanceof(tag, _Tag);
+  assertInstanceof(tag, WebAssembly.Tag);
+})();
+
+(function ExceptionPrototype() {
+  class _Exception extends WebAssembly.Exception {
+    constructor(tag, values) {
+      super(tag, values);
+      this.custom = 42;
+    }
+  }
+  let tag = new WebAssembly.Tag({parameters: ['i32']});
+  let exception = new _Exception(tag, [123]);
+  assertInstanceof(exception, _Exception);
+  assertInstanceof(exception, WebAssembly.Exception);
+  assertEquals(42, exception.custom);
+  assertEquals(123, exception.getArg(tag, 0));
+})();
+
+(function SuspendingPrototype() {
+  if (!('Suspending' in WebAssembly)) return;
+  class _Suspending extends WebAssembly.Suspending {}
+  let suspending = new _Suspending(() => {});
+  assertInstanceof(suspending, _Suspending);
+  assertInstanceof(suspending, WebAssembly.Suspending);
+})();

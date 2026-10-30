@@ -37,20 +37,15 @@ void JSSegments::set_raw_string(Tagged<String> value, WriteBarrierMode mode) {
   raw_string_.store(this, value, mode);
 }
 
-int JSSegments::flags() const { return flags_.load().value(); }
-void JSSegments::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSSegments::Flags JSSegments::flags() const { return flags_.load(); }
+void JSSegments::set_flags(Flags value) { flags_.store(value); }
 
 inline void JSSegments::set_granularity(JSSegmenter::Granularity granularity) {
-  DCHECK(GranularityBits::is_valid(granularity));
-  int hints = flags();
-  hints = GranularityBits::update(hints, granularity);
-  set_flags(hints);
+  set_flags(flags().with_granularity(granularity));
 }
 
 inline JSSegmenter::Granularity JSSegments::granularity() const {
-  return GranularityBits::decode(flags());
+  return flags().granularity();
 }
 
 }  // namespace internal

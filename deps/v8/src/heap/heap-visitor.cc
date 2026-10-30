@@ -84,14 +84,6 @@ struct WeakListVisitor<Context> {
 };
 
 template <>
-struct WeakListVisitor<AllocationSiteWithWeakNext> {
-  static constexpr int kWeakNextOffset =
-      offsetof(AllocationSiteWithWeakNext, weak_next_);
-
-  static void VisitLiveObject(Heap*, Tagged<AllocationSite>) {}
-};
-
-template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
   static constexpr int kWeakNextOffset =
       offsetof(JSFinalizationRegistry, next_dirty_);
@@ -103,9 +95,6 @@ struct WeakListVisitor<JSFinalizationRegistry> {
 
 template Tagged<Object> VisitWeakList<Context>(Heap* heap, Tagged<Object> list,
                                                WeakObjectRetainer* retainer);
-
-template Tagged<Object> VisitWeakList<AllocationSiteWithWeakNext>(
-    Heap* heap, Tagged<Object> list, WeakObjectRetainer* retainer);
 
 template Tagged<Object> VisitWeakList<JSFinalizationRegistry>(
     Heap* heap, Tagged<Object> list, WeakObjectRetainer* retainer);

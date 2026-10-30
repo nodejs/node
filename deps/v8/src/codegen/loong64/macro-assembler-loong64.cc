@@ -401,7 +401,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   DCHECK(!IsSharedExternalPointerType(tag_range));
   UseScratchRegisterScope temps(this);
@@ -447,14 +447,19 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   }
 #else
   Ld_d(destination, field_operand);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             IndirectPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register handle = temps.Acquire();
+  Ld_wu(handle, field_operand);
+
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -477,10 +482,10 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register handle = scratch;
     Ld_wu(handle, field_operand);
 
-    static_assert(kNullIndirectPointerHandle == 0);
+    static_assert(kNullTrustedPointerHandle == 0);
     Branch(is_unavailable, eq, handle, Operand(zero_reg));
 
-    ResolveIndirectPointerHandle(destination, handle, kAllIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -509,46 +514,22 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
-                                              MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
-#else
-  StoreTaggedField(value, dst_field_operand);
-#endif
-}
-
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    IndirectPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register handle = temps.Acquire();
-  Ld_wu(handle, field_operand);
-
-  ResolveIndirectPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand,
-                                               int* trap_pc) {
+                                              MemOperand dst_field_operand,
+                                              int* trap_pc) {
 #ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Ld_w(scratch, FieldMemOperand(value, offsetof(ExposedTrustedObject,
-                                                self_indirect_pointer_)));
+                                                self_trusted_pointer_)));
   St_w(scratch, dst_field_operand, trap_pc);
 #else
-  UNREACHABLE();
+  StoreTaggedField(value, dst_field_operand, trap_pc);
 #endif
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(
-    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
 
   DCHECK(root_array_available_);
@@ -559,8 +540,8 @@ void MacroAssembler::ResolveIndirectPointerHandle(
   Alsl_d(destination, handle, table, kTrustedPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(destination, 0));
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     And(destination, destination, Operand(mask));
   } else {
     Register tag_reg = handle;
@@ -702,22 +683,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                IndirectPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  li(IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  li(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
      Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -779,22 +759,22 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                 SetIsolateDataSlots::kNo);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
   PushCallerSaved(fp_mode);
-  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  CallVerifySkippedTrustedWriteBarrierStub(object, value);
   PopCallerSaved(fp_mode);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                               Register value) {
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                              Register value) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
-  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
+  CallCFunction(ExternalReference::verify_skipped_trusted_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
 
@@ -847,9 +827,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     Add_d(scratch, object, offset);
-    if (slot.contains_indirect_pointer()) {
-      LoadIndirectPointerField(scratch, MemOperand(scratch, 0),
-                               slot.indirect_pointer_tag());
+    if (slot.contains_trusted_pointer()) {
+      LoadTrustedPointerField(scratch, MemOperand(scratch, 0),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(scratch, MemOperand(scratch, 0));
@@ -876,7 +856,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -900,9 +880,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.indirect_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (ra_status == kRAHasNotBeenSaved) {
     Pop(ra);
@@ -2839,19 +2819,35 @@ void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
@@ -2868,19 +2864,35 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::CompareF(FPURegister cmp1, FPURegister cmp2,
@@ -3105,9 +3117,18 @@ void MacroAssembler::Ctz_w(Register rd, Register rj) { ctz_w(rd, rj); }
 
 void MacroAssembler::Ctz_d(Register rd, Register rj) { ctz_d(rd, rj); }
 
-// TODO(LOONG_dev): Optimize like arm64, use simd instruction
 void MacroAssembler::Popcnt_w(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_w(scratch.toV(), rj);
+    vpcnt_w(scratch.toV(), scratch.toV());
+    movfr2gr_s(rd, scratch);
+    return;
+  }
+
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   //
   // A generalization of the best bit counting method to integers of
@@ -3152,6 +3173,16 @@ void MacroAssembler::Popcnt_w(Register rd, Register rj) {
 
 void MacroAssembler::Popcnt_d(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_d(scratch.toV(), rj);
+    vpcnt_d(scratch.toV(), scratch.toV());
+    movfr2gr_d(rd, scratch);
+    return;
+  }
+
   int64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   int64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   int64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
@@ -4209,8 +4240,8 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   St_d(ra, MemOperand(sp, 0));
   // Stack is still aligned.
 
-  // TODO(LOONG_dev): can be jirl target? a0 -- a7?
-  jirl(zero_reg, target, 0);
+  // Call the C routine.
+  jirl(ra, target, 0);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
@@ -4609,16 +4640,18 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
                                     dispatch_handle, scratch);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       Call(kJavaScriptCallCodeStartRegister);
+      Branch(&done);
       break;
     case InvokeType::kJump:
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       Jump(kJavaScriptCallCodeStartRegister);
       break;
   }
-  Label done;
-  Branch(&done);
 
   // Deferred debug hook.
   bind(&debug_hook);
@@ -5926,7 +5959,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = s1;
@@ -5938,9 +5971,23 @@ void MacroAssembler::CallJSFunction(Register function_object,
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
-  // Force a safe crash if the parameter count doesn't match.
-  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
-           Operand(argument_count));
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(1));
+  } else {
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(expected_parameter_count));
+  }
   Call(code);
 }
 

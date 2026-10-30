@@ -5,6 +5,7 @@
 #include "src/heap/cppgc-internal/marking-visitor.h"
 
 #include "include/cppgc/internal/member-storage.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/heap.h"
 #include "src/heap/cppgc-internal/marking-state.h"
@@ -91,13 +92,16 @@ ConservativeMarkingVisitor::ConservativeMarkingVisitor(
 
 void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
     HeapObjectHeader& header) {
-  if (header.IsMarked<AccessMode::kAtomic>()) {
-    if (marking_state_.IsMarkedWeakContainer(header)) {
-      marking_state_.ReTraceMarkedWeakContainer(visitor_, header);
-    }
-    return;
+  if (!header.IsMarked<AccessMode::kAtomic>()) {
+    SYNCHRONIZATION_POINT_TEST_ONLY(
+        "ConservativeMarkingVisitor::VisitFullyConstructedConservatively");
+    ConservativeTracingVisitor::VisitFullyConstructedConservatively(header);
   }
-  ConservativeTracingVisitor::VisitFullyConstructedConservatively(header);
+  // `IsMarkedWeakContainer` contains a lock which synchronizes with the
+  // concurrent marker.
+  if (marking_state_.IsMarkedWeakContainer(header)) {
+    marking_state_.ReTraceMarkedWeakContainer(visitor_, header);
+  }
 }
 
 void ConservativeMarkingVisitor::VisitInConstructionConservatively(

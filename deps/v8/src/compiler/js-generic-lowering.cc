@@ -221,7 +221,8 @@ bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
     return feedback.AsElementAccess().transition_groups().empty();
   } else if (feedback.kind() == ProcessedFeedback::kNamedAccess) {
     return feedback.AsNamedAccess().maps().empty();
-  } else if (feedback.kind() == ProcessedFeedback::kInsufficient) {
+  } else if (feedback.kind() == ProcessedFeedback::kInsufficient ||
+             feedback.kind() == ProcessedFeedback::kProxy) {
     return false;
   }
   UNREACHABLE();
@@ -672,19 +673,13 @@ void JSGenericLowering::LowerJSRegExpTest(Node* node) {
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
-  CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared_info = p.shared_info();
+  SharedFunctionInfoRef shared_info = n.shared_info();
   static_assert(n.FeedbackCellIndex() == 0);
   node->InsertInput(zone(), 0,
                     jsgraph()->ConstantNoHole(shared_info, broker()));
   node->RemoveInput(4);  // control
 
-  // Use the FastNewClosure builtin only for functions allocated in new space.
-  if (p.allocation() == AllocationType::kYoung) {
-    ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
-  }
+  ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
 }
 
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
@@ -758,9 +753,6 @@ void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   GetTemplateObjectParameters const& p = n.Parameters();
   SharedFunctionInfoRef shared = p.shared();
   TemplateObjectDescriptionRef description = p.description();
-
-  DCHECK_EQ(node->op()->ControlInputCount(), 1);
-  node->RemoveInput(NodeProperties::FirstControlIndex(node));
 
   static_assert(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(shared, broker()));

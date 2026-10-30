@@ -23,9 +23,9 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
   destructor->external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(accounter_isolate),
       destructor->estimated_size_);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   destructor->ZapExternalPointerTableEntry();
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   delete destructor;
 }
 }  // namespace

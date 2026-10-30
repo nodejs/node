@@ -13,10 +13,10 @@
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/code-memory-access.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -71,6 +71,8 @@ enum class V8StartupState {
 };
 
 std::atomic<V8StartupState> v8_startup_state_(V8StartupState::kIdle);
+AllocateCrashKeyCallback allocate_crash_key_callback_ = nullptr;
+SetCrashKeyCallback set_crash_key_callback_ = nullptr;
 
 void AdvanceStartupState(V8StartupState expected_next_state) {
   V8StartupState current_state = v8_startup_state_;
@@ -176,7 +178,7 @@ void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
 
-  SynchronizationPointSupport::Initialize();
+  base::SynchronizationPointSupport::Initialize();
 
   // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
   // it can apply to flag contradictions.
@@ -332,6 +334,49 @@ void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
 #else
   UNREACHABLE();
 #endif
+}
+
+// static
+void V8::SetCrashKeyCallbacks(AllocateCrashKeyCallback allocate_callback,
+                              SetCrashKeyCallback set_callback) {
+  CHECK_EQ(allocate_callback != nullptr, set_callback != nullptr);
+  allocate_crash_key_callback_ = allocate_callback;
+  set_crash_key_callback_ = set_callback;
+}
+
+// static
+bool V8::HasCrashKeyCallbacks() {
+  DCHECK_EQ(allocate_crash_key_callback_ != nullptr,
+            set_crash_key_callback_ != nullptr);
+  return allocate_crash_key_callback_ != nullptr;
+}
+
+// static
+CrashKey V8::AllocateCrashKey(const char key[], CrashKeySize size) {
+  DCHECK_NOT_NULL(allocate_crash_key_callback_);
+#if DEBUG
+  // Keys are limited in their length, see
+  // crash_reporter::internal::kCrashKeyStorageKeySize in
+  // components/crash/core/common/crash_key.h.
+  static constexpr size_t kCrashKeyStorageKeySize = 40;
+  DCHECK_LT(strlen(key), kCrashKeyStorageKeySize);
+#endif  // DEBUG
+  return allocate_crash_key_callback_(key, size);
+}
+
+// static
+CrashKey V8::AddCrashKey(const char key[], CrashKeySize size,
+                         std::string_view value) {
+  CrashKey crash_key = AllocateCrashKey(key, size);
+  SetCrashKey(crash_key, value);
+  return crash_key;
+}
+
+// static
+void V8::SetCrashKey(CrashKey crash_key, std::string_view value) {
+  if (!crash_key) return;
+  DCHECK_NOT_NULL(set_crash_key_callback_);
+  set_crash_key_callback_(crash_key, value);
 }
 }  // namespace internal
 

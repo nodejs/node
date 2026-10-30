@@ -154,9 +154,25 @@ add_macro_header(
 )
 
 add_macro_header(
+  common_threads_macros
+  HDR
+    common-threads-macros.h
+)
+
+add_macro_header(
+  threads_macros
+  HDR
+    threads-macros.h
+  DEPENDS
+    .common_threads_macros
+)
+
+add_macro_header(
   limits_macros
   HDR
     limits-macros.h
+  DEPENDS
+    .common_threads_macros
 )
 
 add_macro_header(
@@ -192,6 +208,12 @@ add_macro_header(
   netinet_in_macros
   HDR
     netinet-in-macros.h
+)
+
+add_macro_header(
+  netinet_tcp_macros
+  HDR
+    netinet-tcp-macros.h
 )
 
 add_macro_header(
@@ -265,6 +287,12 @@ add_macro_header(
 )
 
 add_macro_header(
+  sys_eventfd_macros
+  HDR
+    sys-eventfd-macros.h
+)
+
+add_macro_header(
   sys_file_macros
   HDR
     sys-file-macros.h
@@ -274,6 +302,12 @@ add_macro_header(
   sys_ioctl_macros
   HDR
     sys-ioctl-macros.h
+)
+
+add_macro_header(
+  sys_inotify_macros
+  HDR
+    sys-inotify-macros.h
 )
 
 add_macro_header(
@@ -381,6 +415,12 @@ add_macro_header(
   sys_wait_macros
   HDR
     sys-wait-macros.h
+)
+
+add_macro_header(
+  sys_xattr_macros
+  HDR
+    sys-xattr-macros.h
 )
 
 add_macro_header(

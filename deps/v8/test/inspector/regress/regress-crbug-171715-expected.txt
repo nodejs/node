@@ -1,0 +1,20 @@
+Tests regress-crbug-171715.
+--- pause 1 ---
+v[0]: inner0
+v[1]: inner0
+v[2]: outer
+args[0]: ["a","b","c"]
+--- pause 2 ---
+v[0]: inner1
+v[1]: inner1
+v[2]: outer
+args[0]: ["a","b","c"]
+run1 result: inner1
+--- pause 3 ---
+v[0]: inner2
+v[1]: inner1
+v[2]: inner1
+v[3]: outer
+args[0]: ["x","y","z"]
+args[1]: ["a","b","c"]
+run2 result: inner1

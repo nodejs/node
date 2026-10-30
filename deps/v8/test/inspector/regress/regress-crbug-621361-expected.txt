@@ -1,0 +1,4 @@
+Tests regress-crbug-621361.
+step 0: scopes=[local, global], x=undefined
+step 1: scopes=[local, global], x=undefined
+step 2: scopes=[local, global], x=l => l

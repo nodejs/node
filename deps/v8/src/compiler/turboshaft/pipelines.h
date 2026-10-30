@@ -8,8 +8,8 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/basic-block-call-graph-profiler.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -470,6 +470,18 @@ class V8_EXPORT_PRIVATE Pipeline {
 
     data()->ClearInstructionComponent();
     EndPhaseKind();
+
+    if (data()->broker() != nullptr) {
+      data()->broker()->DetachCanonicalHandles(info());
+      if (!data()->code_generator()->has_background_code()) {
+        if (info()->bailout_reason() == BailoutReason::kNoReason) {
+          info()->AbortOptimization(
+              BailoutReason::kTurbofanCodeGenerationFailed);
+        }
+        return false;
+      }
+    }
+
     return !info()->was_cancelled();
   }
 

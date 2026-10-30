@@ -1,0 +1,24 @@
+Tests regress-crbug-605581.
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : ReferenceError
+            description : ReferenceError: bar is not defined     at eval (eval at <anonymous> (:2:3), <anonymous>:1:1)     at <anonymous>:2:3     at <anonymous>:5:3
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : 0
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : ReferenceError
+        description : ReferenceError: bar is not defined     at eval (eval at <anonymous> (:2:3), <anonymous>:1:1)     at <anonymous>:2:3     at <anonymous>:5:3
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}

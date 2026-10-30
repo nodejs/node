@@ -31,6 +31,13 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 
+class absl::status_internal::StatusPrivateAccessor {
+ public:
+  static absl::Status MakeNonOkStatusWithOkCode(absl::string_view message) {
+    return absl::Status::MakeNonOkStatusWithOkCode(message);
+  }
+};
+
 namespace {
 
 using ::testing::Eq;
@@ -338,6 +345,30 @@ TEST(Status, TestComparePayloadsAfterErase) {
 
   // Both empty payloads, should be equal
   EXPECT_EQ(payload_status, empty_status);
+}
+
+TEST(Status, ErasePayloadOnNonOkStatusWithOkCodeAndEmptyMessage) {
+  const absl::SourceLocation loc = absl::SourceLocation::current();
+  absl::Status status =
+      absl::status_internal::StatusPrivateAccessor::MakeNonOkStatusWithOkCode(
+          "");
+  status.AddSourceLocation(loc);
+  status.SetPayload(kUrl1, absl::Cord(kPayload1));
+
+  EXPECT_TRUE(status.ErasePayload(kUrl1));
+
+  EXPECT_FALSE(status.ok());
+  EXPECT_EQ(status.code(), absl::StatusCode::kOk);
+  EXPECT_EQ(status.message(), "");
+  EXPECT_FALSE(status.GetPayload(kUrl1).has_value());
+  EXPECT_EQ(
+      status,
+      absl::status_internal::StatusPrivateAccessor::MakeNonOkStatusWithOkCode(
+          ""));
+  ASSERT_EQ(status.GetSourceLocations().size(), 1);
+  EXPECT_EQ(absl::string_view(status.GetSourceLocations()[0].file_name()),
+            absl::string_view(loc.file_name()));
+  EXPECT_EQ(status.GetSourceLocations()[0].line(), loc.line());
 }
 
 PayloadsVec AllVisitedPayloads(const absl::Status& s) {

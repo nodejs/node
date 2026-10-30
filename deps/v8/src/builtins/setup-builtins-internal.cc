@@ -108,6 +108,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
       builtin == Builtin::kJSToWasmWrapper ||
       builtin == Builtin::kJSToWasmHandleReturns ||
+      builtin == Builtin::kWasmReturnPromiseOnSuspendAsm ||
+      builtin == Builtin::kJSToWasmStressSwitchStacksAsm ||
 #ifdef V8_ENABLE_DRUMBRAKE
       builtin == Builtin::kJSToWasmInterpreterHandleReturns ||
       builtin == Builtin::kJSToWasmInterpreterWrapper ||
@@ -278,7 +280,7 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
           isolate, builtin, generator,
           [argc](Zone* zone) {
             return compiler::Linkage::GetJSCallDescriptor(
-                zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
+                zone, false, argc, compiler::CallDescriptor::kNoFlags);
           },
           name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;
@@ -489,7 +491,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
   std::array<Handle<Code>, Builtins::kBuiltinCount> generated_builtins;
   auto install_generated_builtin = [&generated_builtins, isolate](
                                        Builtin builtin, Handle<Code> code) {
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     USE(isolate);
     generated_builtins[Builtins::ToInt(builtin)] = code;
   };

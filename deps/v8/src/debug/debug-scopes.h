@@ -69,6 +69,19 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // Returns whether the current scope declares any variables.
   bool DeclaresLocals(Mode mode) const;
 
+  enum class VariableInfo {
+    // The scope does not declare any variables.
+    kEmpty,
+    // The scope declares variables, but none of their values are available
+    // (i.e. all of them are optimized out or in their TDZ).
+    kAllUnavailable,
+    // The scope declares at least one variable with an available value.
+    kAvailable,
+  };
+
+  // Classifies the variables declared by the current scope.
+  VariableInfo GetVariableInfo(Mode mode) const;
+
   // Returns whether the current scope should be ignored by debugger scope
   // numbers.
   bool ShouldIgnore() const;
@@ -106,6 +119,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return !function_.is_null() && HasScope();
   }
   bool HasContext() const;
+  bool InPausedFunctionScopes() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
   Handle<Context> CurrentContext() const {
@@ -116,6 +130,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     if (current_scope_index_ == -1) return std::nullopt;
     return current_scope();
   }
+  // Returns the innermost runtime context at the current position. Unlike
+  // CurrentContext(), this is also valid for scopes without their own context.
+  Handle<Context> EvaluationContext() const { return context_; }
 
  private:
   Isolate* isolate_;
@@ -127,15 +144,22 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   Handle<JSFunction> function_;
 
   Handle<Context> context_;
+  // The script and serialized scope tree containing the current scope. These
+  // start out as the paused script and move on to the caller's script when
+  // iteration leaves the root scope of a direct eval script.
+  // `current_scope_index_` indexes into `debug_scope_info_` and is set to -1
+  // once iteration leaves the outermost scope tree.
+  // `start_scope_index_` and `closure_scope_index_` always index into the
+  // paused script's scope tree.
   Handle<Script> script_;
-  // Serialized scope tree of the paused script and indices into it.
-  // `current_scope_index_` is set to -1 once iteration leaves
-  // `closure_scope_index_` (matching `function_` becoming null).
   Handle<DebugScriptScopeInfo> debug_scope_info_;
   int start_scope_index_ = -1;
   int closure_scope_index_ = -1;
   int current_scope_index_ = -1;
   bool seen_script_scope_ = false;
+  // Set when paused at a return position. Iteration then starts at the
+  // closure scope and nested block, catch and with scopes are skipped.
+  bool ignore_nested_scopes_ = false;
 
   DebugScriptScope current_scope() const {
     return DebugScriptScope::FromIndex(debug_scope_info_, current_scope_index_);
@@ -148,7 +172,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
-  bool AdvanceOneScope();
   void AdvanceOneContext();
   void AdvanceScope();
   void AdvanceContext();
@@ -156,7 +179,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   int GetSourcePosition() const;
 
   void TryParseAndRetrieveScopes();
+  void UnwindToClosureContext();
 
+  static Tagged<Context> UnwrapEvaluationContext(Tagged<Context> context);
   void UnwrapEvaluationContext();
 
   using Visitor =

@@ -1,0 +1,5 @@
+Tests regress-119609.
+e -> 3
+f -> 4
+a -> 1
+b -> ReferenceError: b is not defined

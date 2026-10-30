@@ -22,15 +22,14 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
                                                 TNode<JSProxy> proxy);
 
   void CheckGetSetTrapResult(TNode<Context> context, TNode<JSReceiver> target,
-                             TNode<JSProxy> proxy, TNode<Name> name,
-                             TNode<Object> trap_result,
+                             TNode<Name> name, TNode<Object> trap_result,
                              JSProxy::AccessKind access_kind);
 
   void CheckHasTrapResult(TNode<Context> context, TNode<JSReceiver> target,
-                          TNode<JSProxy> proxy, TNode<Name> name);
+                          TNode<Name> name);
 
   void CheckDeleteTrapResult(TNode<Context> context, TNode<JSReceiver> target,
-                             TNode<JSProxy> proxy, TNode<Name> name);
+                             TNode<Name> name);
 
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,

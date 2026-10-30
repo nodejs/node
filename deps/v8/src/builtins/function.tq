@@ -30,7 +30,7 @@ const kCodeMaxArguments: constexpr intptr generates 'Code::kMaxArguments';
 macro CheckAccessor(
     implicit context: Context)(array: DescriptorArray, index: constexpr int32,
     name: Name): void labels Slow {
-  const descriptor: DescriptorEntry = array.descriptors[index];
+  const descriptor: DescriptorEntry = array.entries[index];
   const key: Name|Undefined = descriptor.key;
   if (!TaggedEqual(key, name)) goto Slow;
 

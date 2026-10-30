@@ -188,10 +188,15 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   virtual void SetSamplingInterval(base::TimeDelta) {}
 
+  using SampleContextExtractor = void* (*)(v8::Isolate*);
+
+  void* ExtractSampleContext() const;
+
  protected:
   ProfilerEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
-                          CpuProfilesCollection* profiles);
+                          CpuProfilesCollection* profiles,
+                          SampleContextExtractor sample_context_extractor);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -214,6 +219,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
   Isolate* isolate_;
+
+ private:
+  const SampleContextExtractor sample_context_extractor_;
 };
 
 class V8_EXPORT_PRIVATE SamplingEventsProcessor
@@ -222,7 +230,8 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
   SamplingEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
                           CpuProfilesCollection* profiles,
-                          base::TimeDelta period, bool use_precise_sampling);
+                          base::TimeDelta period, bool use_precise_sampling,
+                          SampleContextExtractor sample_context_extractor);
   ~SamplingEventsProcessor() override;
 
   // SamplingCircularQueue has stricter alignment requirements than a normal new
@@ -353,6 +362,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
+  void set_sample_context_extractor(
+      ProfilerEventsProcessor::SampleContextExtractor extractor);
   void CollectSample(const std::optional<uint64_t> trace_id = std::nullopt);
   size_t GetEstimatedMemoryUsage() const;
   CpuProfilingResult StartProfiling(
@@ -406,6 +417,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   const NamingMode naming_mode_;
   const LoggingMode logging_mode_;
   bool use_precise_sampling_ = true;
+  ProfilerEventsProcessor::SampleContextExtractor sample_context_extractor_ =
+      nullptr;
   // Sampling interval to which per-profile sampling intervals will be clamped
   // to a multiple of, or used as the default if unspecified.
   base::TimeDelta base_sampling_interval_;

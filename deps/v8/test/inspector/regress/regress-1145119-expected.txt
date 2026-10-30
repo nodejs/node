@@ -1,0 +1,2 @@
+Tests declaring var in evaluateOnCallFrame when outer scope has context-allocated parameter.
+EvalError: Identifier 'a' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead     at eval (eval at <anonymous> (test.js:6:5), <anonymous>:1:1)     at test.js:6:5     at <anonymous>:1:6

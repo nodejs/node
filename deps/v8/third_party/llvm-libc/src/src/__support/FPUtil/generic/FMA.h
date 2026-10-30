@@ -29,10 +29,10 @@ namespace fputil {
 namespace generic {
 
 template <typename OutType, typename InType>
-LIBC_INLINE cpp::enable_if_t<cpp::is_floating_point_v<OutType> &&
-                                 cpp::is_floating_point_v<InType> &&
-                                 sizeof(OutType) <= sizeof(InType),
-                             OutType>
+LIBC_INLINE constexpr cpp::enable_if_t<cpp::is_floating_point_v<OutType> &&
+                                           cpp::is_floating_point_v<InType> &&
+                                           sizeof(OutType) <= sizeof(InType),
+                                       OutType>
 fma(InType x, InType y, InType z);
 
 // TODO(lntue): Implement fmaf that is correctly rounded to all rounding modes.
@@ -105,10 +105,10 @@ shift_mantissa(int shift_length, T &mant) {
 } // namespace internal
 
 template <typename OutType, typename InType>
-LIBC_INLINE cpp::enable_if_t<cpp::is_floating_point_v<OutType> &&
-                                 cpp::is_floating_point_v<InType> &&
-                                 sizeof(OutType) <= sizeof(InType),
-                             OutType>
+LIBC_INLINE constexpr cpp::enable_if_t<cpp::is_floating_point_v<OutType> &&
+                                           cpp::is_floating_point_v<InType> &&
+                                           sizeof(OutType) <= sizeof(InType),
+                                       OutType>
 fma(InType x, InType y, InType z) {
   using OutFPBits = FPBits<OutType>;
   using OutStorageType = typename OutFPBits::StorageType;
@@ -157,7 +157,7 @@ fma(InType x, InType y, InType z) {
     }
   }
 
-  if (LIBC_UNLIKELY(x == 0 || y == 0 || z == 0))
+  if (LIBC_UNLIKELY(x_bits.is_zero() || y_bits.is_zero() || z_bits.is_zero()))
     return cast<OutType>(x * y + z);
 
   int x_exp = 0;

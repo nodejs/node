@@ -24,7 +24,6 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/lookup.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1082,7 +1081,6 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
     case WASM_ARRAY_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS:
       UNREACHABLE();
   }
   // As an estimate, we assume that the prototype doesn't contain any
@@ -1206,22 +1204,6 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-    case SHARED_ARRAY_ELEMENTS: {
-      uint32_t length =
-          Cast<JSSharedArray>(object)->elements()->ulength().value();
-      if (range <= length) {
-        length = range;
-        indices->clear();
-      }
-      for (uint32_t i = 0; i < length; i++) {
-        // JSSharedArrays are created non-resizable and do not have holes.
-        SLOW_DCHECK(object->GetElementsAccessor()->HasElement(
-            isolate, *object, i, object->elements()));
-        indices->push_back(i);
-      }
-      if (length == range) return;
-      break;
-    }
     case NO_ELEMENTS:
       break;
   }
@@ -1427,7 +1409,6 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
 #undef TYPED_ARRAY_CASE
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS:
       UNREACHABLE();
   }
   visitor->increase_index_offset(length);

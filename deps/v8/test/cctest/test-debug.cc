@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <array>
+
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-json.h"
@@ -541,7 +543,7 @@ TEST(BreakPointConstructCallWithGC) {
 
 
 TEST(BreakPointBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -573,7 +575,7 @@ TEST(BreakPointBuiltin) {
 }
 
 TEST(BreakPointApiIntrinsics) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -677,7 +679,7 @@ TEST(BreakPointApiIntrinsics) {
 }
 
 TEST(BreakPointJSBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -709,7 +711,7 @@ TEST(BreakPointJSBuiltin) {
 }
 
 TEST(BreakPointBoundBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -743,7 +745,7 @@ TEST(BreakPointBoundBuiltin) {
 }
 
 TEST(BreakPointConstructorBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -806,8 +808,8 @@ TEST(BreakPointConstructorBuiltin) {
 }
 
 TEST(BreakPointInlinedBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -851,8 +853,8 @@ TEST(BreakPointInlinedBuiltin) {
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -900,8 +902,8 @@ TEST(BreakPointInlineBoundBuiltin) {
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -945,8 +947,8 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -987,8 +989,8 @@ TEST(BreakPointBuiltinConcurrentOpt) {
 }
 
 TEST(BreakPointBuiltinTFOperator) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1032,7 +1034,7 @@ TEST(BreakPointBuiltinTFOperator) {
 }
 
 TEST(BreakPointBuiltinNewContext) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1481,7 +1483,7 @@ TEST(BreakPointOnLazyAccessorInNewContexts) {
 }
 
 TEST(BreakPointInlineApiFunction) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1527,8 +1529,8 @@ TEST(BreakPointInlineApiFunction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1657,7 +1659,7 @@ TEST(BreakPointConditionBuiltin) {
 }
 
 TEST(BreakPointInlining) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -3092,9 +3094,9 @@ TEST(PauseInScript) {
 int message_callback_count = 0;
 
 TEST(DebugBreak) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3182,9 +3184,9 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInWrappedScript) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3225,6 +3227,66 @@ static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
 }
 
+namespace {
+
+class ScopeTypesListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::base::EnumSet<v8::debug::BreakReason> break_reasons) override {
+    auto stack_traces =
+        v8::debug::StackTraceIterator::Create(CcTest::isolate());
+    for (auto scopes = stack_traces->GetScopeIterator(); !scopes->Done();
+         scopes->Advance()) {
+      scope_types_.push_back(scopes->GetType());
+    }
+  }
+
+  const std::vector<v8::debug::ScopeIterator::ScopeType>& scope_types() const {
+    return scope_types_;
+  }
+
+ private:
+  std::vector<v8::debug::ScopeIterator::ScopeType> scope_types_;
+};
+
+}  // namespace
+
+TEST(DebugScopeIteratorWrappedFunctionWithContextExtension) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  ScopeTypesListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  static const char* source =
+      "let outer = 1;\n"
+      "{\n"
+      "  let block = 2;\n"
+      "  (function inner() { debugger; })();\n"
+      "}\n";
+  v8::ScriptCompiler::Source script_source(v8_str(source));
+  v8::Local<v8::Object> extension = v8::Object::New(isolate);
+  CHECK(extension->Set(env.local(), v8_str("ext"), v8_num(3)).FromJust());
+  v8::Local<v8::Function> fun =
+      v8::ScriptCompiler::CompileFunction(env.local(), &script_source, 0,
+                                          nullptr, 1, &extension)
+          .ToLocalChecked();
+  fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+
+  using ScopeType = v8::debug::ScopeIterator::ScopeType;
+  const std::vector<ScopeType> expected = {
+      ScopeType::ScopeTypeLocal, ScopeType::ScopeTypeBlock,
+      ScopeType::ScopeTypeClosure, ScopeType::ScopeTypeWith,
+      ScopeType::ScopeTypeGlobal};
+  CHECK(delegate.scope_types() == expected);
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(DebugScopeIteratorWithFunctionTemplate) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());
@@ -3239,9 +3301,9 @@ TEST(DebugScopeIteratorWithFunctionTemplate) {
 }
 
 TEST(DebugBreakWithoutJS) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3425,10 +3487,10 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   EmptyExternalStringResource() { empty_[0] = 0; }
   ~EmptyExternalStringResource() override = default;
   size_t length() const override { return empty_.size(); }
-  const uint16_t* data() const override { return empty_.begin(); }
+  const uint16_t* data() const override { return empty_.data(); }
 
  private:
-  ::v8::base::EmbeddedVector<uint16_t, 1> empty_;
+  std::array<uint16_t, 1> empty_;
 };
 
 TEST(DebugScriptLineEndsAreAscending) {
@@ -3537,14 +3599,19 @@ TEST(ContextData) {
   v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Default data value is undefined.
-  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
-  CHECK_EQ(0, context_2->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_2->GetNumberOfEmbedderDataFields());
 
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
   v8::Local<v8::String> data_2 = v8_str(isolate, "2");
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V3.
   context_1->SetEmbedderDataV2(0, data_1);
   context_2->SetEmbedderDataV2(0, data_2);
+  END_ALLOW_USE_DEPRECATED()
   CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
             ->StrictEquals(data_1));
   CHECK(v8::Local<v8::Value>::Cast(context_2->GetEmbedderDataV2(0))
@@ -3598,11 +3665,12 @@ TEST(EvalContextData) {
   v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Contexts initially do not have embedder data fields.
-  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_1->GetNumberOfEmbedderDataFields());
 
   // Set and check a data value.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
-  context_1->SetEmbedderDataV2(0, data_1);
+  context_1->SetEmbedderDataV3(0, data_1);
   CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
             ->StrictEquals(data_1));
 
@@ -3728,8 +3796,8 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3757,8 +3825,8 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3792,8 +3860,8 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflowTurbofan) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3950,11 +4018,11 @@ static void TestDebugBreakInLoop(const char* loop_head,
     // Perform a lazy deoptimization after various numbers of breaks
     // have been hit.
 
-    v8::base::EmbeddedVector<char, 1024> buffer;
+    std::array<char, 1024> buffer;
     v8::base::SNPrintF(buffer, "function f() {%s%s%s}", loop_head,
                        loop_bodies[i], loop_tail);
 
-    i::PrintF("%s\n", buffer.begin());
+    i::PrintF("%s\n", buffer.data());
 
     for (int j = 0; j < 3; j++) {
       break_point_hit_count_deoptimize = j;
@@ -3967,7 +4035,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       terminate_after_max_break_point_hit = true;
 
       // Function with infinite loop.
-      CompileRun(buffer.begin());
+      CompileRun(buffer.data());
 
       // Set the debug break to enter the debugger as soon as possible.
       v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
@@ -4100,7 +4168,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInline) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
@@ -4682,7 +4750,7 @@ class DebugStepOverFunctionWithCaughtExceptionListener
 };
 
 TEST(DebugStepOverFunctionWithCaughtException) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -4710,7 +4778,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
-  i::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation.Set(false);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
@@ -5067,7 +5135,7 @@ i::MaybeHandle<i::Script> FindScript(
 }  // anonymous namespace
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
-  i::v8_flags.expose_gc = true;
+  i::v8_flags.expose_gc.Set(true);
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -5764,7 +5832,7 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
 }
 
 TEST(GetPrivateAutoAccessors) {
-  i::v8_flags.js_decorators = true;
+  i::v8_flags.js_decorators.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -5982,7 +6050,7 @@ v8::Local<v8::Object> SetUpDeferredModuleNamespace(
 // execution is disallowed, so collecting them from a deferred module namespace
 // must not evaluate the module. See crbug.com/451791624.
 TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
-  i::v8_flags.js_defer_import_eval = true;
+  i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -6022,7 +6090,7 @@ TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
 // listing one would either evaluate the module or throw for an export still in
 // TDZ. The [[ModuleStatus]] internal property describes such an object instead.
 TEST(PropertyIteratorDoesNotEvaluateDeferredModule) {
-  i::v8_flags.js_defer_import_eval = true;
+  i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -6277,7 +6345,7 @@ TEST(TerminateOnResumeAtException) {
 }
 
 TEST(TerminateOnResumeAtBreakOnEntry) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate;
@@ -6930,7 +6998,7 @@ class ExceptionCatchPredictionChecker : public v8::debug::DebugDelegate {
 };
 
 void RunExceptionCatchPredictionTest(bool predict_uncaught, const char* code) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -6986,7 +7054,7 @@ void RunAndIgnore(v8::Local<v8::Script> script,
 }
 
 void RunExceptionBlackboxCheckTest(int functions_checked, const char* code) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -7424,6 +7492,144 @@ TEST(PerformPromiseAllCaughtDebug) {
   CHECK_EQ(v8::Promise::kRejected, v8_aggregate->State());
 
   v8::debug::SetDebugDelegate(isolate, nullptr);
+}
+
+// Steps over through F (see below) and records every pause as
+// "function:line:column". Only functions starting on line {kEnterLine} are
+// entered.
+class StepOverEnterFunctionsDelegate : public v8::debug::DebugDelegate {
+ public:
+  StepOverEnterFunctionsDelegate(v8::Isolate* isolate, bool enter_functions)
+      : isolate_(isolate), enter_functions_(enter_functions) {}
+
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons) override {
+    auto it = v8::debug::StackTraceIterator::Create(isolate_);
+    v8::String::Utf8Value name(isolate_, it->GetFunctionDebugName());
+    v8::debug::Location location = it->GetSourceLocation();
+    pauses_ += std::string(*name) + ":" +
+               std::to_string(location.GetLineNumber()) + ":" +
+               std::to_string(location.GetColumnNumber()) + " ";
+    v8::debug::PrepareStep(isolate_, v8::debug::StepOver, enter_functions_);
+  }
+
+  bool ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                           const v8::debug::Location& start,
+                           const v8::debug::Location& end) override {
+    // Must only be called for steps with {enter_functions}.
+    CHECK(enter_functions_);
+    return start.GetLineNumber() == kEnterLine;
+  }
+
+  static constexpr int kEnterLine = 0;
+  const std::string& pauses() const { return pauses_; }
+
+ private:
+  v8::Isolate* isolate_;
+  bool enter_functions_;
+  std::string pauses_;
+};
+
+std::string RunStepOverEnterFunctions(bool enter_functions) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, enter_functions);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "function T() {\n"        // 0: Entered.
+      "  return G();\n"         // 1
+      "}\n"                     // 2
+      "function G() {\n"        // 3: Not entered.
+      "  return 2;\n"           // 4
+      "}\n"                     // 5
+      "function F() {\n"        // 6
+      "  debugger;\n"           // 7
+      "  T();\n"                // 8
+      "  G();\n"                // 9
+      "  [1, 2].forEach(T);\n"  // 10
+      "  return 0;\n"           // 11
+      "}\n");                   // 12
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverWithoutEnterFunctions) {
+  CHECK_EQ("F:7:2 F:8:2 F:9:2 F:10:2 F:11:2 F:11:11 :0:3 ",
+           RunStepOverEnterFunctions(false));
+}
+
+TEST(StepOverEnterFunctions) {
+  // T is entered from F and from the forEach builtin, G is never entered.
+  CHECK_EQ(
+      "F:7:2 F:8:2 T:1:2 T:1:13 F:9:2 F:10:2 T:1:2 T:1:13 T:1:2 T:1:13 "
+      "F:11:2 F:11:11 :0:3 ",
+      RunStepOverEnterFunctions(true));
+}
+
+std::string RunStepOverEnterFunctionsImplicitCall() {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, true);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "var o = { get t() {\n"   // 0: Entered.
+      "    return 1;\n"         // 1
+      "  }, get g() {\n"        // 2: Not entered.
+      "    return 2;\n"         // 3
+      "  }\n"                   // 4
+      "};\n"                    // 5
+      "\n"                      // 6
+      "function F() {\n"        // 7
+      "  debugger;\n"           // 8
+      "  var r = o.t + o.g;\n"  // 9
+      "  return r;\n"           // 10
+      "}\n");                   // 11
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverEnterFunctionsImplicitCall) {
+  CHECK_EQ("F:8:2 F:9:10 get t:1:4 get t:1:13 F:10:11 :0:3 ",
+           RunStepOverEnterFunctionsImplicitCall());
+}
+
+std::string RunStepOverEnterFunctionsGenerator() {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, true);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "function T() {\n"   // 0: Entered.
+      "  return 1;\n"      // 1
+      "}\n"                // 2
+      "function* G() {\n"  // 3: Not entered.
+      "  debugger;\n"      // 4
+      "  yield 1;\n"       // 5
+      "  return 2;\n"      // 6
+      "}\n"                // 7
+      "function F() {\n"   // 8
+      "  var g = G();\n"   // 9
+      "  g.next();\n"      // 10
+      "  g.next();\n"      // 11
+      "  return 0;\n"      // 12
+      "}\n");              // 13
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverEnterFunctionsGenerator) {
+  CHECK_EQ("G:4:2 G:5:2 G:6:2 G:6:11 F:12:2 F:12:11 :0:3 ",
+           RunStepOverEnterFunctionsGenerator());
 }
 
 }  // namespace

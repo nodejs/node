@@ -59,7 +59,9 @@ class CpuSampler : public sampler::Sampler {
     // the sample is created in the buffer.
     sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame,
                  /* update_stats */ true,
-                 /* use_simulator_reg_state */ true, processor_->period());
+                 /* use_simulator_reg_state */ true, processor_->period(),
+                 /* trace_id */ std::nullopt,
+                 processor_->ExtractSampleContext());
     if (is_counting_samples_ && !sample->timestamp.IsNull()) {
       if (sample->state == JS) ++js_sample_count_;
       if (sample->state == EXTERNAL) ++external_sample_count_;
@@ -107,14 +109,16 @@ ProfilingScope::~ProfilingScope() {
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(
     Isolate* isolate, Symbolizer* symbolizer,
-    ProfilerCodeObserver* code_observer, CpuProfilesCollection* profiles)
+    ProfilerCodeObserver* code_observer, CpuProfilesCollection* profiles,
+    SampleContextExtractor sample_context_extractor)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       symbolizer_(symbolizer),
       code_observer_(code_observer),
       profiles_(profiles),
       last_code_event_id_(0),
       last_processed_code_event_id_(0),
-      isolate_(isolate) {
+      isolate_(isolate),
+      sample_context_extractor_(sample_context_extractor) {
   DCHECK(!code_observer_->processor());
   code_observer_->set_processor(this);
 }
@@ -122,8 +126,10 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(
 SamplingEventsProcessor::SamplingEventsProcessor(
     Isolate* isolate, Symbolizer* symbolizer,
     ProfilerCodeObserver* code_observer, CpuProfilesCollection* profiles,
-    base::TimeDelta period, bool use_precise_sampling)
-    : ProfilerEventsProcessor(isolate, symbolizer, code_observer, profiles),
+    base::TimeDelta period, bool use_precise_sampling,
+    SampleContextExtractor sample_context_extractor)
+    : ProfilerEventsProcessor(isolate, symbolizer, code_observer, profiles,
+                              sample_context_extractor),
       sampler_(new CpuSampler(isolate, this)),
       period_(period),
       use_precise_sampling_(use_precise_sampling) {
@@ -146,6 +152,11 @@ ProfilerEventsProcessor::~ProfilerEventsProcessor() {
   code_observer_->clear_processor();
 }
 
+void* ProfilerEventsProcessor::ExtractSampleContext() const {
+  if (sample_context_extractor_ == nullptr) return nullptr;
+  return sample_context_extractor_(reinterpret_cast<v8::Isolate*>(isolate_));
+}
+
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
   event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
@@ -158,8 +169,10 @@ void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
   regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
   regs.fp = reinterpret_cast<void*>(fp);
   regs.pc = reinterpret_cast<void*>(from);
-  record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, false,
-                     false);
+  record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame,
+                     /* update_stats */ false,
+                     /* use_simulator_reg_state */ false, base::TimeDelta(),
+                     /* trace_id */ std::nullopt, ExtractSampleContext());
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -175,7 +188,8 @@ void ProfilerEventsProcessor::AddCurrentStack(
     regs.pc = reinterpret_cast<void*>(frame->pc());
   }
   record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, update_stats,
-                     false, base::TimeDelta(), trace_id);
+                     /* use_simulator_reg_state */ false, base::TimeDelta(),
+                     trace_id, ExtractSampleContext());
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -251,7 +265,7 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
       tick_sample.state, tick_sample.embedder_state,
       reinterpret_cast<Address>(tick_sample.context),
       reinterpret_cast<Address>(tick_sample.embedder_context),
-      tick_sample.trace_id_);
+      tick_sample.trace_id_, tick_sample.sample_context_);
 }
 
 ProfilerEventsProcessor::SampleProcessingResult
@@ -579,6 +593,12 @@ void CpuProfiler::set_use_precise_sampling(bool value) {
   use_precise_sampling_ = value;
 }
 
+void CpuProfiler::set_sample_context_extractor(
+    ProfilerEventsProcessor::SampleContextExtractor extractor) {
+  DCHECK(!is_profiling_);
+  sample_context_extractor_ = extractor;
+}
+
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
@@ -658,6 +678,8 @@ CpuProfilingResult CpuProfiler::StartProfiling(
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
     StartProcessorIfNotStarted();
+    // after StartProcessorIfNotStarted processor_ must exist.
+    DCHECK(processor_);
 
     // Collect script rundown at the start of profiling if trace category is
     // turned on
@@ -715,7 +737,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   base::TimeDelta sampling_interval = ComputeSamplingInterval();
   processor_.reset(new SamplingEventsProcessor(
       isolate_, symbolizer_.get(), code_observer_.get(), profiles_.get(),
-      sampling_interval, use_precise_sampling_));
+      sampling_interval, use_precise_sampling_, sample_context_extractor_));
   is_profiling_ = true;
 
   // Enable stack sampling.

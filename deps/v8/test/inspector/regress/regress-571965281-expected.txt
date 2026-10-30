@@ -1,0 +1,5 @@
+Regression test for crbug.com/571965281.
+Paused on exception: RuntimeError: data segment out of bounds
+Paused on exception: RuntimeError: dereferencing a null pointer
+Paused on exception: RuntimeError: dereferencing a null pointer
+Paused on exception: RuntimeError: rethrowing null value

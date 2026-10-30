@@ -1,0 +1,5 @@
+Tests regress-crbug-107996.
+frame 0: 4
+frame 1: 4
+frame 2: 4
+fourteen: 14

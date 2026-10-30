@@ -392,15 +392,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 }
 
 void FeedbackVector::set_tiering_in_progress(bool in_progress) {
-  set_flags(TieringInProgressBit::update(flags(), in_progress));
-}
-
-void FeedbackVector::reset_flags() {
-  set_flags(
-      TieringInProgressBit::encode(false) |
-      OsrTieringInProgressBit::encode(false) |
-      MaybeHasMaglevOsrCodeBit::encode(false) |
-      MaybeHasTurbofanOsrCodeBit::encode(false));
+  set_flags(flags().with_tiering_in_progress(in_progress));
 }
 
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
@@ -423,11 +415,11 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
 }
 
 bool FeedbackVector::osr_tiering_in_progress() {
-  return OsrTieringInProgressBit::decode(flags());
+  return flags().osr_tiering_in_progress();
 }
 
 void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
-  set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
+  set_flags(flags().with_osr_tiering_in_progress(osr_in_progress));
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
@@ -1323,7 +1315,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
   }
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
   for (auto [_, handler] : maps_and_handlers) {
@@ -1391,7 +1383,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
 
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   for (auto [_, maybe_code_handler] : maps_and_handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
@@ -1442,14 +1434,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
 bool FeedbackNexus::IsOneMapManyNames() const {
   // "1 map, many names" mode is currently only used for Wasm maps, and
-  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+  // {IsAnyWasmObjectMap} is currently only defined for Wasm-enabled builds.
 #if V8_ENABLE_WEBASSEMBLY
   if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
   if (!IsMap(heap_object)) return false;
-  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
+  if (!IsAnyWasmObjectMap(Cast<Map>(heap_object))) return false;
   if (!IsSmi(pair.second)) return false;
   Tagged<Smi> handler = pair.second.ToSmi();
   return handler == LoadHandler::LoadGeneric() ||

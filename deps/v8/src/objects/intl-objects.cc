@@ -23,6 +23,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -261,7 +262,9 @@ void IcuBreakIteratorWithText::SetText(Isolate* isolate,
                                        DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   text_.reset(Intl::ToICUUnicodeString(isolate, string).clone());
-  DCHECK_NOT_NULL(text_);
+  if (V8_UNLIKELY(text_ == nullptr)) {
+    V8::FatalProcessOutOfMemory(isolate, "IcuBreakIteratorWithText::SetText");
+  }
   iterator_->setText(*text_);
 }
 
@@ -951,6 +954,15 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
 
 // https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
 // https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
+bool Intl::LocaleRequiresSpecialCaseMapping(std::string_view locale) {
+  size_t dash = locale.find('-');
+  std::string_view language = locale.substr(0, dash);
+  for (std::string_view special_locale : kCaseMappingSpecialLocales) {
+    if (language == special_locale) return true;
+  }
+  return false;
+}
+
 MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
@@ -985,8 +997,7 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   // in the root locale needs to be adjusted for az, lt and tr because even case
   // mapping of ASCII range characters are different in those locales.
   // Greek (el) does not require any adjustment.
-  if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
-                  (requested_locale == "lt") || (requested_locale == "az"))) {
+  if (V8_UNLIKELY(LocaleRequiresSpecialCaseMapping(requested_locale))) {
     return LocaleConvertCase(isolate, s, to_upper,
                              std::string(requested_locale).c_str());
   } else {
@@ -1920,10 +1931,8 @@ namespace {
 
 // https://tc39.es/ecma402/#sec-bestavailablelocale
 std::string BestAvailableLocale(const std::set<std::string>& available_locales,
-                                const std::string& locale) {
-  // 1. Let candidate be locale.
-  std::string candidate = locale;
-
+                                std::string candidate) {
+  // 1. Let candidate be locale (passed by value).
   // 2. Repeat,
   while (true) {
     // 2.a. If availableLocales contains an element equal to candidate, return
@@ -1948,13 +1957,13 @@ std::string BestAvailableLocale(const std::set<std::string>& available_locales,
 
     // 2.d. Let candidate be the substring of candidate from position 0,
     //      inclusive, to position pos, exclusive.
-    candidate = candidate.substr(0, pos);
+    candidate.erase(pos);
   }
 }
 
 struct ParsedLocale {
   std::string no_extensions_locale;
-  std::string extension;
+  std::string_view extension;
 };
 
 // Returns a struct containing a bcp47 tag without unicode extensions
@@ -1962,7 +1971,7 @@ struct ParsedLocale {
 //
 // For example, given 'en-US-u-co-emoji' returns 'en-US' and
 // 'u-co-emoji'.
-ParsedLocale ParseBCP47Locale(const std::string& locale) {
+ParsedLocale ParseBCP47Locale(std::string_view locale V8_LIFETIME_BOUND) {
   size_t length = locale.length();
   ParsedLocale parsed_locale;
 
@@ -1979,7 +1988,7 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   size_t unicode_extension_start = locale.find("-u-");
 
   // No unicode extensions found.
-  if (unicode_extension_start == std::string::npos) {
+  if (unicode_extension_start == std::string_view::npos) {
     parsed_locale.no_extensions_locale = locale;
     return parsed_locale;
   }
@@ -1987,13 +1996,12 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   size_t private_extension_start = locale.find("-x-");
 
   // Unicode extensions found within privateuse subtags don't count.
-  if (private_extension_start != std::string::npos &&
+  if (private_extension_start != std::string_view::npos &&
       private_extension_start < unicode_extension_start) {
     parsed_locale.no_extensions_locale = locale;
     return parsed_locale;
   }
 
-  const std::string beginning = locale.substr(0, unicode_extension_start);
   size_t unicode_extension_end = length;
   DCHECK_GT(length, 2);
 
@@ -2010,8 +2018,11 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
     i += 2;
   }
 
-  const std::string end = locale.substr(unicode_extension_end);
-  parsed_locale.no_extensions_locale = beginning + end;
+  std::string_view beginning = locale.substr(0, unicode_extension_start);
+  std::string_view end = locale.substr(unicode_extension_end);
+  parsed_locale.no_extensions_locale.reserve(beginning.length() + end.length());
+  parsed_locale.no_extensions_locale.assign(beginning);
+  parsed_locale.no_extensions_locale.append(end);
   parsed_locale.extension = locale.substr(
       unicode_extension_start, unicode_extension_end - unicode_extension_start);
   return parsed_locale;
@@ -2034,7 +2045,7 @@ std::vector<std::string> LookupSupportedLocales(
     // 2. b. Let availableLocale be
     //       BestAvailableLocale(availableLocales, noExtensionsLocale).
     std::string available_locale =
-        BestAvailableLocale(available_locales, no_extension_locale);
+        BestAvailableLocale(available_locales, std::move(no_extension_locale));
 
     // 2. c. If availableLocale is not undefined, append locale to the
     //       end of subset.
@@ -2105,7 +2116,7 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
   std::vector<icu::Locale> locales;
-  for (std::string locale_str : requested_locales) {
+  for (const std::string& locale_str : requested_locales) {
     icu::Locale locale = icu::Locale::forLanguageTag(locale_str, status);
     if (U_SUCCESS(status)) {
       locales.push_back(locale);
@@ -2168,8 +2179,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
     DirectHandle<String> value =
-        factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
-            .ToHandleChecked();
+        factory->NewStringFromUtf8(part).ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(isolate, array, i, value, attr), {});
   }
   // 5. Return array.
@@ -2596,12 +2606,11 @@ std::string LookupMatcher(Isolate* isolate,
     // 2. a. Let noExtensionsLocale be the String value that is locale
     //       with all Unicode locale extension sequences removed.
     ParsedLocale parsed_locale = ParseBCP47Locale(locale);
-    std::string no_extensions_locale = parsed_locale.no_extensions_locale;
 
     // 2. b. Let availableLocale be
     //       BestAvailableLocale(availableLocales, noExtensionsLocale).
-    std::string available_locale =
-        BestAvailableLocale(available_locales, no_extensions_locale);
+    std::string available_locale = BestAvailableLocale(
+        available_locales, std::move(parsed_locale.no_extensions_locale));
 
     // 2. c. If availableLocale is not undefined, append locale to the
     //       end of subset.
@@ -2622,7 +2631,8 @@ std::string LookupMatcher(Isolate* isolate,
       // extension sequence.
       // 2. c. ii. 2. Set result.[[extension]] to extension.
       // 2. c. iii. Return result.
-      return available_locale + parsed_locale.extension;
+      available_locale.append(parsed_locale.extension);
+      return available_locale;
     }
   }
 

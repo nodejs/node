@@ -1,0 +1,3 @@
+{
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"}, "generators": {"strategy": "adaptive"}}
+}

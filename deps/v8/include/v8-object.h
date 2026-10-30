@@ -201,11 +201,6 @@ using AccessorNameGetterCallback =
 using AccessorNameSetterCallbackV2 =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using AccessorNameSetterCallback  //
-    V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 instead.") =
-        void (*)(Local<Name> property, Local<Value> value,
-                 const PropertyCallbackInfo<void>& info);
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -338,6 +333,23 @@ class V8_EXPORT Object : public Value {
                                               uint32_t index);
 
   /**
+   * Like Get(), but only succeeds if the property can be read without side
+   * effects, i.e. without running JavaScript or any embedder callback that may
+   * have side effects.
+   *
+   * Returns the value if reading the property is determined to have no side
+   * effects, or an empty handle without throwing otherwise.
+   *
+   * For example, this can succeed if the lookup ends at a data property or a
+   * native data property whose getter is declared as
+   * SideEffectType::kHasNoSideEffect. It will return an empty handle if reading
+   * the property would require calling an accessor getter, an interceptor, or a
+   * Proxy trap, or if the lookup fails an access check.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> TryGetWithNoSideEffects(
+      Local<Context> context, Local<Name> key);
+
+  /**
    * Gets the property attributes of a property which can be None or
    * any combination of ReadOnly, DontEnum and DontDelete. Returns
    * None when the property doesn't exist.
@@ -409,7 +421,7 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallbackV2 setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -423,7 +435,7 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      AccessorNameGetterCallback getter, Local<Data> data = Local<Data>(),
       PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);

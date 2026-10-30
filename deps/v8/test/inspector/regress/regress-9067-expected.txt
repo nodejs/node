@@ -1,0 +1,5 @@
+Tests regress-9067.
+function f() {
+  #(function () {})();
+}
+

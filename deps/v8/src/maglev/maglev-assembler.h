@@ -120,6 +120,26 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   static constexpr Register GetFlagsRegister() { return kMaglevFlagsRegister; }
 #endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
+  // Whether the architecture has a register that always reads as zero, which
+  // can be stored instead of materializing a zero constant.
+  static constexpr bool HasZeroRegister() {
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_LOONG64)
+    return true;
+#else
+    return false;
+#endif
+  }
+  // The register that always reads as zero; only valid if HasZeroRegister().
+  static Register ZeroRegister() {
+#if defined(V8_TARGET_ARCH_ARM64)
+    return xzr;
+#elif defined(V8_TARGET_ARCH_LOONG64)
+    return zero_reg;
+#else
+    UNREACHABLE();
+#endif
+  }
+
   static constexpr DoubleRegList GetAllocatableDoubleRegisters() {
     return kAllocatableDoubleRegisters;
   }
@@ -241,9 +261,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                         ValueIsCompressed value_is_compressed,
                                         ValueCanBeSmi value_can_be_smi);
 
-  void CheckAndEmitDeferredIndirectPointerWriteBarrier(
+  void CheckAndEmitDeferredTrustedPointerWriteBarrier(
       Register object, int offset, Register value,
-      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+      RegisterSnapshot register_snapshot, TrustedPointerTag tag);
 
   inline void MemoryBarrier(AtomicMemoryOrder order);
 
@@ -267,7 +287,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   // Whether tagged constants (Smis, read-only roots and compressed heap
   // objects) can be stored as immediates, i.e. whether the overloads below are
   // implemented.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
   static constexpr bool kSupportsStoreTaggedConstant = COMPRESS_POINTERS_BOOL;
 #else
   static constexpr bool kSupportsStoreTaggedConstant = false;
@@ -301,7 +321,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void StoreTrustedPointerFieldWithWriteBarrier(
       Register object, int offset, Register value,
-      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+      RegisterSnapshot register_snapshot, TrustedPointerTag tag);
   inline void StoreTrustedPointerFieldNoWriteBarrier(Register object,
                                                      int offset,
                                                      Register value);
@@ -512,7 +532,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 #ifdef V8_TARGET_ARCH_64_BIT
   inline void Move(Register dst, intptr_t p);
 #endif
-  inline void Move(Register dst, IndirectPointerTag i);
+  inline void Move(Register dst, TrustedPointerTag i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
@@ -1056,12 +1076,12 @@ class SaveRegisterStateForCall {
       }
       pushed_reg_index++;
     }
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     pushed_reg_index = RoundUp<2>(pushed_reg_index);
 #endif
     int num_double_slots = snapshot_.live_double_registers.Count() *
                            (kDoubleSize / kSystemPointerSize);
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     num_double_slots = RoundUp<2>(num_double_slots);
 #endif
     safepoint.SetNumExtraSpillSlots(pushed_reg_index + num_double_slots);

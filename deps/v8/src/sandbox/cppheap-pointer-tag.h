@@ -12,7 +12,6 @@ namespace v8::internal {
 // Tags for V8-internal CppHeap objects that inherit from v8::Object::Wrappable.
 #define V8_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(V) \
   V(kTagForTesting)                                \
-  V(kInspectorV8ConsoleTag)                        \
   V(kInspectorTaskInfoTag)                         \
   V(kWasmMemoryMapDescriptorTag)
 
@@ -21,7 +20,11 @@ namespace v8::internal {
 #define V8_NON_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(V) \
   V(kMicrotaskQueueTag)                                \
   V(kCppGCManagedTag)                                  \
-  V(kEmbedderDataSlotTag)
+  V(kEmbedderDataSlotTag)                              \
+  V(kExternalStringResourceTag)                        \
+  V(kInspectorV8ConsoleTag)                            \
+  V(kInspectorCommandLineAPIDataTag)                   \
+  V(kInspectorCommandLineAPIScopeDataTag)
 
 enum class WrappableCppHeapPointerTag : uint16_t {
   kFirst =
@@ -77,6 +80,11 @@ static_assert(
       static_cast<CppHeapPointerTag>(NonWrappableCppHeapPointerTag::name);
 V8_NON_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(DEFINE_NON_WRAPPABLE_TAG_CONSTANT)
 #undef DEFINE_NON_WRAPPABLE_TAG_CONSTANT
+
+// The external string resource tag is also part of the public API, as the
+// inline fast paths in include/v8-primitive.h need it.
+static_assert(kExternalStringResourceTag ==
+              CppHeapPointerTag::kExternalStringResourceTag);
 
 }  // namespace v8::internal
 

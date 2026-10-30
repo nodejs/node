@@ -279,7 +279,6 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol() ||
          name == roots.detached_symbol();
 }
 
@@ -418,7 +417,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
 
   // Only the main thread should write to transition arrays.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   // It's OK to read the transition array without holding the
   // full_transition_array_access lock in read mode, since this is only called

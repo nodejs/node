@@ -59,7 +59,7 @@ function poly_store(a, x) {
 %PrepareFunctionForOptimization(poly_store);
 poly_store([1.1], 'a');
 poly_store([1.1], 2.1);
-var x = foo();
+var x = new Array();
 x[0] = 1.1;
 x.x = 12;
 poly_store(x, 'a');

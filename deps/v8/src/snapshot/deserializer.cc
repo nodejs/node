@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/strong-alias.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/external-reference-encoder.h"
 #include "src/codegen/reloc-info-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -22,6 +23,7 @@
 #include "src/logging/log.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/bytecode-array-inl.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -33,6 +35,7 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bytecode-verifier.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
@@ -100,7 +103,7 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset, mode);
   }
 
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     // Only ExposedTrustedObjects can be referenced via indirect pointers, so
     // we must have one of these objects here. See the comments in
     // trusted-object.h for more details.
@@ -110,12 +113,12 @@ class SlotAccessorForHeapObject {
 
     InstanceType instance_type = value->map()->instance_type();
     SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
-    IndirectPointerTag tag =
-        IndirectPointerTagFromInstanceType(instance_type, shared);
-    IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
+    TrustedPointerTag tag =
+        TrustedPointerTagFromInstanceType(instance_type, shared);
+    TrustedPointerSlot dest = object_->RawTrustedPointerField(offset_, tag);
     dest.store(object);
 
-    WriteBarrier::ForIndirectPointer(*object_, dest, value, mode);
+    WriteBarrier::ForTrustedPointer(*object_, dest, value, mode);
     return 1;
   }
 
@@ -165,7 +168,7 @@ class SlotAccessorForRootSlots {
             int slot_offset, WriteBarrierMode mode) {
     return Write(*value, ref_type, slot_offset, mode);
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -209,7 +212,7 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -228,8 +231,8 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Tagged<HeapObject> heap_object,
                                              ReferenceDescriptor descr,
                                              WriteBarrierMode mode) {
-  if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(heap_object, mode);
+  if (descr.is_trusted_pointer) {
+    return slot_accessor.WriteTrustedPointerTo(heap_object, mode);
   } else {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
@@ -240,8 +243,8 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(
     SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
     ReferenceDescriptor descr, WriteBarrierMode mode) {
-  if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(*heap_object, mode);
+  if (descr.is_trusted_pointer) {
+    return slot_accessor.WriteTrustedPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
     DCHECK(IsTrustedObject(*heap_object));
     return slot_accessor.WriteProtectedPointerTo(
@@ -256,10 +259,10 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
                                                  ExternalPointerSlot dest,
                                                  Address value,
                                                  ExternalPointerTag tag) {
-  DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_trusted_pointer_ &&
          !next_reference_is_protected_pointer);
 
-  #ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable::ManagedResource* managed_resource = nullptr;
   ExternalPointerTable* owning_table = nullptr;
   ExternalPointerHandle original_handle = kNullExternalPointerHandle;
@@ -280,7 +283,7 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
     managed_resource->owning_table_ = nullptr;
     managed_resource->ept_entry_ = kNullExternalPointerHandle;
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   if (tag == kExternalPointerNullTag && value == kNullAddress) {
     dest.init_lazily_initialized();
@@ -288,12 +291,12 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
     dest.init(main_thread_isolate(), host, value, tag);
   }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   if (managed_resource) {
     managed_resource->owning_table_ = owning_table;
     managed_resource->ept_entry_ = original_handle;
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
@@ -322,23 +325,26 @@ int GetNumApiReferences(LocalIsolate* isolate) { return 0; }
 }  // namespace
 
 template <typename IsolateT>
-Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
-                                     base::Vector<const uint8_t> payload,
-                                     uint32_t magic_number,
-                                     bool deserializing_user_code,
-                                     bool can_rehash)
+Deserializer<IsolateT>::Deserializer(
+    IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
+    base::Vector<const uint8_t> trusted_payload, uint32_t magic_number,
+    bool deserializing_user_code, bool can_rehash)
     : isolate_(isolate),
       attached_objects_(isolate),
-      source_(payload),
+      source_(untrusted_payload),
       magic_number_(magic_number),
       new_maps_(isolate),
-      new_allocation_sites_(isolate),
       new_instruction_stream_objects_(isolate),
       accessor_infos_(isolate),
       interceptor_infos_(isolate),
       function_template_infos_(isolate),
       new_scripts_(isolate),
       new_exposed_trusted_objects_(isolate),
+      trusted_payload_(trusted_payload),
+      // Without the sandbox, trusted objects are part of the untrusted section.
+      section_(deserializing_user_code && V8_ENABLE_SANDBOX_BOOL
+                   ? Section::kUntrusted
+                   : Section::kCombined),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
                      deserializing_user_code),
@@ -419,9 +425,58 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
   if (v8_flags.trace_deserialization) {
     PrintF("-- Deferred objects\n");
   }
-  for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
+  for (uint8_t code = source_.Get(); code != kSynchronize;
+       code = source_.Get()) {
     SnapshotSpace space = NewObject::Decode(code);
     ReadObject(space);
+  }
+}
+
+template <typename IsolateT>
+DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+  // The trusted section starts with the external references that the untrusted
+  // section refers to by index.
+  SnapshotByteSource table(trusted_payload_);
+  external_references_.resize(table.GetUint30());
+  if (!external_references_.empty()) {
+    table.CopyRaw(
+        external_references_.data(),
+        external_references_.size() * sizeof(EncodedExternalReference));
+  }
+  trusted_payload_ += table.position();
+  DirectHandle<HeapObject> result = ReadObject();
+  DeserializeDeferredObjects();
+  while (source_.Peek() != kSynchronize) {
+    ReadObject();
+    DeserializeDeferredObjects();
+  }
+#ifdef DEBUG
+  DCHECK_EQ(kSynchronize, source_.Get());
+  while (source_.HasMore()) DCHECK_EQ(kNop, source_.Get());
+  DCHECK_EQ(num_unresolved_forward_refs_, 0);
+  DCHECK(unresolved_forward_refs_.empty());
+#endif
+  return result;
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedSection() {
+  if (v8_flags.trace_deserialization) {
+    PrintF("-- Trusted section\n");
+  }
+  source_.Reset(trusted_payload_);
+  section_ = Section::kTrusted;
+  untrusted_back_refs_ = std::exchange(back_refs_, {});
+  num_fixed_back_refs_ = 0;
+  DirectHandleVector<HeapObject> trusted_exports(isolate());
+  while (source_.Peek() != kSynchronize) {
+    trusted_exports.push_back(ReadObject());
+  }
+  DCHECK_EQ(kSynchronize, source_.Get());
+  for (const auto& [index, ref] : trusted_export_refs_) {
+    WriteHeapPointer(
+        SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset),
+        *trusted_exports[index], ref.descr);
   }
 }
 
@@ -513,8 +568,6 @@ void PostProcessExternalString(Tagged<ExternalString> string,
                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   string->InitResourceDataAfterDeserialization(isolate);
-  isolate->heap()->UpdateExternalString(string, 0,
-                                        string->ExternalPayloadSize());
   isolate->heap()->RegisterExternalString(string);
 }
 
@@ -644,12 +697,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         return;
       } else if (InstanceTypeChecker::IsScript(instance_type)) {
         new_scripts_.push_back(Cast<Script>(obj));
-      } else if (InstanceTypeChecker::IsAllocationSite(instance_type)) {
-        // We should link new allocation sites, but we can't do this immediately
-        // because |AllocationSite::HasWeakNext()| internally accesses
-        // |Heap::roots_| that may not have been initialized yet. So defer this
-        // to |ObjectDeserializer::CommitPostProcessedObjects()|.
-        new_allocation_sites_.push_back(Cast<AllocationSite>(obj));
       } else {
         // We dont defer ByteArray because JSTypedArray needs the base_pointer
         // ByteArray immediately if it's on heap.
@@ -716,13 +763,13 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
 template <typename IsolateT>
 typename Deserializer<IsolateT>::ReferenceDescriptor
 Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
-  DCHECK(!(next_reference_is_weak_ && next_reference_is_indirect_pointer_));
+  DCHECK(!(next_reference_is_weak_ && next_reference_is_trusted_pointer_));
   ReferenceDescriptor desc;
   desc.type = next_reference_is_weak_ ? HeapObjectReferenceType::WEAK
                                       : HeapObjectReferenceType::STRONG;
   next_reference_is_weak_ = false;
-  desc.is_indirect_pointer = next_reference_is_indirect_pointer_;
-  next_reference_is_indirect_pointer_ = false;
+  desc.is_trusted_pointer = next_reference_is_trusted_pointer_;
+  next_reference_is_trusted_pointer_ = false;
   desc.is_protected_pointer = next_reference_is_protected_pointer;
   next_reference_is_protected_pointer = false;
   return desc;
@@ -742,7 +789,6 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject(
   // a thin string, then it should also update the backref handle.
   DCHECK(!IsThinString(*obj));
 
-  hot_objects_.Add(obj);
   DCHECK(!HasWeakHeapObjectTag(*obj));
   return obj;
 }
@@ -774,14 +820,19 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
-  const int size_in_tagged = source_.GetUint30();
-  const int size_in_bytes = size_in_tagged * kTaggedSize;
-
   // The map can't be a forward ref. If you want the map to be a forward ref,
   // then you're probably serializing the meta-map, in which case you want to
   // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   DirectHandle<Map> map = Cast<Map>(ReadObject());
+
+  // Fixed-size objects don't serialize their size, see SerializePrologue.
+  const int instance_size_in_words = map->instance_size_in_words();
+  const uint32_t size_in_tagged =
+      instance_size_in_words == kVariableSizeSentinel
+          ? source_.GetUint30()
+          : static_cast<uint32_t>(instance_size_in_words);
+  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
 
   AllocationType allocation = SpaceToAllocation(space);
 
@@ -895,8 +946,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const int size_in_tagged = source_.GetUint30();
-  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const uint32_t size_in_bytes = Map::kSize;
+  const uint32_t size_in_tagged = size_in_bytes / kTaggedSize;
   const InstanceType instance_type =
       static_cast<InstanceType>(source_.GetUint30());
 
@@ -929,7 +980,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRepeatedRoot(SlotAccessor slot_accessor,
                                              int repeat_count) {
   DCHECK(!next_reference_is_weak_);
-  DCHECK(!next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_trusted_pointer_);
   DCHECK(!next_reference_is_protected_pointer);
   CHECK_LE(2, repeat_count);
 
@@ -974,6 +1025,8 @@ constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
 #define CASE_R8(byte_code) CASE_R4(byte_code) : case CASE_R4(byte_code + 4)
 #define CASE_R16(byte_code) CASE_R8(byte_code) : case CASE_R8(byte_code + 8)
 #define CASE_R32(byte_code) CASE_R16(byte_code) : case CASE_R16(byte_code + 16)
+#define CASE_R64(byte_code) CASE_R32(byte_code) : case CASE_R32(byte_code + 32)
+#define CASE_R128(byte_code) CASE_R64(byte_code) : case CASE_R64(byte_code + 64)
 
 // This generates a case range for all the spaces.
 // clang-format off
@@ -1060,28 +1113,38 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
     case kSandboxedApiReference:
     case kApiReference:
       return ReadApiReference(data, slot_accessor);
+    case kExternalStringResource:
+      return ReadExternalStringResource(data, slot_accessor);
     case kClearedWeakReference:
       return ReadClearedWeakReference(data, slot_accessor);
     case kWeakPrefix:
       return ReadWeakPrefix(data, slot_accessor);
-    case kIndirectPointerPrefix:
-      return ReadIndirectPointerPrefix(data, slot_accessor);
-    case kInitializeSelfIndirectPointer:
-      return ReadInitializeSelfIndirectPointer(data, slot_accessor);
+    case kTrustedPointerPrefix:
+      return ReadTrustedPointerPrefix(data, slot_accessor);
+    case kInitializeSelfTrustedPointer:
+      return ReadInitializeSelfTrustedPointer(data, slot_accessor);
     case kAllocateJSDispatchEntry:
       return ReadAllocateJSDispatchEntry(data, slot_accessor);
     case kJSDispatchEntry:
       return ReadJSDispatchEntry(data, slot_accessor);
     case kProtectedPointerPrefix:
       return ReadProtectedPointerPrefix(data, slot_accessor);
+    case kTrustedExportRef:
+      return ReadTrustedExportRef(data, slot_accessor);
+    case kUntrustedRef:
+      return ReadUntrustedRef(data, slot_accessor);
+    case kTrustedExternalRef:
+      return ReadTrustedExternalRef(data, slot_accessor);
+    case kRegisterFixedBackref:
+      return ReadRegisterFixedBackref(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
-    case CASE_RANGE(kHotObject, 8):
-      return ReadHotObject(data, slot_accessor);
     case CASE_RANGE(kFixedRawData, 32):
       return ReadFixedRawData(data, slot_accessor);
     case CASE_RANGE(kFixedRepeatRoot, 16):
       return ReadFixedRepeatRoot(data, slot_accessor);
+    case CASE_RANGE(kFixedBackref, 128):
+      return ReadFixedBackref(data, slot_accessor);
 
 #ifdef DEBUG
 #define UNUSED_CASE(byte_code) \
@@ -1154,13 +1217,30 @@ int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                           GetAndResetNextReferenceDescriptor());
 }
 
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadRegisterFixedBackref(
+    uint8_t data, SlotAccessor slot_accessor) {
+  uint32_t index = source_.GetUint30();
+  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
+  SBXCHECK_LT(num_fixed_back_refs_, kFixedBackrefCount);
+  fixed_back_refs_[num_fixed_back_refs_++] = heap_object.location();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sRegisterFixedBackref [%u]\n", depth_, "", index);
+  }
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
+}
+
 // Reference an object in the read-only heap.
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
                                                 SlotAccessor slot_accessor) {
-  uint32_t chunk_index = source_.GetUint30();
-  uint32_t chunk_offset = source_.GetUint30();
+  uint32_t encoded = source_.GetUint30();
+  uint32_t chunk_index = encoded >> kReadOnlyHeapRefOffsetBits;
+  uint32_t chunk_offset = (encoded & ((1u << kReadOnlyHeapRefOffsetBits) - 1))
+                          << kObjectAlignmentBits;
 
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
   ReadOnlyPage* page = read_only_space->pages()[chunk_index];
@@ -1185,7 +1265,8 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
-  int id = source_.GetUint30();
+  uint32_t id = source_.GetUint30();
+  SBXCHECK_LT(id, RootsTable::kEntriesCount);
   RootIndex root_index = static_cast<RootIndex>(id);
   DirectHandle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
@@ -1194,7 +1275,6 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
     PrintF("%*sRootArray [%u] : %s\n", depth_, "", id,
            RootsTable::name(root_index));
   }
-  hot_objects_.Add(heap_object);
   return WriteHeapPointer(
       slot_accessor, heap_object, GetAndResetNextReferenceDescriptor(),
       RootsTable::IsReadOnly(root_index) ? SKIP_WRITE_BARRIER
@@ -1207,7 +1287,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
                                                    SlotAccessor slot_accessor) {
-  int cache_index = source_.GetUint30();
+  uint32_t cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the startup_object_cache
   // entry as a Handle backing?
   Tagged<HeapObject> heap_object = Cast<HeapObject>(
@@ -1227,7 +1307,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
     uint8_t data, SlotAccessor slot_accessor) {
-  int cache_index = source_.GetUint30();
+  uint32_t cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
   Tagged<HeapObject> heap_object = Cast<HeapObject>(
@@ -1260,7 +1340,8 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
-  DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
+  SBXCHECK(InTrustedSection());
+  DCHECK_IMPLIES(data == kSandboxedExternalReference, COMPRESS_POINTERS_BOOL);
   Address address = ReadExternalReferenceCase();
   ExternalPointerTag tag = kExternalPointerNullTag;
   if (data == kSandboxedExternalReference) {
@@ -1279,7 +1360,8 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRawExternalReference(
     uint8_t data, SlotAccessor slot_accessor) {
-  DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
+  SBXCHECK(InTrustedSection());
+  DCHECK_IMPLIES(data == kSandboxedExternalReference, COMPRESS_POINTERS_BOOL);
   Address address;
   source_.CopyRaw(&address, kSystemPointerSize);
   ExternalPointerTag tag = kExternalPointerNullTag;
@@ -1301,7 +1383,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
-  int index = source_.GetUint30();
+  uint32_t index = source_.GetUint30();
   DirectHandle<HeapObject> heap_object = attached_objects_[index];
   if (v8_flags.trace_deserialization) {
     PrintF("%*sAttachedReference [%u] : ", depth_, "", index);
@@ -1333,7 +1415,7 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
   DCHECK(slot_accessor.offset() == sizeof(HeapObject) ||
          slot_accessor.offset() == ExposedTrustedObject::kHeaderSize);
   DirectHandle<HeapObject> obj = slot_accessor.object();
-  int index = source_.GetUint30();
+  uint32_t index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
   auto slot = SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
                                                        forward_ref.offset);
@@ -1358,10 +1440,10 @@ int Deserializer<IsolateT>::ReadVariableRawData(uint8_t data,
   // This operation is only supported for tagged-size slots, else we might
   // become misaligned.
   DCHECK_EQ(decltype(slot_accessor.slot())::kSlotDataSize, kTaggedSize);
-  int size_in_tagged = source_.GetUint30();
+  uint32_t size_in_tagged = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sVariableRawData [%u] :", depth_, "", size_in_tagged);
-    for (int i = 0; i < size_in_tagged; ++i) {
+    for (uint32_t i = 0; i < size_in_tagged; ++i) {
       PrintF(" %0*" PRIxTAGGED, kTaggedSize / 2,
              reinterpret_cast<const Tagged_t*>(source_.data())[i]);
     }
@@ -1416,6 +1498,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
         initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag{false});
   }
   CHECK_NOT_NULL(backing_store);
+  SBXCHECK_LE(source_.position() + byte_length, source_.length());
   source_.CopyRaw(backing_store->buffer_start(), byte_length);
   backing_stores_.push_back(std::move(backing_store));
   return 0;
@@ -1425,17 +1508,9 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
                                              SlotAccessor slot_accessor) {
-  DCHECK_IMPLIES(data == kSandboxedApiReference, V8_ENABLE_SANDBOX_BOOL);
-  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
-  Address address;
-  if (main_thread_isolate()->api_external_references()) {
-    DCHECK_WITH_MSG(reference_id < num_api_references_,
-                    "too few external references provided through the API");
-    address = static_cast<Address>(
-        main_thread_isolate()->api_external_references()[reference_id]);
-  } else {
-    address = reinterpret_cast<Address>(NoExternalReferencesCallback);
-  }
+  SBXCHECK(InTrustedSection());
+  DCHECK_IMPLIES(data == kSandboxedApiReference, COMPRESS_POINTERS_BOOL);
+  Address address = GetApiReferenceAddress(source_.GetUint30());
   ExternalPointerTag tag = kExternalPointerNullTag;
   if (data == kSandboxedApiReference) {
     tag = ReadExternalPointerTag();
@@ -1446,6 +1521,58 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
   return WriteExternalPointer(*slot_accessor.object(),
                               slot_accessor.external_pointer_slot(tag), address,
                               tag);
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadExternalStringResource(
+    uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
+  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sExternalStringResource [%u]\n", depth_, "", reference_id);
+  }
+  return WriteExternalStringResource(slot_accessor, reference_id);
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::WriteExternalStringResource(
+    SlotAccessor slot_accessor, uint32_t reference_id) {
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_trusted_pointer_ &&
+         !next_reference_is_protected_pointer);
+  DCHECK(IsExternalString(*slot_accessor.object()));
+  DCHECK_EQ(slot_accessor.offset(), Internals::kStringResourceOffset);
+
+  if constexpr (std::is_same_v<IsolateT, LocalIsolate>) {
+    // This is unsupported currently - the wrapper is a cppgc object, which
+    // can't be allocated from a background thread.
+    FATAL("External strings are not supported in off-thread deserialization");
+  }
+
+  const intptr_t* api_references =
+      main_thread_isolate()->api_external_references();
+  CHECK_WITH_MSG(api_references != nullptr,
+                 "No external references provided via API");
+  DCHECK_WITH_MSG(reference_id < num_api_references_,
+                  "too few external references provided through the API");
+  auto* resource = reinterpret_cast<v8::String::ExternalStringResourceBase*>(
+      api_references[reference_id]);
+
+  // Allocating the cppgc wrapper may trigger a GC. This is safe here: the map,
+  // hash and length are already deserialized, and the resource slots still
+  // hold the null handles pre-filled by ReadObject().
+  ExternalStringResourceWrapper* wrapper =
+      ExternalStringResourceWrapper::New(main_thread_isolate());
+
+  DisallowGarbageCollection no_gc;
+  wrapper->SetResource(resource);
+  // resource_data_ is set up in PostProcessExternalString().
+  CppHeapObjectWrapper(Cast<ExternalString>(*slot_accessor.object()))
+      .SetCppHeapWrappable(main_thread_isolate(), wrapper,
+                           kExternalStringResourceTag);
+  static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
+  return kCppHeapPointerSlotSize / kTaggedSize;
 }
 
 template <typename IsolateT>
@@ -1475,28 +1602,29 @@ int Deserializer<IsolateT>::ReadWeakPrefix(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadIndirectPointerPrefix(
+int Deserializer<IsolateT>::ReadTrustedPointerPrefix(
     uint8_t data, SlotAccessor slot_accessor) {
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sIndirectPointerPrefix\n", depth_, "");
+    PrintF("%*sTrustedPointerPrefix\n", depth_, "");
   }
   // We shouldn't have two indirect pointer prefixes in a row.
-  DCHECK(!next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_trusted_pointer_);
   // We shouldn't have a indirect pointer prefix without a current object.
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
-  next_reference_is_indirect_pointer_ = true;
+  next_reference_is_trusted_pointer_ = true;
   return 0;
 }
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
+int Deserializer<IsolateT>::ReadInitializeSelfTrustedPointer(
     uint8_t data, SlotAccessor slot_accessor) {
 #ifdef V8_ENABLE_SANDBOX
+  SBXCHECK(InTrustedSection());
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   DCHECK(IsExposedTrustedObject(*slot_accessor.object()));
   DCHECK_EQ(slot_accessor.offset(),
-            offsetof(ExposedTrustedObject, self_indirect_pointer_));
+            offsetof(ExposedTrustedObject, self_trusted_pointer_));
 
   Tagged<ExposedTrustedObject> host =
       TrustedCast<ExposedTrustedObject>(*slot_accessor.object());
@@ -1514,6 +1642,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   DirectHandle<HeapObject> host = slot_accessor.object();
 
@@ -1565,12 +1694,73 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadProtectedPointerPrefix(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   // We shouldn't have two protected pointer prefixes in a row.
   DCHECK(!next_reference_is_protected_pointer);
   // We shouldn't have a protected pointer prefix without a current object.
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   next_reference_is_protected_pointer = true;
   return 0;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadTrustedExportRef(uint8_t data,
+                                                 SlotAccessor slot_accessor) {
+  DCHECK(InUntrustedSection());
+  uint32_t index = source_.GetUint30();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sTrustedExportRef [%u]\n", depth_, "", index);
+  }
+  ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
+  DCHECK(descr.is_trusted_pointer);
+  trusted_export_refs_.emplace_back(
+      index, UnresolvedForwardRef(slot_accessor.object(),
+                                  slot_accessor.offset(), descr));
+  return 1;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadUntrustedRef(uint8_t data,
+                                             SlotAccessor slot_accessor) {
+  DCHECK(InTrustedSection());
+  uint32_t index = source_.GetUint30();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sUntrustedRef [%u]\n", depth_, "", index);
+  }
+  return WriteHeapPointer(slot_accessor, *untrusted_back_refs_[index],
+                          GetAndResetNextReferenceDescriptor());
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadTrustedExternalRef(uint8_t data,
+                                                   SlotAccessor slot_accessor) {
+  DCHECK(InUntrustedSection());
+  uint32_t index = source_.GetUint30();
+  EncodedExternalReference entry = external_references_[index];
+  if (entry.tag == kExternalPointerNullTag) {
+    // An external string resource, see SerializeTrustedExternalStringResource.
+    CHECK(entry.reference.is_from_api());
+    if (v8_flags.trace_deserialization) {
+      PrintF("%*sTrustedExternalRef [%u] : ExternalStringResource [%u]\n",
+             depth_, "", index, entry.reference.index());
+    }
+    return WriteExternalStringResource(slot_accessor, entry.reference.index());
+  }
+  Address address =
+      entry.reference.is_from_api()
+          ? GetApiReferenceAddress(entry.reference.index())
+          : main_thread_isolate()->external_reference_table()->address(
+                entry.reference.index());
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sTrustedExternalRef [%u] : %" PRIxPTR ", %i\n", depth_, "", index,
+           address, entry.tag);
+  }
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(entry.tag),
+                              address, entry.tag);
 }
 
 template <typename IsolateT>
@@ -1583,31 +1773,21 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
   static_assert(kRootArrayConstantsCount <=
                 static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
+  DCHECK(!next_reference_is_trusted_pointer_);
+  DCHECK(!next_reference_is_protected_pointer);
+
   RootIndex root_index = RootArrayConstant::Decode(data);
-  DirectHandle<HeapObject> heap_object =
-      Cast<HeapObject>(isolate()->root_handle(root_index));
+  Tagged<HeapObject> heap_object =
+      Cast<HeapObject>(isolate()->root(root_index));
   if (v8_flags.trace_deserialization) {
     PrintF("%*sRootArrayConstants [%u] : %s\n", depth_, "",
            static_cast<int>(root_index), RootsTable::name(root_index));
   }
-  return WriteHeapPointer(slot_accessor, heap_object,
-                          GetAndResetNextReferenceDescriptor(),
-                          SKIP_WRITE_BARRIER);
-}
-
-template <typename IsolateT>
-template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
-                                          SlotAccessor slot_accessor) {
-  int index = HotObject::Decode(data);
-  DirectHandle<HeapObject> hot_object = hot_objects_.Get(index);
-  if (v8_flags.trace_deserialization) {
-    PrintF("%*sHotObject [%u] : ", depth_, "", index);
-    ShortPrint(*hot_object);
-    PrintF("\n");
-  }
-  return WriteHeapPointer(slot_accessor, hot_object,
-                          GetAndResetNextReferenceDescriptor());
+  HeapObjectReferenceType ref_type = next_reference_is_weak_
+                                         ? HeapObjectReferenceType::WEAK
+                                         : HeapObjectReferenceType::STRONG;
+  next_reference_is_weak_ = false;
+  return slot_accessor.Write(heap_object, ref_type, 0, SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>
@@ -1617,17 +1797,18 @@ int Deserializer<IsolateT>::ReadFixedRawData(uint8_t data,
   using TSlot = decltype(slot_accessor.slot());
 
   // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
-  int size_in_tagged = FixedRawDataWithSize::Decode(data);
+  uint32_t size_in_tagged = FixedRawDataWithSize::Decode(data);
   static_assert(TSlot::kSlotDataSize == kTaggedSize ||
                 TSlot::kSlotDataSize == 2 * kTaggedSize);
-  int size_in_slots = size_in_tagged / (TSlot::kSlotDataSize / kTaggedSize);
+  uint32_t size_in_slots =
+      size_in_tagged / (TSlot::kSlotDataSize / kTaggedSize);
   // kFixedRawData can have kTaggedSize != TSlot::kSlotDataSize when
   // serializing Smi roots in pointer-compressed builds. In this case, the
   // size in bytes is unconditionally the (full) slot size.
   DCHECK_IMPLIES(kTaggedSize != TSlot::kSlotDataSize, size_in_slots == 1);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sFixedRawData [%u] :", depth_, "", size_in_tagged);
-    for (int i = 0; i < size_in_tagged; ++i) {
+    for (uint32_t i = 0; i < size_in_tagged; ++i) {
       PrintF(" %0*" PRIxTAGGED, kTaggedSize / 2,
              reinterpret_cast<const Tagged_t*>(source_.data())[i]);
     }
@@ -1670,8 +1851,24 @@ int Deserializer<IsolateT>::ReadFixedRepeatRoot(uint8_t data,
   return ret;
 }
 
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
+                                             SlotAccessor slot_accessor) {
+  uint32_t index = FixedBackref::Decode(data);
+  SBXCHECK_LT(index, num_fixed_back_refs_);
+  Handle<HeapObject> heap_object(fixed_back_refs_[index]);
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sFixedBackref [%u]\n", depth_, "", index);
+  }
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
+}
+
 #undef CASE_RANGE_ALL_SPACES
 #undef CASE_RANGE
+#undef CASE_R128
+#undef CASE_R64
 #undef CASE_R32
 #undef CASE_R16
 #undef CASE_R8
@@ -1682,24 +1879,44 @@ int Deserializer<IsolateT>::ReadFixedRepeatRoot(uint8_t data,
 
 template <typename IsolateT>
 Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
+  DCHECK(InTrustedSection());
   uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
   return main_thread_isolate()->external_reference_table()->address(
       reference_id);
 }
 
 template <typename IsolateT>
+Address Deserializer<IsolateT>::GetApiReferenceAddress(uint32_t reference_id) {
+  if (main_thread_isolate()->api_external_references()) {
+    DCHECK_WITH_MSG(reference_id < num_api_references_,
+                    "too few external references provided through the API");
+    return static_cast<Address>(
+        main_thread_isolate()->api_external_references()[reference_id]);
+  }
+  return reinterpret_cast<Address>(NoExternalReferencesCallback);
+}
+
+template <typename IsolateT>
 ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
+  DCHECK(InTrustedSection());
   return static_cast<ExternalPointerTag>(source_.GetUint30());
 }
 
 template <typename IsolateT>
 Tagged<HeapObject> Deserializer<IsolateT>::Allocate(
-    AllocationType allocation, int size, AllocationAlignment alignment) {
+    AllocationType allocation, uint32_t size, AllocationAlignment alignment) {
+  // The untrusted section can only allocate inside the sandbox. Strings can be
+  // allocated in the shared heap, see ReadObject.
+  SBXCHECK_IMPLIES(InUntrustedSection(),
+                   allocation == AllocationType::kOld ||
+                       allocation == AllocationType::kSharedOld);
+  DCHECK_IMPLIES(section_ == Section::kTrusted,
+                 allocation == AllocationType::kTrusted);
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to
     // be iterated over by the GC.
-    int object_size = previous_allocation_obj_->Size();
+    uint32_t object_size = previous_allocation_obj_->SafeSize().value();
     DCHECK_LE(object_size, previous_allocation_size_);
   }
 #endif

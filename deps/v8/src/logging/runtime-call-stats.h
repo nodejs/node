@@ -19,7 +19,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
 #include "src/logging/tracing-flags.h"
 #include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -143,6 +143,7 @@ namespace v8::internal {
   V(Object_ToPrimitive)                                    \
   V(Object_ToString)                                       \
   V(Object_ToUint32)                                       \
+  V(Object_TryGetWithNoSideEffects)                        \
   V(Persistent_New)                                        \
   V(Private_New)                                           \
   V(Promise_Catch)                                         \
@@ -264,7 +265,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PairingOptimization)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulateReferenceMaps)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                        \
@@ -333,10 +333,7 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                        \
                                                                               \
@@ -381,8 +378,6 @@ namespace v8::internal {
   V(DeserializeIsolate)                        \
   V(FinalizationRegistryCleanupFromTask)       \
   V(FunctionCallback)                          \
-  V(FunctionArgumentsGetter)                   \
-  V(FunctionCallerGetter)                      \
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
@@ -669,7 +664,7 @@ class RuntimeCallStats final {
   V8_EXPORT_PRIVATE void Print();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
-  ThreadId thread_id() const { return thread_id_; }
+  base::ThreadId thread_id() const { return thread_id_; }
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
@@ -719,7 +714,7 @@ class RuntimeCallStats final {
   // Used to track nested tracing scopes.
   bool in_use_;
   ThreadType thread_type_;
-  ThreadId thread_id_;
+  base::ThreadId thread_id_ = base::ThreadId::Invalid();
   RuntimeCallCounter counters_[kNumberOfCounters];
 };
 
@@ -745,7 +740,7 @@ class WorkerThreadRuntimeCallStats final {
   // Since this is for creating worker thread runtime-call stats, record the
   // main thread ID to ensure we never create a worker RCS table for the main
   // thread.
-  ThreadId isolate_thread_id_;
+  base::ThreadId isolate_thread_id_;
 };
 
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local

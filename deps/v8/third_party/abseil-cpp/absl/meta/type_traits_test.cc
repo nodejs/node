@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -31,6 +32,9 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace type_traits_internal {
 namespace {
 
 using ::testing::StaticAssertTypeEq;
@@ -473,4 +477,73 @@ TEST(IsConstantEvaluated, is_constant_evaluated) {
 #endif  // ABSL_HAVE_CONSTANT_EVALUATED
 }
 
+enum UnscopedEnum { kUnscoped };
+enum class ScopedEnum { kScoped };
+union TrivialUnion {
+  int a;
+  void* b;
+};
+struct TrivialMoveNonTrivialCopy {
+  TrivialMoveNonTrivialCopy(const TrivialMoveNonTrivialCopy&) {}  // NOLINT
+  TrivialMoveNonTrivialCopy(TrivialMoveNonTrivialCopy&&) = default;
+};
+struct TrivialCopyNonTrivialMove {
+  TrivialCopyNonTrivialMove(const TrivialCopyNonTrivialMove&) = default;
+  TrivialCopyNonTrivialMove(TrivialCopyNonTrivialMove&&) {}  // NOLINT
+};
+struct TrivialCopyNoMove {
+  TrivialCopyNoMove(const TrivialCopyNoMove&) = default;
+  TrivialCopyNoMove(TrivialCopyNoMove&&) = delete;
+};
+
+TEST(ShouldPreferPassByValueOverRRef, Basic) {
+  static_assert(ShouldPreferPassByValueOverRRef<int>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<void*>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<UnscopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<ScopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<TrivialUnion>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::string_view>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::pair<int, int>>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::pair<char, int>>::value);
+  static_assert(
+      ShouldPreferPassByValueOverRRef<TrivialMoveNonTrivialCopy>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverRRef<TrivialCopyNonTrivialMove>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverRRef<TrivialCopyNoMove>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<void>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<char[3]>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<char[4]>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<std::string>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<std::shared_ptr<int>>::value);
+}
+
+TEST(ShouldPreferPassByValueOverConstRef, Basic) {
+  static_assert(ShouldPreferPassByValueOverConstRef<int>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<void*>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<UnscopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<ScopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<TrivialUnion>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<std::string_view>::value);
+  static_assert(
+      ShouldPreferPassByValueOverConstRef<std::pair<int, int>>::value);
+  static_assert(
+      ShouldPreferPassByValueOverConstRef<std::pair<char, int>>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialMoveNonTrivialCopy>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialCopyNonTrivialMove>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialCopyNoMove>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<void>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<char[3]>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<char[4]>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<std::string>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<std::shared_ptr<int>>::value);
+}
+
 }  // namespace
+}  // namespace type_traits_internal
+ABSL_NAMESPACE_END
+}  // namespace absl

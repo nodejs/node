@@ -200,6 +200,12 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
+    // During deoptimization, some closures on the stack may not have been
+    // materialized yet. Skip them.
+    if (!IsJSFunction(frame->unchecked_function())) {
+      it.Advance();
+      continue;
+    }
     Tagged<SharedFunctionInfo> shared = frame->function()->shared();
     SnapshotObjectId id =
         ids_->FindOrAddEntry(shared.address(), shared->Size(),

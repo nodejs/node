@@ -21,8 +21,8 @@ function newModule() {
 
 function newInstance(module, val) {
   var instance = new WebAssembly.Instance(module);
-  var view = new Int32Array(instance.exports.memory.buffer);
-  view[0] = val;
+  var view = new DataView(instance.exports.memory.buffer);
+  view.setInt32(0, val, true);
   return instance;
 }
 

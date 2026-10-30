@@ -21,7 +21,6 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/keys.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -130,7 +129,6 @@ enum Where { AT_START, AT_END };
   V(FastPackedFrozenObjectElementsAccessor, PACKED_FROZEN_ELEMENTS,           \
     FixedArray)                                                               \
   V(FastHoleyFrozenObjectElementsAccessor, HOLEY_FROZEN_ELEMENTS, FixedArray) \
-  V(SharedArrayElementsAccessor, SHARED_ARRAY_ELEMENTS, FixedArray)           \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, NumberDictionary)        \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
@@ -398,8 +396,7 @@ void CopyDoubleToDoubleElements(Tagged<FixedArrayBase> from_base,
   // access to double values in the arrays. This will no longed be necessary
   // once the allocations alignment issue is fixed.
   uint32_t words_per_double = (kDoubleSize / kTaggedSize);
-  CopyTagged(to_address, from_address,
-             static_cast<size_t>(words_per_double * copy_size));
+  CopyTagged(to_address, from_address, words_per_double * copy_size);
 #else
   uint32_t words_per_double = (kDoubleSize / kSystemPointerSize);
   CopyWords(to_address, from_address,
@@ -2944,7 +2941,6 @@ class FastSmiOrObjectElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
-      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToObjectElements(isolate, from, from_kind, from_start, to,
                                    to_kind, to_start, copy_size);
         break;
@@ -3254,41 +3250,6 @@ class FastPackedSealedObjectElementsAccessor
           FastPackedSealedObjectElementsAccessor,
           ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {};
 
-class SharedArrayElementsAccessor
-    : public FastSealedObjectElementsAccessor<
-          SharedArrayElementsAccessor,
-          ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {
- public:
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    return handle(
-        Cast<BackingStore>(backing_store)->get(entry.as_uint32(), tag),
-        isolate);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    Cast<BackingStore>(backing_store)->set(entry.as_uint32(), value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    return handle(
-        Cast<BackingStore>(backing_store)->swap(entry.as_uint32(), value, tag),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    return Cast<BackingStore>(backing_store)
-        ->compare_and_swap(entry.as_uint32(), expected, value, tag);
-  }
-};
-
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
@@ -3478,7 +3439,6 @@ class FastDoubleElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
-      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case DICTIONARY_ELEMENTS:

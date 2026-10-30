@@ -48,8 +48,8 @@ V8_OBJECT class JSReceiver : public HeapObject {
  public:
   using Properties =
       UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
-  using PropertiesOrHash = UnionOf<SwissNameDictionary, FixedArrayBase,
-                                   PropertyArray, Smi, GlobalDictionary>;
+  using PropertiesOrHash =
+      UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray, Smi>;
 
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
@@ -302,6 +302,8 @@ V8_OBJECT class JSReceiver : public HeapObject {
   GetCreationContext() const;
   V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
       Isolate* isolate) const;
+  V8_EXPORT_PRIVATE static Tagged<NativeContext> GetCreationContext_Slow(
+      Tagged<Map> map);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -336,6 +338,12 @@ V8_OBJECT class JSReceiver : public HeapObject {
   V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(
       LookupIterator* it,
       AllowAllocation allow_allocation = AllowAllocation{true});
+
+  // Like GetDataProperty, but returns an empty handle (without throwing) if
+  // the lookup doesn't end at a data property, or if completing it would
+  // require calling an interceptor, a proxy trap or any getter other than a
+  // side-effect free AccessorInfo getter.
+  static MaybeHandle<Object> TryGetDataProperty(LookupIterator* it);
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
@@ -457,7 +465,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   DECL_GETTER(HasPackedElements, bool)
   DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
-  DECL_GETTER(HasSharedArrayElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
@@ -1059,6 +1066,14 @@ static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
                                           kEmbedderDataSlotSizeInTaggedSlots <=
               JSObject::kMaxInstanceSize);
 
+// JSObject alias added only because of IsJSObjectExact() predicate, which
+// checks for the exact instance type JS_OBJECT_TYPE instead of a range check:
+// [FIRST_JS_OBJECT_TYPE, LAST_JS_OBJECT_TYPE].
+V8_OBJECT
+class JSObjectExact final : public JSObject {
+  V8_IT_NO_AUTO_CHECKER;
+} V8_OBJECT_END;
+
 // An abstract superclass for JSObjects that may contain EmbedderDataSlots.
 // Carries no fields itself; the in-instance tail ([embedder fields] followed
 // by [in-object properties]) is managed by the Map + BodyDescriptor and never
@@ -1431,14 +1446,14 @@ V8_OBJECT class JSDate : public JSObject {
 
  public:
   UnalignedDoubleMember value_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> year_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> month_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> day_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> weekday_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> hour_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> min_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> sec_;
-  TaggedMember<UnionOf<Smi, HeapNumber>> cache_stamp_;
+  TaggedMember<UnionOf<Smi, NaN>> year_;
+  TaggedMember<UnionOf<Smi, NaN>> month_;
+  TaggedMember<UnionOf<Smi, NaN>> day_;
+  TaggedMember<UnionOf<Smi, NaN>> weekday_;
+  TaggedMember<UnionOf<Smi, NaN>> hour_;
+  TaggedMember<UnionOf<Smi, NaN>> min_;
+  TaggedMember<UnionOf<Smi, NaN>> sec_;
+  TaggedMember<UnionOf<Smi, NaN>> cache_stamp_;
 } V8_OBJECT_END;
 
 // Representation of message objects used for error reporting through
@@ -1490,8 +1505,8 @@ V8_OBJECT class JSMessageObject : public JSObject {
   inline void set_script(Tagged<Script> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<UnionOf<StackTraceInfo, Hole>> stack_trace() const;
-  inline void set_stack_trace(Tagged<UnionOf<StackTraceInfo, Hole>> value,
+  inline Tagged<UnionOf<StackTraceInfo, TheHole>> stack_trace() const;
+  inline void set_stack_trace(Tagged<UnionOf<StackTraceInfo, TheHole>> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int error_level() const;
@@ -1536,7 +1551,7 @@ V8_OBJECT class JSMessageObject : public JSObject {
   TaggedMember<Smi> message_type_;
   TaggedMember<Object> argument_;
   TaggedMember<Script> script_;
-  TaggedMember<UnionOf<StackTraceInfo, Hole>> stack_trace_;
+  TaggedMember<UnionOf<StackTraceInfo, TheHole>> stack_trace_;
   TaggedMember<UnionOf<SharedFunctionInfo, Smi>> shared_info_;
   // Raw data fields below (treated as non-pointers by BodyDescriptor).
   TaggedMember<Smi> bytecode_offset_;
@@ -1598,6 +1613,13 @@ V8_OBJECT class JSStringIterator : public JSObject {
 // actual iterator with %Iterator.prototype%.
 V8_OBJECT class JSValidIteratorWrapper : public JSObject {
  public:
+  // Match iterator::IteratorRecord as one struct-typed field. Keep it nested
+  // because the CSA record already uses v8::internal::IteratorRecord.
+  struct IteratorRecord {
+    TaggedMember<JSReceiver> object_;
+    TaggedMember<JSAny> next_;
+  };
+
   // The [[Iterated]] slot, modelled as the two fields of an
   // iterator::IteratorRecord struct (object + next).
   inline Tagged<JSReceiver> underlying_object() const;
@@ -1612,8 +1634,7 @@ V8_OBJECT class JSValidIteratorWrapper : public JSObject {
   DECL_VERIFIER(JSValidIteratorWrapper)
 
  public:
-  TaggedMember<JSReceiver> underlying_object_;
-  TaggedMember<JSAny> underlying_next_;
+  IteratorRecord underlying_;
 } V8_OBJECT_END;
 
 // JSPromiseWithResolversResult is just a JSObject with a specific initial map.

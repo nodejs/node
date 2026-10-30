@@ -125,6 +125,10 @@ struct ExternalPointerTableEntry {
   };
   using Payload = TaggedPayload<ExternalPointerTablePayloadTaggingScheme>;
 
+ public:
+  static constexpr uint64_t kTagAndMarkBitMask = Payload::kTagAndMarkBitMask;
+
+ private:
   inline Payload GetRawPayload() const {
     return payload_.load(std::memory_order_relaxed);
   }
@@ -191,8 +195,9 @@ struct ExternalEntityTableCompactionTraits<ExternalPointerTableEntry> {
  *
  * When V8_ENABLE_SANDBOX, its primary use is for pointing to objects outside
  * the sandbox, as described below.
- * When V8_COMPRESS_POINTERS, external pointer tables are also used to ease
- * alignment requirements in heap object fields via indirection.
+ * When V8_COMPRESS_POINTERS, external pointer tables are used to store all
+ * tagged external pointer fields as 32-bit handles, reducing object size and
+ * easing alignment requirements in heap object fields via indirection.
  *
  * A table's role for the V8 Sandbox:
  * --------------------------------

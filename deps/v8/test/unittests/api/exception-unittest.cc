@@ -47,9 +47,9 @@ class APIExceptionTest : public TestWithIsolate {
 class V8_NODISCARD ScopedExposeGc {
  public:
   ScopedExposeGc() : was_exposed_(i::v8_flags.expose_gc) {
-    i::v8_flags.expose_gc = true;
+    i::v8_flags.expose_gc.Set(true);
   }
-  ~ScopedExposeGc() { i::v8_flags.expose_gc = was_exposed_; }
+  ~ScopedExposeGc() { i::v8_flags.expose_gc.Set(was_exposed_); }
 
  private:
   const bool was_exposed_;

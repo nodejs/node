@@ -497,3 +497,71 @@ add_header_library(
     libc.src.__support.macros.config
     libc.src.__support.macros.properties.types
 )
+
+add_header_library(
+  extendhfsf2
+  HDRS
+    extendhfsf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  extendhfdf2
+  HDRS
+    extendhfdf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  extendhftf2
+  HDRS
+    extendhftf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  truncsfhf2
+  HDRS
+    truncsfhf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  truncdfhf2
+  HDRS
+    truncdfhf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  trunctfhf2
+  HDRS
+    trunctfhf2.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)

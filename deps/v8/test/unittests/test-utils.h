@@ -5,7 +5,9 @@
 #ifndef V8_UNITTESTS_TEST_UTILS_H_
 #define V8_UNITTESTS_TEST_UTILS_H_
 
+#include <array>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
@@ -19,6 +21,7 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
@@ -46,12 +49,7 @@ static v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
 template <typename T, typename TCallbackInfo>
 static T* GetData(const TCallbackInfo& info) {
   USE(MakeData);
-  v8::Local<v8::Data> data;
-  if constexpr (requires { info.DataV2(); }) {
-    data = info.DataV2();
-  } else {
-    data = info.Data();
-  }
+  v8::Local<v8::Data> data = info.DataV2();
   return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
 }
 
@@ -68,7 +66,7 @@ class WithDefaultPlatformMixin : public TMixin {
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.
-    i::v8_flags.freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init.Set(false);
     v8::V8::Initialize();
   }
 
@@ -87,14 +85,16 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() {
+    i::v8_flags.shared_strings.Set(true);
+  }
 };
 
 template <typename TMixin>
 class WithShadowRealmFeatureFlagsMixin : public TMixin {
  public:
   WithShadowRealmFeatureFlagsMixin() {
-    i::v8_flags.harmony_shadow_realm = true;
+    i::v8_flags.harmony_shadow_realm.Set(true);
   }
 };
 
@@ -203,15 +203,39 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
-  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+  static i::DirectHandle<i::String> MakeName(i::Isolate* isolate,
+                                             const char* str, int suffix) {
+    std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.begin());
+    return MakeString(isolate, buffer.data());
+  }
+
+  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+    return MakeName(i_isolate(), str, suffix);
+  }
+
+  static i::Handle<i::String> MakeString(i::Isolate* isolate, const char* str) {
+    i::Factory* factory = isolate->factory();
+    return factory->InternalizeUtf8String(str);
   }
 
   i::Handle<i::String> MakeString(const char* str) {
-    i::Factory* factory = i_isolate()->factory();
-    return factory->InternalizeUtf8String(str);
+    return MakeString(i_isolate(), str);
+  }
+
+  template <typename T>
+  static i::DirectHandle<T> GetGlobal(i::Isolate* isolate, const char* name) {
+    i::DirectHandle<i::String> str_name =
+        isolate->factory()->InternalizeUtf8String(name);
+    i::DirectHandle<i::Object> value =
+        i::Object::GetProperty(isolate, isolate->global_object(), str_name)
+            .ToHandleChecked();
+    return i::Cast<T>(value);
+  }
+
+  template <typename T>
+  i::DirectHandle<T> GetGlobal(const char* name) {
+    return GetGlobal<T>(i_isolate(), name);
   }
 
   Local<Value> RunJS(const char* source) {
@@ -240,6 +264,12 @@ class WithIsolateScopeMixin : public TMixin {
     Local<Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
     return script->Run(context);
+  }
+
+  static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<Context> context,
+                                    const char* source) {
+    return TryRunJS(context,
+                    v8::String::NewFromUtf8(isolate, source).ToLocalChecked());
   }
 
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
@@ -358,7 +388,7 @@ using TestWithContext =                    //
                     ::testing::Test>>>>;
 
 // Use v8::internal::TestJSSharedMemoryWithNativeContext if you are testing
-// internals, aka. directly work with Handles and require --harmony-struct
+// internals, aka. directly work with Handles and require --shared-strings
 // feature.
 //
 // Using this will FATAL when !V8_CAN_CREATE_SHARED_HEAP_BOOL
@@ -419,6 +449,26 @@ class StreamerThread : public v8::base::Thread {
 
  private:
   v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
+
+static inline MaybeLocal<Value> TryRunJS(Isolate* isolate,
+                                         Local<Context> context,
+                                         const char* source) {
+  return TestWithIsolate::TryRunJS(isolate, context, source);
+}
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() override = default;
+
+  const char* data() const override { return data_; }
+
+  size_t length() const override { return strlen(data_); }
+
+ private:
+  const char* data_;
 };
 
 namespace internal {
@@ -575,6 +625,29 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   return converted;
 }
 
+static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
+                                             size_t* length_out = nullptr) {
+  size_t array_length = std::char_traits<char16_t>::length(source) + 1;
+  uint16_t* converted = NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  if (length_out != nullptr) *length_out = array_length - 1;
+  return converted;
+}
+
+static inline Handle<String> MakeString(Isolate* isolate, const char* str) {
+  return TestWithIsolate::MakeString(isolate, str);
+}
+
+static inline DirectHandle<String> MakeName(Isolate* isolate, const char* str,
+                                            int suffix) {
+  return TestWithIsolate::MakeName(isolate, str, suffix);
+}
+
+template <typename T>
+static inline DirectHandle<T> GetGlobal(Isolate* isolate, const char* name) {
+  return TestWithIsolate::GetGlobal<T>(isolate, name);
+}
+
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
   TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
@@ -657,16 +730,14 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
 
 class CrashKeyStore {
  public:
-  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
-    InstallCallbacks();
-  }
+  CrashKeyStore();
+  ~CrashKeyStore();
 
   CrashKeyStore(const CrashKeyStore&) = delete;
   CrashKeyStore& operator=(const CrashKeyStore&) = delete;
 
-  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
-
-  const std::string& ValueForKey(const std::string& name) const {
+  std::string ValueForKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     auto it = entries_.find(name);
     CHECK(it != entries_.end());
     CHECK_NOT_NULL(it->second.get());
@@ -674,10 +745,14 @@ class CrashKeyStore {
   }
 
   bool HasKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     return entries_.find(name) != entries_.end();
   }
 
-  size_t size() const { return entries_.size(); }
+  size_t size() const {
+    base::MutexGuard guard(&mutex_);
+    return entries_.size();
+  }
   std::unordered_set<std::string> KeyNames() const;
 
  private:
@@ -686,11 +761,13 @@ class CrashKeyStore {
     std::string value;
   };
 
-  void InstallCallbacks();
-  CrashKey AllocateKey(const char key[], CrashKeySize size);
-  void SetValue(CrashKey crash_key, const std::string_view value);
+  static CrashKey AllocateCallback(const char key[], CrashKeySize size);
+  static void SetCallback(CrashKey crash_key, std::string_view value);
 
-  Isolate* isolate_;
+  CrashKey AllocateKey(const char key[], CrashKeySize size);
+  void SetValue(CrashKey crash_key, std::string_view value);
+
+  mutable base::Mutex mutex_;
   std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
 };
 

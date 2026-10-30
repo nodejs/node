@@ -30,6 +30,7 @@
 #include "src/flags/flags-impl.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,7 +49,6 @@ void TestDefault() {
   CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "Hello, world!"));
 }
 
-// This test must be executed first!
 TEST_F(FlagDefinitionsTest, Default) { TestDefault(); }
 
 TEST_F(FlagDefinitionsTest, Flags1) { FlagList::PrintHelp(); }
@@ -224,7 +224,7 @@ TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
 TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // Before freezing, we can arbitrarily change values.
   CHECK_EQ(13, v8_flags.testing_int_flag);  // Initial (default) value.
-  v8_flags.testing_int_flag = 27;
+  v8_flags.testing_int_flag.Set(27);
   CHECK_EQ(27, v8_flags.testing_int_flag);
 
   // Get a direct pointer to the flag storage.
@@ -239,7 +239,9 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // both crash.
   FlagList::FreezeFlags();
   // Accessing via the API fails with a CHECK.
-  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag = 41,
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Set(41),
+                            "Check failed: !IsFrozen\\(\\)");
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Overwrite(41),
                             "Check failed: !IsFrozen\\(\\)");
   // Writing to the memory directly results in a segfault.
   ASSERT_DEATH_IF_SUPPORTED(*direct_testing_int_ptr = 41, "");
@@ -260,6 +262,7 @@ class ExperimentalFlagImplicationTest
 // Check that no experimental feature is enabled; this is executed for different
 // {FlagAndName} combinations.
 TEST_P(ExperimentalFlagImplicationTest, TestExperimentalNotEnabled) {
+  SaveFlags save_flags;
   FlagList::EnforceFlagImplications();
 
   // --experimental should normally be disabled by default. Note that unittests
@@ -296,6 +299,44 @@ TEST_P(ExperimentalFlagImplicationTest, TestExperimentalNotEnabled) {
       FATAL("--experimental is enabled by default");
     } else {
       FATAL("--experimental is implied by %s", flag_name);
+    }
+  }
+}
+
+// Check that --test-only-unsafe is not enabled by default or implied by any of
+// the tested {FlagAndName} combinations.
+TEST_P(ExperimentalFlagImplicationTest, TestUnsafeNotEnabled) {
+  SaveFlags save_flags;
+  FlagList::EnforceFlagImplications();
+
+  // In case unittests are executed with an unsafe flag (e.g. on PKU bots with
+  // --force-memory-protection-keys), this test must take it into account.
+  bool already_in_unsafe = v8_flags.test_only_unsafe;
+
+  auto [flag_value, flag_name, test_name] = GetParam();
+  CHECK_EQ(flag_value == nullptr, flag_name == nullptr);
+
+  if (flag_name) {
+    int argc = 2;
+    const char* argv[] = {"", flag_name};
+    CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(
+                    &argc, const_cast<char**>(argv), false));
+    CHECK(*flag_value);
+    FlagList::EnforceFlagImplications();
+  }
+
+  if (already_in_unsafe) {
+    if (!v8_flags.test_only_unsafe) {
+      FATAL("--test-only-unsafe was enabled and then disabled");
+    }
+    return;
+  }
+
+  if (v8_flags.test_only_unsafe) {
+    if (flag_value == nullptr) {
+      FATAL("--test-only-unsafe is enabled by default");
+    } else {
+      FATAL("--test-only-unsafe is implied by %s", flag_name);
     }
   }
 }
@@ -419,6 +460,13 @@ TEST(FlagInternalsTest, LookupAllFlagsByName) {
   }
 }
 
+TEST(FlagInternalsTest, LookupAllFlagsByPointer) {
+  for (const Flag& flag : Flags()) {
+    if (flag.IsReadOnly()) continue;
+    CHECK_EQ(&flag, FindFlagByPointer(flag.valptr_));
+  }
+}
+
 TEST(FlagInternalsTest, LookupAllImplicationFlagsByName) {
   for (const Flag& flag : Flags()) {
     CHECK_EQ(&flag, FindImplicationFlagByName(flag.name()));
@@ -428,13 +476,135 @@ TEST(FlagInternalsTest, LookupAllImplicationFlagsByName) {
 }
 
 TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
-  static constexpr char kTestingBoolFlagC[] = "--testing-bool-flag-C";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(kTestingBoolFlagC,
-                                           strlen(kTestingBoolFlagC)));
+  v8_flags.testing_bool_flag_C.Set(true);
   FlagList::EnforceFlagImplications();
   CHECK(v8_flags.testing_bool_flag_C);
   CHECK(!v8_flags.testing_bool_flag_B);
   CHECK(!v8_flags.testing_bool_flag_A);
+}
+
+TEST_F(FlagDefinitionsTest, FlagValueSetChecksContradictions) {
+  SaveFlags save_flags;
+  v8_flags.flag_processing_mode.Set("abort-on-error");
+  {
+    SaveFlags inner_save;
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting the same boolean value again is allowed.
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting a contradictory boolean value fails.
+    ASSERT_DEATH_IF_SUPPORTED(
+        v8_flags.testing_bool_flag.Set(false),
+        "Command-line provided flag --testing-bool-flag specified as both true "
+        "and false");
+    // Overwriting bypasses contradiction checks.
+    v8_flags.testing_bool_flag.Overwrite(false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  // {SaveFlags} and {FlagScope} restore flag metadata, so setting the flag to
+  // different values across sequential scopes succeeds.
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, true);
+    CHECK(v8_flags.testing_bool_flag);
+  }
+}
+
+TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
+  if (v8_flags.test_only_unsafe) {
+    // Unittests were invoked with an explicit unsafe flag (e.g. PKU bots with
+    // --force-memory-protection-keys).
+    return;
+  }
+  {
+    SaveFlags save_flags;
+    v8_flags.expose_trigger_failure.Set(true);
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.expose_trigger_failure);
+    CHECK(v8_flags.test_only_unsafe);
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    SaveFlags save_flags;
+    v8_flags.wasm_bounds_checks.Set(false);
+    FlagList::EnforceFlagImplications();
+    CHECK(!v8_flags.wasm_bounds_checks);
+    CHECK(v8_flags.test_only_unsafe);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  {
+    SaveFlags save_flags;
+    v8_flags.gc_fake_mmap.Set("/tmp/foo");
+    FlagList::EnforceFlagImplications();
+    CHECK_EQ(0, strcmp(v8_flags.gc_fake_mmap, "/tmp/foo"));
+    CHECK(v8_flags.test_only_unsafe);
+  }
+  {
+    // Test conditional DISALLOW_UNSAFE_FLAG_IF: a non-default valid stack size
+    // should not imply --test-only-unsafe, but an invalid one should.
+    SaveFlags save_flags;
+    v8_flags.stack_size.Set(100);
+    FlagList::EnforceFlagImplications();
+    CHECK_EQ(100, v8_flags.stack_size);
+    CHECK(!v8_flags.test_only_unsafe);
+  }
+  {
+    SaveFlags save_flags;
+    v8_flags.stack_size.Set(40);
+    FlagList::EnforceFlagImplications();
+    CHECK_EQ(40, v8_flags.stack_size);
+    CHECK(v8_flags.test_only_unsafe);
+  }
+}
+
+TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
+  {
+    // Setting --disallow-unsafe-flags alone should not imply --fuzzing.
+    SaveFlags save_flags;
+    v8_flags.disallow_unsafe_flags.Set(true);
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.disallow_unsafe_flags);
+    CHECK(!v8_flags.fuzzing);
+  }
+  {
+    // Setting --fuzzing should imply --disallow-unsafe-flags and reset unsafe
+    // flags to their defaults without aborting.
+    SaveFlags save_flags;
+    const char* str =
+        "--fuzzing --mock-arraybuffer-allocator --gc-fake-mmap=/tmp/x "
+        "--csa-trap-on-node=stub,1"
+#ifdef DEBUG
+        " --turboshaft-opt-bisect-break=50 --turboshaft-opt-bisect-limit=100"
+#endif
+        " --expose-trigger-failure --stack-size=40";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.disallow_unsafe_flags);
+    CHECK(!v8_flags.mock_arraybuffer_allocator);
+    CHECK_EQ(0, strcmp("/tmp/__v8_gc__", v8_flags.gc_fake_mmap));
+    CHECK_EQ(nullptr, v8_flags.csa_trap_on_node);
+#ifdef DEBUG
+    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+             v8_flags.turboshaft_opt_bisect_break);
+    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+             v8_flags.turboshaft_opt_bisect_limit);
+#endif
+    CHECK(!v8_flags.expose_trigger_failure);
+    CHECK_EQ(V8_DEFAULT_STACK_SIZE_KB, v8_flags.stack_size);
+    CHECK(!v8_flags.test_only_unsafe);
+  }
+}
+
+TEST_F(FlagDefinitionsTest, CorrectnessFuzzerSuppressionsIsDeveloperOnly) {
+  SaveFlags save_flags;
+  v8_flags.correctness_fuzzer_suppressions.Set(true);
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.correctness_fuzzer_suppressions);
+  CHECK(v8_flags.developer_only_features);
 }
 
 }  // namespace v8::internal

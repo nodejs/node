@@ -355,10 +355,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  static bool IsConstantPoolAt(Instruction* instr);
+  static bool IsConstantPoolAt(const Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
-  // See Assembler::CheckConstPool for more info.
-  void EmitPoolGuard();
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -945,6 +943,33 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Store-release exclusive half-word.
   void stlxrh(const Register& rs, const Register& rt, const Register& rn);
+
+  // Store-release byte (unscaled offset) [Armv8.4].
+  void stlurb(const Register& rt, const MemOperand& dst);
+
+  // Store-release half-word (unscaled offset) [Armv8.4].
+  void stlurh(const Register& rt, const MemOperand& dst);
+
+  // Store-release word or doubleword (unscaled offset) [Armv8.4].
+  void stlur(const Register& rt, const MemOperand& dst);
+
+  // Load-acquire RCpc byte (unscaled offset) [Armv8.4].
+  void ldapurb(const Register& rt, const MemOperand& src);
+
+  // Load-acquire RCpc signed byte (unscaled offset) [Armv8.4].
+  void ldapursb(const Register& rt, const MemOperand& src);
+
+  // Load-acquire RCpc half-word (unscaled offset) [Armv8.4].
+  void ldapurh(const Register& rt, const MemOperand& src);
+
+  // Load-acquire RCpc signed half-word (unscaled offset) [Armv8.4].
+  void ldapursh(const Register& rt, const MemOperand& src);
+
+  // Load-acquire RCpc word or doubleword (unscaled offset) [Armv8.4].
+  void ldapur(const Register& rt, const MemOperand& src);
+
+  // Load-acquire RCpc signed word (unscaled offset) [Armv8.4].
+  void ldapursw(const Register& rt, const MemOperand& src);
 
   // Compare and Swap word or doubleword in memory [Armv8.1].
   void cas(const Register& rs, const Register& rt, const MemOperand& src);
@@ -2774,6 +2799,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Gather lower bits from positions selected by bitmask
   void bext(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm);
 
+  // Multiply (unpredicated).
+  void mul(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.
@@ -2916,6 +2944,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Instr ImmLSPair(int imm7, unsigned size);
   inline static Instr ImmShiftLS(unsigned shift_amount);
   inline static Instr ImmException(int imm16);
+  inline static Instr ImmUdf(int imm16);
   inline static Instr ImmSystemRegister(int imm15);
   inline static Instr ImmHint(int imm7);
   inline static Instr ImmBarrierDomain(int imm2);
@@ -3170,7 +3199,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // over the code.
   void EmitVeneers(bool force_emit, bool need_protection,
                    size_t margin = kVeneerDistanceMargin);
-  void EmitVeneersGuard() { EmitPoolGuard(); }
+  // Emits 'blr xzr', which traps if execution runs into the veneer pool.
+  void EmitVeneersGuard();
   // Checks whether veneers need to be emitted at this point.
   // If force_emit is set, a veneer is generated for *all* unresolved branches.
   void CheckVeneerPool(bool force_emit, bool require_jump,
@@ -3212,6 +3242,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
   void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
+  void LoadStoreRCpcUnscaledOffset(const Register& rt, const MemOperand& addr,
+                                   LoadStoreRCpcUnscaledOffsetOp op);
   inline void LoadStoreScaledImmOffset(Instr memop, int offset, unsigned size);
   inline void LoadStoreUnscaledImmOffset(Instr memop, int offset);
   inline void LoadStoreWRegOffset(Instr memop, const Register& regoffset);

@@ -1,0 +1,4 @@
+Tests regress-5071.
+frameCount: 2
+localCount: 1
+a: 1

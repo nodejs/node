@@ -165,7 +165,7 @@ MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   // behavior is accepted. To prevent the correctness fuzzer from detecting this
   // difference, we crash the program.
   if (v8_flags.correctness_fuzzer_suppressions) {
-    FATAL("Aborting on invalid BigInt length");
+    base::FatalNoSecurityImpact("Aborting on invalid BigInt length");
   }
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig));
 }
@@ -1013,9 +1013,18 @@ DirectHandle<String> BigInt::NoSideEffectsToString(
   // Resetting the budget should be enough to make sure the following ToString()
   // can complete without checking for (termination) interrupt requests.
   isolate->bigint_processor()->ResetInterruptCheckBudget();
-  isolate->bigint_processor()->ToString(characters, &chars_written, digits, 10,
-                                        bigint->sign());
+  bigint::Status status = isolate->bigint_processor()->ToString(
+      characters, &chars_written, digits, 10, bigint->sign());
+  DCHECK_EQ(status, bigint::Status::kOk);
+  USE(status);
   RightTrimString(isolate, result, chars_allocated, chars_written);
+#if DEBUG
+  // Verify that all characters have been written.
+  DCHECK_EQ(result->length(), chars_written);
+  for (uint32_t i = 0; i < chars_written; i++) {
+    DCHECK_NE(characters[i], bigint::kStringZapValue);
+  }
+#endif
   return result;
 }
 
@@ -1391,12 +1400,14 @@ MaybeDirectHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
   return MutableBigInt::MakeImmutable(result);
 }
 
-Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
-  if (n == 0) return MutableBigInt::Zero(isolate);
+template <typename IsolateT>
+Handle<BigInt> BigInt::FromInt64(IsolateT* isolate, int64_t n,
+                                 AllocationType allocation) {
+  if (n == 0) return MutableBigInt::Zero(isolate, allocation);
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   uint32_t length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length, allocation));
   bool sign = n < 0;
   result->initialize_bitfield(sign, length);
   uint64_t absolute;
@@ -1412,17 +1423,31 @@ Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
   result->set_64_bits(absolute);
   return MutableBigInt::MakeImmutable(result);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n,
+                                     AllocationType allocation);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromInt64(LocalIsolate* isolate, int64_t n,
+                                     AllocationType allocation);
 
-Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
-  if (n == 0) return MutableBigInt::Zero(isolate);
+template <typename IsolateT>
+Handle<BigInt> BigInt::FromUint64(IsolateT* isolate, uint64_t n,
+                                  AllocationType allocation) {
+  if (n == 0) return MutableBigInt::Zero(isolate, allocation);
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   uint32_t length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length, allocation));
   result->initialize_bitfield(false, length);
   result->set_64_bits(n);
   return MutableBigInt::MakeImmutable(result);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n,
+                                      AllocationType allocation);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BigInt> BigInt::FromUint64(LocalIsolate* isolate, uint64_t n,
+                                      AllocationType allocation);
 
 MaybeDirectHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
                                               uint32_t words64_count,
@@ -1677,7 +1702,10 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
         SBXCHECK(Y.len() >= 2 &&
                  Y.len() <= bigint::Processor::kMaxCachedModDivisorSize);
         heap->SetCachedBigIntDivisor(y);
-        processor->CachedMod_MakeInverse(Y);
+        if (processor->CachedMod_MakeInverse(Y) ==
+            bigint::Status::kInterrupted) {
+          return 1;
+        }
       }
     } else if (Y.len() >= 2 &&
                Y.len() <= bigint::Processor::kMaxCachedModDivisorSize) {

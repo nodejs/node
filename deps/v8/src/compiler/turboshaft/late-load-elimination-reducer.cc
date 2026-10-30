@@ -259,6 +259,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDebugBreak:
       case Opcode::kJSStackCheck:
 #ifdef V8_ENABLE_WEBASSEMBLY
+      case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kArraySet:
@@ -272,12 +273,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-      case Opcode::kWasmStackCheck:
-        ProcessWasmStackCheck(op_idx, op.Cast<WasmStackCheckOp>());
-        break;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
       default:
         // Operations that `can_write` should invalidate the state. All such
@@ -465,10 +460,11 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     // eliminates more): We need to add a field allow_seq_cst_replacement to
     // keys. We set this field to true in the beginning.  Only if this field is
     // true should a seq_cst load be eliminated. The DisallowSeqCstReplacement
-    // should iterate all valid keys, and set theirallow_seq_cst_replacement bit
-    // to false.
-    // memory_.DisallowSeqCstReplacement();
+    // should iterate all valid keys, and set their allow_seq_cst_replacement
+    // bit to false.
 
+    // Updating aliases if the value stored was known as non-aliasing.
+    InvalidateIfAlias(store.value());
     return;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -542,6 +538,9 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
   // TODO(manoskouk): Can we fine-grain this?
   TRACE(">> Invalidating whole memory");
   memory_.InvalidateEverything();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(store.value());
 #endif
 }
 
@@ -721,19 +720,6 @@ void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
 
   InvalidateIfAlias(change.input());
 }
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-void LateLoadEliminationAnalyzer::ProcessWasmStackCheck(
-    OpIndex op_idx, const WasmStackCheckOp& op) {
-  TRACE("> ProcessWasmStackCheck(" << op_idx << ")");
-  if (op.kind == WasmStackCheckOp::Kind::kLoop &&
-      op.trusted_instance_data().valid()) {
-    OpIndex instance = op.trusted_instance_data().value();
-    memory_.InvalidateAtOffset(WasmTrustedInstanceData::kMemory0SizeOffset,
-                               instance);
-  }
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {
   block_to_snapshot_mapping_[block->index()] = Snapshot{

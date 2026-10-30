@@ -10,6 +10,15 @@
 #include "src/objects/js-temporal-helpers.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
+#if __has_include("temporal/Instant.d.hpp")
+#include "temporal/Instant.d.hpp"
+#include "temporal/PlainDate.d.hpp"
+#include "temporal/PlainDateTime.d.hpp"
+#include "temporal/PlainMonthDay.d.hpp"
+#include "temporal/PlainTime.d.hpp"
+#include "temporal/PlainYearMonth.d.hpp"
+#include "temporal/TimeZone.d.hpp"
+#else
 #include "temporal_rs/Instant.d.hpp"
 #include "temporal_rs/PlainDate.d.hpp"
 #include "temporal_rs/PlainDateTime.d.hpp"
@@ -17,9 +26,15 @@
 #include "temporal_rs/PlainTime.d.hpp"
 #include "temporal_rs/PlainYearMonth.d.hpp"
 #include "temporal_rs/TimeZone.d.hpp"
+#endif
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
+
+namespace temporal {}
+namespace temporal_rs {
+using namespace ::temporal;
+}  // namespace temporal_rs
 
 namespace v8 {
 namespace internal {

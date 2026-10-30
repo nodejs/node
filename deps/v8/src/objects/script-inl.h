@@ -12,6 +12,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -20,6 +21,64 @@
 
 namespace v8 {
 namespace internal {
+
+Script::Script(const AllocationWitness& witness,
+               Tagged<UnionOf<String, Undefined>> source, int script_id)
+    : Struct(witness.roots().script_map()),
+      source_(witness, source),
+      name_(witness.roots().undefined_value()),
+      line_offset_(Smi::zero()),
+      column_offset_(Smi::zero()),
+      script_type_(Smi::FromEnum(Script::Type::kNormal)),
+      line_ends_(Smi::zero()),
+      id_(Smi::FromInt(script_id)),
+      eval_from_shared_or_wrapped_arguments_(witness.roots().undefined_value()),
+      eval_from_position_(Smi::zero()),
+      eval_from_scope_info_(witness.roots().undefined_value()),
+      infos_(witness.roots().empty_weak_fixed_array()),
+      compiled_lazy_function_positions_(witness.roots().undefined_value()),
+      flags_(Flags{}, kRelaxedStore),
+      source_url_(witness.roots().undefined_value()),
+      source_mapping_url_(witness.roots().undefined_value()),
+      debug_id_(witness.roots().undefined_value()),
+      host_defined_options_(witness.roots().empty_fixed_array()),
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+      script_or_modules_(witness.roots().empty_array_list()),
+#endif
+      source_hash_(witness.roots().undefined_value()) {
+}
+
+Script::Script(const AllocationWitness& witness, Tagged<Script> old_script,
+               Tagged<String> source, int script_id
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+               ,
+               Tagged<ArrayList> script_or_modules
+#endif
+               )
+    : Struct(witness.roots().script_map()),
+      source_(witness, source),
+      name_(witness, old_script->name()),
+      line_offset_(Smi::FromInt(old_script->line_offset())),
+      column_offset_(Smi::FromInt(old_script->column_offset())),
+      script_type_(Smi::FromEnum(old_script->type())),
+      line_ends_(Smi::zero()),
+      id_(Smi::FromInt(script_id)),
+      eval_from_shared_or_wrapped_arguments_(
+          witness, old_script->eval_from_shared_or_wrapped_arguments()),
+      eval_from_position_(Smi::FromInt(old_script->eval_from_position())),
+      eval_from_scope_info_(witness, old_script->eval_from_scope_info_.load()),
+      infos_(witness.roots().empty_weak_fixed_array()),
+      compiled_lazy_function_positions_(witness.roots().undefined_value()),
+      flags_(old_script->flags(), kRelaxedStore),
+      source_url_(witness.roots().undefined_value()),
+      source_mapping_url_(witness.roots().undefined_value()),
+      debug_id_(witness.roots().undefined_value()),
+      host_defined_options_(witness, old_script->host_defined_options()),
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+      script_or_modules_(witness, script_or_modules),
+#endif
+      source_hash_(witness.roots().undefined_value()) {
+}
 
 Tagged<UnionOf<String, Undefined>> Script::source() const {
   return source_.load();
@@ -44,14 +103,6 @@ void Script::set_column_offset(int value) {
   column_offset_.store(this, Smi::FromInt(value));
 }
 
-Tagged<UnionOf<Smi, Undefined, Symbol>> Script::context_data() const {
-  return context_data_.load();
-}
-void Script::set_context_data(Tagged<UnionOf<Smi, Undefined, Symbol>> value,
-                              WriteBarrierMode mode) {
-  context_data_.store(this, value, mode);
-}
-
 Script::Type Script::type() const {
   return static_cast<Type>(script_type_.load().value());
 }
@@ -70,11 +121,13 @@ void Script::set_line_ends(Tagged<UnionOf<FixedArray, Smi>> value,
 int Script::id() const { return id_.load().value(); }
 void Script::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
 
-Tagged<Object> Script::eval_from_shared_or_wrapped_arguments() const {
+Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+Script::eval_from_shared_or_wrapped_arguments() const {
   return eval_from_shared_or_wrapped_arguments_.load();
 }
-void Script::set_eval_from_shared_or_wrapped_arguments(Tagged<Object> value,
-                                                       WriteBarrierMode mode) {
+void Script::set_eval_from_shared_or_wrapped_arguments(
+    Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+    WriteBarrierMode mode) {
   eval_from_shared_or_wrapped_arguments_.store(this, value, mode);
 }
 
@@ -125,10 +178,10 @@ bool Script::is_host() const {
 }
 
 LanguageMode Script::outer_language_mode() const {
-  return OuterLanguageModeBit::decode(flags());
+  return flags().outer_language_mode();
 }
 void Script::set_outer_language_mode(LanguageMode mode) {
-  set_flags(OuterLanguageModeBit::update(flags(), mode));
+  set_flags(flags().with_outer_language_mode(mode));
 }
 
 bool Script::has_eval_from_shared() const {
@@ -185,65 +238,67 @@ void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
 
 #if V8_ENABLE_WEBASSEMBLY
 
-bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
+bool Script::break_on_entry() const { return flags().break_on_entry(); }
 
 void Script::set_break_on_entry(bool value) {
-  set_flags(BreakOnEntryBit::update(flags(), value));
+  set_flags(flags().with_break_on_entry(value));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-uint32_t Script::flags() const {
+Script::Flags Script::flags() const {
   // Use a relaxed load since background compile threads read the
   // {compilation_kind()} while the foreground thread might update e.g. the
   // {origin_options}.
-  return flags_.Relaxed_Load().value();
+  return flags_.Relaxed_Load();
 }
 
-void Script::set_flags(uint32_t new_flags) {
-  DCHECK(is_int31(new_flags));
-  flags_.Relaxed_Store(this, Smi::FromInt(new_flags));
-}
+void Script::set_flags(Flags new_flags) { flags_.Relaxed_Store(new_flags); }
 
 Script::CompilationKind Script::compilation_kind() const {
-  return CompilationKindBits::decode(flags());
+  return flags().compilation_kind();
 }
 void Script::set_compilation_kind(CompilationKind kind) {
-  set_flags(CompilationKindBits::update(flags(), kind));
+  set_flags(flags().with_compilation_kind(kind));
 }
 
 Script::CompilationState Script::compilation_state() {
-  return CompilationStateBit::decode(flags());
+  return flags().compilation_state();
 }
 void Script::set_compilation_state(CompilationState state) {
-  set_flags(CompilationStateBit::update(flags(), state));
+  set_flags(flags().with_compilation_state(state));
 }
 
 bool Script::produce_compile_hints() const {
-  return ProduceCompileHintsBit::decode(flags());
+  return flags().produce_compile_hints();
 }
 
 void Script::set_produce_compile_hints(bool produce_compile_hints) {
-  set_flags(ProduceCompileHintsBit::update(flags(), produce_compile_hints));
+  set_flags(flags().with_produce_compile_hints(produce_compile_hints));
 }
 
-bool Script::deserialized() const { return DeserializedBit::decode(flags()); }
+bool Script::deserialized() const { return flags().deserialized(); }
 
 void Script::set_deserialized(bool value) {
-  set_flags(DeserializedBit::update(flags(), value));
+  set_flags(flags().with_deserialized(value));
 }
 
-bool Script::is_repl_mode() const { return IsReplModeBit::decode(flags()); }
+bool Script::is_embedded() const { return flags().is_embedded(); }
+
+void Script::set_is_embedded(bool value) {
+  set_flags(flags().with_is_embedded(value));
+}
+
+bool Script::is_repl_mode() const { return flags().is_repl_mode(); }
 
 void Script::set_is_repl_mode(bool value) {
-  set_flags(IsReplModeBit::update(flags(), value));
+  set_flags(flags().with_is_repl_mode(value));
 }
 
 ScriptOriginOptions Script::origin_options() {
-  return ScriptOriginOptions(OriginOptionsBits::decode(flags()));
+  return ScriptOriginOptions(flags().origin_options());
 }
 void Script::set_origin_options(ScriptOriginOptions origin_options) {
-  DCHECK(!(origin_options.Flags() & ~((1 << OriginOptionsBits::kSize) - 1)));
-  set_flags(OriginOptionsBits::update(flags(), origin_options.Flags()));
+  set_flags(flags().with_origin_options(origin_options.Flags()));
 }
 
 Tagged<UnionOf<ArrayList, Undefined>> Script::compiled_lazy_function_positions()

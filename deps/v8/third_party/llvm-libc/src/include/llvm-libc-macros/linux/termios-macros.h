@@ -1,9 +1,14 @@
-//===-- Definition of macros from termios.h -------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Definition of macros from termios.h.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_MACROS_LINUX_TERMIOS_MACROS_H
@@ -155,8 +160,8 @@
 
 // Symbolic constants for use with tcflush function.
 #define TCIFLUSH 0  // Flush pending input
-#define TCIOFLUSH 1 // Flush pending input and unstransmitted output
-#define TCOFLUSH 2  // Flush unstransmitted output
+#define TCOFLUSH 1  // Flush untransmitted output
+#define TCIOFLUSH 2 // Flush pending input and untransmitted output
 
 // Symbolic constantf for use with tcflow function.
 #define TCOOFF 0 // Transmit a STOP character, intended to suspend input data

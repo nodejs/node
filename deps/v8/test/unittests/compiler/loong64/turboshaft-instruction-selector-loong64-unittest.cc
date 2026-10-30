@@ -1646,6 +1646,34 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Clz) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, Word32Ctz) {
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
+  OpIndex const p0 = m.Parameter(0);
+  OpIndex const n = m.Word32CountTrailingZeros(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLoong64Ctz_w, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Ctz) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64());
+  OpIndex const p0 = m.Parameter(0);
+  OpIndex const n = m.Word64CountTrailingZeros(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLoong64Ctz_d, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, Float32Abs) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
   OpIndex const p0 = m.Parameter(0);

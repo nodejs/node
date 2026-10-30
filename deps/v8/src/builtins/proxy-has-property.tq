@@ -43,7 +43,7 @@ transitioning builtin ProxyHasProperty(
     if (ToBoolean(trapResult)) {
       return True;
     }
-    CheckHasTrapResult(target, proxy, name);
+    CheckHasTrapResult(target, name);
     return False;
   } label TrapUndefined(target: JSAny) {
     // 7.a. Return ? target.[[HasProperty]](P).

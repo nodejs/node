@@ -22,7 +22,7 @@ namespace compiler {
 
 FunctionTester::FunctionTester(const char* source, uint32_t flags)
     : isolate(main_isolate()),
-      function((v8_flags.allow_natives_syntax = true, NewFunction(source))),
+      function((v8_flags.allow_natives_syntax.Set(true), NewFunction(source))),
       flags_(flags) {
   Compile(function);
   const uint32_t supported_flags = OptimizedCompilationInfo::kInlining;
@@ -31,7 +31,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
 
 FunctionTester::FunctionTester(DirectHandle<Code> code, int param_count)
     : isolate(main_isolate()),
-      function((v8_flags.allow_natives_syntax = true,
+      function((v8_flags.allow_natives_syntax.Set(true),
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK_LE(0, param_count);

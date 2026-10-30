@@ -46,6 +46,19 @@ add_header_library(
 )
 
 add_header_library(
+  fp_bitwise
+  HDRS
+    fp_bitwise.h
+  DEPENDS
+    .fp_bits
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.architectures
+    libc.src.__support.macros.properties.cpu_features
+)
+
+add_header_library(
   fpbits_str
   HDRS
     fpbits_str.h
@@ -160,6 +173,7 @@ add_header_library(
     nearest_integer.h
   DEPENDS
     libc.src.__support.common
+    libc.src.__support.CPP.type_traits
     libc.src.__support.macros.optimization
     libc.src.__support.macros.properties.cpu_features
   FLAGS
@@ -242,6 +256,17 @@ add_header_library(
     libc.src.__support.CPP.bit
     libc.src.__support.CPP.type_traits
     libc.src.__support.uint128
+)
+
+add_header_library(
+  is_integer
+  HDRS
+    is_integer.h
+  DEPENDS
+    .fp_bits
+    libc.src.__support.CPP.bit
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
 )
 
 add_header_library(

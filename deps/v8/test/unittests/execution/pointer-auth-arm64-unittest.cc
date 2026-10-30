@@ -189,7 +189,7 @@ TEST_F(PointerAuthArm64Test, SimulatorComputePAC) {
 }
 
 TEST_F(PointerAuthArm64Test, SimulatorAddAndAuthPAC) {
-  i::v8_flags.sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth.Set(false);
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);

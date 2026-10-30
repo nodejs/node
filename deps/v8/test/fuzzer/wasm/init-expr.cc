@@ -6,6 +6,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/property-descriptor.h"
@@ -76,7 +77,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // Disable the optimizing compiler. The init expressions can be huge and might
   // produce long compilation times. The function is only used as a reference
   // and only run once, so use liftoff only as it allows much faster fuzzing.
-  v8_flags.liftoff_only = true;
+  v8_flags.liftoff_only.Set(true);
 
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
@@ -111,7 +112,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   MaybeDirectHandle<WasmModuleObject> compiled_module =
       GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
                                    CompileTimeImportsForFuzzing(), &thrower,
-                                   base::OwnedCopyOf(bytes));
+                                   base::UniqueCopyOf(bytes));
   CHECK(!compiled_module.is_null());
   CHECK(!thrower.error());
   thrower.Reset();

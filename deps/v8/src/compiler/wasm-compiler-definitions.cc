@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-compiler-definitions.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/strings.h"
@@ -38,10 +39,9 @@ SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
   return SubtypeCheckExactness::kMayBeSubtype;
 }
 
-base::Vector<const char> GetDebugName(Zone* zone,
-                                      const wasm::WasmModule* module,
-                                      const wasm::WireBytesStorage* wire_bytes,
-                                      int index) {
+std::string_view GetDebugName(Zone* zone, const wasm::WasmModule* module,
+                              const wasm::WireBytesStorage* wire_bytes,
+                              int index) {
   std::optional<wasm::ModuleWireBytes> module_bytes =
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
@@ -57,19 +57,19 @@ base::Vector<const char> GetDebugName(Zone* zone,
       int name_len = name.length();
       char* index_name = zone->AllocateArray<char>(name_len);
       memcpy(index_name, module_bytes->start() + name.offset(), name_len);
-      return base::Vector<const char>(index_name, name_len);
+      return std::string_view(index_name, name_len);
     }
   }
 
   constexpr int kBufferLength = 24;
 
-  base::EmbeddedVector<char, kBufferLength> name_vector;
-  int name_len = SNPrintF(name_vector, "wasm-function#%d", index);
+  std::array<char, kBufferLength> name_vector;
+  int name_len = base::SNPrintF(name_vector, "wasm-function#%d", index);
   DCHECK(name_len > 0 && static_cast<size_t>(name_len) < name_vector.size());
 
   char* index_name = zone->AllocateArray<char>(name_len);
-  memcpy(index_name, name_vector.begin(), name_len);
-  return base::Vector<const char>(index_name, name_len);
+  memcpy(index_name, name_vector.data(), name_len);
+  return std::string_view(index_name, name_len);
 }
 
 TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

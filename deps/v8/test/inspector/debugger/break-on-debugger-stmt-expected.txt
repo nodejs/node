@@ -1,0 +1,3 @@
+Tests break-on-debugger-stmt.
+initial breakEventCount: 0
+final breakEventCount: 6

@@ -63,6 +63,7 @@ class StructTypeBase : public ZoneObject {
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
     if (index == 0) {
+      if (v8_flags.wasm_merged_descriptors) return 0;
       return is_descriptor() ? kTaggedSize : 0;
     }
     DCHECK(offsets_initialized_);
@@ -70,6 +71,7 @@ class StructTypeBase : public ZoneObject {
   }
   uint32_t total_fields_size() const {
     if (field_count() == 0) {
+      if (v8_flags.wasm_merged_descriptors) return 0;
       return is_descriptor() ? kTaggedSize : 0;
     }
     return field_offsets_[field_count() - 1];
@@ -90,7 +92,11 @@ class StructTypeBase : public ZoneObject {
       // update the offset calculation for the first field.
       UNIMPLEMENTED();
     }
-    uint32_t offset = is_descriptor() ? kTaggedSize : 0;
+    uint32_t offset = 0;
+    if (!v8_flags.wasm_merged_descriptors && is_descriptor()) {
+      // Non-merged descriptors reserve a slot.
+      offset = kTaggedSize;
+    }
     offset += field(0).value_kind_size();
     // Optimization: we track the last gap that was introduced by alignment,
     // and place any sufficiently-small fields in it.
@@ -175,7 +181,8 @@ class StructTypeBase : public ZoneObject {
         // offset == 0 could mean that we'll compute the offsets later,
         // or that this is the first field's offset being copied over from
         // another struct type.
-        DCHECK(offset == 0 || (is_descriptor_ && offset == kTaggedSize));
+        DCHECK(offset == 0 || (!v8_flags.wasm_merged_descriptors &&
+                               is_descriptor_ && offset == kTaggedSize));
       }
       mutabilities_[cursor_] = mutability;
       buffer_[cursor_++] = type;
@@ -183,7 +190,10 @@ class StructTypeBase : public ZoneObject {
 
     void set_total_fields_size(uint32_t size) {
       if (field_count_ == 0) {
-        DCHECK_EQ(is_descriptor_ ? kTaggedSize : 0, size);
+        DCHECK_EQ(!v8_flags.wasm_merged_descriptors && is_descriptor_
+                      ? kTaggedSize
+                      : 0,
+                  size);
         return;
       }
       field_offsets_[field_count_ - 1] = size;
@@ -222,9 +232,6 @@ class StructTypeBase : public ZoneObject {
     bool* const mutabilities_;
   };
 
-  static const size_t kMaxFieldOffset =
-      (kV8MaxWasmStructFields - 1) * kMaxValueTypeSize;
-
  private:
   friend class StructType;
   friend class CanonicalStructType;
@@ -257,7 +264,8 @@ class StructType : public StructTypeBase {
   bool operator==(const StructType& other) const {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;
-    if (this->is_descriptor() != other.is_descriptor()) return false;
+    if (is_descriptor() != other.is_descriptor()) return false;
+    if (is_shared() != other.is_shared()) return false;
     return std::equal(fields().begin(), fields().end(),
                       other.fields().begin()) &&
            std::equal(mutabilities().begin(), mutabilities().end(),
@@ -296,6 +304,7 @@ class CanonicalStructType : public StructTypeBase {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;
     if (is_descriptor() != other.is_descriptor()) return false;
+    if (is_shared() != other.is_shared()) return false;
     return std::equal(fields().begin(), fields().end(),
                       other.fields().begin()) &&
            std::equal(mutabilities().begin(), mutabilities().end(),
@@ -320,21 +329,25 @@ inline std::ostream& operator<<(std::ostream& out, StructTypeBase type) {
 
 class ArrayTypeBase : public ZoneObject {
  public:
-  constexpr explicit ArrayTypeBase(bool mutability) : mutability_(mutability) {}
+  constexpr ArrayTypeBase(bool mutability, SharedFlag is_shared)
+      : mutability_(mutability), is_shared_(is_shared) {}
 
   bool mutability() const { return mutability_; }
+  SharedFlag is_shared() const { return is_shared_; }
 
  protected:
   const bool mutability_;
+  const SharedFlag is_shared_;
 };
 
 class ArrayType : public ArrayTypeBase {
  public:
-  constexpr ArrayType(ValueType rep, bool mutability)
-      : ArrayTypeBase(mutability), rep_(rep) {}
+  constexpr ArrayType(ValueType rep, bool mutability, SharedFlag is_shared)
+      : ArrayTypeBase(mutability, is_shared), rep_(rep) {}
 
   bool operator==(const ArrayType& other) const {
-    return rep_ == other.rep_ && mutability_ == other.mutability_;
+    return rep_ == other.rep_ && mutability_ == other.mutability_ &&
+           is_shared_ == other.is_shared_;
   }
 
   ValueType element_type() const { return rep_; }
@@ -347,11 +360,13 @@ class ArrayType : public ArrayTypeBase {
 
 class CanonicalArrayType : public ArrayTypeBase {
  public:
-  CanonicalArrayType(CanonicalValueType rep, bool mutability)
-      : ArrayTypeBase(mutability), rep_(rep) {}
+  CanonicalArrayType(CanonicalValueType rep, bool mutability,
+                     SharedFlag is_shared)
+      : ArrayTypeBase(mutability, is_shared), rep_(rep) {}
 
   bool operator==(const CanonicalArrayType& other) const {
-    return rep_ == other.rep_ && mutability_ == other.mutability_;
+    return rep_ == other.rep_ && mutability_ == other.mutability_ &&
+           is_shared_ == other.is_shared_;
   }
 
   CanonicalValueType element_type() const { return rep_; }

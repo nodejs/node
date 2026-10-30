@@ -47,6 +47,8 @@
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/bind.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -213,7 +215,7 @@ void StrAppendV(std::string *dst, const char *format, va_list ap) {
   delete[] buf;
 }
 
-void StrAppend(std::string *, const char *, ...) ABSL_PRINTF_ATTRIBUTE(2, 3);
+ABSL_PRINTF_ATTRIBUTE(2, 3) void StrAppend(std::string*, const char*, ...);
 void StrAppend(std::string *out, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -221,7 +223,7 @@ void StrAppend(std::string *out, const char *format, ...) {
   va_end(ap);
 }
 
-std::string StrPrint(const char *, ...) ABSL_PRINTF_ATTRIBUTE(1, 2);
+ABSL_PRINTF_ATTRIBUTE(1, 2) std::string StrPrint(const char*, ...);
 std::string StrPrint(const char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -414,11 +416,11 @@ MATCHER_P(MatchesPointerString, ptr, "") {
   if (ptr == nullptr && arg == "(nil)") {
     return true;
   }
-  void* parsed = nullptr;
-  if (sscanf(arg.c_str(), "%p", &parsed) != 1) {
+  uintptr_t parsed = 0;
+  if (!absl::SimpleHexAtoi(arg, &parsed)) {
     LOG(FATAL) << "Could not parse " << arg;
   }
-  return ptr == parsed;
+  return ptr == reinterpret_cast<void*>(parsed);
 }
 
 TEST_F(FormatConvertTest, Pointer) {
@@ -1014,6 +1016,35 @@ TEST_F(FormatConvertTest, Double) {
 
   for (double d : doubles) {
     TestWithMultipleFormatsHelper(d);
+  }
+}
+
+TEST_F(FormatConvertTest, ScientificZeroPadding) {
+  struct Case {
+    absl::string_view format;
+    // Positive and negative expected prefixes.
+    absl::string_view positive;
+    absl::string_view negative;
+  } cases[] = {
+      {"%010.0e", "000003e", "-00003e"},  {"%010.1g", "000003e", "-00003e"},
+      {"%010.0E", "000003E", "-00003E"},  {"%010.1G", "000003E", "-00003E"},
+      {"%+010.0e", "+00003e", "-00003e"}, {"%+010.1g", "+00003e", "-00003e"},
+      {"% 010.0e", " 00003e", "-00003e"}, {"% 010.1g", " 00003e", "-00003e"},
+      {"%#010.0e", "00003.e", "-0003.e"}, {"%#010.1g", "00003.e", "-0003.e"},
+  };
+
+  // These exact values exercise both slow scientific conversion paths.
+  for (double value : {0x1p128, 0x1p-128}) {
+    const absl::string_view exponent = value > 1 ? "+38" : "-39";
+    for (const auto& c : cases) {
+      SCOPED_TRACE(absl::StrCat(value, ", ", c.format));
+      EXPECT_EQ(
+          FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(value)}),
+          absl::StrCat(c.positive, exponent));
+      EXPECT_EQ(
+          FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(-value)}),
+          absl::StrCat(c.negative, exponent));
+    }
   }
 }
 

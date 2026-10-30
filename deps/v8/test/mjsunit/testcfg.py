@@ -200,15 +200,12 @@ class CombinedTest(testcase.D8TestCase):
       --harmony: We skip all harmony flags due to false positives,
           but always pass the staging flag to cover the mature features.
       --omit-quit: Calling quit() in JS would otherwise early terminate.
-      --quiet-load: suppress any stdout from load() function used by
-        trycatch-wrapper.
     """
     return [
         '--test',
         '--disable-abortjs',
         '--harmony',
         '--omit-quit',
-        '--quiet-load',
     ]
 
   def _get_cmd_params(self):

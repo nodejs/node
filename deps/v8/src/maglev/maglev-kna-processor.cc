@@ -27,6 +27,7 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::OnContradiction() {
     CHECK(current_node()->opcode() == Opcode::kAssumeType ||
           current_node()->opcode() == Opcode::kAssumeMap ||
           current_node()->opcode() == Opcode::kLoadTaggedField ||
+          current_node()->opcode() == Opcode::kStoreMap ||
           current_node()->opcode() == Opcode::kReturnedValue ||
           current_node()->opcode() == Opcode::kIdentity);
     result = reducer_.BuildAbort(AbortReason::kUnreachable);
@@ -86,18 +87,19 @@ NodeType AssumedOrStaticInputType(NodeT* node, NodeType default_type) {
     }                                                                          \
     info->IntersectType(AssumedOrStaticInputType(node, NodeType::k##Type));    \
     if (info->type() == NodeType::kNone) {                                     \
+      ReduceResult result = ReduceResult::Done();                              \
       if constexpr (Node::kProperties.can_eager_deopt()) {                     \
-        ReduceResult result =                                                  \
+        result =                                                               \
             reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);    \
-        CHECK(result.IsDoneWithAbort());                                       \
-        return ProcessResult::kTruncateBlock;                                  \
       } else {                                                                 \
-        /* These safe conversion nodes cannot deopt, but they shouldn't        \
-         * produce empty types either.*/                                       \
+        /* These safe conversion nodes cannot deopt, but if we see an empty*/  \
+        /* type for them, we are already in dead code.*/                       \
         CHECK(node->opcode() == Opcode::kChangeInt32ToFloat64 ||               \
               node->opcode() == Opcode::kChangeInt32ToHoleyFloat64);           \
-        UNREACHABLE();                                                         \
+        result = reducer_.BuildAbort(AbortReason::kUnreachable);               \
       }                                                                        \
+      CHECK(result.IsDoneWithAbort());                                         \
+      return ProcessResult::kTruncateBlock;                                    \
     }                                                                          \
     return ProcessResult::kContinue;                                           \
   }

@@ -15,6 +15,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -22,16 +23,10 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace U_ICU_NAMESPACE {
-class PluralRules;
-namespace number {
-class LocalizedNumberFormatter;
-class LocalizedNumberRangeFormatter;
-}  // namespace number
-}  // namespace U_ICU_NAMESPACE
-
 namespace v8 {
 namespace internal {
+
+class PluralRulesInternal;
 
 V8_OBJECT class JSPluralRules : public JSObject {
  public:
@@ -61,29 +56,27 @@ V8_OBJECT class JSPluralRules : public JSObject {
   Handle<String> TypeAsString(Isolate* isolate) const;
 
   DECL_PRINTER(JSPluralRules)
-  // Bit positions in |flags|.
-  using TypeBit = base::BitField<JSPluralRules::Type, 0, 1, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(TypeBit::is_valid(Type::CARDINAL));
-  static_assert(TypeBit::is_valid(Type::ORDINAL));
+    using TypeBit = First<JSPluralRules::Type, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(type, TypeBit)
+  };
+
+  static_assert(Flags::TypeBit::is_valid(Type::CARDINAL));
+  static_assert(Flags::TypeBit::is_valid(Type::ORDINAL));
 
   inline Tagged<String> locale() const;
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
-  inline Tagged<Managed<icu::PluralRules>> icu_plural_rules() const;
-  inline void set_icu_plural_rules(
-      Tagged<Managed<icu::PluralRules>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
-  icu_number_formatter() const;
-  inline void set_icu_number_formatter(
-      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<CppGCManaged<PluralRulesInternal>> internal() const;
+  inline void set_internal(Tagged<CppGCManaged<PluralRulesInternal>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(JSPluralRules)
 
@@ -91,9 +84,8 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Smi> flags_;
-  TaggedMember<Foreign> icu_plural_rules_;
-  TaggedMember<Foreign> icu_number_formatter_;
+  SmiBitFieldMember<Flags> flags_;
+  TaggedMember<CppGCManaged<PluralRulesInternal>> internal_;
 } V8_OBJECT_END;
 
 inline constexpr int JSPluralRules::kHeaderSize = sizeof(JSPluralRules);

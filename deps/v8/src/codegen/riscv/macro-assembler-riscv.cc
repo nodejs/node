@@ -318,9 +318,15 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             IndirectPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register handle = t6;
+  DCHECK_NE(handle, destination);
+  Lwu(handle, field_operand);
+
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -345,10 +351,10 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register handle = scratch1;
     Lw(handle, field_operand);
 
-    static_assert(kNullIndirectPointerHandle == 0);
+    static_assert(kNullTrustedPointerHandle == 0);
     Branch(is_unavailable, eq, handle, Operand(zero_reg));
 
-    ResolveIndirectPointerHandle(destination, handle, kAllIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -377,17 +383,22 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
-                                              MemOperand dst_field_operand) {
+                                              MemOperand dst_field_operand,
+                                              Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Lw(scratch, FieldMemOperand(value, offsetof(ExposedTrustedObject,
+                                              self_trusted_pointer_)));
+  Sw(scratch, dst_field_operand, std::forward<Trapper>(trapper));
 #else
-  StoreTaggedField(value, dst_field_operand);
+  StoreTaggedField(value, dst_field_operand, std::forward<Trapper>(trapper));
 #endif
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(
-    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
   ASM_CODE_COMMENT(this);
   Register table = destination;
@@ -430,7 +441,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   DCHECK(!IsSharedExternalPointerType(tag_range));
   UseScratchRegisterScope temps(this);
@@ -476,40 +487,8 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   }
 #else
   LoadWord(destination, field_operand);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
-
-#ifdef V8_TARGET_ARCH_RISCV64
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    IndirectPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register handle = t6;
-  DCHECK_NE(handle, destination);
-  Lwu(handle, field_operand);
-
-  ResolveIndirectPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand,
-                                               Trapper&& trapper) {
-#ifdef V8_ENABLE_SANDBOX
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Lw(scratch, FieldMemOperand(value, offsetof(ExposedTrustedObject,
-                                              self_indirect_pointer_)));
-  Sw(scratch, dst_field_operand, std::forward<Trapper>(trapper));
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-#endif  // V8_TARGET_ARCH_RISCV64
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
   if (registers.is_empty()) return;
@@ -537,22 +516,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                IndirectPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  li(IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  li(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
      Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -730,9 +708,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK(!AreAliased(object, value, temp));
     AddWord(temp, object, offset);
 #ifdef V8_TARGET_ARCH_RISCV64
-    if (slot.contains_indirect_pointer()) {
-      LoadIndirectPointerField(temp, MemOperand(temp, 0),
-                               slot.indirect_pointer_tag());
+    if (slot.contains_trusted_pointer()) {
+      LoadTrustedPointerField(temp, MemOperand(temp, 0),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(temp, MemOperand(temp, 0));
@@ -762,7 +740,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -793,9 +771,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.indirect_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
@@ -1891,10 +1869,15 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
     return;
   }
   UseScratchRegisterScope temps(this);
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register tmp0 = temps.Acquire();
   Register tmp1 = temps.Acquire();
-  DCHECK(!AreAliased(rs, rd, tmp0, tmp1, scratch));
+  // {rs} and {rd} are allowed to alias: the implementation below reads {rs}
+  // before writing {rd} and is therefore safe when they are the same register.
+  // The checks below cover every pair except {rs}/{rd}.
+  DCHECK(!AreAliased(tmp0, tmp1, scratch));
+  DCHECK(!AreAliased(rs, tmp0, tmp1, scratch));
+  DCHECK(!AreAliased(rd, tmp0, tmp1, scratch));
   BlockPoolsScope block_pools(this);
   if (operand_size == 4) {
     DCHECK((rd != t6) && (rs != t6));
@@ -2082,7 +2065,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2108,7 +2091,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2129,7 +2112,7 @@ void MacroAssembler::UnalignedDoubleHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         8 - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2178,13 +2161,15 @@ void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   DCHECK(NBYTES == 8 || NBYTES == 4);
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   if (NBYTES == 4) {
     fmv_x_w(scratch, frd);
   } else {
     fmv_x_d(scratch, frd);
   }
-  UnalignedStoreHelper<NBYTES>(scratch, rs, t4);
+  Register scratch_other = temps.Acquire();
+  UnalignedStoreHelper<NBYTES>(scratch, rs, scratch_other);
 }
 #elif V8_TARGET_ARCH_RISCV32
 template <int NBYTES>
@@ -2192,22 +2177,26 @@ void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   DCHECK_EQ(NBYTES, 4);
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   fmv_x_w(scratch, frd);
-  UnalignedStoreHelper<NBYTES>(scratch, rs, t4);
+  Register scratch_other = temps.Acquire();
+  UnalignedStoreHelper<NBYTES>(scratch, rs, scratch_other);
 }
 void MacroAssembler::UnalignedDStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
+  Register scratch_other = temps.Acquire();
   Sub32(sp, sp, 8);
   StoreDouble(frd, MemOperand(sp, 0));
   Lw(scratch, MemOperand(sp, 0));
-  UnalignedStoreHelper<4>(scratch, rs, t4);
+  UnalignedStoreHelper<4>(scratch, rs, scratch_other);
   Lw(scratch, MemOperand(sp, 4));
   MemOperand source = rs;
   source.set_offset(source.offset() + 4);
-  UnalignedStoreHelper<4>(scratch, source, t4);
+  UnalignedStoreHelper<4>(scratch, source, scratch_other);
   Add32(sp, sp, 8);
 }
 #endif
@@ -7638,8 +7627,9 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
-void MacroAssembler::CallJSFunction(Register function_object,
-                                    [[maybe_unused]] uint16_t argument_count) {
+void MacroAssembler::CallJSFunction(
+    Register function_object,
+    [[maybe_unused]] uint16_t expected_parameter_count) {
   ASM_CODE_COMMENT(this);
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
@@ -7650,14 +7640,28 @@ void MacroAssembler::CallJSFunction(Register function_object,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
-  // Force a safe crash if the parameter count doesn't match.
-  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
-           Operand(argument_count));
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(1));
+  } else {
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(expected_parameter_count));
+  }
   Call(code);
 }
 #else
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = s1;
   UseScratchRegisterScope temps(this);

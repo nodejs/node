@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of 64-bit unsigned fractional type
+/// This file contains the declaration of 64-bit unsigned fractional type.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +15,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_FRAC64_H
 
 #include "src/__support/big_int.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
@@ -22,41 +23,44 @@ namespace LIBC_NAMESPACE_DECL {
 struct Frac64 : public UInt<64> {
   using UInt<64>::UInt;
 
-  LIBC_INLINE constexpr Frac64 operator~() const { return Frac64(~val[0]); }
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator~() const {
+    return Frac64(~val[0]);
+  }
 
-  LIBC_INLINE constexpr Frac64 operator+(Frac64 other) const {
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator+(Frac64 other) const {
     return Frac64(val[0] + other.val[0]);
   }
 
-  LIBC_INLINE constexpr Frac64 operator-(Frac64 other) const {
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator-(Frac64 other) const {
     return Frac64(val[0] - other.val[0]);
   }
 
-  LIBC_INLINE constexpr Frac64 operator*(Frac64 other) const {
-    UInt<64> r = UInt<64>::quick_mul_hi(UInt<64>(other));
-    return Frac64(r.val[0]);
+  // Fast hi part of the 128-bit product:
+  //   0 <= ((a * b) >> 64) - (Frac64(a) * Frac64(b)).val[0] <= 1.
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator*(Frac64 other) const {
+    return Frac64(UInt<64>::quick_mul_hi(other).val);
   }
 
-  LIBC_INLINE constexpr Frac64 &operator+=(Frac64 other) {
+  LIBC_ALWAYS_INLINE constexpr Frac64 &operator+=(Frac64 other) {
     *this = *this + other;
     return *this;
   }
 
-  LIBC_INLINE constexpr Frac64 &operator-=(Frac64 other) {
+  LIBC_ALWAYS_INLINE constexpr Frac64 &operator-=(Frac64 other) {
     *this = *this - other;
     return *this;
   }
 
-  LIBC_INLINE constexpr Frac64 &operator*=(Frac64 other) {
+  LIBC_ALWAYS_INLINE constexpr Frac64 &operator*=(Frac64 other) {
     *this = *this * other;
     return *this;
   }
 
-  LIBC_INLINE constexpr Frac64 operator<<(size_t s) const {
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator<<(size_t s) const {
     return Frac64(val[0] << s);
   }
 
-  LIBC_INLINE constexpr Frac64 operator>>(size_t s) const {
+  LIBC_ALWAYS_INLINE constexpr Frac64 operator>>(size_t s) const {
     return Frac64(val[0] >> s);
   }
 };

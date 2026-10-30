@@ -23,6 +23,9 @@ class FileCheckTestCase(testcase.D8TestCase):
     super().__init__(*args, **kwargs)
     self._source_flags = self._parse_source_flags()
 
+  def _expected_fail(self):
+    return 'crash' in self.path.parts
+
   def _get_source_flags(self):
     return self._source_flags
 
@@ -32,10 +35,12 @@ class FileCheckTestCase(testcase.D8TestCase):
   def _get_source_path(self):
     return self.suite.root / self.path_js
 
+  def skip_predictable(self):
+    return super().skip_predictable() or self._expected_fail()
+
   @property
   def output_proc(self):
-    expect_d8_fail = 'crash' in self.path.parts
     return FileCheckOutProc(
         self.expected_outcomes,
         self.suite.root / self.path_and_suffix('.js'),
-        expect_d8_fails=expect_d8_fail)
+        expect_d8_fails=self._expected_fail())

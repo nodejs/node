@@ -31,6 +31,40 @@ using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
 using ProfilerId = uint32_t;
 
+/**
+ * Embedder-supplied callback, installed via
+ * CpuProfiler::SetSampleContextExtractor, invoked as each CPU profile sample is
+ * captured. The returned pointer is stored on the sample and retrievable via
+ * CpuProfile::GetSampleContext.
+ *
+ * The context in which it runs depends on how the sample was taken. For
+ * samples taken by the sampling thread, it is invoked either from a POSIX
+ * signal handler interrupting the sampled thread, or (on platforms that sample
+ * by suspending that thread, such as Windows and Fuchsia) on the sampling
+ * thread itself. For samples requested via CpuProfiler::CollectSample, or
+ * recorded on deoptimization, it is invoked synchronously on the thread that
+ * triggered them.
+ *
+ * Consequently this function MUST NOT rely on thread-local storage. Where
+ * sampling suspends the profiled thread, the callback runs on the sampling
+ * thread, whose thread-locals are unrelated to the profiled thread's, and the
+ * profiled thread's are not reachable at all. Accessing a dynamically
+ * initialized thread-local is in any case not async-signal-safe. Use the
+ * supplied Isolate to determine what to return, keeping whatever per-isolate
+ * state that requires in memory the embedder maintains outside this callback.
+ *
+ * The signal-safety contract applies in all of these cases: this function
+ * MUST NOT allocate memory, acquire locks, call any V8 API, or perform any
+ * other operation that is not async-signal-safe. It SHOULD limit itself to
+ * reading from memory the embedder keeps stable for the duration of
+ * profiling, and returning a `void*` whose meaning is defined by the
+ * embedder. Note that V8 may hold internal locks while calling it, so
+ * reentering the CpuProfiler API from the extractor can deadlock.
+ *
+ * The returned pointer is treated as opaque by V8 and is not dereferenced.
+ */
+using SampleContextExtractor = void* (*)(Isolate*);
+
 struct CpuProfileDeoptFrame {
   int script_id;
   size_t position;
@@ -273,6 +307,15 @@ class V8_EXPORT CpuProfile {
   EmbedderStateTag GetSampleEmbedderState(int index) const;
 
   /**
+   * Returns the embedder-supplied sample context for the sample at the given
+   * index. The pointer was produced by the SampleContextExtractor installed
+   * on the CpuProfiler that recorded this profile. If no extractor was
+   * installed, or the extractor returned nullptr for this sample, returns
+   * nullptr.
+   */
+  void* GetSampleContext(int index) const;
+
+  /**
    * Returns time when the profile recording was stopped (in microseconds)
    * since some unspecified starting point.
    * The point is equal to the starting point used by GetStartTime.
@@ -467,6 +510,17 @@ class V8_EXPORT CpuProfiler {
    * no profiles being recorded.
    */
   void SetUsePreciseSampling(bool);
+
+  /**
+   * Installs an embedder callback invoked as each sample is captured while
+   * this profiler is recording profiles. The pointer it returns is stored on
+   * the sample, and retrievable via CpuProfile::GetSampleContext from every
+   * profile recorded by this profiler. Embedders wanting different extractors
+   * should use a separate CpuProfiler for each. Passing nullptr removes the
+   * extractor. See SampleContextExtractor for the signal-safety contract. This
+   * method must be called when there are no profiles being recorded.
+   */
+  void SetSampleContextExtractor(SampleContextExtractor extractor);
 
   /**
    * Starts collecting a CPU profile. Several profiles may be collected at once.
@@ -841,6 +895,14 @@ class V8_EXPORT AllocationProfile {
      * Sample interval in bytes used when this sample was selected.
      */
     uint64_t sample_interval;
+
+    /**
+     * Value returned for this sample by the SampleContextExtractor passed to
+     * HeapProfiler::StartSamplingHeapProfiler, or nullptr if none was
+     * installed. The embedder is responsible for any pointee lifetime required
+     * when using it; V8 never dereferences it.
+     */
+    void* context = nullptr;
   };
 
   /**
@@ -1251,11 +1313,19 @@ class V8_EXPORT HeapProfiler {
    * Objects allocated before the sampling is started will not be included in
    * the profile.
    *
+   * If |sample_context_extractor| is set, it is called on the isolate's thread
+   * for each sampled allocation, and its result is stored in
+   * AllocationProfile::Sample::context. Because it runs while the allocation is
+   * being sampled, it MUST NOT run JavaScript, allocate on a managed heap
+   * (including cppgc) or call into the HeapProfiler. It may create local
+   * handles.
+   *
    * Returns false if a sampling heap profiler is already running.
    */
-  bool StartSamplingHeapProfiler(uint64_t sample_interval = 512 * 1024,
-                                 int stack_depth = 16,
-                                 SamplingFlags flags = kSamplingNoFlags);
+  bool StartSamplingHeapProfiler(
+      uint64_t sample_interval = 512 * 1024, int stack_depth = 16,
+      SamplingFlags flags = kSamplingNoFlags,
+      SampleContextExtractor sample_context_extractor = nullptr);
 
   /**
    * Stops the sampling heap profile and discards the current profile.

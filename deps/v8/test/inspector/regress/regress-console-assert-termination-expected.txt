@@ -1,0 +1,3 @@
+Checks that console.assert() does not break into the debugger after formatting its arguments terminated execution.
+paused: other
+evaluate returned

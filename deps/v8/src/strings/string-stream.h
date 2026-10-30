@@ -6,6 +6,8 @@
 #define V8_STRINGS_STRING_STREAM_H_
 
 #include <memory>
+#include <span>
+#include <string_view>
 
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -153,20 +155,12 @@ class StringStream final {
   bool Put(char c);
   bool Put(Tagged<String> str);
   bool Put(Tagged<String> str, int start, int end);
-  void Add(const char* format) { Add(base::CStrVector(format)); }
-  void Add(base::Vector<const char> format) {
-    Add(format, base::Vector<FmtElm>());
-  }
+  void Add(std::string_view format) { Add(format, std::span<const FmtElm>{}); }
 
   template <typename... Args>
-  void Add(const char* format, Args... args) {
-    Add(base::CStrVector(format), args...);
-  }
-
-  template <typename... Args>
-  void Add(base::Vector<const char> format, Args... args) {
+  void Add(std::string_view format, Args... args) {
     FmtElm elems[]{args...};
-    Add(format, base::ArrayVector(elems));
+    Add(format, std::span<const FmtElm>(elems));
   }
 
   // Getting the message out.
@@ -205,7 +199,7 @@ class StringStream final {
   static const int kInitialCapacity = 16;
 
  private:
-  void Add(base::Vector<const char> format, base::Vector<FmtElm> elms);
+  void Add(std::string_view format, std::span<const FmtElm> elms);
   void PrintObject(Tagged<Object> obj);
 
   StringAllocator* allocator_;

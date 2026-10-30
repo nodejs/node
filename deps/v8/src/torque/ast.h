@@ -600,12 +600,10 @@ struct AssumeTypeImpossibleExpression : Expression {
 struct NewExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NewExpression)
   NewExpression(SourcePosition pos, TypeExpression* type,
-                std::vector<NameAndExpression> initializers, bool pretenured,
-                bool clear_padding)
+                std::vector<NameAndExpression> initializers, bool clear_padding)
       : Expression(kKind, pos),
         type(type),
         initializers(std::move(initializers)),
-        pretenured(pretenured),
         clear_padding(clear_padding) {}
 
   void VisitAllSubExpressions(VisitCallback callback) override {
@@ -617,7 +615,6 @@ struct NewExpression : Expression {
 
   TypeExpression* type;
   std::vector<NameAndExpression> initializers;
-  bool pretenured;
   bool clear_padding;
 };
 
@@ -936,6 +933,7 @@ struct StructFieldExpression {
 struct BitFieldDeclaration {
   NameAndTypeExpression name_and_type;
   int num_bits;
+  std::optional<int> offset = std::nullopt;
 };
 
 enum class ConditionalAnnotationType {

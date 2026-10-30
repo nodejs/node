@@ -126,7 +126,7 @@ namespace internal {
 namespace test_lockers {
 
 TEST(LazyDeoptimizationMultithread) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -179,7 +179,7 @@ TEST(LazyDeoptimizationMultithread) {
 }
 
 TEST(LazyDeoptimizationMultithreadWithNatives) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -235,7 +235,7 @@ TEST(LazyDeoptimizationMultithreadWithNatives) {
 }
 
 TEST(EagerDeoptimizationMultithread) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);

@@ -19,9 +19,11 @@
 
 namespace LIBC_NAMESPACE_DECL {
 namespace shared {
+namespace static_rounding {
 
 using math::static_rounding::expf;
 
+} // namespace static_rounding
 } // namespace shared
 } // namespace LIBC_NAMESPACE_DECL
 

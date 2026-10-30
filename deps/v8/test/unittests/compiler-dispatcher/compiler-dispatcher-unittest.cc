@@ -43,7 +43,7 @@ class LazyCompileDispatcherTestFlags {
   static void SetFlagsForTest() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    v8_flags.lazy_compile_dispatcher = true;
+    v8_flags.lazy_compile_dispatcher.Set(true);
     FlagList::EnforceFlagImplications();
   }
 

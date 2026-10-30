@@ -166,7 +166,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   __ Ld(t2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ lwu(t2, FieldMemOperand(t2, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(t2);
   __ JumpIfIsInRange(
       t2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -919,7 +919,8 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
   DCHECK(!AreAliased(feedback_vector, scratch));
   __ Lbu(scratch, FieldMemOperand(feedback_vector,
                                   offsetof(FeedbackVector, osr_state_)));
-  __ And(scratch, scratch, Operand(~FeedbackVector::OsrUrgencyBits::kMask));
+  __ And(scratch, scratch,
+         Operand(~FeedbackVector::OsrState::OsrUrgencyBits::kMask));
   __ Sb(scratch,
         FieldMemOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)));
 }
@@ -1147,9 +1148,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size (word) from the BytecodeArray object.
     __ Lw(a5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                               offsetof(BytecodeArray, frame_size_)));
+    __ Lhu(a7, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                               offsetof(BytecodeArray, max_arguments_)));
+    __ Dlsa(a7, a5, a7, kSystemPointerSizeLog2);
 
     // Do a stack check to ensure we don't go over the limit.
-    __ Dsubu(a6, sp, Operand(a5));
+    __ Dsubu(a6, sp, Operand(a7));
     __ LoadStackLimit(a2, MacroAssembler::StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, lo, a6, Operand(a2));
 
@@ -1565,12 +1569,13 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label builtin_call;
   __ Ld(a2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ Lwu(a2, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
-  __ And(a5, a2, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ And(a5, a2,
+         Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ Branch(&builtin_call, ne, a5, Operand(zero_reg));
 
   // Check if we need to create an implicit receiver.
   Label not_create_implicit_receiver;
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(a2);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(a2);
   __ JumpIfIsInRange(
       a2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -2494,8 +2499,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label done_convert;
   __ Lwu(a3, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
   __ And(kScratchReg, a3,
-         Operand(SharedFunctionInfo::IsNativeBit::kMask |
-                 SharedFunctionInfo::IsStrictBit::kMask));
+         Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                 SharedFunctionInfo::Flags::IsStrictBit::kMask));
   __ Branch(&done_convert, ne, kScratchReg, Operand(zero_reg));
   {
     // ----------- S t a t e -------------
@@ -2659,7 +2664,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ Ld(a4, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ lwu(a4, FieldMemOperand(a4, offsetof(SharedFunctionInfo, flags_)));
-  __ And(a4, a4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ And(a4, a4,
+         Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ Branch(&call_generic_stub, eq, a4, Operand(zero_reg));
 
   __ TailCallBuiltin(Builtin::kJSBuiltinsConstructStub);
@@ -3037,7 +3043,12 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
     Register scratch = temps.Acquire();
 
     // Save all parameter registers. They might hold live values, we restore
-    // them after the runtime call.
+    // them after the runtime call (for kBreak), or allow DevTools to inspect
+    // them at trap sites (for kTrap).
+    // Note: For non-debug execution, saving registers and creating a
+    // WASM_DEBUG_BREAK frame for trap handler traps might be redundant, but
+    // traps are cold exceptional paths so this negligible overhead is fine to
+    // keep the landing pad and trap handling unified.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     {
       // Check if machine has simd enabled, if so push vector registers. If not
@@ -3115,7 +3126,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kBreak);
 }
 
-void Builtins::Generate_WasmDebugTrap(MacroAssembler* masm) {
+void Builtins::Generate_WasmTrapHandlerThrowTrap(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kTrap);
 }
 
@@ -3320,6 +3331,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
+  __ Trap();
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
   __ Trap();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -110,9 +110,6 @@ cc_library(
     hdrs = ["internal/non_temporal_arm_intrinsics.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        ":__pkg__",
-    ],
     deps = [
         "//absl/base:config",
     ],
@@ -124,7 +121,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        ":__pkg__",
     ],
     deps = [
         ":non_temporal_arm_intrinsics",
@@ -143,6 +139,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":crc32c",
+        ":crc_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/memory",
         "//absl/random",
         "//absl/random:distributions",

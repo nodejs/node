@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_H_
 #define V8_MAGLEV_MAGLEV_IR_H_
 
+#include <bit>
 #include <optional>
 #include <type_traits>
 
@@ -513,6 +514,7 @@ class ExceptionHandlerInfo;
   V(BranchIfRootConstant)                    \
   V(BranchIfToBooleanTrue)                   \
   V(BranchIfInt32ToBooleanTrue)              \
+  V(BranchIfInt32BitwiseAndNonZero)          \
   V(BranchIfIntPtrToBooleanTrue)             \
   V(BranchIfFloat64ToBooleanTrue)            \
   V(BranchIfHoleyFloat64ToBooleanTrue)       \
@@ -1677,6 +1679,9 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
     return data().maybe_js_target.value();
   }
 
+  // Number of parameters in the deopt translation.
+  int translation_height() const;
+
  private:
   BuiltinContinuationFrameData& data() {
     return data_.get<BuiltinContinuationFrameData>();
@@ -1845,7 +1850,9 @@ class LazyDeoptInfo : public DeoptInfo {
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
-            ResultSizeField::encode(result_size)) {}
+            ResultSizeField::encode(result_size)) {
+    DCHECK(IsConsideredForResultLocation());
+  }
 
   interpreter::Register result_location() const {
     DCHECK(IsConsideredForResultLocation());
@@ -1895,31 +1902,12 @@ class LazyDeoptInfo : public DeoptInfo {
  private:
 #ifdef DEBUG
   bool IsConsideredForResultLocation() const {
-    switch (top_frame().type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        // Interpreted frames obviously need a result location.
-        return true;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        return false;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        // Normally if the function is going to be deoptimized then the top
-        // frame should be an interpreted one, except for LazyDeoptContinuation
-        // builtin.
-        switch (top_frame().as_builtin_continuation().builtin_id()) {
-          case Builtin::kGenericLazyDeoptContinuation:
-          case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadDoneLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadValueLazyDeoptContinuation:
-          case Builtin::kArrayDestructureLazyDeoptContinuation:
-          case Builtin::kGeneratorPrototypeNextLazyDeoptContinuation:
-            return true;
-          default:
-            return false;
-        }
-    }
-    UNREACHABLE();
+    // Deopt continuation builtins don't consider the result location or size
+    // encoded in the deopt data; they behave like function calls and return
+    // into the accumulator.
+    return top_frame().type() == DeoptFrame::FrameType::kInterpretedFrame ||
+           (result_location_ == interpreter::Register::virtual_accumulator() &&
+            ResultSizeField::decode(bitfield_) == 1);
   }
 #endif  // DEBUG
 
@@ -2026,16 +2014,16 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
 
 }  // namespace detail
 
-#define DEOPTIMIZE_REASON_FIELD                                             \
- private:                                                                   \
-  using ReasonField =                                                       \
-      NextBitField<DeoptimizeReason, base::bits::WhichPowerOfTwo<size_t>(   \
-                                         base::bits::RoundUpToPowerOfTwo32( \
-                                             kDeoptimizeReasonCount))>;     \
-                                                                            \
- public:                                                                    \
-  DeoptimizeReason deoptimize_reason() const {                              \
-    return ReasonField::decode(bitfield());                                 \
+#define DEOPTIMIZE_REASON_FIELD                                           \
+ private:                                                                 \
+  using ReasonField =                                                     \
+      NextBitField<DeoptimizeReason,                                      \
+                   base::bits::WhichPowerOfTwo<size_t>(                   \
+                       std::bit_ceil<uint32_t>(kDeoptimizeReasonCount))>; \
+                                                                          \
+ public:                                                                  \
+  DeoptimizeReason deoptimize_reason() const {                            \
+    return ReasonField::decode(bitfield());                               \
   }
 
 class KnownNodeAspects;
@@ -2682,6 +2670,10 @@ class ValueNode : public Node {
   // For constants only.
   void LoadToRegister(MaglevAssembler*, Register) const;
   void LoadToRegister(MaglevAssembler*, DoubleRegister) const;
+  // Whether loading this constant produces an all-zero bit pattern, so that
+  // an architecture with a zero register (MaglevAssembler::HasZeroRegister())
+  // can store that register instead.
+  bool MaterializesToZero() const;
   DirectHandle<Object> Reify(LocalIsolate* isolate) const;
 
   bool has_valid_live_range() const {
@@ -5379,7 +5371,7 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
   using OutputRegister = Register;
 
   explicit TrustedConstant(uint64_t bitfield, compiler::HeapObjectRef object,
-                           IndirectPointerTag tag)
+                           TrustedPointerTag tag)
       : Base(bitfield), object_(object), tag_(tag) {}
 
   static constexpr OpProperties kProperties = OpProperties::TrustedPointer();
@@ -5391,14 +5383,14 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
   void PrintParams(std::ostream&) const;
 
   compiler::HeapObjectRef object() const { return object_; }
-  IndirectPointerTag tag() const { return tag_; }
+  TrustedPointerTag tag() const { return tag_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister) const;
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const compiler::HeapObjectRef object_;
-  const IndirectPointerTag tag_;
+  const TrustedPointerTag tag_;
 };
 
 class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
@@ -5420,7 +5412,9 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanThrow() | OpProperties::LazyDeopt() |
-      OpProperties::NotIdempotent();
+      OpProperties::NotIdempotent() |
+      // The runtime call may make prototype maps fast.
+      OpProperties::CanWrite();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -5488,7 +5482,9 @@ class CreateObjectLiteral
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanThrow() | OpProperties::LazyDeopt() |
-      OpProperties::NotIdempotent();
+      OpProperties::NotIdempotent() |
+      // The runtime call may make prototype maps fast.
+      OpProperties::CanWrite();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -6646,8 +6642,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
  public:
-  explicit AllocationBlock(uint64_t bitfield, AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
+  explicit AllocationBlock(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
                                               OpProperties::DeferredCall() |
@@ -6656,9 +6651,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
-  AllocationType allocation_type() const { return allocation_type_; }
   int size() const { return size_; }
   void set_size(int size) { size_ = size; }
 
@@ -6669,20 +6662,8 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     size_ += alloc->size();
   }
 
-  void TryPretenure(ValueNode* input);
-
-  bool elided_write_barriers_depend_on_type() const {
-    return elided_write_barriers_depend_on_type_;
-  }
-  void set_elided_write_barriers_depend_on_type() {
-    elided_write_barriers_depend_on_type_ = true;
-  }
-
  private:
-  void TryPretenure();
-  AllocationType allocation_type_;
   int size_ = 0;
-  bool elided_write_barriers_depend_on_type_ = false;
   InlinedAllocation::List allocation_list_;
 };
 
@@ -6736,8 +6717,14 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
   int formal_parameter_count() const { return formal_parameter_count_; }
 
  private:
+  friend class MaglevGraphBuilder;
+
+  bool maybe_mutated() const { return maybe_mutated_; }
+  void set_maybe_mutated() { maybe_mutated_ = true; }
+
   CreateArgumentsType type_;
   int formal_parameter_count_;
+  bool maybe_mutated_ = false;
 };
 
 // TODO(victorgomes): This node is currently not eliminated by the escape
@@ -6745,11 +6732,8 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
 class AllocateElementsArray
     : public FixedInputValueNodeT<1, AllocateElementsArray> {
  public:
-  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind,
-                                 AllocationType allocation_type)
-      : Base(bitfield),
-        elements_kind_(elements_kind),
-        allocation_type_(allocation_type) {}
+  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::EagerDeopt() |
@@ -6763,11 +6747,9 @@ class AllocateElementsArray
   void PrintParams(std::ostream&) const;
 
   ElementsKind elements_kind() const { return elements_kind_; }
-  AllocationType allocation_type() const { return allocation_type_; }
 
  private:
   const ElementsKind elements_kind_;
-  const AllocationType allocation_type_;
 };
 
 class CreateFunctionContext
@@ -6809,15 +6791,23 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  public:
   explicit FastCreateClosure(
       uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
-      compiler::FeedbackCellRef feedback_cell)
+      compiler::FeedbackCellRef feedback_cell,
+      compiler::OptionalContextRef specialization_context,
+      ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
-        feedback_cell_(feedback_cell) {}
+        feedback_cell_(feedback_cell),
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
@@ -6836,6 +6826,8 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 class CreateRegExpLiteral
@@ -6870,17 +6862,22 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   explicit CreateClosure(uint64_t bitfield,
                          compiler::SharedFunctionInfoRef shared_function_info,
                          compiler::FeedbackCellRef feedback_cell,
-                         bool pretenured)
+                         compiler::OptionalContextRef specialization_context,
+                         ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
-        pretenured_(pretenured) {}
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
-  bool pretenured() const { return pretenured_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call() |
@@ -6899,7 +6896,8 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
-  const bool pretenured_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 #define ASSERT_CONDITION(V) \
@@ -7488,7 +7486,7 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
       OpProperties::EagerDeopt() | OpProperties::DeferredCall() |
       OpProperties::CanAllocate() | OpProperties::CanWrite() |
       OpProperties::CanRead();
-  DECLARE_INPUTS(Map, Object)
+  DECLARE_INPUTS(Map, Receiver)
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
   int MaxCallStackArgs() const;
@@ -7661,9 +7659,9 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 
  private:
   using ConditionField =
-      ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
-                                             base::bits::RoundUpToPowerOfTwo32(
-                                                 kNumAssertConditions))>;
+      ReasonField::Next<AssertCondition,
+                        base::bits::WhichPowerOfTwo<size_t>(
+                            std::bit_ceil<uint32_t>(kNumAssertConditions))>;
 };
 
 // AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that
@@ -8132,11 +8130,7 @@ class ProcessWasmArgument
 class CreateFastArrayElements
     : public FixedInputValueNodeT<1, CreateFastArrayElements> {
  public:
-  explicit CreateFastArrayElements(uint64_t bitfield,
-                                   AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
-
-  AllocationType allocation_type() const { return allocation_type_; }
+  explicit CreateFastArrayElements(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::NotIdempotent();
@@ -8145,9 +8139,6 @@ class CreateFastArrayElements
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-
- private:
-  const AllocationType allocation_type_;
 };
 
 class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
@@ -8434,6 +8425,7 @@ class PropertyKey {
   enum Type {
     // kName must be zero so that pointers are unaffected.
     kName = 0,
+    kDoubleField,
     kElements,
     kTypedArrayLength,
     // TODO(leszeks): We could probably share kStringLength with
@@ -8445,10 +8437,17 @@ class PropertyKey {
   };
   static constexpr int kTypeMask = 0x7;
   static_assert((kName & ~kTypeMask) == 0);
+  static_assert((kDoubleField & ~kTypeMask) == 0);
   static_assert((kElements & ~kTypeMask) == 0);
   static_assert((kTypedArrayLength & ~kTypeMask) == 0);
   static_assert((kStringLength & ~kTypeMask) == 0);
+  static_assert((kArrayBufferViewByteLength & ~kTypeMask) == 0);
+  static_assert((kArrayBufferViewDataPointer & ~kTypeMask) == 0);
   static_assert((kNone & ~kTypeMask) == 0);
+
+  static PropertyKey DoubleField(compiler::NameRef ref) {
+    return PropertyKey(ref, kDoubleField);
+  }
 
   static PropertyKey Elements() { return PropertyKey(kElements); }
 
@@ -8469,10 +8468,7 @@ class PropertyKey {
   // Allow implicit conversion from NameRef to key, so that callers in the
   // common path can use a NameRef directly.
   // NOLINTNEXTLINE
-  PropertyKey(compiler::NameRef ref)
-      : data_(reinterpret_cast<Address>(ref.data())) {
-    DCHECK_EQ(data_ & kTypeMask, kName);
-  }
+  PropertyKey(compiler::NameRef ref) : PropertyKey(ref, kName) {}
 
   PropertyKey(const PropertyKey&) V8_NOEXCEPT = default;
   PropertyKey& operator=(const PropertyKey&) V8_NOEXCEPT = default;
@@ -8482,9 +8478,10 @@ class PropertyKey {
   }
   bool operator<(const PropertyKey& other) const { return data_ < other.data_; }
 
-  compiler::NameRef name() {
-    DCHECK_EQ(type(), kName);
-    return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(data_),
+  compiler::NameRef name() const {
+    DCHECK(type() == kName || type() == kDoubleField);
+    return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(
+                                 data_ & ~static_cast<Address>(kTypeMask)),
                              false);
   }
 
@@ -8494,7 +8491,14 @@ class PropertyKey {
   Address data() const { return data_; }
 
  private:
-  explicit PropertyKey(Type type) : data_(type) { DCHECK_NE(type, kName); }
+  explicit PropertyKey(Type type) : data_(type) {
+    DCHECK(type != kName && type != kDoubleField);
+  }
+  PropertyKey(compiler::NameRef ref, Type type)
+      : data_(reinterpret_cast<Address>(ref.data()) | type) {
+    DCHECK(type == kName || type == kDoubleField);
+    DCHECK_EQ(reinterpret_cast<Address>(ref.data()) & kTypeMask, 0);
+  }
 
   Address data_;
 };
@@ -8503,6 +8507,9 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
   switch (key.type()) {
     case PropertyKey::kName:
       os << *key.name().object();
+      break;
+    case PropertyKey::kDoubleField:
+      os << "DoubleField(" << *key.name().object() << ")";
       break;
     case PropertyKey::kElements:
       os << "Elements";
@@ -8531,11 +8538,12 @@ enum class IsArrayLength { kNo, kYes };
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
  public:
   explicit LoadTaggedField(uint64_t bitfield, const int offset, NodeType type,
-                           bool is_const, PropertyKey property_key,
+                           PropertyConstness constness,
+                           PropertyKey property_key,
                            IsArrayLength is_array_length,
                            compiler::OptionalMapRef stable_field_map = {})
       : Base(
-            bitfield | IsConstantLoadField::encode(is_const) |
+            bitfield | ConstnessField::encode(constness) |
             IsArrayLengthField::encode(is_array_length == IsArrayLength::kYes)),
         offset_(offset),
         type_(type),
@@ -8547,7 +8555,10 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
   int offset() const { return offset_; }
   NodeType type() const { return type_; }
-  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
+  PropertyConstness constness() const {
+    return ConstnessField::decode(bitfield());
+  }
+  bool is_const() const { return constness() == PropertyConstness::kConst; }
   PropertyKey property_key() const { return property_key_; }
   compiler::OptionalMapRef stable_field_map() const {
     return stable_field_map_;
@@ -8570,7 +8581,7 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
   auto options() const {
     return std::tuple{offset(),          type(),
-                      is_const(),        property_key(),
+                      constness(),       property_key(),
                       is_array_length(), stable_field_map()};
   }
 
@@ -8579,8 +8590,8 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
   const NodeType type_;
   PropertyKey property_key_;
   compiler::OptionalMapRef stable_field_map_;
-  using IsConstantLoadField = NextBitField<bool, 1>;
-  using IsArrayLengthField = IsConstantLoadField::Next<bool, 1>;
+  using ConstnessField = NextBitField<PropertyConstness, 1>;
+  using IsArrayLengthField = ConstnessField::Next<bool, 1>;
 };
 
 class LoadContextSlotNoCells
@@ -9214,7 +9225,7 @@ class StoreDoubleDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Object, DataPointer, Index, Value, IsLittleEndian)
-  DECLARE_INPUT_TYPES(Tagged, RawPtr, Int32, HoleyFloat64, Tagged)
+  DECLARE_INPUT_TYPES(Tagged, RawPtr, Int32, Float64, Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9582,7 +9593,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
  public:
   explicit StoreTrustedPointerFieldWithWriteBarrier(uint64_t bitfield,
                                                     int offset,
-                                                    IndirectPointerTag tag,
+                                                    TrustedPointerTag tag,
                                                     StoreTaggedMode store_mode)
       : Base(bitfield | InitializingOrTransitioningField::encode(
                             IsInitializingOrTransitioning(store_mode))),
@@ -9595,7 +9606,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
   int offset() const { return offset_; }
-  IndirectPointerTag tag() const { return tag_; }
+  TrustedPointerTag tag() const { return tag_; }
   bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
   }
@@ -9616,7 +9627,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
-  const IndirectPointerTag tag_;
+  const TrustedPointerTag tag_;
 };
 
 class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
@@ -11873,6 +11884,31 @@ class BranchIfInt32ToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+// Fused form of BranchIfInt32ToBooleanTrue(Int32BitwiseAnd(value, mask)):
+// branches to if_true when (value & mask) != 0. This lets the branch emit a
+// single test-and-branch (tbnz/tst on arm64, test on x64) instead of a
+// separate `and` and compare against zero.
+class BranchIfInt32BitwiseAndNonZero
+    : public BranchControlNodeT<1, BranchIfInt32BitwiseAndNonZero> {
+ public:
+  explicit BranchIfInt32BitwiseAndNonZero(uint64_t bitfield, int32_t mask,
+                                          BasicBlockRef* if_true_refs,
+                                          BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), mask_(mask) {}
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  int32_t mask() const { return mask_; }
+
+ private:
+  int32_t mask_;
 };
 
 class BranchIfIntPtrToBooleanTrue

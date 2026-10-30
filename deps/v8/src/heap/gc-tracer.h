@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Whether the GC had to consider stacks (main thread or background).
+    bool gc_with_stack = false;
+
     // Currently in loading state.
     bool is_loading = false;
 
@@ -692,6 +695,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
   FRIEND_TEST(GCTracerTest, CyclePriorities);
   FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, HighAllocationRateWithEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
   FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
@@ -700,6 +704,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, LowAllocationRateWithZeroEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
   FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);

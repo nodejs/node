@@ -360,16 +360,17 @@ PropertyDescriptor::ToPropertyDescriptorObject(Isolate* isolate) {
   DirectHandle<PropertyDescriptorObject> obj =
       isolate->factory()->NewPropertyDescriptorObject();
 
-  int flags =
-      PropertyDescriptorObject::IsEnumerableBit::encode(enumerable_) |
-      PropertyDescriptorObject::HasEnumerableBit::encode(has_enumerable_) |
-      PropertyDescriptorObject::IsConfigurableBit::encode(configurable_) |
-      PropertyDescriptorObject::HasConfigurableBit::encode(has_configurable_) |
-      PropertyDescriptorObject::IsWritableBit::encode(writable_) |
-      PropertyDescriptorObject::HasWritableBit::encode(has_writable_) |
-      PropertyDescriptorObject::HasValueBit::encode(has_value()) |
-      PropertyDescriptorObject::HasGetBit::encode(has_get()) |
-      PropertyDescriptorObject::HasSetBit::encode(has_set());
+  using Flags = PropertyDescriptorObject::Flags;
+  Flags flags = Flags{}
+                    .with_is_enumerable(enumerable_)
+                    .with_has_enumerable(has_enumerable_)
+                    .with_is_configurable(configurable_)
+                    .with_has_configurable(has_configurable_)
+                    .with_is_writable(writable_)
+                    .with_has_writable(has_writable_)
+                    .with_has_value(has_value())
+                    .with_has_get(has_get())
+                    .with_has_set(has_set());
 
   obj->set_flags(flags);
 

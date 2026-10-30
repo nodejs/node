@@ -14,12 +14,13 @@ namespace v8::internal {
 
 class CppGCManagedBase;
 class EmbedderDataArray;
+class ExternalString;
 class NativeContext;
 
 // Object types that can have a cpp heap object pointer field.
 using CppHeapPointerWrapperObjectT =
     UnionOf<JSObject, CppHeapExternalObject, NativeContext, CppGCManagedBase,
-            EmbedderDataArray>;
+            EmbedderDataArray, ExternalString>;
 
 // Helper union that doesn't actually exist as type. Used to get and set the cpp
 // heap pointer for objects that are associated with one. Use by value.
@@ -31,6 +32,7 @@ class CppHeapObjectWrapper {
   V8_INLINE explicit CppHeapObjectWrapper(Tagged<JSObject> object);
   V8_INLINE explicit CppHeapObjectWrapper(Tagged<CppHeapExternalObject> object);
   V8_INLINE explicit CppHeapObjectWrapper(Tagged<CppGCManagedBase> object);
+  V8_INLINE explicit CppHeapObjectWrapper(Tagged<ExternalString> object);
 
   V8_INLINE void InitializeCppHeapWrapper();
 

@@ -226,12 +226,12 @@ int main(int argc, char** argv) {
   v8::base::EnsureConsoleOutput();
 
   // Make mksnapshot runs predictable to create reproducible snapshots.
-  i::v8_flags.predictable = true;
+  i::v8_flags.predictable.Set(true);
 
   // Disable ICs globally in mksnapshot to avoid problems with Code handlers.
   // See https://crbug.com/345280736.
   // TODO(jgruber): Re-enable once a better fix is available.
-  i::v8_flags.use_ic = false;
+  i::v8_flags.use_ic.Set(false);
 
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.

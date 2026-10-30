@@ -5,9 +5,9 @@
 #include "src/objects/map-updater.h"
 
 #include <optional>
-#include <queue>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
@@ -400,7 +400,9 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   ElementsKind to_kind = old_map->elements_kind();
 
   IntegrityLevelTransitionInfo info(old_map);
-  if (root_map->is_extensible() != old_map->is_extensible()) {
+  if (!root_map->is_extensible() && old_map != root_map) {
+    return {};
+  } else if (root_map->is_extensible() != old_map->is_extensible()) {
     DCHECK(!old_map->is_extensible());
     DCHECK(root_map->is_extensible());
     info = DetectIntegrityLevelTransitions(old_map, isolate, &no_gc, cmode);
@@ -412,7 +414,7 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsTypedArrayOrRabGsabTypedArrayElementsKind(to_kind) ||
-           IsAnyHoleyNonextensibleElementsKind(to_kind));
+           IsAnyNonextensibleElementsKind(to_kind));
     to_kind = info.integrity_level_source_map->elements_kind();
   }
   if (from_kind != to_kind) {
@@ -622,6 +624,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
           direct_handle(root_map_->prototype(), isolate_),
           root_map_->instance_type())) {
     return Normalize("Normalize_NotEquivalent");
+  } else if (!root_map_->is_extensible() && *old_map_ != *root_map_) {
+    return Normalize("Normalize_PrivateSymbolsOnNonExtensible");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
     DCHECK(root_map_->is_extensible());
@@ -1036,7 +1040,11 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  new_descriptors->CopyFromOrRebuildLookupTable(*old_descriptors_);
+#else
   new_descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   return new_descriptors;
 }
 
@@ -1274,18 +1282,21 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     JSObject::InvalidatePrototypeChains(*map);
   }
 
-  std::queue<Tagged<Map>> backlog;
-  backlog.push(*map);
-  std::vector<Tagged<Map>> sidestep_transition;
+  // Use SmallVector with an index cursor for BFS traversal instead of
+  // std::queue (backed by std::deque) to avoid a 4 KiB heap allocation for
+  // typical transition trees.
+  base::SmallVector<Tagged<Map>, 64> backlog;
+  backlog.push_back(*map);
+  base::SmallVector<Tagged<Map>, 16> sidestep_transition;
 
   ReadOnlyRoots roots(isolate);
-  while (!backlog.empty()) {
-    Tagged<Map> current = backlog.front();
-    backlog.pop();
+  size_t i = 0;
+  while (i < backlog.size()) {
+    Tagged<Map> current = backlog[i++];
 
     TransitionsAccessor transitions(isolate, current);
     transitions.ForEachTransition(
-        &no_gc, [&](Tagged<Map> target) { backlog.push(target); },
+        &no_gc, [&](Tagged<Map> target) { backlog.push_back(target); },
         [&](Tagged<Object> target) {
           if (!target.IsSmi() && !Cast<Map>(target)->is_deprecated()) {
             sidestep_transition.push_back(Cast<Map>(target));

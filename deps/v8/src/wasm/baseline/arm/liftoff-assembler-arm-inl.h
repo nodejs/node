@@ -533,7 +533,8 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -597,14 +598,18 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     LiftoffRegList regs_to_save;
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    regs_to_save.set(
+        WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(),
         Operand(max_stack_space));
     add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-        Operand(stack_param_slots * kSystemPointerSize +
+        Operand((stack_param_slots + stack_return_slots) * kSystemPointerSize +
                 CommonFrameConstants::kFixedFrameSizeAboveFp));
+    mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+        Operand(stack_param_slots * kSystemPointerSize));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
@@ -686,59 +691,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   b(ool_label, mi);
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() {
-  if (!v8_flags.wasm_growable_stacks) {
-    return fp;
-  }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
-  FreezeCacheState frozen(*this);
-  Label done, call_runtime;
-  ldr(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  cmp(old_fp.gp(),
-      Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  b(&call_runtime, eq);
-  mov(old_fp.gp(), fp);
-  jmp(&done);
-
-  bind(&call_runtime);
-  LiftoffRegList regs_to_save = cache_state()->used_registers;
-  PushRegisters(regs_to_save);
-  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1);
-  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
-  if (old_fp.gp() != kReturnRegister0) {
-    mov(old_fp.gp(), kReturnRegister0);
-  }
-  PopRegisters(regs_to_save);
-
-  bind(&done);
-  return old_fp.gp();
-}
-
-void LiftoffAssembler::CheckStackShrink() {
-  {
-    UseScratchRegisterScope temps{this};
-    Register scratch = temps.Acquire();
-    ldr(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-    cmp(scratch,
-        Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  }
-  Label done;
-  b(&done, ne);
-  LiftoffRegList regs_to_save;
-  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
-  PushRegisters(regs_to_save);
-  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1);
-  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-  // Restore old FP. We don't need to restore old SP explicitly, because
-  // it will be restored from FP in LeaveFrame before return.
-  mov(fp, kReturnRegister0);
-  PopRegisters(regs_to_save);
-  bind(&done);
-}
-
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
@@ -754,12 +706,9 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
     case kF32:
       vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
-    case kF64: {
-      Register extra_scratch = GetUnusedRegister(kGpReg, {}).gp();
-      vmov(reg.fp(), base::Double(value.to_f64_boxed().get_bits()),
-           extra_scratch);
+    case kF64:
+      vmov(reg.fp(), base::Double(value.to_f64_boxed().get_bits()));
       break;
-    }
     default:
       UNREACHABLE();
   }
@@ -775,7 +724,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
   static_assert(!COMPRESS_POINTERS_BOOL);
   ldr(dst, MemOperand{src_addr, offset});
@@ -1733,9 +1682,8 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
-  MemOperand dst(frame_pointer, (caller_slot_idx + 1) * kSystemPointerSize);
+                                            ValueKind kind) {
+  MemOperand dst(fp, (caller_slot_idx + 1) * kSystemPointerSize);
   liftoff::Store(this, src, dst, kind);
 }
 
@@ -1824,17 +1772,24 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
       mov(src, Operand(value.to_i32()));
       str(src, dst);
       break;
-    case kI64: {
-      int32_t low_word = value.to_i64();
+    case kF32:
+      mov(src, Operand(value.to_f32_boxed().get_bits()));
+      str(src, dst);
+      break;
+    case kI64:
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      int32_t low_word = static_cast<int32_t>(val64);
       mov(src, Operand(low_word));
       str(src, liftoff::GetHalfStackSlot(offset, kLowWord));
-      int32_t high_word = value.to_i64() >> 32;
+      int32_t high_word = static_cast<int32_t>(val64 >> 32);
       mov(src, Operand(high_word));
       str(src, liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
     }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
@@ -5227,10 +5182,18 @@ void LiftoffStackSlots::Construct(int param_slots) {
         break;
       }
       case LiftoffAssembler::VarState::kIntConst: {
-        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        DCHECK(src.kind() == kI32 || src.kind() == kI64);
+        DCHECK(src.kind() == kI32 || src.kind() == kI64 || src.kind() == kF32 ||
+               src.kind() == kF64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
+        if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->mov(scratch, Operand(src.i32_const() >> 31));
+          asm_->push(scratch);
+          stack_decrement = kSystemPointerSize;
+        }
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         // The high word is the sign extension of the low word.
         asm_->mov(scratch,
                   Operand(slot.half_ == kLowWord ? src.i32_const()

@@ -231,14 +231,18 @@ DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
   return FieldType::Any(isolate);
 }
 
-Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
-    Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
+Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> Object::NewStorageFor(
+    Isolate* isolate,
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
     Representation representation) {
   if (!representation.IsDouble()) return object;
-  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
+  DCHECK(!IsUninitializedHeapNumber(*object));
+  if (IsUninitializedHeapNumber(*object)) return object;
   if (IsUninitializedHole(*object)) {
-    result->set_value_as_bits(kHoleNanInt64);
-  } else if (IsHeapNumber(*object)) {
+    return isolate->factory()->NewUninitializedHeapNumber();
+  }
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberFromBits(0);
+  if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
     result->set_value_as_bits(Cast<HeapNumber>(*object)->value_as_bits());
   } else {
@@ -410,17 +414,14 @@ template <template <typename> typename HandleType>
 typename HandleType<Number>::MaybeType Object::ConvertToUint32(
     Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
-  if (IsSmi(*input)) {
-    return typename HandleType<Number>::MaybeType(
-        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
-  }
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   return isolate->factory()->NewNumberFromUint(
-      DoubleToUint32(Cast<HeapNumber>(*input)->value()));
+      DoubleToUint32(Object::NumberValue(Cast<Number>(*input))));
 }
 
-template MaybeDirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeDirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, DirectHandle<Object> input);
-template MaybeIndirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, IndirectHandle<Object> input);
 
 // static
@@ -480,14 +481,7 @@ typename HandleType<String>::MaybeType Object::ConvertToString(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
 #if V8_ENABLE_WEBASSEMBLY
-    // We generally don't let the WasmNull escape into the JavaScript world,
-    // but some builtins may encounter it when called directly from Wasm code.
-    // This must be checked first, because WasmNull is entirely inaccessible,
-    // even its map, so we have to compare it by pointer before loading
-    // anything from it.
-    if (IsWasmNull(*input)) {
-      return isolate->factory()->null_string();
-    }
+    DCHECK(!IsWasmNull(*input));
 #endif
     if (IsOddball(*input)) {
       HandleType<String> result(Cast<Oddball>(input)->to_string(), isolate);
@@ -1461,10 +1455,10 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, base::VectorOf(args)));
 
-  MaybeHandle<JSAny> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, trap_result, kGet);
   if (result.is_null()) {
-    return result;
+    return {};
   }
 
   // 11. Return trap_result
@@ -1472,7 +1466,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
 }
 
 // static
-MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
+MaybeDirectHandle<JSAny> JSProxy::CheckGetSetTrapResult(
     Isolate* isolate, DirectHandle<Name> name, DirectHandle<JSReceiver> target,
     DirectHandle<Object> trap_result, AccessKind access_kind) {
   // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
@@ -1527,7 +1521,7 @@ MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
       }
     }
   }
-  return isolate->factory()->undefined_value();
+  return Cast<JSAny>(trap_result);
 }
 
 // static
@@ -2025,7 +2019,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (InstanceTypeChecker::IsMap(instance_type)) {
+  if (instance_type == MAP_TYPE) {
     return UncheckedCast<Map>(this)->AllocatedSize();
   }
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
@@ -2832,7 +2826,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   }
 
   DCHECK(!IsWasmObject(*receiver));
-  if (V8_UNLIKELY(IsJSSharedStruct(*receiver) || IsJSSharedArray(*receiver))) {
+  if (V8_UNLIKELY(IsJSSharedStruct(*receiver))) {
     // Shared structs can only point to primitives or shared values.
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));
@@ -3198,7 +3192,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
                                 trap_name, name));
   }
 
-  MaybeDirectHandle<Object> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, value, kSet);
 
   if (result.is_null()) {
@@ -3894,21 +3888,38 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpTo(
     Isolate* isolate, DirectHandle<DescriptorArray> desc, int enumeration_index,
-    int slack) {
-  return DescriptorArray::CopyUpToAddAttributes(isolate, desc,
-                                                enumeration_index, NONE, slack);
+    int slack, bool replace_source) {
+  return DescriptorArray::CopyUpToAddAttributes(
+      isolate, desc, enumeration_index, NONE, slack, replace_source);
 }
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Isolate* isolate, DirectHandle<DescriptorArray> source_handle,
-    int enumeration_index, PropertyAttributes attributes, int slack) {
+    int enumeration_index, PropertyAttributes attributes, int slack,
+    bool replace_source) {
   if (enumeration_index + slack == 0) {
     return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  bool reuse_lookup_table = false;
+  if (replace_source && enumeration_index > kMaxElementsForLinearSearch) {
+    DCHECK_EQ(enumeration_index, source_handle->number_of_descriptors());
+    Tagged<DescriptorLookupTable> source_table =
+        Cast<DescriptorLookupTable>(source_handle->lookup_table());
+    if (DescriptorLookupTable::CapacityFor(enumeration_index + slack) <=
+        source_table->capacity()) {
+      reuse_lookup_table = true;
+    }
+  }
+  DirectHandle<DescriptorArray> copy_handle = DescriptorArray::Allocate(
+      isolate, size, slack, AllocationType::kYoung, !reuse_lookup_table);
+#else
+  USE(replace_source);
   DirectHandle<DescriptorArray> copy_handle =
       DescriptorArray::Allocate(isolate, size, slack);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   DisallowGarbageCollection no_gc;
   Tagged<DescriptorArray> source = *source_handle;
@@ -3940,7 +3951,19 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (reuse_lookup_table) {
+    copy->set_lookup_table(source->lookup_table());
+  } else {
+    copy->CopyFromOrRebuildLookupTable(source);
+  }
+  if (replace_source && !IsUndefined(source->lookup_table())) {
+    source->set_lookup_table(ReadOnlyRoots(isolate).undefined_value(),
+                             SKIP_WRITE_BARRIER);
+  }
+#else
   if (source->number_of_descriptors() != enumeration_index) copy->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   return copy_handle;
 }
@@ -4066,18 +4089,62 @@ template <typename IsolateT>
 Handle<DescriptorArray> DescriptorArray::Allocate(IsolateT* isolate,
                                                   int nof_descriptors,
                                                   int slack,
-                                                  AllocationType allocation) {
+                                                  AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                  ,
+                                                  bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
              : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      allocation);
+                                                      allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                      ,
+                                                      allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+               );
 }
 template Handle<DescriptorArray> DescriptorArray::Allocate(
-    Isolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    Isolate* isolate, int nof_descriptors, int slack, AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
 template Handle<DescriptorArray> DescriptorArray::Allocate(
     LocalIsolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+template <typename IsolateT>
+void DescriptorArray::EnsureLookupTable(IsolateT* isolate,
+                                        DirectHandle<DescriptorArray> array) {
+  if (!IsUndefined(array->lookup_table())) return;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
+  // Shared-space DescriptorArrays (AllocationType::kSharedOld, used by
+  // JSSharedStruct) have fixed layouts and never grow incrementally across
+  // linear search boundary via Append.
+  DCHECK(!chunk->InWritableSharedSpace());
+  AllocationType allocation = HeapLayout::InYoungGeneration(chunk, *array)
+                                  ? AllocationType::kYoung
+                                  : AllocationType::kOld;
+
+  DirectHandle<DescriptorLookupTable> table = DescriptorLookupTable::New(
+      isolate, array->number_of_all_descriptors(), allocation);
+  array->set_lookup_table(*table);
+  array->RebuildLookupTable(array->number_of_descriptors());
+}
+template void DescriptorArray::EnsureLookupTable(
+    Isolate* isolate, DirectHandle<DescriptorArray> array);
+template void DescriptorArray::EnsureLookupTable(
+    LocalIsolate* isolate, DirectHandle<DescriptorArray> array);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
                                  Tagged<HeapObject> undefined_value,
@@ -4088,7 +4155,11 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
-  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  set_lookup_table(UncheckedCast<Undefined>(undefined_value),
+                   SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  set_flags(Flags().with_fast_iterable(FastIterableState::kUnknown),
             kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
@@ -4121,15 +4192,15 @@ void DescriptorArray::InitializeOrChangeEnumCache(
   }
 }
 
-void DescriptorArray::CopyFrom(InternalIndex index,
-                               Tagged<DescriptorArray> src) {
-  PropertyDetails details = src->GetDetails(index);
-  Set(index, src->GetKey(index), src->GetValue(index), details);
-}
-
 void DescriptorArray::SortImpl(const int len) {
-  // In-place heap sort.
   DCHECK_EQ(len, number_of_descriptors());
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (len > kMaxElementsForLinearSearch) {
+    RebuildLookupTable(len);
+  }
+  DCHECK(VerifyLookupTable());
+#else
+  // In-place heap sort.
   // Reset sorting since the descriptor array might contain invalid pointers.
   for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
@@ -4179,6 +4250,7 @@ void DescriptorArray::SortImpl(const int len) {
     }
   }
   DCHECK(IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
 
 void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
@@ -4503,25 +4575,6 @@ Address JSArray::ArrayJoinConcatToSequentialString(
 
 END_PROHIBIT_SIGN_CONVERSION()
 
-void Oddball::Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, DirectHandle<Number> to_number,
-                         const char* type_of, uint8_t kind) {
-  DirectHandle<String> internalized_to_string =
-      isolate->factory()->InternalizeUtf8String(to_string);
-  DirectHandle<String> internalized_type_of =
-      isolate->factory()->InternalizeUtf8String(type_of);
-  if (IsHeapNumber(*to_number)) {
-    oddball->set_to_number_raw_as_bits(
-        Cast<HeapNumber>(to_number)->value_as_bits());
-  } else {
-    oddball->set_to_number_raw(Object::NumberValue(*to_number));
-  }
-  oddball->set_to_number(*to_number);
-  oddball->set_to_string(*internalized_to_string);
-  oddball->set_type_of(*internalized_type_of);
-  oddball->set_kind(kind);
-}
-
 
 
 // static
@@ -4619,50 +4672,9 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
                                      &new_capacity);
 }
 
-void AllocationSite::ResetPretenureDecision() {
-  set_pretenure_decision(kUndecided);
-  set_memento_found_count(0);
-  set_memento_create_count(0);
-}
-
-AllocationType AllocationSite::GetAllocationType() const {
-  PretenureDecision mode = pretenure_decision();
-  // Zombie objects "decide" to be untenured.
-  return mode == kTenure ? AllocationType::kOld : AllocationType::kYoung;
-}
-
-bool AllocationSite::IsNested() {
-  DCHECK(v8_flags.trace_track_allocation_sites);
-  Tagged<Object> current = Isolate::Current()->heap()->allocation_sites_list();
-  while (IsAllocationSite(current)) {
-    Tagged<AllocationSiteWithWeakNext> current_site =
-        Cast<AllocationSiteWithWeakNext>(current);
-    if (current_site->nested_site() == this) {
-      return true;
-    }
-    current = current_site->weak_next();
-  }
-  return false;
-}
-
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   return IsMoreGeneralElementsKindTransition(from, to);
-}
-
-const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
-  switch (decision) {
-    case kUndecided:
-      return "undecided";
-    case kDontTenure:
-      return "don't tenure";
-    case kMaybeTenure:
-      return "maybe tenure";
-    case kTenure:
-      return "tenure";
-    default:
-      UNREACHABLE();
-  }
 }
 
 bool JSArray::WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
@@ -4683,14 +4695,13 @@ const char* Symbol::PrivateSymbolToName() const {
 }
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & StatusBits::kMask;
+  v8::Promise::PromiseState value = flags().status();
   DCHECK(value == 0 || value == 1 || value == 2);
-  return static_cast<v8::Promise::PromiseState>(value);
+  return value;
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~StatusBits::kMask;
-  set_flags(value | status);
+  set_flags(flags().with_status(status));
 }
 
 // static
@@ -4767,7 +4778,12 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
 
   MoveMessageToPromise(isolate, promise);
 
-  if (debug_event) isolate->debug()->OnPromiseReject(promise, reason);
+  if (debug_event) {
+    isolate->debug()->OnPromiseReject(promise, reason);
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->factory()->undefined_value();
+    }
+  }
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
 
@@ -5062,9 +5078,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<JSArray> empty_array =
         factory->NewJSArrayWithElements(factory->empty_fixed_array());
     DirectHandle<Object> resolve_args[] = {empty_array};
-    Execution::Call(isolate, capability_resolve, factory->undefined_value(),
-                    base::VectorOf(resolve_args))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_resolve,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(resolve_args)));
     return capability_promise;
   }
 
@@ -5072,9 +5088,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<Object> error = factory->NewRangeError(
         MessageTemplate::kTooManyElementsInPromiseCombinator,
         factory->NewStringFromAsciiChecked("all"));
-    Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                    base::VectorOf(&error, 1))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_reject,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(&error, 1)));
     return capability_promise;
   }
 
@@ -5098,19 +5114,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
                                                         i + 1);
     DirectHandle<Object> args[] = {resolve_element, capability_reject,
                                    factory->undefined_value()};
-    if (V8_UNLIKELY(Execution::CallBuiltin(isolate,
-                                           isolate->perform_promise_then(),
-                                           promise, base::VectorOf(args))
-                        .is_null())) {
-      CHECK(isolate->has_exception());
-      DirectHandle<Object> reject_args[] = {
-          direct_handle(isolate->exception(), isolate)};
-      isolate->clear_exception();
-      Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                      base::VectorOf(reject_args))
-          .ToHandleChecked();
-      return capability_promise;
-    }
+    RETURN_ON_EXCEPTION(isolate, Execution::CallBuiltin(
+                                     isolate, isolate->perform_promise_then(),
+                                     promise, base::VectorOf(args)));
     // For catch prediction, mark that rejections here are
     // semantically handled by the combined Promise.
     if (isolate->debug()->is_active()) {
@@ -5335,12 +5341,12 @@ HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table = HashTable::New(
       isolate, new_nof,
-      should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung);
 
   table->Rehash(*new_table);
   return new_table;
@@ -5358,13 +5364,13 @@ HashTable<Derived, Shape>::TryEnsureCapacity(IsolateT* isolate,
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table;
   if (!HashTable::TryNew(
            isolate, new_nof,
-           should_pretenure ? AllocationType::kOld : AllocationType::kYoung)
+           use_old_space ? AllocationType::kOld : AllocationType::kYoung)
            .To(&new_table)) {
     return {};
   }
@@ -5425,12 +5431,12 @@ HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   if (new_capacity == table->Capacity()) return table;
   DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
 
-  bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
-                   !HeapLayout::InYoungGeneration(*table);
-  HandleType<Derived> new_table =
-      HashTable::New(isolate, new_capacity,
-                     pretenure ? AllocationType::kOld : AllocationType::kYoung,
-                     USE_CUSTOM_MINIMUM_CAPACITY);
+  bool use_old_space = (new_capacity > kMinCapacityForOldGrowth) &&
+                       !HeapLayout::InYoungGeneration(*table);
+  HandleType<Derived> new_table = HashTable::New(
+      isolate, new_capacity,
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung,
+      USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(*new_table);
   return new_table;

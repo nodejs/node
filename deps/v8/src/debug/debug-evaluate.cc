@@ -221,7 +221,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     evaluation_context_ =
         handle(frame_inspector_.GetFunction()->context(), isolate);
   } else {
-    evaluation_context_ = scope_iterator_.CurrentContext();
+    evaluation_context_ = scope_iterator_.EvaluationContext();
   }
 
   // To evaluate as if we were running eval at the point of the debug break,
@@ -287,21 +287,26 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         element.wrapped_context);
   }
 
-  if (context_chain_.empty() && !IsNativeContext(*evaluation_context_)) {
+  std::optional<DebugScriptScope> target_scope =
+      scope_iterator_.CurrentDebugScope();
+  const bool target_scope_is_contextless =
+      target_scope.has_value() && !target_scope->needs_context();
+  if (context_chain_.empty() &&
+      (!IsNativeContext(*evaluation_context_) || target_scope_is_contextless)) {
     // When evaluating in an outer scope (!InInnerScope()), context_chain_ is
     // empty. We must still wrap evaluation_context_ in a DebugEvaluateContext
     // so that Context::Lookup sets has_seen_debug_evaluate_context = true and
     // consults the blocklist stored in LocalsBlockListCache on outer contexts.
     // If the target outer scope does not have its own runtime Context, we also
     // calculate its [S_eval, K) blocklist on the fly and attach it to the
-    // synthetic scope_info.
+    // synthetic scope_info. This is also required if the closest outer
+    // context is the native context.
     EnsureLocalsBlockList(isolate_, outer_info());
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
-    if (std::optional<DebugScriptScope> scope =
-            scope_iterator_.CurrentDebugScope();
-        scope.has_value() && !scope->needs_context()) {
-      Handle<StringSet> block_list = CalculateScopeBlockList(isolate_, *scope);
+    if (target_scope_is_contextless) {
+      Handle<StringSet> block_list =
+          CalculateScopeBlockList(isolate_, *target_scope);
       isolate_->LocalsBlockListCacheSet(scope_info, DirectHandle<ScopeInfo>(),
                                         block_list);
     }
@@ -327,9 +332,11 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       for (uint32_t i = 0; i < keys_len; i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
-        DirectHandle<Object> value = JSReceiver::GetDataProperty(
-            isolate_, element.materialized_object, key);
-        scope_iterator_.SetVariableValue(key, value);
+        LookupIterator it(isolate_, element.materialized_object,
+                          PropertyKey(isolate_, key),
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.state() != LookupIterator::DATA) continue;
+        scope_iterator_.SetVariableValue(key, it.GetDataValue());
       }
     }
     scope_iterator_.Next();
@@ -356,6 +363,7 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(LoadLookupSlotForCall)               \
   V(GetPrivateMember)                    \
   V(GetProperty)                         \
+  V(HasPrivateMember)                    \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
   V(HasFastPackedElements)               \
@@ -905,12 +913,10 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kFastFunctionPrototypeBind:
     case Builtin::kFunctionPrototypeCall:
     case Builtin::kFunctionPrototypeApply:
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     case Builtin::kFunctionPrototypeLegacyArgumentsGetter:
     case Builtin::kFunctionPrototypeLegacyArgumentsSetter:
     case Builtin::kFunctionPrototypeLegacyCallerGetter:
     case Builtin::kFunctionPrototypeLegacyCallerSetter:
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     // Error builtins.
     case Builtin::kErrorConstructor:
     // RegExp builtins.
@@ -934,6 +940,16 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Builtin::kWasmAllocateInYoungGeneration:
     case Builtin::kWasmAllocateInOldGeneration:
+    case Builtin::kWebAssemblyException:
+    case Builtin::kWebAssemblyGlobal:
+    // TODO(crbug.com/573914678): Instantiating a Wasm module can have side
+    // effects via active segments or a Wasm start function.
+    case Builtin::kWebAssemblyInstance:
+    case Builtin::kWebAssemblyMemory:
+    case Builtin::kWebAssemblyModule:
+    case Builtin::kWebAssemblySuspending:
+    case Builtin::kWebAssemblyTable:
+    case Builtin::kWebAssemblyTag:
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     case Builtin::kGetContinuationPreservedEmbedderData:

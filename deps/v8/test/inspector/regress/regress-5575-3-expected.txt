@@ -1,0 +1,18 @@
+Tests setting breakpoint in outer function while paused in generator.
+  function* boo() {
+    #debugger;
+    yield;
+
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+        locations : [
+            [0] : {
+                columnNumber : 4
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}

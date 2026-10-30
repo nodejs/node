@@ -1604,6 +1604,10 @@ transitioning javascript builtin ArrayPrototypeSort(
   const len: Number = GetLengthProperty(obj);
 
   if (len < 2) return obj;
+  // Unlike the spec, only Smi lengths are supported (crbug.com/v8/7970).
+  if (!TaggedIsSmi(len)) {
+    ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+  }
 
   const isToSorted: constexpr bool = false;
   const sortState: SortState = NewSortState(obj, comparefn, len, isToSorted);

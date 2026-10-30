@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the implemenation for single-precision SIMD exp.
+/// This file contains the implementation for single-precision SIMD exp.
 ///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATHVEC_EXPF_H

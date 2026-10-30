@@ -13,7 +13,7 @@ TEST_F(WasmCapiTest, Regressions) {
   WasmFunctionBuilder* start_func = builder()->AddFunction(&sig);
   start_func->EmitCode({WASM_UNREACHABLE, WASM_END});
   builder()->MarkStartFunction(start_func);
-  builder()->AddImport(base::CStrVector("dummy"), &sig);
+  builder()->AddImport("dummy", &sig);
 
   // Ensure we can validate.
   bool valid = Validate();

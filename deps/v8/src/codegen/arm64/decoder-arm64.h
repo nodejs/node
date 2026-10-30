@@ -35,6 +35,7 @@ namespace internal {
   V(LoadStorePairPreIndex)              \
   V(LoadLiteral)                        \
   V(LoadStoreUnscaledOffset)            \
+  V(LoadStoreRCpcUnscaledOffset)        \
   V(LoadStorePostIndex)                 \
   V(LoadStorePreIndex)                  \
   V(LoadStoreRegisterOffset)            \
@@ -88,6 +89,7 @@ namespace internal {
   V(Cpy)                                \
   V(Set)                                \
   V(SVEBitPerm)                         \
+  V(SVE2Mul)                            \
   V(Unallocated)                        \
   V(Unimplemented)
 

@@ -79,7 +79,6 @@ RUNTIME_FUNCTION(Runtime_IterableForEach) {
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   using interpreter::Bytecode;
   using interpreter::Bytecodes;
-  using interpreter::OperandScale;
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -111,16 +110,25 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
 
-  bool side_effect_check_failed = false;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    side_effect_check_failed =
+    bool side_effect_check_failed =
         !isolate->debug()->PerformSideEffectCheckAtBytecode(interpreted_frame);
+    if (side_effect_check_failed) {
+      return MakePair(ReadOnlyRoots(isolate).exception(),
+                      Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
+    }
   }
 
-  // Make sure to only access these objects after the side effect check, as the
-  // check can allocate on failure.
-  Tagged<SharedFunctionInfo> shared = interpreted_frame->function()->shared();
-  Tagged<BytecodeArray> bytecode_array = shared->GetBytecodeArray(isolate);
+  Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
+  if (IsExceptionHole(interrupt_object)) {
+    return MakePair(interrupt_object,
+                    Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
+  }
+
+  // Make sure to only access these objects after the side effect check and
+  // interrupt handling, as both can allocate or modify debugger state.
+  Tagged<BytecodeArray> bytecode_array =
+      interpreted_frame->GetOriginalBytecodeArray();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
 
@@ -132,23 +140,6 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
     interpreted_frame->PatchBytecodeArray(bytecode_array);
   }
 
-  // We do not have to deal with operand scale here. If the bytecode at the
-  // break is prefixed by operand scaling, we would have patched over the
-  // scaling prefix. We now simply dispatch to the handler for the prefix.
-  // We need to deserialize now to ensure we don't hit the debug break again
-  // after deserializing.
-  OperandScale operand_scale = OperandScale::kSingle;
-  isolate->interpreter()->GetBytecodeHandler(bytecode, operand_scale);
-
-  if (side_effect_check_failed) {
-    return MakePair(ReadOnlyRoots(isolate).exception(),
-                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
-  }
-  Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (IsExceptionHole(interrupt_object)) {
-    return MakePair(interrupt_object,
-                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
-  }
   return MakePair(isolate->debug()->return_value(),
                   Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
@@ -170,6 +161,9 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   if (!it.done() &&
       it.frame()->fp() < isolate->thread_local_top()->last_api_entry_) {
     isolate->debug()->Break(it.frame(), function);
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
   }
 
   return function->shared()->GetCode(isolate);
@@ -378,7 +372,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
       case Module::kEvaluated:
         status = "evaluated";
         break;
-      case Module::kErrored:
+      case Module::kEvaluatedError:
         status = "errored";
         break;
     }
@@ -780,14 +774,18 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
     // Ensure that the callee will perform debug check on function call too.
     DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
     isolate->debug()->DeoptimizeFunction(shared);
-    if (isolate->debug()->last_step_action() >= StepInto ||
-        isolate->debug()->break_on_next_function_call()) {
-      DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
+    if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+      // Side-effect free evaluation always runs with breaks disabled, so
+      // there is no need to prepare stepping, even if stepping or a pause on
+      // the next function call was requested before the evaluation started.
+      DCHECK(isolate->debug()->break_disabled());
+      if (!isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
+        return ReadOnlyRoots(isolate).exception();
+      }
+    } else if (isolate->debug()->last_step_action() >= StepInto ||
+               isolate->debug()->step_over_enters_functions() ||
+               isolate->debug()->break_on_next_function_call()) {
       isolate->debug()->PrepareStepIn(fun);
-    }
-    if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
-        !isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
-      return ReadOnlyRoots(isolate).exception();
     }
   }
   return ReadOnlyRoots(isolate).undefined_value();

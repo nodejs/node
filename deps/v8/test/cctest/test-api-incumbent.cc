@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <optional>
 
 #include "include/v8-function-callback.h"
@@ -87,9 +88,9 @@ v8::LocalVector<Context> SetupCrossContextTest(
     Isolate* isolate, IncumbentTestExpectations* expected) {
   const int n = 4;  // Ignition, Sparkplug, Maglev, TurboFan.
 
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 #if V8_ENABLE_SPARKPLUG
-  i::v8_flags.baseline_batch_compilation = false;
+  i::v8_flags.baseline_batch_compilation.Set(false);
 #endif
 
   v8::LocalVector<Context> contexts(isolate);
@@ -107,9 +108,9 @@ v8::LocalVector<Context> SetupCrossContextTest(
     {
       Context::Scope context_scope(context);
 
-      auto src = v8::base::OwnedVector<char>::NewForOverwrite(30);
-      v8::base::SNPrintF(src.as_vector(), "Object.prototype.id = %d", i);
-      CompileRun(src.begin());
+      std::array<char, 30> src;
+      v8::base::SNPrintF(src, "Object.prototype.id = %d", i);
+      CompileRun(src.data());
     }
   }
 
@@ -125,17 +126,17 @@ v8::LocalVector<Context> SetupCrossContextTest(
     // Add "realmX" properties referencing contextX->global.
     for (int j = 0; j < n; j++) {
       Local<Context> another_context = contexts[j];
-      auto name = v8::base::OwnedVector<char>::NewForOverwrite(30);
-      v8::base::SNPrintF(name.as_vector(), "realm%d", j);
+      std::array<char, 30> name;
+      v8::base::SNPrintF(name, "realm%d", j);
 
       CHECK(context->Global()
-                ->Set(context, v8_str(name.begin()), another_context->Global())
+                ->Set(context, v8_str(name.data()), another_context->Global())
                 .FromJust());
 
       // Check that 'id' property matches the realm index.
-      auto src = v8::base::OwnedVector<char>::NewForOverwrite(30);
-      v8::base::SNPrintF(src.as_vector(), "realm%d.id", j);
-      Local<Value> value = CompileRun(src.begin());
+      std::array<char, 30> src;
+      v8::base::SNPrintF(src, "realm%d.id", j);
+      Local<Value> value = CompileRun(src.data());
       CHECK_EQ(j, value.As<Integer>()->Value());
     }
 
@@ -215,9 +216,9 @@ v8::LocalVector<Context> SetupCrossContextTest(
                                          expected_incumbent_context_ptr)
                                .ToLocalChecked();
 
-    auto name = v8::base::OwnedVector<char>::NewForOverwrite(30);
-    v8::base::SNPrintF(name.as_vector(), "realm%d.f", static_cast<int>(i));
-    func->SetName(v8_str(name.begin()));
+    std::array<char, 30> name;
+    v8::base::SNPrintF(name, "realm%d.f", static_cast<int>(i));
+    func->SetName(v8_str(name.data()));
 
     CHECK(context->Global()->Set(context, v8_str("f"), func).FromJust());
   }

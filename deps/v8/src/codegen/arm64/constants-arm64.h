@@ -241,6 +241,7 @@ using float16 = uint16_t;
   V_(ImmCmpBranch, 23, 5, SignedBits)                   \
   V_(ImmLLiteral, 23, 5, SignedBits)                    \
   V_(ImmException, 20, 5, Bits)                         \
+  V_(ImmUdf, 15, 0, Bits)                               \
   V_(ImmHint, 11, 5, Bits)                              \
   V_(ImmBarrierDomain, 11, 10, Bits)                    \
   V_(ImmBarrierType, 9, 8, Bits)                        \
@@ -846,6 +847,11 @@ constexpr ExceptionOp DCPS3 = ExceptionFixed | 0x00A00003;
 // Code used to spot hlt instructions that should not be hit.
 constexpr int kHltBadCode = 0xbad;
 
+// Permanently undefined.
+using ReservedOp = uint32_t;
+constexpr ReservedOp ReservedMask = 0xFFFF0000;
+constexpr ReservedOp UDF = 0x00000000;
+
 using MemBarrierOp = uint32_t;
 constexpr MemBarrierOp MemBarrierFixed = 0xD503309F;
 constexpr MemBarrierOp MemBarrierFMask = 0xFFFFF09F;
@@ -971,6 +977,41 @@ constexpr LoadStoreUnscaledOffsetOp LoadStoreUnscaledOffsetMask = 0xFFE00C00;
       LoadStoreUnscaledOffsetFixed | D
 LOAD_STORE_OP_LIST(LOAD_STORE_UNSCALED);
 #undef LOAD_STORE_UNSCALED
+
+// Load-acquire/store-release unscaled offset [Armv8.4].
+using LoadStoreRCpcUnscaledOffsetOp = uint32_t;
+constexpr LoadStoreRCpcUnscaledOffsetOp LoadStoreRCpcUnscaledOffsetFixed =
+    0x19000000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LoadStoreRCpcUnscaledOffsetFMask =
+    0x3F200C00;
+constexpr LoadStoreRCpcUnscaledOffsetOp LoadStoreRCpcUnscaledOffsetMask =
+    0xFFE00C00;
+constexpr LoadStoreRCpcUnscaledOffsetOp STLURB =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x00000000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURB =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x00400000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURSB_x =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x00800000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURSB_w =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x00C00000;
+constexpr LoadStoreRCpcUnscaledOffsetOp STLURH =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x40000000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURH =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x40400000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURSH_x =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x40800000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURSH_w =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x40C00000;
+constexpr LoadStoreRCpcUnscaledOffsetOp STLUR_w =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x80000000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPUR_w =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x80400000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPURSW_x =
+    LoadStoreRCpcUnscaledOffsetFixed | 0x80800000;
+constexpr LoadStoreRCpcUnscaledOffsetOp STLUR_x =
+    LoadStoreRCpcUnscaledOffsetFixed | 0xC0000000;
+constexpr LoadStoreRCpcUnscaledOffsetOp LDAPUR_x =
+    LoadStoreRCpcUnscaledOffsetFixed | 0xC0400000;
 
 // Load/store (post, pre, offset and unsigned.)
 using LoadStoreOp = uint32_t;
@@ -2664,6 +2705,13 @@ constexpr SVEBitPermOp SVEBitPermFixed = 0x4500B000;
 constexpr SVEBitPermOp SVEBitPermFMask = 0xFF20F000;
 constexpr SVEBitPermOp SVEBitPermMask = 0xFF20FC00;
 constexpr SVEBitPermOp BEXT = SVEBitPermFixed;
+
+// SVE2 multiply (unpredicated) instructions.
+using SVE2MulOp = uint32_t;
+constexpr SVE2MulOp SVE2MulFixed = 0x04206000;
+constexpr SVE2MulOp SVE2MulFMask = 0xFF20F000;
+constexpr SVE2MulOp SVE2MulMask = 0xFF20FC00;
+constexpr SVE2MulOp SVE2_MUL = SVE2MulFixed;
 
 // Unimplemented and unallocated instructions. These are defined to make fixed
 // bit assertion easier.

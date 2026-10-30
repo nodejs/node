@@ -193,7 +193,7 @@ enum ScaleFactor : int8_t {
   times_half_system_pointer_size = times_4,
   times_system_pointer_size = times_8,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
-  times_external_pointer_size = V8_ENABLE_SANDBOX_BOOL ? times_4 : times_8,
+  times_external_pointer_size = COMPRESS_POINTERS_BOOL ? times_4 : times_8,
 };
 
 class V8_EXPORT_PRIVATE Operand {
@@ -753,7 +753,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum SIMDPrefix { kNoPrefix = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
   enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
-  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
+  enum LeadingOpcode {
+    k0F = 0x1,
+    k0F38 = 0x2,
+    k0F3A = 0x3,
+    kMap5 = 0x5,  // EVEX only (FP16).
+    kMap6 = 0x6   // EVEX only (FP16).
+  };
   enum OpMask { k0 = 0x0, k1 = 0x1, k2 = 0x2 };
   enum MaskingType { kMerging = 0x0, kZeroing = 0x80 };
   enum TupleType {
@@ -2651,6 +2657,73 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // AVX10.1 instructions
+  // Packed FP16 addition, without masking, broadcast, or embedded rounding.
+  void vaddph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x58, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vaddph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x58, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vaddph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x58, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vaddph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x58, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vsubph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vsubph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vsubph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vsubph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vmulph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmulph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vmulph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmulph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  // Packed FP16 FMA, without masking, broadcast, or embedded rounding.
+  // The destination is also the first multiplicand: (+/- dst * src1) + src2.
+  void vfmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfmadd213ph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfmadd213ph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfmadd213ph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfnmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfnmadd213ph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfnmadd213ph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfnmadd213ph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+
   void vpmullq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1);
   }
@@ -2896,6 +2969,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mfence();
   void lfence();
   void pause();
+  void stmxcsr(Operand dst);
 
   // Pkey support.
   // Registers rcx and rdx must be zero, rax is the input/output value.
@@ -3251,14 +3325,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   //
   // Unlike the emit_rex_* helpers these do not accept an XMMRegister yet: the
   // underlying emit_rex2_* emitters only take a GPR in the reg field.
-  void emit_rex2_or_rex(int size, Rex2MapID m) {
+  void emit_rex2_or_rex(int size, Rex2MapID m = kRex2Map0) {
     // Without operands there is no EGPR to encode, so REX2 is never needed.
     emit_rex(size);
     emit_legacy_map_escape(m);
   }
 
   template <class P1>
-  void emit_rex2_or_rex(P1 p1, int size, Rex2MapID m) {
+  void emit_rex2_or_rex(P1 p1, int size, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       if (size == kInt64Size) {
@@ -3275,7 +3349,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex(P1 p1, P2 p2, int size, Rex2MapID m) {
+  void emit_rex2_or_rex(P1 p1, P2 p2, int size, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       if (size == kInt64Size) {
@@ -3291,13 +3365,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     emit_legacy_map_escape(m);
   }
 
-  void emit_rex2_or_rex_64(Rex2MapID m) {
+  void emit_rex2_or_rex_64(Rex2MapID m = kRex2Map0) {
     emit_rex_64();
     emit_legacy_map_escape(m);
   }
 
   template <class P1>
-  void emit_rex2_or_rex_64(P1 p1, Rex2MapID m) {
+  void emit_rex2_or_rex_64(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_64(p1, m);
@@ -3309,7 +3383,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex_64(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_rex2_or_rex_64(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_64(p1, p2, m);
@@ -3321,7 +3395,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1>
-  void emit_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+  void emit_rex2_or_rex_32(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_32(p1, m);
@@ -3333,7 +3407,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_32(p1, p2, m);
@@ -3348,7 +3422,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // would be all-zero. Only the REX fallback is optional: a REX2 prefix is
   // always emitted when an operand needs one.
   template <class P1>
-  void emit_optional_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+  void emit_optional_rex2_or_rex_32(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_32(p1, m);
@@ -3360,7 +3434,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_optional_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_optional_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_32(p1, p2, m);
@@ -3370,6 +3444,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     emit_optional_rex_32(p1, p2);
     emit_legacy_map_escape(m);
   }
+
+  // Prefix helpers for instructions with a byte-register operand. A REX (or
+  // REX2) prefix is required to address sil/dil/bpl/spl and r8b-r15b instead
+  // of ah/ch/dh/bh, so it is always emitted unless every byte operand is one of
+  // al, cl, dl and bl, in which case it is only emitted if the other operands
+  // need it. Extended registers are never byte registers, so they always get
+  // REX2.
+  // {byte_reg} is the only operand: no REX/REX2 prefix is emitted for al, bl,
+  // cl, dl (the 0F escape still is, for map 1).
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg,
+                                          Rex2MapID m = kRex2Map0);
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg, Operand op,
+                                          Rex2MapID m = kRex2Map0);
+  // Both registers are byte operands and the only operands: no REX/REX2 prefix
+  // is emitted if both are one of al, bl, cl, dl (the 0F escape still is, for
+  // map 1).
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg,
+                                          Register byte_rm_reg,
+                                          Rex2MapID m = kRex2Map0);
+  // Only {byte_rm_reg} is a byte operand ({reg} is a full-width register), as
+  // in movzx/movsx from a byte register.
+  inline void emit_rex2_or_optional_rex_8_rm(Register reg, Register byte_rm_reg,
+                                             Rex2MapID m = kRex2Map0);
 
   // Emit vex prefix
   void emit_vex2_byte0() { emit(0xc5); }

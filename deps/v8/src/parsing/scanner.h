@@ -322,6 +322,11 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value Next();
   // Returns the token following peek()
   Token::Value PeekAhead();
+  // Checks the character after peek(); declines if lookahead is buffered.
+  bool HasImmediateCommaOrRightBracket() const {
+    return next_next().token == Token::kUninitialized &&
+           (c0_ == ',' || c0_ == ']');
+  }
   // Returns the token following PeekAhead()
   Token::Value PeekAheadAhead();
   // Returns the current token again.
@@ -459,12 +464,18 @@ class V8_EXPORT_PRIVATE Scanner {
     return ScanTemplateSpan();
   }
 
-  template <typename IsolateT>
-  DirectHandle<String> SourceUrl(IsolateT* isolate) const;
-  template <typename IsolateT>
-  DirectHandle<String> SourceMappingUrl(IsolateT* isolate) const;
-  template <typename IsolateT>
-  DirectHandle<String> DebugId(IsolateT* isolate) const;
+  // Source locations of the values of the debug magic comments. A location is
+  // invalid if there was no such comment, or if the last one was malformed; it
+  // is empty if the last one had an empty value. In both cases there is no
+  // value.
+  struct DebugMagicCommentLocations {
+    Location source_url = Location::invalid();
+    Location source_mapping_url = Location::invalid();
+    Location debug_id = Location::invalid();
+  };
+  const DebugMagicCommentLocations& debug_magic_comment_locations() const {
+    return debug_magic_comment_locations_;
+  }
 
   bool SawSourceMappingUrlMagicCommentAtSign() const {
     return saw_source_mapping_url_magic_comment_at_sign_;
@@ -717,6 +728,12 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value SkipSingleLineComment();
   Token::Value SkipMagicComment(base::uc32 hash_or_at_sign);
   void TryToParseMagicComment(base::uc32 hash_or_at_sign);
+  // Scans the value of a magic comment, starting at the '=', calling on_char
+  // for each value character. Returns the value's location, or
+  // Location::invalid() if anything but whitespace follows the value on the
+  // line.
+  template <typename CharCallback>
+  Location ScanMagicCommentValue(CharCallback on_char);
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
@@ -802,10 +819,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
 
-  // Values parsed from magic comments.
-  LiteralBuffer source_url_;
-  LiteralBuffer source_mapping_url_;
-  LiteralBuffer debug_id_;
+  DebugMagicCommentLocations debug_magic_comment_locations_;
   bool saw_source_mapping_url_magic_comment_at_sign_ = false;
   bool saw_magic_comment_compile_hints_all_ = false;
   bool saw_non_comment_ = false;

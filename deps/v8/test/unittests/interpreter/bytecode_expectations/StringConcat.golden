@@ -167,7 +167,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 35
 bytecodes: [
-  /*   30 E> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   30 E> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star2),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),

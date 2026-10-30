@@ -88,8 +88,8 @@ TNode<HeapObjectReference> AccessorAssembler::TryMonomorphicCase(
 
   // Try to quickly handle the monomorphic case without knowing for sure
   // if we have a weak reference in feedback.
-  CSA_DCHECK(this,
-             IsMap(GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
+  CSA_DCHECK(this, IsMapOrCustomMap(
+                       GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
   GotoIfNot(TaggedEqual(feedback, weak_lookup_start_object_map), if_miss);
 
   TNode<MaybeObject> handler = UncheckedCast<MaybeObject>(
@@ -126,8 +126,8 @@ void AccessorAssembler::HandlePolymorphicCase(
     TNode<IntPtrT> index = ChangePositiveInt32ToIntPtr(var_index.value());
     TNode<MaybeObject> maybe_cached_map =
         LoadWeakFixedArrayElement(feedback, index);
-    CSA_DCHECK(this,
-               IsMap(GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
+    CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(
+                         weak_lookup_start_object_map)));
     GotoIfNot(TaggedEqual(maybe_cached_map, weak_lookup_start_object_map),
               &loop_next);
 
@@ -464,6 +464,8 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
 
       TNode<HeapObject> double_field = CAST(field.value());
       TNode<Map> field_map = LoadMap(double_field);
+      CSA_DCHECK(this,
+                 Word32BinaryNot(IsUninitializedHeapNumberMap(field_map)));
       GotoIfNot(TaggedEqual(field_map, HeapNumberMapConstant()),
                 &if_not_double);
 
@@ -561,7 +563,7 @@ TNode<Code> AccessorAssembler::CastToCode(TNode<MaybeObject> code_candidate) {
   // TaggedMember<UnionOf<Smi,Code>> requires manual validation of the Code
   // object here.
   code = LoadCodePointerFromObject(
-      code, offsetof(ExposedTrustedObject, self_indirect_pointer_));
+      code, offsetof(ExposedTrustedObject, self_trusted_pointer_));
 #endif
   return code;
 }
@@ -910,7 +912,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       TNode<IntPtrT> index_ptr = Signed(ChangeUint32ToWord(index));
       if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         TNode<Uint32T> capacity =
-            Unsigned(LoadSwissNameDictionaryCapacity(CAST(properties)));
+            LoadSwissNameDictionaryCapacity(CAST(properties));
         GotoIf(Uint32GreaterThanOrEqual(index, capacity), &lookup);
         TNode<Object> key =
             LoadSwissNameDictionaryKey(CAST(properties), index_ptr);
@@ -1642,7 +1644,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
       BIND(&data);
       // Handle non-transitioning field stores.
-      HandleStoreICSmiHandlerCase(handler_word, CAST(holder), p->value(), miss);
+      HandleStoreICSmiHandlerCase(handler_word, CAST(holder), p->value(),
+                                  p->mode(), miss);
     }
 
     BIND(&if_proxy);
@@ -1840,7 +1843,8 @@ void AccessorAssembler::UpdateMayHaveInterestingProperty(
     flags = SmiOr(
         flags,
         SmiConstant(
-            NameDictionary::MayHaveInterestingPropertiesBit::encode(true)));
+            NameDictionary::Flags::MayHaveInterestingPropertiesBit::encode(
+                true)));
     SetNameDictionaryFlags(dict, flags);
     Goto(&done);
   }
@@ -1955,16 +1959,17 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       {
         TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
         if (do_transitioning_store) {
-          TNode<Float64T> silenced_value = Float64SilenceNaN(double_value);
           TNode<HeapNumber> heap_number =
-              AllocateHeapNumberWithValue(silenced_value);
+              AllocateHeapNumberWithValue(double_value);
           StoreMap(object, object_map);
           StoreObjectField(object, field_offset, heap_number);
         } else {
           GotoIf(IsPropertyDetailsConst(details), slow);
-          TNode<HeapNumber> heap_number =
+          TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> heap_number =
               CAST(LoadObjectField(object, field_offset));
           StoreHeapNumberValue(heap_number, double_value);
+          // Migrate UninitializedHeapNumber to mutable HeapNumber.
+          StoreMapNoWriteBarrier(heap_number, RootIndex::kHeapNumberMap);
         }
         Goto(&done);
       }
@@ -2002,8 +2007,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
                  &cont);
           {
             TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
-            TNode<Float64T> silenced = Float64SilenceNaN(double_value);
-            var_value = AllocateHeapNumberWithValue(silenced);
+            var_value = AllocateHeapNumberWithValue(double_value);
             Goto(&cont);
           }
           BIND(&cont);
@@ -2026,10 +2030,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         BIND(&double_rep);
         {
           GotoIf(IsPropertyDetailsConst(details), slow);
-          TNode<HeapNumber> heap_number =
+          TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> heap_number =
               CAST(LoadPropertyArrayElement(properties, backing_store_index));
           TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
           StoreHeapNumberValue(heap_number, double_value);
+          // Migrate UninitializedHeapNumber to mutable HeapNumber.
+          StoreMapNoWriteBarrier(heap_number, RootIndex::kHeapNumberMap);
           Goto(&done);
         }
         BIND(&tagged_rep);
@@ -2356,6 +2362,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                                     TNode<JSObject> holder,
                                                     TNode<Object> value,
+                                                    StoreICMode mode,
                                                     Label* miss) {
   Comment("field store");
 #ifdef DEBUG
@@ -2383,7 +2390,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
   {
     Comment("store tagged field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::Tagged(), miss);
+                              Representation::Tagged(), mode, miss);
   }
 
   BIND(&if_heap_object_field);
@@ -2393,7 +2400,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store heap object field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::HeapObject(), miss);
+                              Representation::HeapObject(), mode, miss);
   }
 
   BIND(&if_smi_field);
@@ -2403,7 +2410,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store smi field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::Smi(), miss);
+                              Representation::Smi(), mode, miss);
   }
 
   BIND(&if_double_field);
@@ -2420,7 +2427,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store double field");
     HandleStoreFieldAndReturn(handler_word, holder, value, double_value,
-                              Representation::Double(), miss);
+                              Representation::Double(), mode, miss);
   }
 }
 
@@ -2512,11 +2519,17 @@ void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
 void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
     std::optional<TNode<Float64T>> double_value, Representation representation,
-    Label* miss) {
+    StoreICMode mode, Label* miss) {
   bool store_value_as_double = representation.IsDouble();
-
-  if (store_value_as_double) {
-    double_value = Float64SilenceNaN(*double_value);
+  bool maybe_initializing_store;
+  switch (mode) {
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineKeyedOwn:
+      maybe_initializing_store = true;
+      break;
+    case StoreICMode::kDefault:
+      maybe_initializing_store = false;
+      break;
   }
 
   TNode<BoolT> is_inobject =
@@ -2540,7 +2553,12 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
 
     // Store the double value directly into the mutable HeapNumber.
     TNode<Object> field = LoadObjectField(property_storage, offset);
-    CSA_DCHECK(this, IsHeapNumber(CAST(field)));
+    if (maybe_initializing_store) {
+      CSA_DCHECK(this, Word32Any(IsHeapNumber(CAST(field)),
+                                 IsUninitializedHeapNumber(CAST(field))));
+    } else {
+      CSA_DCHECK(this, IsHeapNumber(CAST(field)));
+    }
     actual_property_storage = CAST(field);
     actual_offset = IntPtrConstant(offsetof(HeapNumber, value_));
     Goto(&property_and_offset_ready);
@@ -2557,6 +2575,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
             &do_store);
   {
     if (store_value_as_double) {
+      CSA_DCHECK(this, IsHeapNumber(property_storage));
       TNode<Float64T> current_value =
           LoadObjectField<Float64T>(property_storage, offset);
       GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
@@ -2572,6 +2591,10 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
   // Do the store.
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, *double_value);
+    if (maybe_initializing_store) {
+      // Migrate UninitializedHeapNumber to mutable HeapNumber.
+      StoreMapNoWriteBarrier(property_storage, RootIndex::kHeapNumberMap);
+    }
   } else if (representation.IsSmi()) {
     TNode<Smi> value_smi = CAST(value);
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);
@@ -2710,7 +2733,7 @@ void AccessorAssembler::EmitElementLoad(
     int32_t kinds[] = {
         // Handled by if_fast_packed.
         PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
-        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS, SHARED_ARRAY_ELEMENTS,
+        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
         // Handled by if_fast_holey.
         HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
         HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
@@ -2720,7 +2743,7 @@ void AccessorAssembler::EmitElementLoad(
         HOLEY_DOUBLE_ELEMENTS};
     Label* labels[] = {// FAST_{SMI,}_ELEMENTS
                        &if_fast_packed, &if_fast_packed, &if_fast_packed,
-                       &if_fast_packed, &if_fast_packed, &if_fast_packed,
+                       &if_fast_packed, &if_fast_packed,
                        // FAST_HOLEY_{SMI,}_ELEMENTS
                        &if_fast_holey, &if_fast_holey, &if_fast_holey,
                        &if_fast_holey, &if_fast_holey,
@@ -3330,10 +3353,10 @@ void AccessorAssembler::TryProbeStubCacheTable(
   TNode<ExternalReference> key_base = ExternalConstant(
       ExternalReference::Create(stub_cache->key_reference(table)));
 
-  // Check that the key in the entry matches the name.
-  DCHECK_EQ(0, offsetof(StubCache::Entry, key));
-  TNode<HeapObject> cached_key =
-      CAST(Load(MachineType::TaggedPointer(), key_base, entry_offset));
+  // Check that the key in the entry matches the name. The key of an empty
+  // entry is Smi zero, which never equals a name.
+  static_assert(0 == offsetof(StubCache::Entry, key));
+  TNode<Object> cached_key = Load<Object>(key_base, entry_offset);
   GotoIf(TaggedNotEqual(name, cached_key), if_miss);
 
   // Check that the map in the entry matches.
@@ -5986,8 +6009,50 @@ void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
 
   auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
-  // TODO(magardn): implement HasProperty handling in KeyedLoadICGeneric
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred),
+      generic(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(receiver), &generic);
+
+  TNode<Map> receiver_map = LoadMap(CAST(receiver));
+  GotoIfNot(IsJSReceiverMap(receiver_map), &generic);
+
+  GotoIf(TaggedIsSmi(name), &generic);
+
+  TNode<HeapObject> key = CAST(name);
+  GotoIfNot(IsUniqueNameNoIndex(key), &generic);
+
+  // The stub cache is keyed by (JSReceiver map, unique non-index name).
+  TNode<Name> unique_name = CAST(key);
+  TryProbeStubCache(isolate()->has_stub_cache(), receiver, receiver_map,
+                    unique_name, &if_handler, &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    LoadICParameters p(context, receiver, unique_name, slot, vector, receiver,
+                       receiver_map);
+    LazyLoadICParameters lazy_p(&p);
+    HandleLoadICHandlerCase(
+        &lazy_p, var_handler.value(), &miss, &direct_exit, ICMode::kNonGlobalIC,
+        OnNonExistent::kReturnUndefined, kOnlyProperties, LoadAccessMode::kHas);
+  }
+
+  BIND(&miss);
+  {
+    // Without a feedback vector the miss handler won't fill the cache, so
+    // don't pay for the runtime call.
+    GotoIf(IsUndefined(vector), &generic);
+    TailCallRuntime(Runtime::kKeyedHasIC_Miss, context, receiver, unique_name,
+                    slot, vector);
+  }
+
+  BIND(&generic);
   Return(HasProperty(context, receiver, name,
                      HasPropertyLookupMode::kHasProperty));
 }

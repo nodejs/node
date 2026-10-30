@@ -36,8 +36,9 @@ V8_OBJECT class Foreign : public HeapObject {
   inline Address foreign_address_unchecked(IsolateForSandbox isolate) const;
   inline Address foreign_address_unchecked() const;
 
-  // Get the tag of this foreign from the external pointer table. Non-sandbox
-  // builds will always return {kAnyExternalPointerTag}.
+  // Get the tag of this foreign from the external pointer table.
+  // Non-pointer-compression builds will always return
+  // {kExternalPointerNullTag}.
   inline ExternalPointerTag GetTag() const;
 
   class BodyDescriptor;

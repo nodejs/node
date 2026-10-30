@@ -764,7 +764,11 @@ inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   MacroAssembler::LoadF32(dst, src);
 }
 inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
-  MacroAssembler::StoreF32(src, dst);
+  // Turn sNaN to qNaN.
+  TemporaryRegisterScope temps(this);
+  DoubleRegister double_scratch = temps.AcquireScratchDouble();
+  frsp(double_scratch, src);
+  MacroAssembler::StoreF32(double_scratch, dst);
 }
 inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
   MacroAssembler::LoadF64(dst, src);

@@ -284,7 +284,8 @@ constexpr T InitDefaultValue(EmptyBraces) {
 }
 
 template <typename ValueT, typename GenT,
-          std::enable_if_t<std::is_integral_v<ValueT>, int> = ((void)GenT{}, 0)>
+          std::enable_if_t<std::is_arithmetic_v<ValueT>, int> = ((void)GenT{},
+                                                                 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }
@@ -710,6 +711,7 @@ class FlagImpl final : public CommandLineFlag {
       ABSL_LOCKS_EXCLUDED(DataGuard());
 
   int64_t ModificationCount() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+  bool CanSkipInitOnSave() const;
 
   // Interfaces to save and restore flags to/from persistent state.
   // Returns current flag state or nullptr if flag does not support

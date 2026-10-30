@@ -1,0 +1,9 @@
+Tests debug-evaluate-no-side-effect-control.
+45 === 45
+0012 === 0012
+15 === 15
+15 === 15
+023 === 023
+oups === oups
+6 === 6
+EvalError

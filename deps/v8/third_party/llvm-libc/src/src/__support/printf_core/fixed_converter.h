@@ -10,7 +10,6 @@
 #define LLVM_LIBC_SRC___SUPPORT_PRINTF_CORE_FIXED_CONVERTER_H
 
 #include "include/llvm-libc-macros/stdfix-macros.h"
-#include "src/__support/CPP/string_view.h"
 #include "src/__support/ctype_utils.h"
 #include "src/__support/fixed_point/fx_bits.h"
 #include "src/__support/fixed_point/fx_rep.h"
@@ -20,6 +19,10 @@
 #include "src/__support/printf_core/converter_utils.h"
 #include "src/__support/printf_core/core_structs.h"
 #include "src/__support/printf_core/writer.h"
+
+#if !defined(LIBC_COPT_PRINTF_DISABLE_WIDE)
+#include "src/__support/wctype_utils.h"
+#endif // !LIBC_COPT_PRINTF_DISABLE_WIDE
 
 #include <inttypes.h>
 #include <stddef.h>
@@ -49,13 +52,13 @@ LIBC_INLINE constexpr uint32_t const_ten_exp(uint32_t exponent) {
 
 #define APPLY_FX_LENGTH_MODIFIER(LENGTH_MODIFIER)                              \
   do {                                                                         \
-    if (to_conv.conv_name == 'r') {                                            \
+    if (to_conv.conv_name == CharT{'r'}) {                                     \
       READ_FX_BITS(LENGTH_MODIFIER fract);                                     \
-    } else if (to_conv.conv_name == 'R') {                                     \
+    } else if (to_conv.conv_name == CharT{'R'}) {                              \
       READ_FX_BITS(unsigned LENGTH_MODIFIER fract);                            \
-    } else if (to_conv.conv_name == 'k') {                                     \
+    } else if (to_conv.conv_name == CharT{'k'}) {                              \
       READ_FX_BITS(LENGTH_MODIFIER accum);                                     \
-    } else if (to_conv.conv_name == 'K') {                                     \
+    } else if (to_conv.conv_name == CharT{'K'}) {                              \
       READ_FX_BITS(unsigned LENGTH_MODIFIER accum);                            \
     } else {                                                                   \
       LIBC_ASSERT(false && "Invalid conversion name passed to convert_fixed"); \
@@ -63,9 +66,9 @@ LIBC_INLINE constexpr uint32_t const_ten_exp(uint32_t exponent) {
     }                                                                          \
   } while (false)
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_fixed(Writer<mode> *writer,
-                              const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_fixed(Writer<mode, CharT> *writer,
+                              const FormatSection<CharT> &to_conv) {
   // Long accum should be the largest type, so we can store all the smaller
   // numbers in things sized for it.
   using LARep = fixed_point::FXRep<unsigned long accum>;
@@ -123,7 +126,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
 
   constexpr size_t MAX_FRACTION_DIGITS = LARep::FRACTION_LEN;
 
-  char fraction_digits[MAX_FRACTION_DIGITS];
+  CharT fraction_digits[MAX_FRACTION_DIGITS];
 
   size_t valid_fraction_digits = 0;
 
@@ -142,8 +145,8 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
 
     // we add TEN_EXP_NINE to force leading zeroes to show up, then we skip the
     // first digit in the loop.
-    const IntegerToString<uint32_t> cur_fractional_digits(cur_digits +
-                                                          TEN_EXP_NINE);
+    const IntegerToString<uint32_t, radix::Dec, CharT> cur_fractional_digits(
+        cur_digits + TEN_EXP_NINE);
     for (size_t i = 0;
          i < DIGITS_PER_BLOCK && valid_fraction_digits < MAX_FRACTION_DIGITS;
          ++i, ++valid_fraction_digits)
@@ -177,7 +180,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
     // Handle rounding. Just do round to nearest, tie to even since it's
     // unspecified.
     RoundDirection round;
-    char first_digit_after = fraction_digits[precision];
+    CharT first_digit_after = fraction_digits[precision];
     if (internal::b36_char_to_int(first_digit_after) > 5) {
       round = RoundDirection::Up;
     } else if (internal::b36_char_to_int(first_digit_after) < 5) {
@@ -188,7 +191,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
       round = RoundDirection::Even;
       for (size_t cur_digit_index = precision + 1;
            cur_digit_index + 1 < valid_fraction_digits; ++cur_digit_index) {
-        if (fraction_digits[cur_digit_index] != '0') {
+        if (fraction_digits[cur_digit_index] != CharT{'0'}) {
           round = RoundDirection::Up;
           break;
         }
@@ -201,7 +204,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
       int digit_to_round = static_cast<int>(precision) - 1;
       for (; digit_to_round >= 0 && keep_rounding; --digit_to_round) {
         keep_rounding = false;
-        char cur_digit = fraction_digits[digit_to_round];
+        CharT cur_digit = fraction_digits[digit_to_round];
         // if the digit should not be rounded up
         if (round == RoundDirection::Even &&
             (internal::b36_char_to_int(cur_digit) % 2) == 0) {
@@ -211,8 +214,8 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
         fraction_digits[digit_to_round] += 1;
 
         // if the digit was a 9, instead replace with a 0.
-        if (cur_digit == '9') {
-          fraction_digits[digit_to_round] = '0';
+        if (cur_digit == CharT{'9'}) {
+          fraction_digits[digit_to_round] = CharT{'0'};
           keep_rounding = true;
         }
       }
@@ -230,7 +233,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
     valid_fraction_digits = precision;
   }
 
-  const IntegerToString<StorageType> integral_str(integral);
+  const IntegerToString<StorageType, radix::Dec, CharT> integral_str(integral);
 
   // these are signed to prevent underflow due to negative values. The
   // eventual values will always be non-negative.
@@ -241,9 +244,9 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
   if (precision > valid_fraction_digits)
     trailing_zeroes = precision - (valid_fraction_digits);
 
-  constexpr cpp::string_view DECIMAL_POINT(".");
+  constexpr CharT DECIMAL_POINT = CharT{'.'};
 
-  char sign_char = 0;
+  CharT sign_char = 0;
 
   // Check if the conv name is uppercase
   if (internal::isupper(to_conv.conv_name)) {
@@ -254,11 +257,11 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
   }
 
   if (is_negative)
-    sign_char = '-';
+    sign_char = CharT{'-'};
   else if ((flags & FormatFlags::FORCE_SIGN) == FormatFlags::FORCE_SIGN)
-    sign_char = '+'; // FORCE_SIGN has precedence over SPACE_PREFIX
+    sign_char = CharT{'+'}; // FORCE_SIGN has precedence over SPACE_PREFIX
   else if ((flags & FormatFlags::SPACE_PREFIX) == FormatFlags::SPACE_PREFIX)
-    sign_char = ' ';
+    sign_char = CharT{' '};
 
   padding = static_cast<int>(to_conv.min_width - (sign_char > 0 ? 1 : 0) -
                              integral_str.size() -
@@ -278,20 +281,20 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
       RET_IF_RESULT_NEGATIVE(
           writer->write({fraction_digits, valid_fraction_digits}));
     if (trailing_zeroes > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write('0', trailing_zeroes));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, trailing_zeroes));
     if (padding > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write(' ', padding));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, padding));
   } else {
     // The pattern is (spaces), (sign), (zeroes), integral, (.), (fraction),
     // (zeroes)
     if ((padding > 0) &&
         ((flags & FormatFlags::LEADING_ZEROES) != FormatFlags::LEADING_ZEROES))
-      RET_IF_RESULT_NEGATIVE(writer->write(' ', padding));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, padding));
     if (sign_char > 0)
       RET_IF_RESULT_NEGATIVE(writer->write(sign_char));
     if ((padding > 0) &&
         ((flags & FormatFlags::LEADING_ZEROES) == FormatFlags::LEADING_ZEROES))
-      RET_IF_RESULT_NEGATIVE(writer->write('0', padding));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, padding));
     RET_IF_RESULT_NEGATIVE(writer->write(integral_str.view()));
     if (has_decimal_point)
       RET_IF_RESULT_NEGATIVE(writer->write(DECIMAL_POINT));
@@ -299,7 +302,7 @@ LIBC_INLINE int convert_fixed(Writer<mode> *writer,
       RET_IF_RESULT_NEGATIVE(
           writer->write({fraction_digits, valid_fraction_digits}));
     if (trailing_zeroes > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write('0', trailing_zeroes));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, trailing_zeroes));
   }
   return WRITE_OK;
 }

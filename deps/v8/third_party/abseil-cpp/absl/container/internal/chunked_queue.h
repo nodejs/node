@@ -35,9 +35,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-// ChunkedQueueBlock defines a node in a forward list of uninitialized storage
-// of size T's. The user is responsible for constructing and destroying T's in
-// said storage.
+// ChunkedQueueBlock defines a node in a doubly-linked list of uninitialized
+// storage of size T's. The user is responsible for constructing and destroying
+// T's in said storage.
 //
 // ChunkedQueueBlock::New(size) returns said node, with at least size_hint T's
 // of uninitialized storage.
@@ -54,7 +54,7 @@ class ChunkedQueueBlock {
   // the New() and Delete() methods.  (This notionally-private constructor is
   // public only to allow access from allocator types used by New().)
   explicit ChunkedQueueBlock(size_t size)
-      : next_(nullptr), limit_(start() + size) {}
+      : next_(nullptr), prev_(nullptr), limit_(start() + size) {}
 
   // Must be deleted by ChunkedQueueBlock::Delete.
   static ChunkedQueueBlock* New(size_t size_hint, Allocator* alloc) {  // NOLINT
@@ -100,6 +100,8 @@ class ChunkedQueueBlock {
 
   ChunkedQueueBlock* next() const { return next_; }
   void set_next(ChunkedQueueBlock* next) { next_ = next; }
+  ChunkedQueueBlock* prev() const { return prev_; }
+  void set_prev(ChunkedQueueBlock* prev) { prev_ = prev; }
   T* start() {
     return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(this) +
                                 start_offset());
@@ -163,6 +165,7 @@ class ChunkedQueueBlock {
   }
 
   ChunkedQueueBlock* next_;
+  ChunkedQueueBlock* prev_;
   T* limit_;
 };
 

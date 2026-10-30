@@ -7,7 +7,7 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-layout-inl.h"
@@ -168,13 +168,6 @@ MaybeDirectHandle<String> CreateExternalizableString(
     isolate->ThrowError("Read-only strings cannot be externalized.");
     return kNullMaybeHandle;
   }
-#ifdef V8_COMPRESS_POINTERS
-  // Small strings may not be in-place externalizable.
-  if (string->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
-    isolate->ThrowError("String is too short to be externalized.");
-    return kNullMaybeHandle;
-  }
-#endif
 
   // Special handling for ConsStrings, as the ConsString -> ExternalString
   // migration is special for GC (Tagged pointers to Untagged pointers).

@@ -1,0 +1,4 @@
+Untrusted sessions must not learn the isolate id from objectId
+getIsolateId denied for untrusted session: true
+isolate id recovered from untrusted objectId matches getIsolateId: false
+callFunctionOn with untrusted objectId result: 2

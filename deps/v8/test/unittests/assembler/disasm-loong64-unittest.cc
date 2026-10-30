@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <array>
+
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
@@ -46,7 +48,7 @@ using DisasmLoong64Test = TestWithIsolate;
 bool DisassembleAndCompare(uint8_t* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
 
   /*  if (prev_instr_compact_branch) {
       disasm.InstructionDecode(disasm_buffer, pc);
@@ -55,13 +57,13 @@ bool DisassembleAndCompare(uint8_t* pc, const char* compare_string) {
 
   disasm.InstructionDecode(disasm_buffer, pc);
 
-  if (strcmp(compare_string, disasm_buffer.begin()) != 0) {
+  if (strcmp(compare_string, disasm_buffer.data()) != 0) {
     fprintf(stderr,
             "expected: \n"
             "%s\n"
             "disassembled: \n"
             "%s\n\n",
-            compare_string, disasm_buffer.begin());
+            compare_string, disasm_buffer.data());
     return false;
   }
   return true;

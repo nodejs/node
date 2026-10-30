@@ -10,6 +10,7 @@
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-sandbox.h"       // NOLINT(build/include_directory)
 #include "v8-value.h"         // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -21,6 +22,7 @@ class String;
 
 namespace internal {
 class ExternalString;
+class ExternalStringResourceWrapper;
 class ScopedExternalStringLock;
 class StringForwardingTable;
 }  // namespace internal
@@ -285,6 +287,9 @@ class V8_EXPORT String : public Name {
      * Internally V8 will call this Unaccount method when the external string
      * resource should be unaccounted for. This method can be overridden in
      * subclasses to control how allocated external bytes are accounted.
+     *
+     * Implementations must not allocate on the V8 heap, trigger garbage
+     * collection, or execute JavaScript.
      */
     virtual void Unaccount(Isolate* isolate) {}
 
@@ -331,6 +336,9 @@ class V8_EXPORT String : public Name {
      * resource is no longer needed. The default implementation will use the
      * delete operator. This method can be overridden in subclasses to
      * control how allocated external string resources are disposed.
+     *
+     * Implementations must not allocate on the V8 heap, trigger garbage
+     * collection, or execute JavaScript.
      */
     virtual void Dispose() { delete this; }
 
@@ -354,6 +362,7 @@ class V8_EXPORT String : public Name {
 
    private:
     friend class internal::ExternalString;
+    friend class internal::ExternalStringResourceWrapper;
     friend class v8::String;
     friend class internal::StringForwardingTable;
     friend class internal::ScopedExternalStringLock;
@@ -726,6 +735,10 @@ class V8_EXPORT String : public Name {
  private:
   void VerifyExternalStringResourceBase(const ExternalStringResourceBase* v,
                                         Encoding encoding) const;
+  // Reads the resource of the external string at {obj}. Generally returns a
+  // resource unless corruption results in sandbox violations.
+  V8_INLINE static ExternalStringResourceBase* ReadExternalStringResource(
+      v8::Isolate* isolate, internal::Address obj);
   ExternalStringResource* GetExternalStringResourceSlow() const;
   const ExternalOneByteStringResource* GetExternalOneByteStringResourceSlow()
       const;
@@ -984,6 +997,22 @@ Local<String> String::Empty(Isolate* isolate) {
   return Local<String>::FromSlot(slot);
 }
 
+// static
+String::ExternalStringResourceBase* String::ReadExternalStringResource(
+    v8::Isolate* isolate, internal::Address obj) {
+  using A = internal::Address;
+  using I = internal::Internals;
+  // The resource field references a cppgc wrapper object (through the
+  // CppHeapPointerTable when pointer compression is enabled), which in turn
+  // holds the resource. The wrapper is nullptr if the type check fails.
+  A wrapper = reinterpret_cast<A>(internal::ReadCppHeapPointerField<void>(
+      isolate, obj, I::kStringResourceOffset,
+      CppHeapPointerTag::kExternalStringResourceTag));
+  if (wrapper == internal::kNullAddress) return nullptr;
+  return *reinterpret_cast<ExternalStringResourceBase* const*>(
+      wrapper + I::kExternalStringResourceWrapperResourceOffset);
+}
+
 String::ExternalStringResource* String::GetExternalStringResource() const {
   using A = internal::Address;
   using I = internal::Internals;
@@ -991,10 +1020,9 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
 
   ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
-    Isolate* isolate = I::GetCurrentIsolateForSandbox();
-    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
-        isolate, obj, I::kStringResourceOffset);
-    result = reinterpret_cast<String::ExternalStringResource*>(value);
+    Isolate* isolate = I::GetCurrentIsolate();
+    result = static_cast<ExternalStringResource*>(
+        ReadExternalStringResource(isolate, obj));
   } else {
     result = GetExternalStringResourceSlow();
   }
@@ -1011,10 +1039,9 @@ String::GetExternalOneByteStringResource() const {
   A obj = internal::ValueHelper::ValueAsAddress(this);
   const ExternalOneByteStringResource* result;
   if (I::IsExternalOneByteString(I::GetInstanceType(obj))) {
-    Isolate* isolate = I::GetCurrentIsolateForSandbox();
-    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
-        isolate, obj, I::kStringResourceOffset);
-    result = reinterpret_cast<String::ExternalOneByteStringResource*>(value);
+    Isolate* isolate = I::GetCurrentIsolate();
+    result = static_cast<const ExternalOneByteStringResource*>(
+        ReadExternalStringResource(isolate, obj));
   } else {
     result = GetExternalOneByteStringResourceSlow();
   }
@@ -1034,9 +1061,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   ExternalStringResourceBase* resource;
   if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
-    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
-        isolate, obj, I::kStringResourceOffset);
-    resource = reinterpret_cast<ExternalStringResourceBase*>(value);
+    resource = ReadExternalStringResource(isolate, obj);
   } else {
     resource = GetExternalStringResourceBaseSlow(encoding_out);
   }
@@ -1048,7 +1073,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
 
 String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
     String::Encoding* encoding_out) const {
-  Isolate* isolate = internal::Internals::GetCurrentIsolateForSandbox();
+  Isolate* isolate = internal::Internals::GetCurrentIsolate();
   return GetExternalStringResourceBase(isolate, encoding_out);
 }
 

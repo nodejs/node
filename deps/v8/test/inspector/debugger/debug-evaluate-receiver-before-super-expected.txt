@@ -1,0 +1,31 @@
+Tests debug-evaluate-receiver-before-super.
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'this' from debugger     at eval (eval at B (:5:5), <anonymous>:1:1)     at new B (<anonymous>:5:5)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : 0
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : ReferenceError
+        description : ReferenceError: Cannot access 'this' from debugger     at eval (eval at B (:5:5), <anonymous>:1:1)     at new B (<anonymous>:5:5)     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+{
+    result : {
+        description : 239
+        type : number
+        value : 239
+    }
+}

@@ -57,7 +57,7 @@ transitioning builtin ProxyGetProperty(
   //    is undefined, then
   //      i. If trapResult is not undefined, throw a TypeError exception.
   // 11. Return trapResult.
-  CheckGetSetTrapResult(target, proxy, name, trapResult, kProxyGet);
+  CheckGetSetTrapResult(target, name, trapResult, kProxyGet);
   return trapResult;
 }
 }

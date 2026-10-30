@@ -7,9 +7,12 @@
 
 #include <atomic>
 #include <iosfwd>
+#include <optional>
+#include <span>
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
@@ -20,12 +23,9 @@
 namespace v8 {
 namespace internal {
 
-namespace compiler {
-class WasmGraphBuilder;
-namespace turboshaft {
+namespace compiler::turboshaft {
 class AccessBuilderTS;
-}
-}
+}  // namespace compiler::turboshaft
 
 namespace maglev {
 class MaglevGraphBuilder;
@@ -159,7 +159,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   DECL_VERIFIER(Name)
   DECL_PRINTER(Name)
   void NameShortPrint();
-  int NameShortPrint(base::Vector<char> str);
+  int NameShortPrint(std::span<char> str);
 
   // Mask constant for checking if a name has a computed hash code and the type
   // of information stored in the hash field. The least significant bit
@@ -171,28 +171,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
     kForwardingIndex = 0b01,
     kEmpty = 0b11
   };
-
-  using HashFieldTypeBits = base::BitField<HashFieldType, 0, 2>;
-  using HashBits =
-      HashFieldTypeBits::Next<uint32_t, kBitsPerInt - HashFieldTypeBits::kSize>;
-
-  static constexpr int kHashNotComputedMask = 1;
-  // Value of empty hash field indicating that the hash is not computed.
-  static constexpr int kEmptyHashField =
-      HashFieldTypeBits::encode(HashFieldType::kEmpty);
-
-  // Empty hash and forwarding indices can not be used as hash.
-  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
-  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
-                 kHashNotComputedMask) != 0);
-
-  using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
-  using IsExternalForwardingIndexBit =
-      IsInternalizedForwardingIndexBit::Next<bool, 1>;
-  using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
-      unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
-                        IsInternalizedForwardingIndexBit::kSize -
-                        IsExternalForwardingIndexBit::kSize>;
 
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
@@ -227,16 +205,63 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
                 "kArrayIndexHashShift must be at least half of "
                 "kArrayIndexValueBits");
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
+  struct Hash : BitFieldGroup<Hash, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using HashFieldTypeBits = First<HashFieldType, 2>;
+
+    // Hash code view (kHash).
+    using HashBits =
+        HashFieldTypeBits::Next<uint32_t,
+                                kBitsPerInt - HashFieldTypeBits::kSize>;
+
+    // Array index view (kIntegerIndex).
+    using ArrayIndexValueBits =
+        HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
+    using ArrayIndexLengthBits =
+        ArrayIndexValueBits::Next<unsigned int, kBitsPerInt -
+                                                    kArrayIndexValueBits -
+                                                    HashFieldTypeBits::kSize>;
+
+    // String forwarding table view (kForwardingIndex).
+    using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
+    using IsExternalForwardingIndexBit =
+        IsInternalizedForwardingIndexBit::Next<bool, 1>;
+    using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
+        unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
+                          IsInternalizedForwardingIndexBit::kSize -
+                          IsExternalForwardingIndexBit::kSize>;
+
+    BIT_FIELD_GROUP_ACCESSORS(hash_field_type, HashFieldTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(array_index_value, ArrayIndexValueBits)
+    BIT_FIELD_GROUP_ACCESSORS(array_index_length, ArrayIndexLengthBits)
+  };
+  // TODO(jgruber): Remove these aliases after migrating callers to Hash.
+  using HashFieldTypeBits = Hash::HashFieldTypeBits;
+  using HashBits = Hash::HashBits;
+  using IsInternalizedForwardingIndexBit =
+      Hash::IsInternalizedForwardingIndexBit;
+  using IsExternalForwardingIndexBit = Hash::IsExternalForwardingIndexBit;
+  using ForwardingIndexValueBits = Hash::ForwardingIndexValueBits;
+  using ArrayIndexValueBits = Hash::ArrayIndexValueBits;
+  using ArrayIndexLengthBits = Hash::ArrayIndexLengthBits;
+
+  static constexpr int kHashNotComputedMask = 1;
+  // Value of empty hash field indicating that the hash is not computed.
+  static constexpr int kEmptyHashField =
+      HashFieldTypeBits::encode(HashFieldType::kEmpty);
+
+  // Empty hash and forwarding indices can not be used as hash.
+  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+                 kHashNotComputedMask) != 0);
+
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
   static_assert(kArrayIndexLengthBits > 0);
   static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
-
-  using ArrayIndexValueBits =
-      HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
-  using ArrayIndexLengthBits =
-      ArrayIndexValueBits::Next<unsigned int, kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -271,10 +296,10 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // a forwarding index.
   inline uint32_t EnsureRawHash();
   // If `out_one_byte_content` is non-null and the hasher actually scans the
-  // content here, it is set to true iff the content fits in one byte. Stays
+  // content here, it is set to whether the content fits in one byte. Stays
   // untouched on the early-return paths (hash already computed, hashed via
   // the forwarding table, length > kMaxHashCalcLength).
-  inline uint32_t EnsureRawHash(bool* out_one_byte_content);
+  inline uint32_t EnsureRawHash(std::optional<bool>* out_one_byte_content);
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
   inline uint32_t RawHash();
 
@@ -292,6 +317,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
  private:
   friend class V8HeapExplorer;
+  friend class Serializer;
   friend class CodeStubAssembler;
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
@@ -301,12 +327,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class maglev::MaglevAssembler;
   friend struct maglev::VirtualNameShape;
   friend class compiler::AccessBuilder;
-  friend class compiler::WasmGraphBuilder;
   friend class TorqueGeneratedNameAsserts;
 
   inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;
 
-  std::atomic_uint32_t raw_hash_field_;
+  std::atomic<Hash> raw_hash_field_;
 } V8_OBJECT_END;
 
 inline bool IsUniqueName(Tagged<Name> obj);
@@ -314,13 +339,23 @@ inline bool IsUniqueName(Tagged<Name> obj);
 // ES6 symbols.
 V8_OBJECT class Symbol : public Name {
  public:
-  using PrivateSymbolKindBits = base::BitField<PrivateSymbolKind, 0, 2>;
-  using IsWellKnownSymbolBit = PrivateSymbolKindBits::Next<bool, 1>;
-  using IsInPublicSymbolTableBit = IsWellKnownSymbolBit::Next<bool, 1>;
-  using IsInterestingSymbolBit = IsInPublicSymbolTableBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  inline Tagged<PrimitiveHeapObject> description() const;
-  inline void set_description(Tagged<PrimitiveHeapObject> value,
+    using PrivateSymbolKindBits = First<PrivateSymbolKind, 2>;
+    using IsWellKnownSymbolBit = PrivateSymbolKindBits::Next<bool, 1>;
+    using IsInPublicSymbolTableBit = IsWellKnownSymbolBit::Next<bool, 1>;
+    using IsInterestingSymbolBit = IsInPublicSymbolTableBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(private_symbol_kind, PrivateSymbolKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_well_known_symbol, IsWellKnownSymbolBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_in_public_symbol_table,
+                              IsInPublicSymbolTableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_interesting_symbol, IsInterestingSymbolBit)
+  };
+
+  inline Tagged<UnionOf<String, Undefined>> description() const;
+  inline void set_description(Tagged<UnionOf<String, Undefined>> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_private_symbol_kind(PrivateSymbolKind kind);
 
@@ -377,15 +412,13 @@ V8_OBJECT class Symbol : public Name {
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
 
-  uint32_t flags() const { return flags_; }
-  void set_flags(uint32_t value) { flags_ = value; }
+  Flags flags() const { return flags_; }
+  void set_flags(Flags value) { flags_ = value; }
 
   const char* PrivateSymbolToName() const;
 
-  uint32_t flags_;
-  // String|Undefined
-  // TODO(leszeks): Introduce a union type for this.
-  TaggedMember<PrimitiveHeapObject> description_;
+  Flags flags_;
+  TaggedMember<UnionOf<String, Undefined>> description_;
 } V8_OBJECT_END;
 
 template <>

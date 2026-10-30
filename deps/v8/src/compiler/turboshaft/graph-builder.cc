@@ -1402,13 +1402,15 @@ OpIndex GraphBuilder::Process(
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
-      // It's ok to merge LoadImmutable into Load after scheduling.
       LoadOp::Kind kind = opcode == IrOpcode::kUnalignedLoad
                               ? LoadOp::Kind::RawUnaligned()
                               : LoadOp::Kind::RawAligned();
       if (__ output_graph().Get(Map(base)).outputs_rep().at(0) ==
           RegisterRepresentation::Tagged()) {
         kind = LoadOp::Kind::TaggedBase();
+      }
+      if (opcode == IrOpcode::kLoadImmutable) {
+        kind = kind.Immutable();
       }
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
@@ -1742,7 +1744,9 @@ OpIndex GraphBuilder::Process(
       FieldAccess const& access = FieldAccessOf(node->op());
       // External pointer must never be stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
-             !V8_ENABLE_SANDBOX_BOOL);
+             !COMPRESS_POINTERS_BOOL ||
+             (!V8_ENABLE_SANDBOX_BOOL &&
+              access.external_pointer_tag == kExternalPointerNullTag));
       // SandboxedPointers are not currently stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
@@ -1777,7 +1781,7 @@ OpIndex GraphBuilder::Process(
 
       __ Store(object, final_value, kind, final_rep, final_write_barrier,
                access.offset, initializing_transitioning,
-               access.indirect_pointer_tag);
+               access.trusted_pointer_tag);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:
@@ -1803,22 +1807,33 @@ OpIndex GraphBuilder::Process(
       }
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
-#ifdef V8_ENABLE_SANDBOX
-      bool is_sandboxed_external =
+#ifdef V8_COMPRESS_POINTERS
+      bool is_external_pointer_handle =
           access.type.Is(compiler::Type::ExternalPointer());
-      if (is_sandboxed_external) {
-        // Fields for sandboxed external pointer contain a 32-bit handle, not a
+#ifndef V8_ENABLE_SANDBOX
+      // When the sandbox is disabled, SandboxedPointer fields (e.g.
+      // JSTypedArray::external_pointer_ and JSDataView::data_pointer_) are
+      // represented as raw pointers with Type::ExternalPointer() and
+      // kExternalPointerNullTag rather than ExternalPointerTable handles.
+      if (access.external_pointer_tag == kExternalPointerNullTag) {
+        is_external_pointer_handle = false;
+      }
+#endif  // !V8_ENABLE_SANDBOX
+      if (is_external_pointer_handle) {
+        // Fields in the external pointer table contain a 32-bit handle, not a
         // 64-bit raw pointer.
         rep = MemoryRepresentation::Uint32();
       }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
       OpIndex value = __ Load(Map(object), kind, rep, access.offset);
-#ifdef V8_ENABLE_SANDBOX
-      if (is_sandboxed_external) {
+#ifdef V8_COMPRESS_POINTERS
+      if (is_external_pointer_handle) {
         value = __ LoadExternalPointer(value, access.external_pointer_tag);
       }
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
-        DCHECK(!is_sandboxed_external);
+        DCHECK(!is_external_pointer_handle);
         value = __ WordPtrShiftRightLogical(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -1866,10 +1881,10 @@ OpIndex GraphBuilder::Process(
                               Map(node->InputAt(2)));
     case IrOpcode::kNewDoubleElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kDouble,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
     case IrOpcode::kNewSmiOrObjectElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kObject,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
 
     case IrOpcode::kDoubleArrayMin:
       return __ DoubleArrayMinMax(Map(node->InputAt(0)),

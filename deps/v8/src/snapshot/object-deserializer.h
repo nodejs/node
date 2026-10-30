@@ -26,7 +26,6 @@ class ObjectDeserializer final : public Deserializer<Isolate> {
   // Deserialize an object graph. Fail gracefully.
   MaybeDirectHandle<HeapObject> Deserialize();
 
-  void LinkAllocationSites();
   void CommitPostProcessedObjects();
 };
 

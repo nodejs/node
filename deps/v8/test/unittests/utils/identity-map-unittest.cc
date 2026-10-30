@@ -714,8 +714,8 @@ TEST_F(IdentityMapTest, GCShortCutting) {
   if (v8_flags.single_generation) return;
   // We don't create ThinStrings immediately when using the forwarding table.
   if (v8_flags.always_use_string_forwarding_table) return;
-  v8_flags.shortcut_strings_with_stack = true;
-  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.shortcut_strings_with_stack.Set(true);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
   ManualGCScope manual_gc_scope(isolate());
   IdentityMapTester t(isolate()->heap(), zone());
   Factory* factory = isolate()->factory();
@@ -855,7 +855,7 @@ using IdentityMapTestWithSharedHeap =
 TEST_F(IdentityMapTestWithSharedHeap, IdentityMapOnClientIsolate) {
   if (!v8_flags.shared_string_table) return;
 
-  v8_flags.manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection.Set(true);
   ManualGCScope manual_gc_scope(i_isolate());
 
   HandleScope handle_scope(i_isolate());

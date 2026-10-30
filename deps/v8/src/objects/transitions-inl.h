@@ -404,7 +404,7 @@ MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
 std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
     Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
   // This helper is supposed to be used only from the main thread.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   return TransitionsAccessor(isolate, map).GetPrototypeTransition(prototype);
 }
 

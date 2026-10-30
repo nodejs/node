@@ -82,8 +82,8 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
 
     InstructionSequence* sequence = this->sequence();
 
-    OptimizedCompilationInfo info(base::ArrayVector("testing"),
-                                  sequence->zone(), CodeKind::FOR_TESTING);
+    OptimizedCompilationInfo info("testing", sequence->zone(),
+                                  CodeKind::FOR_TESTING);
     ZoneStats zone_stats(sequence->isolate()->allocator());
     turboshaft::PipelineData data(
         &zone_stats, turboshaft::TurboshaftPipelineKind::kCSA, nullptr, &info,
@@ -803,6 +803,38 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
     default:
       UNREACHABLE();
   }
+  EndBlock(Last());
+
+  Allocate();
+}
+
+TEST_F(RegisterAllocatorTest, ReloadBlockedAtDeferredEntry) {
+  SetNumRegs(2, 1);
+
+  // Block 0: non-deferred branch to non-deferred Block 1 and deferred Block 2.
+  StartBlock();
+  auto c0 = DefineConstant();
+  auto v0 = Define(Reg(0));
+  auto v1 = Define(Reg(1));
+  EndBlock(Branch(Imm(), 1, 2));
+
+  // Block 1: non-deferred return keeping v0 in r0 and v1 in r1 across Block 0.
+  StartBlock();
+  EmitI(Reg(v0, 0), Reg(v1, 1));
+  Return(Imm());
+  EndBlock(Last());
+
+  // Block 2: deferred block with last instruction 6b. On entry at 6b+0,
+  // ReloadLiveRanges reloads v0 into r0 and v1 into r1 ([6b+0, 6b+2)).
+  // AssignRegisterOnReload sees r0 blocked at 6b+1 by the deferred fixed input
+  // Reg(c0, 0) ([6b+1, 6b+3)) and splits off a tail [6b+1, 6b+3) for
+  // UniqueReg(v0). At 6b+1, r0 is occupied by deferred_fixed_r0 and r1 is
+  // occupied by active v1 until 6b+2. AllocateBlockedReg clamps new_end to
+  // GapFromInstructionIndex(LastDeferredInstructionIndex) = 6b+0 <
+  // tail->Start() (6b+1) and calls SpillBetween(tail, 6b+1, 6b+3), splitting
+  // [6b+1, 6b+3) at 6b+2 so [6b+2, 6b+3) gets r1 once v1 ends at 6b+2.
+  StartBlock(true);
+  EmitI(Reg(c0, 0), Slot(v1), UniqueReg(v0));
   EndBlock(Last());
 
   Allocate();

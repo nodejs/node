@@ -43,6 +43,7 @@
 #include "src/objects/objects.h"
 #include "src/sandbox/sandboxable-thread.h"
 #include "src/zone/accounting-allocator.h"
+#include "test/common/simulator-helper.h"
 
 namespace v8 {
 namespace base {
@@ -114,24 +115,11 @@ class JSHeapBroker;
   static void Test##Name()
 #endif
 
-// Similar to TEST, but used when test definitions appear as members of a
-// (probably parameterized) class. This allows reusing the given tests multiple
-// times. For this to work, the following conditions must hold:
-//   1. The class has a template parameter named kTestFileName of type  char
-//      const*, which is instantiated with __FILE__ at the *use site*, in order
-//      to correctly associate the tests with the test suite using them.
-//   2. To actually execute the tests, create an instance of the class
-//      containing the MEMBER_TESTs.
-#define MEMBER_TEST(Name)                                   \
-  CcTest register_test_##Name =                             \
-      CcTest(Test##Name, kTestFileName, #Name, true, true); \
-  static void Test##Name()
-
-#define EXTENSION_LIST(V)                                                      \
-  V(GC_EXTENSION,       "v8/gc")                                               \
-  V(PRINT_EXTENSION,    "v8/print")                                            \
-  V(PROFILER_EXTENSION, "v8/profiler")                                         \
-  V(TRACE_EXTENSION,    "v8/trace")
+#define EXTENSION_LIST(V)              \
+  V(GC_EXTENSION, "v8/gc")             \
+  V(PRINT_EXTENSION, "v8/print")       \
+  V(PROFILER_EXTENSION, "v8/profiler") \
+  V(TRACE_EXTENSION, "v8/trace")
 
 #define DEFINE_EXTENSION_ID(Name, Ident) Name##_ID,
 enum CcTestExtensionId { EXTENSION_LIST(DEFINE_EXTENSION_ID) kMaxExtensions };
@@ -311,9 +299,9 @@ class ApiTestFuzzer : public v8::internal::SandboxableThread {
 // 2.  cannot rely on the assumption that garbage collection will reclaim all
 //     non-live objects.
 
-#define THREADED_TEST(Name)                                          \
-  static void Test##Name();                                          \
-  RegisterThreadedTest register_##Name(Test##Name, #Name);           \
+#define THREADED_TEST(Name)                                \
+  static void Test##Name();                                \
+  RegisterThreadedTest register_##Name(Test##Name, #Name); \
   /* */ TEST(Name)
 
 class RegisterThreadedTest {
@@ -382,7 +370,6 @@ class LocalContext {
   v8::Isolate* const isolate_;
 };
 
-
 static inline uint16_t* AsciiToTwoByteString(const char* source) {
   size_t array_length = strlen(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
@@ -435,17 +422,14 @@ static inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
 
-
 static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
                                            const char* x) {
   return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
 }
 
-
 static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
   return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
 }
-
 
 static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
   v8::Local<v8::Script> result;
@@ -498,7 +482,6 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
       ->Run(context);
 }
 
-
 static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
                                                      const char* source) {
   v8::Local<v8::String> source_string =
@@ -523,7 +506,6 @@ static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
   }
   return v8::Local<v8::Value>();
 }
-
 
 // Helper functions that compile and run the source.
 static inline v8::Local<v8::Value> CompileRun(const char* source) {
@@ -560,7 +542,6 @@ static inline v8::Local<v8::Value> CompileRun(
   return v8::Local<v8::Value>();
 }
 
-
 // Helper functions that compile and run the source with given origin.
 static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         const char* origin_url,
@@ -574,7 +555,6 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                     v8::ScriptCompiler::CompileOptions());
 }
 
-
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     v8::Local<v8::String> source, const char* origin_url) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -585,7 +565,6 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
                     v8::ScriptCompiler::CompileOptions());
 }
 
-
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     const char* source, const char* origin_url) {
   return CompileRunWithOrigin(v8_str(source), origin_url);
@@ -595,11 +574,11 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 class StreamerThread : public v8::base::Thread {
  public:
   static void StartThreadForTaskAndJoin(
-      v8::ScriptCompiler::ScriptStreamingTask* task) {
+      v8::ScriptCompiler::ScriptStreamingTask* task,
+      i::Isolate* i_isolate = CcTest::i_isolate()) {
     StreamerThread thread(task);
     CHECK(thread.Start());
     {
-      i::Isolate* i_isolate = CcTest::i_isolate();
       i_isolate->main_thread_local_heap()->ExecuteWhileParked(
           [&thread]() { thread.Join(); });
     }
@@ -636,23 +615,15 @@ static inline void ExpectInt32(const char* code, int expected) {
                .FromJust());
 }
 
-
 static inline void ExpectBoolean(const char* code, bool expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsBoolean());
   CHECK_EQ(expected, result->BooleanValue(v8::Isolate::GetCurrent()));
 }
 
+static inline void ExpectTrue(const char* code) { ExpectBoolean(code, true); }
 
-static inline void ExpectTrue(const char* code) {
-  ExpectBoolean(code, true);
-}
-
-
-static inline void ExpectFalse(const char* code) {
-  ExpectBoolean(code, false);
-}
-
+static inline void ExpectFalse(const char* code) { ExpectBoolean(code, false); }
 
 static inline void ExpectObject(const char* code,
                                 v8::Local<v8::Value> expected) {
@@ -660,18 +631,15 @@ static inline void ExpectObject(const char* code,
   CHECK(result->SameValue(expected));
 }
 
-
 static inline void ExpectUndefined(const char* code) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsUndefined());
 }
 
-
 static inline void ExpectNull(const char* code) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsNull());
 }
-
 
 static inline void CheckDoubleEquals(double expected, double actual) {
   const double kEpsilon = 1e-10;
@@ -685,11 +653,9 @@ static inline void EnableDebugger(v8::Isolate* isolate) {
   v8::debug::SetDebugDelegate(isolate, &dummy_delegate);
 }
 
-
 static inline void DisableDebugger(v8::Isolate* isolate) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
-
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {
   while (v8::platform::PumpMessageLoop(CcTest::default_platform(), isolate)) {
@@ -769,75 +735,6 @@ class TestPlatform : public v8::Platform {
  protected:
   TestPlatform() = default;
 };
-
-#if defined(USE_SIMULATOR)
-class SimulatorHelper {
- public:
-  inline bool Init(v8::Isolate* isolate) {
-    simulator_ = reinterpret_cast<v8::internal::Isolate*>(isolate)
-                     ->thread_local_top()
-                     ->simulator_;
-    // Check if there is active simulator.
-    return simulator_ != nullptr;
-  }
-
-  inline void FillRegisters(v8::RegisterState* state) {
-#if V8_TARGET_ARCH_ARM
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::r11));
-    state->lr = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::lr));
-#elif V8_TARGET_ARCH_ARM64
-    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
-      // It's possible that the simulator is interrupted while it is updating
-      // the sp or fp register. ARM64 simulator does this in two steps:
-      // first setting it to zero and then setting it to a new value.
-      // Bailout if sp/fp doesn't contain the new value.
-      return;
-    }
-    state->pc = reinterpret_cast<void*>(simulator_->pc());
-    state->sp = reinterpret_cast<void*>(simulator_->sp());
-    state->fp = reinterpret_cast<void*>(simulator_->fp());
-    state->lr = reinterpret_cast<void*>(simulator_->lr());
-#elif V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-    state->lr = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::ra));
-#elif V8_TARGET_ARCH_PPC64
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-    state->lr = reinterpret_cast<void*>(simulator_->get_lr());
-#elif V8_TARGET_ARCH_S390X
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-    state->lr = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::ra));
-#endif
-  }
-
- private:
-  v8::internal::Simulator* simulator_;
-};
-#endif  // USE_SIMULATOR
 
 // The following should correspond to Chromium's kV8DOMWrapperTypeIndex and
 // kV8DOMWrapperObjectIndex.

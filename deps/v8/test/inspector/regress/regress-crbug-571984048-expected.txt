@@ -1,0 +1,8 @@
+Tests that console label APIs bail out when the context is destroyed during label conversion.
+
+Running test: testLabelConversion
+console.count(): error: Cannot find context with specified id
+console.countReset(): error: Cannot find context with specified id
+console.time(): error: Cannot find context with specified id
+console.timeLog(): error: Cannot find context with specified id
+console.timeEnd(): error: Cannot find context with specified id

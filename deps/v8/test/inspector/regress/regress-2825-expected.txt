@@ -1,0 +1,2 @@
+Tests line numbers with \r line endings.
+Line 3:   var i2 = 2;

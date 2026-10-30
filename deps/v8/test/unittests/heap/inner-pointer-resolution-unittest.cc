@@ -604,7 +604,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 
   // Use predictable mode to prevent shrinking new space and releasing unused
   // pages, which this test expects will remain allocated.
-  v8_flags.predictable = true;
+  v8_flags.predictable.Set(true);
 
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());

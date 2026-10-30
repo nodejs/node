@@ -5,9 +5,13 @@
 #ifndef V8_OBJECTS_STRING_H_
 #define V8_OBJECTS_STRING_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/garbage-collected.h"
+#include "include/v8-primitive.h"
 #include "include/v8config.h"
 #include "simdutf.h"
 #include "src/base/bits.h"
@@ -21,6 +25,7 @@
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged.h"
+#include "src/sandbox/cppheap-pointer.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/unicode-decoder.h"
 
@@ -441,6 +446,10 @@ V8_OBJECT class String : public Name {
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(base::Vector<const Char> str) const;
 
+  // Convenience method for the above using std::string_view instead.
+  template <EqualityType kEqType = EqualityType::kWholeString>
+  inline bool IsEqualTo(std::string_view str) const;
+
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //
@@ -450,8 +459,8 @@ V8_OBJECT class String : public Name {
   inline bool IsEqualTo(base::Vector<const Char> str,
                         LocalIsolate* isolate) const;
 
-  V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
-  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
+  V8_EXPORT_PRIVATE bool HasOneBytePrefix(std::string_view str);
+  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(std::string_view str);
 
   // Returns true if the |str| is a valid ECMAScript identifier.
   static bool IsIdentifier(Isolate* isolate, DirectHandle<String> str);
@@ -478,10 +487,12 @@ V8_OBJECT class String : public Name {
   template <typename T>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void MakeExternalDuringGC(Isolate* isolate, T* resource);
-  V8_EXPORT_PRIVATE bool MakeExternal(
-      Isolate* isolate, v8::String::ExternalStringResource* resource);
-  V8_EXPORT_PRIVATE bool MakeExternal(
-      Isolate* isolate, v8::String::ExternalOneByteStringResource* resource);
+  V8_EXPORT_PRIVATE static bool MakeExternal(
+      Isolate* isolate, DirectHandle<String> string,
+      v8::String::ExternalStringResource* resource);
+  V8_EXPORT_PRIVATE static bool MakeExternal(
+      Isolate* isolate, DirectHandle<String> string,
+      v8::String::ExternalOneByteStringResource* resource);
   V8_EXPORT_PRIVATE bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
@@ -788,6 +799,14 @@ V8_OBJECT class String : public Name {
                                            DirectHandle<String> one,
                                            DirectHandle<String> two);
 
+  // The non-allocating part of MakeExternal().
+  bool MakeExternalWithWrapper(Isolate* isolate,
+                               v8::String::ExternalStringResource* resource,
+                               ExternalStringResourceWrapper* wrapper);
+  bool MakeExternalWithWrapper(
+      Isolate* isolate, v8::String::ExternalOneByteStringResource* resource,
+      ExternalStringResourceWrapper* wrapper);
+
   // Slow case of AsArrayIndex.
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
   V8_EXPORT_PRIVATE bool SlowAsIntegerIndex(size_t* index);
@@ -795,19 +814,20 @@ V8_OBJECT class String : public Name {
   // Compute and set the hash code.
   // The value returned is always a computed hash, even if the value stored is
   // a forwarding index.
-  // If `out_one_byte_content` is non-null, it is set to true iff the content
-  // is known to fit in one byte. It is set only when the hasher actually
-  // scans the content; not set on length > kMaxHashCalcLength or when the
-  // input forwards through a thin/forwarding-index. Used by internalization
-  // to canonicalize 2-byte-with-1-byte-content without a second scan.
+  // If `out_one_byte_content` is non-null and the hasher actually scans the
+  // content, it is set to whether the content fits in one byte. It is not set
+  // on length > kMaxHashCalcLength or when the input forwards through a
+  // thin/forwarding-index. Used by internalization to canonicalize
+  // 2-byte-with-1-byte-content without a second scan.
   V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
-  V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash(bool* out_one_byte_content);
+  V8_EXPORT_PRIVATE uint32_t
+  ComputeAndSetRawHash(std::optional<bool>* out_one_byte_content);
   V8_EXPORT_PRIVATE uint32_t
   ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&,
-                       bool* out_one_byte_content = nullptr);
+                       std::optional<bool>* out_one_byte_content = nullptr);
 
  public:
-  uint32_t length_;
+  V8_TQ_CONST uint32_t length_ V8_TQ_TYPE(int32);
 } V8_OBJECT_END;
 
 template <>
@@ -961,7 +981,8 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqOneByteStringAsserts;
 
-  FLEXIBLE_ARRAY_MEMBER(Char, chars);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char8));
 } V8_OBJECT_END;
 
 template <>
@@ -1036,7 +1057,8 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqTwoByteStringAsserts;
 
-  FLEXIBLE_ARRAY_MEMBER(Char, chars);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char16));
 } V8_OBJECT_END;
 
 template <>
@@ -1160,6 +1182,7 @@ V8_OBJECT class ThinString : public String {
   friend class maglev::CheckedInternalizedString;
   friend class compiler::AccessBuilder;
   friend class FullStringForwardingTableCleaner;
+  friend class SandboxTesting;
   friend class TorqueGeneratedThinStringAsserts;
 
   friend Tagged<String> String::GetUnderlying() const;
@@ -1228,15 +1251,67 @@ struct ObjectTraits<SlicedString> {
                           sizeof(SlicedString)>;
 };
 
+// Owns the resource of an ExternalString. Being a cppgc object referenced from
+// the string, it disposes the resource when the string dies.
+class V8_EXPORT_PRIVATE ExternalStringResourceWrapper final
+    : public cppgc::GarbageCollected<ExternalStringResourceWrapper> {
+ public:
+  // Allocates a wrapper that doesn't own a resource yet.
+  static ExternalStringResourceWrapper* New(Isolate* isolate);
+
+  // Disposes the resource, if the wrapper still owns one.
+  ~ExternalStringResourceWrapper();
+
+  v8::String::ExternalStringResourceBase* resource() const { return resource_; }
+
+  // Takes over the ownership of `resource`.
+  void SetResource(v8::String::ExternalStringResourceBase* resource) {
+    DCHECK_NOT_NULL(resource);
+    DCHECK_NULL(resource_);
+    resource_ = resource;
+  }
+
+  // Gives up the ownership of the resource without disposing it.
+  v8::String::ExternalStringResourceBase* ReleaseResource() {
+    v8::String::ExternalStringResourceBase* resource = resource_;
+    resource_ = nullptr;
+    return resource;
+  }
+
+  void Trace(cppgc::Visitor*) const {}
+
+ private:
+  friend class cppgc::MakeGarbageCollectedTrait<ExternalStringResourceWrapper>;
+  // For Heap::ExternalStringTable::TearDown().
+  friend class Heap;
+
+  ExternalStringResourceWrapper(Isolate* isolate,
+                                std::shared_ptr<bool> isolate_alive_token)
+      : isolate_(isolate),
+        isolate_alive_token_(std::move(isolate_alive_token)) {}
+
+  // Unaccounts the resource from the isolate and disposes it, if the wrapper
+  // still owns one.
+  void DisposeResource();
+
+  Isolate* const isolate_;
+  // The owned resource; null until attached and once detached or disposed.
+  v8::String::ExternalStringResourceBase* resource_ = nullptr;
+  // False once the isolate is gone; the CppHeap, and so this wrapper, may
+  // outlive it.
+  const std::shared_ptr<bool> isolate_alive_token_;
+};
+
 // TODO(leszeks): Build this out into a full V8 class.
 V8_OBJECT class UncachedExternalString : public String {
   V8_IT_REUSE_PARENT;
 
  protected:
-  ExternalPointerMember<kExternalStringResourceTag> resource_;
+  CppHeapPointerMember resource_;
 
   // To get the offset of the protected resource_ field.
   friend class SandboxTesting;
+  friend class CppHeapObjectWrapper;
 } V8_OBJECT_END;
 
 // The ExternalString class describes string values that are backed by
@@ -1257,7 +1332,7 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
 
   DECL_VERIFIER(ExternalString)
 
-  inline void InitExternalPointerFields(Isolate* isolate);
+  inline void InitPointerTableFields(Isolate* isolate);
   inline void VisitExternalPointers(ObjectVisitor* visitor);
 
   // Return whether the external string data pointer is not cached.
@@ -1266,18 +1341,22 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
-  // TODO(pthier): Change to const Isolate*, this currently doesn't work for
-  // the implicit IsolateForSandbox conversion.
-  inline Address resource_as_address(Isolate* isolate) const;
-  // TODO(pthier): Pass isolate from all callers and remove this overload.
-  inline Address resource_as_address() const;
   inline void InitResourceDataAfterDeserialization(Isolate* isolate);
 
-  // Disposes string's resource object if it has not already been disposed.
-  inline void DisposeResource(Isolate* isolate);
+  // The underlying resource, or null if there is none.
+  inline v8::String::ExternalStringResourceBase* resource(
+      Isolate* isolate) const;
+  // Releases the ownership of the resource, if any, to the caller.
+  inline v8::String::ExternalStringResourceBase* ReleaseResourceForTesting(
+      Isolate* isolate);
+  inline ExternalStringResourceWrapper* resource_wrapper(
+      Isolate* isolate) const;
+  // Installs the already allocated `wrapper`.
+  inline void SetResourceWrapper(Isolate* isolate,
+                                 ExternalStringResourceWrapper* wrapper);
 
-  void InitExternalPointerFieldsDuringExternalization(Tagged<Map> new_map,
-                                                      Isolate* isolate);
+  void InitPointerTableFieldsDuringExternalization(Tagged<Map> new_map,
+                                                   Isolate* isolate);
 
  private:
   friend ObjectTraits<ExternalString>;
@@ -1287,6 +1366,15 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   friend class TorqueGeneratedExternalStringAsserts;
   // To get the offset of the protected resource_data_ field.
   friend class SandboxTesting;
+
+  // Update the pointer cache to the external character array.
+  // The cached pointer is always valid, as the external character array does
+  // not move during lifetime.  Deserialization is the only exception, after
+  // which the pointer cache has to be refreshed.
+  inline void UpdateDataCache(Isolate* isolate,
+                              v8::String::ExternalStringResourceBase* resource);
+  template <typename Resource>
+  inline void UpdateDataCacheImpl(Isolate* isolate, Resource* resource);
 
  protected:
   ExternalPointerMember<kExternalStringResourceDataTag> resource_data_;
@@ -1314,22 +1402,6 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   // The underlying resource.
   inline const Resource* resource() const;
 
-  // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsibility of the caller the handle the previous resource.
-  inline void SetResource(Isolate* isolate, const Resource* buffer);
-
-  // Used only during serialization.
-  inline void set_resource(Isolate* isolate, const Resource* buffer);
-
-  inline const Resource* ExchangeResource(Isolate* isolate,
-                                          const Resource* resource);
-
-  // Update the pointer cache to the external character array.
-  // The cached pointer is always valid, as the external character array does =
-  // not move during lifetime.  Deserialization is the only exception, after
-  // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate, Resource* resource);
-
   inline const uint8_t* GetChars() const;
 
   // Dispatched behavior.
@@ -1352,22 +1424,6 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
 
   // The underlying string resource.
   inline const Resource* resource() const;
-
-  // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsibility of the caller the handle the previous resource.
-  inline void SetResource(Isolate* isolate, const Resource* buffer);
-
-  // Used only during serialization.
-  inline void set_resource(Isolate* isolate, const Resource* buffer);
-
-  inline const Resource* ExchangeResource(Isolate* isolate,
-                                          const Resource* resource);
-
-  // Update the pointer cache to the external character array.
-  // The cached pointer is always valid, as the external character array does =
-  // not move during lifetime.  Deserialization is the only exception, after
-  // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate, Resource* resource);
 
   inline const uint16_t* GetChars() const;
 

@@ -1,0 +1,7 @@
+Tests crbug.com/882664.
+{
+    type : object
+    value : [
+        [0] : 216
+    ]
+}

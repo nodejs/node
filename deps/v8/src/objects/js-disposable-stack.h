@@ -8,6 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
@@ -48,8 +49,25 @@ V8_OBJECT class JSDisposableStackBase : public JSObject {
   inline void set_stack(Tagged<FixedArray> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int status() const;
-  inline void set_status(int value);
+  struct Status : BitFieldGroup<Status, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using StateBit = First<DisposableStackState, 1>;
+    using NeedsAwaitBit = StateBit::Next<bool, 1>;
+    using HasAwaitedBit = NeedsAwaitBit::Next<bool, 1>;
+    using SuppressedErrorCreatedBit = HasAwaitedBit::Next<bool, 1>;
+    using LengthBits = SuppressedErrorCreatedBit::Next<int32_t, 27>;
+
+    BIT_FIELD_GROUP_ACCESSORS(state, StateBit)
+    BIT_FIELD_GROUP_ACCESSORS(needs_await, NeedsAwaitBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_awaited, HasAwaitedBit)
+    BIT_FIELD_GROUP_ACCESSORS(suppressed_error_created,
+                              SuppressedErrorCreatedBit)
+    BIT_FIELD_GROUP_ACCESSORS(length, LengthBits)
+  };
+
+  inline Status status() const;
+  inline void set_status(Status value);
 
   inline Tagged<UnionOf<Object, Hole>> error() const;
   inline void set_error(Tagged<UnionOf<Object, Hole>> value,
@@ -61,13 +79,6 @@ V8_OBJECT class JSDisposableStackBase : public JSObject {
 
   DECL_PRINTER(JSDisposableStackBase)
   DECL_VERIFIER(JSDisposableStackBase)
-
-  // Bit layout for status_.
-  using StateBit = base::BitField<DisposableStackState, 0, 1>;
-  using NeedsAwaitBit = base::BitField<bool, 1, 1>;
-  using HasAwaitedBit = base::BitField<bool, 2, 1>;
-  using SuppressedErrorCreatedBit = base::BitField<bool, 3, 1>;
-  using LengthBits = base::BitField<int32_t, 4, 27>;
 
   inline DisposableStackState state() const;
   inline void set_state(DisposableStackState value);
@@ -107,8 +118,7 @@ V8_OBJECT class JSDisposableStackBase : public JSObject {
 
  public:
   TaggedMember<FixedArray> stack_;
-  // SmiTagged<DisposableStackStatus>.
-  TaggedMember<Smi> status_;
+  SmiBitFieldMember<Status> status_;
   TaggedMember<UnionOf<Object, Hole>> error_;
   TaggedMember<UnionOf<Object, Hole>> error_message_;
 } V8_OBJECT_END;

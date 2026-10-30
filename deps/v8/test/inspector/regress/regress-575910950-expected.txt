@@ -1,0 +1,5 @@
+Tests that returnByValue serialization charges undefined-valued properties against the protocol value budget.
+{
+    code : -32000
+    message : Object is too large to be returned by value
+}

@@ -220,7 +220,7 @@ namespace {
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 DirectHandle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
-  return isolate->factory()->InternalizeUtf8String(base::VectorOf(type.name()));
+  return isolate->factory()->InternalizeUtf8String(type.name());
 }
 }  // namespace
 
@@ -329,8 +329,7 @@ DirectHandle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                        AddressType address_type) {
   Factory* factory = isolate->factory();
 
-  DirectHandle<String> element =
-      factory->InternalizeUtf8String(base::VectorOf(type.name()));
+  DirectHandle<String> element = factory->InternalizeUtf8String(type.name());
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
   DirectHandle<JSObject> object = factory->NewJSObject(object_function);

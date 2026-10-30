@@ -32,6 +32,7 @@ function testNoOsr() {
 
   while (!%ActiveTierIsMaglev(f) && --keep_going) {
     f();
+    %FinalizeOptimization();
   }
   assertTrue(keep_going > 0);
 

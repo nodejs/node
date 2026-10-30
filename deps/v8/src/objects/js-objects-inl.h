@@ -508,6 +508,14 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDetails(map(), details);
   if (details.representation().IsDouble()) {
+    auto box = Cast<UnionOf<HeapNumber, UninitializedHeapNumber>>(
+        RawFastPropertyAt(index));
+    DCHECK_NE(box, value);
+    if (IsUninitializedHole(value)) {
+      // Leave the uninitialized heap number box intact.
+      DCHECK(IsUninitializedHeapNumber(box));
+      return;
+    }
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or
     // value()/set_value(), will change its value on ia32 (the x87 stack is used
@@ -516,14 +524,18 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
     uint64_t bits;
     if (IsSmi(value)) {
       bits = base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-    } else if (IsUninitializedHole(value)) {
-      bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));
       bits = Cast<HeapNumber>(value)->value_as_bits();
     }
-    auto box = Cast<HeapNumber>(RawFastPropertyAt(index));
-    box->set_value_as_bits(bits);
+    if (IsUninitializedHeapNumber(box)) {
+      Cast<UninitializedHeapNumber>(box)->set_value_as_bits(bits);
+      Isolate* isolate = Isolate::Current();
+      box->set_map_safe_transition_no_write_barrier(
+          isolate, ReadOnlyRoots(isolate).heap_number_map(), kRelaxedStore);
+    } else {
+      Cast<HeapNumber>(box)->set_value_as_bits(bits);
+    }
   } else {
     FastPropertyAtPut(index, value);
   }
@@ -748,21 +760,21 @@ void JSPrimitiveWrapper::set_value(Tagged<JSAny> value, WriteBarrierMode mode) {
 }
 
 Tagged<JSReceiver> JSValidIteratorWrapper::underlying_object() const {
-  return underlying_object_.load();
+  return underlying_.object_.load();
 }
 
 void JSValidIteratorWrapper::set_underlying_object(Tagged<JSReceiver> value,
                                                    WriteBarrierMode mode) {
-  underlying_object_.store(this, value, mode);
+  underlying_.object_.store(this, value, mode);
 }
 
 Tagged<JSAny> JSValidIteratorWrapper::underlying_next() const {
-  return underlying_next_.load();
+  return underlying_.next_.load();
 }
 
 void JSValidIteratorWrapper::set_underlying_next(Tagged<JSAny> value,
                                                  WriteBarrierMode mode) {
-  underlying_next_.store(this, value, mode);
+  underlying_.next_.store(this, value, mode);
 }
 
 double JSDate::value() const { return value_.value(); }
@@ -870,11 +882,11 @@ void JSMessageObject::set_script(Tagged<Script> value, WriteBarrierMode mode) {
   script_.store(this, value, mode);
 }
 
-Tagged<UnionOf<StackTraceInfo, Hole>> JSMessageObject::stack_trace() const {
+Tagged<UnionOf<StackTraceInfo, TheHole>> JSMessageObject::stack_trace() const {
   return stack_trace_.load();
 }
 void JSMessageObject::set_stack_trace(
-    Tagged<UnionOf<StackTraceInfo, Hole>> value, WriteBarrierMode mode) {
+    Tagged<UnionOf<StackTraceInfo, TheHole>> value, WriteBarrierMode mode) {
   stack_trace_.store(this, value, mode);
 }
 
@@ -953,10 +965,6 @@ DEF_GETTER(JSObject, HasAnyNonextensibleElements, bool) {
 
 DEF_GETTER(JSObject, HasSealedElements, bool) {
   return IsSealedElementsKind(GetElementsKind());
-}
-
-DEF_GETTER(JSObject, HasSharedArrayElements, bool) {
-  return GetElementsKind() == SHARED_ARRAY_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasNonextensibleElements, bool) {
@@ -1125,7 +1133,12 @@ void JSObject::EnsureWritableFastElements(Isolate* isolate,
 std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() const {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
-  DCHECK(IsMapMap(meta_map));
+#if V8_ENABLE_WEBASSEMBLY
+  if (!IsMetaMap(meta_map)) {
+    return GetCreationContext_Slow(map());
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  DCHECK(IsMetaMap(meta_map));
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
   if (V8_UNLIKELY(IsNull(maybe_native_context))) return {};
   DCHECK(IsNativeContext(maybe_native_context));

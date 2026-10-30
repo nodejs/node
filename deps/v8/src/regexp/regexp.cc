@@ -5,8 +5,8 @@
 #include "src/regexp/regexp.h"
 
 #include "src/base/strings.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/handles/global-handles-inl.h"
@@ -165,14 +165,10 @@ MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
     regexp::Error error) {
   if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions &&
                   regexp::ErrorIsStackOverflow(error))) {
-    FATAL("Aborting on stack overflow");
+    base::FatalNoSecurityImpact("Aborting on stack overflow");
   }
-  base::Vector<const char> error_data =
-      base::CStrVector(regexp::ErrorString(error));
   DirectHandle<String> error_text =
-      isolate->factory()
-          ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromAsciiChecked(regexp::ErrorString(error));
   DirectHandle<String> flag_string =
       JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
   THROW_NEW_ERROR(isolate,
@@ -476,9 +472,9 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
   if (!has_been_compiled) {
     const bool can_be_zero_length = parse_result.tree->min_match() == 0;
     using Bits = IrRegExpData::Bits;
-    const uint32_t bit_field =
-        Bits::CanBeZeroLengthBit::encode(can_be_zero_length) |
-        Bits::IsLinearExecutableBit::encode(is_linear_executable);
+    const auto bit_field = Bits()
+                               .with_can_be_zero_length(can_be_zero_length)
+                               .with_is_linear_executable(is_linear_executable);
     regexp::RegExpImpl::IrregexpInitialize(
         isolate, re, original_source, escaped_source, flags,
         parse_result.capture_count, backtrack_limit, bit_field);

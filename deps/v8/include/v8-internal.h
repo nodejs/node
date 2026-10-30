@@ -374,15 +374,23 @@ constexpr size_t kMaxExternalPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+constexpr uint64_t kExternalPointerMarkBit = 1ULL << 56;
+constexpr uint64_t kExternalPointerTagShift = 57;
+constexpr uint64_t kExternalPointerTagMask = 0xfe00000000000000ULL;
+constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0xff00000000000000ULL;
+constexpr uint64_t kExternalPointerPayloadMask = 0x00ffffffffffffffULL;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kExternalPointerMarkBit = 1ULL << 48;
 constexpr uint64_t kExternalPointerTagShift = 49;
 constexpr uint64_t kExternalPointerTagMask = 0x00fe000000000000ULL;
+constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0x00ff000000000000ULL;
+constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kExternalPointerShiftedTagMask =
     kExternalPointerTagMask >> kExternalPointerTagShift;
 static_assert(kExternalPointerShiftedTagMask << kExternalPointerTagShift ==
               kExternalPointerTagMask);
-constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0x00ff000000000000ULL;
-constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
 
 // A ExternalPointerHandle represents a (opaque) reference to an external
 // pointer that can be stored inside the sandbox. A ExternalPointerHandle has
@@ -393,10 +401,10 @@ constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
 // that it is smaller than the size of the table.
 using ExternalPointerHandle = uint32_t;
 
-// ExternalPointers point to objects located outside the sandbox. When the V8
-// sandbox is enabled, these are stored on heap as ExternalPointerHandles,
+// ExternalPointers point to objects located outside the V8 heap. When pointer
+// compression is enabled, these are stored on heap as ExternalPointerHandles,
 // otherwise they are simply raw pointers.
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 using ExternalPointer_t = ExternalPointerHandle;
 #else
 using ExternalPointer_t = Address;
@@ -604,6 +612,7 @@ enum class ManagedTypeId : uint32_t {
   kTemporalPlainMonthDay,
   kTemporalZonedDateTime,
   kDisplayNamesInternal,
+  kPluralRulesInternal,
   kD8Worker,
   kD8ModuleEmbedderData,
   kD8AsyncHooksWrap,
@@ -620,7 +629,6 @@ enum class ManagedTypeId : uint32_t {
   V(IcuDateIntervalFormatTag)        \
   V(IcuRelativeDateTimeFormatterTag) \
   V(IcuLocalizedNumberFormatterTag)  \
-  V(IcuPluralRulesTag)               \
   V(IcuCollatorTag)
 
 #define FOREIGN_TAG_LIST(V)                               \
@@ -640,9 +648,9 @@ enum class ManagedTypeId : uint32_t {
 //
 // External Pointers.
 //
-// When the sandbox is enabled, external pointers are stored in an external
-// pointer table and are referenced from HeapObjects through an index (a
-// "handle"). When stored in the table, the pointers are tagged with per-type
+// When pointer compression is enabled, external pointers are stored in an
+// external pointer table and are referenced from HeapObjects through an index
+// (a "handle"). When stored in the table, the pointers are tagged with per-type
 // tags to prevent type confusion attacks between different external objects.
 //
 // When loading an external pointer, a range of allowed tags can be specified.
@@ -671,16 +679,8 @@ enum class ManagedTypeId : uint32_t {
 // other purpose. This bit also does not collide with the memory tagging
 // extension (MTE) which would use bits [56, 60).
 //
-// External pointer tables are also available even when the sandbox is off but
-// pointer compression is on. In that case, the mechanism can be used to ease
-// alignment requirements as it turns unaligned 64-bit raw pointers into
-// aligned 32-bit indices. To "opt-in" to the external pointer table mechanism
-// for this purpose, instead of using the ExternalPointer accessors one needs to
-// use ExternalPointerHandles directly and use them to access the pointers in an
-// ExternalPointerTable.
-//
-// The tag is currently in practice limited to 15 bits since it needs to fit
-// together with a marking bit into the unused parts of a pointer.
+// The tag is limited to 7 bits since it needs to fit together with a marking
+// bit into the unused parts of a 57-bit pointer to support LA57 on x64.
 enum ExternalPointerTag : uint16_t {
   kFirstExternalPointerTag = 0,
   kExternalPointerNullTag = 0,
@@ -694,9 +694,7 @@ enum ExternalPointerTag : uint16_t {
   // be accessed from multiple threads at the same time. The objects referenced
   // in this way must therefore always be thread-safe.
   kFirstSharedExternalPointerTag,
-  kWaiterQueueNodeTag = kFirstSharedExternalPointerTag,
-  kExternalStringResourceTag,
-  kExternalStringResourceDataTag,
+  kExternalStringResourceDataTag = kFirstSharedExternalPointerTag,
   kLastSharedExternalPointerTag = kExternalStringResourceDataTag,
 
   // External pointers using these tags are kept in a per-Isolate external
@@ -761,6 +759,9 @@ enum ExternalPointerTag : uint16_t {
   // The tags are limited to 7 bits, so the last tag is 0x7f.
   kLastExternalPointerTag = 0x7f,
 };
+
+// All tags must fit into the 7 tag bits of an external pointer table entry.
+static_assert(kLastExternalPointerTag <= 0x7f);
 
 constexpr const char* ToString(ExternalPointerTag tag) {
   switch (tag) {
@@ -879,33 +880,6 @@ V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
          kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
-// Indirect Pointers.
-//
-// When the sandbox is enabled, indirect pointers are used to reference
-// HeapObjects that live outside of the sandbox (but are still managed by V8's
-// garbage collector). When object A references an object B through an indirect
-// pointer, object A will contain a IndirectPointerHandle, i.e. a shifted
-// 32-bit index, which identifies an entry in a pointer table (either the
-// trusted pointer table for TrustedObjects, or the code pointer table if it is
-// a Code object). This table entry then contains the actual pointer to object
-// B. Further, object B owns this pointer table entry, and it is responsible
-// for updating the "self-pointer" in the entry when it is relocated in memory.
-// This way, in contrast to "normal" pointers, indirect pointers never need to
-// be tracked by the GC (i.e. there is no remembered set for them).
-// These pointers do not exist when the sandbox is disabled.
-
-// An IndirectPointerHandle represents a 32-bit index into a pointer table.
-using IndirectPointerHandle = uint32_t;
-
-// A null handle always references an entry that contains nullptr.
-constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
-
-// When the sandbox is enabled, indirect pointers are used to implement:
-// - TrustedPointers: an indirect pointer using the trusted pointer table (TPT)
-//   and referencing a TrustedObject in one of the trusted heap spaces.
-// - CodePointers, an indirect pointer using the code pointer table (CPT) and
-//   referencing a Code object together with its instruction stream.
-
 //
 // Trusted Pointers.
 //
@@ -913,9 +887,19 @@ constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
 // When the sandbox is enabled, these are indirect pointers using the trusted
 // pointer table (TPT). They are used to reference trusted objects (located in
 // one of V8's trusted heap spaces, outside of the sandbox) from inside the
-// sandbox in a memory-safe way. When the sandbox is disabled, these are
-// regular tagged pointers.
-using TrustedPointerHandle = IndirectPointerHandle;
+// sandbox in a memory-safe way. When object A references an object B through a
+// trusted pointer, object A will contain a TrustedPointerHandle, i.e. a shifted
+// 32-bit index, which identifies an entry in the trusted pointer table. This
+// table entry then contains the actual pointer to object B. Further, object B
+// owns this pointer table entry, and it is responsible for updating the
+// "self-pointer" in the entry when it is relocated in memory. This way, in
+// contrast to "normal" pointers, trusted pointers never need to be tracked by
+// the GC (i.e. there is no remembered set for them).
+// When the sandbox is disabled, these are regular tagged pointers.
+
+// A TrustedPointerHandle represents a 32-bit index into a trusted pointer
+// table.
+using TrustedPointerHandle = uint32_t;
 
 // The size of the virtual memory reservation for the trusted pointer table.
 // As with the external pointer table, a maximum table size in combination with
@@ -927,8 +911,7 @@ constexpr size_t kTrustedPointerTableReservationSize = 64 * MB;
 constexpr uint32_t kTrustedPointerHandleShift = 9;
 
 // A null handle always references an entry that contains nullptr.
-constexpr TrustedPointerHandle kNullTrustedPointerHandle =
-    kNullIndirectPointerHandle;
+constexpr TrustedPointerHandle kNullTrustedPointerHandle = 0;
 
 // The byte size of an entry in the trusted pointer table.
 constexpr int kTrustedPointerTableEntrySize = 8;
@@ -1002,6 +985,11 @@ class Internals {
   static const int kMapInstanceTypeOffset = 1 * kApiTaggedSize + kApiInt32Size;
   static const int kStringResourceOffset =
       1 * kApiTaggedSize + 2 * kApiInt32Size;
+  // The resource field of an external string references a cppgc object
+  // (ExternalStringResourceWrapper) which stores the resource pointer at this
+  // offset.
+  static const int kExternalStringResourceWrapperResourceOffset =
+      kApiSystemPointerSize;
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
@@ -1149,24 +1137,16 @@ class Internals {
 #if V8_STATIC_ROOTS_BOOL
 
 // These constants are copied from static-roots.h and guarded by static asserts.
-#define EXPORTED_STATIC_ROOTS_PTR_LIST(V)                            \
-  V(UndefinedValue, 0x11)                                            \
-  V(NullValue, 0x2d)                                                 \
-  V(TrueValue, 0x71)                                                 \
-  V(FalseValue, 0x55)                                                \
-  V(EmptyString, 0x49)                                               \
-  /* The Hole moves around depending on build flags, so define it */ \
-  /* separately inside StaticReadOnlyRoot using build macros */      \
-  V(TheHoleValue, kBuildDependentTheHoleValue)
+#define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
+  V(UndefinedValue, 0x11)                 \
+  V(NullValue, 0x2d)                      \
+  V(TrueValue, 0x71)                      \
+  V(FalseValue, 0x55)                     \
+  V(EmptyString, 0x49)                    \
+  V(TheHoleValue, 0xfffd)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
-#ifdef V8_ENABLE_WEBASSEMBLY
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x2fffd;
-#else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0xfffd;
-#endif
-
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
@@ -1406,7 +1386,7 @@ class Internals {
     return *GetRootSlot(isolate, index);
   }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V8_INLINE static Address* GetExternalPointerTableBase(v8::Isolate* isolate) {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateExternalPointerTableOffset +
@@ -1467,10 +1447,10 @@ class Internals {
   V8_EXPORT static v8::Isolate* GetCurrentIsolate();
 
   V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     return GetCurrentIsolate();
 #else
-    // Not used in non-sandbox mode.
+    // Not used in non-pointer-compression mode.
     return nullptr;
 #endif
   }
@@ -1479,7 +1459,7 @@ class Internals {
   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
                                                     Address heap_object_ptr,
                                                     int offset) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     static_assert(!tag_range.IsEmpty());
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
@@ -1503,13 +1483,13 @@ class Internals {
     return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
   V8_INLINE static Address ReadExternalPointerField(
       v8::Isolate* isolate, Address heap_object_ptr, int offset,
       ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
     Address* table = IsSharedExternalPointerType(tag_range)
@@ -1533,7 +1513,7 @@ class Internals {
     return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
 #ifdef V8_COMPRESS_POINTERS

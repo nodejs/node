@@ -46,7 +46,7 @@ class WasmCompilationHintsBuilder {
   }
 
   void AddExport(const char* name, uint32_t index) {
-    builder_.AddExport(base::CStrVector(name), kExternalFunction, index);
+    builder_.AddExport(name, kExternalFunction, index);
   }
 
   void CompileModule() {

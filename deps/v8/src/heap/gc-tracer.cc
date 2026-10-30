@@ -14,8 +14,8 @@
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/base/strings.h"
+#include "src/base/thread-id.h"
 #include "src/common/globals.h"
-#include "src/execution/thread-id.h"
 #include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/cppgc-internal/metric-recorder.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
@@ -401,6 +401,7 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
   size_t new_lo_space_size =
       (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
   current_.young_object_size = new_space_size + new_lo_space_size;
+  current_.gc_with_stack = heap_->IsGCWithStack();
   current_.start_atomic_pause_time = time;
 }
 
@@ -965,7 +966,7 @@ void GCTracer::PrintNVP() const {
       .p("reduce_memory", current_.reduce_memory)
       .p("time_to_safepoint",
          current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF())
-      .p("stack", heap_->IsGCWithStack())
+      .p("stack", current_.gc_with_stack)
       .p("reason", ToString(current_.gc_reason))
       .p("collector_reason",
          current_.collector_reason ? current_.collector_reason : "")

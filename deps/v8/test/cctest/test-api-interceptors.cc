@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 
+#include <array>
 #include <optional>
 
 #include "include/v8-function.h"
@@ -1679,7 +1680,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithMaskingInterceptor) {
 // Test load of a non-existing global through prototype chain when a global
 // object has an interceptor.
 void InterceptorLoadICGlobalWithInterceptor(bool masking) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
@@ -2978,7 +2979,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   }
 
   {
-    i::v8_flags.lazy_feedback_allocation = false;
+    i::v8_flags.lazy_feedback_allocation.Set(false);
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
     v8::HandleScope scope(env.isolate());
@@ -2986,7 +2987,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   }
 
   {
-    i::v8_flags.lazy_feedback_allocation = false;
+    i::v8_flags.lazy_feedback_allocation.Set(false);
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
     v8::HandleScope scope(env.isolate());
@@ -3987,62 +3988,6 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 namespace {
-void SloppyArgsIndexedPropertyEnumerator(
-    const v8::PropertyCallbackInfo<v8::Array>& info) {
-  // Force the list of returned keys to be stored in a Arguments object.
-  Local<Script> indexed_property_names_script = v8_compile(
-      "function f(w,x) {"
-      " return arguments;"
-      "}"
-      "keys = f(0, 1, 2, 3);"
-      "keys;");
-  Local<Object> result =
-      indexed_property_names_script->Run(info.GetIsolate()->GetCurrentContext())
-          .ToLocalChecked()
-          .As<Object>();
-  // Have to populate the handle manually, as it's not Cast-able.
-  i::DirectHandle<i::JSReceiver> o =
-      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::DirectHandle<i::JSArray> array(
-      i::UncheckedCast<i::JSArray>(*o),
-      reinterpret_cast<i::Isolate*>(info.GetIsolate()));
-  info.GetReturnValue().Set(v8::Utils::ToLocal(array));
-}
-
-v8::Intercepted SloppyIndexedPropertyGetter(
-    uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
-  if (index < 4) {
-    info.GetReturnValue().Set(v8_num(index));
-    return v8::Intercepted::kYes;
-  }
-  return v8::Intercepted::kNo;
-}
-}  // namespace
-
-// Make sure that the interceptor code in the runtime properly handles
-// merging property name lists for non-string arguments arrays.
-THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      SloppyIndexedPropertyGetter, nullptr, nullptr, nullptr,
-      SloppyArgsIndexedPropertyEnumerator));
-  LocalContext context;
-  context->Global()
-      ->Set(context.local(), v8_str("obj"),
-            templ->NewInstance(context.local()).ToLocalChecked())
-      .FromJust();
-  Local<Script> create_args_script = v8_compile(
-      "var key_count = 0;"
-      "for (x in obj) {key_count++;} key_count;");
-  Local<Value> result =
-      create_args_script->Run(context.local()).ToLocalChecked();
-  CHECK(v8_num(4)->Equals(context.local(), result).FromJust());
-}
-
-namespace {
 v8::Intercepted IdentityIndexedPropertyGetter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(index);
@@ -4929,7 +4874,7 @@ v8::Intercepted InterceptorCallICGetter6(
 // Same test as above, except the code is wrapped in a function
 // to test the optimized compiler.
 THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -5494,7 +5439,7 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
 
 THREADED_TEST(Regress256330) {
   if (!i::v8_flags.turbofan) return;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext context;
   v8::HandleScope scope(context.isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
@@ -5517,7 +5462,7 @@ THREADED_TEST(Regress256330) {
 }
 
 THREADED_TEST(OptimizedInterceptorSetter) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
@@ -5547,7 +5492,7 @@ THREADED_TEST(OptimizedInterceptorSetter) {
 }
 
 THREADED_TEST(OptimizedInterceptorGetter) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
@@ -5574,7 +5519,7 @@ THREADED_TEST(OptimizedInterceptorGetter) {
 }
 
 THREADED_TEST(OptimizedInterceptorFieldRead) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
@@ -5598,7 +5543,7 @@ THREADED_TEST(OptimizedInterceptorFieldRead) {
 }
 
 THREADED_TEST(OptimizedInterceptorFieldWrite) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
@@ -5925,10 +5870,9 @@ void PreprocessExceptionTestCallback(v8::ExceptionPropagationMessage info) {
   String::Utf8Value property_name(isolate, info.GetPropertyName());
   String::Utf8Value message(isolate, message_value);
 
-  auto buf = v8::base::OwnedVector<char>::NewForOverwrite(256);
-  v8::base::SNPrintF(buf.as_vector(), "%s:%s:%s: %s", *interface_name,
-                     *property_name, ToString(info.GetExceptionContext()),
-                     *message);
+  std::array<char, 256> buf;
+  v8::base::SNPrintF(buf, "%s:%s:%s: %s", *interface_name, *property_name,
+                     ToString(info.GetExceptionContext()), *message);
 
   std::ignore =
       exception->CreateDataProperty(context, message_key, v8_str(buf.data()));
@@ -6300,7 +6244,7 @@ void TestPreprocessExceptionFromInterceptors(
 // Can't use THREADED_TEST because this test requires setting an exception
 // preprocessing callback which might be observable in other tests.
 TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
-  i::v8_flags.experimental_report_exceptions_from_callbacks = true;
+  i::v8_flags.experimental_report_exceptions_from_callbacks.Set(true);
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
 
@@ -6340,7 +6284,7 @@ TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
 // Can't use THREADED_TEST because this test requires setting an exception
 // preprocessing callback which might be observable in other tests.
 TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
-  i::v8_flags.experimental_report_exceptions_from_callbacks = true;
+  i::v8_flags.experimental_report_exceptions_from_callbacks.Set(true);
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
 
@@ -6924,38 +6868,6 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
   ExpectInt32("Object.keys(obj).length", 1);
 }
 
-THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
-      SloppyArgsIndexedPropertyEnumerator));
-  LocalContext context;
-  context->Global()
-      ->Set(context.local(), v8_str("obj"),
-            obj->NewInstance(context.local()).ToLocalChecked())
-      .FromJust();
-
-  ExpectInt32("Object.getOwnPropertyNames(obj).length", 4);
-  ExpectString("Object.getOwnPropertyNames(obj)[0]", "0");
-  ExpectString("Object.getOwnPropertyNames(obj)[1]", "1");
-  ExpectString("Object.getOwnPropertyNames(obj)[2]", "2");
-  ExpectString("Object.getOwnPropertyNames(obj)[3]", "3");
-
-  ExpectTrue("Object.getOwnPropertyDescriptor(obj, '2').enumerable");
-
-  ExpectInt32("Object.entries(obj).length", 1);
-  ExpectString("Object.entries(obj)[0][0]", "2");
-  ExpectInt32("Object.entries(obj)[0][1]", 4);
-
-  ExpectInt32("Object.keys(obj).length", 1);
-  ExpectString("Object.keys(obj)[0]", "2");
-
-  ExpectInt32("Object.values(obj).length", 1);
-  ExpectInt32("Object.values(obj)[0]", 4);
-}
-
 THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
   // The enumerator interceptor returns a list
   // of items which are filtered according to the
@@ -7152,7 +7064,7 @@ class ArrayLike {
 
 THREADED_TEST(ArrayLikeInterceptor) {
   auto isolate = CcTest::isolate();
-  i::v8_flags.fast_api_indexof = true;
+  i::v8_flags.fast_api_indexof.Set(true);
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
 
@@ -7433,4 +7345,56 @@ TEST(ScriptContextTableReentrantClash) {
 
   // The re-entrant declaration committed before the outer script was rejected.
   CHECK_EQ(1, v8_run_int32("a"));
+}
+
+namespace {
+
+constexpr uint32_t kDenseInterceptorLength = 2;
+
+v8::Intercepted DenseSetterMonomorphicBypass(
+    uint32_t index, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  if (index >= kDenseInterceptorLength) return v8::Intercepted::kNo;
+  int& setter_count = *GetData<int>(info);
+  setter_count++;
+  return v8::Intercepted::kYes;
+}
+
+}  // namespace
+
+TEST(RegressKeyedStoreICMonomorphicBypassInterceptor) {
+  v8::internal::v8_flags.allow_natives_syntax.Set(true);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  int setter_count = 0;
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      nullptr, DenseSetterMonomorphicBypass, nullptr, nullptr, nullptr,
+      MakeData(isolate, &setter_count)));
+
+  v8::Local<v8::Object> obj = templ->GetFunction(env.local())
+                                  .ToLocalChecked()
+                                  ->NewInstance(env.local())
+                                  .ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust();
+
+  CompileRun(
+      "function f(o, i, v) { o[i] = v; }\n"
+      "%PrepareFunctionForOptimization(f);\n"
+      // Index 2 is outside [0, length), so it is not intercepted and goes to
+      // the fast elements backing store (allocating capacity > 2) while making
+      // the IC monomorphic with StoreFastElementIC_InBounds.
+      "f(obj, 2, 1);\n"
+      // Indices 0 and 1 are in [0, length) and must call the interceptor.
+      "f(obj, 0, 2);\n"
+      "f(obj, 1, 3);\n");
+
+  CHECK_EQ(2, setter_count);
+
+  CHECK_EQ(1, v8_run_int32("obj[2]"));
+  CHECK(CompileRun("obj[0]")->IsUndefined());
+  CHECK(CompileRun("obj[1]")->IsUndefined());
 }

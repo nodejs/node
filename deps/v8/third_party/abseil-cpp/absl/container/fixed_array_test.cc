@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -523,6 +524,28 @@ TEST(FixedArrayTest, TooBigInlinedSpace) {
       "default-sized absl::FixedArray should have same alignment as Data.");
 }
 
+#ifndef ABSL_HAVE_ADDRESS_SANITIZER
+TEST(FixedArrayTest, DefaultInlinedSpaceFitsInCacheLine) {
+  struct alignas(32) Aligned32 {
+    char c[32];
+  };
+  struct alignas(64) Aligned64 {
+    char c[64];
+  };
+
+  constexpr size_t kHeaderSize = sizeof(void*) + sizeof(size_t);
+  EXPECT_EQ(sizeof(absl::FixedArray<char>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<int>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<void*>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<ThreeInts>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<std::array<char, 24>>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<std::array<char, 40>>), 40 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<std::array<char, 48>>), 48 + kHeaderSize);
+  EXPECT_EQ(sizeof(absl::FixedArray<Aligned32>), size_t{64});
+  EXPECT_EQ(sizeof(absl::FixedArray<Aligned64>), kHeaderSize);
+}
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
+
 // PickyDelete EXPECTs its class-scope deallocation funcs are unused.
 struct PickyDelete {
   PickyDelete() {}
@@ -840,19 +863,19 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations3) {
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
-  absl::FixedArray<ThreeInts> a(10);
+  absl::FixedArray<ThreeInts> a(2);
   ThreeInts* raw = a.data();
   raw[0] = ThreeInts();
-  raw[9] = ThreeInts();
+  raw[1] = ThreeInts();
   // Note: raw[-1] is pointing to 12 bytes before the container range. However,
   // there is only a 8-byte red zone before the container range, so we only
   // access the last 4 bytes of the struct to make sure it stays within the red
   // zone.
   EXPECT_DEATH_IF_SUPPORTED(raw[-1].z_ = 0, "container-overflow");
-  EXPECT_DEATH_IF_SUPPORTED(raw[10] = ThreeInts(), "container-overflow");
-  // The actual size of storage is kDefaultBytes=256, 21*12 = 252,
-  // so reading raw[21] should still trigger the correct warning.
-  EXPECT_DEATH_IF_SUPPORTED(raw[21] = ThreeInts(), "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[2] = ThreeInts(), "container-overflow");
+  // The actual size of storage is kInlineBytesDefault=48, 4*12 = 48,
+  // so reading raw[4] should still trigger the correct warning.
+  EXPECT_DEATH_IF_SUPPORTED(raw[4] = ThreeInts(), "container-overflow");
 }
 #endif  // ABSL_HAVE_ADDRESS_SANITIZER
 

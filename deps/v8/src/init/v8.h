@@ -5,9 +5,17 @@
 #ifndef V8_INIT_V8_H_
 #define V8_INIT_V8_H_
 
+#include <string_view>
+
 #include "src/common/globals.h"
 
 namespace v8 {
+
+using CrashKey = void*;
+enum class CrashKeySize;
+using AllocateCrashKeyCallback = CrashKey (*)(const char key[],
+                                              CrashKeySize size);
+using SetCrashKeyCallback = void (*)(CrashKey key, std::string_view value);
 
 struct OOMDetails;
 class Platform;
@@ -46,6 +54,24 @@ class V8 : public AllStatic {
   V8_EXPORT_PRIVATE static void SetPlatformForTesting(v8::Platform* platform);
 
   static void SetSnapshotBlob(StartupData* snapshot_blob);
+
+  static void SetCrashKeyCallbacks(AllocateCrashKeyCallback allocate_callback,
+                                   SetCrashKeyCallback set_callback);
+  V8_EXPORT_PRIVATE static bool HasCrashKeyCallbacks();
+  // Allocates a new crash key on every call (even for the same `key` name),
+  // which is never freed. If a crash key can be set more than once, cache the
+  // returned `CrashKey` in a `static` variable and update it via `SetCrashKey`
+  // (synchronizing concurrent updates to the same `CrashKey`).
+  V8_EXPORT_PRIVATE static CrashKey AllocateCrashKey(const char key[],
+                                                     CrashKeySize size);
+  // Convenience helper that allocates and sets a crash key in one step. Only
+  // use this on fatal crash paths that execute at most once per process;
+  // otherwise repeated calls will leak a new crash key on every invocation.
+  V8_EXPORT_PRIVATE static CrashKey AddCrashKey(const char key[],
+                                                CrashKeySize size,
+                                                std::string_view value);
+  V8_EXPORT_PRIVATE static void SetCrashKey(CrashKey crash_key,
+                                            std::string_view value);
 
  private:
   static v8::Platform* platform_;

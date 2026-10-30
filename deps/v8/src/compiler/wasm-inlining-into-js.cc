@@ -279,11 +279,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     // we only need this type annotation so {ReduceWasmTypeCast} can get to
     // the {ref_index}, we never need the type's {kind()}.
     TypeNode(rtt, wasm::ValueType::Ref(target_type.heap_type()));
-    Node* cast = gasm_.WasmTypeCast(
-        input.node, rtt,
-        {input.type, target_type,
-         module_->type(target_type_index).is_final ? kExactMatchOnly
-                                                   : kMayBeSubtype});
+    Node* cast =
+        gasm_.WasmTypeCast(input.node, rtt,
+                           {input.type, target_type,
+                            GetExactness(module_, target_type.heap_type())});
     SetSourcePosition(cast);
     return TypeNode(cast, target_type);
   }

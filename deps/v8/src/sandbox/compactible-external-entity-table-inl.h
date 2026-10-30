@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/logging/counters.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/external-pointer.h"
@@ -24,6 +25,7 @@ template <typename Entry, size_t size>
 uint32_t CompactibleExternalEntityTable<Entry, size>::AllocateEntry(
     Space* space) {
   uint32_t index = Base::AllocateEntry(space);
+  SYNCHRONIZATION_POINT_TEST_ONLY("AllocateEntry_Allocated");
 
   // When we're compacting a space, we're trying to move all entries above a
   // threshold index (the start of the evacuation area) into segments below
@@ -91,12 +93,15 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
   uint32_t start_of_evacuation_area =
       space->start_of_evacuation_area_.load(std::memory_order_relaxed);
   if (index >= start_of_evacuation_area) {
+    SYNCHRONIZATION_POINT_TEST_ONLY(
+        "MaybeCreateEvacuationEntry_InEvacuationArea");
     DCHECK(space->IsCompacting());
     uint32_t new_index =
         Base::AllocateEntryBelow(space, start_of_evacuation_area);
     if (new_index) {
       DCHECK_LT(new_index, start_of_evacuation_area);
       DCHECK(space->Contains(new_index));
+      SYNCHRONIZATION_POINT_TEST_ONLY("MaybeCreateEvacuationEntry_Allocated");
       // Even though the new entry will only be accessed during sweeping, this
       // still needs to be an atomic write as another thread may attempt (and
       // fail) to allocate the same table entry, thereby causing a read from
@@ -118,8 +123,8 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
 }
 
 template <typename Entry, size_t size>
-void CompactibleExternalEntityTable<Entry, size>::
-    ResolveEvacuationEntryDuringSweeping(
+bool CompactibleExternalEntityTable<Entry, size>::
+    TryResolveEvacuationEntryDuringSweeping(
         uint32_t new_index,
         typename ExternalEntityTableCompactionTraits<Entry>::Handle*
             handle_location,
@@ -127,19 +132,43 @@ void CompactibleExternalEntityTable<Entry, size>::
   using Traits = ExternalEntityTableCompactionTraits<Entry>;
   using Handle = typename Traits::Handle;
 
+  SYNCHRONIZATION_POINT_TEST_ONLY("ResolveEvacuationEntryDuringSweeping");
+
   Handle old_handle = *handle_location;
+  SYNCHRONIZATION_POINT_TEST_ONLY(
+      "ResolveEvacuationEntryDuringSweeping_HandleRead");
+
+  // 1. Bail out if handle was overwritten with null after compaction start.
+  // This happens when resetting handles.
+  if (old_handle == Traits::kNullHandle) {
+    return false;
+  }
+
+  // Every non-null handle must be a valid handle; if not, memory corruption
+  // occurred.
   CHECK(Traits::IsValidHandle(old_handle));
 
+  // 2. Bail out if handle was overwritten with a valid handle below compaction
+  // frontier. This can happen when setting a new handle after compaction has
+  // started.
   uint32_t old_index = Traits::HandleToIndex(old_handle);
+  if (old_index < start_of_evacuation_area) {
+    return false;
+  }
   Handle new_handle = Traits::IndexToHandle(new_index);
 
   DCHECK_GE(old_index, start_of_evacuation_area);
   DCHECK_LT(new_index, start_of_evacuation_area);
   auto& new_entry = Base::at(new_index);
   Base::at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);
+  SYNCHRONIZATION_POINT_TEST_ONLY(
+      "ResolveEvacuationEntryDuringSweeping_Evacuated");
   *handle_location = new_handle;
+  SYNCHRONIZATION_POINT_TEST_ONLY(
+      "ResolveEvacuationEntryDuringSweeping_HandleUpdated");
 
   Traits::RelocateAuxiliaryEntryData(this, old_index, new_index);
+  return true;
 }
 
 template <typename Entry, size_t size>
@@ -162,47 +191,33 @@ bool CompactibleExternalEntityTable<Entry, size>::SweepAndCompactSegment(
   for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
     const auto payload = Base::at(i).GetRawPayload();
     if (payload.ContainsEvacuationEntry()) {
+      SYNCHRONIZATION_POINT_TEST_ONLY("SweepAndCompactSegment_EvacuationEntry");
       DCHECK(!segment_will_be_evacuated);
       Handle* handle_location = reinterpret_cast<Handle*>(
           payload.ExtractEvacuationEntryHandleLocation());
       DCHECK_NOT_NULL(handle_location);
 
-      // 1. Bail out if field was invalidated. This can happen when objects
-      // change their underlying layout.
+      // Bail out if field was invalidated. This can happen when objects change
+      // their underlying layout.
       if (space->FieldWasInvalidated(
               reinterpret_cast<Address>(handle_location))) {
         AddToFreelist(i);
         continue;
       }
 
-      // 2. Bail out if handle was overwritten with null after compaction start.
-      // This happens when resetting handles.
-      Handle old_handle = *handle_location;
-      if (old_handle == Traits::kNullHandle) {
+      if (!TryResolveEvacuationEntryDuringSweeping(i, handle_location,
+                                                   start_of_evacuation_area)) {
         AddToFreelist(i);
         continue;
       }
-
-      // Every non-null handle must be a valid handle; if not, memory corruption
-      // occurred.
-      CHECK(Traits::IsValidHandle(old_handle));
-
-      // 3. Bail out if handle was overwritten with a valid handle below
-      // compaction frontier. This can happen when setting a new handle after
-      // compaction has started.
-      if (Traits::HandleToIndex(old_handle) < start_of_evacuation_area) {
-        AddToFreelist(i);
-        continue;
-      }
-
-      ResolveEvacuationEntryDuringSweeping(i, handle_location,
-                                           start_of_evacuation_area);
       DCHECK(Base::at(i).GetRawPayload().ContainsPointer());
       DCHECK(!Base::at(i).GetRawPayload().HasMarkBitSet());
     } else if (!payload.HasMarkBitSet()) {
+      SYNCHRONIZATION_POINT_TEST_ONLY("SweepAndCompactSegment_FreeEntry");
       Traits::FreeEntry(this, i);
       AddToFreelist(i);
     } else {
+      SYNCHRONIZATION_POINT_TEST_ONLY("SweepAndCompactSegment_ClearMarkBit");
       auto new_payload = payload;
       new_payload.ClearMarkBit();
       Base::at(i).SetRawPayload(new_payload);
@@ -237,6 +252,7 @@ void CompactibleExternalEntityTable<Entry, size>::Space::StopCompacting() {
 template <typename Entry, size_t size>
 void CompactibleExternalEntityTable<Entry, size>::Space::AbortCompacting(
     uint32_t start_of_evacuation_area) {
+  SYNCHRONIZATION_POINT("AbortCompacting");
   uint32_t compaction_aborted_marker =
       start_of_evacuation_area | kCompactionAbortedMarker;
   DCHECK_NE(compaction_aborted_marker, kNotCompactingMarker);

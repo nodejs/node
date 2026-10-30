@@ -9,6 +9,7 @@
 
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
@@ -299,13 +300,19 @@ V8_OBJECT class V8_EXPORT_PRIVATE NameDictionary
   inline int hash() const;
 
   // Note: Flags are stored as smi, so only 31 bits are usable.
-  using MayHaveInterestingPropertiesBit = base::BitField<bool, 0, 1, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+    using MayHaveInterestingPropertiesBit = First<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(may_have_interesting_properties,
+                              MayHaveInterestingPropertiesBit)
+  };
   DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
 
   static constexpr int kFlagsDefault = 0;
 
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t flags);
+  inline Flags flags() const;
+  inline void set_flags(Flags flags);
 
   // Creates a new NameDictionary.
   template <typename IsolateT>

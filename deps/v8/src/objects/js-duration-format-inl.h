@@ -20,18 +20,18 @@
 namespace v8 {
 namespace internal {
 
-int JSDurationFormat::style_flags() const {
-  return style_flags_.load().value();
+JSDurationFormat::StyleFlags JSDurationFormat::style_flags() const {
+  return style_flags_.load();
 }
-void JSDurationFormat::set_style_flags(int value) {
-  style_flags_.store(this, Smi::FromInt(value));
+void JSDurationFormat::set_style_flags(StyleFlags value) {
+  style_flags_.store(value);
 }
 
-int JSDurationFormat::display_flags() const {
-  return display_flags_.load().value();
+JSDurationFormat::DisplayFlags JSDurationFormat::display_flags() const {
+  return display_flags_.load();
 }
-void JSDurationFormat::set_display_flags(int value) {
-  display_flags_.store(this, Smi::FromInt(value));
+void JSDurationFormat::set_display_flags(DisplayFlags value) {
+  display_flags_.store(value);
 }
 
 Tagged<Managed<icu::Locale>> JSDurationFormat::icu_locale() const {
@@ -42,31 +42,29 @@ void JSDurationFormat::set_icu_locale(Tagged<Managed<icu::Locale>> value,
   icu_locale_.store(this, value, mode);
 }
 
-#define IMPL_INLINE_SETTER_GETTER(T, n, B, f, M)           \
-  inline void JSDurationFormat::set_##n(T value) {         \
-    DCHECK(B::is_valid(value));                            \
-    DCHECK_GE(T::M, value);                                \
-    set_##f(B::update(f(), value));                        \
-  }                                                        \
-  inline JSDurationFormat::T JSDurationFormat::n() const { \
-    return B::decode(f());                                 \
-  }
+#define IMPL_INLINE_SETTER_GETTER(T, n, B, f, M)   \
+  inline void JSDurationFormat::set_##n(T value) { \
+    DCHECK(B::is_valid(value));                    \
+    DCHECK_GE(T::M, value);                        \
+    set_##f(f().with_##n(value));                  \
+  }                                                \
+  inline JSDurationFormat::T JSDurationFormat::n() const { return f().n(); }
 
-#define IMPL_INLINE_DISPLAY_SETTER_GETTER(f, R)                  \
-  IMPL_INLINE_SETTER_GETTER(Display, f##_display, R##DisplayBit, \
+#define IMPL_INLINE_DISPLAY_SETTER_GETTER(f, R)                                \
+  IMPL_INLINE_SETTER_GETTER(Display, f##_display, DisplayFlags::R##DisplayBit, \
                             display_flags, kAlways)
 
-#define IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(f, R)                          \
-  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, R##StyleBits, style_flags, \
-                            kStyle3Max)
+#define IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(f, R)                         \
+  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, StyleFlags::R##StyleBits, \
+                            style_flags, kStyle3Max)
 
-#define IMPL_INLINE_FIELD_STYLE4_SETTER_GETTER(f, R)                          \
-  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, R##StyleBits, style_flags, \
-                            kStyle4Max)
+#define IMPL_INLINE_FIELD_STYLE4_SETTER_GETTER(f, R)                         \
+  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, StyleFlags::R##StyleBits, \
+                            style_flags, kStyle4Max)
 
-#define IMPL_INLINE_FIELD_STYLE5_SETTER_GETTER(f, R)                          \
-  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, R##StyleBits, style_flags, \
-                            kStyle5Max)
+#define IMPL_INLINE_FIELD_STYLE5_SETTER_GETTER(f, R)                         \
+  IMPL_INLINE_SETTER_GETTER(FieldStyle, f##_style, StyleFlags::R##StyleBits, \
+                            style_flags, kStyle5Max)
 
 IMPL_INLINE_DISPLAY_SETTER_GETTER(years, Years)
 IMPL_INLINE_DISPLAY_SETTER_GETTER(months, Months)
@@ -79,9 +77,10 @@ IMPL_INLINE_DISPLAY_SETTER_GETTER(milliseconds, Milliseconds)
 IMPL_INLINE_DISPLAY_SETTER_GETTER(microseconds, Microseconds)
 IMPL_INLINE_DISPLAY_SETTER_GETTER(nanoseconds, Nanoseconds)
 
-IMPL_INLINE_SETTER_GETTER(Style, style, StyleBits, style_flags, kDigital)
-IMPL_INLINE_SETTER_GETTER(Separator, separator, SeparatorBits, style_flags,
-                          kMax)
+IMPL_INLINE_SETTER_GETTER(Style, style, StyleFlags::StyleBits, style_flags,
+                          kDigital)
+IMPL_INLINE_SETTER_GETTER(Separator, separator, StyleFlags::SeparatorBits,
+                          style_flags, kMax)
 
 IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(years, Years)
 IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(months, Months)
@@ -101,12 +100,10 @@ IMPL_INLINE_FIELD_STYLE4_SETTER_GETTER(nanoseconds, Nanoseconds)
 
 inline void JSDurationFormat::set_fractional_digits(int32_t digits) {
   DCHECK((0 <= digits && digits <= 9) || digits == kUndefinedFractionalDigits);
-  int hints = display_flags();
-  hints = FractionalDigitsBits::update(hints, digits);
-  set_display_flags(hints);
+  set_display_flags(display_flags().with_fractional_digits(digits));
 }
 inline int32_t JSDurationFormat::fractional_digits() const {
-  int32_t v = FractionalDigitsBits::decode(display_flags());
+  int32_t v = display_flags().fractional_digits();
   DCHECK((0 <= v && v <= 9) || v == kUndefinedFractionalDigits);
   return v;
 }

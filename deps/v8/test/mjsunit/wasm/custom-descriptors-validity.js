@@ -141,6 +141,18 @@ CheckValid((builder) => {
   builder.addStruct({describes: 2, supertype: 1});   // 3
 });
 
+// Canonically equivalent supertypes across separate recgroups.
+CheckValid((builder) => {
+  builder.addStruct({descriptor: 1, final: false});  // 0
+  builder.addStruct({describes: 0, final: false});   // 1
+}, (builder) => {
+  builder.addStruct({descriptor: 3, final: false});  // 2
+  builder.addStruct({describes: 2, final: false});   // 3
+}, (builder) => {
+  builder.addStruct({descriptor: 5, supertype: 0});  // 4
+  builder.addStruct({describes: 4, supertype: 3});   // 5
+});
+
 CheckInvalid(/type 3 has invalid explicit supertype 0/, (builder) => {
   builder.addStruct({final: false});  // 0
 }, (builder) => {

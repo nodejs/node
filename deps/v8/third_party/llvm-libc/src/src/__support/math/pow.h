@@ -16,6 +16,7 @@
 
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
@@ -456,7 +457,7 @@ LIBC_INLINE double pow(double x, double y) {
       //    representable power of 2 in double precision).
       if (LIBC_UNLIKELY(x_mant == 0)) {
         double ex_y = e_x * y;
-        if (ex_y >= -1074.0 && pow_internal::is_integer(ex_y))
+        if (ex_y >= -1074.0 && fputil::is_integer(ex_y))
           return res;
       } else if (LIBC_UNLIKELY(y > 0.0 && y <= 35.0)) {
         // 2. If x is not a power of 2, exact results in double precision can

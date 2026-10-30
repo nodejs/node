@@ -56,7 +56,7 @@ transitioning javascript builtin FinalizationRegistryConstructor(
   // 6. Set finalizationRegistry.[[CleanupCallback]] to cleanupCallback.
   finalizationRegistry.cleanup = cleanupCallback;
   finalizationRegistry.flags =
-      SmiTag(FinalizationRegistryFlags{scheduled_for_cleanup: false});
+      SmiTag(JSFinalizationRegistryFlags{scheduled_for_cleanup: false});
   // 7. Set finalizationRegistry.[[Cells]] to be an empty List.
   dcheck(finalizationRegistry.active_cells == Undefined);
   dcheck(finalizationRegistry.cleared_cells == Undefined);

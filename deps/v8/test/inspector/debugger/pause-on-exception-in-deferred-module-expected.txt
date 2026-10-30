@@ -1,0 +1,153 @@
+Checks that an exception thrown while evaluating a deferred module pauses exactly once, at the original throw site, and only when its predicted catch state matches the pause mode. Rethrowing a cached evaluation error pauses once at the access site.
+
+Running test: testPauseOnExceptions
+
+--- access inside try/catch, pauseOnExceptions=uncaught
+
+--- access inside try/catch, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (dep-0-caught:0:0)
+    at <top> (main-0-caught:1:9)
+
+--- access inside try/catch, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (dep-0-all:0:0)
+    at <top> (main-0-all:1:9)
+
+--- access not caught, pauseOnExceptions=uncaught
+paused: reason=exception uncaught=true
+    at <top> (dep-1-uncaught:0:0)
+    at <top> (main-1-uncaught:1:3)
+
+--- access not caught, pauseOnExceptions=caught
+
+--- access not caught, pauseOnExceptions=all
+paused: reason=exception uncaught=true
+    at <top> (dep-1-all:0:0)
+    at <top> (main-1-all:1:3)
+
+--- access inside try/finally, pauseOnExceptions=uncaught
+paused: reason=exception uncaught=true
+    at <top> (dep-2-uncaught:0:0)
+    at <top> (main-2-uncaught:1:9)
+
+--- access inside try/finally, pauseOnExceptions=caught
+
+--- access inside try/finally, pauseOnExceptions=all
+paused: reason=exception uncaught=true
+    at <top> (dep-2-all:0:0)
+    at <top> (main-2-all:1:9)
+
+--- throw inside a function called by the module body, pauseOnExceptions=uncaught
+
+--- throw inside a function called by the module body, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at thrower (dep-3-caught:1:2)
+    at <top> (dep-3-caught:3:0)
+    at <top> (main-3-caught:1:9)
+
+--- throw inside a function called by the module body, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at thrower (dep-3-all:1:2)
+    at <top> (dep-3-all:3:0)
+    at <top> (main-3-all:1:9)
+
+--- throw in a dependency of the deferred module, pauseOnExceptions=uncaught
+
+--- throw in a dependency of the deferred module, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (inner-4-caught:0:0)
+    at <top> (main-4-caught:1:9)
+
+--- throw in a dependency of the deferred module, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (inner-4-all:0:0)
+    at <top> (main-4-all:1:9)
+
+--- access from a classic script inside try/catch, pauseOnExceptions=uncaught
+
+--- access from a classic script inside try/catch, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (dep-5-caught:0:0)
+    at <top> (script-5-caught:0:32)
+
+--- access from a classic script inside try/catch, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (dep-5-all:0:0)
+    at <top> (script-5-all:0:29)
+
+--- access from a classic script not caught, pauseOnExceptions=uncaught
+paused: reason=exception uncaught=true
+    at <top> (dep-6-uncaught:0:0)
+    at <top> (script-6-uncaught:0:28)
+
+--- access from a classic script not caught, pauseOnExceptions=caught
+
+--- access from a classic script not caught, pauseOnExceptions=all
+paused: reason=exception uncaught=true
+    at <top> (dep-6-all:0:0)
+    at <top> (script-6-all:0:23)
+
+--- access from an async function inside try/catch, pauseOnExceptions=uncaught
+
+--- access from an async function inside try/catch, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (dep-7-caught:0:0)
+    at f (main-7-caught:3:11)
+
+--- access from an async function inside try/catch, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (dep-7-all:0:0)
+    at f (main-7-all:3:11)
+
+--- access from an async function not caught, pauseOnExceptions=uncaught
+paused: reason=promiseRejection uncaught=true
+    at <top> (dep-8-uncaught:0:0)
+    at f (main-8-uncaught:3:5)
+
+--- access from an async function not caught, pauseOnExceptions=caught
+
+--- access from an async function not caught, pauseOnExceptions=all
+paused: reason=promiseRejection uncaught=true
+    at <top> (dep-8-all:0:0)
+    at f (main-8-all:3:5)
+
+--- second access inside try/catch rethrows the cached error, pauseOnExceptions=uncaught
+
+--- second access inside try/catch rethrows the cached error, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (script-9-caught:0:32)
+
+--- second access inside try/catch rethrows the cached error, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (script-9-all:0:29)
+
+--- second access not caught rethrows the cached error, pauseOnExceptions=uncaught
+paused: reason=exception uncaught=true
+    at <top> (script-10-uncaught:0:29)
+
+--- second access not caught rethrows the cached error, pauseOnExceptions=caught
+
+--- second access not caught rethrows the cached error, pauseOnExceptions=all
+paused: reason=exception uncaught=true
+    at <top> (script-10-all:0:24)
+
+--- dependency already errored, access inside try/catch, pauseOnExceptions=uncaught
+
+--- dependency already errored, access inside try/catch, pauseOnExceptions=caught
+paused: reason=exception uncaught=false
+    at <top> (main-11-caught:1:9)
+
+--- dependency already errored, access inside try/catch, pauseOnExceptions=all
+paused: reason=exception uncaught=false
+    at <top> (main-11-all:1:9)
+
+--- dependency already errored, access not caught, pauseOnExceptions=uncaught
+paused: reason=exception uncaught=true
+    at <top> (main-12-uncaught:1:3)
+
+--- dependency already errored, access not caught, pauseOnExceptions=caught
+
+--- dependency already errored, access not caught, pauseOnExceptions=all
+paused: reason=exception uncaught=true
+    at <top> (main-12-all:1:3)

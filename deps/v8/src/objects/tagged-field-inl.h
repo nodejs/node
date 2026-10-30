@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/smi.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {
@@ -49,6 +50,55 @@ Tagged_t TaggedMember<T, CompressionScheme>::full_to_tagged(Address value) {
 #else
   return value;
 #endif
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value) {
+  static_assert(is_subtype_v<Smi, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value,
+                                                 RelaxedStoreTag) {
+  static_assert(is_subtype_v<Smi, T>);
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    Tagged<ClearedWeakValue> value) {
+  static_assert(is_subtype_v<ClearedWeakValue, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value,
+                                                 RelaxedStoreTag)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value) {
+  store(witness.object(), value, witness.write_barrier_mode());
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value, RelaxedStoreTag) {
+  Relaxed_Store(witness.object(), value, witness.write_barrier_mode());
 }
 
 template <typename T, typename CompressionScheme>
@@ -182,6 +232,38 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObject* host,
     }
   }
 #endif
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value) {
+  store(value);
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value, RelaxedStoreTag) {
+  Relaxed_Store(value);
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::store(Group value) {
+  store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::Relaxed_Load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::Relaxed_Load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::Relaxed_Store(Group value) {
+  Relaxed_Store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
 }
 
 // static
@@ -443,10 +525,10 @@ void JSDispatchHandleMember::Relaxed_Clear() {
   storage_.store(0, std::memory_order_relaxed);
 }
 
-void JSDispatchHandleMember::Relaxed_Store(HeapObject* host,
+void JSDispatchHandleMember::Release_Store(HeapObject* host,
                                            JSDispatchHandle handle,
                                            WriteBarrierMode mode) {
-  storage_.store(handle.value(), std::memory_order_relaxed);
+  storage_.store(handle.value(), std::memory_order_release);
   WriteBarrier::ForJSDispatchHandle(host, handle, mode);
 }
 

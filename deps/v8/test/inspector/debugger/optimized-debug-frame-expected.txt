@@ -1,0 +1,5 @@
+Tests optimized-debug-frame.
+function g(x) {
+  return #f();
+}
+

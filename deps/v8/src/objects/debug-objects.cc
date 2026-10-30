@@ -4,11 +4,13 @@
 
 #include "src/objects/debug-objects.h"
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -19,19 +21,18 @@ bool DebugInfo::IsEmpty() const {
 }
 
 bool DebugInfo::HasBreakInfo() const {
-  return flags(kRelaxedLoad).contains(kHasBreakInfo);
+  return flags(kRelaxedLoad).has_break_info();
 }
 
 DebugInfo::ExecutionMode DebugInfo::DebugExecutionMode() const {
-  return flags(kRelaxedLoad).contains(kDebugExecutionMode) ? kSideEffects
-                                                           : kBreakpoints;
+  return flags(kRelaxedLoad).debug_execution_mode() ? kSideEffects
+                                                    : kBreakpoints;
 }
 
 void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
-  set_flags(value == kSideEffects
-                ? flags(kRelaxedLoad).with(kDebugExecutionMode)
-                : flags(kRelaxedLoad).without(kDebugExecutionMode),
-            kRelaxedStore);
+  set_flags(
+      flags(kRelaxedLoad).with_debug_execution_mode(value == kSideEffects),
+      kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
@@ -52,29 +53,31 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
-  Flags new_flags =
-      flags(kRelaxedLoad)
-          .without({kHasBreakInfo, kPreparedForDebugExecution, kBreakAtEntry,
-                    kCanBreakAtEntry, kDebugExecutionMode});
+  Flags new_flags = flags(kRelaxedLoad)
+                        .with_has_break_info(false)
+                        .with_prepared_for_debug_execution(false)
+                        .with_break_at_entry(false)
+                        .with_can_break_at_entry(false)
+                        .with_debug_execution_mode(false);
   set_flags(new_flags, kRelaxedStore);
 }
 
 void DebugInfo::SetBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags(kRelaxedLoad) | kBreakAtEntry, kRelaxedStore);
+  set_flags(flags(kRelaxedLoad).with_break_at_entry(true), kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags(kRelaxedLoad).without(kBreakAtEntry), kRelaxedStore);
+  set_flags(flags(kRelaxedLoad).with_break_at_entry(false), kRelaxedStore);
 }
 
 bool DebugInfo::BreakAtEntry() const {
-  return flags(kRelaxedLoad).contains(kBreakAtEntry);
+  return flags(kRelaxedLoad).break_at_entry();
 }
 
 bool DebugInfo::CanBreakAtEntry() const {
-  return flags(kRelaxedLoad).contains(kCanBreakAtEntry);
+  return flags(kRelaxedLoad).can_break_at_entry();
 }
 
 // Check if there is a break point at this source position.
@@ -219,14 +222,14 @@ DirectHandle<Object> DebugInfo::FindBreakPointInfo(
 }
 
 bool DebugInfo::HasCoverageInfo() const {
-  return flags(kRelaxedLoad).contains(kHasCoverageInfo);
+  return flags(kRelaxedLoad).has_coverage_info();
 }
 
 void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
     set_coverage_info(ReadOnlyRoots(isolate).undefined_value());
 
-    Flags new_flags = flags(kRelaxedLoad).without(kHasCoverageInfo);
+    Flags new_flags = flags(kRelaxedLoad).with_has_coverage_info(false);
     set_flags(new_flags, kRelaxedStore);
   }
 }
@@ -383,11 +386,14 @@ uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return Cast<FixedArray>(break_points())->ulength().value();
 }
 
-void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  set_slots_start_source_position(slot_index, from_pos);
-  set_slots_end_source_position(slot_index, to_pos);
-  ResetBlockCount(slot_index);
-  set_slots_padding(slot_index, 0);
+CoverageInfo::CoverageInfo(const AllocationWitness& witness,
+                           const ZoneVector<SourceRange>& slots)
+    : HeapObject(witness.roots().coverage_info_map()),
+      slot_count_(static_cast<int32_t>(slots.size())) {
+  for (int32_t i = 0; i < slot_count_; i++) {
+    SourceRange range = slots[i];
+    new (&this->slots()[i]) CoverageInfoSlot{range.start, range.end};
+  }
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {

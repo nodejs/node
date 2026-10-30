@@ -36,7 +36,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page.h"
 #include "src/heap/parallel-work-item.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
@@ -444,7 +443,6 @@ class Scavenger {
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   ScavengerWeakObjectsProcessor::JSWeakRefsList::Local local_js_weak_refs_list_;
   ScavengerWeakObjectsProcessor::WeakCellsList::Local local_weak_cells_list_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
   SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
   size_t copied_size_{0};
@@ -506,10 +504,6 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kYoung,
                    HeapLayout::InYoungGeneration(host));
 
-    // TODO(chromium:337580006): Remove when pointer compression always uses
-    // EPT.
-    if (!slot.HasExternalPointerHandle()) return;
-
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
@@ -520,15 +514,13 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
       table.Mark(heap->young_external_pointer_space(), handle, slot.address(),
                  slot.tag_range());
     } else {
-      // When promoting, we just evacuate the entry from new to old space.
-      // Usually the entry will be unmarked, unless the slot was initialized
-      // since the last GC (external pointer tags have the mark bit set), in
-      // which case it may be marked already. In any case, transfer the color
-      // from new to old EPT space.
+      // When promoting, we evacuate the entry from new to old space.
+      // Entries in the young EPT space are allocated unmarked and Scavenger
+      // never runs during incremental marking, so the entry must be unmarked.
       handle = table.Evacuate(
           heap->young_external_pointer_space(),
           heap->old_external_pointer_space(), handle, slot.address(),
-          ExternalPointerTable::EvacuateMarkMode::kTransferMark,
+          ExternalPointerTable::EvacuateMarkMode::kLeaveUnmarked,
           slot.tag_range());
     }
 
@@ -545,7 +537,6 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
             : nullptr;
 #endif  // !V8_COMPRESS_POINTERS
     if (array_buffer_extension) {
-      array_buffer_extension->InitializationBarrier();
       if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
         array_buffer_extension->YoungMark();
       } else {
@@ -1913,7 +1904,6 @@ Scavenger::Scavenger(
       local_ephemeron_table_list_(*ephemeron_table_list),
       local_js_weak_refs_list_(*js_weak_refs_list),
       local_weak_cells_list_(*weak_cells_list),
-      local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
       shared_string_table_(v8_flags.shared_string_table &&
@@ -1989,9 +1979,9 @@ bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
   // failure case. It also helps us to ensure that we do not rely on non-relaxed
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
-  heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize,
-                    object_size.value() - kTaggedSize);
+  Heap::CopyBlock(target.address() + kTaggedSize,
+                  source.address() + kTaggedSize,
+                  SafeHeapObjectSize(object_size.value() - kTaggedSize));
 
   if (is_logging_) [[unlikely]] {
     // TODO(425150995): We should have uint versions for allocation to avoid
@@ -2015,10 +2005,7 @@ bool Scavenger::SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   return TryMigrateObject(
       map, slot, object, object_size, NEW_SPACE,
-      [this, map, object_fields, object,
-       object_size](Tagged<HeapObject> target) {
-        PretenuringHandler::UpdateAllocationSite(
-            heap_, map, object, object_size, &local_pretenuring_feedback_);
+      [this, map, object_fields, object_size](Tagged<HeapObject> target) {
         copied_size_ += object_size.value();
         if (object_fields == ObjectFields::kMaybePointers) {
           local_copied_list_.Push({target, map, object_size});
@@ -2569,8 +2556,6 @@ void Scavenger::Process(JobDelegate* delegate) {
 
 void Scavenger::Finalize(
     std::vector<SurvivingNewLargeObjectsMap>& surviving_new_large_objects) {
-  heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
-      local_pretenuring_feedback_);
   for (const auto& it : local_ephemeron_remembered_set_) {
     // The ephemeron objects in the remembered set should be either large
     // objects, promoted to old space, or pinned objects on quarantined pages
@@ -2649,8 +2634,6 @@ void Scavenger::PinAndPushObject(MutablePage* metadata,
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
   Tagged<Map> map = map_word.ToMap();
   const auto object_size = object->SafeSizeFromMap(map);
-  PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
-                                           &local_pretenuring_feedback_);
   object->set_map_word_forwarded(object, kRelaxedStore);
   DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
   DCHECK(HeapLayout::IsSelfForwarded(object));

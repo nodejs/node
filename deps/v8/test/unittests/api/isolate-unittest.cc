@@ -13,7 +13,9 @@
 #include "include/v8-function.h"
 #include "include/v8-platform.h"
 #include "include/v8-template.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -172,7 +174,7 @@ TEST_F(IsolateTest, SetAddCrashKeyCallback) {
 }
 
 TEST_F(IsolateTest, DebugTraceMinimal) {
-  i::CrashKeyStore crash_key_store(i_isolate());
+  i::CrashKeyStore crash_key_store;
   HandleScope handle_scope(isolate());
   Local<FunctionTemplate> print_stack = FunctionTemplate::New(
       isolate(), [](const FunctionCallbackInfo<Value>& info) {
@@ -215,7 +217,7 @@ TEST_F(IsolateTest, DebugTraceMinimal) {
 }
 
 TEST_F(IsolateTest, DebugTraceMaxLength) {
-  i::CrashKeyStore crash_key_store(i_isolate());
+  i::CrashKeyStore crash_key_store;
   HandleScope handle_scope(isolate());
   Local<FunctionTemplate> print_stack = FunctionTemplate::New(
       isolate(), [](const FunctionCallbackInfo<Value>& info) {
@@ -260,5 +262,101 @@ TEST_F(IsolateTest, DebugTraceMaxLength) {
   static constexpr size_t kMaxLength = 1024u;
   EXPECT_LE(kMaxLength, output.size());
   EXPECT_LE(output.size(), kMaxLength + 100u);
+}
+
+namespace {
+
+class WorkerCrashKeyThread final : public base::Thread {
+ public:
+  WorkerCrashKeyThread() : base::Thread(Options("WorkerCrashKeyThread")) {}
+
+  void Run() override {
+    std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = allocator.get();
+    v8::Isolate* worker_isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(worker_isolate);
+      v8::HandleScope handle_scope(worker_isolate);
+      v8::Local<v8::Context> context = v8::Context::New(worker_isolate);
+      v8::Context::Scope context_scope(context);
+
+      internal::Isolate* i_worker_isolate =
+          reinterpret_cast<internal::Isolate*>(worker_isolate);
+      EXPECT_TRUE(internal::V8::HasCrashKeyCallbacks());
+      EXPECT_TRUE(i_worker_isolate->HasCrashKeyStringCallbacks());
+      CrashKey key = i_worker_isolate->AllocateCrashKeyString(
+          "v8-worker-crash-key", CrashKeySize::Size64);
+      EXPECT_NE(nullptr, key);
+      i_worker_isolate->SetCrashKeyString(key, "first-value");
+      i_worker_isolate->SetCrashKeyString(key, "updated-from-worker");
+      internal::V8::AddCrashKey("v8-direct-crash-key", CrashKeySize::Size32,
+                                "direct-value");
+    }
+    worker_isolate->Dispose();
+  }
+};
+
+}  // namespace
+
+TEST_F(IsolateTest, CrashKeyCallbacksWorkerThread) {
+  {
+    i::CrashKeyStore crash_key_store;
+    WorkerCrashKeyThread worker_thread;
+    i_isolate()->main_thread_local_heap()->ExecuteMainThreadWhileParked([&]() {
+      CHECK(worker_thread.Start());
+      worker_thread.Join();
+    });
+
+    EXPECT_TRUE(crash_key_store.HasKey("v8-worker-crash-key"));
+    EXPECT_EQ("updated-from-worker",
+              crash_key_store.ValueForKey("v8-worker-crash-key"));
+    EXPECT_TRUE(crash_key_store.HasKey("v8-direct-crash-key"));
+    EXPECT_EQ("direct-value",
+              crash_key_store.ValueForKey("v8-direct-crash-key"));
+  }
+  EXPECT_FALSE(i::V8::HasCrashKeyCallbacks());
+  EXPECT_FALSE(i_isolate()->HasCrashKeyStringCallbacks());
+}
+
+TEST_F(IsolateTest, DeprecatedIsolateCrashKeyStringCallbacks) {
+  int dummy_key = 0;
+  std::string last_value;
+
+  START_ALLOW_USE_DEPRECATED()
+  isolate()->SetCrashKeyStringCallbacks(
+      [&](const char key[], CrashKeySize size) -> CrashKey {
+        EXPECT_STREQ("v8-deprecated-key", key);
+        EXPECT_EQ(CrashKeySize::Size32, size);
+        return &dummy_key;
+      },
+      [&](CrashKey key, const std::string_view value) {
+        EXPECT_EQ(&dummy_key, key);
+        last_value = std::string(value);
+      });
+  END_ALLOW_USE_DEPRECATED()
+
+  EXPECT_FALSE(i::V8::HasCrashKeyCallbacks());
+  EXPECT_TRUE(i_isolate()->HasCrashKeyStringCallbacks());
+  i_isolate()->AddCrashKeyString("v8-deprecated-key", CrashKeySize::Size32,
+                                 "from-isolate");
+  EXPECT_EQ("from-isolate", last_value);
+
+  {
+    i::CrashKeyStore crash_key_store;
+    EXPECT_TRUE(i::V8::HasCrashKeyCallbacks());
+    EXPECT_TRUE(i_isolate()->HasCrashKeyStringCallbacks());
+    i_isolate()->AddCrashKeyString("v8-deprecated-key", CrashKeySize::Size32,
+                                   "from-process-wide");
+    EXPECT_EQ("from-process-wide",
+              crash_key_store.ValueForKey("v8-deprecated-key"));
+    EXPECT_EQ("from-isolate", last_value);
+  }
+
+  START_ALLOW_USE_DEPRECATED()
+  isolate()->SetCrashKeyStringCallbacks(nullptr, nullptr);
+  END_ALLOW_USE_DEPRECATED()
+  EXPECT_FALSE(i_isolate()->HasCrashKeyStringCallbacks());
 }
 }  // namespace v8

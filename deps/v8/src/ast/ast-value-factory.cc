@@ -304,7 +304,7 @@ AstStringConstants::AstStringConstants(Isolate* isolate,
     : zone_(isolate->allocator(), ZONE_NAME),
       string_table_(),
       hash_seed_(hash_seed) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 #define F(name, str)                                                        \
   {                                                                         \
     static const char data[] = str;                                         \

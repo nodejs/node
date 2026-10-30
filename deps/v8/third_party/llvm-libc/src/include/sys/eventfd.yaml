@@ -1,0 +1,19 @@
+header: sys/eventfd.h
+standards:
+  - linux
+macros:
+  - macro_name: EFD_CLOEXEC
+    macro_header: sys-eventfd-macros.h
+  - macro_name: EFD_NONBLOCK
+    macro_header: sys-eventfd-macros.h
+  - macro_name: EFD_SEMAPHORE
+    macro_header: sys-eventfd-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: eventfd
+    return_type: int
+    arguments:
+      - type: unsigned int
+      - type: int

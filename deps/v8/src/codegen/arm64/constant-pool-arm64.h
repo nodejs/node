@@ -55,7 +55,7 @@ class ConstantPoolKey {
         (is_value32() ? (value32() != 0) : (value64() != 0));
     bool is_sharable_embedded_object = RelocInfo::IsEmbeddedObjectMode(rmode_);
     return RelocInfo::IsShareableRelocMode(rmode_) || is_sharable_code_target ||
-           is_sharable_embedded_object;
+           is_sharable_embedded_object || RelocInfo::IsJSDispatchHandle(rmode_);
   }
 
  private:
@@ -168,9 +168,10 @@ class ConstantPool {
   void StartBlock();
   void EndBlock();
 
-  void EmitEntries();
+  void EmitEntries(Alignment require_alignment);
   void EmitPrologue(Alignment require_alignment);
   int PrologueSize(Jump require_jump) const;
+  size_t Entry32CountAfter64(Alignment require_alignment) const;
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
   void Emit(const ConstantPoolKey& key);

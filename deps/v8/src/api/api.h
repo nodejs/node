@@ -106,13 +106,14 @@ class RegisteredExtension {
   V(ToLocal, JSMap, Map)                                            \
   V(ToLocal, JSSet, Set)                                            \
   V(ToLocal, JSProxy, Proxy)                                        \
-  V(ToLocal, JSArrayBuffer, ArrayBuffer)                            \
+  V(ToLocal, JSArrayBuffer, ArrayBufferBase)                        \
+  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                \
+  V(ToLocalUnshared, JSArrayBuffer, ArrayBuffer)                    \
   V(ToLocal, JSArrayBufferView, ArrayBufferView)                    \
   V(ToLocal, JSDataView, DataView)                                  \
   V(ToLocal, JSPromise, Promise)                                    \
   V(ToLocal, JSRabGsabDataView, DataView)                           \
   V(ToLocal, JSTypedArray, TypedArray)                              \
-  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                \
   V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                \
   V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                    \
   V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)            \
@@ -136,6 +137,7 @@ class RegisteredExtension {
 
 #define TO_LOCAL_NAME_LIST(V) \
   V(ToLocal)                  \
+  V(ToLocalUnshared)          \
   V(ToLocalShared)            \
   V(SignatureToLocal)         \
   V(MessageToLocal)           \
@@ -151,62 +153,63 @@ class RegisteredExtension {
   V(PrimitiveArrayToLocal)    \
   V(CppHeapExternalToLocal)
 
-#define OPEN_HANDLE_LIST(V)                                    \
-  V(Template, TemplateInfoWithProperties)                      \
-  V(FunctionTemplate, FunctionTemplateInfo)                    \
-  V(ObjectTemplate, ObjectTemplateInfo)                        \
-  V(DictionaryTemplate, DictionaryTemplateInfo)                \
-  V(Signature, FunctionTemplateInfo)                           \
-  V(Data, Object)                                              \
-  V(Number, Number)                                            \
-  V(RegExp, JSRegExp)                                          \
-  V(Object, JSReceiver)                                        \
-  V(Array, JSArray)                                            \
-  V(Map, JSMap)                                                \
-  V(Set, JSSet)                                                \
-  V(ArrayBuffer, JSArrayBuffer)                                \
-  V(ArrayBufferView, JSArrayBufferView)                        \
-  V(TypedArray, JSTypedArray)                                  \
-  V(Uint8Array, JSTypedArray)                                  \
-  V(Uint8ClampedArray, JSTypedArray)                           \
-  V(Int8Array, JSTypedArray)                                   \
-  V(Uint16Array, JSTypedArray)                                 \
-  V(Int16Array, JSTypedArray)                                  \
-  V(Uint32Array, JSTypedArray)                                 \
-  V(Int32Array, JSTypedArray)                                  \
-  V(Float16Array, JSTypedArray)                                \
-  V(Float32Array, JSTypedArray)                                \
-  V(Float64Array, JSTypedArray)                                \
-  V(DataView, JSDataViewOrRabGsabDataView)                     \
-  V(SharedArrayBuffer, JSArrayBuffer)                          \
-  V(Name, Name)                                                \
-  V(String, String)                                            \
-  V(Symbol, Symbol)                                            \
-  V(Script, JSFunction)                                        \
-  V(UnboundModuleScript, SharedFunctionInfo)                   \
-  V(UnboundScript, SharedFunctionInfo)                         \
-  V(Module, Module)                                            \
-  V(Function, JSReceiver)                                      \
-  V(CompileHintsCollector, Script)                             \
-  V(Message, JSMessageObject)                                  \
-  V(Context, NativeContext)                                    \
-  V(External, Object)                                          \
-  V(StackTrace, StackTraceInfo)                                \
-  V(StackFrame, StackFrameInfo)                                \
-  V(Proxy, JSProxy)                                            \
-  V(debug::GeneratorObject, JSGeneratorObject)                 \
-  V(debug::ScriptSource, HeapObject)                           \
-  V(debug::Script, Script)                                     \
-  V(debug::EphemeronTable, EphemeronHashTable)                 \
-  V(debug::AccessorPair, AccessorPair)                         \
-  V(Promise, JSPromise)                                        \
-  V(Primitive, Object)                                         \
-  V(PrimitiveArray, FixedArray)                                \
-  V(BigInt, BigInt)                                            \
-  V(ScriptOrModule, ScriptOrModule)                            \
-  V(FixedArray, FixedArray)                                    \
-  V(ModuleRequest, ModuleRequest)                              \
-  V(CppHeapExternal, CppHeapExternalObject)                    \
+#define OPEN_HANDLE_LIST(V)                     \
+  V(Template, TemplateInfoWithProperties)       \
+  V(FunctionTemplate, FunctionTemplateInfo)     \
+  V(ObjectTemplate, ObjectTemplateInfo)         \
+  V(DictionaryTemplate, DictionaryTemplateInfo) \
+  V(Signature, FunctionTemplateInfo)            \
+  V(Data, Object)                               \
+  V(Number, Number)                             \
+  V(RegExp, JSRegExp)                           \
+  V(Object, JSReceiver)                         \
+  V(Array, JSArray)                             \
+  V(Map, JSMap)                                 \
+  V(Set, JSSet)                                 \
+  V(ArrayBufferBase, JSArrayBuffer)             \
+  V(ArrayBuffer, JSArrayBuffer)                 \
+  V(ArrayBufferView, JSArrayBufferView)         \
+  V(TypedArray, JSTypedArray)                   \
+  V(Uint8Array, JSTypedArray)                   \
+  V(Uint8ClampedArray, JSTypedArray)            \
+  V(Int8Array, JSTypedArray)                    \
+  V(Uint16Array, JSTypedArray)                  \
+  V(Int16Array, JSTypedArray)                   \
+  V(Uint32Array, JSTypedArray)                  \
+  V(Int32Array, JSTypedArray)                   \
+  V(Float16Array, JSTypedArray)                 \
+  V(Float32Array, JSTypedArray)                 \
+  V(Float64Array, JSTypedArray)                 \
+  V(DataView, JSDataViewOrRabGsabDataView)      \
+  V(SharedArrayBuffer, JSArrayBuffer)           \
+  V(Name, Name)                                 \
+  V(String, String)                             \
+  V(Symbol, Symbol)                             \
+  V(Script, JSFunction)                         \
+  V(UnboundModuleScript, SharedFunctionInfo)    \
+  V(UnboundScript, SharedFunctionInfo)          \
+  V(Module, Module)                             \
+  V(Function, JSReceiver)                       \
+  V(CompileHintsCollector, Script)              \
+  V(Message, JSMessageObject)                   \
+  V(Context, NativeContext)                     \
+  V(External, Object)                           \
+  V(StackTrace, StackTraceInfo)                 \
+  V(StackFrame, StackFrameInfo)                 \
+  V(Proxy, JSProxy)                             \
+  V(debug::GeneratorObject, JSGeneratorObject)  \
+  V(debug::ScriptSource, HeapObject)            \
+  V(debug::Script, Script)                      \
+  V(debug::EphemeronTable, EphemeronHashTable)  \
+  V(debug::AccessorPair, AccessorPair)          \
+  V(Promise, JSPromise)                         \
+  V(Primitive, Object)                          \
+  V(PrimitiveArray, FixedArray)                 \
+  V(BigInt, BigInt)                             \
+  V(ScriptOrModule, ScriptOrModule)             \
+  V(FixedArray, FixedArray)                     \
+  V(ModuleRequest, ModuleRequest)               \
+  V(CppHeapExternal, CppHeapExternalObject)     \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {

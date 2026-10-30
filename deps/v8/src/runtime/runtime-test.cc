@@ -16,10 +16,10 @@
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
@@ -32,7 +32,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -45,7 +45,6 @@
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
@@ -106,15 +105,6 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
   return true;
 }
 
-// Returns |value| unless correctness-fuzzer-supressions is enabled,
-// otherwise returns undefined_value.
-V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
-                                                    Isolate* isolate) {
-  return v8_flags.correctness_fuzzer_suppressions
-             ? ReadOnlyRoots(isolate).undefined_value()
-             : value;
-}
-
 // Assert that the given argument is a number within the Int32 range
 // and convert it to int32_t.  If the argument is not an Int32 we crash if not
 // in fuzzing mode.
@@ -137,6 +127,7 @@ RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
   isolate->load_stub_cache()->Clear();
   isolate->store_stub_cache()->Clear();
   isolate->define_own_stub_cache()->Clear();
+  isolate->has_stub_cache()->Clear();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -155,6 +146,14 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
   DCHECK_EQ(args.length(), 1);
   DirectHandle<String> s = args.at<String>(0);
   return isolate->heap()->ToBoolean(s->IsFlat());
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsOneByteRepresentation) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsOneByteRepresentation());
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
@@ -225,7 +224,7 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
-        // Pretenure to ensure it stays thin.
+        // Allocate in old space to ensure it stays thin.
         AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
@@ -271,6 +270,10 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = direct_handle(it.frame()->function(), isolate);
   CHECK_UNLESS_FUZZING(!function.is_null());
 
+  if (it.frame()->is_optimized()) {
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    it.frame()->LookupCode());
+  }
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
                                     function->code(isolate));
@@ -391,8 +394,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     DirectHandle<Object> type = args.at(1);
     CHECK_UNLESS_FUZZING(IsString(*type));
-    if (Cast<String>(type)->IsOneByteEqualTo(
-            base::StaticCharVector("concurrent")) &&
+    if (Cast<String>(type)->IsOneByteEqualTo("concurrent") &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -871,6 +873,18 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DisableEagerInlining) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  Handle<Object> function_object = args.at(0);
+  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
+  auto function = Cast<JSFunction>(function_object);
+
+  ManualOptimizationTable::MarkFunctionForDisabledEagerInlining(isolate,
+                                                                function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -878,6 +892,9 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK_UNLESS_FUZZING(!sfi->HasWasmFunctionData(isolate));
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
@@ -1226,7 +1243,6 @@ int FixedArrayLenFromSize(int size) {
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
                            SemiSpaceNewSpace* space) {
-  DCHECK(!v8_flags.single_generation);
   heap->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(heap);
   while (space->GetSpaceRemainingOnCurrentPageForTesting() > 0) {
@@ -1248,6 +1264,12 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  if (v8_flags.single_generation) {
+    PrintF(
+        "Warning: %%SimulateNewspaceFull does nothing in single-generation "
+        "mode\n");
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   heap->FreeMainThreadLinearAllocationAreas();
@@ -1786,32 +1808,6 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
 }
 
-// Force pretenuring for the allocation site the passed object belongs to.
-RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
-  DisallowGarbageCollection no_gc;
-
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  Tagged<Object> arg = args[0];
-  CHECK_UNLESS_FUZZING(IsJSObject(arg));
-  Tagged<JSObject> object = Cast<JSObject>(arg);
-
-  if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
-    // Object is not in new space, thus there is no memento and nothing to do.
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-
-  Heap* heap = isolate->heap();
-  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
-  Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
-      PretenuringHandler::kForRuntime>(heap, object->map(), object);
-  if (memento.is_null()) {
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-  Tagged<AllocationSite> site = memento->GetAllocationSite();
-  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
-  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
-}
-
 namespace {
 
 v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
@@ -2316,15 +2312,6 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
                                         GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
-  HandleScope scope(isolate);
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  CHECK_UNLESS_FUZZING(IsJSSynchronizationPrimitive(*args.at(0)));
-  DirectHandle<JSSynchronizationPrimitive> primitive =
-      args.at<JSSynchronizationPrimitive>(0);
-  return primitive->NumWaitersForTesting(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
@@ -2916,8 +2903,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
-                                                     timeout);
+  base::SynchronizationPointSupport::Get()->RequestBlockAt(
+      phase_name->ToStdString(), timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2930,8 +2917,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool success =
-      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
+  bool success = base::SynchronizationPointSupport::Get()->Resume(
+      phase_name->ToStdString());
   return isolate->heap()->ToBoolean(success);
 }
 
@@ -2949,8 +2936,12 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
-  bool success = SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      phase_name->ToStdString(), timeout);
+  std::string phase_name_str = phase_name->ToStdString();
+  bool success = false;
+  isolate->main_thread_local_heap()->ExecuteWhileParked([&]() {
+    success = base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        phase_name_str, timeout);
+  });
   return isolate->heap()->ToBoolean(success);
 }
 

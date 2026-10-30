@@ -15,7 +15,7 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/tagged-field-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -61,7 +61,7 @@ bool JSRegExp::has_data() const { return !data_.is_empty(); }
 bool JSRegExp::has_data_unpublished(IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(JSRegExp, data_),
-      kRegExpDataIndirectPointerTag, isolate);
+      kRegExpDataTrustedPointerTag, isolate);
 }
 void JSRegExp::clear_data() { data_.clear(this); }
 
@@ -74,7 +74,7 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
   REGEXP_FLAG_LIST(V)
 #undef V
   buffer[cursor++] = '\0';
-  return buffer.begin();
+  return buffer.data();
 }
 
 RegExpData::Type RegExpData::type_tag() const {
@@ -162,6 +162,9 @@ int RegExpData::capture_count() const {
   }
   UNREACHABLE();
 }
+
+RegExpDataWrapper::RegExpDataWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().regexp_data_wrapper_map()) {}
 
 Tagged<RegExpData> RegExpDataWrapper::data(IsolateForSandbox isolate) const {
   return data_.load(isolate);
@@ -307,15 +310,13 @@ void IrRegExpData::set_backtrack_limit(int value) {
   backtrack_limit_.store(this, Smi::FromInt(value));
 }
 
-uint32_t IrRegExpData::bit_field() const { return bit_field_.load().value(); }
-void IrRegExpData::set_bit_field(uint32_t value) {
-  bit_field_.store(this, Smi::FromInt(value));
-}
+IrRegExpData::Bits IrRegExpData::bit_field() const { return bit_field_.load(); }
+void IrRegExpData::set_bit_field(Bits value) { bit_field_.store(value); }
 
-BOOL_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
-               Bits::CanBeZeroLengthBit::kShift)
-BOOL_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
-               Bits::IsLinearExecutableBit::kShift)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
+                    IrRegExpData::Bits::CanBeZeroLengthBit)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
+                    IrRegExpData::Bits::IsLinearExecutableBit)
 
 }  // namespace internal
 }  // namespace v8

@@ -14,6 +14,16 @@
 #include "src/objects/objects-inl.h"
 
 // Rust includes to transitively include
+#if __has_include("temporal/Duration.hpp")
+#include "temporal/Duration.hpp"
+#include "temporal/Instant.hpp"
+#include "temporal/PlainDate.hpp"
+#include "temporal/PlainDateTime.hpp"
+#include "temporal/PlainMonthDay.hpp"
+#include "temporal/PlainTime.hpp"
+#include "temporal/PlainYearMonth.hpp"
+#include "temporal/ZonedDateTime.hpp"
+#else
 #include "temporal_rs/Duration.hpp"
 #include "temporal_rs/Instant.hpp"
 #include "temporal_rs/PlainDate.hpp"
@@ -22,6 +32,7 @@
 #include "temporal_rs/PlainTime.hpp"
 #include "temporal_rs/PlainYearMonth.hpp"
 #include "temporal_rs/ZonedDateTime.hpp"
+#endif
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

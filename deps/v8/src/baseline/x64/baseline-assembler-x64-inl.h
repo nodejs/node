@@ -215,6 +215,110 @@ void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(
     __ movq(value, tmp);
   }
 }
+
+void BaselineAssembler::SmiAddSubAndJumpIfOverflow(
+    Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
+    Label* overflow, Label::Distance distance) {
+  DCHECK(IsInlineSmiArithmeticBinaryOperationSupported(operation));
+
+  ScratchRegisterScope scope(this);
+  Register result = scope.AcquireScratch();
+  if (SmiValuesAre31Bits()) {
+    __ movl(result, lhs);
+    switch (operation) {
+      case Operation::kAdd:
+        __ addl(result, Immediate(rhs));
+        break;
+      case Operation::kSubtract:
+        __ subl(result, Immediate(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ j(kOverflow, overflow, distance);
+    __ movl(output, result);
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    Register tmp = scope.AcquireScratch();
+    __ Move(tmp, rhs);
+    __ movq(result, lhs);
+    switch (operation) {
+      case Operation::kAdd:
+        __ addq(result, tmp);
+        break;
+      case Operation::kSubtract:
+        __ subq(result, tmp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ j(kOverflow, overflow, distance);
+    __ movq(output, result);
+  }
+}
+
+void BaselineAssembler::SmiBitwiseOp(Register lhs, Tagged<Smi> rhs,
+                                     Operation operation) {
+  DCHECK(IsInlineSmiBitwiseBinaryOperationSupported(operation));
+
+  if (SmiValuesAre31Bits()) {
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Shift the tagged value, then clear the bit shifted into the Smi tag.
+        static_assert(kSmiTag == 0);
+        __ sarl(lhs, Immediate(shift));
+        __ andl(lhs, Immediate(~kSmiTagMask));
+        break;
+      }
+      case Operation::kBitwiseAnd:
+        __ andl(lhs, Immediate(rhs));
+        break;
+      case Operation::kBitwiseOr:
+        __ orl(lhs, Immediate(rhs));
+        break;
+      case Operation::kBitwiseXor:
+        __ xorl(lhs, Immediate(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    ScratchRegisterScope scope(this);
+    Register tmp = scope.AcquireScratch();
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Combine untagging with the shift, then restore the Smi tag and
+        // padding.
+        __ sarq(lhs, Immediate(kSmiShiftSize + kSmiTagSize + shift));
+        __ shlq(lhs, Immediate(kSmiShiftSize + kSmiTagSize));
+        break;
+      }
+      case Operation::kBitwiseAnd: {
+        __ Move(tmp, rhs);
+        __ andq(lhs, tmp);
+        break;
+      }
+      case Operation::kBitwiseOr: {
+        __ Move(tmp, rhs);
+        __ orq(lhs, tmp);
+        break;
+      }
+      case Operation::kBitwiseXor: {
+        __ Move(tmp, rhs);
+        __ xorq(lhs, tmp);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,

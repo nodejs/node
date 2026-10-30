@@ -1233,10 +1233,12 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   if (feedback.IsScriptContextSlot()) {
     Effect effect = n.effect();
     Control control = n.control();
+    ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(feedback.script_context(), broker());
+        jsgraph()->ConstantNoHole(script_context_ref, broker());
     Node* value;
-    if (v8_flags.script_context_cells && !feedback.immutable()) {
+    if (script_context_ref.scope_info(broker()).HasContextCells() &&
+        !feedback.immutable()) {
       // We collect feedback only for mutable context slots.
       value = effect = control =
           graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index()),
@@ -1275,9 +1277,10 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* effect = n.effect();
     Node* control = n.control();
     Node* frame_state = n.frame_state();
+    ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(feedback.script_context(), broker());
-    if (v8_flags.script_context_cells) {
+        jsgraph()->ConstantNoHole(script_context_ref, broker());
+    if (script_context_ref.scope_info(broker()).HasContextCells()) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                            value, script_context, frame_state, effect, control);
@@ -1296,143 +1299,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     DCHECK(feedback.IsMegamorphic());
     return NoChange();
   }
-}
-
-Reduction JSNativeContextSpecialization::ReduceProxyAccess(
-    Node* node, Node* value, ProxyFeedback const& feedback,
-    AccessMode access_mode, FeedbackSource const& source, Node* key) {
-  DCHECK_EQ(access_mode, AccessMode::kLoad);
-
-  // For a super property load the proxy sits on the home object's prototype,
-  // not on input 0 (the receiver). The fast path below assumes the proxy is
-  // the receiver and lookup start object, so bail out and let the generic IC
-  // handle super accesses.
-  if (node->opcode() == IrOpcode::kJSLoadNamedFromSuper) return NoChange();
-
-  Node* context = NodeProperties::GetContextInput(node);
-  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
-  Effect effect{NodeProperties::GetEffectInput(node)};
-  Control control{NodeProperties::GetControlInput(node)};
-
-  // Ensure that {key} matches the specified name (if {key} is given).
-  if (key != nullptr) {
-    effect = BuildCheckEqualsName(feedback.name(), key, effect, &control);
-  }
-
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* lookup_start_object = receiver;
-
-  PropertyAccessInfo handler_access_info = broker()->GetPropertyAccessInfo(
-      feedback.handler_map(), broker()->get_string(), AccessMode::kLoad);
-
-  if (handler_access_info.IsInvalid()) {
-    return NoChange();
-  }
-
-  // Collect call nodes to rewire exception edges.
-  ZoneVector<Node*> if_exception_nodes(zone());
-  ZoneVector<Node*>* if_exceptions = nullptr;
-  Node* if_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
-    if_exceptions = &if_exception_nodes;
-  }
-
-  PropertyAccessBuilder access_builder(jsgraph(), broker());
-
-  // 1. Check receiver map
-  ZoneVector<MapRef> receiver_maps({feedback.receiver_map()}, zone());
-  access_builder.BuildCheckMaps(receiver, &effect, control, receiver_maps);
-
-  // 2. Load proxy target
-  Node* proxy_target = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSProxyTarget()),
-      lookup_start_object, effect, control);
-
-  // 3. Check proxy target map
-  ZoneVector<MapRef> target_maps({feedback.target_map()}, zone());
-  Effect e_effect(effect);
-  Control e_control(control);
-  access_builder.BuildCheckMaps(proxy_target, &e_effect, e_control,
-                                target_maps);
-  effect = e_effect;
-  control = e_control;
-
-  // 4. Load proxy handler
-  Node* proxy_handler = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSProxyHandler()),
-      lookup_start_object, effect, control);
-
-  // 5. Check proxy handler map
-  ZoneVector<MapRef> handler_maps({feedback.handler_map()}, zone());
-  e_effect = Effect(effect);
-  e_control = Control(control);
-  access_builder.BuildCheckMaps(proxy_handler, &e_effect, e_control,
-                                handler_maps);
-  effect = e_effect;
-  control = e_control;
-
-  // 6. Check trap
-  Node* target_function =
-      jsgraph()->ConstantNoHole(feedback.trap_method(), broker());
-
-  DCHECK(!feedback.trap_method().IsUndefined());
-  DCHECK(feedback.trap_method().IsJSFunction());
-
-  handler_access_info.RecordDependencies(dependencies());
-  std::optional<JSNativeContextSpecialization::ValueEffectControl>
-      maybe_loaded_trap = BuildPropertyLoad(
-          proxy_handler, proxy_handler, context, frame_state, effect, control,
-          broker()->get_string(), if_exceptions, handler_access_info, source);
-
-  if (!maybe_loaded_trap.has_value()) {
-    return NoChange();
-  }
-
-  Node* loaded_trap = maybe_loaded_trap->value();
-  effect = maybe_loaded_trap->effect();
-  control = maybe_loaded_trap->control();
-
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), loaded_trap,
-                                 target_function);
-  effect = graph()->NewNode(
-      simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check, effect,
-      control);
-
-  // 6. Call trap
-  Node* name_node = jsgraph()->ConstantNoHole(feedback.name(), broker());
-  Node* call_feedback = jsgraph()->UndefinedConstant();
-
-  Node* value_node = effect = control = graph()->NewNode(
-      jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(3),
-                                    CallFrequency(feedback.frequency()), source,
-                                    ConvertReceiverMode::kNotNullOrUndefined),
-      target_function, proxy_handler, proxy_target, name_node, receiver,
-      call_feedback, context, frame_state, effect, control);
-
-  if (if_exceptions != nullptr) {
-    Node* const if_exception_node =
-        graph()->NewNode(common()->IfException(), control, effect);
-    Node* const if_success = graph()->NewNode(common()->IfSuccess(), control);
-    if_exceptions->push_back(if_exception_node);
-    control = if_success;
-  }
-
-  // Rewire exception edges if needed
-  if (if_exceptions != nullptr) {
-    DCHECK_EQ(1, if_exceptions->size());
-    Node* merge =
-        graph()->NewNode(common()->Merge(1), 1, &if_exceptions->front());
-    if_exceptions->push_back(merge);
-    Node* ephi =
-        graph()->NewNode(common()->EffectPhi(1), 2, &if_exceptions->front());
-    Node* phi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 1), 2,
-                         &if_exceptions->front());
-    ReplaceWithValue(if_exception, phi, ephi, merge);
-  }
-
-  ReplaceWithValue(node, value_node, effect, control);
-  return Changed(value_node);
 }
 
 Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
@@ -2483,7 +2349,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
 #if V8_ENABLE_WEBASSEMBLY
-            !(receiver_map.IsWasmObjectMap() &&
+            !(receiver_map.IsAnyWasmObjectMap() &&
               access_info.is_proxy_on_prototype()) &&
 #endif  // V8_ENABLE_WEBASSEMBLY
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
@@ -2785,9 +2651,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case ProcessedFeedback::kProxy:
-      if (access_mode != AccessMode::kLoad) return NoChange();
-      return ReduceProxyAccess(node, value, feedback->AsProxy(), access_mode,
-                               source, key);
+      return NoChange();
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback->AsNamedAccess(),
                                access_mode, source, key);
@@ -3434,10 +3298,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
         value = effect =
             graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
                              effect, control);
-        if (access_info.IsFastDataConstant()) {
-          value = graph()->NewNode(jsgraph()->simplified()->NumberSilenceNaN(),
-                                   value);
-        }
         if (access_info.HasTransitionMap()) {
           // Allocate a HeapNumber for the new property.
           AllocationBuilder a(jsgraph(), broker(), effect, control);
@@ -3509,7 +3369,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kProtectedPointer:
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
@@ -3575,8 +3435,19 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                 jsgraph()->UndefinedConstant(), effect);
     } else {
       // Regular non-transitioning field store.
+      bool maybe_initializing_store =
+          access_mode == AccessMode::kStoreInLiteral ||
+          access_mode == AccessMode::kDefine;
+
       effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
                                 value, effect, control);
+      if (maybe_initializing_store &&
+          access_info.field_representation().IsDouble()) {
+        effect = graph()->NewNode(
+            simplified()->StoreField(AccessBuilder::ForMap()), storage,
+            jsgraph()->ConstantNoHole(broker()->heap_number_map(), broker()),
+            effect, control);
+      }
     }
   }
 
@@ -3647,9 +3518,23 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
   if (access_info.string_keys()) {
     index = effect = graph()->NewNode(
         simplified()->CheckString(FeedbackSource()), index, effect, control);
+  } else {
+    index = effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, jsgraph()->ConstantNoHole(kMaxInt), effect, control);
   }
+  // The fast path omits trap-result checks thanks to
+  // ObjectIsSuitableProxyTarget, but if the trap mutates a stable-map target
+  // (or otherwise triggers a lazy deopt), the continuation must run the spec's
+  // post-trap checks.
   Node* call = nullptr;
   if (keyed_mode.access_mode() == AccessMode::kLoad) {
+    Node* lazy_deopt_parameters[] = {proxy_target, index};
+    Node* call_frame_state = CreateStubBuiltinContinuationFrameState(
+        jsgraph(), Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation,
+        context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+        frame_state, ContinuationFrameStateMode::LAZY);
     value = effect = control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(3),
                                       CallFrequency(), FeedbackSource(),
@@ -3658,9 +3543,17 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
         // Parameters of the "get" trap: target, name, original receiver.
         proxy_target, index, receiver,
         // TF "internal" parameters:
-        feedback, context, frame_state, effect, control);
+        feedback, context, call_frame_state, effect, control);
   } else {
     DCHECK_EQ(keyed_mode.access_mode(), AccessMode::kStore);
+    Node* language_mode_smi =
+        jsgraph()->SmiConstant(static_cast<int>(language_mode));
+    Node* lazy_deopt_parameters[] = {proxy_target, index, value,
+                                     language_mode_smi};
+    Node* call_frame_state = CreateStubBuiltinContinuationFrameState(
+        jsgraph(), Builtin::kProxySetPropertyTrapResultLazyDeoptContinuation,
+        context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+        frame_state, ContinuationFrameStateMode::LAZY);
     call = effect = control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(4),
                                       CallFrequency(), FeedbackSource(),
@@ -3669,7 +3562,7 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
         // Parameters of the "set" trap: target, name, value, original receiver.
         proxy_target, index, value, receiver,
         // TF "internal" parameters:
-        feedback, context, frame_state, effect, control);
+        feedback, context, call_frame_state, effect, control);
   }
   if (if_exceptions != nullptr) {
     if_exceptions->push_back(
@@ -3730,7 +3623,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (receiver_maps.size() == 1 && receiver_maps.front().IsWasmObjectMap() &&
+  if (receiver_maps.size() == 1 && receiver_maps.front().IsAnyWasmObjectMap() &&
       access_info.is_proxy_on_prototype()) {
     return BuildPrototypeProxyElementAccess(
         receiver, index, value, effect, control, context, access_info,

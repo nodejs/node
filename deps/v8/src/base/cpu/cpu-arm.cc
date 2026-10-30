@@ -115,6 +115,7 @@ namespace v8::base {
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
  */
+#define HWCAP2_SVE2 (1 << 1)
 #define HWCAP2_SVEBITPERM (1 << 4)
 #define HWCAP2_MTE (1 << 18)
 #define HWCAP2_CSSC (1UL << 34)
@@ -353,6 +354,9 @@ void CPU::DetectFeatures() {
 #if !defined(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_SVE_INSTRUCTIONS_AVAILABLE = 46;
 #endif
+#if !defined(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE = 47;
+#endif
 #if !defined(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE = 67;
 #endif
@@ -368,6 +372,7 @@ void CPU::DetectFeatures() {
   has_fp16_ = IsProcessorFeaturePresent(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE);
   has_sha3_ = IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
   has_sve_ = IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
+  has_sve2_ = IsProcessorFeaturePresent(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE);
   has_svebitperm_ =
       IsProcessorFeaturePresent(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE);
 
@@ -380,6 +385,7 @@ void CPU::DetectFeatures() {
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   has_mops_ = (hwcaps2 & HWCAP2_MOPS) != 0;
   has_svebitperm_ = (hwcaps2 & HWCAP2_SVEBITPERM) != 0;
+  has_sve2_ = (hwcaps2 & HWCAP2_SVE2) != 0;
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;
@@ -388,6 +394,7 @@ void CPU::DetectFeatures() {
     has_fp16_ = (hwcaps & HWCAP_FPHP) != 0;
     has_sha3_ = (hwcaps & HWCAP_SHA3) != 0;
     has_sve_ = (hwcaps & HWCAP_SVE) != 0;
+    has_lrcpc2_ = (hwcaps & HWCAP_ILRCPC) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
@@ -399,6 +406,7 @@ void CPU::DetectFeatures() {
     has_fp16_ = HasListItem(features, "half");
     has_sha3_ = HasListItem(features, "sha3");
     has_sve_ = HasListItem(features, "sve");
+    has_lrcpc2_ = HasListItem(features, "ilrcpc");
     delete[] features;
   }
 #elif V8_OS_DARWIN
@@ -451,6 +459,14 @@ void CPU::DetectFeatures() {
   } else {
     has_sha3_ = feat_sha3;
   }
+  int64_t feat_lrcpc2 = 0;
+  size_t feat_lrcpc2_size = sizeof(feat_lrcpc2);
+  if (sysctlbyname("hw.optional.arm.FEAT_LRCPC2", &feat_lrcpc2,
+                   &feat_lrcpc2_size, nullptr, 0) == -1) {
+    has_lrcpc2_ = false;
+  } else {
+    has_lrcpc2_ = feat_lrcpc2;
+  }
 #else
   // ARM64 Macs always have the following features.
   has_jscvt_ = true;
@@ -459,6 +475,7 @@ void CPU::DetectFeatures() {
   has_pmull1q_ = true;
   has_fp16_ = true;
   has_sha3_ = true;
+  has_lrcpc2_ = true;
 #endif  // V8_OS_IOS
   int64_t feat_cssc = 0;
   size_t feat_cssc_size = sizeof(feat_cssc);

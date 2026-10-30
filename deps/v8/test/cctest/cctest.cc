@@ -27,6 +27,8 @@
 
 #include "test/cctest/cctest.h"
 
+#include <array>
+
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
@@ -136,7 +138,7 @@ void CcTest::Run(const char* snapshot_directory) {
                                custom_v8_flags_.length());
   }
   // TODO(12887): Fix tests to avoid changing flag values after initialization.
-  i::v8_flags.freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init.Set(false);
 
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(snapshot_directory);
@@ -226,9 +228,9 @@ i::Handle<i::String> CcTest::MakeString(const char* str) {
 }
 
 i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
-  v8::base::EmbeddedVector<char, 128> buffer;
+  std::array<char, 128> buffer;
   v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-  return CcTest::MakeString(buffer.begin());
+  return CcTest::MakeString(buffer.data());
 }
 
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {

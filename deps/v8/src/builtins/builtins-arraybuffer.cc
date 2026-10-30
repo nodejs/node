@@ -119,7 +119,9 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
                     NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
   auto array_buffer = Cast<JSArrayBuffer>(result);
   const bool backing_store_creation_failed = !backing_store;
-  array_buffer->Setup(shared, resizable, std::move(backing_store), isolate);
+  array_buffer->Setup(
+      shared, backing_store_creation_failed ? ResizableFlag{false} : resizable,
+      std::move(backing_store), isolate);
   if (backing_store_creation_failed) {
     CHECK(range_error.has_value());
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewRangeError(range_error.value()));
@@ -518,19 +520,16 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   if (backing_store->is_wasm_memory()) {
-    size_t old_byte_length =
-        backing_store->byte_length(std::memory_order_seq_cst);
     // WebAssembly memories cannot shrink, and must be a multiple of the page
     // size.
-    if (new_byte_length < old_byte_length ||
-        (new_byte_length % wasm::kWasmPageSize) != 0) {
+    if ((new_byte_length % wasm::kWasmPageSize) != 0) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
           NewRangeError(
               MessageTemplate::kInvalidArrayBufferResizeLength,
               isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
     }
-    Handle<Object> memory =
+    DirectHandle<Object> memory =
         Object::GetProperty(
             isolate, array_buffer,
             isolate->factory()->array_buffer_wasm_memory_symbol())
@@ -538,14 +537,22 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
     CHECK(IsWasmMemoryObject(*memory));
     // WasmMemoryObject::Grow handles updating byte_length, as it's used by both
     // ArrayBuffer.prototype.resize and WebAssembly.Memory.prototype.grow.
-    uint32_t delta_pages = static_cast<uint32_t>(
-        (new_byte_length - old_byte_length) / wasm::kWasmPageSize);
-    if (WasmMemoryObject::Grow(isolate, Cast<WasmMemoryObject>(memory),
-                               delta_pages) == -1) {
+    uint32_t new_pages =
+        static_cast<uint32_t>(new_byte_length / wasm::kWasmPageSize);
+    int32_t old_pages = WasmMemoryObject::Grow(
+        isolate, Cast<WasmMemoryObject>(memory), new_pages, GrowMode::kGrowTo);
+    if (old_pages == -1) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kOutOfMemory,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      kMethodName)));
+    }
+    if (static_cast<uint32_t>(old_pages) > new_pages) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewRangeError(
+              MessageTemplate::kInvalidArrayBufferResizeLength,
+              isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
     }
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -729,7 +736,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
   DirectHandle<JSArrayBuffer> result_buffer;
 
   // Case 1: We don't need a BackingStore.
-  if (new_byte_length == 0) {
+  if (new_byte_length == 0 && !resizable) {
     // 15. Perform ! DetachArrayBuffer(arrayBuffer).
     JSArrayBuffer::Detach(array_buffer).Check();
 

@@ -13,6 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/api/api-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -26,39 +27,24 @@ void JSPluralRules::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-int JSPluralRules::flags() const { return flags_.load().value(); }
-void JSPluralRules::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSPluralRules::Flags JSPluralRules::flags() const { return flags_.load(); }
+void JSPluralRules::set_flags(Flags value) { flags_.store(value); }
 
-Tagged<Managed<icu::PluralRules>> JSPluralRules::icu_plural_rules() const {
-  return Cast<Managed<icu::PluralRules>>(icu_plural_rules_.load());
+Tagged<CppGCManaged<PluralRulesInternal>> JSPluralRules::internal() const {
+  return Cast<CppGCManaged<PluralRulesInternal>>(internal_.load());
 }
-void JSPluralRules::set_icu_plural_rules(
-    Tagged<Managed<icu::PluralRules>> value, WriteBarrierMode mode) {
-  icu_plural_rules_.store(this, value, mode);
-}
-
-Tagged<Managed<icu::number::LocalizedNumberFormatter>>
-JSPluralRules::icu_number_formatter() const {
-  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
-      icu_number_formatter_.load());
-}
-void JSPluralRules::set_icu_number_formatter(
-    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
-    WriteBarrierMode mode) {
-  icu_number_formatter_.store(this, value, mode);
+void JSPluralRules::set_internal(
+    Tagged<CppGCManaged<PluralRulesInternal>> value, WriteBarrierMode mode) {
+  internal_.store(this, value, mode);
 }
 
 inline void JSPluralRules::set_type(Type type) {
-  DCHECK(TypeBit::is_valid(type));
-  int hints = flags();
-  hints = TypeBit::update(hints, type);
-  set_flags(hints);
+  DCHECK(Flags::TypeBit::is_valid(type));
+  set_flags(flags().with_type(type));
 }
 
 inline JSPluralRules::Type JSPluralRules::type() const {
-  return TypeBit::decode(flags());
+  return flags().type();
 }
 
 }  // namespace internal

@@ -277,6 +277,14 @@ def detect_reclient():
     return Reclient.CUSTOM
   if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
+  # On Linux corp machines (including Cog), Siso's built-in remote execution
+  # uses .sisoenv and does not require download_remoteexec_cfg in .gclient.
+  sisoenv_path = (
+      (CHROMIUM_DIR or V8_ROOT_DIR) / "build" / "config" / "siso" / ".sisoenv"
+  )
+  if (platform.system() == "Linux" and shutil.which("gcert") is not None and
+      sisoenv_path.exists()):
+    return Reclient.GOOGLE
   return Reclient.NONE
 
 
@@ -461,6 +469,8 @@ def _write(filename, content, log=True):
 
 
 def _notify(summary, body):
+  if QUIET:
+    return
   if (shutil.which('notify-send') is not None and
       os.environ.get("DISPLAY") is not None):
     _call(f"notify-send '{summary}' '{body}'", silent=True)
@@ -577,6 +587,10 @@ class RawConfig:
 
     return_code, output = _call_with_output(cmd)
     if return_code != 0 and "FAILED:" in output:
+      if "tools/dev/gm.py gen-checked-in-headers" in output:
+        _notify("V8 build requires your attention",
+                "Please regenerate the checked-in generated headers.")
+        return return_code
       if "snapshot_blob" in output:
         if "gen-static-roots.py" in output:
           _notify("V8 build requires your attention",
@@ -857,6 +871,14 @@ class ArgumentParser(object):
         arch = "arm64"
       self.populate_configs([arch], ["release"], ["mkgrokdump"], [], False)
       return
+    # Special handling for "gen-checked-in-headers": regenerate the checked-in
+    # generated headers under src/gen/ (see src/gen/README.md).
+    if argstring == "gen-checked-in-headers":
+      sys.exit(
+          subprocess.call([
+              sys.executable,
+              str(V8_DIR / "tools" / "dev" / "gen-checked-in-headers.py")
+          ]))
     if argstring.startswith("--"):
       # Pass all other flags to test runner.
       self.testrunner_args.append(argstring)

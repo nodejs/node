@@ -60,6 +60,14 @@ CpuFeatureSet SimulatorFeaturesFromCommandLine() {
 }
 #endif  // USE_SIMULATOR
 
+#if defined(V8_HOST_ARCH_ARM64) && !defined(USE_SIMULATOR) && defined(__clang__)
+__attribute__((target("sve"))) unsigned ReadSVEVectorLengthInBytes() {
+  // SVE vector length when all byte elements are used.
+  constexpr unsigned sv_all_bytes = 31;
+  return static_cast<unsigned>(__builtin_sve_svcntb_pat(sv_all_bytes));
+}
+#endif
+
 constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
   CpuFeatureSet features;
 #if defined(__ARM_FEATURE_JCVT) && !defined(V8_TARGET_OS_IOS)
@@ -94,8 +102,14 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_SVE)
   features.Add(SVE);
 #endif
+#if defined(__ARM_FEATURE_SVE2)
+  features.Add(SVE2);
+#endif
 #if defined(__ARM_FEATURE_SVE2_BITPERM)
   features.Add(SVEBITPERM);
+#endif
+#if defined(__ARM_FEATURE_RCPC) && __ARM_FEATURE_RCPC >= 2
+  features.Add(LRCPC2);
 #endif
   return features;
 }
@@ -109,6 +123,7 @@ constexpr CpuFeatureSet CpuFeaturesFromTargetOS() {
   features.Add(DOTPROD);
   features.Add(LSE);
   features.Add(PMULL1Q);
+  features.Add(LRCPC2);
 #endif
   return features;
 }
@@ -123,6 +138,20 @@ bool CpuFeatures::SupportsSimd128() {
 #else
   return false;
 #endif  // V8_ENABLE_SIMD128
+}
+
+// TODO(whunt): simulate 256-bit vector registers.
+unsigned CpuFeatures::svevlen() {
+#ifdef USE_SIMULATOR
+  return kSimd128Size;
+#elif defined(V8_HOST_ARCH_ARM64) && defined(__clang__)
+  if (!base::CPU::GetInstance().has_sve()) {
+    return 0;
+  }
+  return ReadSVEVectorLengthInBytes();
+#else
+  return 0;
+#endif
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -175,8 +204,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_sve()) {
     runtime.Add(SVE);
   }
+  if (cpu.has_sve2()) {
+    runtime.Add(SVE2);
+  }
   if (cpu.has_svebitperm()) {
     runtime.Add(SVEBITPERM);
+  }
+  if (cpu.has_lrcpc2()) {
+    runtime.Add(LRCPC2);
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -856,18 +891,10 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   }
 }
 
-bool Assembler::IsConstantPoolAt(Instruction* instr) {
-  // The constant pool marker is made of two instructions. These instructions
-  // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ldr xzr, #<size of pool>
-  bool result = instr->IsLdrLiteralX() && (instr->Rt() == kZeroRegCode);
-
-  // It is still worth asserting the marker is complete.
-  // 4: blr xzr
-  DCHECK(!result || (instr->following()->IsBranchAndLinkToRegister() &&
-                     instr->following()->Rn() == kZeroRegCode));
-
-  return result;
+bool Assembler::IsConstantPoolAt(const Instruction* instr) {
+  // The constant pool marker is "udf #<size of pool>", which the JIT emits
+  // nowhere else.
+  return instr->IsUdf();
 }
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
@@ -889,13 +916,13 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   }
 #endif
   if (IsConstantPoolAt(instr)) {
-    return instr->ImmLLiteral();
+    return instr->ImmUdf();
   } else {
     return -1;
   }
 }
 
-void Assembler::EmitPoolGuard() {
+void Assembler::EmitVeneersGuard() {
   // We must generate only one instruction as this is used in scopes that
   // control the size of the code generated.
   Emit(BLR | Rn(xzr));
@@ -919,7 +946,7 @@ void Assembler::br(const Register& xn) {
 void Assembler::blr(const Register& xn) {
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
-  // through the constant pool. It should not be emitted.
+  // through the veneer pool. It should not be emitted.
   DCHECK_NE(xn, xzr);
   Emit(BLR | Rn(xn));
 }
@@ -1535,9 +1562,6 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 }
 
 void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
-  // The pattern 'ldr xzr, #offset' is used to indicate the beginning of a
-  // constant pool. It should not be emitted.
-  DCHECK(!rt.IsZero());
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
@@ -1652,6 +1676,57 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rn.Is64Bits());
   DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::LoadStoreRCpcUnscaledOffset(const Register& rt,
+                                            const MemOperand& addr,
+                                            LoadStoreRCpcUnscaledOffsetOp op) {
+  DCHECK(IsEnabled(LRCPC2));
+  DCHECK(addr.IsImmediateOffset());
+  DCHECK(IsImmLSUnscaled(addr.offset()));
+  int offset = static_cast<int>(addr.offset());
+  Emit(op | ImmLS(offset) | RnSP(addr.base()) | Rt(rt));
+}
+
+void Assembler::stlurb(const Register& rt, const MemOperand& dst) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, dst, STLURB);
+}
+
+void Assembler::stlurh(const Register& rt, const MemOperand& dst) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, dst, STLURH);
+}
+
+void Assembler::stlur(const Register& rt, const MemOperand& dst) {
+  LoadStoreRCpcUnscaledOffset(rt, dst, rt.Is64Bits() ? STLUR_x : STLUR_w);
+}
+
+void Assembler::ldapurb(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURB);
+}
+
+void Assembler::ldapursb(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPURSB_x : LDAPURSB_w);
+}
+
+void Assembler::ldapurh(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURH);
+}
+
+void Assembler::ldapursh(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPURSH_x : LDAPURSH_w);
+}
+
+void Assembler::ldapur(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPUR_x : LDAPUR_w);
+}
+
+void Assembler::ldapursw(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is64Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURSW_x);
 }
 
 #define COMPARE_AND_SWAP_W_X_LIST(V) \
@@ -4433,6 +4508,13 @@ void Assembler::bext(const ZRegister& zd, const ZRegister& zn,
   Emit(BEXT | SVESize(zd) | Rm(zm) | Rn(zn) | Rd(zd));
 }
 
+void Assembler::mul(const ZRegister& zd, const ZRegister& zn,
+                    const ZRegister& zm) {
+  DCHECK(IsEnabled(SVE2));
+  DCHECK(AreSameLaneSize(zd, zn, zm));
+  Emit(SVE2_MUL | SVESize(zd) | Rm(zm) | Rn(zn) | Rd(zd));
+}
+
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {
   bool offset_is_size_multiple =
       (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
@@ -4756,7 +4838,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
       Handle<HeapObject> handle(reinterpret_cast<Address*>(data));
       data = AddEmbeddedObject(handle);
     }
-    if (rmode == RelocInfo::COMPRESSED_EMBEDDED_OBJECT) {
+    if (rmode == RelocInfo::COMPRESSED_EMBEDDED_OBJECT ||
+        rmode == RelocInfo::JS_DISPATCH_HANDLE) {
       if (constpool_.RecordEntry(static_cast<uint32_t>(data), rmode) ==
           RelocInfoStatus::kMustOmitForDuplicate) {
         return;
@@ -4810,23 +4893,21 @@ void Assembler::near_call(HeapNumberRequest request) {
 
 void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
-  // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself.
+  // and includes alignment, but not the jump around the pool and the size of
+  // the marker itself. The marker is permanently undefined, so it also traps
+  // if execution runs into the pool.
   const int marker_size = 1;
   int word_count =
       ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-  assm_->Emit(LDR_x_lit | Assembler::ImmLLiteral(word_count) |
-              Assembler::Rt(xzr));
-  assm_->EmitPoolGuard();
+  assm_->Emit(UDF | Assembler::ImmUdf(word_count));
 }
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
   //   b   over  ;; if require_jump
-  //   ldr xzr, #pool_size
-  //   blr xzr
+  //   udf #pool_size
   int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
-  prologue_size += 2 * kInstrSize;
+  prologue_size += kInstrSize;
   return prologue_size;
 }
 

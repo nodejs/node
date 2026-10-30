@@ -350,7 +350,7 @@ class Processor {
   // {kKaratsubaThreshold} defined in {bigint-inl.h}.
   // 32 digits is enough for 2048 bit divisors on a 64-bit platform.
   static constexpr uint32_t kMaxCachedModDivisorSize = 32;
-  void CachedMod_MakeInverse(Digits& B);
+  Status CachedMod_MakeInverse(Digits& B);
   digit_t CachedMod(RWDigits& R, Digits& A);
   Digits& GetCachedDivisor() {
     BIGINT_H_DCHECK(cached_divisor_.digits() != nullptr);
@@ -365,7 +365,10 @@ class Processor {
   // Callers that want to ensure that the next small operation won't be the
   // one that exhausts the interrupt check budget and thereby causes an
   // interrupt check can call this to reset the budget.
-  void ResetInterruptCheckBudget() { work_estimate_ = 0; }
+  void ResetInterruptCheckBudget() {
+    BIGINT_H_DCHECK(status_ == Status::kOk);
+    work_estimate_ = 0;
+  }
 
   Platform* platform() { return platform_.get(); }
 

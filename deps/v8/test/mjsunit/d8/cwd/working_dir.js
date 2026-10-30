@@ -5,7 +5,7 @@
 // Resources: test/mjsunit/d8/cwd/working_dir_helper.js.skip
 // Resources: test/mjsunit/d8/cwd/working_dir_test.js.skip
 
-// Flags: --quiet-load -C test/mjsunit/d8/cwd working_dir_test.js.skip
+// Flags: -C test/mjsunit/d8/cwd working_dir_test.js.skip
 
 // When existing the current test file, the cwd has not been modified yet,
 // since -C is passed later.

@@ -48,8 +48,6 @@ namespace internal {
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
-  T(AtomicsMutexNotOwnedByCurrentThread,                                       \
-    "Atomics.Mutex is not owned by the current agent")                         \
   T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
@@ -415,7 +413,7 @@ namespace internal {
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \
-  T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
+  T(InvalidAtomicAccessIndex, "Invalid atomic access index: %")                \
   T(InvalidCalendar, "Invalid calendar specified: %")                          \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value: %")                               \
@@ -424,7 +422,7 @@ namespace internal {
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
-  T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
+  T(InvalidIndex, "Invalid value %: not (convertible to) a safe integer")      \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
@@ -453,7 +451,6 @@ namespace internal {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(SharedArraySizeOutOfRange, "SharedArray length out of range")              \
   T(StructFieldCountOutOfRange,                                                \
     "Struct field count out of range (maximum of 999 allowed)")                \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \

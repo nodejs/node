@@ -4,8 +4,6 @@
 
 // Flags: --expose-gc --min-semi-space-size=32
 
-// We need to set --min-semi-space-size to enable allocation site pretenuring.
-
 function foo(i) {
   with({}) {};
   x = {};

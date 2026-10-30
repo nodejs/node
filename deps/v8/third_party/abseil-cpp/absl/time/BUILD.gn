@@ -50,6 +50,20 @@ absl_source_set("clock_interface") {
   ]
 }
 
+absl_source_set("mock_clock") {
+  testonly = true
+  public = [ "mock_clock.h" ]
+  deps = [
+    ":clock_interface",
+    ":time",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/synchronization",
+    "//third_party/googletest:gmock",
+    "//third_party/googletest:gtest",
+  ]
+}
+
 absl_source_set("simulated_clock") {
   testonly = true
   sources = [ "simulated_clock.cc" ]
@@ -105,6 +119,17 @@ absl_test("clock_interface_test") {
     ":clock_interface",
     ":time",
     "//third_party/abseil-cpp/absl/functional:bind_front",
+    "//third_party/abseil-cpp/absl/synchronization",
+  ]
+}
+
+absl_test("mock_clock_test") {
+  sources = [ "mock_clock_test.cc" ]
+  deps = [
+    ":clock_interface",
+    ":mock_clock",
+    ":time",
+    "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
 }

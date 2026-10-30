@@ -1,0 +1,19 @@
+Tests debug-break-default-constructor.
+
+#class Derived extends Base {}  // 1. // 4.
+
+
+  constructor() {
+    var x = #1;     // 2.
+  }                // 3.
+
+    var x = 1;     // 2.
+  #}                // 3.
+}
+
+
+#class Derived extends Base {}  // 1. // 4.
+
+
+new Derived()#
+

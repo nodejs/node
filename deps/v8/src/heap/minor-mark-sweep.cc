@@ -39,7 +39,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/pending-allocations.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/remembered-set.h"
@@ -323,7 +322,6 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
                    heap_->concurrent_marking()->garbage_collector() ==
                        GarbageCollector::MINOR_MARK_SWEEPER);
     heap_->concurrent_marking()->Join();
-    heap_->concurrent_marking()->FlushPretenuringFeedback();
   }
   CHECK(heap_->concurrent_marking()->IsStopped());
   heap_->tracer()->SampleConcurrencyEsimate(
@@ -376,18 +374,14 @@ void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
   DCHECK_NULL(marking_worklists_);
   marking_worklists_ = std::make_unique<MarkingWorklists>();
   DCHECK_NULL(main_marking_visitor_);
-  DCHECK_NULL(pretenuring_feedback_);
   if (v8_flags.sticky_mark_bits) {
     DCHECK(ExternalPointerRememberedSetsEmpty(heap_->sticky_space()));
   } else {
     DCHECK(ExternalPointerRememberedSetsEmpty(
         heap_->paged_new_space()->paged_space()));
   }
-  pretenuring_feedback_ =
-      std::make_unique<PretenuringHandler::PretenuringFeedbackMap>(
-          PretenuringHandler::kInitialFeedbackCapacity);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap_, pretenuring_feedback_.get());
+  main_marking_visitor_ =
+      std::make_unique<YoungGenerationMainMarkingVisitor>(heap_);
   DCHECK_NULL(remembered_sets_marking_handler_);
   remembered_sets_marking_handler_ =
       std::make_unique<YoungGenerationRememberedSetsMarkingWorklist>(heap_);
@@ -753,11 +747,6 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   main_marking_visitor_.reset();
   marking_worklists_.reset();
   remembered_sets_marking_handler_.reset();
-
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-      *pretenuring_feedback_);
-  pretenuring_feedback_.reset();
 
   if (v8_flags.minor_ms_trace_fragmentation) {
     TraceFragmentation();

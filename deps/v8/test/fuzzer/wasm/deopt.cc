@@ -6,6 +6,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/property-descriptor.h"
@@ -206,24 +207,24 @@ void ConfigureFlags(v8::Isolate* isolate) {
       // libfuzzer's "-runs=x" argument) should repeatedly test deoptimizations.
       // When caching the optimized code, only the first run will execute any
       // deopts.
-      v8_flags.wasm_native_module_cache = false;
+      v8_flags.wasm_native_module_cache.Set(false);
       // We switch it to synchronous mode to avoid the nondeterminism of
       // background jobs finishing at random times.
-      v8_flags.wasm_sync_tier_up = true;
+      v8_flags.wasm_sync_tier_up.Set(true);
       // Enable the experimental features we want to fuzz. (Note that
       // EnableExperimentalWasmFeatures only enables pre-staged and staged
       // features.)
-      v8_flags.wasm_deopt = true;
-      v8_flags.wasm_inlining_call_indirect = true;
+      v8_flags.wasm_deopt.Set(true);
+      v8_flags.wasm_inlining_call_indirect.Set(true);
       // Make inlining more aggressive.
-      v8_flags.wasm_inlining_ignore_call_counts = true;
-      v8_flags.wasm_inlining_budget = v8_flags.wasm_inlining_budget * 5;
-      v8_flags.wasm_inlining_max_size = v8_flags.wasm_inlining_max_size * 5;
-      v8_flags.wasm_inlining_factor = v8_flags.wasm_inlining_factor * 5;
+      v8_flags.wasm_inlining_ignore_call_counts.Set(true);
+      v8_flags.wasm_inlining_budget.Set(v8_flags.wasm_inlining_budget * 5);
+      v8_flags.wasm_inlining_max_size.Set(v8_flags.wasm_inlining_max_size * 5);
+      v8_flags.wasm_inlining_factor.Set(v8_flags.wasm_inlining_factor * 5);
       // Allow mixed old and new EH instructions in the same module for fuzzing,
       // to help us test the interaction between the two EH proposals without
       // requiring multiple modules.
-      v8_flags.wasm_allow_mixed_eh_for_testing = true;
+      v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
       // Enable other staged or experimental features and enforce flag
       // implications.
       EnableExperimentalWasmFeatures(isolate);
@@ -273,7 +274,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // optimizing an inner wasm function, there can be a large amount of
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
-      inlinees.empty() || data.empty() || !(data.last() & 1);
+      inlinees.empty() || data.empty() || !(data.back() & 1);
 #if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
   // Disable register allocator verification on slow builds (Debug + ASan) to
   // avoid timeouts in TurboFan/Turboshaft compilation on pathological inputs
@@ -283,7 +284,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // TurboFan compilation (see crbug.com/520317061).
   const bool assert_types = false;
 #else
-  const bool assert_types = !data.empty() && (data.last() & 2);
+  const bool assert_types = !data.empty() && (data.back() & 2);
 #endif
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
@@ -324,7 +325,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      base::OwnedCopyOf(buffer));
+      base::UniqueCopyOf(buffer));
   if (!valid) {
     FATAL("Generated module should validate, but got: %s\n",
           thrower.error_msg());
@@ -333,9 +334,11 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   std::vector<ExecutionResult> reference_results = PerformReferenceRun(
       callees, wire_bytes, enabled_features, valid, i_isolate);
 
-  if (reference_results.empty()) {
-    // If the first run already included non-determinism, there isn't any value
-    // in even compiling it (as this fuzzer focuses on executing deopts).
+  if (reference_results.size() < 2) {
+    // If the first run already included non-determinism or aborted before
+    // executing at least 2 callees (e.g. due to reaching max steps or stack
+    // overflow), there isn't any value in compiling it as we need at least 2
+    // callees to trigger a deopt.
     // Return -1 to not add this case to the corpus.
     return -1;
   }
@@ -419,9 +422,9 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // shared_heap and shared_strings are needed for
   // shared-everything-threads fuzzing.
-  i::v8_flags.shared_heap = true;
-  i::v8_flags.shared_strings = true;
-  i::v8_flags.wasm_shared = true;
+  i::v8_flags.shared_heap.Set(true);
+  i::v8_flags.shared_strings.Set(true);
+  i::v8_flags.wasm_shared.Set(true);
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;

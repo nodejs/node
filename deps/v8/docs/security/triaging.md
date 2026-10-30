@@ -110,14 +110,23 @@ Fields: **Type=Bug**, **[Security_Impact-None][hl-impact-none]**
 
 V8 relies on `nullptr` dereferences to deterministically crash.
 
-### Bogus `DCHECK`s or reliable `CHECK` crashers
+### Reliable `CHECK` crashers
 
 Fields: **Type=Bug**, **[Security_Impact-None][hl-impact-none]**
 
-Rationale: These issues are not considered security vulnerabilities because the crashes either cannot happen in production builds (e.g., `DCHECK` failures, which are compiled out) or they result in a safe, deterministic crash (e.g., `CHECK` failures).
-Invalid ("bogus") `DCHECK`s should still be fixed or removed.
+Rationale: Unconditional `CHECK` failures (as well as `UNREACHABLE()` and `SBXCHECK`) result in a safe, deterministic crash in production builds before unsafe execution can proceed.
 
-Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
+Note: This only applies to `CHECK`s that are active in production builds.
+`CHECK`s behind verification flags or special builds (such as `--verify-heap` or `OBJECT_PRINT`) often indicate prior memory or heap corruption and must be investigated as potential vulnerabilities.
+
+### `DCHECK` failures
+
+Fields: **Type=Vulnerability**, **Security_Impact-{[Head][hl-impact-head], [Beta][hl-impact-beta], [Stable][hl-impact-stable], [Extended][hl-impact-extended]}**
+
+Rationale: Unlike `CHECK`s, `DCHECK`s are compiled out in production builds and execution continues past the asserted condition, which can corrupt state or memory if subsequent code relies on the invariant.
+
+Note: Benign `DCHECK`s that are mitigated by subsequent code, overzealous conditions, or simply wrong conditions/invariants result in lowering to **Type=Bug** and **[Security_Impact-None][hl-impact-none]**.
+For [sandbox bypasses](#sandbox-bypasses), where in-sandbox memory is intentionally corrupted, `DCHECK` failures are expected and ignored unless continuing past the `DCHECK` in a release build leads to write access outside of the sandbox.
 
 ### Leaking _Hole_ values into JavaScript
 

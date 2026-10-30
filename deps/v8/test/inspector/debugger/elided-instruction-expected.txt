@@ -1,0 +1,23 @@
+Tests elided-instruction.
+function testRun() {
+  #debugger;                      // Break 0. 0.
+  f();                           // Break 1. 0.
+
+  debugger;                      // Break 0. 0.
+  #f();                           // Break 1. 0.
+}                                // Break 4. 0.
+
+function f() {
+  var a = #1;                     // Break 2. 10.
+  return a;                      // Break 3. 11.
+
+  var a = 1;                     // Break 2. 10.
+  return a;#                      // Break 3. 11.
+}
+
+  f();                           // Break 1. 0.
+#}                                // Break 4. 0.
+
+
+testRun()#
+

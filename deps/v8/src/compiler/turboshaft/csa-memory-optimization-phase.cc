@@ -7,7 +7,6 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
-#include "src/compiler/turboshaft/pretenuring-propagation-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/numbers/conversions-inl.h"
 
@@ -17,8 +16,7 @@ void CsaMemoryOptimizationPhase::Run(PipelineData* data, Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(),
                               v8_flags.turboshaft_trace_reduction);
 
-  CopyingPhase<PretenuringPropagationReducer, MachineOptimizationReducer,
-               MemoryOptimizationReducer,
+  CopyingPhase<MachineOptimizationReducer, MemoryOptimizationReducer,
                ValueNumberingReducer>::Run(data, temp_zone);
 }
 

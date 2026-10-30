@@ -1,0 +1,7 @@
+Tests regress-crbug-582051.
+scopes: block, local, global
+scope[0] (block): {x: 2}
+scope[1] (local): {a: 1, arguments: undefined}
+scopes: block, local, global
+scope[0] (block): {x: 2, y: 3}
+scope[1] (local): {a: 1, arguments: undefined}

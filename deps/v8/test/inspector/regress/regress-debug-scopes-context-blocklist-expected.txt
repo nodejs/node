@@ -1,0 +1,7 @@
+Tests regress-debug-scopes-context-blocklist.
+{
+    result : {
+        type : string
+        value : global_x
+    }
+}

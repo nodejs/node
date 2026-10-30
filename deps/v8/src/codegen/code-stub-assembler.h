@@ -44,8 +44,8 @@
 #include "src/objects/tagged-index.h"
 #include "src/objects/tagged.h"
 #include "src/objects/templates.h"
-#include "src/objects/trusted-pointer.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/trusted-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -82,7 +82,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   enum class AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
-    kPretenured = 1 << 1
+    kOld = 1 << 1
   };
 
   enum SlackTrackingMode {
@@ -1033,7 +1033,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   inline TNode<TrustedTypeFor<tag_range>> LoadTrustedPointerFromObject(
       TNode<HeapObject> object, int field_offset);
 
@@ -1041,7 +1041,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
       Label* if_empty, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
+      TrustedPointerTagRange tag_range = kAllTrustedPointerTags);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1054,18 +1054,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<TrustedObject> LoadIndirectPointerFromObject(
-      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
+  TNode<TrustedObject> LoadTrustedPointerFromObject(
+      TNode<HeapObject> object, int offset, TrustedPointerTagRange tag_range);
 
   // Retrieve the heap object referenced by the given indirect pointer handle.
-  TNode<TrustedObject> ResolveIndirectPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
+  TNode<TrustedObject> ResolveTrustedPointerHandle(
+      TNode<TrustedPointerHandleT> handle, TrustedPointerTagRange tag_range);
 
-  void ResolveIndirectUnknownPointerHandle(
-      TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
+  void ResolveTrustedUnknownPointerHandle(
+      TNode<TrustedPointerHandleT> handle, TVariable<Object>* value_out,
       TVariable<Uint16T>* type_out, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
+      TrustedPointerTagRange tag_range = kAllTrustedPointerTags);
 #endif
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
@@ -1110,9 +1110,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
-    return LoadExternalPointerFromObject(object,
-                                         offsetof(ExternalString, resource_),
-                                         kExternalStringResourceTag);
+    TNode<RawPtrT> wrapper = LoadCppHeapPointerFromObject(
+        object, offsetof(ExternalString, resource_),
+        kExternalStringResourceTag);
+    // The wrapper is only null while the string is being constructed, before
+    // it is visible to generated code.
+    CSA_DCHECK(this, WordNotEqual(wrapper, IntPtrConstant(kNullAddress)));
+    return Load<RawPtrT>(
+        wrapper, IntPtrConstant(
+                     Internals::kExternalStringResourceWrapperResourceOffset));
   }
 
   TNode<RawPtrT> LoadExternalStringResourceDataPtr(
@@ -1707,6 +1713,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> LoadScopeInfoClassScopeHasPrivateBrand(
       TNode<ScopeInfo> scope_info);
   TNode<IntPtrT> LoadScopeInfoContextLocalCount(TNode<ScopeInfo> scope_info);
+  // Returns the index of the named context local, i.e. its context slot
+  // index minus Context::MIN_CONTEXT_SLOTS. Assumes that |name| is
+  // internalized and uses pointer comparisons. Mirrors
+  // ScopeInfo::ContextSlotIndex.
+  TNode<IntPtrT> IndexOfLocalName(TNode<ScopeInfo> scope_info, TNode<Name> name,
+                                  Label* not_found);
+  // Returns the value a freshly allocated function context slot should be
+  // initialized with for the |index|-th context local: the undefined context
+  // cell for locals that may be reassigned, undefined otherwise.
+  TNode<Object> GetFunctionContextSlotInitialValue(TNode<ScopeInfo> scope_info,
+                                                   TNode<IntPtrT> index);
 
   // Context manipulation:
   void StoreContextElementNoWriteBarrier(TNode<Context> context, int slot_index,
@@ -1792,7 +1809,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Word32T> value);
 
   // Store the floating point value of a HeapNumber.
-  void StoreHeapNumberValue(TNode<HeapNumber> object, TNode<Float64T> value);
+  void StoreHeapNumberValue(
+      TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> object,
+      TNode<Float64T> value);
 
   // Store a field to an object on the heap.
   void StoreObjectField(TNode<HeapObject> object, int offset, TNode<Smi> value);
@@ -1803,41 +1822,29 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
                         TNode<Object> value);
 
-  // Store to an indirect pointer field. This involves loading the index for
-  // the pointer table entry owned by the pointed-to object (which points back
-  // to it) and storing that into the specified field.
-  // Stores that may require a write barrier also need to know the indirect
-  // pointer tag for the field. Otherwise, it is not needed
-  void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                 IndirectPointerTag tag,
-                                 TNode<ExposedTrustedObject> value);
-  void StoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      TNode<ExposedTrustedObject> value);
-
   // Store a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void StoreTrustedPointerField(TNode<HeapObject> object, int offset,
-                                IndirectPointerTag tag,
+                                TrustedPointerTag tag,
                                 TNode<ExposedTrustedObject> value);
   void StoreTrustedPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      TNode<HeapObject> object, int offset, TrustedPointerTag tag,
       TNode<ExposedTrustedObject> value);
 
   void ClearTrustedPointerField(TNode<HeapObject> object, int offset);
 
   // Store a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
-  // enabled, reference code objects through the code pointer table.
+  // enabled, reference code objects through the trusted pointer table.
   void StoreCodePointerField(TNode<HeapObject> object, int offset,
                              TNode<Code> value) {
-    StoreTrustedPointerField(object, offset, kCodeIndirectPointerTag, value);
+    StoreTrustedPointerField(object, offset, kCodeTrustedPointerTag, value);
   }
   void StoreCodePointerFieldNoWriteBarrier(TNode<HeapObject> object, int offset,
                                            TNode<Code> value) {
     StoreTrustedPointerFieldNoWriteBarrier(object, offset,
-                                           kCodeIndirectPointerTag, value);
+                                           kCodeTrustedPointerTag, value);
   }
 
   template <class T>
@@ -1871,9 +1878,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreMapNoWriteBarrier(TNode<HeapObject> object,
                               RootIndex map_root_index);
   void StoreMapNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
-  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object,
-                                     RootIndex map_root_index);
-  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
   void StoreObjectFieldRoot(TNode<HeapObject> object, int offset,
                             RootIndex root);
 
@@ -2076,6 +2080,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void StoreCellValue(TNode<Cell> cell, TNode<Object> value,
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  TNode<UninitializedHeapNumber> AllocateUninitializedHeapNumber();
 
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();
@@ -2988,10 +2994,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPrimitiveWrapperInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(TNode<HeapObject> object);
-  TNode<BoolT> IsJSSharedArrayInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsJSSharedArrayMap(TNode<Map> map);
-  TNode<BoolT> IsJSSharedArray(TNode<HeapObject> object);
-  TNode<BoolT> IsJSSharedArray(TNode<Object> object);
   TNode<BoolT> IsJSSharedStructInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSSharedStructMap(TNode<Map> map);
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
@@ -3000,6 +3002,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsMapMap(TNode<Map> map);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsMapInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsMapOrCustomMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsNullOrJSReceiver(TNode<HeapObject> object);
@@ -3096,10 +3099,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadRuntimeFlag(ExternalReference::address_of_js_pr_3883_flag());
   }
 
-  TNode<BoolT> HasSharedStringTableFlag() {
-    return LoadRuntimeFlag(
-        ExternalReference::address_of_shared_string_table_flag());
-  }
+  TNode<BoolT> HasSharedStringTableFlag() { return BoolConstant(false); }
 
   TNode<BoolT> IsAdditiveSafeIntegerFeedbackEnabled() {
     if (Is64()) {
@@ -4385,11 +4385,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        HasPropertyLookupMode::kHasProperty);
   }
 
-  void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
-                    TNode<HeapObject> maybe_feedback_vector,
-                    TNode<FixedArray>* cache_array_out,
-                    TNode<Smi>* cache_length_out,
-                    UpdateFeedbackMode update_feedback_mode);
+  void ForInPrepare(
+      TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+      TNode<HeapObject> maybe_feedback_vector,
+      TNode<Union<FixedArray, ForInEnumeratorHolder>>* cache_array_out,
+      TNode<Smi>* cache_length_out, UpdateFeedbackMode update_feedback_mode);
+
+  TNode<BoolT> CheckHolderValidity(TNode<HeapObject> receiver,
+                                   TNode<ForInEnumeratorHolder> holder);
 
   TNode<String> Typeof(
       TNode<Object> value, std::optional<TNode<UintPtrT>> slot_id = {},
@@ -4466,9 +4469,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
       TNode<JSArrayBufferView> array_buffer_view);
 
-  void CheckJSTypedArrayIndex(TNode<JSTypedArray> typed_array,
-                              TNode<UintPtrT> index,
-                              Label* detached_or_out_of_bounds);
+  void CheckIsValidIntegerIndex(TNode<JSTypedArray> typed_array,
+                                TNode<UintPtrT> index,
+                                Label* detached_or_out_of_bounds);
 
   TNode<Uint8T> ElementsKindToElementByteShift(TNode<Int32T> elementsKind);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
@@ -4826,6 +4829,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void LookupBinary(TNode<Name> unique_name, TNode<Array> array,
                     TNode<Uint32T> number_of_valid_entries, Label* if_found,
                     TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  void LookupTable(TNode<Name> unique_name, TNode<DescriptorArray> descriptors,
+                   TNode<Uint32T> number_of_valid_entries, Label* if_found,
+                   TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   // Converts [Descriptor/Transition]Array entry number to a fixed array index.
   template <typename Array>

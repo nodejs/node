@@ -3,20 +3,25 @@
 // found in the LICENSE file.
 #include "src/regexp/regexp.h"
 
+#include <array>
+#include <atomic>
 #include <cstdlib>
 #include <memory>
 #include <sstream>
 #include <vector>
 
 #include "include/v8-context.h"
+#include "include/v8-function.h"
 #include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-regexp.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/execution/frames-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
@@ -34,6 +39,8 @@
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/common/flag-utils.h"
+#include "test/common/simulator-helper.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -44,6 +51,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp_unittest {
 
 using REB = regexp::Bytecode;
 
@@ -594,13 +602,9 @@ static regexp::Node* Compile(const char* input, bool multiline, bool unicode,
     return nullptr;
   }
   DirectHandle<String> pattern =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(input))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(input).ToHandleChecked();
   DirectHandle<String> sample_subject =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(""))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8("").ToHandleChecked();
   DirectHandle<IrRegExpData> re_data =
       TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
           pattern, pattern, JSRegExp::AsJSRegExpFlags(flags),
@@ -631,7 +635,7 @@ TEST_F(RegExpTest, ParsePossessiveRepetition) {
   bool old_flag_value = v8_flags.regexp_possessive_quantifier;
 
   // Enable possessive quantifier syntax.
-  v8_flags.regexp_possessive_quantifier = true;
+  v8_flags.regexp_possessive_quantifier.Set(true);
 
   CheckParseEq("a*+", "(# 0 - p 'a')");
   CheckParseEq("a++", "(# 1 - p 'a')");
@@ -640,7 +644,7 @@ TEST_F(RegExpTest, ParsePossessiveRepetition) {
   CheckParseEq("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
 
   // Disable possessive quantifier syntax.
-  v8_flags.regexp_possessive_quantifier = false;
+  v8_flags.regexp_possessive_quantifier.Set(false);
 
   CHECK_PARSE_ERROR("a*+");
   CHECK_PARSE_ERROR("a++");
@@ -648,7 +652,7 @@ TEST_F(RegExpTest, ParsePossessiveRepetition) {
   CHECK_PARSE_ERROR("a{10,20}+");
   CHECK_PARSE_ERROR("a{10,20}+b");
 
-  v8_flags.regexp_possessive_quantifier = old_flag_value;
+  v8_flags.regexp_possessive_quantifier.Set(old_flag_value);
 }
 
 #endif
@@ -1512,6 +1516,31 @@ TEST_F(RegExpTest, NonUnicodeCaseEquivalence) {
     ASSERT_TRUE(expected == actual) << c;
   }
 }
+
+TEST_F(RegExpTest, SupplementaryCaseEquivalents) {
+  using CaseFolding = regexp::CaseFolding;
+  icu::UnicodeSet expected;
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    icu::UnicodeSet closure(c, c);
+    closure.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+    const bool has_supplementary = closure.containsSome(0x10000, 0x10ffff);
+    if (has_supplementary) expected.add(c);
+    const bool actual =
+        CaseFolding::HasSupplementaryEquivalents(static_cast<base::uc16>(c));
+    ASSERT_EQ(has_supplementary, actual) << c;
+
+    // Non-unicode closure must never yield supplementary code points.
+    icu::UnicodeSet non_unicode(c, c);
+    CaseFolding::CloseOver(non_unicode, CaseFolding::Mode::kNonUnicode);
+    ASSERT_FALSE(non_unicode.containsSome(0x10000, 0x10ffff)) << c;
+  }
+  // U+1DF95 LATIN SMALL LIGATURE LONG S WITH DESCENDER S (Unicode 18)
+  // case-folds to U+00DF LATIN SMALL LETTER SHARP S.
+  if (u_foldCase(0x1df95, U_FOLD_CASE_DEFAULT) == 0xdf) {
+    EXPECT_TRUE(expected.contains(0xdf));
+    EXPECT_TRUE(expected.contains(0x1e9e));
+  }
+}
 #endif  // !DEBUG
 
 TEST_F(RegExpTest, CaseClosureMixedSets) {
@@ -1524,6 +1553,10 @@ TEST_F(RegExpTest, CaseClosureMixedSets) {
     expected.add('A', 'C').add('K');
     if (mode == CaseFolding::Mode::kUnicode) {
       expected.add('s').add('S').add(0x212a).add(0x1e9e);
+      // Since Unicode 18, U+1DF95 case-folds to U+00DF.
+      if (u_foldCase(0x1df95, U_FOLD_CASE_DEFAULT) == 0xdf) {
+        expected.add(0x1df95);
+      }
       actual.add(0x10400);
       expected.add(0x10400).add(0x10428);
     }
@@ -1651,7 +1684,7 @@ static void TestRangeCaseIndependence(
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             regexp::CharacterRange input,
                                             regexp::CharacterRange expected) {
-  base::EmbeddedVector<regexp::CharacterRange, 1> vector;
+  std::array<regexp::CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }
@@ -2103,13 +2136,13 @@ TEST_F(RegExpTest, PeepholeNoChange) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("^foo");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
   uint8_t* byte_array = array->begin();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2117,8 +2150,6 @@ TEST_F(RegExpTest, PeepholeNoChange) {
 
   CHECK_EQ(0, memcmp(byte_array, byte_array_optimized, length));
 }
-
-
 
 void CreatePeepholeSkipUntilBitInTableBytecode(regexp::RegExpMacroAssembler* m,
                                                Factory* factory) {
@@ -2151,12 +2182,12 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2204,12 +2235,12 @@ TEST_F(RegExpTest, PeepholeSkipUntilChar) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2257,12 +2288,12 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharAnd) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2312,12 +2343,12 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharOrChar) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2377,12 +2408,12 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
   const uint32_t length = array->length().value();
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2462,7 +2493,7 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
 
@@ -2473,7 +2504,7 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
     }
   }
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2572,7 +2603,7 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = false;
+  v8_flags.regexp_peephole_optimization.Set(false);
   DirectHandle<TrustedByteArray> array = TrustedCast<TrustedByteArray>(
       orig.GetCode(CreateRegExpData(i_isolate(), source), {}));
 
@@ -2583,7 +2614,7 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
     }
   }
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2692,7 +2723,7 @@ TEST_F(RegExpTest, PeepholeOffsetAfterSequenceTrackedAcrossPasses) {
 
   DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
 
-  v8_flags.regexp_peephole_optimization = true;
+  v8_flags.regexp_peephole_optimization.Set(true);
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(
           opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
@@ -2773,7 +2804,7 @@ void ReenterRegExp(v8::Isolate* isolate, void* data) {
 // Tests reentrant irregexp calls.
 TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
   CHECK(!v8_flags.jitless);
-  v8_flags.regexp_tier_up = false;  // Enter irregexp, not the interpreter.
+  v8_flags.regexp_tier_up.Set(false);  // Enter irregexp, not the interpreter.
 
   v8::HandleScope scope(isolate());
 
@@ -2914,7 +2945,7 @@ void StalePrologueGrowStackInterrupt(v8::Isolate*, void* data) {
 // check_preempt_label_.
 TEST_F(RegExpTestWithContext, RegExpInterruptStalePrologueBacktrackPointer) {
   if (v8_flags.jitless) return;
-  v8_flags.regexp_tier_up_ticks = 0;  // Compile to native on first exec.
+  v8_flags.regexp_tier_up_ticks.Set(0);  // Compile to native on first exec.
 
   v8::HandleScope scope(isolate());
   i::Isolate* i_iso = i_isolate();
@@ -2943,9 +2974,371 @@ TEST_F(RegExpTestWithContext, RegExpInterruptStalePrologueBacktrackPointer) {
 
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
+namespace {
+
+const char kOneByteSubjectString[] = {
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
+const uint16_t kTwoByteSubjectString[] = {
+    0xCF80, 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a',    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a',    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
+
+const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
+static_assert(arraysize(kOneByteSubjectString) ==
+              arraysize(kTwoByteSubjectString));
+
+class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit OneByteVectorResource(base::Vector<const char> vector)
+      : data_(vector) {}
+  ~OneByteVectorResource() override = default;
+  size_t length() const override { return data_.length(); }
+  const char* data() const override { return data_.begin(); }
+  void Dispose() override {}
+
+ private:
+  base::Vector<const char> data_;
+};
+
+class UC16VectorResource : public v8::String::ExternalStringResource {
+ public:
+  explicit UC16VectorResource(base::Vector<const base::uc16> vector)
+      : data_(vector) {}
+  ~UC16VectorResource() override = default;
+  size_t length() const override { return data_.length(); }
+  const base::uc16* data() const override { return data_.begin(); }
+  void Dispose() override {}
+
+ private:
+  base::Vector<const base::uc16> data_;
+};
+
+OneByteVectorResource one_byte_string_resource(
+    base::Vector<const char>(&kOneByteSubjectString[0], kSubjectStringLength));
+UC16VectorResource two_byte_string_resource(base::Vector<const base::uc16>(
+    &kTwoByteSubjectString[0], kSubjectStringLength));
+
+// A regexp variant is compiled either to native code (the single-tier or
+// tiered-up pipeline) or to bytecode (--regexp-interpret-all, or before
+// tier-up in the two-tier pipeline). The transition test only cares whether a
+// variant of the given encoding exists, so accept either form.
+bool HasCompiledLatin1Variant(Tagged<IrRegExpData> data) {
+  return data->has_latin1_code() || data->has_latin1_bytecode();
+}
+bool HasCompiledUc16Variant(Tagged<IrRegExpData> data) {
+  return data->has_uc16_code() || data->has_uc16_bytecode();
+}
+
+class InterruptTest {
+ public:
+  InterruptTest(v8::Isolate* isolate, v8::Local<v8::Context> context)
+      : i_thread(this),
+        isolate_(isolate),
+        context_(isolate, context),
+        sem_(0),
+        ran_test_body_(false),
+        ran_to_completion_(false) {}
+
+  void RunTest(v8::InterruptCallback test_body_fn) {
+    v8::HandleScope handle_scope(isolate_);
+    v8::Local<v8::RegExp> re =
+        v8::RegExp::New(context_.Get(isolate_),
+                        v8::String::NewFromUtf8Literal(isolate_, "((a*)*)*b"),
+                        v8::RegExp::kNone)
+            .ToLocalChecked();
+    regexp_handle_.Reset(isolate_, re);
+    i_thread.SetTestBody(test_body_fn);
+    CHECK(i_thread.Start());
+    TestBody();
+    i_thread.Join();
+  }
+
+  static void InvokeMajorGC(v8::Isolate* isolate, void* data) {
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    v8::internal::InvokeAtomicMajorGC(i_isolate);
+  }
+
+  static void MakeSubjectOneByteExternal(v8::Isolate* isolate, void* data) {
+    auto instance = reinterpret_cast<InterruptTest*>(data);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::String> string =
+        v8::Local<v8::String>::New(isolate, instance->subject_string_handle_);
+    CHECK(string->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+    string->MakeExternal(isolate, &one_byte_string_resource);
+  }
+
+  static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
+    auto instance = reinterpret_cast<InterruptTest*>(data);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::String> string =
+        v8::Local<v8::String>::New(isolate, instance->subject_string_handle_);
+    CHECK(string->CanMakeExternal(v8::String::Encoding::TWO_BYTE_ENCODING));
+    string->MakeExternal(isolate, &two_byte_string_resource);
+  }
+
+  static void TwoByteSubjectToOneByte(v8::Isolate* isolate, void* data) {
+    auto instance = reinterpret_cast<InterruptTest*>(data);
+    v8::HandleScope scope(isolate);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    v8::Local<v8::RegExp> re = instance->regexp_handle_.Get(isolate);
+    DirectHandle<JSRegExp> regexp = v8::Utils::OpenDirectHandle(*re);
+    // We executed on a two-byte subject so far, so we expect only a two-byte
+    // variant to be present.
+    Tagged<IrRegExpData> re_data =
+        CheckedCast<IrRegExpData>(regexp->data(i_isolate));
+    CHECK(!HasCompiledLatin1Variant(re_data));
+    CHECK(HasCompiledUc16Variant(re_data));
+
+    // Transition the subject string to one-byte by internalizing it.
+    // It already contains only one-byte characters.
+    v8::Local<v8::String> string = instance->GetSubjectString();
+    CHECK(!string->IsOneByte());
+    CHECK(string->ContainsOnlyOneByte());
+    // Internalize the subject by using it as a computed property name in an
+    // object.
+    {
+      // This test is technically wrong for running JS in a C++ interrupt.
+      // However we know that the interuptee here is the regexp engine, which
+      // does not care.
+      v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
+      v8::Local<v8::Context> context = instance->context_.Get(isolate);
+      v8::Local<v8::Script> script =
+          v8::Script::Compile(context,
+                              v8::String::NewFromUtf8Literal(
+                                  isolate, "o = { [subject_string]: 'foo' }"))
+              .ToLocalChecked();
+      script->Run(context).ToLocalChecked();
+    }
+    CHECK(string->IsOneByte());
+  }
+
+  static void IterateStack(v8::Isolate* isolate, void* data) {
+    v8::HandleScope scope(isolate);
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    v8::RegisterState state;
+#if defined(USE_SIMULATOR)
+    SimulatorHelper simulator_helper;
+    if (!simulator_helper.Init(isolate)) return;
+    simulator_helper.FillRegisters(&state);
+#else
+    state.pc = nullptr;
+    state.fp = &state;
+    state.sp = &state;
+#endif
+
+    StackFrameIteratorForProfilerForTesting it(
+        i_isolate, reinterpret_cast<Address>(state.pc),
+        reinterpret_cast<Address>(state.fp),
+        reinterpret_cast<Address>(state.sp),
+        reinterpret_cast<Address>(state.lr), i_isolate->js_entry_sp());
+
+    for (; !it.done(); it.Advance()) {
+      // Ideally we'd access the frame a bit (doesn't matter how); but this
+      // iterator is very limited in what it may access, and prints run into
+      // DCHECKs. So we can't do this:
+      // it.frame()->Print(&accumulator, i::StackFrame::OVERVIEW,
+      //                   frame_index++);
+    }
+  }
+
+  void SetOneByteSubjectString() {
+    v8::HandleScope handle_scope(isolate_);
+    Isolate* i_isolate = this->i_isolate();
+    // The string must be in old space to support externalization.
+    DirectHandle<String> i_one_byte_string =
+        i_isolate->factory()->NewStringFromAsciiChecked(
+            &kOneByteSubjectString[0], AllocationType::kOld);
+    SetSubjectString(v8::Utils::ToLocal(i_one_byte_string));
+  }
+
+  void SetTwoByteSubjectString() {
+    v8::HandleScope handle_scope(isolate_);
+    Isolate* i_isolate = this->i_isolate();
+    // The string must be in old space to support externalization.
+    DirectHandle<String> i_two_byte_string =
+        i_isolate->factory()
+            ->NewStringFromTwoByte(
+                base::Vector<const base::uc16>(&kTwoByteSubjectString[0],
+                                               kSubjectStringLength),
+                AllocationType::kOld)
+            .ToHandleChecked();
+    SetSubjectString(v8::Utils::ToLocal(i_two_byte_string));
+  }
+
+  void SetSubjectString(v8::Local<v8::String> subject) {
+    v8::Local<v8::Context> context = context_.Get(isolate_);
+    context->Global()
+        ->Set(context,
+              v8::String::NewFromUtf8Literal(isolate_, "subject_string"),
+              subject)
+        .FromJust();
+    subject_string_handle_.Reset(isolate_, subject);
+  }
+
+  v8::Local<v8::String> GetSubjectString() const {
+    return subject_string_handle_.Get(isolate_);
+  }
+
+  v8::Local<v8::RegExp> GetRegExp() const {
+    return regexp_handle_.Get(isolate_);
+  }
+
+  Isolate* i_isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
+
+ private:
+  static void SignalSemaphore(v8::Isolate* isolate, void* data) {
+    reinterpret_cast<InterruptTest*>(data)->sem_.Signal();
+  }
+
+  void TestBody() {
+    CHECK(!ran_test_body_.load());
+    CHECK(!ran_to_completion_.load());
+
+    DCHECK(!subject_string_handle_.IsEmpty());
+
+    v8::TryCatch try_catch(isolate_);
+
+    isolate_->RequestInterrupt(&SignalSemaphore, this);
+    v8::MaybeLocal<v8::Value> result = regexp_handle_.Get(isolate_)->ExecV2(
+        context_.Get(isolate_), subject_string_handle_.Get(isolate_));
+    CHECK(result.IsEmpty());
+
+    CHECK(try_catch.HasTerminated());
+    CHECK(ran_test_body_.load());
+    CHECK(ran_to_completion_.load());
+  }
+
+  class InterruptThread : public base::Thread {
+   public:
+    explicit InterruptThread(InterruptTest* test)
+        : Thread(Options("InterruptTest")), test_(test) {}
+
+    void Run() override {
+      CHECK_NOT_NULL(test_body_fn_);
+
+      // Wait for JS execution to start.
+      test_->sem_.Wait();
+
+      // Sleep for a bit to allow irregexp execution to start up, then run the
+      // test body.
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
+      test_->isolate_->RequestInterrupt(&RunTestBody, test_);
+      test_->isolate_->RequestInterrupt(&SignalSemaphore, test_);
+
+      // Wait for the scheduled interrupt to signal.
+      test_->sem_.Wait();
+
+      // Sleep again to resume irregexp execution, then terminate.
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
+      test_->ran_to_completion_.store(true);
+      test_->isolate_->TerminateExecution();
+    }
+
+    static void RunTestBody(v8::Isolate* isolate, void* data) {
+      auto instance = reinterpret_cast<InterruptTest*>(data);
+      instance->i_thread.test_body_fn_(isolate, data);
+      instance->ran_test_body_.store(true);
+    }
+
+    void SetTestBody(v8::InterruptCallback callback) {
+      test_body_fn_ = callback;
+    }
+
+   private:
+    v8::InterruptCallback test_body_fn_;
+    InterruptTest* test_;
+  };
+
+  // Interrupt tests rely on quirks of the backtracking engine to trigger
+  // pattern execution long enough s.t. we can reliably trigger an interrupt
+  // while the regexp code is still executing.
+  FlagScope<bool> fallback_flag_{
+      &v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks,
+      false};
+
+  InterruptThread i_thread;
+
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  base::Semaphore sem_;  // Coordinates between main and interrupt threads.
+
+  v8::Persistent<v8::String> subject_string_handle_;
+  v8::Persistent<v8::RegExp> regexp_handle_;
+
+  std::atomic<bool> ran_test_body_;
+  std::atomic<bool> ran_to_completion_;
+};
+
+}  // namespace
+
+TEST_F(RegExpTestWithContext, InterruptAndInvokeMajorGC) {
+  // Move all movable objects on GC.
+  FlagScope<bool> compact_flag(&v8_flags.compact_on_every_full_gc, true);
+  InterruptTest test(isolate(), context());
+  test.SetOneByteSubjectString();
+  test.RunTest(InterruptTest::InvokeMajorGC);
+}
+
+TEST_F(RegExpTestWithContext, InterruptAndMakeSubjectOneByteExternal) {
+  InterruptTest test(isolate(), context());
+  test.SetOneByteSubjectString();
+  test.RunTest(InterruptTest::MakeSubjectOneByteExternal);
+}
+
+TEST_F(RegExpTestWithContext, InterruptAndMakeSubjectTwoByteExternal) {
+  InterruptTest test(isolate(), context());
+  test.SetTwoByteSubjectString();
+  test.RunTest(InterruptTest::MakeSubjectTwoByteExternal);
+}
+
+TEST_F(RegExpTestWithContext, InterruptAndIterateStack) {
+  FlagScope<bool> tier_up_flag(&v8_flags.regexp_tier_up, false);
+  InterruptTest test(isolate(), context());
+  test.SetOneByteSubjectString();
+  test.RunTest(InterruptTest::IterateStack);
+}
+
+TEST_F(RegExpTestWithContext,
+       InterruptAndTransitionSubjectFromTwoByteToOneByte) {
+  InterruptTest test(isolate(), context());
+  Isolate* i_iso = test.i_isolate();
+  HandleScope handle_scope(i_iso);
+  // Internalize a one-byte copy of the two-byte string we are going to
+  // internalize during the interrupt. This ensures that the two-byte string
+  // transitions to a ThinString pointing to a one-byte string.
+  v8::Local<v8::String> internalized_string =
+      v8::String::NewFromUtf8(isolate(), &kOneByteSubjectString[1],
+                              v8::NewStringType::kInternalized,
+                              kSubjectStringLength - 1)
+          .ToLocalChecked();
+  CHECK(internalized_string->IsOneByte());
+
+  test.SetTwoByteSubjectString();
+  v8::Local<v8::String> string = test.GetSubjectString();
+  CHECK(!string->IsOneByte());
+  // Set the subject string as a substring of the original subject (containing
+  // only one-byte characters).
+  v8::Local<v8::Value> value =
+      RunJS("subject_string = subject_string.substring(1)");
+  test.SetSubjectString(value.As<v8::String>());
+  CHECK(test.GetSubjectString()->ContainsOnlyOneByte());
+
+  test.RunTest(InterruptTest::TwoByteSubjectToOneByte);
+  // After the test, we expect that a one-byte variant has been installed
+  // during the interrupt.
+  DirectHandle<JSRegExp> regexp =
+      v8::Utils::OpenDirectHandle(*test.GetRegExp());
+  Tagged<IrRegExpData> data = CheckedCast<IrRegExpData>(regexp->data(i_iso));
+  CHECK(HasCompiledLatin1Variant(data));
+}
+
 #undef CHECK_PARSE_ERROR
 #undef CHECK_SIMPLE
 #undef CHECK_MIN_MAX
 
+}  // namespace regexp_unittest
 }  // namespace internal
 }  // namespace v8

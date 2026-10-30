@@ -501,9 +501,13 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(LogEventCallback, event_logger, nullptr)                                \
   V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,     \
     nullptr)                                                                \
+  V(DynamicScriptCompiledFromEmbedderCallback, dynamic_script_callback,     \
+    nullptr)                                                                \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                  \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                \
+  V(WasmModuleCallback, wasm_module_callback, nullptr)                      \
+  V(ExtensionCallback, deprecated_wasm_module_callback, nullptr)            \
+  V(WasmInstanceCallback, wasm_instance_callback, nullptr)                  \
+  V(ExtensionCallback, deprecated_wasm_instance_callback, nullptr)          \
   V(SharedArrayBufferConstructorEnabledCallback,                            \
     sharedarraybuffer_constructor_enabled_callback, nullptr)                \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                \
@@ -581,7 +585,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // and reused on subsequent entries.
   class PerIsolateThreadData {
    public:
-    PerIsolateThreadData(Isolate* isolate, ThreadId thread_id)
+    PerIsolateThreadData(Isolate* isolate, base::ThreadId thread_id)
         : isolate_(isolate),
           thread_id_(thread_id),
           stack_limit_(0),
@@ -596,7 +600,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     PerIsolateThreadData(const PerIsolateThreadData&) = delete;
     PerIsolateThreadData& operator=(const PerIsolateThreadData&) = delete;
     Isolate* isolate() const { return isolate_; }
-    ThreadId thread_id() const { return thread_id_; }
+    base::ThreadId thread_id() const { return thread_id_; }
 
     FIELD_ACCESSOR(uintptr_t, stack_limit)
     FIELD_ACCESSOR(ThreadState*, thread_state)
@@ -604,13 +608,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
 
-    bool Matches(Isolate* isolate, ThreadId thread_id) const {
+    bool Matches(Isolate* isolate, base::ThreadId thread_id) const {
       return isolate_ == isolate && thread_id_ == thread_id;
     }
 
    private:
     Isolate* isolate_;
-    ThreadId thread_id_;
+    base::ThreadId thread_id_;
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
 
@@ -715,7 +719,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Find the PerThread for given (isolate, thread) combination
   // If one does not yet exist, return null.
-  PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+  PerIsolateThreadData* FindPerThreadDataForThread(base::ThreadId thread_id);
 
   // Discard the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, no-op.
@@ -821,10 +825,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Access to current thread id.
-  inline void set_thread_id(ThreadId id) {
+  inline void set_thread_id(base::ThreadId id) {
     thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);
   }
-  inline ThreadId thread_id() const {
+  inline base::ThreadId thread_id() const {
     return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
   }
 
@@ -895,12 +899,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   inline Address* c_entry_fp_address() {
     return &thread_local_top()->c_entry_fp_;
-  }
-  static uint32_t c_entry_fp_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, thread_local_top_) +
-                                 OFFSET_OF(ThreadLocalTop, c_entry_fp_) -
-                                 isolate_root_bias());
   }
   inline Address* handler_address() { return &thread_local_top()->handler_; }
   inline Address* c_function_address() {
@@ -1368,6 +1366,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StubCache* load_stub_cache() const { return load_stub_cache_; }
   StubCache* store_stub_cache() const { return store_stub_cache_; }
   StubCache* define_own_stub_cache() const { return define_own_stub_cache_; }
+  StubCache* has_stub_cache() const { return has_stub_cache_; }
   Deoptimizer* GetAndClearCurrentDeoptimizer() {
     Deoptimizer* result = current_deoptimizer_;
     CHECK_NOT_NULL(result);
@@ -1389,34 +1388,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   ThreadLocalTop const* thread_local_top() const {
     return &isolate_data_.thread_local_top_;
-  }
-
-  constexpr static uint32_t context_offset() {
-    return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, context_) -
-        isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_sp_offset() {
-    return static_cast<uintptr_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                  OFFSET_OF(IsolateData, thread_local_top_) +
-                                  OFFSET_OF(ThreadLocalTop, central_stack_sp_) -
-                                  isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_limit_offset() {
-    return static_cast<uintptr_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, central_stack_limit_) - isolate_root_bias());
-  }
-
-  static uint32_t error_message_param_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, error_message_param_) -
-                                 isolate_root_bias());
   }
 
   uint8_t error_message_param() { return isolate_data_.error_message_param_; }
@@ -1635,6 +1606,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return code_coverage_mode() == debug::CoverageMode::kBestEffort;
   }
 
+  bool requires_bytecode_for_code_coverage() const {
+    return !is_best_effort_code_coverage();
+  }
+
   bool is_precise_count_code_coverage() const {
     return code_coverage_mode() == debug::CoverageMode::kPreciseCount;
   }
@@ -1700,12 +1675,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   const std::string& DefaultLocale();
 
+  bool DefaultLocaleMayRequireSpecialCaseMapping() const {
+    return isolate_data_.default_locale_may_require_special_case_mapping_;
+  }
+
   void ResetDefaultLocale();
 
-  void set_default_locale(const std::string& locale) {
-    DCHECK_EQ(default_locale_.length(), 0);
-    default_locale_ = locale;
-  }
+  void set_default_locale(const std::string& locale);
 
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
@@ -2132,6 +2108,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                  std::string_view value);
   void SetCrashKeyString(CrashKey crash_key, std::string_view value);
 
+  // Deprecated - to be deleted once embedders migrate to
+  // v8::V8::SetCrashKeyCallbacks.
   void SetCrashKeyStringCallbacks(
       AllocateCrashKeyStringCallback allocate_callback,
       SetCrashKeyStringCallback set_callback);
@@ -2225,8 +2203,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
-  bool flush_denormals() const { return flush_denormals_; }
-
   // Register a finalizer to be called at isolate teardown.
   void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
@@ -2294,10 +2270,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.external_pointer_table_;
   }
 
-  Address external_pointer_table_address() {
-    return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
-  }
-
   ExternalPointerTable& shared_external_pointer_table() {
     return *isolate_data_.shared_external_pointer_table_;
   }
@@ -2334,10 +2306,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.trusted_pointer_table_;
   }
 
-  Address trusted_pointer_table_base_address() const {
-    return isolate_data_.trusted_pointer_table_.base_address();
-  }
-
   TrustedPointerTable& shared_trusted_pointer_table() {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
@@ -2352,11 +2320,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
-  }
-
-  Address shared_trusted_pointer_table_base_address() {
-    return reinterpret_cast<Address>(
-        &isolate_data_.shared_trusted_pointer_table_);
   }
 
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope() const {
@@ -2539,6 +2502,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void Freeze(bool is_frozen) {
     is_frozen_ = is_frozen;
+    if (v8_flags.freeze_forces_marking_finalization && IsFrozen()) {
+      // We will either finalize an ongoing GC, or simply do a GC to reclaim
+      // any unreachable memory.
+      heap()->FinalizeIncrementalMarkingAtomicallyIfRunning(
+          i::GarbageCollectionReason::kFrozen);
+    }
   }
 
   static void IterateRegistersAndStackOfSimulator(
@@ -2574,19 +2543,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
    public:
     ThreadDataTable() = default;
 
-    PerIsolateThreadData* Lookup(ThreadId thread_id);
+    PerIsolateThreadData* Lookup(base::ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads();
 
    private:
     struct Hasher {
-      std::size_t operator()(const ThreadId& t) const {
+      std::size_t operator()(const base::ThreadId& t) const {
         return std::hash<int>()(t.ToInteger());
       }
     };
 
-    std::unordered_map<ThreadId, PerIsolateThreadData*, Hasher> table_;
+    std::unordered_map<base::ThreadId, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
@@ -2686,6 +2655,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
   StubCache* define_own_stub_cache_ = nullptr;
+  StubCache* has_stub_cache_ = nullptr;
   Deoptimizer* current_deoptimizer_ = nullptr;
   bool deoptimizer_lazy_throw_ = false;
   MaterializedObjectStore* materialized_object_store_ = nullptr;
@@ -2944,7 +2914,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       abort_on_uncaught_exception_callback_ = nullptr;
 
   bool allow_atomics_wait_ = true;
-  bool flush_denormals_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
@@ -3055,7 +3024,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif
 
 #ifdef V8_ENABLE_CHECKS
-  ThreadId current_thread_id_;
+  base::ThreadId current_thread_id_ = base::ThreadId::Invalid();
   int current_thread_counter_ = 0;
 #endif
 
@@ -3249,7 +3218,7 @@ class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
   MutexGuardIfOffThread(base::Mutex* mutex, Isolate* isolate) {
     DCHECK_NOT_NULL(mutex);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   }
 
   MutexGuardIfOffThread(const MutexGuardIfOffThread&) = delete;

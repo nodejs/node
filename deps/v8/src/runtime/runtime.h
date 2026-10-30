@@ -74,8 +74,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(AtomicsLoadSharedStructOrArray, 2, 1)              \
   F(AtomicsStoreSharedStructOrArray, 3, 1)             \
   F(AtomicsExchangeSharedStructOrArray, 3, 1)          \
-  F(AtomicsCompareExchangeSharedStructOrArray, 4, 1)   \
-  F(AtomicsSynchronizationPrimitiveNumWaitersForTesting, 1, 1)
+  F(AtomicsCompareExchangeSharedStructOrArray, 4, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I)                               \
   F(BigIntCompareToNumber, 3, 1)                                      \
@@ -84,7 +83,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntEqualToNumber, 2, 1)                                        \
   F(BigIntEqualToString, 2, 1)                                        \
   F(BigIntExponentiate, 2, 1)                                         \
-  F(BigIntMaxBits, 0, 1)                                              \
   F(BigIntToNumber, 1, 1)                                             \
   F(BigIntUnaryOp, 2, 1)                                              \
   F(ToBigInt, 1, 1)                                                   \
@@ -130,7 +128,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(CompileOptimizedOSRFromMaglevInlined, 2, 1)                  \
   F(LogOrTraceOptimizedOSREntry, 0, 1)                           \
   F(CompileLazy, 1, 1)                                           \
-  F(CompileBaseline, 1, 1)                                       \
   F(InstallBaselineCode, 1, 1)                                   \
   F(InstallSFICode, 1, 1)                                        \
   F(NotifyDeoptimized, 0, 1)                                     \
@@ -305,7 +302,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(NotifyContextCellStateWillChange, 1, 1,                \
     RuntimeCallProperty::kCannotTriggerGC)                 \
   F(NewError, 2, 1)                                        \
-  F(NewReferenceError, 2, 1)                               \
+  F(NewReferenceError, 1, 1)                               \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \
@@ -374,6 +371,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(HandleExceptionsInDisposeDisposableStack, 3, 1)                    \
   F(HasFastPackedElements, 1, 1)                                       \
   F(HasInPrototypeChain, 2, 1)                                         \
+  F(HasPrivateMember, 2, 1)                                            \
   F(HasProperty, 2, 1)                                                 \
   F(InitializeDisposableStack, 0, 1)                                   \
   F(InternalSetPrototype, 2, 1)                                        \
@@ -453,7 +451,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
-  F(CheckProxyGetSetTrapResult, 2, 1)  \
+  F(CheckProxyGetSetTrapResult, 4, 1)  \
   F(CheckProxyHasTrapResult, 2, 1)     \
   F(CheckProxyDeleteTrapResult, 2, 1)  \
   F(GetPropertyWithReceiver, 3, 1)     \
@@ -493,7 +491,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadLookupSlotForCall_Baseline, 2, 1)          \
                                                    \
   F(NewClosure, 2, 1)                              \
-  F(NewClosure_Tenured, 2, 1)                      \
   F(NewFunctionContext, 1, 1)                      \
   F(NewRestParameter, 1, 1)                        \
   F(NewSloppyArguments, 1, 1)                      \
@@ -560,10 +557,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
+  F(BigIntMaxBits, 0, 1)                                                 \
   F(BlockAt, 2, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
   F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
+  F(CompileBaseline, 1, 1)                                               \
   F(CompleteInobjectSlackTracking, 1, 1)                                 \
   F(ConstructConsString, 2, 1)                                           \
   F(ConstructDouble, 2, 1)                                               \
@@ -583,6 +582,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(DebugTrace, 0, 1)                                                    \
   F(DebugTraceMinimal, 0, 1)                                             \
   F(DeoptimizeFunction, 1, 1)                                            \
+  F(DisableEagerInlining, 1, 1)                                          \
   F(DisableOptimizationFinalization, 0, 1)                               \
   F(DisallowCodegenFromStrings, 1, 1)                                    \
   F(DisassembleFunction, 1, 1)                                           \
@@ -663,7 +663,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(OptimizeFunctionOnNextCall, -1, 1)                                   \
   F(OptimizeOsr, -1, 1)                                                  \
   F(PrepareFunctionForOptimization, -1, 1)                               \
-  F(PretenureAllocationSite, 1, 1)                                       \
   F(PrintWithNameForAssert, 2, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(PromiseSpeciesProtector, 0, 1)                                       \
   F(RegExpSpeciesProtector, 0, 1)                                        \
@@ -686,6 +685,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ShareObject, 1, 1)                                                   \
   F(SimulateNewspaceFull, 0, 1)                                          \
   F(StringIsFlat, 1, 1)                                                  \
+  F(StringIsOneByteRepresentation, 1, 1)                                 \
   F(StringIteratorProtector, 0, 1)                                       \
   F(StringWrapperToPrimitiveProtector, 0, 1)                             \
   F(SystemBreak, 0, 1)                                                   \
@@ -724,7 +724,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowWasmJSPISuspendError, 0, 1)                             \
   F(ThrowWasmFXSuspendError, 0, 1)                               \
   F(ThrowWasmError, 1, 1)                                        \
-  F(TrapHandlerThrowWasmError, 0, 1)                             \
   F(ThrowWasmStackOverflow, 0, 1)                                \
   F(WasmI32AtomicWait, 4, 1)                                     \
   F(WasmI64AtomicWait, 5, 1)                                     \
@@ -752,9 +751,10 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTableFill, 5, 1)                                         \
   F(WasmJSToWasmObject, 2, 1)                                    \
   F(WasmWasmToJSObject, 1, 1)                                    \
+  F(WasmExternConvertAny, 1, 1)                                  \
   F(WasmCompileLazy, 2, 1)                                       \
   F(WasmAllocateFeedbackVector, 3, 1)                            \
-  F(WasmLiftoffDeoptFinish, 1, 1)                                \
+  F(WasmLiftoffDeoptFinish, 0, 1)                                \
   F(TierUpJSToWasmWrapper, 1, 1)                                 \
   F(IsWasmExternalFunction, 1, 1)                                \
   F(TierUpWasmToJSWrapper, 1, 1)                                 \
@@ -762,8 +762,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmDebugBreak, 0, 1)                                        \
   F(WasmAllocateDescriptorStruct, 4, 1)                          \
   F(WasmArrayCopy, 5, 1)                                         \
-  F(WasmArrayNewSegment, 5, 1)                                   \
-  F(WasmArrayInitSegment, 6, 1)                                  \
+  F(WasmArrayNewSegment, 6, 1)                                   \
+  F(WasmArrayInitSegment, 7, 1)                                  \
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmSuspended, 2, 1)                                         \
   F(WasmAllocateContinuation, 3, 1)                              \
@@ -1052,6 +1052,15 @@ class Runtime : public AllStatic {
   GetObjectProperty(Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
                     DirectHandle<Object> key, DirectHandle<JSAny> receiver = {},
                     bool* is_found = nullptr);
+
+  // Look up for a private member with a name matching "desc" and return
+  // whether it exists on "receiver". "desc" should be a #-prefixed string, in
+  // the case of private fields, it should match the description of the private
+  // name symbol. Throw an error if there are more than one matching private
+  // member (which would be ambiguous).
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  HasPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                   DirectHandle<String> desc);
 
   // Look up for a private member with a name matching "desc" and return its
   // value. "desc" should be a #-prefixed string, in the case of private fields,

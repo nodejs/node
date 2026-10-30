@@ -1,0 +1,3 @@
+Tests that OSR topmost frame is deoptimized after debugger break
+Paused on debugger statement
+isTopFrameTurboFanned: false

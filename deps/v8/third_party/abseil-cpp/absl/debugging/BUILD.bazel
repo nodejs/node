@@ -127,6 +127,9 @@ cc_test(
         "@rules_cc//cc/compiler:clang-cl": ["/Z7"],
         "//conditions:default": [],
     }),
+    # Ensure symbolize_test.pdb is declared as a linker output on Windows even
+    # in opt builds so it is uploaded to the remote cache.
+    features = ["generate_pdb_file"],
     linkopts = ABSL_DEFAULT_LINKOPTS + select({
         "@rules_cc//cc/compiler:msvc-cl": ["/DEBUG"],
         "@rules_cc//cc/compiler:clang-cl": ["/DEBUG"],
@@ -198,6 +201,7 @@ cc_test(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [

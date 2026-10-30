@@ -3,7 +3,7 @@ standards:
   - posix
 macros:
   - macro_name: TCP_NODELAY
-    macro_value: 1
+    macro_header: netinet-tcp-macros.h
 types: []
 enums: []
 objects: []

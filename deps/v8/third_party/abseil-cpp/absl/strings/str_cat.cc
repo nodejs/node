@@ -25,10 +25,12 @@
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/throw_delegate.h"
 #include "absl/strings/internal/append_and_overwrite.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
 
@@ -75,7 +77,53 @@ inline size_t SafeAdd(std::initializer_list<size_t> sizes) {
   return static_cast<size_t>(sum);
 }
 
+template <typename Integer>
+std::string IntegerToString(Integer i) {
+  // Any integer (signed/unsigned) up to 64 bits can be formatted into a buffer
+  // with 22 bytes (including NULL at the end).
+  constexpr size_t kMaxDigits10 = 22;
+  std::string result;
+  StringResizeAndOverwrite(
+      result, kMaxDigits10, [i](char* start, size_t buf_size) {
+        // Note: This can be optimized to not write last zero.
+        char* end = numbers_internal::FastIntToBuffer(i, start);
+        auto size = static_cast<size_t>(end - start);
+        ABSL_ASSERT(size < buf_size);
+        return size;
+      });
+  return result;
+}
+
+template <typename Float>
+std::string FloatToString(Float f) {
+  std::string result;
+  StringResizeAndOverwrite(result, numbers_internal::kSixDigitsToBufferSize,
+                           [f](char* start, size_t buf_size) {
+                             size_t size = numbers_internal::SixDigitsToBuffer(
+                                 static_cast<double>(f), start);
+                             ABSL_ASSERT(size < buf_size);
+                             return size;
+                           });
+  return result;
+}
+
 }  // namespace
+
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(float f) {
+  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
+  result.size =
+      strlen(numbers_internal::RoundTripFloatToBuffer(f, &result.data[0]));
+  return result;
+}
+
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(double d) {
+  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
+  result.size =
+      strlen(numbers_internal::RoundTripDoubleToBuffer(d, &result.data[0]));
+  return result;
+}
 
 std::string StrCat(const AlphaNum& a, const AlphaNum& b) {
   std::string result;
@@ -202,6 +250,19 @@ void AppendPieces(std::string* absl_nonnull dest,
                            });
 }
 
+std::string SingleArgStrCat(int x) { return IntegerToString(x); }
+std::string SingleArgStrCat(unsigned int x) { return IntegerToString(x); }
+// NOLINTNEXTLINE
+std::string SingleArgStrCat(long x) { return IntegerToString(x); }
+// NOLINTNEXTLINE
+std::string SingleArgStrCat(unsigned long x) { return IntegerToString(x); }
+// NOLINTNEXTLINE
+std::string SingleArgStrCat(long long x) { return IntegerToString(x); }
+// NOLINTNEXTLINE
+std::string SingleArgStrCat(unsigned long long x) { return IntegerToString(x); }
+std::string SingleArgStrCat(float x) { return FloatToString(x); }
+std::string SingleArgStrCat(double x) { return FloatToString(x); }
+
 }  // namespace strings_internal
 
 void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a) {
@@ -264,6 +325,14 @@ void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
         assert(out == buf + buf_size);
         return buf_size;
       });
+}
+
+strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
+SixDigits(double d) {
+  strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
+      result;
+  result.size = numbers_internal::SixDigitsToBuffer(d, &result.data[0]);
+  return result;
 }
 
 ABSL_NAMESPACE_END

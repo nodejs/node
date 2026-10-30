@@ -4,6 +4,7 @@
 
 #include "include/cppgc/platform.h"
 
+#include "include/cppgc/common.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -11,6 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/heap/cppgc-internal/gc-info-table.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/platform.h"
@@ -96,6 +98,7 @@ void InitializeProcess(PageAllocator* page_allocator,
   auto& allocator = internal::CreateAllocatorIfNeeded(page_allocator);
 
   CHECK(!internal::g_page_allocator);
+  v8::base::SynchronizationPointSupport::Initialize();
   internal::GlobalGCInfoTable::Initialize(allocator);
 #if defined(CPPGC_CAGED_HEAP)
   internal::CagedHeap::InitializeIfNeeded(allocator, desired_heap_size);
@@ -104,5 +107,19 @@ void InitializeProcess(PageAllocator* page_allocator,
 }
 
 void ShutdownProcess() { internal::g_page_allocator = nullptr; }
+
+StackStartScope::StackStartScope(void* stack_start)
+    : previous_stack_start_(
+          v8::base::Stack::SetCurrentThreadStackStart(stack_start)) {
+  CHECK_NOT_NULL(stack_start);
+  CHECK_IMPLIES(previous_stack_start_, stack_start <= previous_stack_start_);
+}
+
+StackStartScope::~StackStartScope() {
+  void* stack_start =
+      v8::base::Stack::SetCurrentThreadStackStart(previous_stack_start_);
+  CHECK_NOT_NULL(stack_start);
+  CHECK_IMPLIES(previous_stack_start_, stack_start <= previous_stack_start_);
+}
 
 }  // namespace cppgc

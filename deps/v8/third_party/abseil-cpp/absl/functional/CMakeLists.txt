@@ -105,6 +105,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::bind_front
+    absl::config
     absl::memory
     GTest::gmock_main
 )

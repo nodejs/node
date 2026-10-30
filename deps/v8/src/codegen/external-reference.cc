@@ -308,33 +308,6 @@ ExternalReference ExternalReference::empty_backing_store_buffer() {
       Sandbox::current()->constants().empty_backing_store_buffer_address());
 }
 
-ExternalReference ExternalReference::external_pointer_table_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->external_pointer_table_address());
-}
-
-ExternalReference
-ExternalReference::shared_external_pointer_table_address_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->shared_external_pointer_table_address_address());
-}
-
-ExternalReference ExternalReference::trusted_pointer_table_base_address(
-    Isolate* isolate) {
-  // TODO(saelo): maybe the external pointer table external references should
-  // also directly return the table base address?
-  return ExternalReference(isolate->trusted_pointer_table_base_address());
-}
-
-ExternalReference ExternalReference::shared_trusted_pointer_table_base_address(
-    Isolate* isolate) {
-  // TODO(saelo): maybe the external pointer table external references should
-  // also directly return the table base address?
-  return ExternalReference(
-      isolate->shared_trusted_pointer_table_base_address());
-}
-
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
   return ExternalReference(
       reinterpret_cast<Address>(MemoryChunk::MetadataTableAddress()));
@@ -465,8 +438,8 @@ FUNCTION_REFERENCE(ieee754_fp16_raw_bits_to_fp32_raw_bits,
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
-FUNCTION_REFERENCE(write_barrier_indirect_pointer_marking_from_code_function,
-                   WriteBarrier::IndirectPointerMarkingFromCode)
+FUNCTION_REFERENCE(write_barrier_trusted_pointer_marking_from_code_function,
+                   WriteBarrier::TrustedPointerMarkingFromCode)
 
 FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
                    WriteBarrier::SharedMarkingFromCode)
@@ -480,8 +453,8 @@ FUNCTION_REFERENCE(insert_remembered_set_function,
 FUNCTION_REFERENCE(verify_skipped_write_barrier,
                    Heap::VerifySkippedWriteBarrier)
 
-FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
-                   Heap::VerifySkippedIndirectWriteBarrier)
+FUNCTION_REFERENCE(verify_skipped_trusted_write_barrier,
+                   Heap::VerifySkippedTrustedWriteBarrier)
 
 namespace {
 
@@ -519,13 +492,13 @@ FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
 
 ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
       isolate->heap()->young_external_pointer_space(), pointer,
       kFastApiExternalTypeTag);
 #else
   return 0;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
@@ -595,7 +568,6 @@ FUNCTION_REFERENCE(wasm_switch_from_the_central_stack_for_js,
                    wasm::switch_from_the_central_stack_for_js)
 FUNCTION_REFERENCE(wasm_grow_stack, wasm::grow_stack)
 FUNCTION_REFERENCE(wasm_shrink_stack, wasm::shrink_stack)
-FUNCTION_REFERENCE(wasm_load_old_fp, wasm::load_old_fp)
 FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
@@ -714,7 +686,7 @@ class GCedBuffer final : public cppgc::GarbageCollected<GCedBuffer> {
   void Trace(cppgc::Visitor* visitor) const {}
 };
 
-void* allocate_buffer_impl(Isolate* isolate, size_t size) {
+void* allocate_buffer_impl(Isolate* isolate, uint32_t size) {
   void* result = cppgc::MakeGarbageCollected<GCedBuffer>(
       isolate->heap()->cpp_heap()->GetAllocationHandle(),
       cppgc::AdditionalBytes(size));
@@ -736,11 +708,6 @@ FUNCTION_REFERENCE(allocate_buffer, allocate_buffer_impl)
 
 ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
   return ExternalReference(isolate->isolate_root());
-}
-
-ExternalReference ExternalReference::allocation_sites_list_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->allocation_sites_list_address());
 }
 
 ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
@@ -852,10 +819,6 @@ ExternalReference ExternalReference::address_of_js_pr_3883_flag() {
 
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
-}
-
-ExternalReference ExternalReference::address_of_shared_string_table_flag() {
-  return ExternalReference(&v8_flags.shared_string_table);
 }
 
 ExternalReference
@@ -1153,20 +1116,9 @@ ExternalReference::address_of_regexp_static_result_offsets_vector(
       isolate->address_of_regexp_static_result_offsets_vector());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
+ExternalReference ExternalReference::address_of_regexp_stack_thread_local(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->regexp_stack()->memory_top_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+  return ExternalReference(isolate->regexp_stack()->thread_local_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
@@ -1893,17 +1845,39 @@ void tsan_release_store_64_bits(Address addr, int64_t value) {
 #endif  // V8_TARGET_ARCH_X64
 }
 
-// Same as above, for relaxed loads.
-base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
+// Similarly like above, for relaxed loads.
+// If `invoke_tsan_acquire`, the `shared_base` parameter is a wasm shared object
+// and is the base object of `addr`. In that case we must invoke TSAN_ACQUIRE
+// to define the dependence between the initialization release fence and this
+// load.
+base::Atomic32 tsan_relaxed_load_32_bits(Address addr, Address shared_base,
+                                         int32_t invoke_tsan_acquire) {
 #if V8_TARGET_ARCH_X64
+  if (invoke_tsan_acquire) {
+    // We might reach this point with a non-shared object, because wasm anyref
+    // may hold a shared reference.
+    Tagged<HeapObject> object(
+        reinterpret_cast<HeapObject*>(shared_base - kHeapObjectTag));
+    if (HeapLayout::InWritableSharedSpace(object)) {
+      TSAN_ACQUIRE(object.address());
+    }
+  }
   return base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(addr));
 #else
   UNREACHABLE();
 #endif  // V8_TARGET_ARCH_X64
 }
 
-base::Atomic64 tsan_relaxed_load_64_bits(Address addr, int64_t value) {
+base::Atomic64 tsan_relaxed_load_64_bits(Address addr, Address shared_base,
+                                         int32_t invoke_tsan_acquire) {
 #if V8_TARGET_ARCH_X64
+  if (invoke_tsan_acquire) {
+    Tagged<HeapObject> object(
+        reinterpret_cast<HeapObject*>(shared_base - kHeapObjectTag));
+    if (HeapLayout::InWritableSharedSpace(object)) {
+      TSAN_ACQUIRE(object.address());
+    }
+  }
   return base::Relaxed_Load(reinterpret_cast<base::Atomic64*>(addr));
 #else
   UNREACHABLE();
