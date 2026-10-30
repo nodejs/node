@@ -153,15 +153,6 @@ class SecureContext final : public BaseObject {
   template <bool primary>
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Test-only hooks for the SPKI blocklist that every SSL_CTX applies
-  // during certificate verification. Reachable through
-  // internalBinding('crypto') with --expose-internals. The argument is the
-  // SHA-256 of a DER-encoded SubjectPublicKeyInfo.
-  static void AddBlockedSPKIForTesting(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ClearBlockedSPKIsForTesting(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
   static int TicketKeyCallback(SSL* ssl,
                                unsigned char* name,
                                unsigned char* iv,
