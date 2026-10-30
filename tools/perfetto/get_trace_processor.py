@@ -3,6 +3,8 @@
 # in deps/perfetto. The trace events tests read back the binary traces that
 # perfetto builds write through this tool.
 
+import ctypes
+import glob
 import io
 import json
 import os
@@ -12,9 +14,6 @@ import urllib.request
 import zipfile
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
-sys.path.insert(0, os.path.join(script_dir, '..', 'gyp', 'pylib'))
-from packaging._musllinux import _get_musl_version
 
 version_file = os.path.join(script_dir, '..', '..', 'deps', 'perfetto', 'VERSION')
 # Platforms perfetto publishes no release for, cross-compiled and pushed to the
@@ -28,6 +27,32 @@ OS_NAMES = {'Darwin': 'mac', 'Linux': 'linux'}
 ARCH_NAMES = {'x86_64': 'amd64', 'arm64': 'arm64', 'aarch64': 'arm64'}
 
 
+def get_glibc_version():
+    """
+    Returns a tuple like (2, 34) if glibc is present, or None if not.
+    """
+    # 1. Primary check via POSIX confstr
+    try:
+        val = os.confstr("CS_GNU_LIBC_VERSION")
+        if val:
+            # val is typically formatted like "glibc 2.31"
+            _, ver = val.split()
+            return tuple(map(int, ver.split(".")[:2]))
+    except (AttributeError, OSError, ValueError):
+        pass
+
+    # 2. Fallback using ctypes to query the runtime linker
+    try:
+        libc = ctypes.CDLL(None)
+        if hasattr(libc, "gnu_get_libc_version"):
+            libc.gnu_get_libc_version.restype = ctypes.c_char_p
+            ver = libc.gnu_get_libc_version().decode("ascii")
+            return tuple(map(int, ver.split(".")[:2]))
+    except Exception:
+        pass
+
+    return None
+
 def release_name():
   # Perfetto releases only an x64 build for Windows. Windows on arm64 runs it
   # under emulation.
@@ -36,8 +61,8 @@ def release_name():
 
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
-  if _get_musl_version(sys.executable) is not None:
-    print('musl detected, needs a special build of trace_processor_shell')
+  if get_glibc_version() is None:
+    print('No glibc detected, needs a musl build of trace_processor_shell')
     return None
 
   os_name = OS_NAMES.get(platform.system())
