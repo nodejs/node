@@ -15,6 +15,7 @@ using ncrypto::BignumPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
@@ -30,6 +31,13 @@ using v8::Value;
 
 namespace crypto {
 namespace {
+bool IsImmutableBufferSource(Local<Value> buffer) {
+  if (buffer->IsArrayBufferView()) {
+    return buffer.As<ArrayBufferView>()->Buffer()->IsImmutable();
+  }
+  return buffer->IsArrayBuffer() && buffer.As<ArrayBuffer>()->IsImmutable();
+}
+
 BignumPointer::PrimeCheckCallback getPrimeCheckCallback(Environment* env) {
   // The callback is used to check if the operation should be stopped.
   // Currently, the only check we perform is if env->is_stopping()
@@ -51,6 +59,13 @@ Maybe<void> RandomBytesTraits::AdditionalConfig(
   CHECK(IsAnyBufferSource(args[offset]));  // Buffer to fill
   CHECK(args[offset + 1]->IsUint32());  // Offset
   CHECK(args[offset + 2]->IsUint32());  // Size
+
+  if (IsImmutableBufferSource(args[offset])) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        Environment::GetCurrent(args),
+        "The 'buf' argument must not be backed by an immutable ArrayBuffer");
+    return Nothing<void>();
+  }
 
   ArrayBufferOrViewContents<unsigned char> in(args[offset]);
 
@@ -219,6 +234,12 @@ static void RandomFillSync(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsAnyBufferSource(args[0]));  // Buffer to fill
   CHECK(args[1]->IsUint32());         // Offset
   CHECK(args[2]->IsUint32());         // Size
+
+  if (IsImmutableBufferSource(args[0])) {
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "The 'buf' argument must not be backed by an immutable ArrayBuffer");
+  }
 
   ArrayBufferOrViewContents<unsigned char> in(args[0]);
 
