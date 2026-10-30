@@ -7,10 +7,8 @@
 // this checks both halves of the contract:
 //
 //   Linux:       an anonymous memfd loaded through /proc/self/fd - nothing ever
-//                reaches the filesystem. A loaded memfd stays open until exit,
-//                close-on-exec, so that no later image is loaded through the
-//                same /proc/self/fd/N path (the loader would return this one);
-//                a failed load closes its memfd again.
+//                reaches the filesystem, and the fd is closed right after the
+//                load, whether or not it worked.
 //   other POSIX: a mkdtemp() directory unlinked and rmdir()ed right after the
 //                load, so nothing is left even while the process runs.
 //   Windows:     the loader maps the file by path for the DLL's lifetime, so
@@ -46,8 +44,8 @@ const child = `
   // the load can only come from the bytes and their materialized image.
   const virtualPath = ${JSON.stringify(path.join(addonPath, '..', 'nowhere', 'binding.node'))};
 
-  // On Linux the image is a memfd rather than a file, so count those: each
-  // successful load keeps exactly one, close-on-exec, and a failed load none.
+  // On Linux the image is a memfd rather than a file, so count those: no load
+  // may keep one.
   const fdDir = '/proc/self/fd';
   const imageFds = () => {
     let fds;
@@ -58,7 +56,6 @@ const child = `
       } catch { return false; }
     });
   };
-  const before = imageFds();
 
   // Load repeatedly: each load materializes its own image, so a leak of an
   // image or a retained handle shows up as growth.
@@ -70,7 +67,7 @@ const child = `
     dlopenBinary(m, virtualPath, undefined, bytes);
     if (m.exports.hello() !== 'world') throw new Error('addon did not load');
   }
-  const loaded = imageFds();
+  const afterLoads = imageFds();
 
   for (let i = 0; i < loads; i++) {
     try {
@@ -80,23 +77,14 @@ const child = `
       if (err.code !== 'ERR_DLOPEN_FAILED') throw err;
     }
   }
-  const failed = imageFds();
+  const afterFailures = imageFds();
 
-  if (before !== null) {
-    const kept = loaded.filter((fd) => !before.includes(fd));
-    // Zero when memfd is unavailable and the temp-file fallback was used.
-    if (kept.length !== 0 && kept.length !== loads) {
-      throw new Error(\`expected \${loads} retained images, got \${kept.length}\`);
+  if (afterLoads !== null) {
+    if (afterLoads.length !== 0) {
+      throw new Error(\`loads kept images: \${afterLoads}\`);
     }
-    if (failed.length !== loaded.length) {
-      throw new Error(\`failed loads kept images: \${loaded} -> \${failed}\`);
-    }
-    for (const fd of kept) {
-      const info = fs.readFileSync(\`/proc/self/fdinfo/\${fd}\`, 'utf8');
-      const flags = parseInt(/^flags:\\s*([0-7]+)/m.exec(info)[1], 8);
-      if ((flags & 0o2000000) === 0) {  // O_CLOEXEC
-        throw new Error(\`retained image fd \${fd} is not close-on-exec\`);
-      }
+    if (afterFailures.length !== 0) {
+      throw new Error(\`failed loads kept images: \${afterFailures}\`);
     }
   }
   process.exit(0);

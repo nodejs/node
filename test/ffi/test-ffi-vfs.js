@@ -46,6 +46,27 @@ test('ffi.dlopen() loads a library from a mounted VFS', () => {
   }
 });
 
+test('library images leave no file descriptor behind', { skip: !common.isLinux }, () => {
+  const images = () => fs.readdirSync('/proc/self/fd').filter((fd) => {
+    try {
+      return fs.readlinkSync(`/proc/self/fd/${fd}`).startsWith('/memfd:node-addon');
+    } catch {
+      return false;
+    }
+  });
+
+  const { lib, functions } = ffi.dlopen(virtualPath, {
+    add_i32: fixtureSymbols.add_i32,
+  });
+  try {
+    assert.deepStrictEqual(images(), []);
+    assert.strictEqual(functions.add_i32(40, 2), 42);
+  } finally {
+    lib.close();
+  }
+  assert.deepStrictEqual(images(), []);
+});
+
 test('new ffi.DynamicLibrary() loads from a mounted VFS', () => {
   const lib = new ffi.DynamicLibrary(virtualPath);
 

@@ -476,6 +476,24 @@ bool WriteAllToFd(int fd, const char* data, size_t len) {
 int NodeMemfdCreate(const char* name, unsigned int flags) {
   return static_cast<int>(syscall(SYS_memfd_create, name, flags));
 }
+
+// The dynamic loader knows a loaded object by the path it was opened with, and
+// hands back the object already loaded under a path instead of opening the
+// file again. An image is loaded through /proc/self/fd/N, and its fd is closed
+// right after, so left to the kernel, which hands out the lowest free number,
+// the next image would get the same path and silently resolve to this one.
+// dlclose() does not settle it either: it can leave an object loaded. So each
+// image moves its fd to a number that no earlier image has had. Workers share
+// the fd table, so this is process-wide.
+int MoveFdToUnusedNumber(int fd) {
+  static Mutex mutex;
+  static int next_number = 0;
+  Mutex::ScopedLock lock(mutex);
+  const int moved = fcntl(fd, F_DUPFD_CLOEXEC, next_number);
+  close(fd);
+  if (moved != -1) next_number = moved + 1;
+  return moved;
+}
 #endif  // __linux__
 #else   // _WIN32
 
@@ -636,7 +654,8 @@ bool AddonImage::Materialize(const char* data, size_t len) {
   // reaches the filesystem, so there is no temp file to secure, unlink, or
   // leak, and no noexec-mount problem. Request an executable memfd (MFD_EXEC,
   // Linux 6.3+); retry without it on older kernels that reject the flag, then
-  // fall back to a temp file if memfd is unavailable entirely.
+  // fall back to a temp file if memfd is unavailable entirely, or if the fd
+  // numbers no image has had yet have run out.
 #ifndef MFD_CLOEXEC
 #define MFD_CLOEXEC 0x0001U
 #endif
@@ -647,6 +666,7 @@ bool AddonImage::Materialize(const char* data, size_t len) {
   if (fd_ == -1 && errno == EINVAL) {
     fd_ = NodeMemfdCreate("node-addon", MFD_CLOEXEC);
   }
+  if (fd_ != -1) fd_ = MoveFdToUnusedNumber(fd_);
   if (fd_ != -1) {
     if (!WriteAllToFd(fd_, data, len)) {
       errmsg_ = "could not write the native addon to an in-memory file";
@@ -709,25 +729,17 @@ bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
 
 void AddonImage::AfterOpen(bool opened, void* module) {
   consumed_ = true;
-  // The module never has to be unloaded here: Node keeps addons loaded for
-  // the life of the process, and an FFI library is closed by its owner.
+  // The right cleanup is the same whether or not the load worked, and the
+  // module never has to be unloaded: the name is already gone by now.
+  (void)opened;
   (void)module;
+  // memfd: the load's mapping (or nothing, on failure) owns it from here.
   if (fd_ != -1) {
-    // The dynamic loader knows a loaded object by the path it was opened
-    // with, and hands back the object already loaded under a path instead of
-    // opening the file again. Closing a loaded memfd would free its number
-    // for the next image, which would then be loaded through the very same
-    // /proc/self/fd/N and silently resolve to this one. So a memfd that was
-    // loaded stays open, keeping its path to itself, for the life of the
-    // process; MFD_CLOEXEC keeps it out of child processes. A failed load
-    // left nothing under that path, so its number can go back.
-    if (!opened) close(fd_);
+    close(fd_);
     fd_ = -1;
     return;
   }
   if (!temp_dir_.empty()) {
-    // A temp file can go at once: it lives in a fresh mkdtemp() directory,
-    // so its path is not handed out again the way an fd number is.
     // On success the mapping keeps the inode alive, so unlinking now leaves no
     // on-disk trace; on failure this just cleans up.
     unlink(path_.c_str());

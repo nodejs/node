@@ -177,9 +177,9 @@ void DLOpenBinary(const v8::FunctionCallbackInfo<v8::Value>& args);
 // dlopen()/LoadLibrary() can load, with the smallest, most private on-disk
 // footprint each platform allows:
 //   Linux:        an anonymous in-memory memfd, loaded via /proc/self/fd/N -
-//                 the bytes never touch the filesystem. A loaded memfd is kept
-//                 open until exit, so no later image reuses its path (the
-//                 loader would return the earlier object by that name).
+//                 the bytes never touch the filesystem. The fd is closed right
+//                 after the load, and its number is not used for another image
+//                 (the loader would return the earlier object by that path).
 //   other POSIX:  a 0700 mkdtemp() directory plus an O_EXCL|O_NOFOLLOW file,
 //                 unlink()ed right after the load (the mapping keeps it alive).
 //   Windows:      a temp file, written and closed before the load because the
@@ -209,9 +209,8 @@ class AddonImage {
 
   // Call exactly once, right after the load; `opened` says whether the load
   // succeeded and `module` is the module handle it produced. Releases what is
-  // no longer needed: on POSIX unlinks the temp file, which a successful load
-  // keeps alive through its own mapping, and closes the memfd only when the
-  // load failed, keeping a loaded one's path unique until exit. Windows cannot
+  // no longer needed: on POSIX closes the memfd or unlinks the temp file, which
+  // a successful load keeps alive through its own mapping. Windows cannot
   // unlink a mapped image, so there the file is removed at once only when the
   // load failed; otherwise it is kept, with `module`, until process exit, where
   // the module is unloaded and the file finally deleted.
