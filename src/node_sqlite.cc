@@ -1815,10 +1815,10 @@ void Database::CreateTagStore(const FunctionCallbackInfo<Value>& args) {
 // undefined. Returns false if a JavaScript exception is pending, either from
 // the property getter or because the value is not a boolean.
 template <typename T>
-static bool ReadOptionalBool(Environment* env,
-                             Local<Object> options,
-                             const char* key,
-                             T* out) {
+[[nodiscard]] static bool ReadOptionalBool(Environment* env,
+                                           Local<Object> options,
+                                           const char* key,
+                                           T* out) {
   Local<String> key_string =
       OneByteString(env->isolate(), key, -1, NewStringType::kInternalized);
   Local<Value> value;
@@ -1834,6 +1834,31 @@ static bool ReadOptionalBool(Environment* env,
     return false;
   }
   *out = value->IsTrue();
+  return true;
+}
+
+// Reads options[key] into *out as a string, leaving *out unchanged if the value
+// is undefined. Returns false if a JavaScript exception is pending, either from
+// the property getter or because the value is not a string.
+[[nodiscard]] static bool ReadOptionalString(Environment* env,
+                                             Local<Object> options,
+                                             const char* key,
+                                             std::string* out) {
+  Local<String> key_string =
+      OneByteString(env->isolate(), key, -1, NewStringType::kInternalized);
+  Local<Value> value;
+  if (!options->Get(env->context(), key_string).ToLocal(&value)) {
+    return false;
+  }
+  if (value->IsUndefined()) {
+    return true;
+  }
+  if (!value->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"options.%s\" argument must be a string.", key);
+    return false;
+  }
+  *out = Utf8Value(env->isolate(), value.As<String>()).ToString();
   return true;
 }
 
@@ -2408,22 +2433,7 @@ void Database::Deserialize(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[1].As<Object>();
-    Local<String> db_name_key = FIXED_ONE_BYTE_STRING(env->isolate(), "dbName");
-    Local<Value> db_name_value;
-    if (!options->Get(env->context(), db_name_key).ToLocal(&db_name_value)) {
-      return;
-    }
-
-    if (!db_name_value->IsUndefined()) {
-      if (!db_name_value->IsString()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.dbName\" argument must be a string.");
-        return;
-      }
-      db_name =
-          Utf8Value(env->isolate(), db_name_value.As<String>()).ToString();
-    }
+    if (!ReadOptionalString(env, options, "dbName", &db_name)) return;
   }
 
   // Reading the options bag above can run user JavaScript through a property
@@ -2824,46 +2834,8 @@ void Database::CreateSession(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[0].As<Object>();
-
-    Local<String> table_key = env->table_string();
-    bool hasIt;
-    if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
-      return;
-    }
-    if (hasIt) {
-      Local<Value> table_value;
-      if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
-        return;
-      }
-
-      if (table_value->IsString()) {
-        table = Utf8Value(env->isolate(), table_value).ToString();
-      } else {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(), "The \"options.table\" argument must be a string.");
-        return;
-      }
-    }
-
-    Local<String> db_key = FIXED_ONE_BYTE_STRING(env->isolate(), "db");
-
-    if (!options->HasOwnProperty(env->context(), db_key).To(&hasIt)) {
-      return;
-    }
-    if (hasIt) {
-      Local<Value> db_value;
-      if (!options->Get(env->context(), db_key).ToLocal(&db_value)) {
-        // An error will have been scheduled.
-        return;
-      }
-      if (db_value->IsString()) {
-        db_name = Utf8Value(env->isolate(), db_value).ToString();
-      } else {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(), "The \"options.db\" argument must be a string.");
-        return;
-      }
-    }
+    if (!ReadOptionalString(env, options, "table", &table)) return;
+    if (!ReadOptionalString(env, options, "db", &db_name)) return;
   }
 
   // Reading the options bag above can run user JavaScript through a property
@@ -2941,39 +2913,8 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    Local<Value> source_v;
-    if (!options->Get(env->context(), env->source_string())
-             .ToLocal(&source_v)) {
-      return;
-    }
-
-    if (!source_v->IsUndefined()) {
-      if (!source_v->IsString()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.source\" argument must be a string.");
-        return;
-      }
-
-      source_db = Utf8Value(env->isolate(), source_v.As<String>()).ToString();
-    }
-
-    Local<Value> target_v;
-    if (!options->Get(env->context(), env->target_string())
-             .ToLocal(&target_v)) {
-      return;
-    }
-
-    if (!target_v->IsUndefined()) {
-      if (!target_v->IsString()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.target\" argument must be a string.");
-        return;
-      }
-
-      dest_db = Utf8Value(env->isolate(), target_v.As<String>()).ToString();
-    }
+    if (!ReadOptionalString(env, options, "source", &source_db)) return;
+    if (!ReadOptionalString(env, options, "target", &dest_db)) return;
 
     Local<Value> progress_v;
     if (!options->Get(env->context(), env->progress_string())
