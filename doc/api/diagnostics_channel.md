@@ -1699,6 +1699,25 @@ Emitted when server sends a response.
 
 > Stability: 1 - Experimental
 
+##### Event: `'http2.client.request.headers'`
+
+* `headers` {HTTP/2 Headers Object | string\[]}
+* `session` {http2.ClientHttp2Session}
+
+Emitted when `ClientHttp2Session#request()` is called, before the request
+headers are validated and serialized. The `headers` object is a copy of the
+one passed to `request()` by the caller (or a newly created object when no
+headers were passed), and it can be mutated in place to add or modify request
+headers before they are sent. Mutating it does not affect the headers
+object passed by the caller. This allows subscribers such as tracing
+instrumentation to inject context headers (e.g. `traceparent`) into outgoing
+HTTP/2 requests.
+Headers injected this way are subject to the same validation as headers
+passed directly to `request()`. To take effect, headers must be mutated in
+place. Unlike `'http2.client.stream.created'`, which is published after
+the request headers have been serialized, mutations made by subscribers to
+this channel affect the headers that are sent.
+
 ##### Event: `'http2.client.stream.created'`
 
 * `stream` {ClientHttp2Stream}
