@@ -12,9 +12,22 @@ let
         final: prev:
         prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == "x86_64-linux") {
           perfetto = prev.perfetto.overrideAttrs (old: {
+            nativeBuildInputs = old.nativeBuildInputs ++ [
+              final.protobuf
+              final.expat
+              final.linenoise
+              final.sqlite
+              final.re2
+              final.zlib
+              final.zstd
+            ];
             gnFlags = old.gnFlags ++ [
               "enable_perfetto_x64_cpu_opt=false"
             ];
+
+            ninjaFlags = [ "trace_processor_shell" ];
+            installPhase = "install -Dt $tools/bin $ninjaFlags";
+            nativeInstallCheckInputs = [ ];
           });
         }
       )
