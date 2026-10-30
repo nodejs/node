@@ -81,8 +81,6 @@ def cpu_supports_perfetto_prebuilt(arch):
     if missing:
       print(f"get_trace_processor: CPU is missing required Perfetto features: {sorted(missing)}")
       return False
-    else:
-      print(flags)
 
     return True
 
