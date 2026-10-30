@@ -10,9 +10,9 @@
 namespace node {
 
 // Pick an index that's hopefully out of the way when we're embedded inside
-// another application. Performance-wise or memory-wise it doesn't matter:
-// Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
-// worst case we pay a one-time penalty for resizing the array.
+// another application. V8 allocates the context embedder data array with a
+// fixed size of V8_EMBEDDER_DATA_ARRAY_SIZE, which must cover every index
+// below.
 #ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
 #define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
 #endif
@@ -48,10 +48,14 @@ namespace node {
 #define NODE_CONTEXT_TAG 39
 #endif
 
+static_assert(NODE_CONTEXT_TAG < V8_EMBEDDER_DATA_ARRAY_SIZE,
+              "V8 must be built with v8_embedder_data_array_size greater than "
+              "NODE_CONTEXT_TAG");
+
 /**
  * These are indexes used to set Node.js-specific data in the V8 contexts
- * via v8::Context::SetAlignedPointerInEmbedderData() (for pointers) and
- * v8::Context::SetEmbedderData() (for v8::Values).
+ * via v8::Context::SetAlignedPointerInEmbedderDataV2() (for pointers) and
+ * v8::Context::SetEmbedderDataV3() (for v8::Values).
  *
  * There are five types of contexts in Node.js:
  * 1. Default V8 context, with nothing Node.js-specific. This is normally only
