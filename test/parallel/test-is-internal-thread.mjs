@@ -1,4 +1,4 @@
-import * as common from '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
@@ -11,7 +11,7 @@ describe('worker_threads.isInternalThread', { concurrency: !process.env.TEST_PAR
 
   it('should be false inside a regular worker thread', async () => {
     const worker = new Worker(fixtures.path('worker-is-internal-thread.js'));
-    worker.on('message', common.mustCall((message) => {
+    worker.on('message', mustCall((message) => {
       assert.strictEqual(message, 'isInternalThread: false');
     }));
   });
