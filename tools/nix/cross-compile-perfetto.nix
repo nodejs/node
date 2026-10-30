@@ -23,6 +23,17 @@ let
             ];
             gnFlags = old.gnFlags ++ [
               "enable_perfetto_x64_cpu_opt=false"
+
+              ''extra_target_ldflags="-static"''
+              ''target_triplet="${final.stdenv.hostPlatform.config}"''
+
+              ''cc="gcc"''
+              ''cxx="g++"''
+              ''ar="ar"''
+
+              ''target_cc="${final.stdenv.cc.targetPrefix}gcc"''
+              ''target_cxx="${final.stdenv.cc.targetPrefix}g++"''
+              ''target_ar="${final.stdenv.cc.targetPrefix}ar"''
             ];
 
             ninjaFlags = [ "trace_processor_shell" ];
