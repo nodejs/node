@@ -3649,7 +3649,7 @@ void Session::SendConnectionClose() {
 
   auto ErrorAndSilentClose = [&] {
     Debug(this, "Failed to create connection close packet");
-    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
     Close(CloseMethod::SILENT);
   };
 
