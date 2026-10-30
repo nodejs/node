@@ -20,6 +20,8 @@ test('ffi calls support integer arithmetic and char semantics', () => {
     assert.strictEqual(symbols.add_u16(65_530, 10), 4);
     assert.strictEqual(symbols.add_i32(-10, 52), 42);
     assert.strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
+    assert.strictEqual(symbols.add_i32(-0, 1), 1);
+    assert.strictEqual(symbols.add_u32(-0, 1), 1);
     assert.strictEqual(symbols.add_i64(20n, 22n), 42n);
     assert.strictEqual(symbols.add_u64(20n, 22n), 42n);
     assert.strictEqual(symbols.add_i64(20, 22), symbols.add_i64(20n, 22n));
