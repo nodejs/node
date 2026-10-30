@@ -72,7 +72,8 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
     Local<Value> argv[argc] = {args[0]};
-    Local<Function> cons = args.Data()
+    Local<Function> cons = args.DataV2()
+                               .As<Value>()
                                .As<Object>()
                                ->GetInternalField(0)
                                .As<Value>()
