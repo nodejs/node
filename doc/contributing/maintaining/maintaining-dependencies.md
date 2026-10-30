@@ -106,6 +106,12 @@ shared library is available can added by:
     }],
 ```
 
+* add an entry to the `DEP_CATALOG` list in `tools/sbom/generate_sbom.py` so the
+  dependency appears in the generated SBOM. Set `shared_flag` to the
+  `node_shared_depname` variable and `version_fn` to an extractor for
+  whichever file in the dependency records its version. See the comment
+  above `DEP_CATALOG` and the existing entries for examples.
+
 ## Supporting externalizable dependencies with JavaScript code
 
 Support for an externalizable dependency with JavaScript code
@@ -145,6 +151,10 @@ If the dependency consists of JavaScript in the
 can be added as a non-externalizable dependency. In this case
 simply add the path to the JavaScript file in the `deps_files`
 list in the `node.gyp` file.
+
+Also add an entry to the `DEP_CATALOG` list in `tools/sbom/generate_sbom.py`, with
+`version_fn` reading the dependency's `package.json`, so the dependency
+appears in the generated SBOM.
 
 ## Common approach for dependencies with WASM components
 
