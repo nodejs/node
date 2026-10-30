@@ -10,7 +10,6 @@
 #include "ncrypto.h"
 #include "node.h"
 #include "node_buffer.h"
-#include "node_mutex.h"
 #include "node_options.h"
 #include "util.h"
 #include "v8.h"
@@ -32,7 +31,6 @@
 #endif
 
 #include <array>
-#include <cstring>
 #include <set>
 
 namespace node {
@@ -1428,28 +1426,17 @@ constexpr SpkiHash kBlockedSPKIs[] = {
     {0xe0, 0x25, 0x4c, 0x7f, 0xcd, 0xc2, 0x65, 0xe2, 0xf0, 0xf8, 0xa4,
      0x28, 0xda, 0xbb, 0x75, 0xab, 0x4a, 0xe0, 0x39, 0xb4, 0x87, 0x2d,
      0x62, 0xf5, 0xee, 0x57, 0xf0, 0x87, 0x7d, 0x5a, 0x8a, 0x41},
+    // Test fixture, not a real CA: test/fixtures/keys/blocked-ca-key.pem.
+    // Its private key is public, so blocking it costs nothing and lets
+    // test/parallel/test-tls-spki-blocklist.js exercise the real list. The
+    // key is pinned in the fixtures Makefile; rotating it means updating
+    // this entry too.
+    // a6cbb923961eada55c02f104681aeabe52ea1508ece2078aec11d00a5778ce71
+    // C=US, ST=CA, L=SF, O=Joyent, OU=Node.js, CN=blocked-ca
+    {0x41, 0xc2, 0xd1, 0xc4, 0x24, 0x68, 0x46, 0x6a, 0x54, 0x24, 0x83,
+     0x69, 0xf6, 0x65, 0x9a, 0x95, 0x52, 0xc5, 0xa4, 0x16, 0xf8, 0xd5,
+     0xfc, 0xd8, 0xdd, 0x55, 0xa8, 0x75, 0xd7, 0x20, 0xaa, 0xc2},
 };
-
-// Extra entries registered by the test-only hooks on the crypto binding.
-// The list is process-wide and TLS handshakes may run on worker threads, so
-// every access goes through the mutex.
-Mutex& BlockedSPKIsForTestingMutex() {
-  static Mutex mutex;
-  return mutex;
-}
-
-std::vector<SpkiHash>& BlockedSPKIsForTesting() {
-  static std::vector<SpkiHash> list;
-  return list;
-}
-
-bool IsBlockedSPKIForTesting(const SpkiHash& digest) {
-  Mutex::ScopedLock lock(BlockedSPKIsForTestingMutex());
-  for (const auto& blocked : BlockedSPKIsForTesting()) {
-    if (digest == blocked) return true;
-  }
-  return false;
-}
 
 enum class SpkiCheck { kAllowed, kBlocked, kError };
 
@@ -1474,7 +1461,6 @@ SpkiCheck CheckSPKI(X509* cert) {
   for (const auto& blocked : kBlockedSPKIs) {
     if (digest == blocked) return SpkiCheck::kBlocked;
   }
-  if (IsBlockedSPKIForTesting(digest)) return SpkiCheck::kBlocked;
   return SpkiCheck::kAllowed;
 }
 
@@ -1594,26 +1580,6 @@ void InstallCertVerifyCallback(SSL_CTX* ctx) {
   SSL_CTX_set_cert_verify_callback(ctx, CertVerifyCallback, nullptr);
 }
 
-void SecureContext::AddBlockedSPKIForTesting(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "SPKI hash");
-  ArrayBufferOrViewContents<uint8_t> hash(args[0]);
-  if (hash.size() != kSpkiHashLength) {
-    return THROW_ERR_OUT_OF_RANGE(env, "SPKI hash must be 32 bytes");
-  }
-  SpkiHash entry;
-  memcpy(entry.data(), hash.data(), entry.size());
-  Mutex::ScopedLock lock(BlockedSPKIsForTestingMutex());
-  BlockedSPKIsForTesting().push_back(entry);
-}
-
-void SecureContext::ClearBlockedSPKIsForTesting(
-    const FunctionCallbackInfo<Value>& args) {
-  Mutex::ScopedLock lock(BlockedSPKIsForTestingMutex());
-  BlockedSPKIsForTesting().clear();
-}
-
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   SetConstructorFunction(context,
@@ -1641,12 +1607,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                         target,
                         "getCertificateCompressionAlgorithms",
                         GetCertificateCompressionAlgorithms);
-  SetMethod(
-      context, target, "addBlockedSPKIForTesting", AddBlockedSPKIForTesting);
-  SetMethod(context,
-            target,
-            "clearBlockedSPKIsForTesting",
-            ClearBlockedSPKIsForTesting);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1689,8 +1649,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(GetUserRootCertificates);
   registry->Register(StartLoadingCertificatesOffThread);
   registry->Register(GetCertificateCompressionAlgorithms);
-  registry->Register(AddBlockedSPKIForTesting);
-  registry->Register(ClearBlockedSPKIsForTesting);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
