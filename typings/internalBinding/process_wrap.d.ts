@@ -1,3 +1,4 @@
+import type { HandleWrap } from './handle_wrap';
 import { owner_symbol } from './symbols';
 
 declare namespace InternalProcessWrapBinding {
@@ -25,10 +26,9 @@ declare namespace InternalProcessWrapBinding {
       gid: number | null | undefined,
     ): number;
     kill(signal: number): number;
-    ref(): void;
-    unref(): void;
-    close(callback?: () => void): void;
   }
+
+  interface Process extends HandleWrap {}
 
   interface ProcessConstants {
     kProcessFlagDetached: number;

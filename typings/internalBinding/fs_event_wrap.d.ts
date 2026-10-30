@@ -1,3 +1,4 @@
+import type { HandleWrap } from './handle_wrap';
 import { owner_symbol } from './symbols';
 
 declare namespace InternalFsEventWrapBinding {
@@ -16,11 +17,9 @@ declare namespace InternalFsEventWrapBinding {
       recursive: boolean,
       encoding: string,
     ): number;
-    close(callback?: () => void): void;
-    hasRef(): boolean;
-    ref(): void;
-    unref(): void;
   }
+
+  interface FSEvent extends HandleWrap {}
 }
 
 export interface FsEventWrapBinding {
