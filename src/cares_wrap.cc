@@ -2332,16 +2332,16 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   // to 0 (any).
 
   if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
-    ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr0));
     type0 = 4;
   } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
-    ares_set_local_ip6(channel->cares_channel(), addr0);
     type0 = 6;
   } else {
     THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
     return;
   }
 
+  // Validate the second argument before applying anything, so that a call
+  // that throws leaves the channel unchanged.
   if (!args[1]->IsUndefined()) {
     CHECK(args[1]->IsString());
     node::Utf8Value ip1(isolate, args[1]);
@@ -2350,16 +2350,11 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
       if (type0 == 4) {
         THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
         return;
-      } else {
-        ares_set_local_ip4(channel->cares_channel(),
-                           nbytes::ReadUint32BE(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {
         THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv6 addresses.");
         return;
-      } else {
-        ares_set_local_ip6(channel->cares_channel(), addr1);
       }
     } else {
       THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
@@ -2367,12 +2362,15 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
     }
   } else {
     // No second arg specified
-    if (type0 == 4) {
-      memset(&addr1, 0, sizeof(addr1));
-      ares_set_local_ip6(channel->cares_channel(), addr1);
-    } else {
-      ares_set_local_ip4(channel->cares_channel(), 0);
-    }
+    memset(&addr1, 0, sizeof(addr1));
+  }
+
+  if (type0 == 4) {
+    ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr0));
+    ares_set_local_ip6(channel->cares_channel(), addr1);
+  } else {
+    ares_set_local_ip6(channel->cares_channel(), addr0);
+    ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr1));
   }
 }
 
