@@ -95,6 +95,9 @@ class TLSWrap : public AsyncWrap,
     flags_.awaiting_new_session = on;
   }
   inline void enable_session_callbacks() { flags_.session_callbacks = true; }
+  inline bool is_resumption_disabled() const {
+    return flags_.resumption_disabled;
+  }
   bool BindSessionsToServerName(std::string_view servername);
   bool PinServerName(std::string_view servername);
   inline bool is_server() const { return kind_ == Kind::kServer; }
@@ -339,6 +342,7 @@ class TLSWrap : public AsyncWrap,
   struct Flags {
     bool session_callbacks : 1;
     bool awaiting_new_session : 1;
+    bool resumption_disabled : 1;
     // 'onclienthello' has been emitted for this connection.
     bool hello_emitted : 1;
     // JS has answered it by calling clientHelloDone().
