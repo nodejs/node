@@ -195,6 +195,19 @@ describe('Mock Timers Test Suite', () => {
         assert.strictEqual(Date.now(), 9999);
       });
 
+      it('should trigger all timers when the longest one is scheduled first', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+        const results = [];
+
+        globalThis.setTimeout(() => results.push(1), 9999);
+        globalThis.setTimeout(() => results.push(3), 8888);
+        globalThis.setTimeout(() => results.push(2), 8888);
+        t.mock.timers.runAll();
+
+        assert.deepStrictEqual(results, [3, 2, 1]);
+        assert.strictEqual(Date.now(), 9999);
+      });
+
       it('should not error if there are not timers to run', (t) => {
         t.mock.timers.enable();
         t.mock.timers.runAll();
