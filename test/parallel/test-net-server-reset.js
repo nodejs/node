@@ -12,7 +12,7 @@ const server = net.createServer(common.mustCallAtLeast((c) => {
 
   if (sockets.length === 2) {
     assert.strictEqual(server.close(), server);
-    sockets.forEach((c) => c.resetAndDestroy());
+    for (const c of sockets) c.resetAndDestroy();
   }
 }));
 
