@@ -1,7 +1,10 @@
 #include "dom_storage_agent.h"
 #include <optional>
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
+#include "node_realm-inl.h"
+#include "path.h"
 #include "util.h"
 #include "v8-exception.h"
 #include "v8-isolate.h"
@@ -100,38 +103,35 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
       is_local_storage ? &local_storage_map_ : &session_storage_map_;
   std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
-    auto web_storage_obj = getWebStorage(is_local_storage);
+    bool is_uninitialized = false;
+    auto web_storage_obj = getWebStorage(is_local_storage, &is_uninitialized);
     // Each way of failing below says something different about the store, so
     // each reports a different reason. A frontend that cannot read a store
     // otherwise has no way to tell a missing one from a corrupt one.
-    if (!web_storage_obj) {
+    if (!web_storage_obj && !is_uninitialized) {
       return protocol::DispatchResponse::ServerError(
           "Could not read DOM storage items: storage is unavailable");
     }
-    // A message from a remote frontend is dispatched without a HandleScope
-    // on the stack, and opening the backing file can throw, so give the
-    // exception a scope to be allocated in and somewhere to land.
-    v8::HandleScope handle_scope(env_->isolate());
-    v8::TryCatch try_catch(env_->isolate());
-    storage_map_fallback = web_storage_obj.value()->GetAll();
-    if (try_catch.HasCaught()) {
-      // Pass the reason along; "the file was written by a newer Node.js" and
-      // "the file is locked" are not the same problem to the user. Read it
-      // off the Message, which was built when the exception was thrown.
-      // Converting the exception itself would call a user-patchable
-      // Error.prototype.toString, and there is no JavaScript frame here to
-      // run it from.
-      Local<v8::Message> message = try_catch.Message();
-      if (!message.IsEmpty()) {
-        Utf8Value reason(env_->isolate(), message->Get());
-        return protocol::DispatchResponse::ServerError(
-            std::string("Could not read DOM storage items: ") + reason.out());
+    std::string open_error;
+    if (web_storage_obj) {
+      storage_map_fallback = web_storage_obj.value()->GetAll(&open_error);
+    } else if (is_local_storage) {
+      std::string location = env_->options()->localstorage_file;
+      if (location != node::webstorage::kInMemoryPath) {
+        location = ToNamespacedPath(env_, location);
       }
-      // V8 builds that Message on a best-effort basis, so the throw is all we
-      // can report when it is missing.
+      storage_map_fallback =
+          node::webstorage::Storage::ReadAllFromFile(location, &open_error);
+    } else {
+      storage_map_fallback.emplace();
+    }
+    if (!open_error.empty()) {
+      // Pass the reason along; "the file was written by a newer Node.js" and
+      // "the file is locked" are not the same problem to the user. Prefix with
+      // "Uncaught Error: " to match the v8::Message format without invoking
+      // JavaScript during a V8 interrupt.
       return protocol::DispatchResponse::ServerError(
-          "Could not read DOM storage items: the backing store could not be "
-          "opened");
+          "Could not read DOM storage items: Uncaught Error: " + open_error);
     }
     if (!storage_map_fallback.has_value()) {
       return protocol::DispatchResponse::ServerError(
@@ -318,26 +318,60 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
 }
 
 std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
-    bool is_local_storage) {
+    bool is_local_storage, bool* is_uninitialized) {
+  *is_uninitialized = false;
+  if (!env_->options()->webstorage) {
+    return std::nullopt;
+  }
+  if (is_local_storage && env_->options()->localstorage_file.empty()) {
+    return std::nullopt;
+  }
+  if (auto* binding = env_->principal_realm()
+                          ->GetBindingData<node::webstorage::BindingData>()) {
+    const auto& storage_ptr =
+        is_local_storage ? binding->local_storage : binding->session_storage;
+    if (storage_ptr) {
+      return storage_ptr.get();
+    }
+  }
+  if (env_->no_browser_globals()) {
+    return std::nullopt;
+  }
   v8::Isolate* isolate = env_->isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Object> global = env_->context()->Global();
+  v8::Local<v8::Context> context = env_->context();
+  v8::Local<v8::Object> global = context->Global();
+  v8::Local<v8::String> prop_name =
+      is_local_storage ? FIXED_ONE_BYTE_STRING(isolate, "localStorage")
+                       : FIXED_ONE_BYTE_STRING(isolate, "sessionStorage");
+  // Protocol messages from a remote frontend are dispatched from a V8 API
+  // interrupt, where executing JavaScript is disallowed. Both globals are
+  // defined as lazy JS getters, so check whether the property is still an
+  // accessor before reading it.
+  bool is_accessor = false;
+  if (!global->HasRealNamedCallbackProperty(context, prop_name)
+           .To(&is_accessor)) {
+    return std::nullopt;
+  }
+  if (is_accessor) {
+    if (env_->is_processing_v8_interrupt()) {
+      *is_uninitialized = true;
+      return std::nullopt;
+    }
+    if (!env_->can_call_into_js()) {
+      return std::nullopt;
+    }
+  }
   v8::Local<v8::Value> web_storage_val;
   v8::TryCatch try_catch(isolate);
-  if (!global
-           ->Get(env_->context(),
-                 is_local_storage
-                     ? FIXED_ONE_BYTE_STRING(isolate, "localStorage")
-                     : FIXED_ONE_BYTE_STRING(isolate, "sessionStorage"))
-           .ToLocal(&web_storage_val) ||
+  if (!global->Get(context, prop_name).ToLocal(&web_storage_val) ||
       !web_storage_val->IsObject() || try_catch.HasCaught()) {
     return std::nullopt;
-  } else {
-    node::webstorage::Storage* storage;
-    ASSIGN_OR_RETURN_UNWRAP(
-        &storage, web_storage_val.As<v8::Object>(), std::nullopt);
-    return storage;
   }
+  node::webstorage::Storage* storage;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &storage, web_storage_val.As<v8::Object>(), std::nullopt);
+  return storage;
 }
 
 bool DOMStorageAgent::canEmit(const std::string& domain) {
