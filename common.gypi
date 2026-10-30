@@ -96,6 +96,8 @@
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
     'v8_use_perfetto%': 0,
+    # Must be greater than NODE_CONTEXT_TAG in src/node_context_data.h.
+    'v8_embedder_data_array_size%': 40,
     'tsan%': 0,
 
     ##### end V8 defaults #####
@@ -568,6 +570,11 @@
       }],
       ['v8_use_perfetto == 1', {
         'defines': ['V8_USE_PERFETTO',],
+      }],
+      ['v8_embedder_data_array_size != 0', {
+        'defines': [
+          'V8_EMBEDDER_DATA_ARRAY_SIZE=<(v8_embedder_data_array_size)',
+        ],
       }],
       ['v8_enable_map_packing == 1', {
         'defines': ['V8_MAP_PACKING',],
