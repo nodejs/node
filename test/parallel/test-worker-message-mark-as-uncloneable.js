@@ -1,9 +1,8 @@
 'use strict';
 
-require('../common');
+const { mustCall } = require('../common');
 const assert = require('assert');
 const { markAsUncloneable } = require('node:worker_threads');
-const { mustCall } = require('../common');
 
 const expectedErrorName = 'DataCloneError';
 
