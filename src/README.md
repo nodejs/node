@@ -1120,6 +1120,9 @@ A `cppgc`-managed native wrapper should look something like this:
 class MyWrap final : CPPGC_MIXIN(MyWrap) {
  public:
   SET_CPPGC_NAME(MyWrap)  // Sets the heap snapshot name to "Node / MyWrap"
+  // Uses CppgcWrapperTag::kMyWrap from src/node_v8_embedder.h when wrapping
+  // and unwrapping. Each class needs its own tag.
+  SET_CPPGC_TAG(MyWrap)
 
   // The constructor can only be called by `cppgc::MakeGarbageCollected()`.
   MyWrap(Environment* env, v8::Local<v8::Object> object);
