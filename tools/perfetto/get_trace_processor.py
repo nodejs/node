@@ -52,6 +52,26 @@ def get_glibc_version():
 
     return None
 
+def cpu_supports_perfetto_prebuilt():
+    """
+    Checks if the x86_64 CPU supports AVX2 and BMI2 required by
+    Perfetto's release prebuilts.
+    """
+    if sys.platform != "linux":
+        return True
+
+    flags = set()
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            for line in f:
+                if line.startswith("flags"):
+                    flags.update(line.split(":")[1].strip().split())
+                    break
+    except Exception:
+        return False
+
+    return {"avx2", "bmi2", "sse4_2"}.issubset(flags)
+
 def release_name():
   # Perfetto releases only an x64 build for Windows. Windows on arm64 runs it
   # under emulation.
@@ -65,9 +85,15 @@ def release_name():
   if os_name == 'linux':
     glibc = get_glibc_version()
     if get_glibc_version() is None:
-      print('No glibc detected, needs a musl build of trace_processor_shell')
+      print('get_trace_processor: No glibc detected, switching to musl build')
       return None
-    print(f'Found glibc {glibc}')
+    print(f'get_trace_processor: Found glibc {glibc}')
+    if glibc_ver < (2, 34):
+      print('get_trace_processor: Insufficient glibc version, switching to musl build')
+      return None
+    if not cpu_supports_perfetto_prebuilt():
+      print('get_trace_processor: Current platform does not support pre-built binaries, switching to musl build')
+      return None
 
   arch = ARCH_NAMES.get(platform.machine())
   if os_name is None or arch is None:
@@ -76,7 +102,7 @@ def release_name():
 
 
 def download(url):
-  print(f'Downloading {url}')
+  print(f'get_trace_processor: Downloading {url}')
   # Cachix's CDN rejects urllib's default User-Agent.
   request = urllib.request.Request(url, headers={'User-Agent': 'node-get-trace-processor'})
   with urllib.request.urlopen(request) as response:
@@ -116,10 +142,10 @@ def main():
       version = f.read().strip()
     url = f'https://github.com/google/perfetto/releases/download/v{version}/{name}.zip'
     archive = zipfile.ZipFile(io.BytesIO(download(url)))
-    print(f'Extracting {name}/{exe}')
+    print(f'get_trace_processor: Extracting {name}/{exe}')
     data = archive.read(f'{name}/{exe}')
 
-  print(f'Writing {trace_processor}')
+  print(f'get_trace_processor: Writing {trace_processor}')
   with open(trace_processor, 'wb') as dst:
     dst.write(data)
   os.chmod(trace_processor, 0o755)
