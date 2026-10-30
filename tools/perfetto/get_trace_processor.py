@@ -58,13 +58,17 @@ def release_name():
   if is_windows:
     return 'windows-amd64'
 
+  os_name = OS_NAMES.get(platform.system())
+
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
-  if get_glibc_version() is None:
-    print('No glibc detected, needs a musl build of trace_processor_shell')
-    return None
+  if os_name == 'linux':
+    glibc = get_glibc_version()
+    if get_glibc_version() is None:
+      print('No glibc detected, needs a musl build of trace_processor_shell')
+      return None
+    print(f'Found glibc {glibc}')
 
-  os_name = OS_NAMES.get(platform.system())
   arch = ARCH_NAMES.get(platform.machine())
   if os_name is None or arch is None:
     return None
