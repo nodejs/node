@@ -138,6 +138,18 @@ assert.throws(() => performance.clearMarks(Symbol('foo')), {
   }
 
   {
+    // User Timing L3: a duration on its own is measured back from now().
+    const before = performance.now();
+    const m3 = performance.measure('foo', { duration: 11 });
+    const after = performance.now();
+    assert.strictEqual(m3.name, 'foo');
+    assert.strictEqual(m3.entryType, 'measure');
+    assert.strictEqual(m3.duration, 11);
+    assert.ok(m3.startTime >= before - 11);
+    assert.ok(m3.startTime <= after - 11);
+  }
+
+  {
     const m3 = performance.measure('foo', 'nodeStart');
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
