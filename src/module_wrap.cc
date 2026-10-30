@@ -1259,7 +1259,7 @@ static void ImportMetaResolveLazyGetter(
 
   // This should be createImportMetaResolve(). The loader argument is already
   // bound at initialization time.
-  Local<Value> args[] = {info.Data()};
+  Local<Value> args[] = {info.DataV2().As<Value>()};
   Local<Value> ret;
   if (!initializer
            ->Call(context, Undefined(realm->isolate()), arraysize(args), args)
@@ -1290,7 +1290,7 @@ static void PathHelpersLazyGetter(Local<v8::Name> name,
   }
   Environment* env = Environment::GetCurrent(context);
 
-  node::Utf8Value url(isolate, info.Data());
+  node::Utf8Value url(isolate, info.DataV2().As<Value>());
   auto file_url = ada::parse(url.ToStringView());
   CHECK(file_url);
   auto file_path = url::FileURLToPath(env, *file_url);
