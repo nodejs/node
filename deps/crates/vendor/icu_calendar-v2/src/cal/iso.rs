@@ -3,11 +3,11 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::cal::abstract_gregorian::{
-    impl_with_abstract_gregorian, AbstractGregorian, GregorianYears,
+    AbstractGregorian, GregorianYears, impl_with_abstract_gregorian,
 };
 use crate::calendar_arithmetic::ArithmeticDate;
 use crate::error::UnknownEraError;
-use crate::{types, Date, RangeError};
+use crate::{Date, RangeError, types};
 use tinystr::tinystr;
 
 /// The [ISO-8601 Calendar](https://en.wikipedia.org/wiki/ISO_8601#Dates)
@@ -386,5 +386,25 @@ mod test {
         check(1460, 4, 12, 30);
         check(1461, 4, 12, 31); // leap year
         check(1462, 5, 1, 1);
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Iso);
+            let reconstructed = Date::try_new_iso(
+                date.year().extended_year(),
+                date.month().ordinal,
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "ISO failed for RD {:?}",
+                rd
+            );
+        }
     }
 }

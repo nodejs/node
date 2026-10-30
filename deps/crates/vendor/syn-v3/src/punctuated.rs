@@ -293,6 +293,26 @@ impl<T, P> Punctuated<T, P> {
         self.last = None;
     }
 
+    /// Retains only the elements specified by the predicate.
+    ///
+    /// In other words, remove all elements `t` such that `f(&mut t)` returns
+    /// false.
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut T) -> bool,
+    {
+        self.inner.retain_mut(|(t, _p)| f(t));
+        if let Some(last) = &mut self.last {
+            if !f(last) {
+                if let Some((second_last, _p)) = self.inner.pop() {
+                    **last = second_last;
+                } else {
+                    self.last = None;
+                }
+            }
+        }
+    }
+
     /// Parses zero or more occurrences of `T` separated by punctuation of type
     /// `P`, with optional trailing punctuation.
     ///

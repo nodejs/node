@@ -156,13 +156,12 @@ unsafe impl<T> CartablePointerLike for Box<T> {
 
     #[inline]
     fn into_raw(self) -> NonNull<T> {
-        // Safety: `Box::into_raw` says: "The pointer will be properly aligned and non-null."
-        unsafe { NonNull::new_unchecked(Box::into_raw(self)) }
+        NonNull::from(Box::leak(self))
     }
     #[inline]
     unsafe fn drop_raw(pointer: NonNull<T>) {
         // Safety: per the method's precondition, `pointer` is dereferenceable and was returned by
-        // `Self::into_raw`, i.e. by `Box::into_raw`. In this circumstances, calling
+        // `Self::into_raw`, i.e. by `Box::leak`. In this circumstances, calling
         // `Box::from_raw` is safe.
         let _box = unsafe { Box::from_raw(pointer.as_ptr()) };
 

@@ -13,8 +13,7 @@ impl_tinystr_subtag!(
     /// ```
     /// use icu::locale::extensions::private::Subtag;
     ///
-    /// let subtag1: Subtag = "Foo".parse()
-    ///     .expect("Failed to parse a Subtag.");
+    /// let subtag1: Subtag = "Foo".parse().expect("Failed to parse a Subtag.");
     ///
     /// assert_eq!(subtag1.as_str(), "foo");
     /// ```

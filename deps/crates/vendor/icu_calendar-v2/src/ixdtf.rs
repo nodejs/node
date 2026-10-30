@@ -11,10 +11,10 @@ use crate::types::RataDie;
 use crate::{AsCalendar, Calendar, Date, Iso, RangeError};
 use calendrical_calculations::gregorian::fixed_from_gregorian;
 use icu_locale_core::preferences::extensions::unicode::keywords::CalendarAlgorithm;
+use ixdtf::ParseError as Rfc9557Error;
 use ixdtf::encoding::Utf8;
 use ixdtf::parsers::IxdtfParser;
 use ixdtf::records::IxdtfParseRecord;
-use ixdtf::ParseError as Rfc9557Error;
 
 /// An error returned from parsing an RFC 9557 string to an `icu::calendar` type.
 #[derive(Debug, displaydoc::Display)]
@@ -142,18 +142,17 @@ impl<A: AsCalendar> Date<A> {
     ) -> Result<IsoDateInner, ParseError> {
         let date_record = ixdtf_record.date.ok_or(ParseError::MissingFields)?;
 
-        if let Some(ixdtf_calendar) = ixdtf_record.calendar {
-            if let Some(expected_calendar) = calendar {
-                if ixdtf_calendar != expected_calendar.as_str().as_bytes() {
-                    return Err(ParseError::MismatchedCalendar(
-                        expected_calendar,
-                        icu_locale_core::extensions::unicode::Value::try_from_utf8(ixdtf_calendar)
-                            .ok()
-                            .and_then(|v| CalendarAlgorithm::try_from(&v).ok())
-                            .ok_or(ParseError::UnknownCalendar)?,
-                    ));
-                }
-            }
+        if let Some(ixdtf_calendar) = ixdtf_record.calendar
+            && let Some(expected_calendar) = calendar
+            && ixdtf_calendar != expected_calendar.as_str().as_bytes()
+        {
+            return Err(ParseError::MismatchedCalendar(
+                expected_calendar,
+                icu_locale_core::extensions::unicode::Value::try_from_utf8(ixdtf_calendar)
+                    .ok()
+                    .and_then(|v| CalendarAlgorithm::try_from(&v).ok())
+                    .ok_or(ParseError::UnknownCalendar)?,
+            ));
         }
 
         // `date_record` is in `VALID_RD_RANGE` by `ixdtf` invariants

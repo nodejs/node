@@ -10,7 +10,7 @@ use crate::error::{
 use crate::options::DateFromFieldsOptions;
 use crate::options::{DateAddOptions, DateDifferenceOptions};
 use crate::types::DateFields;
-use crate::{types, Calendar, Date, RangeError};
+use crate::{Calendar, Date, RangeError, types};
 use ::tinystr::tinystr;
 use calendrical_calculations::rata_die::RataDie;
 
@@ -155,11 +155,7 @@ impl Calendar for Persian {
     }
 
     fn days_in_year(&self, date: &Self::DateInner) -> u16 {
-        if self.is_in_leap_year(date) {
-            366
-        } else {
-            365
-        }
+        if self.is_in_leap_year(date) { 366 } else { 365 }
     }
 
     fn days_in_month(&self, date: &Self::DateInner) -> u8 {
@@ -749,6 +745,26 @@ mod tests {
             let persian_date = Date::try_new_persian(p_year, 1, 1).unwrap();
             assert_eq!(persian_date.is_in_leap_year(), leap);
             assert_eq!(iso_date.to_calendar(Persian), persian_date);
+        }
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Persian);
+            let reconstructed = Date::try_new_persian(
+                date.year().extended_year(),
+                date.month().ordinal,
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Persian failed for RD {:?}",
+                rd
+            );
         }
     }
 }

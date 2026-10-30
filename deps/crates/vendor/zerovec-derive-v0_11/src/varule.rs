@@ -112,7 +112,18 @@ pub fn derive_impl(
                 Ok(())
             }
             #[inline]
+            #[allow(clippy::transmute_undefined_repr, reason = "This is the only way to do this until ptr metadata stabilizes")]
             unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
+                #[repr(C)]
+                struct FatPtr{
+                    ptr: usize,
+                    metadata: usize
+                }
+                const {
+                    assert!(::core::mem::size_of::<FatPtr>() == ::core::mem::size_of::<&#unsized_field>());
+                    assert!(::core::mem::align_of::<FatPtr>() == ::core::mem::align_of::<&#unsized_field>());
+                }
+
                 // just the unsized part
                 // Safety: The invariants of this function allow us to assume bytes is valid, and
                 // having at least #ule_size bytes is a validity constraint for the ULE type.
@@ -120,7 +131,7 @@ pub fn derive_impl(
                 let unsized_ref = <#unsized_field as zerovec::ule::VarULE>::from_bytes_unchecked(unsized_bytes);
                 // We should use the pointer metadata APIs here when they are stable: https://github.com/rust-lang/rust/issues/81513
                 // For now we rely on all DST metadata being a usize to extract it via a fake slice pointer
-                let (_ptr, metadata) = ::core::mem::transmute::<&#unsized_field, (usize, usize)>(unsized_ref);
+                let FatPtr{metadata, ..} = ::core::mem::transmute::<&#unsized_field, FatPtr>(unsized_ref);
                 let entire_struct_as_slice: *const [u8] = ::core::ptr::slice_from_raw_parts(bytes.as_ptr(), metadata);
                 &*(entire_struct_as_slice as *const Self)
             }

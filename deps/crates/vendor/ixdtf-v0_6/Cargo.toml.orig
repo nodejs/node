@@ -5,7 +5,7 @@
 [package]
 name = "ixdtf"
 description = "Parser for Internet eXtended DateTime Format"
-version = "0.6.6"
+version = "0.6.7"
 categories.workspace = true
 keywords = ["iso8601", "date-time"]
 

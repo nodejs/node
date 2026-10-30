@@ -576,7 +576,7 @@ mod tests {
     #[test]
     fn test_miri_repro_eyepatch_hack_truncate() {
         let slice: &[u16] = &[1, 2, 3, 4];
-        let zv: ZeroVec<u16> = ZeroVec::try_from_slice(slice).unwrap();
+        let zv: ZeroVec<u16> = ZeroVec::from_slice_or_alloc(slice);
         let _truncated = zv.truncated(2);
     }
 
