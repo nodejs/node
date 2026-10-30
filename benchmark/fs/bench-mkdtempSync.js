@@ -27,7 +27,7 @@ function main({ n, type }) {
       prefix = tmpdir.resolve('non-existent', 'foo', 'bar');
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   bench.start();
