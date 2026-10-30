@@ -113,6 +113,7 @@ SSL_SESSION* GetSessionCallback(
     int* copy) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
   *copy = 0;
+  if (w->is_resumption_disabled()) return nullptr;
   return w->ReleaseSession();
 }
 
@@ -1604,7 +1605,15 @@ bool TLSWrap::PinServerName(std::string_view servername) {
 }
 
 bool TLSWrap::BindSessionsToServerName(std::string_view servername) {
-  if (sc_->session_id_context().empty()) return true;
+  // If we have no session id context and we need to verify peers, we reject
+  // all resumption since we can't do so securely.
+  if (sc_->session_id_context().empty()) {
+    if (SSL_get_verify_mode(ssl_.get()) & SSL_VERIFY_PEER) {
+      SSL_set_options(ssl_.get(), SSL_OP_NO_TICKET);
+      flags_.resumption_disabled = true;
+    }
+    return true;
+  }
 
   // Server names can't contain NULs, so a NUL keeps the parts apart.
   std::string input = sc_->session_id_context();
