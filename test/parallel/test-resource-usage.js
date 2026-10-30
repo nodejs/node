@@ -24,7 +24,7 @@ const fields = [
 
 assert.deepStrictEqual(Object.keys(rusage).sort(), fields.sort());
 
-fields.forEach((n) => {
+for (const n of fields) {
   assert.strictEqual(typeof rusage[n], 'number', `${n} should be a number`);
   assert(rusage[n] >= 0, `${n} should be above or equal 0`);
-});
+}
