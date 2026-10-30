@@ -3662,6 +3662,37 @@ TEST(HeapSnapshotScriptContext) {
   CHECK(found_foo);
 }
 
+TEST(HeapSnapshotScriptSourceUrl) {
+  // The source_url node of a script is named by the source URL, even if it is
+  // long enough to be a sliced string. DevTools relies on this.
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  CompileRun(
+      "eval('globalThis.f = function f() {};\\n"
+      "//# sourceURL=inside-direct-eval.js');");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* f =
+      GetProperty(env.isolate(), global, v8::HeapGraphEdge::kProperty, "f");
+  CHECK(f);
+  const v8::HeapGraphNode* shared =
+      GetProperty(env.isolate(), f, v8::HeapGraphEdge::kInternal, "shared");
+  CHECK(shared);
+  const v8::HeapGraphNode* script = GetProperty(
+      env.isolate(), shared, v8::HeapGraphEdge::kInternal, "script");
+  CHECK(script);
+  const v8::HeapGraphNode* source_url = GetProperty(
+      env.isolate(), script, v8::HeapGraphEdge::kInternal, "source_url");
+  CHECK(source_url);
+  CHECK_EQ(v8::HeapGraphNode::kString, source_url->GetType());
+  v8::String::Utf8Value name(env.isolate(), source_url->GetName());
+  CHECK_EQ(0, strcmp("inside-direct-eval.js", *name));
+  heap_profiler->DeleteAllHeapSnapshots();
+}
+
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   EmbedderNode(const char* name, size_t size,

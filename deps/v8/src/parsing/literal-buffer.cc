@@ -5,28 +5,10 @@
 #include "src/parsing/literal-buffer.h"
 
 #include "src/base/strings.h"
-#include "src/execution/isolate.h"
-#include "src/execution/local-isolate.h"
-#include "src/heap/factory.h"
-#include "src/objects/objects.h"
-#include "src/objects/string.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
-
-template <typename IsolateT>
-DirectHandle<String> LiteralBuffer::Internalize(IsolateT* isolate) const {
-  if (is_one_byte()) {
-    return isolate->factory()->InternalizeString(one_byte_literal());
-  }
-  return isolate->factory()->InternalizeString(two_byte_literal());
-}
-
-template DirectHandle<String> LiteralBuffer::Internalize(
-    Isolate* isolate) const;
-template DirectHandle<String> LiteralBuffer::Internalize(
-    LocalIsolate* isolate) const;
 
 size_t LiteralBuffer::NewCapacity(size_t min_capacity) {
   return min_capacity < (kMaxGrowth / (kGrowthFactor - 1))
