@@ -1,0 +1,25 @@
+{
+  "idlharness.https.any.html": {
+    "fail": {
+      "note": "fetchLater() and FetchLaterResult are not implemented",
+      "expected": [
+        "FetchLaterResult interface: existence and properties of interface object",
+        "FetchLaterResult interface object length",
+        "FetchLaterResult interface object name",
+        "FetchLaterResult interface: existence and properties of interface prototype object",
+        "FetchLaterResult interface: existence and properties of interface prototype object's \"constructor\" property",
+        "FetchLaterResult interface: existence and properties of interface prototype object's @@unscopables property",
+        "FetchLaterResult interface: attribute activated",
+        "Window interface: operation fetchLater(RequestInfo, optional DeferredRequestInit)"
+      ]
+    }
+  },
+  "idlharness.https.any.worker.html": {
+    "fail": {
+      "note": "fetch is an own property of the worker global, not of WorkerGlobalScope.prototype",
+      "expected": [
+        "WorkerGlobalScope interface: operation fetch(RequestInfo, optional RequestInit)"
+      ]
+    }
+  }
+}
