@@ -50,6 +50,7 @@ namespace quic {
   V(WRITE_ENDED, write_ended, uint8_t)                                         \
   V(RESET, reset, uint8_t)                                                     \
   V(RESET_CODE, reset_code, uint64_t)                                          \
+  V(RESET_CODE_IS_ERROR, reset_code_is_error, uint8_t)                         \
   V(HAS_OUTBOUND, has_outbound, uint8_t)                                       \
   V(HAS_READER, has_reader, uint8_t)                                           \
   /* Set when the stream has a block event handler */                          \
@@ -1741,8 +1742,8 @@ void Stream::ReceiveStopSending(QuicError error) {
 
 void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
   // Importantly, reset stream only impacts the inbound data flow. It has no
-  // impact on the outbound data flow. It is essentially a signal that the peer
-  // has abruptly terminated the writable end of their stream with an error.
+  // impact on the outbound data flow. It signals that the peer abruptly
+  // terminated the writable end of its stream with an application code.
   // Any data we have received up to this point remains in the queue waiting to
   // be read.
   Debug(this,
@@ -1750,6 +1751,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
         final_size,
         error);
   state()->reset_code = error.code();
+  state()->reset_code_is_error = !session().IsNoError(error);
   TruncateReadable(final_size);
   EmitReset(error);
 }
@@ -1863,7 +1865,7 @@ void Stream::EmitClose(const QuicError& error) {
   if (!env()->can_call_into_js()) return;
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
-  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+  if (!session().ToV8ErrorValue(error).ToLocal(&err)) return;
   MakeCallback(BindingData::Get(env()).stream_close_callback(), 1, &err);
 }
 
@@ -1875,7 +1877,7 @@ void Stream::EmitReset(const QuicError& error) {
   }
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
-  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+  if (!session().ToV8ErrorValue(error).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_reset_callback(), 1, &err);
 }
@@ -1886,7 +1888,7 @@ void Stream::EmitStopSending(const QuicError& error) {
   }
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
-  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+  if (!session().ToV8ErrorValue(error).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_stop_sending_callback(), 1, &err);
 }

@@ -439,17 +439,6 @@ const char* QuicError::name() const {
 }
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
-  if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == Type::APPLICATION &&
-       (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
-      type() == Type::IDLE_CLOSE) {
-    // Application code 0 is the default no-error code for raw QUIC
-    // applications (DefaultApplication::GetNoErrorCode() returns 0).
-    // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
-    // Idle close is always clean — the session timed out normally.
-    return Undefined(env->isolate());
-  }
-
   Local<Value> type_str;
   if (!node::ToV8Value(env->context(), TypeName(type())).ToLocal(&type_str)) {
     return {};
@@ -464,7 +453,7 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
 
   // Note that per the QUIC specification, the reason, if present, is
   // expected to be UTF-8 encoded. The spec uses the term "SHOULD" here,
-  // which means that is is entirely possible that some QUIC implementation
+  // which means that is entirely possible that some QUIC implementation
   // could choose a different encoding, in which case the conversion here
   // will produce garbage. That's ok though, we're going to use the default
   // assumption that the impl is following the guidelines.

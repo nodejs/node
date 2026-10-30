@@ -356,7 +356,7 @@ class Stream final : public AsyncWrap,
     // stream.
     bool fin = false;
     // Indicates that this chunk of data was received in a 0RTT packet before
-    // the TLS handshake completed, suggesting that is is not as secure and
+    // the TLS handshake completed, suggesting that is not as secure and
     // could be replayed by an attacker.
     bool early = false;
   };

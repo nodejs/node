@@ -1959,10 +1959,10 @@ added: v23.8.0
 * Type: {Promise}
 
 A promise that is fulfilled when the stream is fully closed. It resolves
-when the stream closes cleanly (including idle timeout). It rejects with
+when the stream closes without a QUIC error, including idle timeout and a
+`RESET_STREAM` whose application code represents no error. It rejects with
 an `ERR_QUIC_APPLICATION_ERROR` or `ERR_QUIC_TRANSPORT_ERROR` when the
-stream is closed due to a QUIC error (e.g., stream reset by the peer,
-CONNECTION\_CLOSE with a non-zero error code).
+stream is closed due to a QUIC error.
 
 ### `stream.destroy([error[, options]])`
 
@@ -2191,7 +2191,8 @@ The callback to invoke when the peer aborts a direction of the stream by
 sending a `RESET_STREAM` frame (the peer abandons their writable side, so
 no further data will arrive on our readable side).
 
-The callback receives a Node.js error whose `errorCode` (`bigint`)
+The callback receives `undefined` when the application error code represents
+no error. Otherwise, it receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame.
 
 The stream is **not** automatically destroyed when this callback fires —
@@ -2214,7 +2215,8 @@ The callback to invoke when the peer aborts a direction of the stream by
 sending a `STOP_SENDING` frame (the peer asks us to stop writing on our
 writable side).
 
-The callback receives a Node.js error whose `errorCode` (`bigint`)
+The callback receives `undefined` when the application error code represents
+no error. Otherwise, it receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame. Read/write.
 
 ### `stream.headers`
@@ -3491,10 +3493,11 @@ selects how the stream's async iterator reports this:
 
 * `'ignore'` - The truncation itself is ignored: only a stream or connection
   error is reported, and any clean abort/cancellation or similar simply ends
-  the stream. A non-zero peer reset, non-zero local stop-sending or connection
-  error still fails, but a truncation with no error at all (an idle timeout,
-  a graceful close, or a plain `stopSending()`) ends the read cleanly with the
-  data received. This matches `stream.closed`, which rejects only on an error.
+  the stream. A peer reset whose application code represents an error, a
+  non-zero local stop-sending, or a connection error still fails. A truncation
+  with no error at all (an idle timeout, a graceful close, or a plain
+  `stopSending()`) ends the read cleanly with the data received. This matches
+  `stream.closed`, which rejects only on an error.
 
 #### `sessionOptions.verifyPeer` (client only)
 
@@ -4091,7 +4094,7 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicStream}
-* `error` {any}
+* `error` {Error|undefined}
 
 ### Callback: `OnHeadersCallback`
 
@@ -4785,7 +4788,7 @@ added:
 
 * `stream` {quic.QuicStream}
 * `session` {quic.QuicSession}
-* `error` {any} The QUIC error associated with the reset.
+* `error` {Error|undefined} The QUIC error associated with the reset.
 
 Published when a stream receives a RESET\_STREAM frame from the peer,
 indicating the peer has aborted its sending direction. This is a key signal
