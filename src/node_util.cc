@@ -373,7 +373,7 @@ static void DefineLazyPropertiesGetter(
   }
 
   Realm* realm = Realm::GetCurrent(context);
-  Local<Value> arg = info.Data();
+  Local<Value> arg = info.DataV2().As<Value>();
   Local<Value> require_result;
   if (!realm->builtin_module_require()
            ->Call(context, Null(isolate), 1, &arg)

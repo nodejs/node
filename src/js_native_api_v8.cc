@@ -491,7 +491,9 @@ class FunctionCallbackWrapper {
   explicit FunctionCallbackWrapper(
       const v8::FunctionCallbackInfo<v8::Value>& cbinfo)
       : cbinfo_(cbinfo),
-        bundle_(CallbackBundle::FromCallbackData(cbinfo.Data())) {}
+        bundle_(
+            CallbackBundle::FromCallbackData(cbinfo.DataV2().As<v8::Value>())) {
+  }
 
   void InvokeCallback() {
     napi_callback_info cbinfo_wrapper =
