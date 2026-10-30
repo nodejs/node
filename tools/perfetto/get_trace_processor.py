@@ -83,11 +83,11 @@ def release_name():
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
   if os_name == 'linux':
-    glibc = get_glibc_version()
-    if get_glibc_version() is None:
+    glibc_ver = get_glibc_version()
+    if glibc_ver is None:
       print('get_trace_processor: No glibc detected, switching to musl build')
       return None
-    print(f'get_trace_processor: Found glibc {glibc}')
+    print(f'get_trace_processor: Found glibc {glibc_ver}')
     if glibc_ver < (2, 34):
       print('get_trace_processor: Insufficient glibc version, switching to musl build')
       return None
