@@ -903,9 +903,20 @@ class Parser : public AsyncWrap, public StreamListener {
   Local<Value> Execute(const char* data, size_t len) {
     EscapableHandleScope scope(env()->isolate());
 
-    // A callback can run JS that executes the parser again, for example by
-    // pushing data into the socket synchronously. Restore the caller's buffer
-    // afterwards so that its own callbacks are checked against it.
+    // llhttp is not reentrant: it keeps its position in the input in
+    // parser_ and only updates it when llhttp_execute() returns. A callback
+    // can run JS that gets here again, for example by pushing data into the
+    // socket synchronously. lib/ defers that data, so a nested call with data
+    // is a bug: do not run llhttp on top of itself, fail the outer call
+    // instead. A nested finish() comes from tearing down the connection in a
+    // callback, and the parser is freed right after it, so just skip it.
+    if (executing_) {
+      if (data != nullptr) reentered_ = true;
+      return scope.Escape(Integer::New(env()->isolate(), 0));
+    }
+
+    // The callback that reports the result of a consumed read can also get
+    // here, outside of llhttp. Restore the caller's buffer afterwards.
     const char* const outer_data = current_buffer_data_;
     const size_t outer_len = current_buffer_len_;
     current_buffer_len_ = len;
@@ -914,11 +925,24 @@ class Parser : public AsyncWrap, public StreamListener {
 
     llhttp_errno_t err;
 
+    executing_ = true;
     if (data == nullptr) {
       err = llhttp_finish(&parser_);
     } else {
       err = llhttp_execute(&parser_, data, len);
       Save();
+    }
+    executing_ = false;
+
+    if (reentered_) {
+      reentered_ = false;
+      if (err == HPE_OK || err == HPE_PAUSED || err == HPE_PAUSED_UPGRADE) {
+        err = HPE_USER;
+        parser_.error = err;
+        parser_.error_pos = data + len;
+        llhttp_set_error_reason(
+            &parser_, "HPE_REENTRANT_EXECUTE:Parser was executed re-entrantly");
+      }
     }
 
     // Deliver buffered body spans while `data` is still alive.
@@ -1166,6 +1190,8 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t header_pairs_ = 0;
   size_t max_header_pairs_ = 0;
   bool pending_pause_ = false;
+  bool executing_ = false;
+  bool reentered_ = false;
   bool received_data_ = false;
   uint64_t header_nread_ = 0;
   uint64_t chunk_extensions_nread_ = 0;
@@ -1187,11 +1213,6 @@ class Parser : public AsyncWrap, public StreamListener {
       if (parser->is_being_freed_) {
         return 0;
       }
-      if (!parser->IsInCurrentBuffer(args...)) {
-        llhttp_set_error_reason(
-            p, "HPE_REENTRANT_EXECUTE:Parser re-entered in the middle of data");
-        return HPE_USER;
-      }
       int rv = (parser->*Member)(std::forward<Args>(args)...);
       if (rv == 0) {
         rv = parser->MaybePause();
@@ -1199,20 +1220,6 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
   };
-
-  // A nested Execute() that stops in the middle of a span (e.g. a chunk of the
-  // body) leaves llhttp pointing into the nested call's buffer, which can be
-  // freed by the time the outer call reports the span. Data callbacks must
-  // only ever see the buffer that is being executed.
-  bool IsInCurrentBuffer() const {
-    return true;
-  }
-  bool IsInCurrentBuffer(const char* at, size_t length) const {
-    const uintptr_t begin = reinterpret_cast<uintptr_t>(current_buffer_data_);
-    const uintptr_t pos = reinterpret_cast<uintptr_t>(at);
-    return pos >= begin && pos - begin <= current_buffer_len_ &&
-           length <= current_buffer_len_ - (pos - begin);
-  }
 
   typedef int (Parser::*Call)();
   typedef int (Parser::*DataCall)(const char* at, size_t length);
