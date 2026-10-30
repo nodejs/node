@@ -70,10 +70,19 @@ def cpu_supports_perfetto_prebuilt(arch):
     except Exception:
         return False
 
-    has_flags = {"avx2", "bmi2", "sse4_2"}.issubset(flags) and ("abm" in flags or "lzcnt" in flags)
-    if not has_flags:
-      print(f'get_trace_processor: Pre-built binaries for x64 require a cpu that supports SSE4.2, BMI2, AVX2 and LZCNT. Got ${flags}')
-    return has_flags
+    # Complete feature list matching Perfetto's CheckCpuOptimizations()
+    required_flags = {"sse4_2", "popcnt", "avx2", "bmi1", "bmi2"}
+    missing = required_flags - flags
+
+    # Check LZCNT (kernel flag 'abm' or synthesized 'lzcnt')
+    if not ("abm" in flags or "lzcnt" in flags):
+      missing.add("lzcnt (abm)")
+
+    if missing:
+      print(f"CPU is missing required Perfetto features: {sorted(missing)}")
+      return False
+
+    return True
 
 def release_name():
   # Perfetto releases only an x64 build for Windows. Windows on arm64 runs it
