@@ -332,11 +332,12 @@ void JSValueToSQLiteResult(Isolate* isolate,
     sqlite3_result_double(ctx, value.As<Number>()->Value());
   } else if (value->IsString()) {
     Utf8Value val(isolate, value.As<String>());
-    sqlite3_result_text(ctx, *val, val.length(), SQLITE_TRANSIENT);
+    sqlite3_result_text64(
+        ctx, *val, val.length(), SQLITE_TRANSIENT, SQLITE_UTF8);
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    sqlite3_result_blob(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    sqlite3_result_blob64(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
