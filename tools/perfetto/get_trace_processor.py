@@ -57,7 +57,7 @@ def cpu_supports_perfetto_prebuilt(arch):
     Checks if the x86_64 CPU supports AVX2 and BMI2 required by
     Perfetto's release prebuilts.
     """
-    if sys.platform != "linux" or arch != "x86_64":
+    if sys.platform != "linux" or arch != "amd64":
         return True
 
     flags = set()
