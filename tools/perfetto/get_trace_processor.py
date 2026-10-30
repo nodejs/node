@@ -79,8 +79,10 @@ def cpu_supports_perfetto_prebuilt(arch):
       missing.add("lzcnt (abm)")
 
     if missing:
-      print(f"CPU is missing required Perfetto features: {sorted(missing)}")
+      print(f"get_trace_processor: CPU is missing required Perfetto features: {sorted(missing)}")
       return False
+    else:
+      print(flags)
 
     return True
 
@@ -92,6 +94,7 @@ def release_name():
 
   os_name = OS_NAMES.get(platform.system())
   arch = ARCH_NAMES.get(platform.machine())
+  print(f'get_trace_processor: Detected {os_name}-{arch}')
 
   # Perfetto's Linux releases link against glibc. On musl (e.g. Alpine), use
   # the static musl build from Cachix instead.
