@@ -383,6 +383,7 @@ Compiler::CompilationResult Compiler::Assemble(
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
+      set_flags(item.flags);
       if (node->Emit(this, &new_trace).IsError()) {
         work_list_ = nullptr;
         return ReportError();
@@ -2461,6 +2462,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
+    const Flags flags = compiler->flags();
     NonAssertingLabel before_non_word(compiler);
     NonAssertingLabel before_word(compiler);
     if (trace->characters_preloaded() != 1) {
@@ -2475,6 +2477,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
 
+    compiler->set_flags(flags);
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
@@ -6258,8 +6261,13 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
+    // Flags need to be reset to the state of the ChoiceNode at the beginning
+    // of each alternative, as flags might be modified when visiting an
+    // alternative.
+    Flags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
+      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }

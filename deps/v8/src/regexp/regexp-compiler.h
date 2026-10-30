@@ -653,12 +653,13 @@ class V8_EXPORT_PRIVATE Compiler {
 
   struct WorkItem {
     Node* node;
+    Flags flags;
   };
 
   inline void AddWork(Node* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back({node});
+      work_list_->push_back({node, flags()});
     }
   }
 
