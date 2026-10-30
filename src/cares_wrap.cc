@@ -48,6 +48,14 @@
 #define T_TLSA 52 /* TLSA certificate association */
 #endif
 
+#ifndef T_SVCB
+#define T_SVCB 64 /* General purpose service binding */
+#endif
+
+#ifndef T_HTTPS
+#define T_HTTPS 65 /* Service binding for HTTPS */
+#endif
+
 #ifndef T_CAA
 # define T_CAA    257 /* Certification Authority Authorization */
 #endif
@@ -86,6 +94,7 @@ using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::String;
+using v8::True;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
@@ -599,6 +608,253 @@ Maybe<int> ParseTlsaReply(Environment* env,
     }
   }
 
+  return Just<int>(ARES_SUCCESS);
+}
+
+// SvcParamKeys that c-ares does not have a constant for.
+constexpr uint16_t kSvcbParamDohPath = 7;  // RFC 9461
+constexpr uint16_t kSvcbParamOhttp = 8;    // RFC 9540
+
+std::string SvcbParamKeyName(uint16_t key) {
+  switch (key) {
+    case ARES_SVCB_PARAM_MANDATORY:
+      return "mandatory";
+    case ARES_SVCB_PARAM_ALPN:
+      return "alpn";
+    case ARES_SVCB_PARAM_NO_DEFAULT_ALPN:
+      return "no-default-alpn";
+    case ARES_SVCB_PARAM_PORT:
+      return "port";
+    case ARES_SVCB_PARAM_IPV4HINT:
+      return "ipv4hint";
+    case ARES_SVCB_PARAM_ECH:
+      return "ech";
+    case ARES_SVCB_PARAM_IPV6HINT:
+      return "ipv6hint";
+    case kSvcbParamDohPath:
+      return "dohpath";
+    case kSvcbParamOhttp:
+      return "ohttp";
+    default:
+      // Generic presentation format, RFC 9460 Section 2.1.
+      return "key" + std::to_string(key);
+  }
+}
+
+// Decodes a single SvcParamValue from its wire format. Keys without a
+// dedicated representation, including private-use keys, are returned as an
+// ArrayBuffer holding the raw value. Returns false if the value is malformed.
+bool ParseSvcbParamValue(Environment* env,
+                         uint16_t key,
+                         const unsigned char* val,
+                         size_t len,
+                         Local<Value>* out) {
+  Isolate* isolate = env->isolate();
+  switch (key) {
+    case ARES_SVCB_PARAM_MANDATORY: {
+      if (len == 0 || len % 2 != 0) return false;
+      LocalVector<Value> keys(isolate);
+      keys.reserve(len / 2);
+      // The listed keys must be strictly increasing and must not include
+      // "mandatory" (key 0) itself, RFC 9460 Section 8.
+      uint32_t prev = 0;
+      for (size_t i = 0; i < len; i += 2) {
+        uint16_t k = (val[i] << 8) | val[i + 1];
+        if (k <= prev) return false;
+        prev = k;
+        keys.push_back(OneByteString(isolate, SvcbParamKeyName(k)));
+      }
+      *out = Array::New(isolate, keys.data(), keys.size());
+      return true;
+    }
+    case ARES_SVCB_PARAM_ALPN: {
+      if (len == 0) return false;
+      LocalVector<Value> ids(isolate);
+      size_t i = 0;
+      while (i < len) {
+        size_t id_len = val[i++];
+        if (id_len == 0 || id_len > len - i) return false;
+        ids.push_back(OneByteString(isolate, val + i, id_len));
+        i += id_len;
+      }
+      *out = Array::New(isolate, ids.data(), ids.size());
+      return true;
+    }
+    case ARES_SVCB_PARAM_NO_DEFAULT_ALPN:
+    case kSvcbParamOhttp:
+      if (len != 0) return false;
+      *out = True(isolate);
+      return true;
+    case ARES_SVCB_PARAM_PORT:
+      if (len != 2) return false;
+      *out = Integer::NewFromUnsigned(isolate, (val[0] << 8) | val[1]);
+      return true;
+    case ARES_SVCB_PARAM_IPV4HINT:
+    case ARES_SVCB_PARAM_IPV6HINT: {
+      const bool v4 = key == ARES_SVCB_PARAM_IPV4HINT;
+      const size_t addr_len = v4 ? 4 : 16;
+      if (len == 0 || len % addr_len != 0) return false;
+      LocalVector<Value> addrs(isolate);
+      addrs.reserve(len / addr_len);
+      for (size_t i = 0; i < len; i += addr_len) {
+        char ip[INET6_ADDRSTRLEN];
+        if (uv_inet_ntop(v4 ? AF_INET : AF_INET6, val + i, ip, sizeof(ip)))
+          return false;
+        addrs.push_back(OneByteString(isolate, ip));
+      }
+      *out = Array::New(isolate, addrs.data(), addrs.size());
+      return true;
+    }
+    case kSvcbParamDohPath:
+      if (!String::NewFromUtf8(isolate,
+                               reinterpret_cast<const char*>(val),
+                               v8::NewStringType::kNormal,
+                               len)
+               .ToLocal(out)) {
+        return false;
+      }
+      return true;
+    case ARES_SVCB_PARAM_ECH:
+      if (len == 0) return false;
+      [[fallthrough]];
+    default: {
+      Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, len);
+      if (len > 0) memcpy(ab->Data(), val, len);
+      *out = ab;
+      return true;
+    }
+  }
+}
+
+// Parses SVCB and HTTPS records (RFC 9460). Both types share the same RDATA
+// format; rec_type selects which one is extracted from the answer section.
+Maybe<int> ParseSvcbReply(Environment* env,
+                          const unsigned char* buf,
+                          int len,
+                          Local<Array> ret,
+                          ares_dns_rec_type_t rec_type,
+                          bool need_type = false) {
+  HandleScope handle_scope(env->isolate());
+
+  auto tmpl = env->svcb_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "priority",
+        "target",
+        "params",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_svcb_record_template(tmpl);
+  }
+
+  ares_dns_record_t* dnsrec = nullptr;
+  int status = ares_dns_parse(buf, len, 0, &dnsrec);
+  if (status != ARES_SUCCESS) {
+    ares_dns_record_destroy(dnsrec);
+    return Just<int>(status);
+  }
+  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
+
+  const bool https = rec_type == ARES_REC_TYPE_HTTPS;
+  const ares_dns_rr_key_t priority_key =
+      https ? ARES_RR_HTTPS_PRIORITY : ARES_RR_SVCB_PRIORITY;
+  const ares_dns_rr_key_t target_key =
+      https ? ARES_RR_HTTPS_TARGET : ARES_RR_SVCB_TARGET;
+  const ares_dns_rr_key_t params_key =
+      https ? ARES_RR_HTTPS_PARAMS : ARES_RR_SVCB_PARAMS;
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // priority
+      Undefined(env->isolate()),  // target
+      Undefined(env->isolate()),  // params
+  };
+
+  // A malformed RR invalidates the whole RRset (RFC 9460 Section 2.4.3). For
+  // ANY queries only this RRset is dropped so other record types survive.
+  const int malformed = need_type ? ARES_ENODATA : ARES_EBADRESP;
+
+  const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
+  LocalVector<Value> records(env->isolate());
+  for (size_t i = 0; i < rr_count; i++) {
+    const ares_dns_rr_t* rr =
+        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+    if (ares_dns_rr_get_type(rr) != rec_type) continue;
+
+    const uint16_t priority = ares_dns_rr_get_u16(rr, priority_key);
+    Local<Object> params = Object::New(env->isolate());
+    // Recipients MUST ignore any SvcParams of AliasMode records, RFC 9460
+    // Section 2.4.2.
+    const size_t param_count =
+        priority == 0 ? 0 : ares_dns_rr_get_opt_cnt(rr, params_key);
+    int32_t prev_key = -1;
+    for (size_t j = 0; j < param_count; j++) {
+      const unsigned char* val = nullptr;
+      size_t val_len = 0;
+      uint16_t key = ares_dns_rr_get_opt(rr, params_key, j, &val, &val_len);
+      // SvcParamKeys must appear in strictly increasing order. c-ares does
+      // not enforce this. Note that c-ares silently merges duplicate keys
+      // (the last value wins), so duplicates cannot be detected here.
+      if (key <= prev_key) return Just<int>(malformed);
+      prev_key = key;
+      Local<Value> value;
+      if (!ParseSvcbParamValue(env, key, val, val_len, &value)) {
+        return Just<int>(malformed);
+      }
+      // Every key listed in "mandatory" must be present in the RR.
+      if (key == ARES_SVCB_PARAM_MANDATORY) {
+        for (size_t k = 0; k < val_len; k += 2) {
+          if (!ares_dns_rr_get_opt_byid(rr,
+                                        params_key,
+                                        (val[k] << 8) | val[k + 1],
+                                        nullptr,
+                                        nullptr)) {
+            return Just<int>(malformed);
+          }
+        }
+      }
+      if (params
+              ->Set(env->context(),
+                    OneByteString(env->isolate(), SvcbParamKeyName(key)),
+                    value)
+              .IsNothing()) {
+        return Nothing<int>();
+      }
+    }
+
+    values[0] = Integer::NewFromUnsigned(env->isolate(), priority);
+    values[1] =
+        OneByteString(env->isolate(), ares_dns_rr_get_str(rr, target_key));
+    values[2] = params;
+
+    Local<Object> svcb_record;
+    if (!NewDictionaryInstance(env->context(), tmpl, values)
+             .ToLocal(&svcb_record)) {
+      return Nothing<int>();
+    }
+
+    // The type is only reported for ANY queries, so it is not part of the
+    // template.
+    if (need_type &&
+        svcb_record
+            ->Set(env->context(),
+                  env->type_string(),
+                  https ? env->dns_https_string() : env->dns_svcb_string())
+            .IsNothing()) {
+      return Nothing<int>();
+    }
+
+    records.push_back(svcb_record);
+  }
+
+  if (records.empty()) return Just<int>(ARES_ENODATA);
+
+  // Only append once the whole RRset has been validated.
+  const uint32_t offset = ret->Length();
+  for (size_t i = 0; i < records.size(); i++) {
+    if (ret->Set(env->context(), offset + i, records[i]).IsNothing()) {
+      return Nothing<int>();
+    }
+  }
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -1177,6 +1433,11 @@ int CnameTraits::Send(QueryWrap<CnameTraits>* wrap, const char* name) {
   return ARES_SUCCESS;
 }
 
+int HttpsTraits::Send(QueryWrap<HttpsTraits>* wrap, const char* name) {
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_HTTPS);
+  return ARES_SUCCESS;
+}
+
 int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_MX);
   return ARES_SUCCESS;
@@ -1184,6 +1445,11 @@ int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
 
 int NsTraits::Send(QueryWrap<NsTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_NS);
+  return ARES_SUCCESS;
+}
+
+int SvcbTraits::Send(QueryWrap<SvcbTraits>* wrap, const char* name) {
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_SVCB);
   return ARES_SUCCESS;
 }
 
@@ -1489,6 +1755,24 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
     return Just<int>(status);
   }
 
+  /* Parse SVCB records */
+  if (!ParseSvcbReply(env, buf, len, ret, ARES_REC_TYPE_SVCB, true)
+           .To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
+
+  /* Parse HTTPS records */
+  if (!ParseSvcbReply(env, buf, len, ret, ARES_REC_TYPE_HTTPS, true)
+           .To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
+
   wrap->CallOnComplete(ret);
   return Just<int>(ARES_SUCCESS);
 }
@@ -1614,6 +1898,40 @@ Maybe<int> CnameTraits::Parse(QueryCnameWrap* wrap,
   return Just<int>(ARES_SUCCESS);
 }
 
+// Shared by SvcbTraits and HttpsTraits, which only differ in the record type.
+template <typename Wrap>
+Maybe<int> ParseSvcbQuery(Wrap* wrap,
+                          const std::unique_ptr<ResponseData>& response,
+                          ares_dns_rec_type_t rec_type) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
+
+  unsigned char* buf = response->buf.data;
+  int len = response->buf.size;
+
+  Environment* env = wrap->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Array> records = Array::New(env->isolate());
+  int status;
+  if (!ParseSvcbReply(env, buf, len, records, rec_type).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
+
+  wrap->CallOnComplete(records);
+  return Just<int>(ARES_SUCCESS);
+}
+
+Maybe<int> HttpsTraits::Parse(QueryHttpsWrap* wrap,
+                              const std::unique_ptr<ResponseData>& response) {
+  return ParseSvcbQuery(wrap, response, ARES_REC_TYPE_HTTPS);
+}
+
 Maybe<int> MxTraits::Parse(QueryMxWrap* wrap,
                            const std::unique_ptr<ResponseData>& response) {
   if (response->is_host) [[unlikely]] {
@@ -1666,6 +1984,11 @@ Maybe<int> NsTraits::Parse(QueryNsWrap* wrap,
 
   wrap->CallOnComplete(names);
   return Just<int>(ARES_SUCCESS);
+}
+
+Maybe<int> SvcbTraits::Parse(QuerySvcbWrap* wrap,
+                             const std::unique_ptr<ResponseData>& response) {
+  return ParseSvcbQuery(wrap, response, ARES_REC_TYPE_SVCB);
 }
 
 Maybe<int> TlsaTraits::Parse(QueryTlsaWrap* wrap,

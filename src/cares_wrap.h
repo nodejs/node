@@ -442,12 +442,14 @@ class QueryWrap final : public AsyncWrap {
   V(Aaaa, resolve6, queryAaaa)                                                 \
   V(Caa, resolveCaa, queryCaa)                                                 \
   V(Cname, resolveCname, queryCname)                                           \
+  V(Https, resolveHttps, queryHttps)                                           \
   V(Mx, resolveMx, queryMx)                                                    \
   V(Naptr, resolveNaptr, queryNaptr)                                           \
   V(Ns, resolveNs, queryNs)                                                    \
   V(Ptr, resolvePtr, queryPtr)                                                 \
   V(Srv, resolveSrv, querySrv)                                                 \
   V(Soa, resolveSoa, querySoa)                                                 \
+  V(Svcb, resolveSvcb, querySvcb)                                              \
   V(Tlsa, resolveTlsa, queryTlsa)                                              \
   V(Txt, resolveTxt, queryTxt)
 
