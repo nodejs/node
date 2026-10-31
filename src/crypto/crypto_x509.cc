@@ -28,6 +28,7 @@ using ncrypto::Digest;
 using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
+using ncrypto::X509NameInspection;
 using ncrypto::X509Pointer;
 using ncrypto::X509View;
 using v8::Array;
@@ -373,6 +374,380 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, const X509View& cert) {
   });
   if (!res) return Undefined(env->isolate());
   return Array::New(env->isolate(), vec.data(), vec.size());
+}
+
+bool SetValue(Local<Context> context,
+              Local<Object> object,
+              Local<String> name,
+              Local<Value> value) {
+  return object->CreateDataProperty(context, name, value).FromMaybe(false);
+}
+
+bool SetArrayValue(Local<Context> context,
+                   Local<Array> array,
+                   uint32_t index,
+                   Local<Value> value) {
+  return array->CreateDataProperty(context, index, value).FromMaybe(false);
+}
+
+MaybeLocal<Value> CopyBuffer(Environment* env,
+                             ncrypto::Buffer<const unsigned char> value) {
+  const char* data =
+      value.len == 0 ? "" : reinterpret_cast<const char*>(value.data);
+  return Buffer::Copy(env, data, value.len);
+}
+
+MaybeLocal<Value> CopyBuffer(Environment* env,
+                             const std::vector<unsigned char>& value) {
+  return CopyBuffer(env, {.data = value.data(), .len = value.size()});
+}
+
+std::optional<std::string> OidToText(const ASN1_OBJECT* object) {
+  if (object == nullptr) return std::nullopt;
+  const int length = OBJ_obj2txt(nullptr, 0, object, 1);
+  if (length <= 0 || length == std::numeric_limits<int>::max()) {
+    return std::nullopt;
+  }
+  std::string output(static_cast<size_t>(length) + 1, '\0');
+  if (OBJ_obj2txt(output.data(), length + 1, object, 1) != length) {
+    return std::nullopt;
+  }
+  output.resize(static_cast<size_t>(length));
+  return output;
+}
+
+struct SequenceSpan final {
+  ncrypto::Buffer<const unsigned char> encoded;
+  ncrypto::Buffer<const unsigned char> content;
+};
+
+bool ReadSequence(ncrypto::Buffer<const unsigned char> input,
+                  SequenceSpan* out) {
+  if (out == nullptr || input.data == nullptr || input.len == 0 ||
+      input.len > static_cast<size_t>(LONG_MAX)) {
+    return false;
+  }
+
+  const unsigned char* const start = input.data;
+  const unsigned char* content = start;
+  long content_length = 0;  // NOLINT(runtime/int)
+  int tag = 0;
+  int tag_class = 0;
+  const int flags =
+      ASN1_get_object(&content,
+                      &content_length,
+                      &tag,
+                      &tag_class,
+                      static_cast<long>(input.len));  // NOLINT(runtime/int)
+  constexpr int kIndefiniteLength = 0x01;
+  constexpr int kDecodeError = 0x80;
+  if ((flags & (kIndefiniteLength | kDecodeError)) != 0 ||
+      (flags & V_ASN1_CONSTRUCTED) == 0 || tag != V_ASN1_SEQUENCE ||
+      tag_class != V_ASN1_UNIVERSAL || content_length < 0) {
+    return false;
+  }
+
+  const size_t header_length = static_cast<size_t>(content - start);
+  const size_t length = static_cast<size_t>(content_length);
+  if (header_length > input.len || length > input.len - header_length) {
+    return false;
+  }
+  *out = {
+      .encoded = {.data = start, .len = header_length + length},
+      .content = {.data = content, .len = length},
+  };
+  return true;
+}
+
+std::optional<ncrypto::Buffer<const unsigned char>> GetExactTbs(
+    const X509CertificateSnapshot::DER& certificate) {
+  SequenceSpan outer;
+  const ncrypto::Buffer<const unsigned char> encoded{
+      .data = certificate.data(),
+      .len = certificate.size(),
+  };
+  if (!ReadSequence(encoded, &outer) || outer.encoded.len != encoded.len) {
+    return std::nullopt;
+  }
+
+  SequenceSpan tbs;
+  if (!ReadSequence(outer.content, &tbs)) return std::nullopt;
+  return tbs.encoded;
+}
+
+bool GetNameDer(const X509_NAME* name,
+                ncrypto::Buffer<const unsigned char>* encoded) {
+  if (name == nullptr || encoded == nullptr) return false;
+  const unsigned char* data = nullptr;
+  size_t length = 0;
+  if (X509_NAME_get0_der(name, &data, &length) != 1 ||
+      (data == nullptr && length != 0)) {
+    return false;
+  }
+  *encoded = {.data = data, .len = length};
+  return true;
+}
+
+MaybeLocal<Value> CreateName(Environment* env,
+                             const X509NameInspection& native,
+                             const X509_NAME* name) {
+  Local<Context> context = env->context();
+  size_t rdn_count = 0;
+  for (const auto& attribute : native) {
+    if (attribute.set < 0) return {};
+    const size_t set = static_cast<size_t>(attribute.set);
+    if (set == rdn_count) {
+      rdn_count++;
+    } else if (rdn_count == 0 || set != rdn_count - 1) {
+      return {};
+    }
+  }
+
+  if (rdn_count > static_cast<size_t>(INT_MAX)) return {};
+  Local<Array> rdns = Array::New(env->isolate(), static_cast<int>(rdn_count));
+  LocalVector<Array> groups(env->isolate());
+  groups.reserve(rdn_count);
+  std::vector<uint32_t> group_lengths(rdn_count, 0);
+  for (size_t i = 0; i < rdn_count; i++) {
+    Local<Array> group = Array::New(env->isolate());
+    if (!SetArrayValue(context, rdns, i, group)) return {};
+    groups.push_back(group);
+  }
+
+  for (const auto& attribute : native) {
+    Local<Object> output = Object::New(env->isolate());
+    if (!SetValue(context,
+                  output,
+                  env->oid_string(),
+                  OneByteString(env->isolate(), attribute.oid))) {
+      return {};
+    }
+    if (attribute.value.has_value()) {
+      Local<Value> value;
+      if (!ToV8Value(env, attribute.value.value()).ToLocal(&value) ||
+          !SetValue(context, output, env->value_string(), value)) {
+        return {};
+      }
+    }
+    const size_t rdn_index = static_cast<size_t>(attribute.set);
+    if (!SetArrayValue(
+            context, groups[rdn_index], group_lengths[rdn_index]++, output)) {
+      return {};
+    }
+  }
+
+  ncrypto::Buffer<const unsigned char> encoded;
+  Local<Value> raw;
+  Local<Object> output = Object::New(env->isolate());
+  if (!GetNameDer(name, &encoded) || !CopyBuffer(env, encoded).ToLocal(&raw) ||
+      !SetValue(context, output, env->raw_string(), raw) ||
+      !SetValue(context, output, env->rdns_string(), rdns)) {
+    return {};
+  }
+  return output;
+}
+
+MaybeLocal<Value> CreateRawExtensions(
+    Environment* env,
+    const std::vector<ncrypto::X509RawExtension>& extensions) {
+  Local<Context> context = env->context();
+  if (extensions.size() > static_cast<size_t>(INT_MAX)) return {};
+  Local<Array> output =
+      Array::New(env->isolate(), static_cast<int>(extensions.size()));
+  for (size_t i = 0; i < extensions.size(); i++) {
+    const auto& extension = extensions[i];
+    Local<Object> value = Object::New(env->isolate());
+    Local<Value> bytes;
+    if (!CopyBuffer(env, extension.value).ToLocal(&bytes) ||
+        !SetValue(context,
+                  value,
+                  env->oid_string(),
+                  OneByteString(env->isolate(), extension.oid)) ||
+        !SetValue(context,
+                  value,
+                  env->critical_string(),
+                  Boolean::New(env->isolate(), extension.critical)) ||
+        !SetValue(context, value, env->value_string(), bytes) ||
+        !SetArrayValue(context, output, i, value)) {
+      return {};
+    }
+  }
+  return output;
+}
+
+MaybeLocal<Value> CreateAlgorithmIdentifier(Environment* env,
+                                            const X509_ALGOR* native) {
+  if (native == nullptr) return {};
+  const ASN1_OBJECT* native_oid = nullptr;
+  int parameter_type = V_ASN1_UNDEF;
+  const void* parameter_value = nullptr;
+  X509_ALGOR_get0(&native_oid, &parameter_type, &parameter_value, native);
+  auto oid = OidToText(native_oid);
+  if (!oid.has_value()) return {};
+
+  Local<Context> context = env->context();
+  Local<Object> output = Object::New(env->isolate());
+  if (!SetValue(context,
+                output,
+                env->oid_string(),
+                OneByteString(env->isolate(), oid.value()))) {
+    return {};
+  }
+  if (parameter_type != V_ASN1_UNDEF) {
+    ncrypto::DeleteFnPtr<ASN1_TYPE, ASN1_TYPE_free> native_parameters(
+        ASN1_TYPE_new());
+    if (!native_parameters ||
+        ASN1_TYPE_set1(
+            native_parameters.get(), parameter_type, parameter_value) != 1) {
+      return {};
+    }
+    const int length = i2d_ASN1_TYPE(native_parameters.get(), nullptr);
+    if (length <= 0) return {};
+    std::vector<unsigned char> encoded(static_cast<size_t>(length));
+    unsigned char* cursor = encoded.data();
+    if (i2d_ASN1_TYPE(native_parameters.get(), &cursor) != length ||
+        cursor != encoded.data() + encoded.size()) {
+      return {};
+    }
+
+    Local<Value> parameters;
+    if (!CopyBuffer(env, encoded).ToLocal(&parameters) ||
+        !SetValue(context, output, env->parameters_string(), parameters)) {
+      return {};
+    }
+  }
+  return output;
+}
+
+MaybeLocal<Value> CreateSignature(Environment* env,
+                                  const X509View& certificate) {
+  const ASN1_BIT_STRING* native_signature = nullptr;
+  const X509_ALGOR* native_algorithm = nullptr;
+  X509_get0_signature(&native_signature, &native_algorithm, certificate.get());
+  if (native_signature == nullptr || native_algorithm == nullptr ||
+      ASN1_STRING_type(native_signature) != V_ASN1_BIT_STRING) {
+    return {};
+  }
+
+  const int native_length = ASN1_STRING_length(native_signature);
+  const unsigned char* native_data = ASN1_STRING_get0_data(native_signature);
+  if (native_length < 0 || (native_length > 0 && native_data == nullptr)) {
+    return {};
+  }
+#if NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH
+  size_t byte_length = 0;
+  int unused_bits = 0;
+  if (ASN1_BIT_STRING_get_length(
+          native_signature, &byte_length, &unused_bits) != 1 ||
+      unused_bits != 0 || byte_length != static_cast<size_t>(native_length)) {
+    return {};
+  }
+#elif NCRYPTO_USE_OPENSSL_PROVIDER || NCRYPTO_USE_BORINGSSL
+  if ((native_signature->flags & ASN1_STRING_FLAG_BITS_LEFT) != 0 &&
+      (native_signature->flags & 0x07) != 0) {
+    return {};
+  }
+#else
+#error "Unsupported crypto backend"
+#endif
+
+  const ncrypto::Buffer<const unsigned char> signature{
+      .data = native_data,
+      .len = static_cast<size_t>(native_length),
+  };
+
+  Local<Value> algorithm;
+  Local<Value> value;
+  if (!CreateAlgorithmIdentifier(env, native_algorithm).ToLocal(&algorithm) ||
+      !CopyBuffer(env, signature).ToLocal(&value)) {
+    return {};
+  }
+
+  Local<Context> context = env->context();
+  Local<Object> output = Object::New(env->isolate());
+  if (!SetValue(context, output, env->algorithm_string(), algorithm) ||
+      !SetValue(context, output, env->value_string(), value)) {
+    return {};
+  }
+  return output;
+}
+
+void Version(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* certificate;
+  ASSIGN_OR_RETURN_UNWRAP(&certificate, args.This());
+  const auto version = certificate->view().getVersion();
+  if (!version.has_value()) return;
+  args.GetReturnValue().Set(
+      Integer::New(env->isolate(), static_cast<int32_t>(version.value())));
+}
+
+void StructuredName(const FunctionCallbackInfo<Value>& args, bool subject) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* certificate;
+  ASSIGN_OR_RETURN_UNWRAP(&certificate, args.This());
+
+  const auto native = subject ? certificate->view().inspectSubjectName()
+                              : certificate->view().inspectIssuerName();
+  if (!native.has_value()) return;
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  const X509_NAME* name = subject ? X509_get_subject_name(certificate->get())
+                                  : X509_get_issuer_name(certificate->get());
+  Local<Value> output;
+  if (!CreateName(env, native.value(), name).ToLocal(&output)) {
+    return;
+  }
+  args.GetReturnValue().Set(output);
+}
+
+void SubjectName(const FunctionCallbackInfo<Value>& args) {
+  StructuredName(args, true);
+}
+
+void IssuerName(const FunctionCallbackInfo<Value>& args) {
+  StructuredName(args, false);
+}
+
+void Extensions(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* certificate;
+  ASSIGN_OR_RETURN_UNWRAP(&certificate, args.This());
+
+  const auto extensions = certificate->view().inspectExtensions();
+  Local<Value> output;
+  if (!extensions.has_value() ||
+      !CreateRawExtensions(env, extensions.value()).ToLocal(&output)) {
+    return;
+  }
+  args.GetReturnValue().Set(output);
+}
+
+void Tbs(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* certificate;
+  ASSIGN_OR_RETURN_UNWRAP(&certificate, args.This());
+
+  const auto tbs = GetExactTbs(certificate->snapshot_der());
+  Local<Value> output;
+  if (!tbs.has_value() || !CopyBuffer(env, tbs.value()).ToLocal(&output)) {
+    return;
+  }
+  args.GetReturnValue().Set(output);
+}
+
+void Signature(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* certificate;
+  ASSIGN_OR_RETURN_UNWRAP(&certificate, args.This());
+
+  Local<Value> output;
+  if (!CreateSignature(env, certificate->view()).ToLocal(&output)) {
+    return;
+  }
+  args.GetReturnValue().Set(output);
 }
 
 void Pem(const FunctionCallbackInfo<Value>& args) {
@@ -994,6 +1369,12 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(isolate, tmpl, "serialNumber", SerialNumber);
     SetProtoMethodNoSideEffect(isolate, tmpl, "pem", Pem);
     SetProtoMethodNoSideEffect(isolate, tmpl, "raw", Der);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "version", Version);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "subjectName", SubjectName);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "issuerName", IssuerName);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "extensions", Extensions);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "tbs", Tbs);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "signature", Signature);
     SetProtoMethodNoSideEffect(isolate, tmpl, "publicKey", PublicKey);
     SetProtoMethodNoSideEffect(isolate, tmpl, "checkCA", CheckCA);
     SetProtoMethodNoSideEffect(isolate, tmpl, "checkHost", CheckHost);
@@ -1356,6 +1737,12 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(SerialNumber);
   registry->Register(Pem);
   registry->Register(Der);
+  registry->Register(Version);
+  registry->Register(SubjectName);
+  registry->Register(IssuerName);
+  registry->Register(Extensions);
+  registry->Register(Tbs);
+  registry->Register(Signature);
   registry->Register(PublicKey);
   registry->Register(CheckCA);
   registry->Register(CheckHost);

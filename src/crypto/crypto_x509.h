@@ -124,6 +124,9 @@ class X509Certificate final : public BaseObject {
 
   inline ncrypto::X509View view() const { return *cert_; }
   inline X509* get() { return cert_->get(); }
+  inline const X509CertificateSnapshot::DER& snapshot_der() const {
+    return snapshot_->at(snapshot_index_);
+  }
 
   v8::MaybeLocal<v8::Value> toObject(Environment* env);
   static v8::MaybeLocal<v8::Value> toObject(Environment* env,
