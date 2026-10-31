@@ -1028,7 +1028,7 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
 
 for (const flag of ['--no-logfile', '-L']) {
   for (const args of [[flag], ['--logfile', 'out.log', flag]]) {
-    test(`strict mode rejects negating an explicit string target: ${args.join(' ')}`, () => {
+    test(`strict mode rejects a conflicting negative boolean option: ${args.join(' ')}`, () => {
       const options = {
         'logfile': { type: 'string' },
         'no-logfile': { type: 'boolean', short: 'L' },
@@ -1036,11 +1036,89 @@ for (const flag of ['--no-logfile', '-L']) {
       assert.throws(() => {
         parseArgs({ args, options, allowNegative: true });
       }, {
-        code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+        code: 'ERR_INVALID_ARG_VALUE'
       });
     });
   }
 }
+
+for (const reverse of [false, true]) {
+  for (const args of [[], ['--logfile', 'out.log'], ['-l', 'out.log']]) {
+    test(`strict mode rejects a conflicting configuration before parsing: ${reverse} ${args.join(' ')}`, () => {
+      const entries = [
+        ['logfile', { type: 'string', short: 'l' }],
+        ['no-logfile', { type: 'boolean', short: 'L' }],
+      ];
+      const options = Object.fromEntries(reverse ? entries.reverse() : entries);
+      assert.throws(() => {
+        parseArgs({ args, options, allowNegative: true });
+      }, {
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    });
+  }
+}
+
+for (const nonEnumerable of ['logfile', 'no-logfile']) {
+  for (const args of [[], ['--no-logfile']]) {
+    test(`strict mode detects a non-enumerable conflict: ${nonEnumerable} ${args.join(' ')}`, () => {
+      const options = {
+        'logfile': { type: 'string' },
+        'no-logfile': { type: 'boolean' },
+      };
+      Object.defineProperty(options, nonEnumerable, { enumerable: false });
+      assert.throws(() => {
+        parseArgs({ args, options, allowNegative: true });
+      }, {
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    });
+  }
+}
+
+for (const [description, prototype] of [
+  ['absent', null],
+  ['inherited', { foo: { type: 'string' } }],
+]) {
+  test(`strict mode does not read a non-enumerable negative getter without an own target: ${description}`, () => {
+    const options = { __proto__: prototype };
+    let reads = 0;
+    Object.defineProperty(options, 'no-foo', {
+      get() {
+        reads++;
+        throw new Error('negative getter was read');
+      },
+    });
+    const expected = { values: { __proto__: null }, positionals: [] };
+    assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+    assert.strictEqual(reads, 0);
+  });
+}
+
+for (const [description, option, code, message] of [
+  ['null', null, 'ERR_INVALID_ARG_TYPE', /options\.invalid/],
+  ['array', [], 'ERR_INVALID_ARG_TYPE', /options\.invalid/],
+  ['type', { type: 'number' }, 'ERR_INVALID_ARG_TYPE', /options\.invalid\.type/],
+  ['short', { type: 'boolean', short: 'xy' }, 'ERR_INVALID_ARG_VALUE', /options\.invalid\.short/],
+  ['default', { type: 'boolean', default: 'invalid' }, 'ERR_INVALID_ARG_TYPE', /options\.invalid\.default/],
+]) {
+  test(`invalid ${description} is reported before a configuration conflict`, () => {
+    const options = {
+      'logfile': { type: 'string' },
+      'no-logfile': { type: 'boolean' },
+      'invalid': option,
+    };
+    assert.throws(() => {
+      parseArgs({ args: [], options, allowNegative: true });
+    }, { code, message });
+  });
+}
+
+test('strict mode accepts an explicit negative boolean without a target when unused', () => {
+  const options = { 'no-alpha': { type: 'boolean', short: 'A' } };
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+});
 
 for (const flag of ['--no-alpha', '-A']) {
   test(`strict mode rejects an explicit negative option without a target: ${flag}`, () => {
@@ -1153,6 +1231,15 @@ test('strict:false preserves negation of explicit string and unknown targets', (
   assert.deepStrictEqual(parseArgs({ args, options, strict: false, allowNegative: true }), expected);
 });
 
+test('strict:false accepts a conflicting configuration with no arguments', () => {
+  const options = {
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean' },
+  };
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, strict: false, allowNegative: true }), expected);
+});
+
 test('strict:false preserves explicit values on negative boolean options', () => {
   const args = ['--no-alpha=value'];
   const options = {
@@ -1162,3 +1249,86 @@ test('strict:false preserves explicit values on negative boolean options', () =>
   const expected = { values: { '__proto__': null, 'no-alpha': 'value' }, positionals: [] };
   assert.deepStrictEqual(parseArgs({ args, options, strict: false, allowNegative: true }), expected);
 });
+
+for (const flag of ['--no-no-alpha', '-N']) {
+  test(`explicit double negation uses the immediate boolean target: ${flag}`, () => {
+    const options = {
+      'alpha': { type: 'boolean' },
+      'no-alpha': { type: 'boolean' },
+      'no-no-alpha': { type: 'boolean', short: 'N' },
+    };
+    const expected = { values: { '__proto__': null, 'no-alpha': false }, positionals: [] };
+    assert.deepStrictEqual(parseArgs({ args: [flag], options, allowNegative: true }), expected);
+  });
+}
+
+for (const flag of ['--no-no-alpha', '-N']) {
+  test(`double negation rejects an independently conflicting configuration: ${flag}`, () => {
+    const options = {
+      'alpha': { type: 'string' },
+      'no-alpha': { type: 'boolean' },
+      'no-no-alpha': { type: 'boolean', short: 'N' },
+    };
+    assert.throws(() => {
+      parseArgs({ args: [flag], options, allowNegative: true });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+  });
+
+  test(`double negation accepts a boolean target without an alpha option: ${flag}`, () => {
+    const options = {
+      'no-alpha': { type: 'boolean' },
+      'no-no-alpha': { type: 'boolean', short: 'N' },
+    };
+    const expected = { values: { '__proto__': null, 'no-alpha': false }, positionals: [] };
+    assert.deepStrictEqual(parseArgs({ args: [flag], options, allowNegative: true }), expected);
+  });
+}
+
+test('inherited options do not cause a configuration conflict', () => {
+  const options = {
+    '__proto__': { 'no-alpha': { type: 'boolean' } },
+    'alpha': { type: 'string' },
+  };
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+});
+
+test('an inherited string target does not cause a configuration conflict', () => {
+  const options = {
+    '__proto__': { alpha: { type: 'string' } },
+    'no-alpha': { type: 'boolean' },
+  };
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+});
+
+for (const type of ['boolean', 'string']) {
+  const flags = type === 'boolean' ? ['--no-alpha'] : ['--no-alpha', '-A'];
+  for (const flag of flags) {
+    test(`explicit negative ${type} retains value errors without a target: ${flag}`, () => {
+      const options = { 'no-alpha': { type, short: 'A' } };
+      const args = type === 'boolean' ? [`${flag}=value`] : [flag];
+      assert.throws(() => {
+        parseArgs({ args, options, allowNegative: true });
+      }, {
+        code: 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE'
+      });
+    });
+  }
+}
+
+for (const flag of ['--no-alpha', '-A']) {
+  test(`strict negation rejects an inherited boolean target: ${flag}`, () => {
+    const options = {
+      '__proto__': { alpha: { type: 'boolean' } },
+      'no-alpha': { type: 'boolean', short: 'A' },
+    };
+    assert.throws(() => {
+      parseArgs({ args: [flag], options, allowNegative: true });
+    }, {
+      code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION'
+    });
+  });
+}
