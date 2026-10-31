@@ -1059,22 +1059,41 @@ for (const reverse of [false, true]) {
   }
 }
 
-for (const nonEnumerable of ['logfile', 'no-logfile']) {
-  for (const args of [[], ['--no-logfile']]) {
-    test(`strict mode detects a non-enumerable conflict: ${nonEnumerable} ${args.join(' ')}`, () => {
-      const options = {
-        'logfile': { type: 'string' },
-        'no-logfile': { type: 'boolean' },
-      };
-      Object.defineProperty(options, nonEnumerable, { enumerable: false });
-      assert.throws(() => {
-        parseArgs({ args, options, allowNegative: true });
-      }, {
-        code: 'ERR_INVALID_ARG_VALUE'
-      });
+for (const args of [[], ['--no-logfile']]) {
+  test(`strict mode detects a conflict with a non-enumerable target: ${args.join(' ')}`, () => {
+    const options = {
+      'logfile': { type: 'string' },
+      'no-logfile': { type: 'boolean' },
+    };
+    Object.defineProperty(options, 'logfile', { enumerable: false });
+    assert.throws(() => {
+      parseArgs({ args, options, allowNegative: true });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE'
     });
-  }
+  });
 }
+
+test('strict mode accepts an unused non-enumerable conflicting negative option', () => {
+  const options = {
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean' },
+  };
+  Object.defineProperty(options, 'no-logfile', { enumerable: false });
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+});
+
+test('strict mode rejects a used non-enumerable conflicting negative option', () => {
+  const options = {
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean' },
+  };
+  Object.defineProperty(options, 'no-logfile', { enumerable: false });
+  assert.throws(() => {
+    parseArgs({ args: ['--no-logfile'], options, allowNegative: true });
+  }, { code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION' });
+});
 
 for (const [description, prototype] of [
   ['absent', null],
@@ -1102,17 +1121,74 @@ for (const [description, option, code, message] of [
   ['short', { type: 'boolean', short: 'xy' }, 'ERR_INVALID_ARG_VALUE', /options\.invalid\.short/],
   ['default', { type: 'boolean', default: 'invalid' }, 'ERR_INVALID_ARG_TYPE', /options\.invalid\.default/],
 ]) {
-  test(`invalid ${description} is reported before a configuration conflict`, () => {
+  test(`invalid ${description} is reported before a later configuration conflict`, () => {
     const options = {
+      'invalid': option,
       'logfile': { type: 'string' },
       'no-logfile': { type: 'boolean' },
-      'invalid': option,
     };
     assert.throws(() => {
       parseArgs({ args: [], options, allowNegative: true });
     }, { code, message });
   });
 }
+
+test('configuration conflict is reported before a later invalid option', () => {
+  const options = {
+    'logfile': { type: 'string' },
+    'no-logfile': { type: 'boolean' },
+    'invalid': null,
+  };
+  assert.throws(() => {
+    parseArgs({ args: [], options, allowNegative: true });
+  }, { code: 'ERR_INVALID_ARG_VALUE', message: /options\.no-logfile.*conflicts with string option logfile/ });
+});
+
+for (const [description, target] of [
+  ['null', null],
+  ['undefined', undefined],
+  ['array', Object.assign([], { type: 'string' })],
+]) {
+  for (const reverse of [false, true]) {
+    test(`invalid ${description} target is reported in either order: ${reverse}`, () => {
+      const entries = [
+        ['alpha', target],
+        ['no-alpha', { type: 'boolean' }],
+      ];
+      const options = Object.fromEntries(reverse ? entries.reverse() : entries);
+      assert.throws(() => {
+        parseArgs({ args: [], options, allowNegative: true });
+      }, { code: 'ERR_INVALID_ARG_TYPE', message: /options\.alpha/ });
+    });
+  }
+}
+
+test('a negative option is validated before checking its configuration conflict', () => {
+  const options = {
+    'no-alpha': { type: 'boolean', default: 'invalid' },
+    'alpha': { type: 'string' },
+  };
+  assert.throws(() => {
+    parseArgs({ args: [], options, allowNegative: true });
+  }, { code: 'ERR_INVALID_ARG_TYPE', message: /options\.no-alpha\.default/ });
+});
+
+test('negative option type getter is read once during configuration validation', () => {
+  let reads = 0;
+  const options = {
+    'alpha': { type: 'boolean' },
+    'no-alpha': {
+      get type() {
+        reads++;
+        if (reads > 1) throw new Error('negative type was read again');
+        return 'boolean';
+      },
+    },
+  };
+  const expected = { values: { __proto__: null }, positionals: [] };
+  assert.deepStrictEqual(parseArgs({ args: [], options, allowNegative: true }), expected);
+  assert.strictEqual(reads, 1);
+});
 
 test('strict mode accepts an explicit negative boolean without a target when unused', () => {
   const options = { 'no-alpha': { type: 'boolean', short: 'A' } };

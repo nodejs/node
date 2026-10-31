@@ -2363,7 +2363,7 @@ changes:
     options to `false` by prefixing the option name with `--no-`.
     In strict mode, the option being negated must be a declared boolean option,
     including when a `no-*` option is explicitly configured with a `short` alias.
-    An explicitly configured boolean `no-foo` cannot coexist with a string
+    An enumerable own boolean `no-foo` option cannot coexist with a string
     `foo` option in strict mode, even if neither option appears in the arguments.
     **Default:** `false`.
   * `tokens` {boolean} Return the parsed tokens. This is useful for extending
