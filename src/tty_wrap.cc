@@ -25,6 +25,7 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_external_reference.h"
+#include "node_internals.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -134,6 +135,7 @@ void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
   int mode;
   if (!args[0]->Int32Value(env->context()).To(&mode)) return;
   int err = uv_tty_set_mode(&wrap->handle_, static_cast<uv_tty_mode_t>(mode));
+  if (err == 0 && mode != UV_TTY_MODE_NORMAL) SetTerminalModeChanged();
   args.GetReturnValue().Set(err);
 }
 
