@@ -22,7 +22,7 @@ T.prototype.sum = function sum() {
 
 const vals = [new T(4), T(4)];
 
-vals.forEach(function(t) {
+for (const t of vals) {
   assert.strictEqual(t.constructor, T);
   assert.strictEqual(Object.getPrototypeOf(t), T.prototype);
   assert.strictEqual(Object.getPrototypeOf(Object.getPrototypeOf(t)),
@@ -36,4 +36,4 @@ vals.forEach(function(t) {
 
   // Check this does not throw
   t.toString();
-});
+}
