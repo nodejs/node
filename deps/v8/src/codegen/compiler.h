@@ -432,6 +432,12 @@ class OptimizedCompilationJob : public CompilationJob {
     return timer_.Elapsed();
   }
 
+  using RetainedMaps = base::SmallVector<IndirectHandle<Map>, 8>;
+
+  static RetainedMaps CollectRetainedMaps(
+      DirectHandle<Code> code,
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
+
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
@@ -440,12 +446,9 @@ class OptimizedCompilationJob : public CompilationJob {
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
   // Register weak object to optimized code dependencies.
-  GlobalHandleVector<Map> CollectRetainedMaps(Isolate* isolate,
-                                              DirectHandle<Code> code);
-  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
-                                          DirectHandle<NativeContext> context,
-                                          DirectHandle<Code> code,
-                                          GlobalHandleVector<Map> maps);
+  void RegisterWeakObjectsInOptimizedCode(
+      Isolate* isolate, DirectHandle<NativeContext> context,
+      DirectHandle<Code> code, base::Vector<const IndirectHandle<Map>> maps);
 
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;

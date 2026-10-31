@@ -461,6 +461,7 @@ absl_source_set("raw_hash_map") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
     "//third_party/abseil-cpp/absl/meta:type_traits",
+    "//third_party/abseil-cpp/absl/numeric:bits",
   ]
 }
 
@@ -535,6 +536,7 @@ absl_source_set("raw_hash_set") {
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/utility",
   ]
 }
@@ -771,6 +773,18 @@ absl_source_set("btree_test_common") {
 
 # TODO(mbonadei): Fix issue with EXPECT_DEATH and uncomment.
 # absl_test("btree_test")
+
+absl_test("btree_instantiate_test") {
+  sources = [ "btree_instantiate_test.cc" ]
+  deps = [
+    ":btree",
+    ":btree_test_common",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:raw_logging_internal",
+    "//third_party/abseil-cpp/absl/flags:flag",
+    "//third_party/abseil-cpp/absl/strings:cord",
+  ]
+}
 
 absl_source_set("heterogeneous_lookup_testing") {
   testonly = true

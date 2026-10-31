@@ -15,7 +15,7 @@
 #include "src/__support/File/file.h"
 #include "src/__support/File/file_mode.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/close.h"
-#include "src/__support/OSUtil/linux/syscall_wrappers/dup2.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/dup3.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/fcntl.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/lseek.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/open.h"
@@ -87,6 +87,14 @@ static int map_c_mode_flags_to_linux_open_flags(const FileMode &file_mode) {
   else if (file_mode.is_write())
     open_flags |= LinuxFileFlags::CREATE_OR_TRUNCATE;
 
+  // Ignore 'x' for read modes: O_EXCL is only meaningful with O_CREAT here.
+  if (file_mode.is_exclusive_create() &&
+      (file_mode.is_write() || file_mode.is_append()))
+    open_flags |= LinuxFileFlags::EXCLUSIVE_CREATE;
+
+  if (file_mode.is_close_on_exec())
+    open_flags |= LinuxFileFlags::CLOSE_ON_EXEC;
+
   return open_flags;
 }
 
@@ -119,6 +127,14 @@ ErrorOr<File *> openfile(const char *path, const char *mode) {
   return file;
 }
 
+static ErrorOr<int> set_close_on_exec(int fd) {
+  auto flags = linux_syscalls::fcntl(fd, F_GETFD);
+  if (!flags)
+    return Error(flags.error());
+  return linux_syscalls::fcntl(
+      fd, F_SETFD, reinterpret_cast<void *>(flags.value() | FD_CLOEXEC));
+}
+
 ErrorOr<LinuxFile *> create_file_from_fd(int fd, const char *mode) {
   const FileMode file_mode(mode);
 
@@ -137,6 +153,12 @@ ErrorOr<LinuxFile *> create_file_from_fd(int fd, const char *mode) {
       (LinuxFileFlags::is_file_descriptor_opened_in_write_only(fd_flags) &&
        file_mode.read_allowed())) {
     return Error(EINVAL);
+  }
+
+  if (file_mode.is_close_on_exec()) {
+    auto cloexec_result = set_close_on_exec(fd);
+    if (!cloexec_result)
+      return Error(cloexec_result.error());
   }
 
   bool do_seek = false;
@@ -195,6 +217,10 @@ int LinuxFile::reopen_unlocked(const char *path, const char *mode) {
 
     int open_flags = map_c_mode_flags_to_linux_open_flags(file_mode);
 
+    // Prevent the temporary descriptor from being inherited across exec.
+    if (old_fd >= 0)
+      open_flags |= LinuxFileFlags::CLOSE_ON_EXEC;
+
     ErrorOr<int> new_fd =
         linux_syscalls::open(path, open_flags, LinuxFileFlags::OPEN_MODE);
 
@@ -215,7 +241,10 @@ int LinuxFile::reopen_unlocked(const char *path, const char *mode) {
     // Else the new file successfully opened, so we move it into the fd the old
     // file was using if the old fd exists.
     if (old_fd >= 0) {
-      auto dup_result = linux_syscalls::dup2(new_fd.value(), old_fd);
+      // Preserve close-on-exec atomically when replacing the old descriptor.
+      int dup_flags =
+          file_mode.is_close_on_exec() ? LinuxFileFlags::CLOSE_ON_EXEC : 0;
+      auto dup_result = linux_syscalls::dup3(new_fd.value(), old_fd, dup_flags);
       if (!dup_result) {
         linux_syscalls::close(new_fd.value());
         reset_stream_state_unlocked(file_mode);

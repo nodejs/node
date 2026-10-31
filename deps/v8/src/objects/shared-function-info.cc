@@ -47,42 +47,23 @@ uint32_t SharedFunctionInfo::Hash() {
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
 }
 
-void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
-  DisallowGarbageCollection no_gc;
-
-  // Set the function data to the "illegal" builtin. Ideally we'd use some sort
-  // of "uninitialized" marker here, but it's cheaper to use a valid builtin and
-  // avoid having to do uninitialized checks elsewhere.
-  set_builtin_id(Builtin::kIllegal);
-
-  // Set the name to the no-name sentinel, this can be updated later.
-  set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
-                         kReleaseStore, SKIP_WRITE_BARRIER);
-
-  // Generally functions won't have feedback, unless they have been created
-  // from a FunctionLiteral. Those can just reset this field to keep the
-  // SharedFunctionInfo in a consistent state.
-  set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
-                                                SKIP_WRITE_BARRIER);
-  set_script(ro_roots.undefined_value(), kReleaseStore, SKIP_WRITE_BARRIER);
-  set_function_literal_id(kInvalidInfoId, kRelaxedStore);
-  set_unique_id(unique_id);
-
-  // Set integer fields (smi or int, depending on the architecture).
-  set_length(0);
-  set_internal_formal_parameter_count(JSParameterCount(0));
-  set_expected_nof_properties(0);
-  set_raw_function_token_offset(0);
-
-  // All flags default to false or 0, except ConstructAsBuiltinBit just because
-  // we're using the kIllegal builtin.
-  set_flags(ConstructAsBuiltinBit::encode(true), kRelaxedStore);
-  set_flags2(0);
-
+SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
+                                       int unique_id)
+    : HeapObject(witness.roots().shared_function_info_map()),
+      // Generally functions won't have feedback, unless they have been created
+      // from a FunctionLiteral. Those can just reset this field to keep the
+      // SharedFunctionInfo in a consistent state.
+      outer_scope_info_or_feedback_metadata_(witness.roots().the_hole_value()),
+      script_(witness.roots().undefined_value()),
+      unique_id_(unique_id) {
   UpdateFunctionMapIndex();
+}
 
-  set_age(0);
-  set_feedback_slot(0);
+SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
+                                       Tagged<SharedFunctionInfo> other,
+                                       IsolateForSandbox isolate)
+    : HeapObject(witness.roots().shared_function_info_map()) {
+  CopyFrom(other, isolate);
 }
 
 // LINT.IfChange(GetSharedFunctionInfoCode)

@@ -119,12 +119,10 @@ function checkPrototypeChain(object, constructors) {
   assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
 
   // Strict function.
-  // When V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS is disabled, strict and
-  // sloppy functions have the same descriptors and share the derived initial
-  // map.
+  // Strict and sloppy functions have the same descriptors and share the
+  // derived initial map.
   var strict_func = new A("'use strict'; " + source);
-  assertEquals(!sloppy_func.hasOwnProperty("arguments"),
-               %HaveSameMap(strict_func, sloppy_func));
+  assertTrue(%HaveSameMap(strict_func, sloppy_func));
   CheckFunction(strict_func, false);
 
   var strict_func1 = new A("'use strict'; return 312;");
@@ -632,11 +630,9 @@ function TestMapSetSubclassing(container, is_map) {
   assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
 
   // Strict generator function.
-  // When V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS is disabled, strict and
-  // sloppy functions share the derived initial map.
+  // Strict and sloppy functions share the derived initial map.
   var strict_func = new A("'use strict'; " + source);
-  assertEquals(!sloppy_func.hasOwnProperty("arguments"),
-               %HaveSameMap(strict_func, sloppy_func));
+  assertTrue(%HaveSameMap(strict_func, sloppy_func));
   CheckFunction(strict_func, false);
 
   var strict_func1 = new A("'use strict'; yield 312;");

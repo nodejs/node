@@ -1,6 +1,7 @@
 ---
 name: writing-skills-rule
-trigger: agents/**/*
+trigger: model_decision
+description: Guidelines and best practices for writing, modifying, and structuring skills and rules in agents/
 ---
 
 # Best Practices for Writing Skills and Rules in `agents/`
@@ -80,10 +81,11 @@ Maintain a pristine context window by loading information only when needed.
 Create instructions for LLMs instead of humans.
 
 - **Tone and Style**:
-  - **Positive Framing**: Focus on what the agent *should* do. If you must
-    specify a constraint, provide an alternative.
-    - *Bad (Negative)*: "Do not use Python 2."
-    - *Good (Positive)*: "Always use Python 3 for new scripts."
+  - **Positive Framing (Prefer "ALWAYS" over "NEVER")**: Focus on affirmative
+    instructions rather than negative prohibitions. LLMs attend to mentioned
+    concepts; negative constraints ("NEVER do X") can prime the forbidden
+    behavior (pink elephant effect) without providing an actionable default.
+    State the required behavior directly ("ALWAYS do X" or "Only do X when Y").
   - **Third-Person Imperative**: Frame instructions as direct commands (e.g.,
     "Extract the text..." rather than "I will extract...").
 - **Procedural Instructions**:

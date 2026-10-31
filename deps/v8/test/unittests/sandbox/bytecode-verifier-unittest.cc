@@ -714,7 +714,7 @@ INSTANTIATE_TEST_SUITE_P(BytecodeVerifierTest,
                          BytecodeVerifierForbiddenRuntimeFunctionTest,
                          ::testing::Values(
 #if V8_ENABLE_WEBASSEMBLY
-                             Runtime::kTrapHandlerThrowWasmError,
+                             Runtime::kThrowWasmError,
                              Runtime::kWasmAllocateFeedbackVector,
 #endif
                              Runtime::kLoadLookupSlotForCall_Baseline));

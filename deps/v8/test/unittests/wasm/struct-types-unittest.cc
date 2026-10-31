@@ -25,7 +25,11 @@ TEST_F(StructTypesTest, Empty) {
   StructType::Builder<Zone> desc_builder(this->zone(), 0, true,
                                          SharedFlag{false});
   StructType* desc_type = desc_builder.Build();
-  EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->total_fields_size());
+  if (v8_flags.wasm_merged_descriptors) {
+    EXPECT_EQ(0u, desc_type->total_fields_size());
+  } else {
+    EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->total_fields_size());
+  }
 }
 
 TEST_F(StructTypesTest, OneField) {
@@ -40,9 +44,14 @@ TEST_F(StructTypesTest, OneField) {
                                          SharedFlag{false});
   desc_builder.AddField(kWasmI32, true);
   StructType* desc_type = desc_builder.Build();
-  EXPECT_EQ(uint32_t{kTaggedSize + std::max(kUInt32Size, kTaggedSize)},
-            desc_type->total_fields_size());
-  EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->field_offset(0));
+  if (v8_flags.wasm_merged_descriptors) {
+    EXPECT_EQ(expected, desc_type->total_fields_size());
+    EXPECT_EQ(0u, desc_type->field_offset(0));
+  } else {
+    EXPECT_EQ(uint32_t{kTaggedSize + std::max(kUInt32Size, kTaggedSize)},
+              desc_type->total_fields_size());
+    EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->field_offset(0));
+  }
 }
 
 TEST_F(StructTypesTest, Packing) {

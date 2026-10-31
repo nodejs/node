@@ -43,13 +43,8 @@ BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
                     SourceTextModule::AsyncEvaluationOrdinalBits)
 
-BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
-
-inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
-  DCHECK(PhaseBits::is_valid(phase));
-  uint32_t hints = flags();
-  hints = PhaseBits::update(hints, phase);
-  set_flags(hints);
+inline unsigned ModuleRequest::position() const {
+  return PositionBits::decode(flags());
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {

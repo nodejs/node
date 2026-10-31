@@ -22,8 +22,7 @@ extern class ScriptContextTable extends HeapObject {
 
 @cppObjectLayoutDefinition
 extern class ContextCell extends HeapObject {
-  // TODO(victorgomes): Change the type of tagged_value to JSAny.
-  tagged_value: Object;
+  tagged_value: JSAny;
   dependent_code: DependentCode;
   state: int32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

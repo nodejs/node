@@ -40,7 +40,7 @@
 #include <iomanip>
 #endif
 
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
@@ -95,7 +95,7 @@ namespace {
 class DefaultAssemblerBuffer : public AssemblerBuffer {
  public:
   explicit DefaultAssemblerBuffer(int size)
-      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(
+      : buffer_(base::UniqueArray<uint8_t>::NewForOverwrite(
             std::max(AssemblerBase::kMinimalBufferSize, size))) {
 #ifdef DEBUG
     ZapCode(reinterpret_cast<Address>(buffer_.begin()), buffer_.size());
@@ -112,7 +112,7 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
   }
 
  private:
-  base::OwnedVector<uint8_t> buffer_;
+  base::UniqueArray<uint8_t> buffer_;
 };
 
 class ExternalAssemblerBufferImpl : public AssemblerBuffer {

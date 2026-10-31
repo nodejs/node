@@ -91,7 +91,7 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSPluralRulesFlags>);
   TaggedMember<Foreign> icu_plural_rules_;
   TaggedMember<Foreign> icu_number_formatter_;
 } V8_OBJECT_END;

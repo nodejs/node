@@ -196,6 +196,8 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      return kOtherInternal;
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
     case CPP_GCMANAGED_BASE_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:

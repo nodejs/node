@@ -70,6 +70,7 @@
 #include "src/__support/common.h"
 #include "src/__support/ctype_utils.h"
 #include "src/__support/macros/config.h"
+#include "src/__support/wctype_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -82,7 +83,7 @@ struct Fmt {
   static constexpr size_t MIN_DIGITS = min_digits;
   static constexpr bool IS_UPPERCASE = is_uppercase;
   static constexpr bool PREFIX = prefix;
-  static constexpr char FORCE_SIGN = force_sign;
+  static constexpr bool FORCE_SIGN = force_sign;
 
   using WithPrefix = Fmt<BASE, true, FORCE_SIGN, IS_UPPERCASE, MIN_DIGITS>;
   using WithSign = Fmt<BASE, PREFIX, true, IS_UPPERCASE, MIN_DIGITS>;
@@ -101,55 +102,33 @@ struct Fmt {
                 "WithPrefix is only for radix == 2, 8 or 16");
 };
 
-// Move this to a separate header since it might be useful elsewhere.
-template <bool forward> class StringBufferWriterImpl {
-  cpp::span<char> buffer;
-  size_t index = 0;
+template <typename CharT> class BackwardStringBufferWriter {
+  cpp::span<CharT> buffer;
+  size_t remaining = 0;
   bool out_of_range = false;
 
-  LIBC_INLINE size_t location() const {
-    return forward ? index : buffer.size() - 1 - index;
-  }
-
 public:
-  StringBufferWriterImpl(const StringBufferWriterImpl &) = delete;
-  StringBufferWriterImpl(cpp::span<char> buffer) : buffer(buffer) {}
+  BackwardStringBufferWriter(cpp::span<CharT> buffer)
+      : buffer(buffer), remaining(buffer.size()) {}
 
-  LIBC_INLINE size_t size() const { return index; }
-  LIBC_INLINE size_t remainder_size() const { return buffer.size() - size(); }
-  LIBC_INLINE bool empty() const { return size() == 0; }
-  LIBC_INLINE bool full() const { return size() == buffer.size(); }
+  LIBC_INLINE size_t size() const { return buffer.size() - remaining; }
+  LIBC_INLINE bool full() const { return remaining == 0; }
   LIBC_INLINE bool ok() const { return !out_of_range; }
 
-  LIBC_INLINE StringBufferWriterImpl &push(char c) {
-    if (ok()) {
-      if (!full()) {
-        buffer[location()] = c;
-        ++index;
-      } else {
-        out_of_range = true;
-      }
+  LIBC_INLINE void push(CharT c) {
+    if (remaining == 0) {
+      out_of_range = true;
+      return;
     }
-    return *this;
+    --remaining;
+    buffer[remaining] = c;
   }
 
-  LIBC_INLINE cpp::span<char> remainder_span() const {
-    return forward ? buffer.last(remainder_size())
-                   : buffer.first(remainder_size());
-  }
-
-  LIBC_INLINE cpp::span<char> buffer_span() const {
-    return forward ? buffer.first(size()) : buffer.last(size());
-  }
-
-  LIBC_INLINE cpp::string_view buffer_view() const {
-    const auto s = buffer_span();
+  LIBC_INLINE cpp::basic_string_view<CharT> buffer_view() const {
+    cpp::span<CharT> s = buffer.last(size());
     return {s.data(), s.size()};
   }
 };
-
-using StringBufferWriter = StringBufferWriterImpl<true>;
-using BackwardStringBufferWriter = StringBufferWriterImpl<false>;
 
 } // namespace details
 
@@ -328,8 +307,10 @@ extract_decimal_digit(T &value) {
 }
 
 // See file header for documentation.
-template <typename T, typename Fmt = radix::Dec> class IntegerToString {
+template <typename T, typename Fmt = radix::Dec, typename CharT = char>
+class IntegerToString {
   static_assert(cpp::is_integral_v<T> || is_big_int_v<T>);
+  static_assert(cpp::is_same_v<CharT, char> || cpp::is_same_v<CharT, wchar_t>);
 
   LIBC_INLINE static constexpr size_t compute_buffer_size() {
     constexpr auto MAX_DIGITS = []() -> size_t {
@@ -377,23 +358,26 @@ template <typename T, typename Fmt = radix::Dec> class IntegerToString {
     static_assert(cpp::is_integral_v<T> || is_big_int_v<T>);
     using UNSIGNED_T = make_integral_or_big_int_unsigned_t<T>;
 
-    LIBC_INLINE static char digit_char(uint8_t digit) {
-      const char result = internal::int_to_b36_char(digit);
-      return Fmt::IS_UPPERCASE ? internal::toupper(result) : result;
+    LIBC_INLINE static CharT digit_char(uint8_t digit) {
+      const CharT result = internal::int_to_b36_char(digit);
+      if constexpr (Fmt::BASE <= 10) {
+        return result;
+      } else {
+        return Fmt::IS_UPPERCASE ? internal::toupper(result) : result;
+      }
     }
 
     LIBC_INLINE static void
     write_unsigned_number(UNSIGNED_T value,
-                          details::BackwardStringBufferWriter &sink) {
+                          details::BackwardStringBufferWriter<CharT> &sink) {
       for (; sink.ok() && value != 0; value /= Fmt::BASE) {
         const uint8_t digit(static_cast<uint8_t>(value % Fmt::BASE));
         sink.push(digit_char(digit));
       }
     }
 
-    LIBC_INLINE static void
-    write_unsigned_number_dec(UNSIGNED_T value,
-                              details::BackwardStringBufferWriter &sink) {
+    LIBC_INLINE static void write_unsigned_number_dec(
+        UNSIGNED_T value, details::BackwardStringBufferWriter<CharT> &sink) {
       while (sink.ok() && value != 0) {
         const uint8_t digit = extract_decimal_digit(value);
         sink.push(digit_char(digit));
@@ -425,8 +409,8 @@ template <typename T, typename Fmt = radix::Dec> class IntegerToString {
       }
     }
 
-    LIBC_INLINE static void write(T value,
-                                  details::BackwardStringBufferWriter &sink) {
+    LIBC_INLINE static void
+    write(T value, details::BackwardStringBufferWriter<CharT> &sink) {
       if constexpr (Fmt::BASE == 10) {
         write_unsigned_number_dec(abs(value), sink);
       } else {
@@ -434,60 +418,61 @@ template <typename T, typename Fmt = radix::Dec> class IntegerToString {
       }
       // width
       while (sink.ok() && sink.size() < Fmt::MIN_DIGITS)
-        sink.push('0');
+        sink.push(CharT{'0'});
       // sign
       if constexpr (Fmt::BASE == 10) {
         if (value < 0)
-          sink.push('-');
+          sink.push(CharT{'-'});
         else if (Fmt::FORCE_SIGN)
-          sink.push('+');
+          sink.push(CharT{'+'});
       }
       // prefix
       if constexpr (Fmt::PREFIX) {
         if constexpr (Fmt::BASE == 2) {
-          sink.push('b');
-          sink.push('0');
+          sink.push(CharT{'b'});
+          sink.push(CharT{'0'});
         }
         if constexpr (Fmt::BASE == 16) {
-          sink.push('x');
-          sink.push('0');
+          sink.push(CharT{'x'});
+          sink.push(CharT{'0'});
         }
         if constexpr (Fmt::BASE == 8) {
-          const cpp::string_view written = sink.buffer_view();
-          if (written.empty() || written.front() != '0')
-            sink.push('0');
+          const cpp::basic_string_view<CharT> written = sink.buffer_view();
+          if (written.empty() || written.front() != CharT{'0'})
+            sink.push(CharT{'0'});
         }
       }
     }
   };
 
-  cpp::array<char, BUFFER_SIZE> array;
+  cpp::array<CharT, BUFFER_SIZE> array;
   size_t written = 0;
 
 public:
   IntegerToString(const IntegerToString &) = delete;
   IntegerToString(T value) {
-    details::BackwardStringBufferWriter writer(array);
+    details::BackwardStringBufferWriter<CharT> writer(array);
     IntegerWriter::write(value, writer);
     written = writer.size();
   }
 
-  [[nodiscard]] LIBC_INLINE static cpp::optional<cpp::string_view>
-  format_to(cpp::span<char> buffer, T value) {
-    details::BackwardStringBufferWriter writer(buffer);
+  [[nodiscard]] LIBC_INLINE static cpp::optional<cpp::basic_string_view<CharT>>
+  format_to(cpp::span<CharT> buffer, T value) {
+    details::BackwardStringBufferWriter<CharT> writer(buffer);
     IntegerWriter::write(value, writer);
     if (writer.ok())
-      return cpp::string_view(buffer.data() + buffer.size() - writer.size(),
-                              writer.size());
+      return cpp::basic_string_view<CharT>(
+          buffer.data() + buffer.size() - writer.size(), writer.size());
     return cpp::nullopt;
   }
 
   LIBC_INLINE static constexpr size_t buffer_size() { return BUFFER_SIZE; }
 
   LIBC_INLINE size_t size() const { return written; }
-  LIBC_INLINE cpp::string_view view() && = delete;
-  LIBC_INLINE cpp::string_view view() const & {
-    return cpp::string_view(array.data() + array.size() - size(), size());
+  LIBC_INLINE cpp::basic_string_view<CharT> view() && = delete;
+  LIBC_INLINE cpp::basic_string_view<CharT> view() const & {
+    return cpp::basic_string_view<CharT>(array.data() + array.size() - size(),
+                                         size());
   }
 };
 

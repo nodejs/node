@@ -38,6 +38,8 @@
 #include "src/codegen/riscv/assembler-riscv.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <array>
+
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
@@ -142,13 +144,13 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
                                                  Address constant_pool) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, reinterpret_cast<uint8_t*>(pc));
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
   disasm.InstructionDecode(disasm_buffer,
                            reinterpret_cast<uint8_t*>(pc + kInstrSize));
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
 
   DEBUG_PRINTF("\t target_compressed_address_at %d\n",
                uint32_constant_at(pc, constant_pool));
@@ -185,13 +187,13 @@ Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
   DEBUG_PRINTF("\tembedded_object_handle_at: pc: 0x%" PRIxPTR " \n", pc);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, reinterpret_cast<uint8_t*>(pc));
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
   disasm.InstructionDecode(disasm_buffer,
                            reinterpret_cast<uint8_t*>(pc + kInstrSize));
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
 #if V8_TARGET_ARCH_RISCV64
   Instr instr1 = Assembler::instr_at(pc);
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);

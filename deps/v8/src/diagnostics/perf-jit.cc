@@ -41,6 +41,7 @@
 
 #include "include/v8config.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
@@ -140,7 +141,7 @@ FILE* PerfJitLogger::perf_output_handle_ = nullptr;
 void PerfJitLogger::OpenJitDumpFile() {
   size_t bufferSize = strlen(v8_flags.perf_prof_path) +
                       sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(bufferSize);
+  auto perf_dump_name = base::UniqueArray<char>::NewForOverwrite(bufferSize);
   int size = SNPrintF(perf_dump_name.as_vector(), kFilenameFormatString,
                       v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);

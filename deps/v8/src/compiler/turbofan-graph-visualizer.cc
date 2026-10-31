@@ -4,6 +4,7 @@
 
 #include "src/compiler/turbofan-graph-visualizer.h"
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <regex>
@@ -304,7 +305,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
-  base::EmbeddedVector<char, 256> filename(0);
+  std::array<char, 256> filename = {};
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
   const char* file_prefix = v8_flags.trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
@@ -314,16 +315,16 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
       static int fast_call_wrappers_count = 0;
       optimization_id = ++fast_call_wrappers_count;
     }
-    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
-             optimization_id);
+    base::SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
+                   optimization_id);
   } else if (info->has_shared_info()) {
-    SNPrintF(filename, "%s-%p-%i", file_prefix,
-             reinterpret_cast<void*>(info->shared_info()->address()),
-             optimization_id);
+    base::SNPrintF(filename, "%s-%p-%i", file_prefix,
+                   reinterpret_cast<void*>(info->shared_info()->address()),
+                   optimization_id);
   } else {
-    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
+    base::SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
-  base::EmbeddedVector<char, 256> source_file(0);
+  std::array<char, 256> source_file = {};
   bool source_available = false;
   if (v8_flags.trace_file_names && info->has_shared_info() &&
       IsScript(info->shared_info()->script())) {
@@ -332,7 +333,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     if (IsString(source_name)) {
       Tagged<String> str = Cast<String>(source_name);
       if (str->length() > 0) {
-        SNPrintF(source_file, "%s", str->ToCString().get());
+        base::SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),
                      source_file.begin() + source_file.size(), '/', '_');
         source_available = true;
@@ -347,31 +348,31 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.begin(), filename.begin() + filename.size(), '>', '}');
 #endif  // V8_OS_WIN
 
-  base::EmbeddedVector<char, 256> base_dir;
+  std::array<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
-    SNPrintF(base_dir, "%s%c", optional_base_dir,
-             base::OS::DirectorySeparator());
+    base::SNPrintF(base_dir, "%s%c", optional_base_dir,
+                   base::OS::DirectorySeparator());
   } else {
     base_dir[0] = '\0';
   }
 
-  base::EmbeddedVector<char, 256> full_filename;
+  std::array<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
-             suffix);
+    base::SNPrintF(full_filename, "%s%s.%s", base_dir.data(), filename.data(),
+                   suffix);
   } else if (phase != nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.begin(), filename.begin(),
-             phase, suffix);
+    base::SNPrintF(full_filename, "%s%s-%s.%s", base_dir.data(),
+                   filename.data(), phase, suffix);
   } else if (phase == nullptr && source_available) {
-    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.begin(), filename.begin(),
-             source_file.begin(), suffix);
+    base::SNPrintF(full_filename, "%s%s_%s.%s", base_dir.data(),
+                   filename.data(), source_file.data(), suffix);
   } else {
-    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.begin(), filename.begin(),
-             source_file.begin(), phase, suffix);
+    base::SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.data(),
+                   filename.data(), source_file.data(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.size() + 1];
-  memcpy(buffer, full_filename.begin(), full_filename.size());
+  memcpy(buffer, full_filename.data(), full_filename.size());
   buffer[full_filename.size()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }

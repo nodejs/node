@@ -22,6 +22,20 @@
 namespace v8 {
 namespace internal {
 
+PrototypeInfo::PrototypeInfo(const AllocationWitness& witness)
+    : Struct(witness.roots().prototype_info_map()),
+      module_namespace_(witness.roots().undefined_value()),
+      prototype_users_(Smi::zero()),
+      prototype_chain_enum_cache_(witness.roots().undefined_value()),
+      registry_slot_(Smi::FromInt(UNREGISTERED)),
+      bit_field_(Smi::zero()),
+      derived_maps_(witness.roots().undefined_value()),
+      prototype_shared_closure_info_(witness.roots().undefined_value()) {
+  for (int i = 0; i < kCachedHandlerCount; i++) {
+    cached_handler_[i].store_no_write_barrier(Smi::zero());
+  }
+}
+
 Tagged<UnionOf<JSModuleNamespace, Undefined>> PrototypeInfo::module_namespace()
     const {
   return module_namespace_.load();

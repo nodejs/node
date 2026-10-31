@@ -400,6 +400,8 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
 #endif
   Phase phase;
   SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
+  // Covers phases that don't go through maglev::GraphProcessor.
+  graph_->broker()->local_isolate_or_isolate()->heap()->Safepoint();
   PhaseResult result = phase.Run(graph_, std::forward<Args>(args)...);
   if (result == PhaseResult::kContinue) {
     if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {

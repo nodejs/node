@@ -2826,9 +2826,9 @@ add_header_library(
 )
 
 add_header_library(
-  cosf
+  cosf_double_eval
   HDRS
-    cosf.h
+    cosf_double_eval.h
   DEPENDS
     .sincosf_utils
     libc.src.__support.FPUtil.basic_operations
@@ -2838,6 +2838,32 @@ add_header_library(
     libc.src.__support.FPUtil.fma
     libc.src.__support.FPUtil.polyeval
     libc.src.__support.macros.optimization
+)
+
+add_header_library(
+  cosf_float_eval
+  HDRS
+    cosf_float_eval.h
+  DEPENDS
+    .sincosf_utils
+    libc.src.__support.FPUtil.double_double
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.FPUtil.multiply_add
+    libc.src.__support.FPUtil.nearest_integer
+    libc.src.__support.common
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  cosf
+  HDRS
+    cosf.h
+  DEPENDS
+    .cosf_double_eval
+    .cosf_float_eval
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(
@@ -3078,6 +3104,7 @@ add_header_library(
   DEPENDS
     libc.src.__support.CPP.bit
     libc.src.__support.FPUtil.multiply_add
+    libc.src.__support.FPUtil.polyeval
     libc.src.__support.macros.config
     libc.src.__support.macros.optimization
 )
@@ -5402,24 +5429,82 @@ add_header_library(
 )
 
 add_header_library(
-  powf
+  powf_utils
   HDRS
-    powf.h
-    powf_small_tables.h
+    powf_utils.h
   DEPENDS
     .common_constants
     .exp10f
     .exp2f
-    libc.src.__support.CPP.algorithm
+    libc.hdr.errno_macros
+    libc.hdr.fenv_macros
     libc.src.__support.CPP.bit
+    libc.src.__support.CPP.optional
+    libc.src.__support.FPUtil.double_double
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.FPUtil.nearest_integer
+    libc.src.__support.FPUtil.rounding_mode
+    libc.src.__support.FPUtil.sqrt
+    libc.src.__support.FPUtil.triple_double
+    libc.src.__support.common
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.macros.optimization
+    libc.src.__support.macros.properties.cpu_features
+)
+
+add_header_library(
+  powf_double_eval
+  HDRS
+    powf_double_eval.h
+  DEPENDS
+    .common_constants
+    .exp_constants
+    .powf_utils
+    libc.src.__support.CPP.bit
+    libc.src.__support.CPP.optional
+    libc.src.__support.FPUtil.double_double
     libc.src.__support.FPUtil.fenv_impl
     libc.src.__support.FPUtil.fp_bits
     libc.src.__support.FPUtil.multiply_add
     libc.src.__support.FPUtil.nearest_integer
-    libc.src.__support.FPUtil.polyeval
-    libc.src.__support.FPUtil.sqrt
-    libc.src.__support.FPUtil.triple_double
+    libc.src.__support.common
+    libc.src.__support.macros.config
     libc.src.__support.macros.optimization
+    libc.src.__support.macros.properties.cpu_features
+)
+
+add_header_library(
+  powf_float_eval
+  HDRS
+    powf_float_eval.h
+  DEPENDS
+    .exp2f_float_utils
+    .powf_utils
+    libc.src.__support.CPP.bit
+    libc.src.__support.FPUtil.double_double
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.FPUtil.multiply_add
+    libc.src.__support.FPUtil.nearest_integer
+    libc.src.__support.common
+    libc.src.__support.macros.config
+    libc.src.__support.macros.optimization
+    libc.src.__support.macros.properties.cpu_features
+)
+
+add_header_library(
+  powf
+  HDRS
+    powf.h
+  DEPENDS
+    .powf_double_eval
+    .powf_float_eval
+    libc.src.__support.common
+    libc.src.__support.macros.config
+    libc.src.__support.macros.optimization
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(
@@ -5453,9 +5538,9 @@ add_header_library(
 )
 
 add_header_library(
-  sinf
+  sinf_double_eval
   HDRS
-    sinf.h
+    sinf_double_eval.h
   DEPENDS
     .range_reduction
     .sincosf_utils
@@ -5466,6 +5551,32 @@ add_header_library(
     libc.src.__support.FPUtil.polyeval
     libc.src.__support.FPUtil.rounding_mode
     libc.src.__support.macros.optimization
+)
+
+add_header_library(
+  sinf_float_eval
+  HDRS
+    sinf_float_eval.h
+  DEPENDS
+    .sincosf_utils
+    libc.src.__support.FPUtil.double_double
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.FPUtil.multiply_add
+    libc.src.__support.FPUtil.nearest_integer
+    libc.src.__support.common
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  sinf
+  HDRS
+    sinf.h
+  DEPENDS
+    .sinf_double_eval
+    .sinf_float_eval
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(

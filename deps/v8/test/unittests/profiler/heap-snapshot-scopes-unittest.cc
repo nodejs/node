@@ -285,8 +285,8 @@ class HeapSnapshotScopesTest : public TestWithContext {
       EXPECT_EQ(curr_scope->scope_id, ctx_scope_id);
 
       if (curr_scope->variables.empty()) {
-        // Context variable emission was disabled for this scope (e.g., class
-        // scope or a scope containing/enclosing direct eval).
+        // Context variable emission was disabled for this scope (e.g., script
+        // scope, class scope, or a scope containing/enclosing direct eval).
       } else {
         int local_count = scope_info->ContextLocalCount();
         EXPECT_EQ(curr_scope->variables.size(),
@@ -506,20 +506,15 @@ TEST_F(HeapSnapshotScopesTest, GlobalVariables) {
   TakeHeapSnapshot();
   const SnapshotSourceScopeData* inner = GetScopeForClosure(*inner_fn);
 
-  // Script scope contains lexical variables (let and const) in context vars.
+  // Script scope contains global lexical variables (let and const) that can be
+  // accessed across different scripts, for which uses are not tracked.
+  // Therefore, context variables are omitted for script scopes to disable dead
+  // context analysis.
   const SnapshotSourceScopeData* script_scope = inner->parent;
   ASSERT_NE(nullptr, script_scope);
   EXPECT_EQ(0, script_scope->depth);
   EXPECT_EQ(nullptr, script_scope->parent);
-  EXPECT_NE(nullptr, script_scope->FindVariable("scriptConst"));
-  // Global var is on the global object, not in script context.
-  EXPECT_EQ(nullptr, script_scope->FindVariable("scriptVar"));
-
-  const VariableDefinition* let_var = script_scope->FindVariable("scriptLet");
-  const VariableDefinition* const_var =
-      script_scope->FindVariable("scriptConst");
-  AssertUses(let_var, {inner});
-  AssertUses(const_var, {inner});
+  EXPECT_TRUE(script_scope->variables.empty());
   CheckContextSlots(inner_fn);
 }
 

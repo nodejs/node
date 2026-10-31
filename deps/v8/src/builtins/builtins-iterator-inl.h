@@ -77,8 +77,13 @@ inline MaybeDirectHandle<JSReceiver> IteratorStep(
 // https://tc39.es/ecma262/#sec-iteratorclose
 inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
   DirectHandle<Object> completion_exception;
+
   bool has_completion_exception = isolate->has_exception();
   if (has_completion_exception) {
+    if (isolate->is_execution_terminating()) {
+      // Don't swallow the termination exception.
+      return;
+    }
     completion_exception = handle(isolate->exception(), isolate);
     isolate->clear_exception();
   }
@@ -91,6 +96,10 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
   if (!Object::GetProperty(isolate, iterator,
                            isolate->factory()->return_string())
            .ToHandle(&return_method)) {
+    if (isolate->is_execution_terminating()) {
+      // Don't swallow the termination exception.
+      return;
+    }
     has_inner_exception = true;
     inner_exception = handle(isolate->exception(), isolate);
     isolate->clear_exception();
@@ -103,6 +112,11 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
     if (!Execution::Call(isolate, return_method, iterator,
                          base::Vector<const DirectHandle<Object>>())
              .ToHandle(&inner_result)) {
+      if (isolate->is_execution_terminating()) {
+        // Don't swallow the termination exception.
+        return;
+      }
+
       has_inner_exception = true;
       inner_exception = handle(isolate->exception(), isolate);
       isolate->clear_exception();

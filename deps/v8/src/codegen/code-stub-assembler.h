@@ -1792,7 +1792,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Word32T> value);
 
   // Store the floating point value of a HeapNumber.
-  void StoreHeapNumberValue(TNode<HeapNumber> object, TNode<Float64T> value);
+  void StoreHeapNumberValue(
+      TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> object,
+      TNode<Float64T> value);
 
   // Store a field to an object on the heap.
   void StoreObjectField(TNode<HeapObject> object, int offset, TNode<Smi> value);
@@ -2076,6 +2078,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void StoreCellValue(TNode<Cell> cell, TNode<Object> value,
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  TNode<UninitializedHeapNumber> AllocateUninitializedHeapNumber();
 
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();
@@ -4385,11 +4389,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        HasPropertyLookupMode::kHasProperty);
   }
 
-  void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
-                    TNode<HeapObject> maybe_feedback_vector,
-                    TNode<FixedArray>* cache_array_out,
-                    TNode<Smi>* cache_length_out,
-                    UpdateFeedbackMode update_feedback_mode);
+  void ForInPrepare(
+      TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+      TNode<HeapObject> maybe_feedback_vector,
+      TNode<Union<FixedArray, ForInEnumeratorHolder>>* cache_array_out,
+      TNode<Smi>* cache_length_out, UpdateFeedbackMode update_feedback_mode);
+
+  TNode<BoolT> CheckHolderValidity(TNode<HeapObject> receiver,
+                                   TNode<ForInEnumeratorHolder> holder);
 
   TNode<String> Typeof(
       TNode<Object> value, std::optional<TNode<UintPtrT>> slot_id = {},

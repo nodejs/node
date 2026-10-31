@@ -36,7 +36,14 @@ class KytheConsumer {
   virtual ~KytheConsumer() = 0;
 
   virtual kythe_entity_t AddDefinition(Kind kind, std::string name,
-                                       KythePosition pos) = 0;
+                                       KythePosition pos) {
+    return 0;
+  }
+  virtual kythe_entity_t AddDefinition(Kind kind, std::string name,
+                                       KythePosition pos, bool is_extern,
+                                       std::string readable_name) {
+    return AddDefinition(kind, std::move(name), pos);
+  }
 
   virtual void AddUse(Kind kind, kythe_entity_t entity,
                       KythePosition use_pos) = 0;

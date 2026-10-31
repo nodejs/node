@@ -46,6 +46,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
 #include "src/base/template-utils.h"
+#include "src/base/unique-array.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -1397,7 +1398,7 @@ template <typename Getter, typename Setter>
 i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
                                                   v8::Local<Name> name,
                                                   Getter getter, Setter setter,
-                                                  v8::Local<Value> data,
+                                                  v8::Local<Data> data,
                                                   bool replace_on_access) {
   i::DirectHandle<i::AccessorInfo> obj =
       i_isolate->factory()->NewAccessorInfo();
@@ -1590,7 +1591,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
 
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
-                                   v8::Local<Value> data,
+                                   v8::Local<Data> data,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
@@ -1719,14 +1720,11 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
-  info->set_named_interceptor(i::Smi::zero());
-  info->set_indexed_interceptor(i::Smi::zero());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1749,9 +1747,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotPublished(cons,
                      "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
@@ -7145,6 +7142,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
 
     i::DisallowGarbageCollection no_gc;
+    if (i::IsInaccessible(obj)) return true;
     i::InstanceType obj_type = obj->map()->instance_type();
 
     // Skip common types that can't contain items to freeze.
@@ -9076,7 +9074,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #if V8_ENABLE_WEBASSEMBLY
   i::wasm::CompileTimeImports compile_imports =
       i::wasm::CompileTimeImportsFromOptions(options);
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
   // used for ESM integration, which in terms of security is equivalent to
@@ -9375,6 +9373,14 @@ VirtualAddressSpace* v8::IsolateGroup::GetSandboxAddressSpace() {
   Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxAddressSpace",
                   "The sandbox must be initialized first");
   return sandbox->address_space();
+}
+
+void v8::IsolateGroup::SetInSandboxAllocator(
+    std::shared_ptr<Allocator> allocator) {
+  Utils::ApiCheck(isolate_group_->GetIsolateCount() == 0,
+                  "v8::IsolateGroup::SetInSandboxAllocator",
+                  "The allocator must be set before creating an Isolate");
+  isolate_group_->sandbox()->set_in_sandbox_allocator(std::move(allocator));
 }
 #endif
 
@@ -11048,6 +11054,9 @@ CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback)
+CALLBACK_SETTER(DynamicScriptCompiledFromEmbedderCallback,
+                DynamicScriptCompiledFromEmbedderCallback,
+                dynamic_script_callback)
 CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 

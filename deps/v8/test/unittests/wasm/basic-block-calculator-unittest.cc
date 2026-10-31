@@ -4,6 +4,7 @@
 
 #include "src/wasm/basic-block-calculator.h"
 
+#include "src/base/unique-array.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -19,8 +20,8 @@ namespace v8::internal::wasm {
 namespace {
 class TestWireBytesStorage final : public WireBytesStorage {
  public:
-  explicit TestWireBytesStorage(base::OwnedVector<const uint8_t>& wire_bytes)
-      : wire_bytes_(base::OwnedCopyOf(wire_bytes)) {}
+  explicit TestWireBytesStorage(base::UniqueArray<const uint8_t>& wire_bytes)
+      : wire_bytes_(base::UniqueCopyOf(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
     return wire_bytes_.as_vector().SubVector(ref.offset(), ref.end_offset());
@@ -31,7 +32,7 @@ class TestWireBytesStorage final : public WireBytesStorage {
   }
 
  private:
-  const base::OwnedVector<const uint8_t> wire_bytes_;
+  const base::UniqueArray<const uint8_t> wire_bytes_;
 };
 
 }  // namespace
@@ -42,7 +43,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
 
  protected:
   std::shared_ptr<NativeModule> CompileNativeModule(
-      base::OwnedVector<const uint8_t>& module_bytes,
+      base::UniqueArray<const uint8_t>& module_bytes,
       WasmDetectedFeatures* detected_features) {
     ModuleResult result =
         DecodeWasmModule(WasmEnabledFeatures::All(), module_bytes.as_vector(),
@@ -91,7 +92,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
 
     ZoneBuffer buffer{zone()};
     builder_.WriteTo(&buffer);
-    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer);
+    base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(buffer);
     TestWireBytesStorage wire_bytes_storage(bytes);
 
     WasmDetectedFeatures detected_features;
@@ -408,7 +409,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                            // 13
   //-------------------------------------------
   ModuleTypeIndex array_type_index = builder_.AddArrayType(
-      zone()->New<ArrayType>(kWasmI32, false /*mutability*/),
+      zone()->New<ArrayType>(kWasmI32, false /*mutability*/, SharedFlag{false}),
       false /*is_final*/, kNoSuperType);
 
   TestFunction(sigs.i_v(),

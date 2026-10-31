@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "smallvec"
-version = "1.16.1"
+version = "1.16.2"
 authors = ["The Servo Project Developers"]
 build = false
 include = [

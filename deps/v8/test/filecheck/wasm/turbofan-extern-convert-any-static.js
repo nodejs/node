@@ -22,5 +22,5 @@ let instance = builder.instantiate();
 // CHECK: MERGE B0
 // CHECK-NEXT: 0: Parameter()[1]
 // CHECK-NEXT: 1: Constant()[word32: 0]
-// CHECK-NEXT: 2: Return(#1, #0)[0]
+// CHECK-NEXT: 2: Return(#1, #0)
 instance.exports.externConvertAny();

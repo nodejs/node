@@ -10,6 +10,7 @@
 #include "src/base/strings.h"
 #include "src/regexp/special-case.h"
 #include "unicode/locid.h"
+#include "unicode/uchar.h"
 #include "unicode/unistr.h"
 
 namespace v8 {
@@ -52,6 +53,19 @@ UChar32 Canonicalize(UChar32 ch) {
   return cu;
 }
 
+// Removes supplementary code points from |set| and returns whether any were
+// present. Since Unicode 18, the case closure of a BMP character can contain
+// supplementary code points (U+1DF95 LATIN SMALL LIGATURE LONG S WITH
+// DESCENDER S case-folds to U+00DF LATIN SMALL LETTER SHARP S). Non-unicode
+// ignoreCase matching compares UTF-16 code units, so a supplementary code
+// point never matches a BMP character and does not take part in Canonicalize.
+bool RemoveSupplementary(icu::UnicodeSet& set) {
+  constexpr UChar32 kFirstSupplementary = static_cast<UChar32>(kNonBmpStart);
+  if (!set.containsSome(kFirstSupplementary, UCHAR_MAX_VALUE)) return false;
+  set.remove(kFirstSupplementary, UCHAR_MAX_VALUE);
+  return true;
+}
+
 // The following code generates "src/regexp/special-case.cc".
 void PrintSet(std::ofstream& out, const char* name,
               const icu::UnicodeSet& set) {
@@ -86,6 +100,7 @@ void PrintSpecial(std::ofstream& out) {
   icu::UnicodeSet current;
   icu::UnicodeSet special_add;
   icu::UnicodeSet ignore;
+  icu::UnicodeSet supplementary_equivalents;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeSet upper("[\\p{Lu}]", status);
   CHECK(U_SUCCESS(status));
@@ -98,6 +113,7 @@ void PrintSpecial(std::ofstream& out) {
     }
     current.set(i, i);
     current.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+    if (RemoveSupplementary(current)) supplementary_equivalents.add(i);
 
     // Check to see if all characters in the case-folding equivalence
     // class as defined by UnicodeSet::closeOver all map to the same
@@ -147,6 +163,7 @@ void PrintSpecial(std::ofstream& out) {
       UChar32 canonical = Canonicalize(c);
       current.set(c, c);
       current.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+      RemoveSupplementary(current);
       current.removeAll(ignore);
       for (int32_t j = 0; j < current.getRangeCount(); j++) {
         for (UChar32 c2 = current.getRangeStart(j);
@@ -158,6 +175,7 @@ void PrintSpecial(std::ofstream& out) {
   }
 
   PrintSet(out, "IgnoreSet", ignore);
+  PrintSet(out, "SupplementaryEquivalentsSet", supplementary_equivalents);
 }
 
 void WriteHeader(const char* header_filename) {

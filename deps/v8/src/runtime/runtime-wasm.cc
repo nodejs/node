@@ -4,6 +4,7 @@
 
 #include <optional>
 
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
@@ -169,10 +170,13 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   return Smi::FromInt(ret);
 }
 
-RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
-  CHECK(isolate->IsOnCentralStack());
-  HandleScope scope(isolate);
-  FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
+namespace {
+// Determines the trap message for trap handler traps by decoding the
+// instruction at the faulting bytecode position when MessageTemplate::kNone is
+// passed.
+MessageTemplate DetermineTrapHandlerMessage(Isolate* isolate) {
+  FrameFinder<WasmFrame> frame_finder(
+      isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
   WasmFrame* frame = frame_finder.frame();
   int pos = frame->position();
 
@@ -199,15 +203,19 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
               false FOREACH_ATOMIC_GC_OPCODE(CASE));
 #undef CASE
   }
-  return ThrowWasmError(isolate, message);
+  return message;
 }
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  DCHECK(isolate->IsOnCentralStack());
+  CHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  int message_id = args.smi_value_at(0);
-  return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
+  MessageTemplate message = MessageTemplateFromInt(args.smi_value_at(0));
+  if (message == MessageTemplate::kNone) {
+    message = DetermineTrapHandlerMessage(isolate);
+  }
+  return ThrowWasmError(isolate, message);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
@@ -1026,6 +1034,7 @@ bool ExecuteWasmDebugBreaks(
     debug_info->ClearStepping(isolate);
     StepAction step_action = isolate->debug()->last_step_action();
     isolate->debug()->ClearStepping();
+    if (isolate->debug()->ContinueSteppingIfSkipped(step_action)) return true;
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
                                    step_action);
     return true;
@@ -1143,6 +1152,10 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
   DirectHandle<Map> map{Cast<Map>(args[1]), isolate};
   wasm::ModuleTypeIndex type_index{args.positive_smi_value_at(2)};
   DirectHandle<Object> first_field{args[3], isolate};
+  if (v8_flags.wasm_merged_descriptors) {
+    return *WasmCustomMap::AllocateUninitialized(isolate, trusted_data,
+                                                 type_index, map, first_field);
+  }
   return *WasmStruct::AllocateDescriptorUninitialized(
       isolate, trusted_data, type_index, map, first_field);
 }
@@ -1330,15 +1343,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   if (v8_flags.wasm_wasmfx) {
     // For now JSPI does not use the WasmStackObject, and it is only set here
     // because it is expected by WasmFX.
-    // TODO(thibaudm): We could consider using this object for JSPI too as an
-    // indirection between the WasmSuspenderObjects and the StackMemory. This
-    // would have roughly the same benefits as for WasmFX:
-    // - We would only need to allocate and manage a single EPT entry per
-    // StackMemory,
-    // - It would be easier to track ownership of the StackMemory and ensure
-    // that there is no UAF. In particular the StackMemory could track its
-    // (unique) EPT entry via {EPT::ManagedResource} and zap it when the
-    // resource is freed.
     target_stack->set_stack_obj(
         *isolate->factory()->NewWasmStackObject(target_stack.get()));
   }
@@ -1346,15 +1350,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   // Update the suspender state.
   Tagged<WasmSuspenderObject> active_suspender =
       isolate->isolate_data()->active_suspender();
-  if (v8_flags.wasm_wasmfx) {
-    // The active suspender is about to become inactive. Record the currently
-    // active stack (which may have changed due to WasmFX) for when we
-    // return to this suspender.
-    active_suspender->set_stack(isolate,
-                                isolate->isolate_data()->active_stack());
-  }
+  // The active suspender is about to become inactive. Record the currently
+  // active stack for when we return to this suspender.
+  DCHECK_NULL(active_suspender->stack());
+  active_suspender->set_stack(isolate->isolate_data()->active_stack());
   suspender->set_parent(active_suspender);
-  suspender->set_stack(isolate, target_stack.get());
+  suspender->set_stack(target_stack.get());
   // The active stack is updated in {Isolate::SwitchStacks}.
   isolate->isolate_data()->set_active_suspender(*suspender);
 
@@ -2131,6 +2132,14 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
           isolate};
 }
 
+// Returns the canonical rtt map at `index`, or an arbitrary non-map value if
+// the weak slot is cleared or was never set.
+Tagged<Object> CanonicalRttMap(Isolate* isolate, uint32_t index) {
+  // Slots hold a weak Map, undefined, or a cleared reference; never a Smi.
+  return MakeStrong(Cast<MaybeWeak<HeapObject>>(
+      isolate->heap()->wasm_canonical_rtts()->get(index)));
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
@@ -2146,15 +2155,12 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
   DirectHandle<Object> constructors(args[3], isolate);
   {
-    Tagged<Object> expected_prototypes_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index));
-    Tagged<Object> expected_functions_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index));
-    Tagged<Object> expected_data_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index));
+    Tagged<Object> expected_prototypes_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index);
+    Tagged<Object> expected_functions_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index);
+    Tagged<Object> expected_data_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index);
     if (prototypes->map() != expected_prototypes_map ||
         functions->map() != expected_functions_map ||
         data->map() != expected_data_map) {
@@ -2165,9 +2171,9 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   // Arrays on the heap can move on GC, so we create an immovable copy of
   // the data we'll need to decode.
   uint32_t length = data->length();
-  base::OwnedVector<uint8_t> immovable_data;
+  base::UniqueArray<uint8_t> immovable_data;
   if (length) {
-    immovable_data = base::OwnedCopyOf(
+    immovable_data = base::UniqueCopyOf(
         reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
   }
 
@@ -2282,8 +2288,7 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
                     : wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
           : (shared ? wasm::TypeCanonicalizer::kPredefinedArrayI16SharedIndex
                     : wasm::TypeCanonicalizer::kPredefinedArrayI16Index);
-  Tagged<Object> expected_map =
-      MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(expected.index));
+  Tagged<Object> expected_map = CanonicalRttMap(isolate, expected.index);
   // If the expected_map has been cleared or never even created, then there's
   // no chance of a match anyway.
   if (obj->map() != expected_map) {
@@ -3029,12 +3034,18 @@ RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
 // Since TSAN does not know about release fences, we must manually define the
 // synchronization between object initialization and reads from that object. We
 // add a TSAN_RELEASE after the object-initialization release fence, and a
-// TSAN_ACQUIRE at the beginning of each read-only builtin (future work: also,
-// before every read of a shared object in generated code). Explainer:
+// TSAN_ACQUIRE
+// - at the beginning of each read-only builtin,
+// - before every read of a shared object in generated code, and
+// - whenever an object crosses the Wasm->JS boundary.
+// Explainer:
 // https://docs.google.com/document/d/17RLOdAFJ2HFA4hE83wSsTYdRwHV4ZBiX_jtOUp0qatw/edit?usp=sharing
 RUNTIME_FUNCTION(Runtime_TsanAcquireForInitializationFence) {
   DCHECK_EQ(1, args.length());
-  TSAN_ACQUIRE(Cast<HeapObject>(args[0]).address());
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
+  Tagged<HeapObject> arg = Cast<HeapObject>(args[0]);
+  if (HeapLayout::InWritableSharedSpace(arg)) TSAN_ACQUIRE(arg.address());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 #endif  // V8_IS_TSAN

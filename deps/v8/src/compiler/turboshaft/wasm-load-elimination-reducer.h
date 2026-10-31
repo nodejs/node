@@ -13,6 +13,7 @@
 
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
@@ -590,13 +591,31 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     VerifySingleReplacement(actual_idx, replacement);
   }
 
-#define VERIFY(Name, ig_index, op, replacement)                      \
-  if (v8_flags.turboshaft_verify_load_elimination) {                 \
-    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op); \
-    VerifyReplacement(actual_idx, replacement);                      \
+  void VerifyStringAsWtf16(OpIndex actual_idx, OpIndex replacement) {
+    IF_NOT (__ Equal(actual_idx, replacement,
+                     RegisterRepresentation::Tagged())) {
+      V<Word32> is_equal = __ template WasmCallBuiltinThroughJumptable<
+          deprecated::BuiltinCallDescriptor::WasmStringEqual>(
+          {actual_idx, replacement});
+      IF_NOT (is_equal) {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
+#define VERIFY(Name, ig_index, op, replacement, condition)            \
+  if (v8_flags.turboshaft_verify_load_elimination && condition) {     \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);  \
+    if (!actual_idx.valid()) {                                        \
+      DCHECK(__ generating_unreachable_operations());                 \
+    } else if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) { \
+      VerifyStringAsWtf16(actual_idx, replacement);                   \
+    } else {                                                          \
+      VerifyReplacement(actual_idx, replacement);                     \
+    }                                                                 \
   }
 #else
-#define VERIFY(Name, ig_index, op, replacement)
+#define VERIFY(Name, ig_index, op, replacement, condition)
 #endif  // DEBUG
 
 #define EMIT_OP(Name) /*                                       force 80 cols*/ \
@@ -605,7 +624,7 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);          \
       if (ig_replacement_index.valid()) {                                      \
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);       \
-        VERIFY(Name, ig_index, op, replacement)                                \
+        VERIFY(Name, ig_index, op, replacement, true)                          \
         return replacement;                                                    \
       }                                                                        \
     }                                                                          \
@@ -624,7 +643,9 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
-        VERIFY(StructGet, ig_index, op, replacement)
+        // We do not verify an eliminated struct.get on a shared base as another
+        // thread might have modified the struct field in the meantime.
+        VERIFY(StructGet, ig_index, op, replacement, !op.type->is_shared());
         return replacement;
       }
     }

@@ -11760,6 +11760,48 @@ TEST_F(AssemblerArm64Test, scvtf_ucvtf_float) {
   TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
 
+TEST_F(AssemblerArm64Test, scvtf_ucvtf_upper_bits) {
+  SETUP();
+  START();
+
+  __ Movi(v0.V16B(), 0xFF);
+  __ Movi(v1.V16B(), 0xFF);
+  __ Movi(v4.V16B(), 0xFF);
+  __ Movi(v5.V16B(), 0xFF);
+  __ Movi(v6.V16B(), 0xFF);
+  __ Movi(v7.V16B(), 0xFF);
+
+  __ Mov(w0, 42);
+  __ Dup(v2.V2S(), w0);
+  __ Dup(v3.V2S(), w0);
+
+  // Vector 2S integer-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v0.V2S(), v2.V2S());
+  __ Scvtf(v1.V2S(), v3.V2S());
+
+  // Vector 2S fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v4.V2S(), v2.V2S(), 1);
+  __ Scvtf(v5.V2S(), v3.V2S(), 1);
+
+  // Scalar 1D fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Mov(x0, 42);
+  __ Fmov(v8_.V1D(), x0);
+  __ Ucvtf(v6.V1D(), v8_.V1D(), 1);
+  __ Scvtf(v7.V1D(), v8_.V1D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x4228000042280000, q0);
+  CHECK_EQUAL_128(0, 0x4228000042280000, q1);
+  // 42 >> 1 = 21.0f = 0x41a80000
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q4);
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q5);
+  // 42.0 / 2.0 = 21.0 = 0x4035000000000000
+  CHECK_EQUAL_128(0, 0x4035000000000000, q6);
+  CHECK_EQUAL_128(0, 0x4035000000000000, q7);
+}
+
 TEST_F(AssemblerArm64Test, system_mrs) {
   SETUP();
 

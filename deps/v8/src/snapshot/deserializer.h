@@ -50,11 +50,15 @@ class Deserializer : public SerializerDeserializer {
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(IsolateT* isolate, base::Vector<const uint8_t> payload,
+  Deserializer(IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
+               base::Vector<const uint8_t> trusted_payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 
   void DeserializeDeferredObjects();
+  // For code caches. The untrusted section has the root and is read first.
+  DirectHandle<HeapObject> DeserializeUntrustedSection();
+  void DeserializeTrustedSection();
 
   // Create Log events for newly deserialized objects.
   void LogNewObjectEvents();
@@ -146,6 +150,11 @@ class Deserializer : public SerializerDeserializer {
     DirectHandle<HeapObject> Get(int index) {
       DCHECK(!circular_queue_[index].is_null());
       return circular_queue_[index];
+    }
+
+    void Reset() {
+      for (auto& entry : circular_queue_) entry = {};
+      index_ = 0;
     }
 
    private:
@@ -278,7 +287,7 @@ class Deserializer : public SerializerDeserializer {
                                 InstanceType instance_type,
                                 SnapshotSpace space);
 
-  Tagged<HeapObject> Allocate(AllocationType allocation, int size,
+  Tagged<HeapObject> Allocate(AllocationType allocation, uint32_t size,
                               AllocationAlignment alignment);
 
   // Cached current isolate.
@@ -325,6 +334,9 @@ class Deserializer : public SerializerDeserializer {
   std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
   int num_unresolved_forward_refs_ = 0;
 
+  const base::Vector<const uint8_t> trusted_payload_;
+  std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
+
   const bool deserializing_user_code_;
 
   bool next_reference_is_weak_ = false;
@@ -357,7 +369,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Record the previous object allocated for DCHECKs.
   DirectHandle<HeapObject> previous_allocation_obj_;
-  int previous_allocation_size_ = 0;
+  uint32_t previous_allocation_size_ = 0;
 #endif  // DEBUG
 };
 
