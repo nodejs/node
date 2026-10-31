@@ -2336,6 +2336,15 @@ DHPointer::CheckResult DHPointer::check() {
   // through the provider instead of preserving the historical verifyError.
   if (group_name_ != nullptr) return CheckResult::NONE;
 
+  // Like DH_check(), skip primality checks for groups OpenSSL recognizes from
+  // explicitly supplied parameters.
+  size_t group_name_len = 0;
+  if (dh_ &&
+      EVP_PKEY_get_group_name(dh_.get(), nullptr, 0, &group_name_len) == 1 &&
+      group_name_len > 0) {
+    return CheckResult::NONE;
+  }
+
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   DeleteFnPtr<BIGNUM, BN_free> q;
