@@ -26,17 +26,22 @@ try {
   makefile.close();
 }
 
-const outdir = new URL('../../out/doc/api', import.meta.url);
+const outdir = new URL('../../out/doc/api/', import.meta.url);
 const files = await fs.readdir(outdir);
 
-// Explicitly check for `all.html` and `all.json` as there is no corresponding `all.md` file in `doc/api`.
-assert(files.includes('all.html'), `all.html was not generated (checked ${files})`);
-assert(files.includes('all.json'), `all.json was not generated (checked ${files})`);
+// Explicitly check for `index.html`, `all.html` and `all.json` as there are no
+// corresponding Markdown files in `doc/api`.
+const expectedExtras = ['index.html', 'all.html', 'all.json'];
+for (const name of expectedExtras) {
+  assert(files.includes(name), `${name} was not generated (checked ${files})`);
+}
 
 // Check that every markdown file in `doc/api` was processed.
+const sources = [];
 for await (const file of await fs.opendir(new URL('../../doc/api/', import.meta.url))) {
   // Only expect markdown files in doc/api.
-  assert(path.extname(file.name), 'md');
+  assert.strictEqual(path.extname(file.name), '.md');
+  sources.push(path.basename(file.name, '.md'));
 
   // Always expect markdown file in out/doc/api.
   assert(files.includes(file.name), `${file.name} not found (checked ${files})`);
@@ -48,7 +53,23 @@ for await (const file of await fs.opendir(new URL('../../doc/api/', import.meta.
     assert(!files.includes(htmlFile), `${htmlFile} was unexpectedly generated (checked ${files})`);
     assert(!files.includes(jsonFile), `${jsonFile} was unexpectedly generated (checked ${files})`);
   } else {
-    assert(files.includes(htmlFile), `${htmlFile} was not generated (checked ${files})`);
-    assert(files.includes(jsonFile), `${jsonFile} was not generated (checked ${files})`);
+    for (const generated of [htmlFile, jsonFile]) {
+      assert(files.includes(generated), `${generated} was not generated (checked ${files})`);
+      const { size } = await fs.stat(new URL(generated, outdir));
+      assert.notStrictEqual(size, 0, `${generated} is empty`);
+    }
   }
+}
+
+// Every generated page must come from a current Markdown file, so a stale
+// `out/doc/api` (e.g. from a renamed document) is noticed.
+const expectedPages = ['404.html', 'apilinks.json', ...expectedExtras];
+for (const name of files) {
+  const extension = path.extname(name);
+  if (extension !== '.html' && extension !== '.json') continue;
+  if (expectedPages.includes(name)) continue;
+  assert(
+    sources.includes(path.basename(name, extension)),
+    `Unexpected output: out/doc/api/${name}, remove and rerun.`,
+  );
 }
