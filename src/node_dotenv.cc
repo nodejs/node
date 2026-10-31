@@ -151,6 +151,12 @@ void Dotenv::ParseContent(const std::string_view input) {
   lines.erase(std::remove(lines.begin(), lines.end(), '\r'), lines.end());
 
   std::string_view content = lines;
+
+  // Strip leading UTF-8 Byte Order Mark (BOM) if present
+  if (content.rfind("\xEF\xBB\xBF", 0) == 0) {
+    content = content.substr(3);
+  }
+
   content = trim_spaces(content);
 
   std::string_view key;
