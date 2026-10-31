@@ -25,6 +25,7 @@ using v8::Context;
 using v8::DictionaryTemplate;
 using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::IntegrityLevel;
 using v8::Local;
 using v8::MaybeLocal;
@@ -319,6 +320,10 @@ MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
 void Permission::ThrowAccessDenied(Environment* env,
                                    PermissionScope perm,
                                    std::string_view res) {
+  if (!env->can_call_into_js()) {
+    return;
+  }
+  HandleScope handle_scope(env->isolate());
   Local<Value> err;
   if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
     env->isolate()->ThrowException(err);
@@ -331,6 +336,10 @@ void Permission::AsyncThrowAccessDenied(Environment* env,
                                         fs::FSReqBase* req_wrap,
                                         PermissionScope perm,
                                         std::string_view res) {
+  if (!env->can_call_into_js()) {
+    return;
+  }
+  HandleScope handle_scope(env->isolate());
   Local<Value> err;
   if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
     return req_wrap->Reject(err);

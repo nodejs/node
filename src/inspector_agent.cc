@@ -1051,15 +1051,9 @@ void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
 }
 
 void Agent::WaitForDisconnect() {
-  THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
-                                    permission::PermissionScope::kInspector,
-                                    "WaitForDisconnect");
-  if (!parent_env_->should_create_inspector() && !client_) {
-    ThrowUninitializedInspectorError(parent_env_);
+  if (client_ == nullptr) {
     return;
   }
-
-  CHECK_NOT_NULL(client_);
   bool is_worker = parent_handle_ != nullptr;
   parent_handle_.reset();
   if (client_->hasConnectedSessions() && !is_worker) {
