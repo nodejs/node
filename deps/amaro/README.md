@@ -1,11 +1,25 @@
 # Amaro
 
-Amaro is a wrapper around `@swc/wasm-typescript`, a WebAssembly port of the SWC TypeScript parser.
+Amaro is a Node.js wrapper around the [SWC](https://swc.rs) TypeScript parser and type stripper. Its Rust core in `crates/amaro` depends on the published SWC crates and is compiled to WebAssembly.
 It's used as an internal in Node.js for [Type Stripping](https://nodejs.org/api/typescript.html#type-stripping) but can also be used as a standalone package.
 
 > Amaro means "bitter" in Italian. It's a reference to [Mount Amaro](https://en.wikipedia.org/wiki/Monte_Amaro_(Abruzzo)) on whose slopes this package was conceived.
 
 This package provides a stable API for the TypeScript parser and allows users to upgrade to the latest version of TypeScript transpiler independently from the one used internally in Node.js.
+
+## Building from source
+
+The WebAssembly module is not checked in. Building it requires Docker, which
+runs the Rust build inside the [Node.js wasm-builder](https://github.com/nodejs/wasm-builder)
+container:
+
+```bash
+npm run build:wasm
+npm run build
+npm test
+```
+
+Releases build the module in CI before publishing.
 
 ## How to Install
 
