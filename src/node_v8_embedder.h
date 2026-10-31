@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cstdint>
+#include "v8-sandbox.h"
 
 namespace node {
 
@@ -18,6 +19,27 @@ enum EmbedderDataTag : uint16_t {
   // slots indexed by ContextEmbedderIndex.
   kPerContextData,
 };
+
+// Tags for cppgc-managed wrappers passed to v8::Object::Wrap(). Each wrapper
+// type needs its own tag so that, with the V8 sandbox enabled, unwrapping an
+// object as the wrong type yields nullptr.
+enum class CppgcWrapperTag : uint16_t {
+  // Used by the deprecated SetCppgcReference(), which wraps embedder types
+  // unknown to Node.js.
+  kSetCppgcReference =
+      static_cast<uint16_t>(v8::CppHeapPointerTag::kFirstEmbedderWrappableTag),
+  kContextifyContext,
+  kContextifyScript,
+  kLast = kContextifyScript,
+};
+
+static_assert(
+    static_cast<uint16_t>(CppgcWrapperTag::kLast) <=
+    static_cast<uint16_t>(v8::CppHeapPointerTag::kLastEmbedderWrappableTag));
+
+constexpr v8::CppHeapPointerTag ToCppHeapPointerTag(CppgcWrapperTag tag) {
+  return static_cast<v8::CppHeapPointerTag>(tag);
+}
 
 }  // namespace node
 

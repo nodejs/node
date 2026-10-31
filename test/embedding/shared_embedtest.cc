@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     v8::Local<v8::Object> obj = v8::Object::New(isolate);
     Wrappable* wrappable = cppgc::MakeGarbageCollected<Wrappable>(
         isolate->GetCppHeap()->GetAllocationHandle());
-    v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
+    v8::Object::Wrap<v8::CppHeapPointerTag::kFirstEmbedderWrappableTag>(
         isolate, obj, wrappable);
     v8::Local<v8::String> source =
         v8::String::NewFromUtf8Literal(isolate, "'Hello' + ', World!'");

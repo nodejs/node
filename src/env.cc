@@ -668,7 +668,7 @@ IsolateData::~IsolateData() {
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
                        v8::Object::Wrappable* wrappable) {
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
+  v8::Object::Wrap<ToCppHeapPointerTag(CppgcWrapperTag::kSetCppgcReference)>(
       isolate, object, wrappable);
 }
 

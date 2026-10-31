@@ -15,7 +15,7 @@ void CppgcMixin::Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj) {
   ptr->traced_reference_ = v8::TracedReference<v8::Object>(isolate, obj);
   // Note that ptr must be of concrete type T in Wrap.
   auto* wrappable = static_cast<v8::Object::Wrappable*>(ptr);
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj, wrappable);
+  v8::Object::Wrap<T::kCppHeapPointerTag>(isolate, obj, wrappable);
   // Keep the layout consistent with BaseObjects.
   obj->SetAlignedPointerInInternalField(
       kEmbedderType,
@@ -32,19 +32,13 @@ void CppgcMixin::Wrap(T* ptr, Environment* env, v8::Local<v8::Object> obj) {
 
 template <typename T>
 T* CppgcMixin::Unwrap(v8::Local<v8::Object> obj) {
-  // We are not using v8::Object::Unwrap currently because that requires
-  // access to isolate which the ASSIGN_OR_RETURN_UNWRAP macro that we'll shim
-  // with ASSIGN_OR_RETURN_UNWRAP_GC doesn't take, and we also want a
-  // signature consistent with BaseObject::Unwrap() to avoid churn. Since
-  // cppgc-managed objects share the same layout as BaseObjects, just unwrap
-  // from the pointer in the internal field, which should be valid as long as
-  // the object is still alive.
+  // The isolate is not passed in to keep the signature consistent with
+  // BaseObject::Unwrap() and the ASSIGN_OR_RETURN_UNWRAP_CPPGC macro.
   if (obj->InternalFieldCount() != T::kInternalFieldCount) {
     return nullptr;
   }
-  T* ptr = static_cast<T*>(obj->GetAlignedPointerFromInternalField(
-      T::kSlot, EmbedderDataTag::kDefault));
-  return ptr;
+  return v8::Object::Unwrap<T::kCppHeapPointerTag, T>(v8::Isolate::GetCurrent(),
+                                                      obj);
 }
 
 v8::Local<v8::Object> CppgcMixin::object() const {
