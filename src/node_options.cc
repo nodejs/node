@@ -1818,6 +1818,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "if it has not exited after the given duration (e.g. 30s)",
             &PerProcessOptions::process_timeout);
 
+  AddOption("--trace-sigterm",
+            "enable printing JavaScript stacktrace on SIGTERM",
+            BOOL_FIELD(trace_sigterm),
+            kAllowedInEnvvar);
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 
   AddOption("--node-memory-debug",
