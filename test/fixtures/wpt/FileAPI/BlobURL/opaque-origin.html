@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Opaque origin blob URL created from workers</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+</head>
+<body>
+<script>
+
+promise_test(t => {
+  return new Promise((resolve) => {
+    const worker_code = `
+      const blob = new Blob([''], {type: 'text/javascript'});
+      const url = URL.createObjectURL(blob);
+      self.postMessage(url);
+    `;
+    const worker = new Worker("data:text/javascript," + encodeURIComponent(worker_code));
+    worker.onmessage = t.step_func(e => {
+      assert_regexp_match(e.data, /^blob:null\//, "Blob URL should have 'null' as serialized origin");
+      resolve();
+    });
+  });
+}, "Blob URL created from data URL dedicated worker should have 'null' origin");
+
+promise_test(t => {
+  return new Promise((resolve) => {
+    const worker_code = `
+      self.onconnect = e => {
+        const blob = new Blob([''], {type: 'text/javascript'});
+        const url = URL.createObjectURL(blob);
+        e.ports[0].postMessage(url);
+      };
+    `;
+    const worker = new SharedWorker("data:text/javascript," + encodeURIComponent(worker_code));
+    worker.port.onmessage = t.step_func(e => {
+      assert_regexp_match(e.data, /^blob:null\//, "Blob URL should have 'null' as serialized origin");
+      resolve();
+    });
+    worker.port.start();
+  });
+}, "Blob URL created from data URL shared worker should have 'null' origin");
+
+</script>
+</body>
+</html>
