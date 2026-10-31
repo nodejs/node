@@ -972,6 +972,9 @@ export interface CryptoBinding {
   getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
   getMacs(): string[];
+  getX509CertificateSnapshot(
+    certificate: InternalCryptoBinding.X509CertificateHandle,
+  ): InternalCryptoBinding.Buffer[];
   isCryptoKey(key: unknown): boolean;
   isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
@@ -997,6 +1000,9 @@ export interface CryptoBinding {
     passphrase?: InternalCryptoBinding.ByteSource,
   ): InternalCryptoBinding.PKCS12ParseResult;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
+  parseX509Snapshot(
+    snapshot: ArrayBufferView[],
+  ): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;
   privateEncrypt: InternalCryptoBinding.PublicKeyCipher;
   publicDecrypt: InternalCryptoBinding.PublicKeyCipher;

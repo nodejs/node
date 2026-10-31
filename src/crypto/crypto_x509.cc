@@ -128,6 +128,23 @@ std::shared_ptr<const X509CertificateSnapshot> X509CertificateSnapshot::Create(
       new X509CertificateSnapshot(std::move(certificates)));
 }
 
+std::shared_ptr<const X509CertificateSnapshot> X509CertificateSnapshot::Create(
+    std::vector<DER> certificates) {
+  if (certificates.empty()) return {};
+
+  for (auto& certificate : certificates) {
+    auto cert = ParseCertificate(certificate);
+    if (!cert) return {};
+
+    auto der = EncodeCertificate(cert.view());
+    if (!der.has_value()) return {};
+    certificate = std::move(der.value());
+  }
+
+  return std::shared_ptr<const X509CertificateSnapshot>(
+      new X509CertificateSnapshot(std::move(certificates)));
+}
+
 X509Pointer X509CertificateSnapshot::Parse(size_t index) const {
   if (index >= certificates_.size()) return {};
   return ParseCertificate(certificates_[index]);
@@ -1065,6 +1082,76 @@ void X509Certificate::NewFromHandle(const FunctionCallbackInfo<Value>& args) {
                       issuer);
 }
 
+void X509Certificate::ParseSnapshot(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  if (args.Length() != 1 || !args[0]->IsArray()) {
+    THROW_ERR_INVALID_ARG_TYPE(env,
+                               "The \"snapshot\" argument must be an Array");
+    return;
+  }
+
+  Local<Array> input = args[0].As<Array>();
+  std::vector<X509CertificateSnapshot::DER> certificates;
+  certificates.reserve(input->Length());
+  for (uint32_t i = 0; i < input->Length(); i++) {
+    Local<Value> value;
+    if (!input->Get(context, i).ToLocal(&value)) return;
+    if (!value->IsArrayBufferView()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "The \"snapshot\" entries must be ArrayBufferViews");
+      return;
+    }
+
+    ArrayBufferViewContents<unsigned char> contents(
+        value.As<ArrayBufferView>());
+    certificates.emplace_back(contents.data(),
+                              contents.data() + contents.length());
+  }
+
+  auto snapshot = X509CertificateSnapshot::Create(std::move(certificates));
+  if (!snapshot) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to create X.509 certificate snapshot");
+    return;
+  }
+
+  Local<Object> cert;
+  if (New(env, std::move(snapshot)).ToLocal(&cert)) {
+    args.GetReturnValue().Set(cert);
+  }
+}
+
+void X509Certificate::GetSnapshot(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  if (args.Length() != 1 || !HasInstance(env, args[0])) {
+    THROW_ERR_INVALID_ARG_TYPE(env,
+                               "The \"certificate\" argument must be an "
+                               "X509CertificateHandle");
+    return;
+  }
+
+  X509Certificate* cert = Unwrap<X509Certificate>(args[0].As<Object>());
+  CHECK_NOT_NULL(cert);
+  CHECK_LT(cert->snapshot_index_, cert->snapshot_->size());
+  const size_t count = cert->snapshot_->size() - cert->snapshot_index_;
+  CHECK_LE(count, static_cast<size_t>(std::numeric_limits<int>::max()));
+  Local<Array> output = Array::New(env->isolate(), static_cast<int>(count));
+  for (size_t i = 0; i < count; i++) {
+    const auto& der = cert->snapshot_->at(cert->snapshot_index_ + i);
+    Local<Object> buffer;
+    if (!Buffer::Copy(
+             env, reinterpret_cast<const char*>(der.data()), der.size())
+             .ToLocal(&buffer) ||
+        !output->CreateDataProperty(context, static_cast<uint32_t>(i), buffer)
+             .FromMaybe(false)) {
+      return;
+    }
+  }
+  args.GetReturnValue().Set(output);
+}
+
 void X509Certificate::CreateX509CertificateClass(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1324,6 +1411,9 @@ void X509Certificate::Initialize(Environment* env, Local<Object> target) {
   SetMethodNoSideEffect(
       env->context(), target, "isX509Certificate", IsX509Certificate);
   SetMethod(env->context(), target, "parseX509", Parse);
+  SetMethod(env->context(), target, "parseX509Snapshot", ParseSnapshot);
+  SetMethodNoSideEffect(
+      env->context(), target, "getX509CertificateSnapshot", GetSnapshot);
 
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT);
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
@@ -1339,6 +1429,8 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(IsX509Certificate);
   registry->Register(NewFromHandle);
   registry->Register(Parse);
+  registry->Register(ParseSnapshot);
+  registry->Register(GetSnapshot);
   registry->Register(Subject);
   registry->Register(SubjectAltName);
   registry->Register(InfoAccess);
