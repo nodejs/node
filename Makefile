@@ -402,7 +402,12 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
+DOC_KIT ?= tools/doc/node_modules/@doc-kit/cli/bin/cli.mjs
+ifeq ($(V),1)
+DOC_KIT_LOG_LEVEL ?= debug
+else
+DOC_KIT_LOG_LEVEL ?= info
+endif
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
@@ -886,8 +891,10 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-# Generate all doc files (individual and all.html/all.json) in a single doc-kit call
-# Using grouped targets (&:) so Make knows one command produces all outputs
+# Generate all doc files (individual and all.html/all.json) in a single doc-kit call.
+# A stamp tells Make that one command produces them all; a grouped target (&:)
+# needs GNU Make 4.3, and older ones (4.2.1 on RHEL 8) rerun the whole build for
+# every output that's still missing.
 ifeq ($(OSTYPE),aix)
 # TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
@@ -902,23 +909,22 @@ else ifeq ($(ARCHTYPE),riscv64)
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(DESTCPU) machines)"
 else
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
+out/doc/.docbuildstamp: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t legacy-html-all \
-			-t legacy-json-all \
-			-i doc/api/*.md \
-			--ignore $(skip_apidoc_files) \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/web.doc-kit.config.mjs \
 			-o out/doc/api \
-			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			--index doc/api/index.md \
-			--type-map doc/type-map.json \
+			$(if $(JOBS),-p $(JOBS)) \
 		) \
 	fi
+	@touch $@
+
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json: out/doc/.docbuildstamp
 endif
 
 out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
@@ -927,13 +933,11 @@ out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/web.doc-kit.config.mjs \
 			-t llms-txt \
-			-i doc/api/*.md \
-			--ignore $(skip_apidoc_files) \
 			-o $(@D) \
-			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			--type-map doc/type-map.json \
 		) \
 	fi
 
@@ -943,12 +947,10 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t api-links \
-			-i lib/*.js \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
+			--config-file tools/doc/api-links.doc-kit.config.mjs \
 			-o $(@D) \
-			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			--type-map doc/type-map.json \
 		) \
 	fi
 
@@ -962,6 +964,7 @@ node.1: doc/api/cli.md tools/doc/node_modules
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 			-o doc \
@@ -1505,6 +1508,7 @@ tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
 		$(RM) -r tools/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \

@@ -1,74 +1,72 @@
 import * as common from '../common/index.mjs';
 
-import assert from 'assert';
-import fs from 'fs';
-import path from 'path';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 
 if (common.isWindows) {
   common.skip('`make doc` does not run on Windows');
 }
 
-// This tests that `make doc` generates the documentation properly.
-// Note that for this test to pass, `make doc` must be run first.
+// This tests that `make doc` generates the documentation properly: an HTML
+// page and a JSON file for every Markdown file under `doc/api`, and nothing
+// for anything else. Note that for this test to pass, `make doc` must be run
+// first.
 
 const apiURL = new URL('../../out/doc/api/', import.meta.url);
 const mdURL = new URL('../../doc/api/', import.meta.url);
-const allMD = fs.readdirSync(mdURL);
-const allDocs = fs.readdirSync(apiURL);
-assert.ok(allDocs.includes('index.html'));
 
-const actualDocs = allDocs.filter(
-  (name) => {
-    const extension = path.extname(name);
-    return extension === '.html' || extension === '.json';
-  },
-);
+// Not all files under `doc/api` are expected in the generated output.
+// Parse out list of excluded files.
+let skippedDocs = [];
+const makefile = await fs.open(new URL('../../Makefile', import.meta.url));
+try {
+  // Find the `skip_apidoc_files = ` line and parse out the list of files.
+  for await (const line of makefile.readLines()) {
+    if (line.startsWith('skip_apidoc_files')) {
+      skippedDocs = line.split('=')[1]?.trim().split(/\s/).map((n) => path.basename(n));
+    }
+  }
+} finally {
+  makefile.close();
+}
 
-for (const name of actualDocs) {
-  if (name.startsWith('all.') || name === 'apilinks.json') continue;
+const sources = fs.readdirSync(mdURL)
+  .filter((name) => path.extname(name) === '.md')
+  .map((name) => path.basename(name, '.md'));
+const generated = fs.readdirSync(apiURL);
 
+// These have no Markdown source of their own.
+const expectedExtras = ['index.html', 'all.html', 'all.json'];
+for (const name of expectedExtras) {
+  assert.ok(generated.includes(name), `${name} was not generated`);
+}
+
+for (const name of sources) {
+  for (const extension of ['.html', '.json']) {
+    const file = `${name}${extension}`;
+    if (skippedDocs.includes(name)) {
+      assert.ok(!generated.includes(file), `${file} was unexpectedly generated`);
+      continue;
+    }
+    assert.ok(generated.includes(file), `${file} was not generated`);
+    assert.notStrictEqual(
+      fs.statSync(new URL(`./${file}`, apiURL)).size,
+      0,
+      `${file} is empty`,
+    );
+  }
+}
+
+// Every generated page must come from a current Markdown file, so a stale
+// `out/doc/api` (e.g. from a renamed document) is noticed.
+const expectedPages = ['404.html', 'apilinks.json', ...expectedExtras];
+for (const name of generated) {
+  const extension = path.extname(name);
+  if (extension !== '.html' && extension !== '.json') continue;
+  if (expectedPages.includes(name)) continue;
   assert.ok(
-    allMD.includes(name.replace(/\.\w+$/, '.md')),
+    sources.includes(path.basename(name, extension)),
     `Unexpected output: out/doc/api/${name}, remove and rerun.`,
-  );
-}
-
-const toc = fs.readFileSync(new URL('./index.html', apiURL), 'utf8');
-const re = /href=("([^/]+\.html)"|([^/]+\.html))/;
-const globalRe = new RegExp(re, 'g');
-const links = toc.match(globalRe);
-assert.notStrictEqual(links, null);
-
-// Filter out duplicate links, leave just filenames, add expected JSON files.
-const linkedHtmls = [...new Set(links)].map((link) => link.match(re)[1])
-                      .concat(['index.html']);
-const expectedJsons = linkedHtmls
-                       .map((name) => name.replace('.html', '.json'));
-const expectedDocs = linkedHtmls.concat(expectedJsons);
-const renamedDocs = ['policy.json', 'policy.html'];
-const skipedDocs = ['dtls.json', 'dtls.html', 'quic.json', 'quic.html'];
-
-// Test that all the relative links in the TOC match to the actual documents.
-for (const expectedDoc of expectedDocs) {
-  if (skipedDocs.includes(expectedDoc)) continue;
-  assert.ok(actualDocs.includes(expectedDoc), `${expectedDoc} does not exist`);
-}
-
-// Test that all the actual documents match to the relative links in the TOC
-// and that they are not empty files.
-for (const actualDoc of actualDocs) {
-  // When renaming the documentation, the old url is lost
-  // Unless the old file is still available pointing to the correct location
-  // 301 redirects are not yet automated. So keeping the old URL is a
-  // reasonable workaround.
-  if (renamedDocs.includes(actualDoc) || skipedDocs.includes(actualDoc) ||
-      actualDoc === 'apilinks.json') continue;
-  assert.ok(
-    expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
-
-  assert.notStrictEqual(
-    fs.statSync(new URL(`./${actualDoc}`, apiURL)).size,
-    0,
-    `${actualDoc} is empty`,
   );
 }
