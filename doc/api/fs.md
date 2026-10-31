@@ -897,6 +897,12 @@ If `len` is negative then `0` will be used.
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
 -->
 
 * `atime` {number|string|Date}
@@ -1537,6 +1543,12 @@ Changes the ownership on a symbolic link.
 added:
   - v14.5.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2275,6 +2287,12 @@ documentation for more detail.
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2287,7 +2305,8 @@ Change the file system timestamps of the object referenced by `path`.
 The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time, `Date`s, or a
-  numeric string like `'123456789.0'`.
+  numeric string like `'123456789.0'`. Negative values represent times before
+  the Unix epoch.
 * If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
@@ -3679,6 +3698,11 @@ If `len` is negative then `0` will be used.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3863,6 +3887,11 @@ added:
   - v14.5.0
   - v12.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5396,6 +5425,11 @@ and `fs.unwatchFile()` when possible.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5434,7 +5468,8 @@ Change the file system timestamps of the object referenced by `path`.
 The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time in seconds,
-  `Date`s, or a numeric string like `'123456789.0'`.
+  `Date`s, or a numeric string like `'123456789.0'`. Negative values represent
+  times before the Unix epoch.
 * If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
@@ -6412,6 +6447,11 @@ this API: [`fs.ftruncate()`][].
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
     description: Numeric strings, `NaN`, and `Infinity` are now allowed
@@ -6531,6 +6571,12 @@ See the POSIX lchown(2) documentation for more details.
 added:
   - v14.5.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
 -->
 
 * `path` {string|Buffer|URL}
@@ -7261,6 +7307,11 @@ Synchronous unlink(2). Returns `undefined`.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: Negative numeric times are no longer replaced with the
+                 current time, and instead represent times before the Unix
+                 epoch.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11919
     description: "`NaN`, `Infinity`, and `-Infinity` are no longer valid time
@@ -7986,6 +8037,10 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66634
+    description: On Windows, negative times are no longer reinterpreted as
+                 times after `2038-01-19T03:14:07Z`.
   - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/60789
     description: Added `Temporal.Instant` support.
@@ -8392,6 +8447,9 @@ The times in the stat object have the following semantics:
 
 Prior to Node.js 0.12, the `ctime` held the `birthtime` on Windows systems. As
 of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
+
+On Windows, times are limited to the range of a signed 32-bit number of seconds
+from the Unix epoch, so times after `2038-01-19T03:14:07Z` are not supported.
 
 ### Class: `fs.StatFs`
 
