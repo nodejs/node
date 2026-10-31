@@ -721,6 +721,34 @@ const regularFile = __filename;
   });
 }
 
+// fs.readlink
+{
+  fs.readlink(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  fs.readlink(bufferBlockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.throws(() => {
+    fs.readlinkSync(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.rejects(async () => {
+    await fsPromises.readlink(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  })).then(common.mustCall());
+}
+
 // fs.realpath (JS implementation, walks the path with lstat)
 {
   assert.throws(() => {
