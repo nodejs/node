@@ -482,6 +482,12 @@ When `signature` is omitted, the callback uses a default `void ()` signature.
 The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
 
+While a library has registered callbacks, it is not garbage collected, even if
+no JavaScript references to it remain. This keeps callback pointers held by
+native code valid until `library.unregisterCallback(pointer)` or
+`library.close()` is called. Unregister callbacks or close the library when
+they are no longer needed to avoid leaking it.
+
 ```cjs
 const { DynamicLibrary, suffix } = require('node:ffi');
 
