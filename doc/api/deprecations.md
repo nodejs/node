@@ -4458,7 +4458,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The `node:_http_agent`, `node:_http_client`, `node:_http_common`, `node:_http_incoming`,
 `node:_http_outgoing` and `node:_http_server` modules are deprecated as they should be considered
