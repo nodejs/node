@@ -201,7 +201,11 @@ testKeys.forEach(common.mustCall((file) => {
               zlibPairs.forEach(common.mustCall((pair) => {
                 const Def = pair[0];
                 const Inf = pair[1];
-                const opts = { level, windowBits, memLevel, strategy };
+                // Gzip requires windowBits >= 9; rejection of 8 is tested above.
+                if (Def === zlib.Gzip && windowBits === 8) {
+                  return;
+                }
+                const opts = { level, windowBits, memLevel, strategy, chunkSize };
 
                 const def = new Def(opts);
                 const inf = new Inf(opts);
