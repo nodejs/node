@@ -304,10 +304,10 @@ setTimeout(() => {
 ```
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
-there's an error. It is the application's responsibility to close it and make
-sure there's no file descriptor leak. If `autoClose` is set to true (default
-behavior), on `'error'` or `'end'` the file descriptor will be closed
-automatically.
+there's an error or the stream is destroyed. It is the application's
+responsibility to close it and make sure there's no file descriptor leak. If
+`autoClose` is set to true (default behavior), on `'error'` or `'end'` the file
+descriptor will be closed automatically.
 
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
@@ -352,9 +352,9 @@ the default `r`. The `encoding` can be any one of those accepted by {Buffer}.
 
 If `autoClose` is set to true (default behavior) on `'error'` or `'finish'`
 the file descriptor will be closed automatically. If `autoClose` is false,
-then the file descriptor won't be closed, even if there's an error.
-It is the application's responsibility to close it and make sure there's no
-file descriptor leak.
+then the file descriptor won't be closed, even if there's an error or the
+stream is destroyed. It is the application's responsibility to close it and
+make sure there's no file descriptor leak.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
