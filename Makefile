@@ -917,6 +917,7 @@ out/doc/.docbuildstamp: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 			$(DOC_KIT) generate \
 			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
+			--ignore $(skip_apidoc_files) \
 			-o out/doc/api \
 			-v $(VERSION) \
 			$(if $(JOBS),-p $(JOBS)) \
@@ -935,6 +936,7 @@ out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
 			$(DOC_KIT) generate \
 			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
+			--ignore $(skip_apidoc_files) \
 			-t llms-txt \
 			-o $(@D) \
 			-v $(VERSION) \

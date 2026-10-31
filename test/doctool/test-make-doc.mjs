@@ -16,20 +16,14 @@ if (common.isWindows) {
 const apiURL = new URL('../../out/doc/api/', import.meta.url);
 const mdURL = new URL('../../doc/api/', import.meta.url);
 
-// Not all files under `doc/api` are expected in the generated output.
-// Parse out list of excluded files.
-let skippedDocs = [];
-const makefile = await fs.open(new URL('../../Makefile', import.meta.url));
-try {
-  // Find the `skip_apidoc_files = ` line and parse out the list of files.
-  for await (const line of makefile.readLines()) {
-    if (line.startsWith('skip_apidoc_files')) {
-      skippedDocs = line.split('=')[1]?.trim().split(/\s/).map((n) => path.basename(n));
-    }
-  }
-} finally {
-  makefile.close();
-}
+// Not every file under `doc/api` is expected in the output: the Makefile
+// lists the ones to skip in `skip_apidoc_files`.
+const makefile = fs.readFileSync(new URL('../../Makefile', import.meta.url), 'utf8');
+const skippedDocs = makefile.split('\n')
+  .filter((line) => line.startsWith('skip_apidoc_files'))
+  .flatMap((line) => line.split('=')[1].trim().split(/\s+/))
+  .filter(Boolean)
+  .map((file) => path.basename(file, '.md'));
 
 const sources = fs.readdirSync(mdURL)
   .filter((name) => path.extname(name) === '.md')

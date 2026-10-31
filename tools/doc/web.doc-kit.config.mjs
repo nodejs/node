@@ -20,9 +20,8 @@ export default {
   ],
 
   global: {
+    // Files to skip are passed by the Makefile (`skip_apidoc_files`).
     input: [fromRoot('doc/api/*.md')],
-    // Keep in sync with `skip_apidoc_files` in the Makefile.
-    ignore: [fromRoot('doc/api/quic.md')],
     output: fromRoot('out/doc/api'),
 
     // Point every loadable URL at its local file so no network request is made.
