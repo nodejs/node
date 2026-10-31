@@ -25,6 +25,8 @@ macros:
 types:
   - type_name: struct_pollfd
   - type_name: nfds_t
+  - type_name: struct_timespec
+  - type_name: sigset_t
 enums: []
 functions:
   - name: poll
@@ -35,3 +37,12 @@ functions:
       - type: struct pollfd *
       - type: nfds_t
       - type: int
+  - name: ppoll
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: struct pollfd *
+      - type: nfds_t
+      - type: const struct timespec *__restrict
+      - type: const sigset_t *__restrict

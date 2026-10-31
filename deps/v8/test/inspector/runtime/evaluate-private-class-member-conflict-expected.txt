@@ -19,10 +19,26 @@ class StaticClass extends Klass {
 
 
 Running test: evaluatePrivateMembers
+Runtime.evaluate: `#name in (new ClassWithField)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:11
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Runtime.evaluate: `(new ClassWithField).#name`
 {
     className : Error
     description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:2
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Runtime.evaluate: `#name in (new ClassWithMethod)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:11
     objectId : <objectId>
     subtype : error
     type : object
@@ -35,6 +51,14 @@ Runtime.evaluate: `(new ClassWithMethod).#name`
     subtype : error
     type : object
 }
+Runtime.evaluate: `#name in (new ClassWithAccessor)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:11
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Runtime.evaluate: `(new ClassWithAccessor).#name`
 {
     className : Error
@@ -43,10 +67,20 @@ Runtime.evaluate: `(new ClassWithAccessor).#name`
     subtype : error
     type : object
 }
+Runtime.evaluate: `#name in StaticClass`
+{
+    type : boolean
+    value : true
+}
 Runtime.evaluate: `StaticClass.#name`
 {
     type : string
     value : child
+}
+Runtime.evaluate: `#name in (new StaticClass)`
+{
+    type : boolean
+    value : true
 }
 Runtime.evaluate: `(new StaticClass).#name`
 {

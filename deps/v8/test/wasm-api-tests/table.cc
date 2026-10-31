@@ -39,21 +39,18 @@ void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
 
 TEST_F(WasmCapiTest, Table) {
   const uint32_t table_index = builder()->AddTable(kWasmFuncRef, 2, 10);
-  builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);
+  builder()->AddExport("table", kExternalTable, table_index);
   const ModuleTypeIndex sig_i_i_index =
       builder()->AddSignature(wasm_i_i_sig(), true);
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
   uint8_t call_code[] = {
       WASM_CALL_INDIRECT(sig_i_i_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
-  AddExportedFunction(base::CStrVector("call_indirect"), call_code,
-                      sizeof(call_code), &call_sig);
+  AddExportedFunction("call_indirect", call_code, sizeof(call_code), &call_sig);
   uint8_t f_code[] = {WASM_LOCAL_GET(0)};
-  AddExportedFunction(base::CStrVector("f"), f_code, sizeof(f_code),
-                      wasm_i_i_sig());
+  AddExportedFunction("f", f_code, sizeof(f_code), wasm_i_i_sig());
   uint8_t g_code[] = {WASM_I32V_1(42)};
-  AddExportedFunction(base::CStrVector("g"), g_code, sizeof(g_code),
-                      wasm_i_i_sig());
+  AddExportedFunction("g", g_code, sizeof(g_code), wasm_i_i_sig());
   // Set table[1] to {f}, which has function index 1.
   builder()->SetIndirectFunction(table_index, 1, 1);
 

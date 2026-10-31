@@ -2499,10 +2499,10 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_osr_state(this, Label::kDeferred);
   // The quick initial OSR check. If it passes, we proceed on to more expensive
   // OSR logic.
-  static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
-  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::OsrState::MaybeHasMaglevOsrCodeBit::encode(
+                    true) > FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::OsrState::MaybeHasTurbofanOsrCodeBit::encode(
+                    true) > FeedbackVector::kMaxOsrUrgency);
 
   GotoIfNot(Uint32GreaterThanOrEqual(loop_depth, osr_state),
             &maybe_osr_because_osr_state);
@@ -2887,14 +2887,14 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
 // CreateClosure <index> <slot> <flags>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the
-// constant pool and with pretenuring controlled by |flags|.
+// constant pool. Uses the FastNewClosure builtin if FastNewClosureBit is set
+// in |flags|, otherwise calls the runtime.
 IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   TNode<Object> shared = LoadConstantPoolEntryAtOperandIndex(0);
   TNode<Uint32T> flags = BytecodeOperandFlag8(2);
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot = BytecodeOperandFeedbackSlot(1);
 
-  Label if_undefined(this);
   TNode<ClosureFeedbackCellArray> feedback_cell_array =
       LoadClosureFeedbackArray(LoadFunctionClosure());
   TNode<FeedbackCell> feedback_cell =
@@ -2914,25 +2914,10 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
   BIND(&if_slow);
   {
-    Label if_newspace(this), if_oldspace(this);
-    Branch(IsSetWord32<CreateClosureFlags::PretenuredBit>(flags), &if_oldspace,
-           &if_newspace);
-
-    BIND(&if_newspace);
-    {
-      TNode<Object> result =
-          CallRuntime(Runtime::kNewClosure, context, shared, feedback_cell);
-      SetAccumulator(result);
-      Dispatch();
-    }
-
-    BIND(&if_oldspace);
-    {
-      TNode<Object> result = CallRuntime(Runtime::kNewClosure_Tenured, context,
-                                         shared, feedback_cell);
-      SetAccumulator(result);
-      Dispatch();
-    }
+    TNode<Object> result =
+        CallRuntime(Runtime::kNewClosure, context, shared, feedback_cell);
+    SetAccumulator(result);
+    Dispatch();
   }
 }
 
@@ -3034,7 +3019,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(
       shared_info, offsetof(SharedFunctionInfo, flags_));
   TNode<BoolT> has_duplicate_parameters =
-      IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(flags);
+      IsSetWord32<SharedFunctionInfo::Flags::HasDuplicateParametersBit>(flags);
   Branch(has_duplicate_parameters, &if_duplicate_parameters,
          &if_not_duplicate_parameters);
 
@@ -3343,14 +3328,14 @@ IGNITION_HANDLER(ForInEnumerate, InterpreterAssembler) {
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
-  // The {enumerator} is either a Map or a FixedArray.
+  // The {enumerator} is either a Map, a FixedArray, or a ForInEnumeratorHolder.
   TNode<HeapObject> enumerator = CAST(GetAccumulator());
   TNode<UintPtrT> vector_index = BytecodeOperandFeedbackSlot(1);
   TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVector();
 
   TNode<HeapObject> cache_type = enumerator;  // Just to clarify the rename.
-  TNode<FixedArray> cache_array;
+  TNode<Union<FixedArray, ForInEnumeratorHolder>> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, maybe_feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kOptionalFeedback);
@@ -3374,26 +3359,90 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVector();
 
-  // Load the next key from the enumeration array.
-  TNode<JSAny> key = CAST(LoadFixedArrayElement(CAST(cache_array), index, 0));
-
-  // Check if we can use the for-in fast path potentially using the enum cache.
-  Label if_fast(this), if_slow(this, Label::kDeferred);
+  // Check if the expected map still matches that of the {receiver}. If so,
+  // {cache_array} is the enum cache keys FixedArray.
+  Label if_fast_enum_cache(this), if_not_fast_enum_cache(this);
   TNode<Map> receiver_map = LoadMap(receiver);
-  Branch(TaggedEqual(receiver_map, cache_type), &if_fast, &if_slow);
-  BIND(&if_fast);
+  Branch(TaggedEqual(receiver_map, cache_type), &if_fast_enum_cache,
+         &if_not_fast_enum_cache);
+
+  BIND(&if_fast_enum_cache);
   {
-    // Enum cache in use for {receiver}, the {key} is definitely valid.
-    SetAccumulator(key);
+    SetAccumulator(LoadFixedArrayElement(CAST(cache_array), index));
     Dispatch();
   }
-  BIND(&if_slow);
+
+  BIND(&if_not_fast_enum_cache);
   {
-    TNode<Object> result = ForInNextSlow(GetContext(), vector_index, receiver,
-                                         key, cache_type, maybe_feedback_vector,
-                                         UpdateFeedbackMode::kOptionalFeedback);
-    SetAccumulator(result);
-    Dispatch();
+    TVARIABLE(JSAny, var_key);
+    Label if_holder(this), if_fixed_array(this),
+        if_slow(this, Label::kDeferred);
+
+    TNode<Uint16T> instance_type = LoadInstanceType(CAST(cache_array));
+    Branch(InstanceTypeEqual(instance_type, FOR_IN_ENUMERATOR_HOLDER_TYPE),
+           &if_holder, &if_fixed_array);
+
+    BIND(&if_holder);
+    {
+      TNode<ForInEnumeratorHolder> holder = CAST(cache_array);
+      TNode<Smi> elements_length = LoadObjectField<Smi>(
+          holder, ObjectTraits<ForInEnumeratorHolder>::kElementsLengthOffset);
+
+      Label if_elements(this), if_named(this), check_validity(this);
+      Branch(SmiLessThan(index, elements_length), &if_elements, &if_named);
+
+      BIND(&if_elements);
+      {
+        var_key = NumberToString(index);
+        Goto(&check_validity);
+      }
+
+      BIND(&if_named);
+      {
+        TNode<FixedArray> named_keys = LoadObjectField<FixedArray>(
+            holder, ObjectTraits<ForInEnumeratorHolder>::kNamedKeysOffset);
+        TNode<Smi> named_index = SmiSub(index, elements_length);
+        var_key = CAST(LoadFixedArrayElement(named_keys, named_index));
+        Goto(&check_validity);
+      }
+
+      BIND(&check_validity);
+      {
+        Label if_holder_valid(this);
+        Branch(CheckHolderValidity(receiver, holder), &if_holder_valid,
+               &if_slow);
+
+        BIND(&if_holder_valid);
+        {
+          // Record feedback in case the FeedbackVector was lazily allocated
+          // inside the loop (after ForInPrepare). This avoids a deopt on OSR
+          // or subsequent optimization, because Maglev assumes
+          // kEnumCacheKeys/kEnumCacheKeysAndIndices when feedback is missing
+          // (kNone). UpdateFeedback only writes to the slot if the feedback
+          // value actually changes.
+          UpdateFeedback(SmiConstant(ForInFeedback::kEnumeratorHolder),
+                         maybe_feedback_vector, vector_index,
+                         UpdateFeedbackMode::kOptionalFeedback);
+          SetAccumulator(var_key.value());
+          Dispatch();
+        }
+      }
+    }
+
+    BIND(&if_fixed_array);
+    {
+      var_key = CAST(LoadFixedArrayElement(CAST(cache_array), index));
+      Goto(&if_slow);
+    }
+
+    BIND(&if_slow);
+    {
+      TNode<Object> result = ForInNextSlow(
+          GetContext(), vector_index, receiver, var_key.value(), cache_type,
+          maybe_feedback_vector, UpdateFeedbackMode::kOptionalFeedback);
+      SetAccumulator(result);
+      Dispatch();
+    }
   }
 }
 

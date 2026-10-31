@@ -21,7 +21,7 @@ frame size: 1
 parameter count: 1
 bytecode array length: 10
 bytecodes: [
-  /*   10 E> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   10 E> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star0),
                 B(SetPrototypeProperties), U8(1:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(1),
                 B(LdaUndefined),

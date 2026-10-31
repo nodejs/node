@@ -110,6 +110,7 @@
 #include "math/exp10m1f.h"
 #include "math/exp10m1f16.h"
 #include "math/exp2.h"
+#include "math/exp2bf16.h"
 #include "math/exp2f.h"
 #include "math/exp2f16.h"
 #include "math/exp2m1f.h"

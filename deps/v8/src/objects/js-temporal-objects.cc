@@ -28,9 +28,15 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
+#if __has_include("temporal/I128Nanoseconds.hpp")
+#include "temporal/I128Nanoseconds.hpp"
+#include "temporal/OwnedRelativeTo.hpp"
+#include "temporal/Unit.hpp"
+#else
 #include "temporal_rs/I128Nanoseconds.hpp"
 #include "temporal_rs/OwnedRelativeTo.hpp"
 #include "temporal_rs/Unit.hpp"
+#endif
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"

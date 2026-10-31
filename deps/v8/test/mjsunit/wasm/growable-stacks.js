@@ -15,7 +15,48 @@ function flatRange(upperBound, gen) {
   return res.flat();
 }
 
-function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = false) {
+function addActiveLocals(
+    func, numParams, numLocals = 600,
+    seedExpr = [kExprLocalGet, 0, kExprI64UConvertI32]) {
+  func.addLocals(kWasmI64, numLocals + 1);
+  const firstLocal = numParams;
+  const lastLocal = numParams + numLocals - 1;
+  const sumIdx = numParams + numLocals;
+  const body = [
+    ...seedExpr,
+    kExprI64Const, 1,
+    kExprI64Add,
+    kExprLocalSet, ...wasmUnsignedLeb(firstLocal),
+  ];
+  for (let i = firstLocal + 1; i <= lastLocal; ++i) {
+    body.push(
+        kExprLocalGet, ...wasmUnsignedLeb(i - 1),
+        kExprI64Const, 1,
+        kExprI64Add,
+        kExprLocalSet, ...wasmUnsignedLeb(i),
+    );
+  }
+  body.push(kExprI64Const, 0, kExprLocalSet, ...wasmUnsignedLeb(sumIdx));
+  for (let i = firstLocal; i <= lastLocal; ++i) {
+    body.push(
+        kExprLocalGet, ...wasmUnsignedLeb(sumIdx),
+        kExprLocalGet, ...wasmUnsignedLeb(i),
+        kExprI64Add,
+        kExprLocalSet, ...wasmUnsignedLeb(sumIdx),
+    );
+  }
+  body.push(
+      kExprLocalGet, ...wasmUnsignedLeb(sumIdx),
+      kExprI64Eqz,
+      kExprIf, kWasmVoid,
+      kExprUnreachable,
+      kExprEnd,
+  );
+  return body;
+}
+
+function growAndShrinkTwice(
+    depth, paramType, constFn, addOp, result, heavy = false) {
   const builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true).exportAs('depth');
   // To cover the large frame stack check, make the import return 512 extra
@@ -65,9 +106,7 @@ function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = fa
       ...flatRange(numIntArgs, constFn),
       kExprCallFunction, deep_calc.index,
     ]).exportFunc();
-  const js_import = new WebAssembly.Suspending((...args) => {
-    return Promise.resolve(args.concat(Array(extra_returns).fill(0n)))
-  })
+  const js_import = (...args) => args.concat(Array(extra_returns).fill(0n));
   const instance = builder.instantiate({ m: { import: js_import } });
   const wrapper = WebAssembly.promising(instance.exports.test);
   instance.exports.depth.value = depth;
@@ -257,13 +296,11 @@ function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = fa
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let main = builder.addFunction("main", kSig_v_v);
-  main.addLocals(kWasmI64, 8000);
-  main.addBody([
-  ]).exportFunc();
+  let main = builder.addFunction("main", kSig_v_i);
+  main.addBody(addActiveLocals(main, 1, 8000)).exportFunc();
 
   let wasm = builder.instantiate().exports;
-  WebAssembly.promising(wasm.main)();
+  WebAssembly.promising(wasm.main)(1);
 })();
 
 (function TestMaxParameters() {
@@ -273,16 +310,219 @@ function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = fa
                        [kExprI32Const, 0, kSimdPrefix, kExprI32x4Splat]];
   for (let i = 0; i < types.length; ++i) {
     let builder = new WasmModuleBuilder();
-    let sig = builder.addType(makeSig(Array(kSpecMaxFunctionParams).fill(types[i]), []));
-    let g = builder.addFunction('g', sig).addBody([]);
+    let globalIdx =
+        builder.addGlobal(kWasmI32, true, false, wasmI32Const(1)).index;
+    let sig = builder.addType(
+        makeSig(Array(kSpecMaxFunctionParams).fill(types[i]), []));
+    let g = builder.addFunction('g', sig);
+    g.addBody(addActiveLocals(
+        g, kSpecMaxFunctionParams, 600,
+        [kExprGlobalGet, globalIdx, kExprI64UConvertI32]));
+    builder.appendToTable([g.index]);
     let f = builder.addFunction('f', kSig_v_v);
     let f_body = [];
     for (let j = 0; j < kSpecMaxFunctionParams; j++) {
       f_body.push(...default_value[i]);
     }
-    f_body.push(kExprCallFunction, g.index);
+    f_body.push(kExprI32Const, 0, kExprCallIndirect, sig, 0);
     f.addBody(f_body).exportFunc();
     let instance = builder.instantiate();
     WebAssembly.promising(instance.exports.f)();
   }
+})();
+
+(function TestTieringCallIndirect() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(makeSig([kWasmI32], [kWasmI32]));
+
+  const target_A =
+      builder.addFunction('target_A', sig_index).addBody([kExprLocalGet, 0]);
+
+  const target_B = builder.addFunction('target_B', sig_index).addBody([
+    kExprLocalGet, 0, kExprI32Const, 2, kExprI32Add
+  ]);
+
+  builder.appendToTable([target_A.index, target_B.index]);
+
+  const test =
+      builder.addFunction('test', makeSig([kWasmI32, kWasmI32], [kWasmI32]));
+  test.addBody([
+        ...addActiveLocals(test, 2, 100),
+        kExprLocalGet, 0,
+        kExprIf, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kExprI32Sub,
+        kExprLocalGet, 1,
+        kExprCallFunction, test.index,
+        kExprDrop,
+        kExprEnd,
+        kExprLocalGet, 1,
+        kExprLocalGet, 0,
+        kExprIf, kWasmI32,
+        kExprI32Const, 1,
+        kExprElse,
+        kExprI32Const, 0,
+        kExprEnd,
+        kExprCallIndirect, sig_index, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const wrapper = WebAssembly.promising(instance.exports.test);
+
+  wrapper(0, 42);
+  %WasmTierUpFunction(instance.exports.test);
+
+  assertPromiseResult(wrapper(100, 42), res => assertEquals(44, res));
+})();
+
+(function TestMutualTailRecursionVaryingSignatures() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const gcImport = builder.addImport('m', 'gc', kSig_v_v);
+  const sigA = builder.addType(makeSig(Array(10).fill(kWasmI32), [kWasmI32]));
+  const sigB = builder.addType(makeSig(Array(20).fill(kWasmI32), [kWasmI32]));
+  const sigC = builder.addType(makeSig(Array(30).fill(kWasmI32), [kWasmI32]));
+
+  const caller = builder.addFunction('caller', sigA).exportFunc();
+  const funcA = builder.addFunction('funcA', sigA);
+  const funcB = builder.addFunction('funcB', sigB);
+  const funcC = builder.addFunction('funcC', sigC);
+
+  const caller_body = [];
+  for (let i = 0; i < 10; ++i) caller_body.push(kExprLocalGet, i);
+  caller_body.push(kExprCallFunction, funcA.index);
+  caller.addBody(caller_body);
+
+  const funcA_body = [
+    ...addActiveLocals(funcA, 10, 1000),
+    kExprLocalGet, 0,
+    kExprI32Eqz,
+    kExprIf, kWasmVoid,
+    kExprCallFunction, gcImport,
+    kExprLocalGet, 1,
+    kExprReturn,
+    kExprEnd,
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprLocalGet, 1,
+    kExprI32Const, 1,
+    kExprI32Add,
+  ];
+  for (let i = 2; i < 10; ++i) funcA_body.push(kExprLocalGet, i);
+  for (let i = 10; i < 20; ++i) funcA_body.push(kExprI32Const, i);
+  funcA_body.push(kExprReturnCall, funcB.index);
+  funcA.addBody(funcA_body);
+
+  const funcB_body = [
+    ...addActiveLocals(funcB, 20, 2000),
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprLocalGet, 1,
+    kExprI32Const, 2,
+    kExprI32Add,
+  ];
+  for (let i = 2; i < 20; ++i) funcB_body.push(kExprLocalGet, i);
+  for (let i = 20; i < 30; ++i) funcB_body.push(kExprI32Const, i);
+  funcB_body.push(kExprReturnCall, funcC.index);
+  funcB.addBody(funcB_body);
+
+  const funcC_body = [
+    ...addActiveLocals(funcC, 30, 4000),
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprLocalGet, 1,
+    kExprI32Const, 3,
+    kExprI32Add,
+  ];
+  for (let i = 2; i < 10; ++i) funcC_body.push(kExprLocalGet, i);
+  funcC_body.push(kExprReturnCall, funcA.index);
+  funcC.addBody(funcC_body);
+
+  const instance = builder.instantiate({m: {gc: () => gc()}});
+  const promising_caller = WebAssembly.promising(instance.exports.caller);
+
+  const rounds = 5;
+  const depth = rounds * 3;
+  const args = [depth, 0];
+  for (let i = 2; i < 10; ++i) args.push(i);
+  assertPromiseResult(
+      promising_caller(...args), res => assertEquals(rounds * 6, res));
+})();
+
+(function TestExceptionUnwindingAcrossSegments() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig = builder.addType(makeSig([kWasmI32, kWasmI32], [kWasmI32]));
+
+  const jsThrower = () => {
+    throw new Error('thrown from JS callback');
+  };
+  const imp = builder.addImport('env', 'jsThrower', makeSig([], []));
+
+  const step = builder.addFunction('step', sig);
+  step.addBody([
+    ...addActiveLocals(step, 2, 600),
+    kExprLocalGet, 0,
+    kExprI32Eqz,
+    kExprIf, kWasmVoid,
+    kExprCallFunction, imp,
+    kExprI32Const, 0,
+    kExprReturn,
+    kExprEnd,
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprLocalGet, 1,
+    kExprI32Const, 10,
+    kExprI32Add,
+    kExprCallFunction, step.index,
+  ]);
+
+  const entry = builder.addFunction('entry', sig);
+  entry.addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprCallFunction, step.index,
+  ]);
+
+  builder.addExport('main', entry.index);
+  const instance = builder.instantiate({env: {jsThrower}});
+  const promising_main = WebAssembly.promising(instance.exports.main);
+
+  assertPromiseResult(
+      promising_main(5, 0), v => assertUnreachable(),
+      e => assertEquals('thrown from JS callback', e.message));
+})();
+
+(function TestJSPIPromisingTailCalls() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig = builder.addType(makeSig([kWasmI32], [kWasmI32]));
+
+  const recurse = builder.addFunction('recurse', sig);
+  recurse.addBody([
+    kExprLocalGet, 0,
+    kExprI32Eqz,
+    kExprIf, kWasmVoid,
+    kExprI32Const, 42,
+    kExprReturn,
+    kExprEnd,
+    ...addActiveLocals(recurse, 1, 600),
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprReturnCall, recurse.index,
+  ]);
+
+  builder.addExport('main', recurse.index);
+  const instance = builder.instantiate();
+  const wrapper = WebAssembly.promising(instance.exports.main);
+
+  assertPromiseResult(wrapper(5), res => assertEquals(42, res));
 })();

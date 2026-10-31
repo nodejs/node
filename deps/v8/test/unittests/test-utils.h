@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_TEST_UTILS_H_
 #define V8_UNITTESTS_TEST_UTILS_H_
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -87,7 +88,7 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.shared_strings = true; }
 };
 
 template <typename TMixin>
@@ -204,9 +205,9 @@ class WithIsolateScopeMixin : public TMixin {
   }
 
   i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.begin());
+    return MakeString(buffer.data());
   }
 
   i::Handle<i::String> MakeString(const char* str) {
@@ -358,7 +359,7 @@ using TestWithContext =                    //
                     ::testing::Test>>>>;
 
 // Use v8::internal::TestJSSharedMemoryWithNativeContext if you are testing
-// internals, aka. directly work with Handles and require --harmony-struct
+// internals, aka. directly work with Handles and require --shared-strings
 // feature.
 //
 // Using this will FATAL when !V8_CAN_CREATE_SHARED_HEAP_BOOL

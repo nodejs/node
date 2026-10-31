@@ -1,0 +1,131 @@
+header: libintl.h
+standards:
+  - posix
+macros: []
+types:
+  - type_name: locale_t
+enums: []
+objects: []
+functions:
+  - name: bind_textdomain_codeset
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: bindtextdomain
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: dcgettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: int
+  - name: dcgettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: int
+      - type: locale_t
+  - name: dcngettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+      - type: int
+  - name: dcngettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+      - type: int
+      - type: locale_t
+  - name: dgettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: dgettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: locale_t
+  - name: dngettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+  - name: dngettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+      - type: locale_t
+  - name: gettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+  - name: gettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: locale_t
+  - name: ngettext
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+  - name: ngettext_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: unsigned long int
+      - type: locale_t
+  - name: textdomain
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *

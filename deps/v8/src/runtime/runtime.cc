@@ -219,6 +219,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kArrayBufferDetach:
       case Runtime::kDeoptimizeFunction:
       case Runtime::kDeoptimizeNow:
+      case Runtime::kInlineDeoptimizeNow:
+      case Runtime::kDisableEagerInlining:
       case Runtime::kDisableOptimizationFinalization:
       case Runtime::kEnableCodeLoggingForTesting:
       case Runtime::kFinalizeOptimization:
@@ -329,9 +331,11 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     // Functions used in testing and outside
     case Runtime::kArrayBufferDetach:
 #define F(name, nargs, ressize, ...) case k##name:
-#define I(name, nargs, ressize, ...) case kInline##name:
-    FOR_EACH_INTRINSIC_TEST(F, I)
-    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
+#define I(name, nargs, ressize, ...) \
+  case k##name:                      \
+  case kInline##name:
+      FOR_EACH_INTRINSIC_TEST(F, I)
+      IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I
 #undef F
     return true;

@@ -170,5 +170,62 @@ TEST(ThreadIsolation, InvalidFreeRange) {
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
 
+TEST(ThreadIsolation, TryLookupStartOfJitAllocationAt) {
+  InitializeThreadIsolation();
+
+  Address address1 = 0x4100000;
+  size_t size = 0x1000;
+  Address address2 = address1 + 2 * size;
+  ThreadIsolation::RegisterJitPage(address1, size);
+  ThreadIsolation::RegisterJitPage(address2, size);
+
+  Address alloc1 = address1 + 0x100;
+  size_t alloc1_size = 0x80;
+  ThreadIsolation::RegisterJitAllocationForTesting(alloc1, alloc1_size);
+
+  Address alloc2 = address2 + 0x200;
+  size_t alloc2_size = 0x40;
+  ThreadIsolation::RegisterJitAllocationForTesting(alloc2, alloc2_size);
+
+  // Outside any JIT page.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(address1 - 1),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(address1 + size),
+            std::nullopt);
+
+  // Inside JIT page 1, outside alloc1.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(address1),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1 - 1),
+            std::nullopt);
+  EXPECT_EQ(
+      ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1 + alloc1_size),
+      std::nullopt);
+
+  // Inside alloc1.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1), alloc1);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1 + 1),
+            alloc1);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1 +
+                                                             alloc1_size - 1),
+            alloc1);
+
+  // While page 1 is locked (e.g., on the interrupted thread), looking up on
+  // page 1 returns std::nullopt instead of deadlocking, while looking up on
+  // page 2 still succeeds.
+  {
+    WritableJitPage locked_page1(address1, size);
+    EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc1),
+              std::nullopt);
+    EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(alloc2 + 10),
+              alloc2);
+  }
+
+  ThreadIsolation::UnregisterJitAllocationForTesting(alloc1, alloc1_size);
+  ThreadIsolation::UnregisterJitAllocationForTesting(alloc2, alloc2_size);
+  ThreadIsolation::UnregisterJitPage(address1, size);
+  ThreadIsolation::UnregisterJitPage(address2, size);
+}
+
 }  // namespace internal
 }  // namespace v8

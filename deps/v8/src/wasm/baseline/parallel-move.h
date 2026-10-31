@@ -48,7 +48,7 @@ class ParallelMove {
 
     // Named constructors.
     static RegisterLoad Const(ValueKind kind, int32_t constant) {
-      V8_ASSUME(kind == kI32 || kind == kI64);
+      V8_ASSUME(kind == kI32 || kind == kI64 || kind == kF32 || kind == kF64);
       return {kConstant, kind, constant};
     }
     static RegisterLoad Stack(int32_t offset, ValueKind kind) {

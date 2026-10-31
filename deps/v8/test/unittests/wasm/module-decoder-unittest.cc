@@ -4142,11 +4142,18 @@ TEST_F(WasmModuleVerifyTest, ContTypesBasic) {
 
 TEST_F(WasmModuleVerifyTest, ContTypesNonFunc) {
   WASM_FEATURE_SCOPE(wasmfx);
+  WASM_FEATURE_SCOPE(custom_descriptors);
   // Invalid cont type definition: must reference a function type
   static const uint8_t bad_cont_group[] = {SECTION(
       Type, ENTRY_COUNT(2), WASM_STRUCT_DEF(FIELD_COUNT(0)), CONT_ENTRY(0))};
 
   EXPECT_FAILURE(bad_cont_group);
+
+  // 'exact' prefix is not allowed in a cont type definition.
+  static const uint8_t exact_cont_group[] = {SECTION(
+      Type, ENTRY_COUNT(2), SIG_ENTRY_v_v, kWasmContTypeCode, kExactCode, 0)};
+  EXPECT_FAILURE_WITH_MSG(exact_cont_group,
+                          "cont type must refer to a signature index");
 }
 
 TEST_F(WasmModuleVerifyTest, ContTypesSubtype) {

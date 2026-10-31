@@ -143,6 +143,7 @@ namespace v8::internal {
   V(Object_ToPrimitive)                                    \
   V(Object_ToString)                                       \
   V(Object_ToUint32)                                       \
+  V(Object_TryGetWithNoSideEffects)                        \
   V(Persistent_New)                                        \
   V(Private_New)                                           \
   V(Promise_Catch)                                         \
@@ -264,7 +265,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PairingOptimization)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulateReferenceMaps)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                        \
@@ -333,10 +333,7 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                        \
                                                                               \
@@ -381,8 +378,6 @@ namespace v8::internal {
   V(DeserializeIsolate)                        \
   V(FinalizationRegistryCleanupFromTask)       \
   V(FunctionCallback)                          \
-  V(FunctionArgumentsGetter)                   \
-  V(FunctionCallerGetter)                      \
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \

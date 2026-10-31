@@ -406,6 +406,107 @@ if (typeof Float16Array !== 'undefined') {
   assertEquals(i, 1);
 })();
 
+// JSArrayIterator with replaced prototype (crbug.com/566974983)
+(function TestArrayIteratorPrototypeReplaced() {
+  let arr = [1, 2, 3];
+  let it = arr.values();
+  let done = false;
+  Object.setPrototypeOf(it, {
+    [Symbol.iterator]() { return this; },
+    next() {
+      if (!done) {
+        done = true;
+        return { value: 99, done: false };
+      }
+      return { value: undefined, done: true };
+    }
+  });
+  let result = [];
+  %IterableForEach(it, (val) => result.push(val));
+  assertEquals([99], result);
+})();
+
+// Empty array iterator exhausted by IterableForEach (crbug.com/572143990)
+(function TestEmptyArrayIteratorExhausted() {
+  let arr = [];
+  let it = arr.values();
+  %IterableForEach(it, () => {});
+  arr.push(1);
+  assertEquals({ value: undefined, done: true }, it.next());
+})();
+
+// TypedArray fast path with patched ArrayIteratorPrototype.return (crbug.com/571926077)
+(function TestTypedArrayFastPathPrototypeReturn() {
+  const ArrayIteratorPrototype = Object.getPrototypeOf([].values());
+  const typedArrays = [
+    [new Uint8Array([1, 2, 3]), {value: 2, done: false}],
+    [new Float64Array([1.5, 2.5]), {value: 2.5, done: false}],
+  ];
+  if (typeof Float16Array !== 'undefined') {
+    typedArrays.push([new Float16Array([1.5, 2.5]), {value: 2.5, done: false}]);
+  }
+  for (const [ta, expectedNext] of typedArrays) {
+    let closed = false;
+    let nextResult;
+    ArrayIteratorPrototype.return = function() {
+      closed = true;
+      nextResult = this.next();
+      return {};
+    };
+    try {
+      assertThrows(() => {
+        %IterableForEach(ta, () => {
+          throw new Error("stop");
+        });
+      }, Error);
+    } finally {
+      delete ArrayIteratorPrototype.return;
+    }
+    assertTrue(closed);
+    assertEquals(expectedNext, nextResult);
+  }
+})();
+
+// Cross-realm TypedArray with patched other-realm ArrayIteratorPrototype.return
+(function TestCrossRealmTypedArrayPrototypeReturn() {
+  const realm = Realm.createAllowCrossRealmAccess();
+  const ta = Realm.eval(realm, "new Uint8Array([10, 20, 30])");
+  const OtherArrayIteratorPrototype =
+      Realm.eval(realm, "Object.getPrototypeOf([].values())");
+  let closed = false;
+  let nextResult;
+  OtherArrayIteratorPrototype.return = function() {
+    closed = true;
+    nextResult = this.next();
+    return {};
+  };
+  try {
+    assertThrows(() => {
+      %IterableForEach(ta, () => {
+        throw new Error("stop");
+      });
+    }, Error);
+  } finally {
+    delete OtherArrayIteratorPrototype.return;
+  }
+  assertTrue(closed);
+  assertEquals({value: 20, done: false}, nextResult);
+})();
+
+// Callback advances JSArrayIterator via it.next() and then throws
+(function TestIteratorNextCalledBeforeThrow() {
+  let arr = [1, 2, 3, 4];
+  let it = arr.values();
+  assertThrows(() => {
+    %IterableForEach(it, (val) => {
+      assertEquals(1, val);
+      assertEquals({value: 2, done: false}, it.next());
+      throw new Error("stop");
+    });
+  }, Error);
+  assertEquals({value: 3, done: false}, it.next());
+})();
+
 // Modified Array Iterator -> Slow path
 (function TestModifiedArrayIterator() {
   let result = [];

@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -39,8 +40,8 @@ class WasmFunctionCoverageData {
  public:
   explicit WasmFunctionCoverageData(
       base::Vector<const WasmCodeRange> code_ranges) {
-    counts_ = base::OwnedVector<uint32_t>::New(code_ranges.size());
-    code_ranges_ = base::OwnedCopyOf(code_ranges);
+    counts_ = base::UniqueArray<uint32_t>::New(code_ranges.size());
+    code_ranges_ = base::UniqueCopyOf(code_ranges);
   }
 
   const base::Vector<const WasmCodeRange> code_ranges() const {
@@ -52,15 +53,15 @@ class WasmFunctionCoverageData {
   }
 
  private:
-  base::OwnedVector<const WasmCodeRange> code_ranges_;
-  base::OwnedVector<uint32_t> counts_;
+  base::UniqueArray<const WasmCodeRange> code_ranges_;
+  base::UniqueArray<uint32_t> counts_;
 };
 
 class WasmModuleCoverageData {
  public:
   explicit WasmModuleCoverageData(uint32_t declared_function_count) {
     function_data_ =
-        base::OwnedVector<std::unique_ptr<WasmFunctionCoverageData>>::New(
+        base::UniqueArray<std::unique_ptr<WasmFunctionCoverageData>>::New(
             declared_function_count);
   }
 
@@ -93,7 +94,7 @@ class WasmModuleCoverageData {
   // There is a single WasmModuleCoverageData per NativeModule, that can be
   // accessed concurrently from multiple Isolates.
   mutable base::Mutex mutex_;
-  base::OwnedVector<std::unique_ptr<WasmFunctionCoverageData>> function_data_;
+  base::UniqueArray<std::unique_ptr<WasmFunctionCoverageData>> function_data_;
 };
 
 template <typename FullDecoder>

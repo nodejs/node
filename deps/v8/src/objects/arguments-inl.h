@@ -10,6 +10,7 @@
 
 #include "src/objects/contexts-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,11 +18,13 @@
 namespace v8 {
 namespace internal {
 
+AliasedArgumentsEntry::AliasedArgumentsEntry(const AllocationWitness& witness,
+                                             int aliased_context_slot)
+    : Struct(witness.roots().aliased_arguments_entry_map()),
+      aliased_context_slot_(Smi::FromInt(aliased_context_slot)) {}
+
 int AliasedArgumentsEntry::aliased_context_slot() const {
   return aliased_context_slot_.load().value();
-}
-void AliasedArgumentsEntry::set_aliased_context_slot(int value) {
-  aliased_context_slot_.store(this, Smi::FromInt(value));
 }
 
 Tagged<Context> SloppyArgumentsElements::context() const {

@@ -4,14 +4,22 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/default-platform.h"
+#include "include/cppgc/heap-consistency.h"
+#include "include/cppgc/liveness-broker.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/testing.h"
+#include "include/cppgc/trace-trait.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/marker.h"
 #include "src/heap/cppgc-internal/marking-visitor.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if !defined(CPPGC_IS_STANDALONE)
+#include "src/common/synchronization-point-support.h"
+#endif  // !defined(CPPGC_IS_STANDALONE)
 
 namespace cppgc {
 namespace internal {
@@ -194,6 +202,122 @@ TEST_F(ConcurrentMarkingTest,
   EXPECT_EQ(0u, NotConcurrentlyTraceable::trace_counter);
   FinishGC();
 }
+
+#if !defined(CPPGC_IS_STANDALONE)
+
+namespace {
+
+class WeakTableBacking : public GarbageCollected<WeakTableBacking> {
+ public:
+  explicit WeakTableBacking(GCed* value) : value_(value) {}
+  void Trace(cppgc::Visitor* visitor) const { visitor->TraceStrongly(value_); }
+
+  CPPGC_PLUGIN_IGNORE("Traced strongly through TraceStrongly")
+  WeakMember<GCed> value_;
+};
+
+class WeakTable {
+  CPPGC_DISALLOW_NEW();
+
+ public:
+  static constexpr std::string_view kSyncPoint =
+      "cppgc.ConcurrentMarkingTest.TraceWeakTable";
+
+  WeakTable() = default;
+  explicit WeakTable(AllocationHandle& handle)
+      : backing_(MakeGarbageCollected<WeakTableBacking>(
+            handle, MakeGarbageCollected<GCed>(handle))) {}
+
+  void Trace(cppgc::Visitor* visitor) const {
+    const WeakTableBacking* backing = backing_.Get();
+    SYNCHRONIZATION_POINT(kSyncPoint);
+    visitor->TraceWeakContainer(backing, WeakCallback, this);
+  }
+
+  void Swap(WeakTable& other) {
+    backing_.Swap(other.backing_);
+    WriteBarrier(backing_);
+    WriteBarrier(other.backing_);
+  }
+
+ private:
+  static void WeakCallback(const LivenessBroker& broker, const void* data) {
+    const WeakTable* self = static_cast<const WeakTable*>(data);
+    if (self->backing_ && !broker.IsHeapObjectAlive(self->backing_->value_)) {
+      self->backing_->value_.Clear();
+    }
+  }
+
+  static void WriteBarrier(Member<WeakTableBacking>& slot) {
+    WeakTableBacking* value = slot.Get();
+    if (!value) return;
+    subtle::HeapConsistency::WriteBarrierParams params;
+    const auto barrier_type =
+        subtle::HeapConsistency::GetWriteBarrierType(slot, params);
+    DCHECK(barrier_type ==
+               subtle::HeapConsistency::WriteBarrierType::kMarking ||
+           barrier_type == subtle::HeapConsistency::WriteBarrierType::kNone);
+    if (barrier_type == subtle::HeapConsistency::WriteBarrierType::kMarking) {
+      subtle::HeapConsistency::DijkstraWriteBarrier(params, value);
+    }
+    if (subtle::HeapConsistency::GetWriteBarrierType(value, params) ==
+        subtle::HeapConsistency::WriteBarrierType::kMarking) {
+      subtle::HeapConsistency::SteeleWriteBarrier(params, value);
+    }
+  }
+
+  CPPGC_PLUGIN_IGNORE("Traced through TraceWeakContainer")
+  Member<WeakTableBacking> backing_;
+};
+
+struct WeakTableHolder : public GarbageCollected<WeakTableHolder> {
+  explicit WeakTableHolder(AllocationHandle& handle) : table(handle) {}
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(table); }
+
+  WeakTable table;
+};
+
+}  // namespace
+
+}  // namespace internal
+
+template <>
+struct TraceTrait<internal::WeakTableBacking>
+    : public internal::TraceTraitBase<internal::WeakTableBacking> {
+  static TraceDescriptor GetWeakTraceDescriptor(const void* self) {
+    return {self, nullptr};
+  }
+};
+
+namespace internal {
+
+TEST_F(ConcurrentMarkingTest, SwapWeakTableWithStackDuringConcurrentMarking) {
+  // Regression test: https://crbug.com/575143870.
+  static constexpr v8::base::TimeDelta kTimeout =
+      v8::base::TimeDelta::FromSeconds(5);
+
+  auto* sync_points = v8::internal::SynchronizationPointSupport::Get();
+  sync_points->RequestBlockAt(std::string(WeakTable::kSyncPoint), kTimeout);
+
+  Persistent<WeakTableHolder> holder = MakeGarbageCollected<WeakTableHolder>(
+      GetAllocationHandle(), GetAllocationHandle());
+  WeakTable stack_table;
+
+  cppgc::testing::StandaloneTestingHeap testing_heap(GetHeapHandle());
+  testing_heap.StartGarbageCollection();
+
+  ASSERT_TRUE(sync_points->WaitUntilBlocked(WeakTable::kSyncPoint, kTimeout));
+
+  holder->table.Swap(stack_table);
+
+  ASSERT_TRUE(sync_points->Resume(WeakTable::kSyncPoint));
+
+  testing_heap.FinalizeGarbageCollection(EmbedderStackState::kNoHeapPointers);
+
+  ConservativeGC();
+}
+
+#endif  // !defined(CPPGC_IS_STANDALONE)
 
 }  // namespace internal
 }  // namespace cppgc

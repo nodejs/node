@@ -19,7 +19,5 @@ function TestSharedObjectCannotAddPrivateField(sharedObj) {
   });
 }
 
-TestSharedObjectCannotAddPrivateField(new Atomics.Condition());
-TestSharedObjectCannotAddPrivateField(new Atomics.Mutex());
 TestSharedObjectCannotAddPrivateField(new (new SharedStructType(['p'])));
 TestSharedObjectCannotAddPrivateField(new SharedArray(1));

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "benchmark/benchmark.h"
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/heap-consistency.h"
@@ -9,7 +10,6 @@
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/heap.h"
 #include "test/benchmarks/cpp/cppgc/benchmark_utils.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 namespace cppgc {
 namespace internal {

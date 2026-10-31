@@ -3,5 +3,5 @@ include_rules = [
   "+src/base",
   "+src/heap/cppgc-internal",
   "+test/unittests/heap/cppgc",
-  "+third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h",
+  "+benchmark/benchmark.h",
 ]

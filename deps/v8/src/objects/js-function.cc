@@ -1484,7 +1484,8 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   }
 
   // Check if we have source code for the {function}.
-  if (!shared_info->HasSourceCode()) {
+  if (!shared_info->HasSourceCode() ||
+      shared_info->StartPosition() == shared_info->EndPosition()) {
     return NativeCodeFunctionSourceString(isolate, shared_info);
   }
 

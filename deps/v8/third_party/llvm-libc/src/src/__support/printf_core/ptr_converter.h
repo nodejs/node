@@ -18,23 +18,21 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_pointer(Writer<mode> *writer,
-                                const FormatSection &to_conv) {
-  FormatSection new_conv = to_conv;
-
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_pointer(Writer<mode, CharT> *writer,
+                                FormatSection<CharT> to_conv) {
   if (to_conv.conv_val_ptr == nullptr) {
     constexpr char NULLPTR_STR[] = "(nullptr)";
-    new_conv.conv_name = 's';
-    new_conv.conv_val_ptr = const_cast<char *>(NULLPTR_STR);
-    return convert_string(writer, new_conv);
+    to_conv.conv_name = 's';
+    to_conv.conv_val_ptr = const_cast<char *>(NULLPTR_STR);
+    return convert_string(writer, to_conv);
   }
-  new_conv.conv_name = 'x';
-  new_conv.flags =
+  to_conv.conv_name = 'x';
+  to_conv.flags =
       static_cast<FormatFlags>(to_conv.flags | FormatFlags::ALTERNATE_FORM);
-  new_conv.length_modifier = LengthModifier::t;
-  new_conv.conv_val_raw = reinterpret_cast<uintptr_t>(to_conv.conv_val_ptr);
-  return convert_int(writer, new_conv);
+  to_conv.length_modifier = LengthModifier::t;
+  to_conv.conv_val_raw = reinterpret_cast<uintptr_t>(to_conv.conv_val_ptr);
+  return convert_int(writer, to_conv);
 }
 
 } // namespace printf_core

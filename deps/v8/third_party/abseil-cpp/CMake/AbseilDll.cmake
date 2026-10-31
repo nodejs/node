@@ -99,7 +99,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/raw_hash_set.cc"
   "container/internal/raw_hash_set.h"
   "container/internal/raw_hash_set_resize_impl.h"
-  "container/internal/tracked.h"
   "container/linked_hash_map.h"
   "container/linked_hash_set.h"
   "container/node_hash_map.h"
@@ -137,8 +136,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/internal/elf_mem_image.h"
   "debugging/internal/examine_stack.cc"
   "debugging/internal/examine_stack.h"
-  "debugging/internal/stack_consumption.cc"
-  "debugging/internal/stack_consumption.h"
   "debugging/internal/stacktrace_config.h"
   "debugging/internal/symbolize.h"
   "debugging/internal/utf8_for_code_point.cc"
@@ -164,7 +161,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "hash/internal/city.h"
   "hash/internal/hash.cc"
   "hash/internal/hash.h"
-  "hash/internal/spy_hash_state.h"
   "hash/internal/weakly_mixed_integer.h"
   "log/absl_check.h"
   "log/absl_log.h"
@@ -266,7 +262,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/internal/salted_seed_seq.h"
   "random/internal/seed_material.cc"
   "random/internal/seed_material.h"
-  "random/internal/sequence_urbg.h"
   "random/internal/traits.h"
   "random/internal/uniform_helper.h"
   "random/internal/wide_multiply.h"
@@ -347,8 +342,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/memutil.h"
   "strings/internal/ostringstream.cc"
   "strings/internal/ostringstream.h"
-  "strings/internal/pow10_helper.cc"
-  "strings/internal/pow10_helper.h"
   "strings/internal/resize_uninitialized.h"
   "strings/internal/str_format/arg.cc"
   "strings/internal/str_format/arg.h"
@@ -409,7 +402,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "synchronization/internal/sem_waiter.h"
   "synchronization/internal/stdcpp_waiter.cc"
   "synchronization/internal/stdcpp_waiter.h"
-  "synchronization/internal/thread_pool.h"
   "synchronization/internal/waiter.h"
   "synchronization/internal/waiter_base.cc"
   "synchronization/internal/waiter_base.h"
@@ -448,8 +440,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "time/internal/cctz/src/time_zone_posix.h"
   "time/internal/cctz/src/tzfile.h"
   "time/internal/cctz/src/zone_info_source.cc"
-  "time/simulated_clock.cc"
-  "time/simulated_clock.h"
   "time/time.cc"
   "time/time.h"
   "types/any.h"
@@ -512,186 +502,6 @@ if(NOT MSVC)
   )
 endif()
 
-set(ABSL_INTERNAL_DLL_TARGETS
-  "absl_check"
-  "absl_log"
-  "absl_vlog_is_on"
-  "algorithm"
-  "algorithm_container"
-  "any"
-  "any_invocable"
-  "atomic_hook"
-  "base"
-  "base_internal"
-  "bind_front"
-  "bits"
-  "btree"
-  "check"
-  "city"
-  "civil_time"
-  "compare"
-  "compressed_tuple"
-  "config"
-  "container"
-  "container_common"
-  "container_memory"
-  "cord"
-  "cord_internal"
-  "cordz_functions"
-  "cordz_handle"
-  "cordz_info"
-  "cordz_sample_token"
-  "core_headers"
-  "counting_allocator"
-  "crc_cord_state"
-  "crc_cpu_detect"
-  "crc_internal"
-  "crc32c"
-  "debugging"
-  "debugging_internal"
-  "demangle_internal"
-  "die_if_null"
-  "dynamic_annotations"
-  "endian"
-  "examine_stack"
-  "exponential_biased"
-  "failure_signal_handler"
-  "fixed_array"
-  "flat_hash_map"
-  "flat_hash_set"
-  "function_ref"
-  "graphcycles_internal"
-  "hash"
-  "hash_function_defaults"
-  "hash_policy_traits"
-  "hashtable_debug"
-  "hashtable_debug_hooks"
-  "hashtablez_sampler"
-  "inlined_vector"
-  "inlined_vector_internal"
-  "int128"
-  "kernel_timeout_internal"
-  "layout"
-  "leak_check"
-  "log_internal_check_impl"
-  "log_internal_check_op"
-  "log_internal_conditions"
-  "log_internal_config"
-  "log_internal_fnmatch"
-  "log_internal_format"
-  "log_internal_globals"
-  "log_internal_log_impl"
-  "log_internal_proto"
-  "log_internal_message"
-  "log_internal_log_sink_set"
-  "log_internal_nullguard"
-  "log_internal_nullstream"
-  "log_internal_strip"
-  "log_internal_voidify"
-  "log_internal_append_truncated"
-  "log_globals"
-  "log_initialize"
-  "log"
-  "log_entry"
-  "log_sink"
-  "log_sink_registry"
-  "log_streamer"
-  "log_internal_structured"
-  "log_severity"
-  "log_structured"
-  "low_level_hash"
-  "malloc_internal"
-  "memory"
-  "meta"
-  "node_hash_map"
-  "node_hash_set"
-  "node_slot_policy"
-  "non_temporal_arm_intrinsics"
-  "non_temporal_memcpy"
-  "numeric"
-  "optional"
-  "periodic_sampler"
-  "pow10_helper"
-  "pretty_function"
-  "random_bit_gen_ref"
-  "random_distributions"
-  "random_internal_distribution_caller"
-  "random_internal_distributions"
-  "random_internal_explicit_seed_seq"
-  "random_internal_fastmath"
-  "random_internal_fast_uniform_bits"
-  "random_internal_generate_real"
-  "random_internal_iostream_state_saver"
-  "random_internal_nonsecure_base"
-  "random_internal_pcg_engine"
-  "random_internal_platform"
-  "random_internal_pool_urbg"
-  "random_internal_randen"
-  "random_internal_randen_engine"
-  "random_internal_randen_hwaes"
-  "random_internal_randen_hwaes_impl"
-  "random_internal_randen_slow"
-  "random_internal_salted_seed_seq"
-  "random_internal_seed_material"
-  "random_internal_sequence_urbg"
-  "random_internal_traits"
-  "random_internal_uniform_helper"
-  "random_internal_wide_multiply"
-  "random_random"
-  "random_seed_gen_exception"
-  "random_seed_sequences"
-  "raw_hash_map"
-  "raw_hash_set"
-  "raw_logging_internal"
-  "sample_recorder"
-  "scoped_set_env"
-  "span"
-  "spinlock_wait"
-  "spy_hash_state"
-  "stack_consumption"
-  "stacktrace"
-  "status"
-  "statusor"
-  "str_format"
-  "str_format_internal"
-  "strerror"
-  "strings"
-  "strings_internal"
-  "string_view"
-  "symbolize"
-  "synchronization"
-  "thread_pool"
-  "throw_delegate"
-  "time"
-  "time_zone"
-  "tracked"
-  "type_traits"
-  "utility"
-  "variant"
-  "vlog_config_internal"
-  "vlog_is_on"
-)
-
-if(NOT MSVC)
-  list(APPEND ABSL_INTERNAL_DLL_TARGETS
-    "flags"
-    "flags_commandlineflag"
-    "flags_commandlineflag_internal"
-    "flags_config"
-    "flags_internal"
-    "flags_marshalling"
-    "flags_parse"
-    "flags_path_util"
-    "flags_private_handle_accessor"
-    "flags_program_name"
-    "flags_reflection"
-    "flags_usage"
-    "flags_usage_internal"
-    "log_internal_flags"
-    "log_flags"
-  )
-endif()
-
 set(ABSL_INTERNAL_TEST_DLL_FILES
   "hash/hash_testing.h"
   "log/scoped_mock_log.cc"
@@ -709,17 +519,6 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "status/internal/status_matchers.h"
   "strings/cordz_test_helpers.h"
   "strings/cord_test_helpers.h"
-)
-
-set(ABSL_INTERNAL_TEST_DLL_TARGETS
-  "cord_test_helpers"
-  "cordz_test_helpers"
-  "hash_testing"
-  "random_mocking_bit_gen"
-  "random_internal_distribution_test_util"
-  "random_internal_mock_overload_set"
-  "scoped_mock_log"
-  "status_matchers"
 )
 
 if(DEFINED CMAKE_CXX_STANDARD AND CMAKE_CXX_STANDARD_REQUIRED)
@@ -768,63 +567,29 @@ else()
 endif()
 
 function(absl_internal_dll_contains)
-  cmake_parse_arguments(ABSL_INTERNAL_DLL
-    ""
-    "OUTPUT;TARGET"
-    ""
+  cmake_parse_arguments(ABSL_INTERNAL_DLL_CONTAINS
+    "TEST"
+    "OUTPUT"
+    "FILES"
     ${ARGN}
   )
 
-  STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_DLL_TARGET})
-
-  if (_target IN_LIST ABSL_INTERNAL_DLL_TARGETS)
-    set(${ABSL_INTERNAL_DLL_OUTPUT} 1 PARENT_SCOPE)
+  if(ABSL_INTERNAL_DLL_CONTAINS_TEST)
+    set(_dll_files "${ABSL_INTERNAL_TEST_DLL_FILES}")
   else()
-    set(${ABSL_INTERNAL_DLL_OUTPUT} 0 PARENT_SCOPE)
+    set(_dll_files "${ABSL_INTERNAL_DLL_FILES}")
   endif()
-endfunction()
 
-function(absl_internal_test_dll_contains)
-  cmake_parse_arguments(ABSL_INTERNAL_TEST_DLL
-    ""
-    "OUTPUT;TARGET"
-    ""
-    ${ARGN}
-  )
-
-  STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_TEST_DLL_TARGET})
-
-  if (_target IN_LIST ABSL_INTERNAL_TEST_DLL_TARGETS)
-    set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 1 PARENT_SCOPE)
-  else()
-    set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 0 PARENT_SCOPE)
-  endif()
-endfunction()
-
-function(absl_internal_dll_targets)
-  cmake_parse_arguments(ABSL_INTERNAL_DLL
-  ""
-  "OUTPUT"
-  "DEPS"
-  ${ARGN}
-  )
-
-  set(_deps "")
-  foreach(dep IN LISTS ABSL_INTERNAL_DLL_DEPS)
-    absl_internal_dll_contains(TARGET ${dep} OUTPUT _dll_contains)
-    absl_internal_test_dll_contains(TARGET ${dep} OUTPUT _test_dll_contains)
-    if (_dll_contains)
-      list(APPEND _deps abseil_dll)
-    elseif (_test_dll_contains)
-      list(APPEND _deps abseil_test_dll)
-    else()
-      list(APPEND _deps ${dep})
+  file(RELATIVE_PATH _rel_dir "${absl_SOURCE_DIR}/absl" "${CMAKE_CURRENT_SOURCE_DIR}")
+  foreach(_file IN LISTS ABSL_INTERNAL_DLL_CONTAINS_FILES)
+    string(REGEX REPLACE "^\\$<\\$<[^>]+>:(.+)>$" "\\1" _file "${_file}")
+    if("${_rel_dir}/${_file}" IN_LIST _dll_files)
+      set(${ABSL_INTERNAL_DLL_CONTAINS_OUTPUT} 1 PARENT_SCOPE)
+      return()
     endif()
   endforeach()
 
-  # Because we may have added the DLL multiple times
-  list(REMOVE_DUPLICATES _deps)
-  set(${ABSL_INTERNAL_DLL_OUTPUT} "${_deps}" PARENT_SCOPE)
+  set(${ABSL_INTERNAL_DLL_CONTAINS_OUTPUT} 0 PARENT_SCOPE)
 endfunction()
 
 function(absl_make_dll)

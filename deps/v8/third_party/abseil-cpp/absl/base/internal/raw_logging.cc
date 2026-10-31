@@ -89,13 +89,13 @@ constexpr char kTruncated[] = " ... (message truncated)\n";
 // consumed bytes, and return whether the message fit without truncation.  If
 // truncation occurred, if possible leave room in the buffer for the message
 // kTruncated[].
-bool VADoRawLog(char** buf, int* size, const char* format, va_list ap)
-    ABSL_PRINTF_ATTRIBUTE(3, 0);
+ABSL_PRINTF_ATTRIBUTE(3, 0)
+bool VADoRawLog(char** buf, int* size, const char* format, va_list ap);
 bool VADoRawLog(char** buf, int* size, const char* format, va_list ap) {
   if (*size < 0) return false;
   int n = vsnprintf(*buf, static_cast<size_t>(*size), format, ap);
   bool result = true;
-  if (n < 0 || n > *size) {
+  if (n < 0 || n >= *size) {
     result = false;
     if (static_cast<size_t>(*size) > sizeof(kTruncated)) {
       n = *size - static_cast<int>(sizeof(kTruncated));
@@ -117,15 +117,15 @@ constexpr int kLogBufSize = 3000;
 // Helper for RawLog below.
 // *DoRawLog writes to *buf of *size and move them past the written portion.
 // It returns true iff there was no overflow or error.
-bool DoRawLog(char** buf, int* size, const char* format, ...)
-    ABSL_PRINTF_ATTRIBUTE(3, 4);
+ABSL_PRINTF_ATTRIBUTE(3, 4)
+bool DoRawLog(char** buf, int* size, const char* format, ...);
 bool DoRawLog(char** buf, int* size, const char* format, ...) {
   if (*size < 0) return false;
   va_list ap;
   va_start(ap, format);
   int n = vsnprintf(*buf, static_cast<size_t>(*size), format, ap);
   va_end(ap);
-  if (n < 0 || n > *size) return false;
+  if (n < 0 || n >= *size) return false;
   *size -= n;
   *buf += n;
   return true;
@@ -143,8 +143,9 @@ absl::base_internal::AtomicHook<LogFilterAndPrefixHook>
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
 absl::base_internal::AtomicHook<AbortHook> abort_hook;
 
+ABSL_PRINTF_ATTRIBUTE(4, 0)
 void RawLogVA(absl::LogSeverity severity, const char* file, int line,
-              const char* format, va_list ap) ABSL_PRINTF_ATTRIBUTE(4, 0);
+              const char* format, va_list ap);
 void RawLogVA(absl::LogSeverity severity, const char* file, int line,
               const char* format, va_list ap) {
   char buffer[kLogBufSize];

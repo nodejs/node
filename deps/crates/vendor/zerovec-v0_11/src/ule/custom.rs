@@ -123,8 +123,8 @@
 //!     where
 //!         D: serde::Deserializer<'de>,
 //!     {
-//!         let mut foo = Foo::deserialize(deserializer)?;
-//!         Ok(encode_varule_to_box(&foo))
+//!         let deserialized = Foo::deserialize(deserializer)?;
+//!         Ok(encode_varule_to_box(&deserialized))
 //!     }
 //! }
 //!

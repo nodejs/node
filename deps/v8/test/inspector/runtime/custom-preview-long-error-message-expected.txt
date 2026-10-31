@@ -1,0 +1,2 @@
+Checks that custom formatter errors with too long messages are reported.
+error: Custom Formatter Failed: <message too long>

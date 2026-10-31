@@ -484,6 +484,20 @@ void FrameTranslationBuilder::StoreLiteral(int literal_id) {
   Add(opcode, SignedOperand(literal_id));
 }
 
+void FrameTranslationBuilder::StoreDoubleLiteral(Float64 value) {
+  auto opcode = TranslationOpcode::DOUBLE_LITERAL;
+  uint64_t bits = value.get_bits();
+  Add(opcode, UnsignedOperand(static_cast<uint32_t>(bits)),
+      UnsignedOperand(static_cast<uint32_t>(bits >> 32)));
+}
+
+void FrameTranslationBuilder::StoreHoleyDoubleLiteral(Float64 value) {
+  auto opcode = TranslationOpcode::HOLEY_DOUBLE_LITERAL;
+  uint64_t bits = value.get_bits();
+  Add(opcode, UnsignedOperand(static_cast<uint32_t>(bits)),
+      UnsignedOperand(static_cast<uint32_t>(bits >> 32)));
+}
+
 void FrameTranslationBuilder::StoreOptimizedOut() {
   auto opcode = TranslationOpcode::OPTIMIZED_OUT;
   Add(opcode);

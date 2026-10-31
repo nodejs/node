@@ -145,6 +145,34 @@
 #define V8_IT_NO_AUTO_DISPATCH \
   V8_IT_MARK(NoAutoDispatch, "V8_IT_NO_AUTO_DISPATCH")
 
+// Metagen exports the layouts defined in C++ to Torque. These annotations
+// describe properties not encoded in C++ types, such as Torque accessor
+// semantics, custom weak marking, semantic types, and field names.
+// Class annotations omit the flexible tail (V8_TQ_NO_TAIL) or specify its
+// Torque length expression (V8_TQ_TAIL_LENGTH).
+// Field annotations apply to the flexible array member.
+//
+// Metagen passes each optional annotation argument to Torque without parsing
+// it.
+//
+// Ordinary compilation removes these annotations.
+#ifdef V8_METAGEN_GENERATION_PASS
+#define V8_TQ_FIELD_MARK(PAYLOAD) [[clang::annotate(PAYLOAD)]]
+#else
+#define V8_TQ_FIELD_MARK(PAYLOAD)
+#endif
+#define V8_TQ_TAIL_LENGTH(...) \
+  V8_IT_MARK(TqTailLength, "V8_TQ_TAIL_LENGTH(" #__VA_ARGS__ ")")
+#define V8_TQ_NO_TAIL V8_IT_MARK(TqNoTail, "V8_TQ_NO_TAIL")
+#define V8_TQ_CONST V8_TQ_FIELD_MARK("V8_TQ_CONST")
+#define V8_TQ_RELAXED V8_TQ_FIELD_MARK("V8_TQ_RELAXED")
+#define V8_TQ_ACQ_REL V8_TQ_FIELD_MARK("V8_TQ_ACQ_REL")
+#define V8_TQ_CUSTOM_WEAK V8_TQ_FIELD_MARK("V8_TQ_CUSTOM_WEAK")
+#define V8_TQ_TYPE(...) V8_TQ_FIELD_MARK("V8_TQ_TYPE(" #__VA_ARGS__ ")")
+#define V8_TQ_NAME(...) V8_TQ_FIELD_MARK("V8_TQ_NAME(" #__VA_ARGS__ ")")
+#define V8_TQ_EXTENT_NAME(...) \
+  V8_TQ_FIELD_MARK("V8_TQ_EXTENT_NAME(" #__VA_ARGS__ ")")
+
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
 #define DECL_PRIMITIVE_SETTER(name, type) inline void set_##name(type value);
@@ -786,7 +814,7 @@
 #define DECL_CODE_POINTER_ACCESSORS(name) \
   DECL_TRUSTED_POINTER_ACCESSORS(name, Code)
 #define CODE_POINTER_ACCESSORS(holder, name, offset) \
-  TRUSTED_POINTER_ACCESSORS(holder, name, Code, offset, kCodeIndirectPointerTag)
+  TRUSTED_POINTER_ACCESSORS(holder, name, Code, offset, kCodeTrustedPointerTag)
 
 // Accessors for "protected" pointers, i.e. references from one trusted object
 // to another trusted object. For these pointers it can be assumed that neither
@@ -837,6 +865,14 @@
   }                                                                         \
   void holder::clear_##name(ReleaseStoreTag tag) {                          \
     return ClearProtectedPointerField(offset, tag);                         \
+  }
+
+// Defines accessors for one bit field of a BitFieldGroup.
+#define BIT_FIELD_GROUP_ACCESSORS(name, Bit)                                  \
+  constexpr typename Bit::FieldType name() const { return get<Bit>(); }       \
+  V8_NODISCARD constexpr GroupType with_##name(typename Bit::FieldType value) \
+      const {                                                                 \
+    return with<Bit>(value);                                                  \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
@@ -920,14 +956,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)
+#define TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value)
 #else
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
-  do {                                                                       \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
-    WriteBarrier::ForIndirectPointer(                                        \
-        object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
-        UPDATE_WRITE_BARRIER);                                               \
+#define TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
+  do {                                                                      \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                    \
+    WriteBarrier::ForTrustedPointer(                                        \
+        object, Tagged(object)->RawTrustedPointerField(offset, tag), value, \
+        UPDATE_WRITE_BARRIER);                                              \
   } while (false)
 #endif
 
@@ -970,24 +1006,19 @@
         mode);                                                                \
   } while (false)
 #endif
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
-                                                   mode)
-#else
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
-                                                   mode)                       \
-  do {                                                                         \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
-    WriteBarrier::ForIndirectPointer(                                          \
-        object, Tagged(object)->RawIndirectPointerField(offset, tag), value,   \
-        mode);                                                                 \
-  } while (false)
-#endif
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                  mode)
+#elif defined(V8_ENABLE_SANDBOX)
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \
-  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, mode)
+  do {                                                                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
+    WriteBarrier::ForTrustedPointer(                                          \
+        object, Tagged(object)->RawTrustedPointerField(offset, tag), value,   \
+        mode);                                                                \
+  } while (false)
 #else
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \
@@ -995,7 +1026,7 @@
 #endif  // V8_ENABLE_SANDBOX
 #define CONDITIONAL_CODE_POINTER_WRITE_BARRIER(object, offset, value, mode) \
   CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(                                \
-      object, offset, kCodeIndirectPointerTag, value, mode)
+      object, offset, kCodeTrustedPointerTag, value, mode)
 
 #define CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(object, offset, value, \
                                                     mode)                  \

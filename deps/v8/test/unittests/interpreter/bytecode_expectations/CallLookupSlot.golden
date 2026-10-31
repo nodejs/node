@@ -21,7 +21,7 @@ bytecodes: [
                 B(StaCurrentContextSlotNoCell), C8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlotNoCell), C8(4),
-  /*   34 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   34 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*   36 E> */ B(StaLookupSlot), U8(2:"g"), Flag8(0x0),
   /*   52 S> */ B(LdaLookupGlobalSlot), U8(3:"eval"), FBV(0), U8(1),
                 B(Star2),

@@ -394,7 +394,6 @@ void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
       // buffer, detaching, or resizing a RAB). Instead, we use the atomically
       // updated accounting length from the extension.
       if (auto ext = js_array_buffer->extension()) {
-        ext->InitializationBarrier();
         external_size = ext->accounting_length();
       }
     } else {

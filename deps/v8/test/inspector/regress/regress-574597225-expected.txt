@@ -1,0 +1,15 @@
+Tests that execution really stops when Runtime.terminateExecution arrives while the console builds the preview of an Error value
+
+Running test: setUp
+
+Running test: testErrorAsMapEntry
+evaluate error: Execution was terminated
+ran after console.log: false
+
+Running test: testErrorAsProperty
+evaluate error: Execution was terminated
+ran after console.log: false
+
+Running test: testErrorAsArgument
+evaluate error: Execution was terminated
+ran after console.log: false

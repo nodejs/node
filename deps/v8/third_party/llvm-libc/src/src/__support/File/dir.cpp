@@ -16,6 +16,7 @@
 #include "hdr/errno_macros.h"
 #include "src/__support/CPP/mutex.h" // lock_guard
 #include "src/__support/CPP/new.h"
+#include "src/__support/File/dir_scan_impl.h"
 #include "src/__support/alloc-checker.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -76,6 +77,13 @@ int Dir::close() {
   }
   delete this;
   return 0;
+}
+
+ErrorOr<int> Dir::scan(const char *name, struct dirent ***namelist,
+                       int (*filter)(const struct dirent *),
+                       int (*compare)(const struct dirent **,
+                                      const struct dirent **)) {
+  return internal::scan_impl<Dir>(name, namelist, filter, compare);
 }
 
 } // namespace LIBC_NAMESPACE_DECL

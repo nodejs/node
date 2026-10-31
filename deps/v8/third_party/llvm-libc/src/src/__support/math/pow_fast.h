@@ -36,14 +36,17 @@ LIBC_INLINE double pow(double x, double y) {
 
   FPBits xbits(x), ybits(y);
   uint64_t x_u = xbits.uintval();
-  uint64_t y_u = ybits.uintval();
   uint64_t y_a = ybits.abs().uintval();
+
+#ifndef LIBC_MATH_HAS_SMALL_TABLES
+  uint64_t y_u = ybits.uintval();
 
   if (LIBC_UNLIKELY((x_u & 0x0003'FFFF'FFFF'FFFF) == 0 ||
                     (y_u & 0x000F'FFFF'FFFF'FFFF) == 0)) {
     if (auto r = check_special_inputs(x, y); LIBC_UNLIKELY(r.has_value()))
       return r.value();
   }
+#endif // !LIBC_MATH_HAS_SMALL_TABLES
 
   double e_x = static_cast<double>(xbits.get_exponent());
   uint64_t x_mant = xbits.get_mantissa();
@@ -51,6 +54,9 @@ LIBC_INLINE double pow(double x, double y) {
   double sign_d = 1.0;
 
   if (LIBC_UNLIKELY(y_a <= Y_LOWER_BOUND || y_a >= Y_UPPER_BOUND ||
+#ifdef LIBC_MATH_HAS_SMALL_TABLES
+                    x_u == FPBits::one().uintval() ||
+#endif // LIBC_MATH_HAS_SMALL_TABLES
                     x_u >= FPBits::inf().uintval() ||
                     x_u < FPBits::min_normal().uintval())) {
     if (auto r = check_exceptional_cases(x, y, e_x, x_mant, is_neg, sign_d);

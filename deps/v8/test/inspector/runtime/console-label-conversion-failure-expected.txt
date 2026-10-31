@@ -1,0 +1,21 @@
+Checks that console methods propagate failures of label conversions.
+Without Runtime domain:
+console.count: TypeError, CustomError
+console.countReset: TypeError, CustomError
+console.profile: TypeError, CustomError
+console.profileEnd: TypeError, CustomError
+console.time: TypeError, CustomError
+console.timeLog: TypeError, CustomError
+console.timeEnd: TypeError, CustomError
+console.timeStamp: TypeError, CustomError
+With Runtime domain:
+console.count: TypeError, CustomError
+console.countReset: TypeError, CustomError
+console.profile: TypeError, CustomError
+console.profileEnd: TypeError, CustomError
+console.time: TypeError, CustomError
+console.timeLog: TypeError, CustomError
+console.timeEnd: TypeError, CustomError
+console.timeStamp: TypeError, CustomError
+Terminating execution during label conversion:
+Execution was terminated

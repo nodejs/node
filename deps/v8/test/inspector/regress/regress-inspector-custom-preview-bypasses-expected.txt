@@ -1,0 +1,12 @@
+Checks that custom formatters cannot bypass length limits via object tags or nested escaping.
+
+Running test: setUp
+
+Running test: testDirectString
+[DirectString] no custom preview
+
+Running test: testObjectTags
+[ObjectTags] no custom preview
+
+Running test: testNestedHeader
+[NestedHeader] no custom preview

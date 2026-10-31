@@ -527,7 +527,6 @@ class PromotedPageRecordMigratedSlotVisitor final
                                       MaybeObjectSize maybe_object_size) {
     ArrayBufferExtension* extension = object->extension();
     if (extension) {
-      extension->InitializationBarrier();
       extension->YoungMarkPromoted();
     }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::

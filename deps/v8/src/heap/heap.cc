@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cinttypes>
 #include <iomanip>
 #include <memory>
@@ -18,7 +19,6 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
-#include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -123,6 +123,7 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
@@ -1937,19 +1938,22 @@ void Heap::StartIncrementalMarkingOnInterrupt() {
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     LocalHeap* local_heap, GCFlags gc_flags,
-    const GCCallbackFlags gc_callback_flags) {
+    const GCCallbackFlags gc_callback_flags,
+    std::optional<GarbageCollectionReason> gc_reason) {
   if (incremental_marking()->IsStopped() &&
       incremental_marking()->CanAndShouldBeStarted()) {
     auto [limit, reason] = IncrementalMarkingLimitReached();
     switch (limit) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
-          StartIncrementalMarking(
-              gc_flags,
-              OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
-                  ? GarbageCollectionReason::kAllocationLimit
-                  : GarbageCollectionReason::kGlobalAllocationLimit,
-              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
+          if (!gc_reason) {
+            gc_reason =
+                OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
+                    ? GarbageCollectionReason::kAllocationLimit
+                    : GarbageCollectionReason::kGlobalAllocationLimit;
+          }
+          StartIncrementalMarking(gc_flags, *gc_reason, gc_callback_flags,
+                                  GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();
@@ -2629,11 +2633,6 @@ bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
     if (old_strings_[i] == string) return true;
   }
   return false;
-}
-
-void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
-                                size_t new_payload) {
-  DCHECK(IsExternalString(string));
 }
 
 void Heap::ExternalStringTable::Verify() {
@@ -3489,9 +3488,7 @@ namespace {
 
 double ComputeMutatorUtilizationImpl(double mutator_speed,
                                      std::optional<double> gc_speed) {
-  constexpr double kMinMutatorUtilization = 0.0;
   constexpr double kConservativeGcSpeedInBytesPerMillisecond = 200000;
-  if (mutator_speed == 0) return kMinMutatorUtilization;
   if (!gc_speed) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
   // Derivation:
   // mutator_utilization = mutator_time / (mutator_time + gc_time)
@@ -3659,13 +3656,15 @@ void Heap::ActivateMemoryReducerIfNeeded() {
 }
 
 void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
+  // Only trigger this if we are still backgrounded.
+  if (!isolate()->is_backgrounded()) return;
   // Activate memory reducer when switching to background if
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
   const int kMinCommittedMemory = 7 * NormalPage::kPageSize;
-  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
-      isolate()->is_backgrounded()) {
+  if ((v8_flags.memory_reducer_limit_based) ||
+      (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory)) {
     memory_reducer_->NotifyPossibleGarbage();
   }
 }
@@ -4581,12 +4580,14 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
 
+  Tagged<Object> first_builtin(isolate_->builtin_table()[0]);
   const bool skip_iterate_builtins =
       options.contains(SkipRoot::kOldGeneration) ||
       (Builtins::kCodeObjectsAreInROSpace &&
        options.contains(SkipRoot::kReadOnlyBuiltins) &&
        // Prior to ReadOnlyPromotion, builtins may be on the mutable heap.
-       !isolate_->serializer_enabled());
+       IsHeapObject(first_builtin) &&
+       HeapLayout::InReadOnlySpace(Cast<HeapObject>(first_builtin)));
   if (!skip_iterate_builtins) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
@@ -4903,9 +4904,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     if (!v8_flags.minor_ms) {
       // TODO(dinfuehr): Rounding to a power of 2 is technically no longer
       // needed but yields best performance on Pixel2.
-      max_semi_space_size_ =
-          static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
-              static_cast<uint64_t>(max_semi_space_size_)));
+      max_semi_space_size_ = std::bit_ceil(max_semi_space_size_);
     }
     max_semi_space_size_ =
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
@@ -5694,7 +5693,8 @@ Heap::IncrementalMarkingLimitReached() {
 
   if (old_generation_space_available > new_space_target_capacity &&
       (global_memory_available > new_space_target_capacity)) {
-    if (gc_count_ == kInitialGCEpoch && limits()->using_initial_limit()) {
+    if (gc_count_ == kInitialGCEpoch && limits()->using_initial_limit() &&
+        !v8_flags.memory_reducer_limit_based) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
@@ -6064,7 +6064,7 @@ void Heap::SetUpSpaces() {
   tracer_.reset(new GCTracer(this, startup_time));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
-  if (v8_flags.memory_reducer) memory_reducer_.reset(new MemoryReducer(this));
+  if (v8_flags.memory_reducer) memory_reducer_ = MemoryReducer::Create(this);
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
@@ -6221,7 +6221,8 @@ void Heap::SetStackStart() {
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
 
-  void* actual_stack_start = v8::base::Stack::GetStackStart();
+  void* actual_stack_start = v8::base::Stack::GetEffectiveStackStart();
+  const bool check_for_tls = ShouldCheckForTLSOnStack();
 
   // Because of v8::Locker an isolate might be migrated between threads. In such
   // situations the provided stack start marker should only be used on the right
@@ -6229,9 +6230,9 @@ void Heap::SetStackStart() {
   if (stack_start_marker_ && actual_stack_start >= stack_start_marker_ &&
       reinterpret_cast<uintptr_t>(stack_start_marker_) >=
           static_cast<uintptr_t>(GetCurrentStackPosition())) {
-    stack().SetStackStart(stack_start_marker_);
+    stack().SetStackStart(stack_start_marker_, check_for_tls);
   } else {
-    stack().SetStackStart(actual_stack_start);
+    stack().SetStackStart(actual_stack_start, check_for_tls);
   }
 }
 
@@ -6243,6 +6244,16 @@ void Heap::SetStackStart() {
 const ::heap::base::Stack& Heap::stack() const {
   CHECK_NOT_NULL(main_thread_local_heap_);
   return main_thread_local_heap_->stack_;
+}
+
+bool Heap::ShouldCheckForTLSOnStack() const {
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) return true;
+#endif  // VERIFY_HEAP
+  if (const auto* cpp_heap = CppHeap::From(cpp_heap_)) {
+    return cpp_heap->ShouldCheckForTLSOnStack();
+  }
+  return true;
 }
 
 void Heap::StartTearDown() {
@@ -6363,7 +6374,6 @@ void Heap::TearDown() {
   ephemeron_remembered_set_.reset();
 
   if (memory_reducer_ != nullptr) {
-    memory_reducer_->TearDown();
     memory_reducer_.reset();
   }
 
@@ -6515,13 +6525,21 @@ void Heap::CompactWeakArrayLists() {
 }
 
 void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
-                           GlobalHandleVector<Map> maps) {
+                           base::Vector<const IndirectHandle<Map>> maps) {
+  uint32_t number_of_new_maps = 0;
+  for (DirectHandle<Map> map : maps) {
+    DCHECK(!HeapLayout::InAnySharedSpace(*map));
+    if (!map->is_in_retained_map_list()) {
+      number_of_new_maps++;
+    }
+  }
+  if (number_of_new_maps == 0) return;
+
   Handle<WeakArrayList> array(Cast<WeakArrayList>(context->retained_maps()),
                               isolate());
   const uint32_t array_len = array->length().value();
   const uint32_t array_cap = array->capacity().value();
-  uint32_t new_maps_size =
-      static_cast<uint32_t>(maps.size()) * kRetainMapEntrySize;
+  uint32_t new_maps_size = number_of_new_maps * kRetainMapEntrySize;
   if (array_len + new_maps_size > array_cap) {
     CompactRetainedMaps(*array);
   }
@@ -6536,8 +6554,6 @@ void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw_array = *array;
     for (DirectHandle<Map> map : maps) {
-      DCHECK(!HeapLayout::InAnySharedSpace(*map));
-
       if (map->is_in_retained_map_list()) {
         continue;
       }
@@ -6666,7 +6682,7 @@ void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
 }
 
 // static
-void Heap::VerifySkippedIndirectWriteBarrier(Address object) {
+void Heap::VerifySkippedTrustedWriteBarrier(Address object) {
 #if V8_VERIFY_WRITE_BARRIERS
   DCHECK(v8_flags.verify_write_barriers);
   LocalHeap* local_heap = LocalHeap::Current();
@@ -6827,6 +6843,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
     V8_INLINE void MarkHeapObject(Tagged<HeapObject> heap_object) {
+      if (IsInaccessible(heap_object)) return;
       if (filter_->MarkAsReachable(heap_object)) {
         marking_stack_.push_back(heap_object);
       }
@@ -7831,10 +7848,9 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap) : heap_(heap) {
   // frame layouts). In such cases, we scan the stack either from the last
   // c_entry_fp or the whole stack.
   const Address c_entry_fp = *heap_->isolate()->c_entry_fp_address();
-  const void* frame_address =
-      (c_entry_fp == kNullAddress)
-          ? static_cast<void*>(v8::base::Stack::GetStackStart())
-          : reinterpret_cast<const void*>(c_entry_fp);
+  const void* frame_address = (c_entry_fp == kNullAddress)
+                                  ? heap_->stack().stack_start()
+                                  : reinterpret_cast<const void*>(c_entry_fp);
   // The stack segment covered by this scope should include the scope itself.
   DCHECK_NOT_NULL(frame_address);
   DCHECK_LE(this, frame_address);

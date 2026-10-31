@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "src/base/vector.h"
 #include "testing/gmock-support.h"
 
 namespace v8::base {

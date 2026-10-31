@@ -2,6 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::RangeError;
 use crate::calendar_arithmetic::{ArithmeticDate, DateFieldsResolver, PackWithMD};
 use crate::error::{
     DateAddError, DateFromFieldsError, DateNewError, EcmaReferenceYearError, LunisolarDateError,
@@ -10,8 +11,7 @@ use crate::error::{
 use crate::options::{DateAddOptions, DateDifferenceOptions};
 use crate::options::{DateFromFieldsOptions, Overflow};
 use crate::types::{DateFields, LeapStatus, Month, MonthInfo};
-use crate::RangeError;
-use crate::{types, Calendar, Date};
+use crate::{Calendar, Date, types};
 use ::tinystr::tinystr;
 use calendrical_calculations::hebrew_keviyah::{Keviyah, YearInfo};
 use calendrical_calculations::rata_die::RataDie;
@@ -420,8 +420,8 @@ impl Date<Hebrew> {
     /// valid range of `-9999..=9999`.
     ///
     /// ```rust
-    /// use icu::calendar::types::Month;
     /// use icu::calendar::Date;
+    /// use icu::calendar::types::Month;
     ///
     /// let date = Date::try_new_hebrew_v2(5782, Month::leap(5), 7)
     ///     .expect("Failed to initialize Date instance.");
@@ -619,5 +619,25 @@ mod tests {
         // Should be Saturday per:
         // https://www.hebcal.com/converter?hd=1&hm=Tishrei&hy=3760&h2g=1
         assert_eq!(dt.weekday(), Weekday::Saturday);
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Hebrew);
+            let reconstructed = Date::try_new_hebrew_v2(
+                date.year().extended_year(),
+                date.month().to_input(),
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Hebrew failed for RD {:?}",
+                rd
+            );
+        }
     }
 }

@@ -1,0 +1,3 @@
+Tests that a failed side-effect check in doesAttributeHaveObservableSideEffectOnGet is not swallowed.
+Request side-effect: exception (Uncaught EvalError: Possible side-effect in debug-evaluate)
+Response side-effect: exception (Uncaught EvalError: Possible side-effect in debug-evaluate)

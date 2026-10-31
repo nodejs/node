@@ -4,7 +4,10 @@
 
 #include <memory>
 #include <span>
+#include <string>
 
+#include "include/v8-external.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
@@ -232,6 +235,77 @@ class TestChannel : public V8Inspector::Channel {
   void flushProtocolNotifications() override {}
   v8_inspector::String16 expected_response_matcher_;
 };
+
+class DeepSerializeEmbedderClient : public v8_inspector::V8InspectorClient {
+ public:
+  std::unique_ptr<v8_inspector::DeepSerializationResult> deepSerialize(
+      v8::Local<v8::Value> v8Value, int maxDepth,
+      v8::Local<v8::Object> additionalParameters) override {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    if (v8Value->IsObject()) {
+      v8::Local<v8::Object> obj = v8Value.As<v8::Object>();
+      v8::Local<v8::Value> marker;
+      if (obj->Get(context,
+                   v8::String::NewFromUtf8Literal(isolate, "embedder_marker"))
+              .ToLocal(&marker) &&
+          marker->IsTrue()) {
+        auto deep_val = std::make_unique<v8_inspector::DeepSerializedValue>(
+            v8_inspector::StringBuffer::create(toStringView("embedder_node")),
+            v8::String::NewFromUtf8Literal(isolate, "a"));
+        return std::make_unique<v8_inspector::DeepSerializationResult>(
+            std::move(deep_val));
+      }
+    }
+    return nullptr;
+  }
+};
+
+class OOMTestChannel : public v8_inspector::V8Inspector::Channel {
+ public:
+  ~OOMTestChannel() override = default;
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    response_ = v8_inspector::toString16(message->string());
+  }
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {}
+  void flushProtocolNotifications() override {}
+
+  v8_inspector::String16 response_;
+};
+
+TEST_F(InspectorTest, RegressDeepSerializeBudget) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  DeepSerializeEmbedderClient client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  OOMTestChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  std::string command =
+      "{\"id\": 1, \"method\": \"Runtime.evaluate\", \"params\": "
+      "{\"expression\": "
+      "\"[{embedder_marker: true}, 'x'.repeat(" +
+      std::to_string(v8::String::kMaxLength) +
+      ")]\", \"contextId\": 1, \"generatePreview\": false, "
+      "\"serializationOptions\": "
+      "{\"serialization\": \"deep\"}}}";
+
+  session->dispatchProtocolMessage(toStringView(String16(command.c_str())));
+
+  CHECK_NE(
+      channel.response_.find(toString16(toStringView("Object is too large"))),
+      String16::kNotFound);
+}
 
 TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
   v8::Isolate* isolate = v8_isolate();
@@ -615,6 +689,167 @@ TEST_F(InspectorTest, WrapObjectWithCustomPreviewNoPreview) {
   EXPECT_FALSE(remote_object->hasPreview());
   EXPECT_FALSE(remote_object->hasCustomPreview());
   EXPECT_EQ(channel.triggerCount(), 0);
+}
+
+namespace {
+
+void TerminateExecutionCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->TerminateExecution();
+}
+
+}  // namespace
+
+// Regression test for the dangling termination exception left behind by
+// generateCustomPreview() when it runs at call depth zero without an outer
+// v8::TryCatch (e.g. an embedder calling V8InspectorSession::wrapObject with
+// generatePreview=true from C++).
+TEST_F(InspectorTest, TerminationInCustomPreviewAtCallDepthZero) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  NoopChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 1,
+    "method": "Runtime.enable"
+  })"));
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 2,
+    "method": "Runtime.setCustomObjectFormatterEnabled",
+    "params": {"enabled": true}
+  })"));
+
+  v8::Local<v8::Function> terminate =
+      v8::Function::New(v8_context(), &TerminateExecutionCallback)
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("terminate"), terminate)
+            .FromJust());
+
+  // The custom formatter terminates execution while generateCustomPreview()
+  // calls into it.
+  TryRunJS(R"(
+    this.devtoolsFormatters = [{
+      header: (x) => { terminate(); return ['span', 'header']; },
+      hasBody: (x) => false,
+    }];
+    this.obj = {a: 1};
+  )");
+  CHECK(!isolate->IsExecutionTerminating());
+
+  v8::Local<v8::Value> obj = v8_context()
+                                 ->Global()
+                                 ->Get(v8_context(), NewString("obj"))
+                                 .ToLocalChecked();
+
+  // No enclosing v8::TryCatch and no JavaScript on the stack: call depth is
+  // zero here.
+  session->wrapObject(v8_context(), obj, toStringView("testGroup"),
+                      /*generatePreview=*/true);
+
+  // The termination must not be left pending on the isolate after the API
+  // call returned at call depth zero: the next V8 API call would hit
+  // DCHECK(!is_execution_terminating()) in EnterV8InternalScope.
+  CHECK(!isolate->IsExecutionTerminating());
+}
+
+namespace {
+
+// Calls into JavaScript for every Debugger.paused and Debugger.resumed
+// notification, like an embedder that exposes an in-process session to JS.
+class JSCallbackChannel : public V8Inspector::Channel {
+ public:
+  JSCallbackChannel(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                    v8::Local<v8::Function> callback)
+      : m_isolate(isolate),
+        m_context(isolate, context),
+        m_callback(isolate, callback) {}
+  ~JSCallbackChannel() override = default;
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {}
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    String16 message_str = toString16(message->string());
+    if (message_str.find("Debugger.paused") == String16::kNotFound &&
+        message_str.find("Debugger.resumed") == String16::kNotFound) {
+      return;
+    }
+    v8::HandleScope handle_scope(m_isolate);
+    v8::Local<v8::Context> context = m_context.Get(m_isolate);
+    v8::Context::Scope context_scope(context);
+    m_callback.Get(m_isolate)
+        ->Call(context, v8::Undefined(m_isolate), 0, nullptr)
+        .ToLocalChecked();
+  }
+
+  void flushProtocolNotifications() override {}
+
+ private:
+  v8::Isolate* m_isolate;
+  v8::Global<v8::Context> m_context;
+  v8::Global<v8::Function> m_callback;
+};
+
+void DispatchPause(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  static_cast<V8InspectorSession*>(info.DataV2().As<v8::External>()->Value(
+                                       v8::kExternalPointerTypeTagDefault))
+      ->dispatchProtocolMessage(
+          toStringView(R"({"id": 2, "method": "Debugger.pause"})"));
+}
+
+}  // namespace
+
+TEST_F(InspectorTest, ChannelCanRunJSWhenPausedOnInterrupt) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  v8::Local<v8::Function> callback =
+      RunJS("globalThis.notifications = 0; () => notifications++")
+          .As<v8::Function>();
+  JSCallbackChannel channel(isolate, v8_context(), callback);
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Debugger.enable"})"));
+
+  v8::Local<v8::Function> pause =
+      v8::Function::New(v8_context(), &DispatchPause,
+                        v8::External::New(isolate, session.get(),
+                                          v8::kExternalPointerTypeTagDefault))
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("pause"), pause)
+            .FromJust());
+
+  // Debugger.pause while JavaScript runs schedules the break through an API
+  // interrupt, where JavaScript execution is disallowed. The loop spins until
+  // it takes that interrupt on a back edge. Taken on function entry instead,
+  // V8 would step in and pause at the next statement, outside the interrupt,
+  // so the count is read in the same script.
+  v8::Local<v8::Value> result = RunJS(
+      "pause();"
+      "for (let i = 0; i < 1e7 && notifications === 0; i++) {}"
+      "notifications");
+  CHECK_EQ(result->Int32Value(v8_context()).FromJust(), 2);
 }
 }  // namespace internal
 }  // namespace v8

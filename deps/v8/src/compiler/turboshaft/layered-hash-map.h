@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LAYERED_HASH_MAP_H_
 #define V8_COMPILER_TURBOSHAFT_LAYERED_HASH_MAP_H_
 
+#include <bit>
 #include <cstddef>
 #include <iostream>
 #include <limits>
@@ -82,7 +83,7 @@ LayeredHashMap<Key, Value>::LayeredHashMap(Zone* zone,
   initial_capacity = std::max<uint32_t>(initial_capacity, 16);
   // {initial_capacity} should be a power of 2, so that we can compute offset
   // in {table_} with a mask rather than a modulo.
-  initial_capacity = base::bits::RoundUpToPowerOfTwo32(initial_capacity);
+  initial_capacity = std::bit_ceil(initial_capacity);
   mask_ = initial_capacity - 1;
   // Allocating the table_
   table_ = zone_->NewVector<Entry>(initial_capacity);

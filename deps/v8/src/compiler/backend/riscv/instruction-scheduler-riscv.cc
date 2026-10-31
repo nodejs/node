@@ -345,7 +345,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord64AtomicCompareExchangeUint64:
     case kRiscvStoreCompressTagged:
     case kRiscvStoreEncodeSandboxedPointer:
-    case kRiscvStoreIndirectPointer:
+    case kRiscvStoreTrustedPointer:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairStore:
     case kRiscvWord32AtomicPairAdd:
@@ -1519,7 +1519,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kRiscvStoreCompressTagged:
     case kRiscvAtomicStoreCompressTagged:
     case kRiscvStoreEncodeSandboxedPointer:
-    case kRiscvStoreIndirectPointer:
+    case kRiscvStoreTrustedPointer:
     case kRiscvWord64AtomicStoreWord64:
     case kRiscvWord64AtomicAddUint64:
     case kRiscvWord64AtomicSubUint64:

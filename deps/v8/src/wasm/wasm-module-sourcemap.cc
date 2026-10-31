@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "include/v8-context.h"
+#include "include/v8-exception.h"
 #include "include/v8-json.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
@@ -25,10 +26,15 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
                                          v8::Local<v8::String> src_map_str) {
   if (src_map_str.IsEmpty()) return;
   v8::HandleScope scope(v8_isolate);
+  v8::TryCatch try_catch(v8_isolate);
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate);
+  if (context.IsEmpty()) return;
 
   v8::Local<v8::Value> src_map_value;
-  if (!v8::JSON::Parse(context, src_map_str).ToLocal(&src_map_value)) return;
+  if (!v8::JSON::Parse(context, src_map_str).ToLocal(&src_map_value) ||
+      !src_map_value->IsObject()) {
+    return;
+  }
   v8::Local<v8::Object> src_map_obj =
       v8::Local<v8::Object>::Cast(src_map_value);
 

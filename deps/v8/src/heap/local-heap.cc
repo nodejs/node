@@ -43,7 +43,8 @@ void LocalHeap::VerifyCurrent() const { DCHECK_EQ(this, LocalHeap::Current()); }
 #endif
 
 LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
-                     std::unique_ptr<PersistentHandles> persistent_handles)
+                     std::unique_ptr<PersistentHandles> persistent_handles,
+                     v8::base::Stack::StackSlot stack_start)
     : heap_(heap),
       ptr_compr_cage_access_scope_(heap->isolate()),
       is_main_thread_(kind == ThreadKind::kMain),
@@ -87,7 +88,19 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
     persistent_handles_->Attach(this);
   }
   if (!is_main_thread()) {
+    DCHECK(::heap::base::Stack::IsOnStack(this));
     saved_current_local_heap_ = LocalHeap::TryGetCurrent();
+    // Set the stack start for the outermost background `LocalHeap` on this
+    // thread. When `saved_current_local_heap_->is_main_thread()` is true, a
+    // parked main thread is constructing a background `LocalHeap` (whose
+    // segment in `Stack::background_stacks_` is separate from the main thread's
+    // `Stack::current_segment_`). For nested background `LocalHeap`s, keep the
+    // outermost stack start because `Stack::background_stacks_` only stores a
+    // single segment per thread.
+    if (!saved_current_local_heap_ ||
+        saved_current_local_heap_->is_main_thread()) {
+      stack_start_scope_.emplace(stack_start);
+    }
     saved_current_isolate_ = Isolate::TryGetCurrent();
     Isolate::SetCurrent(heap_->isolate());
     LocalHeap::SetCurrent(this);

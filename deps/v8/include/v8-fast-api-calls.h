@@ -466,7 +466,7 @@ struct FastApiCallbackOptions {
   /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
    */
-  V8_DEPRECATE_SOON("Use DataV2 instead")
+  V8_DEPRECATED("Use DataV2 instead")
   v8::Local<v8::Value> data;
 
   /**

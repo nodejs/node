@@ -19,8 +19,9 @@
 # Fail on any error. Treat unset variables an error. Print commands as executed.
 set -euox pipefail
 
-absl_dir=/abseil-cpp
+absl_dir="${PWD}"
 absl_build_dir=/buildfs
+mkdir -p "${absl_build_dir}"
 googletest_builddir=/googletest_builddir
 googletest_archive="googletest-${ABSL_GOOGLETEST_VERSION}.tar.gz"
 project_dir="${absl_dir}/CMake/install_test_project"
@@ -40,8 +41,8 @@ pushd "googletest-${ABSL_GOOGLETEST_VERSION}"
 mkdir build
 pushd build
 cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS="${build_shared_libs}" ..
-make -j $(nproc)
-make install
+cmake --build .
+cmake --install .
 ldconfig
 popd
 popd
@@ -57,10 +58,12 @@ cmake "${absl_dir}" \
   -DABSL_FIND_GOOGLETEST=ON  \
   -DCMAKE_BUILD_TYPE=Release \
   -DABSL_BUILD_TESTING=ON \
-  -DBUILD_SHARED_LIBS="${build_shared_libs}"
-make -j $(nproc)
-ctest -j $(nproc) --output-on-failure
-make install
+  -DBUILD_SHARED_LIBS="${build_shared_libs}" \
+  -DCMAKE_JOB_POOLS="link=$(nproc)" \
+  -DCMAKE_JOB_POOL_LINK=link
+cmake --build .
+ctest --output-on-failure --repeat until-pass:3
+cmake --install .
 ldconfig
 popd
 

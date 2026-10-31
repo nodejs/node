@@ -434,12 +434,10 @@ class FeedbackCollectorReducer : public Next {
   using OperationStorageSlot = compiler::turboshaft::OperationStorageSlot;
 
   V<None> REDUCE(Return)(V<Word32> pop_count,
-                         base::Vector<const OpIndex> return_values,
-                         bool spill_caller_frame_slots) {
+                         base::Vector<const OpIndex> return_values) {
     // Store feedback first, before we return from the function.
     UpdateFeedback();
-    return Next::ReduceReturn(pop_count, return_values,
-                              spill_caller_frame_slots);
+    return Next::ReduceReturn(pop_count, return_values);
   }
 
  private:
@@ -1045,8 +1043,7 @@ class BuiltinsReducer : public Next {
   }
 
   V<String> StringConstant(const char* str) {
-    Handle<String> internalized_string =
-        factory()->InternalizeString(base::OneByteVector(str));
+    Handle<String> internalized_string = factory()->InternalizeString(str);
     __ CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     return V<String>::Cast(__ HeapConstantNoHole(internalized_string));
   }

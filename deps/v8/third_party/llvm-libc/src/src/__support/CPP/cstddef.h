@@ -20,7 +20,7 @@ namespace cpp {
 // `::std::byte` type (see `Type::isStdByteType()`), so `cpp::byte` would
 // otherwise get its own TBAA node. `may_alias` makes accesses through
 // `cpp::byte *` char-aliasing as callers expect.
-enum class [[gnu::may_alias]] byte : unsigned char {};
+enum class LIBC_MAY_ALIAS byte : unsigned char {};
 
 template <class IntegerType>
 LIBC_INLINE constexpr enable_if_t<is_integral_v<IntegerType>, byte>

@@ -4,4 +4,4 @@
 
 assertThrows(
     () => eval('A interface'), SyntaxError,
-    'Unexpected identifier \'undefined\'');
+    'Unexpected identifier \'interface\'');

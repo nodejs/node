@@ -18,6 +18,7 @@
 #endif // LIBC_COPT_PRINTF_DISABLE_WIDE
 
 #include "hdr/limits_macros.h"
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/printf_core/converter_utils.h"
 #include "src/__support/printf_core/core_structs.h"
@@ -27,9 +28,8 @@ namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
 template <OverflowMode mode>
-LIBC_INLINE int convert_char(Writer<mode> *writer,
-                             const FormatSection &to_conv) {
-
+LIBC_INLINE int write_character_as_char(Writer<mode, char> *writer,
+                                        const FormatSection<char> &to_conv) {
   char buffer[MB_LEN_MAX];
   size_t write_size = 0;
 
@@ -80,6 +80,65 @@ LIBC_INLINE int convert_char(Writer<mode> *writer,
   }
 
   return WRITE_OK;
+}
+
+#if !defined(LIBC_COPT_PRINTF_DISABLE_WIDE)
+
+template <OverflowMode mode>
+LIBC_INLINE int
+write_character_as_wchar(Writer<mode, wchar_t> *writer,
+                         const FormatSection<wchar_t> &to_conv) {
+  wchar_t write_char;
+
+  if (to_conv.length_modifier == LengthModifier::l) {
+    wint_t wi = static_cast<wint_t>(to_conv.conv_val_raw);
+    if (wi == WEOF)
+      return ILLEGAL_WIDE_CHAR;
+
+    write_char = static_cast<wchar_t>(wi);
+  } else {
+    int c = static_cast<int>(to_conv.conv_val_raw);
+    if (c < 0 || c > 127)
+      return MB_CONVERSION_ERROR;
+
+    write_char = static_cast<wchar_t>(c);
+  }
+
+  size_t padding_spaces = to_conv.min_width > 1 ? to_conv.min_width - 1 : 0;
+
+  // If the padding is on the left side, write the spaces first.
+  if (padding_spaces > 0 &&
+      (to_conv.flags & FormatFlags::LEFT_JUSTIFIED) == 0) {
+    RET_IF_RESULT_NEGATIVE(writer->write(L' ', padding_spaces));
+  }
+
+  RET_IF_RESULT_NEGATIVE(writer->write(write_char));
+
+  // If the padding is on the right side, write the spaces last.
+  if (padding_spaces > 0 &&
+      (to_conv.flags & FormatFlags::LEFT_JUSTIFIED) != 0) {
+    RET_IF_RESULT_NEGATIVE(writer->write(L' ', padding_spaces));
+  }
+
+  return WRITE_OK;
+}
+
+#endif // !LIBC_COPT_PRINTF_DISABLE_WIDE
+
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_character(Writer<mode, CharT> *writer,
+                                  const FormatSection<CharT> &to_conv) {
+#if defined(LIBC_COPT_PRINTF_DISABLE_WIDE)
+  static_assert(cpp::is_same_v<CharT, char>, "wchar_t not supported.");
+  return write_character_as_char(writer, to_conv);
+#else  // LIBC_COPT_PRINTF_DISABLE_WIDE
+  if constexpr (cpp::is_same_v<CharT, char>) {
+    return write_character_as_char(writer, to_conv);
+  } else {
+    static_assert(cpp::is_same_v<CharT, wchar_t>);
+    return write_character_as_wchar(writer, to_conv);
+  }
+#endif // LIBC_COPT_PRINTF_DISABLE_WIDE
 }
 
 } // namespace printf_core

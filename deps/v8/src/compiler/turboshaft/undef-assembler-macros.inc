@@ -36,6 +36,7 @@
 #undef REDUCE
 #undef REDUCE_INPUT_GRAPH
 #undef TSA_DCHECK
+#undef TSA_SLOW_DCHECK
 #undef TYPESWITCH
 #undef UNLIKELY
 #undef WHILE

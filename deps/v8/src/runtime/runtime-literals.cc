@@ -132,8 +132,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                      VisitElementOrProperty(copy, value));
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
-          uint64_t double_value = Cast<HeapNumber>(raw)->value_as_bits();
-          auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
+          Handle<UnionOf<HeapNumber, UninitializedHeapNumber>> value;
+          if (IsUninitializedHeapNumber(raw)) {
+            value = isolate->factory()->NewUninitializedHeapNumber();
+          } else {
+            uint64_t bits = Cast<HeapNumber>(raw)->value_as_bits();
+            value = isolate->factory()->NewHeapNumberFromBits(bits);
+          }
           copy->FastPropertyAtPut(index, *value);
         }
       }

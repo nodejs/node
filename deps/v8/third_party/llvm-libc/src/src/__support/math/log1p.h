@@ -942,10 +942,14 @@ LIBC_INLINE double log1p(double x) {
       if (x + x == 0.0)
         return x + x; // Handle FTZ/DAZ correctly.
 
-      volatile float tp = 1.0f;
-      volatile float tn = -1.0f;
-      bool rdp = (tp - 0x1p-25f != tp);
-      bool rdn = (tn - 0x1p-24f != tn);
+      volatile float tpv = 1.0f;
+      volatile float tnv = -1.0f;
+
+      float tp = tpv - 0x1p-25f;
+      float tn = tnv - 0x1p-25f;
+
+      bool rdp = (tp != tpv);
+      bool rdn = (tn != tnv);
 
       if (x > 0 && rdp) {
         return FPBits_t(x_u - 1).get_val();

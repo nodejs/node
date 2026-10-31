@@ -146,16 +146,15 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
     const Block& predecessor = *block.LastPredecessor();
     types_table_.StartNewSnapshot(
         block_to_snapshot_[predecessor.index()].value());
-    if (IsReachable(predecessor)) {
-      const BranchOp* branch =
-          block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
-      if (branch != nullptr) {
-        ProcessBranchOnTarget(*branch, block);
-      }
-    } else {
+    if (!IsReachable(predecessor)) {
       TRACE("[b%uu] Block unreachable as sole predecessor b%u is unreachable\n",
             block.index().id(), predecessor.index().id());
       block_is_unreachable_.Add(block.index().id());
+    }
+    const BranchOp* branch =
+        block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
+    if (branch != nullptr) {
+      ProcessBranchOnTarget(*branch, block);
     }
   } else {
     DCHECK_EQ(block.kind(), Block::Kind::kMerge);
@@ -197,11 +196,17 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kStructSet:
         ProcessStructSet(op.Cast<StructSetOp>());
         break;
+      case Opcode::kStructAtomicRMW:
+        ProcessStructAtomicRMW(op.Cast<StructAtomicRMWOp>());
+        break;
       case Opcode::kArrayGet:
         ProcessArrayGet(op.Cast<ArrayGetOp>());
         break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op.Cast<ArrayLengthOp>());
+        break;
+      case Opcode::kArrayAtomicRMW:
+        ProcessArrayAtomicRMW(op.Cast<ArrayAtomicRMWOp>());
         break;
       case Opcode::kGlobalGet:
         ProcessGlobalGet(op.Cast<GlobalGetOp>());
@@ -324,7 +329,9 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
     if (type.is_none_or_bottom()) {
       // Subsumption dictates that get_desc(none) <: get_desc(exact $s).
       exactness = wasm::kExact;
-    } else if (type.has_index() && type.ref_index() != struct_get.type_index) {
+    } else if (type.has_index() &&
+               !wasm::EquivalentIndices(type.ref_index(), struct_get.type_index,
+                                        module_)) {
       exactness = wasm::kAnySubtype;
     }
     new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor))
@@ -343,6 +350,23 @@ void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
   input_type_map_[graph_.Index(struct_set)] = type;
 }
 
+void WasmGCTypeAnalyzer::ProcessStructAtomicRMW(
+    const StructAtomicRMWOp& struct_atomic_rmw) {
+  // Struct atomic-rmw operations perform a null check.
+  wasm::ValueType type =
+      RefineTypeKnowledgeNotNull(struct_atomic_rmw.object(), struct_atomic_rmw);
+  input_type_map_[graph_.Index(struct_atomic_rmw)] = type;
+  wasm::ValueType new_type;
+  if (type.is_uninhabited()) {
+    new_type = wasm::kWasmBottom;
+  } else {
+    new_type =
+        struct_atomic_rmw.type->field(struct_atomic_rmw.field_index).Unpacked();
+  }
+  RefineTypeKnowledge(graph_.Index(struct_atomic_rmw), new_type,
+                      struct_atomic_rmw);
+}
+
 void WasmGCTypeAnalyzer::ProcessArrayGet(const ArrayGetOp& array_get) {
   // array.get traps on null. (Typically already on the array length access
   // needed for the bounds check.)
@@ -358,6 +382,17 @@ void WasmGCTypeAnalyzer::ProcessArrayLength(const ArrayLengthOp& array_length) {
   wasm::ValueType type =
       RefineTypeKnowledgeNotNull(array_length.array(), array_length);
   input_type_map_[graph_.Index(array_length)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessArrayAtomicRMW(
+    const ArrayAtomicRMWOp& array_atomic_rmw) {
+  // Array atomic-rmw operations trap on null. (Typically already on the array
+  // length access needed for the bounds check.)
+  RefineTypeKnowledgeNotNull(array_atomic_rmw.array(), array_atomic_rmw);
+  // The result type is at least the static array element type.
+  RefineTypeKnowledge(graph_.Index(array_atomic_rmw),
+                      array_atomic_rmw.element_type.Unpacked(),
+                      array_atomic_rmw);
 }
 
 void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
@@ -399,19 +434,23 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
 wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,
                                                        int input_index) {
   OpIndex phi_id = graph_.Index(phi);
-  OpIndex input = ResolveAliases(phi.input(input_index));
-  // If the input of the phi is in the same block as the phi and appears
-  // before the phi, don't use the predecessor value.
-
-  if (current_block_->begin().id() <= input.id() && input.id() < phi_id.id()) {
+  OpIndex raw_input = phi.input(input_index);
+  // If the un-aliased input of the phi is in the same block as the phi and
+  // appears before the phi, don't use the predecessor value. Note that we must
+  // check the un-aliased input, as resolving aliases first could incorrectly
+  // map a backedge input (e.g. a cast in the loop body) to an operation in the
+  // loop header.
+  if (current_block_->begin().id() <= raw_input.id() &&
+      raw_input.id() < phi_id.id()) {
     // Phi instructions have to be at the beginning of the block, so this can
     // only happen for inputs that are also phis. Furthermore, this is only
     // possible in loop headers of loops and only for the backedge-input.
-    DCHECK(graph_.Get(input).Is<PhiOp>());
+    DCHECK(graph_.Get(raw_input).Is<PhiOp>());
     DCHECK(current_block_->IsLoop());
     DCHECK_EQ(input_index, 1);
-    return types_table_.Get(input);
+    return types_table_.Get(raw_input);
   }
+  OpIndex input = ResolveAliases(raw_input);
   return types_table_.GetPredecessorValue(input, input_index);
 }
 

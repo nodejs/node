@@ -1109,7 +1109,7 @@ struct BuiltinCallDescriptor {
       : public Descriptor<WasmAllocateDescriptorStruct> {
     static constexpr auto kFunction = Builtin::kWasmAllocateDescriptorStruct;
     using arguments_t = std::tuple<V<Map>, V<Word32>, V<Object>>;
-    using results_t = std::tuple<V<WasmStruct>>;
+    using results_t = std::tuple<V<WasmDescriptor>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;

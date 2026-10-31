@@ -88,6 +88,13 @@ transitioning javascript builtin JSToWasmInterpreterWrapper(
   const sigTypes = torque_internal::unsafe::NewOffHeapConstSlice(
       %RawDownCast<RawPtr<uint32>>(reps), paramCount + returnCount);
 
+  let sigIt = sigTypes.Iterator();
+  while (!sigIt.Empty()) {
+    if (sigIt.NextNotEmpty() == kWasmS128Type) {
+      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+    }
+  }
+
   // If the return count is greater than 1, then the return values are returned
   // as a JSArray. After returning from the call to wasm, the return values are
   // stored on an area of the stack the GC does not know about. To avoid a GC

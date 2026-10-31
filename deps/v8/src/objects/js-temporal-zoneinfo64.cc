@@ -7,8 +7,13 @@
 #include <iostream>
 
 #include "src/base/logging.h"
+#if __has_include("temporal/Provider.hpp")
+#include "temporal/Provider.hpp"
+#include "temporal/TimeZone.hpp"
+#else
 #include "temporal_rs/Provider.hpp"
 #include "temporal_rs/TimeZone.hpp"
+#endif
 
 #ifdef V8_INTL_SUPPORT
 #ifndef V8_ENABLE_TEMPORAL_SYSTEMICU

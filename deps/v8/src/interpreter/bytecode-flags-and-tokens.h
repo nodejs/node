@@ -39,12 +39,11 @@ class CreateObjectLiteralFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateObjectLiteralFlags);
 };
 
-class CreateClosureFlags {
+class V8_EXPORT_PRIVATE CreateClosureFlags {
  public:
-  using PretenuredBit = base::BitField8<bool, 0, 1>;
-  using FastNewClosureBit = PretenuredBit::Next<bool, 1>;
+  using FastNewClosureBit = base::BitField8<bool, 0, 1>;
 
-  static uint8_t Encode(bool pretenure, bool is_function_scope);
+  static uint8_t Encode(bool is_function_scope);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);
@@ -95,6 +94,23 @@ class StoreLookupSlotFlags {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);
+};
+
+class ResolveEvalFlags {
+ public:
+  using LanguageModeBit = base::BitField<LanguageMode, 0, 1>;
+  using PrivateNameLookupSkipsOuterClassBit = LanguageModeBit::Next<bool, 1>;
+  static_assert(LanguageModeSize <= LanguageModeBit::kNumValues);
+
+  static int Encode(LanguageMode language_mode,
+                    bool private_name_lookup_skips_outer_class) {
+    return LanguageModeBit::encode(language_mode) |
+           PrivateNameLookupSkipsOuterClassBit::encode(
+               private_name_lookup_skips_outer_class);
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ResolveEvalFlags);
 };
 
 enum class TryFinallyContinuationToken: int {

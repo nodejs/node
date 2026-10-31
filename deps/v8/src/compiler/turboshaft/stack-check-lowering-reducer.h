@@ -39,8 +39,7 @@ class StackCheckLoweringReducer : public Next {
         // Loads of the stack limit should not be load-eliminated as it can be
         // modified by another thread.
         V<WordPtr> limit =
-            __ Load(__ ExternalConstant(
-                        ExternalReference::address_of_jslimit(isolate())),
+            __ Load(__ IsolateField(IsolateFieldId::kJsLimit),
                     LoadOp::Kind::RawAligned().NotLoadEliminable(),
                     MemoryRepresentation::UintPtr());
 
@@ -53,10 +52,9 @@ class StackCheckLoweringReducer : public Next {
         break;
       }
       case JSStackCheckOp::Kind::kBuiltinEntry: {
-        V<WordPtr> stack_limit = __ LoadOffHeap(
-            __ ExternalConstant(
-                ExternalReference::address_of_jslimit(isolate())),
-            MemoryRepresentation::UintPtr());
+        V<WordPtr> stack_limit =
+            __ LoadOffHeap(__ IsolateField(IsolateFieldId::kJsLimit),
+                           MemoryRepresentation::UintPtr());
         IF_NOT (LIKELY(__ StackPointerGreaterThan(
                     stack_limit, StackCheckKind::kCodeStubAssembler))) {
           __ template CallRuntime<runtime::StackGuard>(context, {});
@@ -65,9 +63,7 @@ class StackCheckLoweringReducer : public Next {
       }
       case JSStackCheckOp::Kind::kLoop: {
         V<Word32> limit = __ Load(
-            __ ExternalConstant(
-                ExternalReference::address_of_no_heap_write_interrupt_request(
-                    isolate())),
+            __ IsolateField(IsolateFieldId::kNoHeapWriteInterruptRequest),
             LoadOp::Kind::RawAligned().NotLoadEliminable(),
             MemoryRepresentation::Uint8());
 
@@ -83,9 +79,7 @@ class StackCheckLoweringReducer : public Next {
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE(WasmStackCheck)(
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      WasmStackCheckOp::Kind kind) {
+  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
     if (kind == WasmStackCheckOp::Kind::kFunctionEntry) {
       // As an optimization, skip stack checks in leaf functions. Rely on
       // their callers checking the stack height instead.
@@ -112,7 +106,7 @@ class StackCheckLoweringReducer : public Next {
       if (v8_flags.wasm_growable_stacks) {
         // WasmStackCheck should be lowered by GrowableStacksReducer
         // in a special way.
-        return Next::ReduceWasmStackCheck(trusted_instance_data, kind);
+        return Next::ReduceWasmStackCheck(kind);
       }
 
       const CallDescriptor* entry_call_descriptor =
@@ -130,9 +124,9 @@ class StackCheckLoweringReducer : public Next {
 
       // Loads of the stack limit should not be load-eliminated as it can be
       // modified by another thread.
-      V<WordPtr> limit = __ Load(
-          __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-          MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
+      V<WordPtr> limit = __ Load(__ IsolateField(IsolateFieldId::kJsLimit),
+                                 LoadOp::Kind::RawAligned().NotLoadEliminable(),
+                                 MemoryRepresentation::UintPtr());
       IF_NOT (LIKELY(
                   __ StackPointerGreaterThan(limit, StackCheckKind::kWasm))) {
         V<WordPtr> gap =
@@ -159,10 +153,10 @@ class StackCheckLoweringReducer : public Next {
         loop_call_descriptor, compiler::CanThrow{false},
         LazyDeoptOnThrow{false}, __ graph_zone());
 
-    V<Word32> limit = __ Load(
-        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-        MemoryRepresentation::Uint8(),
-        IsolateData::no_heap_write_interrupt_request_offset());
+    V<Word32> limit =
+        __ Load(__ IsolateField(IsolateFieldId::kNoHeapWriteInterruptRequest),
+                LoadOp::Kind::RawAligned().NotLoadEliminable(),
+                MemoryRepresentation::Uint8());
 
     IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
       V<WordPtr> target =
@@ -172,14 +166,6 @@ class StackCheckLoweringReducer : public Next {
     return V<None>::Invalid();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-
- private:
-  Isolate* isolate() {
-    if (!isolate_) isolate_ = __ data() -> isolate();
-    return isolate_;
-  }
-
-  Isolate* isolate_ = nullptr;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

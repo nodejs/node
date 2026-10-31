@@ -165,14 +165,10 @@ MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
     regexp::Error error) {
   if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions &&
                   regexp::ErrorIsStackOverflow(error))) {
-    FATAL("Aborting on stack overflow");
+    base::FatalNoSecurityImpact("Aborting on stack overflow");
   }
-  base::Vector<const char> error_data =
-      base::CStrVector(regexp::ErrorString(error));
   DirectHandle<String> error_text =
-      isolate->factory()
-          ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromAsciiChecked(regexp::ErrorString(error));
   DirectHandle<String> flag_string =
       JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
   THROW_NEW_ERROR(isolate,

@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "icu_provider"
-version = "2.3.1"
+version = "2.4.0"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -131,7 +131,7 @@ version = "0.4.0"
 optional = true
 
 [dependencies.icu_locale_core]
-version = "2.3.0"
+version = "2.4.0"
 default-features = false
 
 [dependencies.log]
@@ -165,7 +165,7 @@ optional = true
 default-features = false
 
 [dependencies.yoke]
-version = "0.8.3"
+version = "0.8.4"
 features = ["derive"]
 default-features = false
 
@@ -180,7 +180,7 @@ optional = true
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.8"
+version = "0.11.9"
 features = ["derive"]
 default-features = false
 

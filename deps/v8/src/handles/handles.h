@@ -5,6 +5,7 @@
 #ifndef V8_HANDLES_HANDLES_H_
 #define V8_HANDLES_HANDLES_H_
 
+#include <span>
 #include <type_traits>
 #include <vector>
 
@@ -1031,8 +1032,7 @@ class DirectHandleSmallVector {
     backing_.insert(backing_.end(), init.begin(), init.end());
   }
   template <typename IsolateT>
-  explicit V8_INLINE DirectHandleSmallVector(
-      base::Vector<const value_type> init)
+  explicit V8_INLINE DirectHandleSmallVector(std::span<const value_type> init)
       : backing_() {
     if (init.size() == 0) return;
     backing_.reserve(init.size());

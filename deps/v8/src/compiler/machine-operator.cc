@@ -241,7 +241,7 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
          IrOpcode::kTrappingStore == op->opcode() ||
          IrOpcode::kStoreTrapOnNull == op->opcode() ||
-         IrOpcode::kStoreIndirectPointer == op->opcode());
+         IrOpcode::kStoreTrustedPointer == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -1519,32 +1519,31 @@ struct MachineOperatorGlobalCache {
 #undef STORE_PAIR
 
   // Indirect pointer stores have an additional value input (the
-  // IndirectPointerTag associated with the field being stored to), but
+  // TrustedPointerTag associated with the field being stored to), but
   // otherwise are identical to regular stores.
-  struct StoreIndirectPointerOperator : public Operator1<StoreRepresentation> {
-    explicit StoreIndirectPointerOperator(WriteBarrierKind write_barrier_kind)
+  struct StoreTrustedPointerOperator : public Operator1<StoreRepresentation> {
+    explicit StoreTrustedPointerOperator(WriteBarrierKind write_barrier_kind)
         : Operator1<StoreRepresentation>(
-              IrOpcode::kStoreIndirectPointer,
+              IrOpcode::kStoreTrustedPointer,
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
-              "StoreIndirectPointer", 4, 1, 1, 0, 1, 0,
-              StoreRepresentation(MachineRepresentation::kIndirectPointer,
+              "StoreTrustedPointer", 4, 1, 1, 0, 1, 0,
+              StoreRepresentation(MachineRepresentation::kTrustedPointer,
                                   write_barrier_kind)) {}
   };
-  struct StoreIndirectPointerNoWriteBarrierOperator final
-      : public StoreIndirectPointerOperator {
-    StoreIndirectPointerNoWriteBarrierOperator()
-        : StoreIndirectPointerOperator(kNoWriteBarrier) {}
+  struct StoreTrustedPointerNoWriteBarrierOperator final
+      : public StoreTrustedPointerOperator {
+    StoreTrustedPointerNoWriteBarrierOperator()
+        : StoreTrustedPointerOperator(kNoWriteBarrier) {}
   };
-  struct StoreIndirectPointerWithIndirectPointerWriteBarrierOperator final
-      : public StoreIndirectPointerOperator {
-    StoreIndirectPointerWithIndirectPointerWriteBarrierOperator()
-        : StoreIndirectPointerOperator(kIndirectPointerWriteBarrier) {}
+  struct StoreTrustedPointerWithTrustedPointerWriteBarrierOperator final
+      : public StoreTrustedPointerOperator {
+    StoreTrustedPointerWithTrustedPointerWriteBarrierOperator()
+        : StoreTrustedPointerOperator(kTrustedPointerWriteBarrier) {}
   };
 
-  StoreIndirectPointerNoWriteBarrierOperator
-      kStoreIndirectPointerNoWriteBarrier;
-  StoreIndirectPointerWithIndirectPointerWriteBarrierOperator
-      kStoreIndirectPointerIndirectPointerWriteBarrier;
+  StoreTrustedPointerNoWriteBarrierOperator kStoreTrustedPointerNoWriteBarrier;
+  StoreTrustedPointerWithTrustedPointerWriteBarrierOperator
+      kStoreTrustedPointerTrustedPointerWriteBarrier;
 
 #define ATOMIC_LOAD_WITH_KIND(Type, Kind)                           \
   struct Word32SeqCstLoad##Type##Kind##Operator                     \
@@ -1892,7 +1891,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2156,8 +2155,7 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
-  DCHECK_NE(store_rep.representation(),
-            MachineRepresentation::kIndirectPointer);
+  DCHECK_NE(store_rep.representation(), MachineRepresentation::kTrustedPointer);
   switch (store_rep.representation()) {
 #define STORE(kRep)                                              \
   case MachineRepresentation::kRep:                              \
@@ -2172,7 +2170,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
         return &cache_.k##Store##kRep##MapWriteBarrier;          \
       case kPointerWriteBarrier:                                 \
         return &cache_.k##Store##kRep##PointerWriteBarrier;      \
-      case kIndirectPointerWriteBarrier:                         \
+      case kTrustedPointerWriteBarrier:                          \
         UNREACHABLE();                                           \
       case kEphemeronKeyWriteBarrier:                            \
         return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
@@ -2184,7 +2182,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2192,13 +2190,13 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   UNREACHABLE();
 }
 
-const Operator* MachineOperatorBuilder::StoreIndirectPointer(
+const Operator* MachineOperatorBuilder::StoreTrustedPointer(
     WriteBarrierKind write_barrier_kind) {
   switch (write_barrier_kind) {
     case kNoWriteBarrier:
-      return &cache_.kStoreIndirectPointerNoWriteBarrier;
-    case kIndirectPointerWriteBarrier:
-      return &cache_.kStoreIndirectPointerIndirectPointerWriteBarrier;
+      return &cache_.kStoreTrustedPointerNoWriteBarrier;
+    case kTrustedPointerWriteBarrier:
+      return &cache_.kStoreTrustedPointerTrustedPointerWriteBarrier;
     default:
       UNREACHABLE();
   }
@@ -2234,7 +2232,7 @@ const Operator* MachineOperatorBuilder::TrappingStore(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2256,7 +2254,7 @@ const Operator* MachineOperatorBuilder::StoreTrapOnNull(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();

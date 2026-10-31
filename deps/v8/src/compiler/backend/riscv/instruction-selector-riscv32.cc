@@ -229,7 +229,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kProtectedPointer:  // Fall through.
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -272,12 +272,12 @@ void InstructionSelector::VisitStore(OpIndex node) {
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      if (rep == MachineRepresentation::kIndirectPointer) {
-        DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-        // In this case we need to add the IndirectPointerTag as additional
+      if (rep == MachineRepresentation::kTrustedPointer) {
+        DCHECK_EQ(write_barrier_kind, kTrustedPointerWriteBarrier);
+        // In this case we need to add the TrustedPointerTag as additional
         // input.
-        code = kArchStoreIndirectWithWriteBarrier;
-        IndirectPointerTag tag = store_view.indirect_pointer_tag();
+        code = kArchStoreTrustedWithWriteBarrier;
+        TrustedPointerTag tag = store_view.trusted_pointer_tag();
         inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
       } else {
         code = kArchStoreWithWriteBarrier;
@@ -321,7 +321,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kProtectedPointer:  // Fall through.
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
       case MachineRepresentation::kFloat16:
       case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();

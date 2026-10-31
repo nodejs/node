@@ -1,0 +1,6 @@
+Tests that a second breakpoint condition at the same location is not evaluated if the first condition synchronously disables the debugger.
+{
+    cond1Evaluated : true
+    cond2Evaluated : false
+    outerResult : 3
+}

@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "include/v8config.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 
 namespace v8::internal::wasm {
 
@@ -32,7 +32,7 @@ inline size_t ContentSize(const std::vector<T>& vector) {
 }
 
 template <typename T>
-inline size_t ContentSize(const base::OwnedVector<T>& vector) {
+inline size_t ContentSize(const base::UniqueArray<T>& vector) {
   return vector.size() * sizeof(T);
 }
 

@@ -341,14 +341,6 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     }
     return false;
   }
-  if (value_op.Is<ProjectionOp>()) {
-    // Projections always have a Tuple use, but it shouldn't count as a use as
-    // far as is_exclusive_user_of is concerned, since no instructions are
-    // emitted for the MakeTupleOp, which is just a Turboshaft "meta operation".
-    // We thus increase the use_count by 1, to attribute the MakeTupleOp use to
-    // the current operation.
-    use_count++;
-  }
   DCHECK_LE(use_count,
             graph->Get(value).saturated_use_count.GetMaybeSaturated());
   return value_op.saturated_use_count.Is(static_cast<int>(use_count));
@@ -419,12 +411,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.Is(0));
-    if (projection->saturated_use_count.Is(1)) {
-      // If the projection has a single use, it is the following tuple, so we
-      // don't return it, since there is no point in emitting it.
-      DCHECK(turboshaft_uses(next).size() == 1 &&
-             graph->Get(turboshaft_uses(next)[0]).Is<MakeTupleOp>());
+    if (projection->saturated_use_count.Is(0)) {
+      DCHECK(turboshaft_uses(next).empty());
       continue;
     }
     if (projection->index == projection_index) return next;
@@ -439,11 +427,7 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
             this->Get(use).TryCast<ProjectionOp>()) {
       DCHECK_EQ(projection->input(), node);
       if (projection->index == projection_index) {
-        // If we found the projection, it should have a single use: a Tuple
-        // (which doesn't count as a regular use since it is just an artifact of
-        // the Turboshaft graph).
-        DCHECK(turboshaft_uses(use).size() == 1 &&
-               graph->Get(turboshaft_uses(use)[0]).Is<MakeTupleOp>());
+        DCHECK(turboshaft_uses(use).empty());
       }
     }
   }
@@ -578,28 +562,19 @@ void InstructionSelector::SetEffectLevel(OpIndex node, int effect_level) {
 
 bool InstructionSelector::CanAddressRelativeToRootsRegister(
     const ExternalReference& reference) const {
-  // There are three things to consider here:
-  // 1. CanUseRootsRegister: Is kRootRegister initialized?
-  const bool root_register_is_available_and_initialized = CanUseRootsRegister();
-  if (!root_register_is_available_and_initialized) return false;
-
-  // 2. enable_roots_relative_addressing_: Can we address everything on the heap
+  // There are two things to consider here:
+  // 1. enable_roots_relative_addressing_: Can we address everything on the heap
   //    through the root register, i.e. are root-relative addresses to arbitrary
   //    addresses guaranteed not to change between code generation and
   //    execution?
   if (enable_roots_relative_addressing_) return true;
 
-  // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
-  //    have a fixed root-relative offset? If so, we can ignore 2.
+  // 2. IsAddressableThroughRootRegister: Is the target address guaranteed to
+  //    have a fixed root-relative offset? If so, we can ignore 1.
   const bool this_root_relative_offset_is_constant =
       MacroAssemblerBase::IsAddressableThroughRootRegister(isolate(),
                                                            reference);
   return this_root_relative_offset_is_constant;
-}
-
-bool InstructionSelector::CanUseRootsRegister() const {
-  return linkage()->GetIncomingDescriptor()->flags() &
-         CallDescriptor::kCanUseRoots;
 }
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
@@ -1180,6 +1155,7 @@ void InstructionSelector::InitializeCallBuffer(
                                     : g.DefineAsLocation(output, location);
         MarkAsRepresentation(rep, op);
 
+        // Caller frame slots are defined later via Peek in VisitCall.
         if (!UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
           buffer->outputs.push_back(op);
           buffer->output_nodes[i].node = {};
@@ -2073,11 +2049,9 @@ LinkageLocation ExceptionLocation() {
 
 constexpr InstructionCode EncodeCallDescriptorFlags(
     InstructionCode opcode, CallDescriptor::Flags flags) {
-  // Note: Not all bits of `flags` are preserved.
-  static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
-                MiscField::kSize);
+  static_assert(MiscField::is_valid(CallDescriptor::kNoFunctionDescriptor));
   DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
-  return opcode | MiscField::encode(flags & MiscField::kMax);
+  return opcode | MiscField::encode(flags);
 }
 
 }  // namespace
@@ -2158,11 +2132,8 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.Is(1)) {
-    // If the projection has a single use, it is the following tuple, so we
-    // don't care about the value, and can do branch-if-overflow fusion.
-    DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
-           graph->Get(turboshaft_uses(projection0_index)[0]).Is<MakeTupleOp>());
+  if (projection0.saturated_use_count.Is(0)) {
+    DCHECK(turboshaft_uses(projection0_index).empty());
     return true;
   }
 
@@ -2177,14 +2148,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
   // defined, which will imply that it's fine to define {projection0} and
   // {binop} now.
   for (OpIndex use : turboshaft_uses(projection0_index)) {
-    if (this->Get(use).template Is<MakeTupleOp>()) {
-      // The Tuple won't have any uses since it would have to be accessed
-      // through Projections, and Projections on Tuples return the original
-      // Projection instead (see Assembler::ReduceProjection in
-      // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.Is(0));
-      continue;
-    }
+    DCHECK(!Is<MakeTupleOp>(use));
     if (IsDefined(use)) continue;
     if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
@@ -2293,11 +2257,12 @@ void InstructionSelector::VisitCall(
     buffer.instruction_args.push_back(
         g.TempImmediate(call_descriptor->shifted_tag()));
   } else if (call_descriptor->IsJSFunctionCall()) {
-    // For JSFunctions we need to know the number of pushed parameters during
-    // code generation.
-    uint32_t parameter_count =
-        static_cast<uint32_t>(buffer.pushed_nodes.size());
-    buffer.instruction_args.push_back(g.TempImmediate(parameter_count));
+    // For JSFunctions we need to know the function's formal parameter count
+    // used during code generation.
+    uint32_t expected_parameter_count =
+        call_descriptor->expected_parameter_count();
+    buffer.instruction_args.push_back(
+        g.TempImmediate(expected_parameter_count));
   }
 
   // Pass label of exception handler block.
@@ -2512,16 +2477,9 @@ void InstructionSelector::VisitReturn(OpIndex node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (size_t i = 0, return_value_idx = 0; i < return_count; ++i) {
+  for (size_t i = 0; i < return_count; ++i) {
     LinkageLocation loc = linkage()->GetReturnLocation(i);
-    // Return values passed via frame slots have already been stored
-    // on the stack by the GrowableStacksReducer.
-    if (loc.IsCallerFrameSlot() && ret.spill_caller_frame_slots) {
-      continue;
-    }
-    value_locations[return_value_idx + 1] =
-        g.UseLocation(ret.return_values()[return_value_idx], loc);
-    return_value_idx++;
+    value_locations[i + 1] = g.UseLocation(ret.return_values()[i], loc);
   }
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
@@ -2614,10 +2572,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   // {result} back into it through the back edge. In this case, it's
   // normal to schedule {result} before the Phi that uses it.
   for (OpIndex use : turboshaft_uses(result.value())) {
-    // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
-    // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
-        !Is<PhiOp>(use)) {
+    DCHECK(!Is<MakeTupleOp>(use));
+    if (!IsDefined(use) && InCurrentBlock(use) && !Is<PhiOp>(use)) {
       return;
     }
   }

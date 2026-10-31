@@ -62,12 +62,12 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static AtomicHook<void (*)(
-    const void *lock, int64_t wait_cycles)>
-    submit_profile_data;
+    const void* lock, int64_t wait_cycles)>
+    submit_unlock_profile_data;
 
-void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
+void RegisterSpinLockProfiler(void (*fn)(const void* contendedlock,
                                          int64_t wait_cycles)) {
-  submit_profile_data.Store(fn);
+  submit_unlock_profile_data.Store(fn);
 }
 
 // Monitor the lock to see if its value changes within some time period
@@ -173,7 +173,7 @@ void SpinLock::SlowUnlock(uint32_t lock_value) {
   if ((lock_value & kWaitTimeMask) != kSpinLockSleeper) {
     const int64_t wait_cycles = DecodeWaitCycles(lock_value);
     ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
-    submit_profile_data(this, wait_cycles);
+    submit_unlock_profile_data(this, wait_cycles);
     ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
   }
 }

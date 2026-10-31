@@ -130,12 +130,11 @@ inline bool AllocationSite::PointsToLiteral() const {
   return !IsSmi(raw_value);
 }
 
-// Heuristic: We only need to create allocation site info if the boilerplate
-// elements kind is the initial elements kind.
+// We only need to create allocation site info if the boilerplate elements kind
+// can transition to a more general fast elements kind.
 inline bool AllocationSite::ShouldTrack(
     ElementsKind boilerplate_elements_kind) {
-  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
-  return IsSmiElementsKind(boilerplate_elements_kind);
+  return ShouldTrack(boilerplate_elements_kind, TERMINAL_FAST_ELEMENTS_KIND);
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {

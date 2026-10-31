@@ -1,0 +1,9 @@
+Tests that side-effect-free evaluation enforces side-effect checks while generating a preview
+
+Running test: testPreviewRunsUserHasInstance
+preview with Request[Symbol.hasInstance]: exception
+sideEffects after preview: []
+
+Running test: testPreviewRunsMutatingBuiltinGetter
+preview with Array.prototype.pop getter: exception
+length after preview: 2

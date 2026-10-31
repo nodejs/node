@@ -1169,7 +1169,9 @@ constexpr container_algorithm_internal::ContainerIter<C> c_partition_point(
 // Container-based version of the <algorithm> `std::sort()` function
 // to sort elements in ascending order of their values.
 template <typename C>
-constexpr void c_sort(C& c) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_sort(C&& c) {
   std::sort(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c));
 }
@@ -1177,7 +1179,9 @@ constexpr void c_sort(C& c) {
 // Overload of c_sort() for performing a `comp` comparison other than the
 // default `operator<`.
 template <typename C, typename LessThan>
-constexpr void c_sort(C& c, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_sort(C&& c, LessThan&& comp) {
   std::sort(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c),
             std::forward<LessThan>(comp));
@@ -1189,7 +1193,9 @@ constexpr void c_sort(C& c, LessThan&& comp) {
 // to sort elements in ascending order of their values, preserving the order
 // of equivalents.
 template <typename C>
-void c_stable_sort(C& c) {
+std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_stable_sort(C&& c) {
   std::stable_sort(container_algorithm_internal::c_begin(c),
                    container_algorithm_internal::c_end(c));
 }
@@ -1197,7 +1203,9 @@ void c_stable_sort(C& c) {
 // Overload of c_stable_sort() for performing a `comp` comparison other than the
 // default `operator<`.
 template <typename C, typename LessThan>
-void c_stable_sort(C& c, LessThan&& comp) {
+std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_stable_sort(C&& c, LessThan&& comp) {
   std::stable_sort(container_algorithm_internal::c_begin(c),
                    container_algorithm_internal::c_end(c),
                    std::forward<LessThan>(comp));

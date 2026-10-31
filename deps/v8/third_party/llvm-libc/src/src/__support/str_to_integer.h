@@ -141,8 +141,8 @@ strtointeger(const CharType *__restrict src, int base,
 
   constexpr bool IS_UNSIGNED = cpp::is_unsigned_v<T>;
   ResultType constexpr NEGATIVE_MAX =
-      !IS_UNSIGNED ? static_cast<ResultType>(cpp::numeric_limits<T>::max()) + 1
-                   : cpp::numeric_limits<T>::max();
+      static_cast<ResultType>(cpp::numeric_limits<T>::max()) +
+      (!IS_UNSIGNED ? 1 : 0);
   ResultType const abs_max =
       (is_positive ? cpp::numeric_limits<T>::max() : NEGATIVE_MAX);
   ResultType const abs_max_div_by_base =

@@ -185,7 +185,7 @@ inline MapMaskAndOr CombineMinMax(MapMaskAndOr a, MapMaskAndOr b) {
 }
 // Returns true if {a} and {b} could have a map in common.
 inline bool CouldHaveSameMap(MapMaskAndOr a, MapMaskAndOr b) {
-  return ((a.and_ & b.or_) == a.and_) || ((b.and_ & a.or_) == b.and_);
+  return ((a.and_ & b.or_) == a.and_) && ((b.and_ & a.or_) == b.and_);
 }
 
 struct MemoryAddress {
@@ -516,6 +516,12 @@ class MemoryContentTable
   }
 
   void Insert(const StoreOp& store) {
+    if (store.stored_rep == MemoryRepresentation::TrustedPointer()) {
+      // We do not track stores of trusted pointers in MemoryContentTable
+      // because LoadTrustedPointerOp expects any entry with
+      // MemoryRepresentation::TrustedPointer() to be a LoadTrustedPointerOp.
+      return;
+    }
     OpIndex base = ResolveBase(store.base());
     OptionalOpIndex index = store.index();
     int32_t offset = store.offset;
@@ -608,32 +614,6 @@ class MemoryContentTable
     }
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
-    auto offset_keys = offset_keys_.find(offset);
-    if (offset_keys == offset_keys_.end()) return;
-    for (auto it = offset_keys->second.begin();
-         it != offset_keys->second.end();) {
-      Key key = *it;
-      DCHECK_EQ(offset, key.data().mem.offset);
-      // It can overwrite previous stores to any base (except non-aliasing
-      // ones).
-      if (non_aliasing_objects_.Get(key.data().mem.base)) {
-        ++it;
-        continue;
-      }
-      if (!BasesCouldAlias(base, base_maps, key)) {
-        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
-              << key.data().mem);
-        ++it;
-        continue;
-      }
-      it = offset_keys->second.RemoveAt(it);
-      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
-      Set(key, OpIndex::Invalid());
-    }
-  }
-
  private:
   // To avoid pathological execution times, we cap the maximum number of
   // keys we track. This is safe, because *not* tracking objects (even
@@ -702,6 +682,32 @@ class MemoryContentTable
     all_keys_.insert({mem, key});
     // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
     SetNoNotify(key, value);
+  }
+
+  void InvalidateAtOffset(int32_t offset, OpIndex base) {
+    MapMaskAndOr base_maps = object_maps_.Get(base);
+    auto offset_keys = offset_keys_.find(offset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(offset, key.data().mem.offset);
+      // It can overwrite previous stores to any base (except non-aliasing
+      // ones).
+      if (non_aliasing_objects_.Get(key.data().mem.base)) {
+        ++it;
+        continue;
+      }
+      if (!BasesCouldAlias(base, base_maps, key)) {
+        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
+              << key.data().mem);
+        ++it;
+        continue;
+      }
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
+    }
   }
 
   bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
@@ -840,9 +846,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
-#ifdef V8_ENABLE_WEBASSEMBLY
-  void ProcessWasmStackCheck(OpIndex op_idx, const WasmStackCheckOp& op);
-#endif
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
@@ -962,7 +965,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsTurbolev()));
         }
 #if DEBUG
-        if (v8_flags.turboshaft_verify_load_elimination) {
+        // We cannot verify loads with a shared base: Although it is valid to
+        // eliminate them if there is no intervening atomic operation, another
+        // thread could still modify the loaded value between two loads.
+        if (v8_flags.turboshaft_verify_load_elimination &&
+            !load.kind.shared_base) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
           // the replacement that we are using.

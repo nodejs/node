@@ -1,0 +1,3 @@
+Tests that termination inside an error description getter stops the remaining preview work at call depth zero.
+evaluate after terminateExecution: Execution was terminated
+getters that ran: ["name"]

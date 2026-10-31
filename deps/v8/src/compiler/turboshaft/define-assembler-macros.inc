@@ -33,8 +33,13 @@
 #define RE_UNUSED
 #endif
 
-#define TSA_DCHECK(assembler, condition) \
-  (assembler)->Asm().Dcheck(condition, #condition, __FILE__, __LINE__ )
+#ifdef DEBUG
+#define TSA_DCHECK(assembler, ...)                                       \
+  (assembler)->Asm().Dcheck([&]() { return __VA_ARGS__; }, #__VA_ARGS__, \
+                            __FILE__, __LINE__)
+#else
+#define TSA_DCHECK(assembler, ...) ((void)0)
+#endif
 #ifdef ENABLE_SLOW_DCHECKS
 #define TSA_SLOW_DCHECK(assembler, ...)     \
   do {                                      \

@@ -146,7 +146,6 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
 #endif  // !V8_COMPRESS_POINTERS
   if (ArrayBufferExtension* extension =
           reinterpret_cast<ArrayBufferExtension*>(maybe_extension)) {
-    extension->InitializationBarrier();
     extension->YoungMark();
   }
 }

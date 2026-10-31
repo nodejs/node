@@ -97,7 +97,7 @@ bytecode array length: 16
 bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
-  /*   49 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   49 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(DefineNamedOwnPropertyInLiteral), R(0), U8(2:"func"), FBV(1),
                 B(Ldar), R(0),
   /*   66 S> */ B(Return),
@@ -120,7 +120,7 @@ bytecode array length: 16
 bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
-  /*   43 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   43 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(DefineNamedOwnPropertyInLiteral), R(0), U8(2:"func"), FBV(1),
                 B(Ldar), R(0),
   /*   67 S> */ B(Return),
@@ -145,7 +145,7 @@ bytecodes: [
                 B(Star0),
                 B(LdaConstant), U8(1:"a"),
                 B(Star2),
-                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star3),
                 B(LdaNull),
                 B(Star4),
@@ -176,9 +176,9 @@ bytecodes: [
                 B(Star0),
                 B(LdaConstant), U8(1:"a"),
                 B(Star2),
-                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star3),
-                B(CreateClosure), U8(3:SHARED_FUNCTION_INFO_TYPE), FBV(1), Flag8(0x2),
+                B(CreateClosure), U8(3:SHARED_FUNCTION_INFO_TYPE), FBV(1), Flag8(0x1),
                 B(Star4),
                 B(LdaZero),
                 B(Star5),
@@ -210,7 +210,7 @@ bytecodes: [
                 B(Star2),
                 B(LdaNull),
                 B(Star3),
-                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star4),
                 B(LdaZero),
                 B(Star5),
@@ -376,7 +376,7 @@ bytecodes: [
   /*   64 E> */ B(DefineKeyedOwnPropertyInLiteral), R(1), R(2), Flag8(0x0), FBV(1),
                 B(LdaConstant), U8(3:"a"),
                 B(Star3),
-  /*   71 E> */ B(CreateClosure), U8(4:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   71 E> */ B(CreateClosure), U8(4:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star4),
                 B(LdaZero),
                 B(Star5),
@@ -384,7 +384,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), RegCount8(4),
                 B(LdaConstant), U8(3:"a"),
                 B(Star3),
-  /*   84 E> */ B(CreateClosure), U8(5:SHARED_FUNCTION_INFO_TYPE), FBV(1), Flag8(0x2),
+  /*   84 E> */ B(CreateClosure), U8(5:SHARED_FUNCTION_INFO_TYPE), FBV(1), Flag8(0x1),
                 B(Star4),
                 B(LdaZero),
                 B(Star5),
@@ -399,6 +399,30 @@ constant pool: [
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = { x: 1 }; return { ...a, x: 2 };
+"
+frame size: 2
+parameter count: 1
+bytecode array length: 19
+bytecodes: [
+  /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
+                B(Star0),
+  /*   52 S> */ B(CloneObject), R(0), Flag8(0x29), FBV(1),
+                B(Star1),
+                B(LdaSmi), I8(2),
+  /*   70 E> */ B(DefineNamedOwnPropertyInLiteral), R(1), U8(1:"x"), FBV(3),
+                B(Ldar), R(1),
+  /*   74 S> */ B(Return),
+]
+constant pool: [
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

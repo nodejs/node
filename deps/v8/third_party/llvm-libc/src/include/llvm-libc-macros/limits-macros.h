@@ -14,6 +14,8 @@
 #ifndef LLVM_LIBC_MACROS_LIMITS_MACROS_H
 #define LLVM_LIBC_MACROS_LIMITS_MACROS_H
 
+#include "common-threads-macros.h"
+
 // Define all C23 macro constants of limits.h
 
 #ifndef CHAR_BIT
@@ -249,7 +251,7 @@
 #endif
 
 #ifndef PTHREAD_DESTRUCTOR_ITERATIONS
-#define PTHREAD_DESTRUCTOR_ITERATIONS _POSIX_THREAD_DESTRUCTOR_ITERATIONS
+#define PTHREAD_DESTRUCTOR_ITERATIONS __LLVM_LIBC_TSS_DTOR_ITERATIONS
 #endif
 
 #ifndef _POSIX_HOST_NAME_MAX

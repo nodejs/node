@@ -239,6 +239,9 @@ Address ExternalPointerSlot::load(IsolateForSandbox isolate) {
       isolate.GetExternalPointerTableFor(tag_range_);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
   return table.Get(handle, tag_range_);
+#elif !defined(V8_COMPRESS_POINTERS)
+  return static_cast<Address>(base::AsAtomicPointer::Acquire_Load(
+      reinterpret_cast<Address*>(address())));
 #else
   return ReadMaybeUnalignedValue<Address>(address());
 #endif  // V8_ENABLE_SANDBOX
@@ -329,11 +332,11 @@ void CppHeapPointerSlot::Relaxed_StoreHandle(
 #else
 
 void CppHeapPointerSlot::store(Address value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value);
+  base::AsAtomicPointer::Release_Store(location(), value);
 }
 
 Address CppHeapPointerSlot::load() const {
-  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+  return static_cast<Address>(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
 #endif  // V8_COMPRESS_POINTERS
@@ -369,96 +372,97 @@ void CppHeapPointerSlot::RestoreContentAfterSerialization(
 #endif  // V8_COMPRESS_POINTERS
 }
 
-Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {
+Tagged<Object> TrustedPointerSlot::load(IsolateForSandbox isolate) const {
   return Relaxed_Load(isolate);
 }
 
-void IndirectPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
-  return Relaxed_Store(value);
+void TrustedPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
+  return Release_Store(value);
 }
 
-Tagged<Object> IndirectPointerSlot::Relaxed_Load(
+Tagged<Object> TrustedPointerSlot::Relaxed_Load(
     IsolateForSandbox isolate) const {
-  IndirectPointerHandle handle = Relaxed_LoadHandle();
+  TrustedPointerHandle handle = Relaxed_LoadHandle();
   return ResolveHandle(handle, isolate);
 }
 
-Tagged<Object> IndirectPointerSlot::Relaxed_Load_AllowUnpublished(
+Tagged<Object> TrustedPointerSlot::Relaxed_Load_AllowUnpublished(
     IsolateForSandbox isolate) const {
-  IndirectPointerHandle handle = Relaxed_LoadHandle();
+  TrustedPointerHandle handle = Relaxed_LoadHandle();
   return ResolveHandle<kAllowUnpublishedEntries>(handle, isolate);
 }
 
-Tagged<Object> IndirectPointerSlot::Acquire_Load(
+Tagged<Object> TrustedPointerSlot::Acquire_Load(
     IsolateForSandbox isolate) const {
-  IndirectPointerHandle handle = Acquire_LoadHandle();
+  TrustedPointerHandle handle = Acquire_LoadHandle();
   return ResolveHandle(handle, isolate);
 }
 
-void IndirectPointerSlot::Relaxed_Store(
+void TrustedPointerSlot::Relaxed_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
-      offsetof(ExposedTrustedObject, self_indirect_pointer_));
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
+  TrustedPointerHandle handle = value->ReadField<TrustedPointerHandle>(
+      offsetof(ExposedTrustedObject, self_trusted_pointer_));
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
   Relaxed_StoreHandle(handle);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void IndirectPointerSlot::Release_Store(
+void TrustedPointerSlot::Release_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
-      offsetof(ExposedTrustedObject, self_indirect_pointer_));
+  TrustedPointerHandle handle = value->ReadField<TrustedPointerHandle>(
+      offsetof(ExposedTrustedObject, self_trusted_pointer_));
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
   Release_StoreHandle(handle);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
-IndirectPointerHandle IndirectPointerSlot::Relaxed_LoadHandle() const {
+TrustedPointerHandle TrustedPointerSlot::Relaxed_LoadHandle() const {
   return base::AsAtomic32::Relaxed_Load(location());
 }
 
-IndirectPointerHandle IndirectPointerSlot::Acquire_LoadHandle() const {
+TrustedPointerHandle TrustedPointerSlot::Acquire_LoadHandle() const {
   return base::AsAtomic32::Acquire_Load(location());
 }
 
-void IndirectPointerSlot::Relaxed_StoreHandle(
-    IndirectPointerHandle handle) const {
+void TrustedPointerSlot::Relaxed_StoreHandle(
+    TrustedPointerHandle handle) const {
   return base::AsAtomic32::Relaxed_Store(location(), handle);
 }
 
-void IndirectPointerSlot::Release_StoreHandle(
-    IndirectPointerHandle handle) const {
+void TrustedPointerSlot::Release_StoreHandle(
+    TrustedPointerHandle handle) const {
   return base::AsAtomic32::Release_Store(location(), handle);
 }
 
-bool IndirectPointerSlot::IsEmpty() const {
-  return Relaxed_LoadHandle() == kNullIndirectPointerHandle;
+bool TrustedPointerSlot::IsEmpty() const {
+  return Relaxed_LoadHandle() == kNullTrustedPointerHandle;
 }
 
-template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
-Tagged<Object> IndirectPointerSlot::ResolveHandle(
-    IndirectPointerHandle handle, IsolateForSandbox isolate) const {
+template <TrustedPointerSlot::TagCheckStrictness allow_unpublished>
+Tagged<Object> TrustedPointerSlot::ResolveHandle(
+    TrustedPointerHandle handle, IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   // TODO(saelo) Maybe come up with a different entry encoding scheme that
   // returns Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
 
-  return ResolveIndirectPointerHandle<allow_unpublished>(handle, isolate);
+  return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
-Tagged<Object> IndirectPointerSlot::ResolveIndirectPointerHandle(
-    IndirectPointerHandle handle, IsolateForSandbox isolate) const {
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
+template <TrustedPointerSlot::TagCheckStrictness allow_unpublished>
+Tagged<Object> TrustedPointerSlot::ResolveTrustedPointerHandle(
+    TrustedPointerHandle handle, IsolateForSandbox isolate) const {
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
   const TrustedPointerTable& table =
       isolate.GetTrustedPointerTableFor(tag_range_);
   if constexpr (allow_unpublished == kAllowUnpublishedEntries) {

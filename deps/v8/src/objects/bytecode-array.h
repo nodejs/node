@@ -7,7 +7,7 @@
 
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
-#include "src/objects/trusted-pointer.h"
+#include "src/sandbox/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -146,7 +146,7 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
   inline void MarkVerified(IsolateForSandbox isolate);
 
  public:
-  TaggedMember<Smi> length_;
+  V8_TQ_CONST TaggedMember<Smi> length_;
   TaggedMember<BytecodeWrapper> wrapper_;
   ProtectedTaggedMember<TrustedByteArray> source_position_table_;
   ProtectedTaggedMember<TrustedByteArray> handler_table_;
@@ -158,6 +158,7 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, bytes);
 } V8_OBJECT_END;
 
@@ -173,6 +174,8 @@ inline constexpr int BytecodeArray::kMaxLength =
 // stored along other tagged pointers inside an array or similar datastructure.
 V8_OBJECT class BytecodeWrapper : public Struct {
  public:
+  inline explicit BytecodeWrapper(const AllocationWitness& witness);
+
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 
   DECL_PRINTER(BytecodeWrapper)
@@ -181,7 +184,7 @@ V8_OBJECT class BytecodeWrapper : public Struct {
   class BodyDescriptor;
 
  public:
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayTrustedPointerTag>
       bytecode_;
 } V8_OBJECT_END;
 

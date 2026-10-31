@@ -55,7 +55,8 @@ v8::AllocationProfile::Allocation SamplingHeapProfiler::ScaleSample(
 
 SamplingHeapProfiler::SamplingHeapProfiler(
     Heap* heap, StringsStorage* names, uint64_t rate, int stack_depth,
-    v8::HeapProfiler::SamplingFlags flags)
+    v8::HeapProfiler::SamplingFlags flags,
+    v8::SampleContextExtractor sample_context_extractor)
     : isolate_(Isolate::FromHeap(heap)),
       heap_(heap),
       allocation_observer_(heap_, static_cast<intptr_t>(rate), this,
@@ -65,7 +66,8 @@ SamplingHeapProfiler::SamplingHeapProfiler(
                     next_node_id()),
       stack_depth_(stack_depth),
       interval_(rate),
-      flags_(flags) {
+      flags_(flags),
+      sample_context_extractor_(sample_context_extractor) {
   CHECK_GT(interval_.load(std::memory_order_relaxed), 0u);
   heap_->AddAllocationObserversToAllSpaces(&allocation_observer_,
                                            &allocation_observer_);
@@ -99,10 +101,16 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   // with the exact weight in effect at draw time.
   const uint64_t interval_at_sample =
       interval_.load(std::memory_order_relaxed);
+  void* context = nullptr;
+  if (sample_context_extractor_ != nullptr) {
+    DisallowJavascriptExecutionDebugOnly no_js(isolate_);
+    context =
+        sample_context_extractor_(reinterpret_cast<v8::Isolate*>(isolate_));
+  }
   AllocationNode* node = AddStack();
   node->allocations_[{size, interval_at_sample}]++;
-  auto sample = std::make_unique<Sample>(size, node, loc, this,
-                                         next_sample_id(), interval_at_sample);
+  auto sample = std::make_unique<Sample>(
+      size, node, loc, this, next_sample_id(), interval_at_sample, context);
   sample->global.SetWeak(sample.get(), OnWeakCallback,
                          WeakCallbackType::kParameter);
   samples_.emplace(sample.get(), std::move(sample));
@@ -335,7 +343,7 @@ SamplingHeapProfiler::BuildSamples() const {
     samples.emplace_back(v8::AllocationProfile::Sample{
         sample->owner->id_, sample->size,
         ScaleSample(sample->size, 1, sample->sample_interval).count,
-        sample->sample_id, is_live, sample->sample_interval});
+        sample->sample_id, is_live, sample->sample_interval, sample->context});
   }
   return samples;
 }

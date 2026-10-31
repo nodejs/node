@@ -45,14 +45,14 @@ class StoreLoadVerificationReducer : public Next {
                         std::optional<AtomicMemoryOrder> memory_order,
                         int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        TrustedPointerTag maybe_trusted_pointer_tag) {
     if (v8_flags.turboshaft_verify_load_store_taggedness) {
       AbortIfWrongRepresentation(value, stored_rep, "store");
     }
     return Next::ReduceStore(
         base, index, value, kind, stored_rep, write_barrier, memory_order,
         offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_indirect_pointer_tag);
+        maybe_trusted_pointer_tag);
   }
 
  private:

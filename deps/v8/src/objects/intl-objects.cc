@@ -23,6 +23,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -261,7 +262,9 @@ void IcuBreakIteratorWithText::SetText(Isolate* isolate,
                                        DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   text_.reset(Intl::ToICUUnicodeString(isolate, string).clone());
-  DCHECK_NOT_NULL(text_);
+  if (V8_UNLIKELY(text_ == nullptr)) {
+    V8::FatalProcessOutOfMemory(isolate, "IcuBreakIteratorWithText::SetText");
+  }
   iterator_->setText(*text_);
 }
 
@@ -951,6 +954,15 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
 
 // https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
 // https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
+bool Intl::LocaleRequiresSpecialCaseMapping(std::string_view locale) {
+  size_t dash = locale.find('-');
+  std::string_view language = locale.substr(0, dash);
+  for (std::string_view special_locale : kCaseMappingSpecialLocales) {
+    if (language == special_locale) return true;
+  }
+  return false;
+}
+
 MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
@@ -985,8 +997,7 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   // in the root locale needs to be adjusted for az, lt and tr because even case
   // mapping of ASCII range characters are different in those locales.
   // Greek (el) does not require any adjustment.
-  if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
-                  (requested_locale == "lt") || (requested_locale == "az"))) {
+  if (V8_UNLIKELY(LocaleRequiresSpecialCaseMapping(requested_locale))) {
     return LocaleConvertCase(isolate, s, to_upper,
                              std::string(requested_locale).c_str());
   } else {
@@ -2105,7 +2116,7 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
   std::vector<icu::Locale> locales;
-  for (std::string locale_str : requested_locales) {
+  for (const std::string& locale_str : requested_locales) {
     icu::Locale locale = icu::Locale::forLanguageTag(locale_str, status);
     if (U_SUCCESS(status)) {
       locales.push_back(locale);
@@ -2168,8 +2179,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
     DirectHandle<String> value =
-        factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
-            .ToHandleChecked();
+        factory->NewStringFromUtf8(part).ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(isolate, array, i, value, attr), {});
   }
   // 5. Return array.

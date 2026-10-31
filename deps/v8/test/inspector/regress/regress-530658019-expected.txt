@@ -1,0 +1,2 @@
+Regression test for crbug.com/530658019.
+view[1]: 0x41414141

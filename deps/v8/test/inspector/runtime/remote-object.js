@@ -147,6 +147,10 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.logMessage((await evaluate({
       expression: 'new Error()', returnByValue: true
     })).result);
+    InspectorTest.log('Large sparse array');
+    InspectorTest.logMessage((await evaluate({
+      expression: 'new Array(0xFFFFFFFF)', returnByValue: true
+    })).error);
   },
   async function testFunction() {
     InspectorTest.logMessage((await evaluate({

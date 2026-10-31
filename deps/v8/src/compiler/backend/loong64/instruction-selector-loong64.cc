@@ -211,15 +211,6 @@ static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
   }
 }
 
-static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
-                      OpIndex node) {
-  Loong64OperandGenerator g(selector);
-  const turboshaft::Simd128ReplaceLaneOp& op =
-      selector->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
-  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                 g.UseImmediate(op.lane), g.UseUniqueRegister(op.input(1)));
-}
-
 static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   Loong64OperandGenerator g(selector);
@@ -744,8 +735,6 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kLoong64LoadDecompressProtected;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
@@ -789,10 +778,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
-      return kLoong64StoreIndirectPointer;
+      return kLoong64StoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kLoong64StoreEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -843,7 +829,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(loong64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -859,16 +845,16 @@ void InstructionSelector::VisitStore(OpIndex node) {
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
     InstructionCode code;
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+    if (rep == MachineRepresentation::kTrustedPointer) {
+      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectSkippedWriteBarrier
-                 : kArchStoreIndirectWithWriteBarrier;
-      code |= RecordWriteModeField::encode(
-          RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+                 ? kArchStoreTrustedSkippedWriteBarrier
+                 : kArchStoreTrustedWithWriteBarrier;
+      code |=
+          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
+      TrustedPointerTag tag = store_view.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
@@ -3678,7 +3664,12 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 
 #define SIMD_VISIT_REPLACE_LANE(Type)                                \
   void InstructionSelector::Visit##Type##ReplaceLane(OpIndex node) { \
-    VisitRRIR(this, kLoong64##Type##ReplaceLane, node);              \
+    Loong64OperandGenerator g(this);                                 \
+    const turboshaft::Simd128ReplaceLaneOp& op =                     \
+        Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>(); \
+    Emit(kLoong64##Type##ReplaceLane, g.DefineSameAsFirst(node),     \
+         g.UseRegister(op.input(0)), g.UseImmediate(op.lane),        \
+         g.UseRegister(op.input(1)));                                \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE

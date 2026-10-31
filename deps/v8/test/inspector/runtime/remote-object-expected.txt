@@ -271,6 +271,12 @@ Error object
         }
     }
 }
+Large sparse array
+'new Array(0xFFFFFFFF)', returnByValue: true, generatePreview: false
+{
+    code : -32000
+    message : Array length exceeds maximum limit
+}
 
 Running test: testFunction
 '(() => 42)', returnByValue: false, generatePreview: false

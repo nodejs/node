@@ -15,11 +15,11 @@ pub struct DateFromFieldsOptions {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
+    /// use icu::calendar::Iso;
     /// use icu::calendar::options::DateFromFieldsOptions;
     /// use icu::calendar::options::Overflow;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
-    /// use icu::calendar::Iso;
     ///
     /// // There is no day 31 in September.
     /// let mut fields = DateFields::default();
@@ -50,11 +50,11 @@ pub struct DateFromFieldsOptions {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
+    /// use icu::calendar::Iso;
     /// use icu::calendar::options::DateFromFieldsOptions;
     /// use icu::calendar::options::MissingFieldsStrategy;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
-    /// use icu::calendar::Iso;
     ///
     /// // These options are missing a year.
     /// let mut fields = DateFields::default();
@@ -90,10 +90,10 @@ pub struct DateAddOptions {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::options::DateAddOptions;
     /// use icu::calendar::options::Overflow;
     /// use icu::calendar::types::DateDuration;
-    /// use icu::calendar::Date;
     ///
     /// // There is a day 31 in October but not in November.
     /// let d1 = Date::try_new_iso(2025, 10, 31).unwrap();
@@ -139,10 +139,10 @@ pub struct DateDifferenceOptions {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::options::DateDifferenceOptions;
     /// use icu::calendar::options::DateDurationUnit;
     /// use icu::calendar::types::DateDuration;
-    /// use icu::calendar::Date;
     ///
     /// let d1 = Date::try_new_iso(2025, 3, 31).unwrap();
     /// let d2 = Date::try_new_iso(2026, 5, 15).unwrap();
@@ -221,12 +221,12 @@ pub enum Overflow {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
+    /// use icu::calendar::DateError;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::options::DateFromFieldsOptions;
     /// use icu::calendar::options::Overflow;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
-    /// use icu::calendar::DateError;
     ///
     /// let mut options = DateFromFieldsOptions::default();
     /// options.overflow = Some(Overflow::Constrain);
@@ -260,12 +260,12 @@ pub enum Overflow {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::options::DateFromFieldsOptions;
     /// use icu::calendar::options::Overflow;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
     /// use tinystr::tinystr;
     ///
     /// let mut options = DateFromFieldsOptions::default();
@@ -371,9 +371,9 @@ pub enum DateDurationUnit {
 #[cfg(test)]
 mod tests {
     use crate::{
+        Date, Gregorian,
         error::DateFromFieldsError,
         types::{DateFields, Month},
-        Date, Gregorian,
     };
     use itertools::Itertools;
     use std::collections::{BTreeMap, BTreeSet};

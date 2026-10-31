@@ -378,6 +378,14 @@ struct comparison_underlying_type {
   using type = std::conditional_t<std::is_same_v<type_or_bool, bool>,
                                   unsigned int, type_or_bool>;
 };
+template <typename T>
+  requires requires {
+    typename std::decay_t<T>::flag_type;
+    typename std::decay_t<T>::mask_type;
+  }
+struct comparison_underlying_type<T> {
+  using type = typename std::decay_t<T>::mask_type;
+};
 // Cast a value to its underlying type
 #define MAKE_UNDERLYING(Type, value) \
   static_cast<typename comparison_underlying_type<Type>::type>(value)

@@ -29,12 +29,8 @@ uint8_t CreateObjectLiteralFlags::Encode(int runtime_flags,
 }
 
 // static
-uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope) {
-  uint8_t result = PretenuredBit::encode(pretenure);
-  if (!pretenure && is_function_scope) {
-    result |= FastNewClosureBit::encode(true);
-  }
-  return result;
+uint8_t CreateClosureFlags::Encode(bool is_function_scope) {
+  return FastNewClosureBit::encode(is_function_scope);
 }
 
 // static

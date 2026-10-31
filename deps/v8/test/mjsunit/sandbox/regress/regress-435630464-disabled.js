@@ -8,8 +8,8 @@ const builtin_names = Sandbox.getBuiltinNames();
 
 var f0 = BigInt;  // constructor with kDontAdaptArgumentsSentinel.
 
-Sandbox.setFunctionCodeToBuiltin(f0, builtin_names.indexOf("SharedStructTypeConstructor"));
-// If this test starts to fail because we shipped --harmony-struct, the test
-// must be updated to use a builtin belonging to some other not-yet shipped
-// feature.
+// ConstructFunction is used as a dummy (intentionally classified as
+// DisabledFlagDependent). See Builtins::GetJSBuiltinState().
+Sandbox.setFunctionCodeToBuiltin(
+    f0, builtin_names.indexOf('ConstructFunction'));
 assertUnreachable();

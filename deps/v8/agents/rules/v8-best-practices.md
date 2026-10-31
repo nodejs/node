@@ -30,6 +30,14 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Cross-Feature Awareness**: Understand how optimizations interact with core
   V8 features like Lazy Compilation, Ignition bytecode generation, and
   TurboFan/Maglev optimizations.
+- **Fail Fast Over Defensive Workarounds**: Never introduce defensive
+  programming patterns to paper over unexpected compiler states or invariant
+  violations (e.g., silent early returns, fallback dummy values, defensive
+  clamping, or non-exhaustive switch `default: break;`). If an invariant is
+  expected to hold, assert it via `DCHECK` or `CHECK` so that violations are
+  caught immediately by debug builds and fuzzers rather than masked.
+- **Encapsulation**: Encapsulate data-structure mutations as methods on the
+  owning class rather than duplicating low-level steps across callers.
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
   (regression test)**. Uploading just the fix alone is NEVER acceptable.
@@ -41,6 +49,13 @@ When proposing a fix, ensure the code adheres to V8 standards:
   a missing definition, you are likely missing an `#include` for a `-inl.h`
   file. You can only include `-inl.h` files from other `-inl.h` files and `.cc`
   files.
+- **`.cc` vs. `.h` Placement & Anonymous Namespaces**: Place non-trivial,
+  non-hot method definitions in the corresponding `.cc` file rather than inline
+  in `.h`, and place file-local helpers that do not need `this` in an anonymous
+  `namespace {}` in the `.cc` file rather than as private class methods.
+- **Pre-Upload Diff Self-Review**: Inspect `git diff` before uploading to ensure
+  minimal diff noise, tight local variable scopes (declaring variables at first
+  use), and clean regression tests.
 - **Cleanup Constraint**: Keep diffs small by changing only the code intended
   for the task. Propose cleanups to nearby code as a separate patch to keep the
   current change focused.

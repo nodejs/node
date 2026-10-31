@@ -314,6 +314,8 @@ using FailedAccessCheckCallback = void (*)(Local<Object> target,
 
 // --- WebAssembly compilation callbacks ---
 using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);
+using WasmModuleCallback = bool (*)(Isolate* isolate, Local<Value> source);
+using WasmInstanceCallback = bool (*)(Isolate* isolate, Local<Value> source);
 
 using AllowWasmCodeGenerationCallback = bool (*)(Local<Context> context,
                                                  Local<String> source);
@@ -488,6 +490,14 @@ using ArrayBufferDetachCallback = void (*)(Isolate* isolate,
 using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
+
+/**
+ * DynamicScriptCompiledFromEmbedderCallback is called when a dynamic script
+ * (such as from eval or the Function constructor) is compiled from the embedder
+ * without a calling user JavaScript frame on the stack.
+ */
+using DynamicScriptCompiledFromEmbedderCallback =
+    void (*)(Local<Context> context, int script_id);
 
 #if defined(V8_OS_WIN)
 /**

@@ -494,21 +494,36 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVecOwned<T, F> {
         }
 
         let value_len = element.encode_var_ule_len();
+        assert!(value_len < F::Index::MAX_VALUE as usize);
 
         if len == 0 {
             let header_len = F::Len::SIZE; // Index array is size 0 for len = 1
             let cap = header_len + value_len;
-            self.entire_slice.resize(cap, 0);
-            self.entire_slice[0] = 1; // set length
-            element.encode_var_ule_write(&mut self.entire_slice[header_len..]);
+            let guard = ClearOnPanic(self);
+            guard.0.entire_slice.resize(cap, 0);
+            guard.0.entire_slice[0] = 1; // set length
+            element.encode_var_ule_write(&mut guard.0.entire_slice[header_len..]);
+            debug_assert_eq!(
+                T::validate_bytes(&guard.0.entire_slice[header_len..]),
+                Ok(())
+            );
+            core::mem::forget(guard);
             return;
         }
 
-        assert!(value_len < F::Index::MAX_VALUE as usize);
+        let guard = ClearOnPanic(self);
+        // SAFETY:
+        // - `index <= self.len()` is checked above (`ShiftType::Insert` allows `index == self.len()`).
+        // - `value_len < F::Index::MAX_VALUE` is asserted above, and `shift` checks that the
+        //   total grown slice length fits within `F::Index::MAX_VALUE`.
+        // - `guard` clears `entire_slice` if `shift` or `encode_var_ule_write` panics,
+        //   preventing partially-mutated state from being observed after unwinding.
         unsafe {
-            let place = self.shift(index, value_len, ShiftType::Insert);
+            let place = guard.0.shift(index, value_len, ShiftType::Insert);
             element.encode_var_ule_write(place);
+            debug_assert_eq!(T::validate_bytes(place), Ok(()));
         }
+        core::mem::forget(guard);
     }
 
     /// Remove the element at index `idx`
@@ -522,9 +537,15 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVecOwned<T, F> {
             self.entire_slice.clear();
             return;
         }
+        let guard = ClearOnPanic(self);
+        // SAFETY:
+        // - `index < self.len()` is checked above.
+        // - `new_size` is 0, so the data segment does not grow.
+        // - `guard` clears `entire_slice` if `shift` panics.
         unsafe {
-            self.shift(index, 0, ShiftType::Remove);
+            guard.0.shift(index, 0, ShiftType::Remove);
         }
+        core::mem::forget(guard);
     }
 
     /// Replace the element at index `idx` with another
@@ -537,10 +558,30 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVecOwned<T, F> {
         let value_len = element.encode_var_ule_len();
 
         assert!(value_len < F::Index::MAX_VALUE as usize);
+        let guard = ClearOnPanic(self);
+        // SAFETY:
+        // - `index < self.len()` is checked above.
+        // - `value_len < F::Index::MAX_VALUE` is asserted above, and `shift` checks that the
+        //   total grown slice length fits within `F::Index::MAX_VALUE`.
+        // - `guard` clears `entire_slice` if `shift` or `encode_var_ule_write` panics,
+        //   preventing partially-mutated state from being observed after unwinding.
         unsafe {
-            let place = self.shift(index, value_len, ShiftType::Replace);
+            let place = guard.0.shift(index, value_len, ShiftType::Replace);
             element.encode_var_ule_write(place);
+            debug_assert_eq!(T::validate_bytes(place), Ok(()));
         }
+        core::mem::forget(guard);
+    }
+}
+
+/// Drop guard that clears `entire_slice` if a panic occurs during an in-place
+/// mutation (e.g. inside `shift` or a user-provided `EncodeAsVarULE::encode_var_ule_write`),
+/// restoring the safety invariant that `entire_slice` is a valid (empty) `VarZeroVecComponents`.
+struct ClearOnPanic<'a, T: ?Sized, F>(&'a mut VarZeroVecOwned<T, F>);
+
+impl<T: ?Sized, F> Drop for ClearOnPanic<'_, T, F> {
+    fn drop(&mut self) {
+        self.0.entire_slice.clear();
     }
 }
 
@@ -719,5 +760,67 @@ mod test {
     #[should_panic]
     fn test_replace_past_end() {
         VarZeroVecOwned::<str>::new().replace(0, "");
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn test_panic_safety() {
+        use crate::ule::EncodeAsVarULE;
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+
+        struct PanicAfterWrite {
+            invalid: &'static [u8],
+        }
+
+        // SAFETY: `encode_var_ule_write` always panics and never returns normally,
+        // so callers must not observe the invalid bytes written before unwinding.
+        unsafe impl EncodeAsVarULE<str> for PanicAfterWrite {
+            fn encode_var_ule_as_slices<R>(&self, cb: impl FnOnce(&[&[u8]]) -> R) -> R {
+                cb(&[self.invalid])
+            }
+
+            fn encode_var_ule_len(&self) -> usize {
+                self.invalid.len()
+            }
+
+            fn encode_var_ule_write(&self, dst: &mut [u8]) {
+                dst.copy_from_slice(self.invalid);
+                panic!("encode_var_ule_write panicked after writing invalid bytes");
+            }
+        }
+
+        let panicker = PanicAfterWrite {
+            invalid: &[0x80, 0xC0, 0xFF],
+        };
+
+        // 1. `replace` on non-empty vector
+        let mut v = VarZeroVecOwned::<str>::try_from_elements(&["hello"]).unwrap();
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            v.replace(0, &panicker);
+        }));
+        assert!(res.is_err());
+        assert!(v.is_empty());
+        assert_eq!(v.get(0), None);
+        assert!(v.verify_integrity());
+
+        // 2. `insert` into empty vector (`len == 0` fast-path)
+        let mut v = VarZeroVecOwned::<str>::new();
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            v.insert(0, &panicker);
+        }));
+        assert!(res.is_err());
+        assert!(v.is_empty());
+        assert_eq!(v.get(0), None);
+        assert!(v.verify_integrity());
+
+        // 3. `insert` into non-empty vector (`len > 0` shift path)
+        let mut v = VarZeroVecOwned::<str>::try_from_elements(&["hello", "world"]).unwrap();
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            v.insert(1, &panicker);
+        }));
+        assert!(res.is_err());
+        assert!(v.is_empty());
+        assert_eq!(v.get(0), None);
+        assert!(v.verify_integrity());
     }
 }

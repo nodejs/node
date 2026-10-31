@@ -632,7 +632,7 @@ class TestListener : public TraceEventListener {
         } else if (it.has_string_value()) {
           value << "(string)" << it.string_value();
         } else if (it.has_pointer_value()) {
-          value << "(pointer)0x" << std::hex << it.pointer_value();
+          value << "(pointer)0x" << std::hex << it.pointer_value() << std::dec;
         } else if (it.has_legacy_json_value()) {
           value << "(json)" << it.legacy_json_value();
         } else if (it.has_nested_value()) {
@@ -853,6 +853,7 @@ TEST_F(PlatformTracingTest, MultipleArgsAndCopy) {
   for (size_t i = 0; i < 20; i++) CHECK_EQ("E:.", harness.get_event(24 + i));
 }
 
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
 TEST_F(PlatformTracingTest, JsonIntegrationTest) {
   // Check that tricky values are rendered correctly in the JSON output.
   double big_num = 1e100;
@@ -887,6 +888,7 @@ TEST_F(PlatformTracingTest, JsonIntegrationTest) {
   CHECK_EQ("\"3\":\"Infinity\"", all_args[i++]);
   CHECK_EQ("\"4\":\"-Infinity\"", all_args[i++]);
 }
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
 
 #endif  // V8_USE_PERFETTO
 

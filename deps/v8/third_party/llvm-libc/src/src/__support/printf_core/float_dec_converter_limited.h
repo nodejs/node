@@ -47,6 +47,7 @@
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/dyadic_float.h"
 #include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/ctype_utils.h"
 #include "src/__support/integer_to_string.h"
 #include "src/__support/libc_assert.h"
 #include "src/__support/macros/config.h"
@@ -54,6 +55,10 @@
 #include "src/__support/printf_core/float_inf_nan_converter.h"
 #include "src/__support/printf_core/writer.h"
 #include "src/string/memory_utils/inline_memcpy.h"
+
+#if !defined(LIBC_COPT_PRINTF_DISABLE_WIDE)
+#include "src/__support/wctype_utils.h"
+#endif // !LIBC_COPT_PRINTF_DISABLE_WIDE
 
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
@@ -91,7 +96,7 @@ struct DigitsInput {
   }
 };
 
-struct DigitsOutput {
+template <typename CharT> struct DigitsOutput {
   // Output from decimal_digits().
   //
   // `digits` is a buffer containing nothing but ASCII digits. Even if the
@@ -104,7 +109,7 @@ struct DigitsOutput {
   // and exponent = 3 then this represents 1.234e3, or just the integer 1234.
   size_t ndigits;
   int exponent;
-  char digits[MAX_DIGITS + 1];
+  CharT digits[MAX_DIGITS + 1];
 };
 
 // Estimate log10 of a power of 2, by multiplying its exponent by
@@ -127,12 +132,13 @@ LIBC_INLINE int estimate_log10(int exponent_of_2) {
 // `decimal_digits` has a place value of _at least_ 10^-precision. But also, at
 // most `MAX_DIGITS` digits are returned, so the caller may need to pad it at
 // the end with the appropriate number of extra 0s.
-LIBC_INLINE
-DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
+template <typename CharT>
+LIBC_INLINE DigitsOutput<CharT> decimal_digits(DigitsInput input, int precision,
+                                               bool e_mode) {
   if (input.mantissa == 0) {
-    // Special-case zero, by manually generating the right number of zero
-    // digits and setting an appropriate exponent.
-    DigitsOutput output;
+    // Special-case zero, by manually setting the right number of zero digits
+    // and setting an appropriate exponent.
+    DigitsOutput<CharT> output = {};
     if (!e_mode) {
       // In F mode, it's enough to return an empty string of digits. That's the
       // same thing we do when given a nonzero number that rounds down to 0.
@@ -140,7 +146,8 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
       output.exponent = -precision - 1;
     } else {
       // In E mode, generate a string containing the expected number of 0s.
-      __builtin_memset(output.digits, '0', precision);
+      for (int i = 0; i < precision; ++i)
+        output.digits[i] = CharT{'0'};
       output.ndigits = precision;
       output.exponent = 0;
     }
@@ -247,7 +254,7 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
   // Start making the output struct, by copying in the digits from the above
   // object. At this stage we may also have one digit too many (but that's OK,
   // there's space for it in the DigitsOutput buffer).
-  DigitsOutput output;
+  DigitsOutput<CharT> output;
   output.ndigits = view.size();
   inline_memcpy(output.digits, view.data(), output.ndigits);
 
@@ -360,12 +367,12 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
       // at a time. (A bit painful, but better than going back to the integer
       // we made it from and doing the decimal conversion all over again.)
       for (size_t i = output.ndigits; i-- > 0;) {
-        if (output.digits[i] != '9') {
+        if (output.digits[i] != CharT{'9'}) {
           output.digits[i] = internal::int_to_b36_char(
               internal::b36_char_to_int(output.digits[i]) + 1);
           break;
         } else {
-          output.digits[i] = '0';
+          output.digits[i] = CharT{'0'};
         }
       }
     }
@@ -374,26 +381,26 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
   return output;
 }
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
-                                    const FormatSection &to_conv,
-                                    int32_t fraction_len, int exponent,
-                                    AnyFloatStorageType mantissa, Sign sign,
-                                    ConversionType ctype) {
-  constexpr char DECIMAL_POINT = '.';
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_finite_float_inner(Writer<mode, CharT> *writer,
+                                           const FormatSection<CharT> &to_conv,
+                                           int32_t fraction_len, int exponent,
+                                           AnyFloatStorageType mantissa,
+                                           Sign sign, ConversionType ctype) {
+  constexpr CharT DECIMAL_POINT = CharT{'.'};
   // If to_conv doesn't specify a precision, the precision defaults to 6.
   unsigned precision = to_conv.precision < 0 ? 6 : to_conv.precision;
 
   // Decide if we're displaying a sign character, depending on the format flags
   // and whether the input is negative.
-  char sign_char = 0;
+  CharT sign_char = 0;
   if (sign.is_neg())
-    sign_char = '-';
+    sign_char = CharT{'-'};
   else if ((to_conv.flags & FormatFlags::FORCE_SIGN) == FormatFlags::FORCE_SIGN)
-    sign_char = '+'; // FORCE_SIGN has precedence over SPACE_PREFIX
+    sign_char = CharT{'+'}; // FORCE_SIGN has precedence over SPACE_PREFIX
   else if ((to_conv.flags & FormatFlags::SPACE_PREFIX) ==
            FormatFlags::SPACE_PREFIX)
-    sign_char = ' ';
+    sign_char = CharT{' '};
 
   // Prepare the input to decimal_digits().
   DigitsInput input(fraction_len, mantissa, exponent, sign);
@@ -403,7 +410,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
   // in the following variables:
 
   // The decimal digits, and the exponent of the topmost one.
-  DigitsOutput output;
+  DigitsOutput<CharT> output;
   // The start and end of the digit string we're displaying, as indices into
   // `output.digits`. The indices may be out of bounds in either direction, in
   // which case digits beyond the bounds of the buffer should be displayed as
@@ -424,7 +431,8 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
     // (`%.6e` means six digits _after_ the decimal point, like 1.123456e+00).
     //
     // Also, bound the number of digits we request at MAX_DIGITS.
-    output = decimal_digits(input, cpp::min(precision + 1, MAX_DIGITS), true);
+    output =
+        decimal_digits<CharT>(input, cpp::min(precision + 1, MAX_DIGITS), true);
 
     // We display digits from the start of the buffer, and always output
     // `precision+1` of them (which will append zeroes if the user requested
@@ -441,7 +449,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
   case ConversionType::F:
     // In F mode, we provide decimal_digits() with the unmodified input
     // precision, and let it give us as many digits as we can.
-    output = decimal_digits(input, precision, false);
+    output = decimal_digits<CharT>(input, precision, false);
 
     // Initialize (start, limit) to display everything from the first nonzero
     // digit (necessarily at the start of the output buffer) to the digit at
@@ -470,7 +478,8 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
     //
     // Also, a precision of 0 is treated the same as 1.
     precision = cpp::max(precision, 1u);
-    output = decimal_digits(input, cpp::min(precision, MAX_DIGITS), true);
+    output =
+        decimal_digits<CharT>(input, cpp::min(precision, MAX_DIGITS), true);
 
     // As in E mode, we default to displaying precisely the digits in the
     // output buffer.
@@ -486,7 +495,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
       limit = cpp::min(limit, int(output.ndigits));
 
       // Then check the digits in the buffer and remove as many as possible.
-      while (limit > 1 && output.digits[limit - 1] == '0')
+      while (limit > 1 && output.digits[limit - 1] == CharT{'0'})
         limit--;
     }
 
@@ -543,14 +552,14 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
 
   // Format the exponent suffix (e+NN, e-NN) into a buffer, or leave the buffer
   // empty if we're not displaying one.
-  char expbuf[16]; // more than enough space for e+NNNN
+  CharT expbuf[16]; // more than enough space for e+NNNN
   size_t explen = 0;
   if (show_exponent) {
     const IntegerToString<decltype(output.exponent),
                           radix::Dec::WithWidth<2>::WithSign>
         expcvt{output.exponent};
     cpp::string_view expview = expcvt.view();
-    expbuf[0] = internal::islower(to_conv.conv_name) ? 'e' : 'E';
+    expbuf[0] = internal::islower(to_conv.conv_name) ? CharT{'e'} : CharT{'E'};
     explen = expview.size() + 1;
     inline_memcpy(expbuf + 1, expview.data(), expview.size());
   }
@@ -583,7 +592,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
 
   // Leading-space padding, if any
   if (padding == Padding::LeadingSpace)
-    RET_IF_RESULT_NEGATIVE(writer->write(' ', padding_amount));
+    RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, padding_amount));
 
   // Sign, if any
   if (sign_char)
@@ -591,7 +600,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
 
   // Zero padding, if any
   if (padding == Padding::Zero)
-    RET_IF_RESULT_NEGATIVE(writer->write('0', padding_amount));
+    RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, padding_amount));
 
   // Mantissa digits, maybe with a decimal point
   for (int pos = start; pos < limit; ++pos) {
@@ -600,7 +609,7 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
       RET_IF_RESULT_NEGATIVE(writer->write(output.digits[pos]));
     } else {
       // This digit is outside the buffer, so write a zero
-      RET_IF_RESULT_NEGATIVE(writer->write('0'));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}));
     }
 
     // Show the decimal point, if this is the digit it comes after
@@ -613,34 +622,39 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
 
   // Trailing-space padding, if any
   if (padding == Padding::TrailingSpace)
-    RET_IF_RESULT_NEGATIVE(writer->write(' ', padding_amount));
+    RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, padding_amount));
 
   return WRITE_OK;
 }
 
-template <typename T, OverflowMode mode,
+template <typename T, OverflowMode mode, typename CharT,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int
-convert_float_typed(Writer<mode> *writer, const FormatSection &to_conv,
-                    fputil::FPBits<T> float_bits, ConversionType ctype) {
-  return convert_float_inner(writer, to_conv, float_bits.FRACTION_LEN,
-                             float_bits.get_explicit_exponent(),
-                             float_bits.get_explicit_mantissa(),
-                             float_bits.sign(), ctype);
+LIBC_INLINE int convert_finite_float_typed(Writer<mode, CharT> *writer,
+                                           const FormatSection<CharT> &to_conv,
+                                           fputil::FPBits<T> float_bits,
+                                           ConversionType ctype) {
+  return convert_finite_float_inner(writer, to_conv, float_bits.FRACTION_LEN,
+                                    float_bits.get_explicit_exponent(),
+                                    float_bits.get_explicit_mantissa(),
+                                    float_bits.sign(), ctype);
 }
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
-                                    const FormatSection &to_conv,
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_float_outer(Writer<mode, CharT> *writer,
+                                    const FormatSection<CharT> &to_conv,
                                     ConversionType ctype) {
+  InfNanFPBitsProperties inf_nan_properties;
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   if (to_conv.length_modifier == LengthModifier::Q) {
     fputil::FPBits<float128> float_bits(
         static_cast<fputil::FPBits<float128>::StorageType>(
             to_conv.conv_val_raw));
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<float128>(writer, to_conv, float_bits, ctype);
+      return convert_finite_float_typed<float128>(writer, to_conv, float_bits,
+                                                  ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #ifndef LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
@@ -649,9 +663,11 @@ LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
         static_cast<fputil::FPBits<long double>::StorageType>(
             to_conv.conv_val_raw));
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<long double>(writer, to_conv, float_bits,
-                                              ctype);
+      return convert_finite_float_typed<long double>(writer, to_conv,
+                                                     float_bits, ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // !LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
   {
@@ -659,52 +675,61 @@ LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
         static_cast<fputil::FPBits<double>::StorageType>(to_conv.conv_val_raw);
     fputil::FPBits<double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<double>(writer, to_conv, float_bits, ctype);
+      return convert_finite_float_typed<double>(writer, to_conv, float_bits,
+                                                ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   }
 
-  return convert_inf_nan(writer, to_conv);
+  return convert_inf_nan(writer, inf_nan_properties, to_conv);
 }
 
-template <typename T, OverflowMode mode,
+template <typename T, OverflowMode mode, typename CharT,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_decimal_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::F);
+LIBC_INLINE int
+convert_finite_float_decimal_typed(Writer<mode, CharT> *writer,
+                                   const FormatSection<CharT> &to_conv,
+                                   fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::F);
 }
 
-template <typename T, OverflowMode mode,
+template <typename T, OverflowMode mode, typename CharT,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_exp_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::E);
+LIBC_INLINE int
+convert_finite_float_dec_exp_typed(Writer<mode, CharT> *writer,
+                                   const FormatSection<CharT> &to_conv,
+                                   fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::E);
 }
 
-template <typename T, OverflowMode mode,
+template <typename T, OverflowMode mode, typename CharT,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
-                                             const FormatSection &to_conv,
-                                             fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::G);
+LIBC_INLINE int
+convert_finite_float_dec_auto_typed(Writer<mode, CharT> *writer,
+                                    const FormatSection<CharT> &to_conv,
+                                    fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::G);
 }
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_float_decimal(Writer<mode> *writer,
-                                      const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_float_decimal(Writer<mode, CharT> *writer,
+                                      const FormatSection<CharT> &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::F);
 }
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_float_dec_exp(Writer<mode> *writer,
-                                      const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_float_dec_exp(Writer<mode, CharT> *writer,
+                                      const FormatSection<CharT> &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::E);
 }
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_float_dec_auto(Writer<mode> *writer,
-                                       const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_float_dec_auto(Writer<mode, CharT> *writer,
+                                       const FormatSection<CharT> &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::G);
 }
 

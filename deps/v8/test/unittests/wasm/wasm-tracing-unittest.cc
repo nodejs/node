@@ -133,7 +133,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     WasmFunctionBuilder* f = builder.AddFunction(sig);
 
     f->AddLocal(ValueType::Primitive(kI32));
-    f->builder()->AddExport(base::CStrVector("main"), f);
+    f->builder()->AddExport("main", f);
 
     f->EmitCode(code.data(), static_cast<uint32_t>(code.size()));
 

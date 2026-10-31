@@ -34,17 +34,18 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   DCHECK(isolate()->handle_scope_implementer()->blocks()->empty());
   // Startup object cache is not yet populated.
   DCHECK(isolate()->startup_object_cache()->empty());
-  // Builtins are not yet created.
-  DCHECK(!isolate()->builtins()->is_initialized());
+  // Builtins are already initialized if Code objects are in RO space.
+  DCHECK_EQ(isolate()->builtins()->is_initialized(),
+            Builtins::kCodeObjectsAreInROSpace);
 
   {
     DeserializeAndCheckExternalReferenceTable();
 
     isolate()->heap()->IterateSmiRoots(this);
     isolate()->heap()->IterateRoots(
-        this,
-        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
-                                SkipRoot::kTracedHandles});
+        this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable,
+                                      SkipRoot::kWeak, SkipRoot::kTracedHandles,
+                                      SkipRoot::kReadOnlyBuiltins});
     IterateStartupObjectCache(isolate(), this);
 
     isolate()->heap()->IterateWeakRoots(
@@ -81,7 +82,9 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   isolate()->heap()->set_dirty_js_finalization_registries_list_tail(
       ReadOnlyRoots(isolate()).undefined_value());
 
-  isolate()->builtins()->MarkInitialized();
+  if (!Builtins::kCodeObjectsAreInROSpace) {
+    isolate()->builtins()->MarkInitialized();
+  }
 
   LogNewMapEvents();
 

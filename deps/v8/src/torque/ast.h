@@ -936,6 +936,7 @@ struct StructFieldExpression {
 struct BitFieldDeclaration {
   NameAndTypeExpression name_and_type;
   int num_bits;
+  std::optional<int> offset = std::nullopt;
 };
 
 enum class ConditionalAnnotationType {
