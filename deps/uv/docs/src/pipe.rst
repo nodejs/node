@@ -120,6 +120,10 @@ API
     output. If the buffer is not big enough ``UV_ENOBUFS`` will be returned and
     len will contain the required size.
 
+    UNIX domain socket paths on FreeBSD cannot exceed the size of
+    ``sockaddr_un.sun_path`` although the platform defines a
+    ``SOCK_MAXADDRLEN`` that is larger.
+
     .. versionchanged:: 1.3.0 the returned length no longer includes the terminating null byte,
                         and the buffer is not null terminated.
 

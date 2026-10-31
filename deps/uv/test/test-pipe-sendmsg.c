@@ -156,7 +156,11 @@ TEST_IMPL(pipe_sendmsg) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(ARRAY_SIZE(incoming), incoming_count);
   ASSERT_EQ(ARRAY_SIZE(incoming) + 1, close_called);
-  close(fds[0]);
+
+  /* sendmsg() duplicates the descriptors, it does not consume them. */
+  for (i = 0; i < ARRAY_SIZE(send_fds); i++)
+    ASSERT_OK(close(send_fds[i]));
+  ASSERT_OK(close(fds[0]));
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;

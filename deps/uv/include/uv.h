@@ -435,7 +435,7 @@ UV_EXTERN char* uv_err_name_r(int err, char* buf, size_t buflen);
   /* read-only */                                                             \
   uv_req_type type;                                                           \
   /* private */                                                               \
-  void* reserved[6];                                                          \
+  void* reserved[5];                                                          \
   UV_REQ_PRIVATE_FIELDS                                                       \
 
 /* Abstract base class of all requests. */
@@ -565,6 +565,21 @@ UV_EXTERN int uv_try_write2(uv_stream_t* handle,
                             const uv_buf_t bufs[],
                             unsigned int nbufs,
                             uv_stream_t* send_handle);
+
+/*
+ * Returns the number of bytes written by a write request.
+ *
+ * NOTE: The result is only well-defined when called from within the
+ * write callback (uv_write_cb). The value is undefined if called at
+ * other times.
+ *
+ * This is primarily useful when a write has been cancelled via uv_cancel()
+ * and the callback receives UV_ECANCELED status, to determine how many
+ * bytes were actually written before cancellation. Note that cancelled
+ * writes may still succeed or fail with other errors if the kernel finished
+ * processing the write before the cancellation took effect.
+ */
+UV_EXTERN size_t uv_write_nwritten(const uv_write_t* req);
 
 /* uv_write_t is a subclass of uv_req_t. */
 struct uv_write_s {
@@ -705,7 +720,8 @@ enum uv_udp_flags {
    */
   UV_UDP_REUSEPORT = 64,
   /*
-   * Indicates that recvmmsg should be used, if available.
+   * Indicates that recvmmsg should be used, if available. The uv_alloc_cb
+   * for this handle should create buffers that are multiples of 64 KiB.
    */
   UV_UDP_RECVMMSG = 256
 };

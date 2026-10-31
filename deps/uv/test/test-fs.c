@@ -35,6 +35,7 @@
 # include <winioctl.h>
 # include <direct.h>
 # include <io.h>
+# include <crtdbg.h>
 # ifndef ERROR_SYMLINK_NOT_SUPPORTED
 #  define ERROR_SYMLINK_NOT_SUPPORTED 1464
 # endif
@@ -470,6 +471,8 @@ static void open_cb(uv_fs_t* req) {
 
 
 static void open_cb_simple(uv_fs_t* req) {
+  uv_fs_t close_req;
+
   ASSERT_EQ(req->fs_type, UV_FS_OPEN);
   if (req->result < 0) {
     fprintf(stderr, "async open error: %d\n", (int) req->result);
@@ -477,6 +480,8 @@ static void open_cb_simple(uv_fs_t* req) {
   }
   open_cb_count++;
   ASSERT(req->path);
+  ASSERT_OK(uv_fs_close(NULL, &close_req, (uv_file) req->result, NULL));
+  uv_fs_req_cleanup(&close_req);
   uv_fs_req_cleanup(req);
 }
 
@@ -1041,6 +1046,12 @@ TEST_FS_IMPL(fs_file_async) {
 
 static void fs_file_sync(int add_flags) {
   int r;
+#ifdef _WIN32
+  HANDLE report_file;
+  LARGE_INTEGER report_size;
+  _HFILE old_report_file;
+  int old_report_mode;
+#endif
 
   /* Setup. */
   unlink("test_file");
@@ -1064,6 +1075,36 @@ static void fs_file_sync(int add_flags) {
   r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
   ASSERT_OK(r);
   ASSERT_OK(close_req.result);
+  uv_fs_req_cleanup(&close_req);
+
+#ifdef _WIN32
+  /* Invalid descriptors must not trigger debug CRT assertions. */
+  report_file = CreateFileA("test_crt_report",
+                            GENERIC_READ | GENERIC_WRITE,
+                            0,
+                            NULL,
+                            CREATE_ALWAYS,
+                            FILE_ATTRIBUTE_TEMPORARY |
+                                FILE_FLAG_DELETE_ON_CLOSE,
+                            NULL);
+  ASSERT_PTR_NE(report_file, INVALID_HANDLE_VALUE);
+  old_report_mode = _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  old_report_file = _CrtSetReportFile(_CRT_ASSERT, (_HFILE) report_file);
+#endif
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+
+#ifdef _WIN32
+  _CrtSetReportFile(_CRT_ASSERT, old_report_file);
+  _CrtSetReportMode(_CRT_ASSERT, old_report_mode);
+  ASSERT_NE(FlushFileBuffers(report_file), 0);
+  ASSERT_NE(GetFileSizeEx(report_file, &report_size), 0);
+  ASSERT_EQ(0, report_size.QuadPart);
+  ASSERT_NE(CloseHandle(report_file), 0);
+#endif
+
+  ASSERT_EQ(UV_EBADF, r);
+  ASSERT_EQ(UV_EBADF, close_req.result);
   uv_fs_req_cleanup(&close_req);
 
   r = uv_fs_open(NULL, &open_req1, "test_file", UV_FS_O_RDWR | add_flags, 0,
@@ -1376,6 +1417,10 @@ static int test_sendfile(void (*setup)(int), uv_fs_cb cb, size_t expected_size) 
     ASSERT_GE(req.result, 0);
     ASSERT_EQ(buf1[0], 'e'); /* 'e' from begin */
     uv_fs_req_cleanup(&req);
+
+    r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+    ASSERT_OK(r);
+    uv_fs_req_cleanup(&close_req);
   } else {
     ASSERT_UINT64_EQ(s1.st_size, s2.st_size);
   }
@@ -1676,6 +1721,8 @@ TEST_FS_IMPL(fs_fstat_st_dev) {
   char* test_file = "tmp_st_dev";
   char* symlink_file = "tmp_st_dev_link";
 
+  RETURN_SKIP_IN_APPCONTAINER("symlink creation requires elevated privilege");
+
   unlink(test_file);
   unlink(symlink_file);
 
@@ -1684,6 +1731,8 @@ TEST_FS_IMPL(fs_fstat_st_dev) {
       S_IWUSR | S_IRUSR, NULL);
   ASSERT_GE(r, 0);
   ASSERT_GE(req.result, 0);
+  uv_fs_req_cleanup(&req);
+  ASSERT_OK(uv_fs_close(NULL, &req, r, NULL));
   uv_fs_req_cleanup(&req);
 
   // Create a symlink
@@ -2612,6 +2661,7 @@ TEST_FS_IMPL(fs_symlink_dir) {
 }
 
 TEST_FS_IMPL(fs_symlink_junction) {
+  RETURN_SKIP_IN_APPCONTAINER("junction lstat not supported");
   return test_symlink_dir_impl(UV_FS_SYMLINK_JUNCTION);
 }
 
@@ -3090,6 +3140,8 @@ TEST_FS_IMPL(fs_futime) {
   ASSERT_EQ(1, futime_cb_count);
 
   /* Cleanup. */
+  ASSERT_OK(uv_fs_close(NULL, &req, file, NULL));
+  uv_fs_req_cleanup(&req);
   unlink(path);
 
   MAKE_VALGRIND_HAPPY(loop);
@@ -4503,7 +4555,7 @@ TEST_FS_IMPL(fs_file_pos_append) {
 }
 #endif
 
-TEST_FS_IMPL(fs_null_req) {
+TEST_IMPL(fs_null_req) {
   /* Verify that all fs functions return UV_EINVAL when the request is NULL. */
   int r;
 
@@ -4723,6 +4775,8 @@ TEST_FS_IMPL(fs_open_readonly_acl) {
     uv_passwd_t pwd;
     uv_fs_t req;
     int r;
+
+    RETURN_SKIP_IN_APPCONTAINER("cannot modify file ACLs");
 
     /*
         Based on Node.js test from
@@ -4951,7 +5005,7 @@ TEST_FS_IMPL(fs_statfs) {
   return 0;
 }
 
-TEST_FS_IMPL(fs_get_system_error) {
+TEST_IMPL(fs_get_system_error) {
   uv_fs_t req;
   int r;
   int system_error;
