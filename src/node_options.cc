@@ -383,6 +383,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 
       debug_options_.allow_attaching_debugger = false;
     }
+    if (!bench_gc.empty() && bench_gc != "none" && bench_gc != "once" &&
+        bench_gc != "sample") {
+      errors->push_back("invalid value for --bench-gc");
+    }
     if (has_bench_samples && bench_samples == 0) {
       errors->push_back("--bench-samples must be greater than 0");
     }
@@ -1148,6 +1152,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             false,
             OptionNamespaces::kBenchRunnerNamespace);
   Implies("--bench", "[has_bench_options]");
+  AddOption("--bench-gc",
+            "run garbage collection before measured benchmark samples",
+            &EnvironmentOptions::bench_gc,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-gc", "[has_bench_options]");
   AddOption("--bench-isolation",
             "configures the type of benchmark isolation used in the benchmark "
             "runner",

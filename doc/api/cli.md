@@ -552,6 +552,25 @@ details.
 This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
 `--check`, `--eval`, or `--interactive`.
 
+### `--bench-gc=mode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the garbage collection mode for every selected benchmark. When `mode`
+is `'once'`, a full garbage collection runs before the first measured sample.
+When `mode` is `'sample'`, a full garbage collection runs before every measured
+sample. When `mode` is `'none'`, no garbage collection is forced. Without this
+option, each benchmark uses its own `gc` value, which defaults to `'none'`.
+
+Forcing garbage collection requires the `--expose-gc` flag. With process
+isolation, `--expose-gc` is added to benchmark child processes automatically
+when `mode` is `'once'` or `'sample'`. With `--bench-isolation=none`,
+`--expose-gc` must be passed explicitly.
+
 ### `--bench-isolation=mode`
 
 <!-- YAML
@@ -4275,6 +4294,7 @@ one is included in the list below.
 * `--allow-openssl-store`
 * `--allow-wasi`
 * `--allow-worker`
+* `--bench-gc`
 * `--bench-isolation`
 * `--bench-name-pattern`
 * `--bench-reporter-destination`
