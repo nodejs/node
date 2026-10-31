@@ -8,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options.h"
+#include "node_realm-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
@@ -47,6 +48,12 @@ namespace sea {
 // The reserved asset key under which the ZIP archive named by "vfsArchive"
 // is stored. Must match the name used by lib/internal/vfs/sea.js.
 constexpr std::string_view kVfsArchiveAssetName = "node:sea:vfs.zip";
+// The prefix of the reserved asset keys holding the compile cache of the
+// modules in the virtual file system, one asset per module named by its
+// compile cache key. Must match the prefix skipped by
+// lib/internal/vfs/providers/sea.js.
+constexpr std::string_view kVfsCompileCacheAssetPrefix =
+    "node:sea:compile-cache/";
 
 namespace {
 
@@ -613,11 +620,6 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
               "\"useVfs\" is not supported when \"useSnapshot\" is true\n");
       return std::nullopt;
     }
-    if (static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
-      FPrintF(stderr,
-              "\"useVfs\" is not supported when \"useCodeCache\" is true\n");
-      return std::nullopt;
-    }
   }
 
   if (static_cast<bool>(result.flags & SeaFlags::kVfsArchive)) {
@@ -792,6 +794,127 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   return code_cache;
 }
 
+// Compiles every module in the virtual file system of the single executable
+// application and collects their compile cache, to be embedded as the assets
+// under kVfsCompileCacheAssetPrefix. The modules are compiled by a Node.js
+// instance that mounts the assets the way the executable does at startup
+// (see lib/internal/vfs/sea_compile_cache.js), so the cache is keyed and
+// hashed exactly as the module loaders look it up from the mount.
+ExitCode GenerateVfsCompileCache(
+    const SeaConfig& config,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::string_view main_script,
+    std::unordered_map<std::string, std::string>* assets) {
+  std::vector<std::string> errors;
+  std::vector<std::string> env_args = {args[0]};
+  std::unique_ptr<CommonEnvironmentSetup> setup =
+      CommonEnvironmentSetup::Create(
+          per_process::v8_platform.Platform(), &errors, env_args, exec_args);
+  if (!setup) {
+    for (const std::string& err : errors) {
+      FPrintF(stderr, "%s: %s\n", args[0], err);
+    }
+    return ExitCode::kBootstrapFailure;
+  }
+
+  Isolate* isolate = setup->isolate();
+  v8::Locker locker(isolate);
+  Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = setup->context();
+  Context::Scope context_scope(context);
+  Environment* env = setup->env();
+
+  // The cache is collected from this instance, which must neither read nor
+  // write the compile cache the build process itself may be configured with.
+  env->set_env_vars(env->env_vars()->Clone(isolate));
+  for (const char* name : {"NODE_COMPILE_CACHE",
+                           "NODE_COMPILE_CACHE_PORTABLE",
+                           "NODE_COMPILE_CACHE_READONLY",
+                           "NODE_DISABLE_COMPILE_CACHE"}) {
+    env->env_vars()->Delete(isolate, OneByteString(isolate, name));
+  }
+
+  errors::PrinterTryCatch bootstrapCatch(
+      isolate, errors::PrinterTryCatch::kPrintSourceLine);
+
+  Local<Object> options = Object::New(isolate);
+  auto set_option = [&](const char* key, auto&& value) {
+    Local<Value> v8_value;
+    return ToV8Value(context, value).ToLocal(&v8_value) &&
+           options->Set(context, OneByteString(isolate, key), v8_value)
+               .IsJust();
+  };
+  if (!set_option("main", config.main_path) ||
+      !set_option("mainSource", main_script)) {
+    return ExitCode::kGenericUserError;
+  }
+  if (static_cast<bool>(config.flags & SeaFlags::kVfsArchive)) {
+    if (!set_option("vfsArchive", config.vfs_archive_path)) {
+      return ExitCode::kGenericUserError;
+    }
+  } else {
+    std::vector<std::string> asset_keys;
+    std::vector<std::string> asset_paths;
+    for (auto const& [key, path] : config.assets) {
+      asset_keys.push_back(key);
+      asset_paths.push_back(path);
+    }
+    if (!set_option("assetKeys", asset_keys) ||
+        !set_option("assetPaths", asset_paths)) {
+      return ExitCode::kGenericUserError;
+    }
+  }
+
+  Local<Value> compiled;
+  bool loaded =
+      LoadEnvironment(
+          env,
+          [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+            Local<Value> id = FIXED_ONE_BYTE_STRING(
+                isolate, "internal/vfs/sea_compile_cache");
+            Local<Value> builder;
+            if (!env->principal_realm()
+                     ->builtin_module_require()
+                     ->Call(context, Undefined(isolate), 1, &id)
+                     .ToLocal(&builder)) {
+              return MaybeLocal<Value>();
+            }
+            Local<Value> fn;
+            if (!builder.As<Object>()
+                     ->Get(
+                         context,
+                         FIXED_ONE_BYTE_STRING(isolate, "buildSeaCompileCache"))
+                     .ToLocal(&fn)) {
+              return MaybeLocal<Value>();
+            }
+            Local<Value> argv[] = {options};
+            return fn.As<Function>()->Call(
+                context, Undefined(isolate), arraysize(argv), argv);
+          })
+          .ToLocal(&compiled);
+  if (!loaded) {
+    FPrintF(stderr,
+            "Cannot generate the compile cache of the virtual file system\n");
+    return ExitCode::kGenericUserError;
+  }
+
+  CHECK(env->use_compile_cache());
+  size_t entries = 0;
+  for (auto& [name, data] : env->compile_cache_handler()->SerializeEntries()) {
+    assets->emplace(std::string(kVfsCompileCacheAssetPrefix) + name,
+                    std::string(data.begin(), data.end()));
+    entries++;
+  }
+  per_process::Debug(DebugCategory::SEA,
+                     "Generated %zu compile cache entries for %d modules in "
+                     "the virtual file system\n",
+                     entries,
+                     compiled.As<v8::Int32>()->Value());
+  return ExitCode::kNoFailure;
+}
+
 int BuildAssets(const std::unordered_map<std::string, std::string>& config,
                 std::unordered_map<std::string, std::string>* assets) {
   for (auto const& [key, path] : config) {
@@ -875,6 +998,17 @@ ExitCode GenerateSingleExecutableBlob(
     }
     assets.emplace(std::string(kVfsArchiveAssetName), std::move(archive));
   }
+  SeaFlags flags = config.flags;
+  if (static_cast<bool>(flags & SeaFlags::kEnableVfs) &&
+      static_cast<bool>(flags & SeaFlags::kUseCodeCache)) {
+    ExitCode exit_code =
+        GenerateVfsCompileCache(config, args, exec_args, main_script, &assets);
+    if (exit_code != ExitCode::kNoFailure) {
+      return exit_code;
+    }
+    // The cache is embedded as assets even when the configuration has none.
+    flags |= SeaFlags::kIncludeAssets;
+  }
   std::unordered_map<std::string_view, std::string_view> assets_view;
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
@@ -884,7 +1018,7 @@ ExitCode GenerateSingleExecutableBlob(
     exec_argv_view.emplace_back(arg);
   }
   SeaResource sea{
-      config.flags,
+      flags,
       config.exec_argv_extension,
       config.main_path,
       builds_snapshot_from_main
