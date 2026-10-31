@@ -257,6 +257,11 @@ extern "C" bool node_ffi_create_fast_trampoline(
   if (has_buffer_args && fp_count != 0) {
     return false;
   }
+  // The buffer helper call clobbers target registers already loaded for
+  // earlier arguments, so buffer trampolines support a single argument only.
+  if (has_buffer_args && argc > 1) {
+    return false;
+  }
 
   const size_t incoming_gp_count = gp_count + (has_buffer_args ? 1 : 0);
   // When V8 passes FastApiCallbackOptions, it consumes one additional GP
