@@ -341,9 +341,6 @@ known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
 Make sure to sign and push to resulting commit to the private repository and not
 the public one.
 
-**Note**: Do not run CI on the PRs in `nodejs-private` until CI is locked down.
-You can integrate the PRs into the proposal without running full CI.
-
 </details>
 
 ### 2. Create a new branch for the release
@@ -713,15 +710,6 @@ ncu-ci citgm 10 11
 A number of the modules tested by CitGM are not completely
 reliable so differences shown by the comparison are not immediately cause
 for concern.
-
-<details>
-<summary>Security release</summary>
-
-If there are private security patches, do not run any CI jobs on the proposal
-until CI has been locked down. The security steward should be coordinating this
-with the Build Working Group.
-
-</details>
 
 #### 7.1 Updating the release _(optional)_
 
