@@ -83,7 +83,10 @@ class FFIFunctionInfo final : public BaseObject {
 };
 
 struct FFICallback {
-  DynamicLibrary* owner;
+  // Callback pointers are plain addresses that cannot root the library, so
+  // each registered callback keeps its owner alive until it is unregistered
+  // or the library is closed.
+  BaseObjectPtr<DynamicLibrary> owner;
   Environment* env;
   std::thread::id thread_id;
   v8::Global<v8::Function> fn;
@@ -161,6 +164,7 @@ class DynamicLibrary : public BaseObject {
       Environment* env,
       const std::string& name,
       const std::shared_ptr<FFIFunction>& fn);
+  static void CleanupHook(void* arg);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
   bool is_closed() const;
