@@ -11,6 +11,9 @@ const tmpdir = require('../common/tmpdir');
 const path = require('path');
 const fixtures = require('../common/fixtures');
 
+// The compile cache is disabled while V8 coverage is being collected.
+process.env.NODE_V8_COVERAGE = '';
+
 tmpdir.refresh();
 const workDir = path.join(tmpdir.path, 'work');
 const cacheRel = '.compile_cache_dir';

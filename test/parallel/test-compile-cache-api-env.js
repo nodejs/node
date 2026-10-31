@@ -10,6 +10,9 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 
+// The compile cache is disabled while V8 coverage is being collected.
+process.env.NODE_V8_COVERAGE = '';
+
 {
   // Test that it works with non-existent directory.
   tmpdir.refresh();

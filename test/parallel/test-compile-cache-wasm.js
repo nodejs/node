@@ -8,6 +8,9 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
+// The compile cache is disabled while V8 coverage is being collected.
+process.env.NODE_V8_COVERAGE = '';
+
 const script = fixtures.path('es-modules', 'test-wasm-js-string-builtins.mjs');
 
 // V8 only serializes optimized code, so a complete cache requires eager

@@ -11,6 +11,9 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
+// The compile cache is disabled while V8 coverage is being collected.
+process.env.NODE_V8_COVERAGE = '';
+
 // Check cache for .ts files that would be run as ESM.
 {
   tmpdir.refresh();

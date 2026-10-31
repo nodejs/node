@@ -10,6 +10,9 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+// The compile cache is disabled while V8 coverage is being collected.
+process.env.NODE_V8_COVERAGE = '';
+
 {
   // Test that it throws if the script fails to parse, and no cache is created.
   tmpdir.refresh();
