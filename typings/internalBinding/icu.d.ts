@@ -8,6 +8,7 @@ export interface ICUBinding {
   ): string;
   getConverter(label: string, flags: number): object | undefined;
   getStringWidth(value: string, ambiguousAsFullWidth?: boolean, expandEmojiSequence?: boolean): number;
+  getGraphemeStringWidth(value: string, ambiguousAsFullWidth?: boolean): number;
   hasConverter(label: string): boolean;
   icuErrName(status: number): string;
   transcode(
