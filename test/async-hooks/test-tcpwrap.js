@@ -1,5 +1,6 @@
 // Covers TCPWRAP and related TCPCONNECTWRAP
 'use strict';
+// Flags: --enable-async-hooks
 
 const common = require('../common');
 if (!common.hasIPv6)

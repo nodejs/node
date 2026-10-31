@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 require('../common');
 const { AsyncResource } = require('async_hooks');

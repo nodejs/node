@@ -17,7 +17,7 @@ tmpdir.refresh();
 const FILE_NAME = tmpdir.resolve('node_trace.1.pftrace');
 
 const proc = cp.spawn(process.execPath,
-                      [ '--trace-events-enabled', '-e', CODE ],
+                      [ '--enable-async-hooks', '--trace-events-enabled', '-e', CODE ],
                       { cwd: tmpdir.path });
 
 proc.once('exit', common.mustCall(() => {

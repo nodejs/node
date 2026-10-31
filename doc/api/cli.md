@@ -1220,6 +1220,46 @@ Set the default value of `order` in [`dns.lookup()`][] and
 The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than `--dns-result-order`.
 
+### `--enable-async-hooks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable use of `async_hooks.createHook()`. This flag is required to enable
+the `createHook` API, which is disabled by default.
+
+Example:
+
+```mjs
+import { createHook } from 'node:async_hooks';
+
+createHook({ init() {} }).enable();
+```
+
+```cjs
+const { createHook } = require('node:async_hooks');
+
+createHook({ init() {} }).enable();
+```
+
+```console
+$ node index.js
+node:async_hooks:160
+    throw new ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED();
+    ^
+
+Error [ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED]: async_hooks.createHook() is disabled. Use --enable-async-hooks to enable it.
+    at createHook (node:async_hooks:160:11)
+    at Object.<anonymous> (/home/user/index.js:3:1)
+    ...
+```
+
+```console
+$ node --enable-async-hooks index.js
+# Works without error
+```
+
 ### `--enable-fips`
 
 <!-- YAML
@@ -4292,6 +4332,7 @@ one is included in the list below.
 * `--disable-warning`
 * `--disable-wasm-trap-handler`
 * `--dns-result-order`
+* `--enable-async-hooks`
 * `--enable-fips-indicator-events`
 * `--enable-fips`
 * `--enable-network-family-autoselection`

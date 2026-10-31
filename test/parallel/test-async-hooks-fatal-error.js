@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 const common = require('../common');
 const assert = require('assert');
 const childProcess = require('child_process');
@@ -41,7 +42,7 @@ function main() {
     for (const [valueType, expect] of valueTypes) {
       const cp = childProcess.spawnSync(
         process.execPath,
-        [ __filename, 'child', type, valueType ],
+        [ '--enable-async-hooks', __filename, 'child', type, valueType ],
         {
           encoding: 'utf8',
         });

@@ -733,6 +733,17 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
+<a id="ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED"></a>
+
+### `ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to call [`async_hooks.createHook()`][] without the
+[`--enable-async-hooks`][] flag.
+
 <a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
 
 ### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
@@ -4774,6 +4785,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`"imports"`]: packages.md#imports
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--disable-proto=throw`]: cli.md#--disable-protomode
+[`--enable-async-hooks`]: cli.md#--enable-async-hooks
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
@@ -4798,6 +4810,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`Writable`]: stream.md#class-streamwritable
 [`ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`ZipFile`]: zlib.md#class-zlibzipfile
+[`async_hooks.createHook()`]: async_hooks.md#async_hookscreatehookoptions
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
 [`crypto.getDiffieHellman()`]: crypto.md#cryptogetdiffiehellmangroupname

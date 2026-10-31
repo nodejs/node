@@ -29,7 +29,7 @@ const filename = tmpdir.resolve('node_trace.1.log');
 tmpdir.refresh();
 const proc = cp.spawnSync(
   process.execPath,
-  ['-e', enable + code ],
+  ['--enable-async-hooks', '-e', enable + code ],
   {
     cwd: tmpdir.path,
     env: { ...process.env,

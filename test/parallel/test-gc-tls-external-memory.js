@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 
 // Tests that memoryUsage().external doesn't go negative
 // when a lot tls connections are opened and closed

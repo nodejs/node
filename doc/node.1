@@ -744,6 +744,36 @@ Set the default value of \fBorder\fR in \fBdns.lookup()\fR and
 The default is \fBverbatim\fR and \fBdns.setDefaultResultOrder()\fR have higher
 priority than \fB--dns-result-order\fR.
 .
+.It Fl -enable-async-hooks
+Enable use of \fBasync_hooks.createHook()\fR. This flag is required to enable
+the \fBcreateHook\fR API, which is disabled by default.
+Example:
+.Bd -literal
+import { createHook } from 'node:async_hooks';
+
+createHook({ init() {} }).enable();
+.Ed
+.Bd -literal
+const { createHook } = require('node:async_hooks');
+
+createHook({ init() {} }).enable();
+.Ed
+.Bd -literal
+$ node index.js
+node:async_hooks:160
+    throw new ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED();
+    ^
+
+Error [ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED]: async_hooks.createHook() is disabled. Use --enable-async-hooks to enable it.
+    at createHook (node:async_hooks:160:11)
+    at Object.<anonymous> (/home/user/index.js:3:1)
+    ...
+.Ed
+.Bd -literal
+$ node --enable-async-hooks index.js
+# Works without error
+.Ed
+.
 .It Fl -enable-fips
 Enable FIPS mode at startup. A configured provider named \fBfips\fR must be
 available and initialize successfully.
@@ -2241,6 +2271,8 @@ one is included in the list below.
 \fB--disable-wasm-trap-handler\fR
 .It
 \fB--dns-result-order\fR
+.It
+\fB--enable-async-hooks\fR
 .It
 \fB--enable-fips-indicator-events\fR
 .It

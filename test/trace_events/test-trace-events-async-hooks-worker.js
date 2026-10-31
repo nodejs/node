@@ -40,7 +40,7 @@ const filename = tmpdir.resolve(defaultTraceFileName);
 tmpdir.refresh();
 const proc = cp.spawnSync(
   process.execPath,
-  [ '--trace-event-categories', 'node.async_hooks', '-e', worker ],
+  [ '--enable-async-hooks', '--trace-event-categories', 'node.async_hooks', '-e', worker ],
   {
     cwd: tmpdir.path,
     env: { ...process.env,
