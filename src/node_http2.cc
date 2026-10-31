@@ -2461,6 +2461,8 @@ void Http2Stream::CompleteDestroyCleanup() {
       // Free any remaining outgoing data chunks here. This should be done
       // here because it's possible for destroy to have been called while
       // we still have queued outbound writes.
+      if (session_)
+        DecrementAvailableOutboundLength(available_outbound_length_);
       while (!queue_.empty()) {
         NgHttp2StreamWrite& head = queue_.front();
         if (head.req_wrap)
