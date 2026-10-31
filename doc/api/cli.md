@@ -719,6 +719,10 @@ an additional module during the snapshot building process is needed,
 please file a request in the [Node.js issue tracker][] and link to it in the
 [tracking issue for user-land snapshots][].
 
+During snapshot building, a debugger cannot be attached to the process.
+`--build-snapshot` cannot be used together with `--inspect`, `--inspect-brk` or
+`--inspect-wait`.
+
 ### `--build-snapshot-config`
 
 <!-- YAML
