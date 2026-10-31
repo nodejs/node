@@ -1,15 +1,16 @@
 'use strict';
 
 const common = require('../common.js');
-const { crc32 } = require('zlib');
+const zlib = require('zlib');
 
-// Benchmark crc32 on Buffer and String inputs across sizes.
+// Benchmark crc32 and crc32c on Buffer and String inputs across sizes.
 // Iteration count is scaled inversely with input length to keep runtime sane.
 // Example:
-//   node benchmark/zlib/crc32.js type=buffer len=4096 n=4000000
+//   node benchmark/zlib/crc32.js algorithm=crc32c type=buffer len=4096 n=4000000
 //   ./out/Release/node benchmark/zlib/crc32.js --test
 
 const bench = common.createBenchmark(main, {
+  algorithm: ['crc32', 'crc32c'],
   type: ['buffer', 'string'],
   len: [32, 256, 4096, 65536],
   n: [4e6],
@@ -28,7 +29,9 @@ function makeAsciiString(size) {
   return out;
 }
 
-function main({ type, len, n }) {
+function main({ algorithm, type, len, n }) {
+  const crc = zlib[algorithm];
+
   // Scale iterations so that total processed bytes roughly constant around n*4096 bytes.
   const scale = 4096 / len;
   const iters = Math.max(1, Math.floor(n * scale));
@@ -36,11 +39,11 @@ function main({ type, len, n }) {
   const data = type === 'buffer' ? makeBuffer(len) : makeAsciiString(len);
 
   let acc = 0;
-  for (let i = 0; i < Math.min(iters, 10000); i++) acc ^= crc32(data, 0);
+  for (let i = 0; i < Math.min(iters, 10000); i++) acc ^= crc(data, 0);
 
   bench.start();
   let sum = 0;
-  for (let i = 0; i < iters; i++) sum ^= crc32(data, 0);
+  for (let i = 0; i < iters; i++) sum ^= crc(data, 0);
   bench.end(iters);
 
   if (sum === acc - 1) process.stderr.write('');
