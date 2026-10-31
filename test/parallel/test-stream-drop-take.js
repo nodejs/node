@@ -82,6 +82,18 @@ const naturals = () => from(async function*() {
 }
 
 {
+  // Fractional limits are truncated toward zero
+  (async () => {
+    assert.deepStrictEqual(await from([1, 2, 3, 4]).take(1.5).toArray(), [1]);
+    assert.deepStrictEqual(await from([1, 2, 3, 4]).drop(1.5).toArray(), [2, 3, 4]);
+    assert.deepStrictEqual(await from([1, 2, 3, 4]).take(0.5).toArray(), []);
+    assert.deepStrictEqual(await from([1, 2, 3, 4]).drop(0.5).toArray(), [1, 2, 3, 4]);
+    assert.deepStrictEqual(await from([1, 2]).take(-0.5).toArray(), []);
+    assert.deepStrictEqual(await from([1, 2]).drop(-0.5).toArray(), [1, 2]);
+  })().then(common.mustCall());
+}
+
+{
   // Support for AbortSignal
   const ac = new AbortController();
   assert.rejects(
@@ -108,6 +120,7 @@ const naturals = () => from(async function*() {
   // Error cases
   const invalidArgs = [
     -1,
+    -1.5,
     -Infinity,
     -40,
   ];
