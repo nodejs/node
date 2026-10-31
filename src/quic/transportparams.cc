@@ -327,12 +327,11 @@ void TransportParams::GeneratePreferredAddressToken(Session* session) {
   if (params_.preferred_addr_present) {
     config.preferred_address_cid = session->new_cid();
     params_.preferred_addr.cid = config.preferred_address_cid;
-    auto& endpoint = session->endpoint();
-    endpoint.AssociateStatelessResetToken(
-        endpoint.GenerateNewStatelessResetToken(
-            params_.preferred_addr.stateless_reset_token,
-            config.preferred_address_cid),
-        session);
+    // As with NEW_CONNECTION_ID, the locally issued token is only sent to the
+    // peer and is not added to the token map of reset tokens from the peer.
+    session->endpoint().GenerateNewStatelessResetToken(
+        params_.preferred_addr.stateless_reset_token,
+        config.preferred_address_cid);
     // Register the preferred address CID with SessionManager for
     // cross-endpoint routing. This is a locally-generated CID that needs
     // to be routable from the preferred address endpoint (which may be
