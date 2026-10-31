@@ -2,15 +2,29 @@
   pinFile ? ./pkgs.nix,
   shellFile ? ../../shell.nix,
   jsonFile ? ../perfetto/trace_processor_shell.json,
-  system ? "x86_64-linux",
+  system ? "aarch64-linux",
 }:
 let
   pkgs = import pinFile {
     inherit system;
     overlays = [
+      (final: prev: {
+        # Disable compiling tools we do not use
+        perfetto = prev.perfetto.overrideAttrs (old: {
+            gnFlags = old.gnFlags ++ [
+              "enable_perfetto_x64_cpu_opt=false"
+              ''extra_target_ldflags="-static"''
+            ];
+            doCheck = false;
+            ninjaFlags = [ "trace_processor_shell" ];
+            installPhase = "install -Dt $tools/bin $ninjaFlags";
+            nativeInstallCheckInputs = [ ];
+        });
+      })
       (
         final: prev:
-        prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == "x86_64-linux") {
+        prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == system) {
+          # Force cross-compilation mode (should be upstreamed)
           perfetto = prev.perfetto.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
               final.protobuf
@@ -22,9 +36,6 @@ let
               final.zstd
             ];
             gnFlags = old.gnFlags ++ [
-              "enable_perfetto_x64_cpu_opt=false"
-
-              ''extra_target_ldflags="-static"''
               ''target_triplet="${final.stdenv.hostPlatform.config}"''
 
               ''cc="gcc"''
@@ -36,9 +47,6 @@ let
               ''target_ar="${final.stdenv.cc.targetPrefix}ar"''
             ];
 
-            ninjaFlags = [ "trace_processor_shell" ];
-            installPhase = "install -Dt $tools/bin $ninjaFlags";
-            nativeInstallCheckInputs = [ ];
           });
         }
       )
@@ -74,10 +82,6 @@ let
                   tag = "iii/s390x/2026-10-27";
                   hash = "sha256-hQvCrko3/lRVAy51TvaZLtKn23dCTvr96uHC5qUEkJE=";
                 };
-
-                ninjaFlags = [ "trace_processor_shell" ];
-                installPhase = "install -Dt $tools/bin $ninjaFlags";
-                nativeInstallCheckInputs = [ ];
               });
           }
         )
