@@ -2,9 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-// Import of pure js (non-shared) deps for comparison
-const acorn = require('../../deps/acorn/acorn/package.json');
-
 const expected_keys = [
   'ares',
   'brotli',
@@ -19,7 +16,6 @@ const expected_keys = [
   'napi',
   'llhttp',
   'uvwasi',
-  'acorn',
   'simdjson',
   'simdutf',
   'ada',
@@ -29,7 +25,7 @@ const expected_keys = [
 
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
-const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
+const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/internal.js');
 const hasLief = process.config.variables.node_use_lief;
 
 if (process.config.variables.node_use_amaro) {
@@ -74,7 +70,6 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
-assert.match(process.versions.acorn, commonTemplate);
 assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
@@ -129,6 +124,3 @@ if (hasUndici) {
   const expectedUndiciVersion = undici.version;
   assert.strictEqual(process.versions.undici, expectedUndiciVersion);
 }
-
-const expectedAcornVersion = acorn.version;
-assert.strictEqual(process.versions.acorn, expectedAcornVersion);

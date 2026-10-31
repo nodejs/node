@@ -30,8 +30,6 @@ fi
 
 
 # Dependencies bundled in distributions
-licenseText="$(cat "${rootdir}/deps/acorn/acorn/LICENSE")"
-addlicense "Acorn" "deps/acorn" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/cares/LICENSE.md")"
 addlicense "c-ares" "deps/cares" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/merve/LICENSE-MIT")"
