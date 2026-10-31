@@ -305,11 +305,13 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   });
 
   it('should not crash when --env-file-if-exists points to a missing file', async () => {
+    const dir = tmpdir.resolve('subdir-missing-env-file');
+    mkdirSync(dir);
     const envKey = `TEST_ENV_${Date.now()}`;
-    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
-    const missingEnvFile = path.join(tmpdir.path, `missing-${Date.now()}.env`);
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`, '.js', dir);
+    const missingEnvFile = path.join(dir, `missing-${Date.now()}.env`);
     const { done, restart } = runInBackground({
-      args: ['--watch-path', tmpdir.path, `--env-file-if-exists=${missingEnvFile}`, jsFile],
+      args: ['--watch-path', dir, `--env-file-if-exists=${missingEnvFile}`, jsFile],
     });
 
     try {
