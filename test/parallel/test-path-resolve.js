@@ -71,6 +71,15 @@ resolveTests.forEach(([resolve, tests]) => {
 });
 assert.strictEqual(failures.length, 0, failures.join('\n'));
 
+for (const resolve of [path.posix.resolve, path.win32.resolve]) {
+  assert.throws(() => resolve('a', 1), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "paths[1]" argument must be of type string. ' +
+             'Received type number (1)',
+  });
+}
+
 if (common.isWindows) {
   // Test resolving the current Windows drive letter from a spawned process.
   // See https://github.com/nodejs/node/issues/7215
