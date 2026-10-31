@@ -213,17 +213,19 @@ test('single process coverage is the same with --test', skipIfNoInspector, () =>
 });
 
 test('coverage is combined for multiple processes', skipIfNoInspector, () => {
+  // Branch % must match isolation=none: the range-tree merge keeps never-run
+  // nested blocks that V8 omits from some processes (nodejs/node#66860).
   let report = [
     '# start of coverage report',
     '# -------------------------------------------------------------------',
     '# file           | line % | branch % | funcs % | uncovered lines',
     '# -------------------------------------------------------------------',
-    '# common.js      |  89.86 |    62.50 |  100.00 | 8 13-14 18 34-35 53',
+    '# common.js      |  89.86 |    68.42 |  100.00 | 8 13-14 18 34-35 53',
     '# first.test.js  |  83.33 |   100.00 |   50.00 | 5-6',
     '# second.test.js | 100.00 |   100.00 |  100.00 | ',
     '# third.test.js  | 100.00 |   100.00 |  100.00 | ',
     '# -------------------------------------------------------------------',
-    '# all files      |  92.11 |    72.73 |   88.89 | ',
+    '# all files      |  92.11 |    76.00 |   88.89 | ',
     '# -------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
@@ -250,11 +252,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
 });
 
-test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCallAtLeast(() => {
-  // There is a bug in coverage calculation. The branch % in the common.js
-  // fixture is different depending on the test isolation mode. The 'none' mode
-  // is closer to what c8 reports here, so the bug is likely in the code that
-  // merges reports from different processes.
+test('coverage works with isolation=none', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
     '# -------------------------------------------------------------------',
@@ -278,6 +276,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCa
   const args = [
     '--test',
     '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
     '--test-reporter',
     'tap',
     '--test-isolation=none',
@@ -290,7 +289,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCa
   assert.strictEqual(result.stderr.toString(), '');
   assertIncludesReport(result, report);
   assert.strictEqual(result.status, 0);
-}, 0));
+});
 
 test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
