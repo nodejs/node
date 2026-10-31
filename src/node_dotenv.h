@@ -6,7 +6,9 @@
 #include "util-inl.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <map>
+#include <optional>
 
 namespace node {
 
@@ -32,12 +34,31 @@ class Dotenv {
   v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
   // The names of the variables parsed from the env files.
   std::vector<std::string> GetKeys() const;
+  // The value of a variable parsed from the env files, if it is defined there.
+  std::optional<std::string> Get(const std::string& key) const;
 
   static std::vector<env_file_data> GetDataFromArgs(
       const std::vector<std::string>& args);
 
+  // For the --env-file store: keys are compared like environment variable
+  // names, ignoring case on Windows.
+  static Dotenv ForProcessEnvironment();
+
  private:
-  std::map<std::string, std::string> store_;
+  struct EnvKeyLess {
+    bool ignore_case = false;
+    bool operator()(const std::string& a, const std::string& b) const {
+      if (!ignore_case) return a < b;
+      return std::lexicographical_compare(
+          a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
+            return ToLower(x) < ToLower(y);
+          });
+    }
+  };
+
+  explicit Dotenv(EnvKeyLess less) : store_(less) {}
+
+  std::map<std::string, std::string, EnvKeyLess> store_;
 };
 
 namespace per_process {
