@@ -9,6 +9,7 @@ const experimentalBuiltins = [
   ['bench/reporters', '--experimental-bench', true],
   ['dtls', '--experimental-dtls', common.hasDtls],
   ['quic', '--experimental-quic', common.hasQuic],
+  ['yaml', '--experimental-yaml', true],
 ].filter(([, , available]) => available);
 
 for (const [id, flag] of experimentalBuiltins) {

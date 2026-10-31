@@ -62,6 +62,8 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
   builtinModules.forEach((mod) => {
     // TODO(@jasnell): Remove once node:quic is no longer flagged
     if (mod === 'node:quic') return;
+    // Remove once node:yaml is no longer flagged
+    if (mod === 'node:yaml') return;
     if (mod === 'node:sqlite' && !common.hasSQLite) return;
     assert.strictEqual(require.resolve.paths(mod), null);
     if (!mod.startsWith('node:')) {
