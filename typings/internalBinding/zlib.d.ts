@@ -1,3 +1,5 @@
+import type { AsyncWrap } from './async_wrap';
+
 declare namespace InternalZlibBinding {
   class ZlibBase {
     // These attributes are not used by the C++ binding, but declared on JS side.
@@ -14,6 +16,8 @@ declare namespace InternalZlibBinding {
     write(flushFlag: number, input: TypedArray, inputOff: number, inputLen: number, out: TypedArray, outOff: number, outLen: number): void;
     writeSync(flushFlag: number, input: TypedArray, inputOff: number, inputLen: number, out: TypedArray, outOff: number, outLen: number): void;
   }
+
+  interface ZlibBase extends AsyncWrap {}
 
   class Zlib extends ZlibBase {
     constructor(mode: number)
