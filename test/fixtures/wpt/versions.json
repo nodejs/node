@@ -23,6 +23,10 @@
     "commit": "1ac8deee082ecfb5d3b6f9c56cf9d1688a2fc218",
     "path": "encoding"
   },
+  "fetch/api": {
+    "commit": "3f15e5c09448b8e917c9128d3b07cc78f044c83a",
+    "path": "fetch/api"
+  },
   "fetch/data-urls/resources": {
     "commit": "7c79d998ff42e52de90290cb847d1b515b3b58f7",
     "path": "fetch/data-urls/resources"
