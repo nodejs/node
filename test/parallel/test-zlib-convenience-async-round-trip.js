@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 // The asynchronous convenience methods know the whole input up front, so they
 // process it with the finish flush in a single write. Check that a call whose
 // output fits in one output buffer takes exactly one threadpool round trip,
