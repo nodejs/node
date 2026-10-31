@@ -658,7 +658,7 @@ int32_t newMoonNear(const TimeZone* timeZone, double days, UBool after, UErrorCo
     return static_cast<int32_t>(millisToDays(
         timeZone,
         CalendarAstronomer(ms)
-              .getMoonTime(CalendarAstronomer::NEW_MOON(), after),
+              .getMoonTime(CalendarAstronomer::NEW_MOON, after),
               status));
 }
 
@@ -915,6 +915,10 @@ void ChineseCalendar::handleComputeFields(int32_t julianDay, UErrorCode & status
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
+    // In C++, computeMonthInfo returns 1-based month numbers (1=Month 1, 11=Month 11),
+    // so monthInfo.month < 11 checks if the lunar month is before Month 11.
+    // Notice: In Java (ICU4J), computeMonthInfo returns 0-based month numbers (0=Month 1, 10=Month 11),
+    // so info.month < 10 is checked there. Both implementations correctly check for Month 11 (see ICU-23198).
     if (monthInfo.month < 11 ||
         gmonth >= UCAL_JULY) {
         // forward to next year

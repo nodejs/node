@@ -17,7 +17,10 @@
 *
 */
 
+#include <limits>
+
 #include "cmemory.h"
+#include "unicode/unistr.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/uchar.h"
@@ -196,19 +199,25 @@ ubidi_openSized(int32_t maxLength, int32_t maxRunCount, UErrorCode *pErrorCode) 
  * is this the best way to do this??
  */
 U_CFUNC UBool
-ubidi_getMemory(BidiMemoryForAllocation *bidiMem, int32_t *pSize, UBool mayAllocate, int32_t sizeNeeded) {
+ubidi_getMemory(BidiMemoryForAllocation *bidiMem, int32_t *pSize, UBool mayAllocate, size_t sizeNeeded) {
+    if (sizeNeeded > std::numeric_limits<int32_t>::max()) {
+      // TODO(egg): Ugly guard for ICU-23397.  A cleaner fix would be to change the pSize to size_t*
+      // and update callers throughout to use size_t for sizes (just like uprv_malloc already does).
+      // Not that anyone should be running the UBA on text with that many runs…
+      return false;
+    }
     void **pMemory = (void **)bidiMem;
     /* check for existing memory */
     if(*pMemory==nullptr) {
         /* we need to allocate memory */
         if(mayAllocate && (*pMemory=uprv_malloc(sizeNeeded))!=nullptr) {
-            *pSize=sizeNeeded;
+            *pSize=static_cast<int32_t>(sizeNeeded);
             return true;
         } else {
             return false;
         }
     } else {
-        if(sizeNeeded<=*pSize) {
+        if(sizeNeeded<=static_cast<size_t>(*pSize)) {
             /* there is already enough memory */
             return true;
         }
@@ -224,7 +233,7 @@ ubidi_getMemory(BidiMemoryForAllocation *bidiMem, int32_t *pSize, UBool mayAlloc
              */
             if((memory=uprv_realloc(*pMemory, sizeNeeded))!=nullptr) {
                 *pMemory=memory;
-                *pSize=sizeNeeded;
+                *pSize=static_cast<int32_t>(sizeNeeded);
                 return true;
             } else {
                 /* we failed to grow */
@@ -2417,9 +2426,16 @@ setParaRunsOnly(UBiDi *pBiDi, const char16_t *text, int32_t length,
      * to ubidi_setPara (but must make provision for possible removal of
      * BiDi controls.  Alternatively, only use the dirProps array via
      * customized classifier callback.
+     *
+     * Note: We pass UBIDI_INTERNAL_RUNS_ONLY so that if mirroring changes code point
+     * length (e.g., U+1DB10 contracting back to U+221D), doWriteReverse() uses legacy
+     * 1-to-1 code unit stepping (j += k) rather than character stepping (j += origBaseLen).
+     * This ensures visualLength remains synchronized with pBiDi->length and allows the
+     * trailing surrogate half (Bidi class LTR) to act as a run boundary splitter in the
+     * subsequent ubidi_setPara call.
      */
     visualLength=ubidi_writeReordered(pBiDi, visualText, length,
-                                      UBIDI_DO_MIRRORING, pErrorCode);
+                                      (saveOptions & UBIDI_DO_MIRRORING) | UBIDI_INTERNAL_RUNS_ONLY, pErrorCode);
     ubidi_getVisualMap(pBiDi, visualMap, pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
         goto cleanup2;
@@ -2471,6 +2487,7 @@ setParaRunsOnly(UBiDi *pBiDi, const char16_t *text, int32_t length,
             runs=pBiDi->runs=pBiDi->runsMemory;
             pBiDi->runCount+=addedRuns;
         } else {
+            *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
             goto cleanup1;
         }
     }
@@ -2879,8 +2896,8 @@ ubidi_getDirection(const UBiDi *pBiDi) {
     }
 }
 
-U_CAPI const char16_t * U_EXPORT2
-ubidi_getText(const UBiDi *pBiDi) {
+U_CAPI const char16_t* U_EXPORT2
+ubidi_getText(const UBiDi* pBiDi) {
     if(IS_VALID_PARA_OR_LINE(pBiDi)) {
         return pBiDi->text;
     } else {
@@ -3034,3 +3051,105 @@ ubidi_getCustomizedClass(UBiDi *pBiDi, UChar32 c)
     }
     return dir;
 }
+
+/* Utilities for MessageFormat ------------------------------------------------*/
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+U_CAPI UMFBidiOption U_EXPORT2
+ubidi_getMFOption(const UnicodeString& s) {
+    if (s == u"ltr") {
+        return U_MF_BIDI_OPTION_LTR;
+    }
+    if (s == u"rtl") {
+        return U_MF_BIDI_OPTION_RTL;
+    }
+    if (s == u"auto") {
+        return U_MF_BIDI_OPTION_AUTO;
+    }
+    return U_MF_BIDI_OPTION_INHERIT; // inherit is default
+}
+
+// BiDi isolation
+// --------------
+// `uDirOption` is the directionality from a u:dir annotation on the expression
+// that produced this formatted value, if present.
+// `dir` is the directionality of `fmt`. This is determined from the resolved
+// value that `fmt` is part of; that is, each function can set the directionality
+// of the resolved value of its result.
+U_CAPI UnicodeString* U_EXPORT2
+ubidi_isolate(UMFBidiIsolationStrategy bidiIsolationStrategy,
+                            UMFDirectionality msgdir,
+                            UMFBidiIsolationStyle bidiIsolationStyle,
+                            UMFBidiOption uDirOption,
+                            UMFDirectionality dir,
+                            UnicodeString& fmt) {
+    // See "The Default Bidi Strategy" at:
+    // https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#handling-bidirectional-text
+
+    // If strategy is 'none', just return the string
+    if (bidiIsolationStrategy == U_MF_BIDI_OFF)
+        return &fmt;
+
+    /* 1. Let msgdir be the directionality of the whole message, one of « 'LTR', 'RTL', 'unknown' ». These correspond to the message having left-to-right directionality, right-to-left directionality, and to the message's directionality not being known. */
+
+    // 2i Let fmt be the formatted string representation of the resolved value of exp.
+    // (Passed as argument)
+
+    // 2ii Let dir be the directionality of fmt, one of « 'LTR', 'RTL', 'unknown' », with the same meanings as for msgdir
+    // (Passed as argument)
+
+    // 2iii. Let the boolean value isolate be True if the u:dir option of the resolved value of exp has a value other than 'inherit', or False otherwise.
+    bool isolate = uDirOption != U_MF_BIDI_OPTION_INHERIT;
+
+    UnicodeString bdiOpen("<bdi>");
+    UnicodeString bdiClose("</bdi>");
+
+    // 2iv. If dir is 'LTR'
+    switch (dir) {
+        case U_MF_DIRECTIONALITY_LTR:
+            if (msgdir == U_MF_DIRECTIONALITY_LTR && !isolate) {
+                // 2iv(a). If msgdir is 'LTR' in the formatted output, let fmt be itself
+                return &fmt;
+            }
+            // 2iii(b) Else, in the formatted output, prefix fmt with U+2066 LEFT-TO-RIGHT ISOLATE and postfix it with U+2069 POP DIRECTIONAL ISOLATE.
+            if (bidiIsolationStyle == U_MF_BIDI_STYLE_CONTROL) {
+                fmt.insert(0, LRI_CHAR);
+                fmt.insert(fmt.length(), PDI_CHAR);
+            } else {
+                fmt.insert(0, bdiOpen);
+                fmt.insert(fmt.length(), bdiClose);
+            }
+            break; // End of 2iii
+        // 2iv. Else, if dir is 'RTL':
+        case U_MF_DIRECTIONALITY_RTL:
+            // 2iv(a). In the formatted output, prefix fmt with U+2067 RIGHT-TO-LEFT ISOLATE and postfix it with U+2069 POP DIRECTIONAL ISOLATE.
+            if (bidiIsolationStyle == U_MF_BIDI_STYLE_CONTROL) {
+                fmt.insert(0, RLI_CHAR);
+                fmt.insert(fmt.length(), PDI_CHAR);
+            } else {
+                fmt.insert(0, bdiOpen);
+                fmt.insert(fmt.length(), bdiClose);
+            }
+            break; // End of 2iv.
+        // 2v. Else:
+        default:
+            // 2v(a). In the formatted output, prefix fmt with U+2068 FIRST STRONG ISOLATE and postfix it with U+2069 POP DIRECTIONAL ISOLATE.
+            if (bidiIsolationStyle == U_MF_BIDI_STYLE_CONTROL) {
+                fmt.insert(0, FSI_CHAR);
+                fmt.insert(fmt.length(), PDI_CHAR);
+            } else {
+                fmt.insert(0, bdiOpen);
+                fmt.insert(fmt.length(), bdiClose);
+            }
+            break; // End of 2v
+    } // `fmt` now contains the isolated string
+    return &fmt;
+}
+
+U_NAMESPACE_END
+
+#endif // #if SHOW_CPLUSPLUS_API
+

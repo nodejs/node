@@ -45,8 +45,8 @@ BytesTrie::readValue(const uint8_t *pos, int32_t leadByte) {
     return value;
 }
 
-const uint8_t *
-BytesTrie::jumpByDelta(const uint8_t *pos) {
+const uint8_t*
+BytesTrie::jumpByDelta(const uint8_t* pos U_LIFETIME_BOUND) {
     int32_t delta=*pos++;
     if(delta<kMinTwoByteDeltaLead) {
         // nothing to do
@@ -312,9 +312,11 @@ BytesTrie::next(const char *s, int32_t sLength) {
     }
 }
 
-const uint8_t *
-BytesTrie::findUniqueValueFromBranch(const uint8_t *pos, int32_t length,
-                                     UBool haveUniqueValue, int32_t &uniqueValue) {
+const uint8_t*
+BytesTrie::findUniqueValueFromBranch(const uint8_t* pos U_LIFETIME_BOUND,
+                                     int32_t length,
+                                     UBool haveUniqueValue,
+                                     int32_t& uniqueValue) {
     while(length>kMaxBranchLinearSubNodeLength) {
         ++pos;  // ignore the comparison byte
         if(nullptr==findUniqueValueFromBranch(jumpByDelta(pos), length>>1, haveUniqueValue, uniqueValue)) {

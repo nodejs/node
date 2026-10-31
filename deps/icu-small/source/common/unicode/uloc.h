@@ -1330,7 +1330,7 @@ uloc_toLanguageTag(const char* localeID,
  * @stable ICU 54
  */
 U_CAPI const char* U_EXPORT2
-uloc_toUnicodeLocaleKey(const char* keyword);
+uloc_toUnicodeLocaleKey(const char* keyword U_LIFETIME_BOUND);
 
 /**
  * Converts the specified keyword value (legacy type, or BCP 47
@@ -1361,7 +1361,7 @@ uloc_toUnicodeLocaleKey(const char* keyword);
  * @stable ICU 54
  */
 U_CAPI const char* U_EXPORT2
-uloc_toUnicodeLocaleType(const char* keyword, const char* value);
+uloc_toUnicodeLocaleType(const char* keyword, const char* value U_LIFETIME_BOUND);
 
 /**
  * Converts the specified keyword (BCP 47 Unicode locale extension key, or
@@ -1376,7 +1376,7 @@ uloc_toUnicodeLocaleType(const char* keyword, const char* value);
  * @stable ICU 54
  */
 U_CAPI const char* U_EXPORT2
-uloc_toLegacyKey(const char* keyword);
+uloc_toLegacyKey(const char* keyword U_LIFETIME_BOUND);
 
 /**
  * Converts the specified keyword value (BCP 47 Unicode locale extension type,
@@ -1405,6 +1405,6 @@ uloc_toLegacyKey(const char* keyword);
  * @stable ICU 54
  */
 U_CAPI const char* U_EXPORT2
-uloc_toLegacyType(const char* keyword, const char* value);
+uloc_toLegacyType(const char* keyword, const char* value U_LIFETIME_BOUND);
 
 #endif /*_ULOC*/

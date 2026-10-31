@@ -117,21 +117,29 @@ public:
     UTS46(uint32_t options, UErrorCode &errorCode);
     virtual ~UTS46();
 
-    virtual UnicodeString &
-    labelToASCII(const UnicodeString &label, UnicodeString &dest,
-                 IDNAInfo &info, UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    labelToASCII(const UnicodeString& label,
+                 UnicodeString& dest U_LIFETIME_BOUND,
+                 IDNAInfo& info,
+                 UErrorCode& errorCode) const override;
 
-    virtual UnicodeString &
-    labelToUnicode(const UnicodeString &label, UnicodeString &dest,
-                   IDNAInfo &info, UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    labelToUnicode(const UnicodeString& label,
+                   UnicodeString& dest U_LIFETIME_BOUND,
+                   IDNAInfo& info,
+                   UErrorCode& errorCode) const override;
 
-    virtual UnicodeString &
-    nameToASCII(const UnicodeString &name, UnicodeString &dest,
-                IDNAInfo &info, UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    nameToASCII(const UnicodeString& name,
+                UnicodeString& dest U_LIFETIME_BOUND,
+                IDNAInfo& info,
+                UErrorCode& errorCode) const override;
 
-    virtual UnicodeString &
-    nameToUnicode(const UnicodeString &name, UnicodeString &dest,
-                  IDNAInfo &info, UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    nameToUnicode(const UnicodeString& name,
+                  UnicodeString& dest U_LIFETIME_BOUND,
+                  IDNAInfo& info,
+                  UErrorCode& errorCode) const override;
 
     virtual void
     labelToASCII_UTF8(StringPiece label, ByteSink &dest,
@@ -150,11 +158,13 @@ public:
                       IDNAInfo &info, UErrorCode &errorCode) const override;
 
 private:
-    UnicodeString &
-    process(const UnicodeString &src,
-            UBool isLabel, UBool toASCII,
-            UnicodeString &dest,
-            IDNAInfo &info, UErrorCode &errorCode) const;
+    UnicodeString&
+    process(const UnicodeString& src,
+            UBool isLabel,
+            UBool toASCII,
+            UnicodeString& dest U_LIFETIME_BOUND,
+            IDNAInfo& info,
+            UErrorCode& errorCode) const;
 
     void
     processUTF8(StringPiece src,
@@ -162,12 +172,15 @@ private:
                 ByteSink &dest,
                 IDNAInfo &info, UErrorCode &errorCode) const;
 
-    UnicodeString &
-    processUnicode(const UnicodeString &src,
-                   int32_t labelStart, int32_t mappingStart,
-                   UBool isLabel, UBool toASCII,
-                   UnicodeString &dest,
-                   IDNAInfo &info, UErrorCode &errorCode) const;
+    UnicodeString&
+    processUnicode(const UnicodeString& src,
+                   int32_t labelStart,
+                   int32_t mappingStart,
+                   UBool isLabel,
+                   UBool toASCII,
+                   UnicodeString& dest U_LIFETIME_BOUND,
+                   IDNAInfo& info,
+                   UErrorCode& errorCode) const;
 
     // returns the new dest.length()
     int32_t
@@ -222,21 +235,27 @@ UTS46::UTS46(uint32_t opt, UErrorCode &errorCode)
 
 UTS46::~UTS46() {}
 
-UnicodeString &
-UTS46::labelToASCII(const UnicodeString &label, UnicodeString &dest,
-                    IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::labelToASCII(const UnicodeString& label,
+                    UnicodeString& dest U_LIFETIME_BOUND,
+                    IDNAInfo& info,
+                    UErrorCode& errorCode) const {
     return process(label, true, true, dest, info, errorCode);
 }
 
-UnicodeString &
-UTS46::labelToUnicode(const UnicodeString &label, UnicodeString &dest,
-                      IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::labelToUnicode(const UnicodeString& label,
+                      UnicodeString& dest U_LIFETIME_BOUND,
+                      IDNAInfo& info,
+                      UErrorCode& errorCode) const {
     return process(label, true, false, dest, info, errorCode);
 }
 
-UnicodeString &
-UTS46::nameToASCII(const UnicodeString &name, UnicodeString &dest,
-                   IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::nameToASCII(const UnicodeString& name,
+                   UnicodeString& dest U_LIFETIME_BOUND,
+                   IDNAInfo& info,
+                   UErrorCode& errorCode) const {
     process(name, false, true, dest, info, errorCode);
     if( dest.length()>=254 && (info.errors&UIDNA_ERROR_DOMAIN_NAME_TOO_LONG)==0 &&
         isASCIIString(dest) &&
@@ -247,9 +266,11 @@ UTS46::nameToASCII(const UnicodeString &name, UnicodeString &dest,
     return dest;
 }
 
-UnicodeString &
-UTS46::nameToUnicode(const UnicodeString &name, UnicodeString &dest,
-                     IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::nameToUnicode(const UnicodeString& name,
+                     UnicodeString& dest U_LIFETIME_BOUND,
+                     IDNAInfo& info,
+                     UErrorCode& errorCode) const {
     return process(name, false, false, dest, info, errorCode);
 }
 
@@ -299,11 +320,13 @@ static const int8_t asciiData[128]={
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1, -1, -1, -1
 };
 
-UnicodeString &
-UTS46::process(const UnicodeString &src,
-               UBool isLabel, UBool toASCII,
-               UnicodeString &dest,
-               IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::process(const UnicodeString& src,
+               UBool isLabel,
+               UBool toASCII,
+               UnicodeString& dest U_LIFETIME_BOUND,
+               IDNAInfo& info,
+               UErrorCode& errorCode) const {
     // uts46Norm2.normalize() would do all of this error checking and setup,
     // but with the ASCII fastpath we do not always call it, and do not
     // call it first.
@@ -524,12 +547,15 @@ UTS46::processUTF8(StringPiece src,
     }
 }
 
-UnicodeString &
-UTS46::processUnicode(const UnicodeString &src,
-                      int32_t labelStart, int32_t mappingStart,
-                      UBool isLabel, UBool toASCII,
-                      UnicodeString &dest,
-                      IDNAInfo &info, UErrorCode &errorCode) const {
+UnicodeString&
+UTS46::processUnicode(const UnicodeString& src,
+                      int32_t labelStart,
+                      int32_t mappingStart,
+                      UBool isLabel,
+                      UBool toASCII,
+                      UnicodeString& dest U_LIFETIME_BOUND,
+                      IDNAInfo& info,
+                      UErrorCode& errorCode) const {
     if(mappingStart==0) {
         uts46Norm2.normalize(src, dest, errorCode);
     } else {

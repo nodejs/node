@@ -50,9 +50,11 @@ public:
 
     virtual Win32DateFormat *clone() const;
 
-    Win32DateFormat &operator=(const Win32DateFormat &other);
+    Win32DateFormat& operator=(const Win32DateFormat& other) U_LIFETIME_BOUND;
 
-    UnicodeString &format(Calendar &cal, UnicodeString &appendTo, FieldPosition &pos) const;
+    UnicodeString& format(Calendar& cal,
+                          UnicodeString& appendTo U_LIFETIME_BOUND,
+                          FieldPosition& pos) const;
 
     using DateFormat::format;
 

@@ -10,6 +10,7 @@
 #include "unicode/utypes.h"
 #include "unicode/ucasemap.h"
 #include "unicode/uchar.h"
+#include "unicode/unistr.h"  // for UStringCaseMapper
 #include "ucase.h"
 
 /**
@@ -92,25 +93,24 @@ inline UBool ustrcase_isLNS(UChar32 c) {
 
 /** Returns nullptr if error. Pass in either locale or locID, not both. */
 U_CFUNC
-BreakIterator *ustrcase_getTitleBreakIterator(
-        const Locale *locale, const char *locID, uint32_t options, BreakIterator *iter,
-        LocalPointer<BreakIterator> &ownedIter, UErrorCode &errorCode);
+BreakIterator* ustrcase_getTitleBreakIterator(const Locale* locale,
+                                              const char* locID,
+                                              uint32_t options,
+                                              BreakIterator* iter U_LIFETIME_BOUND,
+                                              LocalPointer<BreakIterator>& ownedIter,
+                                              UErrorCode& errorCode);
 
 #endif
-
-U_NAMESPACE_END
-
-#include "unicode/unistr.h"  // for UStringCaseMapper
 
 /*
  * Internal string casing functions implementing
  * ustring.h/ustrcase.cpp and UnicodeString case mapping functions.
  */
 
-struct UCaseMap : public icu::UMemory {
+struct UCaseMapImpl : public icu::UMemory {
     /** Implements most of ucasemap_open(). */
-    UCaseMap(const char *localeID, uint32_t opts, UErrorCode *pErrorCode);
-    ~UCaseMap();
+    UCaseMapImpl(const char *localeID, uint32_t opts, UErrorCode *pErrorCode);
+    ~UCaseMapImpl();
 
 #if !UCONFIG_NO_BREAK_ITERATION
     icu::BreakIterator *iter;  /* We adopt the iterator, so we own it. */
@@ -119,6 +119,8 @@ struct UCaseMap : public icu::UMemory {
     int32_t caseLocale;
     uint32_t options;
 };
+
+U_NAMESPACE_END
 
 #if UCONFIG_NO_BREAK_ITERATION
 #   define UCASEMAP_BREAK_ITERATOR_PARAM
@@ -201,7 +203,6 @@ ustrcase_mapWithOverlap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITE
  * UTF-8 string case mapping function type, used by ucasemap_mapUTF8().
  * UTF-8 version of UStringCaseMapper.
  * All error checking must be done.
- * The UCaseMap must be fully initialized, with locale and/or iter set as needed.
  */
 typedef void U_CALLCONV
 UTF8CaseMapper(int32_t caseLocale, uint32_t options,

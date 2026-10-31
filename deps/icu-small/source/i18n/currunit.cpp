@@ -103,7 +103,7 @@ CurrencyUnit::CurrencyUnit() : MeasureUnit() {
     initCurrency(simpleIsoCode);
 }
 
-CurrencyUnit& CurrencyUnit::operator=(const CurrencyUnit& other) {
+CurrencyUnit& CurrencyUnit::operator=(const CurrencyUnit& other) U_LIFETIME_BOUND {
     if (this == &other) {
         return *this;
     }

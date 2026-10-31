@@ -470,8 +470,9 @@ public:
      * @return  A reference to the result.
      * @stable ICU 74
      */
-    static UnicodeString& U_EXPORT2 getIanaID(const UnicodeString&id, UnicodeString& ianaID,
-        UErrorCode& status);
+    static UnicodeString& U_EXPORT2 getIanaID(const UnicodeString& id,
+                                              UnicodeString& ianaID U_LIFETIME_BOUND,
+                                              UErrorCode& status);
 
     /**
     * Converts a system time zone ID to an equivalent Windows time zone ID. For example,
@@ -481,7 +482,7 @@ public:
     * system time zone ID is unknown or unmappable to a Windows time zone, then the result will be
     * empty, but the operation itself remains successful (no error status set on return).
     *
-    * <p>This implementation utilizes <a href="http://unicode.org/cldr/charts/supplemental/zone_tzid.html">
+    * <p>This implementation utilizes <a href="https://www.unicode.org/cldr/charts/latest/supplemental/zone_tzid.html">
     * Zone-Tzid mapping data</a>. The mapping data is updated time to time. To get the latest changes,
     * please read the ICU user guide section <a href="https://unicode-org.github.io/icu/userguide/datetime/timezone#updating-the-time-zone-data">
     * Updating the Time Zone Data</a>.
@@ -509,7 +510,7 @@ public:
     * Windows time zone ID is unknown or unmappable to a system time zone, then the result
     * will be empty, but the operation itself remains successful (no error status set on return).
     *
-    * <p>This implementation utilizes <a href="http://unicode.org/cldr/charts/supplemental/zone_tzid.html">
+    * <p>This implementation utilizes <a href="https://www.unicode.org/cldr/charts/latest/supplemental/zone_tzid.html">
     * Zone-Tzid mapping data</a>. The mapping data is updated time to time. To get the latest changes,
     * please read the ICU user guide section <a href="https://unicode-org.github.io/icu/userguide/datetime/timezone#updating-the-time-zone-data">
     * Updating the Time Zone Data</a>.
@@ -609,13 +610,13 @@ public:
      *
      * @param date moment in time for which to return offsets, in
      * units of milliseconds from January 1, 1970 0:00 GMT, either GMT
-     * time or local wall time, depending on `local'.
-     * @param local if true, `date' is local wall time; otherwise it
+     * time or local wall time, depending on `local`.
+     * @param local if true, `date` is local wall time; otherwise it
      * is in GMT time.
      * @param rawOffset output parameter to receive the raw offset, that
      * is, the offset not including DST adjustments
      * @param dstOffset output parameter to receive the DST offset,
-     * that is, the offset to be added to `rawOffset' to obtain the
+     * that is, the offset to be added to `rawOffset` to obtain the
      * total offset between local and GMT time. If DST is not in
      * effect, this value is zero; otherwise it is a positive value,
      * typically one hour.

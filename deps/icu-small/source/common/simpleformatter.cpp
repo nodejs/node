@@ -50,7 +50,7 @@ inline UBool isInvalidArray(const void *array, int32_t length) {
 
 }  // namespace
 
-SimpleFormatter &SimpleFormatter::operator=(const SimpleFormatter& other) {
+SimpleFormatter& SimpleFormatter::operator=(const SimpleFormatter& other) U_LIFETIME_BOUND {
     if (this == &other) {
         return *this;
     }
@@ -156,33 +156,39 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
 }
 
 UnicodeString& SimpleFormatter::format(
-        const UnicodeString &value0,
-        UnicodeString &appendTo, UErrorCode &errorCode) const {
+        const UnicodeString& value0,
+        UnicodeString& appendTo U_LIFETIME_BOUND,
+        UErrorCode& errorCode) const {
     const UnicodeString *values[] = { &value0 };
     return formatAndAppend(values, 1, appendTo, nullptr, 0, errorCode);
 }
 
 UnicodeString& SimpleFormatter::format(
-        const UnicodeString &value0,
-        const UnicodeString &value1,
-        UnicodeString &appendTo, UErrorCode &errorCode) const {
+        const UnicodeString& value0,
+        const UnicodeString& value1,
+        UnicodeString& appendTo U_LIFETIME_BOUND,
+        UErrorCode& errorCode) const {
     const UnicodeString *values[] = { &value0, &value1 };
     return formatAndAppend(values, 2, appendTo, nullptr, 0, errorCode);
 }
 
 UnicodeString& SimpleFormatter::format(
-        const UnicodeString &value0,
-        const UnicodeString &value1,
-        const UnicodeString &value2,
-        UnicodeString &appendTo, UErrorCode &errorCode) const {
+        const UnicodeString& value0,
+        const UnicodeString& value1,
+        const UnicodeString& value2,
+        UnicodeString& appendTo U_LIFETIME_BOUND,
+        UErrorCode& errorCode) const {
     const UnicodeString *values[] = { &value0, &value1, &value2 };
     return formatAndAppend(values, 3, appendTo, nullptr, 0, errorCode);
 }
 
 UnicodeString& SimpleFormatter::formatAndAppend(
-        const UnicodeString *const *values, int32_t valuesLength,
-        UnicodeString &appendTo,
-        int32_t *offsets, int32_t offsetsLength, UErrorCode &errorCode) const {
+        const UnicodeString* const* values,
+        int32_t valuesLength,
+        UnicodeString& appendTo U_LIFETIME_BOUND,
+        int32_t* offsets,
+        int32_t offsetsLength,
+        UErrorCode& errorCode) const {
     if (U_FAILURE(errorCode)) {
         return appendTo;
     }
@@ -196,10 +202,13 @@ UnicodeString& SimpleFormatter::formatAndAppend(
                   offsets, offsetsLength, errorCode);
 }
 
-UnicodeString &SimpleFormatter::formatAndReplace(
-        const UnicodeString *const *values, int32_t valuesLength,
-        UnicodeString &result,
-        int32_t *offsets, int32_t offsetsLength, UErrorCode &errorCode) const {
+UnicodeString& SimpleFormatter::formatAndReplace(
+        const UnicodeString* const* values,
+        int32_t valuesLength,
+        UnicodeString& result U_LIFETIME_BOUND,
+        int32_t* offsets,
+        int32_t offsetsLength,
+        UErrorCode& errorCode) const {
     if (U_FAILURE(errorCode)) {
         return result;
     }
@@ -271,12 +280,16 @@ UnicodeString SimpleFormatter::getTextWithNoArguments(
     return sb;
 }
 
-UnicodeString &SimpleFormatter::format(
-        const char16_t *compiledPattern, int32_t compiledPatternLength,
-        const UnicodeString *const *values,
-        UnicodeString &result, const UnicodeString *resultCopy, UBool forbidResultAsValue,
-        int32_t *offsets, int32_t offsetsLength,
-        UErrorCode &errorCode) {
+UnicodeString& SimpleFormatter::format(
+        const char16_t* compiledPattern,
+        int32_t compiledPatternLength,
+        const UnicodeString* const* values,
+        UnicodeString& result U_LIFETIME_BOUND,
+        const UnicodeString* resultCopy,
+        UBool forbidResultAsValue,
+        int32_t* offsets,
+        int32_t offsetsLength,
+        UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) {
         return result;
     }

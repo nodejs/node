@@ -213,9 +213,9 @@ UBool CharsetDetector::getStripTagsFlag() const
     return fStripTags;
 }
 
-void CharsetDetector::setDeclaredEncoding(const char *encoding, int32_t len) const
+void CharsetDetector::setDeclaredEncoding(const char *encoding, int32_t len, UErrorCode &status) const
 {
-    textIn->setDeclaredEncoding(encoding,len);
+    textIn->setDeclaredEncoding(encoding,len, status);
 }
 
 int32_t CharsetDetector::getDetectableCount()

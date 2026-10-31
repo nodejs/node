@@ -24,7 +24,9 @@ U_NAMESPACE_USE
 
 static UnicodeString **strs = nullptr;
 
-static const UnicodeString&  _fieldString(UDebugEnumType type, int32_t field, UnicodeString& fillin) {
+static const UnicodeString& _fieldString(UDebugEnumType type,
+                                         int32_t field,
+                                         UnicodeString& fillin U_LIFETIME_BOUND) {
     const char *str = udbg_enumName(type, field);
     if(str == nullptr) {
         return fillin.remove();
@@ -136,8 +138,8 @@ udbg_stod(const UnicodeString &s)
     return atof(ch);
 }
 
-U_CAPI UnicodeString *
-udbg_escape(const UnicodeString &src, UnicodeString *dst)
+U_CAPI UnicodeString*
+udbg_escape(const UnicodeString& src, UnicodeString* dst U_LIFETIME_BOUND)
 {
     dst->remove();
     for (int32_t i = 0; i < src.length(); ++i) {

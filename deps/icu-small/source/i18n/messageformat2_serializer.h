@@ -26,8 +26,6 @@ namespace message2 {
 
     // Serializer class (private)
     // Converts a data model back to a string
-    // TODO: Should be private; made public so tests
-    // can use it
     class U_I18N_API Serializer : public UMemory {
     public:
         Serializer(const MFDataModel& m, UnicodeString& s) : dataModel(m), result(s) {}

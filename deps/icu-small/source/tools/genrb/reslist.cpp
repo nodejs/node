@@ -84,15 +84,6 @@ enum {
 
 static const int32_t MAX_IMPLICIT_STRING_LENGTH = 40;  /* do not store the length explicitly for such strings */
 
-static const ResFile kNoPoolBundle;
-
-/*
- * res_none() returns the address of kNoResource,
- * for use in non-error cases when no resource is to be added to the bundle.
- * (nullptr is used in error cases.)
- */
-static SResource kNoResource;  // TODO: const
-
 static UDataInfo dataInfo= {
     sizeof(UDataInfo),
     0,
@@ -144,8 +135,9 @@ void setUsePoolBundle(UBool use) {
 }
 
 // TODO: return const pointer, or find another way to express "none"
-struct SResource* res_none() {
-    return &kNoResource;
+SResource* res_none() {
+    static SResource* kNoResource = new SResource();
+    return kNoResource;
 }
 
 SResource::SResource()
@@ -182,7 +174,7 @@ TableResource::~TableResource() {}
 
 // TODO: clarify that containers adopt new items, even in error cases; use LocalPointer
 void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode) || res == nullptr || res == &kNoResource) {
+    if (U_FAILURE(errorCode) || res == nullptr || res == res_none()) {
         return;
     }
 
@@ -247,7 +239,7 @@ void TableResource::add(SResource *res, int linenumber, UErrorCode &errorCode) {
 ArrayResource::~ArrayResource() {}
 
 void ArrayResource::add(SResource *res) {
-    if (res != nullptr && res != &kNoResource) {
+    if (res != nullptr && res != res_none()) {
         if (fFirst == nullptr) {
             fFirst = res;
         } else {
@@ -261,7 +253,7 @@ void ArrayResource::add(SResource *res) {
 PseudoListResource::~PseudoListResource() {}
 
 void PseudoListResource::add(SResource *res) {
-    if (res != nullptr && res != &kNoResource) {
+    if (res != nullptr && res != res_none()) {
         res->fNext = fFirst;
         fFirst = res;
         ++fCount;

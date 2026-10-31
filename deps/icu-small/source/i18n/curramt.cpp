@@ -33,7 +33,7 @@ CurrencyAmount::CurrencyAmount(const CurrencyAmount& other) :
     Measure(other) {
 }
 
-CurrencyAmount& CurrencyAmount::operator=(const CurrencyAmount& other) {
+CurrencyAmount& CurrencyAmount::operator=(const CurrencyAmount& other) U_LIFETIME_BOUND {
     Measure::operator=(other);
     return *this;
 }
@@ -45,7 +45,7 @@ CurrencyAmount* CurrencyAmount::clone() const {
 CurrencyAmount::~CurrencyAmount() {
 }
 
-const CurrencyUnit& CurrencyAmount::getCurrency() const {
+const CurrencyUnit& CurrencyAmount::getCurrency() const U_LIFETIME_BOUND {
     return static_cast<const CurrencyUnit&>(getUnit());
 }
 

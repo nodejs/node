@@ -195,6 +195,10 @@ CollationSettings::setReorderArrays(const int32_t *codes, int32_t codesLength,
     int32_t *ownedCodes;
     int32_t totalLength = codesLength + rangesLength;
     U_ASSERT(totalLength > 0);
+    if (totalLength <= 0) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
     if(totalLength <= reorderCodesCapacity) {
         ownedCodes = const_cast<int32_t *>(reorderCodes);
     } else {

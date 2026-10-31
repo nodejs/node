@@ -276,8 +276,8 @@ udata_close(UDataMemory *pData);
  * @param pData The pointer to data memory object
  * @stable ICU 2.0
  */
-U_CAPI const void * U_EXPORT2
-udata_getMemory(UDataMemory *pData);
+U_CAPI const void* U_EXPORT2
+udata_getMemory(UDataMemory* pData U_LIFETIME_BOUND);
 
 /**
  * Get the information from the data memory header.

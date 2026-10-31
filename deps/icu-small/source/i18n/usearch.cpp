@@ -1374,8 +1374,8 @@ struct CEIBuffer {
     CEI                  defBuf[DEFAULT_CEBUFFER_SIZE];
     CEI                 *buf;
     int32_t              bufSize;
-    int32_t              firstIx;
-    int32_t              limitIx;
+    int64_t              firstIx;
+    int64_t              limitIx;
     UCollationElements  *ceIter;
     UStringSearch       *strSearch;
 
@@ -1383,8 +1383,8 @@ struct CEIBuffer {
 
                CEIBuffer(UStringSearch *ss, UErrorCode *status);
                ~CEIBuffer();
-   const CEI   *get(int32_t index);
-   const CEI   *getPrevious(int32_t index);
+   const CEI   *get(int64_t index);
+   const CEI   *getPrevious(int64_t index);
 };
 
 
@@ -1437,8 +1437,8 @@ CEIBuffer::~CEIBuffer() {
 //   where n is the largest index to have been fetched by some previous call to this function.
 //   The CE value will be UCOL__PROCESSED_NULLORDER at end of input.
 //
-const CEI *CEIBuffer::get(int32_t index) {
-    int i = index % bufSize;
+const CEI *CEIBuffer::get(int64_t index) {
+    int i = static_cast<int>(index % bufSize);
 
     if (index>=firstIx && index<limitIx) {
         // The request was for an entry already in our buffer.
@@ -1480,8 +1480,8 @@ const CEI *CEIBuffer::get(int32_t index) {
 //   where n is the largest index to have been fetched by some previous call to this function.
 //   The CE value will be UCOL__PROCESSED_NULLORDER at end of input.
 //
-const CEI *CEIBuffer::getPrevious(int32_t index) {
-    int i = index % bufSize;
+const CEI *CEIBuffer::getPrevious(int64_t index) {
+    int i = static_cast<int>(index % bufSize);
 
     if (index>=firstIx && index<limitIx) {
         // The request was for an entry already in our buffer.
@@ -1792,7 +1792,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
         return false;
     }
 
-    int32_t    targetIx = 0;
+    int64_t    targetIx = 0;
     const CEI *targetCEI = nullptr;
     int32_t    patIx;
     UBool      found;
@@ -1823,7 +1823,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
         found = true;
         //  Inner loop checks for a match beginning at each
         //  position from the outer loop.
-        int32_t targetIxOffset = 0;
+        int64_t targetIxOffset = 0;
         int64_t patCE = 0;
         // For targetIx > 0, this ceb.get gets a CE that is as far back in the ring buffer
         // (compared to the last CE fetched for the previous targetIx value) as we need to go
@@ -2104,7 +2104,7 @@ U_CAPI UBool U_EXPORT2 usearch_searchBackwards(UStringSearch  *strsrch,
     }
 
     CEIBuffer ceb(strsrch, status);
-    int32_t    targetIx = 0;
+    int64_t    targetIx = 0;
 
     /*
      * Pre-load the buffer with the CE's for the grapheme
@@ -2142,7 +2142,7 @@ U_CAPI UBool U_EXPORT2 usearch_searchBackwards(UStringSearch  *strsrch,
     int32_t    patIx;
     UBool      found;
 
-    int32_t  limitIx = targetIx;
+    int64_t  limitIx = targetIx;
     int32_t  mStart = -1;
     int32_t  mLimit = -1;
     int32_t  minLimit;
@@ -2170,7 +2170,7 @@ U_CAPI UBool U_EXPORT2 usearch_searchBackwards(UStringSearch  *strsrch,
         }
         //  Inner loop checks for a match beginning at each
         //  position from the outer loop.
-        int32_t targetIxOffset = 0;
+        int64_t targetIxOffset = 0;
         for (patIx = strsrch->pattern.pcesLength - 1; patIx >= 0; patIx -= 1) {
             int64_t patCE = strsrch->pattern.pces[patIx];
 

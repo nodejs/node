@@ -280,7 +280,7 @@ public:
     virtual ~DTSkeletonEnumeration();
     static UClassID U_EXPORT2 getStaticClassID();
     virtual UClassID getDynamicClassID() const override;
-    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;
 private:
@@ -295,7 +295,7 @@ public:
     virtual ~DTRedundantEnumeration();
     static UClassID U_EXPORT2 getStaticClassID();
     virtual UClassID getDynamicClassID() const override;
-    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;
     void add(const UnicodeString &pattern, UErrorCode& status);

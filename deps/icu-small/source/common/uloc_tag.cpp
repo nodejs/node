@@ -312,7 +312,7 @@ void
 ultag_close(ULanguageTag* langtag);
 
 const char*
-ultag_getLanguage(const ULanguageTag* langtag);
+ultag_getLanguage(const ULanguageTag* langtag U_LIFETIME_BOUND);
 
 #if 0
 const char*
@@ -320,34 +320,34 @@ ultag_getJDKLanguage(const ULanguageTag* langtag);
 #endif
 
 const char*
-ultag_getExtlang(const ULanguageTag* langtag, int32_t idx);
+ultag_getExtlang(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx);
 
 int32_t
 ultag_getExtlangSize(const ULanguageTag* langtag);
 
 const char*
-ultag_getScript(const ULanguageTag* langtag);
+ultag_getScript(const ULanguageTag* langtag U_LIFETIME_BOUND);
 
 const char*
-ultag_getRegion(const ULanguageTag* langtag);
+ultag_getRegion(const ULanguageTag* langtag U_LIFETIME_BOUND);
 
 const char*
-ultag_getVariant(const ULanguageTag* langtag, int32_t idx);
+ultag_getVariant(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx);
 
 int32_t
 ultag_getVariantsSize(const ULanguageTag* langtag);
 
 const char*
-ultag_getExtensionKey(const ULanguageTag* langtag, int32_t idx);
+ultag_getExtensionKey(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx);
 
 const char*
-ultag_getExtensionValue(const ULanguageTag* langtag, int32_t idx);
+ultag_getExtensionValue(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx);
 
 int32_t
 ultag_getExtensionsSize(const ULanguageTag* langtag);
 
 const char*
-ultag_getPrivateUse(const ULanguageTag* langtag);
+ultag_getPrivateUse(const ULanguageTag* langtag U_LIFETIME_BOUND);
 
 #if 0
 const char*
@@ -677,7 +677,7 @@ _isTKey(const char* s, int32_t len)
 }  // namespace
 
 const char*
-ultag_getTKeyStart(const char *localeID) {
+ultag_getTKeyStart(const char* localeID U_LIFETIME_BOUND) {
     const char *result = localeID;
     const char *sep;
     while((sep = uprv_strchr(result, SEP)) != nullptr) {
@@ -2416,7 +2416,7 @@ ultag_close(ULanguageTag* langtag) {
 }
 
 const char*
-ultag_getLanguage(const ULanguageTag* langtag) {
+ultag_getLanguage(const ULanguageTag* langtag U_LIFETIME_BOUND) {
     return langtag->language;
 }
 
@@ -2434,7 +2434,7 @@ ultag_getJDKLanguage(const ULanguageTag* langtag) {
 #endif
 
 const char*
-ultag_getExtlang(const ULanguageTag* langtag, int32_t idx) {
+ultag_getExtlang(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx) {
     if (idx >= 0 && idx < MAXEXTLANG) {
         return langtag->extlang[idx];
     }
@@ -2454,17 +2454,17 @@ ultag_getExtlangSize(const ULanguageTag* langtag) {
 }
 
 const char*
-ultag_getScript(const ULanguageTag* langtag) {
+ultag_getScript(const ULanguageTag* langtag U_LIFETIME_BOUND) {
     return langtag->script;
 }
 
 const char*
-ultag_getRegion(const ULanguageTag* langtag) {
+ultag_getRegion(const ULanguageTag* langtag U_LIFETIME_BOUND) {
     return langtag->region;
 }
 
 const char*
-ultag_getVariant(const ULanguageTag* langtag, int32_t idx) {
+ultag_getVariant(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx) {
     const char *var = nullptr;
     VariantListEntry *cur = langtag->variants;
     int32_t i = 0;
@@ -2494,7 +2494,7 @@ ultag_getVariantsSize(const ULanguageTag* langtag) {
 }
 
 const char*
-ultag_getExtensionKey(const ULanguageTag* langtag, int32_t idx) {
+ultag_getExtensionKey(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx) {
     const char *key = nullptr;
     ExtensionListEntry *cur = langtag->extensions;
     int32_t i = 0;
@@ -2510,7 +2510,7 @@ ultag_getExtensionKey(const ULanguageTag* langtag, int32_t idx) {
 }
 
 const char*
-ultag_getExtensionValue(const ULanguageTag* langtag, int32_t idx) {
+ultag_getExtensionValue(const ULanguageTag* langtag U_LIFETIME_BOUND, int32_t idx) {
     const char *val = nullptr;
     ExtensionListEntry *cur = langtag->extensions;
     int32_t i = 0;
@@ -2540,7 +2540,7 @@ ultag_getExtensionsSize(const ULanguageTag* langtag) {
 }
 
 const char*
-ultag_getPrivateUse(const ULanguageTag* langtag) {
+ultag_getPrivateUse(const ULanguageTag* langtag U_LIFETIME_BOUND) {
     return langtag->privateuse;
 }
 

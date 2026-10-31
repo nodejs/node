@@ -283,7 +283,7 @@ U_NAMESPACE_END
  * @deprecated ICU 2.8 Use ures_getVersion instead.
  */
 U_DEPRECATED const char* U_EXPORT2
-ures_getVersionNumber(const UResourceBundle*   resourceBundle);
+ures_getVersionNumber(const UResourceBundle* resourceBundle U_LIFETIME_BOUND);
 #endif  /* U_HIDE_DEPRECATED_API */
 
 /**
@@ -313,8 +313,7 @@ ures_getVersion(const UResourceBundle* resB,
  * @deprecated ICU 2.8 Use ures_getLocaleByType instead.
  */
 U_DEPRECATED const char* U_EXPORT2
-ures_getLocale(const UResourceBundle* resourceBundle,
-               UErrorCode* status);
+ures_getLocale(const UResourceBundle* resourceBundle U_LIFETIME_BOUND, UErrorCode* status);
 #endif  /* U_HIDE_DEPRECATED_API */
 
 /**
@@ -330,7 +329,7 @@ ures_getLocale(const UResourceBundle* resourceBundle,
  * @stable ICU 2.8
  */
 U_CAPI const char* U_EXPORT2
-ures_getLocaleByType(const UResourceBundle* resourceBundle,
+ures_getLocaleByType(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                      ULocDataLocaleType type,
                      UErrorCode* status);
 
@@ -377,7 +376,7 @@ ures_openFillIn(UResourceBundle *r,
  * @stable ICU 2.0
  */
 U_CAPI const UChar* U_EXPORT2
-ures_getString(const UResourceBundle* resourceBundle,
+ures_getString(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                int32_t* len,
                UErrorCode* status);
 
@@ -428,11 +427,12 @@ ures_getString(const UResourceBundle* resourceBundle,
  * @see u_strToUTF8
  * @stable ICU 3.6
  */
-U_CAPI const char * U_EXPORT2
-ures_getUTF8String(const UResourceBundle *resB,
-                   char *dest, int32_t *length,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8String(const UResourceBundle* resB,
+                   char* dest U_LIFETIME_BOUND,
+                   int32_t* length,
                    UBool forceCopy,
-                   UErrorCode *status);
+                   UErrorCode* status);
 
 /**
  * Returns a binary data from a binary resource.
@@ -452,7 +452,7 @@ ures_getUTF8String(const UResourceBundle *resB,
  * @stable ICU 2.0
  */
 U_CAPI const uint8_t* U_EXPORT2
-ures_getBinary(const UResourceBundle* resourceBundle,
+ures_getBinary(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                int32_t* len,
                UErrorCode* status);
 
@@ -474,7 +474,7 @@ ures_getBinary(const UResourceBundle* resourceBundle,
  * @stable ICU 2.0
  */
 U_CAPI const int32_t* U_EXPORT2
-ures_getIntVector(const UResourceBundle* resourceBundle,
+ures_getIntVector(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                   int32_t* len,
                   UErrorCode* status);
 
@@ -550,8 +550,8 @@ ures_getType(const UResourceBundle *resourceBundle);
  * @return a key associated to this resource, or NULL if it doesn't have a key
  * @stable ICU 2.0
  */
-U_CAPI const char * U_EXPORT2
-ures_getKey(const UResourceBundle *resourceBundle);
+U_CAPI const char* U_EXPORT2
+ures_getKey(const UResourceBundle* resourceBundle U_LIFETIME_BOUND);
 
 /* ITERATION API
     This API provides means for iterating through a resource
@@ -589,9 +589,9 @@ ures_hasNext(const UResourceBundle *resourceBundle);
  * @stable ICU 2.0
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_getNextResource(UResourceBundle *resourceBundle,
-                     UResourceBundle *fillIn,
-                     UErrorCode *status);
+ures_getNextResource(UResourceBundle* resourceBundle,
+                     UResourceBundle* fillIn U_LIFETIME_BOUND,
+                     UErrorCode* status);
 
 /**
  * Returns the next string in a given resource or NULL if there are no more resources
@@ -606,10 +606,10 @@ ures_getNextResource(UResourceBundle *resourceBundle,
  * @stable ICU 2.0
  */
 U_CAPI const UChar* U_EXPORT2
-ures_getNextString(UResourceBundle *resourceBundle,
+ures_getNextString(UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                    int32_t* len,
-                   const char ** key,
-                   UErrorCode *status);
+                   const char** key,
+                   UErrorCode* status);
 
 /**
  * Returns the resource in a given resource at the specified index. Features a fill-in parameter.
@@ -624,10 +624,10 @@ ures_getNextString(UResourceBundle *resourceBundle,
  * @stable ICU 2.0
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_getByIndex(const UResourceBundle *resourceBundle,
+ures_getByIndex(const UResourceBundle* resourceBundle,
                 int32_t indexR,
-                UResourceBundle *fillIn,
-                UErrorCode *status);
+                UResourceBundle* fillIn U_LIFETIME_BOUND,
+                UErrorCode* status);
 
 /**
  * Returns the string in a given resource at the specified index.
@@ -641,10 +641,10 @@ ures_getByIndex(const UResourceBundle *resourceBundle,
  * @stable ICU 2.0
  */
 U_CAPI const UChar* U_EXPORT2
-ures_getStringByIndex(const UResourceBundle *resourceBundle,
+ures_getStringByIndex(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
                       int32_t indexS,
                       int32_t* len,
-                      UErrorCode *status);
+                      UErrorCode* status);
 
 /**
  * Returns a UTF-8 string from a resource at the specified index.
@@ -694,12 +694,13 @@ ures_getStringByIndex(const UResourceBundle *resourceBundle,
  * @see u_strToUTF8
  * @stable ICU 3.6
  */
-U_CAPI const char * U_EXPORT2
-ures_getUTF8StringByIndex(const UResourceBundle *resB,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8StringByIndex(const UResourceBundle* resB,
                           int32_t stringIndex,
-                          char *dest, int32_t *pLength,
+                          char* dest U_LIFETIME_BOUND,
+                          int32_t* pLength,
                           UBool forceCopy,
-                          UErrorCode *status);
+                          UErrorCode* status);
 
 /**
  * Returns a resource in a given resource that has a given key. This procedure works only with table
@@ -714,10 +715,10 @@ ures_getUTF8StringByIndex(const UResourceBundle *resB,
  * @stable ICU 2.0
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_getByKey(const UResourceBundle *resourceBundle,
+ures_getByKey(const UResourceBundle* resourceBundle,
               const char* key,
-              UResourceBundle *fillIn,
-              UErrorCode *status);
+              UResourceBundle* fillIn U_LIFETIME_BOUND,
+              UErrorCode* status);
 
 /**
  * Returns a string in a given resource that has a given key. This procedure works only with table
@@ -732,10 +733,10 @@ ures_getByKey(const UResourceBundle *resourceBundle,
  * @stable ICU 2.0
  */
 U_CAPI const UChar* U_EXPORT2
-ures_getStringByKey(const UResourceBundle *resB,
+ures_getStringByKey(const UResourceBundle* resB U_LIFETIME_BOUND,
                     const char* key,
                     int32_t* len,
-                    UErrorCode *status);
+                    UErrorCode* status);
 
 /**
  * Returns a UTF-8 string from a resource and a key.
@@ -787,12 +788,13 @@ ures_getStringByKey(const UResourceBundle *resB,
  * @see u_strToUTF8
  * @stable ICU 3.6
  */
-U_CAPI const char * U_EXPORT2
-ures_getUTF8StringByKey(const UResourceBundle *resB,
-                        const char *key,
-                        char *dest, int32_t *pLength,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8StringByKey(const UResourceBundle* resB,
+                        const char* key,
+                        char* dest U_LIFETIME_BOUND,
+                        int32_t* pLength,
                         UBool forceCopy,
-                        UErrorCode *status);
+                        UErrorCode* status);
 
 #if U_SHOW_CPLUSPLUS_API
 #include "unicode/unistr.h"
@@ -810,7 +812,7 @@ U_NAMESPACE_BEGIN
  * @stable ICU 2.0
  */
 inline UnicodeString
-ures_getUnicodeString(const UResourceBundle *resB, UErrorCode* status) {
+ures_getUnicodeString(const UResourceBundle* resB U_LIFETIME_BOUND, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
     const char16_t *r = ConstChar16Ptr(ures_getString(resB, &len, status));
@@ -835,7 +837,9 @@ ures_getUnicodeString(const UResourceBundle *resB, UErrorCode* status) {
  * @stable ICU 2.0
  */
 inline UnicodeString
-ures_getNextUnicodeString(UResourceBundle *resB, const char ** key, UErrorCode* status) {
+ures_getNextUnicodeString(UResourceBundle* resB U_LIFETIME_BOUND,
+                          const char** key,
+                          UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
     const char16_t* r = ConstChar16Ptr(ures_getNextString(resB, &len, key, status));
@@ -857,7 +861,9 @@ ures_getNextUnicodeString(UResourceBundle *resB, const char ** key, UErrorCode* 
  * @stable ICU 2.0
  */
 inline UnicodeString
-ures_getUnicodeStringByIndex(const UResourceBundle *resB, int32_t indexS, UErrorCode* status) {
+ures_getUnicodeStringByIndex(const UResourceBundle* resB U_LIFETIME_BOUND,
+                             int32_t indexS,
+                             UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
     const char16_t* r = ConstChar16Ptr(ures_getStringByIndex(resB, indexS, &len, status));
@@ -880,7 +886,9 @@ ures_getUnicodeStringByIndex(const UResourceBundle *resB, int32_t indexS, UError
  * @stable ICU 2.0
  */
 inline UnicodeString
-ures_getUnicodeStringByKey(const UResourceBundle *resB, const char* key, UErrorCode* status) {
+ures_getUnicodeStringByKey(const UResourceBundle* resB U_LIFETIME_BOUND,
+                           const char* key,
+                           UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
     const char16_t* r = ConstChar16Ptr(ures_getStringByKey(resB, key, &len, status));

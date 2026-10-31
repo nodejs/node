@@ -68,7 +68,7 @@ public:
                         UErrorCode &errorCode) const;
 
     // visible for LocaleDistance
-    const LocaleDistanceData &getDistanceData() const { return distanceData; }
+    const LocaleDistanceData& getDistanceData() const U_LIFETIME_BOUND { return distanceData; }
 
 private:
     LikelySubtags(LikelySubtagsData &data);

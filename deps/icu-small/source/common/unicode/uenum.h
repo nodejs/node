@@ -111,7 +111,7 @@ uenum_count(UEnumeration* en, UErrorCode* status);
  * @stable ICU 2.2
  */
 U_CAPI const UChar* U_EXPORT2
-uenum_unext(UEnumeration* en,
+uenum_unext(UEnumeration* en U_LIFETIME_BOUND,
             int32_t* resultLength,
             UErrorCode* status);
 
@@ -144,7 +144,7 @@ uenum_unext(UEnumeration* en,
  * @stable ICU 2.2
  */
 U_CAPI const char* U_EXPORT2
-uenum_next(UEnumeration* en,
+uenum_next(UEnumeration* en U_LIFETIME_BOUND,
            int32_t* resultLength,
            UErrorCode* status);
 
@@ -188,8 +188,9 @@ uenum_openFromStringEnumeration(icu::StringEnumeration* adopted, UErrorCode* ec)
  * @stable ICU 50
  */
 U_CAPI UEnumeration* U_EXPORT2
-uenum_openUCharStringsEnumeration(const UChar* const strings[], int32_t count,
-                                 UErrorCode* ec);
+uenum_openUCharStringsEnumeration(U_LIFETIME_BOUND const UChar* const strings[],
+                                  int32_t count,
+                                  UErrorCode* ec);
 
 /**
  * Given an array of const char* strings (invariant chars only), return a UEnumeration.  String pointers from 0..count-1 must not be null.
@@ -203,7 +204,8 @@ uenum_openUCharStringsEnumeration(const UChar* const strings[], int32_t count,
  * @stable ICU 50
  */
 U_CAPI UEnumeration* U_EXPORT2
-uenum_openCharStringsEnumeration(const char* const strings[], int32_t count,
+uenum_openCharStringsEnumeration(U_LIFETIME_BOUND const char* const strings[],
+                                 int32_t count,
                                  UErrorCode* ec);
 
 #endif

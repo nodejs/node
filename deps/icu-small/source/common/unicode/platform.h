@@ -408,6 +408,17 @@
 #else
 #   define UPRV_HAS_FEATURE(x) 0
 #endif
+#if UPRV_HAS_FEATURE(address_sanitizer) || \
+    UPRV_HAS_FEATURE(memory_sanitizer) || \
+    UPRV_HAS_FEATURE(thread_sanitizer) || \
+    UPRV_HAS_FEATURE(undefined_sanitizer) || \
+    defined(__SANITIZE_ADDRESS__) || \
+    defined(__SANITIZE_THREAD__) || \
+    defined(__SANITIZE_UNDEFINED__)
+#   define UPRV_HAS_SANITIZER 1
+#else
+#   define UPRV_HAS_SANITIZER 0
+#endif
 #ifdef __has_extension
 #   define UPRV_HAS_EXTENSION(x) __has_extension(x)
 #else
@@ -421,8 +432,10 @@
 
 
 #if defined(__clang__)
+#define UPRV_NO_SANITIZE_FUNCTION __attribute__((no_sanitize("function")))
 #define UPRV_NO_SANITIZE_UNDEFINED __attribute__((no_sanitize("undefined")))
 #else
+#define UPRV_NO_SANITIZE_FUNCTION
 #define UPRV_NO_SANITIZE_UNDEFINED
 #endif
 
@@ -505,6 +518,37 @@
 
 #ifndef U_FALLTHROUGH
 #   define U_FALLTHROUGH
+#endif
+
+#ifndef U_IN_DOXYGEN
+/**
+ * \def U_LIFETIME_BOUND
+ *
+ * Annotate a function parameter or implicit object parameter to indicate that
+ * objects that are referred to by that parameter may also be referred to by the
+ * return value of the annotated function (or, for a parameter of a constructor,
+ * by the value of the constructed object).
+ *
+ * https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
+ * https://learn.microsoft.com/en-us/cpp/code-quality/c26816?view=msvc-170
+ *
+ * @internal
+ */
+#ifndef __cplusplus
+// Not for C.
+#elif defined(U_LIFETIME_BOUND)
+// Use the predefined value.
+#elif  UPRV_HAS_CPP_ATTRIBUTE(clang::lifetimebound)
+#   define U_LIFETIME_BOUND [[clang::lifetimebound]]
+#elif UPRV_HAS_CPP_ATTRIBUTE(msvc::lifetimebound)
+#   define U_LIFETIME_BOUND [[msvc::lifetimebound]]
+#elif UPRV_HAS_ATTRIBUTE(lifetimebound)
+#   define U_LIFETIME_BOUND __attribute__((lifetimebound))
+#endif
+
+#ifndef U_LIFETIME_BOUND
+#   define U_LIFETIME_BOUND
+#endif
 #endif
 
 /** @} */

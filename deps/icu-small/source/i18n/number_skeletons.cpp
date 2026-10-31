@@ -1021,6 +1021,10 @@ blueprint_helpers::parseExponentSignOption(const StringSegment& segment, MacroPr
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdangling-pointer"
 #endif
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdangling"
+#endif
 void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroProps& macros,
                                             UErrorCode& status) {
     // Unlike ICU4J, have to check length manually because ICU4C CurrencyUnit does not check it for us
@@ -1040,6 +1044,9 @@ void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroP
     // Slicing is OK
     macros.unit = currency; // NOLINT
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #if U_GCC_MAJOR_MINOR >= 1204
 #pragma GCC diagnostic pop
 #endif
@@ -1072,25 +1079,12 @@ void blueprint_helpers::parseMeasureUnitOption(const StringSegment& segment, Mac
     CharString subType;
     SKELETON_UCHAR_TO_CHAR(subType, stemString, firstHyphen + 1, stemString.length(), status);
 
-    // Note: the largest type as of this writing (Aug 2020) is "volume", which has 33 units.
-    static constexpr int32_t CAPACITY = 40;
-    MeasureUnit units[CAPACITY];
-    UErrorCode localStatus = U_ZERO_ERROR;
-    int32_t numUnits = MeasureUnit::getAvailable(type.data(), units, CAPACITY, localStatus);
-    if (U_FAILURE(localStatus)) {
-        // More than 30 units in this type?
-        status = U_INTERNAL_PROGRAM_ERROR;
+    MeasureUnit unit;
+    if (MeasureUnit::validateAndGet(type.toStringPiece(), subType.toStringPiece(), unit)) {
+        macros.unit = unit;
         return;
     }
-    for (int32_t i = 0; i < numUnits; i++) {
-        auto& unit = units[i];
-        if (uprv_strcmp(subType.data(), unit.getSubtype()) == 0) {
-            macros.unit = unit;
-            return;
-        }
-    }
-
-    // throw new SkeletonSyntaxException("Unknown measure unit", segment);
+    
     status = U_NUMBER_SKELETON_SYNTAX_ERROR;
 }
 

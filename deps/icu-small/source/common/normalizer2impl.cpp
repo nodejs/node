@@ -353,9 +353,16 @@ UBool ReorderingBuffer::resize(int32_t appendLength, UErrorCode &errorCode) {
     int32_t reorderStartIndex = static_cast<int32_t>(reorderStart - start);
     int32_t length = static_cast<int32_t>(limit - start);
     str.releaseBuffer(length);
-    int32_t newCapacity=length+appendLength;
-    int32_t doubleCapacity=2*str.getCapacity();
-    if(newCapacity<doubleCapacity) {
+    int32_t newCapacity;
+    if(uprv_add32_overflow(length, appendLength, &newCapacity)) {
+        str.setToBogus();
+        start=nullptr;
+        errorCode=U_MEMORY_ALLOCATION_ERROR;
+        return false;
+    }
+    int32_t doubleCapacity;
+    if(!uprv_mul32_overflow(2, str.getCapacity(), &doubleCapacity) &&
+            newCapacity<doubleCapacity) {
         newCapacity=doubleCapacity;
     }
     if(newCapacity<256) {
@@ -585,6 +592,10 @@ const char16_t *
 Normalizer2Impl::decompose(const char16_t *src, const char16_t *limit,
                            ReorderingBuffer *buffer,
                            UErrorCode &errorCode) const {
+    if(src==nullptr) {
+        errorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        return src;
+    }
     UChar32 minNoCP=minDecompNoCP;
     if(limit==nullptr) {
         src=copyLowPrefixFromNulTerminated(src, minNoCP, buffer, errorCode);

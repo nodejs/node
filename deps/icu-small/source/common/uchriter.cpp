@@ -25,14 +25,14 @@ UCharCharacterIterator::UCharCharacterIterator()
     // never default construct!
 }
 
-UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr U_LIFETIME_BOUND,
                                                int32_t length)
   : CharacterIterator(textPtr != nullptr ? (length >= 0 ? length : u_strlen(textPtr)) : 0),
   text(textPtr)
 {
 }
 
-UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr U_LIFETIME_BOUND,
                                                int32_t length,
                                                int32_t position)
   : CharacterIterator(textPtr != nullptr ? (length >= 0 ? length : u_strlen(textPtr)) : 0, position),
@@ -40,7 +40,7 @@ UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
 {
 }
 
-UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr U_LIFETIME_BOUND,
                                                int32_t length,
                                                int32_t textBegin,
                                                int32_t textEnd,
@@ -58,7 +58,7 @@ UCharCharacterIterator::UCharCharacterIterator(const UCharCharacterIterator& tha
 }
 
 UCharCharacterIterator&
-UCharCharacterIterator::operator=(const UCharCharacterIterator& that) {
+UCharCharacterIterator::operator=(const UCharCharacterIterator& that) U_LIFETIME_BOUND {
     CharacterIterator::operator=(that);
     text = that.text;
     return *this;

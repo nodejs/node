@@ -398,7 +398,6 @@ uset_isFrozen(const USet *set);
  * uset_contains() and uset_span().
  * A frozen set will not be modified. (It remains frozen.)
  * @param set the set
- * @return the same set, now frozen
  * @see uset_isFrozen
  * @see uset_cloneAsThawed
  * @stable ICU 3.8
@@ -1011,7 +1010,7 @@ uset_getStringCount(const USet *set);
  * @see uset_getStringCount
  */
 U_CAPI const UChar* U_EXPORT2
-uset_getString(const USet *set, int32_t index, int32_t *pLength);
+uset_getString(const USet* set U_LIFETIME_BOUND, int32_t index, int32_t* pLength);
 
 /**
  * Returns the number of items in this set.  An item is either a range
@@ -1358,7 +1357,7 @@ public:
      * Pre-increment.
      * @stable ICU 76
      */
-    USetCodePointIterator &operator++() {
+    USetCodePointIterator& operator++() U_LIFETIME_BOUND {
         if (c < end) {
             ++c;
         } else if (rangeIndex < rangeCount) {
@@ -1388,7 +1387,9 @@ public:
 private:
     friend class USetCodePoints;
 
-    USetCodePointIterator(const USet *pUset, int32_t nRangeIndex, int32_t nRangeCount)
+    USetCodePointIterator(const USet* pUset U_LIFETIME_BOUND,
+                          int32_t nRangeIndex,
+                          int32_t nRangeCount)
             : uset(pUset), rangeIndex(nRangeIndex), rangeCount(nRangeCount),
                 c(U_SENTINEL), end(U_SENTINEL) {
         // Fetch the first range.
@@ -1425,7 +1426,8 @@ public:
      * Constructs a C++ "range" object over the code points of the USet.
      * @stable ICU 76
      */
-    USetCodePoints(const USet *pUset) : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
+    USetCodePoints(const USet* pUset U_LIFETIME_BOUND)
+            : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
 
     /** @stable ICU 76 */
     USetCodePoints(const USetCodePoints &other) = default;
@@ -1470,7 +1472,7 @@ struct CodePointRange {
          * Pre-increment.
          * @stable ICU 76
          */
-        iterator &operator++() {
+        iterator& operator++() U_LIFETIME_BOUND {
             ++c;
             return *this;
         }
@@ -1551,7 +1553,7 @@ public:
      * Pre-increment.
      * @stable ICU 76
      */
-    USetRangeIterator &operator++() {
+    USetRangeIterator& operator++() U_LIFETIME_BOUND {
         ++rangeIndex;
         return *this;
     }
@@ -1569,7 +1571,7 @@ public:
 private:
     friend class USetRanges;
 
-    USetRangeIterator(const USet *pUset, int32_t nRangeIndex, int32_t nRangeCount)
+    USetRangeIterator(const USet* pUset U_LIFETIME_BOUND, int32_t nRangeIndex, int32_t nRangeCount)
             : uset(pUset), rangeIndex(nRangeIndex), rangeCount(nRangeCount) {}
 
     const USet *uset;
@@ -1606,7 +1608,8 @@ public:
      * Constructs a C++ "range" object over the code point ranges of the USet.
      * @stable ICU 76
      */
-    USetRanges(const USet *pUset) : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
+    USetRanges(const USet* pUset U_LIFETIME_BOUND)
+            : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
 
     /** @stable ICU 76 */
     USetRanges(const USetRanges &other) = default;
@@ -1662,7 +1665,7 @@ public:
      * Pre-increment.
      * @stable ICU 76
      */
-    USetStringIterator &operator++() {
+    USetStringIterator& operator++() U_LIFETIME_BOUND {
         ++index;
         return *this;
     }
@@ -1680,7 +1683,7 @@ public:
 private:
     friend class USetStrings;
 
-    USetStringIterator(const USet *pUset, int32_t nIndex, int32_t nCount)
+    USetStringIterator(const USet* pUset U_LIFETIME_BOUND, int32_t nIndex, int32_t nCount)
             : uset(pUset), index(nIndex), count(nCount) {}
 
     const USet *uset;
@@ -1716,7 +1719,8 @@ public:
      * Constructs a C++ "range" object over the strings of the USet.
      * @stable ICU 76
      */
-    USetStrings(const USet *pUset) : uset(pUset), count(uset_getStringCount(pUset)) {}
+    USetStrings(const USet* pUset U_LIFETIME_BOUND)
+            : uset(pUset), count(uset_getStringCount(pUset)) {}
 
     /** @stable ICU 76 */
     USetStrings(const USetStrings &other) = default;
@@ -1736,17 +1740,16 @@ private:
     int32_t count;
 };
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Iterator returned by USetElements.
- * @draft ICU 77
+ * @stable ICU 77
  */
 class USetElementIterator {
 public:
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     USetElementIterator(const USetElementIterator &other) = default;
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     bool operator==(const USetElementIterator &other) const {
         // No need to compare rangeCount & end given private constructor
         // and assuming we don't compare iterators across the set being modified.
@@ -1755,10 +1758,10 @@ public:
         return uset == other.uset && c == other.c && index == other.index;
     }
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     bool operator!=(const USetElementIterator &other) const { return !operator==(other); }
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     std::u16string operator*() const {
         if (c >= 0) {
             return c <= 0xffff ?
@@ -1776,9 +1779,9 @@ public:
 
     /**
      * Pre-increment.
-     * @draft ICU 77
+     * @stable ICU 77
      */
-    USetElementIterator &operator++() {
+    USetElementIterator& operator++() U_LIFETIME_BOUND {
         if (c < end) {
             ++c;
         } else if (index < rangeCount) {
@@ -1801,7 +1804,7 @@ public:
 
     /**
      * Post-increment.
-     * @draft ICU 77
+     * @stable ICU 77
      */
     USetElementIterator operator++(int) {
         USetElementIterator result(*this);
@@ -1812,7 +1815,10 @@ public:
 private:
     friend class USetElements;
 
-    USetElementIterator(const USet *pUset, int32_t nIndex, int32_t nRangeCount, int32_t nTotalCount)
+    USetElementIterator(const USet* pUset U_LIFETIME_BOUND,
+                        int32_t nIndex,
+                        int32_t nRangeCount,
+                        int32_t nTotalCount)
             : uset(pUset), index(nIndex), rangeCount(nRangeCount), totalCount(nTotalCount),
                 c(U_SENTINEL), end(U_SENTINEL) {
         if (index < rangeCount) {
@@ -1861,7 +1867,7 @@ private:
  * C++ UnicodeSet has member functions for iteration, including begin() and end().
  *
  * @return an all-elements iterator.
- * @draft ICU 77
+ * @stable ICU 77
  * @see USetCodePoints
  * @see USetRanges
  * @see USetStrings
@@ -1870,21 +1876,21 @@ class USetElements {
 public:
     /**
      * Constructs a C++ "range" object over all of the elements of the USet.
-     * @draft ICU 77
+     * @stable ICU 77
      */
-    USetElements(const USet *pUset)
+    USetElements(const USet* pUset U_LIFETIME_BOUND)
         : uset(pUset), rangeCount(uset_getRangeCount(pUset)),
             stringCount(uset_getStringCount(pUset)) {}
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     USetElements(const USetElements &other) = default;
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     USetElementIterator begin() const {
         return USetElementIterator(uset, 0, rangeCount, rangeCount + stringCount);
     }
 
-    /** @draft ICU 77 */
+    /** @stable ICU 77 */
     USetElementIterator end() const {
         return USetElementIterator(uset, rangeCount + stringCount, rangeCount, rangeCount + stringCount);
     }
@@ -1893,8 +1899,6 @@ private:
     const USet *uset;
     int32_t rangeCount, stringCount;
 };
-
-#endif  // U_HIDE_DRAFT_API
 
 }  // namespace U_HEADER_ONLY_NAMESPACE
 

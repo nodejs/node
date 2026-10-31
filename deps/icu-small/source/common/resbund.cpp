@@ -213,7 +213,7 @@ ResourceBundle::ResourceBundle(const char* path, const Locale& locale, UErrorCod
 }
 
 
-ResourceBundle& ResourceBundle::operator=(const ResourceBundle& other)
+ResourceBundle& ResourceBundle::operator=(const ResourceBundle& other) U_LIFETIME_BOUND
 {
     if(this == &other) {
         return *this;
@@ -249,17 +249,18 @@ ResourceBundle::clone() const {
     return new ResourceBundle(*this);
 }
 
-UnicodeString ResourceBundle::getString(UErrorCode& status) const {
+UnicodeString ResourceBundle::getString(UErrorCode& status) const U_LIFETIME_BOUND {
     int32_t len = 0;
     const char16_t *r = ures_getString(fResource, &len, &status);
     return UnicodeString(true, r, len);
 }
 
-const uint8_t *ResourceBundle::getBinary(int32_t& len, UErrorCode& status) const {
+const uint8_t* ResourceBundle::getBinary(int32_t& len, UErrorCode& status) const U_LIFETIME_BOUND {
     return ures_getBinary(fResource, &len, &status);
 }
 
-const int32_t *ResourceBundle::getIntVector(int32_t& len, UErrorCode& status) const {
+const int32_t* ResourceBundle::getIntVector(int32_t& len,
+                                            UErrorCode& status) const U_LIFETIME_BOUND {
     return ures_getIntVector(fResource, &len, &status);
 }
 
@@ -271,11 +272,11 @@ int32_t ResourceBundle::getInt(UErrorCode& status) const {
     return ures_getInt(fResource, &status);
 }
 
-const char *ResourceBundle::getName() const {
+const char* ResourceBundle::getName() const U_LIFETIME_BOUND {
     return ures_getName(fResource);
 }
 
-const char *ResourceBundle::getKey() const {
+const char* ResourceBundle::getKey() const U_LIFETIME_BOUND {
     return ures_getKey(fResource);
 }
 
@@ -307,13 +308,13 @@ ResourceBundle ResourceBundle::getNext(UErrorCode& status) {
     return res;
 }
 
-UnicodeString ResourceBundle::getNextString(UErrorCode& status) {
+UnicodeString ResourceBundle::getNextString(UErrorCode& status) U_LIFETIME_BOUND {
     int32_t len = 0;
     const char16_t* r = ures_getNextString(fResource, &len, nullptr, &status);
     return UnicodeString(true, r, len);
 }
 
-UnicodeString ResourceBundle::getNextString(const char ** key, UErrorCode& status) {
+UnicodeString ResourceBundle::getNextString(const char** key, UErrorCode& status) U_LIFETIME_BOUND {
     int32_t len = 0;
     const char16_t* r = ures_getNextString(fResource, &len, key, &status);
     return UnicodeString(true, r, len);
@@ -331,7 +332,8 @@ ResourceBundle ResourceBundle::get(int32_t indexR, UErrorCode& status) const {
     return res;
 }
 
-UnicodeString ResourceBundle::getStringEx(int32_t indexS, UErrorCode& status) const {
+UnicodeString ResourceBundle::getStringEx(int32_t indexS,
+                                          UErrorCode& status) const U_LIFETIME_BOUND {
     int32_t len = 0;
     const char16_t* r = ures_getStringByIndex(fResource, indexS, &len, &status);
     return UnicodeString(true, r, len);
@@ -359,15 +361,15 @@ ResourceBundle ResourceBundle::getWithFallback(const char* key, UErrorCode& stat
     }
     return res;
 }
-UnicodeString ResourceBundle::getStringEx(const char* key, UErrorCode& status) const {
+
+UnicodeString ResourceBundle::getStringEx(const char* key,
+                                          UErrorCode& status) const U_LIFETIME_BOUND {
     int32_t len = 0;
     const char16_t* r = ures_getStringByKey(fResource, key, &len, &status);
     return UnicodeString(true, r, len);
 }
 
-const char*
-ResourceBundle::getVersionNumber()  const
-{
+const char* ResourceBundle::getVersionNumber() const U_LIFETIME_BOUND {
     return ures_getVersionNumberInternal(fResource);
 }
 
@@ -375,7 +377,7 @@ void ResourceBundle::getVersion(UVersionInfo versionInfo) const {
     ures_getVersion(fResource, versionInfo);
 }
 
-const Locale &ResourceBundle::getLocale() const {
+const Locale& ResourceBundle::getLocale() const U_LIFETIME_BOUND {
     static UMutex gLocaleLock;
     Mutex lock(&gLocaleLock);
     if (fLocale != nullptr) {

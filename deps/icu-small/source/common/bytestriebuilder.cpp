@@ -39,7 +39,7 @@ public:
 
     void setTo(StringPiece s, int32_t val, CharString &strings, UErrorCode &errorCode);
 
-    StringPiece getString(const CharString &strings) const {
+    StringPiece getString(const CharString& strings U_LIFETIME_BOUND) const {
         int32_t offset=stringOffset;
         int32_t length;
         if(offset>=0) {
@@ -68,7 +68,7 @@ public:
     int32_t compareStringTo(const BytesTrieElement &o, const CharString &strings) const;
 
 private:
-    const char *data(const CharString &strings) const {
+    const char* data(const CharString& strings U_LIFETIME_BOUND) const {
         int32_t offset=stringOffset;
         if(offset>=0) {
             ++offset;
@@ -144,8 +144,8 @@ BytesTrieBuilder::~BytesTrieBuilder() {
     uprv_free(bytes);
 }
 
-BytesTrieBuilder &
-BytesTrieBuilder::add(StringPiece s, int32_t value, UErrorCode &errorCode) {
+BytesTrieBuilder&
+BytesTrieBuilder::add(StringPiece s, int32_t value, UErrorCode& errorCode) U_LIFETIME_BOUND {
     if(U_FAILURE(errorCode)) {
         return *this;
     }
@@ -206,7 +206,8 @@ BytesTrieBuilder::build(UStringTrieBuildOption buildOption, UErrorCode &errorCod
 }
 
 StringPiece
-BytesTrieBuilder::buildStringPiece(UStringTrieBuildOption buildOption, UErrorCode &errorCode) {
+BytesTrieBuilder::buildStringPiece(UStringTrieBuildOption buildOption,
+                                   UErrorCode& errorCode) U_LIFETIME_BOUND {
     buildBytes(buildOption, errorCode);
     StringPiece result;
     if(U_SUCCESS(errorCode)) {
@@ -269,8 +270,8 @@ BytesTrieBuilder::buildBytes(UStringTrieBuildOption buildOption, UErrorCode &err
     }
 }
 
-BytesTrieBuilder &
-BytesTrieBuilder::clear() {
+BytesTrieBuilder&
+BytesTrieBuilder::clear() U_LIFETIME_BOUND {
     strings->clear();
     elementsLength=0;
     bytesLength=0;

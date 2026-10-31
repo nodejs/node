@@ -469,7 +469,7 @@ ulocimp_toLegacyKey(std::string_view key) {
 }
 
 U_EXPORT std::optional<std::string_view>
-ulocimp_toBcpType(std::string_view key, std::string_view type) {
+ulocimp_toBcpType(std::string_view key, std::string_view type U_LIFETIME_BOUND) {
     if (!init()) {
         return std::nullopt;
     }
@@ -502,7 +502,7 @@ ulocimp_toBcpType(std::string_view key, std::string_view type) {
 
 
 U_EXPORT std::optional<std::string_view>
-ulocimp_toLegacyType(std::string_view key, std::string_view type) {
+ulocimp_toLegacyType(std::string_view key, std::string_view type U_LIFETIME_BOUND) {
     if (!init()) {
         return std::nullopt;
     }

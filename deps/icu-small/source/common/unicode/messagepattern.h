@@ -415,7 +415,7 @@ public:
      * @return *this=other
      * @stable ICU 4.8
      */
-    MessagePattern &operator=(const MessagePattern &other);
+    MessagePattern& operator=(const MessagePattern& other) U_LIFETIME_BOUND;
 
     /**
      * Destructor.
@@ -440,8 +440,9 @@ public:
      * @throws NumberFormatException if a number could not be parsed
      * @stable ICU 4.8
      */
-    MessagePattern &parse(const UnicodeString &pattern,
-                          UParseError *parseError, UErrorCode &errorCode);
+    MessagePattern& parse(const UnicodeString& pattern,
+                          UParseError* parseError,
+                          UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Parses a ChoiceFormat pattern string.
@@ -460,8 +461,9 @@ public:
      * @throws NumberFormatException if a number could not be parsed
      * @stable ICU 4.8
      */
-    MessagePattern &parseChoiceStyle(const UnicodeString &pattern,
-                                     UParseError *parseError, UErrorCode &errorCode);
+    MessagePattern& parseChoiceStyle(const UnicodeString& pattern,
+                                     UParseError* parseError,
+                                     UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Parses a PluralFormat pattern string.
@@ -480,8 +482,9 @@ public:
      * @throws NumberFormatException if a number could not be parsed
      * @stable ICU 4.8
      */
-    MessagePattern &parsePluralStyle(const UnicodeString &pattern,
-                                     UParseError *parseError, UErrorCode &errorCode);
+    MessagePattern& parsePluralStyle(const UnicodeString& pattern,
+                                     UParseError* parseError,
+                                     UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Parses a SelectFormat pattern string.
@@ -500,8 +503,9 @@ public:
      * @throws NumberFormatException if a number could not be parsed
      * @stable ICU 4.8
      */
-    MessagePattern &parseSelectStyle(const UnicodeString &pattern,
-                                     UParseError *parseError, UErrorCode &errorCode);
+    MessagePattern& parseSelectStyle(const UnicodeString& pattern,
+                                     UParseError* parseError,
+                                     UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Clears this MessagePattern.
@@ -558,7 +562,7 @@ public:
      * @return the parsed pattern string (null if none was parsed).
      * @stable ICU 4.8
      */
-    const UnicodeString &getPatternString() const {
+    const UnicodeString& getPatternString() const U_LIFETIME_BOUND {
         return msg;
     }
 
@@ -623,7 +627,7 @@ public:
      * @return the i-th pattern "part".
      * @stable ICU 4.8
      */
-    const Part &getPart(int32_t i) const {
+    const Part& getPart(int32_t i) const U_LIFETIME_BOUND {
         return parts[i];
     }
 
@@ -656,7 +660,7 @@ public:
      * @return the substring associated with part.
      * @stable ICU 4.8
      */
-    UnicodeString getSubstring(const Part &part) const {
+    UnicodeString getSubstring(const Part& part) const U_LIFETIME_BOUND {
         return msg.tempSubString(part.index, part.length);
     }
 

@@ -236,10 +236,10 @@ public:
      * @return dest
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    normalize(const UnicodeString &src,
-              UnicodeString &dest,
-              UErrorCode &errorCode) const = 0;
+    virtual UnicodeString&
+    normalize(const UnicodeString& src,
+              UnicodeString& dest U_LIFETIME_BOUND,
+              UErrorCode& errorCode) const = 0;
 
     /**
      * Normalizes a UTF-8 string and optionally records how source substrings
@@ -281,10 +281,10 @@ public:
      * @return first
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    normalizeSecondAndAppend(UnicodeString &first,
-                             const UnicodeString &second,
-                             UErrorCode &errorCode) const = 0;
+    virtual UnicodeString&
+    normalizeSecondAndAppend(UnicodeString& first U_LIFETIME_BOUND,
+                             const UnicodeString& second,
+                             UErrorCode& errorCode) const = 0;
     /**
      * Appends the second string to the first string
      * (merging them at the boundary) and returns the first string.
@@ -299,10 +299,10 @@ public:
      * @return first
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    append(UnicodeString &first,
-           const UnicodeString &second,
-           UErrorCode &errorCode) const = 0;
+    virtual UnicodeString&
+    append(UnicodeString& first U_LIFETIME_BOUND,
+           const UnicodeString& second,
+           UErrorCode& errorCode) const = 0;
 
     /**
      * Gets the decomposition mapping of c.
@@ -528,7 +528,8 @@ public:
      * @param filterSet UnicodeSet which determines the characters to be normalized
      * @stable ICU 4.4
      */
-    FilteredNormalizer2(const Normalizer2 &n2, const UnicodeSet &filterSet) :
+    FilteredNormalizer2(const Normalizer2& n2 U_LIFETIME_BOUND,
+                        const UnicodeSet& filterSet U_LIFETIME_BOUND) :
             norm2(n2), set(filterSet) {}
 
     /**
@@ -550,10 +551,10 @@ public:
      * @return dest
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    normalize(const UnicodeString &src,
-              UnicodeString &dest,
-              UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    normalize(const UnicodeString& src,
+              UnicodeString& dest U_LIFETIME_BOUND,
+              UErrorCode& errorCode) const override;
 
     /**
      * Normalizes a UTF-8 string and optionally records how source substrings
@@ -595,10 +596,10 @@ public:
      * @return first
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    normalizeSecondAndAppend(UnicodeString &first,
-                             const UnicodeString &second,
-                             UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    normalizeSecondAndAppend(UnicodeString& first U_LIFETIME_BOUND,
+                             const UnicodeString& second,
+                             UErrorCode& errorCode) const override;
     /**
      * Appends the second string to the first string
      * (merging them at the boundary) and returns the first string.
@@ -613,10 +614,10 @@ public:
      * @return first
      * @stable ICU 4.4
      */
-    virtual UnicodeString &
-    append(UnicodeString &first,
-           const UnicodeString &second,
-           UErrorCode &errorCode) const override;
+    virtual UnicodeString&
+    append(UnicodeString& first U_LIFETIME_BOUND,
+           const UnicodeString& second,
+           UErrorCode& errorCode) const override;
 
     /**
      * Gets the decomposition mapping of c.
@@ -760,11 +761,11 @@ public:
      */
     virtual UBool isInert(UChar32 c) const override;
 private:
-    UnicodeString &
-    normalize(const UnicodeString &src,
-              UnicodeString &dest,
+    UnicodeString&
+    normalize(const UnicodeString& src,
+              UnicodeString& dest U_LIFETIME_BOUND,
               USetSpanCondition spanCondition,
-              UErrorCode &errorCode) const;
+              UErrorCode& errorCode) const;
 
     void
     normalizeUTF8(uint32_t options, const char *src, int32_t length,
@@ -772,11 +773,11 @@ private:
                   USetSpanCondition spanCondition,
                   UErrorCode &errorCode) const;
 
-    UnicodeString &
-    normalizeSecondAndAppend(UnicodeString &first,
-                             const UnicodeString &second,
+    UnicodeString&
+    normalizeSecondAndAppend(UnicodeString& first U_LIFETIME_BOUND,
+                             const UnicodeString& second,
                              UBool doNormalize,
-                             UErrorCode &errorCode) const;
+                             UErrorCode& errorCode) const;
 
     const Normalizer2 &norm2;
     const UnicodeSet &set;

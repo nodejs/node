@@ -5,7 +5,7 @@
 Language: Cpp
 BasedOnStyle: LLVM
 IndentWidth: 4
-ColumnLimit: 105
+ColumnLimit: 100
 AllowShortBlocksOnASingleLine: false 
 AllowShortIfStatementsOnASingleLine: true 
 ...

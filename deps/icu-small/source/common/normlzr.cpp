@@ -46,7 +46,7 @@ Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
     init();
 }
 
-Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode) :
+Normalizer::Normalizer(ConstChar16Ptr str U_LIFETIME_BOUND, int32_t length, UNormalizationMode mode) :
     UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(new UCharCharacterIterator(str, length)),
     currentIndex(0), nextIndex(0),
@@ -209,11 +209,13 @@ Normalizer::isNormalized(const UnicodeString& source,
     }
 }
 
-UnicodeString & U_EXPORT2
-Normalizer::concatenate(const UnicodeString &left, const UnicodeString &right,
-                        UnicodeString &result,
-                        UNormalizationMode mode, int32_t options,
-                        UErrorCode &errorCode) {
+UnicodeString& U_EXPORT2
+Normalizer::concatenate(const UnicodeString& left,
+                        const UnicodeString& right,
+                        UnicodeString& result U_LIFETIME_BOUND,
+                        UNormalizationMode mode,
+                        int32_t options,
+                        UErrorCode& errorCode) {
     if(left.isBogus() || right.isBogus() || U_FAILURE(errorCode)) {
         result.setToBogus();
         if(U_SUCCESS(errorCode)) {

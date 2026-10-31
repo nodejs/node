@@ -76,7 +76,7 @@ static const char16_t UNKNOWN_SHORT_ZONE_ID[] = {0x0075, 0x006E, 0x006B, 0};   /
 static const char16_t UNKNOWN_LOCATION[] = {0x0055, 0x006E, 0x006B, 0x006E, 0x006F, 0x0077, 0x006E, 0};    // Unknown
 
 static const char16_t DEFAULT_GMT_PATTERN[] = {0x0047, 0x004D, 0x0054, 0x007B, 0x0030, 0x007D, 0}; // GMT{0}
-//static const char16_t DEFAULT_GMT_ZERO[] = {0x0047, 0x004D, 0x0054, 0}; // GMT
+static const char16_t DEFAULT_GMT_ZERO[] = {0x0047, 0x004D, 0x0054, 0}; // GMT
 static const char16_t DEFAULT_GMT_POSITIVE_HM[] = {0x002B, 0x0048, 0x003A, 0x006D, 0x006D, 0}; // +H:mm
 static const char16_t DEFAULT_GMT_POSITIVE_HMS[] = {0x002B, 0x0048, 0x003A, 0x006D, 0x006D, 0x003A, 0x0073, 0x0073, 0}; // +H:mm:ss
 static const char16_t DEFAULT_GMT_NEGATIVE_HM[] = {0x002D, 0x0048, 0x003A, 0x006D, 0x006D, 0}; // -H:mm
@@ -356,8 +356,14 @@ TimeZoneFormat::TimeZoneFormat(const Locale& locale, UErrorCode& status)
             gmtPattern = resStr;
         }
         resStr = ures_getStringByKeyWithFallback(zoneStringsArray, gGmtZeroFormatTag, &len, &status);
-        if (len > 0) {
+        if (U_SUCCESS(status) && len > 0) {
             fGMTZeroFormat.setTo(true, resStr, len);
+        } else {
+            // gmtZeroFormat may be absent in newer CLDR data; fall back to "GMT"
+            // (DEFAULT_GMT_ZERO was the original fallback, commented out in ICU-9292
+            // as unused when the resource was always present in the data)
+            fGMTZeroFormat.setTo(true, DEFAULT_GMT_ZERO, -1);
+            status = U_ZERO_ERROR;
         }
         resStr = ures_getStringByKeyWithFallback(zoneStringsArray, gHourFormatTag, &len, &status);
         if (len > 0) {
@@ -697,8 +703,8 @@ TimeZoneFormat::format(UTimeZoneFormatStyle style, const TimeZone& tz, UDate dat
         UErrorCode status = U_ZERO_ERROR;
         int32_t rawOffset, dstOffset;
         tz.getOffset(date, false, rawOffset, dstOffset, status);
-        int32_t offset = rawOffset + dstOffset;
         if (U_SUCCESS(status)) {
+            int32_t offset = rawOffset + dstOffset;
             switch (style) {
             case UTZFMT_STYLE_GENERIC_LOCATION:
             case UTZFMT_STYLE_GENERIC_LONG:
