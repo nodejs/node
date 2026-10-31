@@ -1509,33 +1509,6 @@ added:
 
 Enable experimental support for inspector network resources.
 
-### `--experimental-loader=module`
-
-<!-- YAML
-added: v8.8.0
-changes:
-  - version:
-    - v23.6.1
-    - v22.13.1
-    - v20.18.2
-    pr-url: https://github.com/nodejs-private/node-private/pull/629
-    description: Using this feature with the permission model enabled requires
-                 passing `--allow-worker`.
-  - version: v12.11.1
-    pr-url: https://github.com/nodejs/node/pull/29752
-    description: This flag was renamed from `--loader` to
-                 `--experimental-loader`.
--->
-
-> This flag is discouraged and may be removed in a future version of Node.js.
-> Please use
-> [`--import` with `register()`][preloading asynchronous module customization hooks] instead.
-
-Specify the `module` containing exported [asynchronous module customization hooks][].
-`module` may be any string accepted as an [`import` specifier][].
-
-This feature requires `--allow-worker` if used with the [Permission Model][].
-
 ### `--experimental-network-inspection`
 
 <!-- YAML
@@ -4306,7 +4279,6 @@ one is included in the list below.
 * `--experimental-import-meta-resolve`
 * `--experimental-import-text`
 * `--experimental-json-modules`
-* `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
@@ -4990,7 +4962,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
-[`import` specifier]: esm.md#import-specifiers
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
@@ -5007,7 +4978,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [`vfs.mount()`]: vfs.md#vfsmount
-[asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
 [benchmark runner]: bench.md#command-line-runner
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
@@ -5025,7 +4995,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
-[preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line

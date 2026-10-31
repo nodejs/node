@@ -99,11 +99,6 @@ class DebugOptions : public Options {
     break_first_line = true;
   }
 
-  void DisableWaitOrBreakFirstLine() {
-    inspect_wait = false;
-    break_first_line = false;
-  }
-
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line || inspect_wait;
   }
@@ -176,7 +171,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
   std::vector<std::string> coverage_exclude_pattern;
-  std::vector<std::string> userland_loaders;
   std::vector<std::string> watch_mode_paths;
   std::vector<std::string> preload_cjs_modules;
   std::vector<std::string> preload_esm_modules;

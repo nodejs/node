@@ -7,8 +7,7 @@ const { registerHooks } = require('module');
 
 // This tests that required builtins get null as source from default
 // step, and the source returned are ignored.
-// TODO(joyeecheung): this is to align with the module.register() behavior
-// but perhaps the load hooks should not be invoked for builtins at all.
+// TODO(joyeecheung): perhaps the load hooks should not be invoked for builtins at all.
 
 // Pick a builtin that's unlikely to be loaded already - like zlib.
 assert(!process.moduleLoadList.includes('NativeModule zlib'));

@@ -4615,6 +4615,9 @@ no longer supported.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67090
+    description: End-of-Life.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation.
@@ -4625,18 +4628,14 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-[`module.register()`][] is deprecated. Use [`module.registerHooks()`][]
-instead.
+The `module.register()` API and the `--experimental-loader` and `--loader`
+flags have been removed. Use [`module.registerHooks()`][] instead.
 
-The `module.register()` API provides off-thread async hooks for customizing ES modules;
-the `module.registerHooks()` API provides similar hooks that are synchronous, in-thread, and
-work for all types of modules.
-Supporting async hooks has proven to be complex, involving worker threads orchestration, and there are issues
-that have proven unresolvable. See [caveats of asynchronous customization hooks][]. Please migrate to
-`module.registerHooks()` as soon as possible as `module.register()` will be
-removed in a future version of Node.js.
+The `module.register()` API provided off-thread async module customization
+hooks for customizing ES modules; the `module.registerHooks()` API provides
+similar hooks that are synchronous and work for all types of modules.
 
 ### DEP0206: Calling `digest()` on an already-finalized `Hmac` instance
 
@@ -4935,7 +4934,6 @@ Type: Documentation-only
 [`message.trailersDistinct`]: http.md#messagetrailersdistinct
 [`message.trailers`]: http.md#messagetrailers
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
-[`module.register()`]: module.md#moduleregisterspecifier-parenturl-options
 [`module.registerHooks()`]: module.md#moduleregisterhooksoptions
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
@@ -4991,7 +4989,6 @@ Type: Documentation-only
 [`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
 [alloc]: buffer.md#static-method-bufferallocsize-fill-encoding
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize-alignment
-[caveats of asynchronous customization hooks]: module.md#caveats-of-asynchronous-customization-hooks
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
 [legacy URL API]: url.md#legacy-url-api

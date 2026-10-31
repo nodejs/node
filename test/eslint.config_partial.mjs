@@ -217,7 +217,6 @@ export default [
   },
   {
     files: [
-      'test/es-module/test-esm-example-loader.js',
       'test/es-module/test-esm-type-flag.js',
       'test/es-module/test-esm-type-flag-alias.js',
       'test/es-module/test-require-module-detect-entry-point.js',

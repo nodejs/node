@@ -733,13 +733,6 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
-<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
-
-### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
-
-An operation related to module loading is customized by an asynchronous loader
-hook that never settled the promise before the loader thread exits.
-
 <a id="ERR_ASYNC_RESOURCE_DOMAIN_REMOVED"></a>
 
 ### `ERR_ASYNC_RESOURCE_DOMAIN_REMOVED`
@@ -2354,19 +2347,6 @@ for more information.
 
 IP is blocked by `net.BlockList`.
 
-<a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
-
-### `ERR_LOADER_CHAIN_INCOMPLETE`
-
-<!-- YAML
-added:
-  - v18.6.0
-  - v16.17.0
--->
-
-An ESM loader hook returned without calling `next()` and without explicitly
-signaling a short circuit.
-
 <a id="ERR_LOAD_SQLITE_EXTENSION"></a>
 
 ### `ERR_LOAD_SQLITE_EXTENSION`
@@ -3915,6 +3895,17 @@ attempting a [`require()`][] operation or when loading the program entry point.
 > Stability: 0 - Deprecated. These error codes are either inconsistent, or have
 > been removed.
 
+<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
+
+### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An operation related to module loading is customized by an asynchronous loader
+hook that never settled the promise before the loader thread exits.
+
 <a id="ERR_CANNOT_TRANSFER_OBJECT"></a>
 
 ### `ERR_CANNOT_TRANSFER_OBJECT`
@@ -4152,6 +4143,20 @@ changes:
 -->
 
 An invalid transfer object was passed to `postMessage()`.
+
+<a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
+
+### `ERR_LOADER_CHAIN_INCOMPLETE`
+
+<!-- YAML
+added:
+  - v18.6.0
+  - v16.17.0
+removed: REPLACEME
+-->
+
+An ESM loader hook returned without calling `next()` and without explicitly
+signaling a short circuit.
 
 <a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
 
