@@ -158,7 +158,7 @@ namespace per_process {
 
 // node_dotenv.h
 // Instance is used to store environment variables including NODE_OPTIONS.
-node::Dotenv dotenv_file = Dotenv();
+node::Dotenv dotenv_file = Dotenv::ForProcessEnvironment();
 
 // node_config_file.h
 node::ConfigReader config_reader = ConfigReader();

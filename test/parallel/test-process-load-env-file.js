@@ -9,6 +9,7 @@ const { isMainThread } = require('worker_threads');
 
 const basicValidEnvFilePath = fixtures.path('dotenv/basic-valid.env');
 const validEnvFilePath = fixtures.path('dotenv/valid.env');
+const mixedCaseEnvFilePath = fixtures.path('dotenv/mixed-case-keys.env');
 const missingEnvFile = fixtures.path('dir%20with unusual"chars \'åß∂ƒ©∆¬…`/non-existent-file.env');
 
 describe('process.loadEnvFile()', () => {
@@ -93,6 +94,27 @@ describe('process.loadEnvFile()', () => {
         JSON.stringify(missingEnvFile).slice(1, -1));
     }
     assert.strictEqual(child.code, 1);
+  });
+
+  it('keeps keys that differ only in case distinct', async () => {
+    // process.env in a Worker is case-sensitive on every platform.
+    const code = `
+      const { Worker } = require('worker_threads');
+      new Worker(\`
+        const { workerData } = require('worker_threads');
+        process.loadEnvFile(workerData);
+        const assert = require('assert');
+        assert.strictEqual(process.env.FOO, 'one');
+        assert.strictEqual(process.env.foo, 'two');
+      \`, { eval: true, workerData: ${JSON.stringify(mixedCaseEnvFilePath)} });
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: __dirname },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
   });
 
   it('loadEnvFile does not mutate --env-file output', async () => {

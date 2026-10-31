@@ -6,6 +6,7 @@
 #include "util-inl.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <map>
 #include <optional>
 
@@ -39,8 +40,25 @@ class Dotenv {
   static std::vector<env_file_data> GetDataFromArgs(
       const std::vector<std::string>& args);
 
+  // For the --env-file store: keys are compared like environment variable
+  // names, ignoring case on Windows.
+  static Dotenv ForProcessEnvironment();
+
  private:
-  std::map<std::string, std::string> store_;
+  struct EnvKeyLess {
+    bool ignore_case = false;
+    bool operator()(const std::string& a, const std::string& b) const {
+      if (!ignore_case) return a < b;
+      return std::lexicographical_compare(
+          a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
+            return ToLower(x) < ToLower(y);
+          });
+    }
+  };
+
+  explicit Dotenv(EnvKeyLess less) : store_(less) {}
+
+  std::map<std::string, std::string, EnvKeyLess> store_;
 };
 
 namespace per_process {
