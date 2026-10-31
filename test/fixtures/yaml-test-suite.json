@@ -1,0 +1,4330 @@
+[
+ {
+  "id": "229Q",
+  "name": "Spec Example 2.4. Sequence of Mappings",
+  "yaml": "-\n  name: Mark McGwire\n  hr:   65\n  avg:  0.278\n-\n  name: Sammy Sosa\n  hr:   63\n  avg:  0.288\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "name": "Mark McGwire",
+     "hr": 65,
+     "avg": 0.278
+    },
+    {
+     "name": "Sammy Sosa",
+     "hr": 63,
+     "avg": 0.288
+    }
+   ]
+  ]
+ },
+ {
+  "id": "236B",
+  "name": "Invalid value after mapping",
+  "yaml": "foo:\n  bar\ninvalid\n",
+  "error": true
+ },
+ {
+  "id": "26DV",
+  "name": "Whitespace around colon in mappings",
+  "yaml": "\"top1\" : \n  \"key1\" : &alias1 scalar1\n'top2' : \n  'key2' : &alias2 scalar2\ntop3: &node3 \n  *alias1 : scalar3\ntop4: \n  *alias2 : scalar4\ntop5   :    \n  scalar5\ntop6: \n  &anchor6 'key6' : scalar6\n",
+  "error": false,
+  "json": [
+   {
+    "top1": {
+     "key1": "scalar1"
+    },
+    "top2": {
+     "key2": "scalar2"
+    },
+    "top3": {
+     "scalar1": "scalar3"
+    },
+    "top4": {
+     "scalar2": "scalar4"
+    },
+    "top5": "scalar5",
+    "top6": {
+     "key6": "scalar6"
+    }
+   }
+  ]
+ },
+ {
+  "id": "27NA",
+  "name": "Spec Example 5.9. Directive Indicator",
+  "yaml": "%YAML 1.2\n--- text\n",
+  "error": false,
+  "json": [
+   "text"
+  ]
+ },
+ {
+  "id": "2AUY",
+  "name": "Tags in Block Sequence",
+  "yaml": " - !!str a\n - b\n - !!int 42\n - d\n",
+  "error": false,
+  "json": [
+   [
+    "a",
+    "b",
+    42,
+    "d"
+   ]
+  ]
+ },
+ {
+  "id": "2CMS",
+  "name": "Invalid mapping in plain multiline",
+  "yaml": "this\n is\n  invalid: x\n",
+  "error": true
+ },
+ {
+  "id": "2EBW",
+  "name": "Allowed characters in keys",
+  "yaml": "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~: safe\n?foo: safe question mark\n:foo: safe colon\n-foo: safe dash\nthis is#not: a comment\n",
+  "error": false,
+  "json": [
+   {
+    "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~": "safe",
+    "?foo": "safe question mark",
+    ":foo": "safe colon",
+    "-foo": "safe dash",
+    "this is#not": "a comment"
+   }
+  ]
+ },
+ {
+  "id": "2G84/00",
+  "name": "Literal modifers",
+  "yaml": "--- |0\n",
+  "error": true
+ },
+ {
+  "id": "2G84/01",
+  "name": "Literal modifers",
+  "yaml": "--- |10\n",
+  "error": true
+ },
+ {
+  "id": "2G84/02",
+  "name": "Literal modifers",
+  "yaml": "--- |1-",
+  "error": false,
+  "json": [
+   ""
+  ]
+ },
+ {
+  "id": "2G84/03",
+  "name": "Literal modifers",
+  "yaml": "--- |1+",
+  "error": false,
+  "json": [
+   ""
+  ]
+ },
+ {
+  "id": "2JQS",
+  "name": "Block Mapping with Missing Keys",
+  "yaml": ": a\n: b\n",
+  "error": false
+ },
+ {
+  "id": "2LFX",
+  "name": "Spec Example 6.13. Reserved Directives [1.3]",
+  "yaml": "%FOO  bar baz # Should be ignored\n              # with a warning.\n---\n\"foo\"\n",
+  "error": false,
+  "json": [
+   "foo"
+  ]
+ },
+ {
+  "id": "2SXE",
+  "name": "Anchors With Colon in Name",
+  "yaml": "&a: key: &a value\nfoo:\n  *a:\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value",
+    "foo": "key"
+   }
+  ]
+ },
+ {
+  "id": "2XXW",
+  "name": "Spec Example 2.25. Unordered Sets",
+  "yaml": "# Sets are represented as a\n# Mapping where each key is\n# associated with a null value\n--- !!set\n? Mark McGwire\n? Sammy Sosa\n? Ken Griff\n",
+  "error": false,
+  "json": [
+   {
+    "Mark McGwire": null,
+    "Sammy Sosa": null,
+    "Ken Griff": null
+   }
+  ]
+ },
+ {
+  "id": "33X3",
+  "name": "Three explicit integers in a block sequence",
+  "yaml": "---\n- !!int 1\n- !!int -2\n- !!int 33\n",
+  "error": false,
+  "json": [
+   [
+    1,
+    -2,
+    33
+   ]
+  ]
+ },
+ {
+  "id": "35KP",
+  "name": "Tags for Root Objects",
+  "yaml": "--- !!map\n? a\n: b\n--- !!seq\n- !!str c\n--- !!str\nd\ne\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b"
+   },
+   [
+    "c"
+   ],
+   "d e"
+  ]
+ },
+ {
+  "id": "36F6",
+  "name": "Multiline plain scalar with empty line",
+  "yaml": "---\nplain: a\n b\n\n c\n",
+  "error": false,
+  "json": [
+   {
+    "plain": "a b\nc"
+   }
+  ]
+ },
+ {
+  "id": "3ALJ",
+  "name": "Block Sequence in Block Sequence",
+  "yaml": "- - s1_i1\n  - s1_i2\n- s2\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "s1_i1",
+     "s1_i2"
+    ],
+    "s2"
+   ]
+  ]
+ },
+ {
+  "id": "3GZX",
+  "name": "Spec Example 7.1. Alias Nodes",
+  "yaml": "First occurrence: &anchor Foo\nSecond occurrence: *anchor\nOverride anchor: &anchor Bar\nReuse anchor: *anchor\n",
+  "error": false,
+  "json": [
+   {
+    "First occurrence": "Foo",
+    "Second occurrence": "Foo",
+    "Override anchor": "Bar",
+    "Reuse anchor": "Bar"
+   }
+  ]
+ },
+ {
+  "id": "3HFZ",
+  "name": "Invalid content after document end marker",
+  "yaml": "---\nkey: value\n... invalid\n",
+  "error": true
+ },
+ {
+  "id": "3MYT",
+  "name": "Plain Scalar looking like key, comment, anchor and tag",
+  "yaml": "---\nk:#foo\n &a !t s\n",
+  "error": false,
+  "json": [
+   "k:#foo &a !t s"
+  ]
+ },
+ {
+  "id": "3R3P",
+  "name": "Single block sequence with anchor",
+  "yaml": "&sequence\n- a\n",
+  "error": false,
+  "json": [
+   [
+    "a"
+   ]
+  ]
+ },
+ {
+  "id": "3RLN/00",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"1 leading\n    \\ttab\"\n",
+  "error": false,
+  "json": [
+   "1 leading \ttab"
+  ]
+ },
+ {
+  "id": "3RLN/01",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"2 leading\n    \\\ttab\"\n",
+  "error": false,
+  "json": [
+   "2 leading \ttab"
+  ]
+ },
+ {
+  "id": "3RLN/02",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"3 leading\n    \ttab\"\n",
+  "error": false,
+  "json": [
+   "3 leading tab"
+  ]
+ },
+ {
+  "id": "3RLN/03",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"4 leading\n    \\t  tab\"\n",
+  "error": false,
+  "json": [
+   "4 leading \t  tab"
+  ]
+ },
+ {
+  "id": "3RLN/04",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"5 leading\n    \\\t  tab\"\n",
+  "error": false,
+  "json": [
+   "5 leading \t  tab"
+  ]
+ },
+ {
+  "id": "3RLN/05",
+  "name": "Leading tabs in double quoted",
+  "yaml": "\"6 leading\n    \t  tab\"\n",
+  "error": false,
+  "json": [
+   "6 leading tab"
+  ]
+ },
+ {
+  "id": "3UYS",
+  "name": "Escaped slash in double quotes",
+  "yaml": "escaped slash: \"a\\/b\"\n",
+  "error": false,
+  "json": [
+   {
+    "escaped slash": "a/b"
+   }
+  ]
+ },
+ {
+  "id": "4ABK",
+  "name": "Flow Mapping Separate Values",
+  "yaml": "{\nunquoted : \"separate\",\nhttp://foo.com,\nomitted value:,\n}\n",
+  "error": false
+ },
+ {
+  "id": "4CQQ",
+  "name": "Spec Example 2.18. Multi-line Flow Scalars",
+  "yaml": "plain:\n  This unquoted scalar\n  spans many lines.\n\nquoted: \"So does this\n  quoted scalar.\\n\"\n",
+  "error": false,
+  "json": [
+   {
+    "plain": "This unquoted scalar spans many lines.",
+    "quoted": "So does this quoted scalar.\n"
+   }
+  ]
+ },
+ {
+  "id": "4EJS",
+  "name": "Invalid tabs as indendation in a mapping",
+  "yaml": "---\na:\n\tb:\n\t\tc: value\n",
+  "error": true
+ },
+ {
+  "id": "4FJ6",
+  "name": "Nested implicit complex keys",
+  "yaml": "---\n[\n  [ a, [ [[b,c]]: d, e]]: 23\n]\n",
+  "error": false
+ },
+ {
+  "id": "4GC6",
+  "name": "Spec Example 7.7. Single Quoted Characters",
+  "yaml": "'here''s to \"quotes\"'\n",
+  "error": false,
+  "json": [
+   "here's to \"quotes\""
+  ]
+ },
+ {
+  "id": "4H7K",
+  "name": "Flow sequence with invalid extra closing bracket",
+  "yaml": "---\n[ a, b, c ] ]\n",
+  "error": true
+ },
+ {
+  "id": "4HVU",
+  "name": "Wrong indendation in Sequence",
+  "yaml": "key:\n   - ok\n   - also ok\n  - wrong\n",
+  "error": true
+ },
+ {
+  "id": "4JVG",
+  "name": "Scalar value with two anchors",
+  "yaml": "top1: &node1\n  &k1 key1: val1\ntop2: &node2\n  &v2 val2\n",
+  "error": true
+ },
+ {
+  "id": "4MUZ/00",
+  "name": "Flow mapping colon on line after key",
+  "yaml": "{\"foo\"\n: \"bar\"}\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "4MUZ/01",
+  "name": "Flow mapping colon on line after key",
+  "yaml": "{\"foo\"\n: bar}\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "4MUZ/02",
+  "name": "Flow mapping colon on line after key",
+  "yaml": "{foo\n: bar}\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "4Q9F",
+  "name": "Folded Block Scalar [1.3]",
+  "yaml": "--- >\n ab\n cd\n \n ef\n\n\n gh\n",
+  "error": false,
+  "json": [
+   "ab cd\nef\n\ngh\n"
+  ]
+ },
+ {
+  "id": "4QFQ",
+  "name": "Spec Example 8.2. Block Indentation Indicator [1.3]",
+  "yaml": "- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n detected\n",
+  "error": false,
+  "json": [
+   [
+    "detected\n",
+    "\n\n# detected\n",
+    " explicit\n",
+    "detected\n"
+   ]
+  ]
+ },
+ {
+  "id": "4RWC",
+  "name": "Trailing spaces after flow collection",
+  "yaml": "  [1, 2, 3]  \n  ",
+  "error": false,
+  "json": [
+   [
+    1,
+    2,
+    3
+   ]
+  ]
+ },
+ {
+  "id": "4UYU",
+  "name": "Colon in Double Quoted String",
+  "yaml": "\"foo: bar\\\": baz\"\n",
+  "error": false,
+  "json": [
+   "foo: bar\": baz"
+  ]
+ },
+ {
+  "id": "4V8U",
+  "name": "Plain scalar with backslashes",
+  "yaml": "---\nplain\\value\\with\\backslashes\n",
+  "error": false,
+  "json": [
+   "plain\\value\\with\\backslashes"
+  ]
+ },
+ {
+  "id": "4WA9",
+  "name": "Literal scalars",
+  "yaml": "- aaa: |2\n    xxx\n  bbb: |\n    xxx\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "aaa": "xxx\n",
+     "bbb": "xxx\n"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "4ZYM",
+  "name": "Spec Example 6.4. Line Prefixes",
+  "yaml": "plain: text\n  lines\nquoted: \"text\n  \tlines\"\nblock: |\n  text\n   \tlines\n",
+  "error": false,
+  "json": [
+   {
+    "plain": "text lines",
+    "quoted": "text lines",
+    "block": "text\n \tlines\n"
+   }
+  ]
+ },
+ {
+  "id": "52DL",
+  "name": "Explicit Non-Specific Tag [1.3]",
+  "yaml": "---\n! a\n",
+  "error": false,
+  "json": [
+   "a"
+  ]
+ },
+ {
+  "id": "54T7",
+  "name": "Flow Mapping",
+  "yaml": "{foo: you, bar: far}\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "you",
+    "bar": "far"
+   }
+  ]
+ },
+ {
+  "id": "55WF",
+  "name": "Invalid escape in double quoted string",
+  "yaml": "---\n\"\\.\"\n",
+  "error": true
+ },
+ {
+  "id": "565N",
+  "name": "Construct Binary",
+  "yaml": "canonical: !!binary \"\\\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\\\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\\\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\\\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\"\ngeneric: !!binary |\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\ndescription:\n The binary value above is a tiny arrow encoded as a gif image.\n",
+  "error": false,
+  "json": [
+   {
+    "canonical": "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLCAgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=",
+    "generic": "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\nOTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n+f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\nAgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\n",
+    "description": "The binary value above is a tiny arrow encoded as a gif image."
+   }
+  ]
+ },
+ {
+  "id": "57H4",
+  "name": "Spec Example 8.22. Block Collection Nodes",
+  "yaml": "sequence: !!seq\n- entry\n- !!seq\n - nested\nmapping: !!map\n foo: bar\n",
+  "error": false,
+  "json": [
+   {
+    "sequence": [
+     "entry",
+     [
+      "nested"
+     ]
+    ],
+    "mapping": {
+     "foo": "bar"
+    }
+   }
+  ]
+ },
+ {
+  "id": "58MP",
+  "name": "Flow mapping edge cases",
+  "yaml": "{x: :x}\n",
+  "error": false,
+  "json": [
+   {
+    "x": ":x"
+   }
+  ]
+ },
+ {
+  "id": "5BVJ",
+  "name": "Spec Example 5.7. Block Scalar Indicators",
+  "yaml": "literal: |\n  some\n  text\nfolded: >\n  some\n  text\n",
+  "error": false,
+  "json": [
+   {
+    "literal": "some\ntext\n",
+    "folded": "some text\n"
+   }
+  ]
+ },
+ {
+  "id": "5C5M",
+  "name": "Spec Example 7.15. Flow Mappings",
+  "yaml": "- { one : two , three: four , }\n- {five: six,seven : eight}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "one": "two",
+     "three": "four"
+    },
+    {
+     "five": "six",
+     "seven": "eight"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "5GBF",
+  "name": "Spec Example 6.5. Empty Lines",
+  "yaml": "Folding:\n  \"Empty line\n   \t\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n",
+  "error": false,
+  "json": [
+   {
+    "Folding": "Empty line\nas a line feed",
+    "Chomping": "Clipped empty lines\n"
+   }
+  ]
+ },
+ {
+  "id": "5KJE",
+  "name": "Spec Example 7.13. Flow Sequence",
+  "yaml": "- [ one, two, ]\n- [three ,four]\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "one",
+     "two"
+    ],
+    [
+     "three",
+     "four"
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "5LLU",
+  "name": "Block scalar with wrong indented line after spaces only",
+  "yaml": "block scalar: >\n \n  \n   \n invalid\n",
+  "error": true
+ },
+ {
+  "id": "5MUD",
+  "name": "Colon and adjacent value on next line",
+  "yaml": "---\n{ \"foo\"\n  :bar }\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "5NYZ",
+  "name": "Spec Example 6.9. Separated Comment",
+  "yaml": "key:    # Comment\n  value\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value"
+   }
+  ]
+ },
+ {
+  "id": "5T43",
+  "name": "Colon at the beginning of adjacent flow scalar",
+  "yaml": "- { \"key\":value }\n- { \"key\"::value }\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "key": "value"
+    },
+    {
+     "key": ":value"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "5TRB",
+  "name": "Invalid document-start marker in doublequoted tring",
+  "yaml": "---\n\"\n---\n\"\n",
+  "error": true
+ },
+ {
+  "id": "5TYM",
+  "name": "Spec Example 6.21. Local Tag Prefix",
+  "yaml": "%TAG !m! !my-\n--- # Bulb here\n!m!light fluorescent\n...\n%TAG !m! !my-\n--- # Color here\n!m!light green\n",
+  "error": false,
+  "json": [
+   "fluorescent",
+   "green"
+  ]
+ },
+ {
+  "id": "5U3A",
+  "name": "Sequence on same Line as Mapping Key",
+  "yaml": "key: - a\n     - b\n",
+  "error": true
+ },
+ {
+  "id": "5WE3",
+  "name": "Spec Example 8.17. Explicit Block Mapping Entries",
+  "yaml": "? explicit key # Empty value\n? |\n  block key\n: - one # Explicit compact\n  - two # block value\n",
+  "error": false,
+  "json": [
+   {
+    "explicit key": null,
+    "block key\n": [
+     "one",
+     "two"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "62EZ",
+  "name": "Invalid block mapping key on same line as previous key",
+  "yaml": "---\nx: { y: z }in: valid\n",
+  "error": true
+ },
+ {
+  "id": "652Z",
+  "name": "Question mark at start of flow key",
+  "yaml": "{ ?foo: bar,\nbar: 42\n}\n",
+  "error": false,
+  "json": [
+   {
+    "?foo": "bar",
+    "bar": 42
+   }
+  ]
+ },
+ {
+  "id": "65WH",
+  "name": "Single Entry Block Sequence",
+  "yaml": "- foo\n",
+  "error": false,
+  "json": [
+   [
+    "foo"
+   ]
+  ]
+ },
+ {
+  "id": "6BCT",
+  "name": "Spec Example 6.3. Separation Spaces",
+  "yaml": "- foo:\t bar\n- - baz\n  -\tbaz\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "foo": "bar"
+    },
+    [
+     "baz",
+     "baz"
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "6BFJ",
+  "name": "Mapping, key and flow sequence item anchors",
+  "yaml": "---\n&mapping\n&key [ &item a, b, c ]: value\n",
+  "error": false
+ },
+ {
+  "id": "6CA3",
+  "name": "Tab indented top flow",
+  "yaml": "\t[\n\t]\n",
+  "error": false,
+  "json": [
+   []
+  ]
+ },
+ {
+  "id": "6CK3",
+  "name": "Spec Example 6.26. Tag Shorthands",
+  "yaml": "%TAG !e! tag:example.com,2000:app/\n---\n- !local foo\n- !!str bar\n- !e!tag%21 baz\n",
+  "error": false,
+  "json": [
+   [
+    "foo",
+    "bar",
+    "baz"
+   ]
+  ]
+ },
+ {
+  "id": "6FWR",
+  "name": "Block Scalar Keep",
+  "yaml": "--- |+\n ab\n \n  \n...\n",
+  "error": false,
+  "json": [
+   "ab\n\n \n"
+  ]
+ },
+ {
+  "id": "6H3V",
+  "name": "Backslashes in singlequotes",
+  "yaml": "'foo: bar\\': baz'\n",
+  "error": false,
+  "json": [
+   {
+    "foo: bar\\": "baz'"
+   }
+  ]
+ },
+ {
+  "id": "6HB6",
+  "name": "Spec Example 6.1. Indentation Spaces",
+  "yaml": "  # Leading comment line spaces are\n   # neither content nor indentation.\n    \nNot indented:\n By one space: |\n    By four\n      spaces\n Flow style: [    # Leading spaces\n   By two,        # in flow style\n  Also by two,    # are neither\n  \tStill by two   # content nor\n    ]             # indentation.\n",
+  "error": false,
+  "json": [
+   {
+    "Not indented": {
+     "By one space": "By four\n  spaces\n",
+     "Flow style": [
+      "By two",
+      "Also by two",
+      "Still by two"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "6JQW",
+  "name": "Spec Example 2.13. In literals, newlines are preserved",
+  "yaml": "# ASCII Art\n--- |\n  \\//||\\/||\n  // ||  ||__\n",
+  "error": false,
+  "json": [
+   "\\//||\\/||\n// ||  ||__\n"
+  ]
+ },
+ {
+  "id": "6JTT",
+  "name": "Flow sequence without closing bracket",
+  "yaml": "---\n[ [ a, b, c ]\n",
+  "error": true
+ },
+ {
+  "id": "6JWB",
+  "name": "Tags for Block Objects",
+  "yaml": "foo: !!seq\n  - !!str a\n  - !!map\n    key: !!str value\n",
+  "error": false,
+  "json": [
+   {
+    "foo": [
+     "a",
+     {
+      "key": "value"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "6KGN",
+  "name": "Anchor for empty node",
+  "yaml": "---\na: &anchor\nb: *anchor\n",
+  "error": false,
+  "json": [
+   {
+    "a": null,
+    "b": null
+   }
+  ]
+ },
+ {
+  "id": "6LVF",
+  "name": "Spec Example 6.13. Reserved Directives",
+  "yaml": "%FOO  bar baz # Should be ignored\n              # with a warning.\n--- \"foo\"\n",
+  "error": false,
+  "json": [
+   "foo"
+  ]
+ },
+ {
+  "id": "6M2F",
+  "name": "Aliases in Explicit Block Mapping",
+  "yaml": "? &a a\n: &b b\n: *a\n",
+  "error": false
+ },
+ {
+  "id": "6PBE",
+  "name": "Zero-indented sequences in explicit mapping keys",
+  "yaml": "---\n?\n- a\n- b\n:\n- c\n- d\n",
+  "error": false
+ },
+ {
+  "id": "6S55",
+  "name": "Invalid scalar at the end of sequence",
+  "yaml": "key:\n - bar\n - baz\n invalid\n",
+  "error": true
+ },
+ {
+  "id": "6SLA",
+  "name": "Allowed characters in quoted mapping key",
+  "yaml": "\"foo\\nbar:baz\\tx \\\\$%^&*()x\": 23\n'x\\ny:z\\tx $%^&*()x': 24\n",
+  "error": false,
+  "json": [
+   {
+    "foo\nbar:baz\tx \\$%^&*()x": 23,
+    "x\\ny:z\\tx $%^&*()x": 24
+   }
+  ]
+ },
+ {
+  "id": "6VJK",
+  "name": "Spec Example 2.15. Folded newlines are preserved for \"more indented\" and blank lines",
+  "yaml": ">\n Sammy Sosa completed another\n fine season with great stats.\n\n   63 Home Runs\n   0.288 Batting Average\n\n What a year!\n",
+  "error": false,
+  "json": [
+   "Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!\n"
+  ]
+ },
+ {
+  "id": "6WLZ",
+  "name": "Spec Example 6.18. Primary Tag Handle [1.3]",
+  "yaml": "# Private\n---\n!foo \"bar\"\n...\n# Global\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n",
+  "error": false,
+  "json": [
+   "bar",
+   "bar"
+  ]
+ },
+ {
+  "id": "6WPF",
+  "name": "Spec Example 6.8. Flow Folding [1.3]",
+  "yaml": "---\n\"\n  foo \n \n    bar\n\n  baz\n\"\n",
+  "error": false,
+  "json": [
+   " foo\nbar\nbaz "
+  ]
+ },
+ {
+  "id": "6XDY",
+  "name": "Two document start markers",
+  "yaml": "---\n---\n",
+  "error": false,
+  "json": [
+   null,
+   null
+  ]
+ },
+ {
+  "id": "6ZKB",
+  "name": "Spec Example 9.6. Stream",
+  "yaml": "Document\n---\n# Empty\n...\n%YAML 1.2\n---\nmatches %: 20\n",
+  "error": false,
+  "json": [
+   "Document",
+   null,
+   {
+    "matches %": 20
+   }
+  ]
+ },
+ {
+  "id": "735Y",
+  "name": "Spec Example 8.20. Block Node Types",
+  "yaml": "-\n  \"flow in block\"\n- >\n Block scalar\n- !!map # Block collection\n  foo : bar\n",
+  "error": false,
+  "json": [
+   [
+    "flow in block",
+    "Block scalar\n",
+    {
+     "foo": "bar"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "74H7",
+  "name": "Tags in Implicit Mapping",
+  "yaml": "!!str a: b\nc: !!int 42\ne: !!str f\ng: h\n!!str 23: !!bool false\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b",
+    "c": 42,
+    "e": "f",
+    "g": "h",
+    "23": false
+   }
+  ]
+ },
+ {
+  "id": "753E",
+  "name": "Block Scalar Strip [1.3]",
+  "yaml": "--- |-\n ab\n \n \n...\n",
+  "error": false,
+  "json": [
+   "ab"
+  ]
+ },
+ {
+  "id": "7A4E",
+  "name": "Spec Example 7.6. Double Quoted Lines",
+  "yaml": "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"\n",
+  "error": false,
+  "json": [
+   " 1st non-empty\n2nd non-empty 3rd non-empty "
+  ]
+ },
+ {
+  "id": "7BMT",
+  "name": "Node and Mapping Key Anchors [1.3]",
+  "yaml": "---\ntop1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4: &node4\n  &k4 key4: four\ntop5: &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n",
+  "error": false,
+  "json": [
+   {
+    "top1": {
+     "key1": "one"
+    },
+    "top2": {
+     "key2": "two"
+    },
+    "top3": {
+     "key3": "three"
+    },
+    "top4": {
+     "key4": "four"
+    },
+    "top5": {
+     "key5": "five"
+    },
+    "top6": "six",
+    "top7": "seven"
+   }
+  ]
+ },
+ {
+  "id": "7BUB",
+  "name": "Spec Example 2.10. Node for \u201cSammy Sosa\u201d appears twice in this document",
+  "yaml": "---\nhr:\n  - Mark McGwire\n  # Following node labeled SS\n  - &SS Sammy Sosa\nrbi:\n  - *SS # Subsequent occurrence\n  - Ken Griffey\n",
+  "error": false,
+  "json": [
+   {
+    "hr": [
+     "Mark McGwire",
+     "Sammy Sosa"
+    ],
+    "rbi": [
+     "Sammy Sosa",
+     "Ken Griffey"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "7FWL",
+  "name": "Spec Example 6.24. Verbatim Tags",
+  "yaml": "!<tag:yaml.org,2002:str> foo :\n  !<!bar> baz\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "baz"
+   }
+  ]
+ },
+ {
+  "id": "7LBH",
+  "name": "Multiline double quoted implicit keys",
+  "yaml": "\"a\\nb\": 1\n\"c\n d\": 1\n",
+  "error": true
+ },
+ {
+  "id": "7MNF",
+  "name": "Missing colon",
+  "yaml": "top1:\n  key1: val1\ntop2\n",
+  "error": true
+ },
+ {
+  "id": "7T8X",
+  "name": "Spec Example 8.10. Folded Lines - 8.13. Final Empty Lines",
+  "yaml": ">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n# Comment\n",
+  "error": false,
+  "json": [
+   "\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n"
+  ]
+ },
+ {
+  "id": "7TMG",
+  "name": "Comment in flow sequence before comma",
+  "yaml": "---\n[ word1\n# comment\n, word2]\n",
+  "error": false,
+  "json": [
+   [
+    "word1",
+    "word2"
+   ]
+  ]
+ },
+ {
+  "id": "7W2P",
+  "name": "Block Mapping with Missing Values",
+  "yaml": "? a\n? b\nc:\n",
+  "error": false,
+  "json": [
+   {
+    "a": null,
+    "b": null,
+    "c": null
+   }
+  ]
+ },
+ {
+  "id": "7Z25",
+  "name": "Bare document after document end marker",
+  "yaml": "---\nscalar1\n...\nkey: value\n",
+  "error": false,
+  "json": [
+   "scalar1",
+   {
+    "key": "value"
+   }
+  ]
+ },
+ {
+  "id": "7ZZ5",
+  "name": "Empty flow collections",
+  "yaml": "---\nnested sequences:\n- - - []\n- - - {}\nkey1: []\nkey2: {}\n",
+  "error": false,
+  "json": [
+   {
+    "nested sequences": [
+     [
+      [
+       []
+      ]
+     ],
+     [
+      [
+       {}
+      ]
+     ]
+    ],
+    "key1": [],
+    "key2": {}
+   }
+  ]
+ },
+ {
+  "id": "82AN",
+  "name": "Three dashes and content without space",
+  "yaml": "---word1\nword2\n",
+  "error": false,
+  "json": [
+   "---word1 word2"
+  ]
+ },
+ {
+  "id": "87E4",
+  "name": "Spec Example 7.8. Single Quoted Implicit Keys",
+  "yaml": "'implicit block key' : [\n  'implicit flow key' : value,\n ]\n",
+  "error": false,
+  "json": [
+   {
+    "implicit block key": [
+     {
+      "implicit flow key": "value"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8CWC",
+  "name": "Plain mapping key ending with colon",
+  "yaml": "---\nkey ends with two colons::: value\n",
+  "error": false,
+  "json": [
+   {
+    "key ends with two colons::": "value"
+   }
+  ]
+ },
+ {
+  "id": "8G76",
+  "name": "Spec Example 6.10. Comment Lines",
+  "yaml": "  # Comment\n   \n\n\n",
+  "error": false,
+  "json": []
+ },
+ {
+  "id": "8KB6",
+  "name": "Multiline plain flow mapping key without value",
+  "yaml": "---\n- { single line, a: b}\n- { multi\n  line, a: b}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "single line": null,
+     "a": "b"
+    },
+    {
+     "multi line": null,
+     "a": "b"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "8MK2",
+  "name": "Explicit Non-Specific Tag",
+  "yaml": "! a\n",
+  "error": false,
+  "json": [
+   "a"
+  ]
+ },
+ {
+  "id": "8QBE",
+  "name": "Block Sequence in Block Mapping",
+  "yaml": "key:\n - item1\n - item2\n",
+  "error": false,
+  "json": [
+   {
+    "key": [
+     "item1",
+     "item2"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8UDB",
+  "name": "Spec Example 7.14. Flow Sequence Entries",
+  "yaml": "[\n\"double\n quoted\", 'single\n           quoted',\nplain\n text, [ nested ],\nsingle: pair,\n]\n",
+  "error": false,
+  "json": [
+   [
+    "double quoted",
+    "single quoted",
+    "plain text",
+    [
+     "nested"
+    ],
+    {
+     "single": "pair"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "8XDJ",
+  "name": "Comment in plain multiline value",
+  "yaml": "key: word1\n#  xxx\n  word2\n",
+  "error": true
+ },
+ {
+  "id": "8XYN",
+  "name": "Anchor with unicode character",
+  "yaml": "---\n- &\ud83d\ude01 unicode anchor\n",
+  "error": false,
+  "json": [
+   [
+    "unicode anchor"
+   ]
+  ]
+ },
+ {
+  "id": "93JH",
+  "name": "Block Mappings in Block Sequence",
+  "yaml": " - key: value\n   key2: value2\n -\n   key3: value3\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "key": "value",
+     "key2": "value2"
+    },
+    {
+     "key3": "value3"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "93WF",
+  "name": "Spec Example 6.6. Line Folding [1.3]",
+  "yaml": "--- >-\n  trimmed\n  \n \n\n  as\n  space\n",
+  "error": false,
+  "json": [
+   "trimmed\n\n\nas space"
+  ]
+ },
+ {
+  "id": "96L6",
+  "name": "Spec Example 2.14. In the folded scalars, newlines become spaces",
+  "yaml": "--- >\n  Mark McGwire's\n  year was crippled\n  by a knee injury.\n",
+  "error": false,
+  "json": [
+   "Mark McGwire's year was crippled by a knee injury.\n"
+  ]
+ },
+ {
+  "id": "96NN/00",
+  "name": "Leading tab content in literals",
+  "yaml": "foo: |-\n \tbar\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "\tbar"
+   }
+  ]
+ },
+ {
+  "id": "96NN/01",
+  "name": "Leading tab content in literals",
+  "yaml": "foo: |-\n \tbar",
+  "error": false,
+  "json": [
+   {
+    "foo": "\tbar"
+   }
+  ]
+ },
+ {
+  "id": "98YD",
+  "name": "Spec Example 5.5. Comment Indicator",
+  "yaml": "# Comment only.\n",
+  "error": false,
+  "json": []
+ },
+ {
+  "id": "9BXH",
+  "name": "Multiline doublequoted flow mapping key without value",
+  "yaml": "---\n- { \"single line\", a: b}\n- { \"multi\n  line\", a: b}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "single line": null,
+     "a": "b"
+    },
+    {
+     "multi line": null,
+     "a": "b"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "9C9N",
+  "name": "Wrong indented flow sequence",
+  "yaml": "---\nflow: [a,\nb,\nc]\n",
+  "error": true
+ },
+ {
+  "id": "9CWY",
+  "name": "Invalid scalar at the end of mapping",
+  "yaml": "key:\n - item1\n - item2\ninvalid\n",
+  "error": true
+ },
+ {
+  "id": "9DXL",
+  "name": "Spec Example 9.6. Stream [1.3]",
+  "yaml": "Mapping: Document\n---\n# Empty\n...\n%YAML 1.2\n---\nmatches %: 20\n",
+  "error": false,
+  "json": [
+   {
+    "Mapping": "Document"
+   },
+   null,
+   {
+    "matches %": 20
+   }
+  ]
+ },
+ {
+  "id": "9FMG",
+  "name": "Multi-level Mapping Indent",
+  "yaml": "a:\n  b:\n    c: d\n  e:\n    f: g\nh: i\n",
+  "error": false,
+  "json": [
+   {
+    "a": {
+     "b": {
+      "c": "d"
+     },
+     "e": {
+      "f": "g"
+     }
+    },
+    "h": "i"
+   }
+  ]
+ },
+ {
+  "id": "9HCY",
+  "name": "Need document footer before directives",
+  "yaml": "!foo \"bar\"\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n",
+  "error": true
+ },
+ {
+  "id": "9J7A",
+  "name": "Simple Mapping Indent",
+  "yaml": "foo:\n  bar: baz\n",
+  "error": false,
+  "json": [
+   {
+    "foo": {
+     "bar": "baz"
+    }
+   }
+  ]
+ },
+ {
+  "id": "9JBA",
+  "name": "Invalid comment after end of flow sequence",
+  "yaml": "---\n[ a, b, c, ]#invalid\n",
+  "error": true
+ },
+ {
+  "id": "9KAX",
+  "name": "Various combinations of tags and anchors",
+  "yaml": "---\n&a1\n!!str\nscalar1\n---\n!!str\n&a2\nscalar2\n---\n&a3\n!!str scalar3\n---\n&a4 !!map\n&a5 !!str key5: value4\n---\na6: 1\n&anchor6 b6: 2\n---\n!!map\n&a8 !!str key8: value7\n---\n!!map\n!!str &a10 key10: value9\n---\n!!str &a11\nvalue11\n",
+  "error": false,
+  "json": [
+   "scalar1",
+   "scalar2",
+   "scalar3",
+   {
+    "key5": "value4"
+   },
+   {
+    "a6": 1,
+    "b6": 2
+   },
+   {
+    "key8": "value7"
+   },
+   {
+    "key10": "value9"
+   },
+   "value11"
+  ]
+ },
+ {
+  "id": "9KBC",
+  "name": "Mapping starting at --- line",
+  "yaml": "--- key1: value1\n    key2: value2\n",
+  "error": true
+ },
+ {
+  "id": "9MAG",
+  "name": "Flow sequence with invalid comma at the beginning",
+  "yaml": "---\n[ , a, b, c ]\n",
+  "error": true
+ },
+ {
+  "id": "9MMA",
+  "name": "Directive by itself with no document",
+  "yaml": "%YAML 1.2\n",
+  "error": true
+ },
+ {
+  "id": "9MMW",
+  "name": "Single Pair Implicit Entries",
+  "yaml": "- [ YAML : separate ]\n- [ \"JSON like\":adjacent ]\n- [ {JSON: like}:adjacent ]\n",
+  "error": false
+ },
+ {
+  "id": "9MQT/00",
+  "name": "Scalar doc with '...' in content",
+  "yaml": "--- \"a\n...x\nb\"\n",
+  "error": false,
+  "json": [
+   "a ...x b"
+  ]
+ },
+ {
+  "id": "9MQT/01",
+  "name": "Scalar doc with '...' in content",
+  "yaml": "--- \"a\n... x\nb\"\n",
+  "error": true,
+  "json": [
+   "a ...x b"
+  ]
+ },
+ {
+  "id": "9SA2",
+  "name": "Multiline double quoted flow mapping key",
+  "yaml": "---\n- { \"single line\": value}\n- { \"multi\n  line\": value}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "single line": "value"
+    },
+    {
+     "multi line": "value"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "9SHH",
+  "name": "Spec Example 5.8. Quoted Scalar Indicators",
+  "yaml": "single: 'text'\ndouble: \"text\"\n",
+  "error": false,
+  "json": [
+   {
+    "single": "text",
+    "double": "text"
+   }
+  ]
+ },
+ {
+  "id": "9TFX",
+  "name": "Spec Example 7.6. Double Quoted Lines [1.3]",
+  "yaml": "---\n\" 1st non-empty\n\n 2nd non-empty \n 3rd non-empty \"\n",
+  "error": false,
+  "json": [
+   " 1st non-empty\n2nd non-empty 3rd non-empty "
+  ]
+ },
+ {
+  "id": "9U5K",
+  "name": "Spec Example 2.12. Compact Nested Mapping",
+  "yaml": "---\n# Products purchased\n- item    : Super Hoop\n  quantity: 1\n- item    : Basketball\n  quantity: 4\n- item    : Big Shoes\n  quantity: 1\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "item": "Super Hoop",
+     "quantity": 1
+    },
+    {
+     "item": "Basketball",
+     "quantity": 4
+    },
+    {
+     "item": "Big Shoes",
+     "quantity": 1
+    }
+   ]
+  ]
+ },
+ {
+  "id": "9WXW",
+  "name": "Spec Example 6.18. Primary Tag Handle",
+  "yaml": "# Private\n!foo \"bar\"\n...\n# Global\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n",
+  "error": false,
+  "json": [
+   "bar",
+   "bar"
+  ]
+ },
+ {
+  "id": "9YRD",
+  "name": "Multiline Scalar at Top Level",
+  "yaml": "a\nb  \n  c\nd\n\ne\n",
+  "error": false,
+  "json": [
+   "a b c d\ne"
+  ]
+ },
+ {
+  "id": "A2M4",
+  "name": "Spec Example 6.2. Indentation Indicators",
+  "yaml": "? a\n: -\tb\n  -  -\tc\n     - d\n",
+  "error": false,
+  "json": [
+   {
+    "a": [
+     "b",
+     [
+      "c",
+      "d"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "id": "A6F9",
+  "name": "Spec Example 8.4. Chomping Final Line Break",
+  "yaml": "strip: |-\n  text\nclip: |\n  text\nkeep: |+\n  text\n",
+  "error": false,
+  "json": [
+   {
+    "strip": "text",
+    "clip": "text\n",
+    "keep": "text\n"
+   }
+  ]
+ },
+ {
+  "id": "A984",
+  "name": "Multiline Scalar in Mapping",
+  "yaml": "a: b\n c\nd:\n e\n  f\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b c",
+    "d": "e f"
+   }
+  ]
+ },
+ {
+  "id": "AB8U",
+  "name": "Sequence entry that looks like two with wrong indentation",
+  "yaml": "- single multiline\n - sequence entry\n",
+  "error": false,
+  "json": [
+   [
+    "single multiline - sequence entry"
+   ]
+  ]
+ },
+ {
+  "id": "AVM7",
+  "name": "Empty Stream",
+  "yaml": "",
+  "error": false,
+  "json": []
+ },
+ {
+  "id": "AZ63",
+  "name": "Sequence With Same Indentation as Parent Mapping",
+  "yaml": "one:\n- 2\n- 3\nfour: 5\n",
+  "error": false,
+  "json": [
+   {
+    "one": [
+     2,
+     3
+    ],
+    "four": 5
+   }
+  ]
+ },
+ {
+  "id": "AZW3",
+  "name": "Lookahead test cases",
+  "yaml": "- bla\"keks: foo\n- bla]keks: foo\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "bla\"keks": "foo"
+    },
+    {
+     "bla]keks": "foo"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "B3HG",
+  "name": "Spec Example 8.9. Folded Scalar [1.3]",
+  "yaml": "--- >\n folded\n text\n\n\n",
+  "error": false,
+  "json": [
+   "folded text\n"
+  ]
+ },
+ {
+  "id": "B63P",
+  "name": "Directive without document",
+  "yaml": "%YAML 1.2\n...\n",
+  "error": true
+ },
+ {
+  "id": "BD7L",
+  "name": "Invalid mapping after sequence",
+  "yaml": "- item1\n- item2\ninvalid: x\n",
+  "error": true
+ },
+ {
+  "id": "BEC7",
+  "name": "Spec Example 6.14. \u201cYAML\u201d directive",
+  "yaml": "%YAML 1.3 # Attempt parsing\n          # with a warning\n---\n\"foo\"\n",
+  "error": false,
+  "json": [
+   "foo"
+  ]
+ },
+ {
+  "id": "BF9H",
+  "name": "Trailing comment in multiline plain scalar",
+  "yaml": "---\nplain: a\n       b # end of scalar\n       c\n",
+  "error": true
+ },
+ {
+  "id": "BS4K",
+  "name": "Comment between plain scalar lines",
+  "yaml": "word1  # comment\nword2\n",
+  "error": true
+ },
+ {
+  "id": "BU8L",
+  "name": "Node Anchor and Tag on Seperate Lines",
+  "yaml": "key: &anchor\n !!map\n  a: b\n",
+  "error": false,
+  "json": [
+   {
+    "key": {
+     "a": "b"
+    }
+   }
+  ]
+ },
+ {
+  "id": "C2DT",
+  "name": "Spec Example 7.18. Flow Mapping Adjacent Values",
+  "yaml": "{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}\n",
+  "error": false,
+  "json": [
+   {
+    "adjacent": "value",
+    "readable": "value",
+    "empty": null
+   }
+  ]
+ },
+ {
+  "id": "C2SP",
+  "name": "Flow Mapping Key on two lines",
+  "yaml": "[23\n]: 42\n",
+  "error": true
+ },
+ {
+  "id": "C4HZ",
+  "name": "Spec Example 2.24. Global Tags",
+  "yaml": "%TAG ! tag:clarkevans.com,2002:\n--- !shape\n  # Use the ! handle for presenting\n  # tag:clarkevans.com,2002:circle\n- !circle\n  center: &ORIGIN {x: 73, y: 129}\n  radius: 7\n- !line\n  start: *ORIGIN\n  finish: { x: 89, y: 102 }\n- !label\n  start: *ORIGIN\n  color: 0xFFEEBB\n  text: Pretty vector drawing.\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "center": {
+      "x": 73,
+      "y": 129
+     },
+     "radius": 7
+    },
+    {
+     "start": {
+      "x": 73,
+      "y": 129
+     },
+     "finish": {
+      "x": 89,
+      "y": 102
+     }
+    },
+    {
+     "start": {
+      "x": 73,
+      "y": 129
+     },
+     "color": 16772795,
+     "text": "Pretty vector drawing."
+    }
+   ]
+  ]
+ },
+ {
+  "id": "CC74",
+  "name": "Spec Example 6.20. Tag Handles",
+  "yaml": "%TAG !e! tag:example.com,2000:app/\n---\n!e!foo \"bar\"\n",
+  "error": false,
+  "json": [
+   "bar"
+  ]
+ },
+ {
+  "id": "CFD4",
+  "name": "Empty implicit key in single pair flow sequences",
+  "yaml": "- [ : empty key ]\n- [: another empty key]\n",
+  "error": false
+ },
+ {
+  "id": "CML9",
+  "name": "Missing comma in flow",
+  "yaml": "key: [ word1\n#  xxx\n  word2 ]\n",
+  "error": true
+ },
+ {
+  "id": "CN3R",
+  "name": "Various location of anchors in flow sequence",
+  "yaml": "&flowseq [\n a: b,\n &c c: d,\n { &e e: f },\n &g { g: h }\n]\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "a": "b"
+    },
+    {
+     "c": "d"
+    },
+    {
+     "e": "f"
+    },
+    {
+     "g": "h"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "CPZ3",
+  "name": "Doublequoted scalar starting with a tab",
+  "yaml": "---\ntab: \"\\tstring\"\n",
+  "error": false,
+  "json": [
+   {
+    "tab": "\tstring"
+   }
+  ]
+ },
+ {
+  "id": "CQ3W",
+  "name": "Double quoted string without closing quote",
+  "yaml": "---\nkey: \"missing closing quote\n",
+  "error": true
+ },
+ {
+  "id": "CT4Q",
+  "name": "Spec Example 7.20. Single Pair Explicit Entry",
+  "yaml": "[\n? foo\n bar : baz\n]\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "foo bar": "baz"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "CTN5",
+  "name": "Flow sequence with invalid extra comma",
+  "yaml": "---\n[ a, b, c, , ]\n",
+  "error": true
+ },
+ {
+  "id": "CUP7",
+  "name": "Spec Example 5.6. Node Property Indicators",
+  "yaml": "anchored: !local &anchor value\nalias: *anchor\n",
+  "error": false,
+  "json": [
+   {
+    "anchored": "value",
+    "alias": "value"
+   }
+  ]
+ },
+ {
+  "id": "CVW2",
+  "name": "Invalid comment after comma",
+  "yaml": "---\n[ a, b, c,#invalid\n]\n",
+  "error": true
+ },
+ {
+  "id": "CXX2",
+  "name": "Mapping with anchor on document start line",
+  "yaml": "--- &anchor a: b\n",
+  "error": true
+ },
+ {
+  "id": "D49Q",
+  "name": "Multiline single quoted implicit keys",
+  "yaml": "'a\\nb': 1\n'c\n d': 1\n",
+  "error": true
+ },
+ {
+  "id": "D83L",
+  "name": "Block scalar indicator order",
+  "yaml": "- |2-\n  explicit indent and chomp\n- |-2\n  chomp and explicit indent\n",
+  "error": false,
+  "json": [
+   [
+    "explicit indent and chomp",
+    "chomp and explicit indent"
+   ]
+  ]
+ },
+ {
+  "id": "D88J",
+  "name": "Flow Sequence in Block Mapping",
+  "yaml": "a: [b, c]\n",
+  "error": false,
+  "json": [
+   {
+    "a": [
+     "b",
+     "c"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "D9TU",
+  "name": "Single Pair Block Mapping",
+  "yaml": "foo: bar\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "DBG4",
+  "name": "Spec Example 7.10. Plain Characters",
+  "yaml": "# Outside flow collection:\n- ::vector\n- \": - ()\"\n- Up, up, and away!\n- -123\n- http://example.com/foo#bar\n# Inside flow collection:\n- [ ::vector,\n  \": - ()\",\n  \"Up, up and away!\",\n  -123,\n  http://example.com/foo#bar ]\n",
+  "error": false,
+  "json": [
+   [
+    "::vector",
+    ": - ()",
+    "Up, up, and away!",
+    -123,
+    "http://example.com/foo#bar",
+    [
+     "::vector",
+     ": - ()",
+     "Up, up and away!",
+     -123,
+     "http://example.com/foo#bar"
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "DC7X",
+  "name": "Various trailing tabs",
+  "yaml": "a: b\t\nseq:\t\n - a\t\nc: d\t#X\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b",
+    "seq": [
+     "a"
+    ],
+    "c": "d"
+   }
+  ]
+ },
+ {
+  "id": "DE56/00",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"1 trailing\\t\n    tab\"\n",
+  "error": false,
+  "json": [
+   "1 trailing\t tab"
+  ]
+ },
+ {
+  "id": "DE56/01",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"2 trailing\\t  \n    tab\"\n",
+  "error": false,
+  "json": [
+   "2 trailing\t tab"
+  ]
+ },
+ {
+  "id": "DE56/02",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"3 trailing\\\t\n    tab\"\n",
+  "error": false,
+  "json": [
+   "3 trailing\t tab"
+  ]
+ },
+ {
+  "id": "DE56/03",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"4 trailing\\\t  \n    tab\"\n",
+  "error": false,
+  "json": [
+   "4 trailing\t tab"
+  ]
+ },
+ {
+  "id": "DE56/04",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"5 trailing\t\n    tab\"\n",
+  "error": false,
+  "json": [
+   "5 trailing tab"
+  ]
+ },
+ {
+  "id": "DE56/05",
+  "name": "Trailing tabs in double quoted",
+  "yaml": "\"6 trailing\t  \n    tab\"\n",
+  "error": false,
+  "json": [
+   "6 trailing tab"
+  ]
+ },
+ {
+  "id": "DFF7",
+  "name": "Spec Example 7.16. Flow Mapping Entries",
+  "yaml": "{\n? explicit: entry,\nimplicit: entry,\n?\n}\n",
+  "error": false
+ },
+ {
+  "id": "DHP8",
+  "name": "Flow Sequence",
+  "yaml": "[foo, bar, 42]\n",
+  "error": false,
+  "json": [
+   [
+    "foo",
+    "bar",
+    42
+   ]
+  ]
+ },
+ {
+  "id": "DK3J",
+  "name": "Zero indented block scalar with line that looks like a comment",
+  "yaml": "--- >\nline1\n# no comment\nline3\n",
+  "error": false,
+  "json": [
+   "line1 # no comment line3\n"
+  ]
+ },
+ {
+  "id": "DK4H",
+  "name": "Implicit key followed by newline",
+  "yaml": "---\n[ key\n  : value ]\n",
+  "error": true
+ },
+ {
+  "id": "DK95/00",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo:\n \tbar\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "DK95/01",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo: \"bar\n\tbaz\"\n",
+  "error": true,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "DK95/02",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo: \"bar\n  \tbaz\"\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar baz"
+   }
+  ]
+ },
+ {
+  "id": "DK95/03",
+  "name": "Tabs that look like indentation",
+  "yaml": " \t\nfoo: 1\n",
+  "error": false,
+  "json": [
+   {
+    "foo": 1
+   }
+  ]
+ },
+ {
+  "id": "DK95/04",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo: 1\n\t\nbar: 2\n",
+  "error": false,
+  "json": [
+   {
+    "foo": 1,
+    "bar": 2
+   }
+  ]
+ },
+ {
+  "id": "DK95/05",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo: 1\n \t\nbar: 2\n",
+  "error": false,
+  "json": [
+   {
+    "foo": 1,
+    "bar": 2
+   }
+  ]
+ },
+ {
+  "id": "DK95/06",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo:\n  a: 1\n  \tb: 2\n",
+  "error": true,
+  "json": [
+   {
+    "foo": 1,
+    "bar": 2
+   }
+  ]
+ },
+ {
+  "id": "DK95/07",
+  "name": "Tabs that look like indentation",
+  "yaml": "%YAML 1.2\n\t\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "DK95/08",
+  "name": "Tabs that look like indentation",
+  "yaml": "foo: \"bar\n \t \t baz \t \t \"\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar baz \t \t "
+   }
+  ]
+ },
+ {
+  "id": "DMG6",
+  "name": "Wrong indendation in Map",
+  "yaml": "key:\n  ok: 1\n wrong: 2\n",
+  "error": true
+ },
+ {
+  "id": "DWX9",
+  "name": "Spec Example 8.8. Literal Content",
+  "yaml": "|\n \n  \n  literal\n   \n  \n  text\n\n # Comment\n",
+  "error": false,
+  "json": [
+   "\n\nliteral\n \n\ntext\n"
+  ]
+ },
+ {
+  "id": "E76Z",
+  "name": "Aliases in Implicit Block Mapping",
+  "yaml": "&a a: &b b\n*b : *a\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b",
+    "b": "a"
+   }
+  ]
+ },
+ {
+  "id": "EB22",
+  "name": "Missing document-end marker before directive",
+  "yaml": "---\nscalar1 # comment\n%YAML 1.2\n---\nscalar2\n",
+  "error": true
+ },
+ {
+  "id": "EHF6",
+  "name": "Tags for Flow Objects",
+  "yaml": "!!map {\n  k: !!seq\n  [ a, !!str b]\n}\n",
+  "error": false,
+  "json": [
+   {
+    "k": [
+     "a",
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "EW3V",
+  "name": "Wrong indendation in mapping",
+  "yaml": "k1: v1\n k2: v2\n",
+  "error": true
+ },
+ {
+  "id": "EX5H",
+  "name": "Multiline Scalar at Top Level [1.3]",
+  "yaml": "---\na\nb  \n  c\nd\n\ne\n",
+  "error": false,
+  "json": [
+   "a b c d\ne"
+  ]
+ },
+ {
+  "id": "EXG3",
+  "name": "Three dashes and content without space [1.3]",
+  "yaml": "---\n---word1\nword2\n",
+  "error": false,
+  "json": [
+   "---word1 word2"
+  ]
+ },
+ {
+  "id": "F2C7",
+  "name": "Anchors and Tags",
+  "yaml": " - &a !!str a\n - !!int 2\n - !!int &c 4\n - &d d\n",
+  "error": false,
+  "json": [
+   [
+    "a",
+    2,
+    4,
+    "d"
+   ]
+  ]
+ },
+ {
+  "id": "F3CP",
+  "name": "Nested flow collections on one line",
+  "yaml": "---\n{ a: [b, c, { d: [e, f] } ] }\n",
+  "error": false,
+  "json": [
+   {
+    "a": [
+     "b",
+     "c",
+     {
+      "d": [
+       "e",
+       "f"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "F6MC",
+  "name": "More indented lines at the beginning of folded block scalars",
+  "yaml": "---\na: >2\n   more indented\n  regular\nb: >2\n\n\n   more indented\n  regular\n",
+  "error": false,
+  "json": [
+   {
+    "a": " more indented\nregular\n",
+    "b": "\n\n more indented\nregular\n"
+   }
+  ]
+ },
+ {
+  "id": "F8F9",
+  "name": "Spec Example 8.5. Chomping Trailing Lines",
+  "yaml": " # Strip\n  # Comments:\nstrip: |-\n  # text\n  \n # Clip\n  # comments:\n\nclip: |\n  # text\n \n # Keep\n  # comments:\n\nkeep: |+\n  # text\n\n # Trail\n  # comments.\n",
+  "error": false,
+  "json": [
+   {
+    "strip": "# text",
+    "clip": "# text\n",
+    "keep": "# text\n\n"
+   }
+  ]
+ },
+ {
+  "id": "FBC9",
+  "name": "Allowed characters in plain scalars",
+  "yaml": "safe: a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\n     !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\nsafe question mark: ?foo\nsafe colon: :foo\nsafe dash: -foo\n",
+  "error": false,
+  "json": [
+   {
+    "safe": "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~ !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~",
+    "safe question mark": "?foo",
+    "safe colon": ":foo",
+    "safe dash": "-foo"
+   }
+  ]
+ },
+ {
+  "id": "FH7J",
+  "name": "Tags on Empty Scalars",
+  "yaml": "- !!str\n-\n  !!null : a\n  b: !!str\n- !!str : !!null\n",
+  "error": false
+ },
+ {
+  "id": "FP8R",
+  "name": "Zero indented block scalar",
+  "yaml": "--- >\nline1\nline2\nline3\n",
+  "error": false,
+  "json": [
+   "line1 line2 line3\n"
+  ]
+ },
+ {
+  "id": "FQ7F",
+  "name": "Spec Example 2.1. Sequence of Scalars",
+  "yaml": "- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n",
+  "error": false,
+  "json": [
+   [
+    "Mark McGwire",
+    "Sammy Sosa",
+    "Ken Griffey"
+   ]
+  ]
+ },
+ {
+  "id": "FRK4",
+  "name": "Spec Example 7.3. Completely Empty Flow Nodes",
+  "yaml": "{\n  ? foo :,\n  : bar,\n}\n",
+  "error": false
+ },
+ {
+  "id": "FTA2",
+  "name": "Single block sequence with anchor and explicit document start",
+  "yaml": "--- &sequence\n- a\n",
+  "error": false,
+  "json": [
+   [
+    "a"
+   ]
+  ]
+ },
+ {
+  "id": "FUP4",
+  "name": "Flow Sequence in Flow Sequence",
+  "yaml": "[a, [b, c]]\n",
+  "error": false,
+  "json": [
+   [
+    "a",
+    [
+     "b",
+     "c"
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "G4RS",
+  "name": "Spec Example 2.17. Quoted Scalars",
+  "yaml": "unicode: \"Sosa did fine.\\u263A\"\ncontrol: \"\\b1998\\t1999\\t2000\\n\"\nhex esc: \"\\x0d\\x0a is \\r\\n\"\n\nsingle: '\"Howdy!\" he cried.'\nquoted: ' # Not a ''comment''.'\ntie-fighter: '|\\-*-/|'\n",
+  "error": false,
+  "json": [
+   {
+    "unicode": "Sosa did fine.\u263a",
+    "control": "\b1998\t1999\t2000\n",
+    "hex esc": "\r\n is \r\n",
+    "single": "\"Howdy!\" he cried.",
+    "quoted": " # Not a 'comment'.",
+    "tie-fighter": "|\\-*-/|"
+   }
+  ]
+ },
+ {
+  "id": "G5U8",
+  "name": "Plain dashes in flow sequence",
+  "yaml": "---\n- [-, -]\n",
+  "error": true
+ },
+ {
+  "id": "G7JE",
+  "name": "Multiline implicit keys",
+  "yaml": "a\\nb: 1\nc\n d: 1\n",
+  "error": true
+ },
+ {
+  "id": "G992",
+  "name": "Spec Example 8.9. Folded Scalar",
+  "yaml": ">\n folded\n text\n\n\n",
+  "error": false,
+  "json": [
+   "folded text\n"
+  ]
+ },
+ {
+  "id": "G9HC",
+  "name": "Invalid anchor in zero indented sequence",
+  "yaml": "---\nseq:\n&anchor\n- a\n- b\n",
+  "error": true
+ },
+ {
+  "id": "GDY7",
+  "name": "Comment that looks like a mapping key",
+  "yaml": "key: value\nthis is #not a: key\n",
+  "error": true
+ },
+ {
+  "id": "GH63",
+  "name": "Mixed Block Mapping (explicit to implicit)",
+  "yaml": "? a\n: 1.3\nfifteen: d\n",
+  "error": false,
+  "json": [
+   {
+    "a": 1.3,
+    "fifteen": "d"
+   }
+  ]
+ },
+ {
+  "id": "GT5M",
+  "name": "Node anchor in sequence",
+  "yaml": "- item1\n&node\n- item2\n",
+  "error": true
+ },
+ {
+  "id": "H2RW",
+  "name": "Blank lines",
+  "yaml": "foo: 1\n\nbar: 2\n    \ntext: |\n  a\n    \n  b\n\n  c\n \n  d\n",
+  "error": false,
+  "json": [
+   {
+    "foo": 1,
+    "bar": 2,
+    "text": "a\n  \nb\n\nc\n\nd\n"
+   }
+  ]
+ },
+ {
+  "id": "H3Z8",
+  "name": "Literal unicode",
+  "yaml": "---\nwanted: love \u2665 and peace \u262e\n",
+  "error": false,
+  "json": [
+   {
+    "wanted": "love \u2665 and peace \u262e"
+   }
+  ]
+ },
+ {
+  "id": "H7J7",
+  "name": "Node anchor not indented",
+  "yaml": "key: &x\n!!map\n  a: b\n",
+  "error": true
+ },
+ {
+  "id": "H7TQ",
+  "name": "Extra words on %YAML directive",
+  "yaml": "%YAML 1.2 foo\n---\n",
+  "error": true
+ },
+ {
+  "id": "HM87/00",
+  "name": "Scalars in flow start with syntax char",
+  "yaml": "[:x]\n",
+  "error": false,
+  "json": [
+   [
+    ":x"
+   ]
+  ]
+ },
+ {
+  "id": "HM87/01",
+  "name": "Scalars in flow start with syntax char",
+  "yaml": "[?x]\n",
+  "error": false,
+  "json": [
+   [
+    "?x"
+   ]
+  ]
+ },
+ {
+  "id": "HMK4",
+  "name": "Spec Example 2.16. Indentation determines scope",
+  "yaml": "name: Mark McGwire\naccomplishment: >\n  Mark set a major league\n  home run record in 1998.\nstats: |\n  65 Home Runs\n  0.278 Batting Average\n",
+  "error": false,
+  "json": [
+   {
+    "name": "Mark McGwire",
+    "accomplishment": "Mark set a major league home run record in 1998.\n",
+    "stats": "65 Home Runs\n0.278 Batting Average\n"
+   }
+  ]
+ },
+ {
+  "id": "HMQ5",
+  "name": "Spec Example 6.23. Node Properties",
+  "yaml": "!!str &a1 \"foo\":\n  !!str bar\n&a2 baz : *a1\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar",
+    "baz": "foo"
+   }
+  ]
+ },
+ {
+  "id": "HRE5",
+  "name": "Double quoted scalar with escaped single quote",
+  "yaml": "---\ndouble: \"quoted \\' scalar\"\n",
+  "error": true
+ },
+ {
+  "id": "HS5T",
+  "name": "Spec Example 7.12. Plain Lines",
+  "yaml": "1st non-empty\n\n 2nd non-empty \n\t3rd non-empty\n",
+  "error": false,
+  "json": [
+   "1st non-empty\n2nd non-empty 3rd non-empty"
+  ]
+ },
+ {
+  "id": "HU3P",
+  "name": "Invalid Mapping in plain scalar",
+  "yaml": "key:\n  word1 word2\n  no: key\n",
+  "error": true
+ },
+ {
+  "id": "HWV9",
+  "name": "Document-end marker",
+  "yaml": "...\n",
+  "error": false,
+  "json": []
+ },
+ {
+  "id": "J3BT",
+  "name": "Spec Example 5.12. Tabs and Spaces",
+  "yaml": "# Tabs and spaces\nquoted: \"Quoted \t\"\nblock:\t|\n  void main() {\n  \tprintf(\"Hello, world!\\n\");\n  }\n",
+  "error": false,
+  "json": [
+   {
+    "quoted": "Quoted \t",
+    "block": "void main() {\n\tprintf(\"Hello, world!\\n\");\n}\n"
+   }
+  ]
+ },
+ {
+  "id": "J5UC",
+  "name": "Multiple Pair Block Mapping",
+  "yaml": "foo: blue\nbar: arrr\nbaz: jazz\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "blue",
+    "bar": "arrr",
+    "baz": "jazz"
+   }
+  ]
+ },
+ {
+  "id": "J7PZ",
+  "name": "Spec Example 2.26. Ordered Mappings",
+  "yaml": "# The !!omap tag is one of the optional types\n# introduced for YAML 1.1. In 1.2, it is not\n# part of the standard tags and should not be\n# enabled by default.\n# Ordered maps are represented as\n# A sequence of mappings, with\n# each mapping having one key\n--- !!omap\n- Mark McGwire: 65\n- Sammy Sosa: 63\n- Ken Griffy: 58\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "Mark McGwire": 65
+    },
+    {
+     "Sammy Sosa": 63
+    },
+    {
+     "Ken Griffy": 58
+    }
+   ]
+  ]
+ },
+ {
+  "id": "J7VC",
+  "name": "Empty Lines Between Mapping Elements",
+  "yaml": "one: 2\n\n\nthree: 4\n",
+  "error": false,
+  "json": [
+   {
+    "one": 2,
+    "three": 4
+   }
+  ]
+ },
+ {
+  "id": "J9HZ",
+  "name": "Spec Example 2.9. Single Document with Two Comments",
+  "yaml": "---\nhr: # 1998 hr ranking\n  - Mark McGwire\n  - Sammy Sosa\nrbi:\n  # 1998 rbi ranking\n  - Sammy Sosa\n  - Ken Griffey\n",
+  "error": false,
+  "json": [
+   {
+    "hr": [
+     "Mark McGwire",
+     "Sammy Sosa"
+    ],
+    "rbi": [
+     "Sammy Sosa",
+     "Ken Griffey"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "JEF9/00",
+  "name": "Trailing whitespace in streams",
+  "yaml": "- |+\n\n\n",
+  "error": false,
+  "json": [
+   [
+    "\n\n"
+   ]
+  ]
+ },
+ {
+  "id": "JEF9/01",
+  "name": "Trailing whitespace in streams",
+  "yaml": "- |+\n   \n",
+  "error": false,
+  "json": [
+   [
+    "\n"
+   ]
+  ]
+ },
+ {
+  "id": "JEF9/02",
+  "name": "Trailing whitespace in streams",
+  "yaml": "- |+\n   ",
+  "error": false,
+  "json": [
+   [
+    "\n"
+   ]
+  ]
+ },
+ {
+  "id": "JHB9",
+  "name": "Spec Example 2.7. Two Documents in a Stream",
+  "yaml": "# Ranking of 1998 home runs\n---\n- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n\n# Team ranking\n---\n- Chicago Cubs\n- St Louis Cardinals\n",
+  "error": false,
+  "json": [
+   [
+    "Mark McGwire",
+    "Sammy Sosa",
+    "Ken Griffey"
+   ],
+   [
+    "Chicago Cubs",
+    "St Louis Cardinals"
+   ]
+  ]
+ },
+ {
+  "id": "JKF3",
+  "name": "Multiline unidented double quoted block key",
+  "yaml": "- - \"bar\nbar\": x\n",
+  "error": true
+ },
+ {
+  "id": "JQ4R",
+  "name": "Spec Example 8.14. Block Sequence",
+  "yaml": "block sequence:\n  - one\n  - two : three\n",
+  "error": false,
+  "json": [
+   {
+    "block sequence": [
+     "one",
+     {
+      "two": "three"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "JR7V",
+  "name": "Question marks in scalars",
+  "yaml": "- a?string\n- another ? string\n- key: value?\n- [a?string]\n- [another ? string]\n- {key: value? }\n- {key: value?}\n- {key?: value }\n",
+  "error": false,
+  "json": [
+   [
+    "a?string",
+    "another ? string",
+    {
+     "key": "value?"
+    },
+    [
+     "a?string"
+    ],
+    [
+     "another ? string"
+    ],
+    {
+     "key": "value?"
+    },
+    {
+     "key": "value?"
+    },
+    {
+     "key?": "value"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "JS2J",
+  "name": "Spec Example 6.29. Node Anchors",
+  "yaml": "First occurrence: &anchor Value\nSecond occurrence: *anchor\n",
+  "error": false,
+  "json": [
+   {
+    "First occurrence": "Value",
+    "Second occurrence": "Value"
+   }
+  ]
+ },
+ {
+  "id": "JTV5",
+  "name": "Block Mapping with Multiline Scalars",
+  "yaml": "? a\n  true\n: null\n  d\n? e\n  42\n",
+  "error": false,
+  "json": [
+   {
+    "a true": "null d",
+    "e 42": null
+   }
+  ]
+ },
+ {
+  "id": "JY7Z",
+  "name": "Trailing content that looks like a mapping",
+  "yaml": "key1: \"quoted1\"\nkey2: \"quoted2\" no key: nor value\nkey3: \"quoted3\"\n",
+  "error": true
+ },
+ {
+  "id": "K3WX",
+  "name": "Colon and adjacent value after comment on next line",
+  "yaml": "---\n{ \"foo\" # comment\n  :bar }\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "bar"
+   }
+  ]
+ },
+ {
+  "id": "K4SU",
+  "name": "Multiple Entry Block Sequence",
+  "yaml": "- foo\n- bar\n- 42\n",
+  "error": false,
+  "json": [
+   [
+    "foo",
+    "bar",
+    42
+   ]
+  ]
+ },
+ {
+  "id": "K527",
+  "name": "Spec Example 6.6. Line Folding",
+  "yaml": ">-\n  trimmed\n  \n \n\n  as\n  space\n",
+  "error": false,
+  "json": [
+   "trimmed\n\n\nas space"
+  ]
+ },
+ {
+  "id": "K54U",
+  "name": "Tab after document header",
+  "yaml": "---\tscalar\n",
+  "error": false,
+  "json": [
+   "scalar"
+  ]
+ },
+ {
+  "id": "K858",
+  "name": "Spec Example 8.6. Empty Scalar Chomping",
+  "yaml": "strip: >-\n\nclip: >\n\nkeep: |+\n\n",
+  "error": false,
+  "json": [
+   {
+    "strip": "",
+    "clip": "",
+    "keep": "\n"
+   }
+  ]
+ },
+ {
+  "id": "KH5V/00",
+  "name": "Inline tabs in double quoted",
+  "yaml": "\"1 inline\\ttab\"\n",
+  "error": false,
+  "json": [
+   "1 inline\ttab"
+  ]
+ },
+ {
+  "id": "KH5V/01",
+  "name": "Inline tabs in double quoted",
+  "yaml": "\"2 inline\\\ttab\"\n",
+  "error": false,
+  "json": [
+   "2 inline\ttab"
+  ]
+ },
+ {
+  "id": "KH5V/02",
+  "name": "Inline tabs in double quoted",
+  "yaml": "\"3 inline\ttab\"\n",
+  "error": false,
+  "json": [
+   "3 inline\ttab"
+  ]
+ },
+ {
+  "id": "KK5P",
+  "name": "Various combinations of explicit block mappings",
+  "yaml": "complex1:\n  ? - a\ncomplex2:\n  ? - a\n  : b\ncomplex3:\n  ? - a\n  : >\n    b\ncomplex4:\n  ? >\n    a\n  :\ncomplex5:\n  ? - a\n  : - b\n",
+  "error": false
+ },
+ {
+  "id": "KMK3",
+  "name": "Block Submapping",
+  "yaml": "foo:\n  bar: 1\nbaz: 2\n",
+  "error": false,
+  "json": [
+   {
+    "foo": {
+     "bar": 1
+    },
+    "baz": 2
+   }
+  ]
+ },
+ {
+  "id": "KS4U",
+  "name": "Invalid item after end of flow sequence",
+  "yaml": "---\n[\nsequence item\n]\ninvalid item\n",
+  "error": true
+ },
+ {
+  "id": "KSS4",
+  "name": "Scalars on --- line",
+  "yaml": "--- \"quoted\nstring\"\n--- &node foo\n",
+  "error": false,
+  "json": [
+   "quoted string",
+   "foo"
+  ]
+ },
+ {
+  "id": "L24T/00",
+  "name": "Trailing line of spaces",
+  "yaml": "foo: |\n  x\n   \n",
+  "error": false,
+  "json": [
+   {
+    "foo": "x\n \n"
+   }
+  ]
+ },
+ {
+  "id": "L24T/01",
+  "name": "Trailing line of spaces",
+  "yaml": "foo: |\n  x\n   ",
+  "error": false,
+  "json": [
+   {
+    "foo": "x\n \n"
+   }
+  ]
+ },
+ {
+  "id": "L383",
+  "name": "Two scalar docs with trailing comments",
+  "yaml": "--- foo  # comment\n--- foo  # comment\n",
+  "error": false,
+  "json": [
+   "foo",
+   "foo"
+  ]
+ },
+ {
+  "id": "L94M",
+  "name": "Tags in Explicit Mapping",
+  "yaml": "? !!str a\n: !!int 47\n? c\n: !!str d\n",
+  "error": false,
+  "json": [
+   {
+    "a": 47,
+    "c": "d"
+   }
+  ]
+ },
+ {
+  "id": "L9U5",
+  "name": "Spec Example 7.11. Plain Implicit Keys",
+  "yaml": "implicit block key : [\n  implicit flow key : value,\n ]\n",
+  "error": false,
+  "json": [
+   {
+    "implicit block key": [
+     {
+      "implicit flow key": "value"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "LE5A",
+  "name": "Spec Example 7.24. Flow Nodes",
+  "yaml": "- !!str \"a\"\n- 'b'\n- &anchor \"c\"\n- *anchor\n- !!str\n",
+  "error": false,
+  "json": [
+   [
+    "a",
+    "b",
+    "c",
+    "c",
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "LHL4",
+  "name": "Invalid tag",
+  "yaml": "---\n!invalid{}tag scalar\n",
+  "error": true
+ },
+ {
+  "id": "LP6E",
+  "name": "Whitespace After Scalars in Flow",
+  "yaml": "- [a, b , c ]\n- { \"a\"  : b\n   , c : 'd' ,\n   e   : \"f\"\n  }\n- [      ]\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "a",
+     "b",
+     "c"
+    ],
+    {
+     "a": "b",
+     "c": "d",
+     "e": "f"
+    },
+    []
+   ]
+  ]
+ },
+ {
+  "id": "LQZ7",
+  "name": "Spec Example 7.4. Double Quoted Implicit Keys",
+  "yaml": "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]\n",
+  "error": false,
+  "json": [
+   {
+    "implicit block key": [
+     {
+      "implicit flow key": "value"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "LX3P",
+  "name": "Implicit Flow Mapping Key on one line",
+  "yaml": "[flow]: block\n",
+  "error": false
+ },
+ {
+  "id": "M29M",
+  "name": "Literal Block Scalar",
+  "yaml": "a: |\n ab\n \n cd\n ef\n \n\n...\n",
+  "error": false,
+  "json": [
+   {
+    "a": "ab\n\ncd\nef\n"
+   }
+  ]
+ },
+ {
+  "id": "M2N8/00",
+  "name": "Question mark edge cases",
+  "yaml": "- ? : x\n",
+  "error": false
+ },
+ {
+  "id": "M2N8/01",
+  "name": "Question mark edge cases",
+  "yaml": "? []: x\n",
+  "error": false
+ },
+ {
+  "id": "M5C3",
+  "name": "Spec Example 8.21. Block Scalar Nodes",
+  "yaml": "literal: |2\n  value\nfolded:\n   !foo\n  >1\n value\n",
+  "error": false,
+  "json": [
+   {
+    "literal": "value\n",
+    "folded": "value\n"
+   }
+  ]
+ },
+ {
+  "id": "M5DY",
+  "name": "Spec Example 2.11. Mapping between Sequences",
+  "yaml": "? - Detroit Tigers\n  - Chicago cubs\n:\n  - 2001-07-23\n\n? [ New York Yankees,\n    Atlanta Braves ]\n: [ 2001-07-02, 2001-08-12,\n    2001-08-14 ]\n",
+  "error": false
+ },
+ {
+  "id": "M6YH",
+  "name": "Block sequence indentation",
+  "yaml": "- |\n x\n-\n foo: bar\n-\n - 42\n",
+  "error": false,
+  "json": [
+   [
+    "x\n",
+    {
+     "foo": "bar"
+    },
+    [
+     42
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "M7A3",
+  "name": "Spec Example 9.3. Bare Documents",
+  "yaml": "Bare\ndocument\n...\n# No document\n...\n|\n%!PS-Adobe-2.0 # Not the first line\n",
+  "error": false,
+  "json": [
+   "Bare document",
+   "%!PS-Adobe-2.0 # Not the first line\n"
+  ]
+ },
+ {
+  "id": "M7NX",
+  "name": "Nested flow collections",
+  "yaml": "---\n{\n a: [\n  b, c, {\n   d: [e, f]\n  }\n ]\n}\n",
+  "error": false,
+  "json": [
+   {
+    "a": [
+     "b",
+     "c",
+     {
+      "d": [
+       "e",
+       "f"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "M9B4",
+  "name": "Spec Example 8.7. Literal Scalar",
+  "yaml": "|\n literal\n \ttext\n\n\n",
+  "error": false,
+  "json": [
+   "literal\n\ttext\n"
+  ]
+ },
+ {
+  "id": "MJS9",
+  "name": "Spec Example 6.7. Block Folding",
+  "yaml": ">\n  foo \n \n  \t bar\n\n  baz\n",
+  "error": false,
+  "json": [
+   "foo \n\n\t bar\n\nbaz\n"
+  ]
+ },
+ {
+  "id": "MUS6/00",
+  "name": "Directive variants",
+  "yaml": "%YAML 1.1#...\n---\n",
+  "error": true
+ },
+ {
+  "id": "MUS6/01",
+  "name": "Directive variants",
+  "yaml": "%YAML 1.2\n---\n%YAML 1.2\n---\n",
+  "error": true
+ },
+ {
+  "id": "MUS6/02",
+  "name": "Directive variants",
+  "yaml": "%YAML  1.1\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "MUS6/03",
+  "name": "Directive variants",
+  "yaml": "%YAML \t 1.1\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "MUS6/04",
+  "name": "Directive variants",
+  "yaml": "%YAML 1.1  # comment\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "MUS6/05",
+  "name": "Directive variants",
+  "yaml": "%YAM 1.1\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "MUS6/06",
+  "name": "Directive variants",
+  "yaml": "%YAMLL 1.1\n---\n",
+  "error": false,
+  "json": [
+   null
+  ]
+ },
+ {
+  "id": "MXS3",
+  "name": "Flow Mapping in Block Sequence",
+  "yaml": "- {a: b}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "a": "b"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "MYW6",
+  "name": "Block Scalar Strip",
+  "yaml": "|-\n ab\n \n \n...\n",
+  "error": false,
+  "json": [
+   "ab"
+  ]
+ },
+ {
+  "id": "MZX3",
+  "name": "Non-Specific Tags on Scalars",
+  "yaml": "- plain\n- \"double quoted\"\n- 'single quoted'\n- >\n  block\n- plain again\n",
+  "error": false,
+  "json": [
+   [
+    "plain",
+    "double quoted",
+    "single quoted",
+    "block\n",
+    "plain again"
+   ]
+  ]
+ },
+ {
+  "id": "N4JP",
+  "name": "Bad indentation in mapping",
+  "yaml": "map:\n  key1: \"quoted1\"\n key2: \"bad indentation\"\n",
+  "error": true
+ },
+ {
+  "id": "N782",
+  "name": "Invalid document markers in flow style",
+  "yaml": "[\n--- ,\n...\n]\n",
+  "error": true
+ },
+ {
+  "id": "NAT4",
+  "name": "Various empty or newline only quoted strings",
+  "yaml": "---\na: '\n  '\nb: '  \n  '\nc: \"\n  \"\nd: \"  \n  \"\ne: '\n\n  '\nf: \"\n\n  \"\ng: '\n\n\n  '\nh: \"\n\n\n  \"\n",
+  "error": false,
+  "json": [
+   {
+    "a": " ",
+    "b": " ",
+    "c": " ",
+    "d": " ",
+    "e": "\n",
+    "f": "\n",
+    "g": "\n\n",
+    "h": "\n\n"
+   }
+  ]
+ },
+ {
+  "id": "NB6Z",
+  "name": "Multiline plain value with tabs on empty lines",
+  "yaml": "key:\n  value\n  with\n  \t\n  tabs\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value with\ntabs"
+   }
+  ]
+ },
+ {
+  "id": "NHX8",
+  "name": "Empty Lines at End of Document",
+  "yaml": ":\n\n\n",
+  "error": false
+ },
+ {
+  "id": "NJ66",
+  "name": "Multiline plain flow mapping key",
+  "yaml": "---\n- { single line: value}\n- { multi\n  line: value}\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "single line": "value"
+    },
+    {
+     "multi line": "value"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "NKF9",
+  "name": "Empty keys in block and flow mapping",
+  "yaml": "---\nkey: value\n: empty key\n---\n{\n key: value, : empty key\n}\n---\n# empty key and value\n:\n---\n# empty key and value\n{ : }\n",
+  "error": false
+ },
+ {
+  "id": "NP9H",
+  "name": "Spec Example 7.5. Double Quoted Line Breaks",
+  "yaml": "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"\n",
+  "error": false,
+  "json": [
+   "folded to a space,\nto a line feed, or \t \tnon-content"
+  ]
+ },
+ {
+  "id": "P2AD",
+  "name": "Spec Example 8.1. Block Scalar Header",
+  "yaml": "- | # Empty header\u2193\n literal\n- >1 # Indentation indicator\u2193\n  folded\n- |+ # Chomping indicator\u2193\n keep\n\n- >1- # Both indicators\u2193\n  strip\n",
+  "error": false,
+  "json": [
+   [
+    "literal\n",
+    " folded\n",
+    "keep\n\n",
+    " strip"
+   ]
+  ]
+ },
+ {
+  "id": "P2EQ",
+  "name": "Invalid sequene item on same line as previous item",
+  "yaml": "---\n- { y: z }- invalid\n",
+  "error": true
+ },
+ {
+  "id": "P76L",
+  "name": "Spec Example 6.19. Secondary Tag Handle",
+  "yaml": "%TAG !! tag:example.com,2000:app/\n---\n!!int 1 - 3 # Interval, not integer\n",
+  "error": false,
+  "json": [
+   "1 - 3"
+  ]
+ },
+ {
+  "id": "P94K",
+  "name": "Spec Example 6.11. Multi-Line Comments",
+  "yaml": "key:    # Comment\n        # lines\n  value\n\n\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value"
+   }
+  ]
+ },
+ {
+  "id": "PBJ2",
+  "name": "Spec Example 2.3. Mapping Scalars to Sequences",
+  "yaml": "american:\n  - Boston Red Sox\n  - Detroit Tigers\n  - New York Yankees\nnational:\n  - New York Mets\n  - Chicago Cubs\n  - Atlanta Braves\n",
+  "error": false,
+  "json": [
+   {
+    "american": [
+     "Boston Red Sox",
+     "Detroit Tigers",
+     "New York Yankees"
+    ],
+    "national": [
+     "New York Mets",
+     "Chicago Cubs",
+     "Atlanta Braves"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "PRH3",
+  "name": "Spec Example 7.9. Single Quoted Lines",
+  "yaml": "' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '\n",
+  "error": false,
+  "json": [
+   " 1st non-empty\n2nd non-empty 3rd non-empty "
+  ]
+ },
+ {
+  "id": "PUW8",
+  "name": "Document start on last line",
+  "yaml": "---\na: b\n---\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b"
+   },
+   null
+  ]
+ },
+ {
+  "id": "PW8X",
+  "name": "Anchors on Empty Scalars",
+  "yaml": "- &a\n- a\n-\n  &a : a\n  b: &b\n-\n  &c : &a\n-\n  ? &d\n-\n  ? &e\n  : &a\n",
+  "error": false
+ },
+ {
+  "id": "Q4CL",
+  "name": "Trailing content after quoted value",
+  "yaml": "key1: \"quoted1\"\nkey2: \"quoted2\" trailing content\nkey3: \"quoted3\"\n",
+  "error": true
+ },
+ {
+  "id": "Q5MG",
+  "name": "Tab at beginning of line followed by a flow mapping",
+  "yaml": "\t{}\n",
+  "error": false,
+  "json": [
+   {}
+  ]
+ },
+ {
+  "id": "Q88A",
+  "name": "Spec Example 7.23. Flow Content",
+  "yaml": "- [ a, b ]\n- { a: b }\n- \"a\"\n- 'b'\n- c\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "a",
+     "b"
+    ],
+    {
+     "a": "b"
+    },
+    "a",
+    "b",
+    "c"
+   ]
+  ]
+ },
+ {
+  "id": "Q8AD",
+  "name": "Spec Example 7.5. Double Quoted Line Breaks [1.3]",
+  "yaml": "---\n\"folded \nto a space,\n \nto a line feed, or \t\\\n \\ \tnon-content\"\n",
+  "error": false,
+  "json": [
+   "folded to a space,\nto a line feed, or \t \tnon-content"
+  ]
+ },
+ {
+  "id": "Q9WF",
+  "name": "Spec Example 6.12. Separation Spaces",
+  "yaml": "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278\n",
+  "error": false
+ },
+ {
+  "id": "QB6E",
+  "name": "Wrong indented multiline quoted scalar",
+  "yaml": "---\nquoted: \"a\nb\nc\"\n",
+  "error": true
+ },
+ {
+  "id": "QF4Y",
+  "name": "Spec Example 7.19. Single Pair Flow Mappings",
+  "yaml": "[\nfoo: bar\n]\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "foo": "bar"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "QLJ7",
+  "name": "Tag shorthand used in documents but only defined in the first",
+  "yaml": "%TAG !prefix! tag:example.com,2011:\n--- !prefix!A\na: b\n--- !prefix!B\nc: d\n--- !prefix!C\ne: f\n",
+  "error": true
+ },
+ {
+  "id": "QT73",
+  "name": "Comment and document-end marker",
+  "yaml": "# comment\n...\n",
+  "error": false,
+  "json": []
+ },
+ {
+  "id": "R4YG",
+  "name": "Spec Example 8.2. Block Indentation Indicator",
+  "yaml": "- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n \t\n detected\n",
+  "error": false,
+  "json": [
+   [
+    "detected\n",
+    "\n\n# detected\n",
+    " explicit\n",
+    "\t\ndetected\n"
+   ]
+  ]
+ },
+ {
+  "id": "R52L",
+  "name": "Nested flow mapping sequence and mappings",
+  "yaml": "---\n{ top1: [item1, {key2: value2}, item3], top2: value2 }\n",
+  "error": false,
+  "json": [
+   {
+    "top1": [
+     "item1",
+     {
+      "key2": "value2"
+     },
+     "item3"
+    ],
+    "top2": "value2"
+   }
+  ]
+ },
+ {
+  "id": "RHX7",
+  "name": "YAML directive without document end marker",
+  "yaml": "---\nkey: value\n%YAML 1.2\n---\n",
+  "error": true
+ },
+ {
+  "id": "RLU9",
+  "name": "Sequence Indent",
+  "yaml": "foo:\n- 42\nbar:\n  - 44\n",
+  "error": false,
+  "json": [
+   {
+    "foo": [
+     42
+    ],
+    "bar": [
+     44
+    ]
+   }
+  ]
+ },
+ {
+  "id": "RR7F",
+  "name": "Mixed Block Mapping (implicit to explicit)",
+  "yaml": "a: 4.2\n? d\n: 23\n",
+  "error": false,
+  "json": [
+   {
+    "d": 23,
+    "a": 4.2
+   }
+  ]
+ },
+ {
+  "id": "RTP8",
+  "name": "Spec Example 9.2. Document Markers",
+  "yaml": "%YAML 1.2\n---\nDocument\n... # Suffix\n",
+  "error": false,
+  "json": [
+   "Document"
+  ]
+ },
+ {
+  "id": "RXY3",
+  "name": "Invalid document-end marker in single quoted string",
+  "yaml": "---\n'\n...\n'\n",
+  "error": true
+ },
+ {
+  "id": "RZP5",
+  "name": "Various Trailing Comments [1.3]",
+  "yaml": "a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne: &node # lala\n - x: y\nblock: > # lala\n  abcde\n",
+  "error": false
+ },
+ {
+  "id": "RZT7",
+  "name": "Spec Example 2.28. Log File",
+  "yaml": "---\nTime: 2001-11-23 15:01:42 -5\nUser: ed\nWarning:\n  This is an error message\n  for the log file\n---\nTime: 2001-11-23 15:02:31 -5\nUser: ed\nWarning:\n  A slightly different error\n  message.\n---\nDate: 2001-11-23 15:03:17 -5\nUser: ed\nFatal:\n  Unknown variable \"bar\"\nStack:\n  - file: TopClass.py\n    line: 23\n    code: |\n      x = MoreObject(\"345\\n\")\n  - file: MoreClass.py\n    line: 58\n    code: |-\n      foo = bar\n",
+  "error": false,
+  "json": [
+   {
+    "Time": "2001-11-23 15:01:42 -5",
+    "User": "ed",
+    "Warning": "This is an error message for the log file"
+   },
+   {
+    "Time": "2001-11-23 15:02:31 -5",
+    "User": "ed",
+    "Warning": "A slightly different error message."
+   },
+   {
+    "Date": "2001-11-23 15:03:17 -5",
+    "User": "ed",
+    "Fatal": "Unknown variable \"bar\"",
+    "Stack": [
+     {
+      "file": "TopClass.py",
+      "line": 23,
+      "code": "x = MoreObject(\"345\\n\")\n"
+     },
+     {
+      "file": "MoreClass.py",
+      "line": 58,
+      "code": "foo = bar"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "S3PD",
+  "name": "Spec Example 8.18. Implicit Block Mapping Entries",
+  "yaml": "plain key: in-line value\n: # Both empty\n\"quoted key\":\n- entry\n",
+  "error": false
+ },
+ {
+  "id": "S4GJ",
+  "name": "Invalid text after block scalar indicator",
+  "yaml": "---\nfolded: > first line\n  second line\n",
+  "error": true
+ },
+ {
+  "id": "S4JQ",
+  "name": "Spec Example 6.28. Non-Specific Tags",
+  "yaml": "# Assuming conventional resolution:\n- \"12\"\n- 12\n- ! 12\n",
+  "error": false,
+  "json": [
+   [
+    "12",
+    12,
+    "12"
+   ]
+  ]
+ },
+ {
+  "id": "S4T7",
+  "name": "Document with footer",
+  "yaml": "aaa: bbb\n...\n",
+  "error": false,
+  "json": [
+   {
+    "aaa": "bbb"
+   }
+  ]
+ },
+ {
+  "id": "S7BG",
+  "name": "Colon followed by comma",
+  "yaml": "---\n- :,\n",
+  "error": false,
+  "json": [
+   [
+    ":,"
+   ]
+  ]
+ },
+ {
+  "id": "S98Z",
+  "name": "Block scalar with more spaces than first content line",
+  "yaml": "empty block scalar: >\n \n  \n   \n # comment\n",
+  "error": true
+ },
+ {
+  "id": "S9E8",
+  "name": "Spec Example 5.3. Block Structure Indicators",
+  "yaml": "sequence:\n- one\n- two\nmapping:\n  ? sky\n  : blue\n  sea : green\n",
+  "error": false,
+  "json": [
+   {
+    "sequence": [
+     "one",
+     "two"
+    ],
+    "mapping": {
+     "sky": "blue",
+     "sea": "green"
+    }
+   }
+  ]
+ },
+ {
+  "id": "SBG9",
+  "name": "Flow Sequence in Flow Mapping",
+  "yaml": "{a: [b, c], [d, e]: f}\n",
+  "error": false
+ },
+ {
+  "id": "SF5V",
+  "name": "Duplicate YAML directive",
+  "yaml": "%YAML 1.2\n%YAML 1.2\n---\n",
+  "error": true
+ },
+ {
+  "id": "SKE5",
+  "name": "Anchor before zero indented sequence",
+  "yaml": "---\nseq:\n &anchor\n- a\n- b\n",
+  "error": false,
+  "json": [
+   {
+    "seq": [
+     "a",
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "SM9W/00",
+  "name": "Single character streams",
+  "yaml": "-",
+  "error": false,
+  "json": [
+   [
+    null
+   ]
+  ]
+ },
+ {
+  "id": "SM9W/01",
+  "name": "Single character streams",
+  "yaml": ":",
+  "error": false
+ },
+ {
+  "id": "SR86",
+  "name": "Anchor plus Alias",
+  "yaml": "key1: &a value\nkey2: &b *a\n",
+  "error": true
+ },
+ {
+  "id": "SSW6",
+  "name": "Spec Example 7.7. Single Quoted Characters [1.3]",
+  "yaml": "---\n'here''s to \"quotes\"'\n",
+  "error": false,
+  "json": [
+   "here's to \"quotes\""
+  ]
+ },
+ {
+  "id": "SU5Z",
+  "name": "Comment without whitespace after doublequoted scalar",
+  "yaml": "key: \"value\"# invalid comment\n",
+  "error": true
+ },
+ {
+  "id": "SU74",
+  "name": "Anchor and alias as mapping key",
+  "yaml": "key1: &alias value1\n&b *alias : value2\n",
+  "error": true
+ },
+ {
+  "id": "SY6V",
+  "name": "Anchor before sequence entry on same line",
+  "yaml": "&anchor - sequence entry\n",
+  "error": true
+ },
+ {
+  "id": "SYW4",
+  "name": "Spec Example 2.2. Mapping Scalars to Scalars",
+  "yaml": "hr:  65    # Home runs\navg: 0.278 # Batting average\nrbi: 147   # Runs Batted In\n",
+  "error": false,
+  "json": [
+   {
+    "hr": 65,
+    "avg": 0.278,
+    "rbi": 147
+   }
+  ]
+ },
+ {
+  "id": "T26H",
+  "name": "Spec Example 8.8. Literal Content [1.3]",
+  "yaml": "--- |\n \n  \n  literal\n   \n  \n  text\n\n # Comment\n",
+  "error": false,
+  "json": [
+   "\n\nliteral\n \n\ntext\n"
+  ]
+ },
+ {
+  "id": "T4YY",
+  "name": "Spec Example 7.9. Single Quoted Lines [1.3]",
+  "yaml": "---\n' 1st non-empty\n\n 2nd non-empty \n 3rd non-empty '\n",
+  "error": false,
+  "json": [
+   " 1st non-empty\n2nd non-empty 3rd non-empty "
+  ]
+ },
+ {
+  "id": "T5N4",
+  "name": "Spec Example 8.7. Literal Scalar [1.3]",
+  "yaml": "--- |\n literal\n \ttext\n\n\n",
+  "error": false,
+  "json": [
+   "literal\n\ttext\n"
+  ]
+ },
+ {
+  "id": "T833",
+  "name": "Flow mapping missing a separating comma",
+  "yaml": "---\n{\n foo: 1\n bar: 2 }\n",
+  "error": true
+ },
+ {
+  "id": "TD5N",
+  "name": "Invalid scalar after sequence",
+  "yaml": "- item1\n- item2\ninvalid\n",
+  "error": true
+ },
+ {
+  "id": "TE2A",
+  "name": "Spec Example 8.16. Block Mappings",
+  "yaml": "block mapping:\n key: value\n",
+  "error": false,
+  "json": [
+   {
+    "block mapping": {
+     "key": "value"
+    }
+   }
+  ]
+ },
+ {
+  "id": "TL85",
+  "name": "Spec Example 6.8. Flow Folding",
+  "yaml": "\"\n  foo \n \n  \t bar\n\n  baz\n\"\n",
+  "error": false,
+  "json": [
+   " foo\nbar\nbaz "
+  ]
+ },
+ {
+  "id": "TS54",
+  "name": "Folded Block Scalar",
+  "yaml": ">\n ab\n cd\n \n ef\n\n\n gh\n",
+  "error": false,
+  "json": [
+   "ab cd\nef\n\ngh\n"
+  ]
+ },
+ {
+  "id": "U3C3",
+  "name": "Spec Example 6.16. \u201cTAG\u201d directive",
+  "yaml": "%TAG !yaml! tag:yaml.org,2002:\n---\n!yaml!str \"foo\"\n",
+  "error": false,
+  "json": [
+   "foo"
+  ]
+ },
+ {
+  "id": "U3XV",
+  "name": "Node and Mapping Key Anchors",
+  "yaml": "---\ntop1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4:\n  &node4\n  &k4 key4: four\ntop5:\n  &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n",
+  "error": false,
+  "json": [
+   {
+    "top1": {
+     "key1": "one"
+    },
+    "top2": {
+     "key2": "two"
+    },
+    "top3": {
+     "key3": "three"
+    },
+    "top4": {
+     "key4": "four"
+    },
+    "top5": {
+     "key5": "five"
+    },
+    "top6": "six",
+    "top7": "seven"
+   }
+  ]
+ },
+ {
+  "id": "U44R",
+  "name": "Bad indentation in mapping (2)",
+  "yaml": "map:\n  key1: \"quoted1\"\n   key2: \"bad indentation\"\n",
+  "error": true
+ },
+ {
+  "id": "U99R",
+  "name": "Invalid comma in tag",
+  "yaml": "- !!str, xxx\n",
+  "error": true
+ },
+ {
+  "id": "U9NS",
+  "name": "Spec Example 2.8. Play by Play Feed from a Game",
+  "yaml": "---\ntime: 20:03:20\nplayer: Sammy Sosa\naction: strike (miss)\n...\n---\ntime: 20:03:47\nplayer: Sammy Sosa\naction: grand slam\n...\n",
+  "error": false,
+  "json": [
+   {
+    "time": "20:03:20",
+    "player": "Sammy Sosa",
+    "action": "strike (miss)"
+   },
+   {
+    "time": "20:03:47",
+    "player": "Sammy Sosa",
+    "action": "grand slam"
+   }
+  ]
+ },
+ {
+  "id": "UDM2",
+  "name": "Plain URL in flow mapping",
+  "yaml": "- { url: http://example.org }\n",
+  "error": false,
+  "json": [
+   [
+    {
+     "url": "http://example.org"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "UDR7",
+  "name": "Spec Example 5.4. Flow Collection Indicators",
+  "yaml": "sequence: [ one, two, ]\nmapping: { sky: blue, sea: green }\n",
+  "error": false,
+  "json": [
+   {
+    "sequence": [
+     "one",
+     "two"
+    ],
+    "mapping": {
+     "sky": "blue",
+     "sea": "green"
+    }
+   }
+  ]
+ },
+ {
+  "id": "UGM3",
+  "name": "Spec Example 2.27. Invoice",
+  "yaml": "--- !<tag:clarkevans.com,2002:invoice>\ninvoice: 34843\ndate   : 2001-01-23\nbill-to: &id001\n    given  : Chris\n    family : Dumars\n    address:\n        lines: |\n            458 Walkman Dr.\n            Suite #292\n        city    : Royal Oak\n        state   : MI\n        postal  : 48046\nship-to: *id001\nproduct:\n    - sku         : BL394D\n      quantity    : 4\n      description : Basketball\n      price       : 450.00\n    - sku         : BL4438H\n      quantity    : 1\n      description : Super Hoop\n      price       : 2392.00\ntax  : 251.42\ntotal: 4443.52\ncomments:\n    Late afternoon is best.\n    Backup contact is Nancy\n    Billsmer @ 338-4338.\n",
+  "error": false,
+  "json": [
+   {
+    "invoice": 34843,
+    "date": "2001-01-23",
+    "bill-to": {
+     "given": "Chris",
+     "family": "Dumars",
+     "address": {
+      "lines": "458 Walkman Dr.\nSuite #292\n",
+      "city": "Royal Oak",
+      "state": "MI",
+      "postal": 48046
+     }
+    },
+    "ship-to": {
+     "given": "Chris",
+     "family": "Dumars",
+     "address": {
+      "lines": "458 Walkman Dr.\nSuite #292\n",
+      "city": "Royal Oak",
+      "state": "MI",
+      "postal": 48046
+     }
+    },
+    "product": [
+     {
+      "sku": "BL394D",
+      "quantity": 4,
+      "description": "Basketball",
+      "price": 450
+     },
+     {
+      "sku": "BL4438H",
+      "quantity": 1,
+      "description": "Super Hoop",
+      "price": 2392
+     }
+    ],
+    "tax": 251.42,
+    "total": 4443.52,
+    "comments": "Late afternoon is best. Backup contact is Nancy Billsmer @ 338-4338."
+   }
+  ]
+ },
+ {
+  "id": "UKK6/00",
+  "name": "Syntax character edge cases",
+  "yaml": "- :\n",
+  "error": false
+ },
+ {
+  "id": "UKK6/01",
+  "name": "Syntax character edge cases",
+  "yaml": "::\n",
+  "error": false,
+  "json": [
+   {
+    ":": null
+   }
+  ]
+ },
+ {
+  "id": "UKK6/02",
+  "name": "Syntax character edge cases",
+  "yaml": "!\n",
+  "error": false
+ },
+ {
+  "id": "UT92",
+  "name": "Spec Example 9.4. Explicit Documents",
+  "yaml": "---\n{ matches\n% : 20 }\n...\n---\n# Empty\n...\n",
+  "error": false,
+  "json": [
+   {
+    "matches %": 20
+   },
+   null
+  ]
+ },
+ {
+  "id": "UV7Q",
+  "name": "Legal tab after indentation",
+  "yaml": "x:\n - x\n  \tx\n",
+  "error": false,
+  "json": [
+   {
+    "x": [
+     "x x"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "V55R",
+  "name": "Aliases in Block Sequence",
+  "yaml": "- &a a\n- &b b\n- *a\n- *b\n",
+  "error": false,
+  "json": [
+   [
+    "a",
+    "b",
+    "a",
+    "b"
+   ]
+  ]
+ },
+ {
+  "id": "V9D5",
+  "name": "Spec Example 8.19. Compact Block Mappings",
+  "yaml": "- sun: yellow\n- ? earth: blue\n  : moon: white\n",
+  "error": false
+ },
+ {
+  "id": "VJP3/00",
+  "name": "Flow collections over many lines",
+  "yaml": "k: {\nk\n:\nv\n}\n",
+  "error": true
+ },
+ {
+  "id": "VJP3/01",
+  "name": "Flow collections over many lines",
+  "yaml": "k: {\n k\n :\n v\n }\n",
+  "error": false,
+  "json": [
+   {
+    "k": {
+     "k": "v"
+    }
+   }
+  ]
+ },
+ {
+  "id": "W42U",
+  "name": "Spec Example 8.15. Block Sequence Entry Types",
+  "yaml": "- # Empty\n- |\n block node\n- - one # Compact\n  - two # sequence\n- one: two # Compact mapping\n",
+  "error": false,
+  "json": [
+   [
+    null,
+    "block node\n",
+    [
+     "one",
+     "two"
+    ],
+    {
+     "one": "two"
+    }
+   ]
+  ]
+ },
+ {
+  "id": "W4TN",
+  "name": "Spec Example 9.5. Directives Documents",
+  "yaml": "%YAML 1.2\n--- |\n%!PS-Adobe-2.0\n...\n%YAML 1.2\n---\n# Empty\n...\n",
+  "error": false,
+  "json": [
+   "%!PS-Adobe-2.0\n",
+   null
+  ]
+ },
+ {
+  "id": "W5VH",
+  "name": "Allowed characters in alias",
+  "yaml": "a: &:@*!$\"<foo>: scalar a\nb: *:@*!$\"<foo>:\n",
+  "error": false,
+  "json": [
+   {
+    "a": "scalar a",
+    "b": "scalar a"
+   }
+  ]
+ },
+ {
+  "id": "W9L4",
+  "name": "Literal block scalar with more spaces in first line",
+  "yaml": "---\nblock scalar: |\n     \n  more spaces at the beginning\n  are invalid\n",
+  "error": true
+ },
+ {
+  "id": "WZ62",
+  "name": "Spec Example 7.2. Empty Content",
+  "yaml": "{\n  foo : !!str,\n  !!str : bar,\n}\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "",
+    "": "bar"
+   }
+  ]
+ },
+ {
+  "id": "X38W",
+  "name": "Aliases in Flow Objects",
+  "yaml": "{ &a [a, &b b]: *b, *a : [c, *b, d]}\n",
+  "error": false
+ },
+ {
+  "id": "X4QW",
+  "name": "Comment without whitespace after block scalar indicator",
+  "yaml": "block: ># comment\n  scalar\n",
+  "error": true
+ },
+ {
+  "id": "X8DW",
+  "name": "Explicit key and value seperated by comment",
+  "yaml": "---\n? key\n# comment\n: value\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value"
+   }
+  ]
+ },
+ {
+  "id": "XLQ9",
+  "name": "Multiline scalar that looks like a YAML directive",
+  "yaml": "---\nscalar\n%YAML 1.2\n",
+  "error": false,
+  "json": [
+   "scalar %YAML 1.2"
+  ]
+ },
+ {
+  "id": "XV9V",
+  "name": "Spec Example 6.5. Empty Lines [1.3]",
+  "yaml": "Folding:\n  \"Empty line\n\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n",
+  "error": false,
+  "json": [
+   {
+    "Folding": "Empty line\nas a line feed",
+    "Chomping": "Clipped empty lines\n"
+   }
+  ]
+ },
+ {
+  "id": "XW4D",
+  "name": "Various Trailing Comments",
+  "yaml": "a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne:\n &node # lala\n - x: y\nblock: > # lala\n  abcde\n",
+  "error": false
+ },
+ {
+  "id": "Y2GN",
+  "name": "Anchor with colon in the middle",
+  "yaml": "---\nkey: &an:chor value\n",
+  "error": false,
+  "json": [
+   {
+    "key": "value"
+   }
+  ]
+ },
+ {
+  "id": "Y79Y/000",
+  "name": "Tabs in various contexts",
+  "yaml": "foo: |\n\t\nbar: 1\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/001",
+  "name": "Tabs in various contexts",
+  "yaml": "foo: |\n \t\nbar: 1\n",
+  "error": false,
+  "json": [
+   {
+    "foo": "\t\n",
+    "bar": 1
+   }
+  ]
+ },
+ {
+  "id": "Y79Y/002",
+  "name": "Tabs in various contexts",
+  "yaml": "- [\n\t\n foo\n ]\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "foo"
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "Y79Y/003",
+  "name": "Tabs in various contexts",
+  "yaml": "- [\n\tfoo,\n foo\n ]\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/004",
+  "name": "Tabs in various contexts",
+  "yaml": "-\t-\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/005",
+  "name": "Tabs in various contexts",
+  "yaml": "- \t-\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/006",
+  "name": "Tabs in various contexts",
+  "yaml": "?\t-\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/007",
+  "name": "Tabs in various contexts",
+  "yaml": "? -\n:\t-\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/008",
+  "name": "Tabs in various contexts",
+  "yaml": "?\tkey:\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/009",
+  "name": "Tabs in various contexts",
+  "yaml": "? key:\n:\tkey:\n",
+  "error": true
+ },
+ {
+  "id": "Y79Y/010",
+  "name": "Tabs in various contexts",
+  "yaml": "-\t-1\n",
+  "error": false,
+  "json": [
+   [
+    -1
+   ]
+  ]
+ },
+ {
+  "id": "YD5X",
+  "name": "Spec Example 2.5. Sequence of Sequences",
+  "yaml": "- [name        , hr, avg  ]\n- [Mark McGwire, 65, 0.278]\n- [Sammy Sosa  , 63, 0.288]\n",
+  "error": false,
+  "json": [
+   [
+    [
+     "name",
+     "hr",
+     "avg"
+    ],
+    [
+     "Mark McGwire",
+     65,
+     0.278
+    ],
+    [
+     "Sammy Sosa",
+     63,
+     0.288
+    ]
+   ]
+  ]
+ },
+ {
+  "id": "YJV2",
+  "name": "Dash in flow sequence",
+  "yaml": "[-]\n",
+  "error": true
+ },
+ {
+  "id": "Z67P",
+  "name": "Spec Example 8.21. Block Scalar Nodes [1.3]",
+  "yaml": "literal: |2\n  value\nfolded: !foo >1\n value\n",
+  "error": false,
+  "json": [
+   {
+    "literal": "value\n",
+    "folded": "value\n"
+   }
+  ]
+ },
+ {
+  "id": "Z9M4",
+  "name": "Spec Example 6.22. Global Tag Prefix",
+  "yaml": "%TAG !e! tag:example.com,2000:app/\n---\n- !e!foo \"bar\"\n",
+  "error": false,
+  "json": [
+   [
+    "bar"
+   ]
+  ]
+ },
+ {
+  "id": "ZCZ6",
+  "name": "Invalid mapping in plain single line value",
+  "yaml": "a: b: c: d\n",
+  "error": true
+ },
+ {
+  "id": "ZF4X",
+  "name": "Spec Example 2.6. Mapping of Mappings",
+  "yaml": "Mark McGwire: {hr: 65, avg: 0.278}\nSammy Sosa: {\n    hr: 63,\n    avg: 0.288\n  }\n",
+  "error": false,
+  "json": [
+   {
+    "Mark McGwire": {
+     "hr": 65,
+     "avg": 0.278
+    },
+    "Sammy Sosa": {
+     "hr": 63,
+     "avg": 0.288
+    }
+   }
+  ]
+ },
+ {
+  "id": "ZH7C",
+  "name": "Anchors in Mapping",
+  "yaml": "&a a: b\nc: &d d\n",
+  "error": false,
+  "json": [
+   {
+    "a": "b",
+    "c": "d"
+   }
+  ]
+ },
+ {
+  "id": "ZK9H",
+  "name": "Nested top level flow mapping",
+  "yaml": "{ key: [[[\n  value\n ]]]\n}\n",
+  "error": false,
+  "json": [
+   {
+    "key": [
+     [
+      [
+       "value"
+      ]
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "id": "ZL4Z",
+  "name": "Invalid nested mapping",
+  "yaml": "---\na: 'b': c\n",
+  "error": true
+ },
+ {
+  "id": "ZVH3",
+  "name": "Wrong indented sequence item",
+  "yaml": "- key: value\n - item1\n",
+  "error": true
+ },
+ {
+  "id": "ZWK4",
+  "name": "Key with anchor after missing explicit mapping value",
+  "yaml": "---\na: 1\n? b\n&anchor c: 3\n",
+  "error": false,
+  "json": [
+   {
+    "a": 1,
+    "b": null,
+    "c": 3
+   }
+  ]
+ },
+ {
+  "id": "ZXT5",
+  "name": "Implicit key followed by newline and adjacent value",
+  "yaml": "[ \"key\"\n  :value ]\n",
+  "error": true
+ }
+]
