@@ -3354,7 +3354,10 @@ changes:
     the current memory use of the header compression tables, header blocks
     retained by open streams, current data queued to be sent, and
     unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    current limit. For the final response headers on a locally initiated stream,
+    queued outbound data is excluded from the memory check. Retained headers
+    still count towards the limit. This exception does not apply to informational
+    responses, trailers, or server push streams. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value

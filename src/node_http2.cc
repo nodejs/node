@@ -16,6 +16,7 @@
 #include "nbytes.h"
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -2364,6 +2365,7 @@ void Http2Stream::StartHeaders(nghttp2_headers_category category) {
   current_headers_length_ = 0;
   current_headers_.clear();
   current_headers_category_ = category;
+  current_headers_are_final_response_ = false;
 }
 
 
@@ -2782,9 +2784,22 @@ bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
 
   Http2Header header(env(), name, value, flags);
   size_t length = header.length() + 32;
-  // A header can only be added if we have not exceeded the maximum number
-  // of headers and the session has memory available for it.
-  if (!session_->has_available_session_memory(length) ||
+  // nghttp2 validates :status and rejects pseudo-headers in trailers before
+  // this callback. The category alone is insufficient: a final response after
+  // 1xx has category NGHTTP2_HCAT_HEADERS. Push streams have even IDs.
+  if (session_->type() == NGHTTP2_SESSION_CLIENT && (id_ & 1) != 0 &&
+      current_headers_.empty()) {
+    const nghttp2_vec name_buf = nghttp2_rcbuf_get_buf(name);
+    if (name_buf.len == 7 && std::memcmp(name_buf.base, ":status", 7) == 0) {
+      const nghttp2_vec value_buf = nghttp2_rcbuf_get_buf(value);
+      current_headers_are_final_response_ = value_buf.base[0] >= '2';
+    }
+  }
+
+  // Queued request bodies must not block a final response to a local request.
+  // The session-wide limit on retained headers still applies.
+  if (!session_->has_available_session_memory(
+          length, current_headers_are_final_response_) ||
       current_headers_.size() == max_header_pairs_ ||
       current_headers_length_ + length > max_header_length_) {
     return false;
@@ -2895,12 +2910,13 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
 
 void Http2Stream::IncrementAvailableOutboundLength(size_t amount) {
   available_outbound_length_ += amount;
-  session_->IncrementCurrentSessionMemory(amount);
+  session_->IncrementQueuedOutboundMemory(amount);
 }
 
 void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
+  DCHECK_LE(amount, available_outbound_length_);
   available_outbound_length_ -= amount;
-  session_->DecrementCurrentSessionMemory(amount);
+  session_->DecrementQueuedOutboundMemory(amount);
 }
 
 
