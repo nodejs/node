@@ -203,23 +203,16 @@ void PerProcessOptions::CheckProcessTimeoutOptions(
   // make the timeout fire while the debugger is in control, so the two cannot
   // be combined. Runtime activation of the inspector is rejected separately.
   const DebugOptions& debug_options = per_isolate->per_env->debug_options();
-  const char* debug_option = nullptr;
-  if (debug_options.break_node_first_line) {
-    debug_option = "--inspect-brk-node";
-  } else if (debug_options.break_first_line) {
-    debug_option = "--inspect-brk";
-  } else if (debug_options.inspect_wait) {
-    debug_option = "--inspect-wait";
-  } else if (debug_options.inspector_enabled) {
-    debug_option = "--inspect";
-  } else if (debug_options.host_port.host() != "127.0.0.1" ||
-             debug_options.host_port.port() !=
-                 DebugOptions::kDefaultInspectorPort) {
-    // We can't catch the case where the value passed is the default value,
-    // then the option just becomes a noop which is fine.
-    debug_option = "--inspect-port";
-  } else if (debug_options.inspect_publish_uid_string != "stderr,http") {
-    debug_option = "--inspect-publish-uid";
+  const char* debug_option = debug_options.inspector_option_name();
+  if (debug_option == nullptr) {
+    if (debug_options.host_port.host() != "127.0.0.1" ||
+        debug_options.host_port.port() != DebugOptions::kDefaultInspectorPort) {
+      // We can't catch the case where the value passed is the default value,
+      // then the option just becomes a noop which is fine.
+      debug_option = "--inspect-port";
+    } else if (debug_options.inspect_publish_uid_string != "stderr,http") {
+      debug_option = "--inspect-publish-uid";
+    }
   }
   if (debug_option != nullptr) {
     errors->push_back(std::string("either --process-timeout or ") +
@@ -295,6 +288,17 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
                                      std::vector<std::string>* argv) {
   if (!max_old_space_size_percentage.empty()) {
     HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size_percentage);
+  }
+
+  if (build_snapshot) {
+    // V8 does not allow a debugger to be attached during snapshot building.
+    const char* debug_option =
+        per_env->debug_options().inspector_option_name();
+    if (debug_option != nullptr) {
+      errors->push_back(
+          std::string("--build-snapshot cannot be used together with ") +
+          debug_option);
+    }
   }
 
   per_env->CheckOptions(errors, argv);

@@ -30,7 +30,10 @@ const entry = fixtures.path('snapshot', 'console.js');
     console.log(child.stderr.toString());
     assert.strictEqual(child.status, 0);
   }
-  assert.deepStrictEqual(Object.keys(console), JSON.parse(stdout));
+  // console.createTask is not available during snapshot buildling.
+  assert.deepStrictEqual(
+    Object.keys(console).filter((key) => key !== 'createTask'),
+    JSON.parse(stdout));
   const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
