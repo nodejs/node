@@ -173,7 +173,7 @@ $ node --permission --allow-fs-read=* index.js
 node:internal/child_process:388
   const err = this._handle.spawn(options);
                            ^
-Error: Access to this API has been restricted
+Error: Access to this API has been restricted. Use --allow-child-process to manage permissions.
     at ChildProcess.spawn (node:internal/child_process:388:28)
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -486,7 +486,7 @@ new WASI({
 ```console
 $ node --permission --allow-fs-read=* index.js
 
-Error: Access to this API has been restricted
+Error: Access to this API has been restricted. Use --allow-wasi to manage permissions.
     at node:internal/main/run_main_module:30:49 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'WASI',
@@ -517,7 +517,7 @@ new Worker(__filename);
 ```console
 $ node --permission --allow-fs-read=* index.js
 
-Error: Access to this API has been restricted
+Error: Access to this API has been restricted. Use --allow-worker to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'WorkerThreads'
