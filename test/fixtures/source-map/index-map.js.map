@@ -1,0 +1,15 @@
+{
+  "version": 3,
+  "sections": [
+    {
+      "offset": { "line": 0, "column": 0 },
+      "map": {
+        "version": 3,
+        "sources": ["index-map-original.js"],
+        "sourcesContent": ["function fail() {\n  throw new Error('original');\n}\nfail();\n"],
+        "names": [],
+        "mappings": "AAAA;AACA;AACA;AACA"
+      }
+    }
+  ]
+}
