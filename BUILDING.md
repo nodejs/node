@@ -1071,6 +1071,19 @@ a warning is printed and Temporal support is disabled.
 
 Passing both options to `configure.py` is an error.
 
+For non-Windows cross builds with bundled Temporal, set the Rust target when
+configuring:
+
+```bash
+CARGO_BUILD_TARGET=riscv64gc-unknown-linux-gnu ./configure \
+  --cross-compiling --dest-os=linux --dest-cpu=riscv64
+```
+
+Configure saves this target and the host triple reported by `rustc -vV`.
+Install the target's Rust standard library and configure the cross linker
+separately. Re-run configure when changing targets. Cargo configuration-file
+targets and custom JSON targets are not supported by this detection.
+
 ## Building Node.js with external core modules
 
 It is possible to specify one or more JavaScript text files to be bundled in

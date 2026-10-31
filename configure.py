@@ -1934,6 +1934,31 @@ def configure_node(o):
     os.environ['GYP_CROSSCOMPILE'] = "1"
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+  o['variables']['cargo_cross_compiling'] = 0
+  if (flavor != 'win' and cross_compiling and
+      not options.v8_disable_temporal_support and not options.shared_temporal_capi):
+    # Only bundled Temporal cross builds need explicit per-toolset Rust targets.
+    rust_target = os.environ.get('CARGO_BUILD_TARGET', '') or o['variables']['cargo_rust_target']
+    if not rust_target:
+      error('Cross compilation with bundled Temporal requires CARGO_BUILD_TARGET')
+    rust_host_target = ''
+    rustc = os.environ.get('RUSTC', 'rustc')
+    try:
+      version = subprocess.check_output(shlex.split(rustc) + ['-vV'],
+                                        stderr=subprocess.PIPE, text=True)
+    except (OSError, subprocess.CalledProcessError):
+      version = ''
+    match = re.search(r'^host: (\S+)$', version, re.MULTILINE)
+    if match:
+      rust_host_target = match.group(1)
+    if not rust_host_target:
+      error('Cannot determine the Rust host triple from rustc -vV')
+    for triple in (rust_host_target, rust_target):
+      if not re.fullmatch(r'[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+', triple):
+        error('Rust targets must be target triples, not paths to target JSON files')
+    o['variables']['cargo_cross_compiling'] = 1
+    o['variables']['cargo_rust_target_target'] = rust_target
+    o['variables']['cargo_rust_target_host'] = rust_host_target
 
   if target_arch == 'arm64':
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'

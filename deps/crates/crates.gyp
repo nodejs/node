@@ -6,14 +6,19 @@
     'zoneinfo64_dir': 'zoneinfo64-v0_3',
     'temporal_zoneinfo64_data_output': '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
     'cargo_rust_target%': '',
+    'cargo_cross_compiling%': 0,
+    'cargo_rust_target_host%': '',
+    'cargo_rust_target_target%': '',
+    'node_shared_temporal_capi%': 'false',
   },
   'conditions': [
     ['build_type == "Release"', {
       'variables': {
         'cargo_build_flags': ['--release'],
+        'cargo_profile': 'release',
       },
       'conditions': [
-        ['cargo_rust_target!=""', {
+        ['cargo_rust_target!="" and cargo_cross_compiling==0', {
           'variables': {
             'cargo_build_flags': ['--target', '<(cargo_rust_target)'],
           }
@@ -31,6 +36,7 @@
     }, {
       'variables': {
         'cargo_build_flags': [],
+        'cargo_profile': 'debug',
       },
       'conditions': [
         ['OS=="win"', {
@@ -50,6 +56,17 @@
       'target_name': 'node_crates',
       'type': 'none',
       'toolsets': ['host', 'target'],
+      'variables': {
+        'cargo_output_dir': '<(SHARED_INTERMEDIATE_DIR)',
+        'cargo_cross_target_flags': [],
+        'conditions': [
+          ['cargo_cross_compiling==1', {
+            'cargo_output_dir': '<(SHARED_INTERMEDIATE_DIR)/cargo/<(_toolset)',
+            'cargo_cross_target_flags': ['--target', '<(cargo_rust_target_<(_toolset))'],
+            'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/cargo/<(_toolset)/<(cargo_rust_target_<(_toolset))/<(cargo_profile)/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
+          }],
+        ],
+      },
       'hard_dependency': 1,
       'sources': [
         'Cargo.toml',
@@ -70,7 +87,7 @@
         ],
       },
       'conditions': [
-        ['OS=="win"', {
+        ['OS=="win" and node_shared_temporal_capi=="false"', {
           'actions': [
             {
               'action_name': 'cargo_build',
@@ -90,7 +107,8 @@
               ],
             }
           ],
-        }, {
+        }],
+        ['OS!="win" and node_shared_temporal_capi=="false"', {
           'actions': [
             {
               'action_name': 'cargo_build',
@@ -103,10 +121,11 @@
               'action': [
                 '<(cargo)',
                 'rustc',
+                '<@(cargo_cross_target_flags)',
                 '<@(cargo_build_flags)',
                 '--frozen',
                 '--target-dir',
-                '<(SHARED_INTERMEDIATE_DIR)'
+                '<(cargo_output_dir)'
               ],
             }
           ],
