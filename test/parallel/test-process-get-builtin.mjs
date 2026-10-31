@@ -40,6 +40,8 @@ publicBuiltins.delete('node:dtls');
 publicBuiltins.delete('node:quic');
 // Remove this once node:vfs graduates from unflagged.
 publicBuiltins.delete('node:vfs');
+// Remove this once node:yaml graduates from unflagged.
+publicBuiltins.delete('node:yaml');
 
 if (!hasInspector) {
   publicBuiltins.delete('inspector');

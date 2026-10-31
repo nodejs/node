@@ -418,6 +418,10 @@
               "type": "boolean",
               "description": "experimental Web Storage API"
             },
+            "experimental-yaml": {
+              "type": "boolean",
+              "description": "experimental node:yaml module"
+            },
             "extra-info-on-fatal-exception": {
               "type": "boolean",
               "description": "hide extra information on fatal exception that causes exit"
