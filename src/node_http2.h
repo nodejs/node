@@ -1002,8 +1002,8 @@ class Http2Session : public AsyncWrap,
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
-  // Saved arguments for Close() deferred while nghttp2_session_mem_recv()
-  // callbacks are active.
+  // Saved arguments for Close() deferred while receiving data or waiting for
+  // an outgoing write to finish.
   uint32_t pending_close_code_ = NGHTTP2_NO_ERROR;
   bool pending_close_socket_closed_ = false;
   // Count streams that have been rejected while being opened. Exceeding a fixed
@@ -1020,8 +1020,8 @@ class Http2Session : public AsyncWrap,
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
-  void FinishClose(uint32_t code, bool socket_closed);
-  void MaybeFinishPendingClose();
+  void FinishClose(uint32_t code, bool socket_closed, int write_status = 0);
+  void MaybeFinishPendingClose(int status = 0);
 
   void MaybeNotifyGracefulCloseComplete();
 

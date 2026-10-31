@@ -841,19 +841,22 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     return;
   set_closing();
 
+  pending_close_code_ = code;
+  pending_close_socket_closed_ = socket_closed;
+
   // Do not flush GOAWAY from inside nghttp2_session_mem_recv() callbacks.
   // ConsumeHTTP2Data() finishes the close once mem_recv returns.
   if (is_receiving()) {
     set_close_pending();
-    pending_close_code_ = code;
-    pending_close_socket_closed_ = socket_closed;
     return;
   }
 
   FinishClose(code, socket_closed);
 }
 
-void Http2Session::FinishClose(uint32_t code, bool socket_closed) {
+void Http2Session::FinishClose(uint32_t code,
+                              bool socket_closed,
+                              int write_status) {
   CHECK(is_closing());
 
   // Stop reading on the i/o stream
@@ -862,15 +865,20 @@ void Http2Session::FinishClose(uint32_t code, bool socket_closed) {
     stream_->ReadStop();
   }
 
-  // If the socket is not closed, then attempt to send a closing GOAWAY
+  // If the socket is still writable, attempt to send a closing GOAWAY
   // frame. There is no guarantee that this GOAWAY will be received by
   // the peer but the HTTP/2 spec recommends sending it anyway. We'll
   // make a best effort.
-  if (!socket_closed) {
+  if (!socket_closed && write_status == 0) {
     Debug(this, "terminating session with code %d", code);
     CHECK_EQ(nghttp2_session_terminate_session(session_.get(), code), 0);
-    SendPendingData();
-  } else if (stream_ != nullptr) {
+    if (SendPendingData() != 0) {
+      // An earlier write still owns the outgoing buffers. Keep the session
+      // alive until its completion lets us flush the terminal GOAWAY.
+      set_close_pending();
+      return;
+    }
+  } else if (socket_closed && stream_ != nullptr) {
     // so that the previous listener of the socket, typically, JS code of a
     // (tls) socket will be notified of any activity later
     stream_->RemoveStreamListener(this);
@@ -905,10 +913,12 @@ void Http2Session::FinishClose(uint32_t code, bool socket_closed) {
   EmitStatistics();
 }
 
-void Http2Session::MaybeFinishPendingClose() {
-  if (!is_close_pending() || is_destroyed()) return;
+void Http2Session::MaybeFinishPendingClose(int status) {
+  if (!is_close_pending() || is_destroyed() || is_receiving() || is_sending()) {
+    return;
+  }
   set_close_pending(false);
-  FinishClose(pending_close_code_, pending_close_socket_closed_);
+  FinishClose(pending_close_code_, pending_close_socket_closed_, status);
 }
 
 // Locates an existing known stream by ID. nghttp2 has a similar method
@@ -1856,8 +1866,15 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   CHECK(is_write_in_progress());
   set_write_in_progress(false);
 
+  // ClearOutgoing() may synchronously finish a pending close.
+  const bool close_pending = is_close_pending();
   // Inform all pending writes about their completion.
   ClearOutgoing(status);
+
+  if (close_pending || is_close_pending()) {
+    MaybeFinishPendingClose(status);
+    return;
+  }
 
   if (is_reading_stopped() &&
       !is_write_in_progress() &&
@@ -1955,7 +1972,7 @@ void Http2Session::ClearOutgoing(int status) {
 
   // Now that we've finished sending queued data, if there are any pending
   // RstStreams we should try sending again and then flush them one by one.
-  if (!pending_rst_streams_.empty()) {
+  if (status == 0 && !pending_rst_streams_.empty()) {
     std::vector<int32_t> current_pending_rst_streams;
     pending_rst_streams_.swap(current_pending_rst_streams);
 
@@ -2077,6 +2094,7 @@ uint8_t Http2Session::SendPendingData() {
     set_write_in_progress(false);
     ClearOutgoing(res.err);
     MaybeNotifyGracefulCloseComplete();
+    MaybeFinishPendingClose(res.err);
   }
 
   MaybeStopReading();
