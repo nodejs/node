@@ -42,9 +42,14 @@ function testChildProcess(getArgs, exitCode, options) {
 
 tmpdir.refresh();
 
-testChildProcess(
-  (port) => [`--inspect=${port}`, '--build-snapshot', entry], 0,
-  { cwd: tmpdir.path });
+// V8 does not allow a debugger to be attached during snapshot building.
+spawnSyncAndExit(process.execPath, ['--inspect=0', '--build-snapshot', entry],
+  { cwd: tmpdir.path },
+  {
+    status: 9,
+    signal: null,
+    stderr: /--build-snapshot cannot be used together with --inspect/,
+  });
 
 testChildProcess(
   (port) => [`--inspect=${port}`, entry], 0);
