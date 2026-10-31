@@ -5,18 +5,24 @@
 // This depends on perfetto's `trace_processor_shell` converts to pftrace format
 // to JSON format. Run `make tools/perfetto/trace_processor_shell` to download
 // it (`vcbuild test` does so on Windows), or point `TRACE_PROCESSOR_SHELL_PATH`
-// at an existing build of it.
+// at an existing build of it. Point it at the null device (`/dev/null`, or
+// `NUL` on Windows) to skip the tests that need it.
 
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
+const { devNull } = require('os');
 const path = require('path');
 const common = require('./');
 
-const traceProcessor = path.resolve(
-  __dirname, '..', '..',
-  process.env.TRACE_PROCESSOR_SHELL_PATH ||
-    `tools/perfetto/trace_processor_shell${common.isWindows ? '.exe' : ''}`);
+const traceProcessor = ((p) => {
+  if (p !== undefined && common.isWindows && /^(?:\\\\\.\\)?nul$/i.test(p)) {
+    return false;
+  }
+  return p !== devNull && path.resolve(
+    __dirname, '..', '..',
+    p || `tools/perfetto/trace_processor_shell${common.isWindows ? '.exe' : ''}`);
+})(process.env.TRACE_PROCESSOR_SHELL_PATH);
 
 // The JSON form of a trace runs about three times the size of the trace it was
 // converted from, and the traces these tests produce are a few hundred KiB at
@@ -29,9 +35,14 @@ const defaultTraceFileName = `node_trace.1.${traceFileExt}`;
 // Only perfetto traces need converting, so a missing `trace_processor_shell`
 // does not stop anything on a legacy build.
 function checkTraceProcessor() {
-  if (common.hasPerfetto && !fs.existsSync(traceProcessor)) {
+  if (!common.hasPerfetto) return;
+  if (!traceProcessor) {
+    common.skip('TRACE_PROCESSOR_SHELL_PATH points to the null device');
+  }
+  if (!fs.existsSync(traceProcessor)) {
     assert.fail('trace_processor_shell is missing, ' +
-                'run `python3 tools/perfetto/get_trace_processor.py` to download it');
+                'run `python3 tools/perfetto/get_trace_processor.py` to download it, ' +
+                'or set TRACE_PROCESSOR_SHELL_PATH to the null device to skip this test');
   }
 }
 
@@ -41,12 +52,12 @@ function readTraceEvents(file) {
   }
 
   const converted = spawnSync(traceProcessor, ['convert', 'json', file],
-                              { maxBuffer: kMaxTraceJsonBytes });
+                              { maxBuffer: kMaxTraceJsonBytes, encoding: 'utf8' });
   assert.ifError(converted.error);
-  assert.strictEqual(
-    converted.status, 0,
-    `trace_processor_shell failed: ${converted.stderr}`);
-  return JSON.parse(converted.stdout.toString()).traceEvents;
+  assert.partialDeepStrictEqual(
+    converted, { status: 0 },
+    `trace_processor_shell failed`);
+  return JSON.parse(converted.stdout).traceEvents;
 }
 
 // A perfetto trace event carries the single category it was emitted with. The

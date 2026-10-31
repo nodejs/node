@@ -16,6 +16,7 @@
     openssl_3
     openssl_3_6
     openssl_4_0
+    openssl_4_1
     ;
 
   openssl_fips = import ./openssl-fips.nix { };

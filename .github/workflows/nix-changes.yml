@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 2
-          persist-credentials: true # We need read access in case we need to fetch in `Compute requisites before change` step
+          persist-credentials: true  # We need read access in case we need to fetch in `Compute requisites before change` step
           sparse-checkout: |
             shell.nix
             tools/nix/
