@@ -3,6 +3,7 @@
 const common = require('../common');
 common.skipIfFFIMissing();
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -65,6 +66,37 @@ test('library images leave no file descriptor behind', { skip: !common.isLinux }
     lib.close();
   }
   assert.deepStrictEqual(images(), []);
+});
+
+test('closed library images give their fd numbers back', { skip: !common.isLinux }, () => {
+  // More loads than the limit allows fds, one at a time. There is no usable
+  // temporary directory, so this only works if each stays an in-memory image.
+  const limit = 128;
+  const child = `
+    const assert = require('node:assert');
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const ffi = require('node:ffi');
+    const vfs = require('node:vfs');
+    const myVfs = vfs.create();
+    myVfs.writeFileSync('/lib.so', fs.readFileSync(${JSON.stringify(libraryPath)}));
+    const libPath = path.join(myVfs.mount(), 'lib.so');
+    for (let i = 0; i < ${limit * 4}; i++) {
+      const { lib, functions } = ffi.dlopen(libPath, {
+        add_i32: ${JSON.stringify(fixtureSymbols.add_i32)},
+      });
+      assert.strictEqual(functions.add_i32(40, 2), 42);
+      lib.close();
+    }
+  `;
+  const { status, stderr } = spawnSync('/bin/sh', [
+    '-c', `ulimit -n ${limit} && exec "$0" "$@"`,
+    process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, TMPDIR: path.join(os.tmpdir(), 'no-such-directory') },
+  });
+  assert.strictEqual(status, 0, stderr);
 });
 
 test('new ffi.DynamicLibrary() loads from a mounted VFS', () => {

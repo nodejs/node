@@ -178,8 +178,8 @@ void DLOpenBinary(const v8::FunctionCallbackInfo<v8::Value>& args);
 // footprint each platform allows:
 //   Linux:        an anonymous in-memory memfd, loaded via /proc/self/fd/N -
 //                 the bytes never touch the filesystem. The fd is closed right
-//                 after the load, and its number is not used for another image
-//                 (the loader would return the earlier object by that path).
+//                 after the load, and a number whose path still names a loaded
+//                 object is skipped (the loader would return that object).
 //   other POSIX:  a 0700 mkdtemp() directory plus an O_EXCL|O_NOFOLLOW file,
 //                 unlink()ed right after the load (the mapping keeps it alive).
 //   Windows:      a temp file, written and closed before the load because the

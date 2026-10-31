@@ -33,8 +33,9 @@ assert.notStrictEqual(fn, hello);
 
 myVfs.unmount();
 
-// Every image takes an fd number no earlier image had, so a low limit runs out
-// of numbers long before it runs out of fds. Loading has to carry on regardless.
+// An addon on the main thread stays loaded and keeps the path it was loaded
+// through, so enough of them leave no fd number to load another through. Loading
+// has to carry on regardless, through the temp-file fallback.
 if (common.isLinux) {
   const limit = 128;
   const child = `
