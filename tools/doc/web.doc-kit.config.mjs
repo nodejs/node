@@ -17,6 +17,7 @@ export default {
   target: [
     'legacy-json-all',
     'section-pages',
+    'llms-txt',
   ],
 
   global: {
@@ -31,5 +32,10 @@ export default {
 
   metadata: {
     typeMap: urlFromRoot('doc/type-map.json'),
+  },
+
+  // `llms.txt` lives at the root of out/doc, not under out/doc/api.
+  'llms-txt': {
+    output: fromRoot('out/doc'),
   },
 };

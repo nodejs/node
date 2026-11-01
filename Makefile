@@ -891,22 +891,25 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-# Generate all doc files (individual and all.html/all.json) in a single doc-kit call.
-# A stamp tells Make that one command produces them all; a grouped target (&:)
-# needs GNU Make 4.3, and older ones (4.2.1 on RHEL 8) rerun the whole build for
-# every output that's still missing.
+# A single doc-kit call produces every file in apidoc_outputs. They depend on a
+# stamp file that the call touches, so Make runs it once rather than once per
+# file. (A grouped target, `&:`, would do the same but needs GNU Make 4.3, and
+# RHEL 8 ships 4.2.1.)
+apidoc_outputs = $(apidocs_html) $(apidocs_json) out/doc/api/all.html \
+	out/doc/api/all.json out/doc/llms.txt
+
 ifeq ($(OSTYPE),aix)
 # TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+$(apidoc_outputs):
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else ifeq ($(OSTYPE),os400)
 # TODO(@nodejs/web-infra): IBMi is currently hanging during HTML minification
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+$(apidoc_outputs):
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else ifeq ($(ARCHTYPE),riscv64)
 # Many riscv64 environments (except qemu) fail on the wasm steps here
 # https://github.com/nodejs/build/issues/4099#issuecomment-4038743335
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+$(apidoc_outputs):
 	@echo "Skipping $@ (not currently supported by $(DESTCPU) machines)"
 else
 out/doc/.docbuildstamp: $(apidoc_sources) tools/doc/node_modules | out/doc/api
@@ -925,23 +928,8 @@ out/doc/.docbuildstamp: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	fi
 	@touch $@
 
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json: out/doc/.docbuildstamp
+$(apidoc_outputs): out/doc/.docbuildstamp
 endif
-
-out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping $@ (no crypto and/or no ICU)"; \
-	else \
-		$(call available-node, \
-			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
-			--config-file tools/doc/web.doc-kit.config.mjs \
-			--ignore $(skip_apidoc_files) \
-			-t llms-txt \
-			-o $(@D) \
-			-v $(VERSION) \
-		) \
-	fi
 
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
