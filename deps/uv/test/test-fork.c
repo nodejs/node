@@ -161,6 +161,10 @@ TEST_IMPL(fork_socketpair) {
     ASSERT_EQ(1, socket_cb_called);
   }
 
+  /* uv_poll_init() does not take ownership of the socket. */
+  ASSERT_OK(close(socket_fds[0]));
+  ASSERT_OK(close(socket_fds[1]));
+
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
@@ -229,6 +233,12 @@ TEST_IMPL(fork_socketpair_started) {
     ASSERT_OK(strcmp("hi\n", socket_cb_read_buf));
   }
 
+  /* uv_poll_init() does not take ownership of the socket. */
+  ASSERT_OK(close(socket_fds[0]));
+  ASSERT_OK(close(socket_fds[1]));
+  ASSERT_OK(close(sync_pipe[0]));
+  ASSERT_OK(close(sync_pipe[1]));
+
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
@@ -291,6 +301,9 @@ TEST_IMPL(fork_signal_to_child) {
     ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_ONCE));
     ASSERT_EQ(SIGUSR1, fork_signal_cb_called);
   }
+
+  ASSERT_OK(close(sync_pipe[0]));
+  ASSERT_OK(close(sync_pipe[1]));
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
@@ -370,6 +383,11 @@ TEST_IMPL(fork_signal_to_child_closed) {
      */
     exit(0);
   }
+
+  ASSERT_OK(close(sync_pipe[0]));
+  ASSERT_OK(close(sync_pipe[1]));
+  ASSERT_OK(close(sync_pipe2[0]));
+  ASSERT_OK(close(sync_pipe2[1]));
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
