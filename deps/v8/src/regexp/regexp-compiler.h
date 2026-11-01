@@ -570,10 +570,15 @@ class RegExpCompiler {
   // lead surrogate and start matching from there.
   RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpNode* on_success);
 
+  struct WorkItem {
+    RegExpNode* node;
+    Flags flags;
+  };
+
   inline void AddWork(RegExpNode* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back(node);
+      work_list_->push_back({node, flags()});
     }
   }
 
@@ -644,7 +649,7 @@ class RegExpCompiler {
   int next_register_;
   int unicode_lookaround_stack_register_;
   int unicode_lookaround_position_register_;
-  ZoneVector<RegExpNode*>* work_list_;
+  ZoneVector<WorkItem>* work_list_;
   int recursion_depth_;
   RegExpFlags flags_;
   RegExpMacroAssembler* macro_assembler_;
