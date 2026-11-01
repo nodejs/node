@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
+#include <vector>
 
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
@@ -519,34 +520,68 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
+  // Body spans are buffered and handed to JS once per Execute() (or before
+  // on_message_complete), so a body split into many small chunks costs one
+  // C++ -> JS crossing per read instead of one per chunk.
   int on_body(const char* at, size_t length) {
     if (length == 0)
       return 0;
+
+    if (pending_body_len_ == 0) {
+      // Usually the only span in this read: point at it, copy nothing yet.
+      pending_body_ = at;
+    } else {
+      if (body_buf_.empty())
+        body_buf_.assign(pending_body_, pending_body_ + pending_body_len_);
+      body_buf_.insert(body_buf_.end(), at, at + length);
+    }
+    pending_body_len_ += length;
+
+    return 0;
+  }
+
+  // Returns false if the JS callback threw.
+  bool FlushBody() {
+    if (pending_body_len_ == 0)
+      return true;
+
+    const char* data = body_buf_.empty() ? pending_body_ : body_buf_.data();
+    size_t length = pending_body_len_;
+    pending_body_len_ = 0;
+
+    if (got_exception_) {
+      body_buf_.clear();
+      return true;
+    }
 
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
 
     Local<Value> cb = CachedCallback(kOnBody, kOnBodyCallback);
-
-    if (!cb->IsFunction())
-      return 0;
-
-    Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
-
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
-
-    if (r.IsEmpty()) {
-      got_exception_ = true;
-      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
-      return HPE_USER;
+    if (!cb->IsFunction()) {
+      body_buf_.clear();
+      return true;
     }
 
-    return 0;
+    Local<Value> buffer = Buffer::Copy(env, data, length).ToLocalChecked();
+    // ponytail: clear() keeps capacity (up to one read, 64 KiB) per parser;
+    // shrink_to_fit() here if pooled parsers' memory becomes a concern.
+    body_buf_.clear();
+
+    if (MakeCallback(cb.As<Function>(), 1, &buffer).IsEmpty()) {
+      got_exception_ = true;
+      return false;
+    }
+
+    return true;
   }
 
 
   int on_message_complete() {
     HandleScope scope(env()->isolate());
+
+    if (!FlushBody())
+      return -1;
 
     if (connectionsList_ != nullptr) {
       connectionsList_->PopActive(this);
@@ -883,6 +918,9 @@ class Parser : public AsyncWrap, public StreamListener {
       Save();
     }
 
+    // Deliver buffered body spans while `data` is still alive.
+    FlushBody();
+
     // Calculate bytes read and resume after Upgrade/CONNECT pause
     size_t nread = len;
     if (err != HPE_OK) {
@@ -1118,6 +1156,9 @@ class Parser : public AsyncWrap, public StreamListener {
   bool is_being_freed_ = false;
   size_t current_buffer_len_;
   const char* current_buffer_data_;
+  const char* pending_body_ = nullptr;
+  size_t pending_body_len_ = 0;
+  std::vector<char> body_buf_;
   bool headers_completed_ = false;
   size_t header_pairs_ = 0;
   size_t max_header_pairs_ = 0;

@@ -331,8 +331,9 @@ function expectBody(expected) {
     assert.strictEqual(versionMinor, 1);
   });
 
+  // Chunks parsed in the same execute() call are delivered as one buffer.
   let body_part = 0;
-  const body_parts = ['123', '123456', '1234567890'];
+  const body_parts = ['1231234561234567890'];
 
   const onBody = mustCallAtLeast((buf) => {
     const body = String(buf);
@@ -369,9 +370,10 @@ function expectBody(expected) {
     assert.strictEqual(versionMinor, 1);
   });
 
+  // One buffer per execute() call, holding all the chunks it parsed.
   let body_part = 0;
   const body_parts =
-          ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
+          ['123123456', '123456789123456789ABC123456789ABCDEF'];
 
   const onBody = mustCallAtLeast((buf) => {
     const body = String(buf);
