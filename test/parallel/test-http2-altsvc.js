@@ -8,6 +8,9 @@ const assert = require('assert');
 const http2 = require('http2');
 const Countdown = require('../common/countdown');
 
+const longOrigin = `https://${'a'.repeat(1040)}`;
+const longAlt = `h2=":${'8'.repeat(1042)}"`;
+
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.session.altsvc('h2=":8000"', stream.id);
@@ -22,6 +25,8 @@ server.on('session', common.mustCall((session) => {
   session.altsvc('h2=":8000"', 'https://example.org:8111/this');
   session.altsvc('h2=":8000"', new URL('https://example.org:8111/this'));
   session.altsvc('h2=":8000"', { origin: 'https://example.org:8111' });
+  session.altsvc('h2=":8001"', longOrigin);
+  session.altsvc(longAlt, 'https://example.org:8112');
 
   // Won't error, but won't send anything because the stream does not exist
   session.altsvc('h2=":8000"', 3);
@@ -104,25 +109,33 @@ server.on('session', common.mustCall((session) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  const countdown = new Countdown(4, () => {
+  const countdown = new Countdown(6, () => {
     client.close();
     server.close();
   });
 
   client.on('altsvc', common.mustCall((alt, origin, stream) => {
-    assert.strictEqual(alt, 'h2=":8000"');
-    switch (stream) {
-      case 0:
-        assert.strictEqual(origin, 'https://example.org:8111');
-        break;
-      case 1:
-        assert.strictEqual(origin, '');
-        break;
-      default:
-        assert.fail('should not happen');
+    if (alt === 'h2=":8001"') {
+      assert.strictEqual(origin, longOrigin);
+      assert.strictEqual(stream, 0);
+    } else if (alt === longAlt) {
+      assert.strictEqual(origin, 'https://example.org:8112');
+      assert.strictEqual(stream, 0);
+    } else {
+      assert.strictEqual(alt, 'h2=":8000"');
+      switch (stream) {
+        case 0:
+          assert.strictEqual(origin, 'https://example.org:8111');
+          break;
+        case 1:
+          assert.strictEqual(origin, '');
+          break;
+        default:
+          assert.fail('should not happen');
+      }
     }
     countdown.dec();
-  }, 4));
+  }, 6));
 
   const req = client.request();
   req.resume();
