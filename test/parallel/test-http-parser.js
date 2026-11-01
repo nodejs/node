@@ -564,6 +564,21 @@ function expectBody(expected) {
   parser.execute(req2, 0, req2.length);
 }
 
+// Buffered body spans are flushed once they would exceed 64 KiB.
+{
+  const chunk = `400\r\n${'x'.repeat(1024)}\r\n`;
+  const request = Buffer.from(
+    'POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n' +
+    chunk.repeat(100) + '0\r\n\r\n');
+
+  const sizes = [];
+  const parser = newParser(REQUEST);
+  parser[kOnBody] = (buf) => sizes.push(buf.length);
+  parser.execute(request, 0, request.length);
+
+  assert.deepStrictEqual(sizes, [64 * 1024, 36 * 1024]);
+}
+
 // Test parser 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {

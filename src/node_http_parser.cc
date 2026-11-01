@@ -36,7 +36,6 @@
 #include <cstring>  // strdup(), strchr()
 #include <vector>
 
-
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
 // agility. A Buffer is read from a socket and passed to parser.execute().
@@ -86,6 +85,7 @@ const uint32_t kOnTimeout = 6;
 const size_t kMaxHeaderFieldsCount = 32;
 // Maximum size of chunk extensions
 const size_t kMaxChunkExtensionsSize = 16384;
+const size_t kMaxBufferedBodySize = 64 * 1024;
 
 const uint32_t kLenientNone = 0;
 const uint32_t kLenientHeaders = 1 << 0;
@@ -519,20 +519,22 @@ class Parser : public AsyncWrap, public StreamListener {
     return static_cast<int>(val);
   }
 
-
-  // Body spans are buffered and handed to JS once per Execute() (or before
-  // on_message_complete), so a body split into many small chunks costs one
-  // C++ -> JS crossing per read instead of one per chunk.
   int on_body(const char* at, size_t length) {
     if (length == 0)
       return 0;
 
+    if (pending_body_len_ + length > kMaxBufferedBodySize && !FlushBody()) {
+      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
+      return HPE_USER;
+    }
+
     if (pending_body_len_ == 0) {
-      // Usually the only span in this read: point at it, copy nothing yet.
       pending_body_ = at;
     } else {
-      if (body_buf_.empty())
+      if (body_buf_.empty()) {
+        body_buf_.reserve(kMaxBufferedBodySize);
         body_buf_.assign(pending_body_, pending_body_ + pending_body_len_);
+      }
       body_buf_.insert(body_buf_.end(), at, at + length);
     }
     pending_body_len_ += length;
@@ -540,10 +542,8 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
-  // Returns false if the JS callback threw.
   bool FlushBody() {
-    if (pending_body_len_ == 0)
-      return true;
+    if (pending_body_len_ == 0) return true;
 
     const char* data = body_buf_.empty() ? pending_body_ : body_buf_.data();
     size_t length = pending_body_len_;
@@ -564,8 +564,6 @@ class Parser : public AsyncWrap, public StreamListener {
     }
 
     Local<Value> buffer = Buffer::Copy(env, data, length).ToLocalChecked();
-    // ponytail: clear() keeps capacity (up to one read, 64 KiB) per parser;
-    // shrink_to_fit() here if pooled parsers' memory becomes a concern.
     body_buf_.clear();
 
     if (MakeCallback(cb.As<Function>(), 1, &buffer).IsEmpty()) {
@@ -576,12 +574,10 @@ class Parser : public AsyncWrap, public StreamListener {
     return true;
   }
 
-
   int on_message_complete() {
     HandleScope scope(env()->isolate());
 
-    if (!FlushBody())
-      return -1;
+    if (!FlushBody()) return -1;
 
     if (connectionsList_ != nullptr) {
       connectionsList_->PopActive(this);
