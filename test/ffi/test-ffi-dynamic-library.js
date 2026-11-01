@@ -215,6 +215,54 @@ test('getFunction caches signatures consistently', () => {
   }
 });
 
+test('getFunctions rejects a signature changed by a getter', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const conflicting = { arguments: ['f64', 'f64'], return: 'f64' };
+
+  try {
+    let fn;
+    assert.throws(() => {
+      lib.getFunctions({
+        add_i32: fixtureSymbols.add_i32,
+        get add_i64() {
+          fn = lib.getFunction('add_i32', conflicting);
+          return fixtureSymbols.add_i64;
+        },
+      });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Function add_i32 was already requested with a different signature/,
+    });
+
+    // The rejected call must not cache any of its own entries.
+    assert.deepStrictEqual(Object.keys(lib.functions), ['add_i32']);
+    assert.strictEqual(lib.getFunction('add_i32', conflicting), fn);
+  } finally {
+    lib.close();
+  }
+});
+
+test('getFunctions accepts a matching signature requested by a getter', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    let fn;
+    const functions = lib.getFunctions({
+      add_i32: fixtureSymbols.add_i32,
+      get add_i64() {
+        fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+        return fixtureSymbols.add_i64;
+      },
+    });
+
+    assert.strictEqual(functions.add_i32, fn);
+    assert.strictEqual(functions.add_i32(20, 22), 42);
+    assert.strictEqual(functions.add_i64(20n, 22n), 42n);
+  } finally {
+    lib.close();
+  }
+});
+
 test('resolving the same symbol reuses one function', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const definitions = { add_i32: fixtureSymbols.add_i32 };

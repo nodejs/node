@@ -286,9 +286,10 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
   // Creating a callable emits a trampoline, allocates an FFIFunctionInfo, and
   // on the SharedBuffer path allocates an ArrayBuffer, so reuse the one already
-  // handed out for this symbol. `PrepareFunction()` rejects a request that uses
-  // a different signature, so a hit always describes the same signature. An
-  // empty handle means the wrapper was collected; fall through and rebuild.
+  // handed out for this symbol. `PrepareFunction()` and `GetFunctions()` reject
+  // a request that uses a different signature, so a hit always describes the
+  // same signature. An empty handle means the wrapper was collected; fall
+  // through and rebuild.
   auto cached = function_wrappers_.find(name);
   if (cached != function_wrappers_.end()) {
     if (!cached->second.IsEmpty()) {
@@ -962,6 +963,23 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
           .should_cache_symbol = should_cache_symbol,
           .should_cache_function = should_cache_function,
       });
+    }
+
+    // The signature getters above run user code that may have requested an
+    // earlier symbol with a different signature. Check before caching anything
+    // so that a rejected call leaves the library unchanged.
+    for (const auto& item : pending) {
+      auto existing = lib->functions_.find(item.name);
+      if (existing != lib->functions_.end() &&
+          !SignaturesMatch(
+              *existing->second, item.fn->return_type, item.fn->args)) {
+        THROW_ERR_INVALID_ARG_VALUE(
+            env,
+            "Function %s"
+            " was already requested with a different signature",
+            item.name);
+        return;
+      }
     }
 
     for (const auto& item : pending) {
