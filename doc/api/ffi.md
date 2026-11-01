@@ -40,7 +40,7 @@ The following targets are not supported by bundled libffi:
 * `s390x`.
 * `mips`, `mipsel`, and `mips64el` on targets other than FreeBSD, Linux, and
   OpenBSD.
-* `ppc64` on Android, CloudABI, iOS, OpenHarmony, OS/400, Solaris, and Windows.
+* `ppc64` on Android, CloudABI, iOS, OpenHarmony, IBM i, Solaris, and Windows.
 
 When using the [Permission Model][], FFI APIs are
 restricted unless the [`--allow-ffi`][] flag is provided.
