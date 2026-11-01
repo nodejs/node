@@ -856,6 +856,14 @@ static bool IsDefaultFunctionPrototype(DirectHandle<JSObject> js_proto,
   // Object function prototype's map.
   Tagged<Map> proto_map = js_proto->map();
 
+  // Check that the prototype is a plain JSObject with no elements.
+  if (proto_map->instance_type() != JS_OBJECT_TYPE) {
+    return false;
+  }
+  if (js_proto->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
+    return false;
+  }
+
   // Check that given function.prototype object has a default initial state:
   // it's extensible.
   if (!proto_map->is_extensible()) {
@@ -868,13 +876,24 @@ static bool IsDefaultFunctionPrototype(DirectHandle<JSObject> js_proto,
   }
 
   // it has exactly one "constructor" property installed.
-  if (js_proto->property_dictionary()->NumberOfElements() != 1) {
-    return false;
-  }
-  if (js_proto->property_dictionary()
-          ->FindEntry(isolate, isolate->factory()->constructor_string())
-          .is_not_found()) {
-    return false;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if (js_proto->property_dictionary_swiss()->NumberOfElements() != 1) {
+      return false;
+    }
+    if (js_proto->property_dictionary_swiss()
+            ->FindEntry(isolate, isolate->factory()->constructor_string())
+            .is_not_found()) {
+      return false;
+    }
+  } else {
+    if (js_proto->property_dictionary()->NumberOfElements() != 1) {
+      return false;
+    }
+    if (js_proto->property_dictionary()
+            ->FindEntry(isolate, isolate->factory()->constructor_string())
+            .is_not_found()) {
+      return false;
+    }
   }
 
   // its prototype is the original and unmodified Object.prototype object.
@@ -907,7 +926,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
   }
 
   DirectHandle<JSFunction> acc_fun = Cast<JSFunction>(obj);
-  if (!acc_fun->has_prototype_slot()) {
+  if (!acc_fun->has_prototype_slot() || !acc_fun->has_prototype_property()) {
     RETURN_RESULT_OR_FAILURE(
         isolate, SetPrototypePropertiesSlow(isolate, context, obj,
                                             object_boilerplate_description,
@@ -937,18 +956,21 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                                             feedback_cell_array, current_slot));
   }
 
-  if (IsSpecialReceiverMap(js_proto->map())) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
-                                            object_boilerplate_description,
-                                            feedback_cell_array, current_slot));
-  }
-
-  if (!JSObject::IsExtensible(isolate, js_proto)) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
-                                            object_boilerplate_description,
-                                            feedback_cell_array, current_slot));
+  // Use the slow path for exotic receivers, interceptors, or access checks.
+  {
+    Tagged<Map> js_proto_map = js_proto->map();
+    if (IsCustomElementsReceiverMap(js_proto_map) ||
+        IsJSTypedArrayMap(js_proto_map) ||
+        IsAlwaysSharedSpaceJSObjectMap(js_proto_map) ||
+        js_proto_map->is_access_check_needed() ||
+        js_proto_map->has_named_interceptor() ||
+        js_proto_map->has_indexed_interceptor() ||
+        !JSObject::IsExtensible(isolate, js_proto)) {
+      RETURN_RESULT_OR_FAILURE(
+          isolate, SetPrototypePropertiesSlow(
+                       isolate, context, obj, object_boilerplate_description,
+                       feedback_cell_array, current_slot));
+    }
   }
 
   bool is_default_func_prototype =
@@ -977,13 +999,14 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
         DirectHandle<AccessorInfo> accessor_info =
             isolate->factory()->lazy_closure_accessor();
 
-        JSObject::SetAccessor(js_proto, name, accessor_info,
-                              PropertyAttributes::NONE)
-            .Check();
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate, JSObject::SetAccessor(js_proto, name, accessor_info,
+                                           PropertyAttributes::NONE));
       } else {
-        Object::TransitionAndWriteDataProperty(
-            &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
-            .Check();
+        MAYBE_RETURN(
+            Object::TransitionAndWriteDataProperty(
+                &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed),
+            ReadOnlyRoots(isolate).exception());
       }
       result = value;
     }
@@ -1029,7 +1052,8 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
           current_slot++;
         }
         it.UpdateProtector();
-        Object::SetDataProperty(&it, value).Check();
+        MAYBE_RETURN(Object::SetDataProperty(&it, value),
+                     ReadOnlyRoots(isolate).exception());
       } else {
         value = InstantiateIfSharedFunctionInfo(
             context, isolate, js_proto, value, feedback_cell_array,
@@ -1042,13 +1066,15 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
           // doesn't invalidate protectors, so do it here for e.g. `then` or
           // `next` added to a watched prototype.
           it.UpdateProtector();
-          JSObject::SetAccessor(js_proto, Cast<Name>(key), accessor_info,
-                                PropertyAttributes::NONE)
-              .Check();
+          RETURN_FAILURE_ON_EXCEPTION(
+              isolate,
+              JSObject::SetAccessor(js_proto, Cast<Name>(key), accessor_info,
+                                    PropertyAttributes::NONE));
         } else {
-          Object::TransitionAndWriteDataProperty(
-              &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
-              .Check();
+          MAYBE_RETURN(
+              Object::TransitionAndWriteDataProperty(
+                  &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed),
+              ReadOnlyRoots(isolate).exception());
         }
       }
       result = value;

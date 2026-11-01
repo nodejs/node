@@ -10,6 +10,7 @@
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
 #include "include/cppgc/visitor.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/base/incremental-marking-schedule.h"
@@ -238,20 +239,15 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
 
 template <MarkerBase::WriteBarrierType type>
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
-  // The barrier optimizes for the bailout cases:
-  // - kDijkstra: Marked objects.
-  // - kSteele: Unmarked objects.
-  switch (type) {
-    case MarkerBase::WriteBarrierType::kDijkstra:
-      if (!header.TryMarkAtomic()) {
-        return;
-      }
-      break;
-    case MarkerBase::WriteBarrierType::kSteele:
-      if (!header.IsMarked<AccessMode::kAtomic>()) {
-        return;
-      }
-      break;
+  // The Dijkstra barrier bails out on marked objects.
+  // The Steele barrier marks the object regardless of its current state.
+  // It's important to make sure the object is marked here since unmarking
+  // below for in construction objects expects a marked object.
+  const bool was_already_marked = !header.TryMarkAtomic();
+  if (type == MarkerBase::WriteBarrierType::kDijkstra) {
+    if (was_already_marked) {
+      return;
+    }
   }
 
   // The barrier fired. Filter out in-construction objects here. This possibly
@@ -267,13 +263,18 @@ void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
     return;
   }
 
-  switch (type) {
-    case MarkerBase::WriteBarrierType::kDijkstra:
-      mutator_marking_state_.write_barrier_worklist().Push(&header);
-      break;
-    case MarkerBase::WriteBarrierType::kSteele:
-      mutator_marking_state_.retrace_marked_objects_worklist().Push(&header);
-      break;
+  DCHECK_IMPLIES(was_already_marked,
+                 type == MarkerBase::WriteBarrierType::kSteele);
+  if ((type == MarkerBase::WriteBarrierType::kDijkstra) ||
+      !was_already_marked) {
+    // Push previously unmarked objects to the write barrier worklist, even for
+    // the Steele barrier, since popping from that worklist would also update
+    // the marked bytes counter.
+    mutator_marking_state_.write_barrier_worklist().Push(&header);
+  } else {
+    DCHECK((type == MarkerBase::WriteBarrierType::kSteele) &&
+           was_already_marked);
+    mutator_marking_state_.retrace_marked_objects_worklist().Push(&header);
   }
 }
 
