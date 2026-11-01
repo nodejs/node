@@ -1372,7 +1372,7 @@ static bool ValidateUtf8(Local<Value> value) {
 
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
 
   args.GetReturnValue().Set(ValidateUtf8(args[0]));
@@ -1397,7 +1397,7 @@ static bool ValidateAscii(Local<Value> value) {
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
 
   args.GetReturnValue().Set(ValidateAscii(args[0]));
@@ -1627,7 +1627,7 @@ static double StringLengthUtf8Impl(Local<Value> value) {
 
 static void StringLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
 
   args.GetReturnValue().Set(StringLengthUtf8Impl(args[0]));

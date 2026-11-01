@@ -35,6 +35,7 @@ assert.strictEqual(Buffer.stringLength(Buffer.alloc(0)), 0);
   assert.strictEqual(Buffer.stringLength(ab), expected);
   assert.strictEqual(Buffer.stringLength(sab), expected);
   assert.strictEqual(Buffer.stringLength(new Uint8Array(ab)), expected);
+  assert.strictEqual(Buffer.stringLength(new DataView(ab)), expected);
   assert.strictEqual(Buffer.stringLength(new Uint16Array(ab.slice(0, 16))),
                      Buffer.from(ab.slice(0, 16)).toString().length);
 }
@@ -43,9 +44,11 @@ assert.strictEqual(Buffer.stringLength(Buffer.alloc(0)), 0);
 {
   const ab = new ArrayBuffer(8);
   const view = new Uint8Array(ab);
+  const dataView = new DataView(ab);
   structuredClone(ab, { transfer: [ab] });
   assert.strictEqual(Buffer.stringLength(ab), 0);
   assert.strictEqual(Buffer.stringLength(view), 0);
+  assert.strictEqual(Buffer.stringLength(dataView), 0);
 }
 
 // Invalid UTF-8 is counted the way toString() decodes it (one U+FFFD per
@@ -119,8 +122,7 @@ assert.strictEqual(Buffer.stringLength(Buffer.alloc(0)), 0);
 }
 
 // Argument validation.
-for (const input of [undefined, null, 'abc', 42, {}, [], new Blob([]),
-                     new DataView(new ArrayBuffer(4))]) {
+for (const input of [undefined, null, 'abc', 42, {}, [], new Blob([])]) {
   assert.throws(() => Buffer.stringLength(input),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 }
