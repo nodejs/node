@@ -122,6 +122,14 @@ void AfterMaybeBlockingSyscall() {}
 
 #include <stdint.h>
 
+// The __attribute__((constructor)) below is intentional: this function runs at
+// load time on purpose to verify the CPU supports the extensions the binary is
+// built with. -Wglobal-constructors (enabled by -Weverything) would otherwise
+// flag it.
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#endif
+
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
 // gen_amalgamated expanded: #include "perfetto/base/export.h"
 
@@ -150,7 +158,13 @@ uint32_t GetXCR0EAX() {
 
 // If we are building with -msse4 check that the CPU actually supports it.
 // This file must be kept in sync with gn/standalone/BUILD.gn.
-void PERFETTO_EXPORT_COMPONENT __attribute__((constructor))
+//
+// Priority 101 is the earliest non-reserved constructor priority. With the
+// default (65535) this would run after protobuf's descriptor registration
+// (priority 102), which already executes BMI2 instructions and SIGILLs on
+// older CPUs before this check can print its message. See
+// https://github.com/google/perfetto/issues/7504.
+void PERFETTO_EXPORT_COMPONENT __attribute__((constructor(101)))
 CheckCpuOptimizations() {
   uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
   PERFETTO_GETCPUID(eax, ebx, ecx, edx, 1, 0);
@@ -221,6 +235,7 @@ CheckCpuOptimizations() {
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
 
@@ -258,6 +273,7 @@ struct SystemInfo {
   std::string android_storage_model;
   std::string android_ram_model;
   std::string android_serial_console;
+  std::vector<std::string> device_tree_compatibles;
 };
 
 // Returns the device's utsname information.
@@ -277,6 +293,679 @@ std::string GetPerfettoMachineName();
 }  // namespace perfetto
 
 #endif  // INCLUDE_PERFETTO_EXT_BASE_ANDROID_UTILS_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/file_utils.h
+// gen_amalgamated begin header: include/perfetto/base/status.h
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_BASE_STATUS_H_
+#define INCLUDE_PERFETTO_BASE_STATUS_H_
+
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/export.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+
+namespace perfetto {
+namespace base {
+
+// Represents either the success or the failure message of a function.
+// This can used as the return type of functions which would usually return an
+// bool for success or int for errno but also wants to add some string context
+// (ususally for logging).
+//
+// Similar to absl::Status, an optional "payload" can also be included with more
+// context about the error. This allows passing additional metadata about the
+// error (e.g. location of errors, potential mitigations etc).
+class PERFETTO_EXPORT_COMPONENT Status {
+ public:
+  Status() : ok_(true) {}
+  explicit Status(std::string msg) : ok_(false), message_(std::move(msg)) {
+    PERFETTO_CHECK(!message_.empty());
+  }
+
+  // Copy operations.
+  Status(const Status&) = default;
+  Status& operator=(const Status&) = default;
+
+  // Move operations. The moved-from state is valid but unspecified.
+  Status(Status&&) noexcept = default;
+  Status& operator=(Status&&) = default;
+
+  bool ok() const { return ok_; }
+
+  // When ok() is false this returns the error message. Returns the empty string
+  // otherwise.
+  const std::string& message() const { return message_; }
+  const char* c_message() const { return message_.c_str(); }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Payload Management APIs
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Payloads can be attached to error statuses to provide additional context.
+  //
+  // Payloads are (key, value) pairs, where the key is a string acting as a
+  // unique "type URL" and the value is an opaque string. The "type URL" should
+  // be unique, follow the format of a URL and, ideally, documentation on how to
+  // interpret its associated data should be available.
+  //
+  // To attach a payload to a status object, call `Status::SetPayload()`.
+  // Similarly, to extract the payload from a status, call
+  // `Status::GetPayload()`.
+  //
+  // Note: the payload APIs are only meaningful to call when the status is an
+  // error. Otherwise, all methods are noops.
+
+  // Gets the payload for the given |type_url| if one exists.
+  //
+  // Will always return std::nullopt if |ok()|.
+  std::optional<std::string_view> GetPayload(std::string_view type_url) const;
+
+  // Sets the payload for the given key. The key should
+  //
+  // Will always do nothing if |ok()|.
+  void SetPayload(std::string_view type_url, std::string value);
+
+  // Erases the payload for the given string and returns true if the payload
+  // existed and was erased.
+  //
+  // Will always do nothing if |ok()|.
+  bool ErasePayload(std::string_view type_url);
+
+ private:
+  struct Payload {
+    std::string type_url;
+    std::string payload;
+  };
+
+  bool ok_ = false;
+  std::string message_;
+  std::vector<Payload> payloads_;
+};
+
+// Returns a status object which represents the Ok status.
+inline Status OkStatus() {
+  return Status();
+}
+
+Status ErrStatus(const char* format, ...) PERFETTO_PRINTF_FORMAT(1, 2);
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_BASE_STATUS_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/scoped_file.h
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
+#define INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+#include <stdio.h>
+
+#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#include <dirent.h>  // For DIR* / opendir().
+#endif
+
+#include <string>
+
+// gen_amalgamated expanded: #include "perfetto/base/export.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/base/platform_handle.h"
+
+namespace perfetto {
+namespace base {
+
+namespace internal {
+// Used for the most common cases of ScopedResource where there is only one
+// invalid value.
+template <typename T, T InvalidValue>
+struct DefaultValidityChecker {
+  static bool IsValid(T t) { return t != InvalidValue; }
+};
+}  // namespace internal
+
+// RAII classes for auto-releasing fds and dirs.
+// if T is a pointer type, InvalidValue must be nullptr. Doing otherwise
+// causes weird unexpected behaviors (See https://godbolt.org/z/5nGMW4).
+template <typename T,
+          int (*CloseFunction)(T),
+          T InvalidValue,
+          bool CheckClose = true,
+          class Checker = internal::DefaultValidityChecker<T, InvalidValue>>
+class ScopedResource {
+ public:
+  using ValidityChecker = Checker;
+  static constexpr T kInvalid = InvalidValue;
+
+  explicit ScopedResource(T t = InvalidValue) : t_(t) {}
+  ScopedResource(ScopedResource&& other) noexcept : t_(other.t_) {
+    other.t_ = InvalidValue;
+  }
+  ScopedResource& operator=(ScopedResource&& other) {
+    reset(other.t_);
+    other.t_ = InvalidValue;
+    return *this;
+  }
+  T get() const { return t_; }
+  T operator*() const { return t_; }
+  explicit operator bool() const { return Checker::IsValid(t_); }
+  void reset(T r = InvalidValue) {
+    if (Checker::IsValid(t_)) {
+      int res = CloseFunction(t_);
+      if (CheckClose)
+        PERFETTO_CHECK(res == 0);
+    }
+    t_ = r;
+  }
+  T release() {
+    T t = t_;
+    t_ = InvalidValue;
+    return t;
+  }
+  ~ScopedResource() { reset(InvalidValue); }
+
+ private:
+  ScopedResource(const ScopedResource&) = delete;
+  ScopedResource& operator=(const ScopedResource&) = delete;
+  T t_;
+};
+
+// Declared in file_utils.h. Forward declared to avoid #include cycles.
+int PERFETTO_EXPORT_COMPONENT CloseFile(int fd);
+
+// Use this for file resources obtained via open() and similar APIs.
+using ScopedFile = ScopedResource<int, CloseFile, -1>;
+using ScopedFstream = ScopedResource<FILE*, fclose, nullptr>;
+
+// Use this for resources that are HANDLE on Windows. See comments in
+// platform_handle.h
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+using ScopedPlatformHandle = ScopedResource<PlatformHandle,
+                                            ClosePlatformHandle,
+                                            /*InvalidValue=*/nullptr,
+                                            /*CheckClose=*/true,
+                                            PlatformHandleChecker>;
+#else
+// On non-windows systems we alias ScopedPlatformHandle to ScopedFile because
+// they are really the same. This is to allow assignments between the two in
+// Linux-specific code paths that predate ScopedPlatformHandle.
+static_assert(std::is_same<int, PlatformHandle>::value, "");
+using ScopedPlatformHandle = ScopedFile;
+
+// DIR* does not exist on Windows.
+using ScopedDir = ScopedResource<DIR*, closedir, nullptr>;
+#endif
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/sys_types.h
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
+#define INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
+
+// This headers deals with sys types commonly used in the codebase that are
+// missing on Windows.
+
+#include <sys/types.h>  // IWYU pragma: export
+#include <cstdint>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+
+#ifdef __MINGW32__
+
+using uid_t = int;
+using gid_t = int;
+
+#else
+
+#if !PERFETTO_BUILDFLAG(PERFETTO_COMPILER_GCC)
+// MinGW has these. clang-cl and MSVC, which use just the Windows SDK, don't.
+using uid_t = int;
+using gid_t = int;
+using pid_t = int;
+#endif  // !GCC
+
+using ssize_t = intptr_t;
+
+#endif  // __MINGW32__
+
+#endif  // OS_WIN
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+// From libcutils' android_filesystem_config.h
+#ifndef AID_ROOT
+#define AID_ROOT 0
+#endif
+#ifndef AID_STATSD
+#define AID_STATSD 1066
+#endif
+#ifndef AID_SHELL
+#define AID_SHELL 2000
+#endif
+#endif
+
+namespace perfetto {
+namespace base {
+
+// The machine ID used in the tracing core.
+using MachineID = uint32_t;
+// The default value reserved for the host trace.
+constexpr MachineID kDefaultMachineID = 0;
+
+constexpr uid_t kInvalidUid = static_cast<uid_t>(-1);
+constexpr pid_t kInvalidPid = static_cast<pid_t>(-1);
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
+#define INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
+
+#include <fcntl.h>  // For mode_t & O_RDONLY/RDWR. Exists also on Windows.
+#include <stddef.h>
+#include <stdint.h>
+
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/export.h"
+// gen_amalgamated expanded: #include "perfetto/base/status.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/sys_types.h"
+
+namespace perfetto {
+namespace base {
+
+class TaskRunner;
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+using FileOpenMode = int;
+inline constexpr char kDevNull[] = "NUL";
+inline constexpr char kFopenReadFlag[] = "r";
+#else
+using FileOpenMode = mode_t;
+inline constexpr char kDevNull[] = "/dev/null";
+inline constexpr char kFopenReadFlag[] = "re";
+#endif
+
+constexpr FileOpenMode kFileModeInvalid = static_cast<FileOpenMode>(-1);
+
+// Cross-platform variant of ReadFileDescriptor() that takes a PlatformHandle.
+// On Windows normalizes ERROR_BROKEN_PIPE to EOF so behavior matches POSIX.
+bool ReadPlatformHandle(PlatformHandle, std::string* out);
+
+// Reads from |fd|, appending what is currently available into |*out|.
+// Returns:
+//  True: EOF reached (all writers of |fd| have closed their end).
+//  False: read error. On a non-blocking |fd| this includes EAGAIN (no data
+//    currently available but writers are still alive); callers can check
+//    IsAgain(errno) and retry on the next readability notification.
+bool ReadFileDescriptor(int fd, std::string* out);
+
+// Convenience wrapper around ReadFileDescriptor() that takes a FILE*.
+bool ReadFileStream(FILE* f, std::string* out);
+
+// Opens |path| read-only and reads its contents into |*out|.
+// Returns false if the file cannot be opened.
+bool ReadFile(const std::string& path, std::string* out);
+
+// A wrapper around read(2). It deals with Linux vs Windows includes. It also
+// deals with handling EINTR. Has the same semantics of UNIX's read(2).
+ssize_t Read(int fd, void* dst, size_t dst_size);
+
+// Call write until all data is written or an error is detected.
+//
+// man 2 write:
+//   If a write() is interrupted by a signal handler before any bytes are
+//   written, then the call fails with the error EINTR; if it is
+//   interrupted after at least one byte has been written, the call
+//   succeeds, and returns the number of bytes written.
+ssize_t WriteAll(int fd, const void* buf, size_t count);
+
+// Copies all data from |fd_in| to |fd_out|. Saves the offset of |fd_in|,
+// rewinds it to the beginning, copies the content, and restores the offset.
+// |fd_in| can't be a pipe, socket of FIFO.
+base::Status CopyFileContents(int fd_in, int fd_out);
+
+ssize_t WriteAllHandle(PlatformHandle, const void* buf, size_t count);
+
+ScopedFile OpenFile(const std::string& path,
+                    int flags,
+                    FileOpenMode = kFileModeInvalid);
+ScopedFstream OpenFstream(const std::string& path, const std::string& mode);
+
+// This is an alias for close(). It's to avoid leaking windows.h in headers.
+// Exported because ScopedFile is used in the /include/ext API by Chromium
+// component builds.
+int PERFETTO_EXPORT_COMPONENT CloseFile(int fd);
+
+bool FlushFile(int fd);
+
+// Duplicates an open descriptor. The duplicate is not inherited across exec.
+ScopedFile DupFile(int fd);
+
+// These queries follow symbolic links. False also means a path could not be
+// inspected. IsSameFile compares file identities, so it detects hard links.
+bool IsRegularFile(const std::string& path);
+bool IsSameFile(const std::string& first, const std::string& second);
+
+// Moves the file offset to |offset| bytes from the beginning of the file.
+// Returns false if |offset| cannot be represented by the platform or the seek
+// fails.
+bool SeekFile(int fd, uint64_t offset);
+
+// Changes the size of an open file to |size| bytes.
+// Returns false if |size| cannot be represented by the platform or truncation
+// fails.
+bool TruncateFile(int fd, uint64_t size);
+
+// Returns true if mkdir succeeds, false if it fails (see errno in that case).
+// `mode` is the permission bits for the new directory; it is ignored on
+// Windows.
+bool Mkdir(const std::string& path, uint32_t mode = 0755);
+
+// Calls rmdir() on UNIX, _rmdir() on Windows.
+bool Rmdir(const std::string& path);
+
+// Removes a file: unlink() on UNIX, _unlink() on Windows. Takes a const char*
+// and is async-signal-safe on POSIX, so it's callable from a signal handler.
+bool Unlink(const char* path);
+
+// Wrapper around access(path, F_OK).
+bool FileExists(const std::string& path);
+
+// Returns true if the path exists and is a directory.
+bool DirectoryExists(const std::string& path);
+
+// Gets the extension for a filename. If the file has two extensions, returns
+// only the last one (foo.pb.gz => .gz). Returns empty string if there is no
+// extension.
+std::string GetFileExtension(const std::string& filename);
+
+// Returns the basename component of a path (the final component after the last
+// directory separator). Behaves like man 2 basename, but works with both '/'
+// and '\' separators for cross-platform compatibility.
+// Examples:
+//   Basename("/usr/bin/ls") => "ls"
+//   Basename("/usr/bin/") => "bin"
+//   Basename("/") => "/"
+//   Basename("foo") => "foo"
+//   Basename("") => "."
+//   Basename("C:\\Windows\\System32") => "System32"
+std::string Basename(const std::string& path);
+
+// Returns the directory component of a path (everything up to but not
+// including the final component). Behaves like man 2 dirname, but works with
+// both '/' and '\' separators for cross-platform compatibility.
+// Examples:
+//   Dirname("/usr/bin/ls") => "/usr/bin"
+//   Dirname("/usr/bin") => "/usr"
+//   Dirname("/") => "/"
+//   Dirname("foo") => "."
+//   Dirname("") => "."
+//   Dirname("C:\\Windows\\System32") => "C:\\Windows"
+std::string Dirname(const std::string& path);
+
+// Returns the length of the leading root component of a path: "/" on UNIX,
+// "C:\" or "\\" (UNC) on Windows. Returns 0 if the path is relative. Like
+// Basename() and Dirname(), both '/' and '\' are recognized on all platforms.
+// Stripping the returned prefix turns the path into a relative one.
+// Examples:
+//   PathRootPrefixLength("/usr/bin/ls") => 1
+//   PathRootPrefixLength("//usr/bin") => 2
+//   PathRootPrefixLength("C:\\Windows") => 3
+//   PathRootPrefixLength("C:foo") => 0 (relative to the current dir of drive
+//   C:) PathRootPrefixLength("foo/bar") => 0
+size_t PathRootPrefixLength(const std::string& path);
+
+// Returns true if the path starts with a root component. See
+// PathRootPrefixLength().
+bool IsAbsolutePath(const std::string& path);
+
+// Puts the path to all files under |dir_path| in |output|, recursively walking
+// subdirectories. File paths are relative to |dir_path|. Only files are
+// included, not directories. Path separator is always '/', even on windows (not
+// '\').
+base::Status ListFilesRecursive(const std::string& dir_path,
+                                std::vector<std::string>& output);
+
+// Lists immediate subdirectories in |dir_path| (non-recursive). Directory names
+// are relative to |dir_path| and do not include the path separator. Returns
+// only directories, not files. Works on both Unix and Windows.
+base::Status ListDirectories(const std::string& dir_path,
+                             std::vector<std::string>& output);
+
+// Sets |path|'s owner group to |group_name| and permission mode bits to
+// |mode_bits|.
+base::Status SetFilePermissions(const std::string& path,
+                                const std::string& group_name,
+                                const std::string& mode_bits);
+
+// Returns the size of the file located at |path|, or nullopt in case of error.
+std::optional<uint64_t> GetFileSize(const std::string& path);
+
+// Returns the size of the open file |fd|, or nullopt in case of error.
+std::optional<uint64_t> GetFileSize(PlatformHandle fd);
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+// On Windows PlatformHandle is a HANDLE, not a file descriptor. This overload
+// accepts the CRT file descriptors returned by base::OpenFile(). On other
+// platforms PlatformHandle is an int, so the overload above already covers it.
+std::optional<uint64_t> GetFileSize(int fd);
+#endif
+
+// This class uses inotify (on Linux/Android) to watch for the creation of
+// files in the filesystem. When the specified file is created, it triggers a
+// callback function.
+// Destroying the returned unique_ptr will automatically unregister the watch.
+//
+// Note: This only works with filesystem paths (not abstract sockets or other
+// special file types).
+// It's only supported on Linux and Android, it's a no-op (returns nullptr) on
+// other platforms.
+//
+// Usage:
+//   auto watch = LinuxFileWatch::WatchFileCreation(
+//       task_runner, "/tmp/my_file", []() {
+//         // Called when /tmp/my_file is created
+//       });
+class LinuxFileWatch {
+ public:
+  // Creates a watcher for file creation. Returns nullptr if the path is not a
+  // valid filesystem path or if the platform doesn't support inotify. The
+  // callback will be invoked on the provided TaskRunner when the file is
+  // created.
+  static std::unique_ptr<LinuxFileWatch> WatchFileCreation(
+      TaskRunner*,
+      const char* path,
+      std::function<void()> callback);
+
+  virtual ~LinuxFileWatch();
+
+ protected:
+  LinuxFileWatch() = default;
+};
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/string_splitter.h
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
+#define INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
+
+#include <string>
+
+namespace perfetto {
+namespace base {
+
+// C++ version of strtok(). Splits a string without making copies or any heap
+// allocations. Destructs the original string passed in input.
+// Supports the special case of using \0 as a delimiter.
+// The token returned in output are valid as long as the input string is valid.
+class StringSplitter {
+ public:
+  // Whether an empty string (two delimiters side-to-side) is a valid token.
+  enum class EmptyTokenMode {
+    DISALLOW_EMPTY_TOKENS,
+    ALLOW_EMPTY_TOKENS,
+
+    DEFAULT = DISALLOW_EMPTY_TOKENS,
+  };
+
+  // Can take ownership of the string if passed via std::move(), e.g.:
+  // StringSplitter(std::move(str), '\n');
+  StringSplitter(std::string,
+                 char delimiter,
+                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
+
+  // Splits a C-string. The input string will be forcefully null-terminated (so
+  // str[size - 1] should be == '\0' or the last char will be truncated).
+  StringSplitter(char* str,
+                 size_t size,
+                 char delimiter,
+                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
+
+  // Splits the current token from an outer StringSplitter instance. This is to
+  // chain splitters as follows:
+  // for (base::StringSplitter lines(x, '\n'); ss.Next();)
+  //   for (base::StringSplitter words(&lines, ' '); words.Next();)
+  StringSplitter(StringSplitter*,
+                 char delimiter,
+                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
+
+  // Returns true if a token is found (in which case it will be stored in
+  // cur_token()), false if no more tokens are found.
+  bool Next();
+
+  // Returns the next token if found (in which case it will be stored in
+  // cur_token()), nullptr if no more tokens are found.
+  char* NextToken() { return Next() ? cur_token() : nullptr; }
+
+  // Returns the current token iff last call to Next() returned true. In this
+  // case it guarantees that the returned string is always null terminated.
+  // In all other cases (before the 1st call to Next() and after Next() returns
+  // false) returns nullptr.
+  char* cur_token() { return cur_; }
+
+  // Returns the length of the current token (excluding the null terminator).
+  size_t cur_token_size() const { return cur_size_; }
+
+  // Return the untokenized remainder of the input string that occurs after the
+  // current token.
+  char* remainder() { return next_; }
+
+  // Returns the size of the untokenized input
+  size_t remainder_size() { return static_cast<size_t>(end_ - next_); }
+
+ private:
+  StringSplitter(const StringSplitter&) = delete;
+  StringSplitter& operator=(const StringSplitter&) = delete;
+  void Initialize(char* str, size_t size);
+
+  std::string str_;
+  char* cur_;
+  size_t cur_size_;
+  char* next_;
+  char* end_;  // STL-style, points one past the last char.
+  const char delimiter_;
+  const EmptyTokenMode empty_token_mode_;
+};
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
 // gen_amalgamated begin header: include/perfetto/ext/base/string_utils.h
 // gen_amalgamated begin header: include/perfetto/ext/base/string_view.h
 // gen_amalgamated begin header: include/perfetto/ext/base/fnv_hash.h
@@ -820,7 +1509,7 @@ bool Contains(const std::string& haystack, char needle);
 bool Contains(const std::vector<std::string>& haystack,
               const std::string& needle);
 size_t Find(const StringView& needle, const StringView& haystack);
-bool CaseInsensitiveEqual(const std::string& first, const std::string& second);
+bool CaseInsensitiveEqual(std::string_view first, std::string_view second);
 std::string Join(const std::vector<std::string>& parts,
                  const std::string& delim);
 std::vector<std::string> SplitString(const std::string& text,
@@ -941,6 +1630,9 @@ class StackString {
   }
 
   StringView string_view() const { return StringView(buf_, len_); }
+  std::string_view ToStdStringView() const {
+    return std::string_view(buf_, len_);
+  }
   std::string ToStdString() const { return std::string(buf_, len_); }
   const char* c_str() const { return buf_; }
   size_t len() const { return len_; }
@@ -972,6 +1664,8 @@ class StackString {
  */
 
 // gen_amalgamated expanded: #include "perfetto/ext/base/android_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/file_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_splitter.h"
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
 
@@ -1076,7 +1770,24 @@ SystemInfo GetSystemInfo() {
     info.system_ram_bytes = static_cast<uint64_t>(pages) * (*info.page_size);
   }
 #endif
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX)
+  // Extract the device compatible strings from the device tree (if available)
+  const std::string path = "/sys/firmware/devicetree/base/compatible";
+  std::string device_compatible_data;
+  if (ReadFile(path, &device_compatible_data)) {
+    for (base::StringSplitter ss(std::move(device_compatible_data), '\0');
+         ss.Next();) {
+      info.device_tree_compatibles.emplace_back(ss.cur_token(),
+                                                ss.cur_token_size());
+      PERFETTO_DLOG("Found linux device compatible: %s", ss.cur_token());
+    }
+  } else {
+    PERFETTO_DLOG("No linux device compatible found in path: %s", path.c_str());
+  }
+#endif
 #endif  // !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
   info.android_build_fingerprint = GetAndroidProp("ro.build.fingerprint");
   if (info.android_build_fingerprint.empty()) {
@@ -1144,12 +1855,10 @@ std::string GetPerfettoMachineName() {
 
 }  // namespace base
 }  // namespace perfetto
-// gen_amalgamated begin source: src/base/base64.cc
-// gen_amalgamated begin header: include/perfetto/ext/base/base64.h
-// gen_amalgamated begin header: include/perfetto/ext/base/utils.h
-// gen_amalgamated begin header: include/perfetto/ext/base/sys_types.h
+// gen_amalgamated begin source: src/base/atomic_file.cc
+// gen_amalgamated begin header: include/perfetto/ext/base/atomic_file.h
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1164,71 +1873,244 @@ std::string GetPerfettoMachineName() {
  * limitations under the License.
  */
 
-#ifndef INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
-#define INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
+#ifndef INCLUDE_PERFETTO_EXT_BASE_ATOMIC_FILE_H_
+#define INCLUDE_PERFETTO_EXT_BASE_ATOMIC_FILE_H_
 
-// This headers deals with sys types commonly used in the codebase that are
-// missing on Windows.
+#include <string>
+// gen_amalgamated expanded: #include "perfetto/base/status.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
 
-#include <sys/types.h>  // IWYU pragma: export
+namespace perfetto::base {
+
+// Writes a sibling temporary file and atomically replaces the destination on
+// Commit(). Until then an existing destination is untouched. Does not follow
+// destination symlinks. An uncommitted temporary file is deleted on
+// destruction.
+class AtomicFile {
+ public:
+  explicit AtomicFile(const std::string& destination);
+  ~AtomicFile();
+  AtomicFile(const AtomicFile&) = delete;
+  AtomicFile& operator=(const AtomicFile&) = delete;
+
+  Status Open();
+  ScopedFile DuplicateFD() const;
+  // Final operation: close all DuplicateFD() handles before committing.
+  // On failure, destruction still attempts to remove the temporary file.
+  Status Commit() &&;
+  const std::string& temp_path() const { return temp_path_; }
+
+ private:
+  const std::string destination_;
+  const std::string temp_path_;
+  ScopedFile fd_;
+  bool owns_temp_file_ = false;
+};
+
+}  // namespace perfetto::base
+#endif  // INCLUDE_PERFETTO_EXT_BASE_ATOMIC_FILE_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/uuid.h
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_UUID_H_
+#define INCLUDE_PERFETTO_EXT_BASE_UUID_H_
+
+#include <string.h>
+#include <array>
 #include <cstdint>
+#include <string>
 
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-
-#ifdef __MINGW32__
-
-using uid_t = int;
-using gid_t = int;
-
-#else
-
-#if !PERFETTO_BUILDFLAG(PERFETTO_COMPILER_GCC)
-// MinGW has these. clang-cl and MSVC, which use just the Windows SDK, don't.
-using uid_t = int;
-using gid_t = int;
-using pid_t = int;
-#endif  // !GCC
-
-#if defined(_WIN64)
-using ssize_t = int64_t;
-#else
-using ssize_t = long;
-#endif  // _WIN64
-
-#endif  // __MINGW32__
-
-#endif  // OS_WIN
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-// From libcutils' android_filesystem_config.h
-#ifndef AID_ROOT
-#define AID_ROOT 0
-#endif
-#ifndef AID_STATSD
-#define AID_STATSD 1066
-#endif
-#ifndef AID_SHELL
-#define AID_SHELL 2000
-#endif
-#endif
+// gen_amalgamated expanded: #include "perfetto/base/endian.h"
+// gen_amalgamated expanded: #include "perfetto/base/export.h"
 
 namespace perfetto {
 namespace base {
 
-// The machine ID used in the tracing core.
-using MachineID = uint32_t;
-// The default value reserved for the host trace.
-constexpr MachineID kDefaultMachineID = 0;
+class PERFETTO_EXPORT_COMPONENT Uuid {
+ public:
+  explicit Uuid(const std::string& s);
+  explicit Uuid(int64_t lsb, int64_t msb);
+  Uuid();
 
-constexpr uid_t kInvalidUid = static_cast<uid_t>(-1);
-constexpr pid_t kInvalidPid = static_cast<pid_t>(-1);
+  std::array<uint8_t, 16>* data() { return &data_; }
+  const std::array<uint8_t, 16>* data() const { return &data_; }
+
+  bool operator==(const Uuid& other) const { return data_ == other.data_; }
+
+  bool operator!=(const Uuid& other) const { return !(*this == other); }
+
+  explicit operator bool() const { return *this != Uuid(); }
+
+  int64_t msb() const {
+    uint64_t result;
+    memcpy(&result, data_.data() + 8, 8);
+    return static_cast<int64_t>(LE64ToHost(result));
+  }
+
+  int64_t lsb() const {
+    uint64_t result;
+    memcpy(&result, data_.data(), 8);
+    return static_cast<int64_t>(LE64ToHost(result));
+  }
+
+  void set_lsb_msb(int64_t lsb, int64_t msb) {
+    set_lsb(lsb);
+    set_msb(msb);
+  }
+  void set_msb(int64_t msb) {
+    uint64_t le = HostToLE64(static_cast<uint64_t>(msb));
+    memcpy(data_.data() + 8, &le, 8);
+  }
+  void set_lsb(int64_t lsb) {
+    uint64_t le = HostToLE64(static_cast<uint64_t>(lsb));
+    memcpy(data_.data(), &le, 8);
+  }
+
+  std::string ToString() const;
+  std::string ToPrettyString() const;
+
+ private:
+  std::array<uint8_t, 16> data_{};
+};
+
+Uuid Uuidv4();
 
 }  // namespace base
 }  // namespace perfetto
 
-#endif  // INCLUDE_PERFETTO_EXT_BASE_SYS_TYPES_H_
+#endif  // INCLUDE_PERFETTO_EXT_BASE_UUID_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/atomic_file.h"
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/file_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/uuid.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#include <io.h>
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
+namespace perfetto::base {
+
+AtomicFile::AtomicFile(const std::string& destination)
+    : destination_(destination),
+      temp_path_(destination + ".tmp." + Uuidv4().ToPrettyString()) {}
+
+AtomicFile::~AtomicFile() {
+  fd_.reset();
+  if (owns_temp_file_)
+    Unlink(temp_path_.c_str());
+}
+
+base::Status AtomicFile::Open() {
+  PERFETTO_CHECK(!fd_ && !owns_temp_file_);
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  DWORD attributes = GetFileAttributesA(destination_.c_str());
+  if (attributes != INVALID_FILE_ATTRIBUTES &&
+      (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)))
+    return base::ErrStatus(
+        "output must be a regular file, not a directory or link");
+  HANDLE handle =
+      CreateFileA(temp_path_.c_str(), GENERIC_READ | GENERIC_WRITE,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (handle == INVALID_HANDLE_VALUE)
+    return base::ErrStatus(
+        "cannot create temporary output beside '%s' (Windows error %lu)",
+        destination_.c_str(), GetLastError());
+  owns_temp_file_ = true;
+  fd_.reset(_open_osfhandle(reinterpret_cast<intptr_t>(handle), _O_BINARY));
+  if (!fd_)
+    CloseHandle(handle);
+#else
+  struct stat output{};
+  bool exists = lstat(destination_.c_str(), &output) == 0;
+  PERFETTO_MSAN_UNPOISON(&output, sizeof(output));
+  if (exists && !S_ISREG(output.st_mode))
+    return base::ErrStatus(
+        "output must be a regular file, not a directory or link: '%s'. Specify "
+        "the target path directly.",
+        destination_.c_str());
+  fd_ = base::OpenFile(temp_path_, O_CREAT | O_EXCL | O_RDWR, 0644);
+  owns_temp_file_ = static_cast<bool>(fd_);
+  if (fd_ && exists && fchmod(*fd_, output.st_mode & 0777) != 0)
+    return base::ErrStatus("cannot preserve output permissions: %s",
+                           strerror(errno));
+#endif
+  if (!fd_)
+    return base::ErrStatus(
+        "cannot create temporary output beside '%s': %s. Check that the parent "
+        "directory exists and is writable.",
+        destination_.c_str(), strerror(errno));
+  return base::OkStatus();
+}
+
+base::ScopedFile AtomicFile::DuplicateFD() const {
+  PERFETTO_CHECK(fd_);
+  return DupFile(*fd_);
+}
+
+base::Status AtomicFile::Commit() && {
+  PERFETTO_CHECK(fd_);
+  if (!base::FlushFile(*fd_))
+    return base::ErrStatus("failed to flush output: %s", strerror(errno));
+  fd_.reset();
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  if (!MoveFileExA(temp_path_.c_str(), destination_.c_str(),
+                   MOVEFILE_REPLACE_EXISTING))
+    return base::ErrStatus("failed to publish '%s' (Windows error %lu)",
+                           destination_.c_str(), GetLastError());
+#else
+  if (rename(temp_path_.c_str(), destination_.c_str()) != 0)
+    return base::ErrStatus("failed to publish '%s': %s", destination_.c_str(),
+                           strerror(errno));
+#endif
+  owns_temp_file_ = false;
+  return base::OkStatus();
+}
+}  // namespace perfetto::base
+// gen_amalgamated begin source: src/base/base64.cc
+// gen_amalgamated begin header: include/perfetto/ext/base/base64.h
+// gen_amalgamated begin header: include/perfetto/ext/base/utils.h
 /*
  * Copyright (C) 2017 The Android Open Source Project
  *
@@ -1253,6 +2135,7 @@ constexpr pid_t kInvalidPid = static_cast<pid_t>(-1);
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <atomic>
 #include <functional>
@@ -1302,6 +2185,74 @@ inline uint32_t GetSysPageSize() {
 template <typename T, size_t TSize>
 constexpr size_t ArraySize(const T (&)[TSize]) {
   return TSize;
+}
+
+// Adds `a` and `b` into `*result`, returning false on overflow. The value of
+// `*result` is unspecified when false is returned.
+inline bool CheckedAdd(int64_t a, int64_t b, int64_t* result) {
+#if defined(__clang__) || defined(__GNUC__)
+  return !__builtin_add_overflow(a, b, result);
+#else
+  constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+  constexpr int64_t kMin = std::numeric_limits<int64_t>::min();
+  if ((b > 0 && a > kMax - b) || (b < 0 && a < kMin - b))
+    return false;
+  *result = a + b;
+  return true;
+#endif
+}
+
+// Subtracts `b` from `a` into `*result`, returning false on overflow. The
+// value of `*result` is unspecified when false is returned.
+inline bool CheckedSub(int64_t a, int64_t b, int64_t* result) {
+#if defined(__clang__) || defined(__GNUC__)
+  return !__builtin_sub_overflow(a, b, result);
+#else
+  constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+  constexpr int64_t kMin = std::numeric_limits<int64_t>::min();
+  if ((b < 0 && a > kMax + b) || (b > 0 && a < kMin + b))
+    return false;
+  *result = a - b;
+  return true;
+#endif
+}
+
+// Returns whether `value` is positive or negative zero. Compares the bit
+// pattern so it can be used in translation units compiled with -Wfloat-equal.
+inline bool IsZero(double value) {
+  uint64_t bits;
+  memcpy(&bits, &value, sizeof(bits));
+  return (bits << 1) == 0;
+}
+inline bool IsZero(int64_t value) {
+  return value == 0;
+}
+
+// Returns the bits of `value` with -0.0 turned into 0.0 and every NaN into
+// the same NaN, so equal values, and all NaNs, have the same bits.
+inline uint64_t CanonicalFloatBits(double value) {
+  uint64_t bits;
+  memcpy(&bits, &value, sizeof(bits));
+  if (PERFETTO_UNLIKELY((bits << 1) == 0)) {
+    return 0;
+  }
+  if (PERFETTO_UNLIKELY((bits << 1) > (uint64_t{0x7FF} << 53))) {
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    memcpy(&bits, &nan, sizeof(bits));
+  }
+  return bits;
+}
+inline uint32_t CanonicalFloatBits(float value) {
+  uint32_t bits;
+  memcpy(&bits, &value, sizeof(bits));
+  if (PERFETTO_UNLIKELY((bits << 1) == 0)) {
+    return 0;
+  }
+  if (PERFETTO_UNLIKELY((bits << 1) > (uint32_t{0xFF} << 24))) {
+    float nan = std::numeric_limits<float>::quiet_NaN();
+    memcpy(&bits, &nan, sizeof(bits));
+  }
+  return bits;
 }
 
 // Adds `a` and `b`, clamping to INT64_MIN / INT64_MAX on overflow instead of
@@ -1822,593 +2773,6 @@ constexpr const char* kCpuInfoFeatures[] = {
 }  // namespace perfetto
 
 #endif  // INCLUDE_PERFETTO_EXT_BASE_CPU_INFO_FEATURES_ALLOWLIST_H_
-// gen_amalgamated begin header: include/perfetto/ext/base/file_utils.h
-// gen_amalgamated begin header: include/perfetto/base/status.h
-/*
- * Copyright (C) 2019 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_BASE_STATUS_H_
-#define INCLUDE_PERFETTO_BASE_STATUS_H_
-
-#include <optional>
-#include <string>
-#include <string_view>
-#include <vector>
-
-// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
-// gen_amalgamated expanded: #include "perfetto/base/export.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-
-namespace perfetto {
-namespace base {
-
-// Represents either the success or the failure message of a function.
-// This can used as the return type of functions which would usually return an
-// bool for success or int for errno but also wants to add some string context
-// (ususally for logging).
-//
-// Similar to absl::Status, an optional "payload" can also be included with more
-// context about the error. This allows passing additional metadata about the
-// error (e.g. location of errors, potential mitigations etc).
-class PERFETTO_EXPORT_COMPONENT Status {
- public:
-  Status() : ok_(true) {}
-  explicit Status(std::string msg) : ok_(false), message_(std::move(msg)) {
-    PERFETTO_CHECK(!message_.empty());
-  }
-
-  // Copy operations.
-  Status(const Status&) = default;
-  Status& operator=(const Status&) = default;
-
-  // Move operations. The moved-from state is valid but unspecified.
-  Status(Status&&) noexcept = default;
-  Status& operator=(Status&&) = default;
-
-  bool ok() const { return ok_; }
-
-  // When ok() is false this returns the error message. Returns the empty string
-  // otherwise.
-  const std::string& message() const { return message_; }
-  const char* c_message() const { return message_.c_str(); }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Payload Management APIs
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Payloads can be attached to error statuses to provide additional context.
-  //
-  // Payloads are (key, value) pairs, where the key is a string acting as a
-  // unique "type URL" and the value is an opaque string. The "type URL" should
-  // be unique, follow the format of a URL and, ideally, documentation on how to
-  // interpret its associated data should be available.
-  //
-  // To attach a payload to a status object, call `Status::SetPayload()`.
-  // Similarly, to extract the payload from a status, call
-  // `Status::GetPayload()`.
-  //
-  // Note: the payload APIs are only meaningful to call when the status is an
-  // error. Otherwise, all methods are noops.
-
-  // Gets the payload for the given |type_url| if one exists.
-  //
-  // Will always return std::nullopt if |ok()|.
-  std::optional<std::string_view> GetPayload(std::string_view type_url) const;
-
-  // Sets the payload for the given key. The key should
-  //
-  // Will always do nothing if |ok()|.
-  void SetPayload(std::string_view type_url, std::string value);
-
-  // Erases the payload for the given string and returns true if the payload
-  // existed and was erased.
-  //
-  // Will always do nothing if |ok()|.
-  bool ErasePayload(std::string_view type_url);
-
- private:
-  struct Payload {
-    std::string type_url;
-    std::string payload;
-  };
-
-  bool ok_ = false;
-  std::string message_;
-  std::vector<Payload> payloads_;
-};
-
-// Returns a status object which represents the Ok status.
-inline Status OkStatus() {
-  return Status();
-}
-
-Status ErrStatus(const char* format, ...) PERFETTO_PRINTF_FORMAT(1, 2);
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_BASE_STATUS_H_
-// gen_amalgamated begin header: include/perfetto/ext/base/scoped_file.h
-/*
- * Copyright (C) 2017 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
-#define INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-#include <stdio.h>
-
-#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-#include <dirent.h>  // For DIR* / opendir().
-#endif
-
-#include <string>
-
-// gen_amalgamated expanded: #include "perfetto/base/export.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/base/platform_handle.h"
-
-namespace perfetto {
-namespace base {
-
-namespace internal {
-// Used for the most common cases of ScopedResource where there is only one
-// invalid value.
-template <typename T, T InvalidValue>
-struct DefaultValidityChecker {
-  static bool IsValid(T t) { return t != InvalidValue; }
-};
-}  // namespace internal
-
-// RAII classes for auto-releasing fds and dirs.
-// if T is a pointer type, InvalidValue must be nullptr. Doing otherwise
-// causes weird unexpected behaviors (See https://godbolt.org/z/5nGMW4).
-template <typename T,
-          int (*CloseFunction)(T),
-          T InvalidValue,
-          bool CheckClose = true,
-          class Checker = internal::DefaultValidityChecker<T, InvalidValue>>
-class ScopedResource {
- public:
-  using ValidityChecker = Checker;
-  static constexpr T kInvalid = InvalidValue;
-
-  explicit ScopedResource(T t = InvalidValue) : t_(t) {}
-  ScopedResource(ScopedResource&& other) noexcept : t_(other.t_) {
-    other.t_ = InvalidValue;
-  }
-  ScopedResource& operator=(ScopedResource&& other) {
-    reset(other.t_);
-    other.t_ = InvalidValue;
-    return *this;
-  }
-  T get() const { return t_; }
-  T operator*() const { return t_; }
-  explicit operator bool() const { return Checker::IsValid(t_); }
-  void reset(T r = InvalidValue) {
-    if (Checker::IsValid(t_)) {
-      int res = CloseFunction(t_);
-      if (CheckClose)
-        PERFETTO_CHECK(res == 0);
-    }
-    t_ = r;
-  }
-  T release() {
-    T t = t_;
-    t_ = InvalidValue;
-    return t;
-  }
-  ~ScopedResource() { reset(InvalidValue); }
-
- private:
-  ScopedResource(const ScopedResource&) = delete;
-  ScopedResource& operator=(const ScopedResource&) = delete;
-  T t_;
-};
-
-// Declared in file_utils.h. Forward declared to avoid #include cycles.
-int PERFETTO_EXPORT_COMPONENT CloseFile(int fd);
-
-// Use this for file resources obtained via open() and similar APIs.
-using ScopedFile = ScopedResource<int, CloseFile, -1>;
-using ScopedFstream = ScopedResource<FILE*, fclose, nullptr>;
-
-// Use this for resources that are HANDLE on Windows. See comments in
-// platform_handle.h
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-using ScopedPlatformHandle = ScopedResource<PlatformHandle,
-                                            ClosePlatformHandle,
-                                            /*InvalidValue=*/nullptr,
-                                            /*CheckClose=*/true,
-                                            PlatformHandleChecker>;
-#else
-// On non-windows systems we alias ScopedPlatformHandle to ScopedFile because
-// they are really the same. This is to allow assignments between the two in
-// Linux-specific code paths that predate ScopedPlatformHandle.
-static_assert(std::is_same<int, PlatformHandle>::value, "");
-using ScopedPlatformHandle = ScopedFile;
-
-// DIR* does not exist on Windows.
-using ScopedDir = ScopedResource<DIR*, closedir, nullptr>;
-#endif
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_SCOPED_FILE_H_
-/*
- * Copyright (C) 2018 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
-#define INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
-
-#include <fcntl.h>  // For mode_t & O_RDONLY/RDWR. Exists also on Windows.
-#include <stddef.h>
-#include <stdint.h>
-
-#include <functional>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/base/export.h"
-// gen_amalgamated expanded: #include "perfetto/base/status.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/sys_types.h"
-
-namespace perfetto {
-namespace base {
-
-class TaskRunner;
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-using FileOpenMode = int;
-inline constexpr char kDevNull[] = "NUL";
-inline constexpr char kFopenReadFlag[] = "r";
-#else
-using FileOpenMode = mode_t;
-inline constexpr char kDevNull[] = "/dev/null";
-inline constexpr char kFopenReadFlag[] = "re";
-#endif
-
-constexpr FileOpenMode kFileModeInvalid = static_cast<FileOpenMode>(-1);
-
-// Cross-platform variant of ReadFileDescriptor() that takes a PlatformHandle.
-// On Windows normalizes ERROR_BROKEN_PIPE to EOF so behavior matches POSIX.
-bool ReadPlatformHandle(PlatformHandle, std::string* out);
-
-// Reads from |fd|, appending what is currently available into |*out|.
-// Returns:
-//  True: EOF reached (all writers of |fd| have closed their end).
-//  False: read error. On a non-blocking |fd| this includes EAGAIN (no data
-//    currently available but writers are still alive); callers can check
-//    IsAgain(errno) and retry on the next readability notification.
-bool ReadFileDescriptor(int fd, std::string* out);
-
-// Convenience wrapper around ReadFileDescriptor() that takes a FILE*.
-bool ReadFileStream(FILE* f, std::string* out);
-
-// Opens |path| read-only and reads its contents into |*out|.
-// Returns false if the file cannot be opened.
-bool ReadFile(const std::string& path, std::string* out);
-
-// A wrapper around read(2). It deals with Linux vs Windows includes. It also
-// deals with handling EINTR. Has the same semantics of UNIX's read(2).
-ssize_t Read(int fd, void* dst, size_t dst_size);
-
-// Call write until all data is written or an error is detected.
-//
-// man 2 write:
-//   If a write() is interrupted by a signal handler before any bytes are
-//   written, then the call fails with the error EINTR; if it is
-//   interrupted after at least one byte has been written, the call
-//   succeeds, and returns the number of bytes written.
-ssize_t WriteAll(int fd, const void* buf, size_t count);
-
-// Copies all data from |fd_in| to |fd_out|. Saves the offset of |fd_in|,
-// rewinds it to the beginning, copies the content, and restores the offset.
-// |fd_in| can't be a pipe, socket of FIFO.
-base::Status CopyFileContents(int fd_in, int fd_out);
-
-ssize_t WriteAllHandle(PlatformHandle, const void* buf, size_t count);
-
-ScopedFile OpenFile(const std::string& path,
-                    int flags,
-                    FileOpenMode = kFileModeInvalid);
-ScopedFstream OpenFstream(const std::string& path, const std::string& mode);
-
-// This is an alias for close(). It's to avoid leaking windows.h in headers.
-// Exported because ScopedFile is used in the /include/ext API by Chromium
-// component builds.
-int PERFETTO_EXPORT_COMPONENT CloseFile(int fd);
-
-bool FlushFile(int fd);
-
-// Moves the file offset to |offset| bytes from the beginning of the file.
-// Returns false if |offset| cannot be represented by the platform or the seek
-// fails.
-bool SeekFile(int fd, uint64_t offset);
-
-// Changes the size of an open file to |size| bytes.
-// Returns false if |size| cannot be represented by the platform or truncation
-// fails.
-bool TruncateFile(int fd, uint64_t size);
-
-// Returns true if mkdir succeeds, false if it fails (see errno in that case).
-// `mode` is the permission bits for the new directory; it is ignored on
-// Windows.
-bool Mkdir(const std::string& path, uint32_t mode = 0755);
-
-// Calls rmdir() on UNIX, _rmdir() on Windows.
-bool Rmdir(const std::string& path);
-
-// Removes a file: unlink() on UNIX, _unlink() on Windows. Takes a const char*
-// and is async-signal-safe on POSIX, so it's callable from a signal handler.
-bool Unlink(const char* path);
-
-// Wrapper around access(path, F_OK).
-bool FileExists(const std::string& path);
-
-// Returns true if the path exists and is a directory.
-bool DirectoryExists(const std::string& path);
-
-// Gets the extension for a filename. If the file has two extensions, returns
-// only the last one (foo.pb.gz => .gz). Returns empty string if there is no
-// extension.
-std::string GetFileExtension(const std::string& filename);
-
-// Returns the basename component of a path (the final component after the last
-// directory separator). Behaves like man 2 basename, but works with both '/'
-// and '\' separators for cross-platform compatibility.
-// Examples:
-//   Basename("/usr/bin/ls") => "ls"
-//   Basename("/usr/bin/") => "bin"
-//   Basename("/") => "/"
-//   Basename("foo") => "foo"
-//   Basename("") => "."
-//   Basename("C:\\Windows\\System32") => "System32"
-std::string Basename(const std::string& path);
-
-// Returns the directory component of a path (everything up to but not
-// including the final component). Behaves like man 2 dirname, but works with
-// both '/' and '\' separators for cross-platform compatibility.
-// Examples:
-//   Dirname("/usr/bin/ls") => "/usr/bin"
-//   Dirname("/usr/bin") => "/usr"
-//   Dirname("/") => "/"
-//   Dirname("foo") => "."
-//   Dirname("") => "."
-//   Dirname("C:\\Windows\\System32") => "C:\\Windows"
-std::string Dirname(const std::string& path);
-
-// Returns the length of the leading root component of a path: "/" on UNIX,
-// "C:\" or "\\" (UNC) on Windows. Returns 0 if the path is relative. Like
-// Basename() and Dirname(), both '/' and '\' are recognized on all platforms.
-// Stripping the returned prefix turns the path into a relative one.
-// Examples:
-//   PathRootPrefixLength("/usr/bin/ls") => 1
-//   PathRootPrefixLength("//usr/bin") => 2
-//   PathRootPrefixLength("C:\\Windows") => 3
-//   PathRootPrefixLength("C:foo") => 0 (relative to the current dir of drive
-//   C:) PathRootPrefixLength("foo/bar") => 0
-size_t PathRootPrefixLength(const std::string& path);
-
-// Returns true if the path starts with a root component. See
-// PathRootPrefixLength().
-bool IsAbsolutePath(const std::string& path);
-
-// Puts the path to all files under |dir_path| in |output|, recursively walking
-// subdirectories. File paths are relative to |dir_path|. Only files are
-// included, not directories. Path separator is always '/', even on windows (not
-// '\').
-base::Status ListFilesRecursive(const std::string& dir_path,
-                                std::vector<std::string>& output);
-
-// Lists immediate subdirectories in |dir_path| (non-recursive). Directory names
-// are relative to |dir_path| and do not include the path separator. Returns
-// only directories, not files. Works on both Unix and Windows.
-base::Status ListDirectories(const std::string& dir_path,
-                             std::vector<std::string>& output);
-
-// Sets |path|'s owner group to |group_name| and permission mode bits to
-// |mode_bits|.
-base::Status SetFilePermissions(const std::string& path,
-                                const std::string& group_name,
-                                const std::string& mode_bits);
-
-// Returns the size of the file located at |path|, or nullopt in case of error.
-std::optional<uint64_t> GetFileSize(const std::string& path);
-
-// Returns the size of the open file |fd|, or nullopt in case of error.
-std::optional<uint64_t> GetFileSize(PlatformHandle fd);
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-// On Windows PlatformHandle is a HANDLE, not a file descriptor. This overload
-// accepts the CRT file descriptors returned by base::OpenFile(). On other
-// platforms PlatformHandle is an int, so the overload above already covers it.
-std::optional<uint64_t> GetFileSize(int fd);
-#endif
-
-// This class uses inotify (on Linux/Android) to watch for the creation of
-// files in the filesystem. When the specified file is created, it triggers a
-// callback function.
-// Destroying the returned unique_ptr will automatically unregister the watch.
-//
-// Note: This only works with filesystem paths (not abstract sockets or other
-// special file types).
-// It's only supported on Linux and Android, it's a no-op (returns nullptr) on
-// other platforms.
-//
-// Usage:
-//   auto watch = LinuxFileWatch::WatchFileCreation(
-//       task_runner, "/tmp/my_file", []() {
-//         // Called when /tmp/my_file is created
-//       });
-class LinuxFileWatch {
- public:
-  // Creates a watcher for file creation. Returns nullptr if the path is not a
-  // valid filesystem path or if the platform doesn't support inotify. The
-  // callback will be invoked on the provided TaskRunner when the file is
-  // created.
-  static std::unique_ptr<LinuxFileWatch> WatchFileCreation(
-      TaskRunner*,
-      const char* path,
-      std::function<void()> callback);
-
-  virtual ~LinuxFileWatch();
-
- protected:
-  LinuxFileWatch() = default;
-};
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_FILE_UTILS_H_
-// gen_amalgamated begin header: include/perfetto/ext/base/string_splitter.h
-/*
- * Copyright (C) 2018 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
-#define INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
-
-#include <string>
-
-namespace perfetto {
-namespace base {
-
-// C++ version of strtok(). Splits a string without making copies or any heap
-// allocations. Destructs the original string passed in input.
-// Supports the special case of using \0 as a delimiter.
-// The token returned in output are valid as long as the input string is valid.
-class StringSplitter {
- public:
-  // Whether an empty string (two delimiters side-to-side) is a valid token.
-  enum class EmptyTokenMode {
-    DISALLOW_EMPTY_TOKENS,
-    ALLOW_EMPTY_TOKENS,
-
-    DEFAULT = DISALLOW_EMPTY_TOKENS,
-  };
-
-  // Can take ownership of the string if passed via std::move(), e.g.:
-  // StringSplitter(std::move(str), '\n');
-  StringSplitter(std::string,
-                 char delimiter,
-                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
-
-  // Splits a C-string. The input string will be forcefully null-terminated (so
-  // str[size - 1] should be == '\0' or the last char will be truncated).
-  StringSplitter(char* str,
-                 size_t size,
-                 char delimiter,
-                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
-
-  // Splits the current token from an outer StringSplitter instance. This is to
-  // chain splitters as follows:
-  // for (base::StringSplitter lines(x, '\n'); ss.Next();)
-  //   for (base::StringSplitter words(&lines, ' '); words.Next();)
-  StringSplitter(StringSplitter*,
-                 char delimiter,
-                 EmptyTokenMode empty_token_mode = EmptyTokenMode::DEFAULT);
-
-  // Returns true if a token is found (in which case it will be stored in
-  // cur_token()), false if no more tokens are found.
-  bool Next();
-
-  // Returns the next token if found (in which case it will be stored in
-  // cur_token()), nullptr if no more tokens are found.
-  char* NextToken() { return Next() ? cur_token() : nullptr; }
-
-  // Returns the current token iff last call to Next() returned true. In this
-  // case it guarantees that the returned string is always null terminated.
-  // In all other cases (before the 1st call to Next() and after Next() returns
-  // false) returns nullptr.
-  char* cur_token() { return cur_; }
-
-  // Returns the length of the current token (excluding the null terminator).
-  size_t cur_token_size() const { return cur_size_; }
-
-  // Return the untokenized remainder of the input string that occurs after the
-  // current token.
-  char* remainder() { return next_; }
-
-  // Returns the size of the untokenized input
-  size_t remainder_size() { return static_cast<size_t>(end_ - next_); }
-
- private:
-  StringSplitter(const StringSplitter&) = delete;
-  StringSplitter& operator=(const StringSplitter&) = delete;
-  void Initialize(char* str, size_t size);
-
-  std::string str_;
-  char* cur_;
-  size_t cur_size_;
-  char* next_;
-  char* end_;  // STL-style, points one past the last char.
-  const char delimiter_;
-  const EmptyTokenMode empty_token_mode_;
-};
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_STRING_SPLITTER_H_
 /*
  * Copyright (C) 2026 The Android Open Source Project
  *
@@ -3991,6 +4355,51 @@ bool FlushFile(int fd) {
 #endif
 }
 
+ScopedFile DupFile(int fd) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  ScopedFile duplicate(_dup(fd));
+  if (duplicate && !SetHandleInformation(
+                       reinterpret_cast<HANDLE>(_get_osfhandle(*duplicate)),
+                       HANDLE_FLAG_INHERIT, 0))
+    return ScopedFile();
+  return duplicate;
+#else
+  return ScopedFile(fcntl(fd, F_DUPFD_CLOEXEC, 0));
+#endif
+}
+
+bool IsRegularFile(const std::string& path) {
+  struct stat st{};
+  if (stat(path.c_str(), &st) != 0)
+    return false;
+  PERFETTO_MSAN_UNPOISON(&st, sizeof(st));
+  return (st.st_mode & S_IFMT) == S_IFREG;
+}
+
+bool IsSameFile(const std::string& first, const std::string& second) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  auto identity = [](const std::string& path,
+                     BY_HANDLE_FILE_INFORMATION* info) {
+    ScopedPlatformHandle file(CreateFileA(
+        path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    return file && GetFileInformationByHandle(*file, info);
+  };
+  BY_HANDLE_FILE_INFORMATION a{}, b{};
+  return identity(first, &a) && identity(second, &b) &&
+         a.dwVolumeSerialNumber == b.dwVolumeSerialNumber &&
+         a.nFileIndexHigh == b.nFileIndexHigh &&
+         a.nFileIndexLow == b.nFileIndexLow;
+#else
+  struct stat a{}, b{};
+  if (stat(first.c_str(), &a) != 0 || stat(second.c_str(), &b) != 0)
+    return false;
+  PERFETTO_MSAN_UNPOISON(&a, sizeof(a));
+  PERFETTO_MSAN_UNPOISON(&b, sizeof(b));
+  return a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+#endif
+}
+
 bool SeekFile(int fd, uint64_t offset) {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   if (fd < 0) {
@@ -4082,15 +4491,6 @@ ScopedFile OpenFile(const std::string& path, int flags, FileOpenMode mode) {
 
 ScopedFstream OpenFstream(const std::string& path, const std::string& mode) {
   ScopedFstream file;
-  // On Windows fopen interprets filename using the ANSI or OEM codepage but
-  // sqlite3_value_text returns a UTF-8 string. To make sure we interpret the
-  // filename correctly we use _wfopen and a UTF-16 string on windows.
-  //
-  // On Windows fopen also open files in the text mode by default, but we want
-  // to open them in the binary mode, to avoid silly EOL translations (and to be
-  // consistent with base::OpenFile). So we check the mode first and append 'b'
-  // mode only when it makes sense.
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   std::string s_mode(mode);
   // Windows supports non-standard mode extension that sets encoding in text
   // mode. If you need to open a FILE* in text mode, use the fopen API directly.
@@ -4100,13 +4500,22 @@ ScopedFstream OpenFstream(const std::string& path, const std::string& mode) {
   if (!is_binary_mode)
     s_mode += 'b';
 
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  // On Windows fopen interprets filename using the ANSI or OEM codepage but
+  // sqlite3_value_text returns a UTF-8 string. To make sure we interpret the
+  // filename correctly we use _wfopen and a UTF-16 string on windows.
+  //
+  // On Windows fopen also open files in the text mode by default, but we want
+  // to open them in the binary mode, to avoid silly EOL translations (and to be
+  // consistent with base::OpenFile). So we check the mode first and append 'b'
+  // mode only when it makes sense.
   auto w_path = ToUtf16(path);
   auto w_mode = ToUtf16(s_mode);
   if (w_path && w_mode) {
     file.reset(_wfopen(w_path->c_str(), w_mode->c_str()));
   }
 #else
-  file.reset(fopen(path.c_str(), mode.c_str()));
+  file.reset(fopen(path.c_str(), s_mode.c_str()));
 #endif
   return file;
 }
@@ -4569,6 +4978,2071 @@ LinuxFileWatch::~LinuxFileWatch() = default;
 
 }  // namespace base
 }  // namespace perfetto
+// gen_amalgamated begin source: src/base/flat_hash_map.cc
+// gen_amalgamated begin header: include/perfetto/ext/base/flat_hash_map.h
+// gen_amalgamated begin header: include/perfetto/ext/base/bits.h
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_BITS_H_
+#define INCLUDE_PERFETTO_EXT_BASE_BITS_H_
+
+#include <cstddef>
+#include <cstdint>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+#include <immintrin.h>
+#endif
+
+namespace perfetto {
+namespace base {
+
+inline PERFETTO_ALWAYS_INLINE uint32_t CountLeadZeros32(uint32_t value) {
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+  return static_cast<uint32_t>(_lzcnt_u32(value));
+#elif defined(__GNUC__) || defined(__clang__)
+  return value ? static_cast<uint32_t>(__builtin_clz(value)) : 32u;
+#else
+  unsigned long out;
+  return _BitScanReverse(&out, value) ? 31 - out : 32u;
+#endif
+}
+
+inline PERFETTO_ALWAYS_INLINE uint32_t CountLeadZeros64(uint64_t value) {
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+  return static_cast<uint32_t>(_lzcnt_u64(value));
+#elif defined(__GNUC__) || defined(__clang__)
+  return value ? static_cast<uint32_t>(__builtin_clzll(value)) : 64u;
+#else
+  unsigned long out;
+  return _BitScanReverse64(&out, value) ? 63 - out : 64u;
+#endif
+}
+
+template <typename T>
+uint32_t CountLeadZeros(T value) {
+  if constexpr (sizeof(T) == 8)
+    return CountLeadZeros64(static_cast<uint64_t>(value));
+  return CountLeadZeros32(static_cast<uint32_t>(value));
+}
+
+inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros64(uint64_t value) {
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+  return static_cast<uint32_t>(_tzcnt_u64(value));
+#elif defined(__GNUC__) || defined(__clang__)
+  return value ? static_cast<uint32_t>(__builtin_ctzll(value)) : 64u;
+#else
+  unsigned long out;
+  return _BitScanForward64(&out, value) ? static_cast<uint32_t>(out) : 64u;
+#endif
+}
+
+inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros32(uint32_t value) {
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+  return _tzcnt_u32(value);
+#elif defined(__GNUC__) || defined(__clang__)
+  return value ? static_cast<uint32_t>(__builtin_ctz(value)) : 32u;
+#else
+  unsigned long out;
+  return _BitScanForward(&out, value) ? out : 32u;
+#endif
+}
+
+template <typename T>
+inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros(T value) {
+  if (sizeof(T) == 8) {
+    return CountTrailZeros64(static_cast<uint64_t>(value));
+  }
+  return CountTrailZeros32(static_cast<uint32_t>(value));
+}
+
+template <typename T>
+constexpr bool AllBitsSet(T v) {
+  return v == static_cast<T>(-1);
+}
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_BITS_H_
+// gen_amalgamated begin header: include/perfetto/ext/base/flat_hash_map_v1.h
+// gen_amalgamated begin header: include/perfetto/ext/base/murmur_hash.h
+// gen_amalgamated begin header: include/perfetto/ext/base/hash.h
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_HASH_H_
+#define INCLUDE_PERFETTO_EXT_BASE_HASH_H_
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <tuple>
+#include <utility>
+
+namespace perfetto::base {
+
+// ============================================================================
+// Absl-style hash customization point
+// ============================================================================
+//
+// To make a type hashable with Perfetto hash functions, define a friend
+// function template:
+//
+//   template <typename H>
+//   friend H PerfettoHashValue(H h, const MyType& value) {
+//     return H::Combine(std::move(h), value.field1, value.field2);
+//   }
+//
+// This function will be found via ADL (Argument Dependent Lookup) when hashing
+// your type. No forward declaration is needed - ADL finds it in your type's
+// namespace.
+
+// ============================================================================
+// Built-in PerfettoHashValue implementations for common standard library
+// types. These allow standard library types to work seamlessly with the
+// absl-style hash API without requiring users to define their own
+// implementations.
+// ============================================================================
+
+// Hash function for std::optional - hashes the value if present, or a sentinel
+// if not.
+template <typename H, typename T>
+H PerfettoHashValue(H h, const std::optional<T>& value) {
+  if (value.has_value()) {
+    return H::Combine(H::Combine(std::move(h), true), *value);
+  }
+  return H::Combine(std::move(h), false, 0);
+}
+
+// Hash function for std::pair - combines hashes of both elements.
+template <typename H, typename T1, typename T2>
+H PerfettoHashValue(H h, const std::pair<T1, T2>& value) {
+  return H::Combine(std::move(h), value.first, value.second);
+}
+
+// Hash function for std::tuple - combines hashes of all elements.
+template <typename H, typename... Ts>
+H PerfettoHashValue(H h, const std::tuple<Ts...>& value) {
+  return std::apply(
+      [&h](const auto&... elements) {
+        return H::Combine(std::move(h), elements...);
+      },
+      value);
+}
+
+// Hash function for pointers - hashes the pointer value as an integer.
+template <typename H, typename T>
+H PerfettoHashValue(H h, const std::unique_ptr<T>& ptr) {
+  return H::Combine(std::move(h), ptr.get());
+}
+template <typename H, typename T>
+H PerfettoHashValue(H h, const std::shared_ptr<T>& ptr) {
+  return H::Combine(std::move(h), ptr.get());
+}
+
+// This is for using already-hashed key into std::unordered_map and avoid the
+// cost of re-hashing. Example:
+// unordered_map<uint64_t, Value, AlreadyHashed> my_map.
+template <typename T>
+struct AlreadyHashed {
+  size_t operator()(const T& x) const { return static_cast<size_t>(x); }
+};
+
+}  // namespace perfetto::base
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_HASH_H_
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
+#define INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/hash.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_view.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
+
+// This file provides an implementation of the 64-bit MurmurHash2 algorithm,
+// also known as MurmurHash64A. This algorithm, created by Austin Appleby, is a
+// fast, non-cryptographic hash function with excellent distribution properties,
+// making it ideal for use in hash tables.
+//
+// The file also includes related hashing utilities:
+// - A standalone `fmix64` finalizer from MurmurHash3, used for hashing
+//   individual numeric types.
+// - A hash combiner for creating a single hash from a sequence of values.
+//
+// NOTE: This implementation is NOT cryptographically secure. It must not be
+// used for security-sensitive applications like password storage or digital
+// signatures, as it is not designed to be resistant to malicious attacks.
+
+namespace perfetto::base {
+
+namespace murmur_internal {
+
+// Finalizes an intermediate hash value using the `fmix64` routine from
+// MurmurHash3.
+//
+// This function's purpose is to thoroughly mix the bits of the hash state to
+// ensure the final result is well-distributed, which is critical for avoiding
+// collisions in hash tables.
+//
+// Args:
+//   h: The intermediate hash value to be finalized.
+//
+// Returns:
+//   The final, well-mixed 64-bit hash value.
+inline uint64_t MurmurHashMix(uint64_t h) {
+  h ^= h >> 33;
+  h *= 0xff51afd7ed558ccdULL;
+  h ^= h >> 33;
+  h *= 0xc4ceb9fe1a85ec53ULL;
+  h ^= h >> 33;
+  return h;
+}
+
+// Computes a 64-bit hash for a block of memory using the MurmurHash64A
+// algorithm.
+//
+// The process involves four main steps:
+// 1. Initialization: The hash state is seeded with a value derived from the
+//    input length.
+// 2. Main Loop: Data is processed in 8-byte chunks, with each chunk being
+//    mixed into the hash state.
+// 3. Tail Processing: The final 1-7 bytes of data are handled.
+// 4. Finalization: The hash state is passed through a final mixing sequence to
+//    ensure good bit distribution.
+//
+// Args:
+//   input: A pointer to the data to be hashed.
+//   len:   The length of the data in bytes.
+//
+// Returns:
+//   The 64-bit MurmurHash64A hash of the input data.
+inline uint64_t MurmurHashBytes(const void* input, size_t len) {
+  // This implementation follows the canonical MurmurHash64A algorithm.
+  // The constants `kMulConstant` (m) and the shift value `47` (r) are from
+  // the original specification.
+  // The seed is inspired by the one used in DuckDB.
+  static constexpr uint64_t kSeed = 0xe17a1465U;
+  static constexpr uint64_t kMulConstant = 0xc6a4a7935bd1e995;
+  static constexpr int kShift = 47;
+
+  uint64_t h = kSeed ^ (len * kMulConstant);
+  const auto* data = static_cast<const uint8_t*>(input);
+  const size_t num_blocks = len / 8;
+
+  // Process 8-byte (64-bit) chunks
+  for (size_t i = 0; i < num_blocks; ++i) {
+    uint64_t k;
+    memcpy(&k, data, sizeof(k));
+    data += sizeof(k);  // Advance the pointer by 8 bytes
+
+    k *= kMulConstant;
+    k ^= k >> kShift;
+    k *= kMulConstant;
+
+    h ^= k;
+    h *= kMulConstant;
+  }
+
+  // Process the remaining 1 to 7 bytes
+  // The 'byte_ptr' now points to the beginning of the tail.
+  switch (len & 7) {
+    case 7:
+      h ^= static_cast<uint64_t>(data[6]) << 48;
+      [[fallthrough]];
+    case 6:
+      h ^= static_cast<uint64_t>(data[5]) << 40;
+      [[fallthrough]];
+    case 5:
+      h ^= static_cast<uint64_t>(data[4]) << 32;
+      [[fallthrough]];
+    case 4:
+      h ^= static_cast<uint64_t>(data[3]) << 24;
+      [[fallthrough]];
+    case 3:
+      h ^= static_cast<uint64_t>(data[2]) << 16;
+      [[fallthrough]];
+    case 2:
+      h ^= static_cast<uint64_t>(data[1]) << 8;
+      [[fallthrough]];
+    case 1:
+      h ^= static_cast<uint64_t>(data[0]);
+      h *= kMulConstant;
+  }
+
+  // Final mixing stage
+  h ^= h >> kShift;
+  h *= kMulConstant;
+  h ^= h >> kShift;
+
+  return h;
+}
+
+// Computes a 64-bit hash for a single built-in value without any combination.
+// This is the core primitive used by both MurmurHashValue and
+// MurmurHashCombiner::CombineOne for built-in types.
+//
+// NOTE: This function intentionally has no else branch for non-builtin types,
+// which will cause a compile error if called with an unsupported type. Callers
+// should check if the type is supported before calling this function.
+template <typename T>
+auto MurmurHashBuiltinValue(const T& value) {
+  if constexpr (std::is_enum_v<T>) {
+    return murmur_internal::MurmurHashMix(
+        static_cast<uint64_t>(static_cast<std::underlying_type_t<T>>(value)));
+  } else if constexpr (std::is_integral_v<T>) {
+    return murmur_internal::MurmurHashMix(static_cast<uint64_t>(value));
+  } else if constexpr (std::is_same_v<T, double>) {
+    return murmur_internal::MurmurHashMix(base::CanonicalFloatBits(value));
+  } else if constexpr (std::is_same_v<T, float>) {
+    return murmur_internal::MurmurHashMix(base::CanonicalFloatBits(value));
+  } else if constexpr (std::is_same_v<T, std::string> ||
+                       std::is_same_v<T, std::string_view> ||
+                       std::is_same_v<T, base::StringView>) {
+    return murmur_internal::MurmurHashBytes(value.data(), value.size());
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    std::string_view view(value);
+    return murmur_internal::MurmurHashBytes(view.data(), view.size());
+  } else if constexpr (std::is_pointer_v<T>) {
+    return murmur_internal::MurmurHashMix(
+        static_cast<uint64_t>(reinterpret_cast<uintptr_t>(value)));
+  } else {
+    struct InvalidBuiltin {};
+    return InvalidBuiltin{};
+  }
+}
+
+// Helper to check if a type has a built-in MurmurHash implementation.
+template <typename T>
+constexpr bool HasMurmurHashBuiltinValue() {
+  return std::is_same_v<decltype(MurmurHashBuiltinValue(std::declval<T>())),
+                        uint64_t>;
+}
+
+// Helper to check if a type is string-like (i.e. string, c-string or string
+// views).
+template <typename T>
+constexpr bool IsStringLike() {
+  return std::is_same_v<T, std::string> ||
+         std::is_same_v<T, std::string_view> ||
+         std::is_same_v<T, base::StringView> || std::is_same_v<T, const char*>;
+}
+
+// Helper to check if heterogeneous lookup is allowed between T and U: only
+// between string-like types. Other types (e.g. integers) are converted to T by
+// the caller instead, as converting them is cheap, and hashing them as is
+// could differ (e.g. a negative int hashed for a uint32_t key).
+template <typename T, typename U>
+constexpr bool AllowsHeterogeneousLookup() {
+  return IsStringLike<T>() && IsStringLike<U>();
+}
+
+// MurmurHash<T> is transparent (i.e. supports heterogeneous lookups) only for
+// string-like T.
+template <typename T, bool = IsStringLike<T>()>
+struct MurmurHashTransparency {};
+
+template <typename T>
+struct MurmurHashTransparency<T, true> {
+  using is_transparent = void;
+};
+
+// Helper to detect pointers in Combine(...).
+// Hashing pointers directly is prohibited as it often indicates a misuse
+// (e.g., passing ptr and len instead of a single std::string_view).
+template <typename... Args>
+constexpr bool HasPointerV = (std::is_pointer_v<Args> || ...);
+
+}  // namespace murmur_internal
+
+// ============================================================================
+// MurmurHashCombiner - the core hasher state object
+// ============================================================================
+//
+// A helper class to create a 64-bit MurmurHash from a series of
+// structured fields.
+//
+// This class supports both the absl-style hasher API and a direct
+// member Combine() method.
+//
+// Absl-style API (for custom types with PerfettoHashValue):
+//   template <typename H>
+//   friend H PerfettoHashValue(H h, const MyType& value) {
+//     return H::Combine(std::move(h), value.field1, value.field2);
+//   }
+//
+// Direct API (for simple hash combining):
+//   MurmurHashCombiner combiner;
+//   combiner.Combine(field1, field2, ...);
+//   return combiner.digest();
+//
+// IMPORTANT: This is NOT a true streaming hash. It is an order-dependent
+// combiner. It does not guarantee that hashing two concatenated chunks of data
+// will produce the same result as hashing them separately in sequence.
+class MurmurHashCombiner {
+ public:
+  MurmurHashCombiner() = default;
+
+  // Static Combine - returns a new hasher with the combined state.
+  // This is used by the absl-style PerfettoHashValue API.
+  template <typename... Args>
+  static MurmurHashCombiner Combine(MurmurHashCombiner h, const Args&... args) {
+    h.Combine(args...);
+    return h;
+  }
+
+  // Member Combine - combines values into this hasher's state.
+  // This is a convenient API for directly combining multiple values.
+  // The combination is order-dependent.
+  template <typename... Args>
+  void Combine(const Args&... args) {
+    static_assert(!murmur_internal::HasPointerV<Args...>,
+                  "MurmurHashCombiner::Combine() does not support pointers. "
+                  "If you want to hash the contents of a memory range, use a "
+                  "single hashable object (e.g., std::string_view). If you "
+                  "want to hash a pointer address, cast it to uintptr_t.");
+    // Uses a C++17 fold expression with CombineOne for each argument.
+    (CombineOne(args), ...);
+  }
+
+  // Returns the digest (i.e. current state of the combiner).
+  uint64_t digest() const { return hash_; }
+
+ private:
+  // Combines a single value into the hasher state.
+  template <typename T>
+  void CombineOne(const T& value) {
+    if constexpr (murmur_internal::HasMurmurHashBuiltinValue<T>()) {
+      Update(murmur_internal::MurmurHashBuiltinValue(value));
+    } else {
+      // For custom types, use ADL to find the PerfettoHashValue function.
+      // This will cause a compile error with a clear message if the function
+      // is not defined.
+      hash_ = PerfettoHashValue(std::move(*this), value).digest();
+    }
+  }
+
+  // Low-level update with a pre-computed hash value. This uses a fast,
+  // order-dependent combination step inspired by the `hash_combine` function
+  // in the Boost C++ libraries.
+  void Update(uint64_t piece_hash) {
+    hash_ ^= piece_hash + 0x9e3779b9 + (hash_ << 6) + (hash_ >> 2);
+  }
+
+  static constexpr uint64_t kSeed = 0xe17a1465U;
+  uint64_t hash_ = kSeed;
+};
+
+// Simple wrapper function around MurmurHashCombiner to improve clarity in
+// callsites to not have to instantiate the class, call Combine() then digest().
+template <typename... Args>
+uint64_t MurmurHashCombine(const Args&... value) {
+  return MurmurHashCombiner::Combine(MurmurHashCombiner{}, value...).digest();
+}
+
+// Simple wrapper function to compute a hash value for a single value.
+// This is the primitive hash operation that MurmurHash<T> delegates to.
+//
+// For built-in types (integers, floats, strings), this uses a fast path that
+// avoids the overhead of the MurmurHashCombiner. For custom types, it delegates
+// to MurmurHashCombiner which will use ADL to find the PerfettoHashValue.
+template <typename T>
+uint64_t MurmurHashValue(const T& value) {
+  if constexpr (murmur_internal::HasMurmurHashBuiltinValue<T>()) {
+    return murmur_internal::MurmurHashBuiltinValue(value);
+  } else {
+    return MurmurHashCombine(value);
+  }
+}
+
+// std::hash<T> drop-in class which uses MurmurHashValue as the primitive.
+// All specializations consistently delegate to MurmurHashValue.
+template <typename T>
+struct MurmurHash : murmur_internal::MurmurHashTransparency<T> {
+  uint64_t operator()(const T& value) const { return MurmurHashValue(value); }
+
+  // Heterogeneous lookup support, between string-like types only.
+  template <typename U>
+  auto operator()(const U& value) const -> std::enable_if_t<
+      murmur_internal::AllowsHeterogeneousLookup<T, std::decay_t<const U>>(),
+      uint64_t> {
+    // Forwarding callers retain string literals as arrays. Hash them as
+    // C strings instead of converting them to an owning std::string.
+    return MurmurHashValue<std::decay_t<const U>>(value);
+  }
+};
+
+}  // namespace perfetto::base
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
+/*
+ * Copyright (C) 2021 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
+#define INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <type_traits>
+#include <utility>
+
+namespace perfetto::base {
+
+// An open-addressing hashmap implementation.
+// Pointers are not stable, neither for keys nor values.
+// Has similar performances of a RobinHood hash (without the complications)
+// and 2x an unordered map.
+// Doc: http://go/perfetto-hashtables .
+//
+// When used to implement a string pool in TraceProcessor, the performance
+// characteristics obtained by replaying the set of strings seeen in a 4GB trace
+// (226M strings, 1M unique) are the following (see flat_hash_map_benchmark.cc):
+// This(Linear+AppendOnly)    879,383,676 ns    258.013M insertions/s
+// This(LinearProbe):         909,206,047 ns    249.546M insertions/s
+// This(QuadraticProbe):    1,083,844,388 ns    209.363M insertions/s
+// std::unordered_map:      6,203,351,870 ns    36.5811M insertions/s
+// tsl::robin_map:            931,403,397 ns    243.622M insertions/s
+// absl::flat_hash_map:       998,013,459 ns    227.379M insertions/s
+// FollyF14FastMap:         1,181,480,602 ns    192.074M insertions/s
+//
+// The structs below define the probing algorithm used to probe slots upon a
+// collision. They are guaranteed to visit all slots as our table size is always
+// a power of two (see https://en.wikipedia.org/wiki/Quadratic_probing).
+
+// Linear probing can be faster if the hashing is well distributed and the load
+// is not high. For TraceProcessor's StringPool this is the fastest. It can
+// degenerate badly if the hashing doesn't spread (e.g., if using directly pids
+// as keys, with a no-op hashing function).
+struct LinearProbe {
+  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
+    return (key_hash + step) & (capacity - 1);  // Linear probe
+  }
+};
+
+// Generates the sequence: 0, 3, 10, 21, 36, 55, ...
+// Can be a bit (~5%) slower than LinearProbe because it's less cache hot, but
+// avoids degenerating badly if the hash function is bad and causes clusters.
+// A good default choice unless benchmarks prove otherwise.
+struct QuadraticProbe {
+  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
+    return (key_hash + 2 * step * step + step) & (capacity - 1);
+  }
+};
+
+// Tends to perform in the middle between linear and quadratic.
+// It's a bit more cache-effective than the QuadraticProbe but can create more
+// clustering if the hash function doesn't spread well.
+// Generates the sequence: 0, 1, 3, 6, 10, 15, 21, ...
+struct QuadraticHalfProbe {
+  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
+    return (key_hash + (step * step + step) / 2) & (capacity - 1);
+  }
+};
+
+// Non-templated base class to hold helpers for FlatHashMap.
+struct FlatHashMapV1Base {
+ public:
+  // Helper to detect if a hasher has is_transparent defined.
+  template <typename, typename = void>
+  struct HasIsTransparent : std::false_type {};
+
+  template <typename H>
+  struct HasIsTransparent<H, std::void_t<typename H::is_transparent>>
+      : std::true_type {};
+
+  // Helper to check if a lookup key type K is allowed.
+  // Returns true if:
+  // 1. K can be implicitly converted to Key, OR
+  // 2. Hasher has is_transparent AND Hasher is invocable with K AND Key and K
+  // are equality comparable
+  template <typename K, typename Key, typename Hasher>
+  static constexpr bool IsLookupKeyAllowed() {
+    if constexpr (HasIsTransparent<Hasher>::value) {
+      return std::is_invocable_v<Hasher, const K&> &&
+             std::is_same_v<decltype(std::declval<const Key&>() ==
+                                     std::declval<const K&>()),
+                            bool>;
+    } else if constexpr (std::is_convertible_v<K, Key>) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+template <typename Key,
+          typename Value,
+          typename Hasher = base::MurmurHash<Key>,
+          typename Probe = QuadraticProbe,
+          bool AppendOnly = false>
+class FlatHashMapV1 : protected FlatHashMapV1Base {
+ public:
+  class Iterator {
+   public:
+    explicit Iterator(const FlatHashMapV1* map) : map_(map) {
+      FindNextNonFree();
+    }
+    ~Iterator() = default;
+    Iterator(const Iterator&) = default;
+    Iterator& operator=(const Iterator&) = default;
+    Iterator(Iterator&&) noexcept = default;
+    Iterator& operator=(Iterator&&) noexcept = default;
+
+    Key& key() { return map_->keys_[idx_]; }
+    Value& value() { return map_->values_[idx_]; }
+    const Key& key() const { return map_->keys_[idx_]; }
+    const Value& value() const { return map_->values_[idx_]; }
+
+    explicit operator bool() const { return idx_ != kEnd; }
+    Iterator& operator++() {
+      PERFETTO_DCHECK(idx_ < map_->capacity_);
+      ++idx_;
+      FindNextNonFree();
+      return *this;
+    }
+
+   private:
+    static constexpr size_t kEnd = std::numeric_limits<size_t>::max();
+
+    void FindNextNonFree() {
+      const auto& tags = map_->tags_;
+      for (; idx_ < map_->capacity_; idx_++) {
+        if (tags[idx_] != kFreeSlot && (AppendOnly || tags[idx_] != kTombstone))
+          return;
+      }
+      idx_ = kEnd;
+    }
+
+    const FlatHashMapV1* map_ = nullptr;
+    size_t idx_ = 0;
+  };  // Iterator
+  static constexpr int kDefaultLoadLimitPct = 75;
+  explicit FlatHashMapV1(size_t initial_capacity = 0,
+                         int load_limit_pct = kDefaultLoadLimitPct)
+      : load_limit_percent_(load_limit_pct) {
+    if (initial_capacity > 0)
+      Reset(initial_capacity, true);
+  }
+
+  // We are calling Clear() so that the destructors for the inserted entries are
+  // called (unless they are trivial, in which case it will be a no-op).
+  ~FlatHashMapV1() { Clear(); }
+
+  FlatHashMapV1(FlatHashMapV1&& other) noexcept {
+    tags_ = std::move(other.tags_);
+    keys_ = std::move(other.keys_);
+    values_ = std::move(other.values_);
+    capacity_ = other.capacity_;
+    size_ = other.size_;
+    tombstones_ = other.tombstones_;
+    max_probe_length_ = other.max_probe_length_;
+    load_limit_ = other.load_limit_;
+    load_limit_percent_ = other.load_limit_percent_;
+
+    new (&other) FlatHashMapV1();
+  }
+
+  FlatHashMapV1& operator=(FlatHashMapV1&& other) noexcept {
+    this->~FlatHashMapV1();
+    new (this) FlatHashMapV1(std::move(other));
+    return *this;
+  }
+
+  FlatHashMapV1(const FlatHashMapV1&) = delete;
+  FlatHashMapV1& operator=(const FlatHashMapV1&) = delete;
+
+  std::pair<Value*, bool> Insert(Key key, Value value) {
+    const size_t key_hash = Hasher{}(key);
+    const uint8_t tag = HashToTag(key_hash);
+    static constexpr size_t kSlotNotFound = std::numeric_limits<size_t>::max();
+
+    // This for loop does in reality at most two attempts:
+    // The first iteration either:
+    //  - Early-returns, because the key exists already,
+    //  - Finds an insertion slot and proceeds because the load is < limit.
+    // The second iteration is only hit in the unlikely case of this insertion
+    // bringing the table beyond the target |load_limit_| (or the edge case
+    // of the HT being full, if |load_limit_pct_| = 100).
+    // We cannot simply pre-grow the table before insertion, because we must
+    // guarantee that calling Insert() with a key that already exists doesn't
+    // invalidate iterators.
+    size_t insertion_slot;
+    size_t probe_len;
+    for (;;) {
+      PERFETTO_DCHECK((capacity_ & (capacity_ - 1)) == 0);  // Must be a pow2.
+      insertion_slot = kSlotNotFound;
+      // Start the iteration at the desired slot (key_hash % capacity_)
+      // searching either for a free slot or a tombstone. In the worst case we
+      // might end up scanning the whole array of slots. The Probe functions are
+      // guaranteed to visit all the slots within |capacity_| steps. If we find
+      // a free slot, we can stop the search immediately (a free slot acts as an
+      // "end of chain for entries having the same hash". If we find a
+      // tombstones (a deleted slot) we remember its position, but have to keep
+      // searching until a free slot to make sure we don't insert a duplicate
+      // key.
+      for (probe_len = 0; probe_len < capacity_;) {
+        const size_t idx = Probe::Calc(key_hash, probe_len, capacity_);
+        PERFETTO_DCHECK(idx < capacity_);
+        const uint8_t tag_idx = tags_[idx];
+        ++probe_len;
+        if (tag_idx == kFreeSlot) {
+          // Rationale for "insertion_slot == kSlotNotFound": if we encountered
+          // a tombstone while iterating we should reuse that rather than
+          // taking another slot.
+          if (AppendOnly || insertion_slot == kSlotNotFound)
+            insertion_slot = idx;
+          break;
+        }
+        // We should never encounter tombstones in AppendOnly mode.
+        PERFETTO_DCHECK(!(tag_idx == kTombstone && AppendOnly));
+        if (!AppendOnly && tag_idx == kTombstone) {
+          insertion_slot = idx;
+          continue;
+        }
+        if (tag_idx == tag && keys_[idx] == key) {
+          // The key is already in the map.
+          return std::make_pair(&values_[idx], false);
+        }
+      }  // for (idx)
+
+      // If we got to this point the key does not exist (otherwise we would have
+      // hit the return above) and we are going to insert a new entry.
+      // Before doing so, ensure we stay under the target load limit.
+      if (PERFETTO_UNLIKELY(size_ >= load_limit_)) {
+        MaybeGrowAndRehash(/*grow=*/true);
+        continue;
+      }
+      // If there are too many tombstones, it's worth doing a rehash to
+      // clean them up. This is to avoid the case where we have a table full
+      // of tombstones which would cause lookups to be very slow.
+      bool is_many_tombstones = tombstones_ > size_ && size_ > 128;
+      bool is_tombstones_plus_size_too_high = tombstones_ + size_ > load_limit_;
+      if (PERFETTO_UNLIKELY(is_many_tombstones ||
+                            is_tombstones_plus_size_too_high)) {
+        MaybeGrowAndRehash(/*grow=*/false);
+        continue;
+      }
+      PERFETTO_DCHECK(insertion_slot != kSlotNotFound);
+      break;
+    }  // for (attempt)
+
+    PERFETTO_CHECK(insertion_slot < capacity_);
+
+    // We found a free slot (or a tombstone). Proceed with the insertion.
+    if (tags_[insertion_slot] == kTombstone) {
+      PERFETTO_DCHECK(tombstones_ > 0);
+      tombstones_--;
+    }
+    Value* value_idx = &values_[insertion_slot];
+    new (&keys_[insertion_slot]) Key(std::move(key));
+    new (value_idx) Value(std::move(value));
+    tags_[insertion_slot] = tag;
+    PERFETTO_DCHECK(probe_len > 0 && probe_len <= capacity_);
+    max_probe_length_ = std::max(max_probe_length_, probe_len);
+    size_++;
+
+    return std::make_pair(value_idx, true);
+  }
+
+  template <typename K = Key>
+  Value* Find(const K& key) const {
+    const size_t idx = FindInternal(key);
+    if (idx == kNotFound)
+      return nullptr;
+    return &values_[idx];
+  }
+
+  template <typename K = Key>
+  bool Erase(const K& key) {
+    if (AppendOnly)
+      PERFETTO_FATAL("Erase() not supported because AppendOnly=true");
+    size_t idx = FindInternal(key);
+    if (idx == kNotFound)
+      return false;
+    EraseInternal(idx);
+    return true;
+  }
+
+  void Clear() {
+    // Avoid trivial heap operations on zero-capacity std::move()-d objects.
+    if (PERFETTO_UNLIKELY(capacity_ == 0))
+      return;
+
+    for (size_t i = 0; i < capacity_; ++i) {
+      const uint8_t tag = tags_[i];
+      if (tag != kFreeSlot && (AppendOnly || tag != kTombstone)) {
+        keys_[i].~Key();
+        values_[i].~Value();
+      }
+    }
+    Reset(capacity_, false);
+  }
+
+  Value& operator[](Key key) {
+    auto it_and_inserted = Insert(std::move(key), Value{});
+    return *it_and_inserted.first;
+  }
+
+  Iterator GetIterator() { return Iterator(this); }
+  const Iterator GetIterator() const { return Iterator(this); }
+
+  size_t size() const { return size_; }
+  size_t capacity() const { return capacity_; }
+
+  // "protected" here is only for the flat_hash_map_benchmark.cc. Everything
+  // below is by all means private.
+ protected:
+  enum ReservedTags : uint8_t { kFreeSlot = 0, kTombstone = 1 };
+  static constexpr size_t kNotFound = std::numeric_limits<size_t>::max();
+
+  template <typename K = Key>
+  size_t FindInternal(const K& key) const {
+    static_assert(
+        IsLookupKeyAllowed<K, Key, Hasher>(),
+        "Heterogeneous lookup requires Hasher to define is_transparent and "
+        "support hashing the lookup key type. For same-type lookup, Key and K "
+        "must match exactly.");
+    const size_t key_hash = Hasher{}(key);
+    const uint8_t tag = HashToTag(key_hash);
+    PERFETTO_DCHECK((capacity_ & (capacity_ - 1)) == 0);  // Must be a pow2.
+    PERFETTO_DCHECK(max_probe_length_ <= capacity_);
+    for (size_t i = 0; i < max_probe_length_; ++i) {
+      const size_t idx = Probe::Calc(key_hash, i, capacity_);
+      const uint8_t tag_idx = tags_[idx];
+
+      if (tag_idx == kFreeSlot)
+        return kNotFound;
+      // HashToTag() never returns kTombstone, so the tag-check below cannot
+      // possibly match. Also we just want to skip tombstones.
+      if (tag_idx == tag && keys_[idx] == key) {
+        PERFETTO_DCHECK(tag_idx > kTombstone);
+        return idx;
+      }
+    }  // for (idx)
+    return kNotFound;
+  }
+
+  void EraseInternal(size_t idx) {
+    PERFETTO_DCHECK(tags_[idx] > kTombstone);
+    PERFETTO_DCHECK(size_ > 0);
+    tags_[idx] = kTombstone;
+    keys_[idx].~Key();
+    values_[idx].~Value();
+    size_--;
+    tombstones_++;
+    PERFETTO_DCHECK(size_ + tombstones_ <= capacity_);
+  }
+
+  PERFETTO_NO_INLINE void MaybeGrowAndRehash(bool grow) {
+    PERFETTO_DCHECK(size_ <= capacity_);
+    const size_t old_capacity = capacity_;
+
+    // Grow quickly up to 1MB, then chill.
+    const size_t old_size_bytes = old_capacity * (sizeof(Key) + sizeof(Value));
+    const size_t grow_factor = old_size_bytes < (1024u * 1024u) ? 8 : 2;
+    const size_t new_capacity =
+        grow ? std::max(old_capacity * grow_factor, size_t(1024))
+             : old_capacity;
+
+    auto old_tags(std::move(tags_));
+    auto old_keys(std::move(keys_));
+    auto old_values(std::move(values_));
+    size_t old_size = size_;
+
+    // This must be a CHECK (i.e. not just a DCHECK) to prevent UAF attacks on
+    // 32-bit archs that try to double the size of the table until wrapping.
+    PERFETTO_CHECK(new_capacity >= old_capacity);
+    Reset(new_capacity, true);
+
+    size_t new_size = 0;  // Recompute the size.
+    for (size_t i = 0; i < old_capacity; ++i) {
+      const uint8_t old_tag = old_tags[i];
+      if (old_tag != kFreeSlot && old_tag != kTombstone) {
+        Insert(std::move(old_keys[i]), std::move(old_values[i]));
+        old_keys[i].~Key();  // Destroy the old objects.
+        old_values[i].~Value();
+        new_size++;
+      }
+    }
+    PERFETTO_DCHECK(new_size == old_size);
+    PERFETTO_DCHECK(tombstones_ == 0);
+    size_ = new_size;
+  }
+
+  // Doesn't call destructors. Use Clear() for that.
+  PERFETTO_NO_INLINE void Reset(size_t n, bool reallocate) {
+    PERFETTO_DCHECK((n & (n - 1)) == 0);  // Must be a pow2.
+
+    capacity_ = n;
+    max_probe_length_ = 0;
+    size_ = 0;
+    tombstones_ = 0;
+    load_limit_ = n * static_cast<size_t>(load_limit_percent_) / 100;
+    load_limit_ = std::min(load_limit_, n);
+
+    if (reallocate) {
+      tags_.reset(new uint8_t[n]);
+      keys_ = AlignedAllocTyped<Key[]>(n);  // Deliberately not 0-initialized.
+      values_ =
+          AlignedAllocTyped<Value[]>(n);  // Deliberately not 0-initialized.
+    }
+
+    // Only clear the tags if not nullptr.
+    if (tags_) {
+      memset(&tags_[0], 0, n);  // Clear all tags.
+    }
+  }
+
+  static inline uint8_t HashToTag(size_t full_hash) {
+    uint8_t tag = full_hash >> (sizeof(full_hash) * 8 - 8);
+    // Ensure the hash is always >= 2. We use 0, 1 for kFreeSlot and kTombstone.
+    tag += (tag <= kTombstone) << 1;
+    PERFETTO_DCHECK(tag > kTombstone);
+    return tag;
+  }
+
+  size_t capacity_ = 0;
+  size_t size_ = 0;
+  size_t tombstones_ = 0;
+  size_t max_probe_length_ = 0;
+  size_t load_limit_ = 0;  // Updated every time |capacity_| changes.
+  int load_limit_percent_ =
+      kDefaultLoadLimitPct;  // Load factor limit in % of |capacity_|.
+
+  // These arrays have always the |capacity_| elements.
+  // Note: AlignedUniquePtr just allocates memory, doesn't invoke any ctor/dtor.
+  std::unique_ptr<uint8_t[]> tags_;
+  AlignedUniquePtr<Key[]> keys_;
+  AlignedUniquePtr<Value[]> values_;
+};
+
+}  // namespace perfetto::base
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
+#define INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/bits.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/flat_hash_map_v1.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_view.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+#include <immintrin.h>
+#endif
+
+namespace perfetto::base {
+
+// A Swiss Table-style open-addressing hashmap implementation.
+// Inspired by absl::flat_hash_map, this uses a metadata array of control bytes
+// to enable fast SIMD-accelerated probing.
+//
+// Key design choices:
+// - Control bytes: Each slot has a 1-byte tag (7-bit H2 hash or special marker)
+//   stored in a separate array, enabling fast group-based matching.
+// - SIMD acceleration: On x64, uses SSE instructions to match 16 control bytes
+//   in parallel. Falls back to SWAR (SIMD Within A Register) on other platforms
+//   matching 8 bytes at a time.
+// - Triangular probing: Uses the sequence 0, 16, 48, 96, ... (like Absl) to
+//   probe groups of slots, ensuring good cache behavior.
+// - Pointers are NOT stable: Neither keys nor values have stable addresses
+//   across insertions that trigger rehashing.
+//
+// See also: FlatHashMapV1 in flat_hash_map_v1.h for the older implementation
+// using traditional open-addressing with configurable probing strategies.
+
+// Non-templated base class to hold helpers for FlatHashMapV2.
+namespace flat_hash_map_v2_internal {
+
+// Helper to detect if a hasher has is_transparent defined.
+template <typename, typename = void>
+struct HasIsTransparent : std::false_type {};
+
+template <typename H>
+struct HasIsTransparent<H, std::void_t<typename H::is_transparent>>
+    : std::true_type {};
+
+// Equality comparator trait.
+template <typename T>
+struct HashEq : public std::equal_to<T> {};
+
+// Specialization for std::string to compare via std::string_view.
+//
+// This exists because after benchmarking, it turns out libc++ has an
+// "optimization" for std::string equality that does something byte by
+// byte comparision for short strings but this is slower than just memcmp.
+//
+// This helps close the gap to absl::flat_hash_map for string keys.
+template <>
+struct HashEq<std::string> {
+  bool operator()(const std::string& a, const std::string& b) const {
+    return std::string_view(a) == std::string_view(b);
+  }
+  bool operator()(const std::string& a, const std::string_view& b) const {
+    return std::string_view(a) == b;
+  }
+  bool operator()(const std::string& a, base::StringView b) const {
+    return base::StringView(a) == b;
+  }
+  bool operator()(const std::string& a, const char* b) const {
+    return std::string_view(a) == std::string_view(b);
+  }
+};
+
+// Specialization for double to prevent spurious -Wfloat-equal warnings.
+//
+// Trace processor legitimately has a need to compare with exact equality
+template <>
+struct HashEq<double> {
+  bool operator()(double a, double b) const { return std::equal_to<>()(a, b); }
+};
+
+// Helper to check if a lookup key type K is allowed.
+// Returns true if:
+// 1. Hasher is transparent, can hash K, and Eq can compare Key and K, OR
+// 2. Hasher is not transparent and K can be implicitly converted to Key.
+template <typename K, typename Key, typename Hasher, typename Eq>
+constexpr bool IsLookupKeyAllowed() {
+  if constexpr (HasIsTransparent<Hasher>::value) {
+    return std::is_invocable_v<Hasher, const K&> &&
+           std::is_invocable_v<Eq, const Key&, const K&>;
+  } else if constexpr (std::is_convertible_v<K, Key>) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Swiss Table control byte encoding:
+// - Empty:   0x80 (10000000) - MSB set, easy to detect with sign bit
+// - Deleted: 0xFE (11111110) - MSB set
+// - Full:    0x00-0x7F - MSB clear, stores 7-bit H2 hash
+static constexpr uint8_t kFreeSlot = 0x80;   // Empty slot
+static constexpr uint8_t kTombstone = 0xFE;  // Deleted slot
+
+// The default load limit percent before growing the table.
+static constexpr int kDefaultLoadLimitPct = 75;
+
+// Abstraction over a group of control bytes that enables batch operations.
+// On x64, uses SSE to match 16 control bytes in parallel.
+// On other platforms, uses SWAR (SIMD Within A Register) for 8 bytes.
+//
+// Match() returns an iterator over slots whose control byte matches h2.
+// MatchEmpty() returns an iterator over empty slots (kFreeSlot).
+// MatchEmptyOrDeleted() returns an iterator over empty or deleted slots.
+#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
+struct Group {
+ public:
+  // Group size 16 for x64 SSE
+  static constexpr size_t kSize = 16;
+
+  // Iterates over set bits in a match mask. Each set bit indicates a slot
+  // in the group that matched the search criteria. Call Next() to get the
+  // index of each matching slot.
+  struct Iterator {
+   public:
+    PERFETTO_ALWAYS_INLINE explicit Iterator(uint16_t mask) : mask_(mask) {}
+    PERFETTO_ALWAYS_INLINE explicit operator bool() const { return mask_; }
+
+    PERFETTO_ALWAYS_INLINE size_t Next() {
+      auto idx = static_cast<size_t>(CountTrailZeros(mask_));
+      mask_ &= static_cast<uint16_t>(mask_ - 1);
+      return idx;
+    }
+
+   private:
+    uint16_t mask_;
+  };
+
+  PERFETTO_ALWAYS_INLINE explicit Group(const uint8_t* pos) {
+    ctrl_ = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos));
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator Match(uint8_t h2) const {
+    auto match = _mm_cmpeq_epi8(ctrl_, _mm_set1_epi8(static_cast<char>(h2)));
+    return Iterator(static_cast<uint16_t>(_mm_movemask_epi8(match)));
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator MatchEmpty() const {
+    return Iterator(
+        static_cast<uint16_t>(_mm_movemask_epi8(_mm_sign_epi8(ctrl_, ctrl_))));
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator MatchEmptyOrDeleted() const {
+    return Iterator(static_cast<uint16_t>(_mm_movemask_epi8(ctrl_)));
+  }
+
+ private:
+  __m128i ctrl_;
+};
+#else
+// SWAR fallback: processes 8 control bytes at a time using 64-bit arithmetic.
+struct Group {
+ public:
+  // Group size 8 for ARM and other platforms
+  static constexpr size_t kSize = 8;
+
+  // Iterates over set bits in a sparse 64-bit mask. Each set MSB indicates
+  // a matching byte in the group. Call Next() to get the index of each
+  // matching slot.
+  struct Iterator {
+   public:
+    PERFETTO_ALWAYS_INLINE explicit Iterator(uint64_t mask) : mask_(mask) {}
+    PERFETTO_ALWAYS_INLINE explicit operator bool() const { return mask_; }
+    PERFETTO_ALWAYS_INLINE size_t Next() {
+      // Count zeros and divide by 8 (shift 3)
+      // 0x80 (Byte 0) -> CTZ 7  -> 7>>3 = 0
+      // 0x8000 (Byte 1) -> CTZ 15 -> 15>>3 = 1
+      size_t idx = static_cast<size_t>(CountTrailZeros(mask_) >> 3);
+      mask_ &= mask_ - 1;  // Clear lowest set bit
+      return idx;
+    }
+
+   private:
+    uint64_t mask_;
+  };
+
+  PERFETTO_ALWAYS_INLINE explicit Group(const uint8_t* pos) {
+    memcpy(&ctrl_, pos, sizeof(ctrl_));
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator Match(uint8_t h2) const {
+    uint64_t x = ctrl_ ^ (kLsbs * h2);
+    return Iterator((x - kLsbs) & ~x & kMsbs);
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator MatchEmpty() const {
+    // 0x80 check (Empty)
+    return Iterator((ctrl_ & ~(ctrl_ << 6)) & kMsbs);
+  }
+
+  PERFETTO_ALWAYS_INLINE Iterator MatchEmptyOrDeleted() const {
+    // 0x80 or 0xFE check (Empty or Deleted)
+    return Iterator((ctrl_ & ~(ctrl_ << 7)) & kMsbs);
+  }
+
+ private:
+  static constexpr uint64_t kLsbs = 0x0101010101010101ULL;
+  static constexpr uint64_t kMsbs = 0x8080808080808080ULL;
+
+  uint64_t ctrl_;
+};
+#endif
+
+// The state and the operations of FlatHashMapV2 which don't depend on the key
+// and value types. Not templated, and the heavier operations are defined in
+// flat_hash_map.cc, so that all maps share one copy of the code.
+class FlatHashMapV2Base {
+ protected:
+  // Tracks growth capacity and whether any deletions have occurred.
+  // Using bitfields like absl's GrowthInfo to avoid manual bit manipulation.
+  struct GrowthInfo {
+    uint64_t growth_left : 63;
+    uint64_t has_tombstones : 1;
+  };
+
+  // The table being moved out of while growing.
+  struct OldTable {
+    std::unique_ptr<uint8_t[]> storage;
+    const uint8_t* ctrl;
+    uint8_t* slots;
+    size_t capacity;
+    size_t size;
+  };
+
+  // The number of cloned control bytes after the main control byte array.
+  static constexpr size_t kNumClones = Group::kSize - 1;
+
+  explicit FlatHashMapV2Base(int load_limit_pct)
+      : load_limit_percent_(load_limit_pct) {}
+
+  FlatHashMapV2Base(FlatHashMapV2Base&& other) noexcept
+      : storage_(std::move(other.storage_)),
+        capacity_(other.capacity_),
+        size_(other.size_),
+        growth_info_(other.growth_info_),
+        load_limit_percent_(other.load_limit_percent_),
+        ctrl_(other.ctrl_),
+        slots_(other.slots_) {
+    other.capacity_ = 0;
+    other.size_ = 0;
+    other.growth_info_ = {0, 0};
+    other.load_limit_percent_ = kDefaultLoadLimitPct;
+    other.ctrl_ = nullptr;
+    other.slots_ = nullptr;
+  }
+
+  // Swiss Table hash splitting (matching absl):
+  // H1 = upper bits for bucket index
+  // H2 = lower 7 bits for tag
+  // This ensures H1 and H2 are independent, avoiding tag collisions within
+  // buckets. The seed XOR prevents clustering when hash values have patterns
+  // (e.g., sequential keys)
+  static constexpr size_t H1(size_t hash) { return (hash >> 7); }
+  static constexpr uint8_t H2(size_t hash) { return hash & 0x7F; }
+
+  // Doesn't call destructors.
+  void Reset(size_t n, bool reallocate, size_t slot_size, size_t slot_align);
+
+  // Find first empty OR tombstone slot for insertion.
+  // Called when has_tombstones is set to find an earlier tombstone that can
+  // be reused instead of taking a new empty slot.
+  size_t FindFirstEmptyOrTombstone(size_t key_hash) const;
+
+  PERFETTO_ALWAYS_INLINE size_t
+  FindFirstEmptyOrTombstoneImpl(size_t key_hash) const {
+    const size_t cap_mask = capacity_ - 1;
+    size_t offset = H1(key_hash) & cap_mask;
+    size_t probe_size = 0;
+    while (true) {
+      Group group(ctrl_ + offset);
+      if (auto it = group.MatchEmptyOrDeleted(); PERFETTO_LIKELY(it)) {
+        return (offset + it.Next()) & cap_mask;
+      }
+      probe_size += Group::kSize;
+      offset = (offset + probe_size) & cap_mask;
+    }
+  }
+
+  // Swaps in an empty table twice as large and returns the old one, from
+  // which the caller must move the entries before calling FinishGrow().
+  OldTable Grow(size_t slot_size, size_t slot_align);
+
+  void FinishGrow(size_t new_size) {
+    PERFETTO_CHECK(growth_info_.growth_left >= new_size);
+    size_ = new_size;
+    growth_info_.growth_left -= new_size;
+  }
+
+  // Set control byte and update clone if needed
+  PERFETTO_ALWAYS_INLINE void SetCtrl(size_t i, uint8_t h) {
+    ctrl_[i] = h;
+    // Update clone if this is one of the first kNumClones entries
+    if (PERFETTO_UNLIKELY(i < kNumClones)) {
+      ctrl_[capacity_ + i] = h;
+    }
+  }
+
+  // Owns the actual memory with the following layout:
+  //
+  // [Control bytes]
+  //   |capacity_| bytes for control bytes.
+  //   kNumClones (15 or 7) bytes for control byte clones (*).
+  //   No alignment required (accessed at arbitrary byte offsets).
+  //
+  // [Padding for Slot alignment]
+  //
+  // [Slots]
+  //   capacity_ * sizeof(Slot): contains key-value pairs.
+  //   Must be aligned to alignof(Slot).
+  //
+  // (*) Control byte clones: The first kNumClones control bytes are duplicated
+  // at the end of the control array. This allows SIMD operations to read a full
+  // group (16 or 8 bytes) starting from any position without bounds checking,
+  // even near the end of the array.
+  std::unique_ptr<uint8_t[]> storage_;
+
+  size_t capacity_ = 0;
+  size_t size_ = 0;
+
+  // Slots remaining + has_deleted flag
+  GrowthInfo growth_info_{0, 0};
+
+  // Load factor limit in % of |capacity_|.
+  int load_limit_percent_ = kDefaultLoadLimitPct;
+
+  // Cached pointers for fast access (like absl::flat_hash_map)
+  // These are updated whenever storage is allocated/reallocated.
+  uint8_t* ctrl_ = nullptr;   // Points to control bytes
+  uint8_t* slots_ = nullptr;  // Points to slot array
+};
+
+}  // namespace flat_hash_map_v2_internal
+
+// Hash and equality functors which treat ASCII strings case-insensitively.
+// Pass as the Hasher/Eq parameters of FlatHashMapV2 for maps keyed by
+// case-insensitive identifiers (e.g. SQL object names). Transparent, so
+// lookups accept std::string_view or const char* without constructing a
+// std::string key.
+struct CaseInsensitiveHash {
+  using is_transparent = void;
+  uint64_t operator()(std::string_view value) const {
+    MurmurHashCombiner combiner;
+    for (char c : value) {
+      combiner.Combine(Lowercase(c));
+    }
+    return combiner.digest();
+  }
+};
+
+struct CaseInsensitiveEq {
+  using is_transparent = void;
+  bool operator()(std::string_view lhs, std::string_view rhs) const {
+    return CaseInsensitiveEqual(lhs, rhs);
+  }
+};
+
+template <typename Key,
+          typename Value,
+          typename Hasher = base::MurmurHash<Key>,
+          typename Eq = flat_hash_map_v2_internal::HashEq<Key>>
+class FlatHashMapV2 : private flat_hash_map_v2_internal::FlatHashMapV2Base {
+ private:
+  // Import constants from internal namespace.
+  static constexpr uint8_t kFreeSlot = flat_hash_map_v2_internal::kFreeSlot;
+  static constexpr uint8_t kTombstone = flat_hash_map_v2_internal::kTombstone;
+  static constexpr int kDefaultLoadLimitPct =
+      flat_hash_map_v2_internal::kDefaultLoadLimitPct;
+
+  // Slot structure holds both key and value
+  struct Slot {
+    Key key;
+    Value value;
+  };
+
+  // Whether |K| is a type other than Key which, with a transparent Hasher,
+  // is hashed and compared to Key as is (e.g. a std::string_view looked up in
+  // a map keyed by std::string), sparing the construction of a Key.
+  template <typename K>
+  static constexpr bool IsHeterogeneousKey() {
+    using RawK = std::remove_cv_t<std::remove_reference_t<K>>;
+    if constexpr (std::is_same_v<RawK, Key>) {
+      return false;
+    } else {
+      return flat_hash_map_v2_internal::HasIsTransparent<Hasher>::value &&
+             flat_hash_map_v2_internal::IsLookupKeyAllowed<RawK, Key, Hasher,
+                                                           Eq>();
+    }
+  }
+
+ public:
+  class Iterator {
+   public:
+    explicit Iterator(const uint8_t* ctrl, const uint8_t* ctrl_end, Slot* slot)
+        : ctrl_(ctrl), ctrl_end_(ctrl_end), slot_(slot) {
+      FindNextNonFree();
+    }
+    ~Iterator() = default;
+    Iterator(const Iterator&) = default;
+    Iterator& operator=(const Iterator&) = default;
+    Iterator(Iterator&&) noexcept = default;
+    Iterator& operator=(Iterator&&) noexcept = default;
+
+    const Key& key() { return slot_->key; }
+    Value& value() { return slot_->value; }
+    const Key& key() const { return slot_->key; }
+    const Value& value() const { return slot_->value; }
+
+    explicit operator bool() const { return ctrl_ != ctrl_end_; }
+    Iterator& operator++() {
+      PERFETTO_DCHECK(ctrl_ != ctrl_end_);
+      ++ctrl_;
+      ++slot_;
+      FindNextNonFree();
+      return *this;
+    }
+
+   private:
+    void FindNextNonFree() {
+      for (; ctrl_ != ctrl_end_; ++ctrl_, ++slot_) {
+        const uint8_t cur_ctrl = *ctrl_;
+        if (cur_ctrl != kFreeSlot && cur_ctrl != kTombstone)
+          return;
+      }
+    }
+    const uint8_t* ctrl_ = nullptr;
+    const uint8_t* ctrl_end_ = nullptr;
+    Slot* slot_ = nullptr;
+  };  // Iterator
+
+  explicit FlatHashMapV2(size_t initial_capacity = 0,
+                         int load_limit_pct = kDefaultLoadLimitPct)
+      : FlatHashMapV2Base(load_limit_pct) {
+    if (initial_capacity > 0) {
+      Reset(initial_capacity, true);
+    }
+  }
+
+  // We are calling Clear() so that the destructors for the inserted entries are
+  // called (unless they are trivial, in which case it will be a no-op).
+  ~FlatHashMapV2() { Clear(); }
+
+  FlatHashMapV2(FlatHashMapV2&& other) noexcept
+      : FlatHashMapV2Base(std::move(other)) {}
+
+  FlatHashMapV2& operator=(FlatHashMapV2&& other) noexcept {
+    this->~FlatHashMapV2();
+    new (this) FlatHashMapV2(std::move(other));
+    return *this;
+  }
+
+  FlatHashMapV2(const FlatHashMapV2&) = delete;
+  FlatHashMapV2& operator=(const FlatHashMapV2&) = delete;
+
+  // Find(), Erase(), Insert() and operator[] take a Key, which the caller
+  // converts to as needed. With a transparent Hasher, they also take any type
+  // it can hash and compare to Key as is (see IsHeterogeneousKey()).
+
+  PERFETTO_ALWAYS_INLINE Value* Find(const Key& key) const {
+    return FindImpl(key);
+  }
+  template <typename K, typename = std::enable_if_t<IsHeterogeneousKey<K>()>>
+  PERFETTO_ALWAYS_INLINE Value* Find(const K& key) const {
+    return FindImpl(key);
+  }
+
+  bool Erase(const Key& key) { return EraseImpl(key); }
+  template <typename K, typename = std::enable_if_t<IsHeterogeneousKey<K>()>>
+  bool Erase(const K& key) {
+    return EraseImpl(key);
+  }
+
+  PERFETTO_ALWAYS_INLINE std::pair<Value*, bool> Insert(const Key& key,
+                                                        Value value) {
+    return InsertImpl(key, std::move(value));
+  }
+  PERFETTO_ALWAYS_INLINE std::pair<Value*, bool> Insert(Key&& key,
+                                                        Value value) {
+    return InsertImpl(std::move(key), std::move(value));
+  }
+  // Constructs the Key only if |key| is absent.
+  template <typename K, typename = std::enable_if_t<IsHeterogeneousKey<K>()>>
+  PERFETTO_ALWAYS_INLINE std::pair<Value*, bool> Insert(K&& key, Value value) {
+    return InsertImpl(std::forward<K>(key), std::move(value));
+  }
+
+  Value& operator[](const Key& key) { return *Insert(key, Value{}).first; }
+  Value& operator[](Key&& key) {
+    return *Insert(std::move(key), Value{}).first;
+  }
+  template <typename K, typename = std::enable_if_t<IsHeterogeneousKey<K>()>>
+  Value& operator[](K&& key) {
+    return *Insert(std::forward<K>(key), Value{}).first;
+  }
+
+  void Clear() {
+    // Avoid trivial heap operations on zero-capacity std::move()-d objects.
+    if (PERFETTO_UNLIKELY(capacity_ == 0)) {
+      return;
+    }
+    for (size_t i = 0; i < capacity_; ++i) {
+      const uint8_t tag = ctrl_[i];
+      if (tag == kFreeSlot || tag == kTombstone) {
+        continue;
+      }
+      slots()[i].key.~Key();
+      slots()[i].value.~Value();
+    }
+    Reset(capacity_, false);
+  }
+
+  Iterator GetIterator() { return Iterator(ctrl_, ctrl_ + capacity_, slots()); }
+  Iterator GetIterator() const {
+    return Iterator(ctrl_, ctrl_ + capacity_, slots());
+  }
+
+  size_t size() const { return size_; }
+  size_t capacity() const { return capacity_; }
+
+ private:
+  // Result struct for FindOrPrepareInsert - avoids bit manipulation overhead
+  struct FindResult {
+    uint64_t idx : 63;
+    uint64_t needs_insert : 1;
+  };
+
+  // Not found sentinel (must fit in 63-bit FindResult.idx)
+  static constexpr size_t kNotFound = std::numeric_limits<size_t>::max() >> 1;
+
+  using Group = flat_hash_map_v2_internal::Group;
+
+  // Searches for a key in the table. This function IGNORES tombstones during
+  // the search - it only stops at empty slots (kFreeSlot) or matching keys.
+  //
+  // Why ignore tombstones? In Swiss Tables, tombstones mark deleted entries but
+  // must be skipped during lookup because the key we're searching for may have
+  // been inserted AFTER the tombstone was created (i.e., the key's probe
+  // sequence may have skipped over that tombstone). Only an empty slot
+  // definitively proves the key doesn't exist.
+  //
+  // Returns FindResult with idx and whether the key needs to be inserted:
+  // - If key is found: {idx, false} where idx is the slot containing the key.
+  // - If key not found and ForInsert=true: {empty_idx, true} where empty_idx
+  //   is the index of the first EMPTY slot encountered.
+  // - If key not found and ForInsert=false: {kNotFound, true}.
+  //
+  // IMPORTANT for insertion (ForInsert=true): The returned empty_idx is NOT
+  // necessarily the best slot to insert into! There may be an earlier tombstone
+  // in the probe sequence that should be reused to avoid wasting slots. When
+  // has_tombstones is set, the caller must make a SECOND pass by calling
+  // FindFirstEmptyOrTombstone() to find the actual insertion slot.
+  template <bool ForInsert, typename K = Key>
+  PERFETTO_ALWAYS_INLINE FindResult
+  FindSlotIgnoringTombstones(const K& key, size_t key_hash, uint8_t h2) const {
+    static_assert(
+        flat_hash_map_v2_internal::IsLookupKeyAllowed<K, Key, Hasher, Eq>(),
+        "Heterogeneous lookup requires Hasher to define is_transparent and "
+        "support hashing the lookup key type, and Eq to compare Key and K. "
+        "Without a transparent Hasher, K must be convertible to Key.");
+
+    if (PERFETTO_UNLIKELY(ctrl_ == nullptr)) {
+      return {kNotFound, true};
+    }
+
+    const size_t cap_mask = capacity_ - 1;
+    size_t offset = H1(key_hash) & cap_mask;
+    size_t probe_size = 0;
+    const uint8_t* ctrl = ctrl_;
+
+    // Prefetch control bytes (like Absl's prefetch_heap_block).
+    // Use locality hint 3 (high temporal locality) for better L1 cache usage.
+    __builtin_prefetch(ctrl_ + offset, 0, 3);
+
+    while (true) {
+      // Prefetch slots at current probe offset (like Absl).
+      __builtin_prefetch(slots() + offset, 0, 3);
+
+      Group group(ctrl + offset);
+
+      // Match H2 tags in this group.
+      for (auto it = group.Match(h2); PERFETTO_LIKELY(it);) {
+        // Must mask because offset + it.Next() can exceed capacity when
+        // group straddles the table boundary (using cloned control bytes).
+        size_t idx = (offset + it.Next()) & cap_mask;
+        if (PERFETTO_LIKELY(Eq{}(slots()[idx].key, key))) {
+          return {idx, false};  // Found
+        }
+      }
+
+      // Check for empty slot (NOT tombstones). If we find an empty slot, the
+      // key cannot exist in the table (empty slots terminate probe chains).
+      if (auto it = group.MatchEmpty(); PERFETTO_LIKELY(it)) {
+        if constexpr (ForInsert) {
+          size_t empty_idx = (offset + it.Next()) & cap_mask;
+          return {empty_idx, true};  // Not found - empty slot for insertion
+        } else {
+          return {kNotFound, true};  // Not found - no need to compute slot
+        }
+      }
+
+      // Triangular probing (like Absl): 0, 16, 48, 96, ...
+      probe_size += Group::kSize;
+      offset = (offset + probe_size) & cap_mask;
+
+      // Should never happen with load limit.
+      PERFETTO_DCHECK(probe_size <= capacity_);
+    }
+  }
+
+  // Only constructing the key and value is inlined: finding the slot is out of
+  // line in FindOrPrepareInsert(), compiled once per lookup key type rather
+  // than per call site or per value category of |key|.
+  template <typename K>
+  PERFETTO_ALWAYS_INLINE std::pair<Value*, bool> InsertImpl(K&& key,
+                                                            Value&& value) {
+    const std::remove_reference_t<K>& lookup_key = key;
+    FindResult res = FindOrPrepareInsert(lookup_key);
+    Slot* slot = &slots()[res.idx];
+    const bool inserted = res.needs_insert;
+    if (inserted) {
+      new (&slot->key) Key(std::forward<K>(key));
+      new (&slot->value) Value(std::move(value));
+    }
+    return {&slot->value, inserted};
+  }
+
+  // Out of line, compiled once per lookup key type.
+  template <typename K>
+  PERFETTO_NO_INLINE Value* FindImpl(const K& key) const {
+    size_t key_hash = Hasher{}(key);
+    uint8_t h2 = H2(key_hash);
+    FindResult res = FindSlotIgnoringTombstones<false>(key, key_hash, h2);
+    if (PERFETTO_UNLIKELY(res.needs_insert)) {
+      return nullptr;
+    }
+    return &slots()[res.idx].value;
+  }
+
+  template <typename K>
+  PERFETTO_NO_INLINE bool EraseImpl(const K& key) {
+    size_t key_hash = Hasher{}(key);
+    uint8_t h2 = H2(key_hash);
+    FindResult res = FindSlotIgnoringTombstones<false>(key, key_hash, h2);
+    if (PERFETTO_UNLIKELY(res.needs_insert)) {
+      return false;
+    }
+    PERFETTO_DCHECK(size_ > 0);
+    SetCtrl(res.idx, kTombstone);
+    slots()[res.idx].key.~Key();
+    slots()[res.idx].value.~Value();
+    size_--;
+    growth_info_.has_tombstones = 1;
+    return true;
+  }
+
+  // Returns the slot holding |key| if present. Otherwise claims a slot for it,
+  // growing the table if needed, and the caller must construct into it.
+  template <typename K>
+  PERFETTO_NO_INLINE FindResult FindOrPrepareInsert(const K& key) {
+    size_t key_hash = Hasher{}(key);
+    uint8_t h2 = H2(key_hash);
+    FindResult res = FindSlotIgnoringTombstones<true>(key, key_hash, h2);
+    if (PERFETTO_UNLIKELY(!res.needs_insert)) {
+      return res;
+    }
+    if (PERFETTO_UNLIKELY(growth_info_.growth_left == 0)) {
+      GrowAndRehash();
+      // After rehash, table has no tombstones. Find an empty slot directly
+      // instead of recursing (which would prevent inlining).
+      res.idx = FindFirstEmptyOrTombstone(key_hash);
+    }
+    PERFETTO_DCHECK(res.idx != kNotFound);
+    size_t insert_idx = res.idx;
+    bool is_freeslot = true;
+    if (PERFETTO_UNLIKELY(growth_info_.has_tombstones)) {
+      insert_idx = FindFirstEmptyOrTombstone(key_hash);
+      is_freeslot = ctrl_[insert_idx] != kTombstone;
+    }
+    SetCtrl(insert_idx, h2);
+    size_++;
+    if (is_freeslot) {
+      growth_info_.growth_left--;
+    }
+    return {insert_idx, true};
+  }
+
+  // Allocating the new table is shared by all maps in Grow(): only moving the
+  // entries over, which needs their types, is compiled per map.
+  PERFETTO_NO_INLINE void GrowAndRehash() {
+    OldTable old = Grow(sizeof(Slot), alignof(Slot));
+    Slot* old_slots = reinterpret_cast<Slot*>(old.slots);
+    // Keys are unique and the new table has no tombstones, so each entry goes
+    // straight into the first empty slot of its probe sequence.
+    size_t new_size = 0;
+    for (size_t i = 0; i < old.capacity; ++i) {
+      if (uint8_t t = old.ctrl[i]; t == kFreeSlot || t == kTombstone) {
+        continue;
+      }
+      Slot& old_slot = old_slots[i];
+      size_t key_hash = Hasher{}(old_slot.key);
+      size_t idx = FindFirstEmptyOrTombstoneImpl(key_hash);
+      new (&slots()[idx].key) Key(std::move(old_slot.key));
+      new (&slots()[idx].value) Value(std::move(old_slot.value));
+      SetCtrl(idx, H2(key_hash));
+      old_slot.key.~Key();  // Destroy the old objects.
+      old_slot.value.~Value();
+      new_size++;
+    }
+    PERFETTO_DCHECK(new_size == old.size);
+    FinishGrow(new_size);
+  }
+
+  // Doesn't call destructors. Use Clear() for that.
+  void Reset(size_t n, bool reallocate) {
+    FlatHashMapV2Base::Reset(n, reallocate, sizeof(Slot), alignof(Slot));
+  }
+
+  PERFETTO_ALWAYS_INLINE Slot* slots() const {
+    return reinterpret_cast<Slot*>(slots_);
+  }
+};
+
+// Alias FlatHashMap to FlatHashMapV1 for backward compatibility.
+//
+// TODO(lalitm): Once FlatHashMapV2 is fully tested and verified, switch this
+// to FlatHashMapV2.
+template <typename Key,
+          typename Value,
+          typename Hasher = MurmurHash<Key>,
+          typename Probe = QuadraticProbe,
+          bool AppendOnly = false>
+using FlatHashMap = FlatHashMapV1<Key, Value, Hasher, Probe, AppendOnly>;
+
+}  // namespace perfetto::base
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/flat_hash_map.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+
+namespace perfetto::base::flat_hash_map_v2_internal {
+
+void FlatHashMapV2Base::Reset(size_t n,
+                              bool reallocate,
+                              size_t slot_size,
+                              size_t slot_align) {
+  // Must be a pow2.
+  PERFETTO_CHECK((n & (n - 1)) == 0);
+
+  // Always ensure at least 128 capacity to avoid too frequent growths.
+  capacity_ = std::max<size_t>(n, 128u);
+  size_ = 0;
+  growth_info_.growth_left =
+      (capacity_ * static_cast<size_t>(load_limit_percent_)) / 100;
+  growth_info_.has_tombstones = 0;
+
+  if (reallocate) {
+    // See memory layout comment above |storage_| in flat_hash_map.h.
+    size_t slots_offset = base::AlignUp(capacity_ + kNumClones, slot_align);
+    storage_.reset(new uint8_t[slots_offset + (capacity_ * slot_size)]);
+    ctrl_ = storage_.get();
+    slots_ = storage_.get() + slots_offset;
+  }
+  if (ctrl_) {
+    // Initialize all control bytes (including clones) to empty (kFreeSlot)
+    memset(ctrl_, kFreeSlot, capacity_ + kNumClones);
+  }
+}
+
+size_t FlatHashMapV2Base::FindFirstEmptyOrTombstone(size_t key_hash) const {
+  return FindFirstEmptyOrTombstoneImpl(key_hash);
+}
+
+FlatHashMapV2Base::OldTable FlatHashMapV2Base::Grow(size_t slot_size,
+                                                    size_t slot_align) {
+  PERFETTO_DCHECK(size_ <= capacity_);
+  OldTable old{std::move(storage_), ctrl_, slots_, capacity_, size_};
+  // This must be a CHECK (i.e. not just a DCHECK) to prevent UAF attacks on
+  // 32-bit archs that try to double the size of the table until wrapping.
+  size_t new_capacity = capacity_ * 2;
+  PERFETTO_CHECK(new_capacity >= capacity_);
+  Reset(new_capacity, true, slot_size, slot_align);
+  return old;
+}
+
+}  // namespace perfetto::base::flat_hash_map_v2_internal
+// gen_amalgamated begin source: src/base/futex.cc
+// gen_amalgamated begin header: include/perfetto/ext/base/futex.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_FUTEX_H_
+#define INCLUDE_PERFETTO_EXT_BASE_FUTEX_H_
+
+#include <stdint.h>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+// Whether this build implements FutexWait() and FutexWake(). It does not check
+// runtime restrictions, such as a sandbox that blocks the system call.
+// TODO(rsavitski): Add support for other platforms.
+#define PERFETTO_HAS_FUTEX()                            \
+  (PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
+   PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID))
+
+namespace perfetto::base {
+
+// Futex operations wait and wake threads on a 32-bit word in memory. A waiter
+// sleeps if the word matches an expected value. Another thread can update the
+// word and wake waiters to recheck their condition.
+//
+// These operations also work across processes when the word is in shared
+// memory. Each process uses its own address for the same backing storage.
+//
+// Neither operation modifies the word or provides C++ memory ordering. Callers
+// must use atomic accesses and the memory ordering required by their protocol.
+// To avoid lost wakeups, update the word before calling FutexWake().
+// Wakeups are not remembered for subsequent waits.
+//
+// Implemented on Linux and Android. Use PERFETTO_HAS_FUTEX() to select a
+// fallback on other platforms.
+
+enum class FutexWaitResult {
+  // The wait returned after a wake. The wake can be spurious, so the word can
+  // still hold the expected value.
+  kWoken,
+  // The word did not match the expected value when checked before sleeping.
+  kValueMismatch,
+  // The relative timeout expired.
+  kTimedOut,
+  // The wait was interrupted, for example by a signal. It was not retried.
+  kInterrupted,
+  // The operation failed, including on unsupported platforms. May indicate
+  // invalid arguments or runtime restrictions. Do not blindly retry.
+  kError,
+};
+
+// Makes one attempt to sleep if |word| contains |expected_value|. The value
+// check and the start of the wait are atomic with respect to FutexWake().
+// Returns kValueMismatch without sleeping if the value does not match.
+//
+// |timeout_ms| is a relative timeout in milliseconds. Zero causes no wait.
+// Scheduling can delay the return beyond the timeout.
+//
+// Recheck the caller's condition after every result other than kError,
+// including kWoken. Interruptions and spurious wakes are not retried. A retry
+// loop with an overall deadline must compute the remaining timeout each time.
+//
+// |word| requirements:
+// - It is 4-byte aligned and stays mapped until the call returns.
+// - Only the kernel reads it. This call makes no C++ load of it.
+// - Every write to it is one atomic store that covers all 32 bits. For
+//   example, a std::atomic<uint32_t> store, or a lock-free
+//   std::atomic<uint64_t> store that contains the word.
+//
+// Returns kError without sleeping on unsupported platforms.
+FutexWaitResult FutexWait(const uint32_t* word,
+                          uint32_t expected_value,
+                          uint32_t timeout_ms);
+
+// Wakes up to |max_waiters| threads waiting on |word|, including waiters in
+// other processes that share the same storage.
+// |max_waiters| must be positive. Use INT_MAX to wake all waiters.
+//
+// |word| has the same storage requirements as FutexWait().
+// Returns the number of waiters woken, or -1 on failure or unsupported
+// platforms.
+int FutexWake(const uint32_t* word, int max_waiters);
+
+}  // namespace perfetto::base
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_FUTEX_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/futex.h"
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+
+#if PERFETTO_HAS_FUTEX()
+#include <errno.h>
+#include <linux/futex.h>
+#include <linux/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
+
+namespace perfetto::base {
+
+#if PERFETTO_HAS_FUTEX()
+
+// Use the shared FUTEX_WAIT/FUTEX_WAKE operations so different mappings of the
+// same shared-memory word refer to the same wait queue across processes.
+
+FutexWaitResult FutexWait(const uint32_t* word,
+                          uint32_t expected_value,
+                          uint32_t timeout_ms) {
+  // SYS_futex expects seconds and nanoseconds in two kernel-sized longs.
+  // Use that layout directly because libc's timespec can use a wider time_t.
+  // Even UINT32_MAX milliseconds fits in signed 32-bit seconds.
+  struct KernelTimespec {
+    __kernel_long_t tv_sec;
+    __kernel_long_t tv_nsec;
+  };
+  const KernelTimespec timeout{
+      static_cast<__kernel_long_t>(timeout_ms / 1000),
+      static_cast<__kernel_long_t>((timeout_ms % 1000) * 1000000)};
+  const int ret = static_cast<int>(syscall(
+      SYS_futex, word, FUTEX_WAIT, expected_value, &timeout, nullptr, 0));
+  if (ret == 0)
+    return FutexWaitResult::kWoken;
+
+  switch (errno) {
+    case EAGAIN:
+      return FutexWaitResult::kValueMismatch;
+    case ETIMEDOUT:
+      return FutexWaitResult::kTimedOut;
+    case EINTR:
+      return FutexWaitResult::kInterrupted;
+    default:
+      PERFETTO_DPLOG("futex FUTEX_WAIT failed");
+      return FutexWaitResult::kError;
+  }
+}
+
+int FutexWake(const uint32_t* word, int max_waiters) {
+  PERFETTO_DCHECK(max_waiters > 0);
+  const int ret = static_cast<int>(
+      syscall(SYS_futex, word, FUTEX_WAKE, max_waiters, nullptr, nullptr, 0));
+  if (PERFETTO_UNLIKELY(ret < 0)) {
+    PERFETTO_DPLOG("futex FUTEX_WAKE failed");
+    return -1;
+  }
+  return ret;
+}
+
+#else
+
+FutexWaitResult FutexWait(const uint32_t* word,
+                          uint32_t expected_value,
+                          uint32_t timeout_ms) {
+  ignore_result(word);
+  ignore_result(expected_value);
+  ignore_result(timeout_ms);
+  return FutexWaitResult::kError;
+}
+
+int FutexWake(const uint32_t* word, int max_waiters) {
+  ignore_result(word);
+  ignore_result(max_waiters);
+  return -1;
+}
+
+#endif  // PERFETTO_HAS_FUTEX()
+
+}  // namespace perfetto::base
 // gen_amalgamated begin source: src/base/getopt_compat.cc
 // gen_amalgamated begin header: include/perfetto/ext/base/getopt_compat.h
 /*
@@ -5701,6 +8175,73 @@ const RBNode* RBNext(const RBNode* node) {
 
 }  // namespace perfetto::base::internal
 // gen_amalgamated begin source: src/base/logging.cc
+// gen_amalgamated begin header: include/perfetto/ext/base/progress_reporter.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_PROGRESS_REPORTER_H_
+#define INCLUDE_PERFETTO_EXT_BASE_PROGRESS_REPORTER_H_
+
+#include <cstdint>
+#include <mutex>
+#include <string_view>
+
+// gen_amalgamated expanded: #include "perfetto/base/thread_annotations.h"
+
+namespace perfetto::base {
+
+// True if stderr is an interactive terminal (and TERM is not "dumb"). On WASM
+// this is always true: the embedder consumes stderr line by line.
+bool StderrSupportsProgress();
+
+// True if ANSI colors should be emitted on stderr. Nonempty FORCE_COLOR forces
+// them on, otherwise nonempty NO_COLOR forces them off, otherwise they are
+// used when stderr is an interactive terminal.
+bool StderrSupportsColor();
+
+// Process-wide, throttled, single-line progress display on stderr. Updates are
+// only shown when StderrSupportsProgress(). Log messages clear the line before
+// printing, so diagnostics never get merged with progress text.
+class ProgressReporter {
+ public:
+  static ProgressReporter& GetInstance();
+
+  // Suppresses all progress output. Diagnostics are unaffected.
+  void set_enabled(bool enabled);
+
+  // |message| must be plain ASCII without newlines or terminal escapes.
+  void Update(std::string_view message);
+  void Clear();
+
+ private:
+  ProgressReporter() = default;
+  ~ProgressReporter() = default;
+  ProgressReporter(const ProgressReporter&) = delete;
+  ProgressReporter& operator=(const ProgressReporter&) = delete;
+
+  void ClearLocked() PERFETTO_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  std::mutex mutex_;
+  bool enabled_ PERFETTO_GUARDED_BY(mutex_) = true;
+  int64_t last_update_ms_ PERFETTO_GUARDED_BY(mutex_) = 0;
+  size_t visible_width_ PERFETTO_GUARDED_BY(mutex_) = 0;
+};
+
+}  // namespace perfetto::base
+#endif  // INCLUDE_PERFETTO_EXT_BASE_PROGRESS_REPORTER_H_
 // gen_amalgamated begin header: src/base/log_ring_buffer.h
 // gen_amalgamated begin header: include/perfetto/ext/base/thread_annotations.h
 /*
@@ -5918,6 +8459,7 @@ class LogRingBuffer {
  */
 
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/progress_reporter.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -5938,6 +8480,13 @@ class LogRingBuffer {
 
 #if PERFETTO_ENABLE_LOG_RING_BUFFER() && PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
 #include <android/set_abort_message.h>
+#endif
+
+// The __attribute__((constructor)) below is intentional, it sets the crash
+// reporter globally for Perfetto. It's only enabled on debug builds so should
+// be pretty safe.
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wglobal-constructors"
 #endif
 
 namespace perfetto {
@@ -6022,6 +8571,7 @@ void LogMessage(LogLev level,
     log_msg = &large_buf[0];
   }
 
+  ProgressReporter::GetInstance().Clear();
   LogMessageCallback cb = g_log_callback.load(std::memory_order_relaxed);
   if (cb) {
     cb({level, line, fname, log_msg});
@@ -6044,13 +8594,7 @@ void LogMessage(LogLev level,
       break;
   }
 
-#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) &&  \
-    !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM) && \
-    !PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD)
-  static const bool use_colors = isatty(STDERR_FILENO);
-#else
-  static const bool use_colors = false;
-#endif
+  const bool use_colors = StderrSupportsColor();
 
   // Formats file.cc:line as a space-padded fixed width string. If the file name
   // |fname| is too long, truncate it on the left-hand side.
@@ -6219,7 +8763,9 @@ enum Tags : uint32_t {
   F(ANDROID_POWER_WRITE_ENERGY_ESTIMATION_BREAKDOWN), \
   F(ANDROID_POWER_WRITE_ENTITY_STATE_RESIDENCY), \
   F(ANDROID_POWER_WRITE_POWER_RAILS_DATA), \
-  F(LINUX_POWER_SYSFS_TICK)
+  F(LINUX_POWER_SYSFS_TICK), \
+  F(LINUX_SMAPS_ENQUEUE), \
+  F(LINUX_SMAPS_SERIALIZE)
 
 // Append only, see above.
 //
@@ -6861,11 +9407,14 @@ class PagedMemory {
   // For |flags|, see the AllocationFlags enum above.
   static PagedMemory Allocate(size_t size, int flags = 0);
 
-  // Hint to the OS that the memory range is not needed and can be discarded.
-  // The memory remains accessible and its contents may be retained, or they
-  // may be zeroed. This function may be a NOP on some platforms. Returns true
-  // if implemented.
-  bool AdviseDontNeed(void* p, size_t size);
+  // Hint to the OS that the whole pages within [offset, size()) are not needed
+  // and can be discarded.
+  // Partial pages at both ends of the range are preserved.
+  // The memory remains accessible, and the discarded pages may keep their
+  // contents or be zeroed.
+  // This function may be a NOP on some platforms.
+  // Requires a valid allocation and |offset| <= size().
+  void AdviseDontNeedAfter(size_t offset);
 
   // Ensures that at least the first |committed_size| bytes of the allocated
   // memory region are committed. The implementation may commit memory in larger
@@ -7023,24 +9572,25 @@ PagedMemory::~PagedMemory() {
   ANNOTATE_DELETE_BUFFER(p_, size_, committed_size_)
 }
 
-bool PagedMemory::AdviseDontNeed(void* p, size_t size) {
-  PERFETTO_DCHECK(p_);
-  PERFETTO_DCHECK(p >= p_);
-  PERFETTO_DCHECK(static_cast<char*>(p) + size <= p_ + size_);
+void PagedMemory::AdviseDontNeedAfter(size_t offset) {
+  PERFETTO_CHECK(p_ && offset <= size_);
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) || PERFETTO_BUILDFLAG(PERFETTO_OS_NACL)
   // Discarding pages on Windows has more CPU cost than is justified for the
   // possible memory savings.
-  return false;
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_QNX)
-  int res = posix_madvise(p, size, POSIX_MADV_DISCARD_NP);
-  PERFETTO_DCHECK(res == 0);
-  return true;
-#else   // PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) ||
-        // PERFETTO_BUILDFLAG(PERFETTO_OS_NACL)
+#else
+  const size_t release_begin = RoundUpToSysPageSize(offset);
+  const size_t release_end = AlignDown(size_, GetSysPageSize());
+  if (release_begin >= release_end)
+    return;
+  char* const release_ptr = p_ + release_begin;
+  const size_t release_size = release_end - release_begin;
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_QNX)
+  int res = posix_madvise(release_ptr, release_size, POSIX_MADV_DISCARD_NP);
+#else
   // http://man7.org/linux/man-pages/man2/madvise.2.html
-  int res = madvise(p, size, MADV_DONTNEED);
+  int res = madvise(release_ptr, release_size, MADV_DONTNEED);
+#endif  // PERFETTO_BUILDFLAG(PERFETTO_OS_QNX)
   PERFETTO_DCHECK(res == 0);
-  return true;
 #endif  // PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) ||
         // PERFETTO_BUILDFLAG(PERFETTO_OS_NACL)
 }
@@ -7430,6 +9980,172 @@ Pipe Pipe::Create(Flags flags) {
 
 }  // namespace base
 }  // namespace perfetto
+// gen_amalgamated begin source: src/base/progress_reporter.cc
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/progress_reporter.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <mutex>
+#include <string_view>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/time.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#include <windows.h>
+#elif !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
+#endif
+
+namespace perfetto::base {
+namespace {
+
+constexpr int64_t kMinUpdateIntervalMs = 100;
+
+#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+bool StderrIsInteractiveTerminal() {
+#if PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD)
+  // isatty() is blocked by the Chrome seccomp-bpf sandbox (b/191235714).
+  return false;
+#else
+  const char* term = getenv("TERM");
+  return IsTty(stderr) && (!term || strcmp(term, "dumb") != 0);
+#endif
+}
+#endif
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+// Fails when stderr is not a console or the console predates ANSI support.
+bool EnableVirtualTerminalProcessing() {
+  HANDLE handle = GetStdHandle(STD_ERROR_HANDLE);
+  DWORD mode = 0;
+  if (handle == INVALID_HANDLE_VALUE || !GetConsoleMode(handle, &mode))
+    return false;
+  return SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
+}
+#endif
+
+size_t TerminalWidth() {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  CONSOLE_SCREEN_BUFFER_INFO info{};
+  if (GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &info))
+    return static_cast<size_t>(info.srWindow.Right - info.srWindow.Left + 1);
+#elif !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+  struct winsize size{};
+  if (ioctl(STDERR_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_col)
+    return size.ws_col;
+#endif
+  return 80;
+}
+
+}  // namespace
+
+bool StderrSupportsProgress() {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+  return true;
+#else
+  return StderrIsInteractiveTerminal();
+#endif
+}
+
+bool StderrSupportsColor() {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  // Attempt this even when colors are forced, so that escapes are interpreted
+  // wherever the console can.
+  static const bool vt_enabled = EnableVirtualTerminalProcessing();
+#endif
+  const char* force_color = getenv("FORCE_COLOR");
+  if (force_color && *force_color)
+    return true;
+  const char* no_color = getenv("NO_COLOR");
+  if (no_color && *no_color)
+    return false;
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+  return false;
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  return vt_enabled && StderrIsInteractiveTerminal();
+#else
+  return StderrIsInteractiveTerminal();
+#endif
+}
+
+ProgressReporter& ProgressReporter::GetInstance() {
+  static ProgressReporter* instance = new ProgressReporter();
+  return *instance;
+}
+
+void ProgressReporter::set_enabled(bool enabled) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  enabled_ = enabled;
+}
+
+void ProgressReporter::Update(std::string_view message) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!enabled_ || !StderrSupportsProgress())
+    return;
+  int64_t now = GetWallTimeMs().count();
+  if (last_update_ms_ && now - last_update_ms_ < kMinUpdateIntervalMs)
+    return;
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+  last_update_ms_ = now;
+  // stdio reaches the embedder only when a write ends with a newline.
+  fprintf(stderr, "%.*s\n", static_cast<int>(message.size()), message.data());
+#else
+  // Leave one column unused to avoid wrapping, including on narrow terminals.
+  size_t width = TerminalWidth();
+  size_t new_width = std::min(message.size(), width > 1 ? width - 1 : 0);
+  if (new_width < visible_width_)
+    ClearLocked();
+  // Set after clearing, which resets the throttle for the next phase.
+  last_update_ms_ = now;
+  if (!new_width)
+    return;
+  fprintf(stderr, "\r%.*s", static_cast<int>(new_width), message.data());
+  fflush(stderr);
+  visible_width_ = new_width;
+#endif
+}
+
+void ProgressReporter::ClearLocked() {
+  if (!visible_width_)
+    return;
+  // Bound clearing by the current width in case the terminal was resized.
+  size_t width = TerminalWidth();
+  size_t clear = std::min(visible_width_, width > 1 ? width - 1 : 0);
+  fprintf(stderr, "\r%*s\r", static_cast<int>(clear), "");
+  fflush(stderr);
+  visible_width_ = 0;
+  // The next phase's first update should not be throttled by this one.
+  last_update_ms_ = 0;
+}
+
+void ProgressReporter::Clear() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ClearLocked();
+}
+
+}  // namespace perfetto::base
 // gen_amalgamated begin source: src/base/rt_mutex.cc
 // gen_amalgamated begin header: include/perfetto/ext/base/rt_mutex.h
 /*
@@ -8032,6 +10748,7 @@ ScopedMmap ReadMmapWholeFile(const std::string& fname) {
 #define INCLUDE_PERFETTO_EXT_BASE_STATUS_OR_H_
 
 #include <optional>
+#include <utility>
 
 // gen_amalgamated expanded: #include "perfetto/base/status.h"
 
@@ -8064,6 +10781,24 @@ class StatusOr {
 
   bool ok() const { return status_.ok(); }
   const base::Status& status() const { return status_; }
+
+  // For an lvalue caller, if ok(), returns a reference to the value, so the
+  // StatusOr keeps owning it.
+  // If not, we log the error message and abort.
+  T& ValueOrDie() & {
+    if (!ok())
+      PERFETTO_FATAL("%s", status_.c_message());
+    return *value_;
+  }
+
+  // For an rvalue caller, if ok(), moves the value out because the StatusOr
+  // won't be used again.
+  // If not, we log the error message and abort.
+  T ValueOrDie() && {
+    if (!ok())
+      PERFETTO_FATAL("%s", status_.c_message());
+    return std::move(*value_);
+  }
 
   T& value() {
     PERFETTO_DCHECK(status_.ok());
@@ -8725,6 +11460,7 @@ bool StringSplitter::Next() {
 #endif
 
 #include <cinttypes>
+#include <string_view>
 
 // gen_amalgamated expanded: #include "perfetto/base/compiler.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
@@ -8786,7 +11522,7 @@ size_t Find(const StringView& needle, const StringView& haystack) {
   return std::string::npos;
 }
 
-bool CaseInsensitiveEqual(const std::string& first, const std::string& second) {
+bool CaseInsensitiveEqual(std::string_view first, std::string_view second) {
   return first.size() == second.size() &&
          std::equal(
              first.begin(), first.end(), second.begin(),
@@ -9343,6 +12079,7 @@ bool StringViewSplitter::Next() {
 #include <string>
 
 // gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
 
 namespace perfetto {
 namespace base {
@@ -9351,8 +12088,13 @@ std::string GetSysTempDir();
 
 class TempFile {
  public:
-  static TempFile CreateUnlinked();
-  static TempFile Create();
+  enum class LinkMode { kLinked, kUnlinked };
+
+  // Creates a temporary file.
+  // If |mode| is kUnlinked, unlinks the file before returning, keeping fd()
+  // open and leaving path() empty.
+  // Returns an error status if creation or unlinking fails.
+  static StatusOr<TempFile> Create(LinkMode mode = LinkMode::kLinked);
 
   TempFile(TempFile&&) noexcept;
   TempFile& operator=(TempFile&&);
@@ -9362,16 +12104,18 @@ class TempFile {
   int fd() const { return *fd_; }
   int operator*() const { return *fd_; }
 
-  // Unlinks the file from the filesystem but keeps the fd() open.
-  // It is safe to call this multiple times.
-  void Unlink();
+  // Unlinks the file and clears path(), keeping fd() open.
+  // Returns true on success, or if the file is already unlinked.
+  // On failure, returns false and leaves path() unchanged.
+  bool Unlink();
 
-  // Releases the underlying file descriptor. Will unlink the file from the
-  // filesystem if it was created via CreateUnlinked().
+  // Unlinks the file if needed and transfers ownership of its descriptor to
+  // the caller.
+  // Aborts if unlinking fails.
   ScopedFile ReleaseFD();
 
  private:
-  TempFile();
+  TempFile(ScopedFile fd, std::string path);
   TempFile(const TempFile&) = delete;
   TempFile& operator=(const TempFile&) = delete;
 
@@ -9421,9 +12165,11 @@ class TempDir {
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
 
-#include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <utility>
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include <windows.h>
@@ -9437,21 +12183,39 @@ class TempDir {
 
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/file_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_macros.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
 
 namespace perfetto {
 namespace base {
 
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 namespace {
-std::string GetTempFilePathWin() {
-  std::string tmplt = GetSysTempDir() + "\\perfetto-XXXXXX";
-  StackString<255> name("%s\\perfetto-XXXXXX", GetSysTempDir().c_str());
-  PERFETTO_CHECK(_mktemp_s(name.mutable_data(), name.len() + 1) == 0);
-  return name.ToStdString();
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+StatusOr<std::string> GetTempFilePathWin() {
+  std::string path = GetSysTempDir() + "\\perfetto-XXXXXX";
+  int error = _mktemp_s(path.data(), path.size() + 1);
+  if (error != 0)
+    return ErrStatus("_mktemp_s() failed: %s", strerror(error));
+  return path;
 }
-}  // namespace
 #endif
+
+Status UnlinkTempFile(const std::string& path) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  // If the file is still open, deletion completes when its last handle closes.
+  if (!DeleteFileA(path.c_str())) {
+    return ErrStatus("DeleteFileA(%s) failed: %lu", path.c_str(),
+                     GetLastError());
+  }
+#else
+  if (unlink(path.c_str()) != 0)
+    return ErrStatus("unlink(%s) failed: %s", path.c_str(), strerror(errno));
+#endif
+  return OkStatus();
+}
+
+}  // namespace
 
 std::string GetSysTempDir() {
   const char* tmpdir = nullptr;
@@ -9473,62 +12237,68 @@ std::string GetSysTempDir() {
 }
 
 // static
-TempFile TempFile::Create() {
-  TempFile temp_file;
+StatusOr<TempFile> TempFile::Create(LinkMode mode) {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-  temp_file.path_ = GetTempFilePathWin();
-  // Several tests want to read-back the temp file while still open. On Windows,
-  // that requires FILE_SHARE_READ. FILE_SHARE_READ is NOT settable when using
-  // the POSIX-compat equivalent function _open(). Hence the CreateFileA +
-  // _open_osfhandle dance here.
-  HANDLE h =
-      ::CreateFileA(temp_file.path_.c_str(), GENERIC_READ | GENERIC_WRITE,
-                    FILE_SHARE_DELETE | FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
-                    FILE_ATTRIBUTE_TEMPORARY, nullptr);
-  PERFETTO_CHECK(PlatformHandleChecker::IsValid(h));
+  ASSIGN_OR_RETURN(std::string path, GetTempFilePathWin());
+
+  // TempFile exposes both a descriptor and a path. Match POSIX by allowing the
+  // path to be reopened while the descriptor remains open. These sharing flags
+  // are not settable through _open(), hence the CreateFileA +
+  // _open_osfhandle dance.
+  ScopedPlatformHandle h(
+      ::CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+  if (!h) {
+    return ErrStatus("CreateFileA(%s) failed: %lu", path.c_str(),
+                     GetLastError());
+  }
+
   // According to MSDN, when using _open_osfhandle the caller must not call
   // CloseHandle(). Ownership is moved to the file descriptor, which then needs
   // to be closed with just with _close().
-  temp_file.fd_.reset(_open_osfhandle(reinterpret_cast<intptr_t>(h), 0));
-#else
-  temp_file.path_ = GetSysTempDir() + "/perfetto-XXXXXXXX";
-  temp_file.fd_.reset(mkstemp(&temp_file.path_[0]));
-#endif
-  if (PERFETTO_UNLIKELY(!temp_file.fd_)) {
-    PERFETTO_FATAL("Could not create temp file %s", temp_file.path_.c_str());
+  ScopedFile fd(_open_osfhandle(reinterpret_cast<intptr_t>(h.get()), 0));
+  if (!fd) {
+    auto status = ErrStatus("_open_osfhandle() failed: %s", strerror(errno));
+    UnlinkTempFile(path);  // Best effort.
+    return status;
   }
-  return temp_file;
+  h.release();
+#else
+  std::string path = GetSysTempDir() + "/perfetto-XXXXXXXX";
+  ScopedFile fd(mkstemp(path.data()));
+  if (!fd)
+    return ErrStatus("mkstemp(%s) failed: %s", path.c_str(), strerror(errno));
+#endif
+
+  // Transfer ownership to TempFile only once all fallible operations succeed,
+  // because ~TempFile() aborts if unlinking fails.
+  if (mode == LinkMode::kUnlinked) {
+    RETURN_IF_ERROR(UnlinkTempFile(path));
+    return TempFile(std::move(fd), std::string());
+  }
+  return TempFile(std::move(fd), std::move(path));
 }
 
-// static
-TempFile TempFile::CreateUnlinked() {
-  TempFile temp_file = TempFile::Create();
-  temp_file.Unlink();
-  return temp_file;
-}
-
-TempFile::TempFile() = default;
+TempFile::TempFile(ScopedFile fd, std::string path)
+    : fd_(std::move(fd)), path_(std::move(path)) {}
 
 TempFile::~TempFile() {
-  Unlink();
+  PERFETTO_CHECK(Unlink());
 }
 
 ScopedFile TempFile::ReleaseFD() {
-  Unlink();
+  PERFETTO_CHECK(Unlink());
   return std::move(fd_);
 }
 
-void TempFile::Unlink() {
+bool TempFile::Unlink() {
   if (path_.empty())
-    return;
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-  // If the FD is still open DeleteFile will mark the file as pending deletion
-  // and delete it only when the process exists.
-  PERFETTO_CHECK(DeleteFileA(path_.c_str()));
-#else
-  PERFETTO_CHECK(unlink(path_.c_str()) == 0);
-#endif
+    return true;
+  if (!UnlinkTempFile(path_).ok())
+    return false;
   path_.clear();
+  return true;
 }
 
 TempFile::TempFile(TempFile&&) noexcept = default;
@@ -9538,7 +12308,7 @@ TempFile& TempFile::operator=(TempFile&&) = default;
 TempDir TempDir::Create() {
   TempDir temp_dir;
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-  temp_dir.path_ = GetTempFilePathWin();
+  temp_dir.path_ = GetTempFilePathWin().ValueOrDie();
   PERFETTO_CHECK(_mkdir(temp_dir.path_.c_str()) == 0);
 #else
   temp_dir.path_ = GetSysTempDir() + "/perfetto-XXXXXXXX";
@@ -10394,83 +13164,6 @@ std::string HexDump(const void* data_void, size_t len, size_t bytes_per_line) {
 }  // namespace base
 }  // namespace perfetto
 // gen_amalgamated begin source: src/base/uuid.cc
-// gen_amalgamated begin header: include/perfetto/ext/base/uuid.h
-/*
- * Copyright (C) 2019 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_UUID_H_
-#define INCLUDE_PERFETTO_EXT_BASE_UUID_H_
-
-#include <string.h>
-#include <array>
-#include <cstdint>
-#include <string>
-
-// gen_amalgamated expanded: #include "perfetto/base/export.h"
-
-namespace perfetto {
-namespace base {
-
-class PERFETTO_EXPORT_COMPONENT Uuid {
- public:
-  explicit Uuid(const std::string& s);
-  explicit Uuid(int64_t lsb, int64_t msb);
-  Uuid();
-
-  std::array<uint8_t, 16>* data() { return &data_; }
-  const std::array<uint8_t, 16>* data() const { return &data_; }
-
-  bool operator==(const Uuid& other) const { return data_ == other.data_; }
-
-  bool operator!=(const Uuid& other) const { return !(*this == other); }
-
-  explicit operator bool() const { return *this != Uuid(); }
-
-  int64_t msb() const {
-    int64_t result;
-    memcpy(&result, data_.data() + 8, 8);
-    return result;
-  }
-
-  int64_t lsb() const {
-    int64_t result;
-    memcpy(&result, data_.data(), 8);
-    return result;
-  }
-
-  void set_lsb_msb(int64_t lsb, int64_t msb) {
-    set_lsb(lsb);
-    set_msb(msb);
-  }
-  void set_msb(int64_t msb) { memcpy(data_.data() + 8, &msb, 8); }
-  void set_lsb(int64_t lsb) { memcpy(data_.data(), &lsb, 8); }
-
-  std::string ToString() const;
-  std::string ToPrettyString() const;
-
- private:
-  std::array<uint8_t, 16> data_{};
-};
-
-Uuid Uuidv4();
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_UUID_H_
 /*
  * Copyright (C) 2019 The Android Open Source Project
  *
@@ -10706,6 +13399,49 @@ void WaitableEvent::Notify() {
 }  // namespace perfetto
 // gen_amalgamated begin source: src/base/watchdog_posix.cc
 // gen_amalgamated begin header: include/perfetto/ext/base/watchdog.h
+// gen_amalgamated begin header: include/perfetto/ext/base/flags.h
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
+#define INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD) && \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+// Android: aconfig generates PERFETTO_FLAGS_* macros in perfetto_flags.h
+#include <perfetto_flags.h>
+#else
+// Non-Android: Define fallback PERFETTO_FLAGS_* macros
+// These match the pattern from Android's aconfig codegen
+#define PERFETTO_FLAGS(FLAG) PERFETTO_FLAGS_##FLAG
+
+#define PERFETTO_FLAGS_TEST_READ_ONLY_FLAG false
+#define PERFETTO_FLAGS_USE_LOCKFREE_TASKRUNNER \
+  PERFETTO_BUILDFLAG(PERFETTO_ENABLE_LOCKFREE_TASKRUNNER)
+#define PERFETTO_FLAGS_BUFFER_CLONE_PRESERVE_READ_ITER true
+#define PERFETTO_FLAGS_USE_UNIX_SOCKET_INOTIFY \
+  PERFETTO_BUILDFLAG(PERFETTO_ENABLE_SOCK_INOTIFY)
+#define PERFETTO_FLAGS_TRIGGER_PERFETTO_ON_TRACED_PROBES_DISCONNECT false
+#define PERFETTO_FLAGS_USE_ANON_RSS_IN_WATCHDOG true
+
+#endif  // PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD) && ...
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
 // gen_amalgamated begin header: include/perfetto/ext/base/watchdog_noop.h
 /*
  * Copyright (C) 2018 The Android Open Source Project
@@ -10786,6 +13522,7 @@ class Watchdog {
 #include <functional>
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/flags.h"
 
 // The POSIX watchdog is only supported on Linux and Android in non-embedder
 // builds.
@@ -10842,9 +13579,10 @@ constexpr uint32_t kWatchdogDefaultCpuWindow = 10 * 60 * 1000;  // 10 minutes.
 
 // The default memory margin we give to our processes. This is used as as a
 // constant to put on top of the trace buffers.
-// TODO(b/540573436): Retune the value once we have a proper solution.
-constexpr uint64_t kWatchdogDefaultMemorySlack = 64 * 1024 * 1024;  // 64 MiB.
-constexpr uint32_t kWatchdogDefaultMemoryWindow = 30 * 1000;  // 30 seconds.
+constexpr uint64_t kWatchdogDefaultMemorySlack =
+    PERFETTO_FLAGS(USE_ANON_RSS_IN_WATCHDOG) ? 32 * 1024 * 1024   // 32 MiB
+                                             : 64 * 1024 * 1024;  // 64 MiB
+constexpr uint32_t kWatchdogDefaultMemoryWindow = 30 * 1000;      // 30 seconds.
 
 inline void RunTaskWithWatchdogGuard(const std::function<void()>& task) {
   // The longest duration allowed for a single task within the TaskRunner.
@@ -10900,6 +13638,7 @@ inline void RunTaskWithWatchdogGuard(const std::function<void()>& task) {
 #include <algorithm>
 #include <cinttypes>
 #include <fstream>
+#include <optional>
 #include <thread>
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
@@ -10909,6 +13648,7 @@ inline void RunTaskWithWatchdogGuard(const std::function<void()>& task) {
 // gen_amalgamated expanded: #include "perfetto/base/time.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/crash_keys.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/file_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/flags.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
 
@@ -10941,29 +13681,52 @@ double MeanForArray(const uint64_t array[], size_t size) {
   return static_cast<double>(total / size);
 }
 
+bool ReadFileToString(int fd, char* buf, size_t size) {
+  size_t pos = 0;
+  while (pos < size - 1) {
+    ssize_t rd = PERFETTO_EINTR(read(fd, buf + pos, size - 1 - pos));
+    if (rd < 0)
+      return false;
+    if (rd == 0)
+      break;
+    pos += static_cast<size_t>(rd);
+  }
+  buf[pos] = '\0';
+  return true;
+}
+
 }  //  namespace
 
 bool ReadProcStat(int fd, ProcStat* out) {
-  char c[512];
-  size_t c_pos = 0;
-  while (c_pos < sizeof(c) - 1) {
-    ssize_t rd = PERFETTO_EINTR(read(fd, c + c_pos, sizeof(c) - c_pos));
-    if (rd < 0) {
-      PERFETTO_ELOG("Failed to read stat file to enforce resource limits.");
-      return false;
-    }
-    if (rd == 0)
-      break;
-    c_pos += static_cast<size_t>(rd);
+  char str[512];
+  if (!ReadFileToString(fd, str, sizeof(str))) {
+    PERFETTO_ELOG("Failed to read stat file to enforce resource limits.");
+    return false;
   }
-  PERFETTO_CHECK(c_pos < sizeof(c));
-  c[c_pos] = '\0';
 
-  if (sscanf(c,
+  if (sscanf(str,
              "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu "
              "%lu %*d %*d %*d %*d %*d %*d %*u %*u %ld",
              &out->utime, &out->stime, &out->rss_pages) != 3) {
-    PERFETTO_ELOG("Invalid stat format: %s", c);
+    PERFETTO_ELOG("Invalid stat format: %s", str);
+    return false;
+  }
+  return true;
+}
+
+bool ReadProcStatm(int fd, ProcStatm* out) {
+  char str[256];
+  if (!ReadFileToString(fd, str, sizeof(str))) {
+    PERFETTO_ELOG("Failed to read statm file to enforce resource limits.");
+    return false;
+  }
+
+  if (sscanf(str,
+             "%" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
+             " %" SCNu64 " %" SCNu64,
+             &out->size, &out->resident, &out->shared, &out->text, &out->lib,
+             &out->data, &out->dt) != 7) {
+    PERFETTO_ELOG("Invalid statm format: %s", str);
     return false;
   }
   return true;
@@ -11109,6 +13872,16 @@ void Watchdog::ThreadMain() {
     return;
   }
 
+  base::ScopedFile statm_fd;
+  if constexpr (PERFETTO_FLAGS(USE_ANON_RSS_IN_WATCHDOG)) {
+    statm_fd = (base::OpenFile("/proc/self/statm", O_RDONLY));
+    if (!statm_fd) {
+      PERFETTO_DLOG(
+          "Failed to open statm file to enforce resource limits. Using RSS for "
+          "the guardrail");
+    }
+  }
+
   PERFETTO_DCHECK(timer_fd_);
 
   constexpr uint8_t kFdCount = 1;
@@ -11184,15 +13957,28 @@ void Watchdog::ThreadMain() {
     ProcStat stat;
     if (!ReadProcStat(stat_fd.get(), &stat))
       continue;
-    uint64_t cpu_time = stat.utime + stat.stime;
-    uint64_t rss_bytes =
-        static_cast<uint64_t>(stat.rss_pages) * base::GetSysPageSize();
+
+    const uint64_t cpu_time = stat.utime + stat.stime;
+    // max(stat.rss_pages, 0) is used since rss_pages is signed.
+    const uint64_t rss_bytes =
+        stat.rss_pages > 0
+            ? static_cast<uint64_t>(stat.rss_pages) * base::GetSysPageSize()
+            : 0;
+
+    std::optional<uint64_t> rss_anon_bytes = std::nullopt;
+    if (statm_fd) {
+      lseek(statm_fd.get(), 0, SEEK_SET);
+      ProcStatm statm;
+      if (ReadProcStatm(statm_fd.get(), &statm))
+        rss_anon_bytes = statm.rss_anon_pages() * base::GetSysPageSize();
+    }
 
     bool threshold_exceeded = false;
     WatchdogCrashReason crash_reason{};
     {
       std::lock_guard<std::mutex> guard(mutex_);
-      if (CheckMemory_Locked(rss_bytes) && !IsSyncMemoryTaggingEnabled()) {
+      if (CheckMemory_Locked(rss_anon_bytes.value_or(rss_bytes)) &&
+          !IsSyncMemoryTaggingEnabled()) {
         threshold_exceeded = true;
         crash_reason = WatchdogCrashReason::kMemGuardrail;
       } else if (CheckCpu_Locked(cpu_time)) {
@@ -11264,13 +14050,13 @@ void Watchdog::SerializeLogsAndKillThread(int tid,
   abort();
 }
 
-bool Watchdog::CheckMemory_Locked(uint64_t rss_bytes) {
+bool Watchdog::CheckMemory_Locked(uint64_t rss_anon_bytes) {
   if (memory_limit_bytes_ == 0)
     return false;
 
   // Add the current stat value to the ring buffer and check that the mean
   // remains under our threshold.
-  if (memory_window_bytes_.Push(rss_bytes)) {
+  if (memory_window_bytes_.Push(rss_anon_bytes)) {
     if (memory_window_bytes_.Mean() >
         static_cast<double>(memory_limit_bytes_)) {
       PERFETTO_ELOG(
@@ -11492,50 +14278,6 @@ void WeakRunner::PostDelayedTask(std::function<void()> f,
 }  // namespace perfetto::base
 // gen_amalgamated begin source: src/base/lock_free_task_runner.cc
 // gen_amalgamated begin header: include/perfetto/ext/base/lock_free_task_runner.h
-// gen_amalgamated begin header: include/perfetto/ext/base/flags.h
-/*
- * Copyright (C) 2025 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
-#define INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD) && \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-// Android: aconfig generates PERFETTO_FLAGS_* macros in perfetto_flags.h
-#include <perfetto_flags.h>
-#else
-// Non-Android: Define fallback PERFETTO_FLAGS_* macros
-// These match the pattern from Android's aconfig codegen
-#define PERFETTO_FLAGS(FLAG) PERFETTO_FLAGS_##FLAG
-
-#define PERFETTO_FLAGS_TEST_READ_ONLY_FLAG false
-#define PERFETTO_FLAGS_USE_LOCKFREE_TASKRUNNER \
-  PERFETTO_BUILDFLAG(PERFETTO_ENABLE_LOCKFREE_TASKRUNNER)
-#define PERFETTO_FLAGS_BUFFER_CLONE_PRESERVE_READ_ITER true
-#define PERFETTO_FLAGS_USE_UNIX_SOCKET_INOTIFY \
-  PERFETTO_BUILDFLAG(PERFETTO_ENABLE_SOCK_INOTIFY)
-#define PERFETTO_FLAGS_TRIGGER_PERFETTO_ON_TRACED_PROBES_DISCONNECT false
-#define PERFETTO_FLAGS_USE_PCRE2 PERFETTO_BUILDFLAG(PERFETTO_PCRE2)
-#define PERFETTO_FLAGS_SYS_STATS_LARGE_READ true
-
-#endif  // PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD) && ...
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAGS_H_
 // gen_amalgamated begin header: include/perfetto/ext/base/unix_task_runner.h
 /*
  * Copyright (C) 2017 The Android Open Source Project
@@ -11955,107 +14697,6 @@ using MaybeLockFreeTaskRunner =
 }  // namespace perfetto
 
 #endif  // INCLUDE_PERFETTO_EXT_BASE_LOCK_FREE_TASK_RUNNER_H_
-// gen_amalgamated begin header: include/perfetto/ext/base/bits.h
-/*
- * Copyright (C) 2025 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_BITS_H_
-#define INCLUDE_PERFETTO_EXT_BASE_BITS_H_
-
-#include <cstddef>
-#include <cstdint>
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-#include <immintrin.h>
-#endif
-
-namespace perfetto {
-namespace base {
-
-inline PERFETTO_ALWAYS_INLINE uint32_t CountLeadZeros32(uint32_t value) {
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-  return static_cast<uint32_t>(_lzcnt_u32(value));
-#elif defined(__GNUC__) || defined(__clang__)
-  return value ? static_cast<uint32_t>(__builtin_clz(value)) : 32u;
-#else
-  unsigned long out;
-  return _BitScanReverse(&out, value) ? 31 - out : 32u;
-#endif
-}
-
-inline PERFETTO_ALWAYS_INLINE uint32_t CountLeadZeros64(uint64_t value) {
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-  return static_cast<uint32_t>(_lzcnt_u64(value));
-#elif defined(__GNUC__) || defined(__clang__)
-  return value ? static_cast<uint32_t>(__builtin_clzll(value)) : 64u;
-#else
-  unsigned long out;
-  return _BitScanReverse64(&out, value) ? 63 - out : 64u;
-#endif
-}
-
-template <typename T>
-uint32_t CountLeadZeros(T value) {
-  if constexpr (sizeof(T) == 8)
-    return CountLeadZeros64(static_cast<uint64_t>(value));
-  return CountLeadZeros32(static_cast<uint32_t>(value));
-}
-
-inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros64(uint64_t value) {
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-  return static_cast<uint32_t>(_tzcnt_u64(value));
-#elif defined(__GNUC__) || defined(__clang__)
-  return value ? static_cast<uint32_t>(__builtin_ctzll(value)) : 64u;
-#else
-  unsigned long out;
-  return _BitScanForward64(&out, value) ? static_cast<uint32_t>(out) : 64u;
-#endif
-}
-
-inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros32(uint32_t value) {
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-  return _tzcnt_u32(value);
-#elif defined(__GNUC__) || defined(__clang__)
-  return value ? static_cast<uint32_t>(__builtin_ctz(value)) : 32u;
-#else
-  unsigned long out;
-  return _BitScanForward(&out, value) ? out : 32u;
-#endif
-}
-
-template <typename T>
-inline PERFETTO_ALWAYS_INLINE uint32_t CountTrailZeros(T value) {
-  if (sizeof(T) == 8) {
-    return CountTrailZeros64(static_cast<uint64_t>(value));
-  }
-  return CountTrailZeros32(static_cast<uint32_t>(value));
-}
-
-template <typename T>
-constexpr bool AllBitsSet(T v) {
-  return v == static_cast<T>(-1);
-}
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_BITS_H_
 
 /*
  * Copyright (C) 2025 The Android Open Source Project
@@ -14346,13 +16987,8 @@ void Subprocess::KillAndWaitForTermination(int exit_code) {
 // gen_amalgamated expanded: #include "perfetto/protozero/field.h"
 
 // gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/endian.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
-
-#if !PERFETTO_IS_LITTLE_ENDIAN()
-// The memcpy() for fixed32/64 below needs to be adjusted if we want to
-// support big endian CPUs. There doesn't seem to be a compelling need today.
-#error Unimplemented for big endian archs.
-#endif
 
 namespace protozero {
 
@@ -14371,14 +17007,16 @@ void Field::SerializeAndAppendToInternal(Container* dst) const {
     }
     case static_cast<int>(pu::ProtoWireType::kFixed32): {
       wptr = pu::WriteVarInt(pu::MakeTagFixed<uint32_t>(id_), wptr);
-      uint32_t value32 = static_cast<uint32_t>(int_value_);
+      uint32_t value32 =
+          perfetto::base::HostToLE(static_cast<uint32_t>(int_value_));
       memcpy(wptr, &value32, sizeof(value32));
       wptr += sizeof(uint32_t);
       break;
     }
     case static_cast<int>(pu::ProtoWireType::kFixed64): {
       wptr = pu::WriteVarInt(pu::MakeTagFixed<uint64_t>(id_), wptr);
-      memcpy(wptr, &int_value_, sizeof(int_value_));
+      uint64_t value64 = perfetto::base::HostToLE(int_value_);
+      memcpy(wptr, &value64, sizeof(value64));
       wptr += sizeof(uint64_t);
       break;
     }
@@ -14541,12 +17179,6 @@ template bool EqualsField<std::string>(const std::string&, const std::string&);
 // gen_amalgamated expanded: #include "perfetto/protozero/message_arena.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/message_handle.h"
 
-#if !PERFETTO_IS_LITTLE_ENDIAN()
-// The memcpy() for float and double below needs to be adjusted if we want to
-// support big endian CPUs. There doesn't seem to be a compelling need today.
-#error Unimplemented for big endian archs.
-#endif
-
 namespace protozero {
 
 namespace {
@@ -14563,7 +17195,9 @@ std::atomic<uint32_t> g_generation;
 // Use the Reset() method below instead.
 
 // This method is called to initialize both root and nested messages.
-void Message::Reset(ScatteredStreamWriter* stream_writer, MessageArena* arena) {
+void Message::Reset(ScatteredStreamWriter* stream_writer,
+                    MessageArena* arena,
+                    Encoding encoding) {
 // Older versions of libstdcxx don't have is_trivially_constructible.
 #if !defined(__GLIBCXX__) || __GLIBCXX__ >= 20170516
   static_assert(std::is_trivially_constructible<Message>::value,
@@ -14578,6 +17212,7 @@ void Message::Reset(ScatteredStreamWriter* stream_writer, MessageArena* arena) {
   size_field_ = nullptr;
   nested_message_ = nullptr;
   message_state_ = MessageState::kNotFinalized;
+  encoding_ = encoding;
 #if PERFETTO_DCHECK_IS_ON()
   handle_ = nullptr;
   generation_ = g_generation.fetch_add(1, std::memory_order_relaxed);
@@ -14647,6 +17282,7 @@ uint32_t Message::Finalize() {
   // many reasons, because the TraceWriterImpl delegate is keeping track of the
   // root fragment size independently.
   if (size_field_) {
+    PERFETTO_DCHECK(encoding_ == Encoding::kLengthDelimited);
     PERFETTO_DCHECK(!is_finalized());
     PERFETTO_DCHECK(size_ < proto_utils::kMaxMessageLength);
     //
@@ -14706,19 +17342,27 @@ Message* Message::BeginNestedMessageInternal(uint32_t field_id) {
     EndNestedMessage();
 
   // Write the proto preamble for the nested message.
+  const bool is_length_delimited = encoding_ == Encoding::kLengthDelimited;
+  const uint32_t tag = is_length_delimited
+                           ? proto_utils::MakeTagLengthDelimited(field_id)
+                           : proto_utils::MakeTagStartGroup(field_id);
   uint8_t data[proto_utils::kMaxTagEncodedSize];
-  uint8_t* data_end = proto_utils::WriteVarInt(
-      proto_utils::MakeTagLengthDelimited(field_id), data);
+  uint8_t* data_end = proto_utils::WriteVarInt(tag, data);
   WriteToStream(data, data_end);
 
   Message* message = arena_->NewMessage();
-  message->Reset(stream_writer_, arena_);
+  message->Reset(stream_writer_, arena_, encoding_);
 
-  // The length of the nested message cannot be known upfront. So right now
-  // just reserve the bytes to encode the size after the nested message is done.
-  message->set_size_field(
-      stream_writer_->ReserveBytes(proto_utils::kMessageLengthFieldSize));
-  size_ += proto_utils::kMessageLengthFieldSize;
+  // A proto group child needs no length field. EndNestedMessage() ends it with
+  // a closing byte.
+  if (is_length_delimited) {
+    // The length of the nested message cannot be known upfront. So right now
+    // just reserve the bytes to encode the size after the nested message is
+    // done.
+    message->set_size_field(
+        stream_writer_->ReserveBytes(proto_utils::kMessageLengthFieldSize));
+    size_ += proto_utils::kMessageLengthFieldSize;
+  }
 
   nested_message_ = message;
   return message;
@@ -14730,6 +17374,17 @@ void Message::EndNestedMessage() {
       MessageState::kFinalizedWithCompaction) {
     size_ -= kBytesToCompact;
   }
+
+  // Every write path of this message calls EndNestedMessage() first. So the
+  // closing byte follows the child's last byte, even if the child was
+  // finalized earlier.
+  if (encoding_ == Encoding::kProtoGroup) {
+    // Point at the constant. A local copy would make the compiler add a stack
+    // check to this function and to Finalize(), which inlines it.
+    const uint8_t* closing_byte = &proto_utils::kProtoGroupEndByte;
+    WriteToStream(closing_byte, closing_byte + 1);
+  }
+
   arena_->DeleteLastMessage(nested_message_);
   nested_message_ = nullptr;
 }
@@ -14883,10 +17538,6 @@ namespace protozero {
 
 using namespace proto_utils;
 
-#if !PERFETTO_IS_LITTLE_ENDIAN()
-#error Unimplemented for big endian archs.
-#endif
-
 const Field TypedProtoDecoderBase::kInvalidField{};
 
 namespace {
@@ -14966,11 +17617,14 @@ ParseOneField(const uint8_t* const buffer, const uint8_t* const end) {
     if (PERFETTO_UNLIKELY(new_pos > end))
       return res;
     memcpy(&int_value, pos, sizeof(uint64_t));
+    int_value = perfetto::base::LE64ToHost(int_value);
   } else if (field_type == static_cast<uint8_t>(ProtoWireType::kFixed32)) {
     new_pos = pos + sizeof(uint32_t);
     if (PERFETTO_UNLIKELY(new_pos > end))
       return res;
-    memcpy(&int_value, pos, sizeof(uint32_t));
+    uint32_t value32;
+    memcpy(&value32, pos, sizeof(uint32_t));
+    int_value = perfetto::base::LE32ToHost(value32);
   } else {
     PERFETTO_DLOG("Invalid proto field type: %u", field_type);
     return res;
@@ -15112,6 +17766,7 @@ PERFETTO_ALWAYS_INLINE void TypedProtoDecoderBase::ParseAllFieldsImpl(
       // not stored here because fields_ is indexed directly by field id, and
       // extension ids are sparse and potentially very high. Callers that need
       // them should decode selectively and consume them from unknown_fields().
+      has_out_of_range_fields_ = true;
       continue;
     }
 
@@ -15258,6 +17913,15 @@ const std::vector<ScatteredHeapBuffer::Slice>&
 ScatteredHeapBuffer::GetSlices() {
   AdjustUsedSizeOfCurrentSlice();
   return slices_;
+}
+
+std::vector<ScatteredHeapBuffer::Slice> ScatteredHeapBuffer::TakeSlices() {
+  AdjustUsedSizeOfCurrentSlice();
+  std::vector<Slice> slices = std::move(slices_);
+  slices_.clear();
+  if (writer_)
+    writer_->Reset(protozero::ContiguousMemoryRange{});
+  return slices;
 }
 
 std::vector<uint8_t> ScatteredHeapBuffer::StitchSlices() {
@@ -16696,7 +19360,6 @@ void CommitDataRequest_ChunksToMove::Serialize(::protozero::Message* msg) const 
 #pragma GCC diagnostic ignored "-Wfloat-equal"
 #endif
 // gen_amalgamated expanded: #include "protos/perfetto/common/data_source_descriptor.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/protovm/vm_program.gen.h"
 
 namespace perfetto {
 namespace protos {
@@ -16752,7 +19415,7 @@ bool DataSourceDescriptor::ParseFromArray(const void* raw, size_t size) {
         field.get(&no_flush_);
         break;
       case 10 /* protovm_program */:
-        (*protovm_program_).ParseFromArray(field.data(), field.size());
+        ::protozero::internal::gen_helpers::DeserializeString(field, &protovm_program_);
         break;
       case 5 /* gpu_counter_descriptor */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &gpu_counter_descriptor_);
@@ -16816,7 +19479,7 @@ void DataSourceDescriptor::Serialize(::protozero::Message* msg) const {
 
   // Field 10: protovm_program
   if (_has_field_[10]) {
-    (*protovm_program_).Serialize(msg->BeginNestedMessage<::protozero::Message>(10));
+    msg->AppendString(10, protovm_program_);
   }
 
   // Field 5: gpu_counter_descriptor
@@ -19373,6 +22036,7 @@ bool SystemInfo::operator==(const SystemInfo& other) const {
    && ::protozero::internal::gen_helpers::EqualsField(android_build_fingerprint_, other.android_build_fingerprint_)
    && ::protozero::internal::gen_helpers::EqualsField(android_device_manufacturer_, other.android_device_manufacturer_)
    && ::protozero::internal::gen_helpers::EqualsField(android_soc_model_, other.android_soc_model_)
+   && ::protozero::internal::gen_helpers::EqualsField(device_tree_compatibles_, other.device_tree_compatibles_)
    && ::protozero::internal::gen_helpers::EqualsField(android_guest_soc_model_, other.android_guest_soc_model_)
    && ::protozero::internal::gen_helpers::EqualsField(android_hardware_revision_, other.android_hardware_revision_)
    && ::protozero::internal::gen_helpers::EqualsField(android_storage_model_, other.android_storage_model_)
@@ -19389,6 +22053,7 @@ bool SystemInfo::operator==(const SystemInfo& other) const {
 }
 
 bool SystemInfo::ParseFromArray(const void* raw, size_t size) {
+  device_tree_compatibles_.clear();
   unknown_fields_.clear();
   bool packed_error = false;
 
@@ -19409,6 +22074,10 @@ bool SystemInfo::ParseFromArray(const void* raw, size_t size) {
         break;
       case 9 /* android_soc_model */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &android_soc_model_);
+        break;
+      case 18 /* device_tree_compatibles */:
+        device_tree_compatibles_.emplace_back();
+        ::protozero::internal::gen_helpers::DeserializeString(field, &device_tree_compatibles_.back());
         break;
       case 13 /* android_guest_soc_model */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &android_guest_soc_model_);
@@ -19488,6 +22157,11 @@ void SystemInfo::Serialize(::protozero::Message* msg) const {
   // Field 9: android_soc_model
   if (_has_field_[9]) {
     ::protozero::internal::gen_helpers::SerializeString(9, android_soc_model_, msg);
+  }
+
+  // Field 18: device_tree_compatibles
+  for (auto& it : device_tree_compatibles_) {
+    ::protozero::internal::gen_helpers::SerializeString(18, it, msg);
   }
 
   // Field 13: android_guest_soc_model
@@ -20246,12 +22920,15 @@ bool TraceStats_BufferStats::operator==(const TraceStats_BufferStats& other) con
    && ::protozero::internal::gen_helpers::EqualsField(chunks_read_, other.chunks_read_)
    && ::protozero::internal::gen_helpers::EqualsField(chunks_committed_out_of_order_, other.chunks_committed_out_of_order_)
    && ::protozero::internal::gen_helpers::EqualsField(write_wrap_count_, other.write_wrap_count_)
+   && ::protozero::internal::gen_helpers::EqualsField(compactions_, other.compactions_)
+   && ::protozero::internal::gen_helpers::EqualsField(compactions_skipped_, other.compactions_skipped_)
    && ::protozero::internal::gen_helpers::EqualsField(patches_succeeded_, other.patches_succeeded_)
    && ::protozero::internal::gen_helpers::EqualsField(patches_failed_, other.patches_failed_)
    && ::protozero::internal::gen_helpers::EqualsField(readaheads_succeeded_, other.readaheads_succeeded_)
    && ::protozero::internal::gen_helpers::EqualsField(readaheads_failed_, other.readaheads_failed_)
    && ::protozero::internal::gen_helpers::EqualsField(abi_violations_, other.abi_violations_)
-   && ::protozero::internal::gen_helpers::EqualsField(trace_writer_packet_loss_, other.trace_writer_packet_loss_);
+   && ::protozero::internal::gen_helpers::EqualsField(trace_writer_packet_loss_, other.trace_writer_packet_loss_)
+   && ::protozero::internal::gen_helpers::EqualsField(oversized_packets_dropped_, other.oversized_packets_dropped_);
 }
 
 bool TraceStats_BufferStats::ParseFromArray(const void* raw, size_t size) {
@@ -20306,6 +22983,12 @@ bool TraceStats_BufferStats::ParseFromArray(const void* raw, size_t size) {
       case 4 /* write_wrap_count */:
         field.get(&write_wrap_count_);
         break;
+      case 23 /* compactions */:
+        field.get(&compactions_);
+        break;
+      case 24 /* compactions_skipped */:
+        field.get(&compactions_skipped_);
+        break;
       case 5 /* patches_succeeded */:
         field.get(&patches_succeeded_);
         break;
@@ -20323,6 +23006,9 @@ bool TraceStats_BufferStats::ParseFromArray(const void* raw, size_t size) {
         break;
       case 19 /* trace_writer_packet_loss */:
         field.get(&trace_writer_packet_loss_);
+        break;
+      case 22 /* oversized_packets_dropped */:
+        field.get(&oversized_packets_dropped_);
         break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
@@ -20415,6 +23101,16 @@ void TraceStats_BufferStats::Serialize(::protozero::Message* msg) const {
     ::protozero::internal::gen_helpers::SerializeVarInt(4, write_wrap_count_, msg);
   }
 
+  // Field 23: compactions
+  if (_has_field_[23]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(23, compactions_, msg);
+  }
+
+  // Field 24: compactions_skipped
+  if (_has_field_[24]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(24, compactions_skipped_, msg);
+  }
+
   // Field 5: patches_succeeded
   if (_has_field_[5]) {
     ::protozero::internal::gen_helpers::SerializeVarInt(5, patches_succeeded_, msg);
@@ -20443,6 +23139,11 @@ void TraceStats_BufferStats::Serialize(::protozero::Message* msg) const {
   // Field 19: trace_writer_packet_loss
   if (_has_field_[19]) {
     ::protozero::internal::gen_helpers::SerializeVarInt(19, trace_writer_packet_loss_, msg);
+  }
+
+  // Field 22: oversized_packets_dropped
+  if (_has_field_[22]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(22, oversized_packets_dropped_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -21764,6 +24465,83 @@ void AndroidPolledStateConfig::Serialize(::protozero::Message* msg) const {
   // Field 1: poll_ms
   if (_has_field_[1]) {
     ::protozero::internal::gen_helpers::SerializeVarInt(1, poll_ms_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+}  // namespace perfetto
+}  // namespace protos
+}  // namespace gen
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+// gen_amalgamated begin source: gen/protos/perfetto/config/android/android_process_state_config.gen.cc
+// gen_amalgamated expanded: #include "perfetto/protozero/gen_field_helpers.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/scattered_heap_buffer.h"
+// DO NOT EDIT. Autogenerated by Perfetto cppgen_plugin
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
+
+namespace perfetto {
+namespace protos {
+namespace gen {
+
+AndroidProcessStateConfig::AndroidProcessStateConfig() = default;
+AndroidProcessStateConfig::~AndroidProcessStateConfig() = default;
+AndroidProcessStateConfig::AndroidProcessStateConfig(const AndroidProcessStateConfig&) = default;
+AndroidProcessStateConfig& AndroidProcessStateConfig::operator=(const AndroidProcessStateConfig&) = default;
+AndroidProcessStateConfig::AndroidProcessStateConfig(AndroidProcessStateConfig&&) noexcept = default;
+AndroidProcessStateConfig& AndroidProcessStateConfig::operator=(AndroidProcessStateConfig&&) = default;
+
+bool AndroidProcessStateConfig::operator==(const AndroidProcessStateConfig& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(dump_process_metadata_, other.dump_process_metadata_);
+}
+
+bool AndroidProcessStateConfig::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* dump_process_metadata */:
+        field.get(&dump_process_metadata_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string AndroidProcessStateConfig::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> AndroidProcessStateConfig::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void AndroidProcessStateConfig::Serialize(::protozero::Message* msg) const {
+  // Field 1: dump_process_metadata
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(1, dump_process_metadata_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -24448,7 +27226,8 @@ bool GpuRenderStagesConfig::operator==(const GpuRenderStagesConfig& other) const
   return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
    && ::protozero::internal::gen_helpers::EqualsField(full_loadstore_, other.full_loadstore_)
    && ::protozero::internal::gen_helpers::EqualsField(low_overhead_, other.low_overhead_)
-   && ::protozero::internal::gen_helpers::EqualsField(trace_metrics_, other.trace_metrics_);
+   && ::protozero::internal::gen_helpers::EqualsField(trace_metrics_, other.trace_metrics_)
+   && ::protozero::internal::gen_helpers::EqualsField(drawcall_stages_, other.drawcall_stages_);
 }
 
 bool GpuRenderStagesConfig::ParseFromArray(const void* raw, size_t size) {
@@ -24471,6 +27250,9 @@ bool GpuRenderStagesConfig::ParseFromArray(const void* raw, size_t size) {
       case 3 /* trace_metrics */:
         trace_metrics_.emplace_back();
         ::protozero::internal::gen_helpers::DeserializeString(field, &trace_metrics_.back());
+        break;
+      case 4 /* drawcall_stages */:
+        field.get(&drawcall_stages_);
         break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
@@ -24506,6 +27288,11 @@ void GpuRenderStagesConfig::Serialize(::protozero::Message* msg) const {
   // Field 3: trace_metrics
   for (auto& it : trace_metrics_) {
     ::protozero::internal::gen_helpers::SerializeString(3, it, msg);
+  }
+
+  // Field 4: drawcall_stages
+  if (_has_field_[4]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(4, drawcall_stages_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -26618,6 +29405,232 @@ void SmapsConfig::Serialize(::protozero::Message* msg) const {
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
 }
 
+
+ProcessSmapsConfig::ProcessSmapsConfig() = default;
+ProcessSmapsConfig::~ProcessSmapsConfig() = default;
+ProcessSmapsConfig::ProcessSmapsConfig(const ProcessSmapsConfig&) = default;
+ProcessSmapsConfig& ProcessSmapsConfig::operator=(const ProcessSmapsConfig&) = default;
+ProcessSmapsConfig::ProcessSmapsConfig(ProcessSmapsConfig&&) noexcept = default;
+ProcessSmapsConfig& ProcessSmapsConfig::operator=(ProcessSmapsConfig&&) = default;
+
+bool ProcessSmapsConfig::operator==(const ProcessSmapsConfig& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(smaps_config_, other.smaps_config_)
+   && ::protozero::internal::gen_helpers::EqualsField(scope_, other.scope_)
+   && ::protozero::internal::gen_helpers::EqualsField(read_period_ms_, other.read_period_ms_)
+   && ::protozero::internal::gen_helpers::EqualsField(max_processes_per_period_, other.max_processes_per_period_);
+}
+
+bool ProcessSmapsConfig::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* smaps_config */:
+        (*smaps_config_).ParseFromArray(field.data(), field.size());
+        break;
+      case 2 /* scope */:
+        (*scope_).ParseFromArray(field.data(), field.size());
+        break;
+      case 3 /* read_period_ms */:
+        field.get(&read_period_ms_);
+        break;
+      case 4 /* max_processes_per_period */:
+        field.get(&max_processes_per_period_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string ProcessSmapsConfig::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> ProcessSmapsConfig::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void ProcessSmapsConfig::Serialize(::protozero::Message* msg) const {
+  // Field 1: smaps_config
+  if (_has_field_[1]) {
+    (*smaps_config_).Serialize(msg->BeginNestedMessage<::protozero::Message>(1));
+  }
+
+  // Field 2: scope
+  if (_has_field_[2]) {
+    (*scope_).Serialize(msg->BeginNestedMessage<::protozero::Message>(2));
+  }
+
+  // Field 3: read_period_ms
+  if (_has_field_[3]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(3, read_period_ms_, msg);
+  }
+
+  // Field 4: max_processes_per_period
+  if (_has_field_[4]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(4, max_processes_per_period_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+ProcessSmapsConfig_Scope::ProcessSmapsConfig_Scope() = default;
+ProcessSmapsConfig_Scope::~ProcessSmapsConfig_Scope() = default;
+ProcessSmapsConfig_Scope::ProcessSmapsConfig_Scope(const ProcessSmapsConfig_Scope&) = default;
+ProcessSmapsConfig_Scope& ProcessSmapsConfig_Scope::operator=(const ProcessSmapsConfig_Scope&) = default;
+ProcessSmapsConfig_Scope::ProcessSmapsConfig_Scope(ProcessSmapsConfig_Scope&&) noexcept = default;
+ProcessSmapsConfig_Scope& ProcessSmapsConfig_Scope::operator=(ProcessSmapsConfig_Scope&&) = default;
+
+bool ProcessSmapsConfig_Scope::operator==(const ProcessSmapsConfig_Scope& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(target_cmdline_, other.target_cmdline_)
+   && ::protozero::internal::gen_helpers::EqualsField(target_uid_, other.target_uid_);
+}
+
+int ProcessSmapsConfig_Scope::target_uid_size() const { return static_cast<int>(target_uid_.size()); }
+void ProcessSmapsConfig_Scope::clear_target_uid() { target_uid_.clear(); }
+ProcessSmapsConfig_Scope_UidRange* ProcessSmapsConfig_Scope::add_target_uid() { target_uid_.emplace_back(); return &target_uid_.back(); }
+bool ProcessSmapsConfig_Scope::ParseFromArray(const void* raw, size_t size) {
+  target_cmdline_.clear();
+  target_uid_.clear();
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* target_cmdline */:
+        target_cmdline_.emplace_back();
+        ::protozero::internal::gen_helpers::DeserializeString(field, &target_cmdline_.back());
+        break;
+      case 2 /* target_uid */:
+        target_uid_.emplace_back();
+        target_uid_.back().ParseFromArray(field.data(), field.size());
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string ProcessSmapsConfig_Scope::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> ProcessSmapsConfig_Scope::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void ProcessSmapsConfig_Scope::Serialize(::protozero::Message* msg) const {
+  // Field 1: target_cmdline
+  for (auto& it : target_cmdline_) {
+    ::protozero::internal::gen_helpers::SerializeString(1, it, msg);
+  }
+
+  // Field 2: target_uid
+  for (auto& it : target_uid_) {
+    it.Serialize(msg->BeginNestedMessage<::protozero::Message>(2));
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+ProcessSmapsConfig_Scope_UidRange::ProcessSmapsConfig_Scope_UidRange() = default;
+ProcessSmapsConfig_Scope_UidRange::~ProcessSmapsConfig_Scope_UidRange() = default;
+ProcessSmapsConfig_Scope_UidRange::ProcessSmapsConfig_Scope_UidRange(const ProcessSmapsConfig_Scope_UidRange&) = default;
+ProcessSmapsConfig_Scope_UidRange& ProcessSmapsConfig_Scope_UidRange::operator=(const ProcessSmapsConfig_Scope_UidRange&) = default;
+ProcessSmapsConfig_Scope_UidRange::ProcessSmapsConfig_Scope_UidRange(ProcessSmapsConfig_Scope_UidRange&&) noexcept = default;
+ProcessSmapsConfig_Scope_UidRange& ProcessSmapsConfig_Scope_UidRange::operator=(ProcessSmapsConfig_Scope_UidRange&&) = default;
+
+bool ProcessSmapsConfig_Scope_UidRange::operator==(const ProcessSmapsConfig_Scope_UidRange& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(min_uid_, other.min_uid_)
+   && ::protozero::internal::gen_helpers::EqualsField(max_uid_, other.max_uid_)
+   && ::protozero::internal::gen_helpers::EqualsField(android_match_across_profiles_, other.android_match_across_profiles_);
+}
+
+bool ProcessSmapsConfig_Scope_UidRange::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* min_uid */:
+        field.get(&min_uid_);
+        break;
+      case 2 /* max_uid */:
+        field.get(&max_uid_);
+        break;
+      case 3 /* android_match_across_profiles */:
+        field.get(&android_match_across_profiles_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string ProcessSmapsConfig_Scope_UidRange::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> ProcessSmapsConfig_Scope_UidRange::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void ProcessSmapsConfig_Scope_UidRange::Serialize(::protozero::Message* msg) const {
+  // Field 1: min_uid
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, min_uid_, msg);
+  }
+
+  // Field 2: max_uid
+  if (_has_field_[2]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(2, max_uid_, msg);
+  }
+
+  // Field 3: android_match_across_profiles
+  if (_has_field_[3]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(3, android_match_across_profiles_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
 }  // namespace perfetto
 }  // namespace protos
 }  // namespace gen
@@ -27777,6 +30790,92 @@ void ChromiumHistogramSamplesConfig_HistogramSample::Serialize(::protozero::Mess
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
+// gen_amalgamated begin source: gen/protos/perfetto/config/chrome/sampling_heap_profiler.gen.cc
+// gen_amalgamated expanded: #include "perfetto/protozero/gen_field_helpers.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/scattered_heap_buffer.h"
+// DO NOT EDIT. Autogenerated by Perfetto cppgen_plugin
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
+
+namespace perfetto {
+namespace protos {
+namespace gen {
+
+ChromiumSamplingHeapProfilerConfig::ChromiumSamplingHeapProfilerConfig() = default;
+ChromiumSamplingHeapProfilerConfig::~ChromiumSamplingHeapProfilerConfig() = default;
+ChromiumSamplingHeapProfilerConfig::ChromiumSamplingHeapProfilerConfig(const ChromiumSamplingHeapProfilerConfig&) = default;
+ChromiumSamplingHeapProfilerConfig& ChromiumSamplingHeapProfilerConfig::operator=(const ChromiumSamplingHeapProfilerConfig&) = default;
+ChromiumSamplingHeapProfilerConfig::ChromiumSamplingHeapProfilerConfig(ChromiumSamplingHeapProfilerConfig&&) noexcept = default;
+ChromiumSamplingHeapProfilerConfig& ChromiumSamplingHeapProfilerConfig::operator=(ChromiumSamplingHeapProfilerConfig&&) = default;
+
+bool ChromiumSamplingHeapProfilerConfig::operator==(const ChromiumSamplingHeapProfilerConfig& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(sampling_interval_bytes_, other.sampling_interval_bytes_)
+   && ::protozero::internal::gen_helpers::EqualsField(sampling_interval_ms_, other.sampling_interval_ms_);
+}
+
+bool ChromiumSamplingHeapProfilerConfig::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* sampling_interval_bytes */:
+        field.get(&sampling_interval_bytes_);
+        break;
+      case 2 /* sampling_interval_ms */:
+        field.get(&sampling_interval_ms_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string ChromiumSamplingHeapProfilerConfig::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> ChromiumSamplingHeapProfilerConfig::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void ChromiumSamplingHeapProfilerConfig::Serialize(::protozero::Message* msg) const {
+  // Field 1: sampling_interval_bytes
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, sampling_interval_bytes_, msg);
+  }
+
+  // Field 2: sampling_interval_ms
+  if (_has_field_[2]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(2, sampling_interval_ms_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+}  // namespace perfetto
+}  // namespace protos
+}  // namespace gen
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 // gen_amalgamated begin source: gen/protos/perfetto/config/chrome/scenario_config.gen.cc
 // gen_amalgamated expanded: #include "perfetto/protozero/gen_field_helpers.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/message.h"
@@ -27794,16 +30893,18 @@ void ChromiumHistogramSamplesConfig_HistogramSample::Serialize(::protozero::Mess
 // gen_amalgamated expanded: #include "protos/perfetto/config/data_source_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/qnx/qnx_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/linux/journald_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/chrome/histogram_samples.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/system_info/system_info_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/track_event/track_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/test_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/sys_stats/sys_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/sys_stats_counters.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/perf_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/perf_events.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/java_hprof_config.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/heapprofd_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/process_stats/process_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/statsd/statsd_tracing_config.gen.h"
@@ -27837,6 +30938,7 @@ void ChromiumHistogramSamplesConfig_HistogramSample::Serialize(::protozero::Mess
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/app_wakelock_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_sdk_sysprop_guard_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_system_property_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_polled_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_log_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/android_log_constants.gen.h"
@@ -28471,6 +31573,83 @@ void NestedScenarioConfig::Serialize(::protozero::Message* msg) const {
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
+// gen_amalgamated begin source: gen/protos/perfetto/config/chrome/stack_sampling_profiler.gen.cc
+// gen_amalgamated expanded: #include "perfetto/protozero/gen_field_helpers.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/scattered_heap_buffer.h"
+// DO NOT EDIT. Autogenerated by Perfetto cppgen_plugin
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+
+namespace perfetto {
+namespace protos {
+namespace gen {
+
+ChromiumStackSamplingProfilerConfig::ChromiumStackSamplingProfilerConfig() = default;
+ChromiumStackSamplingProfilerConfig::~ChromiumStackSamplingProfilerConfig() = default;
+ChromiumStackSamplingProfilerConfig::ChromiumStackSamplingProfilerConfig(const ChromiumStackSamplingProfilerConfig&) = default;
+ChromiumStackSamplingProfilerConfig& ChromiumStackSamplingProfilerConfig::operator=(const ChromiumStackSamplingProfilerConfig&) = default;
+ChromiumStackSamplingProfilerConfig::ChromiumStackSamplingProfilerConfig(ChromiumStackSamplingProfilerConfig&&) noexcept = default;
+ChromiumStackSamplingProfilerConfig& ChromiumStackSamplingProfilerConfig::operator=(ChromiumStackSamplingProfilerConfig&&) = default;
+
+bool ChromiumStackSamplingProfilerConfig::operator==(const ChromiumStackSamplingProfilerConfig& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(sampling_interval_ms_, other.sampling_interval_ms_);
+}
+
+bool ChromiumStackSamplingProfilerConfig::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* sampling_interval_ms */:
+        field.get(&sampling_interval_ms_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string ChromiumStackSamplingProfilerConfig::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> ChromiumStackSamplingProfilerConfig::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void ChromiumStackSamplingProfilerConfig::Serialize(::protozero::Message* msg) const {
+  // Field 1: sampling_interval_ms
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, sampling_interval_ms_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+}  // namespace perfetto
+}  // namespace protos
+}  // namespace gen
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 // gen_amalgamated begin source: gen/protos/perfetto/config/chrome/system_metrics.gen.cc
 // gen_amalgamated expanded: #include "perfetto/protozero/gen_field_helpers.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/message.h"
@@ -28679,6 +31858,8 @@ bool DataSourceConfig::operator==(const DataSourceConfig& other) const {
    && ::protozero::internal::gen_helpers::EqualsField(buffer_exhausted_policy_, other.buffer_exhausted_policy_)
    && ::protozero::internal::gen_helpers::EqualsField(priority_boost_, other.priority_boost_)
    && ::protozero::internal::gen_helpers::EqualsField(protovm_config_, other.protovm_config_)
+   && ::protozero::internal::gen_helpers::EqualsField(supports_tracing_v2_, other.supports_tracing_v2_)
+   && ::protozero::internal::gen_helpers::EqualsField(experimental_tracing_v2_, other.experimental_tracing_v2_)
    && ::protozero::internal::gen_helpers::EqualsField(ftrace_config_, other.ftrace_config_)
    && ::protozero::internal::gen_helpers::EqualsField(inode_file_config_, other.inode_file_config_)
    && ::protozero::internal::gen_helpers::EqualsField(process_stats_config_, other.process_stats_config_)
@@ -28721,6 +31902,10 @@ bool DataSourceConfig::operator==(const DataSourceConfig& other) const {
    && ::protozero::internal::gen_helpers::EqualsField(android_aflags_config_, other.android_aflags_config_)
    && ::protozero::internal::gen_helpers::EqualsField(journald_config_, other.journald_config_)
    && ::protozero::internal::gen_helpers::EqualsField(display_video_config_, other.display_video_config_)
+   && ::protozero::internal::gen_helpers::EqualsField(chromium_stack_sampling_profiler_, other.chromium_stack_sampling_profiler_)
+   && ::protozero::internal::gen_helpers::EqualsField(chromium_sampling_heap_profiler_, other.chromium_sampling_heap_profiler_)
+   && ::protozero::internal::gen_helpers::EqualsField(android_process_state_config_, other.android_process_state_config_)
+   && ::protozero::internal::gen_helpers::EqualsField(process_smaps_config_, other.process_smaps_config_)
    && ::protozero::internal::gen_helpers::EqualsField(qnx_config_, other.qnx_config_)
    && ::protozero::internal::gen_helpers::EqualsField(legacy_config_, other.legacy_config_)
    && ::protozero::internal::gen_helpers::EqualsField(for_testing_, other.for_testing_);
@@ -28771,6 +31956,12 @@ bool DataSourceConfig::ParseFromArray(const void* raw, size_t size) {
         break;
       case 12 /* protovm_config */:
         (*protovm_config_).ParseFromArray(field.data(), field.size());
+        break;
+      case 147 /* supports_tracing_v2 */:
+        field.get(&supports_tracing_v2_);
+        break;
+      case 148 /* experimental_tracing_v2 */:
+        (*experimental_tracing_v2_).ParseFromArray(field.data(), field.size());
         break;
       case 100 /* ftrace_config */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &ftrace_config_);
@@ -28898,6 +32089,18 @@ bool DataSourceConfig::ParseFromArray(const void* raw, size_t size) {
       case 142 /* display_video_config */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &display_video_config_);
         break;
+      case 143 /* chromium_stack_sampling_profiler */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &chromium_stack_sampling_profiler_);
+        break;
+      case 144 /* chromium_sampling_heap_profiler */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &chromium_sampling_heap_profiler_);
+        break;
+      case 145 /* android_process_state_config */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &android_process_state_config_);
+        break;
+      case 146 /* process_smaps_config */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &process_smaps_config_);
+        break;
       case 150 /* qnx_config */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &qnx_config_);
         break;
@@ -28986,6 +32189,16 @@ void DataSourceConfig::Serialize(::protozero::Message* msg) const {
   // Field 12: protovm_config
   if (_has_field_[12]) {
     (*protovm_config_).Serialize(msg->BeginNestedMessage<::protozero::Message>(12));
+  }
+
+  // Field 147: supports_tracing_v2
+  if (_has_field_[147]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(147, supports_tracing_v2_, msg);
+  }
+
+  // Field 148: experimental_tracing_v2
+  if (_has_field_[148]) {
+    (*experimental_tracing_v2_).Serialize(msg->BeginNestedMessage<::protozero::Message>(148));
   }
 
   // Field 100: ftrace_config
@@ -29198,6 +32411,26 @@ void DataSourceConfig::Serialize(::protozero::Message* msg) const {
     msg->AppendString(142, display_video_config_);
   }
 
+  // Field 143: chromium_stack_sampling_profiler
+  if (_has_field_[143]) {
+    msg->AppendString(143, chromium_stack_sampling_profiler_);
+  }
+
+  // Field 144: chromium_sampling_heap_profiler
+  if (_has_field_[144]) {
+    msg->AppendString(144, chromium_sampling_heap_profiler_);
+  }
+
+  // Field 145: android_process_state_config
+  if (_has_field_[145]) {
+    msg->AppendString(145, android_process_state_config_);
+  }
+
+  // Field 146: process_smaps_config
+  if (_has_field_[146]) {
+    msg->AppendString(146, process_smaps_config_);
+  }
+
   // Field 150: qnx_config
   if (_has_field_[150]) {
     msg->AppendString(150, qnx_config_);
@@ -29211,6 +32444,148 @@ void DataSourceConfig::Serialize(::protozero::Message* msg) const {
   // Field 1001: for_testing
   if (_has_field_[1001]) {
     (*for_testing_).Serialize(msg->BeginNestedMessage<::protozero::Message>(1001));
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+DataSourceConfig_ExperimentalTracingV2Config::DataSourceConfig_ExperimentalTracingV2Config() = default;
+DataSourceConfig_ExperimentalTracingV2Config::~DataSourceConfig_ExperimentalTracingV2Config() = default;
+DataSourceConfig_ExperimentalTracingV2Config::DataSourceConfig_ExperimentalTracingV2Config(const DataSourceConfig_ExperimentalTracingV2Config&) = default;
+DataSourceConfig_ExperimentalTracingV2Config& DataSourceConfig_ExperimentalTracingV2Config::operator=(const DataSourceConfig_ExperimentalTracingV2Config&) = default;
+DataSourceConfig_ExperimentalTracingV2Config::DataSourceConfig_ExperimentalTracingV2Config(DataSourceConfig_ExperimentalTracingV2Config&&) noexcept = default;
+DataSourceConfig_ExperimentalTracingV2Config& DataSourceConfig_ExperimentalTracingV2Config::operator=(DataSourceConfig_ExperimentalTracingV2Config&&) = default;
+
+bool DataSourceConfig_ExperimentalTracingV2Config::operator==(const DataSourceConfig_ExperimentalTracingV2Config& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(use_v2_probability_percent_, other.use_v2_probability_percent_)
+   && ::protozero::internal::gen_helpers::EqualsField(chunk_size_options_, other.chunk_size_options_)
+   && ::protozero::internal::gen_helpers::EqualsField(drain_occupancy_percent_, other.drain_occupancy_percent_);
+}
+
+int DataSourceConfig_ExperimentalTracingV2Config::chunk_size_options_size() const { return static_cast<int>(chunk_size_options_.size()); }
+void DataSourceConfig_ExperimentalTracingV2Config::clear_chunk_size_options() { chunk_size_options_.clear(); }
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption* DataSourceConfig_ExperimentalTracingV2Config::add_chunk_size_options() { chunk_size_options_.emplace_back(); return &chunk_size_options_.back(); }
+bool DataSourceConfig_ExperimentalTracingV2Config::ParseFromArray(const void* raw, size_t size) {
+  chunk_size_options_.clear();
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* use_v2_probability_percent */:
+        field.get(&use_v2_probability_percent_);
+        break;
+      case 2 /* chunk_size_options */:
+        chunk_size_options_.emplace_back();
+        chunk_size_options_.back().ParseFromArray(field.data(), field.size());
+        break;
+      case 3 /* drain_occupancy_percent */:
+        field.get(&drain_occupancy_percent_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string DataSourceConfig_ExperimentalTracingV2Config::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> DataSourceConfig_ExperimentalTracingV2Config::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void DataSourceConfig_ExperimentalTracingV2Config::Serialize(::protozero::Message* msg) const {
+  // Field 1: use_v2_probability_percent
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, use_v2_probability_percent_, msg);
+  }
+
+  // Field 2: chunk_size_options
+  for (auto& it : chunk_size_options_) {
+    it.Serialize(msg->BeginNestedMessage<::protozero::Message>(2));
+  }
+
+  // Field 3: drain_occupancy_percent
+  if (_has_field_[3]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(3, drain_occupancy_percent_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption() = default;
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::~DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption() = default;
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption(const DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption&) = default;
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption& DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::operator=(const DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption&) = default;
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption(DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption&&) noexcept = default;
+DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption& DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::operator=(DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption&&) = default;
+
+bool DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::operator==(const DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(size_bytes_, other.size_bytes_)
+   && ::protozero::internal::gen_helpers::EqualsField(weight_, other.weight_);
+}
+
+bool DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* size_bytes */:
+        field.get(&size_bytes_);
+        break;
+      case 2 /* weight */:
+        field.get(&weight_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void DataSourceConfig_ExperimentalTracingV2Config_ChunkSizeOption::Serialize(::protozero::Message* msg) const {
+  // Field 1: size_bytes
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, size_bytes_, msg);
+  }
+
+  // Field 2: weight
+  if (_has_field_[2]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(2, weight_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -29254,9 +32629,13 @@ bool EtwConfig::operator==(const EtwConfig& other) const {
    && ::protozero::internal::gen_helpers::EqualsField(file_provider_events_, other.file_provider_events_)
    && ::protozero::internal::gen_helpers::EqualsField(stack_sampling_events_, other.stack_sampling_events_)
    && ::protozero::internal::gen_helpers::EqualsField(disk_provider_events_, other.disk_provider_events_)
-   && ::protozero::internal::gen_helpers::EqualsField(system_io_provider_events_, other.system_io_provider_events_);
+   && ::protozero::internal::gen_helpers::EqualsField(system_io_provider_events_, other.system_io_provider_events_)
+   && ::protozero::internal::gen_helpers::EqualsField(stack_sampling_debug_ids_, other.stack_sampling_debug_ids_);
 }
 
+int EtwConfig::stack_sampling_debug_ids_size() const { return static_cast<int>(stack_sampling_debug_ids_.size()); }
+void EtwConfig::clear_stack_sampling_debug_ids() { stack_sampling_debug_ids_.clear(); }
+EtwConfig_DebugId* EtwConfig::add_stack_sampling_debug_ids() { stack_sampling_debug_ids_.emplace_back(); return &stack_sampling_debug_ids_.back(); }
 bool EtwConfig::ParseFromArray(const void* raw, size_t size) {
   kernel_flags_.clear();
   scheduler_provider_events_.clear();
@@ -29265,6 +32644,7 @@ bool EtwConfig::ParseFromArray(const void* raw, size_t size) {
   stack_sampling_events_.clear();
   disk_provider_events_.clear();
   system_io_provider_events_.clear();
+  stack_sampling_debug_ids_.clear();
   unknown_fields_.clear();
   bool packed_error = false;
 
@@ -29301,6 +32681,10 @@ bool EtwConfig::ParseFromArray(const void* raw, size_t size) {
       case 7 /* system_io_provider_events */:
         system_io_provider_events_.emplace_back();
         ::protozero::internal::gen_helpers::DeserializeString(field, &system_io_provider_events_.back());
+        break;
+      case 8 /* stack_sampling_debug_ids */:
+        stack_sampling_debug_ids_.emplace_back();
+        stack_sampling_debug_ids_.back().ParseFromArray(field.data(), field.size());
         break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
@@ -29356,6 +32740,75 @@ void EtwConfig::Serialize(::protozero::Message* msg) const {
   // Field 7: system_io_provider_events
   for (auto& it : system_io_provider_events_) {
     ::protozero::internal::gen_helpers::SerializeString(7, it, msg);
+  }
+
+  // Field 8: stack_sampling_debug_ids
+  for (auto& it : stack_sampling_debug_ids_) {
+    it.Serialize(msg->BeginNestedMessage<::protozero::Message>(8));
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+EtwConfig_DebugId::EtwConfig_DebugId() = default;
+EtwConfig_DebugId::~EtwConfig_DebugId() = default;
+EtwConfig_DebugId::EtwConfig_DebugId(const EtwConfig_DebugId&) = default;
+EtwConfig_DebugId& EtwConfig_DebugId::operator=(const EtwConfig_DebugId&) = default;
+EtwConfig_DebugId::EtwConfig_DebugId(EtwConfig_DebugId&&) noexcept = default;
+EtwConfig_DebugId& EtwConfig_DebugId::operator=(EtwConfig_DebugId&&) = default;
+
+bool EtwConfig_DebugId::operator==(const EtwConfig_DebugId& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(path_, other.path_)
+   && ::protozero::internal::gen_helpers::EqualsField(debug_id_, other.debug_id_);
+}
+
+bool EtwConfig_DebugId::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* path */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &path_);
+        break;
+      case 2 /* debug_id */:
+        ::protozero::internal::gen_helpers::DeserializeString(field, &debug_id_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string EtwConfig_DebugId::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> EtwConfig_DebugId::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void EtwConfig_DebugId::Serialize(::protozero::Message* msg) const {
+  // Field 1: path
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeString(1, path_, msg);
+  }
+
+  // Field 2: debug_id
+  if (_has_field_[2]) {
+    ::protozero::internal::gen_helpers::SerializeString(2, debug_id_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -29471,16 +32924,18 @@ void InterceptorConfig::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/data_source_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/qnx/qnx_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/linux/journald_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/chrome/histogram_samples.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/system_info/system_info_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/track_event/track_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/test_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/sys_stats/sys_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/sys_stats_counters.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/perf_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/perf_events.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/java_hprof_config.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/heapprofd_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/process_stats/process_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/statsd/statsd_tracing_config.gen.h"
@@ -29514,6 +32969,7 @@ void InterceptorConfig::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/app_wakelock_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_sdk_sysprop_guard_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_system_property_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_polled_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_log_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/android_log_constants.gen.h"
@@ -30079,16 +33535,18 @@ void TestConfig_DummyFields::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/data_source_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/qnx/qnx_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/linux/journald_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/chrome/histogram_samples.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/system_info/system_info_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/track_event/track_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/test_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/sys_stats/sys_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/sys_stats_counters.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/perf_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/perf_events.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/java_hprof_config.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/heapprofd_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/process_stats/process_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/statsd/statsd_tracing_config.gen.h"
@@ -30122,6 +33580,7 @@ void TestConfig_DummyFields::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/app_wakelock_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_sdk_sysprop_guard_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_system_property_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_polled_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_log_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/android_log_constants.gen.h"
@@ -30146,6 +33605,7 @@ TraceConfig& TraceConfig::operator=(TraceConfig&&) = default;
 bool TraceConfig::operator==(const TraceConfig& other) const {
   return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
    && ::protozero::internal::gen_helpers::EqualsField(buffers_, other.buffers_)
+   && ::protozero::internal::gen_helpers::EqualsField(experimental_trace_buffer_v2_compaction_, other.experimental_trace_buffer_v2_compaction_)
    && ::protozero::internal::gen_helpers::EqualsField(data_sources_, other.data_sources_)
    && ::protozero::internal::gen_helpers::EqualsField(builtin_data_sources_, other.builtin_data_sources_)
    && ::protozero::internal::gen_helpers::EqualsField(duration_ms_, other.duration_ms_)
@@ -30186,7 +33646,8 @@ bool TraceConfig::operator==(const TraceConfig& other) const {
    && ::protozero::internal::gen_helpers::EqualsField(write_flush_mode_, other.write_flush_mode_)
    && ::protozero::internal::gen_helpers::EqualsField(fflush_post_write_, other.fflush_post_write_)
    && ::protozero::internal::gen_helpers::EqualsField(trace_all_machines_, other.trace_all_machines_)
-   && ::protozero::internal::gen_helpers::EqualsField(trace_attributes_, other.trace_attributes_);
+   && ::protozero::internal::gen_helpers::EqualsField(trace_attributes_, other.trace_attributes_)
+   && ::protozero::internal::gen_helpers::EqualsField(persist_trace_across_reboots_, other.persist_trace_across_reboots_);
 }
 
 int TraceConfig::buffers_size() const { return static_cast<int>(buffers_.size()); }
@@ -30219,6 +33680,9 @@ bool TraceConfig::ParseFromArray(const void* raw, size_t size) {
       case 1 /* buffers */:
         buffers_.emplace_back();
         buffers_.back().ParseFromArray(field.data(), field.size());
+        break;
+      case 50 /* experimental_trace_buffer_v2_compaction */:
+        field.get(&experimental_trace_buffer_v2_compaction_);
         break;
       case 2 /* data_sources */:
         data_sources_.emplace_back();
@@ -30347,6 +33811,9 @@ bool TraceConfig::ParseFromArray(const void* raw, size_t size) {
       case 48 /* trace_attributes */:
         (*trace_attributes_).ParseFromArray(field.data(), field.size());
         break;
+      case 49 /* persist_trace_across_reboots */:
+        field.get(&persist_trace_across_reboots_);
+        break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
         break;
@@ -30371,6 +33838,11 @@ void TraceConfig::Serialize(::protozero::Message* msg) const {
   // Field 1: buffers
   for (auto& it : buffers_) {
     it.Serialize(msg->BeginNestedMessage<::protozero::Message>(1));
+  }
+
+  // Field 50: experimental_trace_buffer_v2_compaction
+  if (_has_field_[50]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(50, experimental_trace_buffer_v2_compaction_, msg);
   }
 
   // Field 2: data_sources
@@ -30576,6 +34048,11 @@ void TraceConfig::Serialize(::protozero::Message* msg) const {
   // Field 48: trace_attributes
   if (_has_field_[48]) {
     (*trace_attributes_).Serialize(msg->BeginNestedMessage<::protozero::Message>(48));
+  }
+
+  // Field 49: persist_trace_across_reboots
+  if (_has_field_[49]) {
+    ::protozero::internal::gen_helpers::SerializeTinyVarInt(49, persist_trace_across_reboots_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -32130,6 +35607,8 @@ void TraceConfig_BufferConfig::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated begin source: gen/protos/perfetto/trace/android/packages_list.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/trace/android/pixel_modem_events.pbzero.cc
+// Intentionally empty (crbug.com/998165)
+// gen_amalgamated begin source: gen/protos/perfetto/trace/android/recovered_trace_info.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/trace/android/user_list.pbzero.cc
 // Intentionally empty (crbug.com/998165)
@@ -38258,6 +41737,8 @@ void TrackEvent_InlineCallstack_Frame::Serialize(::protozero::Message* msg) cons
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/android/android_polled_state_config.pbzero.cc
 // Intentionally empty (crbug.com/998165)
+// gen_amalgamated begin source: gen/protos/perfetto/config/android/android_process_state_config.pbzero.cc
+// Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/android/android_sdk_sysprop_guard_config.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/android/android_system_property_config.pbzero.cc
@@ -38336,7 +41817,11 @@ void TrackEvent_InlineCallstack_Frame::Serialize(::protozero::Message* msg) cons
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/chrome/histogram_samples.pbzero.cc
 // Intentionally empty (crbug.com/998165)
+// gen_amalgamated begin source: gen/protos/perfetto/config/chrome/sampling_heap_profiler.pbzero.cc
+// Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/chrome/scenario_config.pbzero.cc
+// Intentionally empty (crbug.com/998165)
+// gen_amalgamated begin source: gen/protos/perfetto/config/chrome/stack_sampling_profiler.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/config/chrome/system_metrics.pbzero.cc
 // Intentionally empty (crbug.com/998165)
@@ -38477,6 +41962,8 @@ void TrackEvent_InlineCallstack_Frame::Serialize(::protozero::Message* msg) cons
 // gen_amalgamated begin source: gen/protos/perfetto/trace/ftrace/panel.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/trace/ftrace/perf_trace_counters.pbzero.cc
+// Intentionally empty (crbug.com/998165)
+// gen_amalgamated begin source: gen/protos/perfetto/trace/ftrace/pixel_metrics.pbzero.cc
 // Intentionally empty (crbug.com/998165)
 // gen_amalgamated begin source: gen/protos/perfetto/trace/ftrace/pixel_mm.pbzero.cc
 // Intentionally empty (crbug.com/998165)
@@ -39301,7 +42788,7 @@ namespace perfetto {
 // The SMB is *not* the ultimate logging buffer seen by the Consumer. That one
 // is larger (~MBs) and not shared with Producers.
 // Each SMB is small, typically few KB. Its size is configurable by the producer
-// within a max limit of ~MB (see kMaxShmSize in tracing_service_impl.cc).
+// within a max limit of ~MB (see kMaxShmSize in tracing_service.h).
 // The SMB is partitioned into fixed-size Page(s). The size of the Pages are
 // determined by each Producer at connection time and cannot be changed.
 // Hence, different producers can have SMB(s) that have a different Page size
@@ -40512,6 +43999,55 @@ class ClientIdentity;
 // TODO: for the moment this assumes that all the calls happen on the same
 // thread/sequence. Not sure this will be the case long term in Chrome.
 
+// A shared memory layout and the operations that send its data to the service.
+// Each version is independent. Support for v2 does not imply support for v1.
+//
+// Each value is a single bit. Peers exchange and store a set of versions as a
+// uint32_t mask, e.g. kProtocolAbiV1 | kProtocolAbiV2.
+// A new version must take the next unused bit: 1 << 2, then 1 << 3.
+//
+// At connection setup:
+// - The producer sends the mask of versions it supports in
+//   InitializeConnection.
+// - The service returns the mask of versions that both sides support.
+// - An old peer sends no mask. This means v1 only.
+// - No common version means the connection fails.
+// The proto enum in protos/perfetto/ipc/producer_port.proto has the same
+// values.
+//
+// The common mask stays fixed for the connection. A writer must use one of
+// these versions that its data source config and target buffer permit.
+//
+// A layout change that an old peer cannot read needs a new version.
+enum ProtocolAbiVersion : uint32_t {
+  // The original protocol.
+  // - The producer and the service share one shared memory buffer (SMB) of
+  //   pages and chunks.
+  // - Writers fill chunks. The producer tells the service which chunks are
+  //   complete with CommitData() IPCs.
+  // - Lengths of nested messages that cross a chunk are patched later, usually
+  //   through CommitData().
+  // Layout: include/perfetto/ext/tracing/core/shared_memory_abi.h.
+  // Docs: https://perfetto.dev/docs/design-docs/api-and-abi#shmem-abi.
+  kProtocolAbiV1 = 1 << 0,
+
+  // Tracing v2. It is still under development and its ABI is not stable yet.
+  //
+  // The producer allocates a ring buffer:
+  // - AttachV2RingBuffer() shares it with the service, once.
+  // - Writers append chunks and never patch them. Nested messages use proto
+  //   group encoding, so no length needs a patch.
+  // - DrainV2RingBuffer() asks the service to read it. There is no CommitData()
+  //   for these chunks.
+  // A connection can use both writer types only if both versions are in the
+  // common mask. A writer sequence must use one format throughout its life.
+  // Layout: src/tracing/v2/shared_ring_buffer_abi.h.
+  // Design: RFC-0014, https://github.com/google/perfetto/discussions/4508.
+  // Ring buffer ABI: RFC-0046,
+  // https://github.com/google/perfetto/discussions/7120.
+  kProtocolAbiV2 = 1 << 1,
+};
+
 // The API for the Producer port of the Service.
 // Subclassed by:
 // 1. The tracing_service_impl.cc business logic when returning it in response
@@ -40560,6 +44096,59 @@ class PERFETTO_EXPORT_COMPONENT ProducerEndpoint {
 
   virtual SharedMemory* shared_memory() const = 0;
 
+  // Attempts to allocate and attach the producer's tracing v2 ring buffer.
+  // Call on the endpoint thread after tracing setup, if the caller selects v2.
+  // Complete this call before allowing writer threads to call
+  // CreateTraceWriterV2().
+  // - Uses |config|'s chunk size options and drain occupancy percentage.
+  //   Pass the config of the first instance that selects v2.
+  // - After the first attempt, later calls on the same connection do nothing,
+  //   even if the config differs or sizing, allocation or attachment failed.
+  //   This keeps the arbiter pointer stable for writer threads, which read it
+  //   without a lock.
+  // - Does not wait for the service's attach reply. Writers can publish while
+  //   the reply is pending.
+  // - Does nothing if the endpoint or the connection has no tracing v2.
+  virtual void InitializeV2RingBuffer(const DataSourceConfig& config);
+
+  // Attaches the producer's tracing v2 ring buffer to the service, which
+  // installs a reader for it. The producer calls this on the endpoint
+  // sequence, before any DrainV2RingBuffer().
+  // - The producer owns |memory| and keeps it mapped for its writers.
+  // - Over IPC, ProducerIPCClientImpl sends the descriptor of |memory| in the
+  //   AttachV2RingBuffer IPC. ProducerIPCService maps it and calls this on the
+  //   service's ProducerEndpointImpl.
+  // - The ring buffer must be new: the reader starts at position 0. A ring
+  //   buffer that another reader drained fails on the first drain.
+  //
+  // Results:
+  // - Accepted: the layout is valid and the reader exists. Data that the
+  //   producer published before the call is kept. The service takes a
+  //   reference to |memory| and keeps it until the producer disconnects.
+  // - Rejected: the connection and any existing attachment stay unchanged.
+  //   The service keeps no reference to |memory|.
+  //   If no ring buffer is attached, the producer can retry with a valid
+  //   mapping.
+  // - |callback| runs on the endpoint sequence, possibly inline.
+  // - |memory| refers to the caller's shared_ptr, and |callback| may reset it.
+  //   An implementation that needs the mapping after running |callback| must
+  //   copy |memory| first.
+  virtual void AttachV2RingBuffer(const std::shared_ptr<SharedMemory>& memory,
+                                  uint32_t chunk_size_bytes,
+                                  std::function<void(bool)> callback);
+
+  // Requests a drain of the tracing v2 ring buffer, the equivalent of
+  // CommitData() for the v2 protocol.
+  //
+  // - Called on the producer endpoint sequence. The call has no reply.
+  // - Without an accepted ring buffer, the call does nothing.
+  // - The service processes requests from each producer in order. Flush relies
+  //   on the drain completing before later requests, such as
+  //   NotifyDataSourceStopped().
+  //
+  // See RFC 0046: https://github.com/google/perfetto/discussions/7120.
+  virtual void DrainV2RingBuffer();
+
   // Size of shared memory buffer pages. It's always a multiple of 4K.
   // See shared_memory_abi.h
   virtual size_t shared_buffer_page_size_kb() const = 0;
@@ -40575,9 +44164,23 @@ class PERFETTO_EXPORT_COMPONENT ProducerEndpoint {
   // writer should be stored by the tracing service. This value is passed
   // upon creation of the data source (StartDataSource()) in the
   // DataSourceConfig.target_buffer().
+  //
+  // This method always creates a v1 writer, which writes into the
+  // shared memory buffer (SMB).
+  // If v1 is not in the connection's common mask, it returns a
+  // NullTraceWriter, which discards all packets.
   virtual std::unique_ptr<TraceWriter> CreateTraceWriter(
       BufferID target_buffer,
       BufferExhaustedPolicy buffer_exhausted_policy) = 0;
+
+  // |CreateTraceWriter| equivalent for tracing service v2.
+  // Creates a ring buffer writer, or a NullTraceWriter on failure.
+  // - Any thread can call it after InitializeV2RingBuffer() returns.
+  // - Does not initialize the ring buffer, and never falls back to v1.
+  // - Endpoints without tracing v2 support return a NullTraceWriter by default.
+  virtual std::unique_ptr<TraceWriter> CreateTraceWriterV2(
+      BufferID,
+      BufferExhaustedPolicy);
 
   // TODO(eseckler): Also expose CreateStartupTraceWriter() ?
 
@@ -40827,6 +44430,8 @@ class PERFETTO_EXPORT_COMPONENT TracingService {
   // Default sizes used by the service implementation and client library.
   static constexpr size_t kDefaultShmPageSize = 4096ul;
   static constexpr size_t kDefaultShmSize = 256 * 1024ul;
+  // Maximum size in bytes for service created or producer provided SMBs.
+  static constexpr size_t kMaxShmSize = 32 * 1024 * 1024ul;
 
   enum class ProducerSMBScrapingMode {
     // Use service's default setting for SMB scraping. Currently, the default
@@ -40859,8 +44464,9 @@ class PERFETTO_EXPORT_COMPONENT TracingService {
   // specifically:
   // 1) The Service will call Producer::* methods on the Service's task runner.
   // 2) The Producer should call ProducerEndpoint::* methods only on the
-  //    service's task runner, except for ProducerEndpoint::CreateTraceWriter(),
-  //    which can be called on any thread. To disconnect just destroy the
+  //    service's task runner, except for CreateTraceWriter() and
+  //    CreateTraceWriterV2(), which can be called on any thread.
+  //    To disconnect just destroy the
   //    returned ProducerEndpoint object. It is safe to destroy the Producer
   //    once the Producer::OnDisconnect() has been invoked.
   //
@@ -40871,7 +44477,7 @@ class PERFETTO_EXPORT_COMPONENT TracingService {
   // (e.g., if the hints are unreasonably large or other sizes were configured
   // in a tracing session's config). |in_process| enables the ProducerEndpoint
   // to manage its own shared memory and enables use of
-  // |ProducerEndpoint::CreateTraceWriter|.
+  // |ProducerEndpoint::CreateTraceWriter| and |CreateTraceWriterV2|.
   //
   // The producer can optionally provide a non-null |shm|, which the service
   // will adopt for the connection to the producer, provided it is correctly
@@ -40888,6 +44494,9 @@ class PERFETTO_EXPORT_COMPONENT TracingService {
   // Producer::StartDataSource(). The |shm| will also be rejected when
   // connecting to a service that is too old (pre Android-11).
   //
+  // |protocol_abi_versions| is a bitmask of the ProtocolAbiVersion values that
+  // both peers support. It must not be zero. The default is v1 only.
+  //
   // Can return null in the unlikely event that service has too many producers
   // connected.
   virtual std::unique_ptr<ProducerEndpoint> ConnectProducer(
@@ -40901,7 +44510,8 @@ class PERFETTO_EXPORT_COMPONENT TracingService {
       size_t shared_memory_page_size_hint_bytes = 0,
       std::unique_ptr<SharedMemory> shm = nullptr,
       const std::string& sdk_version = {},
-      const std::string& machine_name = {}) = 0;
+      const std::string& machine_name = {},
+      uint32_t protocol_abi_versions = kProtocolAbiV1) = 0;
 
   // Connects a Consumer instance and obtains a ConsumerEndpoint, which is
   // essentially a 1:1 channel between one Consumer and the Service.
@@ -41119,6 +44729,23 @@ class PERFETTO_EXPORT_COMPONENT SharedMemoryArbiter {
   // associated trace writers have been destroyed and this function returns
   // true.
   virtual bool TryShutdown() = 0;
+
+  // WriterIDs for tracing v2 ring buffer writers. Any thread can call these.
+  //
+  // Why v2 writers take their ID from this arbiter:
+  // - The service keys each sequence by (producer, WriterID). v1 and v2
+  //   writers of one producer share that key space, so they share one pool.
+  // - A live ID makes TryShutdown() fail. This keeps the endpoint and the
+  //   ring buffer alive until the last v2 writer is destroyed.
+  //
+  // Unlike CreateTraceWriter(), these do not call RegisterTraceWriter(): each
+  // ring buffer chunk names its own target buffer.
+  //
+  // Returns zero after shutdown or when all IDs are in use.
+  virtual WriterID AllocateTracingV2WriterID() = 0;
+  // Returns the ID to the pool. Call it after the writer's final publication:
+  // another writer can get the ID at once, and TryShutdown() can succeed.
+  virtual void ReleaseTracingV2WriterID(WriterID) = 0;
 
   // Create a bound arbiter instance. Args:
   // |SharedMemory|: the shared memory buffer to use.
@@ -41409,6 +45036,8 @@ class SharedMemoryArbiterImpl : public SharedMemoryArbiter {
   void ScrapeEmulatedSharedMemoryBuffer(
       const std::map<WriterID, BufferID>& buffer_for_writers) override;
   bool TryShutdown() override;
+  WriterID AllocateTracingV2WriterID() override;
+  void ReleaseTracingV2WriterID(WriterID) override;
 
   base::TaskRunner* task_runner() const { return task_runner_; }
   size_t page_size() const { return shmem_abi_.page_size(); }
@@ -42421,6 +46050,12 @@ bool SharedMemoryArbiterImpl::TryDirectPatchLocked(
   for (auto ctm_it = chunks_to_move.rbegin(); ctm_it != chunks_to_move.rend();
        ++ctm_it) {
     uint32_t header_bitmap = shmem_abi_.GetPageHeaderBitmap(ctm_it->page());
+    // The page layout may have changed concurrently in shared memory.
+    // See b/513159433.
+    if (ctm_it->chunk() >=
+        SharedMemoryABI::GetNumChunksFromHeaderBitmap(header_bitmap)) {
+      continue;
+    }
     auto chunk_state = shmem_abi_.GetChunkStateFromHeaderBitmap(
         header_bitmap, ctm_it->chunk());
     // Note: the subset of |commit_data_req_| chunks that still need patching is
@@ -42552,6 +46187,12 @@ void SharedMemoryArbiterImpl::FlushPendingCommitDataRequests(
       // them to kChunkComplete - otherwise the service won't look at them.
       for (auto& ctm : *commit_data_req_->mutable_chunks_to_move()) {
         uint32_t header_bitmap = shmem_abi_.GetPageHeaderBitmap(ctm.page());
+        // The page layout may have changed concurrently in shared memory.
+        // See b/513159433.
+        if (ctm.chunk() >=
+            SharedMemoryABI::GetNumChunksFromHeaderBitmap(header_bitmap)) {
+          continue;
+        }
         auto chunk_state = shmem_abi_.GetChunkStateFromHeaderBitmap(
             header_bitmap, ctm.chunk());
         // Note: the subset of |commit_data_req_| chunks that still need
@@ -43019,6 +46660,16 @@ std::unique_ptr<TraceWriter> SharedMemoryArbiterImpl::CreateTraceWriterInternal(
 
   return std::unique_ptr<TraceWriter>(
       new TraceWriterImpl(this, id, target_buffer, buffer_exhausted_policy));
+}
+
+WriterID SharedMemoryArbiterImpl::AllocateTracingV2WriterID() {
+  std::lock_guard<base::MaybeRtMutex> lock(lock_);
+  return did_shutdown_ ? 0 : active_writer_ids_.Allocate();
+}
+
+void SharedMemoryArbiterImpl::ReleaseTracingV2WriterID(WriterID id) {
+  std::lock_guard<base::MaybeRtMutex> lock(lock_);
+  active_writer_ids_.Free(id);
 }
 
 void SharedMemoryArbiterImpl::ReleaseWriterID(WriterID id) {
@@ -43975,7 +47626,9 @@ class PERFETTO_EXPORT_COMPONENT Producer {
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/producer.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_writer.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
+// gen_amalgamated expanded: #include "src/tracing/core/null_trace_writer.h"
 
 // gen_amalgamated expanded: #include "protos/perfetto/common/tracing_service_state.gen.h"
 
@@ -43998,6 +47651,26 @@ SharedMemoryArbiter::~SharedMemoryArbiter() = default;
 
 // TODO(primiano): make pure virtual after various 3way patches.
 void Consumer::OnSessionCloned(const OnSessionClonedArgs&) {}
+
+// Endpoints without tracing v2 support do not initialize a ring buffer.
+void ProducerEndpoint::InitializeV2RingBuffer(const DataSourceConfig&) {}
+
+// Endpoints without tracing v2 support reject ring buffers.
+void ProducerEndpoint::AttachV2RingBuffer(const std::shared_ptr<SharedMemory>&,
+                                          uint32_t,
+                                          std::function<void(bool)> callback) {
+  callback(false);
+}
+
+// Endpoints without tracing v2 support ignore drain requests.
+void ProducerEndpoint::DrainV2RingBuffer() {}
+
+// Endpoints without tracing v2 support discard v2 packets.
+std::unique_ptr<TraceWriter> ProducerEndpoint::CreateTraceWriterV2(
+    BufferID,
+    BufferExhaustedPolicy) {
+  return std::make_unique<NullTraceWriter>();
+}
 
 }  // namespace perfetto
 // gen_amalgamated begin source: src/tracing/console_interceptor.cc
@@ -44522,6 +48195,7 @@ bool DataSourceBase::CanAdoptStartupSession(
   DataSourceConfig service_config_stripped = service_config;
 
   startup_config_stripped.set_target_buffer(0);
+  startup_config_stripped.set_supports_tracing_v2(false);
   startup_config_stripped.set_tracing_session_id(0);
   startup_config_stripped.set_session_initiator(
       DataSourceConfig::SESSION_INITIATOR_UNSPECIFIED);
@@ -44530,6 +48204,7 @@ bool DataSourceBase::CanAdoptStartupSession(
   startup_config_stripped.set_enable_extra_guardrails(false);
 
   service_config_stripped.set_target_buffer(0);
+  service_config_stripped.set_supports_tracing_v2(false);
   service_config_stripped.set_tracing_session_id(0);
   service_config_stripped.set_session_initiator(
       DataSourceConfig::SESSION_INITIATOR_UNSPECIFIED);
@@ -45968,6 +49643,7 @@ class TracingMuxerImpl : public TracingMuxer {
   void InitializeConsumer(TracingSessionGlobalID session_id);
   void OnConsumerDisconnected(ConsumerImpl* consumer);
   void OnProducerDisconnected(ProducerImpl* producer);
+  void DestroyAllTraceWritersForCurrentThread();
   // Test only method.
   void SweepDeadBackends();
 
@@ -46146,6 +49822,7 @@ class TracingMuxerImpl : public TracingMuxer {
 // gen_amalgamated expanded: #include "perfetto/ext/base/fnv_hash.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/thread_checker.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/uuid.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/waitable_event.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_packet.h"
@@ -47527,6 +51204,22 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::SetupDataSourceImpl(
       }
     }
 
+    // Select v1 or v2 once, so that all writers of this instance agree.
+    // A startup instance keeps v1, also after adoption.
+    // An intercepted instance takes its writer from the interceptor.
+    internal_state->use_tracing_v2 =
+        !startup_session_id && !internal_state->interceptor_id &&
+        rds.params.supports_tracing_v2 && cfg.supports_tracing_v2();
+    const uint32_t probability =
+        cfg.experimental_tracing_v2().use_v2_probability_percent();
+    if (internal_state->use_tracing_v2 && probability < 100) {
+      internal_state->use_tracing_v2 =
+          static_cast<uint64_t>(base::Uuidv4().lsb()) % 100 < probability;
+    }
+    // Complete initialization before writer threads can observe this instance.
+    if (internal_state->use_tracing_v2)
+      backend.producer->service_->InitializeV2RingBuffer(cfg);
+
     // This must be made at the end. See matching acquire-load in
     // DataSource::Trace().
     static_state.valid_instances.fetch_or(1 << i, std::memory_order_release);
@@ -47957,6 +51650,23 @@ void TracingMuxerImpl::SyncProducersForTesting() {
     cv.wait(lock, [&done] { return done; });
   }
   PERFETTO_DCHECK(all_producers_connected);
+}
+
+void TracingMuxerImpl::DestroyAllTraceWritersForCurrentThread() {
+  // Forcefully reset all trace writers on the current thread, regardless of
+  // whether their data source instances are stopped.
+  auto* root_tls = GetOrCreateTracingTLS();
+  auto destroy_all_instances = [](DataSourceThreadLocalState& tls) {
+    for (auto& ds_tls : tls.per_instance) {
+      ds_tls.Reset();
+    }
+  };
+  for (auto& tls : root_tls->data_sources_tls)
+    destroy_all_instances(tls);
+  destroy_all_instances(root_tls->track_event_tls);
+  // Unlike DestroyStoppedTraceWritersForCurrentThread(), we deliberately don't
+  // sync |root_tls->generation|: this only runs at shutdown, after which any
+  // trace point on this thread aborts in TracingMuxerFake anyway.
 }
 
 void TracingMuxerImpl::DestroyStoppedTraceWritersForCurrentThread() {
@@ -48496,8 +52206,12 @@ std::unique_ptr<TraceWriterBase> TracingMuxerImpl::CreateTraceWriter(
     return service->MaybeSharedMemoryArbiter()->CreateStartupTraceWriter(
         startup_buffer_reservation);
   }
-  return service->CreateTraceWriter(data_source->buffer_id,
-                                    buffer_exhausted_policy);
+
+  return data_source->use_tracing_v2
+             ? service->CreateTraceWriterV2(data_source->buffer_id,
+                                            buffer_exhausted_policy)
+             : service->CreateTraceWriter(data_source->buffer_id,
+                                          buffer_exhausted_policy);
 }
 
 // This is called via the public API Tracing::NewTrace().
@@ -48653,7 +52367,7 @@ TracingMuxerImpl::CreateStartupTracingSession(
               "Setting up data source %s for startup tracing with target "
               "buffer reservation %" PRIi32,
               rds.descriptor.name().c_str(),
-              backend.producer->last_startup_target_buffer_reservation_ + 1u);
+              backend.producer->last_startup_target_buffer_reservation_ + 1);
           auto ds = SetupDataSourceImpl(
               rds, backend_id,
               backend.producer->connection_id_.load(std::memory_order_relaxed),
@@ -48910,7 +52624,10 @@ void TracingMuxerImpl::Shutdown() {
 
   // Shutting down on the muxer thread would lead to a deadlock.
   PERFETTO_CHECK(!muxer->task_runner_->RunsTasksOnCurrentThread());
-  muxer->DestroyStoppedTraceWritersForCurrentThread();
+  // Destroy this thread's trace writers, including those of still-running data
+  // sources: the SMB dies with `delete muxer` below, but this thread's TLS only
+  // at platform->Shutdown() further down. Flushing then is a UAF (b/534222391).
+  muxer->DestroyAllTraceWritersForCurrentThread();
 
   std::unique_ptr<base::TaskRunner> owned_task_runner(
       muxer->task_runner_.get());
@@ -48925,10 +52642,9 @@ void TracingMuxerImpl::Shutdown() {
         PERFETTO_CHECK(!consumer->service_);
       }
     }
-    // Make sure no trace writers are lingering around on the muxer thread. Note
-    // that we can't do this for any arbitrary thread in the process; it is the
-    // caller's responsibility to clean them up before shutting down Perfetto.
-    muxer->DestroyStoppedTraceWritersForCurrentThread();
+    // Destroy all writers before delete muxer frees the SMB; any writer left
+    // alive would UAF when the muxer thread exits (b/534222391).
+    muxer->DestroyAllTraceWritersForCurrentThread();
     // The task runner must be deleted outside the muxer thread. This is done by
     // `owned_task_runner` above.
     muxer->task_runner_.release();
@@ -51411,6 +55127,10 @@ enum class PerfettoStatsdAtom {
   kOnTracingDisabled = 4,
   kFinalizeTraceAndExit = 11,
   kCmdFwReportBegin = 49,
+  kRebootTraceRecovered = 66,
+  kRebootTraceUploadTimeout = 67,
+  kRebootTraceUploadLeftover = 68,
+  kRebootTraceParseFailed = 69,
   // Will be removed once incidentd is no longer used.
   kUploadIncidentBegin = 8,
   kNotUploadingEmptyTrace = 17,
@@ -51827,7 +55547,7 @@ using ScopedPcre2Code = std::unique_ptr<pcre2_code, Pcre2CodeDeleter>;
 using ScopedPcre2MatchData =
     std::unique_ptr<pcre2_match_data, Pcre2MatchDataDeleter>;
 
-// PCRE2 backend for Regex. Used on Android when the use_pcre2 flag is enabled.
+// PCRE2 backend for Regex.
 // Header-only so the compiler can inline through unique_ptr<RegexImpl>.
 class RegexPcre2 {
  public:
@@ -52258,7 +55978,6 @@ class RegexStd {
 
 // gen_amalgamated expanded: #include "perfetto/base/build_config.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/flags.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/status_macros.h"
 
 // Unconditional: each header self-guards, so the amalgamator can see through.
@@ -52269,12 +55988,12 @@ class RegexStd {
 // Picks the regex backend and exposes it as PERFETTO_REGEX_BACKEND.
 // Preference order:
 //   1. PERFETTO_REGEX_FORCE_STD -> std::regex
-//   2. PCRE2 (when enabled and the runtime flag is on)
+//   2. PCRE2 (when enabled)
 //   3. RE2   (when enabled)
 //   4. std::regex (fallback)
 #if defined(PERFETTO_REGEX_FORCE_STD)
 #define PERFETTO_REGEX_BACKEND ::perfetto::base::RegexStd
-#elif PERFETTO_BUILDFLAG(PERFETTO_PCRE2) && PERFETTO_FLAGS_USE_PCRE2
+#elif PERFETTO_BUILDFLAG(PERFETTO_PCRE2)
 #define PERFETTO_REGEX_BACKEND ::perfetto::base::RegexPcre2
 #elif PERFETTO_BUILDFLAG(PERFETTO_RE2)
 #define PERFETTO_REGEX_BACKEND ::perfetto::base::RegexRe2
@@ -52535,8 +56254,8 @@ const char* GetVersionCode();
 #ifndef GEN_PERFETTO_VERSION_GEN_H_
 #define GEN_PERFETTO_VERSION_GEN_H_
 
-#define PERFETTO_VERSION_STRING() "v58.2-add693d8b"
-#define PERFETTO_VERSION_SCM_REVISION() "add693d8b338ba9599dbcbc3e300b1ab8c000897"
+#define PERFETTO_VERSION_STRING() "v59.1-1e9c61e98"
+#define PERFETTO_VERSION_SCM_REVISION() "1e9c61e9844affd7dccd3d42d9ea9f3a3d10cf6d"
 
 #endif  // GEN_PERFETTO_VERSION_GEN_H_
 /*
@@ -53095,1613 +56814,6 @@ struct Node {
 
 #endif  // SRC_PROTOVM_NODE_H_
 // gen_amalgamated begin header: src/protovm/slab_allocator.h
-// gen_amalgamated begin header: include/perfetto/ext/base/flat_hash_map.h
-// gen_amalgamated begin header: include/perfetto/ext/base/flat_hash_map_v1.h
-// gen_amalgamated begin header: include/perfetto/ext/base/murmur_hash.h
-// gen_amalgamated begin header: include/perfetto/ext/base/hash.h
-/*
- * Copyright (C) 2019 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_HASH_H_
-#define INCLUDE_PERFETTO_EXT_BASE_HASH_H_
-
-#include <cstddef>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <tuple>
-#include <utility>
-
-namespace perfetto::base {
-
-// ============================================================================
-// Absl-style hash customization point
-// ============================================================================
-//
-// To make a type hashable with Perfetto hash functions, define a friend
-// function template:
-//
-//   template <typename H>
-//   friend H PerfettoHashValue(H h, const MyType& value) {
-//     return H::Combine(std::move(h), value.field1, value.field2);
-//   }
-//
-// This function will be found via ADL (Argument Dependent Lookup) when hashing
-// your type. No forward declaration is needed - ADL finds it in your type's
-// namespace.
-
-// ============================================================================
-// Built-in PerfettoHashValue implementations for common standard library
-// types. These allow standard library types to work seamlessly with the
-// absl-style hash API without requiring users to define their own
-// implementations.
-// ============================================================================
-
-// Hash function for std::optional - hashes the value if present, or a sentinel
-// if not.
-template <typename H, typename T>
-H PerfettoHashValue(H h, const std::optional<T>& value) {
-  if (value.has_value()) {
-    return H::Combine(H::Combine(std::move(h), true), *value);
-  }
-  return H::Combine(std::move(h), false, 0);
-}
-
-// Hash function for std::pair - combines hashes of both elements.
-template <typename H, typename T1, typename T2>
-H PerfettoHashValue(H h, const std::pair<T1, T2>& value) {
-  return H::Combine(std::move(h), value.first, value.second);
-}
-
-// Hash function for std::tuple - combines hashes of all elements.
-template <typename H, typename... Ts>
-H PerfettoHashValue(H h, const std::tuple<Ts...>& value) {
-  return std::apply(
-      [&h](const auto&... elements) {
-        return H::Combine(std::move(h), elements...);
-      },
-      value);
-}
-
-// Hash function for pointers - hashes the pointer value as an integer.
-template <typename H, typename T>
-H PerfettoHashValue(H h, const std::unique_ptr<T>& ptr) {
-  return H::Combine(std::move(h), ptr.get());
-}
-template <typename H, typename T>
-H PerfettoHashValue(H h, const std::shared_ptr<T>& ptr) {
-  return H::Combine(std::move(h), ptr.get());
-}
-
-// This is for using already-hashed key into std::unordered_map and avoid the
-// cost of re-hashing. Example:
-// unordered_map<uint64_t, Value, AlreadyHashed> my_map.
-template <typename T>
-struct AlreadyHashed {
-  size_t operator()(const T& x) const { return static_cast<size_t>(x); }
-};
-
-}  // namespace perfetto::base
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_HASH_H_
-/*
- * Copyright (C) 2019 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
-#define INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
-
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <utility>
-
-// gen_amalgamated expanded: #include "perfetto/ext/base/hash.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/string_view.h"
-// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
-
-// We need <cmath> only for std::isnan here. But cmath is a quite heavy
-// header AND is not frequently used, so its include cost is generally
-// NOT amortized. OTOH this header is very frequently used.
-// The code below avoids pulling cmath in many translation units, reducing
-// compilation time. Under the hoods std::isnan uses __builtin_isnan if
-// available.
-#if PERFETTO_HAS_BUILTIN(__builtin_isnan)
-#define PERFETTO_IS_NAN(x) __builtin_isnan(x)
-#else
-#include <cmath>
-#define PERFETTO_IS_NAN(x) std::isnan(x)
-#endif
-
-// This file provides an implementation of the 64-bit MurmurHash2 algorithm,
-// also known as MurmurHash64A. This algorithm, created by Austin Appleby, is a
-// fast, non-cryptographic hash function with excellent distribution properties,
-// making it ideal for use in hash tables.
-//
-// The file also includes related hashing utilities:
-// - A standalone `fmix64` finalizer from MurmurHash3, used for hashing
-//   individual numeric types.
-// - A hash combiner for creating a single hash from a sequence of values.
-//
-// NOTE: This implementation is NOT cryptographically secure. It must not be
-// used for security-sensitive applications like password storage or digital
-// signatures, as it is not designed to be resistant to malicious attacks.
-
-namespace perfetto::base {
-
-namespace murmur_internal {
-
-// Finalizes an intermediate hash value using the `fmix64` routine from
-// MurmurHash3.
-//
-// This function's purpose is to thoroughly mix the bits of the hash state to
-// ensure the final result is well-distributed, which is critical for avoiding
-// collisions in hash tables.
-//
-// Args:
-//   h: The intermediate hash value to be finalized.
-//
-// Returns:
-//   The final, well-mixed 64-bit hash value.
-inline uint64_t MurmurHashMix(uint64_t h) {
-  h ^= h >> 33;
-  h *= 0xff51afd7ed558ccdULL;
-  h ^= h >> 33;
-  h *= 0xc4ceb9fe1a85ec53ULL;
-  h ^= h >> 33;
-  return h;
-}
-
-// Computes a 64-bit hash for a block of memory using the MurmurHash64A
-// algorithm.
-//
-// The process involves four main steps:
-// 1. Initialization: The hash state is seeded with a value derived from the
-//    input length.
-// 2. Main Loop: Data is processed in 8-byte chunks, with each chunk being
-//    mixed into the hash state.
-// 3. Tail Processing: The final 1-7 bytes of data are handled.
-// 4. Finalization: The hash state is passed through a final mixing sequence to
-//    ensure good bit distribution.
-//
-// Args:
-//   input: A pointer to the data to be hashed.
-//   len:   The length of the data in bytes.
-//
-// Returns:
-//   The 64-bit MurmurHash64A hash of the input data.
-inline uint64_t MurmurHashBytes(const void* input, size_t len) {
-  // This implementation follows the canonical MurmurHash64A algorithm.
-  // The constants `kMulConstant` (m) and the shift value `47` (r) are from
-  // the original specification.
-  // The seed is inspired by the one used in DuckDB.
-  static constexpr uint64_t kSeed = 0xe17a1465U;
-  static constexpr uint64_t kMulConstant = 0xc6a4a7935bd1e995;
-  static constexpr int kShift = 47;
-
-  uint64_t h = kSeed ^ (len * kMulConstant);
-  const auto* data = static_cast<const uint8_t*>(input);
-  const size_t num_blocks = len / 8;
-
-  // Process 8-byte (64-bit) chunks
-  for (size_t i = 0; i < num_blocks; ++i) {
-    uint64_t k;
-    memcpy(&k, data, sizeof(k));
-    data += sizeof(k);  // Advance the pointer by 8 bytes
-
-    k *= kMulConstant;
-    k ^= k >> kShift;
-    k *= kMulConstant;
-
-    h ^= k;
-    h *= kMulConstant;
-  }
-
-  // Process the remaining 1 to 7 bytes
-  // The 'byte_ptr' now points to the beginning of the tail.
-  switch (len & 7) {
-    case 7:
-      h ^= static_cast<uint64_t>(data[6]) << 48;
-      [[fallthrough]];
-    case 6:
-      h ^= static_cast<uint64_t>(data[5]) << 40;
-      [[fallthrough]];
-    case 5:
-      h ^= static_cast<uint64_t>(data[4]) << 32;
-      [[fallthrough]];
-    case 4:
-      h ^= static_cast<uint64_t>(data[3]) << 24;
-      [[fallthrough]];
-    case 3:
-      h ^= static_cast<uint64_t>(data[2]) << 16;
-      [[fallthrough]];
-    case 2:
-      h ^= static_cast<uint64_t>(data[1]) << 8;
-      [[fallthrough]];
-    case 1:
-      h ^= static_cast<uint64_t>(data[0]);
-      h *= kMulConstant;
-  }
-
-  // Final mixing stage
-  h ^= h >> kShift;
-  h *= kMulConstant;
-  h ^= h >> kShift;
-
-  return h;
-}
-
-template <typename Float, typename Int>
-Int NormalizeFloatToInt(Float value) {
-  static_assert(std::is_floating_point_v<Float>);
-  static_assert(std::is_integral_v<Int>);
-
-  // Normalize floating point representations which can vary.
-  if (PERFETTO_UNLIKELY(value == 0.0)) {
-    // Turn negative zero into positive zero
-    value = 0.0;
-  } else if (PERFETTO_UNLIKELY(PERFETTO_IS_NAN(value))) {
-    // Turn arbtirary NaN representations to a consistent NaN repr.
-    value = std::numeric_limits<Float>::quiet_NaN();
-  }
-  Int res;
-  static_assert(sizeof(Float) == sizeof(Int));
-  memcpy(&res, &value, sizeof(Float));
-  return res;
-}
-
-// Computes a 64-bit hash for a single built-in value without any combination.
-// This is the core primitive used by both MurmurHashValue and
-// MurmurHashCombiner::CombineOne for built-in types.
-//
-// NOTE: This function intentionally has no else branch for non-builtin types,
-// which will cause a compile error if called with an unsupported type. Callers
-// should check if the type is supported before calling this function.
-template <typename T>
-auto MurmurHashBuiltinValue(const T& value) {
-  if constexpr (std::is_enum_v<T>) {
-    return murmur_internal::MurmurHashMix(
-        static_cast<uint64_t>(static_cast<std::underlying_type_t<T>>(value)));
-  } else if constexpr (std::is_integral_v<T>) {
-    return murmur_internal::MurmurHashMix(static_cast<uint64_t>(value));
-  } else if constexpr (std::is_same_v<T, double>) {
-    return murmur_internal::MurmurHashMix(
-        murmur_internal::NormalizeFloatToInt<double, uint64_t>(value));
-  } else if constexpr (std::is_same_v<T, float>) {
-    return murmur_internal::MurmurHashMix(
-        murmur_internal::NormalizeFloatToInt<float, uint32_t>(value));
-  } else if constexpr (std::is_same_v<T, std::string> ||
-                       std::is_same_v<T, std::string_view> ||
-                       std::is_same_v<T, base::StringView>) {
-    return murmur_internal::MurmurHashBytes(value.data(), value.size());
-  } else if constexpr (std::is_same_v<T, const char*>) {
-    std::string_view view(value);
-    return murmur_internal::MurmurHashBytes(view.data(), view.size());
-  } else if constexpr (std::is_pointer_v<T>) {
-    return murmur_internal::MurmurHashMix(
-        static_cast<uint64_t>(reinterpret_cast<uintptr_t>(value)));
-  } else {
-    struct InvalidBuiltin {};
-    return InvalidBuiltin{};
-  }
-}
-
-// Helper to check if a type has a built-in MurmurHash implementation.
-template <typename T>
-constexpr bool HasMurmurHashBuiltinValue() {
-  return std::is_same_v<decltype(MurmurHashBuiltinValue(std::declval<T>())),
-                        uint64_t>;
-}
-
-// Helper to check if two types are integeral and U is convertible to T.
-template <typename T, typename U>
-constexpr bool IsConvertibleIntegral() {
-  return std::is_integral_v<T> && std::is_integral_v<U> &&
-         std::is_convertible_v<U, T>;
-}
-
-// Helper to check if a type is string-like (i.e. string, c-string or string
-// views).
-template <typename T>
-constexpr bool IsStringLike() {
-  return std::is_same_v<T, std::string> ||
-         std::is_same_v<T, std::string_view> ||
-         std::is_same_v<T, base::StringView> || std::is_same_v<T, const char*>;
-}
-
-// Helper to check if heterogeneous lookup is allowed between T and U.
-// Only allows it for convertible integral types and string-like types.
-template <typename T, typename U>
-constexpr bool AllowsHeterogeneousLookup() {
-  return IsConvertibleIntegral<T, U>() ||
-         (IsStringLike<T>() && IsStringLike<U>());
-}
-
-// Helper to detect pointers in Combine(...).
-// Hashing pointers directly is prohibited as it often indicates a misuse
-// (e.g., passing ptr and len instead of a single std::string_view).
-template <typename... Args>
-constexpr bool HasPointerV = (std::is_pointer_v<Args> || ...);
-
-}  // namespace murmur_internal
-
-// ============================================================================
-// MurmurHashCombiner - the core hasher state object
-// ============================================================================
-//
-// A helper class to create a 64-bit MurmurHash from a series of
-// structured fields.
-//
-// This class supports both the absl-style hasher API and a direct
-// member Combine() method.
-//
-// Absl-style API (for custom types with PerfettoHashValue):
-//   template <typename H>
-//   friend H PerfettoHashValue(H h, const MyType& value) {
-//     return H::Combine(std::move(h), value.field1, value.field2);
-//   }
-//
-// Direct API (for simple hash combining):
-//   MurmurHashCombiner combiner;
-//   combiner.Combine(field1, field2, ...);
-//   return combiner.digest();
-//
-// IMPORTANT: This is NOT a true streaming hash. It is an order-dependent
-// combiner. It does not guarantee that hashing two concatenated chunks of data
-// will produce the same result as hashing them separately in sequence.
-class MurmurHashCombiner {
- public:
-  MurmurHashCombiner() = default;
-
-  // Static Combine - returns a new hasher with the combined state.
-  // This is used by the absl-style PerfettoHashValue API.
-  template <typename... Args>
-  static MurmurHashCombiner Combine(MurmurHashCombiner h, const Args&... args) {
-    h.Combine(args...);
-    return h;
-  }
-
-  // Member Combine - combines values into this hasher's state.
-  // This is a convenient API for directly combining multiple values.
-  // The combination is order-dependent.
-  template <typename... Args>
-  void Combine(const Args&... args) {
-    static_assert(!murmur_internal::HasPointerV<Args...>,
-                  "MurmurHashCombiner::Combine() does not support pointers. "
-                  "If you want to hash the contents of a memory range, use a "
-                  "single hashable object (e.g., std::string_view). If you "
-                  "want to hash a pointer address, cast it to uintptr_t.");
-    // Uses a C++17 fold expression with CombineOne for each argument.
-    (CombineOne(args), ...);
-  }
-
-  // Returns the digest (i.e. current state of the combiner).
-  uint64_t digest() const { return hash_; }
-
- private:
-  // Combines a single value into the hasher state.
-  template <typename T>
-  void CombineOne(const T& value) {
-    if constexpr (murmur_internal::HasMurmurHashBuiltinValue<T>()) {
-      Update(murmur_internal::MurmurHashBuiltinValue(value));
-    } else {
-      // For custom types, use ADL to find the PerfettoHashValue function.
-      // This will cause a compile error with a clear message if the function
-      // is not defined.
-      hash_ = PerfettoHashValue(std::move(*this), value).digest();
-    }
-  }
-
-  // Low-level update with a pre-computed hash value. This uses a fast,
-  // order-dependent combination step inspired by the `hash_combine` function
-  // in the Boost C++ libraries.
-  void Update(uint64_t piece_hash) {
-    hash_ ^= piece_hash + 0x9e3779b9 + (hash_ << 6) + (hash_ >> 2);
-  }
-
-  static constexpr uint64_t kSeed = 0xe17a1465U;
-  uint64_t hash_ = kSeed;
-};
-
-// Simple wrapper function around MurmurHashCombiner to improve clarity in
-// callsites to not have to instantiate the class, call Combine() then digest().
-template <typename... Args>
-uint64_t MurmurHashCombine(const Args&... value) {
-  return MurmurHashCombiner::Combine(MurmurHashCombiner{}, value...).digest();
-}
-
-// Simple wrapper function to compute a hash value for a single value.
-// This is the primitive hash operation that MurmurHash<T> delegates to.
-//
-// For built-in types (integers, floats, strings), this uses a fast path that
-// avoids the overhead of the MurmurHashCombiner. For custom types, it delegates
-// to MurmurHashCombiner which will use ADL to find the PerfettoHashValue.
-template <typename T>
-uint64_t MurmurHashValue(const T& value) {
-  if constexpr (murmur_internal::HasMurmurHashBuiltinValue<T>()) {
-    return murmur_internal::MurmurHashBuiltinValue(value);
-  } else {
-    return MurmurHashCombine(value);
-  }
-}
-
-// std::hash<T> drop-in class which uses MurmurHashValue as the primitive.
-// All specializations consistently delegate to MurmurHashValue.
-template <typename T>
-struct MurmurHash {
-  using is_transparent = void;
-
-  uint64_t operator()(const T& value) const { return MurmurHashValue(value); }
-
-  // Heterogeneous lookup support. Only allowed for types where it makes sense
-  // (e.g. string-like types and convertible integral types).
-  template <typename U>
-  auto operator()(const U& value) const
-      -> std::enable_if_t<murmur_internal::AllowsHeterogeneousLookup<T, U>(),
-                          uint64_t> {
-    return MurmurHashValue(value);
-  }
-};
-
-}  // namespace perfetto::base
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_MURMUR_HASH_H_
-/*
- * Copyright (C) 2021 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
-#define INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
-// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
-
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <memory>
-#include <type_traits>
-#include <utility>
-
-namespace perfetto::base {
-
-// An open-addressing hashmap implementation.
-// Pointers are not stable, neither for keys nor values.
-// Has similar performances of a RobinHood hash (without the complications)
-// and 2x an unordered map.
-// Doc: http://go/perfetto-hashtables .
-//
-// When used to implement a string pool in TraceProcessor, the performance
-// characteristics obtained by replaying the set of strings seeen in a 4GB trace
-// (226M strings, 1M unique) are the following (see flat_hash_map_benchmark.cc):
-// This(Linear+AppendOnly)    879,383,676 ns    258.013M insertions/s
-// This(LinearProbe):         909,206,047 ns    249.546M insertions/s
-// This(QuadraticProbe):    1,083,844,388 ns    209.363M insertions/s
-// std::unordered_map:      6,203,351,870 ns    36.5811M insertions/s
-// tsl::robin_map:            931,403,397 ns    243.622M insertions/s
-// absl::flat_hash_map:       998,013,459 ns    227.379M insertions/s
-// FollyF14FastMap:         1,181,480,602 ns    192.074M insertions/s
-//
-// The structs below define the probing algorithm used to probe slots upon a
-// collision. They are guaranteed to visit all slots as our table size is always
-// a power of two (see https://en.wikipedia.org/wiki/Quadratic_probing).
-
-// Linear probing can be faster if the hashing is well distributed and the load
-// is not high. For TraceProcessor's StringPool this is the fastest. It can
-// degenerate badly if the hashing doesn't spread (e.g., if using directly pids
-// as keys, with a no-op hashing function).
-struct LinearProbe {
-  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
-    return (key_hash + step) & (capacity - 1);  // Linear probe
-  }
-};
-
-// Generates the sequence: 0, 3, 10, 21, 36, 55, ...
-// Can be a bit (~5%) slower than LinearProbe because it's less cache hot, but
-// avoids degenerating badly if the hash function is bad and causes clusters.
-// A good default choice unless benchmarks prove otherwise.
-struct QuadraticProbe {
-  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
-    return (key_hash + 2 * step * step + step) & (capacity - 1);
-  }
-};
-
-// Tends to perform in the middle between linear and quadratic.
-// It's a bit more cache-effective than the QuadraticProbe but can create more
-// clustering if the hash function doesn't spread well.
-// Generates the sequence: 0, 1, 3, 6, 10, 15, 21, ...
-struct QuadraticHalfProbe {
-  static inline size_t Calc(size_t key_hash, size_t step, size_t capacity) {
-    return (key_hash + (step * step + step) / 2) & (capacity - 1);
-  }
-};
-
-// Non-templated base class to hold helpers for FlatHashMap.
-struct FlatHashMapV1Base {
- public:
-  // Helper to detect if a hasher has is_transparent defined.
-  template <typename, typename = void>
-  struct HasIsTransparent : std::false_type {};
-
-  template <typename H>
-  struct HasIsTransparent<H, std::void_t<typename H::is_transparent>>
-      : std::true_type {};
-
-  // Helper to check if a lookup key type K is allowed.
-  // Returns true if:
-  // 1. K can be implicitly converted to Key, OR
-  // 2. Hasher has is_transparent AND Hasher is invocable with K AND Key and K
-  // are equality comparable
-  template <typename K, typename Key, typename Hasher>
-  static constexpr bool IsLookupKeyAllowed() {
-    if constexpr (HasIsTransparent<Hasher>::value) {
-      return std::is_invocable_v<Hasher, const K&> &&
-             std::is_same_v<decltype(std::declval<const Key&>() ==
-                                     std::declval<const K&>()),
-                            bool>;
-    } else if constexpr (std::is_convertible_v<K, Key>) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-};
-
-template <typename Key,
-          typename Value,
-          typename Hasher = base::MurmurHash<Key>,
-          typename Probe = QuadraticProbe,
-          bool AppendOnly = false>
-class FlatHashMapV1 : protected FlatHashMapV1Base {
- public:
-  class Iterator {
-   public:
-    explicit Iterator(const FlatHashMapV1* map) : map_(map) {
-      FindNextNonFree();
-    }
-    ~Iterator() = default;
-    Iterator(const Iterator&) = default;
-    Iterator& operator=(const Iterator&) = default;
-    Iterator(Iterator&&) noexcept = default;
-    Iterator& operator=(Iterator&&) noexcept = default;
-
-    Key& key() { return map_->keys_[idx_]; }
-    Value& value() { return map_->values_[idx_]; }
-    const Key& key() const { return map_->keys_[idx_]; }
-    const Value& value() const { return map_->values_[idx_]; }
-
-    explicit operator bool() const { return idx_ != kEnd; }
-    Iterator& operator++() {
-      PERFETTO_DCHECK(idx_ < map_->capacity_);
-      ++idx_;
-      FindNextNonFree();
-      return *this;
-    }
-
-   private:
-    static constexpr size_t kEnd = std::numeric_limits<size_t>::max();
-
-    void FindNextNonFree() {
-      const auto& tags = map_->tags_;
-      for (; idx_ < map_->capacity_; idx_++) {
-        if (tags[idx_] != kFreeSlot && (AppendOnly || tags[idx_] != kTombstone))
-          return;
-      }
-      idx_ = kEnd;
-    }
-
-    const FlatHashMapV1* map_ = nullptr;
-    size_t idx_ = 0;
-  };  // Iterator
-  static constexpr int kDefaultLoadLimitPct = 75;
-  explicit FlatHashMapV1(size_t initial_capacity = 0,
-                         int load_limit_pct = kDefaultLoadLimitPct)
-      : load_limit_percent_(load_limit_pct) {
-    if (initial_capacity > 0)
-      Reset(initial_capacity, true);
-  }
-
-  // We are calling Clear() so that the destructors for the inserted entries are
-  // called (unless they are trivial, in which case it will be a no-op).
-  ~FlatHashMapV1() { Clear(); }
-
-  FlatHashMapV1(FlatHashMapV1&& other) noexcept {
-    tags_ = std::move(other.tags_);
-    keys_ = std::move(other.keys_);
-    values_ = std::move(other.values_);
-    capacity_ = other.capacity_;
-    size_ = other.size_;
-    tombstones_ = other.tombstones_;
-    max_probe_length_ = other.max_probe_length_;
-    load_limit_ = other.load_limit_;
-    load_limit_percent_ = other.load_limit_percent_;
-
-    new (&other) FlatHashMapV1();
-  }
-
-  FlatHashMapV1& operator=(FlatHashMapV1&& other) noexcept {
-    this->~FlatHashMapV1();
-    new (this) FlatHashMapV1(std::move(other));
-    return *this;
-  }
-
-  FlatHashMapV1(const FlatHashMapV1&) = delete;
-  FlatHashMapV1& operator=(const FlatHashMapV1&) = delete;
-
-  std::pair<Value*, bool> Insert(Key key, Value value) {
-    const size_t key_hash = Hasher{}(key);
-    const uint8_t tag = HashToTag(key_hash);
-    static constexpr size_t kSlotNotFound = std::numeric_limits<size_t>::max();
-
-    // This for loop does in reality at most two attempts:
-    // The first iteration either:
-    //  - Early-returns, because the key exists already,
-    //  - Finds an insertion slot and proceeds because the load is < limit.
-    // The second iteration is only hit in the unlikely case of this insertion
-    // bringing the table beyond the target |load_limit_| (or the edge case
-    // of the HT being full, if |load_limit_pct_| = 100).
-    // We cannot simply pre-grow the table before insertion, because we must
-    // guarantee that calling Insert() with a key that already exists doesn't
-    // invalidate iterators.
-    size_t insertion_slot;
-    size_t probe_len;
-    for (;;) {
-      PERFETTO_DCHECK((capacity_ & (capacity_ - 1)) == 0);  // Must be a pow2.
-      insertion_slot = kSlotNotFound;
-      // Start the iteration at the desired slot (key_hash % capacity_)
-      // searching either for a free slot or a tombstone. In the worst case we
-      // might end up scanning the whole array of slots. The Probe functions are
-      // guaranteed to visit all the slots within |capacity_| steps. If we find
-      // a free slot, we can stop the search immediately (a free slot acts as an
-      // "end of chain for entries having the same hash". If we find a
-      // tombstones (a deleted slot) we remember its position, but have to keep
-      // searching until a free slot to make sure we don't insert a duplicate
-      // key.
-      for (probe_len = 0; probe_len < capacity_;) {
-        const size_t idx = Probe::Calc(key_hash, probe_len, capacity_);
-        PERFETTO_DCHECK(idx < capacity_);
-        const uint8_t tag_idx = tags_[idx];
-        ++probe_len;
-        if (tag_idx == kFreeSlot) {
-          // Rationale for "insertion_slot == kSlotNotFound": if we encountered
-          // a tombstone while iterating we should reuse that rather than
-          // taking another slot.
-          if (AppendOnly || insertion_slot == kSlotNotFound)
-            insertion_slot = idx;
-          break;
-        }
-        // We should never encounter tombstones in AppendOnly mode.
-        PERFETTO_DCHECK(!(tag_idx == kTombstone && AppendOnly));
-        if (!AppendOnly && tag_idx == kTombstone) {
-          insertion_slot = idx;
-          continue;
-        }
-        if (tag_idx == tag && keys_[idx] == key) {
-          // The key is already in the map.
-          return std::make_pair(&values_[idx], false);
-        }
-      }  // for (idx)
-
-      // If we got to this point the key does not exist (otherwise we would have
-      // hit the return above) and we are going to insert a new entry.
-      // Before doing so, ensure we stay under the target load limit.
-      if (PERFETTO_UNLIKELY(size_ >= load_limit_)) {
-        MaybeGrowAndRehash(/*grow=*/true);
-        continue;
-      }
-      // If there are too many tombstones, it's worth doing a rehash to
-      // clean them up. This is to avoid the case where we have a table full
-      // of tombstones which would cause lookups to be very slow.
-      bool is_many_tombstones = tombstones_ > size_ && size_ > 128;
-      bool is_tombstones_plus_size_too_high = tombstones_ + size_ > load_limit_;
-      if (PERFETTO_UNLIKELY(is_many_tombstones ||
-                            is_tombstones_plus_size_too_high)) {
-        MaybeGrowAndRehash(/*grow=*/false);
-        continue;
-      }
-      PERFETTO_DCHECK(insertion_slot != kSlotNotFound);
-      break;
-    }  // for (attempt)
-
-    PERFETTO_CHECK(insertion_slot < capacity_);
-
-    // We found a free slot (or a tombstone). Proceed with the insertion.
-    if (tags_[insertion_slot] == kTombstone) {
-      PERFETTO_DCHECK(tombstones_ > 0);
-      tombstones_--;
-    }
-    Value* value_idx = &values_[insertion_slot];
-    new (&keys_[insertion_slot]) Key(std::move(key));
-    new (value_idx) Value(std::move(value));
-    tags_[insertion_slot] = tag;
-    PERFETTO_DCHECK(probe_len > 0 && probe_len <= capacity_);
-    max_probe_length_ = std::max(max_probe_length_, probe_len);
-    size_++;
-
-    return std::make_pair(value_idx, true);
-  }
-
-  template <typename K = Key>
-  Value* Find(const K& key) const {
-    const size_t idx = FindInternal(key);
-    if (idx == kNotFound)
-      return nullptr;
-    return &values_[idx];
-  }
-
-  template <typename K = Key>
-  bool Erase(const K& key) {
-    if (AppendOnly)
-      PERFETTO_FATAL("Erase() not supported because AppendOnly=true");
-    size_t idx = FindInternal(key);
-    if (idx == kNotFound)
-      return false;
-    EraseInternal(idx);
-    return true;
-  }
-
-  void Clear() {
-    // Avoid trivial heap operations on zero-capacity std::move()-d objects.
-    if (PERFETTO_UNLIKELY(capacity_ == 0))
-      return;
-
-    for (size_t i = 0; i < capacity_; ++i) {
-      const uint8_t tag = tags_[i];
-      if (tag != kFreeSlot && (AppendOnly || tag != kTombstone)) {
-        keys_[i].~Key();
-        values_[i].~Value();
-      }
-    }
-    Reset(capacity_, false);
-  }
-
-  Value& operator[](Key key) {
-    auto it_and_inserted = Insert(std::move(key), Value{});
-    return *it_and_inserted.first;
-  }
-
-  Iterator GetIterator() { return Iterator(this); }
-  const Iterator GetIterator() const { return Iterator(this); }
-
-  size_t size() const { return size_; }
-  size_t capacity() const { return capacity_; }
-
-  // "protected" here is only for the flat_hash_map_benchmark.cc. Everything
-  // below is by all means private.
- protected:
-  enum ReservedTags : uint8_t { kFreeSlot = 0, kTombstone = 1 };
-  static constexpr size_t kNotFound = std::numeric_limits<size_t>::max();
-
-  template <typename K = Key>
-  size_t FindInternal(const K& key) const {
-    static_assert(
-        IsLookupKeyAllowed<K, Key, Hasher>(),
-        "Heterogeneous lookup requires Hasher to define is_transparent and "
-        "support hashing the lookup key type. For same-type lookup, Key and K "
-        "must match exactly.");
-    const size_t key_hash = Hasher{}(key);
-    const uint8_t tag = HashToTag(key_hash);
-    PERFETTO_DCHECK((capacity_ & (capacity_ - 1)) == 0);  // Must be a pow2.
-    PERFETTO_DCHECK(max_probe_length_ <= capacity_);
-    for (size_t i = 0; i < max_probe_length_; ++i) {
-      const size_t idx = Probe::Calc(key_hash, i, capacity_);
-      const uint8_t tag_idx = tags_[idx];
-
-      if (tag_idx == kFreeSlot)
-        return kNotFound;
-      // HashToTag() never returns kTombstone, so the tag-check below cannot
-      // possibly match. Also we just want to skip tombstones.
-      if (tag_idx == tag && keys_[idx] == key) {
-        PERFETTO_DCHECK(tag_idx > kTombstone);
-        return idx;
-      }
-    }  // for (idx)
-    return kNotFound;
-  }
-
-  void EraseInternal(size_t idx) {
-    PERFETTO_DCHECK(tags_[idx] > kTombstone);
-    PERFETTO_DCHECK(size_ > 0);
-    tags_[idx] = kTombstone;
-    keys_[idx].~Key();
-    values_[idx].~Value();
-    size_--;
-    tombstones_++;
-    PERFETTO_DCHECK(size_ + tombstones_ <= capacity_);
-  }
-
-  PERFETTO_NO_INLINE void MaybeGrowAndRehash(bool grow) {
-    PERFETTO_DCHECK(size_ <= capacity_);
-    const size_t old_capacity = capacity_;
-
-    // Grow quickly up to 1MB, then chill.
-    const size_t old_size_bytes = old_capacity * (sizeof(Key) + sizeof(Value));
-    const size_t grow_factor = old_size_bytes < (1024u * 1024u) ? 8 : 2;
-    const size_t new_capacity =
-        grow ? std::max(old_capacity * grow_factor, size_t(1024))
-             : old_capacity;
-
-    auto old_tags(std::move(tags_));
-    auto old_keys(std::move(keys_));
-    auto old_values(std::move(values_));
-    size_t old_size = size_;
-
-    // This must be a CHECK (i.e. not just a DCHECK) to prevent UAF attacks on
-    // 32-bit archs that try to double the size of the table until wrapping.
-    PERFETTO_CHECK(new_capacity >= old_capacity);
-    Reset(new_capacity, true);
-
-    size_t new_size = 0;  // Recompute the size.
-    for (size_t i = 0; i < old_capacity; ++i) {
-      const uint8_t old_tag = old_tags[i];
-      if (old_tag != kFreeSlot && old_tag != kTombstone) {
-        Insert(std::move(old_keys[i]), std::move(old_values[i]));
-        old_keys[i].~Key();  // Destroy the old objects.
-        old_values[i].~Value();
-        new_size++;
-      }
-    }
-    PERFETTO_DCHECK(new_size == old_size);
-    PERFETTO_DCHECK(tombstones_ == 0);
-    size_ = new_size;
-  }
-
-  // Doesn't call destructors. Use Clear() for that.
-  PERFETTO_NO_INLINE void Reset(size_t n, bool reallocate) {
-    PERFETTO_DCHECK((n & (n - 1)) == 0);  // Must be a pow2.
-
-    capacity_ = n;
-    max_probe_length_ = 0;
-    size_ = 0;
-    tombstones_ = 0;
-    load_limit_ = n * static_cast<size_t>(load_limit_percent_) / 100;
-    load_limit_ = std::min(load_limit_, n);
-
-    if (reallocate) {
-      tags_.reset(new uint8_t[n]);
-      keys_ = AlignedAllocTyped<Key[]>(n);  // Deliberately not 0-initialized.
-      values_ =
-          AlignedAllocTyped<Value[]>(n);  // Deliberately not 0-initialized.
-    }
-
-    // Only clear the tags if not nullptr.
-    if (tags_) {
-      memset(&tags_[0], 0, n);  // Clear all tags.
-    }
-  }
-
-  static inline uint8_t HashToTag(size_t full_hash) {
-    uint8_t tag = full_hash >> (sizeof(full_hash) * 8 - 8);
-    // Ensure the hash is always >= 2. We use 0, 1 for kFreeSlot and kTombstone.
-    tag += (tag <= kTombstone) << 1;
-    PERFETTO_DCHECK(tag > kTombstone);
-    return tag;
-  }
-
-  size_t capacity_ = 0;
-  size_t size_ = 0;
-  size_t tombstones_ = 0;
-  size_t max_probe_length_ = 0;
-  size_t load_limit_ = 0;  // Updated every time |capacity_| changes.
-  int load_limit_percent_ =
-      kDefaultLoadLimitPct;  // Load factor limit in % of |capacity_|.
-
-  // These arrays have always the |capacity_| elements.
-  // Note: AlignedUniquePtr just allocates memory, doesn't invoke any ctor/dtor.
-  std::unique_ptr<uint8_t[]> tags_;
-  AlignedUniquePtr<Key[]> keys_;
-  AlignedUniquePtr<Value[]> values_;
-};
-
-}  // namespace perfetto::base
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_V1_H_
-/*
- * Copyright (C) 2025 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
-#define INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/bits.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/flat_hash_map_v1.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/string_view.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
-// gen_amalgamated expanded: #include "perfetto/public/compiler.h"
-
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <functional>
-#include <limits>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <utility>
-
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-#include <immintrin.h>
-#endif
-
-namespace perfetto::base {
-
-// A Swiss Table-style open-addressing hashmap implementation.
-// Inspired by absl::flat_hash_map, this uses a metadata array of control bytes
-// to enable fast SIMD-accelerated probing.
-//
-// Key design choices:
-// - Control bytes: Each slot has a 1-byte tag (7-bit H2 hash or special marker)
-//   stored in a separate array, enabling fast group-based matching.
-// - SIMD acceleration: On x64, uses SSE instructions to match 16 control bytes
-//   in parallel. Falls back to SWAR (SIMD Within A Register) on other platforms
-//   matching 8 bytes at a time.
-// - Triangular probing: Uses the sequence 0, 16, 48, 96, ... (like Absl) to
-//   probe groups of slots, ensuring good cache behavior.
-// - Pointers are NOT stable: Neither keys nor values have stable addresses
-//   across insertions that trigger rehashing.
-//
-// See also: FlatHashMapV1 in flat_hash_map_v1.h for the older implementation
-// using traditional open-addressing with configurable probing strategies.
-
-// Non-templated base class to hold helpers for FlatHashMapV2.
-namespace flat_hash_map_v2_internal {
-
-// Helper to detect if a hasher has is_transparent defined.
-template <typename, typename = void>
-struct HasIsTransparent : std::false_type {};
-
-template <typename H>
-struct HasIsTransparent<H, std::void_t<typename H::is_transparent>>
-    : std::true_type {};
-
-// Equality comparator trait.
-template <typename T>
-struct HashEq : public std::equal_to<T> {};
-
-// Specialization for std::string to compare via std::string_view.
-//
-// This exists because after benchmarking, it turns out libc++ has an
-// "optimization" for std::string equality that does something byte by
-// byte comparision for short strings but this is slower than just memcmp.
-//
-// This helps close the gap to absl::flat_hash_map for string keys.
-template <>
-struct HashEq<std::string> {
-  bool operator()(const std::string& a, const std::string& b) const {
-    return std::string_view(a) == std::string_view(b);
-  }
-  bool operator()(const std::string& a, const std::string_view& b) const {
-    return std::string_view(a) == b;
-  }
-  bool operator()(const std::string& a, base::StringView b) const {
-    return base::StringView(a) == b;
-  }
-};
-
-// Specialization for double to prevent spurious -Wfloat-equal warnings.
-//
-// Trace processor legitimately has a need to compare with exact equality
-template <>
-struct HashEq<double> {
-  bool operator()(double a, double b) const { return std::equal_to<>()(a, b); }
-};
-
-// Helper to check if a lookup key type K is allowed.
-// Returns true if:
-// 1. K can be implicitly converted to Key, OR
-// 2. Hasher has is_transparent AND Hasher is invocable with K AND Key and K
-// are equality comparable
-template <typename K, typename Key, typename Hasher>
-static constexpr bool IsLookupKeyAllowed() {
-  if constexpr (HasIsTransparent<Hasher>::value) {
-    return std::is_invocable_v<Hasher, const K&> &&
-           std::is_invocable_v<std::equal_to<>, const Key&, const K&>;
-  } else if constexpr (std::is_convertible_v<K, Key>) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-// Swiss Table control byte encoding:
-// - Empty:   0x80 (10000000) - MSB set, easy to detect with sign bit
-// - Deleted: 0xFE (11111110) - MSB set
-// - Full:    0x00-0x7F - MSB clear, stores 7-bit H2 hash
-static constexpr uint8_t kFreeSlot = 0x80;   // Empty slot
-static constexpr uint8_t kTombstone = 0xFE;  // Deleted slot
-
-// The default load limit percent before growing the table.
-static constexpr int kDefaultLoadLimitPct = 75;
-
-}  // namespace flat_hash_map_v2_internal
-
-template <typename Key,
-          typename Value,
-          typename Hasher = base::MurmurHash<Key>,
-          typename Eq = flat_hash_map_v2_internal::HashEq<Key>>
-class FlatHashMapV2 {
- private:
-  // Import constants from internal namespace.
-  static constexpr uint8_t kFreeSlot = flat_hash_map_v2_internal::kFreeSlot;
-  static constexpr uint8_t kTombstone = flat_hash_map_v2_internal::kTombstone;
-  static constexpr int kDefaultLoadLimitPct =
-      flat_hash_map_v2_internal::kDefaultLoadLimitPct;
-
-  // Slot structure holds both key and value
-  struct Slot {
-    Key key;
-    Value value;
-  };
-
- public:
-  class Iterator {
-   public:
-    explicit Iterator(const uint8_t* ctrl, const uint8_t* ctrl_end, Slot* slot)
-        : ctrl_(ctrl), ctrl_end_(ctrl_end), slot_(slot) {
-      FindNextNonFree();
-    }
-    ~Iterator() = default;
-    Iterator(const Iterator&) = default;
-    Iterator& operator=(const Iterator&) = default;
-    Iterator(Iterator&&) noexcept = default;
-    Iterator& operator=(Iterator&&) noexcept = default;
-
-    const Key& key() { return slot_->key; }
-    Value& value() { return slot_->value; }
-    const Key& key() const { return slot_->key; }
-    const Value& value() const { return slot_->value; }
-
-    explicit operator bool() const { return ctrl_ != ctrl_end_; }
-    Iterator& operator++() {
-      PERFETTO_DCHECK(ctrl_ != ctrl_end_);
-      ++ctrl_;
-      ++slot_;
-      FindNextNonFree();
-      return *this;
-    }
-
-   private:
-    void FindNextNonFree() {
-      for (; ctrl_ != ctrl_end_; ++ctrl_, ++slot_) {
-        const uint8_t cur_ctrl = *ctrl_;
-        if (cur_ctrl != kFreeSlot && cur_ctrl != kTombstone)
-          return;
-      }
-    }
-    const uint8_t* ctrl_ = nullptr;
-    const uint8_t* ctrl_end_ = nullptr;
-    Slot* slot_ = nullptr;
-  };  // Iterator
-
-  explicit FlatHashMapV2(size_t initial_capacity = 0,
-                         int load_limit_pct = kDefaultLoadLimitPct)
-      : load_limit_percent_(load_limit_pct) {
-    if (initial_capacity > 0) {
-      Reset(initial_capacity, true);
-    }
-  }
-
-  // We are calling Clear() so that the destructors for the inserted entries are
-  // called (unless they are trivial, in which case it will be a no-op).
-  ~FlatHashMapV2() { Clear(); }
-
-  FlatHashMapV2(FlatHashMapV2&& other) noexcept
-      : storage_(std::move(other.storage_)),
-        capacity_(other.capacity_),
-        size_(other.size_),
-        growth_info_(other.growth_info_),
-        load_limit_percent_(other.load_limit_percent_),
-        ctrl_(other.ctrl_),
-        slots_(other.slots_) {
-    new (&other) FlatHashMapV2();
-  }
-
-  FlatHashMapV2& operator=(FlatHashMapV2&& other) noexcept {
-    this->~FlatHashMapV2();
-    new (this) FlatHashMapV2(std::move(other));
-    return *this;
-  }
-
-  FlatHashMapV2(const FlatHashMapV2&) = delete;
-  FlatHashMapV2& operator=(const FlatHashMapV2&) = delete;
-
-  template <typename K = Key>
-  PERFETTO_ALWAYS_INLINE Value* Find(const K& key) const {
-    size_t key_hash = Hasher{}(key);
-    uint8_t h2 = H2(key_hash);
-    FindResult res = FindSlotIgnoringTombstones<false>(key, key_hash, h2);
-    if (PERFETTO_UNLIKELY(res.needs_insert)) {
-      return nullptr;
-    }
-    return &slots_[res.idx].value;
-  }
-
-  template <typename K = Key>
-  bool Erase(const K& key) {
-    size_t key_hash = Hasher{}(key);
-    uint8_t h2 = H2(key_hash);
-    FindResult res = FindSlotIgnoringTombstones<false>(key, key_hash, h2);
-    if (PERFETTO_UNLIKELY(res.needs_insert)) {
-      return false;
-    }
-    PERFETTO_DCHECK(size_ > 0);
-    SetCtrl(res.idx, kTombstone);
-    slots_[res.idx].key.~Key();
-    slots_[res.idx].value.~Value();
-    size_--;
-    growth_info_.has_tombstones = 1;
-    return true;
-  }
-
-  PERFETTO_ALWAYS_INLINE std::pair<Value*, bool> Insert(Key key, Value value) {
-    size_t key_hash = Hasher{}(key);
-    uint8_t h2 = H2(key_hash);
-    FindResult res = FindSlotIgnoringTombstones<true>(key, key_hash, h2);
-    if (PERFETTO_UNLIKELY(!res.needs_insert)) {
-      return {&slots_[res.idx].value, false};
-    }
-    if (PERFETTO_UNLIKELY(growth_info_.growth_left == 0)) {
-      GrowAndRehash();
-      // After rehash, table has no tombstones. Find an empty slot directly
-      // instead of recursing (which would prevent inlining).
-      res.idx = FindFirstEmptyOrTombstone(key_hash);
-    }
-    PERFETTO_DCHECK(res.idx != kNotFound);
-    size_t insert_idx = res.idx;
-    bool is_freeslot = true;
-    if (PERFETTO_UNLIKELY(growth_info_.has_tombstones)) {
-      insert_idx = FindFirstEmptyOrTombstone(key_hash);
-      is_freeslot = ctrl_[insert_idx] != kTombstone;
-    }
-    new (&slots_[insert_idx].key) Key(std::move(key));
-    new (&slots_[insert_idx].value) Value(std::move(value));
-    SetCtrl(insert_idx, h2);
-    size_++;
-    if (is_freeslot) {
-      growth_info_.growth_left--;
-    }
-    return {&slots_[insert_idx].value, true};
-  }
-
-  Value& operator[](Key key) {
-    auto it_and_inserted = Insert(std::move(key), Value{});
-    return *it_and_inserted.first;
-  }
-
-  void Clear() {
-    // Avoid trivial heap operations on zero-capacity std::move()-d objects.
-    if (PERFETTO_UNLIKELY(capacity_ == 0)) {
-      return;
-    }
-    for (size_t i = 0; i < capacity_; ++i) {
-      const uint8_t tag = ctrl_[i];
-      if (tag == kFreeSlot || tag == kTombstone) {
-        continue;
-      }
-      slots_[i].key.~Key();
-      slots_[i].value.~Value();
-    }
-    Reset(capacity_, false);
-  }
-
-  Iterator GetIterator() { return Iterator(ctrl_, ctrl_ + capacity_, slots_); }
-  Iterator GetIterator() const {
-    return Iterator(ctrl_, ctrl_ + capacity_, slots_);
-  }
-
-  size_t size() const { return size_; }
-  size_t capacity() const { return capacity_; }
-
- private:
-  // Result struct for FindOrPrepareInsert - avoids bit manipulation overhead
-  struct FindResult {
-    uint64_t idx : 63;
-    uint64_t needs_insert : 1;
-  };
-
-  // Tracks growth capacity and whether any deletions have occurred.
-  // Using bitfields like absl's GrowthInfo to avoid manual bit manipulation.
-  struct GrowthInfo {
-    uint64_t growth_left : 63;
-    uint64_t has_tombstones : 1;
-  };
-
-  // Not found sentinel (must fit in 63-bit FindResult.idx)
-  static constexpr size_t kNotFound = std::numeric_limits<size_t>::max() >> 1;
-
-  // Abstraction over a group of control bytes that enables batch operations.
-  // On x64, uses SSE to match 16 control bytes in parallel.
-  // On other platforms, uses SWAR (SIMD Within A Register) for 8 bytes.
-  //
-  // Match() returns an iterator over slots whose control byte matches h2.
-  // MatchEmpty() returns an iterator over empty slots (kFreeSlot).
-  // MatchEmptyOrDeleted() returns an iterator over empty or deleted slots.
-#if PERFETTO_BUILDFLAG(PERFETTO_X64_CPU_OPT)
-  struct Group {
-   public:
-    // Group size 16 for x64 SSE
-    static constexpr size_t kSize = 16;
-
-    // Iterates over set bits in a match mask. Each set bit indicates a slot
-    // in the group that matched the search criteria. Call Next() to get the
-    // index of each matching slot.
-    struct Iterator {
-     public:
-      PERFETTO_ALWAYS_INLINE explicit Iterator(uint16_t mask) : mask_(mask) {}
-      PERFETTO_ALWAYS_INLINE explicit operator bool() const { return mask_; }
-
-      PERFETTO_ALWAYS_INLINE size_t Next() {
-        auto idx = static_cast<size_t>(CountTrailZeros(mask_));
-        mask_ &= static_cast<uint16_t>(mask_ - 1);
-        return idx;
-      }
-
-     private:
-      uint16_t mask_;
-    };
-
-    PERFETTO_ALWAYS_INLINE explicit Group(const uint8_t* pos) {
-      ctrl_ = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos));
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator Match(uint8_t h2) const {
-      auto match = _mm_cmpeq_epi8(ctrl_, _mm_set1_epi8(static_cast<char>(h2)));
-      return Iterator(static_cast<uint16_t>(_mm_movemask_epi8(match)));
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator MatchEmpty() const {
-      return Iterator(static_cast<uint16_t>(
-          _mm_movemask_epi8(_mm_sign_epi8(ctrl_, ctrl_))));
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator MatchEmptyOrDeleted() const {
-      return Iterator(static_cast<uint16_t>(_mm_movemask_epi8(ctrl_)));
-    }
-
-   private:
-    __m128i ctrl_;
-  };
-#else
-  // SWAR fallback: processes 8 control bytes at a time using 64-bit arithmetic.
-  struct Group {
-   public:
-    // Group size 8 for ARM and other platforms
-    static constexpr size_t kSize = 8;
-
-    // Iterates over set bits in a sparse 64-bit mask. Each set MSB indicates
-    // a matching byte in the group. Call Next() to get the index of each
-    // matching slot.
-    struct Iterator {
-     public:
-      PERFETTO_ALWAYS_INLINE explicit Iterator(uint64_t mask) : mask_(mask) {}
-      PERFETTO_ALWAYS_INLINE explicit operator bool() const { return mask_; }
-      PERFETTO_ALWAYS_INLINE size_t Next() {
-        // Count zeros and divide by 8 (shift 3)
-        // 0x80 (Byte 0) -> CTZ 7  -> 7>>3 = 0
-        // 0x8000 (Byte 1) -> CTZ 15 -> 15>>3 = 1
-        size_t idx = static_cast<size_t>(CountTrailZeros(mask_) >> 3);
-        mask_ &= mask_ - 1;  // Clear lowest set bit
-        return idx;
-      }
-
-     private:
-      uint64_t mask_;
-    };
-
-    PERFETTO_ALWAYS_INLINE explicit Group(const uint8_t* pos) {
-      memcpy(&ctrl_, pos, sizeof(ctrl_));
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator Match(uint8_t h2) const {
-      uint64_t x = ctrl_ ^ (kLsbs * h2);
-      return Iterator((x - kLsbs) & ~x & kMsbs);
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator MatchEmpty() const {
-      // 0x80 check (Empty)
-      return Iterator((ctrl_ & ~(ctrl_ << 6)) & kMsbs);
-    }
-
-    PERFETTO_ALWAYS_INLINE Iterator MatchEmptyOrDeleted() const {
-      // 0x80 or 0xFE check (Empty or Deleted)
-      return Iterator((ctrl_ & ~(ctrl_ << 7)) & kMsbs);
-    }
-
-   private:
-    static constexpr uint64_t kLsbs = 0x0101010101010101ULL;
-    static constexpr uint64_t kMsbs = 0x8080808080808080ULL;
-
-    uint64_t ctrl_;
-  };
-#endif
-
-  // The number of cloned control bytes after the main control byte array.
-  static constexpr size_t kNumClones = Group::kSize - 1;
-
-  // Searches for a key in the table. This function IGNORES tombstones during
-  // the search - it only stops at empty slots (kFreeSlot) or matching keys.
-  //
-  // Why ignore tombstones? In Swiss Tables, tombstones mark deleted entries but
-  // must be skipped during lookup because the key we're searching for may have
-  // been inserted AFTER the tombstone was created (i.e., the key's probe
-  // sequence may have skipped over that tombstone). Only an empty slot
-  // definitively proves the key doesn't exist.
-  //
-  // Returns FindResult with idx and whether the key needs to be inserted:
-  // - If key is found: {idx, false} where idx is the slot containing the key.
-  // - If key not found and ForInsert=true: {empty_idx, true} where empty_idx
-  //   is the index of the first EMPTY slot encountered.
-  // - If key not found and ForInsert=false: {kNotFound, true}.
-  //
-  // IMPORTANT for insertion (ForInsert=true): The returned empty_idx is NOT
-  // necessarily the best slot to insert into! There may be an earlier tombstone
-  // in the probe sequence that should be reused to avoid wasting slots. When
-  // has_tombstones is set, the caller must make a SECOND pass by calling
-  // FindFirstEmptyOrTombstone() to find the actual insertion slot.
-  template <bool ForInsert, typename K = Key>
-  PERFETTO_ALWAYS_INLINE FindResult
-  FindSlotIgnoringTombstones(const K& key, size_t key_hash, uint8_t h2) const {
-    static_assert(
-        flat_hash_map_v2_internal::IsLookupKeyAllowed<K, Key, Hasher>(),
-        "Heterogeneous lookup requires Hasher to define is_transparent and "
-        "support hashing the lookup key type. For same-type lookup, Key and K "
-        "must match exactly.");
-
-    if (PERFETTO_UNLIKELY(ctrl_ == nullptr)) {
-      return {kNotFound, true};
-    }
-
-    const size_t cap_mask = capacity_ - 1;
-    size_t offset = H1(key_hash) & cap_mask;
-    size_t probe_size = 0;
-    const uint8_t* ctrl = ctrl_;
-
-    // Prefetch control bytes (like Absl's prefetch_heap_block).
-    // Use locality hint 3 (high temporal locality) for better L1 cache usage.
-    __builtin_prefetch(ctrl_ + offset, 0, 3);
-
-    while (true) {
-      // Prefetch slots at current probe offset (like Absl).
-      __builtin_prefetch(slots_ + offset, 0, 3);
-
-      Group group(ctrl + offset);
-
-      // Match H2 tags in this group.
-      for (auto it = group.Match(h2); PERFETTO_LIKELY(it);) {
-        // Must mask because offset + it.Next() can exceed capacity when
-        // group straddles the table boundary (using cloned control bytes).
-        size_t idx = (offset + it.Next()) & cap_mask;
-        if (PERFETTO_LIKELY(Eq{}(slots_[idx].key, key))) {
-          return {idx, false};  // Found
-        }
-      }
-
-      // Check for empty slot (NOT tombstones). If we find an empty slot, the
-      // key cannot exist in the table (empty slots terminate probe chains).
-      if (auto it = group.MatchEmpty(); PERFETTO_LIKELY(it)) {
-        if constexpr (ForInsert) {
-          size_t empty_idx = (offset + it.Next()) & cap_mask;
-          return {empty_idx, true};  // Not found - empty slot for insertion
-        } else {
-          return {kNotFound, true};  // Not found - no need to compute slot
-        }
-      }
-
-      // Triangular probing (like Absl): 0, 16, 48, 96, ...
-      probe_size += Group::kSize;
-      offset = (offset + probe_size) & cap_mask;
-
-      // Should never happen with load limit.
-      PERFETTO_DCHECK(probe_size <= capacity_);
-    }
-  }
-
-  // Find first empty OR tombstone slot for insertion.
-  // Called when has_tombstones is set to find an earlier tombstone that can
-  // be reused instead of taking a new empty slot.
-  size_t FindFirstEmptyOrTombstone(size_t key_hash) const {
-    const size_t cap_mask = capacity_ - 1;
-    size_t offset = H1(key_hash) & cap_mask;
-    size_t probe_size = 0;
-    while (true) {
-      Group group(ctrl_ + offset);
-      if (auto it = group.MatchEmptyOrDeleted(); PERFETTO_LIKELY(it)) {
-        return (offset + it.Next()) & cap_mask;
-      }
-      probe_size += Group::kSize;
-      offset = (offset + probe_size) & cap_mask;
-    }
-  }
-
-  PERFETTO_NO_INLINE void GrowAndRehash() {
-    // Grow factor must be a power of 2 because probing uses bitwise AND
-    // for modulo arithmetic (capacity must remain a power of 2).
-    static constexpr size_t kGrowFactor = 2;
-    static_assert((kGrowFactor & (kGrowFactor - 1)) == 0,
-                  "kGrowFactor must be a power of 2");
-
-    PERFETTO_DCHECK(size_ <= capacity_);
-
-    size_t old_capacity = capacity_;
-    size_t old_size = size_;
-    uint8_t* old_ctrl = ctrl_;
-    Slot* old_slots = slots_;
-    std::unique_ptr<uint8_t[]> old_storage(std::move(storage_));
-
-    // This must be a CHECK (i.e. not just a DCHECK) to prevent UAF attacks on
-    // 32-bit archs that try to double the size of the table until wrapping.
-    size_t new_capacity = old_capacity * kGrowFactor;
-    PERFETTO_CHECK(new_capacity >= old_capacity);
-    Reset(new_capacity, true);
-
-    size_t new_size = 0;
-    for (size_t i = 0; i < old_capacity; ++i) {
-      if (uint8_t t = old_ctrl[i]; t == kFreeSlot || t == kTombstone) {
-        continue;
-      }
-      Insert(std::move(old_slots[i].key), std::move(old_slots[i].value));
-      old_slots[i].key.~Key();  // Destroy the old objects.
-      old_slots[i].value.~Value();
-      new_size++;
-    }
-    PERFETTO_DCHECK(new_size == old_size);
-    size_ = new_size;
-  }
-
-  // Doesn't call destructors. Use Clear() for that.
-  PERFETTO_NO_INLINE void Reset(size_t n, bool reallocate) {
-    // Must be a pow2.
-    PERFETTO_CHECK((n & (n - 1)) == 0);
-
-    // Always ensure at least 128 capacity to avoid too frequent growths.
-    capacity_ = std::max<size_t>(n, 128u);
-    size_ = 0;
-    growth_info_.growth_left =
-        (capacity_ * static_cast<size_t>(load_limit_percent_)) / 100;
-    growth_info_.has_tombstones = 0;
-
-    if (reallocate) {
-      // See memory layout comment above |storage_|.
-      size_t slots_offset =
-          base::AlignUp(capacity_ + kNumClones, alignof(Slot));
-      storage_.reset(new uint8_t[slots_offset + (capacity_ * sizeof(Slot))]);
-      ctrl_ = storage_.get();
-      slots_ = reinterpret_cast<Slot*>(storage_.get() + slots_offset);
-    }
-    if (ctrl_) {
-      // Initialize all control bytes (including clones) to empty (kFreeSlot)
-      memset(ctrl_, kFreeSlot, capacity_ + kNumClones);
-    }
-  }
-
-  // Swiss Table hash splitting (matching absl):
-  // H1 = upper bits for bucket index
-  // H2 = lower 7 bits for tag
-  // This ensures H1 and H2 are independent, avoiding tag collisions within
-  // buckets. The seed XOR prevents clustering when hash values have patterns
-  // (e.g., sequential keys)
-  static constexpr size_t H1(size_t hash) { return (hash >> 7); }
-  static constexpr uint8_t H2(size_t hash) { return hash & 0x7F; }
-
-  // Set control byte and update clone if needed
-  PERFETTO_ALWAYS_INLINE void SetCtrl(size_t i, uint8_t h) {
-    ctrl_[i] = h;
-    // Update clone if this is one of the first kNumClones entries
-    if (PERFETTO_UNLIKELY(i < kNumClones)) {
-      ctrl_[capacity_ + i] = h;
-    }
-  }
-
-  // Owns the actual memory with the following layout:
-  //
-  // [Control bytes]
-  //   |capacity_| bytes for control bytes.
-  //   kNumClones (15 or 7) bytes for control byte clones (*).
-  //   No alignment required (accessed at arbitrary byte offsets).
-  //
-  // [Padding for Slot alignment]
-  //
-  // [Slots]
-  //   capacity_ * sizeof(Slot): contains key-value pairs.
-  //   Must be aligned to alignof(Slot).
-  //
-  // (*) Control byte clones: The first kNumClones control bytes are duplicated
-  // at the end of the control array. This allows SIMD operations to read a full
-  // group (16 or 8 bytes) starting from any position without bounds checking,
-  // even near the end of the array.
-  std::unique_ptr<uint8_t[]> storage_;
-
-  size_t capacity_ = 0;
-  size_t size_ = 0;
-
-  // Slots remaining + has_deleted flag
-  GrowthInfo growth_info_{0, 0};
-
-  // Load factor limit in % of |capacity_|.
-  int load_limit_percent_ = kDefaultLoadLimitPct;
-
-  // Cached pointers for fast access (like absl::flat_hash_map)
-  // These are updated whenever storage is allocated/reallocated.
-  uint8_t* ctrl_ = nullptr;  // Points to control bytes
-  Slot* slots_ = nullptr;    // Points to slot array
-};
-
-// Alias FlatHashMap to FlatHashMapV1 for backward compatibility.
-//
-// TODO(lalitm): Once FlatHashMapV2 is fully tested and verified, switch this
-// to FlatHashMapV2.
-template <typename Key,
-          typename Value,
-          typename Hasher = MurmurHash<Key>,
-          typename Probe = QuadraticProbe,
-          bool AppendOnly = false>
-using FlatHashMap = FlatHashMapV1<Key, Value, Hasher, Probe, AppendOnly>;
-
-}  // namespace perfetto::base
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_FLAT_HASH_MAP_H_
 /*
  * Copyright (C) 2025 The Android Open Source Project
  *
@@ -57748,6 +59860,7 @@ constexpr uint32_t kOpcodeShift = 3;
 #include <limits>
 #include <vector>
 
+// gen_amalgamated expanded: #include "perfetto/base/endian.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/fnv_hash.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
@@ -57788,7 +59901,7 @@ bool ParseAndVerifyChecksum(const uint8_t* data,
       break;
     }
     words->emplace_back(word);
-    hasher.Update(word);
+    hasher.Update(perfetto::base::HostToLE(word));
   }
   if (packed_parse_err || !has_checksum) {
     words->clear();
@@ -59020,6 +61133,7 @@ class MessageFilter {
 
 // gen_amalgamated expanded: #include "src/protozero/filtering/message_filter.h"
 
+// gen_amalgamated expanded: #include "perfetto/base/endian.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
 // gen_amalgamated expanded: #include "src/protozero/filtering/string_filter.h"
@@ -59046,7 +61160,8 @@ template <typename INT_T /* uint32_t | uint64_t*/>
 inline void AppendFixed(uint32_t field_id, INT_T value, uint8_t** out) {
   *out = proto_utils::WriteVarInt(proto_utils::MakeTagFixed<INT_T>(field_id),
                                   *out);
-  memcpy(*out, &value, sizeof(value));
+  INT_T le_value = perfetto::base::HostToLE(value);
+  memcpy(*out, &le_value, sizeof(value));
   *out += sizeof(value);
 }
 
@@ -59499,6 +61614,698 @@ perfetto::base::Status LoadMessageFilterConfig(const TraceFilter& filt,
 }
 
 }  // namespace protozero
+// gen_amalgamated begin source: src/tracing/service/proto_group_rewriter.cc
+// gen_amalgamated begin header: src/tracing/service/proto_group_rewriter.h
+// gen_amalgamated begin header: include/perfetto/ext/base/small_vector.h
+/*
+ * Copyright (C) 2021 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
+#define INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
+
+#include <algorithm>
+#include <type_traits>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+
+namespace perfetto {
+namespace base {
+
+// Uses inline storage first, switches to dynamic storage when it overflows.
+template <typename T, size_t kSize>
+class SmallVector {
+ public:
+  static constexpr size_t kInlineSize = kSize;
+
+  explicit SmallVector() = default;
+
+  ~SmallVector() {
+    clear();
+    if (PERFETTO_UNLIKELY(is_using_heap()))
+      AlignedFree(begin_);
+    begin_ = end_ = end_of_storage_ = nullptr;
+  }
+
+  // Move operators.
+  SmallVector(SmallVector&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value) {
+    if (other.is_using_heap()) {
+      // Move the heap content, no need to move the individual objects as their
+      // location won't change.
+      begin_ = other.begin_;
+      end_ = other.end_;
+      end_of_storage_ = other.end_of_storage_;
+    } else {
+      const size_t other_size = other.size();
+      PERFETTO_DCHECK(other_size <= capacity());
+      for (size_t i = 0; i < other_size; i++) {
+        // Move the entries and destroy the ones in the moved-from object.
+        new (&begin_[i]) T(std::move(other.begin_[i]));
+        other.begin_[i].~T();
+      }
+      end_ = begin_ + other_size;
+    }
+    auto* const other_inline_storage = other.inline_storage_begin();
+    other.end_ = other.begin_ = other_inline_storage;
+    other.end_of_storage_ = other_inline_storage + kInlineSize;
+  }
+
+  SmallVector& operator=(SmallVector&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value) {
+    this->~SmallVector();
+    new (this) SmallVector<T, kSize>(std::move(other));
+    return *this;
+  }
+
+  // Copy operators.
+  SmallVector(const SmallVector& other) {
+    const size_t other_size = other.size();
+    if (other_size > capacity())
+      Grow(other_size);
+    // Copy-construct the elements.
+    for (size_t i = 0; i < other_size; ++i)
+      new (&begin_[i]) T(other.begin_[i]);
+    end_ = begin_ + other_size;
+  }
+
+  SmallVector& operator=(const SmallVector& other) {
+    if (PERFETTO_UNLIKELY(this == &other))
+      return *this;
+    this->~SmallVector();
+    new (this) SmallVector<T, kSize>(other);
+    return *this;
+  }
+
+  T* data() { return begin_; }
+  const T* data() const { return begin_; }
+
+  T* begin() { return begin_; }
+  const T* begin() const { return begin_; }
+
+  T* end() { return end_; }
+  const T* end() const { return end_; }
+
+  size_t size() const { return static_cast<size_t>(end_ - begin_); }
+
+  bool empty() const { return end_ == begin_; }
+
+  size_t capacity() const {
+    return static_cast<size_t>(end_of_storage_ - begin_);
+  }
+
+  T& front() {
+    PERFETTO_DCHECK(!empty());
+    return begin_[0];
+  }
+  const T& front() const {
+    PERFETTO_DCHECK(!empty());
+    return begin_[0];
+  }
+
+  T& back() {
+    PERFETTO_DCHECK(!empty());
+    return end_[-1];
+  }
+  const T& back() const {
+    PERFETTO_DCHECK(!empty());
+    return end_[-1];
+  }
+
+  T& operator[](size_t index) {
+    PERFETTO_DCHECK(index < size());
+    return begin_[index];
+  }
+
+  const T& operator[](size_t index) const {
+    PERFETTO_DCHECK(index < size());
+    return begin_[index];
+  }
+
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    T* end = end_;
+    if (PERFETTO_UNLIKELY(end == end_of_storage_))
+      end = Grow();
+    new (end) T(std::forward<Args>(args)...);
+    end_ = end + 1;
+  }
+
+  void pop_back() {
+    PERFETTO_DCHECK(!empty());
+    back().~T();
+    --end_;
+  }
+
+  // Clear without reverting back to inline storage.
+  void clear() {
+    while (!empty())
+      pop_back();
+  }
+
+ private:
+  PERFETTO_NO_INLINE T* Grow(size_t desired_capacity = 0) {
+    size_t cur_size = size();
+    size_t new_capacity = desired_capacity;
+    if (desired_capacity <= cur_size)
+      new_capacity = std::max(capacity() * 2, size_t(128));
+    T* new_storage =
+        static_cast<T*>(AlignedAlloc(alignof(T), new_capacity * sizeof(T)));
+    for (size_t i = 0; i < cur_size; ++i) {
+      // Move the elements into the new heap buffer and destroy the old ones.
+      new (&new_storage[i]) T(std::move(begin_[i]));
+      begin_[i].~T();
+    }
+    if (is_using_heap())
+      AlignedFree(begin_);
+    begin_ = new_storage;
+    end_ = new_storage + cur_size;
+    end_of_storage_ = new_storage + new_capacity;
+    return end_;
+  }
+
+  T* inline_storage_begin() { return reinterpret_cast<T*>(inline_storage_); }
+  bool is_using_heap() { return begin_ != inline_storage_begin(); }
+
+  T* begin_ = inline_storage_begin();
+  T* end_ = begin_;
+  T* end_of_storage_ = begin_ + kInlineSize;
+
+  alignas(T) char inline_storage_[sizeof(T) * kInlineSize];
+};
+
+}  // namespace base
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_SERVICE_PROTO_GROUP_REWRITER_H_
+#define SRC_TRACING_SERVICE_PROTO_GROUP_REWRITER_H_
+
+#include <stddef.h>
+
+#include <optional>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/small_vector.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/slice.h"
+
+namespace perfetto::tracing_v2 {
+
+enum class RewriteResult {
+  // The output slice owns the rewritten packet.
+  kRewritten,
+  // The packet has no groups. The caller must keep the input slices.
+  kUnchanged,
+  // The input has an invalid field or unmatched group boundary.
+  // This result also applies above kMaxNestingDepth.
+  kMalformedInput,
+  // A rewritten group exceeds proto_utils::kMaxMessageLength bytes.
+  kGroupTooLarge,
+};
+
+// Converts an SMB v2 packet to length-delimited protobuf during readback.
+// The rewriter replaces group boundaries with length-delimited field headers.
+// It keeps the field ID, tag byte count, and all other input bytes unchanged.
+//
+//   Input (hex):  0b       10 07  04    field 1 { field 2: 7 }
+//   Output:       0a 02    10 07
+//                    ^ length
+//
+// Only the bare byte 0x04 closes a group. The packet has no root wrapper.
+// The rewriter checks each field but does not parse length-delimited contents.
+// See proto_utils::kProtoGroupEndByte for the input format.
+//
+// Group lengths follow the v1 encoding: one byte for contents up to 127 bytes,
+// or a 4-byte padded varint for larger contents. The maximum is 256 MiB - 1.
+// A packet can have at most kMaxNestingDepth open groups, excluding the root.
+//
+// Each rewritten packet owns its output buffer. Packets without groups need
+// no copy or output allocation. The rewriter never returns partial output.
+class ProtoGroupRewriter {
+ public:
+  // Maximum number of groups open at once.
+  static constexpr size_t kMaxNestingDepth = 1024;
+
+  // Rewrite() converts the packet in |input| to standard protobuf.
+  // Each slice must be nonempty. An empty input list returns kUnchanged.
+  // - On kRewritten, |*output| owns the rewritten packet in a new slice.
+  // - For any other result, Rewrite() keeps |*output| unchanged.
+  RewriteResult Rewrite(const Slices& input, std::optional<Slice>* output);
+
+ private:
+  // Each entry holds the output offset of an open group's length slot.
+  base::SmallVector<size_t, 128> open_group_length_offsets_;
+};
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_SERVICE_PROTO_GROUP_REWRITER_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/service/proto_group_rewriter.h"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <algorithm>
+#include <memory>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+// gen_amalgamated expanded: #include "perfetto/public/pb_utils.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+namespace pu = ::protozero::proto_utils;
+
+// Reads nonempty slices as one byte stream. At the packet end,
+// read_ptr_ equals current_slice_end_.
+class SliceCursor {
+ public:
+  explicit SliceCursor(const Slices& slices)
+      : next_slice_(slices.data()),
+        slice_list_end_(slices.data() + slices.size()) {
+    for (const Slice& slice : slices)
+      input_size_ += slice.size;
+
+    LoadNextSlice();
+  }
+
+  // Total input bytes across all slices.
+  size_t input_size() const { return input_size_; }
+  size_t offset() const { return offset_; }
+  bool at_end() const { return read_ptr_ == current_slice_end_; }
+
+  // Before this call, at_end() must be false.
+  uint8_t PeekByte() const { return *read_ptr_; }
+
+  // Read one varint across slice boundaries. Failure can advance the cursor.
+  bool ReadVarInt(uint64_t* value) {
+    const uint8_t* next_ptr =
+        pu::ParseVarIntFast(read_ptr_, current_slice_end_, value);
+    if (PERFETTO_LIKELY(next_ptr)) {
+      AdvanceTo(next_ptr);
+      return true;
+    }
+
+    // No complete varint was found in this slice. If at least 10 bytes
+    // remain, reject it: a 64-bit varint must end within 10 bytes.
+    if (PERFETTO_UNLIKELY(slice_bytes_left() >=
+                          PERFETTO_PB_VARINT_MAX_SIZE_64)) {
+      return false;
+    }
+
+    // Read one byte at a time across slices.
+    // As in ParseVarInt(), only the low bit of the tenth byte contributes.
+    uint64_t decoded_value = 0;
+    for (uint32_t shift = 0; shift < 64 && !at_end(); shift += 7) {
+      const uint8_t byte = *read_ptr_;
+      AdvanceTo(read_ptr_ + 1);
+
+      // Place the seven data bits at this byte's bit offset in the value.
+      decoded_value |= static_cast<uint64_t>(byte & 0b0111'1111) << shift;
+
+      // A clear high bit marks the last byte of the varint.
+      if ((byte & 0b1000'0000) == 0) {
+        *value = decoded_value;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Skip bytes across slices. Return false without advancing on truncated
+  // input.
+  bool Skip(uint64_t num_bytes) {
+    if (PERFETTO_LIKELY(num_bytes <= slice_bytes_left())) {
+      AdvanceTo(read_ptr_ + num_bytes);
+      return true;
+    }
+    if (num_bytes > input_bytes_left())
+      return false;
+
+    CopyOrSkipAcrossSlices(/*dst=*/nullptr, static_cast<size_t>(num_bytes));
+    return true;
+  }
+
+  // Copy bytes across slices. The input and |dst| must have enough space.
+  void CopyTo(uint8_t* dst, size_t num_bytes) {
+    PERFETTO_DCHECK(num_bytes <= input_bytes_left());
+    if (PERFETTO_LIKELY(num_bytes <= slice_bytes_left())) {
+      memcpy(dst, read_ptr_, num_bytes);
+      AdvanceTo(read_ptr_ + num_bytes);
+      return;
+    }
+    CopyOrSkipAcrossSlices(dst, num_bytes);
+  }
+
+ private:
+  size_t input_bytes_left() const { return input_size_ - offset(); }
+
+  size_t slice_bytes_left() const {
+    return static_cast<size_t>(current_slice_end_ - read_ptr_);
+  }
+
+  // |next_ptr| must be in [read_ptr_, current_slice_end_].
+  // At the slice end, select the next slice, if available.
+  PERFETTO_ALWAYS_INLINE void AdvanceTo(const uint8_t* next_ptr) {
+    PERFETTO_DCHECK(next_ptr >= read_ptr_ && next_ptr <= current_slice_end_);
+    offset_ += static_cast<size_t>(next_ptr - read_ptr_);
+    read_ptr_ = next_ptr;
+
+    if (PERFETTO_UNLIKELY(read_ptr_ == current_slice_end_))
+      LoadNextSlice();
+  }
+
+  void LoadNextSlice() {
+    if (next_slice_ == slice_list_end_)
+      return;
+
+    PERFETTO_DCHECK(next_slice_->size > 0);
+    read_ptr_ = static_cast<const uint8_t*>(next_slice_->start);
+    current_slice_end_ = read_ptr_ + next_slice_->size;
+    ++next_slice_;
+  }
+
+  // The caller checks the input size. A null |dst| skips bytes without a copy.
+  void CopyOrSkipAcrossSlices(uint8_t* dst, size_t num_bytes) {
+    while (num_bytes > 0) {
+      const size_t chunk_size = std::min(num_bytes, slice_bytes_left());
+      if (dst) {
+        memcpy(dst, read_ptr_, chunk_size);
+        dst += chunk_size;
+      }
+      num_bytes -= chunk_size;
+      AdvanceTo(read_ptr_ + chunk_size);
+    }
+  }
+
+  // The next slice to load. read_ptr_ already points into the current slice.
+  const Slice* next_slice_;
+  const Slice* const slice_list_end_;
+  const uint8_t* current_slice_end_ = nullptr;
+  const uint8_t* read_ptr_ = nullptr;
+  size_t offset_ = 0;
+  size_t input_size_ = 0;
+};
+
+// Converts group boundaries and copies the input between them.
+// BeginGroup() allocates output on the first group and reserves a length slot.
+// EndGroup() writes the length and removes 3 slot bytes for short messages.
+//
+//   Open group:      ... | tag | _ _ _ _ | contents ... |
+//   Contents <= 127: ... | tag | length  | contents ... |
+//   Contents > 127:  ... | tag | L L L L | contents ... |
+//
+// Group stack offsets stay valid if the output buffer moves.
+class OutputWriter {
+ public:
+  using GroupLengthOffsets = base::SmallVector<size_t, 128>;
+
+  OutputWriter(const SliceCursor& input_cursor,
+               GroupLengthOffsets& group_length_offsets)
+      : copy_cursor_(input_cursor),
+        open_group_length_offsets_(group_length_offsets) {}
+
+  // Convert the start tag. Return false if the group exceeds the nesting limit.
+  bool BeginGroup(size_t tag_start_offset, size_t tag_size) {
+    if (PERFETTO_UNLIKELY(open_group_length_offsets_.size() >=
+                          ProtoGroupRewriter::kMaxNestingDepth)) {
+      return false;
+    }
+
+    // Copy the input fields before this group's start tag.
+    CopyInputUntil(tag_start_offset);
+
+    // Reserve space for the tag and the group's length slot.
+    EnsureAdditionalCapacity(tag_size + pu::kMessageLengthFieldSize);
+
+    // Copy the start tag and change its wire type to length-delimited.
+    uint8_t* const tag_ptr = output_buffer_.get() + output_size_;
+    copy_cursor_.CopyTo(tag_ptr, tag_size);
+    // Clear bit 0 to change wire type 3 to 2 while preserving the field ID
+    // and continuation bit in the same byte.
+    PERFETTO_DCHECK(pu::GetTagFieldType(*tag_ptr) == pu::kWireTypeStartGroup);
+    *tag_ptr &= 0b1111'1110;
+    output_size_ += tag_size;
+
+    // Save the length slot offset for EndGroup() and leave space for its value.
+    open_group_length_offsets_.emplace_back(output_size_);
+    output_size_ += pu::kMessageLengthFieldSize;
+    return true;
+  }
+
+  // Close the innermost group and fill its length slot.
+  RewriteResult EndGroup(size_t end_byte_offset) {
+    if (PERFETTO_UNLIKELY(!HasOpenGroups()))
+      return RewriteResult::kMalformedInput;
+
+    // The group contains output already written and input fields not yet
+    // copied. Measure both parts to calculate the final group length.
+    const size_t group_length_offset = open_group_length_offsets_.back();
+    const size_t group_content_offset =
+        group_length_offset + pu::kMessageLengthFieldSize;
+    const size_t content_bytes_written = output_size_ - group_content_offset;
+    PERFETTO_DCHECK(end_byte_offset >= copy_cursor_.offset());
+    const size_t pending_input_size = end_byte_offset - copy_cursor_.offset();
+
+    // Check both sizes before adding them to prevent overflow.
+    if (PERFETTO_UNLIKELY(content_bytes_written > pu::kMaxMessageLength))
+      return RewriteResult::kGroupTooLarge;
+    const size_t max_pending_bytes =
+        pu::kMaxMessageLength - content_bytes_written;
+    if (PERFETTO_UNLIKELY(pending_input_size > max_pending_bytes)) {
+      return RewriteResult::kGroupTooLarge;
+    }
+    const size_t content_size = content_bytes_written + pending_input_size;
+
+    // Copy the remaining contents and skip the group's end byte.
+    CopyInputUntil(end_byte_offset);
+    copy_cursor_.Skip(1);
+
+    // CopyInputUntil() can allocate a larger buffer and invalidate old
+    // pointers. Use the saved offset to get a pointer into the current buffer.
+    uint8_t* const length_ptr = output_buffer_.get() + group_length_offset;
+
+    // Write the final length into the reserved slot.
+    if (content_size > pu::kMaxOneByteMessageLength) {
+      pu::WriteRedundantVarInt(static_cast<uint32_t>(content_size), length_ptr);
+    } else {
+      // The length needs only one of the four reserved bytes.
+      // Move the contents 3 bytes earlier to close the gap after the length.
+      uint8_t* const content_ptr = output_buffer_.get() + group_content_offset;
+      memmove(length_ptr + 1, content_ptr, content_size);
+      *length_ptr = static_cast<uint8_t>(content_size);
+      output_size_ -= (pu::kMessageLengthFieldSize - 1);
+    }
+
+    // Remove the closed group from the stack.
+    open_group_length_offsets_.pop_back();
+    return RewriteResult::kRewritten;
+  }
+
+  // Transfer the output after the parser validates and closes all groups.
+  Slice Finish() {
+    PERFETTO_DCHECK(HasRewrittenGroups() && !HasOpenGroups());
+
+    // Copy any fields after the last group. Input offsets start at zero.
+    CopyInputUntil(copy_cursor_.input_size());
+    return Slice::TakeOwnership(std::move(output_buffer_), output_size_);
+  }
+
+  bool HasOpenGroups() const { return !open_group_length_offsets_.empty(); }
+
+  // True after the first BeginGroup(). Only BeginGroup() allocates output.
+  bool HasRewrittenGroups() const { return output_buffer_ != nullptr; }
+
+ private:
+  // Append input bytes before |input_end_offset| to the output.
+  // The parser has validated these bytes.
+  void CopyInputUntil(size_t input_end_offset) {
+    PERFETTO_DCHECK(input_end_offset >= copy_cursor_.offset());
+    const size_t bytes_to_copy = input_end_offset - copy_cursor_.offset();
+    if (bytes_to_copy == 0)
+      return;
+
+    // Reserve space before taking a pointer into the output buffer.
+    EnsureAdditionalCapacity(bytes_to_copy);
+
+    // Append the bytes. CopyTo() advances the input cursor.
+    copy_cursor_.CopyTo(output_buffer_.get() + output_size_, bytes_to_copy);
+    output_size_ += bytes_to_copy;
+  }
+
+  // Ensure room for |additional_bytes| after the current output.
+  // Buffer growth invalidates pointers into the old buffer.
+  void EnsureAdditionalCapacity(size_t additional_bytes) {
+    const size_t required_capacity = output_size_ + additional_bytes;
+    if (PERFETTO_LIKELY(required_capacity <= output_capacity_))
+      return;
+
+    size_t new_capacity;
+    if (output_capacity_ == 0) {
+      // Heuristic for the first allocation.
+      // - input_size: space for the original packet bytes.
+      // - input_size / 16: spare for groups that grow by 3 bytes.
+      // - 64: spare for length slots reserved before their groups close.
+      const size_t input_size = copy_cursor_.input_size();
+      new_capacity = input_size + input_size / 16 + 64;
+    } else {
+      // Double the existing capacity to limit repeated allocations and copies.
+      new_capacity = output_capacity_ * 2;
+    }
+    new_capacity = std::max(new_capacity, required_capacity);
+
+    // Allocate a larger buffer and copy the output already written.
+    std::unique_ptr<uint8_t[]> larger_buffer(new uint8_t[new_capacity]);
+    if (output_size_)
+      memcpy(larger_buffer.get(), output_buffer_.get(), output_size_);
+
+    // Replace the old buffer after the copy completes.
+    output_buffer_ = std::move(larger_buffer);
+    output_capacity_ = new_capacity;
+  }
+
+  // Next input byte to copy. The parser can be ahead of this cursor.
+  SliceCursor copy_cursor_;
+  GroupLengthOffsets& open_group_length_offsets_;
+  std::unique_ptr<uint8_t[]> output_buffer_;
+  // Used output bytes, including reserved length slots.
+  size_t output_size_ = 0;
+  // Allocated bytes in output_buffer_.
+  size_t output_capacity_ = 0;
+};
+
+// Parse field boundaries. A 0x04 inside a field value is ordinary data.
+RewriteResult RewriteFields(SliceCursor input_cursor, OutputWriter* writer) {
+  // A tag value has 32 bits: 29 for the field ID and 3 for the wire type.
+  constexpr uint64_t kMaxFieldId = UINT32_MAX >> pu::kFieldTypeNumBits;
+
+  while (!input_cursor.at_end()) {
+    // The bare end byte has no field ID. Handle it before tag validation.
+    if (input_cursor.PeekByte() == pu::kProtoGroupEndByte) {
+      const RewriteResult result = writer->EndGroup(input_cursor.offset());
+      PERFETTO_DCHECK(result != RewriteResult::kUnchanged);
+      if (PERFETTO_UNLIKELY(result != RewriteResult::kRewritten))
+        return result;
+      input_cursor.Skip(1);
+      continue;
+    }
+
+    // Save the start before ReadVarInt() advances past the tag.
+    const size_t tag_start_offset = input_cursor.offset();
+    uint64_t tag = 0;
+    if (PERFETTO_UNLIKELY(!input_cursor.ReadVarInt(&tag)))
+      return RewriteResult::kMalformedInput;
+
+    const uint64_t field_id = pu::GetTagFieldId(tag);
+    if (PERFETTO_UNLIKELY(field_id == 0 || field_id > kMaxFieldId))
+      return RewriteResult::kMalformedInput;
+
+    uint64_t value = 0;
+    bool valid = false;
+    switch (pu::GetTagFieldType(tag)) {
+      case pu::kWireTypeStartGroup:
+        valid = writer->BeginGroup(tag_start_offset,
+                                   input_cursor.offset() - tag_start_offset);
+        break;
+      case static_cast<uint32_t>(pu::ProtoWireType::kVarInt):
+        valid = input_cursor.ReadVarInt(&value);
+        break;
+      case static_cast<uint32_t>(pu::ProtoWireType::kFixed64):
+        valid = input_cursor.Skip(sizeof(uint64_t));
+        break;
+      case static_cast<uint32_t>(pu::ProtoWireType::kFixed32):
+        valid = input_cursor.Skip(sizeof(uint32_t));
+        break;
+      case static_cast<uint32_t>(pu::ProtoWireType::kLengthDelimited):
+        valid = input_cursor.ReadVarInt(&value) && input_cursor.Skip(value);
+        break;
+      default:
+        // Only the bare byte 0x04 closes a group.
+        // Reject standard end-group tags. Wire types 6 and 7 are undefined.
+        return RewriteResult::kMalformedInput;
+    }
+
+    if (PERFETTO_UNLIKELY(!valid))
+      return RewriteResult::kMalformedInput;
+  }
+
+  if (writer->HasOpenGroups())
+    return RewriteResult::kMalformedInput;
+
+  return writer->HasRewrittenGroups() ? RewriteResult::kRewritten
+                                      : RewriteResult::kUnchanged;
+}
+
+}  // namespace
+
+RewriteResult ProtoGroupRewriter::Rewrite(const Slices& input,
+                                          std::optional<Slice>* output) {
+  open_group_length_offsets_.clear();
+
+  // Cursor over the input for RewriteFields() to read and validate fields.
+  const SliceCursor initial_cursor(input);
+  // Writes validated fields to the output buffer and replaces group boundaries.
+  OutputWriter writer(initial_cursor, open_group_length_offsets_);
+
+  const RewriteResult result = RewriteFields(initial_cursor, &writer);
+  if (result != RewriteResult::kRewritten)
+    return result;
+
+  output->emplace(writer.Finish());
+  return RewriteResult::kRewritten;
+}
+
+}  // namespace perfetto::tracing_v2
 // gen_amalgamated begin source: src/tracing/service/zlib_compressor.cc
 // gen_amalgamated begin header: src/tracing/service/zlib_compressor.h
 /*
@@ -59912,6 +62719,5147 @@ void ZstdCompressFn(std::vector<TracePacket>* packets, int level) {
 }  // namespace perfetto
 
 #endif  // PERFETTO_BUILDFLAG(PERFETTO_ZSTD)
+// gen_amalgamated begin source: src/tracing/ipc/default_socket.cc
+// gen_amalgamated begin header: include/perfetto/ext/ipc/basic_types.h
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
+#define INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
+
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/cpp_message_obj.h"
+
+namespace perfetto {
+namespace ipc {
+
+using ProtoMessage = ::protozero::CppMessageObj;
+using ServiceID = uint32_t;
+using MethodID = uint32_t;
+using ClientID = uint64_t;
+using RequestID = uint64_t;
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+// AF_UNIX on Windows is supported only on Windows 10 from build 17063.
+// Also it doesn't bring major advantages compared to a TCP socket.
+// See go/perfetto-win .
+constexpr bool kUseTCPSocket = true;
+#else
+// Android, Linux, Mac, Fuchsia use local sockets.
+constexpr bool kUseTCPSocket = false;
+#endif
+
+// This determines the maximum size allowed for an IPC message. Trying to send
+// or receive a larger message will hit DCHECK(s) and auto-disconnect.
+constexpr size_t kIPCBufferSize = 128 * 1024;
+
+constexpr uid_t kInvalidUid = static_cast<uid_t>(-1);
+
+}  // namespace ipc
+}  // namespace perfetto
+
+#endif  // INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "perfetto/tracing/default_socket.h"
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/android_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/ipc/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+
+#include <stdlib.h>
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
+#include <unistd.h>
+#endif
+
+namespace perfetto {
+namespace {
+
+const char* kRunPerfettoBaseDir = "/run/perfetto/";
+
+// On Linux and CrOS, check /run/perfetto/ before using /tmp/ as the socket
+// base directory.
+bool UseRunPerfettoBaseDir() {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
+  // Note that the trailing / in |kRunPerfettoBaseDir| ensures we are checking
+  // against a directory, not a file.
+  int res = PERFETTO_EINTR(access(kRunPerfettoBaseDir, X_OK));
+  if (!res)
+    return true;
+
+  // If the path doesn't exist (ENOENT), fail silently to the caller. Otherwise,
+  // fail with an explicit error message.
+  if (errno != ENOENT
+#if PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD)
+      // access(2) won't return EPERM, but Chromium sandbox returns EPERM if the
+      // sandbox doesn't allow the call (e.g. in the child processes).
+      && errno != EPERM
+#endif
+  ) {
+    PERFETTO_PLOG("%s exists but cannot be accessed. Falling back on /tmp/ ",
+                  kRunPerfettoBaseDir);
+  }
+  return false;
+#else
+  base::ignore_result(kRunPerfettoBaseDir);
+  return false;
+#endif
+}
+
+}  // anonymous namespace
+
+const char* GetProducerSocket() {
+  const char* name = getenv("PERFETTO_PRODUCER_SOCK_NAME");
+  if (name == nullptr) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+    name = "127.0.0.1:32278";
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+    name = "/dev/socket/traced_producer";
+#else
+    // Use /run/perfetto if it exists. Then fallback to /tmp.
+    static const char* producer_socket =
+        UseRunPerfettoBaseDir() ? "/run/perfetto/traced-producer.sock"
+                                : "/tmp/perfetto-producer";
+    name = producer_socket;
+#endif
+  }
+  base::ignore_result(UseRunPerfettoBaseDir);  // Silence unused func warnings.
+  return name;
+}
+
+std::string GetRelaySocket() {
+  // The relay socket is optional and is connected only when the env var is set.
+  // In Android, if the env var isn't set then we check the
+  // |traced_relay.relay_port| system property.
+  const char* name = getenv("PERFETTO_RELAY_SOCK_NAME");
+  if (name != nullptr)
+    return std::string(name);
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  return base::GetAndroidProp("traced_relay.relay_port");
+#else
+  return std::string();
+#endif
+}
+
+std::vector<std::string> TokenizeProducerSockets(
+    const char* producer_socket_names) {
+  return base::SplitString(producer_socket_names, ",");
+}
+
+const char* GetConsumerSocket() {
+  const char* name = getenv("PERFETTO_CONSUMER_SOCK_NAME");
+  if (name == nullptr) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+    name = "127.0.0.1:32279";
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+    name = "/dev/socket/traced_consumer";
+#else
+    // Use /run/perfetto if it exists. Then fallback to /tmp.
+    static const char* consumer_socket =
+        UseRunPerfettoBaseDir() ? "/run/perfetto/traced-consumer.sock"
+                                : "/tmp/perfetto-consumer";
+    name = consumer_socket;
+#endif
+  }
+  return name;
+}
+
+}  // namespace perfetto
+// gen_amalgamated begin source: src/tracing/ipc/memfd.cc
+// gen_amalgamated begin header: src/tracing/ipc/memfd.h
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_IPC_MEMFD_H_
+#define SRC_TRACING_IPC_MEMFD_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
+
+// The build has the memfd code. HasMemfdSupport() also checks the kernel.
+#define PERFETTO_MEMFD_ENABLED()              \
+  (PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+   PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX))
+
+// Some android build bots use a sysroot that doesn't support memfd when
+// compiling for the host, so we define the flags we need ourselves.
+
+// from memfd.h
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+#define MFD_ALLOW_SEALING 0x0002U
+#endif
+
+// from fcntl.h
+#ifndef F_ADD_SEALS
+#define F_ADD_SEALS 1033
+#define F_GET_SEALS 1034
+#define F_SEAL_SEAL 0x0001
+#define F_SEAL_SHRINK 0x0002
+#define F_SEAL_GROW 0x0004
+#define F_SEAL_WRITE 0x0008
+#endif
+
+namespace perfetto {
+
+// Whether the operating system supports memfd.
+bool HasMemfdSupport();
+
+// Call memfd(2) if available on platform and return the fd as result. This call
+// also makes a kernel version check for safety on older kernels (b/116769556).
+// Returns an invalid ScopedFile on failure.
+base::ScopedFile CreateMemfd(const char* name, unsigned int flags);
+
+}  // namespace perfetto
+
+#endif  // SRC_TRACING_IPC_MEMFD_H_
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/ipc/memfd.h"
+
+#include <errno.h>
+
+#if PERFETTO_MEMFD_ENABLED()
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+
+// Some android build bots use a sysroot that doesn't support memfd when
+// compiling for the host, so we redefine it if necessary.
+#if !defined(__NR_memfd_create)
+#if defined(__x86_64__)
+#define __NR_memfd_create 319
+#elif defined(__i386__)
+#define __NR_memfd_create 356
+#elif defined(__aarch64__)
+#define __NR_memfd_create 279
+#elif defined(__arm__)
+#define __NR_memfd_create 385
+#else
+#error "unsupported sysroot without memfd support"
+#endif
+#endif  // !defined(__NR_memfd_create)
+
+namespace perfetto {
+bool HasMemfdSupport() {
+  static bool kSupportsMemfd = [] {
+    // Check kernel version supports memfd_create(). Some older kernels segfault
+    // executing memfd_create() rather than returning ENOSYS (b/116769556).
+    static constexpr int kRequiredMajor = 3;
+    static constexpr int kRequiredMinor = 17;
+    struct utsname uts;
+    int major, minor;
+    if (uname(&uts) == 0 && strcmp(uts.sysname, "Linux") == 0 &&
+        sscanf(uts.release, "%d.%d", &major, &minor) == 2 &&
+        ((major < kRequiredMajor ||
+          (major == kRequiredMajor && minor < kRequiredMinor)))) {
+      return false;
+    }
+
+    base::ScopedFile fd;
+    fd.reset(static_cast<int>(syscall(__NR_memfd_create, "perfetto_shmem",
+                                      MFD_CLOEXEC | MFD_ALLOW_SEALING)));
+    return !!fd;
+  }();
+  return kSupportsMemfd;
+}
+
+base::ScopedFile CreateMemfd(const char* name, unsigned int flags) {
+  if (!HasMemfdSupport()) {
+    errno = ENOSYS;
+    return base::ScopedFile();
+  }
+  return base::ScopedFile(
+      static_cast<int>(syscall(__NR_memfd_create, name, flags)));
+}
+}  // namespace perfetto
+
+#else  // PERFETTO_MEMFD_ENABLED()
+
+namespace perfetto {
+bool HasMemfdSupport() {
+  return false;
+}
+base::ScopedFile CreateMemfd(const char*, unsigned int) {
+  errno = ENOSYS;
+  return base::ScopedFile();
+}
+}  // namespace perfetto
+
+#endif  // PERFETTO_MEMFD_ENABLED()
+// gen_amalgamated begin source: src/tracing/ipc/posix_shared_memory.cc
+// gen_amalgamated begin header: src/tracing/ipc/posix_shared_memory.h
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
+#define SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+
+#include <stddef.h>
+
+#include <memory>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
+
+namespace perfetto {
+
+// Implements the SharedMemory and its factory for the posix-based transport.
+class PosixSharedMemory : public SharedMemory {
+ public:
+  class Factory : public SharedMemory::Factory {
+   public:
+    ~Factory() override;
+    std::unique_ptr<SharedMemory> CreateSharedMemory(size_t) override;
+  };
+
+  // Creates and maps a shared memory region of |size| bytes.
+  // Uses a memfd with seals that prevent resizing and adding further seals.
+  // In-tree Android builds require a sealed memfd.
+  // Other builds fall back to an unlinked temporary file if memfd creation
+  // fails.
+  // Returns an error status on failure.
+  static base::StatusOr<std::unique_ptr<PosixSharedMemory>> Create(size_t size);
+
+  // Mmaps an existing SHM region for shared read/write access.
+  // - Takes ownership of the descriptor, also on failure.
+  // - Returns nullptr if descriptor validation fails.
+  // - Also returns nullptr if mmap() fails (e.g. OOM).
+  // - Rejects an empty file, and a file larger than |max_size|, before mmap().
+  // - If |require_seals_if_supported| is true and the system supports
+  //   memfd_create, requires F_SEAL_SEAL, F_SEAL_GROW and F_SEAL_SHRINK
+  //   before it reads the size.
+  static std::unique_ptr<PosixSharedMemory> AttachToFd(
+      base::ScopedFile,
+      bool require_seals_if_supported,
+      size_t max_size);
+
+  ~PosixSharedMemory() override;
+
+  int fd() const { return fd_.get(); }
+
+  // SharedMemory implementation.
+  using SharedMemory::start;  // Equal priority to const and non-const versions
+  const void* start() const override { return start_; }
+  size_t size() const override { return size_; }
+
+ private:
+  // Returns an error status if mmap() fails.
+  static base::StatusOr<std::unique_ptr<PosixSharedMemory>> MapFD(
+      base::ScopedFile,
+      size_t);
+
+  PosixSharedMemory(void* start, size_t size, base::ScopedFile);
+  PosixSharedMemory(const PosixSharedMemory&) = delete;
+  PosixSharedMemory& operator=(const PosixSharedMemory&) = delete;
+
+  void* const start_;
+  const size_t size_;
+  base::ScopedFile fd_;
+};
+
+}  // namespace perfetto
+
+#endif  // OS_LINUX || OS_ANDROID || OS_APPLE
+#endif  // SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/ipc/posix_shared_memory.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <cinttypes>
+#include <memory>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_macros.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/temp_file.h"
+// gen_amalgamated expanded: #include "src/tracing/ipc/memfd.h"
+
+namespace perfetto {
+
+namespace {
+int kFileSeals = F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL;
+}  // namespace
+
+// static
+base::StatusOr<std::unique_ptr<PosixSharedMemory>> PosixSharedMemory::Create(
+    size_t size) {
+  if (size == 0)
+    return base::ErrStatus("Invalid shmem size 0");
+
+  base::ScopedFile fd =
+      CreateMemfd("perfetto_shmem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+  const bool is_memfd = !!fd;
+  if (!is_memfd) {
+#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
+    // In-tree builds only allow memfd, so the service can verify the seals.
+    // TODO: if this fails on Android we should fall back on ashmem.
+    return base::ErrStatus("memfd_create() failed: %s", strerror(errno));
+#else
+    ASSIGN_OR_RETURN(
+        base::TempFile temp_file,
+        base::TempFile::Create(base::TempFile::LinkMode::kUnlinked));
+    fd = temp_file.ReleaseFD();
+#endif
+  }
+
+  if (ftruncate(fd.get(), static_cast<off_t>(size)) != 0)
+    return base::ErrStatus("Couldn't resize shmem FD: %s", strerror(errno));
+
+  if (is_memfd && fcntl(fd.get(), F_ADD_SEALS, kFileSeals) != 0)
+    return base::ErrStatus("Couldn't seal shmem FD: %s", strerror(errno));
+
+  return MapFD(std::move(fd), size);
+}
+
+// static
+std::unique_ptr<PosixSharedMemory> PosixSharedMemory::AttachToFd(
+    base::ScopedFile fd,
+    bool require_seals_if_supported,
+    size_t max_size) {
+  if (!fd)
+    return nullptr;
+  bool requires_seals = require_seals_if_supported;
+
+#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
+  // In-tree kernels all support memfd.
+  PERFETTO_CHECK(HasMemfdSupport());
+#else
+  // In out-of-tree builds, we only require seals if the kernel supports memfd.
+  if (requires_seals)
+    requires_seals = HasMemfdSupport();
+#endif
+
+  if (requires_seals) {
+    // If the system supports memfd, we require a sealed memfd.
+    int res = fcntl(*fd, F_GET_SEALS);
+    if (res == -1 || (res & kFileSeals) != kFileSeals) {
+      PERFETTO_PLOG("Couldn't verify file seals on shmem FD");
+      return nullptr;
+    }
+  }
+
+  struct stat stat_buf = {};
+  if (fstat(fd.get(), &stat_buf) != 0) {
+    PERFETTO_PLOG("Couldn't stat shmem FD");
+    return nullptr;
+  }
+  if (stat_buf.st_size <= 0 ||
+      static_cast<uint64_t>(stat_buf.st_size) > max_size) {
+    PERFETTO_ELOG("Invalid shmem FD size %" PRId64 " (max %zu)",
+                  static_cast<int64_t>(stat_buf.st_size), max_size);
+    return nullptr;
+  }
+  auto memory = MapFD(std::move(fd), static_cast<size_t>(stat_buf.st_size));
+  if (!memory.ok()) {
+    PERFETTO_ELOG("%s", memory.status().c_message());
+    return nullptr;
+  }
+  return std::move(*memory);
+}
+
+// static
+base::StatusOr<std::unique_ptr<PosixSharedMemory>> PosixSharedMemory::MapFD(
+    base::ScopedFile fd,
+    size_t size) {
+  PERFETTO_DCHECK(fd);
+  PERFETTO_DCHECK(size > 0);
+  void* start =
+      mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd.get(), 0);
+  if (start == MAP_FAILED)
+    return base::ErrStatus("Couldn't map shmem FD: %s", strerror(errno));
+  return std::unique_ptr<PosixSharedMemory>(
+      new PosixSharedMemory(start, size, std::move(fd)));
+}
+
+PosixSharedMemory::PosixSharedMemory(void* start,
+                                     size_t size,
+                                     base::ScopedFile fd)
+    : start_(start), size_(size), fd_(std::move(fd)) {}
+
+PosixSharedMemory::~PosixSharedMemory() {
+  munmap(start(), size());
+}
+
+PosixSharedMemory::Factory::~Factory() {}
+
+std::unique_ptr<SharedMemory> PosixSharedMemory::Factory::CreateSharedMemory(
+    size_t size) {
+  return PosixSharedMemory::Create(size).ValueOrDie();
+}
+
+}  // namespace perfetto
+
+#endif  // OS_LINUX || OS_ANDROID || OS_APPLE
+// gen_amalgamated begin source: src/tracing/ipc/shared_memory_windows.cc
+// gen_amalgamated begin header: src/tracing/ipc/shared_memory_windows.h
+/*
+ * Copyright (C) 2021 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
+#define SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+
+#include <string>
+
+// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
+
+namespace perfetto {
+
+// Implements the SharedMemory and its factory for the Windows IPC transport.
+// This used only for standalone builds and NOT in chromium, which instead uses
+// a custom Mojo wrapper (MojoSharedMemory in chromium's //services/tracing/).
+class SharedMemoryWindows : public SharedMemory {
+ public:
+  class Factory : public SharedMemory::Factory {
+   public:
+    ~Factory() override;
+    std::unique_ptr<SharedMemory> CreateSharedMemory(size_t) override;
+  };
+
+  // Create a brand new SHM region.
+  enum Flags { kNone = 0, kInheritableHandles };
+  static std::unique_ptr<SharedMemoryWindows> Create(
+      size_t size,
+      Flags flags = Flags::kNone);
+  static std::unique_ptr<SharedMemoryWindows> Attach(const std::string& key);
+  static std::unique_ptr<SharedMemoryWindows> AttachToHandleWithKey(
+      base::ScopedPlatformHandle fd,
+      const std::string& key);
+  ~SharedMemoryWindows() override;
+  const std::string& key() const { return key_; }
+  const base::ScopedPlatformHandle& handle() const { return handle_; }
+
+  // SharedMemory implementation.
+  using SharedMemory::start;  // Equal priority to const and non-const versions
+  const void* start() const override { return start_; }
+  size_t size() const override { return size_; }
+
+ private:
+  SharedMemoryWindows(void* start,
+                      size_t size,
+                      std::string,
+                      base::ScopedPlatformHandle);
+  SharedMemoryWindows(const SharedMemoryWindows&) = delete;
+  SharedMemoryWindows& operator=(const SharedMemoryWindows&) = delete;
+
+  void* const start_;
+  const size_t size_;
+  std::string key_;
+  base::ScopedPlatformHandle handle_;
+};
+
+}  // namespace perfetto
+
+#endif  // OS_WIN
+
+#endif  // SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
+/*
+ * Copyright (C) 2021 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/ipc/shared_memory_windows.h"
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+
+#include <memory>
+#include <random>
+
+#include <windows.h>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
+
+namespace perfetto {
+
+// static
+std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::Create(size_t size,
+                                                                 Flags flags) {
+  base::ScopedPlatformHandle shmem_handle;
+  std::random_device rnd_dev;
+  uint64_t rnd_key = (static_cast<uint64_t>(rnd_dev()) << 32) | rnd_dev();
+  std::string key = "perfetto_shm_" + base::Uint64ToHexStringNoPrefix(rnd_key);
+
+  SECURITY_ATTRIBUTES security_attributes = {};
+  security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
+  if (flags & Flags::kInheritableHandles)
+    security_attributes.bInheritHandle = TRUE;
+
+  shmem_handle.reset(CreateFileMappingA(
+      INVALID_HANDLE_VALUE,  // Use paging file.
+      &security_attributes, PAGE_READWRITE,
+      static_cast<DWORD>(size >> 32),  // maximum object size (high-order DWORD)
+      static_cast<DWORD>(size),        // maximum object size (low-order DWORD)
+      key.c_str()));
+
+  if (!shmem_handle) {
+    PERFETTO_PLOG("CreateFileMapping() call failed");
+    return nullptr;
+  }
+  void* start =
+      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
+                    /*offsetLow=*/0, size);
+  if (!start) {
+    PERFETTO_PLOG("MapViewOfFile() failed");
+    return nullptr;
+  }
+
+  return std::unique_ptr<SharedMemoryWindows>(new SharedMemoryWindows(
+      start, size, std::move(key), std::move(shmem_handle)));
+}
+
+// static
+std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::Attach(
+    const std::string& key) {
+  base::ScopedPlatformHandle shmem_handle;
+  shmem_handle.reset(
+      OpenFileMappingA(FILE_MAP_ALL_ACCESS, /*inherit=*/false, key.c_str()));
+  if (!shmem_handle) {
+    PERFETTO_PLOG("Failed to OpenFileMapping()");
+    return nullptr;
+  }
+
+  void* start =
+      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
+                    /*offsetLow=*/0, /*dwNumberOfBytesToMap=*/0);
+  if (!start) {
+    PERFETTO_PLOG("MapViewOfFile() failed");
+    return nullptr;
+  }
+
+  MEMORY_BASIC_INFORMATION info{};
+  if (!VirtualQuery(start, &info, sizeof(info))) {
+    PERFETTO_PLOG("VirtualQuery() failed");
+    return nullptr;
+  }
+  size_t size = info.RegionSize;
+  return std::unique_ptr<SharedMemoryWindows>(
+      new SharedMemoryWindows(start, size, key, std::move(shmem_handle)));
+}
+
+// static
+std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::AttachToHandleWithKey(
+    base::ScopedPlatformHandle shmem_handle,
+    const std::string& key) {
+  void* start =
+      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
+                    /*offsetLow=*/0, /*dwNumberOfBytesToMap=*/0);
+  if (!start) {
+    PERFETTO_PLOG("MapViewOfFile() failed");
+    return nullptr;
+  }
+
+  MEMORY_BASIC_INFORMATION info{};
+  if (!VirtualQuery(start, &info, sizeof(info))) {
+    PERFETTO_PLOG("VirtualQuery() failed");
+    return nullptr;
+  }
+  size_t size = info.RegionSize;
+
+  return std::unique_ptr<SharedMemoryWindows>(
+      new SharedMemoryWindows(start, size, key, std::move(shmem_handle)));
+}
+
+SharedMemoryWindows::SharedMemoryWindows(void* start,
+                                         size_t size,
+                                         std::string key,
+                                         base::ScopedPlatformHandle handle)
+    : start_(start),
+      size_(size),
+      key_(std::move(key)),
+      handle_(std::move(handle)) {}
+
+SharedMemoryWindows::~SharedMemoryWindows() {
+  if (start_)
+    UnmapViewOfFile(start_);
+}
+
+SharedMemoryWindows::Factory::~Factory() = default;
+
+std::unique_ptr<SharedMemory> SharedMemoryWindows::Factory::CreateSharedMemory(
+    size_t size) {
+  return SharedMemoryWindows::Create(size);
+}
+
+}  // namespace perfetto
+
+#endif  // !OS_WIN
+// gen_amalgamated begin source: src/tracing/v2/producer_ring_buffer_arbiter.cc
+// gen_amalgamated begin header: src/tracing/v2/producer_ring_buffer_arbiter.h
+// gen_amalgamated begin header: src/tracing/v2/shared_ring_buffer.h
+// gen_amalgamated begin header: src/tracing/v2/shared_ring_buffer_abi.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_SHARED_RING_BUFFER_ABI_H_
+#define SRC_TRACING_V2_SHARED_RING_BUFFER_ABI_H_
+
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <algorithm>
+#include <atomic>
+#include <optional>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/base/status.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/bits.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+// gen_amalgamated expanded: #include "src/tracing/ipc/memfd.h"
+
+namespace perfetto::tracing_v2 {
+
+// Shared-memory ABI for a tracing-v2 producer ring buffer.
+// Protocol: RFC 0046,
+// https://github.com/google/perfetto/discussions/7120.
+// Parent design: RFC 0014, https://github.com/google/perfetto/discussions/4508.
+//
+// Several trace writers can write at once. One reader drains their data in
+// reservation order. A relocated fragment gets a later reservation.
+//
+// The ring buffer has one header followed by fixed-size chunks:
+// - The header holds the read and write positions.
+// - Each chunk starts with an atomic state word. It records ownership and the
+//   number of published fragments while the chunk belongs to a writer.
+//
+// The ABI assumes little-endian producer and service processes.
+
+// Sharing over IPC
+// ----------------
+//
+// A producer in another process shares the ring buffer with the service as a
+// sealed memfd. Without memfd, IPC producers and services use only v1.
+//
+// IPC code uses the two checks below, not memfd directly. If tracing v2 ever
+// needs more from the platform, only these checks change.
+
+// Build-time check. True if the build has the memfd code.
+// It guards the code that shares the memfd. Part of that code, such as
+// PosixSharedMemory, does not build on Windows.
+#define PERFETTO_TRACING_V2_IPC() PERFETTO_MEMFD_ENABLED()
+
+// Runtime check. True if the kernel supports memfd.
+// Always false when PERFETTO_TRACING_V2_IPC() is false.
+//
+// Only IPC code may call this. HasMemfdSupport() is in src/tracing/ipc:common,
+// which only IPC builds have.
+inline bool IpcSupportsTracingV2() {
+  return HasMemfdSupport();
+}
+
+// Shared-memory layout
+// --------------------
+//
+//   +------------------------+---------+---------+---------+-----+
+//   | RingBufferHeader, 64 B | chunk 0 | chunk 1 | chunk 2 | ... |
+//   +------------------------+---------+---------+---------+-----+
+//   0                        64
+
+// Chunks must hold several small fragments to amortize their header overhead.
+constexpr uint32_t kMinChunkSize = 256;
+
+// Maximum chunk size, including the header. The service copies a chunk
+// without its header (at least 4 bytes) into one TBChunk, which holds at most
+// 64 KiB - 1 bytes.
+constexpr uint32_t kMaxChunkSize = 64 * 1024;
+
+// Each chunk's atomic<uint32_t> requires four-byte alignment.
+constexpr uint32_t kChunkAlignmentBytes = 4;
+
+// Minimum supported chunk count.
+constexpr uint32_t kMinChunksPerRing = 2;
+
+// Chunk area size (excluding the header) used when the SMB size hint is 0.
+constexpr size_t kDefaultChunkBudgetBytes = 128 * 1024;
+
+// Ring buffer header
+// ------------------
+//
+//   byte offset
+//   0              4              8              12               64
+//   +--------------+--------------+--------------+----------------+
+//   |   read_pos   |  write_pos   | num_writers_ |    reserved    |
+//   |              |              |   waiting    |                |
+//   +--------------+--------------+--------------+----------------+
+//   |<------- rw_positions ------>|<- atomic32 ->|
+//          atomic<uint64_t>
+//
+// Writers check capacity by loading rw_positions once. In memory:
+// - The first four bytes hold read_pos.
+// - The next four bytes hold write_pos.
+// Keeping both in one atomic avoids combining counters read at different times.
+//
+// The reader is the only one that moves read_pos. It publishes a new value once
+// per drain pass and then wakes any writer parked on a full ring buffer.
+// read_pos is also the first four bytes of rw_positions, which is the address
+// the futex waits on.
+//
+// num_writers_waiting lets the reader skip a futex wake when nobody is waiting
+// for space. It is only an optimization and never decides whether the ring
+// buffer is full or who owns a chunk.
+//
+// Bytes 12..63 pad the header to one cache line.
+//
+static_assert(sizeof(std::atomic<uint32_t>) == 4 &&
+                  alignof(std::atomic<uint32_t>) <= 4,
+              "Chunk state must fit in a 4-byte-aligned ABI word");
+static_assert(sizeof(std::atomic<uint64_t>) == 8,
+              "The packed positions must occupy 8 bytes");
+static_assert(std::atomic<uint32_t>::is_always_lock_free &&
+                  std::atomic<uint64_t>::is_always_lock_free,
+              "Shared-memory atomics must be lock-free");
+
+struct alignas(64) RingBufferHeader {
+  std::atomic<uint64_t> rw_positions;
+  std::atomic<uint32_t> num_writers_waiting;
+  uint8_t reserved[52];
+};
+
+static_assert(offsetof(RingBufferHeader, num_writers_waiting) == 8 &&
+                  offsetof(RingBufferHeader, reserved) == 12 &&
+                  sizeof(RingBufferHeader) == 64,
+              "RingBufferHeader does not match the shared-memory ABI");
+
+// Logical positions and chunk indexing
+// ------------------------------------
+//
+// write_pos is the next position a writer can reserve. read_pos is the next
+// position the reader must consume. These are logical positions:
+// - They keep advancing past num_chunks across successive traversals.
+// - As uint32_t counters, they roll over from UINT32_MAX to zero.
+// - Both reader and writer map a position to a physical chunk before access.
+//   ChunkIndex::FromPosition() performs that mapping modulo num_chunks.
+//
+// A writer reserves a position by advancing write_pos, then tries to claim
+// its physical chunk.
+//
+// The number of reserved positions not yet handled by the reader is:
+//
+//   outstanding = uint32_t(write_pos - read_pos) <= num_chunks < 2^31
+//
+// - If outstanding is zero, write_pos == read_pos and the ring buffer is empty.
+// - If outstanding equals num_chunks, the ring buffer is full:
+//   write_pos == uint32_t(read_pos + num_chunks). Writers cannot advance
+//   write_pos until the reader advances read_pos to make space.
+//
+// Unsigned subtraction also works when write_pos wraps back to zero. For
+// example:
+//
+//   read_pos  = UINT32_MAX - 3
+//   write_pos = 2
+//   uint32_t(write_pos - read_pos) = 6
+//
+// A legal result is at most num_chunks. A larger result means that the two
+// positions do not describe a valid ring buffer state.
+//
+// At most one outstanding reservation maps to each physical chunk. An exact
+// comparison of the chunk's state word therefore determines ownership.
+// A delayed claim can match a later traversal after the wrap count repeats.
+// See WrapCountForPosition() for this limit.
+
+// The unsigned subtraction above is unambiguous only while fewer than 2^31
+// positions are outstanding. num_chunks is a power of two, so 2^30 is the
+// largest legal chunk count.
+constexpr uint32_t kMaxChunksPerRing = 1u << 30;
+
+// True if |chunk_size| is in [kMinChunkSize, kMaxChunkSize] and a multiple of
+// kChunkAlignmentBytes.
+constexpr bool IsValidChunkSize(uint32_t chunk_size) {
+  return chunk_size >= kMinChunkSize && chunk_size <= kMaxChunkSize &&
+         chunk_size % kChunkAlignmentBytes == 0;
+}
+
+// Validates the layout of an untrusted ring buffer and returns its chunk
+// count, or an error describing why the layout is invalid.
+// The service calls it on the ring buffer that a producer attaches.
+//
+// - Any thread can call it. It reads no shared bytes.
+// - The transport limits the mapping size separately.
+// - The SharedRingBuffer constructor treats validation errors as fatal.
+// - RingBufferSizeForShmSizeHint() works the other way, it picks a size that
+//   passes this check.
+inline base::StatusOr<uint32_t> NumChunksForRingBufferLayout(
+    const void* start,
+    size_t size,
+    uint32_t chunk_size) {
+  if (!start ||
+      reinterpret_cast<uintptr_t>(start) % alignof(RingBufferHeader) != 0) {
+    return base::ErrStatus("ring buffer start is null or misaligned");
+  }
+  if (!IsValidChunkSize(chunk_size))
+    return base::ErrStatus("invalid chunk size %u", chunk_size);
+  // Subtract the header after this check to avoid overflow on 32-bit builds.
+  if (size < sizeof(RingBufferHeader))
+    return base::ErrStatus("ring buffer size %zu is below the header", size);
+  const size_t chunks_size = size - sizeof(RingBufferHeader);
+  if (chunks_size % chunk_size != 0) {
+    return base::ErrStatus("ring buffer size %zu is not header + N * %u", size,
+                           chunk_size);
+  }
+  const size_t count = chunks_size / chunk_size;
+  // Two chunks form the minimum useful configuration. One chunk satisfies
+  // the ABI: write_pos - read_pos is 0 when empty and 1 when full.
+  // The Free wrap count distinguishes successive uses of that chunk.
+  //
+  // The power-of-two rule permits chunk indexing with a mask. The maximum
+  // keeps outstanding positions below 2^31 for unambiguous unsigned
+  // subtraction.
+  if (count < kMinChunksPerRing || count > kMaxChunksPerRing ||
+      !base::IsPowerOfTwo(count)) {
+    return base::ErrStatus("invalid chunk count %zu", count);
+  }
+  return static_cast<uint32_t>(count);
+}
+
+// Picks the size of a new ring buffer.
+// The producer calls this before it allocates its ring buffer, to turn a byte
+// size hint into a size that NumChunksForRingBufferLayout() accepts.
+//
+// - Returns the size, header included, of the largest valid ring buffer
+//   whose chunks fit in |shmem_size_hint_bytes| bytes.
+// - Uses kDefaultChunkBudgetBytes if |shmem_size_hint_bytes| is zero.
+// - The header comes on top of the hint.
+//   The returned size is capped at |max_shmem_size_bytes|.
+// - Returns an error status if fewer than kMinChunksPerRing chunks fit, or if
+//   |chunk_size| is invalid.
+// - Any thread can call it, because it reads no shared memory.
+inline base::StatusOr<size_t> RingBufferSizeForShmSizeHint(
+    size_t shmem_size_hint_bytes,
+    size_t max_shmem_size_bytes,
+    uint32_t chunk_size) {
+  if (!IsValidChunkSize(chunk_size))
+    return base::ErrStatus("invalid chunk size %u", chunk_size);
+  if (max_shmem_size_bytes < sizeof(RingBufferHeader)) {
+    return base::ErrStatus("maximum size %zu is below the header",
+                           max_shmem_size_bytes);
+  }
+
+  const size_t available_chunk_bytes = std::min(
+      shmem_size_hint_bytes ? shmem_size_hint_bytes : kDefaultChunkBudgetBytes,
+      max_shmem_size_bytes - sizeof(RingBufferHeader));
+  const size_t max_count = available_chunk_bytes / chunk_size;
+
+  // Find the largest power of two that is at most |max_count|: start at
+  // kMaxChunksPerRing, a power of two, and halve it until it fits.
+  // Every value on the way is a power of two and at most the maximum, so only
+  // the minimum chunk count is left to check.
+  static_assert(base::IsPowerOfTwo(kMaxChunksPerRing));
+  size_t count = kMaxChunksPerRing;
+  while (count > max_count)
+    count /= 2;
+
+  if (count < kMinChunksPerRing) {
+    return base::ErrStatus("no ring buffer of %u-byte chunks fits in %zu bytes",
+                           chunk_size, available_chunk_bytes);
+  }
+  const size_t size = sizeof(RingBufferHeader) + count * chunk_size;
+  PERFETTO_CHECK(size <= max_shmem_size_bytes);
+  return size;
+}
+
+constexpr uint64_t PackRwPositions(uint32_t write_pos, uint32_t read_pos) {
+  return (static_cast<uint64_t>(write_pos) << 32) | read_pos;
+}
+
+constexpr uint32_t WritePosOf(uint64_t rw_positions) {
+  return static_cast<uint32_t>(rw_positions >> 32);
+}
+
+constexpr uint32_t ReadPosOf(uint64_t rw_positions) {
+  return static_cast<uint32_t>(rw_positions);
+}
+
+// Replaces the read half of a previously loaded rw_positions value, leaving
+// write_pos unchanged. The reader publishes read_pos this way.
+constexpr uint64_t ReplaceReadPos(uint64_t rw_positions, uint32_t read_pos) {
+  return PackRwPositions(WritePosOf(rw_positions), read_pos);
+}
+
+constexpr uint32_t NumOutstandingPositions(uint32_t write_pos,
+                                           uint32_t read_pos) {
+  return write_pos - read_pos;
+}
+
+// A physical chunk index. Variable names distinguish indices from positions:
+// - *_idx selects a chunk in memory, from 0 to num_chunks - 1.
+//   Successive positions cycle through these indices, then return to zero.
+// - *_pos identifies a reservation in logical order.
+//   It keeps advancing across traversals, past num_chunks.
+//   It rolls over from UINT32_MAX to zero.
+//
+// For a ring buffer with four chunks:
+//
+//   chunk_pos: 0 1 2 3 4 5 6 7 8
+//   chunk_idx: 0 1 2 3 0 1 2 3 0
+class ChunkIndex {
+ public:
+  // Maps a logical position to its physical chunk in a validated ring buffer.
+  //
+  // num_chunks = 2^k, so the low k bits of a position select the physical chunk
+  // and the remaining bits count completed traversals:
+  //
+  //             bits 0..k-1                  bits k..31
+  //   +----------------------------+----------------------------+
+  //   |    physical chunk index    |      traversal number      |
+  //   +----------------------------+----------------------------+
+  //               k bits                     32 - k bits
+  //
+  // For example, an eight-chunk ring buffer has three chunk-index bits. The low
+  // three bits select chunks 0 through 7. The remaining 29 bits count completed
+  // traversals.
+  static constexpr ChunkIndex FromPosition(uint32_t chunk_pos,
+                                           uint32_t num_chunks) {
+    return ChunkIndex{chunk_pos & (num_chunks - 1)};
+  }
+
+  // Builds from an existing physical chunk index.
+  // Uses |chunk_idx| unchanged, without applying modulo num_chunks.
+  static constexpr ChunkIndex FromIndex(uint32_t chunk_idx) {
+    return ChunkIndex{chunk_idx};
+  }
+
+  constexpr uint32_t value() const { return chunk_idx_; }
+
+ private:
+  explicit constexpr ChunkIndex(uint32_t chunk_idx) : chunk_idx_(chunk_idx) {}
+
+  uint32_t chunk_idx_;
+};
+
+// Chunk state word
+// ----------------
+//
+// Each chunk starts with a 32-bit atomic state word (std::atomic<uint32_t>).
+//
+// There are five states:
+// 1. kFree
+// 2. kBeingWritten
+// 3. kComplete
+// 4. kRewriteRequested
+// 5. kRewriteAcknowledged
+//
+// The low control byte (8 bits) determines how to interpret the upper 24 bits:
+// - Free has 8 unused bits that must be zero, followed by wrap_count (16 bits).
+// - BeingWritten, Complete and RewriteRequested carry num_fragments (8 bits)
+//   and WriterID (16 bits).
+// - RewriteAcknowledged has no other fields so its upper bits are all zero.
+//
+// A Free word contains:
+//
+//   +------------------+------------------+------------------+
+//   |      byte 0      |      byte 1      |    bytes 2-3     |
+//   +------------------+------------------+------------------+
+//   |   control = 0    | num_fragments = 0|    wrap_count    |
+//   | (Free, format 0, |                  |                  |
+//   |    no flags)     |                  |                  |
+//   +------------------+------------------+------------------+
+//
+// On the first traversal, wrap_count is zero and every chunk's Free word is
+// zero. A zero-filled ring buffer therefore starts with all chunks Free and
+// read_pos == write_pos == 0. Later traversals use wrap_count << 16 as the
+// Free word.
+//
+// BeingWritten, Complete and RewriteRequested contain:
+//
+//   +------------------+------------------+------------------+
+//   |      byte 0      |      byte 1      |    bytes 2-3     |
+//   +------------------+------------------+------------------+
+//   |   control byte   |  num_fragments   |     WriterID     |
+//   +------------------+------------------+------------------+
+//
+// The control byte is:
+//
+//   +---------+---------+---------+---------+---------+
+//   |bits 0-2 |bits 3-4 |  bit 5  |  bit 6  |  bit 7  |
+//   +---------+---------+---------+---------+---------+
+//   |  state  | format  |  data   |continues|continues|
+//   |         |         |  loss   | on next |from prev|
+//   +---------+---------+---------+---------+---------+
+//
+// RewriteAcknowledged carries no other fields so every other bit is zero.
+
+enum class ChunkState : uint32_t {
+  // No writer owns this chunk:
+  // - A writer whose reserved position selects this chunk and has the same
+  //   wrap count can change Free to BeingWritten before writing.
+  // - To consume an unclaimed reservation, the reader must first advance the
+  //   wrap count atomically. The delayed writer's claim then fails.
+  kFree = 0,
+
+  // One writer owns the chunk:
+  // - The first N = num_fragments fragments are published and can be read.
+  // - The writer may be appending fragment N + 1 after those published bytes.
+  //
+  // The writer publishes by changing BeingWritten to Complete. The reader
+  // can instead copy the first N fragments and request a rewrite, without
+  // waiting for the writer to finish.
+  kBeingWritten = 1,
+
+  // The writer has published all num_fragments fragments and stopped writing.
+  // The reader and writer can now race to change the state:
+  // - The reader consumes the fragments and changes Complete to Free.
+  // - The same writer changes Complete back to BeingWritten to append more.
+  // If the reader wins, the writer drops its cached handle to the chunk.
+  kComplete = 2,
+
+  // A partial chunk read won the race against the writer's publication:
+  // - The reader consumed N = num_fragments and can move on.
+  // - The writer still owns the chunk and may be writing fragment N + 1.
+  //
+  // The writer notices the request when it tries to publish. It must save
+  // any unpublished fragment before acknowledging. The reader cannot free
+  // the chunk until that acknowledgement.
+  kRewriteRequested = 3,
+
+  // The writer notices RewriteRequested when it next tries to publish:
+  // - It saves any unpublished fragment in private memory.
+  // - It changes the old chunk to RewriteAcknowledged and stops touching it.
+  //
+  // Acknowledgement happens before waiting for a replacement chunk.
+  // Only the reader changes RewriteAcknowledged to Free, when it next visits
+  // this chunk on a later traversal.
+  kRewriteAcknowledged = 4,
+
+  // A reader that does not know a state cannot tell who owns the chunk. It
+  // stops rather than reclaiming it.
+  kReserved5 = 5,
+  kReserved6 = 6,
+  kReserved7 = 7,
+};
+
+enum class ChunkFormat : uint32_t {
+  // Bytes 4..5 contain a little-endian target BufferID. Payload starts at 6.
+  kTargetBuffer = 0,
+
+  // Reserved for a format carrying per-packet routing information.
+  kReservedRouting = 1,
+  kReserved2 = 2,
+  kReserved3 = 3,
+};
+
+// Field widths and positions in the 32-bit word. The low byte is the control
+// byte, followed by the fragment count and WriterID.
+constexpr uint32_t kPayloadFlagsBits = 3;
+constexpr uint32_t kChunkFormatBits = 2;
+constexpr uint32_t kChunkStateBits = 3;
+constexpr uint32_t kNumFragmentsBits = 8;
+constexpr uint32_t kWriterIDBits = 16;
+
+constexpr uint32_t kChunkStateShift = 0;
+constexpr uint32_t kChunkFormatShift = kChunkStateShift + kChunkStateBits;
+constexpr uint32_t kPayloadFlagsShift = kChunkFormatShift + kChunkFormatBits;
+constexpr uint32_t kNumFragmentsShift = kPayloadFlagsShift + kPayloadFlagsBits;
+constexpr uint32_t kWriterIDShift = kNumFragmentsShift + kNumFragmentsBits;
+
+constexpr uint32_t kChunkStateMask = (1u << kChunkStateBits) - 1;
+constexpr uint32_t kChunkFormatMask = ((1u << kChunkFormatBits) - 1)
+                                      << kChunkFormatShift;
+constexpr uint32_t kPayloadFlagsMask = ((1u << kPayloadFlagsBits) - 1)
+                                       << kPayloadFlagsShift;
+constexpr uint32_t kNumFragmentsMask = ((1u << kNumFragmentsBits) - 1)
+                                       << kNumFragmentsShift;
+constexpr uint32_t kWriterIDMask = ((1u << kWriterIDBits) - 1)
+                                   << kWriterIDShift;
+
+constexpr uint32_t kMaxFragmentsPerChunk = (1u << kNumFragmentsBits) - 1;
+
+// Free uses the WriterID field for the wrap count. Its other data bits must be
+// zero.
+constexpr uint32_t kWrapCountShift = kWriterIDShift;
+
+enum PayloadFlags : uint32_t {
+  // The writer lost data before or while filling this chunk.
+  // - The flag does not identify where data was lost within the chunk.
+  // - The reader discards all published fragments and reports loss.
+  //   This includes complete, good packets before or after the gap.
+  // - A writer may keep appending. The flag stays set for that reservation.
+  //   Fragments appended to this chunk are also discarded once published.
+  // This allows cached reuse after loss without forcing a new reservation.
+  //
+  // TODO(sashwinbalaji): Carry the cause of the loss. TBv2 reports this flag
+  // as DATA_LOSS_READ_GAP. v1 reports a full buffer as DATA_LOSS_SMB_FULL.
+  kFlagDataLoss = 1u << kPayloadFlagsShift,
+
+  // The last fragment is not the end of its packet. The packet continues in
+  // this writer's next chunk. Only Complete may carry this flag, and the
+  // writer must not reuse a chunk carrying it.
+  kFlagContinuesOnNextChunk = 1u << (kPayloadFlagsShift + 1),
+
+  // The first fragment contains the next part of a packet that started in this
+  // writer's previous chunk.
+  kFlagContinuesFromPrevChunk = 1u << (kPayloadFlagsShift + 2),
+};
+
+// Chunk ownership and wrap identity
+// ---------------------------------
+//
+// Only the reader writes Free. The writer publishes each closed fragment and
+// may reuse its Complete chunk to append another.
+//
+// The reader can make progress even when a writer is descheduled:
+//
+// 1. The writer pauses before claiming the chunk.
+//    - The position is reserved. The chunk has not been claimed.
+//    - The reader atomically changes Free(wrap) to Free(next wrap).
+//      Only the wrap count changes. The state stays Free.
+//    - The reader advances read_pos without delivering fragments.
+//    - The chunk is ready for chunk_pos + num_chunks. That position's writer
+//      can claim it by changing the state to BeingWritten.
+//    - The original writer resumes with the old wrap count. Its claim fails
+//      without changing the chunk. It tries a new reservation.
+//    - If the writer claims first, the reader's update fails instead.
+//      The reader leaves read_pos unchanged and retries the position.
+//
+// 2. The writer pauses after claiming the chunk.
+//    - The reader copies the published fragments.
+//    - The reader changes BeingWritten to RewriteRequested, then advances
+//      read_pos. The writer still owns the chunk.
+//    - Later reservations cannot claim this chunk while it awaits
+//      acknowledgement. The reader advances past those reservations without
+//      changing the chunk's state word or delivering fragments.
+//    - The owning writer resumes and saves any unpublished fragment.
+//      Only that writer can change RewriteRequested to RewriteAcknowledged.
+//    - On a later traversal, the reader changes RewriteAcknowledged to
+//      Free(next wrap). It then advances read_pos without delivering fragments.
+//    - The chunk is now available for a subsequent reservation.
+//
+// An unclaimed reservation that the reader skips is called a hole. Skipping
+// means advancing read_pos without delivering fragments for that reservation.
+// It can also require a state word update, as in the Free and
+// RewriteAcknowledged cases above.
+//
+//                 writer claims                writer publishes
+//     Free(wrap)  ------------> BeingWritten(N)  -----------> Complete(M)
+//          |                           |                           |
+//          | reader                    | reader                    | reader
+//          v                           v                           v
+//   Free(next wrap)           RewriteRequested(N)           Free(next wrap)
+//                                      |
+//                                      | writer finishes with old chunk
+//                                      v
+//                             RewriteAcknowledged
+//                                      |
+//                                      | reader, on a later traversal
+//                                      v
+//                               Free(next wrap)
+//
+// N and M count published fragments. A claim starts at N = 0. Reuse takes
+// Complete(M) back to BeingWritten(M).
+//
+// The writer's publication and the reader's rewrite request compare the entire
+// BeingWritten word, including format, flags, num_fragments and WriterID.
+// Only one CAS can succeed against that word. No second atomic is needed.
+// If scraping wins, the writer relocates only the unpublished fragment after
+// the N published fragments.
+//
+// A reservation allows one claim against Free(wrap_count(chunk_pos)).
+// On failure, the writer must reserve a new position. The returned word can
+// belong to another writer or a position beyond the one the reader consumed.
+// A retry against that word can overwrite another reservation's chunk.
+//
+//   Actor   From                   Action                   To
+//   ------  ---------------------  -----------------------  -------------------
+//   writer  Free(wrap)             claim                    BeingWritten(0)
+//   writer  Free(wrap) gone        reserve a new position   unchanged
+//   reader  Free(wrap)             consume unclaimed        Free(next wrap)
+//   reader  Free(other wrap)       protocol error, stop     unchanged
+//   writer  BeingWritten(N)        publish                  Complete(M)
+//   reader  BeingWritten(N)        read N fragments         RewriteRequested(N)
+//   writer  Complete(N)            reuse                    BeingWritten(N)
+//   writer  Complete gone          drop cached handle       unchanged
+//   reader  Complete               consume                  Free(next wrap)
+//   writer  RewriteRequested       copy fragment, release   RewriteAcknowledged
+//   reader  RewriteRequested       advance read_pos         unchanged
+//   reader  RewriteAcknowledged    reclaim                  Free(next wrap)
+//   reader  reserved state 5..7    unknown owner, stop      unchanged
+//   reader  Free CAS lost          retry immediately        unchanged
+//   reader  BeingWritten CAS lost  discard copy, retry      unchanged
+//   reader  Complete CAS lost      discard copy, retry      unchanged
+//   reader  acknowledgement lost   protocol error, stop     unchanged
+//   writer  publication CAS lost   handle rewrite or abort  unchanged
+//   writer  any other lost CAS     bug, abort               unchanged
+//
+// Lost-CAS rows describe a failed attempt. It does not change the shared word.
+// The reader retries within Drain(), subject to its per-position attempt limit.
+// A failed publication must find RewriteRequested(N), or the writer aborts.
+// The reader also stops on reserved bits in Free or RewriteAcknowledged.
+//
+// Free stores the low 16 bits of the traversal number:
+//
+//   wrap_count = uint16_t(chunk_pos / num_chunks)
+//
+// For the same chunk, that value repeats after:
+//
+//   min(num_chunks * 65536, 2^32) reservations
+//
+// A writer delayed between reservation and claim for that long can match a
+// later Free word. Its data is delivered at that later position, whose writer
+// loses the claim. Chunk ownership holds, but reservation order is lost for
+// the delayed writer. This is the limit of the 16-bit wrap count.
+//
+// Computes the wrap from a position. It does not inspect the chunk's state.
+inline uint16_t WrapCountForPosition(uint32_t chunk_pos, uint32_t num_chunks) {
+  PERFETTO_DCHECK(base::IsPowerOfTwo(num_chunks));
+  return static_cast<uint16_t>(chunk_pos >> base::CountTrailZeros(num_chunks));
+}
+
+constexpr ChunkState ChunkStateOf(uint32_t state_word) {
+  return static_cast<ChunkState>((state_word & kChunkStateMask) >>
+                                 kChunkStateShift);
+}
+
+constexpr bool HasDataFields(ChunkState state) {
+  return state == ChunkState::kBeingWritten || state == ChunkState::kComplete ||
+         state == ChunkState::kRewriteRequested;
+}
+
+constexpr uint32_t MakeFreeStateWord(uint16_t wrap_count) {
+  return static_cast<uint32_t>(wrap_count) << kWrapCountShift;
+}
+
+// The Free word a reservation at |chunk_pos| must find, and the word the
+// reader leaves for the next traversal when called with chunk_pos + num_chunks.
+inline uint32_t MakeFreeStateWordForPosition(uint32_t chunk_pos,
+                                             uint32_t num_chunks) {
+  return MakeFreeStateWord(WrapCountForPosition(chunk_pos, num_chunks));
+}
+
+// These accessors apply to BeingWritten, Complete and RewriteRequested.
+// PayloadFlagsOf() leaves the flags in their encoded bit positions, so its
+// result can be passed to MakeDataStateWord().
+constexpr ChunkFormat ChunkFormatOf(uint32_t state_word) {
+  return static_cast<ChunkFormat>((state_word & kChunkFormatMask) >>
+                                  kChunkFormatShift);
+}
+
+constexpr uint32_t PayloadFlagsOf(uint32_t state_word) {
+  return state_word & kPayloadFlagsMask;
+}
+
+constexpr uint32_t NumFragmentsOf(uint32_t state_word) {
+  return (state_word & kNumFragmentsMask) >> kNumFragmentsShift;
+}
+
+constexpr WriterID WriterIDOf(uint32_t state_word) {
+  return static_cast<WriterID>((state_word & kWriterIDMask) >> kWriterIDShift);
+}
+
+inline uint32_t MakeDataStateWord(ChunkState state,
+                                  ChunkFormat format,
+                                  uint32_t payload_flags,
+                                  uint32_t num_fragments,
+                                  WriterID writer_id) {
+  PERFETTO_DCHECK(HasDataFields(state));
+  PERFETTO_DCHECK(static_cast<uint32_t>(format) < (1u << kChunkFormatBits));
+  PERFETTO_DCHECK((payload_flags & ~kPayloadFlagsMask) == 0);
+  PERFETTO_DCHECK(num_fragments <= kMaxFragmentsPerChunk);
+  return (static_cast<uint32_t>(state) << kChunkStateShift) |
+         (static_cast<uint32_t>(format) << kChunkFormatShift) |
+         (payload_flags & kPayloadFlagsMask) |
+         ((num_fragments << kNumFragmentsShift) & kNumFragmentsMask) |
+         (static_cast<uint32_t>(writer_id) << kWriterIDShift);
+}
+
+constexpr uint32_t kRewriteAcknowledgedStateWord =
+    static_cast<uint32_t>(ChunkState::kRewriteAcknowledged) << kChunkStateShift;
+
+// Replaces only the state bits, preserving format, flags, count and WriterID.
+// The reader uses this to request a rewrite without understanding the chunk
+// format. The writer uses it to take a Complete chunk back to BeingWritten
+// while the word keeps describing the fragments it already published.
+constexpr uint32_t ReplaceChunkState(uint32_t state_word, ChunkState state) {
+  return (state_word & ~kChunkStateMask) |
+         (static_cast<uint32_t>(state) << kChunkStateShift);
+}
+
+// Target-buffer chunk format
+// --------------------------
+//
+// A data-bearing format-0 chunk begins with this six-byte header. The remaining
+// chunk_size - 6 bytes hold payload and size entries:
+//
+//   +---------+---------+-------------------+-------------------+
+//   | byte 0  | byte 1  |     bytes 2-3     |     bytes 4-5     |
+//   +---------+---------+-------------------+-------------------+
+//   | control |  num    |     WriterID      |  target BufferID  |
+//   |  byte   |fragments|                   |                   |
+//   +---------+---------+-------------------+-------------------+
+//   \_____________ atomic state word _______/
+//
+// The rest of a format-0 chunk is laid out as follows:
+//
+//   low address                                         high address
+//   0                 4          6                                 chunk_size
+//   +-----------------+----------+-----------+------+--------------+
+//   | atomic state    | BufferID | payloads  | free | size varints |
+//   | word            |          | grow ---> |      | <--- grow    |
+//   +-----------------+----------+-----------+------+--------------+
+//                                                     ... N-1  1  0
+//
+// Fragment 0's size is at the end of the chunk. num_fragments specifies the
+// number of published payload fragments and size varints.
+//
+// Publication and access:
+// - The writer fills each fragment and its size entry before the release
+//   transition from BeingWritten to Complete.
+// - The reader acquire-loads the state word. It decodes and validates each size
+//   before it copies the payload.
+//
+// BufferID becomes visible with the first fragment publication.
+// If num_fragments is zero, the reader must not load BufferID.
+//
+// If kFlagDataLoss is set, the reader discards the chunk's published fragments
+// without access to their payload.
+
+constexpr uint32_t kTargetBufferIdOffset = 4;
+constexpr uint32_t kTargetBufferPayloadOffset = 6;
+
+inline void StoreTargetBufferId(uint8_t* chunk, BufferID buffer_id) {
+  memcpy(&chunk[kTargetBufferIdOffset], &buffer_id, sizeof(buffer_id));
+}
+
+inline BufferID LoadTargetBufferId(const uint8_t* chunk) {
+  BufferID buffer_id;
+  memcpy(&buffer_id, &chunk[kTargetBufferIdOffset], sizeof(buffer_id));
+  return buffer_id;
+}
+
+// Fragment size directory
+// -----------------------
+//
+// The fragment sizes are reversed varints at the end of the chunk.
+// - Fragment 0's size ends at chunk_size.
+// - Each later size is prepended at a lower address.
+//
+//   low address                                 high address
+//   +----------+----------+----------+----------+----------+
+//   | size N-1 |   ...    |  size 2  |  size 1  |  size 0  |
+//   +----------+----------+----------+----------+----------+
+//
+// Within each size entry:
+// - Each byte carries seven value bits and a continuation bit (0x80).
+// - The least significant group is at the highest address.
+// - The reader moves towards lower addresses until the continuation bit is
+//   clear. It does not read the next, unpublished entry.
+
+// Fragment sizes share Protozero's message-length limit: four varint bytes.
+constexpr uint32_t kMaxFragmentSizeVarIntBytes = 4;
+
+// Returns the largest supported n with n + varint_size(n) <= available_bytes.
+// Returns zero if no payload byte fits.
+// |available_bytes| includes both the payload and its size entry. Each size
+// byte carries seven bits, so the limits below include the corresponding
+// number of size bytes.
+inline uint32_t MaxFragmentSizeForAvailableBytes(uint32_t available_bytes) {
+  if (available_bytes <= 1)
+    return 0;
+
+  // One size byte: (2^7 - 1) + 1 = 2^7 total. Subtract one size byte.
+  if (available_bytes <= (1u << 7))
+    return available_bytes - 1;
+  // Two size bytes: (2^14 - 1) + 2 = 2^14 + 1 total. Subtract two.
+  if (available_bytes <= (1u << 14) + 1)
+    return available_bytes - 2;
+  // Three size bytes: (2^21 - 1) + 3 = 2^21 + 2 total. Subtract three.
+  if (available_bytes <= (1u << 21) + 2)
+    return available_bytes - 3;
+  return std::min(
+      available_bytes - 4,
+      static_cast<uint32_t>(protozero::proto_utils::kMaxMessageLength));
+}
+
+inline uint32_t MaxFragmentSizeForEmptyChunk(uint32_t chunk_size) {
+  // Callers use a validated ring buffer, so a size below 256 is a caller error.
+  PERFETTO_CHECK(chunk_size >= kMinChunkSize);
+  const uint32_t available_bytes = chunk_size - kTargetBufferPayloadOffset;
+  return MaxFragmentSizeForAvailableBytes(available_bytes);
+}
+
+// Writes the size into the directory immediately before |sizes_begin| and
+// returns the new directory start.
+// Requires varint_size(size) writable bytes before |sizes_begin|.
+// |size| must be at most protozero::proto_utils::kMaxMessageLength.
+inline uint8_t* WriteFragmentSizeReversed(uint8_t* sizes_begin, uint32_t size) {
+  PERFETTO_DCHECK(size <= protozero::proto_utils::kMaxMessageLength);
+  // TODO(sashwinbalaji): Add proto_utils::WriteVarIntReversed to write directly
+  // into the directory. This would avoid the temporary buffer and copy below.
+  uint8_t encoded[kMaxFragmentSizeVarIntBytes];
+  const uint8_t* const encoded_end =
+      protozero::proto_utils::WriteVarInt(size, encoded);
+  const size_t encoded_size = static_cast<size_t>(encoded_end - encoded);
+  // Put the first varint byte at the highest address: the reader starts
+  // there and reads towards lower addresses (see ReadFragmentSizeReversed()).
+  for (size_t i = 0; i < encoded_size; ++i) {
+    --sizes_begin;
+    *sizes_begin = encoded[i];
+  }
+  return sizes_begin;
+}
+
+// Decodes one reversed size varint, starting just below |*sizes_cursor|.
+//
+// For example, 300 is stored as 02 AC from low to high address.
+// The reader visits AC first, then 02:
+//
+//        ... | 02 | AC |  <- chunk_size
+//              ^    ^
+//              |    first byte read: AC, continuation bit set
+//              second byte read: 02, no continuation bit, stop
+//
+// The reader validates the chunk in two steps:
+// 1. Decode the sizes with |lower_bound| set to the payload start.
+//    This keeps reads out of the header. The payload end is not yet known.
+// 2. Add up the decoded sizes. The payload must end at or before the directory
+//    start. Reject the chunk on overlap, without copying payload.
+//
+// Rejects truncated entries and entries needing more than four bytes.
+// Four bytes limit the decoded size to Protozero's kMaxMessageLength.
+//
+// - Success returns the size, which may be zero. |*sizes_cursor| moves to the
+//   last byte read, just above the next entry.
+// - Failure returns std::nullopt and leaves |*sizes_cursor| unchanged.
+inline std::optional<uint32_t> ReadFragmentSizeReversed(
+    const uint8_t* lower_bound,
+    const uint8_t** sizes_cursor) {
+  PERFETTO_DCHECK(lower_bound <= *sizes_cursor);
+  const uint8_t* cursor = *sizes_cursor;
+  uint32_t value = 0;
+  uint32_t num_bytes = 0;
+  // TODO(sashwinbalaji): Benchmark alternatives:
+  // - Increment a running shift by seven instead of multiplying each time.
+  // - Find the terminator first, then decode forwards with shift-and-or.
+  for (;;) {
+    if (cursor == lower_bound || num_bytes == kMaxFragmentSizeVarIntBytes)
+      return std::nullopt;
+    --cursor;
+    const uint8_t cur = *cursor;
+    // Reading down the directory yields the least significant group first.
+    const uint32_t data_bits = cur & 0x7f;
+    const uint32_t shift = 7 * num_bytes;
+    value |= data_bits << shift;
+    ++num_bytes;
+    if ((cur & 0x80) == 0)
+      break;
+  }
+
+  *sizes_cursor = cursor;
+  return value;
+}
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_V2_SHARED_RING_BUFFER_ABI_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_SHARED_RING_BUFFER_H_
+#define SRC_TRACING_V2_SHARED_RING_BUFFER_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <atomic>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/futex.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+
+namespace test {
+class SharedRingBufferInternalsForTest;
+}
+
+// Provides the atomic operations on a shared ring buffer.
+//
+// Like SharedMemoryABI in v1, this class interprets memory from its owner.
+// The owner must keep the region mapped until this view, its reader and its
+// writers are destroyed.
+//
+// The ring buffer is lock-free, with multiple writers and a single reader:
+// - Writers reserve positions concurrently. When the ring buffer is full,
+//   each writer applies its BufferExhaustedPolicy and records any data it
+//   drops.
+// - The reader consumes positions in order and is the only actor that makes a
+//   chunk Free again.
+// - All updates to rw_positions and the chunk state words go through this
+//   class.
+//
+// Chunk transitions use compare-and-exchange (CAS):
+// - Each CAS compares the entire state word, including all fields.
+// - For BeingWritten, Complete and RewriteRequested, those fields are format,
+//   flags, num_fragments and WriterID. Free contains the wrap count instead.
+// - In transition comments, N and M are published fragment counts.
+//
+// TODO(sashwinbalaji): CAS operations currently use the default seq_cst order.
+// Their implementation comments propose weaker orders for a later optimization
+// pass. Audit the synchronization guarantees and measure the benefit before
+// replacing seq_cst.
+class SharedRingBuffer {
+ public:
+  // Attaches to a ring buffer at |start|. Its layout is:
+  //
+  //   size = sizeof(RingBufferHeader) + num_chunks * chunk_size
+  //
+  // - sizeof(RingBufferHeader) is 64 bytes. |start| must be 64-byte aligned.
+  // - num_chunks must be a power of two, from 2 to 2^30.
+  // - |chunk_size| must be in [256 B, 64 KiB] and a multiple of four.
+  //   It does not need to be a power of two.
+  // - |size| must match the equation exactly, with no trailing bytes.
+  //   It does not need to be a power of two.
+  //
+  // A newly created ring buffer must be zero-filled.
+  SharedRingBuffer(uint8_t* start, size_t size, uint32_t chunk_size);
+  ~SharedRingBuffer() = default;
+
+  SharedRingBuffer(const SharedRingBuffer&) = delete;
+  SharedRingBuffer& operator=(const SharedRingBuffer&) = delete;
+  SharedRingBuffer(SharedRingBuffer&&) = delete;
+  SharedRingBuffer& operator=(SharedRingBuffer&&) = delete;
+
+  // Immutable for the life of the ring buffer.
+  uint32_t num_chunks() const { return num_chunks_; }
+  uint32_t chunk_size() const { return chunk_size_; }
+
+  uint8_t* chunk_at(ChunkIndex chunk_idx) {
+    PERFETTO_DCHECK(chunk_idx.value() < num_chunks_);
+    return start_ + sizeof(RingBufferHeader) +
+           static_cast<size_t>(chunk_idx.value()) * chunk_size_;
+  }
+  const uint8_t* chunk_at(ChunkIndex chunk_idx) const {
+    PERFETTO_DCHECK(chunk_idx.value() < num_chunks_);
+    return start_ + sizeof(RingBufferHeader) +
+           static_cast<size_t>(chunk_idx.value()) * chunk_size_;
+  }
+
+  // Writer-side reservation.
+  //
+  // A writer reserves a position and acquires its physical chunk in separate
+  // operations:
+  // 1. TryReserveWritePos() advances write_pos.
+  // 2. TryAcquireChunkForWriting() changes Free(wrap_count(chunk_pos)) to
+  //    BeingWritten.
+  //
+  // If the reader reaches the reservation before step 2, it must atomically
+  // advance the chunk's wrap count before it advances read_pos.
+  // The delayed writer's claim then fails because its expected wrap count no
+  // longer matches. This prevents publication at a consumed position.
+
+  enum class ReserveResult {
+    kReserved,
+    // num_chunks positions are already outstanding. Nothing was reserved,
+    // so a stalling policy may wait and try again.
+    kFull,
+  };
+
+  struct Reservation {
+    ReserveResult result = ReserveResult::kFull;
+    // Valid only for kReserved. This is a position in the reservation order,
+    // not a physical chunk index.
+    uint32_t chunk_pos = 0;
+    // The read_pos sampled by the last reservation attempt. If the writer has
+    // to wait, the futex sleeps only while read_pos still has this value.
+    uint32_t read_pos_for_wait = 0;
+  };
+
+  // Reserves the next position if the ring buffer has room.
+  // If another writer or the reader updates rw_positions first, it rechecks
+  // capacity with the updated positions before another reservation attempt.
+  Reservation TryReserveWritePos();
+
+  // Writer-side chunk transitions.
+
+  // Free(wrap_count(chunk_pos)) -> BeingWritten(0).
+  // |being_written_word| supplies this writer's WriterID, format and initial
+  // flags. Its fragment count must be zero because the chunk has no published
+  // payload for this reservation.
+  //
+  // On failure, reserve a later position. The reader can consume this position
+  // before the claim, or a writer from an earlier reservation can still own
+  // the chunk. A retry against the returned word can overwrite that writer's
+  // chunk or claim a position the reader already consumed.
+  bool TryAcquireChunkForWriting(uint32_t chunk_pos,
+                                 uint32_t being_written_word);
+
+  // BeingWritten(N) -> Complete(M). |*expected| is the last BeingWritten word.
+  //
+  // On failure, |*expected| receives the reader's RewriteRequested(N) word,
+  // which must preserve the format, flags, fragment count and WriterID.
+  // Only the reader's rewrite request can change the word while this writer
+  // owns the chunk. The caller must relocate any unpublished fragment.
+  bool TryReleaseChunkAsComplete(ChunkIndex chunk_idx,
+                                 uint32_t complete_word,
+                                 uint32_t* expected);
+
+  // Complete(N) -> BeingWritten(N), so the writer can append fragments to its
+  // cached chunk. |observed| is the Complete word this writer published.
+  //
+  // On failure, the reader reclaimed the chunk first. The writer must discard
+  // its cached handle and acquire another chunk.
+  bool TryReacquireChunkForWriting(ChunkIndex chunk_idx, uint32_t observed);
+
+  // RewriteRequested -> RewriteAcknowledged after the writer saves any
+  // unpublished fragment and stops access to the old chunk.
+  //
+  // On failure, report a protocol error. Only this writer can change
+  // RewriteRequested, so |observed| must still match the shared word.
+  bool TryAcknowledgeRewrite(ChunkIndex chunk_idx, uint32_t observed);
+
+  // Reader side.
+
+  // Returns the current chunk state word with acquire ordering. For a data
+  // state, the reader can access the published fragments and their sizes.
+  // BufferID is visible only when the published fragment count is nonzero.
+  uint32_t LoadChunkStateWordAcquire(ChunkIndex chunk_idx) const;
+
+  // Returns the next logical position a writer can reserve.
+  // - This bounds the reservations the reader can consume.
+  // - It does not say which chunks have published fragments.
+  //   The reader checks each chunk's state word for that.
+  // - An older position can shorten a drain pass. A later pass can consume
+  //   the remaining reservations.
+  uint32_t LoadWritePosRelaxed() const;
+
+  // Returns write_pos - read_pos from one relaxed load of both positions.
+  // - Includes chunks that writers have not published yet.
+  // - Includes positions reserved but left unclaimed when a chunk claim failed.
+  //   They still count until the reader advances past them.
+  //
+  // Concurrent updates can make this snapshot out of date, but that only
+  // affects when a drain is requested. Space reservation and chunk access use
+  // separate checks.
+  uint32_t LoadNumOutstandingPositionsRelaxed() const;
+
+  // BeingWritten(N) -> RewriteRequested(N), with all other fields unchanged.
+  // |*expected| must be the word the reader used to copy the fragments.
+  //
+  // On failure, the writer published first and |*expected| receives the current
+  // word. The reader must discard its copy and retry this position in Drain().
+  bool TryRequestRewrite(ChunkIndex chunk_idx, uint32_t* expected);
+
+  // The following transitions are the only ones that expose a chunk to the
+  // next pass around the ring buffer. The new wrap count comes from
+  // |chunk_pos|, not from the old state word.
+
+  // Free(wrap_count(chunk_pos)) -> Free(next_wrap(chunk_pos)).
+  // Consumes an unclaimed position and prepares the chunk for
+  // chunk_pos + num_chunks. |*expected| must be this position's Free word.
+  //
+  // On failure, the delayed writer claimed the chunk first and |*expected|
+  // receives the current word. The reader must retry this position in Drain().
+  bool TryMoveFreeChunkToNextWrap(uint32_t chunk_pos, uint32_t* expected);
+
+  // Complete(N) -> Free(next_wrap(chunk_pos)).
+  // |*expected| must be the word the reader used to copy the fragments.
+  //
+  // On failure, the writer reused the chunk first and |*expected| receives the
+  // current word. The reader must discard its copy and retry this position in
+  // Drain(). If the chunk is now BeingWritten, that retry requests a rewrite.
+  bool TryReleaseCompleteChunkAsFree(uint32_t chunk_pos, uint32_t* expected);
+
+  // RewriteAcknowledged -> Free(next_wrap(chunk_pos)).
+  //
+  // On failure, |*observed| receives the unexpected word. This is a protocol
+  // error because only this reader can change an acknowledged chunk.
+  bool TryReleaseRewriteAcknowledgedChunkAsFree(uint32_t chunk_pos,
+                                                uint32_t* observed);
+
+  // Backpressure: the writer's path when the ring buffer is full.
+  //
+  // Writers wait on read_pos. The reader publishes a new value and wakes them.
+  // The waiter count only avoids an unnecessary wake syscall. Capacity is
+  // always decided from rw_positions.
+
+  enum class WriterWaitResult {
+    // The writer must recheck capacity after a wake, timeout, interruption or
+    // spurious return. The writer's deadline determines when it stops retries.
+    kRetry,
+    // This build or kernel cannot provide the wait. Do not retry the syscall.
+    // The writer can sleep and retry acquisition instead.
+    kUnavailable,
+  };
+
+  // Whether WaitForReadPosChange() is implemented on this platform.
+  static constexpr bool SupportsWriterWait() { return PERFETTO_HAS_FUTEX(); }
+
+  // Blocks until read_pos differs from |read_pos_for_wait| or |timeout_ms|
+  // elapses. |read_pos_for_wait| comes from the last Reservation, whether it
+  // reported kFull or a position whose claim failed.
+  WriterWaitResult WaitForReadPosChange(uint32_t read_pos_for_wait,
+                                        uint32_t timeout_ms);
+
+  // Publishes read_pos without overwriting a concurrent write_pos update, then
+  // wakes waiting writers. Called once per drain pass, so the shared read_pos
+  // can lag the reader's local value. The lag only under-reports free capacity.
+  void PublishReadPos(uint32_t read_pos);
+
+ private:
+  friend class test::SharedRingBufferInternalsForTest;
+
+  // The production entry points load the initial expected value themselves.
+  // Tests supply an older value to exercise the CAS retry path
+  // deterministically.
+  Reservation TryReserveWritePosFromSnapshot(uint64_t rw_positions);
+  void PublishReadPosFromSnapshot(uint64_t rw_positions, uint32_t read_pos);
+
+  // Shared-memory address and wrap-count helpers.
+
+  std::atomic<uint32_t>* chunk_state_word_at(ChunkIndex chunk_idx) {
+    return reinterpret_cast<std::atomic<uint32_t>*>(chunk_at(chunk_idx));
+  }
+  const std::atomic<uint32_t>* chunk_state_word_at(ChunkIndex chunk_idx) const {
+    return reinterpret_cast<const std::atomic<uint32_t>*>(chunk_at(chunk_idx));
+  }
+
+  std::atomic<uint32_t>* chunk_state_word_for_position(uint32_t chunk_pos) {
+    return chunk_state_word_at(
+        ChunkIndex::FromPosition(chunk_pos, num_chunks_));
+  }
+
+  // Returns the Free word for the next position that uses the same chunk.
+  uint32_t MakeFreeWordForNextWrap(uint32_t chunk_pos) const {
+    // Deriving the value from the next position also handles uint32_t rollover.
+    const uint32_t next_pos = chunk_pos + num_chunks_;
+    return MakeFreeStateWordForPosition(next_pos, num_chunks_);
+  }
+
+  RingBufferHeader* header() {
+    return reinterpret_cast<RingBufferHeader*>(start_);
+  }
+  const RingBufferHeader* header() const {
+    return reinterpret_cast<const RingBufferHeader*>(start_);
+  }
+
+  uint8_t* const start_;
+  const uint32_t num_chunks_;
+  const uint32_t chunk_size_;
+};
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_V2_SHARED_RING_BUFFER_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_PRODUCER_RING_BUFFER_ARBITER_H_
+#define SRC_TRACING_V2_PRODUCER_RING_BUFFER_ARBITER_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <atomic>
+#include <functional>
+#include <memory>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/thread_checker.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/weak_ptr.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/tracing/buffer_exhausted_policy.h"
+// gen_amalgamated expanded: #include "perfetto/tracing/core/forward_decls.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+
+namespace perfetto {
+
+namespace base {
+class TaskRunner;
+}  // namespace base
+
+class ProducerEndpoint;
+class SharedMemory;
+class SharedMemoryArbiter;
+class TraceWriter;
+
+namespace tracing_v2 {
+
+namespace test {
+class ProducerRingBufferArbiterTestPeer;
+}  // namespace test
+
+// The producer side of one tracing v2 ring buffer.
+//
+// The producer's ProducerEndpoint (for example ProducerIPCClientImpl) creates
+// one arbiter for each ring buffer that it shares with the service. In this
+// file:
+// - "endpoint" means that ProducerEndpoint.
+// - "SMB arbiter" means the SharedMemoryArbiter used for v1 tracing.
+// - "writer" means TraceWriterV2Impl.
+//
+// This class:
+// - Keeps the ring buffer mapping alive and owns the SharedRingBuffer view.
+// - Creates writers. Their WriterIDs come from the SMB arbiter, because v1
+//   and v2 writers of one producer share one ID pool.
+// - Tracks the service reader. See ReaderState.
+// - Delivers drain requests to the endpoint thread, which sends
+//   DrainV2RingBuffer to the service. See DrainUrgency.
+// - Runs each Flush() callback after its drain request.
+//
+// Threads:
+// - Writers call ring_buffer(), RequestDrain(), IsReaderAttached(), Flush()
+//   and OnWriterDestroyed() from any thread. CreateTraceWriter() can also run
+//   on any thread.
+// - Creation, state changes, posted tasks, flush callbacks and service
+//   requests run on the endpoint thread.
+//
+// The caller selects v2, then calls InitializeV2RingBuffer() on the endpoint
+// thread before it lets writers use the ring buffer.
+// Time goes down.
+// "--->" is a direct call, and "===>" is an IPC message.
+//
+// endpoint                   this class                   service
+//    |                           |                           |
+//    | Create()                  |                           |
+//    |-------------------------->| kPending                  |
+//    |== AttachV2RingBuffer, with the memfd ================>| maps, checks,
+//    |<== reply =============================================| attaches
+//    | OnReaderAttachReply()     |                           |
+//    |-------------------------->| kAttached, or             |
+//    |                           | kDetached if rejected     |
+//
+// - Later instances reuse the ring buffer.
+// - If Create() fails, the endpoint has no arbiter and returns
+//   NullTraceWriters for v2 requests.
+//
+// Flush(callback) posts its own drain task, then the callback. Time goes
+// down. "===>" is a posted task, or an IPC request to the service.
+//
+//  writer thread          endpoint thread             service
+//        |                       |                       |
+//        | Flush(callback)       |                       |
+//        |==== drain task ======>|                       |
+//        |==== callback ========>|                       |
+//        |                       |== DrainV2RingBuffer =>| copies chunks
+//        |                       | callback()            |
+//
+// A message that the callback sends reaches the service after the drain
+// request. The service handles them in order.
+//
+// Ownership:
+//
+// - "owns": the owner destroys it, as a member or through a unique_ptr.
+// - "shares": a shared_ptr keeps it alive while any owner holds it.
+// - "uses": a raw pointer. The object must outlive the user.
+// - "holds": an allocated ID. The holder must release it.
+//
+//   endpoint (for example ProducerIPCClientImpl)
+//     |-- owns --> SharedMemoryArbiterImpl: the WriterID pool
+//     |-- owns --> ProducerRingBufferArbiter (this class)
+//                    |-- shares-> SharedMemory: the ring buffer mapping
+//                    |-- owns --> SharedRingBuffer: the view
+//                    |-- uses --> endpoint, SharedMemoryArbiterImpl
+//
+//   data source (SDK)
+//     |-- owns --> TraceWriterV2Impl
+//                    |-- uses --> ProducerRingBufferArbiter
+//                    |-- holds -> a WriterID from SharedMemoryArbiterImpl
+//                    |-- owns --> SharedRingBufferWriter
+//                                   |-- uses --> SharedRingBuffer
+//
+// Writers use raw pointers into objects that the endpoint owns. The WriterID
+// keeps these pointers valid:
+// - While a writer holds a WriterID, TryShutdown() of the SMB arbiter fails.
+// - So the endpoint keeps the SMB arbiter, this object and the mapping.
+// - The writer releases its WriterID last, in OnWriterDestroyed().
+class ProducerRingBufferArbiter {
+ public:
+  // Whether writers can rely on a service reader to free space.
+  // - Only the endpoint thread changes the state, but writers can read it
+  //   from any thread.
+  // - This class sends drain requests in every state. The service handles
+  //   attach and drain requests in order. It ignores a drain for a ring
+  //   buffer that it did not accept.
+  //
+  //     Create()                OnReaderAttachReply(true)
+  //   ----------> [ kPending ] --------------------------> [ kAttached ]
+  //                     |                                        |
+  //                     +-------------------+--------------------+
+  //                                         | Disconnect() or
+  //                                         | OnReaderAttachReply(false)
+  //                                         v
+  //                                   [ kDetached ]
+  //                                    (terminal)
+  enum class ReaderState {
+    // The endpoint has not received an attach reply yet.
+    // - Writers can already publish.
+    // - The service can still reject the ring buffer.
+    // - A writer does not wait for space in a full ring buffer. It drops the
+    //   packet instead, also under kStall.
+    kPending,
+
+    // The service accepted the ring buffer. Its reader drains it.
+    // - A writer can wait for space in a full ring buffer.
+    kAttached,
+
+    // Terminal. No reader now or later. Disconnect() enters it after
+    // rejection, disconnect or destruction of this class.
+    // - New writers are NullTraceWriters.
+    // - Existing writers keep the mapping. They drop packets when the ring
+    //   buffer is full.
+    kDetached,
+  };
+
+  // How soon RequestDrain() must send the drain request.
+  //
+  // Only the endpoint thread sends requests. Normally RequestDrain() posts a
+  // task there, and all requests made before the task runs share it. This
+  // saves IPC traffic. But if the caller is on the endpoint thread and blocks
+  // it right after RequestDrain(), the task cannot run until the caller
+  // unblocks, and the caller waits for that drain. The urgency tells
+  // RequestDrain() whether the request can wait for a task.
+  //
+  // It changes only when the request is sent. The service handles every
+  // request the same way, and RequestDrain() never waits for the drain.
+  enum class DrainUrgency {
+    // Set it when the caller does not block after RequestDrain().
+    // A task on the endpoint thread sends the request. Requests made before
+    // that task runs share it, so a burst of calls costs one request.
+    kRoutine,
+
+    // Set it when the caller blocks right after RequestDrain(), until the
+    // service reads the ring buffer.
+    // - On the endpoint thread, sends the request at once, before
+    //   RequestDrain() returns.
+    // - On other threads, the same as kRoutine. The endpoint thread is free
+    //   to run the task.
+    kUrgent,
+  };
+
+  // Allocates the shared memory for a ring buffer of |size| bytes, header
+  // included, or returns an error status on failure.
+  using AllocateSharedMemoryFn =
+      base::StatusOr<std::shared_ptr<SharedMemory>> (*)(size_t size);
+
+  // Sizes and allocates a ring buffer from |config|, then creates its arbiter
+  // in kPending.
+  // - The chunk size and the drain occupancy threshold come from |config|.
+  // - |task_runner| and |endpoint| must outlive the arbiter.
+  // - |allocate_shared_memory| must return a mapping of the size it is given.
+  // - Returns an error status if sizing or allocation fails.
+  // - The endpoint then attaches memory() to the service, and passes the reply
+  //   to OnReaderAttachReply().
+  static base::StatusOr<std::unique_ptr<ProducerRingBufferArbiter>> Create(
+      base::TaskRunner* task_runner,
+      ProducerEndpoint* endpoint,
+      const DataSourceConfig& config,
+      size_t shmem_size_hint_bytes,
+      AllocateSharedMemoryFn allocate_shared_memory);
+
+  // The endpoint destroys this on its thread after all writers release their
+  // IDs. Calls Disconnect().
+  ~ProducerRingBufferArbiter();
+
+  // Writers keep a pointer to this object.
+  ProducerRingBufferArbiter(const ProducerRingBufferArbiter&) = delete;
+  ProducerRingBufferArbiter& operator=(const ProducerRingBufferArbiter&) =
+      delete;
+
+  // The mapping that holds the ring buffer, which the endpoint attaches to the
+  // service.
+  // Fixed for the life of this object.
+  const std::shared_ptr<SharedMemory>& memory() const { return memory_; }
+
+  // Reader state:
+
+  // Called by the endpoint with the attach reply, on the endpoint thread.
+  // Enters kAttached on acceptance or kDetached on rejection. Does nothing
+  // after Disconnect(), because the reply can arrive after it.
+  void OnReaderAttachReply(bool reader_attached);
+
+  // True in kAttached only. If false, nothing frees space in a full ring
+  // buffer. Writers call it on their own thread.
+  bool IsReaderAttached() const;
+
+  // Enters kDetached after rejection or disconnect, on the endpoint thread.
+  // Repeated calls are safe.
+  void Disconnect();
+
+  // Writers:
+
+  // Creates a writer for |target_buffer|, on any thread. The caller owns the
+  // writer.
+  //
+  // Never returns null. Returns a NullTraceWriter, which discards all
+  // packets, if:
+  // - the state is kDetached, or
+  // - the SMB arbiter has no free WriterID (exhaustion or shutdown).
+  std::unique_ptr<TraceWriter> CreateTraceWriter(BufferID target_buffer,
+                                                 BufferExhaustedPolicy);
+
+  // The writer calls this on its thread after its final publication.
+  // - Releases its WriterID in the SMB arbiter.
+  // - The release can let the endpoint destroy this object. So the call must
+  //   be the writer's last access to it.
+  void OnWriterDestroyed(WriterID);
+
+  // The view that writers borrow. Fixed for the life of this object.
+  SharedRingBuffer* ring_buffer() { return &ring_buffer_; }
+
+  uint32_t drain_occupancy_threshold() const {
+    return drain_occupancy_threshold_;
+  }
+
+  // Drain requests, from writers on their own thread:
+
+  // Asks the service to read the ring buffer. See DrainUrgency.
+  void RequestDrain(DrainUrgency);
+
+  // Requests a drain after the writer publishes its data. Then runs |callback|
+  // on the endpoint thread. See the class comment for the order.
+  // - Does not wait for a service ack.
+  // - If the endpoint destroys this object before the drain task runs, the
+  //   task sends nothing. The endpoint thread still runs |callback|.
+  void Flush(std::function<void()>);
+
+  // The returned pointer can only be dereferenced on the endpoint thread.
+  base::WeakPtr<ProducerRingBufferArbiter> GetWeakPtr() const {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  friend class test::ProducerRingBufferArbiterTestPeer;
+
+  // Only Create() calls this.
+  // |memory| must be non-null and satisfy NumChunksForRingBufferLayout().
+  // |drain_occupancy_threshold| is the number of outstanding positions at
+  // which a publication requests a drain, from 1 to the ring's chunk count.
+  ProducerRingBufferArbiter(base::TaskRunner* task_runner,
+                            ProducerEndpoint* endpoint,
+                            std::shared_ptr<SharedMemory> memory,
+                            uint32_t chunk_size,
+                            uint32_t drain_occupancy_threshold);
+
+  // Runs on the endpoint thread. CHECKs that the transition is valid.
+  void SetReaderState(ReaderState);
+
+  // Posts a drain task to the endpoint thread. Callable from any thread.
+  // - Without |force|, requests share a pending task.
+  // - |force| posts a new task so Flush() can place its callback after it.
+  // - The task clears |drain_task_pending_|, then sends DrainV2RingBuffer.
+  void PostDrainTask(bool force);
+
+  // --- Borrowed. They must outlive this object. ---
+
+  // Runs tasks on the endpoint thread. Writers post drain and flush
+  // requests here.
+  base::TaskRunner* const task_runner_;
+  // Sends drain requests to the service, on the endpoint thread only.
+  ProducerEndpoint* const endpoint_;
+  // The SMB arbiter. Any thread allocates and releases WriterIDs here.
+  SharedMemoryArbiter* const shared_memory_arbiter_;
+
+  // --- Ring buffer mapping and view. Fixed after construction. ---
+
+  // The shared memory that holds the ring buffer. Declared before
+  // |ring_buffer_|, which points into it.
+  //
+  // Mapping ownership depends on the transport:
+  // - In-process, producer and service share this pointer. The mapping stays
+  //   alive until both release it.
+  // - Over IPC, the service maps the fd separately and owns that mapping.
+  const std::shared_ptr<SharedMemory> memory_;
+  // The view that writers borrow.
+  SharedRingBuffer ring_buffer_;
+  // A publication asks for a drain when the ring buffer has at least this many
+  // outstanding positions.
+  // - The count covers the positions of all writers.
+  // - It includes reservations whose chunks are not published yet.
+  // - Fixed at construction and shared by all writers.
+  const uint32_t drain_occupancy_threshold_;
+
+  // --- Shared with writer threads. ---
+
+  // Writers read it from any thread. Only SetReaderState() writes it.
+  std::atomic<ReaderState> reader_state_{ReaderState::kPending};
+  // Nonzero while a shared drain task is pending. A request without |force|
+  // sets it before it posts that task. The task clears it before it sends
+  // DrainV2RingBuffer.
+  std::atomic<uint32_t> drain_task_pending_{0};
+
+  PERFETTO_THREAD_CHECKER(thread_checker_)
+
+  // Any thread can call GetWeakPtr(). Only the endpoint thread dereferences
+  // the weak pointers.
+  base::WeakPtrFactory<ProducerRingBufferArbiter> weak_factory_{this};
+};
+
+}  // namespace tracing_v2
+}  // namespace perfetto
+
+#endif  // SRC_TRACING_V2_PRODUCER_RING_BUFFER_ARBITER_H_
+// gen_amalgamated begin header: src/tracing/v2/trace_writer_v2_impl.h
+// gen_amalgamated begin header: src/tracing/v2/shared_ring_buffer_writer.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_SHARED_RING_BUFFER_WRITER_H_
+#define SRC_TRACING_V2_SHARED_RING_BUFFER_WRITER_H_
+
+#include <stdint.h>
+
+#include <functional>
+#include <optional>
+#include <vector>
+
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+
+// Writes the packet fragments produced by one TraceWriter into a
+// SharedRingBuffer.
+//
+// - A fragment is one packet, or part of a packet that crosses a chunk
+//   boundary. A chunk can hold several fragments. The writer handles their
+//   byte ranges and sizes without interpreting their contents.
+// - Use each instance from one thread at a time. Several instances can write
+//   to the same ring buffer concurrently.
+// - Keep the ring buffer's memory and SharedRingBuffer view alive until
+//   every writer is destroyed. The destructor still publishes its chunk.
+// - The writer gets a chunk in two steps:
+//   1. Reserve a write position. This moves write_pos.
+//   2. Claim the chunk at that position: change its state from Free to
+//      BeingWritten.
+//   Step 2 can fail, for example if an older writer still holds the chunk.
+//   The reserved position then stays unused, and only the reader can move
+//   past it.
+// - The writer only accesses the ring buffer. It does not contact the reader,
+//   and it does not apply a BufferExhaustedPolicy. TraceWriterV2Impl does
+//   both.
+// - A call that needs a new chunk makes at most num_chunks attempts to
+//   reserve and claim one. If none succeeds, the call returns at once with
+//   kFull or kClaimFailed. Only WaitForReadPosChange() blocks.
+//
+// The writer is in one of three states:
+// - Ready: no fragment is open. The writer can still hold the chunk that it
+//   published last. It appends the next fragment there if the fragment fits,
+//   without a new reservation.
+// - Fragment open: BeginFragment() returned a range. The caller writes the
+//   fragment's bytes into it.
+// - Relocation pending: the reader took the chunk before EndFragment()
+//   published the fragment, and the writer could not claim a replacement
+//   chunk. The writer keeps a copy of the fragment. See EndFragment().
+//
+// The calls and the states that allow them:
+// - BeginFragment(): Ready. On success, opens a fragment.
+// - EndFragment(): Fragment open. Publishes the fragment and returns to
+//   Ready, or enters Relocation pending.
+// - RetryRelocation(): Relocation pending. Publishes the saved copy and
+//   returns to Ready, or stays in Relocation pending.
+// - DropRelocation(): Relocation pending. Drops the saved copy and returns to
+//   Ready.
+// - FinishCurrentChunk(): Ready or Fragment open. Releases the held chunk, so
+//   the next fragment needs a new one. TraceWriterV2Impl::Flush() uses it.
+//   - In Fragment open, it abandons the open fragment and publishes the
+//     earlier fragments of the chunk.
+// - WaitForReadPosChange(): after a call returned kFull or kClaimFailed.
+// - RecordDataLoss(), has_pending_data_loss(), accessors and GetStats(): any
+//   state.
+class SharedRingBufferWriter {
+ public:
+  // Result of BeginFragment(), which may need a new chunk.
+  enum class BeginFragmentResult {
+    kSuccess,
+    // The ring buffer is structurally full: num_chunks positions are
+    // outstanding and the reader is behind. The call reserved nothing.
+    kFull,
+    // The call reserved a position, but could not claim its chunk, for example
+    // because an older writer still holds it.
+    //
+    // The reserved position stays unused until the reader moves past it.
+    // Chunks pinned by a stalled writer produce this without the ring buffer
+    // being full.
+    kClaimFailed,
+    // The request is larger than a freshly claimed chunk could hold. This is a
+    // caller bug, not backpressure.
+    kTooLarge,
+  };
+
+  // Result of EndFragment(), RetryRelocation() and FinishCurrentChunk(), which
+  // publish.
+  enum class EndFragmentResult {
+    kSuccess,
+    // The reader took the chunk before the publication, and the writer could
+    // not claim a replacement chunk. The reasons are the same as in
+    // BeginFragmentResult. The writer is then in Relocation pending.
+    kFull,
+    kClaimFailed,
+  };
+
+  // Result of RetryRelocation().
+  struct RetryRelocationResult {
+    EndFragmentResult result = EndFragmentResult::kFull;
+    // True if the call claimed at least one replacement chunk.
+    // - A successful claim ends one acquisition. A caller that limits each
+    //   acquisition, such as TraceWriterV2Impl, then starts a new limit.
+    // - With kFull or kClaimFailed, the reader also took the last replacement
+    //   before its publication, and the next claim attempts failed.
+    bool acquired_replacement = false;
+  };
+
+  // A contiguous range for the caller to fill. Valid until the next call on
+  // this SharedRingBufferWriter.
+  struct FragmentRange {
+    BeginFragmentResult result = BeginFragmentResult::kFull;
+    uint8_t* begin = nullptr;
+    uint8_t* end = nullptr;
+  };
+
+  SharedRingBufferWriter(SharedRingBuffer* ring,
+                         WriterID writer_id,
+                         BufferID target_buffer);
+  ~SharedRingBufferWriter();
+
+  SharedRingBufferWriter(const SharedRingBufferWriter&) = delete;
+  SharedRingBufferWriter& operator=(const SharedRingBufferWriter&) = delete;
+  SharedRingBufferWriter(SharedRingBufferWriter&&) = delete;
+  SharedRingBufferWriter& operator=(SharedRingBufferWriter&&) = delete;
+
+  // Starts a fragment for the caller to fill.
+  // - On success, returns a writable range of at least |min_size| bytes.
+  // - Reuses space in the current chunk when possible. Otherwise, tries to
+  //   claim a new chunk. See the class comment.
+  // - Call EndFragment() after writing the bytes.
+  // - Only one fragment can be open at a time.
+  //
+  // |continues_from_prev| describes the packet this fragment belongs to:
+  // - true: continues the packet from this writer's previous chunk.
+  // - false: starts a new packet.
+  // The flag describes the first fragment of a chunk.
+  //
+  // If BeginFragment(..., true) cannot acquire space, the caller can abandon
+  // the rest of the packet. The next packet must start with
+  // BeginFragment(..., false), even though the previous chunk still marks a
+  // continuation. Only the caller knows that a new packet starts. The writer
+  // cannot infer |continues_from_prev| from the previous chunk's flag.
+  FragmentRange BeginFragment(uint32_t min_size, bool continues_from_prev);
+
+  // Ends the open fragment at |size| bytes and publishes it, so the reader
+  // can copy it. |size| must fit the range from BeginFragment().
+  //
+  // Set |continues_on_next| if the packet continues in the next chunk, which
+  // then starts with BeginFragment(..., true). The flag marks the chunk's last
+  // fragment, so the writer appends nothing more to this chunk.
+  //
+  // The reader can take a chunk while its last fragment is still open: it
+  // copies the published fragments and asks the writer to move the open one.
+  // EndFragment() then relocates the fragment:
+  // 1. It saves a copy and acknowledges the request, so the reader can reuse
+  //    the old chunk.
+  // 2. It claims a new chunk, copies the fragment there and publishes it. If
+  //    the reader takes this chunk too, it repeats.
+  // If step 2 cannot claim a chunk, returns kFull or kClaimFailed. The
+  // relocation is then pending: call RetryRelocation() or DropRelocation().
+  EndFragmentResult EndFragment(uint32_t size, bool continues_on_next);
+
+  // Tries again to claim a chunk for the saved fragment, and publishes it
+  // there, as EndFragment() does. Only in Relocation pending.
+  RetryRelocationResult RetryRelocation();
+
+  // Drops the saved fragment. The next publication sets kFlagDataLoss. Only in
+  // Relocation pending.
+  void DropRelocation();
+
+  // Blocks the calling thread. The wait requests at most |timeout_ms|.
+  // Scheduling can make the elapsed time longer.
+  //
+  // Call it after kFull or kClaimFailed. A return does not reserve space. Call
+  // again to try for a chunk.
+  // - With a futex: returns when read_pos differs from the value that the
+  //   last reservation attempt saw, at the timeout, or on a spurious wake. So
+  //   if the reader moved read_pos after that attempt, it returns at once.
+  // - Without a futex: sleeps for the next step of v1's backoff, 0, 8, 72, ...
+  //   microseconds, at most 100 ms per step. No sleep requests more than
+  //   |timeout_ms|. It does not check read_pos.
+  void WaitForReadPosChange(uint32_t timeout_ms);
+
+  // Publishes whatever is held and lets go of the chunk. Any open fragment is
+  // abandoned: its bytes were never counted, so nothing is published for it.
+  // Safe to call with nothing held. The destructor calls it.
+  EndFragmentResult FinishCurrentChunk();
+
+  // Records loss for the next chunk publication.
+  // - A cached chunk can still be reused, even when the ring buffer is full.
+  // - The publication sets kFlagDataLoss. The reader discards all published
+  //   fragments in that chunk. Even complete packets before or after the gap
+  //   are discarded. The flag cannot identify which packets are safe.
+  // - Data already delivered by the reader cannot be retracted.
+  void RecordDataLoss() { data_loss_pending_ = true; }
+
+  // True until a claimed or published chunk carries the recorded loss. This
+  // includes a loss flag that a pending relocation inherited from the
+  // rewritten chunk.
+  //
+  // TraceWriterV2Impl uses it so that kStallThenDrop does not stall again for
+  // each dropped packet.
+  bool has_pending_data_loss() const {
+    return data_loss_pending_ ||
+           (pending_relocation_ &&
+            (pending_relocation_->chunk_flags & kFlagDataLoss));
+  }
+
+  WriterID writer_id() const { return writer_id_; }
+  // Largest range that BeginFragment() can return.
+  uint32_t max_fragment_size() const { return max_fragment_size_; }
+
+  // For diagnostics only. The protocol never reads these counters.
+  // TODO(sashwinbalaji): Wire these counters into service statistics.
+  struct Stats {
+    uint64_t failed_claims = 0;
+    uint64_t fragments_dropped = 0;
+    uint64_t relocations = 0;
+  };
+  Stats GetStats() const { return stats_; }
+
+ private:
+  friend class test::SharedRingBufferInternalsForTest;
+
+  static constexpr uint32_t kNoFragmentOpen = UINT32_MAX;
+
+  // A saved fragment that waits for a replacement chunk. Its bytes are in
+  // |relocation_payload_|.
+  struct PendingRelocation {
+    // Flags for the replacement chunk's BeingWritten word. Only
+    // kFlagContinuesFromPrevChunk and kFlagDataLoss, inherited from the
+    // rewritten chunk.
+    uint32_t chunk_flags = 0;
+    // Sets kFlagContinuesOnNextChunk on the replacement's publication.
+    bool continues_on_next = false;
+  };
+
+  // Maximum payload available to one more fragment in the cached chunk, which
+  // must exist.
+  uint32_t MaxFragmentSizeInCurrentChunk() const;
+  ChunkState cur_chunk_state() const {
+    return ChunkStateOf(expected_state_word_);
+  }
+  bool has_open_fragment() const {
+    return cur_fragment_begin_ != kNoFragmentOpen;
+  }
+
+  FragmentRange BeginFragmentInCurrentChunk(uint32_t available);
+  BeginFragmentResult AcquireNewChunk(uint32_t continuation_flags);
+  // Only the just-ended fragment can be complete but unpublished:
+  // - A size of zero is a valid empty fragment.
+  // - nullopt means FinishCurrentChunk() has no fragment to publish.
+  EndFragmentResult ReleaseCurrentChunkAsComplete(
+      std::optional<uint32_t> fragment_size,
+      bool continues_on_next);
+  // Writes the saved fragment into the newly claimed chunk, as its only
+  // fragment.
+  void CopyRelocatedFragment(uint32_t fragment_size);
+  // Clears only this writer's cached chunk state. It does not modify the ring
+  // buffer.
+  void ResetCurrentChunk();
+
+  SharedRingBuffer* const ring_;
+  const WriterID writer_id_;
+  const BufferID target_buffer_;
+  const uint32_t chunk_size_;
+  // MaxFragmentSizeForEmptyChunk(chunk_size_), computed once.
+  const uint32_t max_fragment_size_;
+
+  // State cached for the chunk this writer currently owns.
+  uint8_t* cur_chunk_ = nullptr;
+  ChunkIndex cur_chunk_idx_ = ChunkIndex::FromIndex(0);
+  // The exact word this writer's next compare-and-swap expects. It can differ
+  // from the shared word once the reader has requested a rewrite.
+  uint32_t expected_state_word_ = 0;
+  // Payload grows from the header. Size entries grow backwards from the end.
+  // - payload_end_ is measured from the chunk start.
+  // - size_directory_bytes_ counts bytes used from the chunk end.
+  //
+  // Example: a 256-byte chunk with 200 payload bytes and 4 directory bytes.
+  //
+  //   0        6                     206                252         256
+  //   +--------+---------------------+------------------+-----------+
+  //   | header |  payload grows ---> |    free space    | <-- sizes |
+  //   +--------+---------------------+------------------+-----------+
+  //
+  // Here: chunk_size_ = 256, payload_end_ = 206, size_directory_bytes_ = 4.
+  // Directory start = chunk_size_ - size_directory_bytes_ = 252.
+  // Free bytes = chunk_size_ - payload_end_ - size_directory_bytes_ = 46.
+  //
+  // Byte offset from the chunk start to the end of finalized payload.
+  uint32_t payload_end_ = 0;
+  // Size-directory bytes used from the chunk end. Zero means no entries.
+  uint32_t size_directory_bytes_ = 0;
+  // Finalized fragments, published or not. expected_state_word_ contains the
+  // count already visible to the reader.
+  uint32_t num_fragments_ = 0;
+  // Byte offset from the chunk start to the open fragment, or kNoFragmentOpen.
+  uint32_t cur_fragment_begin_ = kNoFragmentOpen;
+
+  // Whether kFlagDataLoss still needs to be set in a chunk's state word.
+  // - Cleared after successfully claiming or publishing a chunk with the flag.
+  // - Kept pending if the reader requests a rewrite before publication.
+  //   AcquireNewChunk() then sets the flag in the replacement chunk.
+  // - A rewrite of BeingWritten(0) can move the chunk's loss flag into
+  //   |pending_relocation_|, not back into this flag. has_pending_data_loss()
+  //   checks both.
+  bool data_loss_pending_ = false;
+
+  // The read_pos that the last reservation attempt saw.
+  // WaitForReadPosChange() waits while read_pos keeps this value.
+  uint32_t read_pos_for_wait_ = 0;
+
+  // Stop trying the syscall if the build or kernel cannot provide it.
+  // Once false, this writer uses sleep backoff for later waits too.
+  bool use_futex_ = SharedRingBuffer::SupportsWriterWait();
+
+  // The next sleep of the backoff without futex. It grows with each sleep, up
+  // to 100 ms, across calls. It resets when the writer claims a chunk.
+  uint32_t fallback_sleep_us_ = 0;
+
+  // Set when a relocation cannot claim a replacement chunk. RetryRelocation()
+  // clears it after a claim. DropRelocation() also clears it.
+  std::optional<PendingRelocation> pending_relocation_;
+
+  // Unpublished fragment saved while changing chunks. Allocated on demand and
+  // reused. Writers that never relocate need no payload storage here.
+  std::vector<uint8_t> relocation_payload_;
+
+  // Test callback, called after each replacement claim, before the
+  // publication.
+  // - The callback requests a rewrite of the replacement, as the reader can.
+  //   The publication then fails, and the writer relocates again.
+  // Empty in production. Tests force the race without scheduling threads.
+  std::function<void()> after_replacement_claim_for_testing_;
+
+  Stats stats_;
+};
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_V2_SHARED_RING_BUFFER_WRITER_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_TRACE_WRITER_V2_IMPL_H_
+#define SRC_TRACING_V2_TRACE_WRITER_V2_IMPL_H_
+
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
+
+// gen_amalgamated expanded: #include "perfetto/base/proc_utils.h"
+// gen_amalgamated expanded: #include "perfetto/base/time.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_writer.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message_handle.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/root_message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/scattered_stream_writer.h"
+// gen_amalgamated expanded: #include "perfetto/tracing/buffer_exhausted_policy.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_writer.h"
+
+namespace perfetto::tracing_v2 {
+
+class ProducerRingBufferArbiter;
+
+namespace test {
+class TraceWriterV2ImplTestPeer;
+}  // namespace test
+
+// TraceWriter implementation backed by a tracing v2 shared ring buffer.
+//
+// Data path from the SDK to the service. "v" is a call or a write. "^" is a
+// read by the service. "<--" is an IPC request.
+//
+//          v1: SMB                           v2: ring buffer
+//
+//   data source (SDK)                 data source (SDK)
+//     | NewTracePacket()                | NewTracePacket()
+//     v                                 v
+//   TraceWriterImpl                   TraceWriterV2Impl (this class)
+//     |                                 |
+//     | GetNewChunk()                   | BeginFragment(), EndFragment()
+//     v                                 v
+//   SharedMemoryArbiterImpl           SharedRingBufferWriter
+//     | picks a free chunk,             | claims and publishes chunks
+//     | batches completed chunks        | lock-free. The bytes do not
+//     |                                 | go through
+//     |                                 | ProducerRingBufferArbiter.
+//     v                                 v
+//   [ SMB ]                           [ ring buffer ]
+//     ^                                 ^
+//     | copies the listed chunks        | copies all published chunks
+//     |                                 |
+//   service <-- CommitData IPC        service <-- DrainV2RingBuffer IPC
+//               from the arbiter:                 from the ring buffer arbiter:
+//               "chunks N, M are                  "read what is
+//               complete"                         published"
+//
+// The ring buffer arbiter is ProducerRingBufferArbiter. It sends the drain
+// requests of all writers of the ring buffer.
+//
+// Only this class calls both SharedRingBufferWriter and
+// ProducerRingBufferArbiter:
+// - SharedRingBufferWriter claims chunks, and publishes and relocates
+//   fragments.
+// - The arbiter delivers drain requests to the endpoint thread.
+//
+// This class decides:
+// - When to ask for a drain:
+//   - After a publication, if the ring buffer's outstanding positions reach
+//     the arbiter's drain occupancy threshold.
+//   - After failed claims, if the writer drops the data. Only the reader can
+//     move past those positions.
+//   - Before each wait for space.
+// - What to do when no chunk is free: wait for the reader and try again, or
+//   drop the packet. See TryStallForSpace().
+//
+// A nested message can span chunks, and the reader can copy an earlier
+// fragment while the message is still open. So this writer cannot patch
+// length fields later, as v1 does. It uses proto group encoding instead:
+// - The format: proto_utils::kProtoGroupEndByte.
+// - The service converts each packet back to length-delimited protobuf: see
+//   ProtoGroupRewriter.
+//
+// If the writer drops any part of a packet:
+// - Its remaining bytes go to the drop buffer.
+// - The next publication sets kFlagDataLoss. The reader discards all
+//   published fragments in that chunk and reports the gap.
+// - The service discards orphan continuations. It still delivers later
+//   complete packets from chunks without the flag.
+//
+// Threads:
+// - As with TraceWriterImpl, use each instance from one thread at a time.
+class TraceWriterV2Impl : public TraceWriter,
+                          public protozero::MessageFinalizationListener,
+                          public protozero::ScatteredStreamWriter::Delegate {
+ public:
+  // ProducerRingBufferArbiter::CreateTraceWriter() creates each writer.
+  //
+  // |ring_buffer_arbiter| supplies the ring buffer. Packet bytes go directly
+  // into it. The arbiter also receives drain requests and flushes. The
+  // destructor releases |id| through it.
+  //
+  // - |id|: the arbiter allocates it from the shared WriterID pool. See the
+  //   ownership diagram in ProducerRingBufferArbiter.
+  // - |target_buffer|: the service buffer for the packets. Each chunk header
+  //   stores it.
+  // - |policy|: what the writer does when the ring buffer is full. See
+  //   BufferExhaustedPolicy.
+  TraceWriterV2Impl(ProducerRingBufferArbiter* ring_buffer_arbiter,
+                    WriterID id,
+                    BufferID target_buffer,
+                    BufferExhaustedPolicy policy);
+  ~TraceWriterV2Impl() override;
+
+  TraceWriterV2Impl(const TraceWriterV2Impl&) = delete;
+  TraceWriterV2Impl& operator=(const TraceWriterV2Impl&) = delete;
+  TraceWriterV2Impl(TraceWriterV2Impl&&) = delete;
+  TraceWriterV2Impl& operator=(TraceWriterV2Impl&&) = delete;
+
+  // TraceWriter:
+  TracePacketHandle NewTracePacket() override;
+  void FinishTracePacket() override;
+  // Unlike v1, |callback| does not wait for a service ack. See
+  // ProducerRingBufferArbiter::Flush().
+  void Flush(std::function<void()> callback = {}) override;
+  WriterID writer_id() const override {
+    return ring_buffer_writer_.writer_id();
+  }
+  uint64_t written() const override { return stream_writer_.written(); }
+  uint64_t drop_count() const override { return drop_count_; }
+
+ private:
+  friend class test::TraceWriterV2ImplTestPeer;
+
+  using ClockFunction = base::TimeMillis (*)();
+
+  // protozero::MessageFinalizationListener:
+  void OnMessageFinalized(protozero::Message*) override;
+
+  // protozero::ScatteredStreamWriter::Delegate:
+  protozero::ContiguousMemoryRange GetNewBuffer() override;
+  uint8_t* AnnotatePatch(uint8_t*) override;
+
+  // Checks that no packet is open, before a new packet or a flush.
+  // - A caller can call Message::Finalize() directly, without the handle.
+  //   The message is then closed, but its last fragment stays unpublished.
+  //   This publishes it.
+  // - Raw stream callers skip finalization. They must call
+  //   FinishTracePacket() first, or the CHECK fails.
+  void EnsurePacketClosed();
+
+  // Obtains storage for the next fragment of the current packet: a new
+  // fragment in the ring buffer, or the drop buffer. NewTracePacket() calls it
+  // for the first fragment, GetNewBuffer() for each continuation.
+  // - On success, returns the fragment's range and ends drop mode.
+  // - If no chunk is free, applies the policy through TryStallForSpace(). If
+  //   the policy drops the packet, enters drop mode and returns the drop
+  //   buffer.
+  protozero::ContiguousMemoryRange BeginPacketFragment(
+      bool continues_from_prev);
+
+  // Publishes the open fragment, if any.
+  // - |continues_on_next| sets kFlagContinuesOnNextChunk.
+  // - After the publication, asks for a drain at the threshold.
+  // - If a relocation needs a new chunk, applies the policy through
+  //   TryStallForSpace(), with one stall deadline for each replacement
+  //   acquisition.
+  // - If the policy drops the fragment, enters drop mode for the rest of the
+  //   packet.
+  // - Returns with no relocation pending in |ring_buffer_writer_|.
+  void EndPacketFragment(bool continues_on_next);
+
+  // Decides what to do after |ring_buffer_writer_| found no free chunk: wait
+  // for the reader, or drop the data.
+  //
+  // Returns true after a wait. The caller then tries again to get a chunk.
+  // Returns false, without a wait, if the writer must drop the data:
+  // - The policy is kDrop.
+  // - The policy is kStallThenDrop, and an earlier loss is still unreported.
+  // - No reader is attached, so nothing frees space.
+  // - The stall deadline passed. Under kStall, this aborts instead.
+  //
+  // |claim_failed|: the failed call returned kClaimFailed. Its reserved
+  // positions stay unused until the reader moves past them. So a drop also
+  // asks for a drain.
+  //
+  // |stall_deadline|: the deadline of the current chunk acquisition. Pass an
+  // unset value on the first call for an acquisition, and the same value on
+  // each retry. The first wait sets it.
+  bool TryStallForSpace(bool claim_failed,
+                        std::optional<base::TimeMillis>* stall_deadline);
+
+  // Drops the rest of the open packet: its bytes go to GetDropBuffer() from now
+  // on.
+  // - If drop mode is not active yet, counts one drop and records the loss
+  //   for the next publication.
+  // - Drop mode lasts until a later packet gets a fragment in the ring buffer.
+  void EnterDropMode();
+
+  // Returns the process-wide drop buffer as a writable range. Only in drop
+  // mode.
+  protozero::ContiguousMemoryRange GetDropBuffer();
+
+  // Receives drain requests, Flush() and OnWriterDestroyed(). See the
+  // constructor.
+  ProducerRingBufferArbiter* const ring_buffer_arbiter_;
+
+  // Claims chunks and publishes fragments in the ring buffer.
+  SharedRingBufferWriter ring_buffer_writer_;
+
+  // What this writer does when the ring buffer has no free chunk.
+  const BufferExhaustedPolicy buffer_exhausted_policy_;
+
+  // Time source for stall deadlines. Tests replace it to advance time
+  // deterministically across acquisition attempts.
+  ClockFunction get_time_ms_ = &base::GetWallTimeMs;
+
+  // PID of the process that created this writer. A DCHECK uses it to detect
+  // a process fork during tracing, which this writer does not support.
+  const base::PlatformProcessId process_id_;
+
+  // Protozero writes packet bytes through this. It points into the open
+  // fragment, or into the drop buffer in drop mode.
+  protozero::ScatteredStreamWriter stream_writer_;
+
+  // A pointer, so this header does not need the generated TracePacket header.
+  // NewTracePacket() resets and reuses the same root message for every packet.
+  //
+  // TODO(sashwinbalaji): Consider std::optional<RootMessage<TracePacket>>.
+  // - It saves one heap allocation per writer, but needs the generated
+  //   TracePacket header here.
+  // - It waits because TraceWriterImpl makes the same choice. One decision
+  //   must cover both writers.
+  // - Revisit if a profile shows this allocation at writer creation.
+  std::unique_ptr<protozero::RootMessage<protos::pbzero::TracePacket>>
+      cur_packet_;
+
+  // Start of the open fragment in shared memory.
+  // Null after the fragment closes, and in drop mode.
+  uint8_t* fragment_begin_ = nullptr;
+
+  // True from NewTracePacket() until FinishTracePacket().
+  bool packet_open_ = false;
+
+  // True while writes go to the drop buffer. Stays true until a later
+  // NewTracePacket() gets a fragment in the ring buffer.
+  bool in_drop_mode_ = false;
+
+  // Sets first_packet_on_sequence on the first packet of this writer.
+  bool first_packet_on_sequence_ = true;
+
+  // Number of times this writer entered drop mode. Consecutive dropped
+  // packets count once, as in TraceWriterImpl.
+  uint64_t drop_count_ = 0;
+};
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_V2_TRACE_WRITER_V2_IMPL_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/v2/producer_ring_buffer_arbiter.h"
+
+#include <algorithm>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/base/task_runner.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_macros.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/uuid.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_writer.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
+// gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_config.h"
+// gen_amalgamated expanded: #include "src/tracing/core/null_trace_writer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/trace_writer_v2_impl.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+// Chooses a chunk size by weight, defaulting to kMinChunkSize.
+uint32_t ChooseChunkSize(const DataSourceConfig& config) {
+  using ChunkSizeOption =
+      DataSourceConfig::ExperimentalTracingV2Config::ChunkSizeOption;
+
+  const auto& options = config.experimental_tracing_v2().chunk_size_options();
+  auto weight_of = [](const ChunkSizeOption& option) -> uint64_t {
+    if (!IsValidChunkSize(option.size_bytes()))
+      return 0;
+    return option.has_weight() ? option.weight() : 1;
+  };
+
+  uint64_t total_weight = 0;
+  for (const ChunkSizeOption& option : options)
+    total_weight += weight_of(option);
+
+  if (total_weight == 0)
+    return kMinChunkSize;
+
+  // Walk the options until their cumulative weight passes |target|.
+  const uint64_t target =
+      static_cast<uint64_t>(base::Uuidv4().lsb()) % total_weight;
+  uint64_t cumulative_weight = 0;
+  for (const ChunkSizeOption& option : options) {
+    cumulative_weight += weight_of(option);
+    if (target < cumulative_weight)
+      return option.size_bytes();
+  }
+
+  // Not reached: the last cumulative weight is the total, which is above
+  // |target|, so the loop returns.
+  PERFETTO_DFATAL("ChooseChunkSize: no option for the target");
+  return kMinChunkSize;
+}
+
+// Returns the drain threshold, in positions, for a ring buffer of
+// |num_chunks| chunks.
+// |drain_occupancy_percent| must be -1 to 100, as validated by the service:
+// - -1: 1, so a writer asks for a drain after every publication.
+// - 0: |kDefaultDrainOccupancyPercent|% of |num_chunks|.
+// - 1 to 100: that percent of |num_chunks|.
+// The result is at least 1.
+uint32_t ComputeDrainOccupancyThreshold(uint32_t num_chunks,
+                                        int32_t drain_occupancy_percent) {
+  constexpr uint32_t kDefaultDrainOccupancyPercent = 25;
+
+  PERFETTO_DCHECK(drain_occupancy_percent >= -1 &&
+                  drain_occupancy_percent <= 100);
+  if (drain_occupancy_percent == -1)
+    return 1;
+  const uint32_t percent = drain_occupancy_percent == 0
+                               ? kDefaultDrainOccupancyPercent
+                               : static_cast<uint32_t>(drain_occupancy_percent);
+  const uint64_t threshold = uint64_t{num_chunks} * percent / 100;
+  return std::max(1u, static_cast<uint32_t>(threshold));
+}
+
+}  // namespace
+
+// static
+base::StatusOr<std::unique_ptr<ProducerRingBufferArbiter>>
+ProducerRingBufferArbiter::Create(
+    base::TaskRunner* task_runner,
+    ProducerEndpoint* endpoint,
+    const DataSourceConfig& config,
+    size_t shmem_size_hint_bytes,
+    AllocateSharedMemoryFn allocate_shared_memory) {
+  const uint32_t chunk_size_bytes = ChooseChunkSize(config);
+
+  ASSIGN_OR_RETURN(const size_t shmem_size_bytes,
+                   RingBufferSizeForShmSizeHint(shmem_size_hint_bytes,
+                                                TracingService::kMaxShmSize,
+                                                chunk_size_bytes));
+
+  ASSIGN_OR_RETURN(std::shared_ptr<SharedMemory> memory,
+                   allocate_shared_memory(shmem_size_bytes));
+
+  const uint32_t num_chunks = static_cast<uint32_t>(
+      (shmem_size_bytes - sizeof(RingBufferHeader)) / chunk_size_bytes);
+  const uint32_t drain_occupancy_threshold = ComputeDrainOccupancyThreshold(
+      num_chunks, config.experimental_tracing_v2().drain_occupancy_percent());
+
+  return std::unique_ptr<ProducerRingBufferArbiter>(
+      new ProducerRingBufferArbiter(task_runner, endpoint, std::move(memory),
+                                    chunk_size_bytes,
+                                    drain_occupancy_threshold));
+}
+
+ProducerRingBufferArbiter::ProducerRingBufferArbiter(
+    base::TaskRunner* task_runner,
+    ProducerEndpoint* endpoint,
+    std::shared_ptr<SharedMemory> memory,
+    uint32_t chunk_size,
+    uint32_t drain_occupancy_threshold)
+    : task_runner_(task_runner),
+      endpoint_(endpoint),
+      shared_memory_arbiter_(endpoint->MaybeSharedMemoryArbiter()),
+      memory_(std::move(memory)),
+      ring_buffer_(static_cast<uint8_t*>(memory_->start()),
+                   memory_->size(),
+                   chunk_size),
+      drain_occupancy_threshold_(drain_occupancy_threshold) {
+  PERFETTO_CHECK(shared_memory_arbiter_);
+}
+
+ProducerRingBufferArbiter::~ProducerRingBufferArbiter() {
+  Disconnect();
+}
+
+void ProducerRingBufferArbiter::OnReaderAttachReply(bool reader_attached) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  // The attach reply can arrive after Disconnect().
+  if (reader_state_.load() == ReaderState::kDetached)
+    return;
+  if (!reader_attached) {
+    PERFETTO_ELOG("tracing v2: ring buffer attachment failed");
+    Disconnect();
+    return;
+  }
+  SetReaderState(ReaderState::kAttached);
+}
+
+bool ProducerRingBufferArbiter::IsReaderAttached() const {
+  return reader_state_.load() == ReaderState::kAttached;
+}
+
+void ProducerRingBufferArbiter::Disconnect() {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  SetReaderState(ReaderState::kDetached);
+}
+
+void ProducerRingBufferArbiter::SetReaderState(ReaderState next) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  const ReaderState current = reader_state_.load();
+  PERFETTO_CHECK(
+      next == ReaderState::kDetached ||
+      (current == ReaderState::kPending && next == ReaderState::kAttached));
+  reader_state_.store(next);
+}
+
+std::unique_ptr<TraceWriter> ProducerRingBufferArbiter::CreateTraceWriter(
+    BufferID target_buffer,
+    BufferExhaustedPolicy policy) {
+  if (PERFETTO_UNLIKELY(reader_state_.load() == ReaderState::kDetached))
+    return std::make_unique<NullTraceWriter>();
+
+  const WriterID writer_id =
+      shared_memory_arbiter_->AllocateTracingV2WriterID();
+  if (PERFETTO_UNLIKELY(!writer_id))
+    return std::make_unique<NullTraceWriter>();
+
+  return std::make_unique<TraceWriterV2Impl>(this, writer_id, target_buffer,
+                                             policy);
+}
+
+void ProducerRingBufferArbiter::OnWriterDestroyed(WriterID id) {
+  // TODO(sashwinbalaji): Make WriterID reuse safe between v2 and v1 writers.
+  // The problem:
+  // - The SMB arbiter can give this ID to a v1 writer at once.
+  // - The last ring buffer chunk of this writer can still wait for a drain.
+  // - TraceBufferV2 accepts one input format for each (producer, writer)
+  //   sequence. While it keeps the sequence, it rejects chunks of the other
+  //   format as ABI violations. So one of the two writers loses data.
+
+  // After this release, the endpoint can destroy this object. Do not access
+  // members after it.
+  shared_memory_arbiter_->ReleaseTracingV2WriterID(id);
+}
+
+void ProducerRingBufferArbiter::RequestDrain(DrainUrgency urgency) {
+  // See DrainUrgency::kUrgent.
+  if (urgency == DrainUrgency::kUrgent &&
+      task_runner_->RunsTasksOnCurrentThread()) {
+    endpoint_->DrainV2RingBuffer();
+    return;
+  }
+  PostDrainTask(/*force=*/false);
+}
+
+void ProducerRingBufferArbiter::Flush(std::function<void()> callback) {
+  // Set force=true to queue our own drain task before the callback. The
+  // endpoint thread then sends the drain request before it runs the callback.
+  //
+  // A shared drain task would leave a race:
+  // 1. Another writer sets the flag, then pauses before PostTask().
+  // 2. Flush() sees the flag and queues only its callback.
+  // 3. The callback runs before the other writer queues the drain task.
+  PostDrainTask(/*force=*/true);
+
+  if (callback)
+    task_runner_->PostTask(std::move(callback));
+}
+
+void ProducerRingBufferArbiter::PostDrainTask(bool force) {
+  // When |force| is false, requests share a pending drain task. The writer
+  // sets |drain_task_pending_| after it changes the ring buffer, so that task
+  // covers the change. The atomic operations below act on
+  // |drain_task_pending_|:
+  //
+  //   writer thread               endpoint thread (the pending task)
+  //   -------------               ----------------------------------
+  //   W1. publish a chunk, or     E1. exchange(0)
+  //       leave a failed claim    E2. send DrainV2RingBuffer
+  //   W2. fetch_or(1)
+  //       - was set: post nothing
+  //       - was clear: post a task
+  //
+  // If W2 finds |drain_task_pending_| already set, a drain is still due after
+  // W1. That request covers this change too, so this writer needs no extra
+  // task. E1 must be a read-modify-write for this:
+  // - Only W2 and E1 write the flag, and both are read-modify-writes.
+  // - If W2 reads 1, an earlier W2 posted the pending task. In the
+  //   modification order of the flag, no E1 comes between those two W2s.
+  // - So the next E1 comes after this W2. It reads the value of this W2 or
+  //   of a later W2.
+  // - So this W2 synchronizes with that E1, and W1 happens before the E2
+  //   after it.
+  //
+  // Flush() sets |force|. See Flush() for why it cannot share a pending task.
+  if (!force && drain_task_pending_.fetch_or(1))
+    return;
+
+  task_runner_->PostTask([weak_this = weak_factory_.GetWeakPtr()] {
+    if (!weak_this)
+      return;
+    PERFETTO_DCHECK_THREAD(weak_this->thread_checker_);
+    // E1, then E2. Clearing the flag first lets a later request post another
+    // task. E1 must be a read-modify-write: see above.
+    weak_this->drain_task_pending_.exchange(0);
+    weak_this->endpoint_->DrainV2RingBuffer();
+  });
+}
+
+}  // namespace perfetto::tracing_v2
+// gen_amalgamated begin source: src/tracing/v2/shared_ring_buffer.cc
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+
+#include <limits.h>
+#include <stdint.h>
+
+#include <atomic>
+
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/futex.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+static_assert(kMaxFragmentSizeVarIntBytes ==
+                  protozero::proto_utils::kMessageLengthFieldSize,
+              "Ring buffer fragment sizes must use the same varint byte limit "
+              "as Protozero message lengths");
+
+// The buffer stores read_pos in the low 32 bits of rw_positions. Pass its
+// address to the futex API, but keep all C++ accesses on the containing
+// atomic<uint64_t>.
+//
+// The supported CPU/ABI set provides atomic observation of that 32-bit half
+// during the 64-bit CAS.
+const uint32_t* ReadPosFutexAddress(const std::atomic<uint64_t>* rw_positions) {
+  static_assert(PERFETTO_IS_LITTLE_ENDIAN(),
+                "The low-word futex requires read_pos to be the first four "
+                "bytes of rw_positions");
+  return reinterpret_cast<const uint32_t*>(rw_positions);
+}
+
+// Callers validate untrusted layouts with NumChunksForRingBufferLayout()
+// first. An invalid layout here is a bug.
+uint32_t CheckedNumChunks(const void* start, size_t size, uint32_t chunk_size) {
+  base::StatusOr<uint32_t> num_chunks =
+      NumChunksForRingBufferLayout(start, size, chunk_size);
+  if (!num_chunks.ok())
+    PERFETTO_FATAL("tracing v2: %s", num_chunks.status().c_message());
+  return *num_chunks;
+}
+
+}  // namespace
+
+// --- Construction. ---
+
+SharedRingBuffer::SharedRingBuffer(uint8_t* start,
+                                   size_t size,
+                                   uint32_t chunk_size)
+    : start_(start),
+      num_chunks_(CheckedNumChunks(start, size, chunk_size)),
+      chunk_size_(chunk_size) {}
+
+// --- Writer-side reservation. ---
+
+SharedRingBuffer::Reservation SharedRingBuffer::TryReserveWritePos() {
+  // The reader marks chunks Free before publishing read_pos.
+  // A writer that sees the new read_pos also sees those Free state words.
+  return TryReserveWritePosFromSnapshot(
+      header()->rw_positions.load(std::memory_order_acquire));
+}
+
+SharedRingBuffer::Reservation SharedRingBuffer::TryReserveWritePosFromSnapshot(
+    uint64_t rw_positions) {
+  RingBufferHeader* ring_header = header();
+  Reservation reservation{};
+  for (;;) {
+    const uint32_t write_pos = WritePosOf(rw_positions);
+    const uint32_t read_pos = ReadPosOf(rw_positions);
+    reservation.read_pos_for_wait = read_pos;
+
+    if (NumOutstandingPositions(write_pos, read_pos) >= num_chunks_) {
+      reservation.result = ReserveResult::kFull;
+      return reservation;
+    }
+
+    // (write_pos, read_pos) -> (write_pos + 1, read_pos).
+    //
+    // On failure, no position is reserved. The CAS stores the current write_pos
+    // and read_pos in the local rw_positions value. The loop rechecks capacity
+    // before another attempt. A competing update can come from:
+    // - Another writer that advances write_pos.
+    // - The reader that publishes read_pos.
+    //
+    // compare_exchange_weak can also fail spuriously.
+    //
+    // Proposed memory ordering:
+    // - Success: acquire to observe the Free words published with read_pos.
+    // - Failure: acquire for the same reason. The refreshed read_pos feeds
+    //   the next capacity check.
+    if (ring_header->rw_positions.compare_exchange_weak(
+            rw_positions, PackRwPositions(write_pos + 1, read_pos))) {
+      reservation.result = ReserveResult::kReserved;
+      reservation.chunk_pos = write_pos;
+      return reservation;
+    }
+  }
+}
+
+// --- Writer-side chunk transitions. ---
+
+bool SharedRingBuffer::TryAcquireChunkForWriting(uint32_t chunk_pos,
+                                                 uint32_t being_written_word) {
+  PERFETTO_DCHECK(ChunkStateOf(being_written_word) ==
+                  ChunkState::kBeingWritten);
+  PERFETTO_DCHECK(NumFragmentsOf(being_written_word) == 0);
+
+  // Free(wrap_count(chunk_pos)) -> BeingWritten(0).
+  //
+  // On failure, the chunk does not match this reservation's Free word:
+  // - The reader advanced the wrap count before this writer claimed the chunk.
+  // - A writer from an earlier reservation still owns the physical chunk, or
+  //   the reader has not reclaimed its RewriteAcknowledged state yet.
+  //
+  // The caller must reserve a new position. A retry against the returned word
+  // can claim a consumed position or overwrite another writer's chunk.
+  //
+  // Proposed memory ordering:
+  // - Success: acquire to observe the reader's release of Free.
+  //   The reader must finish copying before this writer overwrites the chunk.
+  // - Failure: relaxed because the returned word is ignored.
+  uint32_t expected = MakeFreeStateWordForPosition(chunk_pos, num_chunks_);
+  std::atomic<uint32_t>* state_word = chunk_state_word_for_position(chunk_pos);
+  return state_word->compare_exchange_strong(expected, being_written_word);
+}
+
+bool SharedRingBuffer::TryReleaseChunkAsComplete(ChunkIndex chunk_idx,
+                                                 uint32_t complete_word,
+                                                 uint32_t* expected) {
+  PERFETTO_DCHECK(ChunkStateOf(*expected) == ChunkState::kBeingWritten);
+  PERFETTO_DCHECK(ChunkStateOf(complete_word) == ChunkState::kComplete);
+
+  // BeingWritten(N) -> Complete(M).
+  //
+  // On failure, the reader requested a rewrite first. |*expected| receives
+  // RewriteRequested(N), and the caller relocates any unpublished fragment.
+  //
+  // Proposed memory ordering:
+  // - Success: release to publish M fragments and their sizes.
+  //   The first publication also makes BufferID visible.
+  // - Failure: acquire to observe the reader's RewriteRequested(N).
+  //   The reader must finish copying N fragments before the writer relocates.
+  std::atomic<uint32_t>* state_word = chunk_state_word_at(chunk_idx);
+  return state_word->compare_exchange_strong(*expected, complete_word);
+}
+
+bool SharedRingBuffer::TryReacquireChunkForWriting(ChunkIndex chunk_idx,
+                                                   uint32_t observed) {
+  PERFETTO_DCHECK(ChunkStateOf(observed) == ChunkState::kComplete);
+
+  // Complete(N) -> BeingWritten(N).
+  //
+  // On failure, the reader reclaimed the chunk first. The writer discards its
+  // cached handle and acquires another chunk.
+  //
+  // Proposed memory ordering:
+  // - Success: relaxed because reuse publishes no new bytes.
+  //   The read-modify-write extends Complete(N)'s release sequence.
+  //   The reader's acquire load still sees the N published fragments.
+  // - Failure: relaxed because the returned word is ignored.
+  uint32_t expected = observed;
+  std::atomic<uint32_t>* state_word = chunk_state_word_at(chunk_idx);
+  return state_word->compare_exchange_strong(
+      expected, ReplaceChunkState(observed, ChunkState::kBeingWritten));
+}
+
+bool SharedRingBuffer::TryAcknowledgeRewrite(ChunkIndex chunk_idx,
+                                             uint32_t observed) {
+  PERFETTO_DCHECK(ChunkStateOf(observed) == ChunkState::kRewriteRequested);
+
+  // RewriteRequested -> RewriteAcknowledged, with all other bits zero.
+  //
+  // On failure, report a protocol error. Only this writer can change
+  // RewriteRequested, so the observed word must still match.
+  //
+  // Proposed memory ordering:
+  // - Success: release to save the unpublished fragment before
+  //   acknowledgement. The reader can then reclaim the chunk.
+  // - Failure: relaxed because it only reports a protocol error.
+  uint32_t expected = observed;
+  std::atomic<uint32_t>* state_word = chunk_state_word_at(chunk_idx);
+  return state_word->compare_exchange_strong(expected,
+                                             kRewriteAcknowledgedStateWord);
+}
+
+// --- Reader-side chunk transitions. ---
+
+uint32_t SharedRingBuffer::LoadChunkStateWordAcquire(
+    ChunkIndex chunk_idx) const {
+  // The acquire load pairs with the writer's release publication of fragments
+  // and their sizes. The first publication also makes BufferID visible.
+  //
+  // If the writer reuses Complete(N) as BeingWritten(N), its CAS preserves the
+  // fragment count and extends the release sequence. This load still makes
+  // those N fragments, their sizes and BufferID visible when N is nonzero.
+  return chunk_state_word_at(chunk_idx)->load(std::memory_order_acquire);
+}
+
+uint32_t SharedRingBuffer::LoadWritePosRelaxed() const {
+  // This bounds the reader's pass. It does not show whether each reservation
+  // has published data. LoadChunkStateWordAcquire() provides that information.
+  return WritePosOf(header()->rw_positions.load(std::memory_order_relaxed));
+}
+
+uint32_t SharedRingBuffer::LoadNumOutstandingPositionsRelaxed() const {
+  const uint64_t rw_positions =
+      header()->rw_positions.load(std::memory_order_relaxed);
+  return NumOutstandingPositions(WritePosOf(rw_positions),
+                                 ReadPosOf(rw_positions));
+}
+
+bool SharedRingBuffer::TryRequestRewrite(ChunkIndex chunk_idx,
+                                         uint32_t* expected) {
+  PERFETTO_DCHECK(ChunkStateOf(*expected) == ChunkState::kBeingWritten);
+
+  // BeingWritten(N) -> RewriteRequested(N).
+  // |*expected| is the word the reader used to copy the N fragments.
+  //
+  // On failure, the writer published first. The reader discards its copy and
+  // retries this position immediately in Drain() to include the new fragments.
+  //
+  // Proposed memory ordering:
+  // - Success: release to finish that copy before the writer observes
+  //   RewriteRequested and relocates its unpublished fragment.
+  // - Failure: relaxed because the copy is discarded. The next attempt
+  //   acquire-loads the state word again before reading any payload.
+  std::atomic<uint32_t>* state_word = chunk_state_word_at(chunk_idx);
+  return state_word->compare_exchange_strong(
+      *expected, ReplaceChunkState(*expected, ChunkState::kRewriteRequested));
+}
+
+bool SharedRingBuffer::TryMoveFreeChunkToNextWrap(uint32_t chunk_pos,
+                                                  uint32_t* expected) {
+  PERFETTO_DCHECK(ChunkStateOf(*expected) == ChunkState::kFree);
+
+  // Free(wrap_count(chunk_pos)) -> Free(next wrap).
+  //
+  // On failure, the delayed writer claimed the chunk first. The reader retries
+  // this position immediately in Drain() to consume BeingWritten or Complete.
+  //
+  // Proposed memory ordering:
+  // - Success: release to publish the next Free wrap to a claiming writer.
+  // - Failure: relaxed because the next attempt acquire-loads the state
+  //   word again before reading any payload.
+  std::atomic<uint32_t>* state_word = chunk_state_word_for_position(chunk_pos);
+  return state_word->compare_exchange_strong(
+      *expected, MakeFreeWordForNextWrap(chunk_pos));
+}
+
+bool SharedRingBuffer::TryReleaseCompleteChunkAsFree(uint32_t chunk_pos,
+                                                     uint32_t* expected) {
+  PERFETTO_DCHECK(ChunkStateOf(*expected) == ChunkState::kComplete);
+
+  // Complete(N) -> Free(next wrap).
+  // |*expected| is the word the reader used to copy the N fragments.
+  //
+  // On failure, the writer reused the chunk first. It can also publish more
+  // fragments before the reader retries, so the N-fragment copy can be stale.
+  // Drain() reloads the state and copies the current published fragments.
+  // If the state is BeingWritten, the reader then requests a rewrite.
+  // Otherwise, it tries to release Complete again. The reader delivers the
+  // copy only after a successful transition, so retries cannot duplicate data.
+  //
+  // Proposed memory ordering:
+  // - Success: release to finish the copy before another writer acquires
+  //   Free and overwrites the chunk.
+  // - Failure: relaxed because the copy is discarded. The next attempt
+  //   acquire-loads the state word again before reading any payload.
+  std::atomic<uint32_t>* state_word = chunk_state_word_for_position(chunk_pos);
+  return state_word->compare_exchange_strong(
+      *expected, MakeFreeWordForNextWrap(chunk_pos));
+}
+
+bool SharedRingBuffer::TryReleaseRewriteAcknowledgedChunkAsFree(
+    uint32_t chunk_pos,
+    uint32_t* observed) {
+  // RewriteAcknowledged -> Free(next wrap).
+  // The expected word contains only the RewriteAcknowledged state bits.
+  //
+  // On failure, |*observed| receives the unexpected word. This is a protocol
+  // error because only this reader can change an acknowledged chunk.
+  //
+  // Proposed memory ordering:
+  // - Success: acq_rel for two handoffs:
+  //   - Acquire observes the writer's acknowledgement after it saves its
+  //     unpublished fragment.
+  //   - Release passes the chunk to the next writer after that copy.
+  // - Failure: relaxed because the returned word only diagnoses the
+  //   protocol error.
+  uint32_t expected = kRewriteAcknowledgedStateWord;
+  std::atomic<uint32_t>* state_word = chunk_state_word_for_position(chunk_pos);
+  const bool reclaimed = state_word->compare_exchange_strong(
+      expected, MakeFreeWordForNextWrap(chunk_pos));
+  if (PERFETTO_UNLIKELY(!reclaimed))
+    *observed = expected;
+  return reclaimed;
+}
+
+// --- Backpressure. ---
+
+SharedRingBuffer::WriterWaitResult SharedRingBuffer::WaitForReadPosChange(
+    uint32_t read_pos_for_wait,
+    uint32_t timeout_ms) {
+  PERFETTO_DCHECK(timeout_ms > 0);
+  if (!SupportsWriterWait())
+    return WriterWaitResult::kUnavailable;
+
+  RingBufferHeader* ring_header = header();
+
+  // To avoid a missed wake:
+  // - the writer counts itself as waiting before checking read_pos.
+  // - the reader publishes read_pos before checking the waiter count.
+  //
+  // The fences order each update before the other side's check. Together
+  // they prevent both checks from seeing an older value:
+  //
+  //   writer                         reader
+  //   ------                         ------
+  //   num_writers_waiting += 1       publish read_pos
+  //   seq_cst fence                  seq_cst fence
+  //   load read_pos                  load num_writers_waiting
+  //   FutexWait if unchanged         FutexWake if nonzero
+  //
+  // - Writer's fence first: the reader sees the waiter and wakes it.
+  // - Reader's fence first: the writer sees the new read_pos.
+  //   It does not sleep.
+  //
+  // num_writers_waiting is only a wake hint, so its accesses use relaxed order.
+  ring_header->num_writers_waiting.fetch_add(1, std::memory_order_relaxed);
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+
+  WriterWaitResult result = WriterWaitResult::kRetry;
+  const uint32_t read_pos =
+      ReadPosOf(ring_header->rw_positions.load(std::memory_order_relaxed));
+  if (read_pos == read_pos_for_wait) {
+    // FutexWait checks the value again before sleeping. If read_pos changed
+    // after the load above, the call returns kValueMismatch and no wake is
+    // lost.
+    //
+    // Every result other than kError means "recheck capacity".
+    const base::FutexWaitResult wait_result =
+        base::FutexWait(ReadPosFutexAddress(&ring_header->rw_positions),
+                        read_pos_for_wait, timeout_ms);
+    result = wait_result == base::FutexWaitResult::kError
+                 ? WriterWaitResult::kUnavailable
+                 : WriterWaitResult::kRetry;
+  }
+
+  ring_header->num_writers_waiting.fetch_sub(1, std::memory_order_relaxed);
+  return result;
+}
+
+void SharedRingBuffer::PublishReadPos(uint32_t read_pos) {
+  // This load only supplies the initial expected value for the CAS below.
+  PublishReadPosFromSnapshot(
+      header()->rw_positions.load(std::memory_order_relaxed), read_pos);
+}
+
+void SharedRingBuffer::PublishReadPosFromSnapshot(uint64_t rw_positions,
+                                                  uint32_t read_pos) {
+  RingBufferHeader* ring_header = header();
+
+  // (write_pos, old read_pos) -> (write_pos, read_pos).
+  //
+  // On failure, the CAS stores the current positions in the local rw_positions.
+  // A writer can advance write_pos first, or compare_exchange_weak can fail
+  // spuriously. The loop preserves that write_pos and retries the read_pos
+  // update.
+  //
+  // Proposed memory ordering:
+  // - Success: release so writers that acquire the new read_pos also see
+  //   this pass's Free words.
+  // - Failure: relaxed because the returned word only supplies the next
+  //   CAS attempt. No payload access depends on it.
+  while (!ring_header->rw_positions.compare_exchange_weak(
+      rw_positions, ReplaceReadPos(rw_positions, read_pos))) {
+  }
+
+  if (!SupportsWriterWait())
+    return;
+
+  // See the missed-wake schedule in WaitForReadPosChange(). The fence
+  // orders read_pos publication before the waiter-count load.
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+
+  if (ring_header->num_writers_waiting.load(std::memory_order_relaxed) == 0)
+    return;
+
+  // Wake everyone because one drain pass can free many chunks. Waking one
+  // writer could leave capacity unused.
+  //
+  // This runs once per pass rather than once per reclaimed chunk.
+  //
+  // Waits are bounded, so a failed wake delays writers but cannot strand them.
+  base::FutexWake(ReadPosFutexAddress(&ring_header->rw_positions), INT_MAX);
+}
+
+}  // namespace perfetto::tracing_v2
+// gen_amalgamated begin source: src/tracing/v2/shared_ring_buffer_reader.cc
+// gen_amalgamated begin header: src/tracing/v2/shared_ring_buffer_reader.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_V2_SHARED_RING_BUFFER_READER_H_
+#define SRC_TRACING_V2_SHARED_RING_BUFFER_READER_H_
+
+#include <stdint.h>
+
+#include <functional>
+#include <vector>
+
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/field.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+
+namespace test {
+class SharedRingBufferInternalsForTest;
+}
+
+// Reads packet fragments from one SharedRingBuffer.
+//
+// - Use each instance from one execution context. The ring buffer's storage and
+//   SharedRingBuffer view must outlive the reader.
+// - Reservations are consumed in order. A relocated fragment gets a later
+//   reservation.
+// - The reader never waits for a writer, but may retry when it loses a
+//   concurrent state transition.
+// - If a writer still owns a chunk, the reader copies its published fragments.
+//   This is a partial chunk read. The writer moves its unpublished fragment to
+//   a later reservation.
+// - A chunk marked kFlagDataLoss is consumed without delivering its fragments.
+//   The delegate receives a loss report instead.
+// - Fragment sizes are decoded once into reader-owned values, and the payload
+//   copy uses those values without rereading the shared size bytes. The
+//   delegate only ever sees reader-owned scratch, never a view of
+//   producer-controlled shared memory.
+class SharedRingBufferReader {
+ public:
+  // Result of consuming one position.
+  enum class ConsumeResult {
+    // No reservation at read_pos is visible yet.
+    // read_pos has caught up with the observed write_pos.
+    kNoData,
+    // A chunk was handed to the delegate and read_pos advanced.
+    kChunkRead,
+    // No payload was delivered. read_pos advanced and data can no longer be
+    // published for this position.
+    kPositionSkipped,
+    // A writer changed the chunk before the reader's CAS:
+    // - Claimed Free before the reader advanced its wrap count.
+    // - Published Complete before the reader requested a rewrite.
+    // - Reused Complete before the reader reclaimed it.
+    // read_pos stays unchanged. Drain() retries the same position immediately,
+    // within its per-position attempt limit.
+    kRetryImmediately,
+    // Invalid ring buffer state. This reader cannot continue.
+    // - The offending position is neither advanced nor reclaimed.
+    // - Earlier chunks in this drain may already have been delivered.
+    // - Drain() still publishes any progress made before the error.
+    kProtocolError,
+  };
+
+  struct ChunkContents {
+    WriterID writer_id = 0;
+    BufferID target_buffer = 0;
+    // A bitwise OR of PayloadFlags.
+    uint32_t payload_flags = 0;
+    // A view into reader-owned scratch. Valid only for the duration of the
+    // Delegate call.
+    const protozero::ConstBytes* fragments = nullptr;
+    uint32_t num_fragments = 0;
+  };
+
+  struct DrainResult {
+    uint32_t positions_consumed = 0;
+    ConsumeResult last_result = ConsumeResult::kNoData;
+
+    // The caller should schedule another Drain() call.
+    bool needs_another_drain() const {
+      return last_result != ConsumeResult::kNoData &&
+             last_result != ConsumeResult::kProtocolError;
+    }
+  };
+
+  // Handles the drained fragments and loss reports. Must outlive the reader.
+  // Calls run synchronously from Drain() and must not reenter or destroy the
+  // reader.
+  class Delegate {
+   public:
+    virtual ~Delegate();
+
+    // Called after a chunk's published payload has been copied into
+    // reader-owned memory. The view is valid only for this call.
+    virtual void OnChunkRead(const ChunkContents&) = 0;
+
+    // Called when published data is discarded after validation fails or the
+    // chunk carries kFlagDataLoss. Also handles a flagged Complete chunk with
+    // no fragments. No OnChunkRead() call delivers those fragments.
+    //
+    // The delegate must handle packet recovery for this writer:
+    // - Discard any partial packet and remember the gap.
+    // - A later unflagged chunk may start with an orphan continuation.
+    //   Discard that fragment because its earlier bytes were lost.
+    // - Later fragments in that chunk can start complete, valid packets.
+    //   Deliver those packets and report the gap on the first one.
+    virtual void OnDataLoss(WriterID) = 0;
+  };
+
+  SharedRingBufferReader(SharedRingBuffer* ring, Delegate* delegate);
+  ~SharedRingBufferReader();
+
+  SharedRingBufferReader(const SharedRingBufferReader&) = delete;
+  SharedRingBufferReader& operator=(const SharedRingBufferReader&) = delete;
+  SharedRingBufferReader(SharedRingBufferReader&&) = delete;
+  SharedRingBufferReader& operator=(SharedRingBufferReader&&) = delete;
+
+  // Consumes up to |max_positions| logical reservations:
+  // - A position counts even when it delivers no fragments.
+  // - An unclaimed reservation uses the budget when the reader passes it.
+  // - A lost CAS retries the same position without using the position budget.
+  //   A separate attempt limit bounds retries at each position. Reaching it
+  //   leaves that position unchanged and requests another drain.
+  //
+  // Publishes read_pos once and wakes writers parked on a full ring buffer.
+  // The budget bounds copying and delegate callbacks in this pass.
+  // This lets other tasks run between passes over a large ring buffer.
+  DrainResult Drain(uint32_t max_positions);
+
+  bool has_protocol_error() const { return has_protocol_error_; }
+  uint32_t read_pos() const { return read_pos_; }
+
+  // For diagnostics only. The protocol never reads these counters.
+  // TODO(sashwinbalaji): Wire these counters into service statistics.
+  struct Stats {
+    uint64_t positions_skipped = 0;
+    // Successful BeingWritten -> RewriteRequested transitions.
+    uint64_t rewrite_requests = 0;
+    uint64_t chunks_read = 0;
+    uint64_t malformed_chunks = 0;
+    uint64_t unsupported_format_chunks = 0;
+  };
+  Stats GetStats() const { return stats_; }
+
+ private:
+  friend class test::SharedRingBufferInternalsForTest;
+
+  // Consumes at most one position. Drain() publishes read_pos once per pass.
+  ConsumeResult ConsumeNextPosition();
+
+  enum class CopiedChunkStatus {
+    kNoFragments,
+    kReady,
+    kMalformed,
+    kUnsupportedFormat,
+    kDataLoss,
+  };
+
+  // Validates and copies the published fragments.
+  // Skips payload access if kFlagDataLoss is set. Otherwise validates sizes
+  // and format before copying.
+  // The caller handles ownership before reporting any data loss.
+  CopiedChunkStatus CopyPublishedFragments(ChunkIndex chunk_idx,
+                                           uint32_t state_word);
+
+  // Called only after winning the position's compare-and-swap.
+  // Delivers valid, unflagged fragments to the delegate. Reports discarded
+  // chunks as loss.
+  ConsumeResult HandleCopiedChunk(CopiedChunkStatus);
+
+  // Latches the error and logs |reason| once, together with the position and
+  // the offending word. read_pos is not advanced.
+  ConsumeResult StopOnProtocolError(const char* reason, uint32_t state_word);
+
+  SharedRingBuffer* const ring_;
+  Delegate* const delegate_;
+  const uint32_t num_chunks_;
+  const uint32_t chunk_size_;
+
+  // The reader owns this value and publishes it once per Drain().
+  uint32_t read_pos_ = 0;
+  bool has_protocol_error_ = false;
+
+  // Test callback, called just before the reader's chunk-state CAS.
+  // - The reader has loaded the state and copied any readable fragments.
+  // - The callback makes a writer claim, publish or reuse the chunk.
+  //   The reader's CAS then fails because it expects the earlier state.
+  // - Tests verify that Drain() retries without advancing read_pos or
+  //   delivering fragments from the failed attempt.
+  // Empty in production. Tests force the race without scheduling threads.
+  std::function<void()> before_state_transition_for_testing_;
+
+  // TODO(sashwinbalaji): Revisit both scratch vectors:
+  // - Check heap/stack allocation in production and tests before enlarging
+  //   the reader with inline std::array members.
+  // - copied_payload_: establish a common maximum chunk size, then use a byte
+  //   array of that size.
+  // - copied_fragments_: use kMaxFragmentsPerChunk inline ConstBytes entries.
+  // - Measure whether this + offset access improves the read/copy path over
+  //   following pointers to separate vector allocations.
+
+  // Published fragment bytes copied out of shared memory.
+  std::vector<uint8_t> copied_payload_;
+
+  // Each fragment's decoded size and pointer into copied_payload_.
+  std::vector<protozero::ConstBytes> copied_fragments_;
+
+  // Chunk metadata and a view of copied_fragments_ passed to OnChunkRead().
+  ChunkContents copied_chunk_;
+
+  Stats stats_;
+};
+
+}  // namespace perfetto::tracing_v2
+
+#endif  // SRC_TRACING_V2_SHARED_RING_BUFFER_READER_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_reader.h"
+
+#include <stdint.h>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+// Bound attempts at one position. For M = kMaxFragmentsPerChunk:
+// - Each fragment can defeat the reader's CAS twice:
+//   1. Publication: BeingWritten(N) -> Complete(N + 1).
+//   2. Reuse: Complete(N + 1) -> BeingWritten(N + 1).
+//   Allow M attempts for each, giving 2 * M.
+// - Add one for the initial Free -> BeingWritten claim.
+// - Add one for the reader's successful CAS, giving 2 * M + 2.
+//
+// This is conservative. SharedRingBufferWriter stops reusing at M fragments,
+// so there are at most M - 1 reuses. Zero-byte fragments still use the count.
+// FinishCurrentChunk() drops the cached handle even when abandoning a fragment.
+// The limit also bounds work if another producer keeps changing the state
+// without increasing the fragment count.
+constexpr uint32_t kMaxAttemptsPerPosition = 2 * kMaxFragmentsPerChunk + 2;
+
+// For the protocol-error log only.
+const char* ChunkStateName(ChunkState state) {
+  switch (state) {
+    case ChunkState::kFree:
+      return "Free";
+    case ChunkState::kBeingWritten:
+      return "BeingWritten";
+    case ChunkState::kComplete:
+      return "Complete";
+    case ChunkState::kRewriteRequested:
+      return "RewriteRequested";
+    case ChunkState::kRewriteAcknowledged:
+      return "RewriteAcknowledged";
+    case ChunkState::kReserved5:
+    case ChunkState::kReserved6:
+    case ChunkState::kReserved7:
+      return "reserved";
+  }
+  return "unknown";
+}
+
+}  // namespace
+
+SharedRingBufferReader::Delegate::~Delegate() = default;
+
+SharedRingBufferReader::SharedRingBufferReader(SharedRingBuffer* ring,
+                                               Delegate* delegate)
+    : ring_(ring),
+      delegate_(delegate),
+      num_chunks_(ring->num_chunks()),
+      chunk_size_(ring->chunk_size()) {
+  // Reserve enough scratch for any chunk format so draining does not allocate.
+  copied_payload_.reserve(chunk_size_);
+  copied_fragments_.reserve(kMaxFragmentsPerChunk);
+}
+
+SharedRingBufferReader::~SharedRingBufferReader() = default;
+
+SharedRingBufferReader::DrainResult SharedRingBufferReader::Drain(
+    uint32_t max_positions) {
+  const uint32_t start_pos = read_pos_;
+  DrainResult result{};
+  for (uint32_t i = 0; i < max_positions; ++i) {
+    // A failed CAS leaves read_pos_ unchanged. Retry the same position with
+    // a fresh state and fragment copy before it counts towards max_positions.
+    // Limit attempts so repeated writer updates cannot monopolize this pass.
+    for (uint32_t attempt = 0; attempt < kMaxAttemptsPerPosition; ++attempt) {
+      result.last_result = ConsumeNextPosition();
+      if (result.last_result != ConsumeResult::kRetryImmediately)
+        break;
+    }
+    // If every attempt lost, yield with another drain requested. Contention
+    // alone is not a protocol error. Publish earlier progress below.
+    if (result.last_result != ConsumeResult::kChunkRead &&
+        result.last_result != ConsumeResult::kPositionSkipped) {
+      break;
+    }
+  }
+
+  // Unsigned subtraction also counts positions across uint32_t rollover.
+  // Advancing from UINT32_MAX to zero consumes one position.
+  result.positions_consumed = read_pos_ - start_pos;
+  if (result.positions_consumed != 0) {
+    // One publication and at most one wake cover the whole pass. Until this
+    // point writers can only under-estimate free capacity.
+    //
+    // TODO(sashwinbalaji): benchmark useful publication batch sizes.
+    ring_->PublishReadPos(read_pos_);
+  }
+  return result;
+}
+
+// The shared lifecycle is in shared_ring_buffer_abi.h.
+//
+// The races this function has to handle:
+//
+// 1. Free: advance to the next wrap, racing the delayed writer's claim.
+// 2. BeingWritten: copy N fragments, then request RewriteRequested(N), racing
+//    the writer's publication of Complete(M).
+// 3. Complete: copy the fragments, then reclaim, racing the writer's reuse.
+// 4. RewriteRequested: skip. The writer still owns the chunk. Once it becomes
+//    RewriteAcknowledged, only the reader may reclaim it on a later traversal.
+//
+// In the first three cases, a failed CAS leaves read_pos unchanged. Drain()
+// retries immediately. Deliver the copy only after a successful transition,
+// so a retry cannot deliver the same fragments twice.
+//
+// RewriteAcknowledged has no competing writer transition. On failure to reclaim
+// it, report a protocol error.
+SharedRingBufferReader::ConsumeResult
+SharedRingBufferReader::ConsumeNextPosition() {
+  if (PERFETTO_UNLIKELY(has_protocol_error_))
+    return ConsumeResult::kProtocolError;
+
+  // A relaxed load is enough here. An older write_pos only shortens this
+  // drain pass, which is still correct. A later pass can consume the rest.
+  const uint32_t write_pos = ring_->LoadWritePosRelaxed();
+  const uint32_t outstanding = NumOutstandingPositions(write_pos, read_pos_);
+  if (outstanding == 0)
+    return ConsumeResult::kNoData;
+  if (PERFETTO_UNLIKELY(outstanding > num_chunks_)) {
+    // A legal writer cannot reserve more than num_chunks outstanding
+    // positions.
+    has_protocol_error_ = true;
+    PERFETTO_ELOG(
+        "tracing v2: stopping ring buffer reader: write_pos %u is %u "
+        "positions ahead of read_pos %u, which is more than the %u chunks "
+        "in the ring buffer",
+        write_pos, outstanding, read_pos_, num_chunks_);
+    return ConsumeResult::kProtocolError;
+  }
+
+  // read_pos_ is the next logical position.
+  const uint32_t chunk_pos = read_pos_;
+  const ChunkIndex chunk_idx = ChunkIndex::FromPosition(chunk_pos, num_chunks_);
+
+  // A failed compare-and-swap replaces this with the word that won.
+  uint32_t state_word = ring_->LoadChunkStateWordAcquire(chunk_idx);
+
+  switch (ChunkStateOf(state_word)) {
+    case ChunkState::kFree: {
+      // Check reserved bits first. Reclaiming must not hide an invalid word.
+      if (PERFETTO_UNLIKELY((state_word & ~kWriterIDMask) != 0))
+        return StopOnProtocolError("Free word has reserved bits", state_word);
+      // Only this reader advances the wrap. A different wrap here is an error.
+      const uint32_t expected_free_word =
+          MakeFreeStateWordForPosition(chunk_pos, num_chunks_);
+      if (PERFETTO_UNLIKELY(state_word != expected_free_word)) {
+        return StopOnProtocolError(
+            "Free word carries another position's wrap count", state_word);
+      }
+      if (before_state_transition_for_testing_)
+        before_state_transition_for_testing_();
+      // Advance the wrap count to consume this unclaimed reservation.
+      // On failure, the delayed writer claimed first. Drain() retries this
+      // position with the writer's BeingWritten or Complete state.
+      if (!ring_->TryMoveFreeChunkToNextWrap(chunk_pos, &state_word))
+        return ConsumeResult::kRetryImmediately;
+      ++read_pos_;
+      ++stats_.positions_skipped;
+      return ConsumeResult::kPositionSkipped;
+    }
+
+    case ChunkState::kBeingWritten: {
+      const auto status = CopyPublishedFragments(chunk_idx, state_word);
+      if (before_state_transition_for_testing_)
+        before_state_transition_for_testing_();
+      // Request a rewrite before read_pos_ advances, even if validation failed.
+      // On failure, the writer published first. Drain() retries with a fresh
+      // copy before it delivers fragments or reports loss for this position.
+      if (!ring_->TryRequestRewrite(chunk_idx, &state_word))
+        return ConsumeResult::kRetryImmediately;
+      ++read_pos_;
+      ++stats_.rewrite_requests;
+      return HandleCopiedChunk(status);
+    }
+
+    case ChunkState::kComplete: {
+      const auto status = CopyPublishedFragments(chunk_idx, state_word);
+      if (before_state_transition_for_testing_)
+        before_state_transition_for_testing_();
+      // Reclaim the chunk before read_pos_ advances, even if validation failed.
+      // On failure, the writer reused the chunk and can publish more fragments.
+      // Drain() reloads the state and copies the current published fragments.
+      // If the state is BeingWritten, that attempt requests a rewrite.
+      // Deliver fragments or report loss only after a successful transition.
+      if (!ring_->TryReleaseCompleteChunkAsFree(chunk_pos, &state_word))
+        return ConsumeResult::kRetryImmediately;
+      ++read_pos_;
+      // Report loss even if the Complete chunk has no fragments. The writer
+      // cannot reuse the reclaimed chunk, so no later publication can report
+      // its flag.
+      //
+      // For BeingWritten(0), the writer still owns the chunk and transfers
+      // kFlagDataLoss to the relocated fragment instead.
+      if (status == CopiedChunkStatus::kNoFragments &&
+          (copied_chunk_.payload_flags & kFlagDataLoss)) {
+        delegate_->OnDataLoss(copied_chunk_.writer_id);
+      }
+      return HandleCopiedChunk(status);
+    }
+
+    case ChunkState::kRewriteRequested:
+      // This chunk is still awaiting rewrite acknowledgement from its owner.
+      // The current reservation could not claim it. Advance read_pos without
+      // changing the chunk's state word or delivering fragments.
+      ++read_pos_;
+      ++stats_.positions_skipped;
+      return ConsumeResult::kPositionSkipped;
+
+    case ChunkState::kRewriteAcknowledged:
+      // Reclaim the chunk before advancing past this unclaimed reservation.
+      // No fragments are delivered. The chunk becomes available for a later
+      // reservation.
+      //
+      // The expected word contains only the RewriteAcknowledged state bits.
+      // Only this reader can change it after the writer's acknowledgement.
+      // On failure, the word was invalid or another actor changed it.
+      if (!ring_->TryReleaseRewriteAcknowledgedChunkAsFree(chunk_pos,
+                                                           &state_word)) {
+        return StopOnProtocolError(
+            ChunkStateOf(state_word) == ChunkState::kRewriteAcknowledged
+                ? "RewriteAcknowledged word has payload bits set"
+                : "RewriteAcknowledged word changed under the reader",
+            state_word);
+      }
+      ++read_pos_;
+      ++stats_.positions_skipped;
+      return ConsumeResult::kPositionSkipped;
+
+    case ChunkState::kReserved5:
+    case ChunkState::kReserved6:
+    case ChunkState::kReserved7:
+      // The reader cannot safely reclaim an unknown state.
+      return StopOnProtocolError("reserved chunk state", state_word);
+  }
+  PERFETTO_FATAL("tracing v2: unhandled chunk state word 0x%08x", state_word);
+}
+
+SharedRingBufferReader::CopiedChunkStatus
+SharedRingBufferReader::CopyPublishedFragments(ChunkIndex chunk_idx,
+                                               uint32_t state_word) {
+  copied_fragments_.clear();
+  copied_chunk_ = ChunkContents{};
+  copied_chunk_.writer_id = WriterIDOf(state_word);
+  copied_chunk_.payload_flags = PayloadFlagsOf(state_word);
+
+  const uint32_t num_fragments = NumFragmentsOf(state_word);
+  if (num_fragments == 0) {
+    // A writer may still be storing BufferID after claiming BeingWritten(0).
+    // Only its first fragment publication makes that store visible. Do not
+    // touch any bytes beyond the state word when no fragment is published.
+    return CopiedChunkStatus::kNoFragments;
+  }
+
+  // The loss flag does not identify where data was lost within the chunk.
+  // - Drop every published fragment, even a complete packet after the gap.
+  // - Do not read an unpublished fragment. The writer may relocate it.
+  // The caller must win the state transition before reporting the gap or
+  // advancing read_pos. See Delegate::OnDataLoss() for packet recovery.
+  if (state_word & kFlagDataLoss)
+    return CopiedChunkStatus::kDataLoss;
+
+  if (ChunkFormatOf(state_word) != ChunkFormat::kTargetBuffer)
+    return CopiedChunkStatus::kUnsupportedFormat;
+
+  // Decode first to find the payload end and the directory start.
+  // Until then, payload_begin is the decoder's lower bound. It prevents size
+  // reads from reaching the header, but does not prove the payload fits.
+  const uint32_t capacity = chunk_size_ - kTargetBufferPayloadOffset;
+  const uint8_t* chunk = ring_->chunk_at(chunk_idx);
+  const uint8_t* const payload_begin = chunk + kTargetBufferPayloadOffset;
+  const uint8_t* sizes_cursor = chunk + chunk_size_;
+  uint32_t total = 0;
+  for (uint32_t i = 0; i < num_fragments; ++i) {
+    const auto fragment_size =
+        ReadFragmentSizeReversed(payload_begin, &sizes_cursor);
+    if (!fragment_size || *fragment_size > capacity - total) {
+      return CopiedChunkStatus::kMalformed;
+    }
+    total += *fragment_size;
+    copied_fragments_.push_back(protozero::ConstBytes{nullptr, *fragment_size});
+  }
+
+  // The sizes are valid varints. Their payloads may still overlap the
+  // directory:
+  // - Count the bytes actually read, including non-minimal size encodings.
+  // - On overlap, reject the chunk before copying or delivering any payload.
+  // - sizes_cursor is local to this read attempt. Returning discards it.
+  //   No cursor change needs to be undone.
+  const uint32_t sizes_bytes =
+      static_cast<uint32_t>(chunk + chunk_size_ - sizes_cursor);
+  if (total > capacity - sizes_bytes)
+    return CopiedChunkStatus::kMalformed;
+
+  // Copy the published payload out of shared memory.
+  copied_payload_.assign(payload_begin, payload_begin + total);
+
+  // Point each fragment at its copy and collect the chunk metadata.
+  size_t offset = 0;
+  for (protozero::ConstBytes& fragment : copied_fragments_) {
+    fragment.data = copied_payload_.data() + offset;
+    offset += fragment.size;
+  }
+  copied_chunk_.target_buffer = LoadTargetBufferId(chunk);
+  copied_chunk_.fragments = copied_fragments_.data();
+  copied_chunk_.num_fragments = num_fragments;
+  return CopiedChunkStatus::kReady;
+}
+
+SharedRingBufferReader::ConsumeResult SharedRingBufferReader::HandleCopiedChunk(
+    CopiedChunkStatus status) {
+  switch (status) {
+    case CopiedChunkStatus::kReady:
+      ++stats_.chunks_read;
+      delegate_->OnChunkRead(copied_chunk_);
+      return ConsumeResult::kChunkRead;
+    case CopiedChunkStatus::kMalformed:
+      ++stats_.malformed_chunks;
+      delegate_->OnDataLoss(copied_chunk_.writer_id);
+      break;
+    case CopiedChunkStatus::kUnsupportedFormat:
+      ++stats_.unsupported_format_chunks;
+      delegate_->OnDataLoss(copied_chunk_.writer_id);
+      break;
+    case CopiedChunkStatus::kDataLoss:
+      delegate_->OnDataLoss(copied_chunk_.writer_id);
+      break;
+    case CopiedChunkStatus::kNoFragments:
+      break;
+  }
+
+  ++stats_.positions_skipped;
+  return ConsumeResult::kPositionSkipped;
+}
+
+SharedRingBufferReader::ConsumeResult
+SharedRingBufferReader::StopOnProtocolError(const char* reason,
+                                            uint32_t state_word) {
+  // Stop rather than trusting a malformed word from a producer. Log once.
+  has_protocol_error_ = true;
+  PERFETTO_ELOG(
+      "tracing v2: stopping ring buffer reader at position %u: %s "
+      "(chunk state word 0x%08x, %s)",
+      read_pos_, reason, state_word, ChunkStateName(ChunkStateOf(state_word)));
+  return ConsumeResult::kProtocolError;
+}
+
+}  // namespace perfetto::tracing_v2
+// gen_amalgamated begin source: src/tracing/v2/shared_ring_buffer_writer.cc
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_writer.h"
+
+#include <stdint.h>
+#include <string.h>
+
+#include <algorithm>
+#include <optional>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/base/time.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+// The 100 ms sleep limit matches SharedMemoryArbiterImpl::GetNewChunk().
+constexpr uint32_t kMaxFallbackSleepUs = 100000;
+
+}  // namespace
+
+SharedRingBufferWriter::SharedRingBufferWriter(SharedRingBuffer* ring,
+                                               WriterID writer_id,
+                                               BufferID target_buffer)
+    : ring_(ring),
+      writer_id_(writer_id),
+      target_buffer_(target_buffer),
+      chunk_size_(ring->chunk_size()),
+      max_fragment_size_(MaxFragmentSizeForEmptyChunk(chunk_size_)) {
+  // The WriterID goes into every chunk that this writer claims. The caller
+  // controls its lifetime.
+  //
+  // TraceWriterV2Impl releases it after its final publication. The service
+  // can still read chunks under the ID after that. See the TODO in
+  // ProducerRingBufferArbiter::OnWriterDestroyed().
+  PERFETTO_DCHECK(writer_id_ != 0 && writer_id_ <= kMaxWriterID);
+}
+
+SharedRingBufferWriter::~SharedRingBufferWriter() {
+  FinishCurrentChunk();
+}
+
+SharedRingBufferWriter::FragmentRange SharedRingBufferWriter::BeginFragment(
+    uint32_t min_size,
+    bool continues_from_prev) {
+  PERFETTO_DCHECK(!has_open_fragment());
+  // A new chunk now would put the next packet ahead of the saved fragment.
+  PERFETTO_DCHECK(!pending_relocation_);
+  // EndFragment(..., /*continues_on_next=*/true) discards the cached handle
+  // when a packet continues into another chunk. A continuation must claim a
+  // new chunk because only AcquireNewChunk() sets kFlagContinuesFromPrevChunk.
+  PERFETTO_DCHECK(!continues_from_prev || !cur_chunk_);
+
+  if (min_size > max_fragment_size_)
+    return FragmentRange{BeginFragmentResult::kTooLarge};
+
+  // Try the cached Complete chunk before a new reservation.
+  if (cur_chunk_) {
+    PERFETTO_DCHECK(cur_chunk_state() == ChunkState::kComplete);
+    const uint32_t available = MaxFragmentSizeInCurrentChunk();
+    // Pending loss does not prevent reuse, which requires no new reservation.
+    // The next publication sets kFlagDataLoss. The reader then discards all
+    // published fragments in this chunk, including those before the loss.
+    if (available >= min_size && ring_->TryReacquireChunkForWriting(
+                                     cur_chunk_idx_, expected_state_word_)) {
+      expected_state_word_ =
+          ReplaceChunkState(expected_state_word_, ChunkState::kBeingWritten);
+      return BeginFragmentInCurrentChunk(available);
+    }
+    // The chunk has insufficient space or the reader reclaimed it first.
+    // Discard the handle before the next claim.
+    ResetCurrentChunk();
+  }
+
+  const uint32_t flags = continues_from_prev ? kFlagContinuesFromPrevChunk : 0u;
+  const BeginFragmentResult result = AcquireNewChunk(flags);
+  if (result != BeginFragmentResult::kSuccess)
+    return FragmentRange{result};
+  return BeginFragmentInCurrentChunk(max_fragment_size_);
+}
+
+SharedRingBufferWriter::FragmentRange
+SharedRingBufferWriter::BeginFragmentInCurrentChunk(uint32_t available) {
+  PERFETTO_DCHECK(cur_chunk_);
+  PERFETTO_DCHECK(cur_chunk_state() == ChunkState::kBeingWritten);
+  PERFETTO_DCHECK(available > 0);
+  cur_fragment_begin_ = payload_end_;
+  return FragmentRange{/*result=*/BeginFragmentResult::kSuccess,
+                       /*begin=*/cur_chunk_ + cur_fragment_begin_,
+                       /*end=*/cur_chunk_ + cur_fragment_begin_ + available};
+}
+
+SharedRingBufferWriter::EndFragmentResult SharedRingBufferWriter::EndFragment(
+    uint32_t size,
+    bool continues_on_next) {
+  PERFETTO_DCHECK(has_open_fragment());
+  PERFETTO_DCHECK(cur_chunk_);
+  PERFETTO_DCHECK(cur_chunk_state() == ChunkState::kBeingWritten);
+  PERFETTO_DCHECK(size_directory_bytes_ <= chunk_size_);
+  PERFETTO_DCHECK(cur_fragment_begin_ <= chunk_size_ - size_directory_bytes_);
+  // The fragment must leave space for its size entry before the directory.
+  PERFETTO_DCHECK(
+      size <= MaxFragmentSizeForAvailableBytes(
+                  chunk_size_ - size_directory_bytes_ - cur_fragment_begin_));
+
+  // The reader cannot access this fragment until publication updates the shared
+  // fragment count. Write the size entry before that publication.
+  uint8_t* const chunk_end = cur_chunk_ + chunk_size_;
+  uint8_t* const sizes_begin =
+      WriteFragmentSizeReversed(chunk_end - size_directory_bytes_, size);
+  // sizes_begin points to the new size entry, before the existing entries.
+  // Subtract it from chunk_end to count all directory bytes, including the new
+  // entry. The directory grows towards lower addresses.
+  size_directory_bytes_ = static_cast<uint32_t>(chunk_end - sizes_begin);
+  payload_end_ = cur_fragment_begin_ + size;
+  ++num_fragments_;
+  cur_fragment_begin_ = kNoFragmentOpen;
+
+  return ReleaseCurrentChunkAsComplete(size, continues_on_next);
+}
+
+SharedRingBufferWriter::EndFragmentResult
+SharedRingBufferWriter::FinishCurrentChunk() {
+  PERFETTO_DCHECK(!pending_relocation_);
+  // Abandon any open fragment. Its bytes are outside the published count, so
+  // this does not affect the fragments the reader can already access.
+  cur_fragment_begin_ = kNoFragmentOpen;
+
+  EndFragmentResult result = EndFragmentResult::kSuccess;
+  if (cur_chunk_ && cur_chunk_state() == ChunkState::kBeingWritten) {
+    result = ReleaseCurrentChunkAsComplete(std::nullopt,
+                                           /*continues_on_next=*/false);
+  }
+  ResetCurrentChunk();
+  return result;
+}
+
+uint32_t SharedRingBufferWriter::MaxFragmentSizeInCurrentChunk() const {
+  PERFETTO_DCHECK(cur_chunk_);
+  if (num_fragments_ >= kMaxFragmentsPerChunk)
+    return 0;
+  PERFETTO_DCHECK(payload_end_ <= chunk_size_);
+  PERFETTO_DCHECK(size_directory_bytes_ <= chunk_size_ - payload_end_);
+  const uint32_t available_bytes =
+      chunk_size_ - payload_end_ - size_directory_bytes_;
+  return MaxFragmentSizeForAvailableBytes(available_bytes);
+}
+
+SharedRingBufferWriter::BeginFragmentResult
+SharedRingBufferWriter::AcquireNewChunk(uint32_t continuation_flags) {
+  PERFETTO_DCHECK(!cur_chunk_);
+
+  // A new chunk must preserve loss from either source:
+  // - data_loss_pending_: this writer has a loss to report.
+  // - continuation_flags: a rewrite of BeingWritten(0) left a loss unreported.
+  //   The replacement inherits that flag even if data_loss_pending_ is false.
+  const uint32_t flags =
+      continuation_flags | (data_loss_pending_ ? kFlagDataLoss : 0u);
+  const uint32_t being_written_word =
+      MakeDataStateWord(ChunkState::kBeingWritten, ChunkFormat::kTargetBuffer,
+                        flags, 0, writer_id_);
+  const uint32_t num_chunks = ring_->num_chunks();
+
+  // After num_chunks failed claims, return without a chunk.
+  //
+  // Other writers can reserve intervening positions, so our attempts
+  // can select the same physical chunk on different traversals.
+  // This limit bounds attempts, but does not guarantee a visit to every chunk.
+  uint32_t num_failed_claims = 0;
+
+  // Each attempt reserves a position, then tries to claim its physical chunk:
+  //
+  // 1. TryReserveWritePos() finds the ring buffer full.
+  //    - write_pos stays unchanged. No position was reserved.
+  //    - Return without a chunk below.
+  //
+  // 2. Reservation and TryAcquireChunkForWriting() both succeed.
+  //    - This writer now owns the chunk. Return it to the caller.
+  //
+  // 3. Reservation succeeds, but TryAcquireChunkForWriting() fails.
+  //    - The reader advanced the wrap count before we claimed the chunk.
+  //      We may have been descheduled after advancing write_pos.
+  //    - Or the chunk still belongs to an older reservation:
+  //      - Its writer claimed the chunk, then got descheduled.
+  //      - The reader copied its published fragments and set RewriteRequested.
+  //      - The reader advanced read_pos. It did not release the chunk.
+  //      - Advancing read_pos made room for another reservation.
+  //        TryReserveWritePos() checks the positions, not the chunk state.
+  //      - Our new reservation selects that same physical chunk.
+  //        The claim fails because the older writer has not acknowledged yet.
+  //    - Leave the reservation unclaimed. Try a new reservation with continue.
+  //    - After num_chunks failed claims, return without a chunk instead.
+  for (;;) {
+    const auto reservation = ring_->TryReserveWritePos();
+    read_pos_for_wait_ = reservation.read_pos_for_wait;
+
+    if (reservation.result == SharedRingBuffer::ReserveResult::kReserved) {
+      // Claim the chunk only if its Free word matches this reservation's wrap.
+      if (ring_->TryAcquireChunkForWriting(reservation.chunk_pos,
+                                           being_written_word)) {
+        cur_chunk_idx_ =
+            ChunkIndex::FromPosition(reservation.chunk_pos, num_chunks);
+        cur_chunk_ = ring_->chunk_at(cur_chunk_idx_);
+        expected_state_word_ = being_written_word;
+        payload_end_ = kTargetBufferPayloadOffset;
+        size_directory_bytes_ = 0;
+        num_fragments_ = 0;
+        // The shared word now contains any pending loss. If a rewrite prevents
+        // publication, relocation preserves the flag from that word.
+        data_loss_pending_ = false;
+        fallback_sleep_us_ = 0;
+        StoreTargetBufferId(cur_chunk_, target_buffer_);
+        return BeginFragmentResult::kSuccess;
+      }
+
+      ++stats_.failed_claims;
+      // write_pos advanced, but the writer did not acquire the physical chunk.
+      // This leaves an unclaimed position for the reader to consume, unless it
+      // already consumed the position before our claim.
+      //
+      // Retry with a new reservation, which supplies both the index and wrap
+      // count. Other writers can reserve intervening positions, so this need
+      // not select the next physical chunk. A different Free wrap belongs to
+      // a position we did not reserve. Do not use it to retry the failed claim.
+      if (++num_failed_claims < num_chunks)
+        continue;
+    }
+
+    // If we reach this point, either:
+    // - TryReserveWritePos() found the ring buffer full and did not increment
+    //   write_pos.
+    // - TryAcquireChunkForWriting() failed num_chunks times in this round.
+    //   Earlier failures took continue above to try another reservation.
+    //   The last failure reached the attempt limit.
+
+    // The result tells why the call found no chunk:
+    // - kClaimFailed: a claim failed at least once in this call, even if a
+    //   later reservation found the ring buffer full.
+    // - kFull: every reservation found the ring buffer full.
+    //
+    // The caller applies its BufferExhaustedPolicy. To wait, it calls
+    // WaitForReadPosChange() and then calls again.
+    return num_failed_claims != 0 ? BeginFragmentResult::kClaimFailed
+                                  : BeginFragmentResult::kFull;
+  }
+}
+
+void SharedRingBufferWriter::WaitForReadPosChange(uint32_t timeout_ms) {
+  if (use_futex_) {
+    // Wait while read_pos equals the value from the last reservation attempt.
+    const SharedRingBuffer::WriterWaitResult result =
+        ring_->WaitForReadPosChange(read_pos_for_wait_, timeout_ms);
+    if (result == SharedRingBuffer::WriterWaitResult::kRetry)
+      return;
+    // If the futex is unavailable, use fallback sleeps for this writer's later
+    // waits. This avoids repeated calls to an unsupported syscall.
+    use_futex_ = false;
+  }
+
+  // No futex. Sleep with v1's backoff: 0, 8, 72, ... microseconds, up to
+  // kMaxFallbackSleepUs. No sleep requests more than |timeout_ms|.
+  const uint64_t timeout_us = uint64_t{timeout_ms} * 1000;
+  base::SleepMicroseconds(static_cast<unsigned>(
+      std::min<uint64_t>(fallback_sleep_us_, timeout_us)));
+  fallback_sleep_us_ =
+      std::min(kMaxFallbackSleepUs, (fallback_sleep_us_ + 1) * 8);
+}
+
+SharedRingBufferWriter::EndFragmentResult
+SharedRingBufferWriter::ReleaseCurrentChunkAsComplete(
+    std::optional<uint32_t> fragment_size,
+    bool continues_on_next) {
+  PERFETTO_DCHECK(cur_chunk_);
+  PERFETTO_DCHECK(cur_chunk_state() == ChunkState::kBeingWritten);
+  PERFETTO_DCHECK(!has_open_fragment());
+
+  // Publication competes with the reader's rewrite request. For N published
+  // fragments, the possible transitions are:
+  // - Writer: BeingWritten(N) -> Complete(num_fragments_).
+  // - Reader: BeingWritten(N) -> RewriteRequested(N).
+  //
+  // On failure, relocate any unpublished fragment and retry publication.
+  // The reader can also request a rewrite of the replacement chunk.
+  // Repeat until publication succeeds or acquisition of a replacement fails.
+  //
+  // A failed acquisition leaves the relocation pending.
+  for (;;) {
+    uint32_t flags = PayloadFlagsOf(expected_state_word_);
+    // Publish pending loss and the fragment count in the same state word.
+    // The reader must observe the loss flag before it can deliver fragments.
+    if (data_loss_pending_)
+      flags |= kFlagDataLoss;
+    if (continues_on_next)
+      flags |= kFlagContinuesOnNextChunk;
+    const uint32_t complete_word =
+        MakeDataStateWord(ChunkState::kComplete, ChunkFormat::kTargetBuffer,
+                          flags, num_fragments_, writer_id_);
+
+    uint32_t expected = expected_state_word_;
+    if (ring_->TryReleaseChunkAsComplete(cur_chunk_idx_, complete_word,
+                                         &expected)) {
+      expected_state_word_ = complete_word;
+      data_loss_pending_ = false;
+      PERFETTO_DCHECK(payload_end_ <= chunk_size_);
+      PERFETTO_DCHECK(size_directory_bytes_ <= chunk_size_ - payload_end_);
+
+      // Discard the cached handle if any of these limits prevents reuse:
+      // - continues_on_next: kFlagContinuesOnNextChunk describes the last
+      //   fragment. If another fragment follows, the flag describes the wrong
+      //   fragment and the reader cannot identify the split packet.
+      // - num_fragments_ reached kMaxFragmentsPerChunk.
+      // - At most one byte remains between the payload and the size directory.
+      //   BeginFragment() requires a non-empty range plus one size byte, even
+      //   if the caller later ends the fragment with a size of zero.
+      if (continues_on_next || num_fragments_ >= kMaxFragmentsPerChunk ||
+          chunk_size_ - payload_end_ - size_directory_bytes_ <= 1) {
+        ResetCurrentChunk();
+      }
+      return EndFragmentResult::kSuccess;
+    }
+
+    // On failure, expected must be RewriteRequested for this writer. Only the
+    // reader can change the word before publication, so any other value is a
+    // protocol error.
+    if (PERFETTO_UNLIKELY(ChunkStateOf(expected) !=
+                              ChunkState::kRewriteRequested ||
+                          WriterIDOf(expected) != writer_id_)) {
+      PERFETTO_FATAL(
+          "tracing v2: publication of chunk %u by writer %u lost to state word "
+          "0x%08x, which is not a rewrite request for this writer",
+          cur_chunk_idx_.value(), writer_id_, expected);
+    }
+
+    // expected is RewriteRequested: the reader did a partial chunk read while
+    // this writer prepared another fragment.
+    // - It consumed NumFragmentsOf(expected) published fragments. It discarded
+    //   them if kFlagDataLoss was set or validation failed.
+    // - It did not consume the unpublished fragment. The reader will not return
+    //   to this reservation for more fragments.
+    // - The writer must publish the remaining
+    //   num_fragments_ - NumFragmentsOf(expected) fragments in a new chunk.
+    const uint32_t num_fragments_read = NumFragmentsOf(expected);
+
+    // The rewrite request preserves the count from our last publication.
+    PERFETTO_DCHECK(num_fragments_read == NumFragmentsOf(expected_state_word_));
+
+    // At most one fragment needs relocation because EndFragment() publishes
+    // before another fragment can begin:
+    // - EndFragment() adds the finished fragment to num_fragments_.
+    // - FinishCurrentChunk() abandons the open fragment without increasing it.
+    PERFETTO_DCHECK(num_fragments_ ==
+                    num_fragments_read + (fragment_size.has_value() ? 1u : 0u));
+
+    // The unpublished fragment occupies the last |*fragment_size| bytes before
+    // payload_end_. The reader already consumed the earlier fragments.
+    // Save these bytes before acknowledgement. The reader can then reclaim
+    // the chunk.
+    if (fragment_size) {
+      // TODO(sashwinbalaji): Measure allocation latency on the first relocation
+      // and retained memory per writer. Use the results to decide when to
+      // allocate this scratch buffer and whether to retain it for later use.
+      relocation_payload_.assign(cur_chunk_ + payload_end_ - *fragment_size,
+                                 cur_chunk_ + payload_end_);
+    }
+
+    // Acknowledge before the next acquisition. The reader can then reclaim the
+    // old chunk even if this writer must wait for replacement space.
+    if (PERFETTO_UNLIKELY(
+            !ring_->TryAcknowledgeRewrite(cur_chunk_idx_, expected))) {
+      PERFETTO_FATAL(
+          "tracing v2: writer %u could not acknowledge chunk %u: only its "
+          "owner may leave RewriteRequested",
+          writer_id_, cur_chunk_idx_.value());
+    }
+    ++stats_.relocations;
+
+    // If num_fragments_read is zero, preserve both flags:
+    // - kFlagContinuesFromPrevChunk still describes the unpublished fragment.
+    // - kFlagDataLoss still needs a report because the reader ignores loss in
+    //   BeingWritten(0).
+    //
+    // Otherwise, clear both flags:
+    // - The reader consumed the first fragment, so its continuation flag no
+    //   longer applies. The unpublished fragment starts a new packet because
+    //   EndFragment(..., /*continues_on_next=*/true) prevents further fragments
+    //   in the old chunk.
+    // - The reader handles the old loss. The delegate tracks that gap for the
+    //   next complete packet. Repeating the flag would discard the replacement.
+    //
+    // kFlagContinuesOnNextChunk comes from this call's continues_on_next value.
+    const uint32_t inherited_flags =
+        PayloadFlagsOf(expected) &
+        (kFlagContinuesFromPrevChunk | kFlagDataLoss);
+    const uint32_t relocated_flags =
+        num_fragments_read == 0 ? inherited_flags : 0;
+
+    ResetCurrentChunk();
+
+    if (!fragment_size) {
+      PERFETTO_DCHECK(!continues_on_next);
+      // FinishCurrentChunk() has no fragment to relocate. If the reader did not
+      // report the old loss, the next acquired chunk must report it.
+      if (relocated_flags & kFlagDataLoss)
+        data_loss_pending_ = true;
+      return EndFragmentResult::kSuccess;
+    }
+
+    // AcquireNewChunk() also includes data_loss_pending_. A loss recorded after
+    // the old publication must survive even if the reader handled the old flag.
+    const BeginFragmentResult claim = AcquireNewChunk(relocated_flags);
+    if (claim != BeginFragmentResult::kSuccess) {
+      // Keep the saved fragment. The caller retries or drops it.
+      pending_relocation_ =
+          PendingRelocation{relocated_flags, continues_on_next};
+      return claim == BeginFragmentResult::kFull
+                 ? EndFragmentResult::kFull
+                 : EndFragmentResult::kClaimFailed;
+    }
+    if (PERFETTO_UNLIKELY(after_replacement_claim_for_testing_))
+      after_replacement_claim_for_testing_();
+    CopyRelocatedFragment(*fragment_size);
+  }
+}
+
+SharedRingBufferWriter::RetryRelocationResult
+SharedRingBufferWriter::RetryRelocation() {
+  PERFETTO_DCHECK(pending_relocation_);
+  PERFETTO_DCHECK(!cur_chunk_);
+
+  RetryRelocationResult retry;
+  const BeginFragmentResult claim =
+      AcquireNewChunk(pending_relocation_->chunk_flags);
+  if (claim != BeginFragmentResult::kSuccess) {
+    retry.result = claim == BeginFragmentResult::kFull
+                       ? EndFragmentResult::kFull
+                       : EndFragmentResult::kClaimFailed;
+    return retry;
+  }
+  retry.acquired_replacement = true;
+  if (PERFETTO_UNLIKELY(after_replacement_claim_for_testing_))
+    after_replacement_claim_for_testing_();
+
+  const auto fragment_size = static_cast<uint32_t>(relocation_payload_.size());
+  const bool continues_on_next = pending_relocation_->continues_on_next;
+  pending_relocation_.reset();
+  CopyRelocatedFragment(fragment_size);
+  // If the reader also takes this replacement, this relocates again.
+  retry.result =
+      ReleaseCurrentChunkAsComplete(fragment_size, continues_on_next);
+  return retry;
+}
+
+void SharedRingBufferWriter::DropRelocation() {
+  PERFETTO_DCHECK(pending_relocation_);
+  pending_relocation_.reset();
+  ++stats_.fragments_dropped;
+  // Also covers a loss flag that the relocation inherited.
+  data_loss_pending_ = true;
+}
+
+void SharedRingBufferWriter::CopyRelocatedFragment(uint32_t fragment_size) {
+  // All chunks have the same capacity, so the saved fragment and its size
+  // entry fit in the empty replacement. An empty payload still needs a size
+  // entry and contributes one to the fragment count.
+  if (!relocation_payload_.empty()) {
+    memcpy(cur_chunk_ + kTargetBufferPayloadOffset, relocation_payload_.data(),
+           relocation_payload_.size());
+  }
+  payload_end_ = kTargetBufferPayloadOffset + fragment_size;
+  uint8_t* const chunk_end = cur_chunk_ + chunk_size_;
+  uint8_t* const sizes_begin =
+      WriteFragmentSizeReversed(chunk_end, fragment_size);
+  size_directory_bytes_ = static_cast<uint32_t>(chunk_end - sizes_begin);
+  num_fragments_ = 1;
+}
+
+void SharedRingBufferWriter::ResetCurrentChunk() {
+  cur_chunk_ = nullptr;
+  cur_chunk_idx_ = ChunkIndex::FromIndex(0);
+  expected_state_word_ = 0;
+  payload_end_ = 0;
+  size_directory_bytes_ = 0;
+  num_fragments_ = 0;
+  cur_fragment_begin_ = kNoFragmentOpen;
+}
+
+}  // namespace perfetto::tracing_v2
+// gen_amalgamated begin source: src/tracing/v2/trace_writer_v2_impl.cc
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/v2/trace_writer_v2_impl.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <optional>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/base/proc_utils.h"
+// gen_amalgamated expanded: #include "perfetto/base/time.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/thread_annotations.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/producer_ring_buffer_arbiter.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
+
+// gen_amalgamated expanded: #include "protos/perfetto/trace/trace_packet.pbzero.h"
+
+namespace perfetto::tracing_v2 {
+namespace {
+
+// A new fragment must fit Protozero's largest scalar field.
+constexpr uint32_t kMinFragmentPayloadSize =
+    static_cast<uint32_t>(protozero::proto_utils::kMaxSimpleFieldEncodedSize);
+
+// Each wait for space requests at most this time. A wait can end early, for
+// example when the reader moves read_pos.
+// SharedRingBufferWriter::WaitForReadPosChange() states the exact guarantees.
+//
+// The limit makes the writer check again also without reader progress:
+// - If the reader detached during the wait, the writer drops the data. It
+//   does not wait until the stall deadline and crash.
+// - If the last drain did not free space, the writer asks for another one.
+//
+// The 100 ms limit matches the longest sleep in
+// SharedMemoryArbiterImpl::GetNewChunk().
+constexpr uint32_t kMaxWaitMs = 100;
+
+// After this time, kStall aborts and kStallThenDrop drops the data.
+// - The time starts when one chunk acquisition first needs to wait.
+// - It covers all failed claim rounds and waits of that acquisition.
+// - It does not limit the time to finish a fragment: a relocation can claim
+//   several replacements, each with its own deadline.
+//
+// The 30-second limit matches v1's approximate timeout from kAssertAtNStalls
+// in SharedMemoryArbiterImpl::GetNewChunk().
+constexpr uint32_t kStallTimeoutMs = 30000;
+
+// Drop mode writes go here, so the data source can finish the packet. Nobody
+// reads it.
+// - All writers of the process share it, as v1 writers share
+//   g_garbage_chunk. Their concurrent writes are a benign race.
+// - Sized to the largest chunk. A raw stream caller can then request a
+//   contiguous range as large as in a normal fragment.
+uint8_t g_drop_buffer[kMaxChunkSize];
+
+}  // namespace
+
+TraceWriterV2Impl::TraceWriterV2Impl(
+    ProducerRingBufferArbiter* ring_buffer_arbiter,
+    WriterID id,
+    BufferID target_buffer,
+    BufferExhaustedPolicy policy)
+    : ring_buffer_arbiter_(ring_buffer_arbiter),
+      ring_buffer_writer_(ring_buffer_arbiter->ring_buffer(),
+                          id,
+                          target_buffer),
+      buffer_exhausted_policy_(policy),
+      process_id_(base::GetProcessId()),
+      stream_writer_(this),
+      cur_packet_(std::make_unique<
+                  protozero::RootMessage<protos::pbzero::TracePacket>>()) {}
+
+TraceWriterV2Impl::~TraceWriterV2Impl() {
+  // Flush implicitly, as TraceWriterBase documents: publish the last packet
+  // and ask for a drain. A publication alone makes the bytes readable, but it
+  // does not make the service read them.
+  //
+  // Both happen before the arbiter releases this WriterID:
+  // - The release can let the endpoint destroy the arbiter.
+  // - Ring buffer reservations keep the order if another ring buffer writer
+  //   reuses the ID. Nothing handles reuse by a v1 writer yet. See the TODO
+  //   in ProducerRingBufferArbiter::OnWriterDestroyed().
+  FinishTracePacket();
+  Flush();
+  ring_buffer_arbiter_->OnWriterDestroyed(writer_id());
+}
+
+TraceWriter::TracePacketHandle TraceWriterV2Impl::NewTracePacket() {
+  PERFETTO_DCHECK(process_id_ == base::GetProcessId());
+  EnsurePacketClosed();
+
+  stream_writer_.Reset(BeginPacketFragment(/*continues_from_prev=*/false));
+  cur_packet_->Reset(&stream_writer_,
+                     protozero::Message::Encoding::kProtoGroup);
+  packet_open_ = true;
+  if (PERFETTO_UNLIKELY(first_packet_on_sequence_)) {
+    cur_packet_->set_first_packet_on_sequence(true);
+    first_packet_on_sequence_ = false;
+  }
+
+  TracePacketHandle handle(cur_packet_.get());
+  handle.set_finalization_listener(this);
+  return handle;
+}
+
+void TraceWriterV2Impl::FinishTracePacket() {
+  PERFETTO_DCHECK(process_id_ == base::GetProcessId());
+  if (!packet_open_)
+    return;
+
+  // Finalize() can append closing bytes that cross a chunk boundary. Keep
+  // packet_open_ true until it returns so GetNewBuffer() can obtain space for
+  // those bytes. Then publish the final fragment without a continuation flag.
+  cur_packet_->Finalize();
+  packet_open_ = false;
+  EndPacketFragment(/*continues_on_next=*/false);
+}
+
+void TraceWriterV2Impl::Flush(std::function<void()> callback) {
+  EnsurePacketClosed();
+
+  // A completed fragment leaves its chunk cached for later packets. Release
+  // that chunk before ring_buffer_arbiter_->Flush() so later packets use new
+  // reservations.
+  ring_buffer_writer_.FinishCurrentChunk();
+  stream_writer_.Reset({nullptr, nullptr});
+  ring_buffer_arbiter_->Flush(std::move(callback));
+}
+
+void TraceWriterV2Impl::OnMessageFinalized(protozero::Message*) {
+  FinishTracePacket();
+}
+
+protozero::ContiguousMemoryRange TraceWriterV2Impl::GetNewBuffer() {
+  if (!packet_open_) {
+    // A stale handle can request space without an open packet. This caller
+    // error violates the data-source API contract.
+    PERFETTO_DFATAL("TraceWriterV2Impl: write outside an open packet");
+    EnterDropMode();
+    return GetDropBuffer();
+  }
+
+  // If the writer loses part of a packet, the remaining bytes are not useful.
+  // Send the rest to the drop buffer. Try the ring buffer for the next packet.
+  if (in_drop_mode_)
+    return GetDropBuffer();
+
+  // The current range cannot satisfy the stream's request. Publish this
+  // fragment with kFlagContinuesOnNextChunk and continue in another chunk.
+  EndPacketFragment(/*continues_on_next=*/true);
+
+  // EndPacketFragment() can fail to relocate after the reader requests a
+  // rewrite. Then the rest of the packet goes to the drop buffer, not to a
+  // continuation fragment.
+  if (in_drop_mode_)
+    return GetDropBuffer();
+
+  return BeginPacketFragment(/*continues_from_prev=*/true);
+}
+
+uint8_t* TraceWriterV2Impl::AnnotatePatch(uint8_t*) {
+  PERFETTO_FATAL("TraceWriterV2Impl cannot patch previously written bytes");
+}
+
+void TraceWriterV2Impl::EnsurePacketClosed() {
+  if (packet_open_ && cur_packet_->is_finalized())
+    FinishTracePacket();
+  PERFETTO_CHECK(!packet_open_);
+}
+
+protozero::ContiguousMemoryRange TraceWriterV2Impl::BeginPacketFragment(
+    bool continues_from_prev) {
+  std::optional<base::TimeMillis> stall_deadline;
+  for (;;) {
+    const auto range = ring_buffer_writer_.BeginFragment(
+        kMinFragmentPayloadSize, continues_from_prev);
+    if (range.result == SharedRingBufferWriter::BeginFragmentResult::kSuccess) {
+      fragment_begin_ = range.begin;
+      in_drop_mode_ = false;
+      return {range.begin, range.end};
+    }
+    // Every valid chunk size holds kMinFragmentPayloadSize.
+    PERFETTO_DCHECK(range.result !=
+                    SharedRingBufferWriter::BeginFragmentResult::kTooLarge);
+
+    const bool claim_failed =
+        range.result ==
+        SharedRingBufferWriter::BeginFragmentResult::kClaimFailed;
+    if (!TryStallForSpace(claim_failed, &stall_deadline)) {
+      EnterDropMode();
+      return GetDropBuffer();
+    }
+  }
+}
+
+void TraceWriterV2Impl::EndPacketFragment(bool continues_on_next) {
+  if (!fragment_begin_) {
+    // The packet went to the drop buffer. The next publication carries
+    // kFlagDataLoss, even if it reuses a cached chunk.
+    return;
+  }
+
+  const uint32_t used =
+      static_cast<uint32_t>(stream_writer_.write_ptr() - fragment_begin_);
+  fragment_begin_ = nullptr;
+
+  // If the reader took the chunk, EndFragment() relocates the fragment and
+  // needs a replacement chunk. See SharedRingBufferWriter::EndFragment().
+  //
+  // If EndFragment() cannot claim a replacement, the relocation stays pending
+  // until the policy lets the writer try again or drop it.
+  SharedRingBufferWriter::EndFragmentResult result =
+      ring_buffer_writer_.EndFragment(used, continues_on_next);
+  // The stall deadline of the current replacement acquisition. It starts at
+  // the first wait after EndFragment() returns.
+  std::optional<base::TimeMillis> stall_deadline;
+  while (result != SharedRingBufferWriter::EndFragmentResult::kSuccess) {
+    const bool claim_failed =
+        result == SharedRingBufferWriter::EndFragmentResult::kClaimFailed;
+    if (!TryStallForSpace(claim_failed, &stall_deadline)) {
+      // Discard the saved fragment and the rest of the packet.
+      ring_buffer_writer_.DropRelocation();
+      EnterDropMode();
+      return;
+    }
+    const auto retry = ring_buffer_writer_.RetryRelocation();
+    // A claimed replacement ends the current acquisition, even if the reader
+    // then took it before publication. The next acquisition gets its own
+    // deadline at its first wait. Retries without a claim keep the deadline.
+    if (retry.acquired_replacement)
+      stall_deadline.reset();
+    result = retry.result;
+  }
+
+  // Batch drain requests until occupancy reaches the threshold:
+  // - This reduces task and IPC traffic when packets arrive separately.
+  // - It lets this writer reuse its cached Complete chunk for longer. A drain
+  //   frees that chunk, and the next fragment then needs a new one.
+  const uint32_t outstanding_positions =
+      ring_buffer_arbiter_->ring_buffer()->LoadNumOutstandingPositionsRelaxed();
+  if (outstanding_positions >=
+      ring_buffer_arbiter_->drain_occupancy_threshold()) {
+    ring_buffer_arbiter_->RequestDrain(
+        ProducerRingBufferArbiter::DrainUrgency::kRoutine);
+  }
+}
+
+bool TraceWriterV2Impl::TryStallForSpace(
+    bool claim_failed,
+    std::optional<base::TimeMillis>* stall_deadline) {
+  // While a loss waits for its report, kStallThenDrop acts as kDrop.
+  // Otherwise each dropped packet can cost another full timeout.
+  //
+  // A later
+  // acquisition can stall again after a chunk carries the loss. This matches
+  // v1's drop_packets_ behavior.
+  bool can_stall = buffer_exhausted_policy_ != BufferExhaustedPolicy::kDrop;
+  if (buffer_exhausted_policy_ == BufferExhaustedPolicy::kStallThenDrop &&
+      ring_buffer_writer_.has_pending_data_loss()) {
+    can_stall = false;
+  }
+
+  // Time left before the stall deadline. Zero means drop.
+  // Without an attached reader, nothing frees space. So drop, also under
+  // kStall. A wait would only end at the deadline, where kStall crashes.
+  uint32_t time_left_ms = 0;
+  if (can_stall && ring_buffer_arbiter_->IsReaderAttached()) {
+    const base::TimeMillis now = get_time_ms_();
+    if (!stall_deadline->has_value())
+      *stall_deadline = now + base::TimeMillis(kStallTimeoutMs);
+    const base::TimeMillis deadline = **stall_deadline;
+    if (now < deadline) {
+      time_left_ms = static_cast<uint32_t>((deadline - now).count());
+    } else if (buffer_exhausted_policy_ == BufferExhaustedPolicy::kStall) {
+      PERFETTO_FATAL(
+          "tracing v2: writer %u could not acquire a chunk for %u ms: "
+          "possible deadlock",
+          writer_id(), kStallTimeoutMs);
+    }
+  }
+
+  // Every drop takes this exit.
+  if (time_left_ms == 0) {
+    // Failed claims left reserved positions that only the reader can move
+    // past. Until it does, they block the reservations of all writers. An
+    // earlier drain does not cover positions reserved after it.
+    if (claim_failed) {
+      ring_buffer_arbiter_->RequestDrain(
+          ProducerRingBufferArbiter::DrainUrgency::kRoutine);
+    }
+    PERFETTO_DLOG(
+        "tracing v2: writer %u: %s: dropping data", writer_id(),
+        claim_failed ? "no chunk could be claimed" : "ring buffer full");
+    return false;
+  }
+
+  // Make the reader run before the wait. Its drain frees space, and moves
+  // read_pos past the positions of failed claims.
+  ring_buffer_arbiter_->RequestDrain(
+      ProducerRingBufferArbiter::DrainUrgency::kUrgent);
+
+  // With a futex, the wait compares read_pos with the value that the last
+  // reservation attempt saw, before the request above. So it also sees reader
+  // progress that happens between the request and the wait.
+  //
+  // The requested wait time comes from the time left before the deadline,
+  // measured before the request above. So the wait can end slightly after the
+  // deadline. The next check then drops or aborts.
+  ring_buffer_writer_.WaitForReadPosChange(std::min(kMaxWaitMs, time_left_ms));
+  return true;
+}
+
+void TraceWriterV2Impl::EnterDropMode() {
+  fragment_begin_ = nullptr;
+  // Consecutive dropped packets count as one drop.
+  if (in_drop_mode_)
+    return;
+  in_drop_mode_ = true;
+  ++drop_count_;
+  ring_buffer_writer_.RecordDataLoss();
+}
+
+protozero::ContiguousMemoryRange TraceWriterV2Impl::GetDropBuffer() {
+  PERFETTO_DCHECK(in_drop_mode_);
+  PERFETTO_ANNOTATE_BENIGN_RACE_SIZED(&g_drop_buffer, sizeof(g_drop_buffer),
+                                      "nobody reads the drop buffer")
+  return {&g_drop_buffer[0], &g_drop_buffer[0] + sizeof(g_drop_buffer)};
+}
+
+}  // namespace perfetto::tracing_v2
 // gen_amalgamated begin source: src/tracing/service/clock.cc
 // gen_amalgamated begin header: src/tracing/service/clock.h
 /*
@@ -60501,8 +68449,8 @@ double RandomImpl::GetValue() {
 }
 
 }  // namespace perfetto::tracing_service
-// gen_amalgamated begin source: src/tracing/service/trace_buffer_v1.cc
-// gen_amalgamated begin header: src/tracing/service/trace_buffer_v1.h
+// gen_amalgamated begin source: src/tracing/service/service_ring_buffer_drainer.cc
+// gen_amalgamated begin header: src/tracing/service/service_ring_buffer_drainer.h
 // gen_amalgamated begin header: include/perfetto/ext/tracing/core/client_identity.h
 /*
  * Copyright (C) 2023 The Android Open Source Project
@@ -60555,6 +68503,157 @@ class ClientIdentity {
 }  // namespace perfetto
 
 #endif  // INCLUDE_PERFETTO_EXT_TRACING_CORE_CLIENT_IDENTITY_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_SERVICE_SERVICE_RING_BUFFER_DRAINER_H_
+#define SRC_TRACING_SERVICE_SERVICE_RING_BUFFER_DRAINER_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <functional>
+#include <memory>
+
+// gen_amalgamated expanded: #include "perfetto/ext/base/thread_checker.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/weak_runner.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/client_identity.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_reader.h"
+
+namespace perfetto {
+class TraceBuffer;
+namespace tracing_v2 {
+
+namespace test {
+class ServiceRingBufferDrainerTestPeer;
+}  // namespace test
+
+// Copies published data from one producer connection's v2 ring buffer into
+// authorized trace buffers that support SMB v2. ProducerRingBufferArbiter
+// manages the producer side. See AttachV2RingBuffer in producer_port.proto for
+// the IPC flow.
+//
+// All operations, including construction and destruction, run on the service
+// sequence.
+//
+//   ProducerEndpointImpl
+//     |-- owns ---> ServiceRingBufferDrainer (this class)
+//                     |-- shares -> SharedMemory: the ring buffer mapping
+//                     |-- owns ---> SharedRingBuffer: the view
+//                     |-- owns ---> SharedRingBufferReader
+//                     |-- uses ---> Delegate (the ProducerEndpointImpl)
+//                     |-- uses ---> the service task runner
+//
+// Over IPC, |memory_| holds the service's separate mapping. In-process, the
+// producer and service share the same mapping.
+class ServiceRingBufferDrainer : public SharedRingBufferReader::Delegate {
+ public:
+  // Delegate calls must not destroy or reenter the drainer.
+  class Delegate {
+   public:
+    virtual ~Delegate();
+
+    // Returns a trace buffer that the producer may write to and that supports
+    // SMB v2, or nullptr. The service owns the buffer, which must remain valid
+    // during OnChunkRead().
+    virtual TraceBuffer* GetV2RingBufferDestination(BufferID) = 0;
+
+    // Calls |callback| inline for each buffer that GetV2RingBufferDestination()
+    // would return. Buffer references are valid only during the callback.
+    // The callback must not change the set of destinations or destroy a buffer.
+    virtual void ForEachV2RingBufferDestination(
+        const std::function<void(TraceBuffer&)>& callback) = 0;
+
+    // Adds |count| to the service's chunks_discarded statistic for chunks that
+    // never reached a trace buffer. Excludes loss reported by the producer.
+    virtual void OnRingBufferChunksDiscarded(uint64_t count) = 0;
+  };
+
+  // Shares ownership of |memory|. The mapping and |chunk_size_bytes| must
+  // describe a valid ring buffer layout. |delegate| and |task_runner| must
+  // remain valid until destruction.
+  ServiceRingBufferDrainer(std::shared_ptr<SharedMemory> memory,
+                           uint32_t chunk_size_bytes,
+                           ProducerID,
+                           ClientIdentity,
+                           Delegate* delegate,
+                           base::TaskRunner* task_runner);
+
+  // Cancels pending retry tasks. Destruction does not call Drain() or copy any
+  // remaining data from |ring_buffer_|.
+  ~ServiceRingBufferDrainer() override;
+  ServiceRingBufferDrainer(const ServiceRingBufferDrainer&) = delete;
+  ServiceRingBufferDrainer& operator=(const ServiceRingBufferDrainer&) = delete;
+  ServiceRingBufferDrainer(ServiceRingBufferDrainer&&) = delete;
+  ServiceRingBufferDrainer& operator=(ServiceRingBufferDrainer&&) = delete;
+
+  // Reads at most |ring_buffer_.num_chunks()| logical positions. Reaching the
+  // position or retry limit schedules another pass after a delay. At most one
+  // retry task is pending at a time.
+  //
+  // A protocol error stops all future reads and records one ABI violation in
+  // each authorized destination. Data already copied is kept. The producer
+  // stays connected without notification or a v1 fallback. When the ring buffer
+  // fills, its writers drop packets, or stall and time out.
+  void Drain();
+
+  // Mapping size for the service's memory guardrail.
+  size_t size_bytes() const { return memory_->size(); }
+
+ private:
+  friend class test::ServiceRingBufferDrainerTestPeer;
+
+  // SharedRingBufferReader::Delegate implementation.
+  // The reader calls these inline during Drain().
+  void OnChunkRead(const SharedRingBufferReader::ChunkContents&) override;
+  void OnDataLoss(WriterID) override;
+
+  // Marks a gap in the sequence for |writer_id| in its destination buffer.
+  void RecordWriterLoss(WriterID writer_id);
+
+  // Trusted identity supplied by the endpoint.
+  const ProducerID producer_id_;
+  const ClientIdentity client_identity_;
+
+  Delegate* const delegate_;
+
+  // Declared before |ring_buffer_| and |reader_| so the mapping outlives them.
+  std::shared_ptr<SharedMemory> memory_;
+
+  // Constructing |ring_buffer_| leaves the contents of |memory_| unchanged,
+  // preserving any data the producer has already written.
+  SharedRingBuffer ring_buffer_;
+  SharedRingBufferReader reader_;
+
+  bool retry_scheduled_ = false;
+
+  PERFETTO_THREAD_CHECKER(thread_checker_)
+
+  // Declared last to cancel retry tasks before reader or mapping destruction.
+  base::WeakRunner weak_runner_;
+};
+
+}  // namespace tracing_v2
+}  // namespace perfetto
+
+#endif  // SRC_TRACING_SERVICE_SERVICE_RING_BUFFER_DRAINER_H_
+// gen_amalgamated begin header: src/tracing/service/trace_buffer.h
 // gen_amalgamated begin header: src/tracing/service/histogram.h
 /*
  * Copyright (C) 2023 The Android Open Source Project
@@ -60649,7 +68748,6 @@ class Histogram {
 }  // namespace perfetto
 
 #endif  // SRC_TRACING_SERVICE_HISTOGRAM_H_
-// gen_amalgamated begin header: src/tracing/service/trace_buffer.h
 /*
  * Copyright (C) 2018 The Android Open Source Project
  *
@@ -60672,6 +68770,7 @@ class Histogram {
 #include <stdint.h>
 #include <array>
 #include <memory>
+#include <new>
 
 // gen_amalgamated expanded: #include "perfetto/ext/base/flat_hash_map.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
@@ -60679,9 +68778,14 @@ class Histogram {
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_stats.h"
 // gen_amalgamated expanded: #include "src/tracing/service/histogram.h"
 
+namespace protozero {
+struct ConstBytes;
+}  // namespace protozero
+
 namespace perfetto {
 
 class TracePacket;
+class TraceBufferProtoVms;
 class TraceBuffer_WriterStats;
 
 // Virtual interface for trace buffers to enable multiple implementations.
@@ -60743,6 +68847,54 @@ class TraceBuffer {
                                      size_t patches_size,
                                      bool other_patches_pending) = 0;
 
+  // Returns true if the buffer accepts tracing v2 data through
+  // CopyChunkV2Untrusted(). The service offers tracing v2 only to data sources
+  // that write into such a buffer.
+  virtual bool supports_tracing_v2() const = 0;
+
+  // Copies a batch of SMB v2 fragments into the buffer. The caller must pass
+  // fragments and batches in write order for each {ProducerID, WriterID}.
+  // The caller owns the fragment array and payloads. Both must remain valid
+  // and unchanged until this call returns.
+  //
+  // Each fragment is a whole packet unless a continuation flag is set.
+  // - |first_continues_from_prev| means the first fragment continues a packet
+  //   that started in this writer's previous batch.
+  // - |last_continues_on_next| means the last fragment continues in this
+  //   writer's next batch.
+  // The caller decodes these flags from its transport. If the transport marks
+  // a batch as lossy, call RecordChunkV2DataLoss() instead of copying it.
+  //
+  // Returns true if the whole batch was stored. Returns false if the batch
+  // was rejected:
+  // - The rejection of a nonempty batch records loss as RecordChunkV2DataLoss()
+  //   does. An empty batch changes nothing.
+  // - Invalid input increments abi_violations. Other rejections increment
+  //   chunks_discarded.
+  //
+  // If supports_tracing_v2() is false, returns false and changes nothing.
+  virtual bool CopyChunkV2Untrusted(const PacketSequenceProperties&,
+                                    const protozero::ConstBytes* fragments,
+                                    size_t num_fragments,
+                                    bool first_continues_from_prev,
+                                    bool last_continues_on_next) = 0;
+
+  // Records a gap after the last SMB v2 batch that the writer appended.
+  // Packets already in the buffer remain readable. The gap stays pending
+  // until the next stored batch carries it or the writer's state is discarded.
+  // Reads report the gap on the first readable packet after it. This does not
+  // increment any statistics.
+  //
+  // Does nothing if the buffer holds no SMB v2 state for the writer. A caller
+  // that cannot identify the destination can call this on every candidate
+  // buffer without creating state for writers that never used it.
+  virtual void RecordChunkV2DataLoss(ProducerID, WriterID) = 0;
+
+  // Increments abi_violations for a violation that the caller found outside
+  // this buffer, e.g. a protocol error in a producer's ring buffer. This only
+  // updates the statistic and does not record a gap on any packet sequence.
+  virtual void RecordAbiViolation() = 0;
+
   // To read the contents of the buffer the caller needs to:
   //   BeginRead()
   //   while (ReadNextTracePacket(packet_fragments)) { ... }
@@ -60763,9 +68915,22 @@ class TraceBuffer {
       PacketSequenceProperties* sequence_properties,
       uint32_t* previous_packet_on_sequence_dropped) = 0;
 
+  // Attempts to reclaim unused buffer space.
+  // The caller must release all packets from previous reads before this call,
+  // because their slices can point into the buffer.
+  // Call BeginRead() before reading again.
+  virtual void MaybeCompact() = 0;
+
   // Creates a read-only clone of the trace buffer. The read iterators of the
   // new buffer will be reset, as if no Read() had been called.
   virtual std::unique_ptr<TraceBuffer> CloneReadOnly() const = 0;
+
+  // Returns the ProtoVM state owned by this buffer, or nullptr if the
+  // implementation cannot run a ProtoVM. The pointer remains valid until the
+  // buffer is destroyed.
+  // The service uses it to set up VMs and emit their state. The buffer feeds
+  // packets to the VMs before overwriting them.
+  virtual TraceBufferProtoVms* protovms() = 0;
 
   virtual void set_read_only() = 0;
   virtual const TraceStats::BufferStats& stats() const = 0;
@@ -60791,6 +68956,19 @@ class TraceBuffer_WriterStats {
                                            base::QuadraticProbe,
                                            /*AppendOnly=*/true>;
 
+  TraceBuffer_WriterStats() = default;
+  TraceBuffer_WriterStats(const TraceBuffer_WriterStats& other) {
+    for (auto it = other.map_.GetIterator(); it; ++it)
+      map_.Insert(it.key(), it.value());
+  }
+  TraceBuffer_WriterStats& operator=(const TraceBuffer_WriterStats& other) {
+    if (this != &other) {
+      this->~TraceBuffer_WriterStats();
+      new (this) TraceBuffer_WriterStats(other);
+    }
+    return *this;
+  }
+
   void Insert(ProducerAndWriterID key, HistValue val) {
     map_.Insert(key, {}).first->Add(val);
   }
@@ -60804,6 +68982,405 @@ class TraceBuffer_WriterStats {
 }  // namespace perfetto
 
 #endif  // SRC_TRACING_SERVICE_TRACE_BUFFER_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/service/service_ring_buffer_drainer.h"
+
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer.h"
+
+namespace perfetto::tracing_v2 {
+
+namespace {
+
+// Delay retries so writers that repeatedly win chunk state transitions
+// cannot keep the service sequence busy.
+constexpr uint32_t kDrainRetryDelayMs = 1;
+
+}  // namespace
+
+ServiceRingBufferDrainer::Delegate::~Delegate() = default;
+
+ServiceRingBufferDrainer::ServiceRingBufferDrainer(
+    std::shared_ptr<SharedMemory> memory,
+    uint32_t chunk_size_bytes,
+    ProducerID producer_id,
+    ClientIdentity client_identity,
+    Delegate* delegate,
+    base::TaskRunner* task_runner)
+    : producer_id_(producer_id),
+      client_identity_(client_identity),
+      delegate_(delegate),
+      memory_(std::move(memory)),
+      ring_buffer_(static_cast<uint8_t*>(memory_->start()),
+                   memory_->size(),
+                   chunk_size_bytes),
+      reader_(&ring_buffer_, this),
+      weak_runner_(task_runner) {}
+
+ServiceRingBufferDrainer::~ServiceRingBufferDrainer() {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+}
+
+void ServiceRingBufferDrainer::Drain() {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+
+  if (PERFETTO_UNLIKELY(reader_.has_protocol_error()))
+    return;
+
+  // Bound each pass to num_chunks() logical positions, including positions
+  // reserved during the pass.
+  const SharedRingBufferReader::Stats stats_before = reader_.GetStats();
+  const auto result = reader_.Drain(ring_buffer_.num_chunks());
+  const SharedRingBufferReader::Stats stats_after = reader_.GetStats();
+
+  // The reader discards malformed chunks and chunks in an unknown format. It
+  // reports them as loss for the writer. Count them here, once per pass.
+  const uint64_t num_rejected =
+      (stats_after.malformed_chunks - stats_before.malformed_chunks) +
+      (stats_after.unsupported_format_chunks -
+       stats_before.unsupported_format_chunks);
+  if (PERFETTO_UNLIKELY(num_rejected != 0))
+    delegate_->OnRingBufferChunksDiscarded(num_rejected);
+
+  if (PERFETTO_UNLIKELY(reader_.has_protocol_error())) {
+    // Record the error in every authorized destination. Later drains return
+    // above, so each destination counts this violation only once.
+    delegate_->ForEachV2RingBufferDestination(
+        [](TraceBuffer& buffer) { buffer.RecordAbiViolation(); });
+    return;
+  }
+
+  if (result.needs_another_drain() && !retry_scheduled_) {
+    retry_scheduled_ = true;
+    weak_runner_.PostDelayedTask(
+        [this] {
+          // Clear the flag so Drain() can schedule another retry if needed.
+          retry_scheduled_ = false;
+          Drain();
+        },
+        kDrainRetryDelayMs);
+  }
+}
+
+void ServiceRingBufferDrainer::OnChunkRead(
+    const SharedRingBufferReader::ChunkContents& chunk) {
+  if (PERFETTO_UNLIKELY(!chunk.writer_id || chunk.writer_id > kMaxWriterID)) {
+    delegate_->OnRingBufferChunksDiscarded(1);
+    return;
+  }
+
+  TraceBuffer* buffer =
+      delegate_->GetV2RingBufferDestination(chunk.target_buffer);
+  if (PERFETTO_UNLIKELY(!buffer)) {
+    delegate_->OnRingBufferChunksDiscarded(1);
+    RecordWriterLoss(chunk.writer_id);
+    return;
+  }
+
+  // The reader reports a chunk with kFlagDataLoss through OnDataLoss(). Only
+  // the continuation flags can reach this point.
+  PERFETTO_DCHECK(!(chunk.payload_flags & kFlagDataLoss));
+  const TraceBuffer::PacketSequenceProperties sequence{
+      producer_id_, client_identity_, chunk.writer_id};
+  // On rejection, the trace buffer counts the chunk in its own statistics and
+  // records the loss on the sequence.
+  //
+  // TODO(sashwinbalaji): the payload is copied twice: from shared memory into
+  // the reader's scratch, then into a TBv2 chunk. The reader could pass the
+  // decoded sizes and one payload range, so that TBv2 copies once. Measure
+  // the drain cost in a profile first.
+  buffer->CopyChunkV2Untrusted(
+      sequence, chunk.fragments, chunk.num_fragments,
+      chunk.payload_flags & kFlagContinuesFromPrevChunk,
+      chunk.payload_flags & kFlagContinuesOnNextChunk);
+}
+
+void ServiceRingBufferDrainer::OnDataLoss(WriterID writer_id) {
+  // Record the loss in |writer_id|'s sequence so it can be reported through
+  // previous_packet_dropped.
+  //
+  // Drain() counts chunks discarded by the reader in chunks_discarded.
+  // Loss reported by the producer does not increase that counter.
+  RecordWriterLoss(writer_id);
+}
+
+void ServiceRingBufferDrainer::RecordWriterLoss(WriterID writer_id) {
+  if (!writer_id || writer_id > kMaxWriterID)
+    return;
+  // The destination of a lost chunk is unknown. RecordChunkV2DataLoss() changes
+  // only a buffer that holds this writer's sequence.
+  // - A writer has one destination, so at most one buffer matches.
+  // - Before the writer's first stored chunk, no buffer matches.
+  delegate_->ForEachV2RingBufferDestination(
+      [this, writer_id](TraceBuffer& buffer) {
+        buffer.RecordChunkV2DataLoss(producer_id_, writer_id);
+      });
+}
+
+}  // namespace perfetto::tracing_v2
+// gen_amalgamated begin source: src/tracing/service/trace_buffer_protovms.cc
+// gen_amalgamated begin header: src/tracing/service/trace_buffer_protovms.h
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef SRC_TRACING_SERVICE_TRACE_BUFFER_PROTOVMS_H_
+#define SRC_TRACING_SERVICE_TRACE_BUFFER_PROTOVMS_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+// gen_amalgamated expanded: #include "perfetto/base/flat_set.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
+
+namespace perfetto {
+
+class TracePacket;
+
+namespace protovm {
+class Vm;
+}
+
+// Owns the ProtoVM instances for one trace buffer (go/perfetto-proto-vm).
+// When the buffer is about to overwrite a packet, it passes the packet to
+// MaybeProcessOverwrittenPacket() to merge it into a ProtoVM's incremental
+// state. The service emits this state when it reads the buffer.
+//
+// The buffer decides which packets to pass here. They must be length-delimited
+// protobuf and arrive in write order within each packet sequence.
+class TraceBufferProtoVms {
+ public:
+  // A ProtoVM instance and the producers whose packets it processes.
+  struct Vm {
+    Vm();
+    ~Vm();
+    Vm(Vm&&) noexcept;
+
+    Vm CloneReadOnly() const;
+
+    std::unique_ptr<protovm::Vm> instance;
+    std::string data_source_name;
+    uint64_t program_hash = 0;
+    uint32_t memory_limit_kb = 0;
+    base::FlatSet<ProducerID> producers;
+  };
+
+  TraceBufferProtoVms();
+  ~TraceBufferProtoVms();
+
+  TraceBufferProtoVms(const TraceBufferProtoVms&) = delete;
+  TraceBufferProtoVms& operator=(const TraceBufferProtoVms&) = delete;
+
+  // Adds |producer_id| to the ProtoVM that runs |program_bytes| for
+  // |data_source_name|. Creates that ProtoVM if it does not exist.
+  void MaybeSetUp(const std::string& data_source_name,
+                  const std::string& program_bytes,
+                  uint32_t memory_limit_kb,
+                  ProducerID producer_id);
+
+  // Tries each ProtoVM registered for |producer| until ApplyPatch() succeeds.
+  // Does nothing if the producer has no ProtoVM.
+  void MaybeProcessOverwrittenPacket(const TracePacket&, ProducerID producer);
+
+  // Replaces this object's instances with read-only clones from |src|.
+  // If any clone fails, clears all instances from this object.
+  void CloneReadOnlyFrom(const TraceBufferProtoVms& src);
+
+  bool HasProducer(ProducerID) const;
+  size_t GetMemoryUsageBytes() const;
+
+  bool empty() const { return vms_.empty(); }
+  const std::vector<Vm>& instances() const { return vms_; }
+
+ private:
+  std::vector<Vm> vms_;
+
+  // Contiguous storage for a packet's slices, as required by ProtoVM's
+  // protozero decoder. We reuse it across packets and only allocate when
+  // it needs to grow.
+  std::string patch_;
+};
+
+}  // namespace perfetto
+
+#endif  // SRC_TRACING_SERVICE_TRACE_BUFFER_PROTOVMS_H_
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer_protovms.h"
+
+#include <algorithm>
+#include <utility>
+
+// gen_amalgamated expanded: #include "perfetto/base/logging.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_packet.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/field.h"
+// gen_amalgamated expanded: #include "src/protovm/vm.h"
+
+namespace perfetto {
+
+TraceBufferProtoVms::Vm::Vm() = default;
+TraceBufferProtoVms::Vm::~Vm() = default;
+TraceBufferProtoVms::Vm::Vm(Vm&&) noexcept = default;
+
+TraceBufferProtoVms::Vm TraceBufferProtoVms::Vm::CloneReadOnly() const {
+  Vm cloned_vm;
+  cloned_vm.data_source_name = data_source_name;
+  cloned_vm.program_hash = program_hash;
+  cloned_vm.memory_limit_kb = memory_limit_kb;
+  cloned_vm.producers = producers;
+  cloned_vm.instance = instance->CloneReadOnly();
+  return cloned_vm;
+}
+
+TraceBufferProtoVms::TraceBufferProtoVms() = default;
+TraceBufferProtoVms::~TraceBufferProtoVms() = default;
+
+void TraceBufferProtoVms::MaybeSetUp(const std::string& data_source_name,
+                                     const std::string& program_bytes,
+                                     uint32_t memory_limit_kb,
+                                     ProducerID producer_id) {
+  Vm* vm = nullptr;
+  // Re-use existing ProtoVM instance, if any.
+  uint64_t program_hash = base::MurmurHashValue(program_bytes);
+  auto vm_it = std::find_if(vms_.begin(), vms_.end(), [&](const Vm& other) {
+    return other.data_source_name == data_source_name &&
+           other.program_hash == program_hash;
+  });
+  if (vm_it != vms_.end()) {
+    vm = &(*vm_it);
+  } else {
+    // Otherwise instantiate new ProtoVM
+    Vm new_vm;
+    new_vm.data_source_name = data_source_name;
+    new_vm.program_hash = program_hash;
+    new_vm.memory_limit_kb = memory_limit_kb;
+
+    protozero::ConstBytes program_bytes_view{
+        reinterpret_cast<const uint8_t*>(program_bytes.data()),
+        program_bytes.size()};
+
+    new_vm.instance = std::make_unique<protovm::Vm>(
+        program_bytes_view, new_vm.memory_limit_kb * 1024);
+    if (!new_vm.instance) {
+      PERFETTO_ELOG("Failed to allocate ProtoVM");
+      return;
+    }
+
+    vms_.push_back(std::move(new_vm));
+    vm = &vms_.back();
+  }
+  // Update ProtoVM's producer IDs
+  vm->producers.insert(producer_id);
+}
+
+void TraceBufferProtoVms::MaybeProcessOverwrittenPacket(
+    const TracePacket& packet,
+    ProducerID producer) {
+  patch_.clear();
+
+  for (auto& vm : vms_) {
+    if (vm.producers.find(producer) == vm.producers.end()) {
+      continue;
+    }
+    // TODO(keanmariotti): add an optimized path for the case
+    // "packet.slices().size() == 1" (zero copy)
+    if (patch_.empty()) {
+      packet.GetRawBytes(&patch_);
+    }
+    protozero::ConstBytes bytes{reinterpret_cast<const uint8_t*>(patch_.data()),
+                                patch_.size()};
+    auto status = vm.instance->ApplyPatch(bytes);
+    if (status.IsOk()) {
+      break;
+    }
+    if (status.IsAbort()) {
+      // TODO(keanmariotti): consider doing something more here. Ideally
+      // triggering a field upload containing the stacktrace.
+      PERFETTO_ELOG("ProtoVM abort while applying patch. Stacktrace:\n%s",
+                    base::Join(status.stacktrace(), "\n").c_str());
+    }
+  }
+}
+
+void TraceBufferProtoVms::CloneReadOnlyFrom(const TraceBufferProtoVms& src) {
+  vms_.clear();
+  for (const auto& vm : src.vms_) {
+    auto vm_cloned = vm.CloneReadOnly();
+    if (!vm_cloned.instance) {
+      PERFETTO_ELOG("Failed to clone ProtoVMs");
+      vms_.clear();
+      break;
+    }
+    vms_.push_back(std::move(vm_cloned));
+  }
+}
+
+bool TraceBufferProtoVms::HasProducer(ProducerID producer) const {
+  return std::any_of(vms_.begin(), vms_.end(), [&](const Vm& vm) {
+    return vm.producers.count(producer) != 0;
+  });
+}
+
+size_t TraceBufferProtoVms::GetMemoryUsageBytes() const {
+  size_t total_bytes = 0;
+  for (const Vm& vm : vms_)
+    total_bytes += vm.instance->GetMemoryUsageBytes();
+  return total_bytes;
+}
+
+}  // namespace perfetto
+// gen_amalgamated begin source: src/tracing/service/trace_buffer_v1.cc
+// gen_amalgamated begin header: src/tracing/service/trace_buffer_v1.h
 /*
  * Copyright (C) 2018 The Android Open Source Project
  *
@@ -61013,6 +69590,21 @@ class TraceBufferV1 : public TraceBuffer {
                              size_t patches_size,
                              bool other_patches_pending) override;
 
+  // Returns false as TraceBufferV1 only accepts SMB v1 chunks.
+  bool supports_tracing_v2() const override;
+
+  // Returns false without changing the buffer or its statistics.
+  bool CopyChunkV2Untrusted(const PacketSequenceProperties&,
+                            const protozero::ConstBytes* fragments,
+                            size_t num_fragments,
+                            bool first_continues_from_prev,
+                            bool last_continues_on_next) override;
+
+  // No-op because TraceBufferV1 holds no SMB v2 state.
+  void RecordChunkV2DataLoss(ProducerID, WriterID) override;
+
+  void RecordAbiViolation() override;
+
   // To read the contents of the buffer the caller needs to:
   //   BeginRead()
   //   while (ReadNextTracePacket(packet_fragments)) { ... }
@@ -61054,10 +69646,16 @@ class TraceBufferV1 : public TraceBuffer {
       PacketSequenceProperties* sequence_properties,
       uint32_t* previous_packet_on_sequence_dropped) override;
 
+  // No-op. TraceBufferV1 does not compact its buffer.
+  void MaybeCompact() override;
+
   // Creates a read-only clone of the trace buffer. Calls to
   // CopyChunkUntrusted() and TryPatchChunkContents() on the returned cloned
   // TraceBuffer will CHECK().
   std::unique_ptr<TraceBuffer> CloneReadOnly() const override;
+
+  // Returns nullptr because TraceBufferV1 cannot run a ProtoVM.
+  TraceBufferProtoVms* protovms() override;
 
   void set_read_only() override { read_only_ = true; }
   const TraceStats::BufferStats& stats() const override { return stats_; }
@@ -61984,6 +70582,24 @@ bool TraceBufferV1::TryPatchChunkContents(ProducerID producer_id,
   return true;
 }
 
+bool TraceBufferV1::supports_tracing_v2() const {
+  return false;
+}
+
+bool TraceBufferV1::CopyChunkV2Untrusted(const PacketSequenceProperties&,
+                                         const protozero::ConstBytes*,
+                                         size_t,
+                                         bool,
+                                         bool) {
+  return false;
+}
+
+void TraceBufferV1::RecordChunkV2DataLoss(ProducerID, WriterID) {}
+
+void TraceBufferV1::RecordAbiViolation() {
+  stats_.set_abi_violations(stats_.abi_violations() + 1);
+}
+
 void TraceBufferV1::BeginRead() {
   read_iter_ = GetReadIterForSequence(index_.begin());
 #if PERFETTO_DCHECK_IS_ON()
@@ -62247,6 +70863,8 @@ bool TraceBufferV1::ReadNextTracePacket(
   }  // for(;;MoveNext()) [iterate over chunks].
 }
 
+void TraceBufferV1::MaybeCompact() {}
+
 TraceBufferV1::ReadAheadResult TraceBufferV1::ReadAhead(TracePacket* packet) {
   static_assert(static_cast<ChunkID>(kMaxChunkID + 1) == 0,
                 "relying on kMaxChunkID to wrap naturally");
@@ -62431,6 +71049,10 @@ std::unique_ptr<TraceBuffer> TraceBufferV1::CloneReadOnly() const {
   if (!buf->data_.IsValid())
     return nullptr;  // PagedMemory::Allocate() failed. We are out of memory.
   return buf;
+}
+
+TraceBufferProtoVms* TraceBufferV1::protovms() {
+  return nullptr;
 }
 
 TraceBufferV1::TraceBufferV1(CloneCtor, const TraceBufferV1& src)
@@ -62876,203 +71498,6 @@ class CircularQueue {
 }  // namespace perfetto
 
 #endif  // INCLUDE_PERFETTO_EXT_BASE_CIRCULAR_QUEUE_H_
-// gen_amalgamated begin header: include/perfetto/ext/base/small_vector.h
-/*
- * Copyright (C) 2021 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
-#define INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
-
-#include <algorithm>
-#include <type_traits>
-#include <utility>
-
-// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
-
-namespace perfetto {
-namespace base {
-
-// Uses inline storage first, switches to dynamic storage when it overflows.
-template <typename T, size_t kSize>
-class SmallVector {
- public:
-  static constexpr size_t kInlineSize = kSize;
-
-  explicit SmallVector() = default;
-
-  ~SmallVector() {
-    clear();
-    if (PERFETTO_UNLIKELY(is_using_heap()))
-      AlignedFree(begin_);
-    begin_ = end_ = end_of_storage_ = nullptr;
-  }
-
-  // Move operators.
-  SmallVector(SmallVector&& other) noexcept(
-      std::is_nothrow_move_constructible<T>::value) {
-    if (other.is_using_heap()) {
-      // Move the heap content, no need to move the individual objects as their
-      // location won't change.
-      begin_ = other.begin_;
-      end_ = other.end_;
-      end_of_storage_ = other.end_of_storage_;
-    } else {
-      const size_t other_size = other.size();
-      PERFETTO_DCHECK(other_size <= capacity());
-      for (size_t i = 0; i < other_size; i++) {
-        // Move the entries and destroy the ones in the moved-from object.
-        new (&begin_[i]) T(std::move(other.begin_[i]));
-        other.begin_[i].~T();
-      }
-      end_ = begin_ + other_size;
-    }
-    auto* const other_inline_storage = other.inline_storage_begin();
-    other.end_ = other.begin_ = other_inline_storage;
-    other.end_of_storage_ = other_inline_storage + kInlineSize;
-  }
-
-  SmallVector& operator=(SmallVector&& other) noexcept(
-      std::is_nothrow_move_constructible<T>::value) {
-    this->~SmallVector();
-    new (this) SmallVector<T, kSize>(std::move(other));
-    return *this;
-  }
-
-  // Copy operators.
-  SmallVector(const SmallVector& other) {
-    const size_t other_size = other.size();
-    if (other_size > capacity())
-      Grow(other_size);
-    // Copy-construct the elements.
-    for (size_t i = 0; i < other_size; ++i)
-      new (&begin_[i]) T(other.begin_[i]);
-    end_ = begin_ + other_size;
-  }
-
-  SmallVector& operator=(const SmallVector& other) {
-    if (PERFETTO_UNLIKELY(this == &other))
-      return *this;
-    this->~SmallVector();
-    new (this) SmallVector<T, kSize>(other);
-    return *this;
-  }
-
-  T* data() { return begin_; }
-  const T* data() const { return begin_; }
-
-  T* begin() { return begin_; }
-  const T* begin() const { return begin_; }
-
-  T* end() { return end_; }
-  const T* end() const { return end_; }
-
-  size_t size() const { return static_cast<size_t>(end_ - begin_); }
-
-  bool empty() const { return end_ == begin_; }
-
-  size_t capacity() const {
-    return static_cast<size_t>(end_of_storage_ - begin_);
-  }
-
-  T& front() {
-    PERFETTO_DCHECK(!empty());
-    return begin_[0];
-  }
-  const T& front() const {
-    PERFETTO_DCHECK(!empty());
-    return begin_[0];
-  }
-
-  T& back() {
-    PERFETTO_DCHECK(!empty());
-    return end_[-1];
-  }
-  const T& back() const {
-    PERFETTO_DCHECK(!empty());
-    return end_[-1];
-  }
-
-  T& operator[](size_t index) {
-    PERFETTO_DCHECK(index < size());
-    return begin_[index];
-  }
-
-  const T& operator[](size_t index) const {
-    PERFETTO_DCHECK(index < size());
-    return begin_[index];
-  }
-
-  template <typename... Args>
-  void emplace_back(Args&&... args) {
-    T* end = end_;
-    if (PERFETTO_UNLIKELY(end == end_of_storage_))
-      end = Grow();
-    new (end) T(std::forward<Args>(args)...);
-    end_ = end + 1;
-  }
-
-  void pop_back() {
-    PERFETTO_DCHECK(!empty());
-    back().~T();
-    --end_;
-  }
-
-  // Clear without reverting back to inline storage.
-  void clear() {
-    while (!empty())
-      pop_back();
-  }
-
- private:
-  PERFETTO_NO_INLINE T* Grow(size_t desired_capacity = 0) {
-    size_t cur_size = size();
-    size_t new_capacity = desired_capacity;
-    if (desired_capacity <= cur_size)
-      new_capacity = std::max(capacity() * 2, size_t(128));
-    T* new_storage =
-        static_cast<T*>(AlignedAlloc(alignof(T), new_capacity * sizeof(T)));
-    for (size_t i = 0; i < cur_size; ++i) {
-      // Move the elements into the new heap buffer and destroy the old ones.
-      new (&new_storage[i]) T(std::move(begin_[i]));
-      begin_[i].~T();
-    }
-    if (is_using_heap())
-      AlignedFree(begin_);
-    begin_ = new_storage;
-    end_ = new_storage + cur_size;
-    end_of_storage_ = new_storage + new_capacity;
-    return end_;
-  }
-
-  T* inline_storage_begin() { return reinterpret_cast<T*>(inline_storage_); }
-  bool is_using_heap() { return begin_ != inline_storage_begin(); }
-
-  T* begin_ = inline_storage_begin();
-  T* end_ = begin_;
-  T* end_of_storage_ = begin_ + kInlineSize;
-
-  alignas(T) char inline_storage_[sizeof(T) * kInlineSize];
-};
-
-}  // namespace base
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_BASE_SMALL_VECTOR_H_
 /*
  * Copyright (C) 2025 The Android Open Source Project
  *
@@ -63098,8 +71523,8 @@ class SmallVector {
 #include <limits>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
-// gen_amalgamated expanded: #include "perfetto/base/flat_set.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/circular_queue.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/flat_hash_map.h"
@@ -63112,17 +71537,16 @@ class SmallVector {
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/slice.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_packet.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_stats.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/field.h"
 // gen_amalgamated expanded: #include "src/tracing/service/histogram.h"
+// gen_amalgamated expanded: #include "src/tracing/service/proto_group_rewriter.h"
 // gen_amalgamated expanded: #include "src/tracing/service/trace_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer_protovms.h"
 
 namespace perfetto {
 
 class TracePacket;
 class TraceBufferV2;
-
-namespace protovm {
-class Vm;
-}
 
 namespace internal {
 
@@ -63132,8 +71556,8 @@ namespace internal {
 // +---------------------------------------------------------------------------+
 // | TBChunk                                                                   |
 // +---------------------------------------------------------------------------+
-// TBChunk is the struct, stored in the trace buffer memory as a result of
-// calling CopyChunkUntrusted from a SMB chunk.
+// TBChunk stores fragments copied into the trace buffer, either from SMB chunks
+// by CopyChunkUntrusted() or from the newer SMB v2 by CopyChunkV2Untrusted().
 // TBChunk exists only in the TraceBuffer PagedMemory `data_`, never on the
 // stack or on the heap. It is followed by the fragments and alignment padding.
 // A TBChunk is very similar to a SMB chunk with the following caveats:
@@ -63161,6 +71585,7 @@ struct TBChunk {
   }
 
   // The ChunkID, as specified by the TraceWriter in the original SMB chunk.
+  // Unused for SMB v2 sequences, whose chunks are appended in order.
   ChunkID chunk_id = 0;
 
   // A combination of producer and writer ID. This forms the primary key to
@@ -63186,9 +71611,10 @@ struct TBChunk {
   // unconsumed fragment header (the varint with the size).
   uint16_t payload_avail = 0;
 
-  // These are == the SharedMemoryABI's chunk flags, with the addition of
-  // MSB flags added by TraceBufferV2 like kChunkIncomplete (0x80) which doesn't
-  // exist at the ABI level, but are synthesized here.
+  // SharedMemoryABI chunk flags, with additional bits set by TraceBufferV2:
+  // kChunkIncomplete (0x80) for scraped chunks and kChunkLossBefore (0x40) for
+  // a gap before an SMB v2 chunk. These additional bits never come from
+  // the producer.
   uint8_t flags = 0;
 
   // This is used for (D)CHECKS to verify the integrity of the chunk.
@@ -63272,11 +71698,38 @@ struct SequenceState {
   // copies it into previous_packet_dropped and resets it. Zero means no loss.
   uint32_t data_loss_reasons = 0;
 
-  // An ordered list of chunk offsets, sorted by their ChunkID. Each member
-  // corresponsds to the offset within buf_ for the chunk.
+  // An ordered list of chunk offsets, sorted by ChunkID for SMB sequences or
+  // by append order for SMB v2 sequences.
   // We store buffer offsets rather than pointers to make buffer cloning easier.
   // This is effectively a deque of TBChunk* (% a call to GetTBChunkAt(off)).
   base::CircularQueue<size_t> chunks;
+
+  // All chunks of a sequence use the same format: either the legacy SMB v1 or
+  // the newer proto-group based SMB v2. SMB v2 chunks are immutable, arrive in
+  // order and need rewriting at readback.
+  bool is_smb_v2 = false;
+
+  // A gap after the last appended SMB v2 chunk, not yet stamped on a
+  // chunk.
+  // - SMB sequences need no such state. A gap shows up as a non-successor
+  //   ChunkID, so the reader finds it at the right position by itself.
+  // - SMB v2 chunks have no ChunkID. The gap must be recorded when it
+  //   happens, at the position between two chunks.
+  // - data_loss_reasons cannot hold it. The reader reports that on the next
+  //   packet it reads, which can be an older packet buffered before the gap.
+  // The next append moves this flag to kChunkLossBefore on its chunk. The
+  // reader then reports the loss on the first packet after the gap.
+  //
+  // Example for one writer:
+  //
+  //   Step                      Buffer        pending_chunk_v2_data_loss
+  //   Append(A)                 [A]           false
+  //   RecordChunkV2DataLoss()   [A]           true
+  //   Append(C)                 [A] [C*]      false, moved to C as *
+  //
+  //   * = kChunkLossBefore. A read returns A with no loss, then C with
+  //   DATA_LOSS_READ_GAP.
+  bool pending_chunk_v2_data_loss = false;
 };
 
 // +---------------------------------------------------------------------------+
@@ -63464,26 +71917,16 @@ class ChunkSeqReader {
 // +---------------------------------------------------------------------------+
 // | TraceBufferV2                                                             |
 // +---------------------------------------------------------------------------+
+// TODO(b/559531402): Rename trace_buffer_v1 to trace_buffer_legacy
+// (TraceBufferLegacy), and trace_buffer_v2 to trace_buffer_impl
+// (TraceBufferImpl). The "v2" here is easy to confuse with tracing v2 (the
+// SMB v2 transport), which this buffer also stores.
 class TraceBufferV2 : public TraceBuffer {
  public:
   using TBChunk = internal::TBChunk;
   using OverwritePolicy = TraceBuffer::OverwritePolicy;
   using Patch = TraceBuffer::Patch;
   using PacketSequenceProperties = TraceBuffer::PacketSequenceProperties;
-
-  // Represents a ProtoVM instance and some metadata
-  struct Vm {
-    Vm();
-    ~Vm();
-    Vm(Vm&&) noexcept;
-    Vm CloneReadOnly() const;
-
-    std::unique_ptr<protovm::Vm> instance;
-    std::string data_source_name;
-    uint64_t program_hash = 0;
-    uint32_t memory_limit_kb = 0;
-    base::FlatSet<ProducerID> producers;
-  };
 
   // Can return nullptr if the memory allocation fails.
   static std::unique_ptr<TraceBufferV2> Create(size_t size_in_bytes,
@@ -63540,12 +71983,34 @@ class TraceBufferV2 : public TraceBuffer {
                              size_t patches_size,
                              bool other_patches_pending) override;
 
-  void MaybeSetUpProtoVm(const std::string& data_source_name,
-                         const std::string& program_bytes,
-                         uint32_t memory_limit_kb,
-                         ProducerID producer_id);
+  // Returns true. Both SMB v1 and SMB v2 writers can use this buffer, but each
+  // {ProducerID, WriterID} sequence must use one format throughout its
+  // lifetime.
+  bool supports_tracing_v2() const override;
 
-  const std::vector<Vm>& GetProtoVmInstances() const { return protovms_; }
+  // Stores the batch in one TBChunk. See TraceBuffer::CopyChunkV2Untrusted()
+  // for ownership, ordering, continuation flags and loss reporting.
+  //
+  // Invalid input increments abi_violations. This includes a null fragment
+  // array, a nonempty fragment with a null payload, a batch larger than one
+  // TBChunk or than the whole buffer, or a writer ID whose sequence already
+  // holds SMB v1 chunks.
+  //
+  // Rejection because a kDiscard buffer is full or the producer has a ProtoVM
+  // on this buffer increments chunks_discarded. Once a kDiscard buffer stops
+  // accepting writes, it rejects later batches without validating their input.
+  bool CopyChunkV2Untrusted(const PacketSequenceProperties& sequence,
+                            const protozero::ConstBytes* fragments,
+                            size_t num_fragments,
+                            bool first_continues_from_prev,
+                            bool last_continues_on_next) override;
+
+  // Keeps the gap in the writer's SequenceState until the next stored batch
+  // carries it as kChunkLossBefore. If DeleteStaleEmptySequences() prunes the
+  // state before another batch arrives, the pending gap is forgotten.
+  void RecordChunkV2DataLoss(ProducerID, WriterID) override;
+
+  void RecordAbiViolation() override;
 
   // To read the contents of the buffer the caller needs to:
   //   BeginRead()
@@ -63556,12 +72021,17 @@ class TraceBufferV2 : public TraceBuffer {
   void BeginRead() override;
 
   // Returns the next packet in the buffer, if any, and the producer/writer
-  // identity that wrote it (as passed in the CopyChunkUntrusted() call).
+  // identity supplied when the sequence was created.
   // Returns false if no packets can be read at this point.
   // If a packet was read successfully, |previous_packet_on_sequence_dropped|
   // signals whether any data loss has been detected on the sequence
   // (e.g. because its chunk was overridden due to the ring buffer wrapping or
   // due to an ABI violation), and to |false| otherwise.
+  //
+  // SMB v2 packets are reassembled and rewritten to length-delimited
+  // protobuf. Malformed packets and packets that length-delimited protobuf
+  // cannot encode are dropped, with loss reported on the next readable packet
+  // in the sequence.
   //
   // This function returns only complete packets. Specifically:
   // When there is at least one complete packet in the buffer, this function
@@ -63587,22 +72057,38 @@ class TraceBufferV2 : public TraceBuffer {
       PacketSequenceProperties* sequence_properties,
       uint32_t* previous_packet_on_sequence_dropped) override;
 
+  // Compacts the buffer by moving live chunks to the front in ring order.
+  // It clears the unused tail and retains pages for the old |used_size_| plus
+  // 1/|kSpareCapacityDivisor| of it, capped at the buffer size.
+  // It advises the OS to release the whole pages after that range.
+  // If live chunks are on both sides of the write cursor, it skips compaction.
+  //
+  // Compaction can invalidate packet slices from earlier reads, so the caller
+  // must not use those packets after MaybeCompact().
+  //
+  // This is a no-op if the buffer is read-only or if it is a kDiscard buffer.
+  void MaybeCompact() override;
+
   // Creates a read-only clone of the trace buffer. The read iterators of the
-  // new buffer will be reset, as if no Read() had been called. Calls to
-  // CopyChunkUntrusted() and TryPatchChunkContents() on the returned cloned
-  // TraceBuffer will CHECK().
+  // new buffer will be reset.
+  //
+  // Calls to CopyChunkUntrusted(), CopyChunkV2Untrusted(),
+  // TryPatchChunkContents(), RecordChunkV2DataLoss() or RecordAbiViolation()
+  // on the returned clone will CHECK().
   std::unique_ptr<TraceBuffer> CloneReadOnly() const override;
 
+  TraceBufferProtoVms* protovms() override;
+
+  void set_read_only() override { read_only_ = true; }
+  const TraceStats::BufferStats& stats() const override { return stats_; }
+  const WriterStats& writer_stats() const override { return writer_stats_; }
   size_t size() const override { return size_; }
   size_t used_size() const override { return used_size_; }
   size_t GetMemoryUsageBytes() const override;
   OverwritePolicy overwrite_policy() const override {
     return overwrite_policy_;
   }
-  const TraceStats::BufferStats& stats() const override { return stats_; }
-  const WriterStats& writer_stats() const override { return writer_stats_; }
-  bool has_data() const override { return used_size_ > 0; }
-  void set_read_only() override { read_only_ = true; }
+  bool has_data() const override { return has_data_; }
   BufType buf_type() const override { return kV2; }
 
   void DumpForTesting();
@@ -63627,14 +72113,29 @@ class TraceBufferV2 : public TraceBuffer {
 
   bool Initialize(size_t size);
   TBChunk* CreateTBChunk(size_t off, size_t payload_size);
+
+  // Prepares contiguous storage at wr_. The caller checks that size <= size_.
+  // May evict chunks and wrap. Does not prune sequences or change stats for
+  // rejected writes. Returns false if the write reaches the end of a kDiscard
+  // buffer. The caller then seals the buffer with DiscardWrite().
+  bool MakeSpaceToWrite(size_t size);
   void DeleteNextChunksFor(size_t bytes_to_clear);
+
+  // Makes a reassembled SMB v2 packet length-delimited protobuf. A packet
+  // without nested messages keeps its slices into the buffer, as an SMB
+  // packet does. Otherwise the packet gets one owned slice. Returns false,
+  // leaving the packet unchanged, for:
+  // - malformed input, counted in abi_violations.
+  // - a packet that length-delimited protobuf cannot encode, counted in
+  //   oversized_packets_dropped.
+  bool RewriteProtoGroupPacket(TracePacket*);
 
   void DcheckIsAlignedAndWithinBounds(size_t off) const {
     PERFETTO_DCHECK((off & (alignof(TBChunk) - 1)) == 0);
     PERFETTO_DCHECK(off <= size_ - sizeof(TBChunk));
   }
 
-  // This should only be used when followed by a placement new.
+  // Used for placement new and to update the checksum after moving a chunk.
   TBChunk* GetTBChunkAtUnchecked(size_t off) {
     DcheckIsAlignedAndWithinBounds(off);
     return reinterpret_cast<TBChunk*>(begin() + off);
@@ -63665,7 +72166,6 @@ class TraceBufferV2 : public TraceBuffer {
 
   void DiscardWrite();
   void DeleteStaleEmptySequences();
-  void MaybeProcessOverwrittenPacketWithProtoVm(const TracePacket&, ProducerID);
 
   uint8_t* begin() const { return reinterpret_cast<uint8_t*>(data_.Get()); }
   uint8_t* end() const { return begin() + size_; }
@@ -63674,10 +72174,23 @@ class TraceBufferV2 : public TraceBuffer {
   base::PagedMemory data_;
   size_t size_ = 0;  // Size in bytes of |data_|.
 
-  // High watermark. The number of bytes (<= |size_|) written into the buffer
-  // before the first wraparound. This increases as data is written into the
-  // buffer and then saturates at |size_|.
+  // High watermark of the written bytes (<= |size_|).
+  // Writes increase it until the write cursor wraps around, and MaybeCompact()
+  // sets it to the total size of the remaining chunks.
+  // Reads and overwrites stop here, and [used_size_, size_) is zero-filled.
   size_t used_size_ = 0;
+
+  // Where the last madvise in MaybeCompact() began.
+  // The whole pages from here to |size_| are released or were never written.
+  // Writes after that can go past it. If they do, the next MaybeCompact() first
+  // raises it to |used_size_|, to cover the pages they touched.
+  // MaybeCompact() then uses it to skip a madvise that would release nothing.
+  size_t prev_madvise_begin_ = 0;
+
+  // Set when the first chunk is written, and never cleared.
+  // Unlike |used_size_|, this stays set when compaction empties the buffer.
+  // As in TraceBufferV1, clear_before_clone uses it to skip unused buffers.
+  bool has_data_ = false;
 
   size_t wr_ = 0;  // Write cursor (offset since start()).
   size_t rd_ = 0;  // Read cursor. Reset to wr_ on every BeginRead().
@@ -63706,8 +72219,8 @@ class TraceBufferV2 : public TraceBuffer {
   // This is used to sort SequenceState by least-recently cleared.
   uint64_t seq_age_ = 0;
 
-  // This buffer is a read-only snapshot obtained via Clone(). If this is true
-  // calls to CopyChunkUntrusted() and TryPatchChunkContents() will CHECK().
+  // This buffer is a read-only snapshot obtained via Clone(). If this is true,
+  // appending chunks, patching or recording loss will CHECK().
   bool read_only_ = false;
 
   // Only used when |overwrite_policy_ == kDiscard|. This is set the first time
@@ -63720,7 +72233,7 @@ class TraceBufferV2 : public TraceBuffer {
   bool suppress_client_dchecks_for_testing_ = false;
 
   // ProtoVMs used to process overwritten packets (go/perfetto-proto-vm)
-  std::vector<Vm> protovms_;
+  TraceBufferProtoVms protovms_;
 
   // Used to collect slices of the overwritten packet. Note that this is a
   // member variable (instead of local) so that the memory (internal
@@ -63729,12 +72242,8 @@ class TraceBufferV2 : public TraceBuffer {
   // few times during the initial iterations).
   TracePacket overwritten_packet_;
 
-  // Storage used to re-write overwritten packets (from TBv2) into contiguous
-  // memory to be used as ProtoVM patches (must be continguous to be decoded
-  // with protozero). Note that this is a member variable (instead of local) so
-  // that the memory is re-used across overwritten packets, thus involving
-  // allocations only when the storage needs to be expanded.
-  std::string protovm_patch_;
+  // Rewrites SMB v2 packets at readback.
+  tracing_v2::ProtoGroupRewriter rewriter_;
 };
 
 }  // namespace perfetto
@@ -63760,16 +72269,15 @@ class TraceBufferV2 : public TraceBuffer {
 
 #include <algorithm>
 #include <memory>
+#include <type_traits>
 
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/murmur_hash.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/client_identity.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_abi.h"
 // gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
-// gen_amalgamated expanded: #include "src/protovm/vm.h"
 
 // gen_amalgamated expanded: #include "protos/perfetto/trace/trace_packet.pbzero.h"
 
@@ -63809,6 +72317,11 @@ constexpr uint8_t kChunkIncomplete = 0x80;
 // Mask out the flags that don't come from the ABI like kChunkIncomplete.
 constexpr uint8_t kFlagsMask = SharedMemoryABI::ChunkHeader::kFlagsMask;
 
+// SMB v2 sequences have no ChunkID. A gap is recorded on the first chunk
+// appended after the loss, so earlier packets do not inherit the loss marker.
+constexpr uint8_t kChunkLossBefore = 0x40;
+static_assert((kChunkLossBefore & (kFlagsMask | kChunkIncomplete)) == 0);
+
 // Compares two ChunkID(s) in a wrapping 32-bit ID space.
 // Returns:
 //   -1 if a comes before b in modular (wrapping) order.
@@ -63830,6 +72343,11 @@ constexpr size_t kKeepLastEmptySeq = 1024;
 
 // The threshold when we start scanning and deleting the oldest sequences.
 constexpr size_t kEmptySequencesGcTreshold = kKeepLastEmptySeq + 128;
+
+// Controls how much spare capacity compaction retains so later writes can
+// reuse pages and avoid page faults.
+constexpr size_t kSpareCapacityDivisor = 4;
+
 }  // namespace.
 
 namespace internal {
@@ -63978,7 +72496,8 @@ TBChunk* ChunkSeqIterator::NextChunkInSequence() {
   size_t next_chunk_off = chunk_list.at(next_list_idx);      // O(1)
   TBChunk* next_chunk = buf_->GetTBChunkAt(next_chunk_off);  // O(1)
 
-  if (last_chunk_id.has_value() && next_chunk->chunk_id != *last_chunk_id + 1)
+  if (!seq_->is_smb_v2 && last_chunk_id.has_value() &&
+      next_chunk->chunk_id != *last_chunk_id + 1)
     sequence_gap_detected_ = true;
 
   chunk_ = next_chunk;
@@ -64043,6 +72562,9 @@ ChunkSeqReader::ChunkSeqReader(TraceBufferV2* buf,
                            : 0,
                        iter_->chunk_id, end_->chunk_id);
 
+  if (seq_->is_smb_v2)
+    return;
+
   if (seq_->last_chunk_consumed.has_value()) {
     const auto& last = *seq_->last_chunk_consumed;
     // Re-admit: an incomplete chunk that was evicted has been re-committed
@@ -64075,6 +72597,12 @@ bool ChunkSeqReader::ReadNextPacketInSeqOrder(TracePacket* out_packet) {
   // This is because this class is used both while doing readbacks and,
   // importantly, in DeleteNextChunksFor() when overwriting.
   for (;;) {
+    // Report an SMB v2 gap when we reach the chunk after it. Clear the
+    // flag so later packets in this chunk do not report the same gap again.
+    if (PERFETTO_UNLIKELY(iter_->flags & kChunkLossBefore)) {
+      AddSeqDataLoss(seq_, DataLossReason::DATA_LOSS_READ_GAP);
+      iter_->flags &= static_cast<uint8_t>(~kChunkLossBefore);
+    }
     std::optional<Frag> maybe_frag = frag_iter_.NextFragmentInChunk();
     if (!maybe_frag.has_value()) {
       // Once we exhaust all fragments, move to the next chunk in the sequence.
@@ -64255,8 +72783,10 @@ ChunkSeqReader::ReassembleFragmentedPacket(TracePacket* out_packet,
       outcome.result = FragReassemblyResult::kNotEnoughData;
       break;
     }
-    if (chunk_iter.sequence_gap_detected()) {
-      // There is a gap in the sequence ID.
+    if (PERFETTO_UNLIKELY(chunk_iter.sequence_gap_detected() ||
+                          (next_chunk->flags & kChunkLossBefore))) {
+      // SMB sequences detect gaps via chunk_id discontinuity.
+      // SMB v2 sequences use the kChunkLossBefore flag instead.
       outcome.result = FragReassemblyResult::kDataLoss;
       outcome.reason = DataLossReason::DATA_LOSS_REASSEMBLY_GAP;
       break;
@@ -64334,6 +72864,8 @@ std::unique_ptr<TraceBufferV2> TraceBufferV2::Create(size_t size_in_bytes,
   // efficiency.
   static_assert(sizeof(TBChunk) == 16);
   static_assert(alignof(TBChunk) == 4);
+  // CloneReadOnly() and MaybeCompact() copy chunks as raw bytes.
+  static_assert(std::is_trivially_copyable_v<TBChunk>);
   std::unique_ptr<TraceBufferV2> trace_buffer(new TraceBufferV2(pol));
   if (!trace_buffer->Initialize(size_in_bytes))
     return nullptr;
@@ -64413,6 +72945,17 @@ bool TraceBufferV2::ReadNextTracePacket(
       // If it returns false, we should continue in buffer order.
       if (chunk_seq_reader_->ReadNextPacketInSeqOrder(out_packet)) {
         SequenceState& s = *chunk_seq_reader_->seq();
+        if (s.is_smb_v2) {
+          if (out_packet->size() == 0)
+            continue;  // Skip empty fragments.
+
+          if (PERFETTO_UNLIKELY(!RewriteProtoGroupPacket(out_packet))) {
+            out_packet->Clear();
+            internal::AddSeqDataLoss(&s,
+                                     DataLossReason::DATA_LOSS_CHUNK_CORRUPTED);
+            continue;
+          }
+        }
         *sequence_properties = {s.producer_id, s.client_identity, s.writer_id};
         *previous_packet_on_sequence_dropped = s.data_loss_reasons;
         s.data_loss_reasons = 0;
@@ -64437,6 +72980,151 @@ bool TraceBufferV2::ReadNextTracePacket(
   }  // for(;;)
 }
 
+void TraceBufferV2::MaybeCompact() {
+  TRACE_BUFFER_V2_DLOG("MaybeCompact(), wr_=%zu", wr_);
+  chunk_seq_reader_.reset();
+  if (overwrite_policy_ != kOverwrite || read_only_) {
+    return;
+  }
+
+  // The read cycle is complete, so usually only a few chunks remain.
+  size_t num_chunks = 0;
+  for (const auto& seq_entry : sequences_)
+    num_chunks += seq_entry.second.chunks.size();
+
+  // Store pointers to the chunk offsets in each SequenceState::chunks queue
+  // so we can update those offsets without another lookup.
+  // TODO(sashwinbalaji): Using these queues avoids scanning the buffer but
+  // leaves removed padding unaccounted for in padding_bytes_cleared.
+  std::vector<size_t*> chunk_offset_ptrs;
+  chunk_offset_ptrs.reserve(num_chunks);
+  for (auto& seq_entry : sequences_) {
+    for (size_t& chunk_offset : seq_entry.second.chunks)
+      chunk_offset_ptrs.emplace_back(&chunk_offset);
+  }
+
+  // Sort the pointer vector by chunk offset, from lowest to highest.
+  // This reorders only the vector, so the queue entries stay in sequence order.
+  // The loop below updates each chunk's offset in its original queue entry.
+  std::sort(chunk_offset_ptrs.begin(), chunk_offset_ptrs.end(),
+            [](const size_t* lhs, const size_t* rhs) { return *lhs < *rhs; });
+
+  // If live chunks are on both sides of wr_, skip compaction.
+  // The chunks at or after wr_ are older, so address order is not ring order.
+  //
+  // In this diagram and the ones below:
+  // - [C0], [D0], [C1], ... are live chunks of two sequences, C and D.
+  //   The number is the order of the chunk within its sequence.
+  // - "." is padding (read chunks).
+  // - "~" is unused space, past the new used_size_.
+  //
+  //   0                        wr_                      used_size_
+  //   |..[C1]..[D1]..[C2]......|..[C0]....[D0]..........|
+  const bool chunks_on_both_sides = !chunk_offset_ptrs.empty() &&
+                                    *chunk_offset_ptrs.front() < wr_ &&
+                                    *chunk_offset_ptrs.back() >= wr_;
+  if (PERFETTO_UNLIKELY(chunks_on_both_sides)) {
+    stats_.set_compactions_skipped(stats_.compactions_skipped() + 1);
+    return;
+  }
+
+  // All live chunks are on one side of wr_, so address order is ring order.
+  // Move each chunk to the lowest available offset, in address order.
+  // Each destination starts at or before its source, so a move cannot
+  // overwrite a chunk that comes later in address order.
+  //
+  // All live chunks are before wr_:
+  //
+  //   0                        wr_                      used_size_
+  //   |.[C0].[D0]..[C1]..[C2]..|........................|
+  //
+  // All live chunks are at or after wr_ because reads consumed every chunk
+  // before wr_ after the write cursor wrapped.
+  //
+  //   0                        wr_                      used_size_
+  //   |........................|.[C0].[D0]..[C1]..[C2]..|
+  //
+  // After compaction:
+  //
+  //   0                dst                              used_size_
+  //   |[C0][D0][C1][C2]|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+  size_t dst = 0;
+  size_t prev_chunk_end = 0;
+  for (size_t* offset_ptr : chunk_offset_ptrs) {
+    const size_t src = *offset_ptr;
+    TBChunk* chunk = GetTBChunkAt(src);
+    PERFETTO_DCHECK(!chunk->is_padding());
+    const size_t outer_size = chunk->outer_size();
+    PERFETTO_CHECK(src >= prev_chunk_end);
+    prev_chunk_end = src + outer_size;
+    if (dst != src) {
+      memmove(begin() + dst, chunk, outer_size);
+      *offset_ptr = dst;
+      TBChunk* moved_chunk = GetTBChunkAtUnchecked(dst);
+      moved_chunk->checksum = TBChunk::Checksum(dst, moved_chunk->size);
+    }
+    dst += outer_size;
+  }
+
+  TRACE_BUFFER_V2_DLOG("Compacted %zu -> %zu bytes", used_size_, dst);
+  const size_t old_used_size = used_size_;
+  PERFETTO_CHECK(dst <= old_used_size && old_used_size <= size_);
+  wr_ = dst;
+  used_size_ = dst;
+
+  // Bytes beyond |old_used_size| are zero from allocation or earlier
+  // compactions.
+  // Clear [dst, old_used_size) on each compaction so the unused tail stays zero
+  // even when used_size_ shrinks.
+  // ReadNextTracePacket() visits offset 0 even when the buffer is empty and so
+  // if dst == 0, this also leaves the empty padding chunk that it needs.
+  memset(begin() + dst, 0, old_used_size - dst);
+
+  const size_t spare_size =
+      std::min(old_used_size / kSpareCapacityDivisor, size_ - old_used_size);
+  const size_t cur_madvise_begin = old_used_size + spare_size;
+
+  // Writes since the last compaction touched pages up to |old_used_size|.
+  prev_madvise_begin_ = std::max(prev_madvise_begin_, old_used_size);
+
+  // Skip the madvise if it starts at or past |prev_madvise_begin_|, because
+  // the pages from there on are already released.
+  if (cur_madvise_begin < prev_madvise_begin_) {
+    data_.AdviseDontNeedAfter(cur_madvise_begin);
+    prev_madvise_begin_ = cur_madvise_begin;
+  }
+  stats_.set_compactions(stats_.compactions() + 1);
+}
+
+bool TraceBufferV2::RewriteProtoGroupPacket(TracePacket* packet) {
+  PERFETTO_DCHECK(packet->size() > 0);
+
+  // The packet's slices point into TBChunks. The rewriter reads them in
+  // place, and writes the output into one slice that the packet owns.
+  //
+  // TODO(sashwinbalaji): Allocate the rewritten packets from an arena owned by
+  // the read batch. Today each rewritten packet is one heap allocation.
+  // Readers use packets in batches (an IPC reply or a file write) and drop
+  // them together, so one arena per batch fits their lifetime.
+  std::optional<Slice> rewritten;
+  switch (rewriter_.Rewrite(packet->slices(), &rewritten)) {
+    case tracing_v2::RewriteResult::kRewritten:
+      break;
+    case tracing_v2::RewriteResult::kUnchanged:
+      return true;
+    case tracing_v2::RewriteResult::kMalformedInput:
+      stats_.set_abi_violations(stats_.abi_violations() + 1);
+      return false;
+    case tracing_v2::RewriteResult::kGroupTooLarge:
+      stats_.set_oversized_packets_dropped(stats_.oversized_packets_dropped() +
+                                           1);
+      return false;
+  }
+  packet->Clear();
+  packet->AddSlice(std::move(*rewritten));
+  return true;
+}
+
 void TraceBufferV2::CopyChunkUntrusted(
     ProducerID producer_id_trusted,
     const ClientIdentity& client_identity_trusted,
@@ -64456,6 +73144,10 @@ void TraceBufferV2::CopyChunkUntrusted(
 
   if (PERFETTO_UNLIKELY(discard_writes_))
     return DiscardWrite();
+
+  // Only ABI flags may come from the producer. In particular, loss markers
+  // and the incomplete-chunk flag are set by the service.
+  chunk_flags &= kFlagsMask;
 
   // chunk_complete is true in the majority of cases, and is false only when
   // the service performs SMB scraping (upon flush).
@@ -64528,6 +73220,13 @@ void TraceBufferV2::CopyChunkUntrusted(
   }
 
   SequenceState& seq = seq_it->second;
+  // A sequence uses one input format. SMB v1 and SMB v2 writers share one
+  // WriterID space per producer, so an SMB v2 sequence with this key
+  // belongs to another writer. Leave that writer's sequence unchanged.
+  if (seq.is_smb_v2) {
+    stats_.set_abi_violations(stats_.abi_violations() + 1);
+    return;
+  }
   if (trace_writer_data_drop) {
     stats_.set_trace_writer_packet_loss(stats_.trace_writer_packet_loss() + 1);
     internal::AddSeqDataLoss(&seq, DataLossReason::DATA_LOSS_WRITER_ABORT);
@@ -64619,9 +73318,10 @@ void TraceBufferV2::CopyChunkUntrusted(
     // Nothing for the erase to lose, nothing for the relocation to duplicate.
     const bool copy_fully_consumed = recommit_chunk->payload_avail == 0;
 
-    // The producer's final commit (not another scrape), with new fragments.
+    // Any re-commit with new fragments, whether the producer's final commit or
+    // a later scrape of the same still-open chunk.
     const bool commit_adds_new_data =
-        chunk_complete && all_frags_size > recommit_chunk->payload_size;
+        all_frags_size > recommit_chunk->payload_size;
 
     // EraseCurrentChunk() only supports the first chunk of a sequence. Later
     // chunks may stay physically ahead of the relocated one, which is fine:
@@ -64668,30 +73368,11 @@ void TraceBufferV2::CopyChunkUntrusted(
     internal::ChunkSeqIterator(this, &seq).EraseCurrentChunk();
   }  // if (recommit_chunk)
 
-  // If there isn't enough room from the given write position: write a padding
-  // record to clear the end of the buffer, wrap and start at offset 0.
-  const size_t cached_size_to_end = size_to_end();
-  if (PERFETTO_UNLIKELY(tbchunk_outer_size > cached_size_to_end)) {
-    // If we reached the end of the buffer and we are using discard policy,
-    // this is where we stop. This buffer will no longer accept data.
-    if (overwrite_policy_ == kDiscard)
-      return DiscardWrite();
-
-    // Skip the tail cleanup if the previous write landed exactly at the end
-    // of the buffer (|wr_| == |size_|): there is no leftover tail to clear.
-    if (cached_size_to_end > 0)
-      DeleteNextChunksFor(cached_size_to_end);
-
-    wr_ = 0;
-    stats_.set_write_wrap_count(stats_.write_wrap_count() + 1);
-    PERFETTO_DCHECK(size_to_end() >= tbchunk_outer_size);
-  }
-
-  // Deletes all chunks from |wptr_| to |wptr_| + |record_size|.
-  DeleteNextChunksFor(tbchunk_outer_size);
+  if (!MakeSpaceToWrite(tbchunk_outer_size))
+    return DiscardWrite();
 
   // |insert_pos| is invalid if any chunk was removed from this sequence since
-  // it was computed: either by the DeleteNextChunksFor above, or by the
+  // it was computed: either by MakeSpaceToWrite() above, or by the
   // relocation erase.
   // Why don't we compute the insert_pos here? Because we also need to check
   // for re-commits (which are rare, but possible) and don't want to iterate
@@ -64722,6 +73403,7 @@ void TraceBufferV2::CopyChunkUntrusted(
         stats_.chunks_committed_out_of_order() + 1);
   }
   chunk_list.InsertAfter(insert_pos, wr_);
+  has_data_ = true;
   if (chunk_list.size() == 1 && !seq_is_new) {
     PERFETTO_DCHECK(empty_sequences_ > 0);
     --empty_sequences_;
@@ -64743,6 +73425,166 @@ void TraceBufferV2::CopyChunkUntrusted(
     DeleteStaleEmptySequences();
 }
 
+bool TraceBufferV2::supports_tracing_v2() const {
+  return true;
+}
+
+bool TraceBufferV2::CopyChunkV2Untrusted(
+    const PacketSequenceProperties& sequence,
+    const protozero::ConstBytes* fragments,
+    size_t num_fragments,
+    bool first_continues_from_prev,
+    bool last_continues_on_next) {
+  PERFETTO_CHECK(!read_only_);
+
+  if (PERFETTO_UNLIKELY(num_fragments == 0))
+    return false;
+
+  // Each rejection site updates its own stats. This only records the gap.
+  auto reject = [&] {
+    RecordChunkV2DataLoss(sequence.producer_id_trusted, sequence.writer_id);
+    return false;
+  };
+  auto reject_abi_violation = [&] {
+    stats_.set_abi_violations(stats_.abi_violations() + 1);
+    return reject();
+  };
+
+  if (PERFETTO_UNLIKELY(discard_writes_)) {
+    DiscardWrite();
+    return reject();
+  }
+
+  if (!fragments)
+    return reject_abi_violation();
+
+  // ProtoVM expects length-delimited protobuf on the overwrite path.
+  if (protovms_.HasProducer(sequence.producer_id_trusted)) {
+    stats_.set_chunks_discarded(stats_.chunks_discarded() + 1);
+    return reject();
+  }
+
+  // The batch becomes one TBChunk with the same payload layout as an SMB chunk,
+  // so readback uses FragIterator for both:
+  //
+  //   +---------+-----------+--------+-----------+--------+-----+---------+
+  //   | TBChunk | varint s0 | frag 0 | varint s1 | frag 1 | ... | padding |
+  //   +---------+-----------+--------+-----------+--------+-----+---------+
+  //             |<----------- total_payload <= kMaxSize ------->|
+  //
+  // Validate the entire batch before making space: a rejected batch must not
+  // evict any buffered packets. A batch larger than one TBChunk breaks the
+  // writer's chunk contract. Each addend is at most kMaxSize + 3, so
+  // |total_payload| cannot overflow.
+  size_t total_payload = 0;
+  for (size_t i = 0; i < num_fragments; i++) {
+    const size_t frag_size = fragments[i].size;
+    if ((frag_size && !fragments[i].data) || frag_size > TBChunk::kMaxSize)
+      return reject_abi_violation();
+    uint8_t varint[3];  // A varint up to TBChunk::kMaxSize takes 3 bytes.
+    const size_t varint_size = static_cast<size_t>(
+        proto_utils::WriteVarInt(frag_size, varint) - varint);
+    total_payload += varint_size + frag_size;
+    if (total_payload > TBChunk::kMaxSize)
+      return reject_abi_violation();
+  }
+
+  // As in CopyChunkUntrusted(): a chunk larger than the whole buffer. Rare,
+  // e.g. a 16 KB buffer and a 32 KB ring chunk.
+  const size_t tbchunk_outer_size = TBChunk::OuterSize(total_payload);
+  if (PERFETTO_UNLIKELY(tbchunk_outer_size > size_))
+    return reject_abi_violation();
+
+  auto seq_key =
+      MkProducerAndWriterID(sequence.producer_id_trusted, sequence.writer_id);
+  writer_stats_.Insert(seq_key, static_cast<HistValue>(total_payload));
+
+  auto [seq_it, seq_is_new] = sequences_.try_emplace(
+      seq_key, SequenceState(sequence.producer_id_trusted, sequence.writer_id,
+                             sequence.client_identity_trusted));
+  SequenceState& seq = seq_it->second;
+  if (seq_is_new) {
+    seq.is_smb_v2 = true;
+    seq.age_for_gc = ++seq_age_;
+    ++empty_sequences_;
+  } else if (!seq.is_smb_v2) {
+    // As in CopyChunkUntrusted(), a sequence uses one input format. The SMB
+    // sequence belongs to another writer, so no loss is recorded on it.
+    return reject_abi_violation();
+  }
+
+  if (!MakeSpaceToWrite(tbchunk_outer_size)) {
+    DiscardWrite();
+    return reject();
+  }
+
+  TBChunk* chunk = CreateTBChunk(wr_, total_payload);
+  chunk->pri_wri_id = seq_key;
+  chunk->payload_size = static_cast<uint16_t>(total_payload);
+  chunk->payload_avail = static_cast<uint16_t>(total_payload);
+
+  uint8_t flags = 0;
+  if (PERFETTO_UNLIKELY(seq.pending_chunk_v2_data_loss)) {
+    flags |= kChunkLossBefore;
+    seq.pending_chunk_v2_data_loss = false;
+  }
+  if (first_continues_from_prev)
+    flags |= kFirstPacketContFromPrevChunk;
+  if (last_continues_on_next)
+    flags |= kLastPacketContOnNextChunk;
+  chunk->flags = flags;
+
+  // Copy fragment data into the chunk payload with varint length prefixes.
+  uint8_t* dst = chunk->fragments_begin();
+  for (size_t i = 0; i < num_fragments; i++) {
+    const size_t frag_size = fragments[i].size;
+    dst = protozero::proto_utils::WriteVarInt(frag_size, dst);
+    if (frag_size > 0) {
+      memcpy(dst, fragments[i].data, frag_size);
+      dst += frag_size;
+    }
+  }
+  PERFETTO_DCHECK(static_cast<size_t>(dst - chunk->fragments_begin()) ==
+                  total_payload);
+
+  // Append after eviction, which can remove earlier chunks from this sequence.
+  auto& chunk_list = seq.chunks;
+  bool was_empty = chunk_list.empty();
+  chunk_list.emplace_back(wr_);
+  has_data_ = true;
+  if (was_empty) {
+    PERFETTO_DCHECK(empty_sequences_ > 0);
+    --empty_sequences_;
+  }
+
+  wr_ += tbchunk_outer_size;
+  PERFETTO_DCHECK(wr_ <= size_ && wr_ <= used_size_);
+
+  stats_.set_chunks_written(stats_.chunks_written() + 1);
+  stats_.set_bytes_written(stats_.bytes_written() + tbchunk_outer_size);
+
+  if (empty_sequences_ > kEmptySequencesGcTreshold)
+    DeleteStaleEmptySequences();
+
+  return true;
+}
+
+void TraceBufferV2::RecordChunkV2DataLoss(ProducerID producer_id,
+                                          WriterID writer_id) {
+  PERFETTO_CHECK(!read_only_);
+
+  // SMB v1 and SMB v2 writers share one WriterID space per producer. An SMB v1
+  // sequence with this key therefore belongs to another writer.
+  auto seq_it = sequences_.find(MkProducerAndWriterID(producer_id, writer_id));
+  if (seq_it != sequences_.end() && seq_it->second.is_smb_v2)
+    seq_it->second.pending_chunk_v2_data_loss = true;
+}
+
+void TraceBufferV2::RecordAbiViolation() {
+  PERFETTO_CHECK(!read_only_);
+  stats_.set_abi_violations(stats_.abi_violations() + 1);
+}
+
 TraceBufferV2::TBChunk* TraceBufferV2::CreateTBChunk(size_t off, size_t size) {
   DcheckIsAlignedAndWithinBounds(off);
   size_t end = off + TBChunk::OuterSize(size);
@@ -64752,6 +73594,26 @@ TraceBufferV2::TBChunk* TraceBufferV2::CreateTBChunk(size_t off, size_t size) {
   }
   TBChunk* chunk = GetTBChunkAtUnchecked(off);
   return new (chunk) TBChunk(off, size);
+}
+
+bool TraceBufferV2::MakeSpaceToWrite(size_t size) {
+  PERFETTO_DCHECK(size <= size_);
+
+  // If the chunk does not fit at the end, clear the remaining tail and wrap.
+  // In discard mode, reaching the end stops all further writes.
+  const size_t tail_size = size_to_end();
+  if (PERFETTO_UNLIKELY(size > tail_size)) {
+    if (overwrite_policy_ == kDiscard)
+      return false;
+    // A previous write can land exactly at the end, leaving no tail to clear.
+    if (tail_size > 0)
+      DeleteNextChunksFor(tail_size);
+    wr_ = 0;
+    stats_.set_write_wrap_count(stats_.write_wrap_count() + 1);
+    PERFETTO_DCHECK(size_to_end() >= size);
+  }
+  DeleteNextChunksFor(size);
+  return true;
 }
 
 // Deletes (by marking the record invalid and removing form the index) all
@@ -64782,8 +73644,9 @@ void TraceBufferV2::DeleteNextChunksFor(size_t bytes_to_clear) {
   // This loop erases all the existing chunks in the clear range.
   for (size_t off = wr_, next_off = 0; off < clear_end; off = next_off) {
     if (PERFETTO_UNLIKELY(off >= used_size_)) {
-      // This happens only on the first round of writing, when there are no
-      // chunks in the buffer yet. There is nothing to delete here, easy.
+      // This happens on the first round of writing, or after MaybeCompact()
+      // shrinks |used_size_|, when there are no chunks in this range.
+      // There is nothing to delete here, easy.
       break;
     }
     TBChunk* chunk = GetTBChunkAt(off);
@@ -64805,7 +73668,7 @@ void TraceBufferV2::DeleteNextChunksFor(size_t bytes_to_clear) {
       // protovm. If not, we still need to do reads, but without having to
       // accumulated data in a packet.
       TracePacket* maybe_packet = nullptr;
-      if (!protovms_.empty()) {
+      if (!protovms_.empty() && !csr.seq()->is_smb_v2) {
         overwritten_packet_.Clear();
         maybe_packet = &overwritten_packet_;
       }
@@ -64813,8 +73676,8 @@ void TraceBufferV2::DeleteNextChunksFor(size_t bytes_to_clear) {
         break;
       }
       if (maybe_packet) {
-        MaybeProcessOverwrittenPacketWithProtoVm(*maybe_packet,
-                                                 csr.seq()->producer_id);
+        protovms_.MaybeProcessOverwrittenPacket(*maybe_packet,
+                                                csr.seq()->producer_id);
       }
       has_cleared_unconsumed_fragments = true;
     }
@@ -64858,7 +73721,7 @@ bool TraceBufferV2::TryPatchChunkContents(ProducerID producer_id,
 
   ProducerAndWriterID seq_key = MkProducerAndWriterID(producer_id, writer_id);
   auto seq_it = sequences_.find(seq_key);
-  if (seq_it == sequences_.end()) {
+  if (seq_it == sequences_.end() || seq_it->second.is_smb_v2) {
     stats_.set_patches_failed(stats_.patches_failed() + 1);
     return false;
   }
@@ -64934,7 +73797,8 @@ void TraceBufferV2::DiscardWrite() {
 // This is to avoid thrashing with a sort every time one sequence becomes empty.
 // Also we have to defer the deletion of SequenceState outside of
 // ReadNextTracePacket() calls, as that caches SequenceState* pointers in
-// seq_iter_. This is called only at the end of each CopyChunkUntrusted().
+// chunk_seq_reader_. This is called only at the end of CopyChunkUntrusted()
+// and CopyChunkV2Untrusted().
 void TraceBufferV2::DeleteStaleEmptySequences() {
   // Build a vector of iterators; sort it; delete the first size() - kThreshold.
   using SeqIterator = decltype(sequences_)::iterator;
@@ -64953,6 +73817,11 @@ void TraceBufferV2::DeleteStaleEmptySequences() {
               return a->second.age_for_gc < b->second.age_for_gc;
             });
 
+  // TODO(sashwinbalaji): Pruning an SMB v2 sequence discards its
+  // pending_chunk_v2_data_loss. If that writer appends again, the loss is not
+  // reported. SMB sequences have the same limit: pruning discards
+  // last_chunk_consumed. Revisit if field traces show missed loss for writers
+  // that write rarely while many others churn.
   size_t n_oldest = empty_seqs.size() - kKeepLastEmptySeq;
   for (size_t i = 0; i < n_oldest; ++i) {
     sequences_.erase(empty_seqs[i]);
@@ -64961,9 +73830,9 @@ void TraceBufferV2::DeleteStaleEmptySequences() {
 
   // This is not really required in the current implementation and is here just
   // to spot bugs while refactoring the code in future. This function is
-  // only called by CopyChunkUntrusted(), but the chunk_seq_reader_ (which can
+  // called only by writes, but the chunk_seq_reader_ (which can
   // hold onto a SequenceState* pointer) is reset by every BeginRead() call.
-  // By design BeginRead()/ReadNextTracePacket() cannot overlap with CCU().
+  // By design BeginRead()/ReadNextTracePacket() cannot overlap with writes.
   chunk_seq_reader_.reset();
 }
 
@@ -64974,12 +73843,12 @@ std::unique_ptr<TraceBuffer> TraceBufferV2::CloneReadOnly() const {
   return buf;
 }
 
+TraceBufferProtoVms* TraceBufferV2::protovms() {
+  return &protovms_;
+}
+
 size_t TraceBufferV2::GetMemoryUsageBytes() const {
-  size_t total_bytes = size();
-  for (const Vm& vm : protovms_) {
-    total_bytes += vm.instance->GetMemoryUsageBytes();
-  }
-  return total_bytes;
+  return size() + protovms_.GetMemoryUsageBytes();
 }
 
 TraceBufferV2::TraceBufferV2(CloneCtor, const TraceBufferV2& src)
@@ -64995,6 +73864,7 @@ TraceBufferV2::TraceBufferV2(CloneCtor, const TraceBufferV2& src)
   data_.EnsureCommitted(src.used_size_);
   memcpy(data_.Get(), src.data_.Get(), src.used_size_);
   used_size_ = src.used_size_;
+  has_data_ = src.has_data_;
   wr_ = src.wr_;
 
   stats_ = src.stats_;
@@ -65003,28 +73873,13 @@ TraceBufferV2::TraceBufferV2(CloneCtor, const TraceBufferV2& src)
   stats_.set_readaheads_failed(0);
   stats_.set_readaheads_succeeded(0);
 
-  // Finally copy over the SequenceState map.
+  // Finally copy over the SequenceState map and WriterStats map. WriterStats
+  // must be copied because EmitTraceProvenance() derives the producer->sequence
+  // mapping from it, until b/568173038 is addressed.
   sequences_ = src.sequences_;
+  writer_stats_ = src.writer_stats_;
 
-  for (const auto& vm : src.protovms_) {
-    auto vm_cloned = vm.CloneReadOnly();
-    if (!vm_cloned.instance) {
-      PERFETTO_ELOG("Failed to clone ProtoVMs");
-      protovms_.clear();
-      break;
-    }
-    protovms_.push_back(std::move(vm_cloned));
-  }
-}
-
-TraceBufferV2::Vm TraceBufferV2::Vm::CloneReadOnly() const {
-  Vm cloned_vm;
-  cloned_vm.data_source_name = data_source_name;
-  cloned_vm.program_hash = program_hash;
-  cloned_vm.memory_limit_kb = memory_limit_kb;
-  cloned_vm.producers = producers;
-  cloned_vm.instance = instance->CloneReadOnly();
-  return cloned_vm;
+  protovms_.CloneReadOnlyFrom(src.protovms_);
 }
 
 void TraceBufferV2::DumpForTesting() {
@@ -65044,8 +73899,8 @@ void TraceBufferV2::DumpForTesting() {
       PERFETTO_DLOG(
           "[%06zu-%06zu] size=%05u(%05u) id=%05u pr_wr=%08x flags=%08x", rd,
           rd + c->outer_size(), c->payload_size,
-          c->payload_size - c->payload_avail, c->chunk_id, c->pri_wri_id,
-          c->flags);
+          static_cast<unsigned>(c->payload_size - c->payload_avail),
+          c->chunk_id, c->pri_wri_id, c->flags);
       rd += c->outer_size();
       continue;
     }
@@ -65057,79 +73912,6 @@ void TraceBufferV2::DumpForTesting() {
     break;
   }
   PERFETTO_DLOG("------------------------------------------------------------");
-}
-
-TraceBufferV2::Vm::Vm() = default;
-TraceBufferV2::Vm::~Vm() = default;
-TraceBufferV2::Vm::Vm(Vm&&) noexcept = default;
-
-void TraceBufferV2::MaybeSetUpProtoVm(const std::string& data_source_name,
-                                      const std::string& program_bytes,
-                                      uint32_t memory_limit_kb,
-                                      ProducerID producer_id) {
-  Vm* vm = nullptr;
-  // Re-use existing ProtoVM instance, if any.
-  uint64_t program_hash = base::MurmurHashValue(program_bytes);
-  auto vm_it =
-      std::find_if(protovms_.begin(), protovms_.end(), [&](const Vm& vm) {
-        return vm.data_source_name == data_source_name &&
-               vm.program_hash == program_hash;
-      });
-  if (vm_it != protovms_.end()) {
-    vm = &(*vm_it);
-  } else {
-    // Otherwise instantiate new ProtoVM
-    Vm new_vm;
-    new_vm.data_source_name = data_source_name;
-    new_vm.program_hash = program_hash;
-    new_vm.memory_limit_kb = memory_limit_kb;
-
-    protozero::ConstBytes program_bytes_view{
-        reinterpret_cast<const uint8_t*>(program_bytes.data()),
-        program_bytes.size()};
-
-    new_vm.instance = std::make_unique<protovm::Vm>(
-        program_bytes_view, new_vm.memory_limit_kb * 1024);
-    if (!new_vm.instance) {
-      PERFETTO_ELOG("Failed to allocate ProtoVM");
-      return;
-    }
-
-    protovms_.push_back(std::move(new_vm));
-    vm = &protovms_.back();
-  }
-  // Update ProtoVM's producer IDs
-  vm->producers.insert(producer_id);
-}
-
-void TraceBufferV2::MaybeProcessOverwrittenPacketWithProtoVm(
-    const TracePacket& packet,
-    ProducerID producer) {
-  protovm_patch_.clear();
-
-  for (auto& vm : protovms_) {
-    if (vm.producers.find(producer) == vm.producers.end()) {
-      continue;
-    }
-    // TODO(keanmariotti): add an optimized path for the case
-    // "packet.slices().size() == 1" (zero copy)
-    if (protovm_patch_.empty()) {
-      packet.GetRawBytes(&protovm_patch_);
-    }
-    protozero::ConstBytes bytes{
-        reinterpret_cast<const uint8_t*>(protovm_patch_.data()),
-        protovm_patch_.size()};
-    auto status = vm.instance->ApplyPatch(bytes);
-    if (status.IsOk()) {
-      break;
-    }
-    if (status.IsAbort()) {
-      // TODO(keanmariotti): consider doing something more here. Ideally
-      // triggering a field upload containing the stacktrace.
-      PERFETTO_ELOG("ProtoVM abort while applying patch. Stacktrace:\n%s",
-                    base::Join(status.stacktrace(), "\n").c_str());
-    }
-  }
 }
 
 }  // namespace perfetto
@@ -65173,6 +73955,8 @@ void TraceBufferV2::MaybeProcessOverwrittenPacketWithProtoVm(
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_abi.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/forward_decls.h"
+// gen_amalgamated expanded: #include "src/tracing/service/service_ring_buffer_drainer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/producer_ring_buffer_arbiter.h"
 
 // This header contains the declarations for the 3 abtract classes
 // (ProducerEndpointImpl, ConsumerEndpointImpl, RelayEndpointImpl).
@@ -65192,7 +73976,9 @@ struct TracingSession;
 struct TriggerInfo;
 
 // The implementation behind the service endpoint exposed to each producer.
-class ProducerEndpointImpl : public TracingService::ProducerEndpoint {
+class ProducerEndpointImpl
+    : public TracingService::ProducerEndpoint,
+      public tracing_v2::ServiceRingBufferDrainer::Delegate {
  public:
   ProducerEndpointImpl(ProducerID,
                        const ClientIdentity& client_identity,
@@ -65203,7 +73989,8 @@ class ProducerEndpointImpl : public TracingService::ProducerEndpoint {
                        const std::string& machine_name,
                        const std::string& sdk_version,
                        bool in_process,
-                       bool smb_scraping_enabled);
+                       bool smb_scraping_enabled,
+                       uint32_t protocol_abi_versions);
   ~ProducerEndpointImpl() override;
 
   // TracingService::ProducerEndpoint implementation.
@@ -65219,6 +74006,9 @@ class ProducerEndpointImpl : public TracingService::ProducerEndpoint {
                          bool provided_by_producer,
                          SharedMemoryABI::ShmemMode shmem_mode);
   std::unique_ptr<TraceWriter> CreateTraceWriter(
+      BufferID,
+      BufferExhaustedPolicy) override;
+  std::unique_ptr<TraceWriter> CreateTraceWriterV2(
       BufferID,
       BufferExhaustedPolicy) override;
   SharedMemoryArbiter* MaybeSharedMemoryArbiter() override;
@@ -65250,6 +74040,24 @@ class ProducerEndpointImpl : public TracingService::ProducerEndpoint {
     if (it != writers_.end())
       return it->second;
     return std::nullopt;
+  }
+
+  // TracingService::ProducerEndpoint implementation for tracing v2.
+  void InitializeV2RingBuffer(const DataSourceConfig&) override;
+  void AttachV2RingBuffer(const std::shared_ptr<SharedMemory>&,
+                          uint32_t chunk_size_bytes,
+                          std::function<void(bool)>) override;
+  void DrainV2RingBuffer() override;
+
+  // tracing_v2::ServiceRingBufferDrainer::Delegate implementation.
+  TraceBuffer* GetV2RingBufferDestination(BufferID) override;
+  void ForEachV2RingBufferDestination(
+      const std::function<void(TraceBuffer&)>& callback) override;
+  void OnRingBufferChunksDiscarded(uint64_t count) override;
+
+  // Mapping size for the memory guardrail. Zero if no ring buffer is attached.
+  size_t ring_buffer_size_bytes() const {
+    return v2_ring_buffer_drainer_ ? v2_ring_buffer_drainer_->size_bytes() : 0;
   }
 
   bool IsShmemEmulated() { return shmem_abi_.use_shmem_emulation(); }
@@ -65299,6 +74107,32 @@ class ProducerEndpointImpl : public TracingService::ProducerEndpoint {
   // SharedMemoryArbiterImpl methods themselves are thread-safe.
   std::unique_ptr<SharedMemoryArbiterImpl> inproc_shmem_arbiter_;
 
+  // Bitmask of the common versions supplied to ConnectProducer(). Fixed for
+  // the connection.
+  const uint32_t protocol_abi_versions_;
+
+  // Owns the ring buffer and creates v2 writers.
+  //
+  // States:
+  // - nullopt: initialization has not been attempted.
+  // - nullptr: sizing or allocation failed.
+  //   Later InitializeV2RingBuffer() calls on the same connection do not retry
+  //   initialization, to avoid changing the pointer while v2 writer threads
+  //   read it without a lock.
+  // - Non-null pointer: the arbiter exists and tracks service attachment.
+  //
+  // Set by InitializeV2RingBuffer() when an instance selects v2, before the
+  // first in-process v2 writer.
+  // Writer threads then read it without a lock.
+  // For an IPC producer, the arbiter lives in the producer process.
+  std::optional<std::unique_ptr<tracing_v2::ProducerRingBufferArbiter>>
+      v2_ring_buffer_arbiter_;
+
+  // |v2_ring_buffer_drainer_| owns the reader and keeps the ring buffer mapped.
+  // The reader's destination checks use |allowed_target_buffers_|.
+  // DisconnectProducer() runs the final drain through |v2_ring_buffer_drainer_|
+  // before |allowed_target_buffers_| is destroyed.
+  std::unique_ptr<tracing_v2::ServiceRingBufferDrainer> v2_ring_buffer_drainer_;
   PERFETTO_THREAD_CHECKER(thread_checker_)
   base::WeakRunner weak_runner_;
 };
@@ -65984,6 +74818,7 @@ struct TracingSession {
 // gen_amalgamated expanded: #include "src/tracing/service/clock.h"
 // gen_amalgamated expanded: #include "src/tracing/service/dependencies.h"
 // gen_amalgamated expanded: #include "src/tracing/service/random.h"
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_endpoints_impl.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_session.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_structs.h"
@@ -66007,14 +74842,12 @@ class Consumer;
 class Producer;
 class SharedMemory;
 class SharedMemoryArbiterImpl;
-class TraceBuffer;
 class TracePacket;
 
 namespace tracing_service {
 // The tracing service business logic.
 class TracingServiceImpl : public TracingService {
  public:
-  static constexpr size_t kMaxShmSize = 32 * 1024 * 1024ul;
   static constexpr uint8_t kSyncMarker[] = {0x82, 0x47, 0x7a, 0x76, 0xb2, 0x8d,
                                             0x42, 0xba, 0x81, 0xdc, 0x33, 0x32,
                                             0x6d, 0x57, 0xa0, 0x79};
@@ -66118,7 +74951,12 @@ class TracingServiceImpl : public TracingService {
       size_t shared_memory_page_size_hint_bytes = 0,
       std::unique_ptr<SharedMemory> shm = nullptr,
       const std::string& sdk_version = {},
-      const std::string& machine_name = {}) override;
+      const std::string& machine_name = {},
+      uint32_t protocol_abi_versions = kProtocolAbiV1) override;
+
+  // The endpoint reports discarded ring buffer chunks on the service
+  // sequence. Adds them to chunks_discarded.
+  void OnRingBufferChunksDiscarded(uint64_t count);
 
   std::unique_ptr<TracingService::ConsumerEndpoint> ConnectConsumer(
       Consumer*,
@@ -66239,6 +75077,7 @@ class TracingServiceImpl : public TracingService {
                      bool success);
   void ScrapeSharedMemoryBuffers(TracingSession*, ProducerEndpointImpl*);
   void PeriodicClearIncrementalStateTask(TracingSessionID, bool post_next_only);
+  // Returns nullptr if there is no buffer with this ID.
   TraceBuffer* GetBufferByID(BufferID);
   void FlushDataSourceInstances(
       TracingSession*,
@@ -66287,8 +75126,11 @@ class TracingServiceImpl : public TracingService {
                           std::vector<TracePacket>* packets);
 
   // If `*tracing_session` has compression enabled, compress `*packets`.
+  // `skip_compression_of_first_n_packets` is the number of packets to skip
+  // compression of (i.e. TraceConfig, UUID packets).
   void MaybeCompressPackets(TracingSession* tracing_session,
-                            std::vector<TracePacket>* packets);
+                            std::vector<TracePacket>* packets,
+                            size_t skip_compression_of_first_n_packets);
 
   // If `*tracing_session` is configured to write into a file, writes `packets`
   // into the file.
@@ -66297,6 +75139,12 @@ class TracingServiceImpl : public TracingService {
   // been an error), false otherwise.
   bool WriteIntoFile(TracingSession* tracing_session,
                      std::vector<TracePacket> packets);
+
+  // Attempts to compact each buffer in `*tracing_session`.
+  // Call only after the ReadBuffers() packets are no longer in use, because
+  // compaction can move the data their slices reference.
+  void MaybeCompactBuffers(TracingSession* tracing_session);
+
   void OnStartTriggersTimeout(TracingSessionID tsid);
   void MaybeLogUploadEvent(const TraceConfig&,
                            const base::Uuid&,
@@ -66378,20 +75226,30 @@ class TracingServiceImpl : public TracingService {
  */
 
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_endpoints_impl.h"
+
+#include <cinttypes>
+
 // gen_amalgamated expanded: #include "perfetto/base/task_runner.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/file_utils.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/metatrace.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/string_view.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/version.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/consumer.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/producer.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_writer.h"
+// gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_config.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/tracing_service_capabilities.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/tracing_service_state.h"
+// gen_amalgamated expanded: #include "src/tracing/core/in_process_shared_memory.h"
+// gen_amalgamated expanded: #include "src/tracing/core/null_trace_writer.h"
 // gen_amalgamated expanded: #include "src/tracing/core/shared_memory_arbiter_impl.h"
+// gen_amalgamated expanded: #include "src/tracing/service/service_ring_buffer_drainer.h"
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_impl.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_structs.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
 
 // gen_amalgamated expanded: #include "protos/perfetto/common/builtin_clock.pbzero.h"
 
@@ -66790,7 +75648,8 @@ ProducerEndpointImpl::ProducerEndpointImpl(
     const std::string& machine_name,
     const std::string& sdk_version,
     bool in_process,
-    bool smb_scraping_enabled)
+    bool smb_scraping_enabled,
+    uint32_t protocol_abi_versions)
     : id_(id),
       client_identity_(client_identity),
       service_(service),
@@ -66800,6 +75659,7 @@ ProducerEndpointImpl::ProducerEndpointImpl(
       sdk_version_(sdk_version),
       in_process_(in_process),
       smb_scraping_enabled_(smb_scraping_enabled),
+      protocol_abi_versions_(protocol_abi_versions),
       weak_runner_(task_runner) {}
 
 ProducerEndpointImpl::~ProducerEndpointImpl() {
@@ -67000,9 +75860,28 @@ bool ProducerEndpointImpl::IsShmemProvidedByProducer() const {
 std::unique_ptr<TraceWriter> ProducerEndpointImpl::CreateTraceWriter(
     BufferID buf_id,
     BufferExhaustedPolicy buffer_exhausted_policy) {
+  if (!(protocol_abi_versions_ & kProtocolAbiV1)) {
+    PERFETTO_ELOG(
+        "Cannot create a v1 trace writer: v1 is not in the common protocol "
+        "mask (%x)",
+        protocol_abi_versions_);
+    return std::make_unique<NullTraceWriter>();
+  }
   PERFETTO_DCHECK(MaybeSharedMemoryArbiter());
   return MaybeSharedMemoryArbiter()->CreateTraceWriter(buf_id,
                                                        buffer_exhausted_policy);
+}
+
+// Can be called on any thread.
+std::unique_ptr<TraceWriter> ProducerEndpointImpl::CreateTraceWriterV2(
+    BufferID buf_id,
+    BufferExhaustedPolicy buffer_exhausted_policy) {
+  auto* arbiter = v2_ring_buffer_arbiter_.has_value()
+                      ? v2_ring_buffer_arbiter_->get()
+                      : nullptr;
+  if (!arbiter)
+    return std::make_unique<NullTraceWriter>();
+  return arbiter->CreateTraceWriter(buf_id, buffer_exhausted_policy);
 }
 
 void ProducerEndpointImpl::NotifyFlushComplete(FlushRequestID id) {
@@ -67114,6 +75993,100 @@ bool ProducerEndpointImpl::IsAndroidProcessFrozen() {
 
 #endif
   return false;
+}
+
+void ProducerEndpointImpl::InitializeV2RingBuffer(
+    const DataSourceConfig& config) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  if (v2_ring_buffer_arbiter_.has_value() || !in_process_ ||
+      !(protocol_abi_versions_ & kProtocolAbiV2)) {
+    return;
+  }
+
+  auto arbiter_or = tracing_v2::ProducerRingBufferArbiter::Create(
+      weak_runner_.task_runner(), this, config, shmem_size_hint_bytes_,
+      [](size_t size) -> base::StatusOr<std::shared_ptr<SharedMemory>> {
+        return std::shared_ptr<SharedMemory>(
+            InProcessSharedMemory::Create(size));
+      });
+  if (!arbiter_or.ok()) {
+    PERFETTO_ELOG("tracing v2: cannot create ring buffer: %s",
+                  arbiter_or.status().c_message());
+    v2_ring_buffer_arbiter_ = nullptr;
+    return;
+  }
+  v2_ring_buffer_arbiter_ = std::move(*arbiter_or);
+
+  auto* arbiter = v2_ring_buffer_arbiter_->get();
+  AttachV2RingBuffer(
+      arbiter->memory(), arbiter->ring_buffer()->chunk_size(),
+      [weak_arbiter = arbiter->GetWeakPtr()](bool reader_attached) {
+        if (weak_arbiter)
+          weak_arbiter->OnReaderAttachReply(reader_attached);
+      });
+}
+
+void ProducerEndpointImpl::AttachV2RingBuffer(
+    const std::shared_ptr<SharedMemory>& memory,
+    uint32_t chunk_size_bytes,
+    std::function<void(bool)> callback) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+
+  base::Status status;
+  if (!(protocol_abi_versions_ & kProtocolAbiV2)) {
+    status = base::ErrStatus("the connection has no tracing v2");
+  } else if (v2_ring_buffer_drainer_) {
+    status = base::ErrStatus("a ring buffer is already attached");
+  } else if (!memory || memory->size() > TracingService::kMaxShmSize) {
+    status = base::ErrStatus("no mapping, or the mapping is too large");
+  } else {
+    status = tracing_v2::NumChunksForRingBufferLayout(
+                 memory->start(), memory->size(), chunk_size_bytes)
+                 .status();
+  }
+  if (!status.ok()) {
+    PERFETTO_DLOG("Producer %" PRIu16 " \"%s\": ring buffer rejected: %s", id_,
+                  name_.c_str(), status.c_message());
+    callback(false);
+    return;
+  }
+
+  v2_ring_buffer_drainer_ =
+      std::make_unique<tracing_v2::ServiceRingBufferDrainer>(
+          memory, chunk_size_bytes, id_, client_identity_, this,
+          weak_runner_.task_runner());
+  service_->UpdateMemoryGuardrail();
+  DrainV2RingBuffer();
+  callback(true);
+}
+
+void ProducerEndpointImpl::DrainV2RingBuffer() {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  if (v2_ring_buffer_drainer_)
+    v2_ring_buffer_drainer_->Drain();
+}
+
+TraceBuffer* ProducerEndpointImpl::GetV2RingBufferDestination(BufferID id) {
+  if (!is_allowed_target_buffer(id))
+    return nullptr;
+
+  // The producer supplies |id| through shared memory. Check that the
+  // destination buffer supports tracing v2 otherwise return nullptr.
+  TraceBuffer* buffer = service_->GetBufferByID(id);
+  return buffer && buffer->supports_tracing_v2() ? buffer : nullptr;
+}
+
+void ProducerEndpointImpl::ForEachV2RingBufferDestination(
+    const std::function<void(TraceBuffer&)>& callback) {
+  for (BufferID id : allowed_target_buffers_) {
+    TraceBuffer* buffer = service_->GetBufferByID(id);
+    if (buffer && buffer->supports_tracing_v2())
+      callback(*buffer);
+  }
+}
+
+void ProducerEndpointImpl::OnRingBufferChunksDiscarded(uint64_t count) {
+  service_->OnRingBufferChunksDiscarded(count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67308,11 +76281,13 @@ inline base::StatusOr<base::SchedPolicyAndPrio> CreateSchedPolicyFromConfig(
 // gen_amalgamated expanded: #include "src/tracing/service/packet_stream_validator.h"
 // gen_amalgamated expanded: #include "src/tracing/service/random.h"
 // gen_amalgamated expanded: #include "src/tracing/service/trace_buffer.h"
+// gen_amalgamated expanded: #include "src/tracing/service/trace_buffer_protovms.h"
 // gen_amalgamated expanded: #include "src/tracing/service/trace_buffer_v1.h"
 // gen_amalgamated expanded: #include "src/tracing/service/trace_buffer_v2.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_endpoints_impl.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_session.h"
 // gen_amalgamated expanded: #include "src/tracing/service/tracing_service_structs.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
 #if PERFETTO_BUILDFLAG(PERFETTO_ZLIB)
 // gen_amalgamated expanded: #include "src/tracing/service/zlib_compressor.h"
 #endif
@@ -67441,7 +76416,7 @@ std::tuple<size_t /*shm_size*/, size_t /*page_size*/> EnsureValidShmSizes(
     shm_size = TracingServiceImpl::kDefaultShmSize;
 
   page_size = std::min<size_t>(page_size, kMaxPageSize);
-  shm_size = std::min<size_t>(shm_size, TracingServiceImpl::kMaxShmSize);
+  shm_size = std::min<size_t>(shm_size, TracingService::kMaxShmSize);
 
   // The tracing page size has to be multiple of 4K. On some systems (e.g. Mac
   // on Arm64) the system page size can be larger (e.g., 16K). That doesn't
@@ -67545,6 +76520,21 @@ void AppendOwnedSlicesToPacket(std::unique_ptr<uint8_t[]> data,
   }
 }
 
+// Creates an empty trace buffer of the given implementation.
+// Returns nullptr if the memory allocation fails.
+std::unique_ptr<TraceBuffer> CreateTraceBuffer(
+    TraceBuffer::BufType type,
+    size_t size_in_bytes,
+    TraceBuffer::OverwritePolicy policy) {
+  switch (type) {
+    case TraceBuffer::kV1:
+      return TraceBufferV1::Create(size_in_bytes, policy);
+    case TraceBuffer::kV2:
+      return TraceBufferV2::Create(size_in_bytes, policy);
+  }
+  return nullptr;
+}
+
 // Shmem emulation is only for relay (remote-host) producers whose SMB is copied
 // over IPC. An in-process producer always has a real shared SMB, so it must use
 // kDefault even when it carries a non-default machine id.
@@ -67586,8 +76576,17 @@ TracingServiceImpl::ConnectProducer(Producer* producer,
                                     size_t shared_memory_page_size_hint_bytes,
                                     std::unique_ptr<SharedMemory> shm,
                                     const std::string& sdk_version,
-                                    const std::string& machine_name) {
+                                    const std::string& machine_name,
+                                    uint32_t protocol_abi_versions) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
+
+  if (!protocol_abi_versions) {
+    PERFETTO_ELOG(
+        "Failed to negotiate a valid tracing protocol version with the tracing "
+        "service: producer=\"%s\"",
+        producer_name.c_str());
+    return nullptr;
+  }
 
   auto uid = client_identity.uid();
   if (lockdown_mode_ && uid != base::GetCurrentUserId()) {
@@ -67618,7 +76617,7 @@ TracingServiceImpl::ConnectProducer(Producer* producer,
   std::unique_ptr<ProducerEndpointImpl> endpoint(new ProducerEndpointImpl(
       id, client_identity, this, weak_runner_.task_runner(), producer,
       producer_name, machine_name, sdk_version, in_process,
-      smb_scraping_enabled));
+      smb_scraping_enabled, protocol_abi_versions));
   auto it_and_inserted = producers_.emplace(id, endpoint.get());
   PERFETTO_DCHECK(it_and_inserted.second);
 
@@ -68003,11 +77002,35 @@ base::Status TracingServiceImpl::EnableTracing(ConsumerEndpointImpl* consumer,
     }
   }
 
+  // For each buffer: the name of a data source with a ProtoVM, and of one
+  // that can use tracing v2.
+  // Tracing v2 does not support ProtoVM on the same buffer yet.
+  std::vector<const std::string*> protovm_source(num_buffers);
+  std::vector<const std::string*> tracing_v2_source(num_buffers);
+
   // Check that the config specifies all buffers for its data sources. This
   // is also checked in SetupDataSource, but it is simpler to return a proper
   // error to the consumer from here (and there will be less state to undo).
   for (const TraceConfig::DataSource& cfg_data_source : cfg.data_sources()) {
     const auto& ds_config = cfg_data_source.config();
+    const auto& tracing_v2_config = ds_config.experimental_tracing_v2();
+    if (tracing_v2_config.use_v2_probability_percent() > 100) {
+      return PERFETTO_SVC_ERR(
+          "experimental_tracing_v2.use_v2_probability_percent must be at most "
+          "100");
+    }
+    if (tracing_v2_config.drain_occupancy_percent() < -1 ||
+        tracing_v2_config.drain_occupancy_percent() > 100) {
+      return PERFETTO_SVC_ERR(
+          "experimental_tracing_v2.drain_occupancy_percent must be -1 to 100");
+    }
+    for (const auto& option : tracing_v2_config.chunk_size_options()) {
+      if (!tracing_v2::IsValidChunkSize(option.size_bytes())) {
+        return PERFETTO_SVC_ERR(
+            "experimental_tracing_v2.chunk_size_options: invalid size %u",
+            option.size_bytes());
+      }
+    }
 
     // Resolve target buffer: if target_buffer_name is set, look it up.
     size_t target_buffer = ds_config.target_buffer();
@@ -68049,6 +77072,19 @@ base::Status TracingServiceImpl::EnableTracing(ConsumerEndpointImpl* consumer,
           "Data source \"%s\" specified an out of bounds target_buffer (%zu >= "
           "%zu)",
           ds_config.name().c_str(), target_buffer, num_buffers);
+    }
+
+    if (ds_config.has_protovm_config())
+      protovm_source[target_buffer] = &ds_config.name();
+    if (tracing_v2_config.use_v2_probability_percent() > 0)
+      tracing_v2_source[target_buffer] = &ds_config.name();
+    if (protovm_source[target_buffer] && tracing_v2_source[target_buffer]) {
+      return PERFETTO_SVC_ERR(
+          "Data source \"%s\" has a ProtoVM and data source \"%s\" has "
+          "experimental_tracing_v2 on the same buffer %zu. Tracing v2 does not "
+          "support ProtoVM",
+          protovm_source[target_buffer]->c_str(),
+          tracing_v2_source[target_buffer]->c_str(), target_buffer);
     }
   }
 
@@ -68427,10 +77463,10 @@ base::Status TracingServiceImpl::EnableTracing(ConsumerEndpointImpl* consumer,
     std::unique_ptr<TraceBuffer> new_buffer;
     switch (buffer_cfg.experimental_mode()) {
       case TraceConfig::BufferConfig::TRACE_BUFFER_V2:
-        new_buffer = TraceBufferV2::Create(buf_size, policy);
+        new_buffer = CreateTraceBuffer(TraceBuffer::kV2, buf_size, policy);
         break;
       case TraceConfig::BufferConfig::MODE_UNSPECIFIED:
-        new_buffer = TraceBufferV1::Create(buf_size, policy);
+        new_buffer = CreateTraceBuffer(TraceBuffer::kV1, buf_size, policy);
         break;
     }
     auto it_and_inserted = buffers_.emplace(global_id, std::move(new_buffer));
@@ -69521,13 +78557,6 @@ void TracingServiceImpl::CompleteFlush(TracingSessionID tsid,
 void TracingServiceImpl::ScrapeSharedMemoryBuffers(
     TracingSession* tracing_session,
     ProducerEndpointImpl* producer) {
-  if (!producer->smb_scraping_enabled_ || producer->IsShmemEmulated())
-    return;
-
-  // Can't copy chunks if we don't know about any trace writers.
-  if (producer->writers_.empty())
-    return;
-
   // Performance optimization: On flush or session disconnect, this method is
   // called for each producer. If the producer doesn't participate in the
   // session, there's no need to scrape its chunks right now. We can tell if a
@@ -69540,6 +78569,16 @@ void TracingServiceImpl::ScrapeSharedMemoryBuffers(
                     return producer->allowed_target_buffers_.count(buffer_id);
                   });
   if (!producer_in_session)
+    return;
+
+  // Drain v2 data even when v1 SMB scraping is disabled.
+  producer->DrainV2RingBuffer();
+
+  if (!producer->smb_scraping_enabled_ || producer->IsShmemEmulated())
+    return;
+
+  // Can't copy chunks if we don't know about any trace writers.
+  if (producer->writers_.empty())
     return;
 
   PERFETTO_DLOG("Scraping SMB for producer %" PRIu16, producer->id_);
@@ -69749,6 +78788,26 @@ bool TracingServiceImpl::ReadBuffersIntoConsumer(
             return;
           ReadBuffersIntoConsumer(tsid, weak_consumer.get());
         });
+  } else {
+    // Compact only once ReadBuffers() has nothing more to read
+    // (has_more == false).
+    // By then the read has consumed as much data as it can, so compaction has
+    // the fewest chunks to memmove.
+    // If we compacted after every batch, we would move the unread chunks again
+    // each time and end up with the same layout.
+    //
+    // The packets passed to OnTraceData() point into the buffer, so compaction
+    // has to wait until it returns.
+    // But we can't compact inline after it, because the consumer's
+    // OnTraceData() can call FreeBuffers() or destroy the service.
+    // So we post a task.
+    // The task looks up the session again in case FreeBuffers() removed it,
+    // and weak_runner_ drops the task if the service is destroyed.
+    weak_runner_.PostTask([this, tsid] {
+      TracingSession* tracing_session = GetTracingSession(tsid);
+      if (tracing_session)
+        MaybeCompactBuffers(tracing_session);
+    });
   }
 
   // Keep this as tail call, just in case the consumer re-enters.
@@ -69807,6 +78866,8 @@ bool TracingServiceImpl::ReadBuffersIntoFile(
             DisableTracing(tsid);
           return;
         }
+
+        MaybeCompactBuffers(tracing_session);
 
         if (tracing_session->fflush_post_write) {
           // Ensure all data was written to the file.
@@ -69890,6 +78951,19 @@ std::vector<TracePacket> TracingServiceImpl::ReadBuffers(
                       &packets);
   }
 
+  if (!tracing_session->config.builtin_data_sources().disable_trace_config()) {
+    MaybeEmitTraceConfig(tracing_session, &packets);
+  }
+  if (!tracing_session->did_emit_initial_packets) {
+    EmitUuid(tracing_session, &packets);
+  }
+
+  // All packets emitted above (clock snapshot, trace config, uuid) will not be
+  // compressed, regardless of the config. This is to allow services that
+  // consume the trace on-device to take decisions based on the metadata of the
+  // trace, without having to uncompress.
+  const size_t skip_compression_of_first_n_packets = packets.size();
+
   for (auto& snapshot : tracing_session->clock_snapshot_ring_buffer) {
     PERFETTO_DCHECK(!snapshot.empty());
     EmitClockSnapshot(tracing_session, std::move(snapshot), &packets);
@@ -69902,12 +78976,10 @@ std::vector<TracePacket> TracingServiceImpl::ReadBuffers(
   }
 
   if (!tracing_session->config.builtin_data_sources().disable_trace_config()) {
-    MaybeEmitTraceConfig(tracing_session, &packets);
     MaybeEmitCloneTrigger(tracing_session, &packets);
     MaybeEmitReceivedTriggers(tracing_session, &packets);
   }
   if (!tracing_session->did_emit_initial_packets) {
-    EmitUuid(tracing_session, &packets);
     if (!tracing_session->config.builtin_data_sources()
              .disable_extension_descriptors()) {
       EmitExtensionDescriptors(tracing_session, &packets);
@@ -70061,7 +79133,8 @@ std::vector<TracePacket> TracingServiceImpl::ReadBuffers(
     }
   }
 
-  MaybeCompressPackets(tracing_session, &packets);
+  MaybeCompressPackets(tracing_session, &packets,
+                       skip_compression_of_first_n_packets);
 
   if (!*has_more) {
     // We've observed some extremely high memory usage by scudo after
@@ -70136,7 +79209,28 @@ void TracingServiceImpl::MaybeFilterPackets(TracingSession* tracing_session,
 
 void TracingServiceImpl::MaybeCompressPackets(
     TracingSession* tracing_session,
-    [[maybe_unused]] std::vector<TracePacket>* packets) {
+    [[maybe_unused]] std::vector<TracePacket>* packets,
+    [[maybe_unused]] size_t skip_compression_of_first_n_packets) {
+  [[maybe_unused]] auto compress_with_fn = [&](auto compress_fn) {
+    if (skip_compression_of_first_n_packets == 0) {
+      compress_fn(packets);
+      return;
+    }
+    if (skip_compression_of_first_n_packets >= packets->size()) {
+      return;
+    }
+    const auto nskip =
+        static_cast<ssize_t>(skip_compression_of_first_n_packets);
+    std::vector<TracePacket> packets_to_compress(
+        std::make_move_iterator(packets->begin() + nskip),
+        std::make_move_iterator(packets->end()));
+    packets->erase(packets->begin() + nskip, packets->end());
+    compress_fn(&packets_to_compress);
+    packets->insert(packets->end(),
+                    std::make_move_iterator(packets_to_compress.begin()),
+                    std::make_move_iterator(packets_to_compress.end()));
+  };
+
   // Compress with the codec the config selects, preferring the newest (highest
   // proto field number) this build supports. Leaves the packets uncompressed if
   // none is available.
@@ -70147,7 +79241,9 @@ void TracingServiceImpl::MaybeCompressPackets(
       tracing_session->config.compression();
 #if PERFETTO_BUILDFLAG(PERFETTO_ZSTD)
   if (compression.has_zstd()) {
-    ZstdCompressFn(packets, compression.zstd().level());
+    compress_with_fn([&](std::vector<TracePacket>* target) {
+      ZstdCompressFn(target, compression.zstd().level());
+    });
     return;
   }
 #endif
@@ -70156,7 +79252,8 @@ void TracingServiceImpl::MaybeCompressPackets(
   // predating `compression` still get compressed.
   if (compression.has_deflate() || tracing_session->config.compression_type() ==
                                        TraceConfig::COMPRESSION_TYPE_DEFLATE) {
-    ZlibCompressFn(packets);
+    compress_with_fn(
+        [](std::vector<TracePacket>* target) { ZlibCompressFn(target); });
     return;
   }
 #endif
@@ -70233,6 +79330,18 @@ bool TracingServiceImpl::WriteIntoFile(TracingSession* tracing_session,
   return stop_writing_into_file;
 }
 
+void TracingServiceImpl::MaybeCompactBuffers(TracingSession* tracing_session) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  if (!tracing_session->config.experimental_trace_buffer_v2_compaction())
+    return;
+
+  for (BufferID buf_id : tracing_session->buffers_index) {
+    auto tbuf_iter = buffers_.find(buf_id);
+    if (tbuf_iter != buffers_.end())
+      tbuf_iter->second->MaybeCompact();
+  }
+}
+
 void TracingServiceImpl::FreeBuffers(TracingSessionID tsid,
                                      const std::string& error) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
@@ -70307,12 +79416,12 @@ void TracingServiceImpl::MaybeSetUpProtoVm(
     const RegisteredDataSource& ds_instance,
     BufferID buffer_id) {
   if (!ds_config.has_protovm_config() &&
-      !ds_instance.descriptor.has_protovm_program()) {
+      ds_instance.descriptor.protovm_program_raw().empty()) {
     return;  // Data source has no ProtoVM
   }
   // TODO(keanmariotti): report the errors below in a trace packet as well, so
   // that we can surface them on the UI.
-  if (!ds_instance.descriptor.has_protovm_program()) {
+  if (ds_instance.descriptor.protovm_program_raw().empty()) {
     PERFETTO_ELOG(
         "ProtoVM config for data source %s specifies a ProtoVM, but the data "
         "source instance (ProducerID: %d) doesn't specify a ProtoVM program",
@@ -70335,17 +79444,16 @@ void TracingServiceImpl::MaybeSetUpProtoVm(
   }
   auto it = buffers_.find(buffer_id);
   PERFETTO_CHECK(it != buffers_.cend());
-  if (it->second->buf_type() != TraceBuffer::BufType::kV2) {
+  TraceBufferProtoVms* protovms = it->second->protovms();
+  if (!protovms) {
     PERFETTO_ELOG(
         "Data source %s is configured to run a ProtoVM, but the corresponding "
-        "buffer is not of type V2",
+        "buffer is of type V1, which cannot run one.",
         ds_config.name().c_str());
     return;
   }
-  auto* buffer = static_cast<TraceBufferV2*>(it->second.get());
-  buffer->MaybeSetUpProtoVm(
-      ds_config.name(),
-      ds_instance.descriptor.protovm_program().SerializeAsString(),
+  protovms->MaybeSetUp(
+      ds_config.name(), ds_instance.descriptor.protovm_program_raw(),
       ds_config.protovm_config().memory_limit_kb(), ds_instance.producer_id);
 }
 
@@ -70628,6 +79736,22 @@ DataSourceInstance* TracingServiceImpl::SetupDataSource(
     return nullptr;
   }
 
+  const BufferID global_id = tracing_session->buffers_index[relative_buffer_id];
+  PERFETTO_DCHECK(global_id);
+
+  const TraceBuffer* target_buffer = GetBufferByID(global_id);
+  const bool supports_tracing_v2 =
+      (producer->protocol_abi_versions_ & kProtocolAbiV2) && target_buffer &&
+      target_buffer->supports_tracing_v2();
+  if (!(producer->protocol_abi_versions_ & kProtocolAbiV1) &&
+      !supports_tracing_v2) {
+    PERFETTO_ELOG(
+        "Cannot set up data source \"%s\" on producer \"%s\": "
+        "target_buffer %u supports no common protocol version",
+        ds_cfg.name().c_str(), producer->name_.c_str(), relative_buffer_id);
+    return nullptr;
+  }
+
   // Create a copy of the DataSourceConfig specified in the trace config. This
   // will be passed to the producer after translating the |target_buffer| id.
   // The |target_buffer| parameter passed by the consumer in the trace config is
@@ -70656,6 +79780,14 @@ DataSourceInstance* TracingServiceImpl::SetupDataSource(
   }
 
   DataSourceConfig& ds_config = ds_instance->config;
+  // When v2 is unavailable, keep an absent field unset so startup configs
+  // still match in older SDKs.
+  //
+  // If the consumer supplied a value, overwrite it with the service's decision
+  // about whether this data source can use v2.
+  if (supports_tracing_v2 || ds_config.has_supports_tracing_v2())
+    ds_config.set_supports_tracing_v2(supports_tracing_v2);
+
   ds_config.set_trace_duration_ms(tracing_session->config.duration_ms());
 
   // Rationale for `if (prefer) set_prefer(true)`, rather than `set(prefer)`:
@@ -70680,8 +79812,6 @@ DataSourceInstance* TracingServiceImpl::SetupDataSource(
         DataSourceConfig::SESSION_INITIATOR_UNSPECIFIED);
   }
   ds_config.set_tracing_session_id(tracing_session->id);
-  BufferID global_id = tracing_session->buffers_index[relative_buffer_id];
-  PERFETTO_DCHECK(global_id);
   ds_config.set_target_buffer(global_id);
 
   MaybeSetUpProtoVm(ds_config, data_source, global_id);
@@ -70928,6 +80058,11 @@ ProducerID TracingServiceImpl::GetNextProducerID() {
   return last_producer_id_;
 }
 
+void TracingServiceImpl::OnRingBufferChunksDiscarded(uint64_t count) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  chunks_discarded_ += count;
+}
+
 TraceBuffer* TracingServiceImpl::GetBufferByID(BufferID buffer_id) {
   auto buf_iter = buffers_.find(buffer_id);
   if (buf_iter == buffers_.end())
@@ -70967,6 +80102,7 @@ void TracingServiceImpl::UpdateMemoryGuardrail() {
   for (const auto& id_to_producer : producers_) {
     if (id_to_producer.second->shared_memory())
       total_buffer_bytes += id_to_producer.second->shared_memory()->size();
+    total_buffer_bytes += id_to_producer.second->ring_buffer_size_bytes();
   }
 
   // Sum up all the trace buffers.
@@ -70987,7 +80123,7 @@ void TracingServiceImpl::UpdateMemoryGuardrail() {
     }
   }
 
-  // Set the guard rail to 64MB + the sum of all the buffers over a 30 second
+  // Set the guard rail to 32MB + the sum of all the buffers over a 30 second
   // interval.
   uint64_t guardrail = base::kWatchdogDefaultMemorySlack + total_buffer_bytes;
   base::Watchdog::GetInstance()->SetMemoryLimit(guardrail, 30 * 1000);
@@ -71148,6 +80284,12 @@ void TracingServiceImpl::SetServiceTracePacketHeader(
     protos::pbzero::TracePacket* tp) {
   tp->set_trusted_uid(static_cast<int32_t>(uid_));
   tp->set_trusted_packet_sequence_id(kServicePacketSequenceID);
+  // Every timestamp the service stamps on its own packets comes from
+  // GetBootTimeNs(), so declare the clock domain explicitly. Without this,
+  // Trace Processor's "no clock id" fallback resolves to the trace's primary
+  // clock, which is not BOOTTIME in general
+  // (https://github.com/google/perfetto/discussions/7112).
+  tp->set_timestamp_clock_id(protos::pbzero::BUILTIN_CLOCK_BOOTTIME);
   // When a local machine was adopted (an in-process producer with a non-default
   // machine id; see ConnectProducer), attribute the service's own packets to it
   // so the trace has no separate host machine. Host and relay sessions leave
@@ -71359,6 +80501,9 @@ void TracingServiceImpl::EmitSystemInfo(std::vector<TracePacket>* packets) {
     info->set_android_storage_model(sys_info.android_storage_model);
   if (!sys_info.android_ram_model.empty())
     info->set_android_ram_model(sys_info.android_ram_model);
+  for (const auto& compatible : sys_info.device_tree_compatibles) {
+    info->add_device_tree_compatibles(compatible);
+  }
   if (!sys_info.android_serial_console.empty())
     info->set_android_serial_console(sys_info.android_serial_console);
 
@@ -71377,6 +80522,8 @@ void TracingServiceImpl::EmitTraceProvenance(
     TraceBuffer* buf = GetBufferByID(buf_id);
     if (!buf)
       continue;
+    // TODO(b/568173038): derive sequences from the buffer's own sequence
+    // tracking instead of writer_stats() once TraceBufferV1 is gone.
     for (auto it = buf->writer_stats().GetIterator(); it; ++it) {
       ProducerID producer_id;
       WriterID writer_id;
@@ -71646,11 +80793,10 @@ void TracingServiceImpl::MaybeEmitProtoVmInstances(
   for (auto buffer_id : tracing_session->buffers_index) {
     auto it = buffers_.find(buffer_id);
     PERFETTO_CHECK(it != buffers_.cend());
-    if (it->second->buf_type() != TraceBuffer::BufType::kV2) {
+    const TraceBufferProtoVms* protovms = it->second->protovms();
+    if (!protovms)
       continue;
-    }
-    auto* buffer = static_cast<TraceBufferV2*>(it->second.get());
-    for (const TraceBufferV2::Vm& vm : buffer->GetProtoVmInstances()) {
+    for (const TraceBufferProtoVms::Vm& vm : protovms->instances()) {
       auto* vm_instance = get_packet_protovms()->add_instance();
       vm_instance->AppendString(
           protos::pbzero::TracePacket::ProtoVms::Instance::kProgramFieldNumber,
@@ -71874,18 +81020,9 @@ base::Status TracingServiceImpl::FlushAndCloneSession(
       continue;
 
     // Some leftover data was left in the buffer. Recreate it to empty it.
-    const auto buf_policy = buf->overwrite_policy();
-    const auto buf_size = buf->size();
-    const auto buf_type = buf->buf_type();
     std::unique_ptr<TraceBuffer> old_buf = std::move(buf);
-    switch (buf_type) {
-      case TraceBuffer::kV1:
-        buf = TraceBufferV1::Create(buf_size, buf_policy);
-        break;
-      case TraceBuffer::kV2:
-        buf = TraceBufferV2::Create(buf_size, buf_policy);
-        break;
-    }
+    buf = CreateTraceBuffer(old_buf->buf_type(), old_buf->size(),
+                            old_buf->overwrite_policy());
     if (!buf) {
       // This is extremely rare but could happen on 32-bit. If the new buffer
       // allocation failed, put back the buffer where it was and fail the clone.
@@ -72054,18 +81191,9 @@ bool TracingServiceImpl::DoCloneBuffers(const TracingSession& src,
     std::unique_ptr<TraceBuffer>& src_buf = buf_iter->second;
     std::unique_ptr<TraceBuffer> new_buf;
     if (src.config.buffers()[buf_idx].transfer_on_clone()) {
-      const auto buf_policy = src_buf->overwrite_policy();
-      const auto buf_size = src_buf->size();
-      const auto buf_type = src_buf->buf_type();
       new_buf = std::move(src_buf);
-      switch (buf_type) {
-        case TraceBuffer::kV1:
-          src_buf = TraceBufferV1::Create(buf_size, buf_policy);
-          break;
-        case TraceBuffer::kV2:
-          src_buf = TraceBufferV2::Create(buf_size, buf_policy);
-          break;
-      }
+      src_buf = CreateTraceBuffer(new_buf->buf_type(), new_buf->size(),
+                                  new_buf->overwrite_policy());
       if (!src_buf) {
         // If the allocation fails put the buffer back and let the code below
         // handle the failure gracefully.
@@ -72395,7 +81523,9 @@ std::unique_ptr<ProducerEndpoint> InProcessTracingBackend::ConnectProducer(
                         args.producer_name, args.shmem_size_hint_bytes,
                         /*in_process=*/true,
                         TracingService::ProducerSMBScrapingMode::kEnabled,
-                        args.shmem_page_size_hint_bytes);
+                        args.shmem_page_size_hint_bytes, /*shm=*/nullptr,
+                        /*sdk_version=*/{}, /*machine_name=*/{},
+                        kProtocolAbiV1 | kProtocolAbiV2);
 }
 
 std::unique_ptr<ConsumerEndpoint> InProcessTracingBackend::ConnectConsumer(
@@ -72436,16 +81566,18 @@ TracingService* InProcessTracingBackend::GetOrCreateService(
 // gen_amalgamated expanded: #include "protos/perfetto/config/data_source_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/qnx/qnx_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/linux/journald_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/chrome/histogram_samples.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/system_info/system_info_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/track_event/track_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/test_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/sys_stats/sys_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/sys_stats_counters.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/perf_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/perf_events.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/java_hprof_config.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/heapprofd_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/process_stats/process_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/statsd/statsd_tracing_config.gen.h"
@@ -72479,6 +81611,7 @@ TracingService* InProcessTracingBackend::GetOrCreateService(
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/app_wakelock_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_sdk_sysprop_guard_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_system_property_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_polled_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_log_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/android_log_constants.gen.h"
@@ -74287,16 +83420,18 @@ void EnableTracingRequest::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/data_source_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/qnx/qnx_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/linux/journald_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/stack_sampling_profiler.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/chrome/sampling_heap_profiler.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/chrome/histogram_samples.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/system_info/system_info_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/track_event/track_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/test_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/sys_stats/sys_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/sys_stats_counters.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/perf_event_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/perf_events.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/java_hprof_config.gen.h"
-// gen_amalgamated expanded: #include "protos/perfetto/config/profiling/smaps_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/profiling/heapprofd_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/process_stats/process_stats_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/priority_boost/priority_boost_config.gen.h"
@@ -74331,6 +83466,7 @@ void EnableTracingRequest::Serialize(::protozero::Message* msg) const {
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/app_wakelock_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_sdk_sysprop_guard_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_system_property_config.gen.h"
+// gen_amalgamated expanded: #include "protos/perfetto/config/android/android_process_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_polled_state_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/config/android/android_log_config.gen.h"
 // gen_amalgamated expanded: #include "protos/perfetto/common/android_log_constants.gen.h"
@@ -75834,6 +84970,199 @@ void RegisterDataSourceRequest::Serialize(::protozero::Message* msg) const {
 }
 
 
+DrainV2RingBufferResponse::DrainV2RingBufferResponse() = default;
+DrainV2RingBufferResponse::~DrainV2RingBufferResponse() = default;
+DrainV2RingBufferResponse::DrainV2RingBufferResponse(const DrainV2RingBufferResponse&) = default;
+DrainV2RingBufferResponse& DrainV2RingBufferResponse::operator=(const DrainV2RingBufferResponse&) = default;
+DrainV2RingBufferResponse::DrainV2RingBufferResponse(DrainV2RingBufferResponse&&) noexcept = default;
+DrainV2RingBufferResponse& DrainV2RingBufferResponse::operator=(DrainV2RingBufferResponse&&) = default;
+
+bool DrainV2RingBufferResponse::operator==(const DrainV2RingBufferResponse& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_);
+}
+
+bool DrainV2RingBufferResponse::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string DrainV2RingBufferResponse::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> DrainV2RingBufferResponse::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void DrainV2RingBufferResponse::Serialize(::protozero::Message* msg) const {
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+DrainV2RingBufferRequest::DrainV2RingBufferRequest() = default;
+DrainV2RingBufferRequest::~DrainV2RingBufferRequest() = default;
+DrainV2RingBufferRequest::DrainV2RingBufferRequest(const DrainV2RingBufferRequest&) = default;
+DrainV2RingBufferRequest& DrainV2RingBufferRequest::operator=(const DrainV2RingBufferRequest&) = default;
+DrainV2RingBufferRequest::DrainV2RingBufferRequest(DrainV2RingBufferRequest&&) noexcept = default;
+DrainV2RingBufferRequest& DrainV2RingBufferRequest::operator=(DrainV2RingBufferRequest&&) = default;
+
+bool DrainV2RingBufferRequest::operator==(const DrainV2RingBufferRequest& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_);
+}
+
+bool DrainV2RingBufferRequest::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string DrainV2RingBufferRequest::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> DrainV2RingBufferRequest::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void DrainV2RingBufferRequest::Serialize(::protozero::Message* msg) const {
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+AttachV2RingBufferResponse::AttachV2RingBufferResponse() = default;
+AttachV2RingBufferResponse::~AttachV2RingBufferResponse() = default;
+AttachV2RingBufferResponse::AttachV2RingBufferResponse(const AttachV2RingBufferResponse&) = default;
+AttachV2RingBufferResponse& AttachV2RingBufferResponse::operator=(const AttachV2RingBufferResponse&) = default;
+AttachV2RingBufferResponse::AttachV2RingBufferResponse(AttachV2RingBufferResponse&&) noexcept = default;
+AttachV2RingBufferResponse& AttachV2RingBufferResponse::operator=(AttachV2RingBufferResponse&&) = default;
+
+bool AttachV2RingBufferResponse::operator==(const AttachV2RingBufferResponse& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_);
+}
+
+bool AttachV2RingBufferResponse::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string AttachV2RingBufferResponse::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> AttachV2RingBufferResponse::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void AttachV2RingBufferResponse::Serialize(::protozero::Message* msg) const {
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
+AttachV2RingBufferRequest::AttachV2RingBufferRequest() = default;
+AttachV2RingBufferRequest::~AttachV2RingBufferRequest() = default;
+AttachV2RingBufferRequest::AttachV2RingBufferRequest(const AttachV2RingBufferRequest&) = default;
+AttachV2RingBufferRequest& AttachV2RingBufferRequest::operator=(const AttachV2RingBufferRequest&) = default;
+AttachV2RingBufferRequest::AttachV2RingBufferRequest(AttachV2RingBufferRequest&&) noexcept = default;
+AttachV2RingBufferRequest& AttachV2RingBufferRequest::operator=(AttachV2RingBufferRequest&&) = default;
+
+bool AttachV2RingBufferRequest::operator==(const AttachV2RingBufferRequest& other) const {
+  return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
+   && ::protozero::internal::gen_helpers::EqualsField(chunk_size_bytes_, other.chunk_size_bytes_);
+}
+
+bool AttachV2RingBufferRequest::ParseFromArray(const void* raw, size_t size) {
+  unknown_fields_.clear();
+  bool packed_error = false;
+
+  ::protozero::ProtoDecoder dec(raw, size);
+  for (auto field = dec.ReadField(); field.valid(); field = dec.ReadField()) {
+    if (field.id() < _has_field_.size()) {
+      _has_field_.set(field.id());
+    }
+    switch (field.id()) {
+      case 1 /* chunk_size_bytes */:
+        field.get(&chunk_size_bytes_);
+        break;
+      default:
+        field.SerializeAndAppendTo(&unknown_fields_);
+        break;
+    }
+  }
+  return !packed_error && !dec.bytes_left();
+}
+
+std::string AttachV2RingBufferRequest::SerializeAsString() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsString();
+}
+
+std::vector<uint8_t> AttachV2RingBufferRequest::SerializeAsArray() const {
+  ::protozero::internal::gen_helpers::MessageSerializer msg;
+  Serialize(msg.get());
+  return msg.SerializeAsArray();
+}
+
+void AttachV2RingBufferRequest::Serialize(::protozero::Message* msg) const {
+  // Field 1: chunk_size_bytes
+  if (_has_field_[1]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(1, chunk_size_bytes_, msg);
+  }
+
+  protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
+}
+
+
 InitializeConnectionResponse::InitializeConnectionResponse() = default;
 InitializeConnectionResponse::~InitializeConnectionResponse() = default;
 InitializeConnectionResponse::InitializeConnectionResponse(const InitializeConnectionResponse&) = default;
@@ -75845,7 +85174,8 @@ bool InitializeConnectionResponse::operator==(const InitializeConnectionResponse
   return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, other.unknown_fields_)
    && ::protozero::internal::gen_helpers::EqualsField(using_shmem_provided_by_producer_, other.using_shmem_provided_by_producer_)
    && ::protozero::internal::gen_helpers::EqualsField(direct_smb_patching_supported_, other.direct_smb_patching_supported_)
-   && ::protozero::internal::gen_helpers::EqualsField(use_shmem_emulation_, other.use_shmem_emulation_);
+   && ::protozero::internal::gen_helpers::EqualsField(use_shmem_emulation_, other.use_shmem_emulation_)
+   && ::protozero::internal::gen_helpers::EqualsField(protocol_abi_versions_, other.protocol_abi_versions_);
 }
 
 bool InitializeConnectionResponse::ParseFromArray(const void* raw, size_t size) {
@@ -75866,6 +85196,9 @@ bool InitializeConnectionResponse::ParseFromArray(const void* raw, size_t size) 
         break;
       case 3 /* use_shmem_emulation */:
         field.get(&use_shmem_emulation_);
+        break;
+      case 4 /* protocol_abi_versions */:
+        field.get(&protocol_abi_versions_);
         break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
@@ -75903,6 +85236,11 @@ void InitializeConnectionResponse::Serialize(::protozero::Message* msg) const {
     ::protozero::internal::gen_helpers::SerializeTinyVarInt(3, use_shmem_emulation_, msg);
   }
 
+  // Field 4: protocol_abi_versions
+  if (_has_field_[4]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(4, protocol_abi_versions_, msg);
+  }
+
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
 }
 
@@ -75922,7 +85260,8 @@ bool InitializeConnectionRequest::operator==(const InitializeConnectionRequest& 
    && ::protozero::internal::gen_helpers::EqualsField(smb_scraping_mode_, other.smb_scraping_mode_)
    && ::protozero::internal::gen_helpers::EqualsField(producer_provided_shmem_, other.producer_provided_shmem_)
    && ::protozero::internal::gen_helpers::EqualsField(sdk_version_, other.sdk_version_)
-   && ::protozero::internal::gen_helpers::EqualsField(shm_key_windows_, other.shm_key_windows_);
+   && ::protozero::internal::gen_helpers::EqualsField(shm_key_windows_, other.shm_key_windows_)
+   && ::protozero::internal::gen_helpers::EqualsField(supported_protocol_abi_versions_, other.supported_protocol_abi_versions_);
 }
 
 bool InitializeConnectionRequest::ParseFromArray(const void* raw, size_t size) {
@@ -75955,6 +85294,9 @@ bool InitializeConnectionRequest::ParseFromArray(const void* raw, size_t size) {
         break;
       case 7 /* shm_key_windows */:
         ::protozero::internal::gen_helpers::DeserializeString(field, &shm_key_windows_);
+        break;
+      case 9 /* supported_protocol_abi_versions */:
+        field.get(&supported_protocol_abi_versions_);
         break;
       default:
         field.SerializeAndAppendTo(&unknown_fields_);
@@ -76010,6 +85352,11 @@ void InitializeConnectionRequest::Serialize(::protozero::Message* msg) const {
   // Field 7: shm_key_windows
   if (_has_field_[7]) {
     ::protozero::internal::gen_helpers::SerializeString(7, shm_key_windows_, msg);
+  }
+
+  // Field 9: supported_protocol_abi_versions
+  if (_has_field_[9]) {
+    ::protozero::internal::gen_helpers::SerializeVarInt(9, supported_protocol_abi_versions_, msg);
   }
 
   protozero::internal::gen_helpers::SerializeUnknownFields(unknown_fields_, msg);
@@ -78869,62 +88216,6 @@ std::unique_ptr<LinuxFileWatch> WatchUnixSocketCreation(
 }  // namespace perfetto
 // gen_amalgamated begin source: src/ipc/buffered_frame_deserializer.cc
 // gen_amalgamated begin header: src/ipc/buffered_frame_deserializer.h
-// gen_amalgamated begin header: include/perfetto/ext/ipc/basic_types.h
-/*
- * Copyright (C) 2017 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
-#define INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
-
-#include <stddef.h>
-#include <stdint.h>
-#include <sys/types.h>
-
-// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/cpp_message_obj.h"
-
-namespace perfetto {
-namespace ipc {
-
-using ProtoMessage = ::protozero::CppMessageObj;
-using ServiceID = uint32_t;
-using MethodID = uint32_t;
-using ClientID = uint64_t;
-using RequestID = uint64_t;
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-// AF_UNIX on Windows is supported only on Windows 10 from build 17063.
-// Also it doesn't bring major advantages compared to a TCP socket.
-// See go/perfetto-win .
-constexpr bool kUseTCPSocket = true;
-#else
-// Android, Linux, Mac, Fuchsia use local sockets.
-constexpr bool kUseTCPSocket = false;
-#endif
-
-// This determines the maximum size allowed for an IPC message. Trying to send
-// or receive a larger message will hit DCHECK(s) and auto-disconnect.
-constexpr size_t kIPCBufferSize = 128 * 1024;
-
-constexpr uid_t kInvalidUid = static_cast<uid_t>(-1);
-
-}  // namespace ipc
-}  // namespace perfetto
-
-#endif  // INCLUDE_PERFETTO_EXT_IPC_BASIC_TYPES_H_
 /*
  * Copyright (C) 2017 The Android Open Source Project
  *
@@ -79123,8 +88414,7 @@ BufferedFrameDeserializer::BeginReceive() {
 
     // Surely we are going to use at least the first page, but we may not need
     // the rest for a bit.
-    const auto page_size = base::GetSysPageSize();
-    buf_.AdviseDontNeed(buf() + page_size, capacity_ - page_size);
+    buf_.AdviseDontNeedAfter(base::GetSysPageSize());
   }
 
   PERFETTO_CHECK(capacity_ > size_);
@@ -79211,11 +88501,8 @@ bool BufferedFrameDeserializer::EndReceive(size_t recv_size) {
     if (consumed_size > page_size) {
       size_t size_rounded_up = (size_ / page_size + 1) * page_size;
       if (size_rounded_up < capacity_) {
-        char* madvise_begin = buf() + size_rounded_up;
-        const size_t madvise_size = capacity_ - size_rounded_up;
-        PERFETTO_CHECK(madvise_begin > buf() + size_);
-        PERFETTO_CHECK(madvise_begin + madvise_size <= buf() + capacity_);
-        buf_.AdviseDontNeed(madvise_begin, madvise_size);
+        PERFETTO_CHECK(size_rounded_up > size_);
+        buf_.AdviseDontNeedAfter(size_rounded_up);
       }
     }
   }
@@ -81781,6 +91068,12 @@ class ProducerPort : public ::perfetto::ipc::Service {
   using DeferredUpdateDataSourceResponse = ::perfetto::ipc::Deferred<UpdateDataSourceResponse>;
   virtual void UpdateDataSource(const UpdateDataSourceRequest&, DeferredUpdateDataSourceResponse) = 0;
 
+  using DeferredAttachV2RingBufferResponse = ::perfetto::ipc::Deferred<AttachV2RingBufferResponse>;
+  virtual void AttachV2RingBuffer(const AttachV2RingBufferRequest&, DeferredAttachV2RingBufferResponse) = 0;
+
+  using DeferredDrainV2RingBufferResponse = ::perfetto::ipc::Deferred<DrainV2RingBufferResponse>;
+  virtual void DrainV2RingBuffer(const DrainV2RingBufferRequest&, DeferredDrainV2RingBufferResponse) = 0;
+
 };
 
 
@@ -81828,6 +91121,12 @@ class ProducerPortProxy : public ::perfetto::ipc::ServiceProxy {
 
   using DeferredUpdateDataSourceResponse = ::perfetto::ipc::Deferred<UpdateDataSourceResponse>;
   void UpdateDataSource(const UpdateDataSourceRequest&, DeferredUpdateDataSourceResponse, int fd = -1);
+
+  using DeferredAttachV2RingBufferResponse = ::perfetto::ipc::Deferred<AttachV2RingBufferResponse>;
+  void AttachV2RingBuffer(const AttachV2RingBufferRequest&, DeferredAttachV2RingBufferResponse, int fd = -1);
+
+  using DeferredDrainV2RingBufferResponse = ::perfetto::ipc::Deferred<DrainV2RingBufferResponse>;
+  void DrainV2RingBuffer(const DrainV2RingBufferRequest&, DeferredDrainV2RingBufferResponse, int fd = -1);
 
 };
 
@@ -81920,6 +91219,18 @@ namespace gen {
      &_IPC_Decoder<UpdateDataSourceRequest>,
      &_IPC_Decoder<UpdateDataSourceResponse>,
      &_IPC_Invoker<ProducerPort, UpdateDataSourceRequest, UpdateDataSourceResponse, &ProducerPort::UpdateDataSource>});
+
+  desc->methods.emplace_back(::perfetto::ipc::ServiceDescriptor::Method{
+     "AttachV2RingBuffer",
+     &_IPC_Decoder<AttachV2RingBufferRequest>,
+     &_IPC_Decoder<AttachV2RingBufferResponse>,
+     &_IPC_Invoker<ProducerPort, AttachV2RingBufferRequest, AttachV2RingBufferResponse, &ProducerPort::AttachV2RingBuffer>});
+
+  desc->methods.emplace_back(::perfetto::ipc::ServiceDescriptor::Method{
+     "DrainV2RingBuffer",
+     &_IPC_Decoder<DrainV2RingBufferRequest>,
+     &_IPC_Decoder<DrainV2RingBufferResponse>,
+     &_IPC_Invoker<ProducerPort, DrainV2RingBufferRequest, DrainV2RingBufferResponse, &ProducerPort::DrainV2RingBuffer>});
   desc->methods.shrink_to_fit();
   return desc;
 }
@@ -82004,6 +91315,16 @@ void ProducerPortProxy::Sync(const SyncRequest& request, DeferredSyncResponse re
 
 void ProducerPortProxy::UpdateDataSource(const UpdateDataSourceRequest& request, DeferredUpdateDataSourceResponse reply, int fd) {
   BeginInvoke("UpdateDataSource", request, ::perfetto::ipc::DeferredBase(std::move(reply)),
+              fd);
+}
+
+void ProducerPortProxy::AttachV2RingBuffer(const AttachV2RingBufferRequest& request, DeferredAttachV2RingBufferResponse reply, int fd) {
+  BeginInvoke("AttachV2RingBuffer", request, ::perfetto::ipc::DeferredBase(std::move(reply)),
+              fd);
+}
+
+void ProducerPortProxy::DrainV2RingBuffer(const DrainV2RingBufferRequest& request, DeferredDrainV2RingBufferResponse reply, int fd) {
+  BeginInvoke("DrainV2RingBuffer", request, ::perfetto::ipc::DeferredBase(std::move(reply)),
               fd);
 }
 }  // namespace perfetto
@@ -82134,734 +91455,6 @@ void RelayPortProxy::SyncClock(const SyncClockRequest& request, DeferredSyncCloc
 }  // namespace perfetto
 }  // namespace protos
 }  // namespace gen
-// gen_amalgamated begin source: src/tracing/ipc/default_socket.cc
-/*
- * Copyright (C) 2018 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// gen_amalgamated expanded: #include "perfetto/tracing/default_socket.h"
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/android_utils.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/utils.h"
-// gen_amalgamated expanded: #include "perfetto/ext/ipc/basic_types.h"
-// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/basic_types.h"
-
-#include <stdlib.h>
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
-#include <unistd.h>
-#endif
-
-namespace perfetto {
-namespace {
-
-const char* kRunPerfettoBaseDir = "/run/perfetto/";
-
-// On Linux and CrOS, check /run/perfetto/ before using /tmp/ as the socket
-// base directory.
-bool UseRunPerfettoBaseDir() {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
-  // Note that the trailing / in |kRunPerfettoBaseDir| ensures we are checking
-  // against a directory, not a file.
-  int res = PERFETTO_EINTR(access(kRunPerfettoBaseDir, X_OK));
-  if (!res)
-    return true;
-
-  // If the path doesn't exist (ENOENT), fail silently to the caller. Otherwise,
-  // fail with an explicit error message.
-  if (errno != ENOENT
-#if PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD)
-      // access(2) won't return EPERM, but Chromium sandbox returns EPERM if the
-      // sandbox doesn't allow the call (e.g. in the child processes).
-      && errno != EPERM
-#endif
-  ) {
-    PERFETTO_PLOG("%s exists but cannot be accessed. Falling back on /tmp/ ",
-                  kRunPerfettoBaseDir);
-  }
-  return false;
-#else
-  base::ignore_result(kRunPerfettoBaseDir);
-  return false;
-#endif
-}
-
-}  // anonymous namespace
-
-const char* GetProducerSocket() {
-  const char* name = getenv("PERFETTO_PRODUCER_SOCK_NAME");
-  if (name == nullptr) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-    name = "127.0.0.1:32278";
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-    name = "/dev/socket/traced_producer";
-#else
-    // Use /run/perfetto if it exists. Then fallback to /tmp.
-    static const char* producer_socket =
-        UseRunPerfettoBaseDir() ? "/run/perfetto/traced-producer.sock"
-                                : "/tmp/perfetto-producer";
-    name = producer_socket;
-#endif
-  }
-  base::ignore_result(UseRunPerfettoBaseDir);  // Silence unused func warnings.
-  return name;
-}
-
-std::string GetRelaySocket() {
-  // The relay socket is optional and is connected only when the env var is set.
-  // In Android, if the env var isn't set then we check the
-  // |traced_relay.relay_port| system property.
-  const char* name = getenv("PERFETTO_RELAY_SOCK_NAME");
-  if (name != nullptr)
-    return std::string(name);
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-  return base::GetAndroidProp("traced_relay.relay_port");
-#else
-  return std::string();
-#endif
-}
-
-std::vector<std::string> TokenizeProducerSockets(
-    const char* producer_socket_names) {
-  return base::SplitString(producer_socket_names, ",");
-}
-
-const char* GetConsumerSocket() {
-  const char* name = getenv("PERFETTO_CONSUMER_SOCK_NAME");
-  if (name == nullptr) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-    name = "127.0.0.1:32279";
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-    name = "/dev/socket/traced_consumer";
-#else
-    // Use /run/perfetto if it exists. Then fallback to /tmp.
-    static const char* consumer_socket =
-        UseRunPerfettoBaseDir() ? "/run/perfetto/traced-consumer.sock"
-                                : "/tmp/perfetto-consumer";
-    name = consumer_socket;
-#endif
-  }
-  return name;
-}
-
-}  // namespace perfetto
-// gen_amalgamated begin source: src/tracing/ipc/memfd.cc
-// gen_amalgamated begin header: src/tracing/ipc/memfd.h
-/*
- * Copyright (C) 2020 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef SRC_TRACING_IPC_MEMFD_H_
-#define SRC_TRACING_IPC_MEMFD_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
-
-// Some android build bots use a sysroot that doesn't support memfd when
-// compiling for the host, so we define the flags we need ourselves.
-
-// from memfd.h
-#ifndef MFD_CLOEXEC
-#define MFD_CLOEXEC 0x0001U
-#define MFD_ALLOW_SEALING 0x0002U
-#endif
-
-// from fcntl.h
-#ifndef F_ADD_SEALS
-#define F_ADD_SEALS 1033
-#define F_GET_SEALS 1034
-#define F_SEAL_SEAL 0x0001
-#define F_SEAL_SHRINK 0x0002
-#define F_SEAL_GROW 0x0004
-#define F_SEAL_WRITE 0x0008
-#endif
-
-namespace perfetto {
-
-// Whether the operating system supports memfd.
-bool HasMemfdSupport();
-
-// Call memfd(2) if available on platform and return the fd as result. This call
-// also makes a kernel version check for safety on older kernels (b/116769556).
-// Returns an invalid ScopedFile on failure.
-base::ScopedFile CreateMemfd(const char* name, unsigned int flags);
-
-}  // namespace perfetto
-
-#endif  // SRC_TRACING_IPC_MEMFD_H_
-/*
- * Copyright (C) 2020 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// gen_amalgamated expanded: #include "src/tracing/ipc/memfd.h"
-
-#include <errno.h>
-
-#define PERFETTO_MEMFD_ENABLED()             \
-  PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
-      PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX)
-
-#if PERFETTO_MEMFD_ENABLED()
-
-#include <stdio.h>
-#include <string.h>
-#include <sys/syscall.h>
-#include <sys/utsname.h>
-#include <unistd.h>
-
-// Some android build bots use a sysroot that doesn't support memfd when
-// compiling for the host, so we redefine it if necessary.
-#if !defined(__NR_memfd_create)
-#if defined(__x86_64__)
-#define __NR_memfd_create 319
-#elif defined(__i386__)
-#define __NR_memfd_create 356
-#elif defined(__aarch64__)
-#define __NR_memfd_create 279
-#elif defined(__arm__)
-#define __NR_memfd_create 385
-#else
-#error "unsupported sysroot without memfd support"
-#endif
-#endif  // !defined(__NR_memfd_create)
-
-namespace perfetto {
-bool HasMemfdSupport() {
-  static bool kSupportsMemfd = [] {
-    // Check kernel version supports memfd_create(). Some older kernels segfault
-    // executing memfd_create() rather than returning ENOSYS (b/116769556).
-    static constexpr int kRequiredMajor = 3;
-    static constexpr int kRequiredMinor = 17;
-    struct utsname uts;
-    int major, minor;
-    if (uname(&uts) == 0 && strcmp(uts.sysname, "Linux") == 0 &&
-        sscanf(uts.release, "%d.%d", &major, &minor) == 2 &&
-        ((major < kRequiredMajor ||
-          (major == kRequiredMajor && minor < kRequiredMinor)))) {
-      return false;
-    }
-
-    base::ScopedFile fd;
-    fd.reset(static_cast<int>(syscall(__NR_memfd_create, "perfetto_shmem",
-                                      MFD_CLOEXEC | MFD_ALLOW_SEALING)));
-    return !!fd;
-  }();
-  return kSupportsMemfd;
-}
-
-base::ScopedFile CreateMemfd(const char* name, unsigned int flags) {
-  if (!HasMemfdSupport()) {
-    errno = ENOSYS;
-    return base::ScopedFile();
-  }
-  return base::ScopedFile(
-      static_cast<int>(syscall(__NR_memfd_create, name, flags)));
-}
-}  // namespace perfetto
-
-#else  // PERFETTO_MEMFD_ENABLED()
-
-namespace perfetto {
-bool HasMemfdSupport() {
-  return false;
-}
-base::ScopedFile CreateMemfd(const char*, unsigned int) {
-  errno = ENOSYS;
-  return base::ScopedFile();
-}
-}  // namespace perfetto
-
-#endif  // PERFETTO_MEMFD_ENABLED()
-// gen_amalgamated begin source: src/tracing/ipc/posix_shared_memory.cc
-// gen_amalgamated begin header: src/tracing/ipc/posix_shared_memory.h
-/*
- * Copyright (C) 2017 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
-#define SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE) ||   \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
-
-#include <stddef.h>
-
-#include <memory>
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
-// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
-
-namespace perfetto {
-
-// Implements the SharedMemory and its factory for the posix-based transport.
-class PosixSharedMemory : public SharedMemory {
- public:
-  class Factory : public SharedMemory::Factory {
-   public:
-    ~Factory() override;
-    std::unique_ptr<SharedMemory> CreateSharedMemory(size_t) override;
-  };
-
-  // Create a brand new SHM region.
-  static std::unique_ptr<PosixSharedMemory> Create(size_t size);
-
-  // Mmaps a file descriptor to an existing SHM region. If
-  // |require_seals_if_supported| is true and the system supports
-  // memfd_create(), the FD is required to be a sealed memfd with F_SEAL_SEAL,
-  // F_SEAL_GROW, and F_SEAL_SHRINK seals set (otherwise, nullptr is returned).
-  // May also return nullptr if mapping fails for another reason (e.g. OOM).
-  static std::unique_ptr<PosixSharedMemory> AttachToFd(
-      base::ScopedFile,
-      bool require_seals_if_supported = true);
-
-  ~PosixSharedMemory() override;
-
-  int fd() const { return fd_.get(); }
-
-  // SharedMemory implementation.
-  using SharedMemory::start;  // Equal priority to const and non-const versions
-  const void* start() const override { return start_; }
-  size_t size() const override { return size_; }
-
- private:
-  static std::unique_ptr<PosixSharedMemory> MapFD(base::ScopedFile, size_t);
-
-  PosixSharedMemory(void* start, size_t size, base::ScopedFile);
-  PosixSharedMemory(const PosixSharedMemory&) = delete;
-  PosixSharedMemory& operator=(const PosixSharedMemory&) = delete;
-
-  void* const start_;
-  const size_t size_;
-  base::ScopedFile fd_;
-};
-
-}  // namespace perfetto
-
-#endif  // OS_LINUX || OS_ANDROID || OS_APPLE
-#endif  // SRC_TRACING_IPC_POSIX_SHARED_MEMORY_H_
-/*
- * Copyright (C) 2017 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// gen_amalgamated expanded: #include "src/tracing/ipc/posix_shared_memory.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE) ||   \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FREEBSD) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
-
-#include <fcntl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <memory>
-#include <utility>
-
-// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/temp_file.h"
-// gen_amalgamated expanded: #include "src/tracing/ipc/memfd.h"
-
-namespace perfetto {
-
-namespace {
-int kFileSeals = F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL;
-}  // namespace
-
-// static
-std::unique_ptr<PosixSharedMemory> PosixSharedMemory::Create(size_t size) {
-  base::ScopedFile fd =
-      CreateMemfd("perfetto_shmem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-  bool is_memfd = !!fd;
-
-  // In-tree builds only allow mem_fd, so we can inspect the seals to verify the
-  // fd is appropriately sealed. We'll crash in the PERFETTO_CHECK(fd) below if
-  // memfd_create failed.
-#if !PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
-  if (!fd) {
-    // TODO: if this fails on Android we should fall back on ashmem.
-    PERFETTO_DPLOG("memfd_create() failed");
-    fd = base::TempFile::CreateUnlinked().ReleaseFD();
-  }
-#endif
-
-  PERFETTO_CHECK(fd);
-  int res = ftruncate(fd.get(), static_cast<off_t>(size));
-  PERFETTO_CHECK(res == 0);
-
-  if (is_memfd) {
-    // When memfd is supported, file seals should be, too.
-    res = fcntl(*fd, F_ADD_SEALS, kFileSeals);
-    PERFETTO_DCHECK(res == 0);
-  }
-
-  return MapFD(std::move(fd), size);
-}
-
-// static
-std::unique_ptr<PosixSharedMemory> PosixSharedMemory::AttachToFd(
-    base::ScopedFile fd,
-    bool require_seals_if_supported) {
-  bool requires_seals = require_seals_if_supported;
-
-#if PERFETTO_BUILDFLAG(PERFETTO_ANDROID_BUILD)
-  // In-tree kernels all support memfd.
-  PERFETTO_CHECK(HasMemfdSupport());
-#else
-  // In out-of-tree builds, we only require seals if the kernel supports memfd.
-  if (requires_seals)
-    requires_seals = HasMemfdSupport();
-#endif
-
-  if (requires_seals) {
-    // If the system supports memfd, we require a sealed memfd.
-    int res = fcntl(*fd, F_GET_SEALS);
-    if (res == -1 || (res & kFileSeals) != kFileSeals) {
-      PERFETTO_PLOG("Couldn't verify file seals on shmem FD");
-      return nullptr;
-    }
-  }
-
-  struct stat stat_buf = {};
-  int res = fstat(fd.get(), &stat_buf);
-  PERFETTO_CHECK(res == 0 && stat_buf.st_size > 0);
-  return MapFD(std::move(fd), static_cast<size_t>(stat_buf.st_size));
-}
-
-// static
-std::unique_ptr<PosixSharedMemory> PosixSharedMemory::MapFD(base::ScopedFile fd,
-                                                            size_t size) {
-  PERFETTO_DCHECK(fd);
-  PERFETTO_DCHECK(size > 0);
-  void* start =
-      mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd.get(), 0);
-  PERFETTO_CHECK(start != MAP_FAILED);
-  return std::unique_ptr<PosixSharedMemory>(
-      new PosixSharedMemory(start, size, std::move(fd)));
-}
-
-PosixSharedMemory::PosixSharedMemory(void* start,
-                                     size_t size,
-                                     base::ScopedFile fd)
-    : start_(start), size_(size), fd_(std::move(fd)) {}
-
-PosixSharedMemory::~PosixSharedMemory() {
-  munmap(start(), size());
-}
-
-PosixSharedMemory::Factory::~Factory() {}
-
-std::unique_ptr<SharedMemory> PosixSharedMemory::Factory::CreateSharedMemory(
-    size_t size) {
-  return PosixSharedMemory::Create(size);
-}
-
-}  // namespace perfetto
-
-#endif  // OS_LINUX || OS_ANDROID || OS_APPLE
-// gen_amalgamated begin source: src/tracing/ipc/shared_memory_windows.cc
-// gen_amalgamated begin header: src/tracing/ipc/shared_memory_windows.h
-/*
- * Copyright (C) 2021 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#ifndef SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
-#define SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-
-#include <string>
-
-// gen_amalgamated expanded: #include "perfetto/base/build_config.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/scoped_file.h"
-// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
-
-namespace perfetto {
-
-// Implements the SharedMemory and its factory for the Windows IPC transport.
-// This used only for standalone builds and NOT in chromium, which instead uses
-// a custom Mojo wrapper (MojoSharedMemory in chromium's //services/tracing/).
-class SharedMemoryWindows : public SharedMemory {
- public:
-  class Factory : public SharedMemory::Factory {
-   public:
-    ~Factory() override;
-    std::unique_ptr<SharedMemory> CreateSharedMemory(size_t) override;
-  };
-
-  // Create a brand new SHM region.
-  enum Flags { kNone = 0, kInheritableHandles };
-  static std::unique_ptr<SharedMemoryWindows> Create(
-      size_t size,
-      Flags flags = Flags::kNone);
-  static std::unique_ptr<SharedMemoryWindows> Attach(const std::string& key);
-  static std::unique_ptr<SharedMemoryWindows> AttachToHandleWithKey(
-      base::ScopedPlatformHandle fd,
-      const std::string& key);
-  ~SharedMemoryWindows() override;
-  const std::string& key() const { return key_; }
-  const base::ScopedPlatformHandle& handle() const { return handle_; }
-
-  // SharedMemory implementation.
-  using SharedMemory::start;  // Equal priority to const and non-const versions
-  const void* start() const override { return start_; }
-  size_t size() const override { return size_; }
-
- private:
-  SharedMemoryWindows(void* start,
-                      size_t size,
-                      std::string,
-                      base::ScopedPlatformHandle);
-  SharedMemoryWindows(const SharedMemoryWindows&) = delete;
-  SharedMemoryWindows& operator=(const SharedMemoryWindows&) = delete;
-
-  void* const start_;
-  const size_t size_;
-  std::string key_;
-  base::ScopedPlatformHandle handle_;
-};
-
-}  // namespace perfetto
-
-#endif  // OS_WIN
-
-#endif  // SRC_TRACING_IPC_SHARED_MEMORY_WINDOWS_H_
-/*
- * Copyright (C) 2021 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// gen_amalgamated expanded: #include "src/tracing/ipc/shared_memory_windows.h"
-
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
-
-#include <memory>
-#include <random>
-
-#include <windows.h>
-
-// gen_amalgamated expanded: #include "perfetto/base/logging.h"
-// gen_amalgamated expanded: #include "perfetto/ext/base/string_utils.h"
-
-namespace perfetto {
-
-// static
-std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::Create(size_t size,
-                                                                 Flags flags) {
-  base::ScopedPlatformHandle shmem_handle;
-  std::random_device rnd_dev;
-  uint64_t rnd_key = (static_cast<uint64_t>(rnd_dev()) << 32) | rnd_dev();
-  std::string key = "perfetto_shm_" + base::Uint64ToHexStringNoPrefix(rnd_key);
-
-  SECURITY_ATTRIBUTES security_attributes = {};
-  security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
-  if (flags & Flags::kInheritableHandles)
-    security_attributes.bInheritHandle = TRUE;
-
-  shmem_handle.reset(CreateFileMappingA(
-      INVALID_HANDLE_VALUE,  // Use paging file.
-      &security_attributes, PAGE_READWRITE,
-      static_cast<DWORD>(size >> 32),  // maximum object size (high-order DWORD)
-      static_cast<DWORD>(size),        // maximum object size (low-order DWORD)
-      key.c_str()));
-
-  if (!shmem_handle) {
-    PERFETTO_PLOG("CreateFileMapping() call failed");
-    return nullptr;
-  }
-  void* start =
-      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
-                    /*offsetLow=*/0, size);
-  if (!start) {
-    PERFETTO_PLOG("MapViewOfFile() failed");
-    return nullptr;
-  }
-
-  return std::unique_ptr<SharedMemoryWindows>(new SharedMemoryWindows(
-      start, size, std::move(key), std::move(shmem_handle)));
-}
-
-// static
-std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::Attach(
-    const std::string& key) {
-  base::ScopedPlatformHandle shmem_handle;
-  shmem_handle.reset(
-      OpenFileMappingA(FILE_MAP_ALL_ACCESS, /*inherit=*/false, key.c_str()));
-  if (!shmem_handle) {
-    PERFETTO_PLOG("Failed to OpenFileMapping()");
-    return nullptr;
-  }
-
-  void* start =
-      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
-                    /*offsetLow=*/0, /*dwNumberOfBytesToMap=*/0);
-  if (!start) {
-    PERFETTO_PLOG("MapViewOfFile() failed");
-    return nullptr;
-  }
-
-  MEMORY_BASIC_INFORMATION info{};
-  if (!VirtualQuery(start, &info, sizeof(info))) {
-    PERFETTO_PLOG("VirtualQuery() failed");
-    return nullptr;
-  }
-  size_t size = info.RegionSize;
-  return std::unique_ptr<SharedMemoryWindows>(
-      new SharedMemoryWindows(start, size, key, std::move(shmem_handle)));
-}
-
-// static
-std::unique_ptr<SharedMemoryWindows> SharedMemoryWindows::AttachToHandleWithKey(
-    base::ScopedPlatformHandle shmem_handle,
-    const std::string& key) {
-  void* start =
-      MapViewOfFile(*shmem_handle, FILE_MAP_ALL_ACCESS, /*offsetHigh=*/0,
-                    /*offsetLow=*/0, /*dwNumberOfBytesToMap=*/0);
-  if (!start) {
-    PERFETTO_PLOG("MapViewOfFile() failed");
-    return nullptr;
-  }
-
-  MEMORY_BASIC_INFORMATION info{};
-  if (!VirtualQuery(start, &info, sizeof(info))) {
-    PERFETTO_PLOG("VirtualQuery() failed");
-    return nullptr;
-  }
-  size_t size = info.RegionSize;
-
-  return std::unique_ptr<SharedMemoryWindows>(
-      new SharedMemoryWindows(start, size, key, std::move(shmem_handle)));
-}
-
-SharedMemoryWindows::SharedMemoryWindows(void* start,
-                                         size_t size,
-                                         std::string key,
-                                         base::ScopedPlatformHandle handle)
-    : start_(start),
-      size_(size),
-      key_(std::move(key)),
-      handle_(std::move(handle)) {}
-
-SharedMemoryWindows::~SharedMemoryWindows() {
-  if (start_)
-    UnmapViewOfFile(start_);
-}
-
-SharedMemoryWindows::Factory::~Factory() = default;
-
-std::unique_ptr<SharedMemory> SharedMemoryWindows::Factory::CreateSharedMemory(
-    size_t size) {
-  return SharedMemoryWindows::Create(size);
-}
-
-}  // namespace perfetto
-
-#endif  // !OS_WIN
 // gen_amalgamated begin source: src/tracing/ipc/consumer/consumer_ipc_client_impl.cc
 // gen_amalgamated begin header: src/tracing/ipc/consumer/consumer_ipc_client_impl.h
 // gen_amalgamated begin header: include/perfetto/ext/tracing/ipc/consumer_ipc_client.h
@@ -83711,6 +92304,8 @@ class PERFETTO_EXPORT_COMPONENT ProducerIPCClient {
 
 #include <stdint.h>
 
+#include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -83722,6 +92317,7 @@ class PERFETTO_EXPORT_COMPONENT ProducerIPCClient {
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/ipc/producer_ipc_client.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/producer_ring_buffer_arbiter.h"
 
 // gen_amalgamated expanded: #include "protos/perfetto/ipc/producer_port.ipc.h"
 
@@ -83730,6 +92326,10 @@ namespace perfetto {
 namespace base {
 class TaskRunner;
 }  // namespace base
+
+namespace test {
+class ProducerIPCClientTestPeer;
+}  // namespace test
 
 class Producer;
 class SharedMemoryArbiter;
@@ -83740,6 +92340,10 @@ class SharedMemoryArbiter;
 // actual IPC transport.
 // If create_socket_async is set, it will be called to create and connect to a
 // socket to the service. If unset, the producer will create and connect itself.
+//
+// TODO(sashwinbalaji): Check all paths through Disconnect(), OnDisconnect(),
+// and ScheduleDisconnect() again. Check for unnecessary steps, incorrect
+// cleanup or callback order, and object lifetime errors.
 class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
                               public ipc::ServiceProxy::EventListener {
  public:
@@ -83769,9 +92373,17 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
   void NotifyDataSourceStopped(DataSourceInstanceID) override;
   void ActivateTriggers(const std::vector<std::string>&) override;
   void Sync(std::function<void()> callback) override;
+  void InitializeV2RingBuffer(const DataSourceConfig&) override;
+  void AttachV2RingBuffer(const std::shared_ptr<SharedMemory>&,
+                          uint32_t chunk_size_bytes,
+                          std::function<void(bool)> callback) override;
+  void DrainV2RingBuffer() override;
 
   std::unique_ptr<TraceWriter> CreateTraceWriter(
       BufferID target_buffer,
+      BufferExhaustedPolicy) override;
+  std::unique_ptr<TraceWriter> CreateTraceWriterV2(
+      BufferID,
       BufferExhaustedPolicy) override;
   SharedMemoryArbiter* MaybeSharedMemoryArbiter() override;
   bool IsShmemProvidedByProducer() const override;
@@ -83788,15 +92400,22 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
   ipc::Client* GetClientForTesting() { return ipc_channel_.get(); }
 
  private:
+  // Defined in tracing_integration_test.cc.
+  friend class test::ProducerIPCClientTestPeer;
+
   // Drops the provider connection if a protocol error was detected while
   // processing an IPC command.
   void ScheduleDisconnect();
 
   // Invoked soon after having established the connection with the service.
-  void OnConnectionInitialized(bool connection_succeeded,
-                               bool using_shmem_provided_by_producer,
-                               bool direct_smb_patching_supported,
-                               bool use_shmem_emulation);
+  // |offered_versions| is the bitmask sent in the request.
+  void OnConnectionInitialized(
+      uint32_t offered_versions,
+      ipc::AsyncResult<protos::gen::InitializeConnectionResponse> response);
+
+  bool HasNegotiatedV2Abi() const {
+    return !!(protocol_abi_versions_ & kProtocolAbiV2);
+  }
 
   // Invoked when the remote Service sends an IPC to tell us to do something
   // (e.g. start/stop a data source).
@@ -83824,6 +92443,8 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
   std::map<WriterID, BufferID> writers_for_scraping_;
 
   std::unique_ptr<SharedMemory> shared_memory_;
+  // Bitmask of the versions agreed in InitializeConnection, zero until then.
+  uint32_t protocol_abi_versions_ = 0;
   std::unique_ptr<SharedMemoryArbiter> shared_memory_arbiter_;
   size_t shared_buffer_page_size_kb_ = 0;
   std::set<DataSourceInstanceID> data_sources_setup_;
@@ -83836,6 +92457,23 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
   bool direct_smb_patching_supported_ = false;
   bool use_shmem_emulation_ = false;
   std::vector<std::function<void()>> pending_sync_reqs_;
+  // Owns the ring buffer and creates v2 writers.
+  //
+  // States:
+  // - nullopt: initialization has not been attempted.
+  // - nullptr: sizing or allocation failed.
+  //   Later InitializeV2RingBuffer() calls on the same connection do not retry
+  //   initialization, to avoid changing the pointer while v2 writer threads
+  //   read it without a lock.
+  // - Non-null pointer: the arbiter exists and tracks service attachment.
+  //
+  // Set by InitializeV2RingBuffer() when an instance selects v2, before the
+  // first v2 writer.
+  // Writer threads then read it without a lock.
+  // OnDisconnect() does not reset this member because v2 writer threads can
+  // still read it or use the arbiter.
+  std::optional<std::unique_ptr<tracing_v2::ProducerRingBufferArbiter>>
+      v2_ring_buffer_arbiter_;
   base::WeakPtrFactory<ProducerIPCClientImpl> weak_factory_{this};
   PERFETTO_THREAD_CHECKER(thread_checker_)
 };
@@ -83865,8 +92503,11 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
 
 #include <string.h>
 
+// gen_amalgamated expanded: #include "perfetto/base/compiler.h"
 // gen_amalgamated expanded: #include "perfetto/base/logging.h"
 // gen_amalgamated expanded: #include "perfetto/base/task_runner.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_macros.h"
+// gen_amalgamated expanded: #include "perfetto/ext/base/status_or.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/unix_socket.h"
 // gen_amalgamated expanded: #include "perfetto/ext/base/version.h"
 // gen_amalgamated expanded: #include "perfetto/ext/ipc/client.h"
@@ -83875,10 +92516,13 @@ class ProducerIPCClientImpl : public TracingService::ProducerEndpoint,
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_abi.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/trace_writer.h"
+// gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_config.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_descriptor.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/trace_config.h"
 // gen_amalgamated expanded: #include "src/tracing/core/in_process_shared_memory.h"
+// gen_amalgamated expanded: #include "src/tracing/core/null_trace_writer.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 // gen_amalgamated expanded: #include "src/tracing/ipc/shared_memory_windows.h"
@@ -84000,14 +92644,19 @@ ProducerIPCClientImpl::~ProducerIPCClientImpl() {
 
 void ProducerIPCClientImpl::Disconnect() {
   PERFETTO_DCHECK_THREAD(thread_checker_);
-  if (!producer_port_)
+  // Disconnect() is complete when both the port and channel are gone.
+  // ScheduleDisconnect() drops only the port and leaves the channel open.
+  if (!producer_port_ && !ipc_channel_)
     return;
-  // Reset the producer port so that no further IPCs are received and IPC
-  // callbacks are no longer executed. Also reset the IPC channel so that the
-  // service is notified of the disconnection.
+
+  // Clear |connected_| so callbacks invoked during port destruction see a
+  // disconnected endpoint.
+  connected_ = false;
+  // Reset |producer_port_| to stop further IPC replies, then close
+  // |ipc_channel_| so the service sees the disconnection.
   producer_port_.reset();
   ipc_channel_.reset();
-  // Perform disconnect synchronously.
+  // Perform disconnect synchronously. This may delete |this|.
   OnDisconnect();
 }
 
@@ -84016,19 +92665,22 @@ void ProducerIPCClientImpl::OnConnect() {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   connected_ = true;
 
-  // The IPC layer guarantees that any outstanding callback will be dropped on
-  // the floor if producer_port_ is destroyed between the request and the reply.
-  // Binding |this| is hence safe.
+  uint32_t offered_versions = kProtocolAbiV1;
+  offered_versions |= tracing_v2::IpcSupportsTracingV2() ? kProtocolAbiV2 : 0u;
+  protos::gen::InitializeConnectionRequest req;
+  req.set_supported_protocol_abi_versions(offered_versions);
+
+  // When this client is destroyed, the port calls pending callbacks with a
+  // failure result. By then, members used by OnConnectionInitialized() have
+  // already been destroyed. Use a weak pointer to skip the handler in that
+  // case.
   ipc::Deferred<protos::gen::InitializeConnectionResponse> on_init;
   on_init.Bind(
-      [this](ipc::AsyncResult<protos::gen::InitializeConnectionResponse> resp) {
-        OnConnectionInitialized(
-            resp.success(),
-            resp.success() ? resp->using_shmem_provided_by_producer() : false,
-            resp.success() ? resp->direct_smb_patching_supported() : false,
-            resp.success() ? resp->use_shmem_emulation() : false);
+      [weak_this = weak_factory_.GetWeakPtr(), offered_versions](
+          ipc::AsyncResult<protos::gen::InitializeConnectionResponse> resp) {
+        if (weak_this)
+          weak_this->OnConnectionInitialized(offered_versions, std::move(resp));
       });
-  protos::gen::InitializeConnectionRequest req;
   req.set_producer_name(name_);
   req.set_shared_memory_size_hint_bytes(
       static_cast<uint32_t>(shared_memory_size_hint_bytes_));
@@ -84085,6 +92737,11 @@ void ProducerIPCClientImpl::OnDisconnect() {
   PERFETTO_DLOG("Tracing service connection failure");
   connected_ = false;
   data_sources_setup_.clear();
+  auto* arbiter = v2_ring_buffer_arbiter_.has_value()
+                      ? v2_ring_buffer_arbiter_->get()
+                      : nullptr;
+  if (arbiter)
+    arbiter->Disconnect();
   producer_->OnDisconnect();  // Note: may delete |this|.
 }
 
@@ -84092,8 +92749,10 @@ void ProducerIPCClientImpl::ScheduleDisconnect() {
   // |ipc_channel| doesn't allow disconnection in the middle of handling
   // an IPC call, so the connection drop must take place over two phases.
 
-  // First, synchronously drop the |producer_port_| so that no more IPC
-  // messages are handled.
+  // First, clear |connected_| so pending Sync() callbacks see a disconnected
+  // endpoint when the port is destroyed. Then synchronously drop
+  // |producer_port_| so that no more IPC messages are handled.
+  connected_ = false;
   producer_port_.reset();
 
   // Then schedule an async task for performing the remainder of the
@@ -84107,22 +92766,44 @@ void ProducerIPCClientImpl::ScheduleDisconnect() {
 }
 
 void ProducerIPCClientImpl::OnConnectionInitialized(
-    bool connection_succeeded,
-    bool using_shmem_provided_by_producer,
-    bool direct_smb_patching_supported,
-    bool use_shmem_emulation) {
+    uint32_t offered_versions,
+    ipc::AsyncResult<protos::gen::InitializeConnectionResponse> response) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
-  // If connection_succeeded == false, the OnDisconnect() call will follow next
-  // and there we'll notify the |producer_|. TODO: add a test for this.
-  if (!connection_succeeded)
+  // The IPC proxy accesses this callback after it returns, so keep the port
+  // alive until the next task.
+  auto reject_connection = [this] {
+    task_runner_->PostTask([weak_this = weak_factory_.GetWeakPtr()] {
+      if (weak_this && weak_this->connected_)
+        weak_this->Disconnect();
+    });
+  };
+
+  if (!response.success()) {
+    reject_connection();
     return;
-  is_shmem_provided_by_producer_ = using_shmem_provided_by_producer;
-  direct_smb_patching_supported_ = direct_smb_patching_supported;
+  }
+
+  // An old service sends no versions. This means v1 only.
+  uint32_t versions = response->protocol_abi_versions();
+  if (!versions)
+    versions = kProtocolAbiV1;
+
+  // The service returns only versions that the producer offered. Log both
+  // masks if it does not.
+  if (versions & ~offered_versions) {
+    PERFETTO_ELOG("Unexpected protocol versions (advertised: %x, service: %x)",
+                  offered_versions, versions);
+    reject_connection();
+    return;
+  }
+  protocol_abi_versions_ = versions;
+  is_shmem_provided_by_producer_ = response->using_shmem_provided_by_producer();
+  direct_smb_patching_supported_ = response->direct_smb_patching_supported();
   // The tracing service may reject using shared memory and tell the client to
   // commit data over the socket. This can happen when the client connects to
   // the service via a relay service:
   // client <-Unix socket-> relay service <- vsock -> tracing service.
-  use_shmem_emulation_ = use_shmem_emulation;
+  use_shmem_emulation_ = response->use_shmem_emulation();
   producer_->OnConnect();
 
   // Bail out if the service failed to adopt our producer-allocated SMB.
@@ -84179,27 +92860,17 @@ void ProducerIPCClientImpl::OnServiceRequest(
     // FD, which is provided to this code via a blocking callback.
     PERFETTO_CHECK(receive_shmem_fd_cb_fuchsia_);
 
-    base::ScopedFile shmem_fd(receive_shmem_fd_cb_fuchsia_());
-    if (!shmem_fd) {
-      // Failure to get a shared memory buffer is a protocol violation and
-      // therefore we should drop the Protocol connection.
-      PERFETTO_ELOG("Could not get shared memory FD from embedder.");
-      ScheduleDisconnect();
-      return;
-    }
-
-    ipc_shared_memory =
-        PosixSharedMemory::AttachToFd(std::move(shmem_fd),
-                                      /*require_seals_if_supported=*/false);
+    ipc_shared_memory = PosixSharedMemory::AttachToFd(
+        base::ScopedFile(receive_shmem_fd_cb_fuchsia_()),
+        /*require_seals_if_supported=*/false, TracingService::kMaxShmSize);
 #else
-    base::ScopedFile shmem_fd = ipc_channel_->TakeReceivedFD();
-    if (shmem_fd) {
-      // TODO(primiano): handle mmap failure in case of OOM.
-      ipc_shared_memory =
-          PosixSharedMemory::AttachToFd(std::move(shmem_fd),
-                                        /*require_seals_if_supported=*/false);
-    }
+    // The FD can be invalid, for example with a producer-provided SMB.
+    // |ipc_shared_memory| is then null. The checks below handle it.
+    ipc_shared_memory = PosixSharedMemory::AttachToFd(
+        ipc_channel_->TakeReceivedFD(),
+        /*require_seals_if_supported=*/false, TracingService::kMaxShmSize);
 #endif
+
     if (use_shmem_emulation_) {
       PERFETTO_CHECK(!ipc_shared_memory);
       // Need to create an emulated shmem buffer when the transport doesn't
@@ -84207,6 +92878,16 @@ void ProducerIPCClientImpl::OnServiceRequest(
       ipc_shared_memory = InProcessSharedMemory::Create(
           /*size=*/InProcessSharedMemory::kShmemEmulationSize);
     }
+
+    // No SMB from the service (none sent, or it failed to map), and none
+    // provided by the producer. The producer cannot trace without one.
+    // Drop the connection: the producer gets OnDisconnect() and can reconnect.
+    if (!ipc_shared_memory && !is_shmem_provided_by_producer_) {
+      PERFETTO_ELOG("No usable shared memory from the service, disconnecting.");
+      ScheduleDisconnect();
+      return;
+    }
+
     if (ipc_shared_memory) {
       auto shmem_mode = use_shmem_emulation_
                             ? SharedMemoryABI::ShmemMode::kShmemEmulation
@@ -84268,6 +92949,7 @@ void ProducerIPCClientImpl::RegisterDataSource(
   if (!connected_) {
     PERFETTO_DLOG(
         "Cannot RegisterDataSource(), not connected to tracing service");
+    return;
   }
   protos::gen::RegisterDataSourceRequest req;
   *req.mutable_data_source_descriptor() = descriptor;
@@ -84286,6 +92968,7 @@ void ProducerIPCClientImpl::UpdateDataSource(
   if (!connected_) {
     PERFETTO_DLOG(
         "Cannot UpdateDataSource(), not connected to tracing service");
+    return;
   }
   protos::gen::UpdateDataSourceRequest req;
   *req.mutable_data_source_descriptor() = descriptor;
@@ -84371,6 +93054,87 @@ void ProducerIPCClientImpl::CommitData(const CommitDataRequest& req,
   producer_port_->CommitData(req, std::move(async_response));
 }
 
+void ProducerIPCClientImpl::InitializeV2RingBuffer(
+    const DataSourceConfig& config) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  // V2 IPC requires a sealed memfd.
+  // TODO(sashwinbalaji): Decide how tracing v2 shares the ring buffer over IPC
+  // on Windows and macOS, which have no memfd.
+#if PERFETTO_MEMFD_ENABLED()
+  if (v2_ring_buffer_arbiter_.has_value() || !connected_ ||
+      !HasNegotiatedV2Abi()) {
+    return;
+  }
+
+  auto arbiter_or = tracing_v2::ProducerRingBufferArbiter::Create(
+      task_runner_, this, config, shared_memory_size_hint_bytes_,
+      [](size_t size) -> base::StatusOr<std::shared_ptr<SharedMemory>> {
+        ASSIGN_OR_RETURN(auto memory, PosixSharedMemory::Create(size));
+        return std::shared_ptr<SharedMemory>(std::move(memory));
+      });
+  if (!arbiter_or.ok()) {
+    PERFETTO_ELOG("tracing v2: cannot create ring buffer: %s",
+                  arbiter_or.status().c_message());
+    v2_ring_buffer_arbiter_ = nullptr;
+    return;
+  }
+  v2_ring_buffer_arbiter_ = std::move(*arbiter_or);
+
+  auto* arbiter = v2_ring_buffer_arbiter_->get();
+  AttachV2RingBuffer(
+      arbiter->memory(), arbiter->ring_buffer()->chunk_size(),
+      [weak_arbiter = arbiter->GetWeakPtr()](bool reader_attached) {
+        if (weak_arbiter)
+          weak_arbiter->OnReaderAttachReply(reader_attached);
+      });
+#else
+  base::ignore_result(config);
+#endif  // PERFETTO_MEMFD_ENABLED()
+}
+
+void ProducerIPCClientImpl::AttachV2RingBuffer(
+    const std::shared_ptr<SharedMemory>& memory,
+    uint32_t chunk_size_bytes,
+    std::function<void(bool)> callback) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+
+  // OnConnect() offers v2 only if tracing_v2::IpcSupportsTracingV2().
+  if (!connected_ || !HasNegotiatedV2Abi() || !memory) {
+    callback(false);
+    return;
+  }
+
+#if PERFETTO_TRACING_V2_IPC()
+  protos::gen::AttachV2RingBufferRequest req;
+  req.set_chunk_size_bytes(chunk_size_bytes);
+  ipc::Deferred<protos::gen::AttachV2RingBufferResponse> reply;
+  reply.Bind(
+      [callback = std::move(callback)](
+          ipc::AsyncResult<protos::gen::AttachV2RingBufferResponse> result) {
+        callback(result.success());
+      });
+  // The IPC layer sends the descriptor before this call returns. The service
+  // maps it on its side.
+  //
+  // The producer that called this method owns |memory| and keeps it mapped for
+  // its writers.
+  const int fd = static_cast<PosixSharedMemory*>(memory.get())->fd();
+  producer_port_->AttachV2RingBuffer(req, std::move(reply), fd);
+#else
+  base::ignore_result(chunk_size_bytes);
+  callback(false);
+#endif
+}
+
+void ProducerIPCClientImpl::DrainV2RingBuffer() {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  if (!connected_ || !HasNegotiatedV2Abi())
+    return;
+  producer_port_->DrainV2RingBuffer(
+      protos::gen::DrainV2RingBufferRequest(),
+      ipc::Deferred<protos::gen::DrainV2RingBufferResponse>());
+}
+
 void ProducerIPCClientImpl::NotifyDataSourceStarted(DataSourceInstanceID id) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   if (!connected_) {
@@ -84435,8 +93199,27 @@ std::unique_ptr<TraceWriter> ProducerIPCClientImpl::CreateTraceWriter(
     BufferExhaustedPolicy buffer_exhausted_policy) {
   // This method can be called by different threads. |shared_memory_arbiter_| is
   // thread-safe but be aware of accessing any other state in this function.
+  // |protocol_abi_versions_| does not change after setup.
+  if (!(protocol_abi_versions_ & kProtocolAbiV1)) {
+    PERFETTO_ELOG(
+        "Cannot create a v1 trace writer: v1 is not in the common protocol "
+        "mask (%x)",
+        protocol_abi_versions_);
+    return std::make_unique<NullTraceWriter>();
+  }
   return shared_memory_arbiter_->CreateTraceWriter(target_buffer,
                                                    buffer_exhausted_policy);
+}
+
+std::unique_ptr<TraceWriter> ProducerIPCClientImpl::CreateTraceWriterV2(
+    BufferID target_buffer,
+    BufferExhaustedPolicy policy) {
+  auto* arbiter = v2_ring_buffer_arbiter_.has_value()
+                      ? v2_ring_buffer_arbiter_->get()
+                      : nullptr;
+  if (!arbiter)
+    return std::make_unique<NullTraceWriter>();
+  return arbiter->CreateTraceWriter(target_buffer, policy);
 }
 
 SharedMemoryArbiter* ProducerIPCClientImpl::MaybeSharedMemoryArbiter() {
@@ -85253,6 +94036,10 @@ class ProducerIPCService : public protos::gen::ProducerPort {
   void GetAsyncCommand(const protos::gen::GetAsyncCommandRequest&,
                        DeferredGetAsyncCommandResponse) override;
   void Sync(const protos::gen::SyncRequest&, DeferredSyncResponse) override;
+  void AttachV2RingBuffer(const protos::gen::AttachV2RingBufferRequest&,
+                          DeferredAttachV2RingBufferResponse) override;
+  void DrainV2RingBuffer(const protos::gen::DrainV2RingBufferRequest&,
+                         DeferredDrainV2RingBufferResponse) override;
   void OnClientDisconnected() override;
 
  private:
@@ -85351,6 +94138,7 @@ class ProducerIPCService : public protos::gen::ProducerPort {
 // gen_amalgamated expanded: #include "perfetto/ext/tracing/core/tracing_service.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_config.h"
 // gen_amalgamated expanded: #include "perfetto/tracing/core/data_source_descriptor.h"
+// gen_amalgamated expanded: #include "src/tracing/v2/shared_ring_buffer_abi.h"
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 // gen_amalgamated expanded: #include "src/tracing/ipc/shared_memory_windows.h"
@@ -85363,6 +94151,32 @@ class ProducerIPCService : public protos::gen::ProducerPort {
 // compromised.
 
 namespace perfetto {
+
+namespace {
+
+// The proto and C++ enums use the same bits.
+static_assert(static_cast<uint32_t>(protos::gen::PROTOCOL_ABI_VERSION_V1) ==
+              kProtocolAbiV1);
+static_assert(static_cast<uint32_t>(protos::gen::PROTOCOL_ABI_VERSION_V2) ==
+              kProtocolAbiV2);
+
+// Returns the bitmask of common protocol versions, or 0 if none match.
+uint32_t GetCommonProtocolAbiVersions(uint32_t producer_versions,
+                                      bool use_shmem_emulation) {
+  // Old producers send no versions and support only v1.
+  if (!producer_versions)
+    return kProtocolAbiV1;
+
+  // v2 needs memfd support and cannot use shared memory emulation.
+  uint32_t supported = kProtocolAbiV1;
+  if (tracing_v2::IpcSupportsTracingV2() && !use_shmem_emulation)
+    supported |= kProtocolAbiV2;
+
+  // Unknown bits from a newer producer drop out here.
+  return producer_versions & supported;
+}
+
+}  // namespace
 
 ProducerIPCService::ProducerIPCService(TracingService* core_service)
     : core_service_(core_service), weak_ptr_factory_(this) {}
@@ -85425,8 +94239,9 @@ void ProducerIPCService::InitializeConnection(
     base::ScopedFile shmem_fd = ipc::Service::TakeReceivedFD();
 
     if (shmem_fd) {
-      shmem = PosixSharedMemory::AttachToFd(
-          std::move(shmem_fd), /*require_seals_if_supported=*/true);
+      shmem = PosixSharedMemory::AttachToFd(std::move(shmem_fd),
+                                            /*require_seals_if_supported=*/true,
+                                            TracingService::kMaxShmSize);
       if (!shmem) {
         PERFETTO_ELOG(
             "Couldn't map producer-provided SMB, falling back to "
@@ -85443,13 +94258,23 @@ void ProducerIPCService::InitializeConnection(
   // Copy the data fields to be emitted to trace packets into ClientIdentity.
   ClientIdentity client_identity(client_info.uid(), client_info.pid(),
                                  client_info.machine_id());
+  const uint32_t protocol_abi_versions =
+      GetCommonProtocolAbiVersions(req.supported_protocol_abi_versions(),
+                                   ipc::Service::use_shmem_emulation());
+  if (!protocol_abi_versions) {
+    PERFETTO_ELOG(
+        "Producer \"%s\" supports no protocol version of this service",
+        req.producer_name().c_str());
+    return response.Reject();
+  }
+
   // ConnectProducer will call OnConnect() on the next task.
   producer->service_endpoint = core_service_->ConnectProducer(
       producer.get(), client_identity, req.producer_name(),
       req.shared_memory_size_hint_bytes(),
       /*in_process=*/false, smb_scraping_mode,
       req.shared_memory_page_size_hint_bytes(), std::move(shmem),
-      req.sdk_version(), client_info.machine_name());
+      req.sdk_version(), client_info.machine_name(), protocol_abi_versions);
 
   // Could happen if the service has too many producers connected.
   if (!producer->service_endpoint) {
@@ -85470,6 +94295,7 @@ void ProducerIPCService::InitializeConnection(
   async_res->set_using_shmem_provided_by_producer(using_producer_shmem);
   async_res->set_direct_smb_patching_supported(true);
   async_res->set_use_shmem_emulation(use_shmem_emulation);
+  async_res->set_protocol_abi_versions(protocol_abi_versions);
   response.Resolve(std::move(async_res));
 }
 
@@ -85710,6 +94536,52 @@ void ProducerIPCService::GetAsyncCommand(
   // we should forward it to the producer now.
   if (producer->send_setup_tracing_on_async_commands_bound)
     producer->SendSetupTracing();
+}
+
+void ProducerIPCService::AttachV2RingBuffer(
+    const protos::gen::AttachV2RingBufferRequest& req,
+    DeferredAttachV2RingBufferResponse resp) {
+  // Take the descriptor first. It is closed on every rejection path.
+  auto fd = ipc::Service::TakeReceivedFD();
+  auto* producer = GetProducerForCurrentRequest();
+  if (!producer) {
+    resp.Reject();
+    return;
+  }
+
+  std::shared_ptr<SharedMemory> memory;
+#if PERFETTO_TRACING_V2_IPC()
+  memory = PosixSharedMemory::AttachToFd(std::move(fd),
+                                         /*require_seals_if_supported=*/true,
+                                         TracingService::kMaxShmSize);
+#endif
+  if (!memory) {
+    PERFETTO_DLOG("AttachV2RingBuffer() rejected: could not map the memfd");
+    resp.Reject();
+    return;
+  }
+
+  // |resp| cannot be copied, but std::function requires a copyable callback.
+  // Capture a shared_ptr so callback copies refer to the same response.
+  auto pending =
+      std::make_shared<DeferredAttachV2RingBufferResponse>(std::move(resp));
+  producer->service_endpoint->AttachV2RingBuffer(
+      memory, req.chunk_size_bytes(), [pending](bool accepted) {
+        if (!accepted) {
+          pending->Reject();
+          return;
+        }
+        pending->Resolve(ipc::AsyncResult<
+                         protos::gen::AttachV2RingBufferResponse>::Create());
+      });
+}
+
+void ProducerIPCService::DrainV2RingBuffer(
+    const protos::gen::DrainV2RingBufferRequest&,
+    DeferredDrainV2RingBufferResponse) {
+  auto* producer = GetProducerForCurrentRequest();
+  if (producer)
+    producer->service_endpoint->DrainV2RingBuffer();
 }
 
 void ProducerIPCService::Sync(const protos::gen::SyncRequest&,
@@ -86499,7 +95371,7 @@ std::unique_ptr<ProducerEndpoint> SystemProducerTracingBackend::ConnectProducer(
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
     shm = SharedMemoryWindows::Create(shmem_size_hint);
 #else
-    shm = PosixSharedMemory::Create(shmem_size_hint);
+    shm = PosixSharedMemory::Create(shmem_size_hint).ValueOrDie();
 #endif
     arbiter = SharedMemoryArbiter::CreateUnboundInstance(
         shm.get(), shmem_page_size_hint, SharedMemoryABI::ShmemMode::kDefault);
