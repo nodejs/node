@@ -3,7 +3,35 @@
 
 export declare function transform(src: string | Uint8Array, opts?: Options): Promise<TransformOutput>;
 export declare function transformSync(src: string | Uint8Array, opts?: Options): TransformOutput;
+export declare function transformModuleSyntax(src: string | Uint8Array): ModuleSyntaxTransformOutput;
+export declare function getFirstExpression(src: string | Uint8Array, startColumn: number): string;
+export declare function isValidSyntax(src: string | Uint8Array): boolean;
+export declare function isRecoverableError(src: string | Uint8Array): boolean;
+export declare function tokenize(src: string | Uint8Array): Token[];
+export declare function findTopLevelAwaits(src: string | Uint8Array): TopLevelAwaitLocation[];
 export type { Options, TransformOutput };
+
+export type TokenKind = "keyword" | "identifier" | "number" | "bigint" | "string" | "template" | "regexp" | "comment" | "punctuator";
+
+export interface Token {
+    kind: TokenKind;
+    /** Zero-based UTF-16 offset, inclusive. */
+    start: number;
+    /** Zero-based UTF-16 offset, exclusive. */
+    end: number;
+}
+
+export interface TopLevelAwaitLocation {
+    /** One-based line number. */
+    line: number;
+    /** Zero-based UTF-16 column. */
+    column: number;
+}
+
+export interface ModuleSyntaxTransformOutput {
+    code: string;
+    hadModuleSyntax: boolean;
+}
 
 
 
