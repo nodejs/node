@@ -308,17 +308,25 @@ action_mirror(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
     if (0 == (pTransform->reorderingOptions & UBIDI_DO_MIRRORING)) {
         return false;
     }
-    if (pTransform->destSize < pTransform->srcLength) {
-        *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
-        return false;
-    }
     do {
         UBool isOdd = ubidi_getLevelAt(pTransform->pBidi, i) & 1;
         U16_NEXT(pTransform->src, i, pTransform->srcLength, c); 
-        U16_APPEND_UNSAFE(pTransform->dest, j, isOdd ? u_charMirror(c) : c);
+        if (isOdd) {
+            c = u_charMirror(c);
+        }
+        uint32_t k = U16_LENGTH(c);
+        if (j + k <= pTransform->destSize) {
+            U16_APPEND_UNSAFE(pTransform->dest, j, c);
+        } else {
+            j += k;
+        }
     } while (i < pTransform->srcLength);
     
-    *pTransform->pDestLength = pTransform->srcLength;
+    *pTransform->pDestLength = j;
+    if (pTransform->destSize < j) {
+        *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
+        return false;
+    }
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
     return true;
 }
@@ -526,5 +534,5 @@ cleanup:
         pBiDiTransform->srcLength = 0;
         pBiDiTransform->destSize = 0;
     }
-    return U_FAILURE(*pErrorCode) ? 0 : destLength;
+    return (U_FAILURE(*pErrorCode) && *pErrorCode != U_BUFFER_OVERFLOW_ERROR) ? 0 : destLength;
 }

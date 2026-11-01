@@ -72,7 +72,8 @@ class NumberRangeFormatterImpl : public UMemory {
                      MicroProps& micros1, MicroProps& micros2,
                      UErrorCode& status) const;
 
-    const Modifier& resolveModifierPlurals(const Modifier& first, const Modifier& second) const;
+    const Modifier& resolveModifierPlurals(const Modifier& first U_LIFETIME_BOUND,
+                                           const Modifier& second) const;
 };
 
 

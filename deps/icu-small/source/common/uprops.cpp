@@ -359,7 +359,7 @@ static constexpr UChar32 ID_COMPAT_MATH_START[] = {
     0x1D7C3
 };
 
-/** Ranges (start/limit pairs) of Modifier_Combining_mark (only), from UCD PropList.txt. */
+/** Ranges (start/limit pairs) of Modifier_Combining_Mark (only), from UCD PropList.txt. */
 static constexpr UChar32 MODIFIER_COMBINING_MARK[] = {
     0x0654, 0x0655 + 1,
     0x0658, 0x0658 + 1, // U+0658
@@ -369,7 +369,10 @@ static constexpr UChar32 MODIFIER_COMBINING_MARK[] = {
     0x08CA, 0x08CB + 1,
     0x08CD, 0x08CF + 1,
     0x08D3, 0x08D3 + 1, // U+08D3
-    0x08F3, 0x08F3 + 1  // U+08F3
+    0x08F3, 0x08F3 + 1, // U+08F3
+    0x10EF4, 0x10EF4 + 1,
+    0x10EF6, 0x10EF6 + 1,
+    0x10EF9, 0x10EF9 + 1,
 };
 
 static UBool isIDCompatMathStart(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {

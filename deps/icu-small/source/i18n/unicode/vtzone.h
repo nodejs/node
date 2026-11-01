@@ -248,13 +248,13 @@ public:
      *
      * @param date moment in time for which to return offsets, in
      * units of milliseconds from January 1, 1970 0:00 GMT, either GMT
-     * time or local wall time, depending on `local'.
-     * @param local if true, `date' is local wall time; otherwise it
+     * time or local wall time, depending on `local`.
+     * @param local if true, `date` is local wall time; otherwise it
      * is in GMT time.
      * @param rawOffset output parameter to receive the raw offset, that
      * is, the offset not including DST adjustments
      * @param dstOffset output parameter to receive the DST offset,
-     * that is, the offset to be added to `rawOffset' to obtain the
+     * that is, the offset to be added to `rawOffset` to obtain the
      * total offset between local and GMT time. If DST is not in
      * effect, this value is zero; otherwise it is a positive value,
      * typically one hour.

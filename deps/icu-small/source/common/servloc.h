@@ -518,7 +518,7 @@ class U_COMMON_API_CLASS ICULocaleService : public ICUService
    * Convenience method for callers using locales.  This returns the standard
    * service ID enumeration.
    */
-  U_COMMON_API virtual StringEnumeration* getAvailableLocales() const;
+  U_COMMON_API virtual StringEnumeration* getAvailableLocales() const U_LIFETIME_BOUND;
 
  protected:
 

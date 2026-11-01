@@ -52,6 +52,7 @@ class TimeZoneFormat;
 class SharedNumberFormat;
 class SimpleDateFormatMutableNFs;
 class DateIntervalFormat;
+class PluralRules;
 
 namespace number {
 class LocalizedNumberFormatter;
@@ -1268,6 +1269,7 @@ private:
     UBool                fHasMinute;
     UBool                fHasSecond;
     UBool                fHasHanYearChar; // pattern contains the Han year character \u5E74
+    PluralRules*         fOrdinalPluralRules = nullptr;  // Owned; created in parsePattern()
 
     /**
      * Sets fHasMinutes and fHasSeconds.

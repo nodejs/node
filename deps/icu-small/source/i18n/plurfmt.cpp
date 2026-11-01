@@ -38,27 +38,18 @@ static const char16_t OTHER_STRING[] = {
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(PluralFormat)
 
 PluralFormat::PluralFormat(UErrorCode& status)
-        : locale(Locale::getDefault()),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
+        : PluralFormat(Locale::getDefault(), status)
+{
 }
 
 PluralFormat::PluralFormat(const Locale& loc, UErrorCode& status)
-        : locale(loc),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
+        : PluralFormat(loc, UPLURAL_TYPE_CARDINAL, status)
+{
 }
 
 PluralFormat::PluralFormat(const PluralRules& rules, UErrorCode& status)
-        : locale(Locale::getDefault()),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(&rules, UPLURAL_TYPE_COUNT, status);
+        : PluralFormat(Locale::getDefault(), rules, status)
+{
 }
 
 PluralFormat::PluralFormat(const Locale& loc,
@@ -83,34 +74,22 @@ PluralFormat::PluralFormat(const Locale& loc,
 
 PluralFormat::PluralFormat(const UnicodeString& pat,
                            UErrorCode& status)
-        : locale(Locale::getDefault()),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
-    applyPattern(pat, status);
+        : PluralFormat(Locale::getDefault(), pat, status)
+{
 }
 
 PluralFormat::PluralFormat(const Locale& loc,
                            const UnicodeString& pat,
                            UErrorCode& status)
-        : locale(loc),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
-    applyPattern(pat, status);
+        : PluralFormat(loc, UPLURAL_TYPE_CARDINAL, pat, status)
+{
 }
 
 PluralFormat::PluralFormat(const PluralRules& rules,
                            const UnicodeString& pat,
                            UErrorCode& status)
-        : locale(Locale::getDefault()),
-          msgPattern(status),
-          numberFormat(nullptr),
-          offset(0) {
-    init(&rules, UPLURAL_TYPE_COUNT, status);
-    applyPattern(pat, status);
+        : PluralFormat(Locale::getDefault(), rules, pat, status)
+{
 }
 
 PluralFormat::PluralFormat(const Locale& loc,
@@ -152,7 +131,7 @@ PluralFormat::copyObjects(const PluralFormat& other) {
     delete numberFormat;
     delete pluralRulesWrapper.pluralRules;
     if (other.numberFormat == nullptr) {
-        numberFormat = NumberFormat::createInstance(locale, status);
+        numberFormat = nullptr;
     } else {
         numberFormat = other.numberFormat->clone();
     }
@@ -184,7 +163,19 @@ PluralFormat::init(const PluralRules* rules, UPluralType type, UErrorCode& statu
         }
     }
 
-    numberFormat= NumberFormat::createInstance(locale, status);
+    initializeNumberFormat(status);
+}
+
+void
+PluralFormat::initializeNumberFormat(UErrorCode& status) {
+    if (U_SUCCESS(status) && numberFormat == nullptr
+        && (msgPattern.countParts() == 0 || msgPattern.getPatternString().indexOf(u'#') >= 0))
+    {
+        // The pattern may need to format a number later.
+        // Let's cache this expensive to use number format.
+        numberFormat = NumberFormat::createInstance(locale, status);
+    }
+    // either we failed, we use the existing one, or the pattern doesn't format a number.
 }
 
 void
@@ -196,6 +187,7 @@ PluralFormat::applyPattern(const UnicodeString& newPattern, UErrorCode& status) 
         return;
     }
     offset = msgPattern.getPluralOffset(0);
+    initializeNumberFormat(status);
 }
 
 UnicodeString&
@@ -270,22 +262,24 @@ PluralFormat::format(const Formattable& numberObject, double number,
         data.quantity.setToDouble(numberMinusOffset);
     }
     UnicodeString numberString;
-    auto *decFmt = dynamic_cast<DecimalFormat *>(numberFormat);
-    if(decFmt != nullptr) {
-        const number::LocalizedNumberFormatter* lnf = decFmt->toNumberFormatter(status);
-        if (U_FAILURE(status)) {
-            return appendTo;
-        }
-        lnf->formatImpl(&data, status); // mutates &data
-        if (U_FAILURE(status)) {
-            return appendTo;
-        }
-        numberString = data.getStringRef().toUnicodeString();
-    } else {
-        if (offset == 0) {
-            numberFormat->format(numberObject, numberString, status);
+    if (numberFormat != nullptr) {
+        auto *decFmt = dynamic_cast<DecimalFormat *>(numberFormat);
+        if(decFmt != nullptr) {
+            const number::LocalizedNumberFormatter* lnf = decFmt->toNumberFormatter(status);
+            if (U_FAILURE(status)) {
+                return appendTo;
+            }
+            lnf->formatImpl(&data, status); // mutates &data
+            if (U_FAILURE(status)) {
+                return appendTo;
+            }
+            numberString = data.getStringRef().toUnicodeString();
         } else {
-            numberFormat->format(numberMinusOffset, numberString, status);
+            if (offset == 0) {
+                numberFormat->format(numberObject, numberString, status);
+            } else {
+                numberFormat->format(numberMinusOffset, numberString, status);
+            }
         }
     }
 
@@ -341,6 +335,7 @@ PluralFormat::setLocale(const Locale& loc, UErrorCode& status) {
     numberFormat = nullptr;
     pluralRulesWrapper.reset();
     init(nullptr, UPLURAL_TYPE_CARDINAL, status);
+    initializeNumberFormat(status);
 }
 
 void
@@ -348,12 +343,18 @@ PluralFormat::setNumberFormat(const NumberFormat* format, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return;
     }
-    NumberFormat* nf = format->clone();
-    if (nf != nullptr) {
+    if (format == nullptr) {
         delete numberFormat;
-        numberFormat = nf;
-    } else {
-        status = U_MEMORY_ALLOCATION_ERROR;
+        numberFormat = nullptr;
+    }
+    else {
+        NumberFormat* nf = format->clone();
+        if (nf != nullptr) {
+            delete numberFormat;
+            numberFormat = nf;
+        } else {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
     }
 }
 

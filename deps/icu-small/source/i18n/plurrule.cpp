@@ -1597,7 +1597,7 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
 }
 
 const UnicodeString*
-PluralKeywordEnumeration::snext(UErrorCode& status) {
+PluralKeywordEnumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
     if (U_SUCCESS(status) && pos < fKeywordNames.size()) {
         return static_cast<const UnicodeString*>(fKeywordNames.elementAt(pos++));
     }
@@ -1981,7 +1981,9 @@ PluralAvailableLocalesEnumeration::~PluralAvailableLocalesEnumeration() {
     fRes = nullptr;
 }
 
-const char *PluralAvailableLocalesEnumeration::next(int32_t *resultLength, UErrorCode &status) {
+const char*
+PluralAvailableLocalesEnumeration::next(int32_t* resultLength,
+                                        UErrorCode& status) U_LIFETIME_BOUND {
     if (U_FAILURE(status)) {
         return nullptr;
     }

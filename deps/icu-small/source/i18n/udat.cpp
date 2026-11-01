@@ -128,7 +128,16 @@ udat_unregisterOpener(UDateFormatOpener opener, UErrorCode *status)
   return oldOpener;
 }
 
+namespace {
 
+UBool isValidStyle(int32_t style) {
+    return (style >= UDAT_FULL && style <= UDAT_SHORT) ||
+           (style >= UDAT_FULL_RELATIVE && style <= UDAT_SHORT_RELATIVE) ||
+           style == UDAT_NONE ||
+           style == UDAT_PATTERN;
+}
+
+} // namespace
 
 U_CAPI UDateFormat* U_EXPORT2
 udat_open(UDateFormatStyle  timeStyle,
@@ -138,10 +147,17 @@ udat_open(UDateFormatStyle  timeStyle,
           int32_t           tzIDLength,
           const char16_t    *pattern,
           int32_t           patternLength,
-          UErrorCode        *status)
+          UErrorCode        *status) UPRV_NO_SANITIZE_UNDEFINED
 {
     DateFormat *fmt;
     if(U_FAILURE(*status)) {
+        return nullptr;
+    }
+    int32_t timeStyleInt = timeStyle;
+    int32_t dateStyleInt = dateStyle;
+
+    if (!isValidStyle(timeStyleInt) || !isValidStyle(dateStyleInt)) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
         return nullptr;
     }
     if(gOpener!=nullptr) { // if it's registered
@@ -1283,7 +1299,7 @@ udat_setSymbols(    UDateFormat             *format,
     default:
         *status = U_UNSUPPORTED_ERROR;
         break;
-        
+
     }
 }
 

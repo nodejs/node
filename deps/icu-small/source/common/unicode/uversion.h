@@ -149,7 +149,6 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
  * @stable ICU 76
  */
 
-#ifndef U_FORCE_HIDE_DRAFT_API
 /**
  * \def U_ICU_NAMESPACE_OR_INTERNAL
  * Namespace used for header-only APIs that used to be regular C++ APIs.
@@ -157,9 +156,8 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
  * Similar to U_HEADER_ONLY_NAMESPACE, but the public definition is the same as U_ICU_NAMESPACE.
  * "U_ICU_NAMESPACE" or "U_ICU_NAMESPACE::internal".
  *
- * @draft ICU 77
+ * @stable ICU 77
  */
-#endif  // U_FORCE_HIDE_DRAFT_API
 
 // The first test is the same as for defining U_EXPORT for Windows.
 #if defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllexport__) && \

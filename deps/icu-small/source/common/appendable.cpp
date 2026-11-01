@@ -56,11 +56,12 @@ Appendable::reserveAppendCapacity(int32_t /*appendCapacity*/) {
     return true;
 }
 
-char16_t *
+char16_t*
 Appendable::getAppendBuffer(int32_t minCapacity,
                             int32_t /*desiredCapacityHint*/,
-                            char16_t *scratch, int32_t scratchCapacity,
-                            int32_t *resultCapacity) {
+                            char16_t* scratch U_LIFETIME_BOUND,
+                            int32_t scratchCapacity,
+                            int32_t* resultCapacity) U_LIFETIME_BOUND {
     if(minCapacity<1 || scratchCapacity<minCapacity) {
         *resultCapacity=0;
         return nullptr;

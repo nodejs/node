@@ -735,7 +735,13 @@ void *SpoofData::reserveSpace(int32_t numBytes,  UErrorCode &status) {
     numBytes = (numBytes + 15) & ~15;   // Round up to a multiple of 16
     uint32_t returnOffset = fMemLimit;
     fMemLimit += numBytes;
-    fRawData = static_cast<SpoofDataHeader *>(uprv_realloc(fRawData, fMemLimit));
+    SpoofDataHeader *newRawData =
+        static_cast<SpoofDataHeader *>(uprv_realloc(fRawData, fMemLimit));
+    if (newRawData == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    fRawData = newRawData;
     fRawData->fLength = fMemLimit;
     uprv_memset((char *)fRawData + returnOffset, 0, numBytes);
     initPtrs(status);

@@ -137,7 +137,7 @@ class AvailableLocalesStringEnumeration : public StringEnumeration {
     AvailableLocalesStringEnumeration(ULocAvailableType type) : fType(type) {
     }
 
-    const char* next(int32_t *resultLength, UErrorCode &status) override {
+    const char* next(int32_t* resultLength, UErrorCode& status) U_LIFETIME_BOUND override {
         if (U_FAILURE(status)) { return nullptr; }
         ULocAvailableType actualType = fType;
         int32_t actualIndex = fIndex++;

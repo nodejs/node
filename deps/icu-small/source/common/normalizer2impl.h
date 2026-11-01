@@ -806,7 +806,7 @@ public:
 
     // Get the Impl instance of the Normalizer2.
     // Must be used only when it is known that norm2 is a Normalizer2WithImpl instance.
-    static const Normalizer2Impl *getImpl(const Normalizer2 *norm2);
+    static const Normalizer2Impl* getImpl(const Normalizer2* norm2 U_LIFETIME_BOUND);
 private:
     Normalizer2Factory() = delete;  // No instantiation.
 };

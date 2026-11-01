@@ -366,7 +366,7 @@ public:
    * For use with {@link #getMoonTime getMoonTime}
    * @internal
    */
-  static MoonAge NEW_MOON();
+  static constexpr double NEW_MOON = { 0.0 };
 
   /**
    * Find the next or previous time at which the Moon's ecliptic

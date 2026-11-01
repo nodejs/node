@@ -64,10 +64,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
                                          UBool anchorStart, UBool anchorEnd,
                                          const TransliterationRuleData* theData,
                                          UErrorCode& status) :
-    UMemory(),
-    segments(nullptr),
-    data(theData) {
-
+        data(theData) {
     if (U_FAILURE(status)) {
         return;
     }
@@ -162,18 +159,12 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
  * Copy constructor.
  */
 TransliterationRule::TransliterationRule(TransliterationRule& other) :
-    UMemory(other),
-    anteContext(nullptr),
-    key(nullptr),
-    postContext(nullptr),
-    pattern(other.pattern),
-    anteContextLength(other.anteContextLength),
-    keyLength(other.keyLength),
-    flags(other.flags),
-    data(other.data) {
-
-    segments = nullptr;
-    segmentsCount = 0;
+        UMemory(other),
+        pattern(other.pattern),
+        anteContextLength(other.anteContextLength),
+        keyLength(other.keyLength),
+        flags(other.flags),
+        data(other.data) {
     if (other.segmentsCount > 0) {
         segments = static_cast<UnicodeFunctor**>(uprv_malloc(other.segmentsCount * sizeof(UnicodeFunctor*)));
         uprv_memcpy(segments, other.segments, (size_t)other.segmentsCount*sizeof(segments[0]));

@@ -579,7 +579,8 @@ ubrk_getRuleStatusVec(UBreakIterator *bi, int32_t *fillInVec, int32_t capacity, 
  * @stable ICU 2.8
  */
 U_CAPI const char* U_EXPORT2
-ubrk_getLocaleByType(const UBreakIterator *bi, ULocDataLocaleType type, UErrorCode* status);
+ubrk_getLocaleByType(const UBreakIterator* bi U_LIFETIME_BOUND,
+                     ULocDataLocaleType type, UErrorCode* status);
 
 /**
   *  Set the subject text string upon which the break iterator is operating

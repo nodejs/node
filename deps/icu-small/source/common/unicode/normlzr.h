@@ -170,7 +170,7 @@ public:
    * @param mode  The normalization mode.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode);
+  Normalizer(ConstChar16Ptr str U_LIFETIME_BOUND, int32_t length, UNormalizationMode mode);
 
   /**
    * Creates a new <code>Normalizer</code> object for iterating over the
@@ -377,11 +377,13 @@ public:
    *
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  static UnicodeString &
-  U_EXPORT2 concatenate(const UnicodeString &left, const UnicodeString &right,
-              UnicodeString &result,
-              UNormalizationMode mode, int32_t options,
-              UErrorCode &errorCode);
+  static UnicodeString& U_EXPORT2
+  concatenate(const UnicodeString& left,
+              const UnicodeString& right,
+              UnicodeString& result U_LIFETIME_BOUND,
+              UNormalizationMode mode,
+              int32_t options,
+              UErrorCode& errorCode);
 #endif  /* U_HIDE_DEPRECATED_API */
 
   /**

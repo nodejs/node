@@ -1828,6 +1828,9 @@ void Calendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& statu
             }
             if (era > 0 || newYear >= 1) {
                 int32_t maxYear = getActualMaximum(field, status);
+                if (U_FAILURE(status)) {
+                    return;
+                }
                 if (maxYear < 32768) {
                     // this era has real bounds, roll should wrap years
                     if (newYear < 1) {

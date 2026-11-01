@@ -10,7 +10,10 @@
 
 #include "unicode/localpointer.h"
 #include "unicode/uobject.h"
+#include "unicode/unistr.h"
 #include "cmemory.h"
+
+#define MAX_CAL_ID_LENGTH 31    // Currently, maximum calendar type length is 19 
 
 U_NAMESPACE_BEGIN
 
@@ -21,13 +24,30 @@ public:
     U_I18N_API static EraRules* createInstance(const char* calType,
                                                UBool includeTentativeEra,
                                                UErrorCode& status);
+    /**
+     * Gets the calendar type ID
+     * @return  calendar type ID
+     */
+    inline const char* getCalendarType() const {
+        return calTypeId;
+    }
+
+    /**
+     * Gets the era rules of the calendar from which the current calendar inherits eras,
+     * or nullptr if there is no such calendar.
+     * @return  era rules of the calendar from which the current calendar inherits eras,
+     * or nullptr.
+     */
+    inline const EraRules* getInheritEraRules() const {
+        return inheritEraRules;
+    }
 
     /**
      * Gets number of effective eras
      * @return  number of effective eras (not the same as max era code)
      */
     inline int32_t getNumberOfEras() const {
-        return numEras;
+        return inheritEraRules == nullptr ? numEras : numEras + inheritEraRules->getNumberOfEras();
     }
 
     /**
@@ -39,6 +59,25 @@ public:
     }
 
     /**
+     * Gets minimum defined era code for the current calendar
+     * @return  minimum defined era code
+     */
+    inline int32_t getMinEraCode() const {
+        int minEraCode = minEra;
+        if (inheritEraRules != nullptr) {
+            minEraCode = inheritEraRules->getMinEraCode();
+        }
+        return minEraCode;
+    }
+
+    /**
+     * Gets next era code
+     * @param eraCode Current era code
+     * @return Next era code. If not available, maximum era code is returned.
+     */
+    U_I18N_API int32_t getNextEraCode(int32_t eraCode) const;
+
+    /**
      * Gets start date of an era
      * @param eraCode   Era code
      * @param fields    Receives date fields. The result includes values of year, month,
@@ -46,7 +85,7 @@ public:
      *                  will be January 1st in year whose value is minimum integer.
      * @param status    Receives status.
      */
-    void getStartDate(int32_t eraCode, int32_t (&fields)[3], UErrorCode& status) const;
+    U_I18N_API void getStartDate(int32_t eraCode, int32_t (&fields)[3], UErrorCode& status) const;
 
     /**
      * Gets start year of an era
@@ -79,15 +118,18 @@ public:
     }
 
 private:
-    EraRules(LocalMemory<int32_t>& startDatesIn, int32_t startDatesLengthIn, int32_t minEraIn, int32_t numErasIn);
+    EraRules(const char* calTypeId, LocalMemory<int32_t>& startDatesIn, int32_t startDatesLengthIn,
+        int32_t minEraIn, int32_t numErasIn);
 
     void initCurrentEra();
 
+    char calTypeId[MAX_CAL_ID_LENGTH + 1];  // calendar type id
     LocalMemory<int32_t> startDates;
     int32_t startDatesLength;
     int32_t minEra;  // minimum valid era code, for first entry in startDates
     int32_t numEras; // number of valid era codes (not necessarily the same as startDates length
     int32_t currentEra;
+    EraRules* inheritEraRules;
 };
 
 U_NAMESPACE_END

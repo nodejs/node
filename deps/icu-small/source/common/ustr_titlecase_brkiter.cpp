@@ -48,8 +48,8 @@ public:
     WholeStringBreakIterator *clone() const override;
     static UClassID U_EXPORT2 getStaticClassID();
     UClassID getDynamicClassID() const override;
-    CharacterIterator &getText() const override;
-    UText *getUText(UText *fillIn, UErrorCode &errorCode) const override;
+    CharacterIterator& getText() const U_LIFETIME_BOUND override;
+    UText* getUText(UText* fillIn U_LIFETIME_BOUND, UErrorCode& errorCode) const override;
     void  setText(const UnicodeString &text) override;
     void  setText(UText *text, UErrorCode &errorCode) override;
     void  adoptText(CharacterIterator* it) override;
@@ -64,7 +64,8 @@ public:
     int32_t next(int32_t n) override;
     WholeStringBreakIterator *createBufferClone(void *stackBuffer, int32_t &BufferSize,
                                                 UErrorCode &errorCode) override;
-    WholeStringBreakIterator &refreshInputText(UText *input, UErrorCode &errorCode) override;
+    WholeStringBreakIterator& refreshInputText(UText* input,
+                                               UErrorCode& errorCode) U_LIFETIME_BOUND override;
 
 private:
     int32_t length;
@@ -76,7 +77,7 @@ WholeStringBreakIterator::~WholeStringBreakIterator() {}
 bool WholeStringBreakIterator::operator==(const BreakIterator&) const { return false; }
 WholeStringBreakIterator *WholeStringBreakIterator::clone() const { return nullptr; }
 
-CharacterIterator &WholeStringBreakIterator::getText() const {
+CharacterIterator& WholeStringBreakIterator::getText() const U_LIFETIME_BOUND {
     UPRV_UNREACHABLE_EXIT;  // really should not be called
 }
 UText *WholeStringBreakIterator::getUText(UText * /*fillIn*/, UErrorCode &errorCode) const {
@@ -120,8 +121,9 @@ WholeStringBreakIterator *WholeStringBreakIterator::createBufferClone(
     }
     return nullptr;
 }
-WholeStringBreakIterator &WholeStringBreakIterator::refreshInputText(
-        UText * /*input*/, UErrorCode &errorCode) {
+WholeStringBreakIterator&
+WholeStringBreakIterator::refreshInputText(UText* /*input*/,
+                                           UErrorCode& errorCode) U_LIFETIME_BOUND {
     if (U_SUCCESS(errorCode)) {
         errorCode = U_UNSUPPORTED_ERROR;
     }
@@ -129,9 +131,12 @@ WholeStringBreakIterator &WholeStringBreakIterator::refreshInputText(
 }
 
 U_CFUNC
-BreakIterator *ustrcase_getTitleBreakIterator(
-        const Locale *locale, const char *locID, uint32_t options, BreakIterator *iter,
-        LocalPointer<BreakIterator> &ownedIter, UErrorCode &errorCode) {
+BreakIterator* ustrcase_getTitleBreakIterator(const Locale* locale,
+                                              const char* locID,
+                                              uint32_t options,
+                                              BreakIterator* iter U_LIFETIME_BOUND,
+                                              LocalPointer<BreakIterator>& ownedIter,
+                                              UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) { return nullptr; }
     options &= U_TITLECASE_ITERATOR_MASK;
     if (options != 0 && iter != nullptr) {
@@ -216,19 +221,20 @@ ucasemap_toTitle(UCaseMap *csm,
     if (U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if (csm->iter == nullptr) {
+    auto *impl = reinterpret_cast<UCaseMapImpl *>(csm);
+    if (impl->iter == nullptr) {
         LocalPointer<BreakIterator> ownedIter;
         BreakIterator *iter = ustrcase_getTitleBreakIterator(
-            nullptr, csm->locale, csm->options, nullptr, ownedIter, *pErrorCode);
+            nullptr, impl->locale, impl->options, nullptr, ownedIter, *pErrorCode);
         if (iter == nullptr) {
             return 0;
         }
-        csm->iter = ownedIter.orphan();
+        impl->iter = ownedIter.orphan();
     }
     UnicodeString s(srcLength<0, src, srcLength);
-    csm->iter->setText(s);
+    impl->iter->setText(s);
     return ustrcase_map(
-        csm->caseLocale, csm->options, csm->iter,
+        impl->caseLocale, impl->options, impl->iter,
         dest, destCapacity,
         src, srcLength,
         ustrcase_internalToTitle, nullptr, *pErrorCode);

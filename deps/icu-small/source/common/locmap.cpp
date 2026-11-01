@@ -1173,7 +1173,6 @@ uprv_convertToLCIDPlatform(const char* localeID, UErrorCode* status)
     // The purpose of this function is to leverage the Windows platform name->lcid
     // conversion functionality when available.
 #if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
-    int32_t len;
     icu::CharString baseName;
     const char * mylocaleID = localeID;
 

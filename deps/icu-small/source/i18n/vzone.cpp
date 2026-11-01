@@ -83,30 +83,60 @@ U_CAPI void U_EXPORT2
 vzone_write(VZone* zone, char16_t* & result, int32_t & resultLength, UErrorCode& status) {
     UnicodeString s;
     ((VTimeZone*)zone)->VTimeZone::write(s, status);
+    if (U_FAILURE(status)) {
+        result = nullptr;
+        resultLength = 0;
+        return;
+    }
 
     resultLength = s.length();
-    result = (char16_t*)uprv_malloc(resultLength);
-    memcpy(result,s.getBuffer(),resultLength);
+    result = static_cast<char16_t*>(uprv_malloc(resultLength * sizeof(char16_t)));
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        resultLength = 0;
+        return;
+    }
+    memcpy(result, s.getBuffer(), resultLength * sizeof(char16_t));
 }
 
 U_CAPI void U_EXPORT2
 vzone_writeFromStart(VZone* zone, UDate start, char16_t* & result, int32_t & resultLength, UErrorCode& status) {
     UnicodeString s;
     ((VTimeZone*)zone)->VTimeZone::write(start, s, status);
+    if (U_FAILURE(status)) {
+        result = nullptr;
+        resultLength = 0;
+        return;
+    }
 
     resultLength = s.length();
-    result = (char16_t*)uprv_malloc(resultLength);
-    memcpy(result,s.getBuffer(),resultLength);
+    result = static_cast<char16_t*>(uprv_malloc(resultLength * sizeof(char16_t)));
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        resultLength = 0;
+        return;
+    }
+    memcpy(result, s.getBuffer(), resultLength * sizeof(char16_t));
 }
 
 U_CAPI void U_EXPORT2
 vzone_writeSimple(VZone* zone, UDate time, char16_t* & result, int32_t & resultLength, UErrorCode& status) {
     UnicodeString s;
     ((VTimeZone*)zone)->VTimeZone::writeSimple(time, s, status);
+    if (U_FAILURE(status)) {
+        result = nullptr;
+        resultLength = 0;
+        return;
+    }
 
     resultLength = s.length();
-    result = (char16_t*)uprv_malloc(resultLength);
-    memcpy(result,s.getBuffer(),resultLength);
+    result = static_cast<char16_t*>(uprv_malloc(resultLength * sizeof(char16_t)));
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        resultLength = 0;
+        return;
+    }
+    memcpy(result, s.getBuffer(), resultLength * sizeof(char16_t));
 }
 
 U_CAPI int32_t U_EXPORT2
