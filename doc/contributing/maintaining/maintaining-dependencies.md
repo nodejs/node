@@ -21,6 +21,7 @@ This a list of all the dependencies:
 * [inspector\_protocol][inspector_protocol]
 * [libffi][]
 * [libuv][]
+* [LIEF][]
 * [llhttp][]
 * [minimatch][]
 * [nghttp2][]
@@ -290,6 +291,11 @@ The [libuv](https://github.com/libuv/libuv) dependency is a
 multi-platform support library with a focus on asynchronous I/O.
 It was primarily developed for use by Node.js.
 
+### LIEF
+
+The [LIEF](https://github.com/lief-project/LIEF) dependency is used to
+generate single executable applications with `--build-sea`.
+
 ### llhttp
 
 The [llhttp](https://github.com/nodejs/llhttp) dependency is
@@ -424,6 +430,7 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [inspector_protocol]: #inspector_protocol
 [libffi]: #libffi
 [libuv]: #libuv
+[lief]: #lief
 [llhttp]: #llhttp
 [maintaining-V8]: ./maintaining-V8.md
 [maintaining-http]: ./maintaining-http.md
