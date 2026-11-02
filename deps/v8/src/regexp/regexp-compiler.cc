@@ -2149,7 +2149,6 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
     compiler->set_flags(flags);
-
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
