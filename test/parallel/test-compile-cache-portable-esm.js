@@ -3,14 +3,11 @@
 // This tests NODE_COMPILE_CACHE works after moving directory and unusual characters in path are handled correctly.
 
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
-
-// The compile cache is disabled while V8 coverage is being collected.
-process.env.NODE_V8_COVERAGE = '';
 
 tmpdir.refresh();
 

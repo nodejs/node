@@ -3,15 +3,12 @@
 // This tests NODE_COMPILE_CACHE works.
 
 require('../common');
-const { spawnSyncAndExit } = require('../common/child_process');
+const { spawnSyncAndExit } = require('../common/compile-cache');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-
-// The compile cache is disabled while V8 coverage is being collected.
-process.env.NODE_V8_COVERAGE = '';
 
 {
   // Test that it throws if the script fails to parse, and no cache is created.

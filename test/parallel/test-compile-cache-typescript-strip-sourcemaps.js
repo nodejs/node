@@ -7,13 +7,10 @@ const common = require('../common');
 if (!process.config.variables.node_use_amaro) {
   common.skip('Requires Amaro');
 }
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-
-// The compile cache is disabled while V8 coverage is being collected.
-process.env.NODE_V8_COVERAGE = '';
 
 tmpdir.refresh();
 const dir = tmpdir.resolve('.compile_cache_dir');

@@ -3,14 +3,11 @@
 // This tests NODE_COMPILE_CACHE works in existing directory.
 
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-
-// The compile cache is disabled while V8 coverage is being collected.
-process.env.NODE_V8_COVERAGE = '';
 
 {
   tmpdir.refresh();

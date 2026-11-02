@@ -1396,18 +1396,20 @@ CompileCacheEnableResult Environment::EnableCompileCache(
     const std::string& cache_dir, EnableOption option) {
   CompileCacheEnableResult result;
   std::string disable_env;
+  const char* disabled_reason = nullptr;
   if (credentials::SafeGetenv(
           "NODE_DISABLE_COMPILE_CACHE", &disable_env, this)) {
-    result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
-  }
+    disabled_reason = "Disabled by NODE_DISABLE_COMPILE_CACHE";
 #if HAVE_INSPECTOR
-  // V8 cannot collect block coverage for functions deserialized from the cache.
-  if (result.message.empty() && coverage_connection() != nullptr) {
-    result.message = "Disabled because V8 coverage is being collected";
-  }
+  } else if (coverage_connection() != nullptr) {
+    // V8 cannot collect block coverage for functions deserialized from the
+    // cache.
+    disabled_reason = "Disabled because V8 coverage is being collected";
 #endif  // HAVE_INSPECTOR
-  if (!result.message.empty()) {
+  }
+  if (disabled_reason != nullptr) {
     result.status = CompileCacheEnableStatus::DISABLED;
+    result.message = disabled_reason;
     Debug(this,
           DebugCategory::COMPILE_CACHE,
           "[compile cache] %s.\n",
