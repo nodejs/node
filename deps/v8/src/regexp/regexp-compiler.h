@@ -572,7 +572,7 @@ class RegExpCompiler {
 
   struct WorkItem {
     RegExpNode* node;
-    Flags flags;
+    RegExpFlags flags;
   };
 
   inline void AddWork(RegExpNode* node) {
