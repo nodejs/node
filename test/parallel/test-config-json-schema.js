@@ -44,11 +44,16 @@ const assert = require('assert');
 
 // Round-trip through JSON so that the null-prototype objects returned by
 // generateConfigJsonSchema() show up as plain objects in the diff.
+const schemaString = JSON.stringify(generateConfigJsonSchema());
 const schema = JSON.parse(
-  JSON.stringify(generateConfigJsonSchema())
+  schemaString.includes('"description":"use bundled CA store"') &&
+  schemaString.includes('"description":"use OpenSSL\'s default CA store (default)"') ?
     // If node was built with --openssl-use-def-ca-store configure flag,
     // it affects the values of `use-bundled-ca` and `use-openssl-ca`.
-    .replace(/ CA store \(default\)/g, ' CA store'));
+    schemaString.replace('"use bundled CA store"', '"use bundled CA store (default)"')
+                .replace('"use OpenSSL\'s default CA store (default)"', '"use OpenSSL\'s default CA store"') :
+    schemaString
+);
 
 // This assertion ensures that whenever we add a new env option, we also add it
 // to the JSON schema. The function getEnvOptionsInputType() returns all the available
