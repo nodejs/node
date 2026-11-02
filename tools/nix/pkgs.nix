@@ -15,10 +15,9 @@ if builtins.currentSystem == "x86_64-darwin" then
 else
   nixpkgs
   // {
-    # OpenSSL versions we want to keep testing with that have been removed from the unstable channel.
+    # OpenSSL 3.0.x was removed from unstable, but we want to keep testing it.
     inherit (import ./pkgs-26.05.nix arg)
       openssl_3
-      openssl_4_0
       ;
 
     boringssl =

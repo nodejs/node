@@ -13,7 +13,6 @@
     boringssl
     openssl_3
     openssl_3_5
-    openssl_4_0
     ;
 
   openssl_fips = import ./openssl-fips.nix { };
