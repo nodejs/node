@@ -12,15 +12,15 @@ const fromRoot = (path) =>
 const urlFromRoot = (path) => new URL(path, root).href;
 
 export default {
-  extends: '@node-core/doc-kit/config',
+  'extends': '@node-core/doc-kit/config',
 
-  target: [
+  'target': [
     'legacy-json-all',
     'section-pages',
     'llms-txt',
   ],
 
-  global: {
+  'global': {
     // Files to skip are passed by the Makefile (`skip_apidoc_files`).
     input: [fromRoot('doc/api/*.md')],
     output: fromRoot('out/doc/api'),
@@ -30,7 +30,7 @@ export default {
     index: urlFromRoot('doc/api/index.md'),
   },
 
-  metadata: {
+  'metadata': {
     typeMap: urlFromRoot('doc/type-map.json'),
   },
 
