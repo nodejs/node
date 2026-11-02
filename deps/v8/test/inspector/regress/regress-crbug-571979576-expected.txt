@@ -1,0 +1,4 @@
+Tests that objects logged are not retained when custom formatters destroy the context.
+
+Running test: testMemoryLeak
+No leak detected.

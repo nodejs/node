@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --flush-denormals
+// Flags: --allow-natives-syntax
 
 function divByPow2(x) {
   return x / 8.98846567431158e+307; // 2^1023

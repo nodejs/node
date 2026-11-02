@@ -349,9 +349,7 @@ void WasmFunctionBuilder::EmitFromInitializerExpression(
   WriteInitializerExpression(&body_, init_expr);
 }
 
-void WasmFunctionBuilder::SetName(base::Vector<const char> name) {
-  name_ = name;
-}
+void WasmFunctionBuilder::SetName(std::string_view name) { name_ = name; }
 
 void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {
   DCHECK_LE(position, body_.size());
@@ -459,14 +457,14 @@ ModuleTypeIndex WasmModuleBuilder::AddStructType(StructType* type,
                                                  bool is_final,
                                                  ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
+  types_.emplace_back(type, supertype, is_final, type->is_shared());
   return ModuleTypeIndex{index};
 }
 
 ModuleTypeIndex WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
                                                 ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
+  types_.emplace_back(type, supertype, is_final, type->is_shared());
   return ModuleTypeIndex{index};
 }
 
@@ -552,9 +550,9 @@ void WasmModuleBuilder::SetIndirectFunction(uint32_t table_index,
   AddElementSegment(std::move(segment));
 }
 
-uint32_t WasmModuleBuilder::AddImport(base::Vector<const char> name,
+uint32_t WasmModuleBuilder::AddImport(std::string_view name,
                                       const FunctionSig* sig,
-                                      base::Vector<const char> module,
+                                      std::string_view module,
                                       bool force_new_sig) {
   DCHECK(adding_imports_allowed_);
   ModuleTypeIndex sig_index =
@@ -564,9 +562,9 @@ uint32_t WasmModuleBuilder::AddImport(base::Vector<const char> name,
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddGlobalImport(base::Vector<const char> name,
+uint32_t WasmModuleBuilder::AddGlobalImport(std::string_view name,
                                             ValueType type, bool mutability,
-                                            base::Vector<const char> module) {
+                                            std::string_view module) {
   global_imports_.push_back({.module = module,
                              .name = name,
                              .type_code = type.value_type_code(),
@@ -578,7 +576,7 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
   start_function_index_ = function->func_index();
 }
 
-void WasmModuleBuilder::AddExport(base::Vector<const char> name,
+void WasmModuleBuilder::AddExport(std::string_view name,
                                   ImportExportKindCode kind, uint32_t index) {
   DCHECK_LE(index, std::numeric_limits<int>::max());
   exports_.push_back(
@@ -587,13 +585,13 @@ void WasmModuleBuilder::AddExport(base::Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
                                               WasmInitExpr init,
-                                              base::Vector<const char> name) {
+                                              std::string_view name) {
   uint32_t index = AddGlobal(type, mutability, init);
   AddExport(name, kExternalGlobal, index);
   return index;
 }
 
-void WasmModuleBuilder::ExportImportedFunction(base::Vector<const char> name,
+void WasmModuleBuilder::ExportImportedFunction(std::string_view name,
                                                int import_index) {
 #if DEBUG
   // The size of function_imports_ must not change any more.
@@ -942,7 +940,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     // Emit a placeholder for the length.
     size_t start = buffer->reserve_u32v();
     // Emit the section string.
-    buffer->write_string(base::CStrVector("name"));
+    buffer->write_string("name");
     // Emit a subsection for the function names.
     buffer->write_u8(NameSectionKindCode::kFunctionCode);
     // Emit a placeholder for the subsection length.

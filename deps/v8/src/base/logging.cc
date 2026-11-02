@@ -48,7 +48,7 @@ std::string PrettyPrintChar(int ch) {
       if (std::isprint(ch)) {
         oss << '\'' << ch << '\'';
       } else {
-        oss << std::hex << "\\x" << static_cast<unsigned int>(ch);
+        oss << std::hex << "\\x" << static_cast<unsigned int>(ch) << std::dec;
       }
   }
   return oss.str();

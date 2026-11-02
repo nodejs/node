@@ -15,6 +15,7 @@
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/struct-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,6 +23,19 @@
 
 namespace v8 {
 namespace internal {
+
+FunctionTemplateRareData::FunctionTemplateRareData(
+    const AllocationWitness& witness)
+    : Struct(witness.roots().function_template_rare_data_map()),
+      prototype_template_(witness.roots().undefined_value()),
+      prototype_provider_template_(witness.roots().undefined_value()),
+      parent_template_(witness.roots().undefined_value()),
+      named_property_handler_(witness.roots().undefined_value()),
+      indexed_property_handler_(witness.roots().undefined_value()),
+      instance_template_(witness.roots().undefined_value()),
+      instance_call_handler_(witness.roots().undefined_value()),
+      access_check_info_(witness.roots().undefined_value()),
+      c_function_overloads_(witness.roots().empty_fixed_array()) {}
 
 Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
 FunctionTemplateRareData::prototype_template() const {
@@ -108,67 +122,71 @@ void FunctionTemplateRareData::set_c_function_overloads(
   c_function_overloads_.store(this, value, mode);
 }
 
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
-               is_object_template_call_handler,
-               IsObjectTemplateCallHandlerBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, has_side_effects,
-               HasSideEffectsBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
-               UndetectableBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
-               NeedsAccessCheckBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, read_only_prototype,
-               ReadOnlyPrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
-               RemovePrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
-               AcceptAnyReceiverBit::kShift)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
+                    is_object_template_call_handler,
+                    FunctionTemplateInfo::Flags::IsObjectTemplateCallHandlerBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, has_side_effects,
+                    FunctionTemplateInfo::Flags::HasSideEffectsBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
+                    FunctionTemplateInfo::Flags::UndetectableBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
+                    FunctionTemplateInfo::Flags::NeedsAccessCheckBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, read_only_prototype,
+                    FunctionTemplateInfo::Flags::ReadOnlyPrototypeBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
+                    FunctionTemplateInfo::Flags::RemovePrototypeBit)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
+                    FunctionTemplateInfo::Flags::AcceptAnyReceiverBit)
 
 bool FunctionTemplateInfo::published() const {
-  return BooleanBit::get(relaxed_flag(), PublishedBit::kShift);
+  return relaxed_flag().published();
 }
 
 void FunctionTemplateInfo::set_published(bool value) {
   DCHECK(value);
   if (published()) return;
   CHECK(!HeapLayout::InReadOnlySpace(this));
-  set_relaxed_flag(
-      BooleanBit::set(relaxed_flag(), PublishedBit::kShift, value));
+  set_relaxed_flag(relaxed_flag().with_published(value));
 }
 
 InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_start()
     const {
-  return AllowedReceiverInstanceTypeRangeStartBits::decode(relaxed_flag());
+  return relaxed_flag().allowed_receiver_instance_type_range_start();
 }
 void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_start(
     InstanceType value) {
   set_relaxed_flag(
-      AllowedReceiverInstanceTypeRangeStartBits::update(relaxed_flag(), value));
+      relaxed_flag().with_allowed_receiver_instance_type_range_start(value));
 }
 
 InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_end()
     const {
-  return AllowedReceiverInstanceTypeRangeEndBits::decode(relaxed_flag());
+  return relaxed_flag().allowed_receiver_instance_type_range_end();
 }
 void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_end(
     InstanceType value) {
   set_relaxed_flag(
-      AllowedReceiverInstanceTypeRangeEndBits::update(relaxed_flag(), value));
+      relaxed_flag().with_allowed_receiver_instance_type_range_end(value));
 }
 
-uint32_t FunctionTemplateInfo::flag() const { return flag_; }
-void FunctionTemplateInfo::set_flag(uint32_t value) { flag_ = value; }
-uint32_t FunctionTemplateInfo::flag(RelaxedLoadTag tag) const {
-  return base::AsAtomic32::Relaxed_Load(&flag_);
+FunctionTemplateInfo::Flags FunctionTemplateInfo::flag() const {
+  return flag_.load(std::memory_order_relaxed);
 }
-void FunctionTemplateInfo::set_flag(uint32_t value, RelaxedStoreTag tag) {
-  base::AsAtomic32::Relaxed_Store(&flag_, value);
+void FunctionTemplateInfo::set_flag(Flags value) {
+  flag_.store(value, std::memory_order_relaxed);
+}
+FunctionTemplateInfo::Flags FunctionTemplateInfo::flag(
+    RelaxedLoadTag tag) const {
+  return flag_.load(std::memory_order_relaxed);
+}
+void FunctionTemplateInfo::set_flag(Flags value, RelaxedStoreTag tag) {
+  flag_.store(value, std::memory_order_relaxed);
 }
 
-int32_t FunctionTemplateInfo::relaxed_flag() const {
+FunctionTemplateInfo::Flags FunctionTemplateInfo::relaxed_flag() const {
   return flag(kRelaxedLoad);
 }
-void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
+void FunctionTemplateInfo::set_relaxed_flag(Flags flags) {
   return set_flag(flags, kRelaxedStore);
 }
 
@@ -291,11 +309,11 @@ void FunctionTemplateInfo::SetAllowedReceiverInstanceTypeRange(
 // Ensure that instance type fields in FunctionTemplateInfo are big enough
 // to fit the whole JSApiObject type range.
 static_assert(
-    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits::is_valid(
-        LAST_JS_API_OBJECT_TYPE));
+    FunctionTemplateInfo::Flags::AllowedReceiverInstanceTypeRangeStartBits::
+        is_valid(LAST_JS_API_OBJECT_TYPE));
 static_assert(
-    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits::is_valid(
-        LAST_JS_API_OBJECT_TYPE));
+    FunctionTemplateInfo::Flags::AllowedReceiverInstanceTypeRangeEndBits::
+        is_valid(LAST_JS_API_OBJECT_TYPE));
 
 bool FunctionTemplateInfo::instantiated() {
   return IsSharedFunctionInfo(shared_function_info());

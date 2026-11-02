@@ -14,7 +14,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_STATX_H
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_STATX_H
 
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -25,10 +25,7 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> statx(int dirfd, const char *path, int flags,
                                unsigned int mask, void *statxbuf) {
-  int ret = syscall_impl<int>(SYS_statx, dirfd, path, flags, mask, statxbuf);
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
+  return syscall_checked<int>(SYS_statx, dirfd, path, flags, mask, statxbuf);
 }
 
 } // namespace linux_syscalls

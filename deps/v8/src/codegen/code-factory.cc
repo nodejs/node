@@ -148,10 +148,12 @@ Callable CodeFactory::ArrayNoArgumentConstructor(
         isolate,                                \
         Builtin::kArrayNoArgumentConstructor_##kind_camel##_##mode_camel);
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
-    DCHECK(IsSmiElementsKind(kind));
     switch (kind) {
       CASE(PACKED_SMI_ELEMENTS, PackedSmi, DontOverride);
       CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DontOverride);
+      CASE(PACKED_ELEMENTS, Packed, DontOverride);
+      CASE(PACKED_DOUBLE_ELEMENTS, PackedDouble, DontOverride);
+      CASE(HOLEY_DOUBLE_ELEMENTS, HoleyDouble, DontOverride);
       default:
         UNREACHABLE();
     }
@@ -182,10 +184,12 @@ Callable CodeFactory::ArraySingleArgumentConstructor(
         isolate,                                \
         Builtin::kArraySingleArgumentConstructor_##kind_camel##_##mode_camel)
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
-    DCHECK(IsSmiElementsKind(kind));
     switch (kind) {
       CASE(PACKED_SMI_ELEMENTS, PackedSmi, DontOverride);
       CASE(HOLEY_SMI_ELEMENTS, HoleySmi, DontOverride);
+      CASE(PACKED_ELEMENTS, Packed, DontOverride);
+      CASE(PACKED_DOUBLE_ELEMENTS, PackedDouble, DontOverride);
+      CASE(HOLEY_DOUBLE_ELEMENTS, HoleyDouble, DontOverride);
       default:
         UNREACHABLE();
     }

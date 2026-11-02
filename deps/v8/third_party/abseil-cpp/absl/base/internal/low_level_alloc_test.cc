@@ -66,7 +66,7 @@ static void RandomizeBlockDesc(BlockDesc *d) {
 
 // Use to indicate to the malloc hooks that
 // this calls is from LowLevelAlloc.
-static bool using_low_level_alloc = false;
+static bool using_low_level_alloc [[maybe_unused]] = false;
 
 // n times, toss a coin, and based on the outcome
 // either allocate a new block or deallocate an old block.

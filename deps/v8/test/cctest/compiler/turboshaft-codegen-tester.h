@@ -37,8 +37,8 @@ class DataHolder {
              ParamMachTypes... p)
       : isolate_(isolate),
         graph_zone_(zone),
-        info_(zone->New<OptimizedCompilationInfo>(base::ArrayVector("testing"),
-                                                  zone, CodeKind::FOR_TESTING)),
+        info_(zone->New<OptimizedCompilationInfo>("testing", zone,
+                                                  CodeKind::FOR_TESTING)),
         zone_stats_(isolate->allocator()),
         ts_pipeline_data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kJS,
                           isolate, info_, AssemblerOptions::Default(isolate)),

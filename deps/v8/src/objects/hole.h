@@ -25,7 +25,7 @@ V8_OBJECT class Hole : public HeapObject {
 
  private:
   friend class Heap;
-  friend class Isolate;
+  friend class ReadOnlyHeap;
 
   // TODO(leszeks): Make it smaller if able and needed.
   static constexpr int kPayloadSize = 64 * KB;

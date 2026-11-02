@@ -1,0 +1,8 @@
+Regression test for crbug.com/576534261.
+{
+    error : {
+        code : -32000
+        message : Object is too large to be returned by value
+    }
+    id : <messageId>
+}

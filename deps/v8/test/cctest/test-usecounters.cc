@@ -37,25 +37,17 @@ TEST(AssigmentExpressionLHSIsCall) {
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
 
-  // AssignmentExpressions whose LHS is a call increment appropriate counters
+  // AssignmentExpressions whose LHS is a call increment the sloppy counter.
   CompileRun("function f(){ a() = 0; }");
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy] = 0;
-  CompileRun("function f(){ 'use strict'; a() = 0; }");
-  CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
-  CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
-  use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 
-  // UpdateExpressions whose LHS is a call increment appropriate counters
+  // UpdateExpressions whose LHS is a call increment the sloppy counter.
   CompileRun("function f(){ ++a(); }");
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy] = 0;
-  CompileRun("function f(){ 'use strict'; ++a(); }");
-  CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
-  CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
-  use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 
   global_use_counts = nullptr;
 }
@@ -277,6 +269,44 @@ TEST(RegExpSplitUseCounters) {
       "RegExp.prototype[Symbol.split].call(re3, 'a-a');");
   CHECK_EQ(3, use_counts[v8::Isolate::kRegExpCustomSpecies]);
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  global_use_counts = nullptr;
+}
+
+TEST(BigInt) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("1 + 2; '123'; new Int32Array(1); new Float64Array(1);");
+  CHECK_EQ(0, use_counts[v8::Isolate::kBigInt]);
+
+  CompileRun("123n;");
+  CHECK_LT(0, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("function f() { return 456n; } f();");
+  CHECK_LT(0, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("BigInt(123);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("BigInt('456');");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("new BigInt64Array(1);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("new BigUint64Array(1);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
 
   global_use_counts = nullptr;
 }

@@ -194,6 +194,42 @@ ThreadIsolation::TryLookupJitPage(Address addr, size_t size) {
 
 // static
 std::optional<ThreadIsolation::JitPageReference>
+ThreadIsolation::TryLookupJitPageWithoutBlocking(Address addr) {
+  // Try to lock the pages mutex and the mutex of the page itself to prevent
+  // potential deadlocks. The profiler can try to do a lookup from a signal
+  // handler. If that signal handler runs while the thread locked one of these
+  // mutexes, it would result in a deadlock.
+  std::optional<base::MutexGuard> guard =
+      base::MutexGuard::TryLock(trusted_data_.jit_pages_mutex_);
+  if (!guard) {
+    return {};
+  }
+
+  // upper_bound gives us an iterator to the position after address.
+  auto it = trusted_data_.jit_pages_->upper_bound(addr);
+
+  // The previous page should be the one we're looking for.
+  if (it == trusted_data_.jit_pages_->begin()) {
+    return {};
+  }
+  it--;
+
+  std::optional<JitPageReference> jit_page =
+      JitPageReference::TryLock(it->second, it->first);
+  if (!jit_page) {
+    return {};
+  }
+
+  // If the address is not in the range of the jit page, return.
+  if (jit_page->End() <= addr) {
+    return {};
+  }
+
+  return jit_page;
+}
+
+// static
+std::optional<ThreadIsolation::JitPageReference>
 ThreadIsolation::TryLookupJitPageLocked(Address addr, size_t size) {
   trusted_data_.jit_pages_mutex_->AssertHeld();
 
@@ -298,6 +334,25 @@ bool AllocationIsBehindRange(Address range_start, Address range_size,
 ThreadIsolation::JitPageReference::JitPageReference(class JitPage* jit_page,
                                                     base::Address address)
     : page_lock_(&jit_page->mutex_), jit_page_(jit_page), address_(address) {}
+
+ThreadIsolation::JitPageReference::JitPageReference(
+    base::MutexGuard&& page_lock, class JitPage* jit_page,
+    base::Address address)
+    : page_lock_(std::move(page_lock)),
+      jit_page_(jit_page),
+      address_(address) {}
+
+// static
+std::optional<ThreadIsolation::JitPageReference>
+ThreadIsolation::JitPageReference::TryLock(class JitPage* jit_page,
+                                           base::Address address) {
+  std::optional<base::MutexGuard> page_lock =
+      base::MutexGuard::TryLock(&jit_page->mutex_);
+  if (!page_lock) {
+    return {};
+  }
+  return JitPageReference(std::move(*page_lock), jit_page, address);
+}
 
 ThreadIsolation::JitPage::~JitPage() {
   // TODO(sroettger): check that the page is not in use (scan shadow stacks).
@@ -415,9 +470,19 @@ void ThreadIsolation::JitPageReference::UnregisterAllocationsExcept(
   jit_page_->allocations_.swap(keep_allocations);
 }
 
-base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
+std::optional<base::Address>
+ThreadIsolation::JitPageReference::StartOfAllocationAt(
     base::Address inner_pointer) {
-  return AllocationContaining(inner_pointer).first;
+  auto it = jit_page_->allocations_.upper_bound(inner_pointer);
+  if (it == jit_page_->allocations_.begin()) {
+    return {};
+  }
+  it--;
+  size_t offset = inner_pointer - it->first;
+  if (it->second.Size() <= offset) {
+    return {};
+  }
+  return it->first;
 }
 
 std::pair<base::Address, ThreadIsolation::JitAllocation&>
@@ -644,53 +709,16 @@ bool ThreadIsolation::WriteProtectMemory(
 #endif
 }
 
-namespace {
-
-class MutexUnlocker {
- public:
-  explicit MutexUnlocker(base::Mutex& mutex) : mutex_(mutex) {
-    mutex_.AssertHeld();
-  }
-
-  ~MutexUnlocker() {
-    mutex_.AssertHeld();
-    mutex_.Unlock();
-  }
-
- private:
-  base::Mutex& mutex_;
-};
-
-}  // namespace
-
 // static
-bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address inner_pointer) {
-  CFIMetadataWriteScope write_scope("CanLookupStartOfJitAllocationAt");
-
-  // Try to lock the pages mutex and the mutex of the page itself to prevent
-  // potential dead locks. The profiler can try to do a lookup from a signal
-  // handler. If that signal handler runs while the thread locked one of these
-  // mutexes, it would result in a dead lock.
-  if (!trusted_data_.jit_pages_mutex_->TryLock()) {
-    return false;
-  }
-  MutexUnlocker pages_mutex_unlocker(*trusted_data_.jit_pages_mutex_);
-
-  // upper_bound gives us an iterator to the position after address.
-  auto it = trusted_data_.jit_pages_->upper_bound(inner_pointer);
-
-  // The previous page should be the one we're looking for.
-  if (it == trusted_data_.jit_pages_->begin()) {
+std::optional<Address> ThreadIsolation::TryLookupStartOfJitAllocationAt(
+    Address inner_pointer) {
+  CFIMetadataWriteScope write_scope("TryLookupStartOfJitAllocationAt");
+  std::optional<JitPageReference> page =
+      TryLookupJitPageWithoutBlocking(inner_pointer);
+  if (!page) {
     return {};
   }
-  it--;
-
-  JitPage* jit_page = it->second;
-  if (jit_page->mutex_.TryLock()) {
-    jit_page->mutex_.Unlock();
-    return true;
-  }
-  return false;
+  return page->StartOfAllocationAt(inner_pointer);
 }
 
 // static

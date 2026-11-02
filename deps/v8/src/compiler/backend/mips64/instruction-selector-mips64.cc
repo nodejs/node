@@ -459,7 +459,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -550,7 +550,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kIndirectPointer:    // Fall through.
+      case MachineRepresentation::kTrustedPointer:     // Fall through.
       case MachineRepresentation::kFloat16RawBits:     // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1542,7 +1542,7 @@ void InstructionSelector::VisitUnalignedLoad(OpIndex node) {
     case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -1596,7 +1596,7 @@ void InstructionSelector::VisitUnalignedStore(OpIndex node) {
     case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();

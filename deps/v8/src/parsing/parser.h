@@ -22,7 +22,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 
@@ -79,6 +78,7 @@ struct ParserFormalParameters : FormalParametersBase {
 
   void set_strict_parameter_error(const Scanner::Location& loc,
                                   MessageTemplate message) {
+    if (strict_error_loc.IsValid()) return;
     strict_error_loc = loc;
     strict_error_message = message;
   }
@@ -170,8 +170,19 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       DirectHandle<Script> script,
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
-  template <typename IsolateT>
-  void HandleDebugMagicComments(IsolateT* isolate, DirectHandle<Script> script);
+  void HandleDebugMagicComments(Isolate* isolate, DirectHandle<Script> script);
+  const Scanner::DebugMagicCommentLocations& debug_magic_comment_locations()
+      const {
+    return scanner_.debug_magic_comment_locations();
+  }
+  // Sets the debug magic comment fields of {script} to the values in {source}
+  // at the given locations: the source map URL is a substring of {source}, the
+  // source URL and debug ID are sequential copies. Locations that are empty,
+  // invalid or out of bounds are ignored.
+  static void SetDebugMagicCommentFields(
+      Isolate* isolate, DirectHandle<Script> script,
+      DirectHandle<String> source,
+      const Scanner::DebugMagicCommentLocations& locations);
 
  private:
   friend class ParserBase<Parser>;
@@ -258,6 +269,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           pending_error_handler(), runtime_call_stats_, v8_file_logger_,
           flags(), parsing_on_main_thread_);
       reusable_preparser_->set_allow_eval_cache(allow_eval_cache());
+      if (has_module_in_scope_chain()) {
+        reusable_preparser_->set_has_module_in_scope_chain();
+      }
       preparse_data_buffer_.reserve(128);
     }
     return reusable_preparser_;
@@ -275,7 +289,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* local_name;
     Scanner::Location location;
   };
-  ZoneChunkList<ExportClauseData>* ParseExportClause(
+  SmallZoneVector<ExportClauseData, 8> ParseExportClause(
       Scanner::Location* reserved_loc,
       Scanner::Location* string_literal_local_name_loc);
   struct NamedImport : public ZoneObject {
@@ -383,7 +397,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                         Expression** each_variable);
   Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info);
 
-  Statement* DesugarLexicalBindingsInForStatement(
+  Statement* DesugarLetBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info);
 
@@ -529,8 +543,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
-                            MessageTemplate message, const AstRawString* arg,
-                            int pos);
+                            MessageTemplate message, int pos);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos);
@@ -660,16 +673,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE void InferFunctionName() { fni_.Infer(); }
 
-  // If we assign a function literal to a property we pretenure the
-  // literal so it can be added as a constant function property.
-  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
-      Expression* left, Expression* right) {
-    DCHECK_NOT_NULL(left);
-    if (left->IsProperty() && right->IsFunctionLiteral()) {
-      right->AsFunctionLiteral()->set_pretenure();
-    }
-  }
-
   // Returns true if we have a binary expression between two literals. In that
   // case, *x will be changed to an expression which is the computed value.
   bool ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
@@ -704,8 +707,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Generate AST node that throws a ReferenceError with the given type.
   V8_INLINE Expression* NewThrowReferenceError(MessageTemplate message,
                                                int pos) {
-    return NewThrowError(Runtime::kNewReferenceError, message,
-                         ast_value_factory()->empty_string(), pos);
+    return NewThrowError(Runtime::kNewReferenceError, message, pos);
   }
 
   // Dummy implementation. The parser should never have a unidentifiable

@@ -856,6 +856,10 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 }
 
 Response V8RuntimeAgentImpl::getIsolateId(String16* outIsolateId) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return Response::ServerError(
+        "Runtime.getIsolateId is not allowed for untrusted clients");
+  }
   char buf[40];
   std::snprintf(buf, sizeof(buf), "%" PRIx64, m_inspector->isolateId());
   *outIsolateId = buf;
@@ -866,6 +870,10 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
                                           double* out_totalSize,
                                           double* out_embedderHeapUsedSize,
                                           double* out_backingStorageSize) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return Response::ServerError(
+        "Runtime.getHeapUsage is not allowed for untrusted clients");
+  }
   v8::HeapStatistics stats;
   m_inspector->isolate()->GetHeapStatistics(&stats);
   *out_usedSize = stats.used_heap_size();

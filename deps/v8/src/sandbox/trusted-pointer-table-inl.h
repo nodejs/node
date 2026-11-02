@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address pointer,
-                                                       IndirectPointerTag tag,
+                                                       TrustedPointerTag tag,
                                                        bool mark_as_alive) {
   auto payload = Payload(pointer, tag);
   if (mark_as_alive) payload.SetMarkBit();
@@ -26,23 +26,23 @@ void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address pointer,
 }
 
 void TrustedPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
-  auto payload = Payload(next_entry_index, kIndirectPointerFreeEntryTag);
+  auto payload = Payload(next_entry_index, kTrustedPointerFreeEntryTag);
   payload_.store(payload, std::memory_order_relaxed);
 }
 
 void TrustedPointerTableEntry::MakeZappedEntry() {
-  auto payload = Payload(kNullAddress, kIndirectPointerZappedEntryTag);
+  auto payload = Payload(kNullAddress, kTrustedPointerZappedEntryTag);
   payload_.store(payload, std::memory_order_relaxed);
 }
 
 Address TrustedPointerTableEntry::GetPointer(
-    IndirectPointerTagRange tag_range) const {
+    TrustedPointerTagRange tag_range) const {
   DCHECK(!IsFreelistEntry());
   return payload_.load(std::memory_order_acquire).Untag(tag_range);
 }
 
 void TrustedPointerTableEntry::SetPointer(Address pointer,
-                                          IndirectPointerTag tag) {
+                                          TrustedPointerTag tag) {
   DCHECK(!IsFreelistEntry());
   // Currently, this method is only used when the mark bit is unset. If this
   // ever changes, we'd need to check the marking state of the old entry and
@@ -54,22 +54,22 @@ void TrustedPointerTableEntry::SetPointer(Address pointer,
 }
 
 bool TrustedPointerTableEntry::HasPointer(
-    IndirectPointerTagRange tag_range) const {
+    TrustedPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_acquire);
   if (!payload.ContainsPointer()) return false;
   return payload.IsTaggedWithTagIn(tag_range);
 }
 
 Address TrustedPointerTableEntry::GetMaybeUnpublished(
-    IndirectPointerTagRange tag_range) const {
+    TrustedPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_acquire);
-  if (payload.IsTaggedWithTagIn(kUnpublishedIndirectPointerTag)) {
-    return payload.Untag(kUnpublishedIndirectPointerTag);
+  if (payload.IsTaggedWithTagIn(kUnpublishedTrustedPointerTag)) {
+    return payload.Untag(kUnpublishedTrustedPointerTag);
   }
   return payload.Untag(tag_range);
 }
 
-IndirectPointerTag TrustedPointerTableEntry::GetTag() const {
+TrustedPointerTag TrustedPointerTableEntry::GetTag() const {
   return payload_.load(std::memory_order_relaxed).ExtractTag();
 }
 
@@ -78,17 +78,17 @@ void TrustedPointerTableEntry::Unpublish() {
   auto new_payload = old_payload;
   do {
     new_payload = old_payload;
-    new_payload.SetTag(kUnpublishedIndirectPointerTag);
+    new_payload.SetTag(kUnpublishedTrustedPointerTag);
   } while (!payload_.compare_exchange_weak(old_payload, new_payload,
                                            std::memory_order_release,
                                            std::memory_order_relaxed));
 }
 
-void TrustedPointerTableEntry::Publish(IndirectPointerTag tag) {
+void TrustedPointerTableEntry::Publish(TrustedPointerTag tag) {
   auto old_payload = payload_.load(std::memory_order_relaxed);
   auto new_payload = old_payload;
   do {
-    CHECK(old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
+    CHECK(old_payload.IsTaggedWith(kUnpublishedTrustedPointerTag));
     new_payload = old_payload;
     new_payload.SetTag(tag);
   } while (!payload_.compare_exchange_weak(old_payload, new_payload,
@@ -130,21 +130,21 @@ bool TrustedPointerTableEntry::IsMarked() const {
 }
 
 Address TrustedPointerTable::Get(TrustedPointerHandle handle,
-                                 IndirectPointerTagRange tag_range) const {
+                                 TrustedPointerTagRange tag_range) const {
   uint32_t index = HandleToIndex(handle);
   DCHECK(index == 0 || at(index).HasPointer(tag_range));
   return at(index).GetPointer(tag_range);
 }
 
 Address TrustedPointerTable::GetMaybeUnpublished(
-    TrustedPointerHandle handle, IndirectPointerTagRange tag_range) const {
+    TrustedPointerHandle handle, TrustedPointerTagRange tag_range) const {
   uint32_t index = HandleToIndex(handle);
   const TrustedPointerTableEntry& entry = at(index);
   return entry.GetMaybeUnpublished(tag_range);
 }
 
 void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
-                              IndirectPointerTag tag) {
+                              TrustedPointerTag tag) {
   DCHECK_NE(kNullTrustedPointerHandle, handle);
   Validate(pointer, tag);
   uint32_t index = HandleToIndex(handle);
@@ -160,7 +160,7 @@ void TrustedPointerTable::Update(TrustedPointerHandle handle, Address pointer) {
 }
 
 TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
-    Space* space, Address pointer, IndirectPointerTag tag,
+    Space* space, Address pointer, TrustedPointerTag tag,
     TrustedPointerPublishingScope* scope) {
   DCHECK(space->BelongsTo(this));
   Validate(pointer, tag);
@@ -187,7 +187,7 @@ void TrustedPointerTable::Zap(TrustedPointerHandle handle) {
 }
 
 void TrustedPointerTable::Publish(TrustedPointerHandle handle,
-                                  IndirectPointerTag tag) {
+                                  TrustedPointerTag tag) {
   uint32_t index = HandleToIndex(handle);
   at(index).Publish(tag);
 }
@@ -199,7 +199,7 @@ void TrustedPointerTable::Unpublish(TrustedPointerHandle handle) {
 
 bool TrustedPointerTable::IsUnpublished(TrustedPointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
-  return at(index).HasPointer(kUnpublishedIndirectPointerTag);
+  return at(index).HasPointer(kUnpublishedTrustedPointerTag);
 }
 
 template <typename Callback>
@@ -209,7 +209,7 @@ void TrustedPointerTable::IterateActiveEntriesIn(Space* space,
     if (!at(index).IsFreelistEntry()) {
       // We might see unpublished entries here and also need to handle them.
       Address pointer =
-          at(index).GetPointer(kAllIndirectPointerTagsIncludingUnpublished);
+          at(index).GetPointer(kAllTrustedPointerTagsIncludingUnpublished);
       callback(IndexToHandle(index), pointer);
     }
   });
@@ -227,7 +227,7 @@ TrustedPointerHandle TrustedPointerTable::IndexToHandle(uint32_t index) const {
   return handle;
 }
 
-void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
+void TrustedPointerTable::Validate(Address pointer, TrustedPointerTag tag) {
   if (IsTrustedSpaceMigrationInProgressForObjectsWithTag(tag)) {
     // This CHECK is mostly just here to force tags to be taken out of the
     // IsTrustedSpaceMigrationInProgressForObjectsWithTag function once the
@@ -238,8 +238,8 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
   if (ReadOnlyHeap::Contains(pointer)) {
     // Only Code and UncompiledData are allowed to reside in the Read-Only Heap
     // and have entries in the Trusted Pointer Table.
-    CHECK(tag == kCodeIndirectPointerTag ||
-          tag == kUncompiledDataIndirectPointerTag);
+    CHECK(tag == kCodeTrustedPointerTag ||
+          tag == kUncompiledDataTrustedPointerTag);
     return;
   }
 

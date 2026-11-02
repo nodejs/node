@@ -13,11 +13,13 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/wasm/canonical-types.h"
@@ -193,10 +195,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeDirectHandle<WasmModuleObject> SyncCompile(
       Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, ErrorThrower* thrower,
-      base::OwnedVector<const uint8_t> bytes,
+      base::UniqueArray<const uint8_t> bytes,
       // Optional source URL; needed when recompiling on flags mismatch
       // to preserve the original URL.
-      base::Vector<const char> source_url = {});
+      std::string_view source_url = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   MaybeDirectHandle<WasmInstanceObject> SyncInstantiate(
@@ -209,7 +211,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void AsyncCompile(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    base::OwnedVector<const uint8_t> bytes,
+                    base::UniqueArray<const uint8_t> bytes,
                     const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given Wasm module.
@@ -235,9 +237,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Imports the shared part of a module from a different Context/Isolate,
   // recreating a full module object in the given Isolate.
-  MaybeDirectHandle<WasmModuleObject> ImportNativeModule(
+  DirectHandle<WasmModuleObject> ImportNativeModule(
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
-      base::Vector<const char> source_url);
+      std::string_view source_url);
 
   // Flushes all Liftoff code in all NativeModules.
   void FlushLiftoffCode();
@@ -401,7 +403,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   DirectHandle<Script> GetOrCreateScript(Isolate*,
                                          const std::shared_ptr<NativeModule>&,
-                                         base::Vector<const char> source_url);
+                                         std::string_view source_url);
 
   // Returns a barrier allowing background compile operations if valid and
   // preventing this object from being destroyed.
@@ -460,7 +462,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AsyncCompileJob* CreateAsyncCompileJob(
       WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
+      base::UniqueArray<const uint8_t> bytes, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerCodeGC_Locked(size_t dead_code_limit);
@@ -474,11 +476,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Finish a GC if there are no more outstanding isolates. Hold {mutex_} when
   // calling this method.
   void PotentiallyFinishCurrentGC();
-
-  // Enable/disable code logging on the NativeModule, updating
-  // {num_modules_with_code_logging_} accordingly.
-  void EnableCodeLogging(NativeModule*);
-  void DisableCodeLogging(NativeModule*);
 
   // Remember in a global flag whether we saw nondeterminism during execution.
   // This is used in differential fuzzing.
@@ -529,10 +526,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::shared_ptr<OperationsBarrier> operations_barrier_{
       std::make_shared<OperationsBarrier>()};
 
-  // Store the number of modules which have code logging enabled. This is then
-  // used for a fast-path to avoid taking the mutex and iterating Isolates or
-  // NativeModules.
-  std::atomic<size_t> num_modules_with_code_logging_{0};
+  // Store the number of isolates which have code logging enabled. This is then
+  // used for a fast-path to avoid taking the mutex and iterating Isolates.
+  std::atomic<size_t> num_isolates_with_code_logging_{0};
 
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.

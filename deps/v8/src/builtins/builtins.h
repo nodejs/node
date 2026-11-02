@@ -279,8 +279,7 @@ class Builtins {
   // Convenience wrappers.
   //
   static inline constexpr Builtin RecordWrite(SaveFPRegsMode fp_mode);
-  static inline constexpr Builtin IndirectPointerBarrier(
-      SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin TrustedPointerBarrier(SaveFPRegsMode fp_mode);
   static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
 
   static inline constexpr Builtin AdaptorWithBuiltinExitFrame(

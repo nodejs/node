@@ -13,6 +13,17 @@ namespace v8::internal {
 
 // Bytecode verifier to ensure bytecode is safe to execute.
 //
+// The verifier's scope is sandbox safety only: it guarantees that executing
+// the bytecode cannot escape the sandbox. Light verification covers
+// control-flow integrity, full verification additionally covers that
+// registers and parameters don't refer to memory outside of the sandbox.
+// Bytecode that is semantically incorrect but still cannot escape the
+// sandbox (for example a register that the bytecode generator would never
+// emit at that place) is intentionally accepted if it can never be generated
+// in production, i.e. if it can only be constructed by installing arbitrary
+// bytecode. Semantically incorrect bytecode that our own code can generate
+// is a bug and should be fixed, even if it is sandbox-safe.
+//
 // See the design document for more details:
 // https://docs.google.com/document/d/1UUooVKUvf1zDobG34VDVuLsjoKZd-CeSuhvBcLysc7U/edit?usp=sharing
 class V8_EXPORT_PRIVATE BytecodeVerifier {

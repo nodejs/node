@@ -67,6 +67,8 @@ class TranslatedValue {
   // possible.
   Handle<Object> GetValue();
 
+  Float64 GetDoubleValue();
+
   bool IsMaterializedObject() const;
   bool IsMaterializableByDebugger() const;
 
@@ -274,6 +276,11 @@ class TranslatedFrame {
     CHECK(!raw_bytecode_array_.is_null());
     return raw_bytecode_array_;
   }
+
+  // Returns the active (potentially debug) BytecodeArray associated with this
+  // frame's SharedFunctionInfo after verifying that the frame's original
+  // BytecodeArray is consistent with it.
+  Tagged<BytecodeArray> GetActiveBytecodeArray(Isolate* isolate) const;
 
   using ValuesContainer = base::SmallVector<TranslatedValue, 8>;
 
@@ -553,6 +560,9 @@ class TranslatedState {
                                    DirectHandle<Map> map);
   void MaterializeHeapNumber(TranslatedFrame* frame, int* value_index,
                              TranslatedValue* slot);
+  void MaterializeUninitializedHeapNumber(TranslatedFrame* frame,
+                                          int* value_index,
+                                          TranslatedValue* slot);
 
   void EnsureObjectAllocatedAt(TranslatedValue* slot);
 

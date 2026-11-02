@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <type_traits>
 
 #include "src/base/compiler-specific.h"
 
@@ -21,11 +22,13 @@ namespace base {
 // that there's no type checking at all; any enum value can be OR'd with any
 // other enum value and passed on to a function that takes an int or unsigned
 // int.
-template <typename EnumT, typename BitfieldT = int,
+template <typename EnumT, typename BitfieldT = std::underlying_type_t<EnumT>,
           typename BitfieldStorageT = BitfieldT>
 class Flags final {
  public:
   static_assert(sizeof(BitfieldStorageT) >= sizeof(BitfieldT));
+  static_assert(sizeof(BitfieldT) >= sizeof(EnumT),
+                "base::Flags BitfieldT is narrower than EnumT");
   using flag_type = EnumT;
   using mask_type = BitfieldT;
 

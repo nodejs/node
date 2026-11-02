@@ -8,6 +8,7 @@
 #include "src/objects/module.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/cell-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info.h"
@@ -43,13 +44,8 @@ BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
                     SourceTextModule::AsyncEvaluationOrdinalBits)
 
-BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
-
-inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
-  DCHECK(PhaseBits::is_valid(phase));
-  uint32_t hints = flags();
-  hints = PhaseBits::update(hints, phase);
-  set_flags(hints);
+inline unsigned ModuleRequest::position() const {
+  return PositionBits::decode(flags());
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
@@ -124,17 +120,167 @@ class UnorderedModuleSet
             ZoneAllocator<Handle<Module>>(zone)) {}
 };
 
-Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
-    Isolate* isolate) const {
-  CHECK_GE(status(), kEvaluatingAsync);
-  DCHECK(!IsTheHole(cycle_root()));
-  Handle<SourceTextModule> root(Cast<SourceTextModule>(cycle_root()), isolate);
-  return root;
+template <template <typename> class Holder, typename ModuleT,
+          typename... Handlers>
+  requires(std::is_base_of_v<Module, ModuleT> &&
+           (std::is_same_v<Holder<ModuleT>, Handle<ModuleT>> ||
+            std::is_same_v<Holder<ModuleT>, DirectHandle<ModuleT>>))
+decltype(auto) Module::MatchState(Holder<ModuleT> module,
+                                  Handlers&&... handlers) {
+  static_assert(sizeof...(Handlers) > 0);
+  static_assert(
+      (HandlesAnyState<Holder, ModuleT, Handlers>(AllStatuses{}) && ...),
+      "Every handler in MatchState must accept a "
+      "Handle/DirectHandle<InState<ModuleT, kStates...>> parameter");
+  static_assert(
+      NoDuplicateHandlers<Holder, ModuleT, Handlers...>(AllStatuses{}),
+      "Duplicate state handler in MatchState");
+  constexpr uint32_t kHandledMask =
+      HandledStatusMask<Holder, ModuleT, Handlers...>(AllStatuses{});
+  Overloaded overloaded{std::forward<Handlers>(handlers)...};
+  const Status status = module->status();
+#define DISPATCH_STATE(State)                                             \
+  case State:                                                             \
+    if constexpr (std::is_invocable_v<decltype(overloaded)&,              \
+                                      Holder<InState<ModuleT, State>>>) { \
+      return overloaded(UncheckedCast<InState<ModuleT, State>>(module));  \
+    } else {                                                              \
+      break;                                                              \
+    }
+  switch (status) {
+    DISPATCH_STATE(kUnlinked)
+    DISPATCH_STATE(kPreLinking)
+    DISPATCH_STATE(kLinking)
+    DISPATCH_STATE(kLinked)
+    DISPATCH_STATE(kEvaluating)
+    DISPATCH_STATE(kEvaluatingAsync)
+    DISPATCH_STATE(kEvaluated)
+    DISPATCH_STATE(kEvaluatedError)
+  }
+#undef DISPATCH_STATE
+  FatalUnexpectedStatus(status, kHandledMask);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::set_exports(
+    Tagged<ObjectHashTable> value, WriteBarrierMode mode)
+  requires(IsModuleAllowed<kPreLinking, kLinking>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  DCHECK(!Module::ExportsFinalized());
+  Module::set_exports(value, mode);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::set_star_exports(
+    Tagged<ObjectHashTable> value, WriteBarrierMode mode)
+  requires(IsAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                     kEvaluated, kEvaluatedError>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  Module::set_exports(value, mode);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+bool Module::InState<ModuleT, kStates...>::ExportsFinalized() const
+  requires(IsModuleAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                           kEvaluated, kEvaluatedError>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return Module::ExportsFinalized();
+}
+
+template <typename ModuleT, Module::Status... kStates>
+Tagged<SourceTextModule> Module::InState<ModuleT, kStates...>::GetCycleRoot()
+    const
+  requires(IsAllowed<kEvaluatingAsync, kEvaluated>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return CheckedCast<SourceTextModule>(this->cycle_root());
+}
+
+template <typename ModuleT, Module::Status... kStates>
+Handle<SourceTextModule> Module::InState<ModuleT, kStates...>::GetCycleRoot(
+    Isolate* isolate) const
+  requires(IsAllowed<kEvaluatingAsync, kEvaluated>())
+{
+  return v8::internal::handle(GetCycleRoot(), isolate);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+MaybeHandle<SourceTextModule>
+Module::InState<ModuleT, kStates...>::TryGetCycleRoot(Isolate* isolate) const
+  requires(IsAllowed<kEvaluatedError>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  Tagged<UnionOf<SourceTextModule, TheHole>> root = this->cycle_root();
+  if (IsTheHole(root)) return {};
+  return v8::internal::handle(Cast<SourceTextModule>(root), isolate);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+int Module::InState<ModuleT, kStates...>::dfs_index() const
+  requires(IsAllowed<kLinking, kEvaluating>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return SourceTextModule::dfs_index();
+}
+
+template <typename ModuleT, Module::Status... kStates>
+int Module::InState<ModuleT, kStates...>::dfs_ancestor_index() const
+  requires(IsAllowed<kLinking, kEvaluating>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return SourceTextModule::dfs_ancestor_index();
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::UpdateDfsAncestorIndex(
+    DirectHandle<InState<SourceTextModule, kLinking>> child)
+  requires(IsAllowed<kLinking>())
+{
+  this->set_dfs_ancestor_index(
+      std::min(dfs_ancestor_index(), child->dfs_ancestor_index()));
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::UpdateDfsAncestorIndex(
+    DirectHandle<InState<SourceTextModule, kEvaluating>> child)
+  requires(IsAllowed<kEvaluating>())
+{
+  this->set_dfs_ancestor_index(
+      std::min(dfs_ancestor_index(), child->dfs_ancestor_index()));
+}
+
+template <typename ModuleT, Module::Status... kStates>
+bool Module::InState<ModuleT, kStates...>::HasPendingAsyncDependencies()
+  requires(IsAllowed<kEvaluating, kEvaluatingAsync>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return SourceTextModule::HasPendingAsyncDependencies();
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::IncrementPendingAsyncDependencies()
+  requires(IsAllowed<kEvaluating>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  SourceTextModule::IncrementPendingAsyncDependencies();
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::DecrementPendingAsyncDependencies()
+  requires(IsAllowed<kEvaluatingAsync>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  SourceTextModule::DecrementPendingAsyncDependencies();
 }
 
 void SourceTextModule::AddAsyncParentModule(
-    Isolate* isolate, DirectHandle<SourceTextModule> module,
-    DirectHandle<SourceTextModule> parent) {
+    Isolate* isolate,
+    DirectHandle<InState<kEvaluating, kEvaluatingAsync>> module,
+    DirectHandle<InState<kEvaluating>> parent) {
+  DCHECK(module->HasAsyncEvaluationOrdinal());
   DirectHandle<ArrayList> async_parent_modules(module->async_parent_modules(),
                                                isolate);
   DirectHandle<ArrayList> new_array_list =
@@ -172,13 +318,16 @@ void SourceTextModule::DecrementPendingAsyncDependencies() {
 
 Tagged<ObjectHashTable> Module::exports() const { return exports_.load(); }
 void Module::set_exports(Tagged<ObjectHashTable> value, WriteBarrierMode mode) {
+  CHECK(!ExportsFinalized());
   exports_.store(this, value, mode);
 }
 
 int Module::hash() const { return hash_.load().value(); }
 void Module::set_hash(int value) { hash_.store(this, Smi::FromInt(value)); }
 
-int Module::status() const { return status_.load().value(); }
+Module::Status Module::status() const {
+  return static_cast<Status>(status_.load().value());
+}
 void Module::set_status(int value) { status_.store(this, Smi::FromInt(value)); }
 
 Tagged<UnionOf<Cell, Undefined>> Module::module_namespace() const {
@@ -195,6 +344,16 @@ Tagged<UnionOf<Cell, Undefined>> Module::deferred_module_namespace() const {
 void Module::set_deferred_module_namespace(
     Tagged<UnionOf<Cell, Undefined>> value, WriteBarrierMode mode) {
   deferred_module_namespace_.store(this, value, mode);
+}
+
+bool Module::ExportsFinalized() const {
+  bool res =
+      (!IsUndefined(module_namespace()) &&
+       IsJSModuleNamespace(Cast<Cell>(module_namespace())->value())) ||
+      (!IsUndefined(deferred_module_namespace()) &&
+       IsJSModuleNamespace(Cast<Cell>(deferred_module_namespace())->value()));
+  DCHECK_IMPLIES(res, status() >= kLinking);
+  return res;
 }
 
 Tagged<Module> JSModuleNamespace::module() const { return module_.load(); }

@@ -119,15 +119,15 @@ class KeyAccumulator final {
 
   V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
       PropertyCallbackArguments& args,
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<JSObject> result,
+      DirectHandle<InterceptorInfo> interceptor, DirectHandle<JSArray> result,
       IndexedOrNamed type);
 
   Maybe<bool> AddKeysFromJSProxy(DirectHandle<JSProxy> proxy,
                                  DirectHandle<FixedArray> keys);
   V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(DirectHandle<FixedArray> array,
                                                 AddKeyConversion convert);
-  V8_WARN_UNUSED_RESULT ExceptionStatus
-  AddKeys(DirectHandle<JSObject> array_like, AddKeyConversion convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(DirectHandle<JSArray> array,
+                                                AddKeyConversion convert);
 
   bool IsShadowed(DirectHandle<Object> key);
   bool HasShadowingKeys();

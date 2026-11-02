@@ -1,0 +1,1 @@
+Tests that sending a malformed protocol message with a throwing global prototype Proxy does not crash.

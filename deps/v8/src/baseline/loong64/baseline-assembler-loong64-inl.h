@@ -212,6 +212,104 @@ void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(Register value,
     __ Move(value, scratch1);
   }
 }
+
+void BaselineAssembler::SmiAddSubAndJumpIfOverflow(
+    Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
+    Label* overflow, Label::Distance) {
+  DCHECK(IsInlineSmiArithmeticBinaryOperationSupported(operation));
+
+  const int rhs_value = rhs.value();
+  ScratchRegisterScope temps(this);
+  if (SmiValuesAre31Bits()) {
+    Register canonical_lhs = temps.AcquireScratch();
+    Register result = temps.AcquireScratch();
+    __ slli_w(canonical_lhs, lhs, 0);
+    switch (operation) {
+      case Operation::kAdd:
+        __ Add_w(result, canonical_lhs, Operand(rhs));
+        __ Branch(overflow, rhs_value > 0 ? lt : gt, result,
+                  Operand(canonical_lhs));
+        break;
+      case Operation::kSubtract:
+        __ Sub_w(result, canonical_lhs, Operand(rhs));
+        __ Branch(overflow, rhs_value > 0 ? gt : lt, result,
+                  Operand(canonical_lhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ Move(output, result);
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    Register result = temps.AcquireScratch();
+    switch (operation) {
+      case Operation::kAdd:
+        __ Add_d(result, lhs, Operand(rhs));
+        __ Branch(overflow, rhs_value > 0 ? lt : gt, result, Operand(lhs));
+        break;
+      case Operation::kSubtract:
+        __ Sub_d(result, lhs, Operand(rhs));
+        __ Branch(overflow, rhs_value > 0 ? gt : lt, result, Operand(lhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ Move(output, result);
+  }
+}
+
+void BaselineAssembler::SmiBitwiseOp(Register lhs, Tagged<Smi> rhs,
+                                     Operation operation) {
+  DCHECK(IsInlineSmiBitwiseBinaryOperationSupported(operation));
+
+  if (SmiValuesAre31Bits()) {
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Shift the tagged value, then clear the bit shifted into the Smi tag.
+        __ srai_w(lhs, lhs, shift);
+        __ bstrins_d(lhs, zero_reg, 0, 0);
+        break;
+      }
+      case Operation::kBitwiseAnd:
+        __ And(lhs, lhs, Operand(rhs));
+        break;
+      case Operation::kBitwiseOr:
+        __ Or(lhs, lhs, Operand(rhs));
+        break;
+      case Operation::kBitwiseXor:
+        __ Xor(lhs, lhs, Operand(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Combine untagging with the shift, then restore the Smi tag and
+        // padding.
+        __ srai_d(lhs, lhs, kSmiShiftSize + kSmiTagSize + shift);
+        __ slli_d(lhs, lhs, kSmiShiftSize + kSmiTagSize);
+        break;
+      }
+      case Operation::kBitwiseAnd:
+        __ And(lhs, lhs, Operand(rhs));
+        break;
+      case Operation::kBitwiseOr:
+        __ Or(lhs, lhs, Operand(rhs));
+        break;
+      case Operation::kBitwiseXor:
+        __ Xor(lhs, lhs, Operand(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 #ifdef V8_STATIC_ROOTS

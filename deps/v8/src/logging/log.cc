@@ -17,6 +17,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
@@ -410,10 +411,10 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     CHECK_NOT_NULL(v8_flags.perf_basic_prof_path);
     const char* base_dir = v8_flags.perf_basic_prof_path;
     // Open the perf JIT dump file.
-    auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(
+    auto perf_dump_name = base::UniqueArray<char>::NewForOverwrite(
         strlen(base_dir) + kFilenameBufferPadding);
-    int size = SNPrintF(perf_dump_name.as_vector(), "%s/perf-%d.map", base_dir,
-                        process_id_);
+    int size = base::SNPrintF(perf_dump_name.as_span(), "%s/perf-%d.map",
+                              base_dir, process_id_);
     CHECK_NE(size, -1);
     perf_output_handle_ =
         base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
@@ -725,7 +726,7 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
   // Open the low-level log file.
   size_t len = strlen(name);
   auto ll_name =
-      base::OwnedVector<char>::NewForOverwrite(len + sizeof(kLogExt));
+      base::UniqueArray<char>::NewForOverwrite(len + sizeof(kLogExt));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
@@ -2726,15 +2727,20 @@ void ExistingCodeLogger::LogCompiledFunctions(
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  HeapObjectIterator iterator(heap);
-  DisallowGarbageCollection no_gc;
+  DirectHandleVector<WasmModuleObject> module_objects(isolate_);
+  {
+    HeapObjectIterator iterator(heap);
+    DisallowGarbageCollection no_gc;
 
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (!IsWasmModuleObject(obj)) continue;
-    auto module_object = Cast<WasmModuleObject>(obj);
-    module_object->native_module()->LogWasmCodes(isolate_,
-                                                 module_object->script());
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      if (!IsWasmModuleObject(obj)) continue;
+      module_objects.emplace_back(Cast<WasmModuleObject>(obj), isolate_);
+    }
+  }
+  for (DirectHandle<WasmModuleObject> module_object : module_objects) {
+    module_object->native_module()->LogWasmCodes(
+        isolate_, direct_handle(module_object->script(), isolate_));
   }
   wasm::GetWasmImportWrapperCache()->LogForIsolate(isolate_);
   wasm::GetWasmStackEntryWrapperCache()->LogForIsolate(isolate_);

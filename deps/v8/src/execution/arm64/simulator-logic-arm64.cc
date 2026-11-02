@@ -24,6 +24,8 @@ class half {
 
   uint16_t bits() const { return bits_; }
 
+  half operator-() const { return half(static_cast<uint16_t>(bits_ ^ 0x8000)); }
+
  private:
   uint16_t bits_;
 };
@@ -145,13 +147,9 @@ float Simulator::UFixedToFloat(uint64_t src, int fbits, FPRounding round) {
 }
 
 float16 Simulator::FixedToFloat16(int64_t src, int fbits, FPRounding round) {
-  if (src >= 0) {
-    return UFixedToFloat16(src, fbits, round);
-  } else if (src == INT64_MIN) {
-    return -UFixedToFloat16(src, fbits, round);
-  } else {
-    return -UFixedToFloat16(-src, fbits, round);
-  }
+  constexpr float16 kSignMask = 0x8000;
+  if (src >= 0) return UFixedToFloat16(src, fbits, round);
+  return UFixedToFloat16(-static_cast<uint64_t>(src), fbits, round) | kSignMask;
 }
 
 float16 Simulator::UFixedToFloat16(uint64_t src, int fbits, FPRounding round) {
@@ -4361,6 +4359,7 @@ LogicVRegister Simulator::frecpx(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::scvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
+  dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
       float16 result = FixedToFloat16(src.Int(kFormatH, i), fbits, round);
@@ -4380,6 +4379,7 @@ LogicVRegister Simulator::scvtf(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::ucvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
+  dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
       float16 result = UFixedToFloat16(src.Uint(kFormatH, i), fbits, round);

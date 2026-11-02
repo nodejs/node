@@ -480,12 +480,6 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties()) {
-      if (property_details_.representation().IsDouble() && IsNumber(*value)) {
-        double v = Object::NumberValue(*value);
-        if (std::isnan(v)) {
-          value = isolate_->factory()->nan_value();
-        }
-      }
       if (!CanStayConst(*value)) new_constness = PropertyConstness::kMutable;
     } else if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
       if (!DictCanStayConst(*value)) {
@@ -1057,13 +1051,12 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
       FieldIndex::ForDetails(holder->map(), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!IsNumber(value)) return false;
-    // Attempt to store HeapNumber with the hole NaN pattern should have
-    // already generalized field constness to kMutable.
-    DCHECK_IMPLIES(!IsSmi(value), !Cast<HeapNumber>(value)->is_the_hole());
     Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
+    // Only allow initializing stores to uninitialized heap numbers
+    // to stay constant.
+    if (IsUninitializedHeapNumber(current_value)) return true;
     DCHECK(IsHeapNumber(current_value));
-    // Only allow initializing stores to double to stay constant.
-    return Cast<HeapNumber>(current_value)->is_the_hole();
+    return false;
   }
 
   Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
@@ -1195,12 +1188,6 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
   } else if (holder->HasFastProperties()) {
     DCHECK(IsJSObject(*holder));
     if (property_details_.location() == PropertyLocation::kField) {
-      if (property_details_.representation().IsDouble() && IsNumber(*value)) {
-        double v = Object::NumberValue(*value);
-        if (std::isnan(v)) {
-          value = isolate_->factory()->nan_value();
-        }
-      }
       // Check that in case of VariableMode::kConst field the existing value is
       // equal to |value|.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
@@ -1383,7 +1370,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         if (is_element || !name_->IsAnyPrivate()) return MODULE_NAMESPACE;
       }
 #if V8_ENABLE_WEBASSEMBLY
-      if (IsWasmObjectMap(map)) return WASM_OBJECT;
+      if (IsAnyWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map->is_access_check_needed()) {
         if (is_element || !name_->IsPrivateInternal()) return ACCESS_CHECK;

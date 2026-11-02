@@ -1308,6 +1308,21 @@ DirectHandle<FixedArray> CopyMatches(Isolate* isolate,
   return copy;
 }
 
+// Returns whether the argument arrays in the cached {matches} were created in
+// {native_context}.
+bool CachedMatchesBelongTo(Tagged<FixedArray> matches,
+                           Tagged<NativeContext> native_context) {
+  DisallowGarbageCollection no_gc;
+  const uint32_t length = matches->ulength().value();
+  for (uint32_t i = 0; i < length; i++) {
+    Tagged<Object> match = matches->get(i);
+    if (!IsJSArray(match)) continue;
+    return Cast<JSArray>(match)->GetCreationContext() == native_context;
+  }
+  // Entries are only created when there is at least one match.
+  UNREACHABLE();
+}
+
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template <bool has_capture>
@@ -1349,23 +1364,30 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
         isolate->heap(), *subject, regexp_data->wrapper(), &last_match_cache,
         regexp::ResultsCache::REGEXP_MULTIPLE_INDICES);
     if (IsFixedArray(cached_answer)) {
-      int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
-      std::unique_ptr<int32_t[]> last_match(new int32_t[capture_registers]);
-      int32_t* raw_last_match = last_match.get();
-      for (int i = 0; i < capture_registers; i++) {
-        raw_last_match[i] = Smi::ToInt(last_match_cache->get(i));
+      Tagged<FixedArray> cached_answer_array = Cast<FixedArray>(cached_answer);
+      // An entry from another native context is a miss.
+      if (!has_capture ||
+          CachedMatchesBelongTo(cached_answer_array,
+                                isolate->raw_native_context())) {
+        int capture_registers =
+            JSRegExp::RegistersForCaptureCount(capture_count);
+        std::unique_ptr<int32_t[]> last_match(new int32_t[capture_registers]);
+        int32_t* raw_last_match = last_match.get();
+        for (int i = 0; i < capture_registers; i++) {
+          raw_last_match[i] = Smi::ToInt(last_match_cache->get(i));
+        }
+        DirectHandle<FixedArray> cached_fixed_array(cached_answer_array,
+                                                    isolate);
+        // The cache FixedArray is a COW-array and we need to return a copy. A
+        // cache hit implies an earlier run compiled the pattern, so the capture
+        // name map is populated.
+        DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
+            isolate, cached_fixed_array,
+            has_capture && re_data->has_capture_name_map(), capture_count);
+        RegExp::SetLastMatchInfo(isolate, last_match_array, subject,
+                                 capture_count, raw_last_match);
+        return *copied_fixed_array;
       }
-      DirectHandle<FixedArray> cached_fixed_array(
-          Cast<FixedArray>(cached_answer), isolate);
-      // The cache FixedArray is a COW-array and we need to return a copy. A
-      // cache hit implies an earlier run compiled the pattern, so the capture
-      // name map is populated.
-      DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
-          isolate, cached_fixed_array,
-          has_capture && re_data->has_capture_name_map(), capture_count);
-      RegExp::SetLastMatchInfo(isolate, last_match_array, subject,
-                               capture_count, raw_last_match);
-      return *copied_fixed_array;
     }
   }
 

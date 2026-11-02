@@ -6,6 +6,7 @@
 #define V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 
 #include "src/base/export-template.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/source-position.h"
 #include "src/common/assert-scope.h"
@@ -62,7 +63,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
-  base::OwnedVector<uint8_t> ToSourcePositionTableVector();
+  base::UniqueArray<uint8_t> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
   inline bool Lazy() const { return mode_ == LAZY_SOURCE_POSITIONS; }

@@ -42,7 +42,7 @@ class BasicTracedReference;
 template <class F>
 class TracedReference;
 
-class ArrayBuffer;
+class ArrayBufferView;
 class Boolean;
 class Context;
 class EscapableHandleScope;
@@ -56,6 +56,7 @@ class Primitive;
 class Private;
 template <class F>
 class PropertyCallbackInfo;
+class RegExp;
 template <class F>
 class ReturnValue;
 class String;
@@ -63,8 +64,8 @@ template <class F>
 class Traced;
 class TypecheckWitness;
 class Utils;
-class Uint32;
 class Value;
+class WasmMemoryObject;
 
 namespace debug {
 class ConsoleCallArguments;
@@ -87,14 +88,6 @@ template <typename T, typename V = Value>
 void TypeCheckLocal(V* value) {
   // If `T` does not provide a `Cast` method we cannot check anything.
   if constexpr (requires { T::Cast(value); }) {
-    // TODO(419454582): Remove all these exceptions.
-    if (std::is_same_v<Array, T> && value->IsArgumentsObject()) return;
-    if (std::is_same_v<ArrayBuffer, T> && value->IsSharedArrayBuffer()) return;
-    if (std::is_same_v<Object, T> && value->IsNull()) return;
-    if (std::is_same_v<Object, T> && value->IsString()) return;
-    if (std::is_same_v<Object, T> && value->IsUndefined()) return;
-    if (std::is_same_v<Uint32, T> && value->IsInt32()) return;
-    if (std::is_same_v<Object, T> && value->IsNumber()) return;
     // Execute the actual check (part of the cast).
     T::Cast(value);
   }
@@ -476,11 +469,14 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend class FunctionCallbackInfo;
   template <class F>
   friend class PropertyCallbackInfo;
+  friend class ArrayBufferView;
   friend class String;
   friend class Object;
   friend class Context;
   friend class Isolate;
   friend class Private;
+  friend class RegExp;
+  friend class WasmMemoryObject;
   template <class F>
   friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);

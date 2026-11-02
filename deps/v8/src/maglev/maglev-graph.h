@@ -362,7 +362,7 @@ class Graph final : public ZoneObject {
   ValueNode* GetConstant(compiler::ObjectRef ref);
 
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag);
+                                TrustedPointerTag tag);
 
   Zone* zone() const { return compilation_info_->zone(); }
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }

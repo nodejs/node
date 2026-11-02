@@ -34,10 +34,10 @@ pub enum DateError {
     ///
     /// ```
     /// # #![allow(deprecated)]
-    /// use icu::calendar::cal::Hebrew;
-    /// use icu::calendar::types::Month;
     /// use icu::calendar::Date;
     /// use icu::calendar::DateError;
+    /// use icu::calendar::cal::Hebrew;
+    /// use icu::calendar::types::Month;
     ///
     /// Date::try_new_from_codes(None, 5784, Month::leap(5).code(), 1, Hebrew)
     ///     .expect("5784 is a leap year");
@@ -63,9 +63,9 @@ pub enum LunisolarDateError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::LunisolarDateError;
     /// use icu::calendar::types::Month;
-    /// use icu::calendar::Date;
     ///
     /// let err = Date::try_new_hebrew_v2(5785, Month::new(5), 50)
     ///     .expect_err("no month has 50 days");
@@ -82,9 +82,9 @@ pub enum LunisolarDateError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::LunisolarDateError;
     /// use icu::calendar::types::Month;
-    /// use icu::calendar::Date;
     ///
     /// Date::try_new_hebrew_v2(5784, Month::leap(5), 1)
     ///     .expect("5784 is a leap year");
@@ -101,9 +101,9 @@ pub enum LunisolarDateError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::LunisolarDateError;
     /// use icu::calendar::types::Month;
-    /// use icu::calendar::Date;
     ///
     /// let err = Date::try_new_hebrew_v2(5785, Month::leap(1), 1)
     ///     .expect_err("Tishrei does not have a leap month");
@@ -117,9 +117,9 @@ pub enum LunisolarDateError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::LunisolarDateError;
     /// use icu::calendar::types::Month;
-    /// use icu::calendar::Date;
     ///
     /// let err = Date::try_new_hebrew_v2(56812, Month::leap(5), 1)
     ///     .expect_err("56812 is too big");
@@ -143,11 +143,11 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
+    /// use icu::calendar::Iso;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::error::RangeError;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
-    /// use icu::calendar::Iso;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(2000);
@@ -169,11 +169,11 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
+    /// use icu::calendar::Iso;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::error::RangeError;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
-    /// use icu::calendar::Iso;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(2000);
@@ -198,10 +198,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
-    /// use icu::calendar::error::DateFromFieldsError;
-    /// use icu::calendar::types::DateFields;
     /// use icu::calendar::Date;
     /// use icu::calendar::Iso;
+    /// use icu::calendar::error::DateFromFieldsError;
+    /// use icu::calendar::types::DateFields;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(2000);
@@ -220,10 +220,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(5783);
@@ -241,10 +241,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(5783);
@@ -262,10 +262,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
     ///
     /// let mut fields = DateFields::default();
     /// fields.era = Some(b"ce"); // valid in Gregorian, but not Hebrew
@@ -285,10 +285,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Japanese;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
     ///
     /// let mut fields = DateFields::default();
     /// fields.era = Some(b"reiwa");
@@ -314,10 +314,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
     /// use tinystr::tinystr;
     ///
     /// let mut fields = DateFields::default();
@@ -343,10 +343,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
-    /// use icu::calendar::error::DateFromFieldsError;
-    /// use icu::calendar::types::{DateFields, Month};
     /// use icu::calendar::Date;
     /// use icu::calendar::Iso;
+    /// use icu::calendar::error::DateFromFieldsError;
+    /// use icu::calendar::types::{DateFields, Month};
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(2000);
@@ -366,10 +366,10 @@ pub enum DateFromFieldsError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateFromFieldsError;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
     /// use tinystr::tinystr;
     ///
     /// let mut fields = DateFields::default();
@@ -447,10 +447,10 @@ pub enum DateAddError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::DateAddError;
     /// use icu::calendar::options::{DateAddOptions, Overflow};
     /// use icu::calendar::types::DateDuration;
-    /// use icu::calendar::Date;
     ///
     /// // There is a day 31 in October but not in November.
     /// let d = Date::try_new_iso(2025, 10, 31).unwrap();
@@ -477,11 +477,11 @@ pub enum DateAddError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Hebrew;
     /// use icu::calendar::error::DateAddError;
     /// use icu::calendar::options::{DateAddOptions, Overflow};
     /// use icu::calendar::types::{DateDuration, Month};
-    /// use icu::calendar::Date;
     ///
     /// // Hebrew year 5784 is a leap year, 5785 is not.
     /// // Adar I (the leap month) is month 5 in a leap year.
@@ -505,9 +505,9 @@ pub enum DateAddError {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::error::DateAddError;
     /// use icu::calendar::types::DateDuration;
-    /// use icu::calendar::Date;
     ///
     /// let d = Date::try_new_iso(2025, 1, 1).unwrap();
     /// let duration = DateDuration::for_years(1_000_000);
@@ -529,10 +529,10 @@ impl core::error::Error for DateAddError {}
 /// # Examples
 ///
 /// ```
+/// use icu::calendar::Date;
 /// use icu::calendar::error::MismatchedCalendarError;
 /// use icu::calendar::options::DateDifferenceOptions;
 /// use icu::calendar::options::DateDurationUnit;
-/// use icu::calendar::Date;
 ///
 /// let d1 = Date::try_new_gregorian(2000, 1, 1).unwrap().to_any();
 /// let d2 = Date::try_new_persian(1562, 1, 1).unwrap().to_any();

@@ -95,6 +95,11 @@ macro IsJSPrototype(o: HeapObject): bool {
 }
 
 @export
+macro IsUninitializedHeapNumber(o: HeapObject): bool {
+  return Is<UninitializedHeapNumber>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
@@ -702,9 +707,7 @@ Cast<JSArrayForFastToString>(
       goto CastError;
     }
     dcheck(TaggedEqual(
-        %RawDownCast<DescriptorArray>(map.instance_descriptors)
-            .descriptors[0]
-            .key,
+        %RawDownCast<DescriptorArray>(map.instance_descriptors).entries[0].key,
         kLengthString));
   }
 

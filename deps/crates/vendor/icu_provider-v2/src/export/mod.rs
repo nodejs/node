@@ -129,12 +129,12 @@ macro_rules! __make_exportable_provider {
     ($provider:ty, [ $($(#[$cfg:meta])? $struct_m:ty),+, ]) => {
         impl $crate::export::ExportableProvider for $provider {
             fn supported_markers(&self) -> alloc::collections::BTreeSet<$crate::DataMarkerInfo> {
-                alloc::collections::BTreeSet::from_iter([
-                    $(
-                        $(#[$cfg])?
-                        <$struct_m>::INFO,
-                    )+
-                ])
+                let mut r = alloc::collections::BTreeSet::new();
+                $(
+                    $(#[$cfg])?
+                    r.insert(<$struct_m>::INFO);
+                )+
+                r
             }
         }
 

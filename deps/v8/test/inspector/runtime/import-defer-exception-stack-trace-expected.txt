@@ -1,0 +1,325 @@
+Checks the stack trace reported for an uncaught exception thrown while a deferred module is evaluated, with and without async stack traces.
+
+Running with async stack traces enabled.
+
+Access from an async function, after an await:
+Runtime.exceptionThrown:
+{
+    columnNumber : 8
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-async-enabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-async-enabled.js
+            }
+            [2] : {
+                columnNumber : 12
+                functionName : read
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : main-async-enabled.js
+            }
+        ]
+        parent : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 6
+                    scriptId : <scriptId>
+                    url : main-async-enabled.js
+                }
+            ]
+            description : await
+        }
+    }
+    text : Uncaught Error: deferred module threw
+    url : deferred-async-enabled.js
+}
+Runtime.exceptionRevoked: Handler added to rejected promise
+Runtime.exceptionThrown:
+{
+    columnNumber : 16
+    lineNumber : 4
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-async-enabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-async-enabled.js
+            }
+            [2] : {
+                columnNumber : 12
+                functionName : read
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : main-async-enabled.js
+            }
+        ]
+        parent : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 6
+                    scriptId : <scriptId>
+                    url : main-async-enabled.js
+                }
+            ]
+            description : await
+        }
+    }
+    text : Uncaught Error: deferred module threw
+    url : main-async-enabled.js
+}
+
+Access from a classic script:
+Runtime.exceptionThrown:
+{
+    columnNumber : 8
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-script-enabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-script-enabled.js
+            }
+            [2] : {
+                columnNumber : 23
+                functionName : read
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : script-enabled.js
+            }
+            [3] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : script-enabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : deferred-script-enabled.js
+}
+Runtime.exceptionRevoked: Handler added to rejected promise
+Runtime.exceptionThrown:
+{
+    columnNumber : 23
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-script-enabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-script-enabled.js
+            }
+            [2] : {
+                columnNumber : 23
+                functionName : read
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : script-enabled.js
+            }
+            [3] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : script-enabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : script-enabled.js
+}
+
+Running with async stack traces disabled.
+
+Access from an async function, after an await:
+Runtime.exceptionThrown:
+{
+    columnNumber : 8
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-async-disabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-async-disabled.js
+            }
+            [2] : {
+                columnNumber : 12
+                functionName : read
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : main-async-disabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : deferred-async-disabled.js
+}
+Runtime.exceptionRevoked: Handler added to rejected promise
+Runtime.exceptionThrown:
+{
+    columnNumber : 16
+    lineNumber : 4
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-async-disabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-async-disabled.js
+            }
+            [2] : {
+                columnNumber : 12
+                functionName : read
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : main-async-disabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : main-async-disabled.js
+}
+
+Access from a classic script:
+Runtime.exceptionThrown:
+{
+    columnNumber : 8
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-script-disabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-script-disabled.js
+            }
+            [2] : {
+                columnNumber : 23
+                functionName : read
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : script-disabled.js
+            }
+            [3] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : script-disabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : deferred-script-disabled.js
+}
+Runtime.exceptionRevoked: Handler added to rejected promise
+Runtime.exceptionThrown:
+{
+    columnNumber : 23
+    lineNumber : 2
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : thrower
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : deferred-script-disabled.js
+            }
+            [1] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : deferred-script-disabled.js
+            }
+            [2] : {
+                columnNumber : 23
+                functionName : read
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : script-disabled.js
+            }
+            [3] : {
+                columnNumber : 0
+                functionName : 
+                lineNumber : 4
+                scriptId : <scriptId>
+                url : script-disabled.js
+            }
+        ]
+    }
+    text : Uncaught Error: deferred module threw
+    url : script-disabled.js
+}

@@ -23,8 +23,13 @@
 #include "src/objects/js-date-time-format-inl.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#if __has_include("temporal/AnyCalendarKind.hpp")
+#include "temporal/AnyCalendarKind.hpp"
+#include "temporal/Instant.hpp"
+#else
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/Instant.hpp"
+#endif
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/object-conversions-inl.h"
@@ -1366,7 +1371,10 @@ icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
       }
       format_options.append(ch);
       //     ii. Set needDefaults to false.
-      need_defaults = false;
+      // The [[era]] option does not suppress defaults.
+      if (ch != 'G') {
+        need_defaults = false;
+      }
     }
     last_ch = ch;
   }
@@ -2157,7 +2165,7 @@ class CalendarCache {
     tz->getID(tz_id);
     std::string key;
     tz_id.toUTF8String<std::string>(key);
-    key += ":";
+    key += ':';
     key += locale.getName();
 
     base::MutexGuard guard(&mutex_);
@@ -2292,7 +2300,7 @@ class DateFormatCache {
                                 JSDateTimeFormat::HourCycle hc) {
     std::string key;
     skeleton.toUTF8String<std::string>(key);
-    key += ":";
+    key += ':';
     key += icu_locale.getName();
 
     base::MutexGuard guard(&mutex_);
@@ -2846,7 +2854,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       }
       // Convert fractionalSecondDigits to skeleton.
       for (int i = 0; i < fsd; i++) {
-        skeleton += "S";
+        skeleton += 'S';
       }
     }
     // i. Let prop be the name given in the Property column of the row.

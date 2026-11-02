@@ -69,7 +69,7 @@ IFACEMETHODIMP V8CachedObject::GetCachedV8HeapObject(
       std::stringstream message;
       message << "Unable to read memory";
       if (location_.IsVirtualAddress()) {
-        message << " at 0x" << std::hex << location_.GetOffset();
+        message << " at 0x" << std::hex << location_.GetOffset() << std::dec;
       }
       heap_object_.friendly_name = ConvertToU16String(message.str());
     } else {
@@ -271,7 +271,7 @@ HRESULT GetModelForBitField(uint64_t address, const uint8_t num_bits,
   // need all of the bytes, so check for S_OK.
   if (hr != S_OK) {
     std::stringstream message;
-    message << "Unable to read memory at 0x" << std::hex << address;
+    message << "Unable to read memory at 0x" << std::hex << address << std::dec;
     return CreateString(ConvertToU16String(message.str()), result);
   }
 

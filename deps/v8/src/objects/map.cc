@@ -4,6 +4,7 @@
 
 #include "src/objects/map.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/hashing.h"
@@ -32,6 +33,10 @@
 #include "src/objects/property.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal {
 
@@ -419,15 +424,14 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_FINALIZATION_REGISTRY_TYPE:
       return kVisitJSFinalizationRegistry;
 
-    case JS_ATOMICS_MUTEX_TYPE:
-    case JS_ATOMICS_CONDITION_TYPE:
-      return kVisitJSSynchronizationPrimitive;
-
     case HEAP_NUMBER_TYPE:
       return kVisitHeapNumber;
 
     case HASH_SEED_WRAPPER_TYPE:
       return kVisitHashSeedWrapper;
+
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      return kVisitUninitializedHeapNumber;
 
     case FOREIGN_TYPE:
       return kVisitForeign;
@@ -470,6 +474,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case STACK_FRAME_INFO_TYPE:
     case STACK_TRACE_INFO_TYPE:
     case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
+    case FOR_IN_ENUMERATOR_HOLDER_TYPE:
     case TUPLE2_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_TAG_TYPE:
@@ -619,12 +624,11 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, DirectHandle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  auto [representation, constness] =
-      Object::OptimalRepresentation(*constant, PropertyConstness::kConst);
+  Representation representation = Object::OptimalRepresentation(*constant);
   DirectHandle<FieldType> type =
       Object::OptimalType(*constant, isolate, representation);
-  return CopyWithField(isolate, map, name, type, attributes, constness,
-                       representation, flag);
+  return CopyWithField(isolate, map, name, type, attributes,
+                       PropertyConstness::kConst, representation, flag);
 }
 
 bool Map::InstancesNeedRewriting(Tagged<Map> target,
@@ -1113,14 +1117,19 @@ Tagged<Map> Map::LookupElementsTransitionMap(Isolate* isolate,
 }
 
 bool Map::IsMapInArrayPrototypeChain(Isolate* isolate) const {
-  if (isolate->initial_array_prototype()->map() == this) {
+  DisallowGarbageCollection no_gc;
+  InstanceType type = instance_type();
+  if (type == JS_OBJECT_PROTOTYPE_TYPE) {
     return true;
   }
-
-  if (isolate->initial_object_prototype()->map() == this) {
-    return true;
+  if (type == JS_ARRAY_TYPE) {
+    // Keep in sync with Isolate::IsInCreationContext.
+    Tagged<Map> metamap = map();
+    // Filter out native-context independent objects.
+    if (metamap == ReadOnlyRoots(isolate).meta_map()) return false;
+    Tagged<NativeContext> native_context = metamap->native_context();
+    return native_context->initial_array_prototype()->map() == this;
   }
-
   return false;
 }
 
@@ -1321,20 +1330,17 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
     raw->set_constructor_or_back_pointer(src->GetConstructorRaw());
     raw->set_bit_field(src->bit_field());
     raw->set_bit_field2(src->bit_field2());
-    int new_bit_field3 = src->bit_field3();
-    new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);
-    new_bit_field3 =
-        Bits3::NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
-    new_bit_field3 = Bits3::EnumLengthBits::update(new_bit_field3,
-                                                   kInvalidEnumCacheSentinel);
-    new_bit_field3 = Bits3::IsDeprecatedBit::update(new_bit_field3, false);
-    new_bit_field3 =
-        Bits3::IsInRetainedMapListBit::update(new_bit_field3, false);
-    if (!src->is_dictionary_map()) {
-      new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
+    Bits3 bits3 = src->bit_field3()
+                      .with_owns_descriptors(true)
+                      .with_number_of_own_descriptors(0)
+                      .with_enum_length(kInvalidEnumCacheSentinel)
+                      .with_is_deprecated(false)
+                      .with_is_in_retained_map_list(false);
+    if (!bits3.is_dictionary_map()) {
+      bits3 = bits3.with_is_unstable(false);
     }
     // Same as bit_field comment above.
-    raw->set_bit_field3(new_bit_field3);
+    raw->set_bit_field3(bits3);
     if (v8_flags.proto_assign_seq_lazy_func_opt) {
       if (Tagged<PrototypeSharedClosureInfo> infos;
           src_handle->TryGetPrototypeSharedClosureInfo(&infos)) {
@@ -1516,12 +1522,10 @@ void EnsureInitialMap(Isolate* isolate, DirectHandle<Map> map) {
   DCHECK((IsJSFunction(maybe_constructor) &&
           *map == Cast<JSFunction>(maybe_constructor)->initial_map()) ||
          // Below are the exceptions to the check above.
-         // |Function|'s initial map is a |sloppy_function_map| but
-         // other function map variants such as sloppy with name or readonly
-         // prototype or various strict function maps variants, etc. also
-         // have Function as a constructor.
-         *map == *isolate->strict_function_map() ||
-         *map == *isolate->strict_function_with_name_map() ||
+         // |Function|'s initial map is a |function_map| but other function map
+         // variants such as function with name or readonly prototype also have
+         // Function as a constructor.
+         *map == *isolate->function_with_name_map() ||
          // Same applies to |GeneratorFunction|'s initial map and generator
          // function map variants.
          *map == *isolate->generator_function_with_name_map() ||
@@ -1858,51 +1862,6 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
   return new_map;
 }
 
-DirectHandle<Map> Map::AsLanguageMode(
-    Isolate* isolate, DirectHandle<Map> initial_map,
-    DirectHandle<SharedFunctionInfo> shared_info) {
-  DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-  return initial_map;
-#else
-  // Initial map for sloppy mode function is stored in the function
-  // constructor. Initial maps for strict mode are cached as special transitions
-  // using |strict_function_transition_symbol| as a key.
-  if (is_sloppy(shared_info->language_mode())) return initial_map;
-
-  DirectHandle<Map> function_map(Cast<Map>(isolate->native_context()->GetNoCell(
-                                     shared_info->function_map_index())),
-                                 isolate);
-
-  static_assert(LanguageModeSize == 2);
-  DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
-  DirectHandle<Symbol> transition_symbol =
-      isolate->factory()->strict_function_transition_symbol();
-  MaybeDirectHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-      isolate, initial_map, *transition_symbol);
-  if (!maybe_transition.is_null()) {
-    return maybe_transition.ToHandleChecked();
-  }
-  initial_map->NotifyLeafMapLayoutChange(isolate);
-
-  // Create new map taking descriptors from the |function_map| and all
-  // the other details from the |initial_map|.
-  DirectHandle<Map> map =
-      Map::CopyInitialMap(isolate, function_map, initial_map->instance_size(),
-                          initial_map->GetInObjectProperties(),
-                          initial_map->UnusedPropertyFields());
-  map->SetConstructor(initial_map->GetConstructor());
-  map->set_prototype(initial_map->prototype());
-  map->set_construction_counter(initial_map->construction_counter());
-
-  if (TransitionsAccessor::CanHaveMoreTransitions(isolate, initial_map)) {
-    Map::ConnectTransition(isolate, initial_map, map, transition_symbol,
-                           SPECIAL_TRANSITION);
-  }
-  return map;
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-}
-
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate,
                                            DirectHandle<Map> map) {
   DCHECK(!map->IsDetached(isolate));
@@ -2093,9 +2052,7 @@ DirectHandle<Map> UpdateDescriptorForValue(Isolate* isolate,
 
   PropertyAttributes attributes =
       map->instance_descriptors()->GetDetails(descriptor).attributes();
-  Representation representation;
-  std::tie(representation, constness) =
-      Object::OptimalRepresentation(*value, constness);
+  Representation representation = Object::OptimalRepresentation(*value);
   DirectHandle<FieldType> type =
       Object::OptimalType(*value, isolate, representation);
 
@@ -2151,9 +2108,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   MaybeDirectHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
-    Representation representation;
-    std::tie(representation, constness) =
-        Object::OptimalRepresentation(*value, constness);
+    Representation representation = Object::OptimalRepresentation(*value);
     DirectHandle<FieldType> type =
         Object::OptimalType(*value, isolate, representation);
     maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
@@ -2164,14 +2119,12 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    base::OwnedVector<char> buffer;
+    std::array<char, 128> buffer;
     if (v8_flags.log_maps) {
-      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
-      name->NameShortPrint(name_buffer.as_vector());
-      buffer = base::OwnedVector<char>::NewForOverwrite(128);
-      SNPrintF(buffer.as_vector(), "TooManyFastProperties %s",
-               name_buffer.begin());
-      reason = buffer.begin();
+      std::array<char, 100> name_buffer;
+      name->NameShortPrint(name_buffer);
+      base::SNPrintF(buffer, "TooManyFastProperties %s", name_buffer.data());
+      reason = buffer.data();
     }
 #endif
     DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);
@@ -2428,19 +2381,6 @@ bool Map::EquivalentToForTransition(
     if (*new_prototype != other->prototype()) return false;
   }
   if (new_target_is_base() != other->new_target_is_base()) return false;
-  if (InstanceTypeChecker::IsJSFunction(instance_type())) {
-    // JSFunctions require more checks to ensure that sloppy function is
-    // not equivalent to strict function.
-    int nof =
-        std::min(NumberOfOwnDescriptors(), other->NumberOfOwnDescriptors());
-    Tagged<DescriptorArray> this_descriptors =
-        IsConcurrent(cmode) ? instance_descriptors(kAcquireLoad)
-                            : instance_descriptors();
-    Tagged<DescriptorArray> that_descriptors =
-        IsConcurrent(cmode) ? other->instance_descriptors(kAcquireLoad)
-                            : other->instance_descriptors();
-    return this_descriptors->IsEqualUpTo(that_descriptors, nof);
-  }
   return true;
 }
 
@@ -2474,10 +2414,9 @@ bool Map::EquivalentToForNormalization(const Tagged<Map> other,
   int properties =
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other->GetInObjectProperties();
   // Make sure the elements_kind bits are in bit_field2.
-  DCHECK_EQ(this->elements_kind(),
-            Map::Bits2::ElementsKindBits::decode(bit_field2()));
-  int adjusted_other_bit_field2 =
-      Map::Bits2::ElementsKindBits::update(other->bit_field2(), elements_kind);
+  DCHECK_EQ(this->elements_kind(), bit_field2().elements_kind());
+  Bits2 adjusted_other_bit_field2 =
+      other->bit_field2().with_elements_kind(elements_kind);
   return CheckEquivalentModuloProto(this, other) &&
          prototype() == other_prototype &&
          bit_field2() == adjusted_other_bit_field2 &&
@@ -2643,9 +2582,18 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
   }
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell();
-  {
+  do {
     Tagged<Map> meta_map = validity_cell_holder_map->map();
-    DCHECK(IsMapMap(meta_map));
+#if V8_ENABLE_WEBASSEMBLY
+    if (!IsMetaMap(meta_map)) {
+      DCHECK(IsWasmCustomMap(*validity_cell_holder_map));
+      cell->set_maybe_value(
+          MakeWeak(Cast<WasmCustomMap>(validity_cell_holder_map)
+                       ->native_context_for_wrapper()));
+      break;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    DCHECK(IsMetaMap(meta_map));
     // The meta map's context slot is Null for the RO meta map (shared
     // across all contexts). Legacy code reinterpret-loaded the slot as
     // NativeContext and MakeWeak'd it; since Null is immortal the
@@ -2662,7 +2610,7 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
       DCHECK(IsNull(maybe_context));
       cell->set_maybe_value(maybe_context);
     }
-  }
+  } while (false);
   validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }

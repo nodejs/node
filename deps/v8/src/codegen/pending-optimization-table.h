@@ -31,6 +31,15 @@ class ManualOptimizationTable {
   // function.
   static bool IsMarkedForManualOptimization(Isolate* isolate,
                                             Tagged<JSFunction> function);
+
+  // Mark a function to disable eager inlining for it in optimizing compilers.
+  static void MarkFunctionForDisabledEagerInlining(
+      Isolate* isolate, DirectHandle<JSFunction> function);
+
+  // Returns true if MarkFunctionForDisabledEagerInlining was called with this
+  // function.
+  static bool IsMarkedForDisabledEagerInlining(
+      LocalIsolate* isolate, Tagged<SharedFunctionInfo> function);
 };
 
 }  // namespace internal

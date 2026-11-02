@@ -38,6 +38,21 @@ LIBC_INLINE constexpr bool IsPow2(size_t x) { return x && (x & (x - 1)) == 0; }
 
 class FreeListHeap {
 public:
+  /// The heap keeps its free blocks in NUM_FREE_STORES stores and rotates
+  /// between them: allocations are served from the active store, while frees
+  /// go to the next one, quarantining the memory there. Only once the active
+  /// store cannot satisfy a request does rotate() make the quarantined memory
+  /// available again. Delaying reuse this way makes use-after-free bugs much
+  /// more likely to be caught, e.g. by a sanitizer.
+  ///
+  /// A request the active store cannot serve thus ends the quarantine period
+  /// early, whether or not it succeeds afterwards.
+  ///
+  /// With a single store (the default) the quarantine store is the active
+  /// store, no rotation ever happens, and this degenerates into the usual
+  /// immediate-reuse behavior.
+  static constexpr size_t NUM_FREE_STORES = BlockRef::NUM_FREE_STORES;
+
   constexpr FreeListHeap() : begin(&_end), end(&__llvm_libc_heap_limit) {}
 
   constexpr FreeListHeap(span<cpp::byte> region)
@@ -51,7 +66,10 @@ public:
   void *realloc(void *ptr, size_t size);
   void *calloc(size_t num, size_t size);
   size_t allocation_size(const void *ptr) const;
-  LIBC_INLINE void integrity_check() const { free_store.integrity_check(); }
+  LIBC_INLINE void integrity_check() const {
+    for (const FreeStore &store : free_stores)
+      store.integrity_check();
+  }
 
   cpp::span<cpp::byte> region() const { return {begin, end}; }
 
@@ -68,15 +86,80 @@ private:
 
   bool is_valid_ptr(const void *ptr) const { return ptr >= begin && ptr < end; }
 
+  /// The store that allocations are served from.
+  LIBC_INLINE FreeStore &active_free_store() { return free_stores[active]; }
+
+  /// @returns The index of the store that receives newly freed blocks. With a
+  /// single free store this is the active store itself, so freed memory is
+  /// immediately available again.
+  LIBC_INLINE size_t quarantine_store_index() const {
+    return (active + 1) % NUM_FREE_STORES;
+  }
+
+  /// Whether the free block `neighbor` can be merged into a block owned by
+  /// `store_index`. Merging across stores would hand quarantined memory back
+  /// out through the active store, so only blocks of the same store merge,
+  /// plus blocks too small for any store to track (see FreeStore::too_small),
+  /// which are owned by no store.
+  LIBC_INLINE static bool can_merge(BlockRef neighbor, size_t store_index) {
+    return FreeStore::too_small(neighbor) ||
+           neighbor.next().prev_free_store_index() ==
+               static_cast<int>(store_index);
+  }
+
+  /// Inserts `block` into store `store_index`, coalescing it with the
+  /// neighbors that can be merged into that store. The block may be in use or
+  /// free in another store.
+  LIBC_INLINE void insert(BlockRef block, size_t store_index) {
+    block.mark_free(store_index);
+
+    // Absorbing an untracked neighbor may expose another mergeable one beyond
+    // it, so keep going.
+    for (BlockRef prev = block.prev_free();
+         prev && can_merge(prev, store_index); prev = block.prev_free()) {
+      free_stores[store_index].remove(prev);
+      block = prev;
+      block.merge_next();
+    }
+
+    for (BlockRef next = block.next();
+         !next.used() && can_merge(next, store_index); next = block.next()) {
+      free_stores[store_index].remove(next);
+      block.merge_next();
+    }
+
+    // Merging moved the block boundaries, and an absorbed block may have been
+    // owned by another store, so record the ownership of the result again.
+    block.mark_free(store_index);
+    free_stores[store_index].insert(block);
+  }
+
+  /// Ends the current quarantine period: the store that has been collecting
+  /// freed blocks becomes the active one, and whatever is left in the
+  /// previously active store is migrated (and coalesced) into it, so that the
+  /// newly active store holds all the free memory of the heap. Returns false
+  /// without doing anything if nothing is quarantined.
+  LIBC_INLINE bool rotate() {
+    if (NUM_FREE_STORES < 2 || free_stores[quarantine_store_index()].empty())
+      return false;
+
+    size_t prev_active = active;
+    active = quarantine_store_index();
+    while (BlockRef block = free_stores[prev_active].remove_any())
+      insert(block, active);
+    return true;
+  }
+
   cpp::byte *begin;
   cpp::byte *end;
   bool is_initialized = false;
-  FreeStore free_store;
+  FreeStore free_stores[NUM_FREE_STORES];
+  size_t active = 0;
 };
 
 template <size_t BUFF_SIZE> class FreeListHeapBuffer : public FreeListHeap {
 public:
-  constexpr FreeListHeapBuffer() : FreeListHeap{buffer}, buffer{} {}
+  LIBC_INLINE constexpr FreeListHeapBuffer() : FreeListHeap{buffer}, buffer{} {}
 
 private:
   cpp::byte buffer[BUFF_SIZE];
@@ -86,8 +169,9 @@ LIBC_INLINE void FreeListHeap::init() {
   LIBC_ASSERT(!is_initialized && "duplicate initialization");
   auto result = BlockRef::init(region());
   BlockRef block = *result;
-  free_store.set_range({0, cpp::bit_ceil(block.inner_size())});
-  free_store.insert(block);
+  for (FreeStore &store : free_stores)
+    store.set_range({0, cpp::bit_ceil(block.inner_size())});
+  free_stores[active].insert(block);
   is_initialized = true;
 }
 
@@ -99,20 +183,26 @@ LIBC_INLINE void *FreeListHeap::allocate_impl(size_t alignment, size_t size) {
     init();
 
   size_t request_size = BlockRef::min_size_for_allocation(alignment, size);
-  if (!request_size)
+  // Don't disturb the quarantine for a request the heap could never serve.
+  if (!request_size || request_size > region().size())
     return nullptr;
 
-  BlockRef block = free_store.remove_best_fit(request_size);
+  BlockRef block = active_free_store().remove_best_fit(request_size);
+  // The active store is out of memory; make the quarantined blocks available
+  // again and retry.
+  if (!block && rotate())
+    block = active_free_store().remove_best_fit(request_size);
   if (!block)
     return nullptr;
 
   auto block_info = BlockRef::allocate(block, alignment, size);
-  if (block_info.next)
-    free_store.insert(block_info.next);
-  if (block_info.prev)
-    free_store.insert(block_info.prev);
-
   block_info.block.mark_used();
+  // The leftovers of the block were never handed out, so they stay in the
+  // active store rather than being quarantined.
+  if (block_info.next)
+    insert(block_info.next, active);
+  if (block_info.prev)
+    insert(block_info.prev, active);
   return block_info.block.usable_space();
 }
 
@@ -147,24 +237,7 @@ LIBC_INLINE void FreeListHeap::free(void *ptr) {
   BlockRef block = BlockRef::from_usable_space(bytes);
   LIBC_ASSERT(block.next() && "sentinel last block cannot be freed");
   LIBC_ASSERT(block.used() && "double free");
-  block.mark_free();
-
-  // Can we combine with the left or right blocks?
-  BlockRef prev_free = block.prev_free();
-  BlockRef next = block.next();
-
-  if (prev_free) {
-    // Remove from free store and merge.
-    free_store.remove(prev_free);
-    block = prev_free;
-    block.merge_next();
-  }
-  if (!next.used()) {
-    free_store.remove(next);
-    block.merge_next();
-  }
-  // Add back to the freelist
-  free_store.insert(block);
+  insert(block, quarantine_store_index());
 }
 
 LIBC_INLINE size_t FreeListHeap::allocation_size(const void *ptr) const {
@@ -186,17 +259,13 @@ LIBC_INLINE bool FreeListHeap::shrink_in_place(BlockRef block, size_t size) {
     // register the new block on successful split
     if (next.has_value()) {
       BlockRef next_block = *next;
-      BlockRef right = next_block.next();
       // Since the original block was not the last block (the sentinel last
       // block is never split), the split-off remainder block `next_block` is
-      // also not the last block. Thus, its next block `right` is guaranteed
-      // to be non-null.
-      LIBC_ASSERT(right && "right block must be non-null");
-      if (!right.used()) {
-        free_store.remove(right);
-        next_block.merge_next();
-      }
-      free_store.insert(next_block);
+      // also not the last block. Thus, its next block is guaranteed to be
+      // non-null.
+      LIBC_ASSERT(next_block.next() && "right block must be non-null");
+      // The remainder is memory the caller has given up, so quarantine it.
+      insert(next_block, quarantine_store_index());
     }
     return true;
   }

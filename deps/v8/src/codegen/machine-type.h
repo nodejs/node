@@ -43,7 +43,7 @@ enum class MachineRepresentation : uint8_t {
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
   kProtectedPointer,   // (uncompressed) TrustedObject
-  kIndirectPointer,    // (indirect) HeapObject
+  kTrustedPointer,     // (indirect) HeapObject
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
   // point into the sandbox.
   kSandboxedPointer,
@@ -163,8 +163,8 @@ class MachineType {
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
   }
-  constexpr bool IsIndirectPointer() const {
-    return representation() == MachineRepresentation::kIndirectPointer;
+  constexpr bool IsTrustedPointer() const {
+    return representation() == MachineRepresentation::kTrustedPointer;
   }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
@@ -266,8 +266,8 @@ class MachineType {
     return MachineType(MachineRepresentation::kProtectedPointer,
                        MachineSemantic::kAny);
   }
-  constexpr static MachineType IndirectPointer() {
-    return MachineType(MachineRepresentation::kIndirectPointer,
+  constexpr static MachineType TrustedPointer() {
+    return MachineType(MachineRepresentation::kTrustedPointer,
                        MachineSemantic::kInt32);
   }
   constexpr static MachineType Bool() {
@@ -310,8 +310,8 @@ class MachineType {
         return MachineType::TaggedPointer();
       case MachineRepresentation::kCompressed:
         return MachineType::AnyCompressed();
-      case MachineRepresentation::kIndirectPointer:
-        return MachineType::IndirectPointer();
+      case MachineRepresentation::kTrustedPointer:
+        return MachineType::TrustedPointer();
       case MachineRepresentation::kCompressedPointer:
         return MachineType::CompressedPointer();
       case MachineRepresentation::kSandboxedPointer:
@@ -420,8 +420,8 @@ constexpr inline bool CanBeCompressedPointer(MachineRepresentation rep) {
          rep == MachineRepresentation::kCompressedPointer;
 }
 
-constexpr inline bool CanBeIndirectPointer(MachineRepresentation rep) {
-  return rep == MachineRepresentation::kIndirectPointer;
+constexpr inline bool CanBeTrustedPointer(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kTrustedPointer;
 }
 
 // Note: this is used in particular to decide which spill slots need
@@ -432,10 +432,10 @@ constexpr inline bool CanBeTaggedOrCompressedPointer(
          rep == MachineRepresentation::kProtectedPointer;
 }
 
-constexpr inline bool CanBeTaggedOrCompressedOrIndirectPointer(
+constexpr inline bool CanBeTaggedOrCompressedOrTrustedPointer(
     MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep) ||
-         CanBeIndirectPointer(rep);
+         CanBeTrustedPointer(rep);
 }
 
 constexpr inline bool IsAnyCompressed(MachineRepresentation rep) {
@@ -454,7 +454,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
       return 1;
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kFloat32:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
       return 2;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:

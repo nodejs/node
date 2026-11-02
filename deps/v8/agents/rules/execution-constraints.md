@@ -55,15 +55,16 @@ To ensure efficient operation and prevent resource waste:
 
 09. **Verify CL Contents Before Upload**: Before running `git cl upload`, ALWAYS
     verify that the diff relative to upstream contains ONLY the intended
-    changes. Use `git diff --name-only origin/main..HEAD` to check the list of
+    changes. Use `git diff --name-only @{upstream}...HEAD` to check the list of
     files being uploaded. If unrelated files are present, remove them before
     uploading.
 
-10. **Respect Existing CL Descriptions**: **NEVER** run
-    `git cl upload --commit-description=+` or `git cl desc -n` with a generic
-    file to upload subsequent patchsets unless you have explicitly verified that
-    the user has not made Web UI edits. Omit `--commit-description` on
-    subsequent uploads to preserve human-authored online edits.
+10. **Respect Existing CL Descriptions**: On subsequent patchset uploads, omit
+    `--commit-description` unless the CL description itself needs updating.
+    Before updating an existing CL's description (`git cl description -n +`),
+    check the current Gerrit description (`git cl description -d`) and carry
+    over any online edits and the `Change-Id:` footer into the local commit
+    message so human-authored changes are not lost.
 
 11. **Explicit Absolute Paths**: When presenting or linking to files/directories
     that are outside the current workspace directory (such as the App Data

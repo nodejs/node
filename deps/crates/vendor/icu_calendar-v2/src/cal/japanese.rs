@@ -3,15 +3,14 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::cal::abstract_gregorian::{
-    impl_with_abstract_gregorian, AbstractGregorian, GregorianYears,
+    AbstractGregorian, GregorianYears, impl_with_abstract_gregorian,
 };
 use crate::cal::gregorian::CeBce;
 use crate::calendar_arithmetic::ArithmeticDate;
 use crate::error::{DateError, UnknownEraError};
-use crate::provider::{CalendarJapaneseModernV1, EraStartDate, PackedEra};
-use crate::{types, AsCalendar, Date};
+use crate::provider::{CalendarJapaneseModernV1, EraStartDate, JapaneseEras};
+use crate::{AsCalendar, Date, types};
 use icu_provider::prelude::*;
-use tinystr::{tinystr, TinyAsciiStr};
 
 /// The [Japanese Calendar] (with modern eras only)
 ///
@@ -37,9 +36,7 @@ use tinystr::{tinystr, TinyAsciiStr};
 /// These eras are loaded from data, requiring a data provider capable of providing [`CalendarJapaneseModernV1`]
 /// data.
 #[derive(Clone, Debug, Default, Copy)]
-pub struct Japanese {
-    post_reiwa_era: Option<PackedEra>,
-}
+pub struct Japanese(JapaneseEras);
 
 impl Japanese {
     /// Creates a new [`Japanese`] using only modern eras (post-meiji) from compiled data.
@@ -49,12 +46,7 @@ impl Japanese {
     /// [📚 Help choosing a constructor](icu_provider::constructors)
     #[cfg(feature = "compiled_data")]
     pub const fn new() -> Self {
-        const {
-            Self {
-                post_reiwa_era: crate::provider::Baked::SINGLETON_CALENDAR_JAPANESE_MODERN_V1
-                    .last_after_reiwa(),
-            }
-        }
+        const { Self(*crate::provider::Baked::SINGLETON_CALENDAR_JAPANESE_MODERN_V1) }
     }
 
     icu_provider::gen_buffer_data_constructors!(() -> error: DataError,
@@ -69,65 +61,7 @@ impl Japanese {
     pub fn try_new_unstable<D: DataProvider<CalendarJapaneseModernV1> + ?Sized>(
         provider: &D,
     ) -> Result<Self, DataError> {
-        Ok(Self {
-            post_reiwa_era: provider
-                .load(Default::default())?
-                .payload
-                .get()
-                .last_after_reiwa(),
-        })
-    }
-}
-
-impl Japanese {
-    fn eras(self) -> impl Iterator<Item = (EraStartDate, TinyAsciiStr<8>, u8)> {
-        self.post_reiwa_era.map(|p| p.unpack()).into_iter().chain([
-            (
-                EraStartDate {
-                    year: 2019,
-                    month: 5,
-                    day: 1,
-                },
-                tinystr!(8, "reiwa"),
-                6,
-            ),
-            (
-                EraStartDate {
-                    year: 1989,
-                    month: 1,
-                    day: 8,
-                },
-                tinystr!(8, "heisei"),
-                5,
-            ),
-            (
-                EraStartDate {
-                    year: 1926,
-                    month: 12,
-                    day: 25,
-                },
-                tinystr!(8, "showa"),
-                4,
-            ),
-            (
-                EraStartDate {
-                    year: 1912,
-                    month: 7,
-                    day: 30,
-                },
-                tinystr!(8, "taisho"),
-                3,
-            ),
-            (
-                EraStartDate {
-                    year: 1868,
-                    month: 10,
-                    day: 23,
-                },
-                tinystr!(8, "meiji"),
-                2,
-            ),
-        ])
+        Ok(Self(*provider.load(Default::default())?.payload.get()))
     }
 }
 
@@ -142,8 +76,9 @@ impl GregorianYears for Japanese {
         }
 
         let (start, ..) = self
+            .0
             .eras()
-            .find(|(_, name, _)| era == Some(name.as_bytes()))
+            .rfind(|(_, name, _)| era == Some(name.as_bytes()))
             .ok_or(UnknownEraError)?;
 
         Ok(year - 1 + start.year)
@@ -152,17 +87,18 @@ impl GregorianYears for Japanese {
     fn era_year_from_extended(&self, year: i32, month: u8, day: u8) -> types::EraYear {
         let date: EraStartDate = EraStartDate { year, month, day };
 
-        let ret = if let Some((start, code, idx)) = self.eras().find(|&(start, ..)| date >= start) {
-            types::EraYear {
-                era: code.resize(),
-                era_index: Some(idx),
-                year: year - start.year + 1,
-                extended_year: year,
-                ambiguity: types::YearAmbiguity::CenturyRequired,
-            }
-        } else {
-            CeBce.era_year_from_extended(year, month, day)
-        };
+        let ret =
+            if let Some((start, code, idx)) = self.0.eras().rfind(|&(start, ..)| date >= start) {
+                types::EraYear {
+                    era: code.resize(),
+                    era_index: Some(idx),
+                    year: year - start.year + 1,
+                    extended_year: year,
+                    ambiguity: types::YearAmbiguity::CenturyRequired,
+                }
+            } else {
+                CeBce.era_year_from_extended(year, month, day)
+            };
 
         // Special case: Meiji 1 to 5 are treated as CE.
         //
@@ -267,9 +203,10 @@ impl Date<Japanese> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tinystr::tinystr;
 
-    const CALENDAR: Japanese = Japanese {
-        post_reiwa_era: Some(PackedEra::pack(
+    const CALENDAR: Japanese = Japanese(
+        JapaneseEras::with_last_era(
             EraStartDate {
                 year: 2086,
                 month: 11,
@@ -277,8 +214,9 @@ mod tests {
             },
             tinystr!(8, "fuzu"),
             8,
-        )),
-    };
+        )
+        .unwrap(),
+    );
 
     fn single_test_roundtrip(era: &str, year: i32, month: u8, day: u8) {
         let date = Date::try_new_japanese_with_calendar(era, year, month, day, CALENDAR)
@@ -379,5 +317,27 @@ mod tests {
         single_test_era_range_roundtrip("ce", 1873, 1, 1, "meiji", 6);
         single_test_era_range_roundtrip("ce", 1873, 5, 1, "meiji", 6);
         single_test_era_range_roundtrip("ce", 1874, 1, 1, "meiji", 7);
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Japanese::new());
+            let reconstructed = Date::try_new_japanese_with_calendar(
+                date.era_year().era.as_str(),
+                date.era_year().year,
+                date.month().ordinal,
+                date.day_of_month().0,
+                Japanese::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Japanese failed for RD {:?}",
+                rd
+            );
+        }
     }
 }

@@ -48,7 +48,7 @@ macro PromiseHasHandler(promise: JSPromise): bool {
 macro PromiseInit(promise: JSPromise): void {
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
-    status: PromiseState::kPending,
+    status: PromisePromiseState::kPending,
     is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
@@ -68,7 +68,7 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   promise.elements = kEmptyFixedArray;
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
-    status: PromiseState::kPending,
+    status: PromisePromiseState::kPending,
     is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
@@ -288,9 +288,9 @@ transitioning macro NewJSPromise(implicit context: Context)(): JSPromise {
 // fields.
 @export
 transitioning macro NewJSPromise(
-    implicit context: Context)(status: constexpr PromiseState,
+    implicit context: Context)(status: constexpr PromisePromiseState,
     result: JSAny): JSPromise {
-  dcheck(status != PromiseState::kPending);
+  dcheck(status != PromisePromiseState::kPending);
 
   const instance = InnerNewJSPromise();
   instance.reactions_or_result = result;

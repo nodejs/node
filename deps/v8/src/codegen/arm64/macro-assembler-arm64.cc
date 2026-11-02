@@ -1552,10 +1552,7 @@ void MacroAssembler::AssertSpAligned() {
 }
 
 void MacroAssembler::AssertFPCRState(Register fpcr) {
-  // TODO(olivf, 382005099) This check is currently behind `slow_debug_code` as
-  // a temporary hack to not have it enabled on dcheck enabled canaries. The
-  // reason is that this check is violated by callbacks from webaudio.
-  if (!v8_flags.slow_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   Label unexpected_mode, done;
   UseScratchRegisterScope temps(this);
@@ -1566,8 +1563,7 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
 
   // Settings left to their default values:
   //   - Assert that flush-to-zero is not set.
-  // TODO(leszeks): Reenable check based on isolate flag.
-  // Tbnz(fpcr, FZ_offset, &unexpected_mode);
+  Tbnz(fpcr, FZ_offset, &unexpected_mode);
   //   - Assert that the rounding mode is nearest-with-ties-to-even.
   static_assert(FPTieEven == 0);
   Tst(fpcr, RMode_mask);
@@ -2489,7 +2485,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = x20;
@@ -2499,12 +2495,26 @@ void MacroAssembler::CallJSFunction(Register function_object,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
-  // Force a safe crash if the parameter count doesn't match.
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
   // TODO(412398354): to avoid this runtime check, we should switch all
   // remaining users to call the function via its dispatch handle instead. See
   // CallJSDispatchEntry below and crbug.com/412398354 for more details.
-  Cmp(parameter_count, Immediate(argument_count));
-  SbxCheck(le, AbortReason::kJSSignatureMismatch);
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    Cmp(parameter_count, Immediate(1));
+    SbxCheck(le, AbortReason::kJSSignatureMismatch);
+  } else {
+    Cmp(parameter_count, Immediate(expected_parameter_count));
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch);
+  }
   Call(code);
 }
 
@@ -2911,20 +2921,22 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
                                     dispatch_handle, scratch);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       Call(kJavaScriptCallCodeStartRegister);
+      B(&done);
       break;
     case InvokeType::kJump:
       // We jump through x17 here because for Branch Identification (BTI) we use
       // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for
       // tail-called code. See TailCallBuiltin for more information.
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       Mov(x17, kJavaScriptCallCodeStartRegister);
       Jump(x17);
       break;
   }
-  Label done;
-  B(&done);
 
   // Deferred debug hook.
   bind(&debug_hook);
@@ -3583,15 +3595,102 @@ void MacroAssembler::StoreTaggedField(const Register& value,
   }
 }
 
-void MacroAssembler::AtomicStoreTaggedField(const Register& value,
-                                            const Register& dst_base,
-                                            const Register& dst_index,
-                                            const Register& temp) {
-  Add(temp, dst_base, dst_index);
+// Note: Ldar* is used for both acquire and seq-cst loads and therefore must
+// emit RCsc `ldar*` rather than FEAT_LRCPC2 `ldapur*` (which only provides
+// weaker RCpc acquire semantics and can be reordered before a preceding
+// `stlr`/`stlur` to a different address). By contrast, Stlr* below can use
+// FEAT_LRCPC2 `stlur*` unconditionally because both `stlr*` and `stlur*`
+// provide full RCsc store-release semantics.
+#define DEFINE_LDA_MEM_OP(FN, OP)                                           \
+  int MacroAssembler::FN(const Register& rt, const MemOperand& src) {       \
+    DCHECK(allow_macro_instructions());                                     \
+    if (src.IsImmediateOffset() && src.offset() == 0) {                     \
+      int pc_offset_of_load = pc_offset();                                  \
+      OP(rt, src.base());                                                   \
+      return pc_offset_of_load;                                             \
+    }                                                                       \
+    UseScratchRegisterScope temps(this);                                    \
+    Register temp = temps.AcquireX();                                       \
+    if (src.IsImmediateOffset()) {                                          \
+      int64_t offset = src.offset();                                        \
+      if (IsImmAddSub(offset) ||                                            \
+          (offset < 0 && offset != std::numeric_limits<int64_t>::min() &&   \
+           IsImmAddSub(-offset))) {                                         \
+        Add(temp, src.base(), offset);                                      \
+      } else {                                                              \
+        Mov(temp, offset);                                                  \
+        Add(temp, src.base(), temp);                                        \
+      }                                                                     \
+    } else {                                                                \
+      DCHECK(src.IsRegisterOffset());                                       \
+      Operand offset_op =                                                   \
+          (src.shift() != NO_SHIFT)                                         \
+              ? Operand(src.regoffset(), src.shift(), src.shift_amount())   \
+              : Operand(src.regoffset(), src.extend(), src.shift_amount()); \
+      Add(temp, src.base(), offset_op);                                     \
+    }                                                                       \
+    int pc_offset_of_load = pc_offset();                                    \
+    OP(rt, temp);                                                           \
+    return pc_offset_of_load;                                               \
+  }
+DEFINE_LDA_MEM_OP(Ldarb, ldarb)
+DEFINE_LDA_MEM_OP(Ldarh, ldarh)
+DEFINE_LDA_MEM_OP(Ldar, ldar)
+#undef DEFINE_LDA_MEM_OP
+
+#define DEFINE_STL_MEM_OP(FN, OP, UNSCALED_OP)                            \
+  int MacroAssembler::FN(const Register& rt, const MemOperand& dst) {     \
+    DCHECK(allow_macro_instructions());                                   \
+    if (dst.IsImmediateOffset()) {                                        \
+      int64_t offset = dst.offset();                                      \
+      if (offset == 0) {                                                  \
+        int pc_offset_of_store = pc_offset();                             \
+        OP(rt, dst.base());                                               \
+        return pc_offset_of_store;                                        \
+      }                                                                   \
+      if (IsImmLSUnscaled(offset) && CpuFeatures::IsSupported(LRCPC2)) {  \
+        CpuFeatureScope scope(this, LRCPC2);                              \
+        int pc_offset_of_store = pc_offset();                             \
+        UNSCALED_OP(rt, dst);                                             \
+        return pc_offset_of_store;                                        \
+      }                                                                   \
+      UseScratchRegisterScope temps(this);                                \
+      Register temp = temps.AcquireX();                                   \
+      if (IsImmAddSub(offset) ||                                          \
+          (offset < 0 && offset != std::numeric_limits<int64_t>::min() && \
+           IsImmAddSub(-offset))) {                                       \
+        Add(temp, dst.base(), offset);                                    \
+      } else {                                                            \
+        Mov(temp, offset);                                                \
+        Add(temp, dst.base(), temp);                                      \
+      }                                                                   \
+      int pc_offset_of_store = pc_offset();                               \
+      OP(rt, temp);                                                       \
+      return pc_offset_of_store;                                          \
+    }                                                                     \
+    DCHECK(dst.IsRegisterOffset());                                       \
+    UseScratchRegisterScope temps(this);                                  \
+    Register temp = temps.AcquireX();                                     \
+    Operand offset_op =                                                   \
+        (dst.shift() != NO_SHIFT)                                         \
+            ? Operand(dst.regoffset(), dst.shift(), dst.shift_amount())   \
+            : Operand(dst.regoffset(), dst.extend(), dst.shift_amount()); \
+    Add(temp, dst.base(), offset_op);                                     \
+    int pc_offset_of_store = pc_offset();                                 \
+    OP(rt, temp);                                                         \
+    return pc_offset_of_store;                                            \
+  }
+DEFINE_STL_MEM_OP(Stlrb, stlrb, stlurb)
+DEFINE_STL_MEM_OP(Stlrh, stlrh, stlurh)
+DEFINE_STL_MEM_OP(Stlr, stlr, stlur)
+#undef DEFINE_STL_MEM_OP
+
+int MacroAssembler::AtomicStoreTaggedField(
+    const Register& value, const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    Stlr(value.W(), temp);
+    return Stlr(value.W(), dst_field_operand);
   } else {
-    Stlr(value, temp);
+    return Stlr(value, dst_field_operand);
   }
 }
 
@@ -3664,28 +3763,22 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
-                                                  const Register& base,
-                                                  const Register& index,
-                                                  const Register& temp) {
+int MacroAssembler::AtomicDecompressTaggedSigned(
+    const Register& destination, const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Add(temp, base, index);
-  Ldar(destination.W(), temp);
+  int pc_offset_of_load = Ldar(destination.W(), field_operand);
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add(destination, destination,
         ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
   }
+  return pc_offset_of_load;
 }
 
 int MacroAssembler::AtomicDecompressTagged(const Register& destination,
-                                           const Register& base,
-                                           const Register& index,
-                                           const Register& temp) {
+                                           const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Add(temp, base, index);
-  int pc_offset_of_load = pc_offset();
-  Ldar(destination.W(), temp);
+  int pc_offset_of_load = Ldar(destination.W(), field_operand);
   Orr(destination, kPtrComprCageBaseRegister, destination);
   return pc_offset_of_load;
 }
@@ -3920,9 +4013,14 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             IndirectPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+
+  Register handle = temps.AcquireX();
+  Ldr(handle.W(), field_operand);
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -3945,10 +4043,10 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register handle = scratch;
     Ldr(handle.W(), field_operand);
 
-    static_assert(kNullIndirectPointerHandle == 0);
+    static_assert(kNullTrustedPointerHandle == 0);
     Cbz(handle, is_unavailable);
 
-    ResolveIndirectPointerHandle(destination, handle, kAllIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -3981,44 +4079,20 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldr(scratch.W(), FieldMemOperand(value, offsetof(ExposedTrustedObject,
+                                                   self_trusted_pointer_)));
+  Str(scratch.W(), dst_field_operand);
 #else
   StoreTaggedField(value, dst_field_operand);
 #endif
 }
 
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-
-  Register handle = temps.AcquireX();
-  Ldr(handle.W(), field_operand);
-  ResolveIndirectPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Ldr(scratch.W(), FieldMemOperand(value, offsetof(ExposedTrustedObject,
-                                                   self_indirect_pointer_)));
-  Str(scratch.W(), dst_field_operand);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-#ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(
-    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
 
   Register table = destination;
@@ -4029,8 +4103,8 @@ void MacroAssembler::ResolveIndirectPointerHandle(
   Ldr(destination,
       MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     And(destination, destination, Immediate(mask));
   } else {
     Register tag_reg = handle;
@@ -4174,22 +4248,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                IndirectPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  Mov(IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  Mov(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
       Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -4246,19 +4319,19 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                 SetIsolateDataSlots::kNo);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
   PushCallerSaved(fp_mode);
-  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  CallVerifySkippedTrustedWriteBarrierStub(object, value);
   PopCallerSaved(fp_mode);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                               Register value) {
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                              Register value) {
   ASM_CODE_COMMENT(this);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
-  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
+  CallCFunction(ExternalReference::verify_skipped_trusted_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
 
@@ -4314,9 +4387,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.AcquireX();
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
-    if (slot.contains_indirect_pointer()) {
-      LoadIndirectPointerField(temp, MemOperand(temp),
-                               slot.indirect_pointer_tag());
+    if (slot.contains_trusted_pointer()) {
+      LoadTrustedPointerField(temp, MemOperand(temp),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(temp, MemOperand(temp));
@@ -4343,7 +4416,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -4367,9 +4440,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.indirect_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (lr_status == kLRHasNotBeenSaved) {
     Pop<MacroAssembler::kAuthLR>(lr, padreg);

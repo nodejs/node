@@ -25,7 +25,6 @@ extern runtime WasmFunctionTableSet(
 extern runtime ThrowRangeError(Context, Smi): never;
 extern runtime ThrowWasmError(Context, Smi): never;
 extern runtime WasmThrowRangeError(Context, Smi): never;
-extern runtime TrapHandlerThrowWasmError(Context): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
@@ -53,14 +52,18 @@ extern runtime WasmManagedObjectWaitRef(
 extern runtime WasmWaitqueueNew(Context): HeapObject;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
+// Return type depends on v8_flags.wasm_merged_descriptors; simplify when
+// dropping that flag.
 extern runtime WasmAllocateDescriptorStruct(
-    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct;
+    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct
+    |WasmCustomMap;
 extern runtime WasmArrayNewSegment(
-    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
+    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String|WasmNull;
 extern runtime WasmArrayInitSegment(
-    Context, WasmTrustedInstanceData, Smi, WasmArray, Smi, Smi, Smi): JSAny;
+    Context, WasmTrustedInstanceData, Smi, Smi, WasmArray, Smi, Smi,
+    Smi): JSAny;
 extern runtime WasmStringNewWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
     |WasmNull;
@@ -91,8 +94,8 @@ extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
 extern runtime WasmSubstringShared(Context, String, Smi, Smi): String;
 extern runtime WasmStringAdd_NoMapCheck_Shared(Context, String, String): String;
-extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
-    Undefined;
+extern runtime WasmLiftoffDeoptFinish(NoContext): Undefined;
+extern runtime WasmExternConvertAny(Context, HeapObject): JSAny;
 
 extern runtime PropagateException(NoContext): JSAny;
 extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
@@ -130,7 +133,11 @@ const kMaxPolymorphism: constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';
-const kDoubleUnaligned: constexpr int31 generates 'kDoubleUnaligned';
+
+const kWasmUnsharedArrayHeaderSize:
+    constexpr int32 generates 'WasmArray::HeaderSize(SharedFlag{false})';
+const kWasmSharedArrayHeaderSize:
+    constexpr int32 generates 'WasmArray::HeaderSize(SharedFlag{true})';
 
 extern macro WasmCrossInstanceCallSymbolConstant(): Symbol;
 
@@ -438,8 +445,7 @@ builtin WasmAllocateFixedArray(size: intptr): FixedArray {
 }
 
 builtin WasmLiftoffDeoptFinish(): Undefined {
-  const trustedData = LoadInstanceDataFromFrame();
-  tail runtime::WasmLiftoffDeoptFinish(kNoContext, trustedData);
+  tail runtime::WasmLiftoffDeoptFinish(kNoContext);
 }
 
 builtin WasmThrow(
@@ -471,15 +477,20 @@ builtin WasmTriggerTierUp(): JSAny {
   tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), trustedData);
 }
 
-extern builtin WasmHandleStackOverflow(RawPtr, uint32): JSAny;
+extern builtin WasmHandleStackOverflow(RawPtr, uint32, intptr): JSAny;
 
-// {paramSlotsSize} is the size of the incoming stack parameters of the
-// currently-executing function, which have to be copied along with its
-// stack frame if the stack needs to be grown.
-builtin WasmGrowableStackGuard(paramSlotsSize: intptr, gap: intptr): JSAny {
+// {stackParamAndReturnSlotsSize} is the combined size of the incoming stack
+// parameters and stack return slots of the currently-executing function, which
+// have to be copied along with its stack frame if the stack needs to be grown.
+// {parameterSlotsSize} is the size of incoming stack parameters (which is also
+// the distance from the current FP to the relocated partial frame).
+builtin WasmGrowableStackGuard(
+    stackParamAndReturnSlotsSize: intptr, gap: intptr,
+    parameterSlotsSize: intptr): JSAny {
   tail WasmHandleStackOverflow(
-      LoadParentFramePointer() + paramSlotsSize + kFixedFrameSizeAboveFp,
-      Unsigned(Convert<int32>(gap)));
+      LoadParentFramePointer() + stackParamAndReturnSlotsSize +
+          kFixedFrameSizeAboveFp,
+      Unsigned(Convert<int32>(gap)), parameterSlotsSize);
 }
 
 builtin WasmStackGuard(gap: intptr): JSAny {
@@ -531,14 +542,14 @@ builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   return result;
 }
 
+// Return type depends on v8_flags.wasm_merged_descriptors; simplify when
+// dropping that flag.
 builtin WasmAllocateDescriptorStruct(
-    map: Map, typeIndex: int32, firstField: Object): WasmStruct {
-  // TODO(42204563): Figure out support for shared objects.
+    map: Map, typeIndex: int32, firstField: Object): WasmStruct|WasmCustomMap {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
+  return runtime::WasmAllocateDescriptorStruct(
       LoadContextFromInstanceData(trustedData), trustedData, map,
       SmiTag(Convert<intptr>(typeIndex)), firstField);
-  return result;
 }
 
 builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
@@ -556,11 +567,11 @@ builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
 builtin WasmAllocateArray_Uninitialized(
     rtt: Map, length: uint32, elementSize: uint32): WasmArray {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
-  //              + WasmArray::kHeaderSize
+  //              + WasmArray::HeaderSize(SharedFlag{false})
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
-      Convert<intptr>(kWasmArrayHeaderSize);
+      Convert<intptr>(kWasmUnsharedArrayHeaderSize);
   const result: HeapObject = unsafe::Allocate(instanceSize);
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
@@ -572,14 +583,14 @@ builtin WasmAllocateArray_Uninitialized(
 builtin WasmAllocateSharedArray_Uninitialized(
     rtt: Map, length: uint32, elementSize: uint32): WasmArray {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
-  //              + WasmArray::kHeaderSize
+  //              + WasmArray::HeaderSize(SharedFlag{true})
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
-      Convert<intptr>(kWasmArrayHeaderSize);
+      Convert<intptr>(kWasmSharedArrayHeaderSize);
   const result: HeapObject = runtime::AllocateInSharedHeap(
       LoadContextFromFrame(), SmiFromIntPtr(instanceSize),
-      SmiConstant(kDoubleUnaligned));
+      SmiConstant(kDoubleAligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
@@ -594,8 +605,10 @@ builtin WasmArrayNewSegment(
   try {
     const smiOffset = Convert<PositiveSmi>(offset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
-    tail runtime::WasmArrayNewSegment(
-        LoadContextFromInstanceData(trustedData), trustedData,
+    // Cannot use a tail call because we are exceeding the maximum number of
+    // arguments.
+    return runtime::WasmArrayNewSegment(
+        LoadContextFromInstanceData(trustedData), trustedData, isElement,
         SmiFromUint32(segmentIndex), smiOffset, smiLength, rtt);
   } label SegmentOutOfBounds {
     if (isElement == SmiConstant(0)) {
@@ -623,10 +636,11 @@ builtin WasmArrayInitSegment(
     const smiOffset =
         Convert<PositiveSmi>(segmentOffset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayOutOfBounds;
-
-    tail runtime::WasmArrayInitSegment(
-        LoadContextFromInstanceData(trustedData), trustedData, segmentIndex,
-        array, smiArrayIndex, smiOffset, smiLength);
+    // Cannot use a tail call because we are exceeding the maximum number of
+    // arguments.
+    return runtime::WasmArrayInitSegment(
+        LoadContextFromInstanceData(trustedData), trustedData, isElement,
+        segmentIndex, array, smiArrayIndex, smiOffset, smiLength);
   } label SegmentOutOfBounds {
     if (isElement == SmiConstant(0)) {
       tail ThrowWasmTrapDataSegmentOutOfBounds();
@@ -867,10 +881,6 @@ builtin ThrowWasmTrapUnreachable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnreachable));
 }
 
-builtin WasmTrapHandlerThrowTrap(): JSAny {
-  tail runtime::TrapHandlerThrowWasmError(LoadContextFromWasmOrJsFrame());
-}
-
 builtin WasmPropagateException(): JSAny {
   tail runtime::PropagateException(kNoContext);
 }
@@ -1092,8 +1102,9 @@ builtin WasmStringNewWtf16Array(
     // TODO(448741522): Support inline creation of short shared Strings.
     // "config == 0" means both array and string are unshared.
     if (config != SmiConstant(0)) goto Runtime;
+    dcheck(!InSharedSpace(array));
     if (length == 1) {
-      const offset = kWasmArrayHeaderSize +
+      const offset = kWasmUnsharedArrayHeaderSize +
           torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
       const code: char16 = *torque_internal::unsafe::NewReference<char16>(
           array, offset);
@@ -1106,7 +1117,7 @@ builtin WasmStringNewWtf16Array(
     if (length >= 32) goto Runtime;
     const intptrLength = Convert<intptr>(length);
     const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
-        array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
+        array, kWasmUnsharedArrayHeaderSize, Convert<intptr>(array.length));
     const substring =
         Subslice(arrayContent, Convert<intptr>(start), intptrLength)
         otherwise goto OffsetOutOfRange;
@@ -1215,7 +1226,10 @@ builtin WasmStringEncodeWtf16Array(
     if (start > array.length) goto OffsetOutOfRange;
     if (array.length - start < Unsigned(string.length)) goto OffsetOutOfRange;
 
-    const byteOffset: intptr = kWasmArrayHeaderSize +
+    const headerSize: intptr = InSharedSpace(array) ?
+        Convert<intptr>(kWasmSharedArrayHeaderSize) :
+        Convert<intptr>(kWasmUnsharedArrayHeaderSize);
+    const byteOffset: intptr = headerSize +
         torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
     const arrayContent = torque_internal::unsafe::NewMutableSlice<char16>(
         array, byteOffset, string.length_intptr);
@@ -1673,6 +1687,10 @@ builtin WasmAnyConvertExternShared(externObject: JSAny): JSAny {
       context, externObject, SmiConstant(kSharedAnyType));
 }
 
+builtin WasmExternConvertAny(wasmObject: HeapObject): JSAny {
+  tail runtime::WasmExternConvertAny(
+      LoadContextFromWasmOrJsFrame(), wasmObject);
+}
 
 extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
     JSReceiver, HeapObject, Context): JSReceiver;
@@ -1710,7 +1728,8 @@ builtin WasmLiftoffIsEqRefUnshared(obj: Object, nullSucceeds: bool): int32 {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
         !InSharedSpace(heapObject) &&
-        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject)));
+        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject) ||
+         Is<WasmCustomMap>(heapObject)));
   } label ReturnFalse {
     return 0;
   }
@@ -1733,7 +1752,8 @@ builtin WasmLiftoffIsStructRefUnshared(obj: Object, nullSucceeds: bool):
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject));
+        !InSharedSpace(heapObject) &&
+        (Is<WasmStruct>(heapObject) || Is<WasmCustomMap>(heapObject)));
   } label ReturnFalse {
     return 0;
   }
@@ -1753,7 +1773,8 @@ builtin WasmLiftoffCastEqRefUnshared(obj: Object, nullSucceeds: bool): JSAny {
     }
     const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
     if (InSharedSpace(heapObject) ||
-        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject))) {
+        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject) &&
+         !Is<WasmCustomMap>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);
@@ -1787,7 +1808,8 @@ builtin WasmLiftoffCastStructRefUnshared(obj: Object, nullSucceeds: bool):
       goto IllegalCast;
     }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) || (!Is<WasmStruct>(heapObject))) {
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmStruct>(heapObject) && !Is<WasmCustomMap>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);

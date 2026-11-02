@@ -19,8 +19,6 @@
 #include "src/__support/threads/sleep.h"
 #include "src/__support/time/abs_timeout.h"
 
-#include <stdio.h>
-
 // TODO(bojle): check this for darwin impl
 #ifdef LIBC_COPT_TIMEOUT_ENSURE_MONOTONICITY
 #include "src/__support/time/monotonicity.h"

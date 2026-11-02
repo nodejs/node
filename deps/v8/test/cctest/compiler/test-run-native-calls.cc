@@ -237,7 +237,7 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           TFGraph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
+  OptimizedCompilationInfo info("testing", graph->zone(),
                                 CodeKind::FOR_TESTING);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
                           &info, isolate, call_descriptor, graph,
@@ -284,7 +284,8 @@ DirectHandle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
   }
 
   MachineSignature* msig = call_descriptor->GetMachineSignature(&zone);
-  CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, msig);
+  CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(
+      &zone, msig, CallDescriptor::kInitializeRootRegister);
 
   return CompileGraph("wrapper", cdesc, caller.graph());
 }
@@ -437,7 +438,8 @@ class Computer {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME);
         TFGraph graph(&zone);
-        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(
+            &zone, &csig, CallDescriptor::kInitializeRootRegister);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(inner);
         Node** inputs = zone.AllocateArray<Node*>(num_params + 1);
@@ -471,7 +473,8 @@ class Computer {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME);
         TFGraph graph(&zone);
-        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(
+            &zone, &csig, CallDescriptor::kInitializeRootRegister);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* base = raw.PointerConstant(io.input);
         Node* target = raw.HeapConstant(inner);
@@ -571,7 +574,8 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME);
     TFGraph graph(&zone);
-    CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+    CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(
+        &zone, &csig, CallDescriptor::kInitializeRootRegister);
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
     Node* target = raw.HeapConstant(inner);
@@ -1058,8 +1062,8 @@ void MixedParamTest(int start) {
         // Wrap the select code with a callable function that passes constants.
         Zone wrap_zone(&allocator, ZONE_NAME);
         TFGraph graph(&wrap_zone);
-        CallDescriptor* cdesc =
-            Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(
+            &wrap_zone, &csig, CallDescriptor::kInitializeRootRegister);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(select);
         Node** inputs = wrap_zone.AllocateArray<Node*>(num_params + 1);

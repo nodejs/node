@@ -398,8 +398,7 @@ void CopyDoubleToDoubleElements(Tagged<FixedArrayBase> from_base,
   // access to double values in the arrays. This will no longed be necessary
   // once the allocations alignment issue is fixed.
   uint32_t words_per_double = (kDoubleSize / kTaggedSize);
-  CopyTagged(to_address, from_address,
-             static_cast<size_t>(words_per_double * copy_size));
+  CopyTagged(to_address, from_address, words_per_double * copy_size);
 #else
   uint32_t words_per_double = (kDoubleSize / kSystemPointerSize);
   CopyWords(to_address, from_address,

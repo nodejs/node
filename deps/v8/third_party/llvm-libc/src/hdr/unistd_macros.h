@@ -11,6 +11,7 @@
 
 #ifdef LIBC_FULL_BUILD
 
+#include "include/llvm-libc-macros/file-seek-macros.h"
 #include "include/llvm-libc-macros/unistd-macros.h"
 
 #else // Overlay mode

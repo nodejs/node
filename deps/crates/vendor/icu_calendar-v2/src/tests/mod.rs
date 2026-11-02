@@ -3,6 +3,7 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 mod arithmetic;
+mod constructor_roundtrip;
 mod continuity_test;
 mod date_arithmetic_snapshot;
 mod exhaustive;
@@ -10,6 +11,10 @@ mod extended_year;
 mod extrema;
 mod month;
 mod not_enough_fields;
+
+use crate::Date;
+use crate::types::Month;
+use calendrical_calculations::rata_die::RataDie;
 
 macro_rules! test_all_cals {
     ($(#[$meta:meta])* fn $name:ident<C: Calendar + Copy>($cal:ident: C) $tt:tt) => {
@@ -127,3 +132,61 @@ macro_rules! test_all_cals {
     };
 }
 use test_all_cals;
+
+pub(crate) fn get_interesting_rds() -> Vec<RataDie> {
+    let mut rds = Vec::new();
+
+    // Iso / Gregorian leap day
+    let date = Date::try_new_iso(2020, 2, 29).expect("2020-02-29 is a valid ISO date");
+    rds.push(date.to_rata_die());
+
+    // Hebrew leap month (Adar I) in leap year 5784
+    let date = Date::try_new_hebrew_v2(5784, Month::leap(5), 15).expect("Valid Hebrew date");
+    rds.push(date.to_rata_die());
+
+    // Hebrew Adar II in leap year 5784
+    let date = Date::try_new_hebrew_v2(5784, Month::new(6), 15).expect("Valid Hebrew date");
+    rds.push(date.to_rata_die());
+
+    // Hebrew non-Adar month in leap year 5784
+    let date = Date::try_new_hebrew_v2(5784, Month::new(1), 15).expect("Valid Hebrew date");
+    rds.push(date.to_rata_die());
+
+    // Chinese leap month date
+    let date =
+        Date::try_new_chinese_traditional(2023, Month::leap(2), 1).expect("Valid Chinese date");
+    rds.push(date.to_rata_die());
+
+    // Chinese leap year 2023, non-leap month
+    let date =
+        Date::try_new_chinese_traditional(2023, Month::new(1), 1).expect("Valid Chinese date");
+    rds.push(date.to_rata_die());
+
+    // Japanese era transition
+    let date = Date::try_new_japanese_with_calendar("reiwa", 1, 5, 1, crate::cal::Japanese::new())
+        .expect("Valid Japanese date");
+    rds.push(date.to_rata_die());
+
+    // Ethiopic month 13
+    let date = Date::try_new_ethiopian(crate::cal::EthiopianEraStyle::AmeteMihret, 2015, 13, 5)
+        .expect("Valid Ethiopian date");
+    rds.push(date.to_rata_die());
+
+    // Coptic month 13
+    let date = Date::try_new_coptic(1686, 13, 5).expect("Valid Coptic date");
+    rds.push(date.to_rata_die());
+
+    // Add some more general dates
+    rds.push(RataDie::new(0));
+    rds.push(RataDie::new(1));
+    rds.push(RataDie::new(-1));
+    rds.push(RataDie::new(730000)); // ~2000 CE
+    rds.push(RataDie::new(100));
+    rds.push(RataDie::new(-100));
+    rds.push(RataDie::new(1000000)); // ~2739 CE
+    rds.push(RataDie::new(-1000000)); // ~ -2739 CE
+    rds.push(RataDie::new(123456));
+    rds.push(RataDie::new(-123456));
+
+    rds
+}

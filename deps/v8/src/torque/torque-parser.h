@@ -14,6 +14,11 @@ namespace torque {
 // Adds the parsed input to {CurrentAst}
 void ParseTorque(const std::string& input);
 
+// Parse a standalone Torque type or expression without adding a declaration
+// to CurrentAst. Used for the Torque source in V8_TQ_* annotation arguments.
+TypeExpression* ParseTorqueTypeExpression(const std::string& input);
+Expression* ParseTorqueExpression(const std::string& input);
+
 Expression* MakeCall(Identifier* callee,
                      const std::vector<TypeExpression*>& generic_arguments,
                      const std::vector<Expression*>& arguments,

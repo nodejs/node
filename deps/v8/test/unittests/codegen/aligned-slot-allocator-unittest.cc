@@ -4,7 +4,8 @@
 
 #include "src/codegen/aligned-slot-allocator.h"
 
-#include "src/base/bits.h"
+#include <bit>
+
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -22,8 +23,7 @@ class AlignedSlotAllocatorUnitTest : public ::testing::Test {
     EXPECT_EQ(next, result);  // NextSlot/Allocate are consistent.
     EXPECT_EQ(expected, result);
     EXPECT_EQ(0, result & (size - 1));  // result is aligned to size.
-    int slot_end = result + static_cast<int>(base::bits::RoundUpToPowerOfTwo32(
-                                static_cast<uint32_t>(size)));
+    int slot_end = result + std::bit_ceil<uint32_t>(size);
     EXPECT_LE(slot_end, allocator_.Size());  // allocator Size is beyond slot.
   }
 

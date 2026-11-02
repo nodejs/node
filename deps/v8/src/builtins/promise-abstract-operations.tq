@@ -208,8 +208,8 @@ transitioning macro TriggerPromiseReactions(
 // https://tc39.es/ecma262/#sec-fulfillpromise
 transitioning builtin FulfillPromise(
     implicit context: Context)(promise: JSPromise, value: JSAny): Undefined {
-  // Assert: The value of promise.[[PromiseState]] is "pending".
-  dcheck(promise.Status() == PromiseState::kPending);
+  // Assert: The value of promise.[[PromisePromiseState]] is "pending".
+  dcheck(promise.Status() == PromisePromiseState::kPending);
 
   RunContextPromiseHookResolve(promise);
 
@@ -222,8 +222,8 @@ transitioning builtin FulfillPromise(
   // 5. Set promise.[[PromiseRejectReactions]] to undefined.
   promise.reactions_or_result = value;
 
-  // 6. Set promise.[[PromiseState]] to "fulfilled".
-  promise.SetStatus(PromiseState::kFulfilled);
+  // 6. Set promise.[[PromisePromiseState]] to "fulfilled".
+  promise.SetStatus(PromisePromiseState::kFulfilled);
 
   // 7. Return TriggerPromiseReactions(reactions, value).
   TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
@@ -268,8 +268,8 @@ transitioning builtin RejectPromise(
   // 5. Set promise.[[PromiseRejectReactions]] to undefined.
   promise.reactions_or_result = reason;
 
-  // 6. Set promise.[[PromiseState]] to "rejected".
-  promise.SetStatus(PromiseState::kRejected);
+  // 6. Set promise.[[PromisePromiseState]] to "rejected".
+  promise.SetStatus(PromisePromiseState::kRejected);
 
   // 8. Return TriggerPromiseReactions(reactions, reason).
   TriggerPromiseReactions(reactions, reason, kPromiseReactionReject);
@@ -470,7 +470,7 @@ transitioning macro PerformPromiseThenImpl(
     implicit context: Context)(promise: JSPromise,
     onFulfilled: Callable|Undefined, onRejected: Callable|Undefined,
     resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
-  if (promise.Status() == PromiseState::kPending) {
+  if (promise.Status() == PromisePromiseState::kPending) {
     // The {promise} is still in "Pending" state, so we just record a new
     // PromiseReaction holding both the onFulfilled and onRejected callbacks.
     // Once the {promise} is resolved we decide on the concrete handler to
@@ -485,14 +485,14 @@ transitioning macro PerformPromiseThenImpl(
     const reactionsOrResult = promise.reactions_or_result;
     let microtask: PromiseReactionJobTask;
     let handlerContext: Context;
-    if (promise.Status() == PromiseState::kFulfilled) {
+    if (promise.Status() == PromisePromiseState::kFulfilled) {
       handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
       microtask = NewPromiseFulfillReactionJobTask(
           handlerContext, reactionsOrResult, onFulfilled,
           resultPromiseOrCapability);
     } else
       deferred {
-        dcheck(promise.Status() == PromiseState::kRejected);
+        dcheck(promise.Status() == PromisePromiseState::kRejected);
         handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
         microtask = NewPromiseRejectReactionJobTask(
             handlerContext, reactionsOrResult, onRejected,
@@ -542,7 +542,7 @@ transitioning javascript builtin PromiseReject(
 
   const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
   if (promiseFun == receiver) {
-    const promise = NewJSPromise(PromiseState::kRejected, reason);
+    const promise = NewJSPromise(PromisePromiseState::kRejected, reason);
     runtime::PromiseRejectEventFromStack(promise, reason);
     return promise;
   } else {

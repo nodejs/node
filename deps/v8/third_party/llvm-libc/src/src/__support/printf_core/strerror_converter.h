@@ -19,10 +19,9 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_strerror(Writer<mode> *writer,
-                                 const FormatSection &to_conv) {
-  FormatSection new_conv = to_conv;
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_strerror(Writer<mode, CharT> *writer,
+                                 FormatSection<CharT> to_conv) {
   const int error_num = static_cast<int>(to_conv.conv_val_raw);
 
   // The %m conversion takes no arguments passes the result of strerror(errno)
@@ -37,10 +36,10 @@ LIBC_INLINE int convert_strerror(Writer<mode> *writer,
   if ((to_conv.flags & FormatFlags::ALTERNATE_FORM) == 0) {
     char strerror_buff[64];
     auto strerror_result = get_error_string(error_num, strerror_buff);
-    new_conv.conv_val_ptr =
+    to_conv.conv_val_ptr =
         reinterpret_cast<void *>(const_cast<char *>(strerror_result.data()));
-    new_conv.conv_name = 's';
-    return convert_string(writer, new_conv);
+    to_conv.conv_name = CharT{'s'};
+    return convert_string(writer, to_conv);
   } else {
     // alt form
 
@@ -58,14 +57,14 @@ LIBC_INLINE int convert_strerror(Writer<mode> *writer,
     auto errno_name = try_get_errno_name(error_num);
     // if there's a name available, use it.
     if (errno_name) {
-      new_conv.conv_val_ptr =
+      to_conv.conv_val_ptr =
           reinterpret_cast<void *>(const_cast<char *>(errno_name->data()));
-      new_conv.conv_name = 's';
-      return convert_string(writer, new_conv);
+      to_conv.conv_name = CharT{'s'};
+      return convert_string(writer, to_conv);
     } else {
       // else do an int conversion
-      new_conv.conv_name = 'd';
-      return convert_int(writer, new_conv);
+      to_conv.conv_name = CharT{'d'};
+      return convert_int(writer, to_conv);
     }
   }
 }

@@ -7,11 +7,13 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #if V8_OS_DARWIN
 #include "pthread.h"
 #endif
 
+#include "include/v8-isolate.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
@@ -51,9 +53,13 @@ class V8_EXPORT_PRIVATE LocalHeap {
  public:
   using GCEpilogueCallback = void(void*);
 
+  // The parameter `stack_start` is only used for stack-allocated instances,
+  // where `kind == ThreadKind::kBackground`.
   explicit LocalHeap(
       Heap* heap, ThreadKind kind,
-      std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
+      std::unique_ptr<PersistentHandles> persistent_handles = nullptr,
+      v8::base::Stack::StackSlot stack_start =
+          v8::base::Stack::GetCurrentFrameAddress());
   ~LocalHeap();
 
   // Frequently invoked by local thread to check whether safepoint was requested
@@ -427,6 +433,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Stack information for the thread using this local heap.
   ::heap::base::Stack stack_;
+  CPPGC_STACK_ALLOCATED_IGNORE(
+      "Only emplaced for stack-allocated background LocalHeaps")
+  std::optional<StackStartScope> stack_start_scope_;
 
 #if V8_VERIFY_WRITE_BARRIERS
   Address write_barrier_mode_for_object_ = kNullAddress;

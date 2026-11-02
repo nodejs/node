@@ -67,7 +67,7 @@ transitioning javascript builtin TypedArrayPrototypeEvery(
     const thisArg = arguments[1];
     return EveryAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameEvery);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameEvery);

@@ -31,31 +31,31 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32AddWithImmediate) {
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Add(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
+      if (imm == 0) {
+        ASSERT_EQ(0U, s.size());
+        continue;
+      }
       ASSERT_EQ(1U, s.size());
       if (imm != kMinInt) {
         EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
       }
-      if (imm == 0) {
-        ASSERT_EQ(1U, s[0]->InputCount());
-      } else {
-        ASSERT_EQ(2U, s[0]->InputCount());
-        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
-      }
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     }
     {
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Add(m.Int32Constant(imm), m.Parameter(0)));
       Stream s = m.Build();
+      if (imm == 0) {
+        ASSERT_EQ(0U, s.size());
+        continue;
+      }
       ASSERT_EQ(1U, s.size());
       if (imm != kMinInt) {
         EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
       }
-      if (imm == 0) {
-        ASSERT_EQ(1U, s[0]->InputCount());
-      } else {
-        ASSERT_EQ(2U, s[0]->InputCount());
-        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
-      }
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     }
   }
 }
@@ -75,6 +75,10 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32SubWithImmediate) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Word32Sub(m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
+    if (imm == 0) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kIA32Sub, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());

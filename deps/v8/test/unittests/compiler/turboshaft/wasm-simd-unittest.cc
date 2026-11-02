@@ -7,6 +7,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
+#include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -202,7 +203,7 @@ TEST_F(WasmSimdTest, SingleExtMulI8Dot) {
           __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
     });
 
-    test.Run<MachineOptimizationReducer>();
+    test.Run<InstructionSelectionNormalizationReducer>();
     test.Run<DeadCodeEliminationReducer>();
 
     ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 1u);
@@ -222,7 +223,7 @@ TEST_F(WasmSimdTest, AddPairwiseMulI8Dot) {
         __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
   });
 
-  test.Run<MachineOptimizationReducer>();
+  test.Run<InstructionSelectionNormalizationReducer>();
   test.Run<DeadCodeEliminationReducer>();
 
 #ifdef V8_TARGET_ARCH_ARM64
@@ -258,7 +259,7 @@ TEST_F(WasmSimdTest, AddExtMulPairwiseToI8x16DotProduct) {
     __ Return(add);
   });
 
-  test.Run<MachineOptimizationReducer>();
+  test.Run<InstructionSelectionNormalizationReducer>();
   test.Run<DeadCodeEliminationReducer>();
 
   constexpr uint8_t expected_shuffle[kSimd128Size] = {

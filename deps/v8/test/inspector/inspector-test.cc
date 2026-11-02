@@ -282,14 +282,13 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     std::vector<uint16_t> details =
         ToVector(info.GetIsolate(), info[2].As<v8::String>());
     int context_group_id = info[0].As<v8::Int32>()->Value();
-    RunSyncTask(backend_runner_,
-                [&context_group_id, &reason,
-                 &details](InspectorIsolateData* data) {
-                  data->SchedulePauseOnNextStatement(
-                      context_group_id,
-                      v8_inspector::StringView(reason.data(), reason.size()),
-                      v8_inspector::StringView(details.data(), details.size()));
-                });
+    RunSyncTask(backend_runner_, [&context_group_id, &reason,
+                                  &details](InspectorIsolateData* data) {
+      data->SchedulePauseOnNextStatement(
+          context_group_id,
+          v8_inspector::StringView(reason.data(), reason.size()),
+          v8_inspector::StringView(details.data(), details.size()));
+    });
   }
 
   static void CancelPauseOnNextStatement(
@@ -367,12 +366,12 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     std::vector<uint16_t> name =
         ToVector(info.GetIsolate(), info[1].As<v8::String>());
 
-    RunSyncTask(backend_runner_, [&context_group_id,
-                                  name](InspectorIsolateData* data) {
-      CHECK(data->CreateContext(
-          context_group_id,
-          v8_inspector::StringView(name.data(), name.size())));
-    });
+    RunSyncTask(backend_runner_,
+                [&context_group_id, name](InspectorIsolateData* data) {
+                  CHECK(data->CreateContext(
+                      context_group_id,
+                      v8_inspector::StringView(name.data(), name.size())));
+                });
   }
 
   static void ResetContextGroup(
@@ -985,14 +984,28 @@ int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
-  // Enable the WebAssembly trap handler in inspector-test to match d8/Chrome.
-  v8::V8::EnableWebAssemblyTrapHandler(true);
+  bool enable_wasm_trap_handler = true;
+  for (int i = 1; i < argc; ++i) {
+    if (argv[i] == nullptr) continue;
+    if (strcmp(argv[i], "--wasm-trap-handler") == 0) {
+      enable_wasm_trap_handler = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-wasm-trap-handler") == 0) {
+      enable_wasm_trap_handler = false;
+      argv[i] = nullptr;
+    }
+  }
+  if (enable_wasm_trap_handler) {
+    // Enable the WebAssembly trap handler in inspector-test to match d8/Chrome.
+    v8::V8::EnableWebAssemblyTrapHandler(true);
+  }
   i::DisableEmbeddedBlobRefcounting();
 
   base::Semaphore ready_semaphore(0);
 
   StartupData startup_data = {nullptr, 0};
   for (int i = 1; i < argc; ++i) {
+    if (argv[i] == nullptr) continue;
     if (strcmp(argv[i], "--embed") == 0) {
       argv[i++] = nullptr;
       printf("Embedding script '%s'\n", argv[i]);

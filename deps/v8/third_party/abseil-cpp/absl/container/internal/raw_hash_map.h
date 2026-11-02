@@ -15,6 +15,8 @@
 #ifndef ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 
+#include <cstddef>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -26,6 +28,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 #include "absl/meta/type_traits.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -76,20 +79,27 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   //
   // TODO(b/402804213): Remove these traits and simplify the overloads whenever
   // we have a better mechanism available to handle lifetime analysis.
-  template <class K, bool Value, typename = void>
-  using LifetimeBoundK = HasValue<
-      Value, std::conditional_t<policy_trait_element_is_owner<Policy>::value,
-                                std::false_type,
-                                type_traits_internal::IsLifetimeBoundAssignment<
-                                    typename Policy::key_type, K>>>;
-  template <class V, bool Value, typename = void>
+  //
+  // MovableOrVoid is an optional, extra constraint (via SFINAE) to guard
+  // separate move-only overloads.
+  template <class K, bool Value, bool ExtraConstraint = true>
+  using LifetimeBoundK = std::bool_constant<
+      (ExtraConstraint ||
+       !IsAllocMoveSameAsCopy<absl::remove_cvref_t<K>, Alloc>::value) &&
+      HasValue<Value, std::conditional_t<
+                          policy_trait_element_is_owner<Policy>::value,
+                          std::false_type,
+                          type_traits_internal::IsLifetimeBoundAssignment<
+                              typename Policy::key_type, K>>>::value>;
+  template <class V, bool Value>
   using LifetimeBoundV =
       HasValue<Value, type_traits_internal::IsLifetimeBoundAssignment<
                           typename Policy::mapped_type, V>>;
-  template <class K, bool KValue, class V, bool VValue, typename... Dummy>
-  using LifetimeBoundKV =
-      std::conjunction<LifetimeBoundK<K, KValue, std::void_t<Dummy...>>,
-                       LifetimeBoundV<V, VValue>>;
+  template <class K, bool KValue, class V, bool VValue,
+            bool ExtraConstraintK = true, bool ExtraConstraintV = true>
+  using LifetimeBoundKV = std::conjunction<
+      LifetimeBoundK<K, KValue, ExtraConstraintK && ExtraConstraintV>,
+      LifetimeBoundV<V, VValue>>;
 
  public:
   using key_type = typename Policy::key_type;
@@ -122,8 +132,10 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       typename K = key_type, class V = mapped_type,                            \
       ABSL_INTERNAL_IF_##KValue##_NOR_##VValue(                                \
           int = (EnableIf<LifetimeBoundKV<K, KValue, V, VValue,                \
-                                          IfRRef<int KQual>::AddPtr<K>,        \
-                                          IfRRef<int VQual>::AddPtr<V>>>()),   \
+                                          !std::is_reference_v<int KQual> ||   \
+                                              !std::is_reference_v<K>,         \
+                                          !std::is_reference_v<int VQual> ||   \
+                                              !std::is_reference_v<V>>>()),    \
           ABSL_INTERNAL_SINGLE_ARG(                                            \
               int&...,                                                         \
               decltype(EnableIf<LifetimeBoundKV<K, KValue, V, VValue>>()) =    \
@@ -217,7 +229,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   // arguments as `std::unordered_map::try_emplace()`, namely that these
   // functions will not move from rvalue arguments if insertions do not happen.
   template <
-      class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K*>>(),
+      class K = key_type,
+      int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>(),
       class... Args,
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(key_arg<K>&& k, Args&&... args)
@@ -228,7 +241,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
 
   template <
       class K = key_type, class... Args,
-      EnableIf<LifetimeBoundK<K, true, K*>> = 0,
+      EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0,
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(
       key_arg<K>&& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
@@ -254,7 +267,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
     return this->template try_emplace<K, 0>(k, std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K*>>(),
+  template <class K = key_type,
+            int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>(),
             class... Args>
   iterator try_emplace(const_iterator, key_arg<K>&& k,
                        Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -262,7 +276,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
         .first;
   }
   template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true, K*>> = 0>
+            EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0>
   iterator try_emplace(const_iterator hint,
                        key_arg<K>&& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
                        Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -306,7 +320,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   }
 
   template <class K = key_type, class P = Policy,
-            int = EnableIf<LifetimeBoundK<K, false, K*>>()>
+            int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>()>
   MappedReference<P> operator[](key_arg<K>&& key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     // It is safe to use unchecked_deref here because try_emplace
@@ -316,7 +330,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
         try_emplace(std::forward<key_arg<K>>(key)).first));
   }
   template <class K = key_type, class P = Policy, int&...,
-            EnableIf<LifetimeBoundK<K, true, K*>> = 0>
+            EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0>
   MappedReference<P> operator[](
       key_arg<K>&& key ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -365,9 +379,33 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
     if (res.second) {
-      this->emplace_at(res.first, std::piecewise_construct,
-                       std::forward_as_tuple(std::forward<K>(k)),
-                       std::forward_as_tuple(std::forward<Args>(args)...));
+      // Try to avoid using std::tuple since that slows compilation.
+      // (example: https://godbolt.org/z/nefW93T6K)
+
+      if constexpr (ShouldPreferPassByValue<std::conditional_t<
+                        sizeof...(Args) == 0 &&
+                            std::is_same_v<
+                                typename std::allocator_traits<
+                                    Alloc>::template rebind_alloc<char>,
+                                std::allocator<char>>,
+                        mapped_type,
+                        // Trick to avoid unnecessary template instantiations.
+                        void>>::value) {
+        // Common case: operator[]
+        // Note: This has a different run-time performance characteristic than
+        // the other branches, due to the usage of a temporary object. In the
+        // event that this causes problems (such as a performance regression or
+        // a stack overflow), this branch should be modified or removed.
+        this->emplace_at(res.first, std::forward<K>(k), mapped_type());
+      } else if constexpr (sizeof...(Args) == 1) {
+        this->emplace_at(res.first, std::forward<K>(k),
+                         std::forward<Args>(args)...);
+      } else {
+        // This is expensive to compile, so only use it as a last resort.
+        this->emplace_at(res.first, std::piecewise_construct,
+                         std::forward_as_tuple(std::forward<K>(k)),
+                         std::forward_as_tuple(std::forward<Args>(args)...));
+      }
     }
     return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }

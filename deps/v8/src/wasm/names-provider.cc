@@ -426,21 +426,22 @@ size_t StringMapSize(const std::map<uint32_t, std::string>& map) {
 size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 176);
   size_t result = sizeof(NamesProvider);
-  if (name_section_names_) {
-    DecodedNameSection* names = name_section_names_.get();
-    result += names->local_names_.EstimateCurrentMemoryConsumption();
-    result += names->label_names_.EstimateCurrentMemoryConsumption();
-    result += names->type_names_.EstimateCurrentMemoryConsumption();
-    result += names->table_names_.EstimateCurrentMemoryConsumption();
-    result += names->memory_names_.EstimateCurrentMemoryConsumption();
-    result += names->global_names_.EstimateCurrentMemoryConsumption();
-    result += names->element_segment_names_.EstimateCurrentMemoryConsumption();
-    result += names->data_segment_names_.EstimateCurrentMemoryConsumption();
-    result += names->field_names_.EstimateCurrentMemoryConsumption();
-    result += names->tag_names_.EstimateCurrentMemoryConsumption();
-  }
   {
     base::MutexGuard lock(&mutex_);
+    if (name_section_names_) {
+      DecodedNameSection* names = name_section_names_.get();
+      result += names->local_names_.EstimateCurrentMemoryConsumption();
+      result += names->label_names_.EstimateCurrentMemoryConsumption();
+      result += names->type_names_.EstimateCurrentMemoryConsumption();
+      result += names->table_names_.EstimateCurrentMemoryConsumption();
+      result += names->memory_names_.EstimateCurrentMemoryConsumption();
+      result += names->global_names_.EstimateCurrentMemoryConsumption();
+      result +=
+          names->element_segment_names_.EstimateCurrentMemoryConsumption();
+      result += names->data_segment_names_.EstimateCurrentMemoryConsumption();
+      result += names->field_names_.EstimateCurrentMemoryConsumption();
+      result += names->tag_names_.EstimateCurrentMemoryConsumption();
+    }
     result += StringMapSize(import_export_function_names_);
     result += StringMapSize(import_export_table_names_);
     result += StringMapSize(import_export_memory_names_);

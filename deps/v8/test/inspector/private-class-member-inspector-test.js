@@ -53,6 +53,9 @@ ${pause}`;
 async function testAllPrivateMembers(type, runAndLog) {
   const receiver = getTestReceiver(type);
   InspectorTest.log('Checking private fields');
+  await runAndLog(`#field in ${receiver}`);
+  await runAndLog(`#nonExistent in ${receiver}`);
+  await runAndLog(`#field in 1`);
   await runAndLog(`${receiver}.#field`);
   await runAndLog(`${receiver}.#field = 1`);
   await runAndLog(`${receiver}.#field`);
@@ -64,6 +67,7 @@ async function testAllPrivateMembers(type, runAndLog) {
   await runAndLog(`${receiver}.#field`);
 
   InspectorTest.log('Checking private getter-only accessors');
+  await runAndLog(`#getterOnly in ${receiver}`);
   await runAndLog(`${receiver}.#getterOnly`);
   await runAndLog(`${receiver}.#getterOnly = 1`);
   await runAndLog(`${receiver}.#getterOnly++`);
@@ -71,6 +75,7 @@ async function testAllPrivateMembers(type, runAndLog) {
   await runAndLog(`${receiver}.#getterOnly`);
 
   InspectorTest.log('Checking private setter-only accessors');
+  await runAndLog(`#setterOnly in ${receiver}`);
   await runAndLog(`${receiver}.#setterOnly`);
   await runAndLog(`${receiver}.#setterOnly = 1`);
   await runAndLog(`${receiver}.#setterOnly++`);
@@ -78,6 +83,7 @@ async function testAllPrivateMembers(type, runAndLog) {
   await runAndLog(`${receiver}.#field`);
 
   InspectorTest.log('Checking private accessors');
+  await runAndLog(`#accessor in ${receiver}`);
   await runAndLog(`${receiver}.#accessor`);
   await runAndLog(`${receiver}.#accessor = 1`);
   await runAndLog(`${receiver}.#field`);
@@ -89,6 +95,7 @@ async function testAllPrivateMembers(type, runAndLog) {
   await runAndLog(`${receiver}.#field`);
 
   InspectorTest.log('Checking private methods');
+  await runAndLog(`#method in ${receiver}`);
   await runAndLog(`${receiver}.#method`);
   await runAndLog(`${receiver}.#method = 1`);
   await runAndLog(`${receiver}.#method++`);
@@ -97,10 +104,15 @@ async function testAllPrivateMembers(type, runAndLog) {
 }
 
 async function testConflictingPrivateMembers(runAndLog) {
+  await runAndLog(`#name in (new ClassWithField)`);
   await runAndLog(`(new ClassWithField).#name`);
+  await runAndLog(`#name in (new ClassWithMethod)`);
   await runAndLog(`(new ClassWithMethod).#name`);
+  await runAndLog(`#name in (new ClassWithAccessor)`);
   await runAndLog(`(new ClassWithAccessor).#name`);
+  await runAndLog(`#name in StaticClass`);
   await runAndLog(`StaticClass.#name`);
+  await runAndLog(`#name in (new StaticClass)`);
   await runAndLog(`(new StaticClass).#name`);
 }
 

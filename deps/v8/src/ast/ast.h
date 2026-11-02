@@ -2413,9 +2413,6 @@ class FunctionLiteral final : public Expression {
   // This should only be called if we don't have a shared function info yet.
   void set_raw_inferred_name(AstConsString* raw_inferred_name);
 
-  bool pretenure() const { return Pretenure::decode(bit_field_); }
-  void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
-
   bool has_duplicate_parameters() const {
     // Not valid for lazy functions.
     DCHECK(ShouldEagerCompile());
@@ -2510,7 +2507,6 @@ class FunctionLiteral final : public Expression {
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparse_data_(produced_preparse_data) {
     bit_field_ |= FunctionSyntaxKindBits::encode(function_syntax_kind) |
-                  Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   RequiresInstanceMembersInitializer::encode(false) |
@@ -2521,8 +2517,7 @@ class FunctionLiteral final : public Expression {
 
   using FunctionSyntaxKindBits =
       Expression::NextBitField<FunctionSyntaxKind, 3>;
-  using Pretenure = FunctionSyntaxKindBits::Next<bool, 1>;
-  using HasDuplicateParameters = Pretenure::Next<bool, 1>;
+  using HasDuplicateParameters = FunctionSyntaxKindBits::Next<bool, 1>;
   using RequiresInstanceMembersInitializer =
       HasDuplicateParameters::Next<bool, 1>;
   using HasStaticPrivateMethodsOrAccessorsField =
@@ -3470,10 +3465,6 @@ class AstNodeFactory final {
     DCHECK(Token::IsAssignmentOp(op));
     DCHECK_NOT_NULL(target);
     DCHECK_NOT_NULL(value);
-
-    if (op != Token::kInit && target->IsVariableProxy()) {
-      target->AsVariableProxy()->set_is_assigned();
-    }
 
     if (op == Token::kAssign || op == Token::kInit) {
       return zone_->New<Assignment>(AstNode::kAssignment, op, target, value,

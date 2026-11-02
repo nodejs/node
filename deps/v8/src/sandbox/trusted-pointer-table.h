@@ -10,8 +10,8 @@
 #include "src/base/memory.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-entity-table.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/tagged-payload.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -31,7 +31,7 @@ class TrustedPointerPublishingScope;
 struct TrustedPointerTableEntry {
   // Make this entry a "regular" entry, containing an absolute pointer to a
   // TrustedObject.
-  inline void MakeTrustedPointerEntry(Address pointer, IndirectPointerTag tag,
+  inline void MakeTrustedPointerEntry(Address pointer, TrustedPointerTag tag,
                                       bool mark_as_alive);
 
   // Make this entry a freelist entry, containing the index of the next entry
@@ -44,29 +44,29 @@ struct TrustedPointerTableEntry {
   // Retrieve the pointer stored in this entry. This entry must be tagged with
   // the given tag, otherwise an inaccessible pointer will be returned.
   // This entry must not be a freelist entry.
-  inline Address GetPointer(IndirectPointerTagRange tag_range) const;
+  inline Address GetPointer(TrustedPointerTagRange tag_range) const;
 
   // Store the given pointer in this entry while preserving the marking state.
   // This entry must not be a freelist entry.
-  inline void SetPointer(Address pointer, IndirectPointerTag tag);
+  inline void SetPointer(Address pointer, TrustedPointerTag tag);
 
   // Returns true if this entry contains a pointer with the given tag.
-  inline bool HasPointer(IndirectPointerTagRange tag_range) const;
+  inline bool HasPointer(TrustedPointerTagRange tag_range) const;
 
   // Returns the payload if the tag matches either {tag_range} or
-  // {kUnpublishedIndirectPointerTag}.
-  inline Address GetMaybeUnpublished(IndirectPointerTagRange tag_range) const;
+  // {kUnpublishedTrustedPointerTag}.
+  inline Address GetMaybeUnpublished(TrustedPointerTagRange tag_range) const;
 
   // Returns the tag of this entry.
-  inline IndirectPointerTag GetTag() const;
+  inline TrustedPointerTag GetTag() const;
 
-  // Unpublish this entry by setting its tag to kUnpublishedIndirectPointerTag.
+  // Unpublish this entry by setting its tag to kUnpublishedTrustedPointerTag.
   // This way, the entry (and the object referenced by it) will not be
   // accessible from within the sandbox.
   inline void Unpublish();
 
   // Publish a currently unpublished entry by setting its tag to the given one.
-  inline void Publish(IndirectPointerTag tag);
+  inline void Publish(TrustedPointerTag tag);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -94,19 +94,23 @@ struct TrustedPointerTableEntry {
   // TrustedPointerTable entries consist of a single pointer-sized word
   // containing a tag and marking bit together with the actual pointer.
   struct TrustedPointerTaggingScheme {
-    using TagType = IndirectPointerTag;
+    using TagType = TrustedPointerTag;
     static constexpr uint64_t kMarkBit = kTrustedPointerTableMarkBit;
     static constexpr uint64_t kTagShift = kTrustedPointerTableTagShift;
     static constexpr uint64_t kTagMask = kTrustedPointerTableTagMask;
     static constexpr uint64_t kPayloadMask = kTrustedPointerTablePayloadMask;
     static constexpr uint64_t kPayloadShift = kTrustedPointerTablePayloadShift;
-    static constexpr TagType kFreeEntryTag = kIndirectPointerFreeEntryTag;
+    static constexpr TagType kFreeEntryTag = kTrustedPointerFreeEntryTag;
     static constexpr TagType kEvacuationEntryTag =
-        kIndirectPointerEvacuationEntryTag;
+        kTrustedPointerEvacuationEntryTag;
   };
 
   using Payload = TaggedPayload<TrustedPointerTaggingScheme>;
 
+ public:
+  static constexpr uint64_t kTagAndMarkBitMask = Payload::kTagAndMarkBitMask;
+
+ private:
   std::atomic<Payload> payload_;
 };
 
@@ -150,17 +154,17 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline Address Get(TrustedPointerHandle handle,
-                     IndirectPointerTagRange tag_range) const;
+                     TrustedPointerTagRange tag_range) const;
 
-  // Allows kUnpublishedIndirectPointerTag in addition to the specified {tag}.
+  // Allows kUnpublishedTrustedPointerTag in addition to the specified {tag}.
   inline Address GetMaybeUnpublished(TrustedPointerHandle handle,
-                                     IndirectPointerTagRange tag_range) const;
+                                     TrustedPointerTagRange tag_range) const;
 
   // Sets the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
   inline void Set(TrustedPointerHandle handle, Address pointer,
-                  IndirectPointerTag tag);
+                  TrustedPointerTag tag);
 
   // Sets the content of the entry referenced by the given handle. Will preserve
   // the currently set tag.
@@ -172,7 +176,7 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline TrustedPointerHandle AllocateAndInitializeEntry(
-      Space* space, Address pointer, IndirectPointerTag tag,
+      Space* space, Address pointer, TrustedPointerTag tag,
       TrustedPointerPublishingScope* scope);
 
   // Marks the specified entry as alive.
@@ -198,7 +202,7 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // The specified entry must currently be unpublished, and is therefore
   // inaccessible from within the sandbox. Calling this method will make the
   // entry accessible.
-  inline void Publish(TrustedPointerHandle handle, IndirectPointerTag tag);
+  inline void Publish(TrustedPointerHandle handle, TrustedPointerTag tag);
 
   // Undo earlier publishing, making the entry inaccessible.
   inline void Unpublish(TrustedPointerHandle handle);
@@ -230,7 +234,7 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   inline TrustedPointerHandle IndexToHandle(uint32_t index) const;
 
   // Ensure that the value is valid before storing it into this table.
-  inline void Validate(Address pointer, IndirectPointerTag tag);
+  inline void Validate(Address pointer, TrustedPointerTag tag);
 };
 
 }  // namespace internal

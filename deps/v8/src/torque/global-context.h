@@ -84,10 +84,47 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   static void SetAnnotateIR() { Get().annotate_ir_ = true; }
   static void SetTorqueDwarf() { Get().torque_dwarf_ = true; }
   static bool annotate_ir() { return Get().annotate_ir_; }
+  static void SetKytheInlineMetadata() {
+    Get().has_kythe_inline_metadata_ = true;
+  }
+  static bool has_kythe_inline_metadata() {
+    return Get().has_kythe_inline_metadata_;
+  }
+  static void SetKytheDefaultCorpus(std::string corpus) {
+    Get().kythe_default_corpus_ = std::move(corpus);
+  }
+  static const std::string& kythe_default_corpus() {
+    return Get().kythe_default_corpus_;
+  }
   static Ast* ast() { return &Get().ast_; }
   static std::string MakeUniqueName(const std::string& base) {
     return base + "_" + std::to_string(Get().fresh_ids_[base]++);
   }
+
+  struct KytheInlineMetadata {
+    size_t begin;
+    size_t end;
+    std::string vname_sig;
+    std::string vname_path = "";
+    size_t source_begin = 0;
+    size_t source_end = 0;
+    bool is_call_anchor = false;
+
+    static KytheInlineMetadata Generates(size_t begin, size_t end,
+                                         std::string vname_sig,
+                                         std::string vname_path) {
+      return {begin, end,  std::move(vname_sig), std::move(vname_path), 0,
+              0,     false};
+    }
+
+    static KytheInlineMetadata CallAnchor(size_t begin, size_t end,
+                                          size_t source_begin,
+                                          size_t source_end,
+                                          std::string vname_path) {
+      return {begin,        end,        "",  std::move(vname_path),
+              source_begin, source_end, true};
+    }
+  };
 
   struct PerFileStreams {
     PerFileStreams()
@@ -98,8 +135,10 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
     SourceId file;
     std::stringstream csa_headerfile;
     cpp::File csa_header;
+    std::vector<KytheInlineMetadata> csa_header_rules;
     std::stringstream csa_ccfile;
     cpp::File csa_cc;
+    std::vector<KytheInlineMetadata> csa_cc_rules;
     std::stringstream class_definition_ccfile;
     cpp::File class_definition_cc;
 
@@ -138,6 +177,8 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   bool force_assert_statements_;
   bool annotate_ir_;
   bool torque_dwarf_;
+  bool has_kythe_inline_metadata_;
+  std::string kythe_default_corpus_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;

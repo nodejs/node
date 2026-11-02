@@ -1083,13 +1083,6 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(type)));
     j(equal, &ok, Label::kNear);
-#if V8_ENABLE_WEBASSEMBLY
-    if (type == StackFrame::WASM && v8_flags.wasm_growable_stacks) {
-      cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-      j(equal, &ok, Label::kNear);
-    }
-#endif
     Abort(AbortReason::kStackFrameTypesMustMatch);
     bind(&ok);
   }
@@ -2087,7 +2080,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   mov(ecx,
       FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));

@@ -57,7 +57,6 @@
 #include "src/objects/instruction-stream.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-collection-iterator.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-disposable-stack.h"

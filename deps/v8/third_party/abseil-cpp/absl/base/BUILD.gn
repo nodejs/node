@@ -306,6 +306,7 @@ absl_source_set("exception_safety_testing") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
+    ":core_headers",
     ":pretty_function",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",

@@ -103,6 +103,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;
   BytecodeArrayIterator& operator=(const BytecodeArrayIterator&) = delete;
 
+  BytecodeArrayIterator Clone(
+      DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) const {
+    return BytecodeArrayIterator(*this, no_gc);
+  }
+
   inline void Advance() {
     cursor_ += current_bytecode_size_without_prefix();
     UpdateCurrentBytecode();
@@ -228,6 +233,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   void SetOffsetUnchecked(int offset);
 
  private:
+  BytecodeArrayIterator(const BytecodeArrayIterator& other,
+                        DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
+      : bytecode_array_(other.bytecode_array_),
+        start_(other.start_),
+        end_(other.end_),
+        cursor_(other.cursor_),
+        current_bytecode_(other.current_bytecode_),
+        operand_scale_(other.operand_scale_),
+        prefix_size_(other.prefix_size_),
+        local_heap_(nullptr) {}
+
   uint32_t GetUnsignedOperand(int operand_index,
                               OperandType operand_type) const;
   int32_t GetSignedOperand(int operand_index, OperandType operand_type) const;

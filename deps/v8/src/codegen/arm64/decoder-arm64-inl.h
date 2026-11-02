@@ -17,7 +17,12 @@ void Decoder<V>::Decode(Instruction* instr) {
   if (instr->Bits(28, 27) == 0) {
     if (instr->Bits(31, 24) == 0x45 && instr->Bit(21) == 0 &&
         instr->Bits(15, 12) == 0xB && instr->Bits(11, 10) != 3) {
+      // BEXP
       V::VisitSVEBitPerm(instr);
+    } else if (instr->Bits(31, 24) == 0x4 && instr->Bit(21) == 1 &&
+               instr->Bits(15, 12) == 0x6 && instr->Bits(11, 10) == 0) {
+      // SVE2 Mul (no predicate).
+      V::VisitSVE2Mul(instr);
     } else {
       V::VisitUnallocated(instr);
     }
@@ -349,6 +354,14 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
         } else if (instr->Mask(SetFMask) == SetFixed &&
                    instr->Bits(15, 14) != 0x3) {
           V::VisitSet(instr);
+        } else if (instr->Mask(LoadStoreRCpcUnscaledOffsetFMask) ==
+                   LoadStoreRCpcUnscaledOffsetFixed) {
+          if ((instr->Bits(31, 30) == 0x2 && instr->Bits(23, 22) == 0x3) ||
+              (instr->Bits(31, 30) == 0x3 && instr->Bit(23) == 1)) {
+            V::VisitUnallocated(instr);
+          } else {
+            V::VisitLoadStoreRCpcUnscaledOffset(instr);
+          }
         } else {
           V::VisitUnallocated(instr);
         }

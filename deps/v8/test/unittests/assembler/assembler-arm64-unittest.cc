@@ -6769,6 +6769,56 @@ TEST_F(AssemblerArm64Test, ldur_stur) {
   CHECK_EQUAL_64(dst_base + 32, x20);
 }
 
+TEST_F(AssemblerArm64Test, ldapur_stlur) {
+  SETUP();
+  SETUP_FEATURE(LRCPC2);
+
+  uint64_t src[2] = {0x0123456789ABCDEFUL, 0xFEDCBA9876543210UL};
+  uint64_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x28, dst_base + 1);
+  __ Mov(x19, src_base + 15);
+  __ Mov(x20, dst_base + 19);
+  __ Ldapur(w0, MemOperand(x17, -1));
+  __ Stlur(w0, MemOperand(x28, -1));
+  __ Ldapur(w2, MemOperand(x17, 3));
+  __ Stlur(w2, MemOperand(x28, 3));
+  __ Ldapur(x1, MemOperand(x17, 7));
+  __ Stlur(x1, MemOperand(x28, 7));
+  __ Ldapurb(w3, MemOperand(x19, -2));
+  __ Stlurb(w3, MemOperand(x20, -1));
+  __ Ldapursb(x4, MemOperand(x19, -15));
+  __ Ldapursh(x5, MemOperand(x19, -13));
+  __ Ldapursw(x6, MemOperand(x19, -3));
+  __ Ldapurh(w7, MemOperand(x19, -13));
+  __ Stlurh(w7, MemOperand(x20, -3));
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x89ABCDEFUL, x0);
+    CHECK_EQUAL_64(0x01234567UL, x2);
+    CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[0]);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, x1);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, dst[1]);
+    CHECK_EQUAL_64(0x000000BAUL, x3);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFUL, x4);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFF89ABUL, x5);
+    CHECK_EQUAL_64(0xFFFFFFFFFEDCBA98UL, x6);
+    CHECK_EQUAL_64(0x000089ABUL, x7);
+    CHECK_EQUAL_64(0x00BA89ABUL, dst[2]);
+    CHECK_EQUAL_64(src_base + 1, x17);
+    CHECK_EQUAL_64(dst_base + 1, x28);
+    CHECK_EQUAL_64(src_base + 15, x19);
+    CHECK_EQUAL_64(dst_base + 19, x20);
+  }
+}
+
 TEST_F(AssemblerArm64Test, ldr_pcrel_large_offset) {
   SETUP_SIZE(1 * MB);
 
@@ -11760,6 +11810,48 @@ TEST_F(AssemblerArm64Test, scvtf_ucvtf_float) {
   TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
 
+TEST_F(AssemblerArm64Test, scvtf_ucvtf_upper_bits) {
+  SETUP();
+  START();
+
+  __ Movi(v0.V16B(), 0xFF);
+  __ Movi(v1.V16B(), 0xFF);
+  __ Movi(v4.V16B(), 0xFF);
+  __ Movi(v5.V16B(), 0xFF);
+  __ Movi(v6.V16B(), 0xFF);
+  __ Movi(v7.V16B(), 0xFF);
+
+  __ Mov(w0, 42);
+  __ Dup(v2.V2S(), w0);
+  __ Dup(v3.V2S(), w0);
+
+  // Vector 2S integer-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v0.V2S(), v2.V2S());
+  __ Scvtf(v1.V2S(), v3.V2S());
+
+  // Vector 2S fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v4.V2S(), v2.V2S(), 1);
+  __ Scvtf(v5.V2S(), v3.V2S(), 1);
+
+  // Scalar 1D fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Mov(x0, 42);
+  __ Fmov(v8_.V1D(), x0);
+  __ Ucvtf(v6.V1D(), v8_.V1D(), 1);
+  __ Scvtf(v7.V1D(), v8_.V1D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x4228000042280000, q0);
+  CHECK_EQUAL_128(0, 0x4228000042280000, q1);
+  // 42 >> 1 = 21.0f = 0x41a80000
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q4);
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q5);
+  // 42.0 / 2.0 = 21.0 = 0x4035000000000000
+  CHECK_EQUAL_128(0, 0x4035000000000000, q6);
+  CHECK_EQUAL_128(0, 0x4035000000000000, q7);
+}
+
 TEST_F(AssemblerArm64Test, system_mrs) {
   SETUP();
 
@@ -16439,6 +16531,45 @@ TEST_F(AssemblerArm64Test, sve_bit_permute) {
     CHECK_EQUAL_128(0x0094'0081'0009'000a, 0x0094'0081'0009'000a, q12);
     CHECK_EQUAL_128(0x000000a5'00000049, 0x00eff7fd'0077bf9f, q16);
     CHECK_EQUAL_128(0x0000000024000010, 0x0000000042cb1a4a, q29);
+  }
+}
+
+TEST_F(AssemblerArm64Test, sve2_mul) {
+  SETUP();
+  SETUP_FEATURE(SVE2);
+  START();
+
+  __ Movi(v1.V2D(), 0x00'00'00'00'00'00'00'02, 0x00'00'00'00'00'00'00'04);
+  __ Movi(v2.V2D(), 0x00'00'00'00'00'00'00'03, 0x00'00'00'00'00'00'00'03);
+  __ Movi(v4.V2D(), 0x0000'0000'0000'0002, 0x0000'0000'0000'0004);
+  __ Movi(v5.V2D(), 0x0000'0000'0000'0003, 0x0000'0000'0000'0003);
+  __ Movi(v7.V2D(), 0x00000000'00000002, 0x00000000'00000004);
+  __ Movi(v8.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v10.V2D(), 0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF);
+  __ Movi(v11.V2D(), 0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF);
+  __ Movi(v12.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v13.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v14.V2D(), 0x00000000'00000003, 0x00000000'00000004);
+  __ Movi(v15.V2D(), 0x00000000'00000003, 0x00000000'00000004);
+
+  __ Mul(z0.VnB(), z1.VnB(), z2.VnB());
+  __ Mul(z3.VnH(), z4.VnH(), z5.VnH());
+  __ Mul(z6.VnS(), z7.VnS(), z8.VnS());
+  __ Mul(z9.VnD(), z10.VnD(), z11.VnD());
+  __ Mul(z12.VnD(), z12.VnD(), z13.VnD());
+  __ Mul(z15.VnD(), z14.VnD(), z15.VnD());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x00'00'00'00'00'00'00'06, 0x00'00'00'00'00'00'00'0c, q0);
+    CHECK_EQUAL_128(0x0000'0000'0000'0006, 0x0000'0000'0000'000c, q3);
+    CHECK_EQUAL_128(0x00000000'00000006, 0x00000000'0000000c, q6);
+    CHECK_EQUAL_128(0x0000000000000001, 0x0000000000000001, q9);
+    CHECK_EQUAL_128(0x0000000000000009, 0x0000000000000009, q12);
+    CHECK_EQUAL_128(0x0000000000000009, 0x0000000000000010, q15);
   }
 }
 

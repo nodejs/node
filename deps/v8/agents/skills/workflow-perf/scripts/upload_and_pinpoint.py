@@ -5,17 +5,21 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
-import re
-import sys
-import shlex
+import os
 from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
 
 
 def run_command(cmd: list[str], cwd: str | None = None) -> str:
   print(f"Running: {shlex.join(cmd)}")
+  env = os.environ.copy()
+  env["SKIP_GCE_AUTH_FOR_GIT"] = "1"
+  env["GIT_EDITOR"] = "true"
   result = subprocess.run(
-      cmd, cwd=cwd, capture_output=True, text=True, check=False)
+      cmd, cwd=cwd, env=env, capture_output=True, text=True, check=False)
   if result.returncode != 0:
     print(f"Error running command: {result.stderr}")
     print(f"Stdout: {result.stdout}")
@@ -45,7 +49,11 @@ def main() -> None:
 
   # 1. Upload CL
   # Assumes changes are already committed on the current branch.
-  upload_cmd = ["./agents/scripts/upload_cl.sh", "cur", "nocheck", args.message]
+  issue_out = run_command(["git", "cl", "issue"], cwd=args.v8_dir)
+  if "None" in issue_out:
+    upload_cmd = ["git", "cl", "upload", "-T", "-o", "wip"]
+  else:
+    upload_cmd = ["git", "cl", "upload", "-t", args.message]
   stdout = run_command(upload_cmd, cwd=args.v8_dir)
   print(stdout)
 

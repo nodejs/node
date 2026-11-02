@@ -75,6 +75,9 @@ void V8ConsoleAgentImpl::reportAllMessages() {
     }
     if (i >= storage->messages().size()) break;
     V8ConsoleMessage message = *storage->messages()[i];
+    if (message.origin() != V8MessageOrigin::kConsole) {
+      continue;
+    }
     if (!reportMessage(&message, false)) {
       break;
     }

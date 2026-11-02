@@ -425,12 +425,13 @@ bool operator==(const ElementsTransitionWithMultipleSources& lhs,
   return lhs.sources() == rhs.sources();
 }
 
-size_t hash_value(ElementsTransition transition) {
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransition transition) {
   return base::hash_combine(static_cast<uint8_t>(transition.mode()),
                             transition.source(), transition.target());
 }
 
-size_t hash_value(ElementsTransitionWithMultipleSources transition) {
+V8_EXPORT_PRIVATE size_t
+hash_value(ElementsTransitionWithMultipleSources transition) {
   return base::hash_combine(transition.target(), transition.sources());
 }
 

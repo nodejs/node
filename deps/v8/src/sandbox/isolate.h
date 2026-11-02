@@ -7,9 +7,9 @@
 
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8::internal {
 
@@ -32,9 +32,9 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
       ExternalPointerTagRange tag_range, Address host);
 
   inline TrustedPointerTable& GetTrustedPointerTableFor(
-      IndirectPointerTagRange tag_range);
+      TrustedPointerTagRange tag_range);
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
-      IndirectPointerTagRange tag_range, Address host);
+      TrustedPointerTagRange tag_range, Address host);
 
   inline JSDispatchTable& GetJSDispatchTable();
 

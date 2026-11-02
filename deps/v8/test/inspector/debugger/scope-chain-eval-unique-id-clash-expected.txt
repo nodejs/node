@@ -1,0 +1,18 @@
+Tests scopes of a direct eval whose not-yet-pushed block scope starts at the same offset as a block scope in the caller script.
+
+Running test: testGeneratorScopes
+state: suspended
+Block
+  x1: <unavailable>
+  x2: <unavailable>
+  x3: <unavailable>
+  x4: <unavailable>
+  x5: <unavailable>
+  x6: <unavailable>
+Local
+Block (outer)
+  a: 111
+  eval_str: (async function*(){                                                                                                                                     for await (const [x1,x2,x3,x4,x5,x6] of never) { () => [x1,x2,x3,x4,x5,x6]; }})()
+Closure (outer)
+  arguments: Arguments(0)
+Global

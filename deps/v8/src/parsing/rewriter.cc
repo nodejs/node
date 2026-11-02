@@ -233,7 +233,14 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->catch_block());
   node->set_catch_block(static_cast<Block*>(replacement_));
 
-  replacement_ = is_set_ && set_in_try ? node : AssignUndefinedBefore(node);
+  if (!is_set_) {
+    Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
+    Expression* assignment = SetResult(undef);
+    node->catch_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(assignment, kNoSourcePosition),
+        zone());
+  }
+  replacement_ = set_in_try ? node : AssignUndefinedBefore(node);
   is_set_ = true;
 }
 
@@ -247,39 +254,34 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
     VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->finally_block());
     node->set_finally_block(replacement_->AsBlock());
     CHECK_NOT_NULL(closure_scope());
-    if (is_set_) {
-      // Save .result value at the beginning of the finally block and restore it
-      // at the end again: ".backup = .result; ...; .result = .backup" This is
-      // necessary because the finally block does not normally contribute to the
-      // completion value.
-      Variable* backup = closure_scope()->NewTemporary(
-          factory()->ast_value_factory()->dot_result_string());
-      Expression* backup_proxy = factory()->NewVariableProxy(backup);
-      Expression* result_proxy = factory()->NewVariableProxy(result_);
-      Expression* save = factory()->NewAssignment(
-          Token::kAssign, backup_proxy, result_proxy, kNoSourcePosition);
-      Expression* restore = factory()->NewAssignment(
-          Token::kAssign, result_proxy, backup_proxy, kNoSourcePosition);
-      node->finally_block()->statements()->InsertAt(
-          0, factory()->NewExpressionStatement(save, kNoSourcePosition),
-          zone());
-      node->finally_block()->statements()->Add(
-          factory()->NewExpressionStatement(restore, kNoSourcePosition),
-          zone());
-    } else {
+    if (!is_set_) {
       // If is_set_ is false, it means the finally block has a 'break' or a
       // 'continue' and was not preceded by a statement that assigned to
       // .result. Try-finally statements return the abrupt completions from the
       // finally block, meaning this case should get an undefined.
-      //
-      // Since the finally block will definitely result in an abrupt completion,
-      // there's no need to save and restore the .result.
       Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
       Expression* assignment = SetResult(undef);
       node->finally_block()->statements()->InsertAt(
           0, factory()->NewExpressionStatement(assignment, kNoSourcePosition),
           zone());
     }
+    // Save .result value at the beginning of the finally block and restore it
+    // at the end again: ".backup = .result; ...; .result = .backup". This is
+    // necessary because the finally block does not contribute to the completion
+    // value on normal completion (even if it contained a labeled break whose
+    // target is inside the finally block).
+    Variable* backup = closure_scope()->NewTemporary(
+        factory()->ast_value_factory()->dot_result_string());
+    Expression* backup_proxy = factory()->NewVariableProxy(backup);
+    Expression* result_proxy = factory()->NewVariableProxy(result_);
+    Expression* save = factory()->NewAssignment(
+        Token::kAssign, backup_proxy, result_proxy, kNoSourcePosition);
+    Expression* restore = factory()->NewAssignment(
+        Token::kAssign, result_proxy, backup_proxy, kNoSourcePosition);
+    node->finally_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
+    node->finally_block()->statements()->Add(
+        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
     // We can't tell whether the finally-block is guaranteed to set .result, so
     // reset is_set_ before visiting the try-block.
     is_set_ = false;
@@ -334,8 +336,6 @@ void Processor::VisitWithStatement(WithStatement* node) {
 
 void Processor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* node) {
-  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->statement());
-  node->set_statement(replacement_);
   replacement_ = node;
 }
 

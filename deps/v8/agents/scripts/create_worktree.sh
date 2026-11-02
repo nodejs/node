@@ -3,8 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 TASK_ID=$1
+BASE_BRANCH="${2:-origin/main}"
 if [ -z "$TASK_ID" ]; then
-  echo "Usage: create_worktree.sh <task_id>"
+  echo "Usage: create_worktree.sh <task_id> [base_branch]"
   exit 1
 fi
 
@@ -51,7 +52,8 @@ WORKTREE_PATH="$V8_ROOT/worktrees/$BRANCH_NAME"
 
 mkdir -p "$V8_ROOT/worktrees"
 
-if ! git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" origin/main; then
+if ! git worktree add --track -b "$BRANCH_NAME" "$WORKTREE_PATH" "$BASE_BRANCH" 2>/dev/null && \
+   ! git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "$BASE_BRANCH"; then
   echo "Error: Failed to create git worktree at $WORKTREE_PATH" >&2
   exit 1
 fi

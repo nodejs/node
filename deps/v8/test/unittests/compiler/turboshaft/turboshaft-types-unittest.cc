@@ -782,4 +782,127 @@ TEST_F(TurboshaftTypesTest, Float64LeastUpperBound) {
   }
 }
 
+TEST_F(TurboshaftTypesTest, WordIntersectWrappingRanges) {
+  const auto max32 = std::numeric_limits<uint32_t>::max();
+
+  // Case 1: Disjoint wrapping ranges (no overlap in the middle):
+  // lhs: |-------|                        |---|
+  //           lhs_to (50)          lhs_from (max - 100)
+  //
+  // rhs: |---|                   |------------|
+  //       rhs_to (20)      rhs_from (max - 200)
+  //
+  // res: |---|                            |---|
+  //       res_to (20)             res_from (max - 100)
+  {
+    Word32Type lhs = Word32Type::Range(max32 - 100, 50, zone());
+    Word32Type rhs = Word32Type::Range(max32 - 200, 20, zone());
+    EXPECT_TRUE(lhs.is_wrapping());
+    EXPECT_TRUE(rhs.is_wrapping());
+
+    Type res = Word32Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kPreciseOrInvalid, zone());
+    ASSERT_TRUE(res.IsWord32());
+    EXPECT_TRUE(res.AsWord32().is_wrapping());
+    EXPECT_TRUE(
+        res.AsWord32().Equals(Word32Type::Range(max32 - 100, 20, zone())));
+    EXPECT_TRUE(res.AsWord32().Contains(0));
+    EXPECT_TRUE(res.AsWord32().Contains(20));
+    EXPECT_FALSE(res.AsWord32().Contains(21));
+    EXPECT_FALSE(res.AsWord32().Contains(max32 - 101));
+    EXPECT_TRUE(res.AsWord32().Contains(max32 - 100));
+    EXPECT_TRUE(res.AsWord32().Contains(max32));
+  }
+
+  // Case 2: Overlapping wrapping ranges (producing 3 disconnected intervals):
+  // lhs: |-------------------|               |
+  //                       lhs_to          lhs_from (max)
+  //
+  // rhs: |-------|    |----------------------|
+  //           rhs_to rhs_from
+  //
+  // res: |-------|    |------|               |
+  //       (not representable as a single range)
+  //
+  // Middle interval [2126514467, 2438280307] is in both lhs and rhs.
+  {
+    Word32Type lhs = Word32Type::Range(4294967295u, 2438280307u, zone());
+    Word32Type rhs = Word32Type::Range(2126514467u, 829474146u, zone());
+    EXPECT_TRUE(lhs.is_wrapping());
+    EXPECT_TRUE(rhs.is_wrapping());
+
+    // In PreciseOrInvalid mode, must return Invalid since 3 intervals cannot be
+    // represented.
+    Type res_precise = Word32Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kPreciseOrInvalid, zone());
+    EXPECT_TRUE(res_precise.IsInvalid());
+
+    // In OverApproximate mode, the returned type must contain all points in
+    // both lhs and rhs, including the middle intersection point 2438280307u.
+    Type res_over = Word32Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kOverApproximate, zone());
+    ASSERT_TRUE(res_over.IsWord32());
+    EXPECT_TRUE(res_over.AsWord32().is_wrapping());
+    EXPECT_TRUE(lhs.Contains(2438280307u));
+    EXPECT_TRUE(rhs.Contains(2438280307u));
+    EXPECT_TRUE(res_over.AsWord32().Contains(2438280307u));
+    EXPECT_TRUE(res_over.AsWord32().Contains(0u));
+    EXPECT_TRUE(res_over.AsWord32().Contains(4294967295u));
+
+    // In GreatestLowerBound mode, returns the wrapping candidate
+    // [max, min(lhs_to, rhs_to)] = [4294967295, 829474146].
+    Type res_glb = Word32Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kGreatestLowerBound, zone());
+    ASSERT_TRUE(res_glb.IsWord32());
+    EXPECT_TRUE(res_glb.AsWord32().is_wrapping());
+    EXPECT_TRUE(res_glb.AsWord32().Contains(0u));
+    EXPECT_TRUE(res_glb.AsWord32().Contains(4294967295u));
+    EXPECT_FALSE(res_glb.AsWord32().Contains(2438280307u));
+  }
+
+  // Case 3: Small wrapping range intersection that normalizes to a Set:
+  // lhs: |                               |---|
+  //   lhs_to (0)                 lhs_from (max - 10)
+  //
+  // rhs: |-------|                           |
+  //           rhs_to (100)         rhs_from (max)
+  //
+  // res: |                                   |
+  //   res_to (0)                   res_from (max)
+  // -> {0, max} (normalized to Set)
+  {
+    Word32Type lhs = Word32Type::Range(max32 - 10, 0, zone());
+    Word32Type rhs = Word32Type::Range(max32, 100, zone());
+    EXPECT_TRUE(lhs.is_wrapping());
+    EXPECT_TRUE(rhs.is_wrapping());
+
+    Type res = Word32Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kPreciseOrInvalid, zone());
+    ASSERT_TRUE(res.IsWord32());
+    EXPECT_TRUE(res.AsWord32().is_set());
+    EXPECT_EQ(res.AsWord32().set_size(), 2);
+    EXPECT_TRUE(res.AsWord32().Contains(0));
+    EXPECT_TRUE(res.AsWord32().Contains(max32));
+    EXPECT_FALSE(res.AsWord32().Contains(1));
+    EXPECT_FALSE(res.AsWord32().Contains(max32 - 1));
+  }
+
+  // 4. Same test with Word64Type
+  const auto max64 = std::numeric_limits<uint64_t>::max();
+  {
+    Word64Type lhs = Word64Type::Range(max64 - 10, 0, zone());
+    Word64Type rhs = Word64Type::Range(max64, 100, zone());
+    EXPECT_TRUE(lhs.is_wrapping());
+    EXPECT_TRUE(rhs.is_wrapping());
+
+    Type res = Word64Type::Intersect(
+        lhs, rhs, Type::ResolutionMode::kPreciseOrInvalid, zone());
+    ASSERT_TRUE(res.IsWord64());
+    EXPECT_TRUE(res.AsWord64().is_set());
+    EXPECT_EQ(res.AsWord64().set_size(), 2);
+    EXPECT_TRUE(res.AsWord64().Contains(0));
+    EXPECT_TRUE(res.AsWord64().Contains(max64));
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft

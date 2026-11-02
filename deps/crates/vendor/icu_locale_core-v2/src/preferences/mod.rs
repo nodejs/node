@@ -91,8 +91,8 @@
 //! };
 //! use icu::locale::locale;
 //!
-//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> () { () }
-//! # fn load_data(locale: ()) -> MyData { MyData {} }
+//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> icu::locale::DataLocale { icu::locale::DataLocale::default() }
+//! # fn load_data(locale: icu::locale::DataLocale) -> MyData { MyData {} }
 //! # struct MyData {}
 //! define_preferences!(
 //!     /// Name of the preferences struct
@@ -127,8 +127,9 @@
 //! #   extensions::unicode::keywords::HourCycle,
 //! # };
 //! # use icu::locale::locale;
-//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> () { () }
-//! # fn load_data(locale: ()) -> MyData { MyData {} }
+//! # struct DataLocale;
+//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> DataLocale { DataLocale }
+//! # fn load_data(locale: DataLocale) -> MyData { MyData {} }
 //! # struct MyData {}
 //! # define_preferences!(
 //! #     /// Name of the preferences struct
@@ -162,8 +163,9 @@
 //! #   extensions::unicode::keywords::HourCycle,
 //! # };
 //! # use icu::locale::locale;
-//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> () { () }
-//! # fn load_data(locale: ()) -> MyData { MyData {} }
+//! # struct DataLocale;
+//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> DataLocale { DataLocale }
+//! # fn load_data(locale: DataLocale) -> MyData { MyData {} }
 //! # struct MyData {}
 //! # define_preferences!(
 //! #     /// Name of the preferences struct
@@ -208,8 +210,9 @@
 //! #   extensions::unicode::keywords::HourCycle,
 //! # };
 //! # use icu::locale::locale;
-//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> () { () }
-//! # fn load_data(locale: ()) -> MyData { MyData {} }
+//! # struct DataLocale;
+//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> DataLocale { DataLocale }
+//! # fn load_data(locale: DataLocale) -> MyData { MyData {} }
 //! # struct MyData {}
 //! # define_preferences!(
 //! #     /// Name of the preferences struct
@@ -263,8 +266,9 @@
 //! #   extensions::unicode::keywords::HourCycle,
 //! # };
 //! # use icu::locale::locale;
-//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> () { () }
-//! # fn load_data(locale: ()) -> MyData { MyData {} }
+//! # struct DataLocale;
+//! # fn get_data_locale_from_prefs(input: ExampleComponentPreferences) -> DataLocale { DataLocale }
+//! # fn load_data(locale: DataLocale) -> MyData { MyData {} }
 //! # struct MyData {}
 //! # define_preferences!(
 //! #     /// Name of the preferences struct

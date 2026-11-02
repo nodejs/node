@@ -128,23 +128,19 @@ fn parse_annotation_key<'a, T: EncodingType>(
 ) -> ParserResult<&'a [T::CodeUnit]> {
     let key_start = cursor.pos();
     assert_syntax!(
-        is_a_key_leading_char(cursor.next_or(ParseError::AnnotationKeyLeadingChar)?),
+        cursor.next_if(is_a_key_leading_char)?.is_some(),
         AnnotationKeyLeadingChar,
     );
 
-    while let Some(potential_key_char) = cursor.next()? {
-        // End of key.
-        if cursor.check_or(false, is_annotation_key_value_separator)? {
-            // Return found key
-            return cursor
-                .slice(key_start, cursor.pos())
-                .ok_or(ParseError::ImplAssert);
-        }
-
+    while let Some(potential_key_char) =
+        cursor.next_if(|ch| !is_annotation_key_value_separator(ch))?
+    {
         assert_syntax!(is_a_key_char(potential_key_char), AnnotationKeyChar);
     }
 
-    Err(ParseError::AnnotationChar)
+    cursor
+        .slice(key_start, cursor.pos())
+        .ok_or(ParseError::ImplAssert)
 }
 
 /// Parse an `AnnotationValue`.
@@ -152,21 +148,16 @@ fn parse_annotation_value<'a, T: EncodingType>(
     cursor: &mut Cursor<'a, T>,
 ) -> ParserResult<&'a [T::CodeUnit]> {
     let value_start = cursor.pos();
-    cursor.advance();
-    while let Some(potential_value_char) = cursor.next()? {
-        if cursor.check_or(false, is_annotation_close)? {
-            // Return the determined AnnotationValue.
-            return cursor
-                .slice(value_start, cursor.pos())
-                .ok_or(ParseError::ImplAssert);
-        }
-
+    assert_syntax!(
+        cursor.next_if(is_annotation_value_component)?.is_some(),
+        AnnotationValueChar,
+    );
+    while let Some(potential_value_char) = cursor.next_if(|ch| !is_annotation_close(ch))? {
         if is_hyphen(potential_value_char) {
             assert_syntax!(
-                cursor.peek()?.is_some_and(is_annotation_value_component),
+                cursor.next_if(is_annotation_value_component)?.is_some(),
                 AnnotationValueCharPostHyphen,
             );
-            cursor.advance();
             continue;
         }
 
@@ -176,5 +167,7 @@ fn parse_annotation_value<'a, T: EncodingType>(
         );
     }
 
-    Err(ParseError::AnnotationValueChar)
+    cursor
+        .slice(value_start, cursor.pos())
+        .ok_or(ParseError::ImplAssert)
 }

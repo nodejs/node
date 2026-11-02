@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -421,9 +422,13 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       Cast<JSMapIterator>(this)->JSMapIteratorPrint(os);
       break;
-#define MAKE_PRINT_CASE(Name, TYPE)           \
-  case TYPE:                                  \
-    TrustedCast<Name>(this)->Name##Print(os); \
+#define MAKE_PRINT_CASE(Name, TYPE)                    \
+  case TYPE:                                           \
+    if constexpr (is_subtype_v<Name, TrustedObject>) { \
+      TrustedCast<Name>(this)->Name##Print(os);        \
+    } else {                                           \
+      Cast<Name>(this)->Name##Print(os);               \
+    }                                                  \
     break;
       HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST(MAKE_PRINT_CASE)
 #undef MAKE_PRINT_CASE
@@ -501,11 +506,12 @@ void PrintByteArrayElements(std::ostream& os, const T* array) {
   uint32_t length = array->ulength().value();
   uint32_t i = 0;
   while (i < length) {
-    os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i << ":";
+    os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i
+       << std::dec << ":";
     uint32_t line_end = std::min(i + 16, length);
     for (; i < line_end; ++i) {
       os << " " << std::setfill('0') << std::setw(2) << std::hex
-         << static_cast<int>(array->get(i));
+         << static_cast<int>(array->get(i)) << std::dec;
     }
     os << "\n";
   }
@@ -1773,7 +1779,7 @@ void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
 
 void print_hex_byte(std::ostream& os, int value) {
   os << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex
-     << (value & 0xff) << std::setfill(' ');
+     << (value & 0xff) << std::dec << std::setfill(' ');
 }
 
 void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
@@ -1786,7 +1792,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
   std::ios_base::fmtflags sav_flags = os.flags();
   os << "\n - ctrl table (omitting buckets where key is hole value): {";
-  for (int i = 0; i < this->Capacity() + kGroupWidth; i++) {
+  for (uint32_t i = 0; i < this->Capacity() + kGroupWidth; i++) {
     ctrl_t ctrl = CtrlTable()[i];
 
     if (ctrl == Ctrl::kEmpty) continue;
@@ -1812,14 +1818,15 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
   os << "\n }";
 
   os << "\n - enumeration table: {";
-  for (int enum_index = 0; enum_index < this->UsedCapacity(); enum_index++) {
-    int entry = EntryForEnumerationIndex(enum_index);
+  for (uint32_t enum_index = 0; enum_index < this->UsedCapacity();
+       enum_index++) {
+    uint32_t entry = EntryForEnumerationIndex(enum_index);
     os << "\n   " << std::setw(12) << std::dec << enum_index << ": " << entry;
   }
   os << "\n }";
 
   os << "\n - data table (omitting slots where key is the hole): {";
-  for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
+  for (uint32_t bucket = 0; bucket < this->Capacity(); ++bucket) {
     Tagged<Object> k;
     if (!this->ToKey(GetReadOnlyRoots(), bucket, &k)) continue;
 
@@ -2311,16 +2318,16 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    auto buf = base::OwnedVector<char>::NewForOverwrite(100);
-    SNPrintF(buf.as_vector(), "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
-             weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
-             IsSmi(year()) ? Smi::ToInt(year()) : -1,
-             IsSmi(month()) ? Smi::ToInt(month()) : -1,
-             IsSmi(day()) ? Smi::ToInt(day()) : -1,
-             IsSmi(hour()) ? Smi::ToInt(hour()) : -1,
-             IsSmi(min()) ? Smi::ToInt(min()) : -1,
-             IsSmi(sec()) ? Smi::ToInt(sec()) : -1);
-    os << buf.begin();
+    std::array<char, 100> buf;
+    base::SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
+                   weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
+                   IsSmi(year()) ? Smi::ToInt(year()) : -1,
+                   IsSmi(month()) ? Smi::ToInt(month()) : -1,
+                   IsSmi(day()) ? Smi::ToInt(day()) : -1,
+                   IsSmi(hour()) ? Smi::ToInt(hour()) : -1,
+                   IsSmi(min()) ? Smi::ToInt(min()) : -1,
+                   IsSmi(sec()) ? Smi::ToInt(sec()) : -1);
+    os << buf.data();
   }
   JSObjectPrintBody(os, this);
 }
@@ -2404,25 +2411,6 @@ void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
   if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
     os << " (shared)";
   }
-  JSObjectPrintBody(os, this);
-}
-
-void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSAtomicsMutex");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  os << "\n - state: " << this->state();
-  os << "\n - owner_thread_id: " << this->owner_thread_id();
-  JSObjectPrintBody(os, this);
-}
-
-void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSAtomicsCondition");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  os << "\n - state: " << this->state();
   JSObjectPrintBody(os, this);
 }
 
@@ -2814,7 +2802,13 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - untrusted_function_data: " << Brief(GetUntrustedData());
   os << "\n - code (from function_data): ";
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)) {
+  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)
+#if V8_ENABLE_WEBASSEMBLY
+      // WasmFunctionData does not store a Code object; see
+      // SharedFunctionInfo::GetCode().
+      && !HasWasmFunctionData(isolate)
+#endif  // V8_ENABLE_WEBASSEMBLY
+  ) {
     os << Brief(GetCode(isolate));
   } else {
     os << kUnavailableString;
@@ -3301,6 +3295,9 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
 }
 void WasmCustomMap::WasmCustomMapPrint(std::ostream& os) {
   PrintHeader(os, "WasmCustomMap");
+  MapPrint(os);
+  os << "\n - JS wrapper: " << Brief(js_wrapper());
+  os << "\n - native context: " << Brief(native_context_for_wrapper());
   WasmStructPrintImpl(os, this, WasmCustomMap::kHeaderSize);
 }
 
@@ -3316,7 +3313,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   uint32_t len = length();
   os << "\n - element type: " << element_type.name();
   os << "\n - length: " << len;
-  Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
+  Address data_ptr = ElementAddress(0);
   switch (element_type.kind()) {
     case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
@@ -3464,7 +3461,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
+  PRINT_WASM_INSTANCE_FIELD(memory0_size_or_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3474,6 +3471,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory_bases_and_sizes, Brief);
+  PRINT_WASM_INSTANCE_FIELD(shared_memory_backing_stores, Brief);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
   os << "\n";
 
@@ -3671,10 +3669,26 @@ void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
   os << '\n';
 }
 
+void UninitializedHeapNumber::UninitializedHeapNumberPrint(std::ostream& os) {
+  PrintHeader(os, "UninitializedHeapNumber");
+  os << "\n - value: ";
+  PrintDouble(os, value());
+  os << '\n';
+}
+
 void Tuple2::Tuple2Print(std::ostream& os) {
   this->PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(this->value1());
   os << "\n - value2: " << Brief(this->value2());
+  os << '\n';
+}
+
+void ForInEnumeratorHolder::ForInEnumeratorHolderPrint(std::ostream& os) {
+  this->PrintHeader(os, "ForInEnumeratorHolder");
+  os << "\n - enum_cache_map: " << Brief(this->enum_cache_map());
+  os << "\n - named_keys: " << Brief(this->named_keys());
+  os << "\n - elements_length: " << this->elements_length();
+  os << "\n - cache_length: " << this->cache_length();
   os << '\n';
 }
 
@@ -4080,8 +4094,7 @@ void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "JSPluralRules");
   os << "\n - locale: " << Brief(locale());
   os << "\n - type: " << TypeAsString(Isolate::Current());
-  os << "\n - icu plural rules: " << Brief(icu_plural_rules());
-  os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
+  os << "\n - internal: " << Brief(internal());
   JSObjectPrintBody(os, this);
 }
 
@@ -4149,7 +4162,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - empty\n";
     return;
   }
-  int flags = Flags();
+  const Flags flags = this->flags();
 
   os << "\n - parameters: " << ParameterCount();
   os << "\n - context locals : " << ContextLocalCount();
@@ -4168,7 +4181,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   os << "\n - language mode: " << language_mode();
   if (is_declaration_scope()) os << "\n - declaration scope";
   if (HasReceiver()) {
-    os << "\n - receiver: " << ReceiverVariableBits::decode(flags);
+    os << "\n - receiver: " << flags.receiver_variable();
   }
   if (ClassScopeHasPrivateBrand()) os << "\n - class scope has private brand";
   if (HasSavedClassVariable()) os << "\n - has saved class variable";
@@ -4176,7 +4189,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - can only access fixed formal parameters";
   }
   if (HasFunctionName()) {
-    os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
+    os << "\n - function name(" << flags.function_variable() << "): ";
     ShortPrint(FunctionName(), os);
   }
   if (HasSimpleParameters()) os << "\n - simple parameters";
@@ -4548,6 +4561,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
 
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      os << "<UninitializedHeapNumber>";
+      break;
+
     case SHARED_FUNCTION_INFO_TYPE: {
       Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(this);
       std::unique_ptr<char[]> debug_name = shared->DebugNameCStr();
@@ -4696,6 +4713,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      os << "<WasmCustomMap [canonical type "
+         << Cast<WasmCustomMap>(this)->wasm_type_info()->type_index().index
+         << "]>";
+      break;
     case WASM_DISPATCH_TABLE_TYPE:
       os << "<WasmDispatchTable["
          << TrustedCast<WasmDispatchTable>(this)->length() << "]>";
@@ -4731,17 +4753,17 @@ void Name::NameShortPrint() {
 }
 
 // TODO(cbruni): remove once the new maptracer is in place.
-int Name::NameShortPrint(base::Vector<char> str) {
+int Name::NameShortPrint(std::span<char> str) {
   if (Is<String>(this)) {
-    return SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
+    return base::SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
   } else {
     DCHECK(Is<Symbol>(this));
     Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
-      return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
+      return base::SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
-      return SNPrintF(str, "<%s>",
-                      Cast<String>(s->description())->ToCString().get());
+      return base::SNPrintF(str, "<%s>",
+                            Cast<String>(s->description())->ToCString().get());
     }
   }
 }
@@ -4768,17 +4790,21 @@ void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = IsMetaMap(this);
   bool is_extended_map = Is<ExtendedMap>(this);
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_map = IsWasmObjectMap(this);
+  bool is_wasm_map = IsAnyWasmObjectMap(this);
+  bool is_custom_map = IsWasmCustomMap(Tagged<HeapObject>(this));
 #else
   constexpr bool is_wasm_map = false;
+  constexpr bool is_custom_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
   PrintHeader(os, is_meta_map       ? "MetaMap"
                   : is_extended_map ? "ExtendedMap"
+                  : is_custom_map   ? "WasmCustomMap"
                                     : "Map");
 #else
   os << (is_meta_map       ? "MetaMap="
          : is_extended_map ? "ExtendedMap="
+         : is_custom_map   ? "WasmCustomMap="
                            : "Map=")
      << reinterpret_cast<void*>(ptr());
 #endif
@@ -4975,8 +5001,6 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   } else if (key == roots.elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
-  } else if (key == roots.strict_function_transition_symbol()) {
-    os << " (transition to strict function)";
   } else if (key == roots.detached_symbol()) {
     os << " (transition to detached array buffer view)";
   } else {
@@ -5087,8 +5111,6 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to frozen";
         } else if (key == roots.elements_transition_symbol()) {
           os << "to " << ElementsKindToString(target->elements_kind());
-        } else if (key == roots.strict_function_transition_symbol()) {
-          os << "to strict function";
         } else if (key == roots.detached_symbol()) {
           os << "to detached array buffer view";
         } else {

@@ -632,22 +632,22 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
 
 #ifdef V8_ENABLE_SANDBOX
 
-void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
+void MaglevAssembler::CheckAndEmitDeferredTrustedPointerWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object, int offset,
          Register value, RegisterSnapshot register_snapshot,
-         IndirectPointerTag tag) {
+         TrustedPointerTag tag) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
 
         Register stub_object_reg =
-            IndirectPointerWriteBarrierDescriptor::ObjectRegister();
+            TrustedPointerWriteBarrierDescriptor::ObjectRegister();
         Register slot_reg =
-            IndirectPointerWriteBarrierDescriptor::SlotAddressRegister();
+            TrustedPointerWriteBarrierDescriptor::SlotAddressRegister();
         Register tag_reg =
-            IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister();
+            TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister();
 
         RegList saved;
         if (object != stub_object_reg &&
@@ -675,7 +675,7 @@ void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
                 ? SaveFPRegsMode::kSave
                 : SaveFPRegsMode::kIgnore;
 
-        __ CallBuiltin(Builtins::IndirectPointerBarrier(save_fp_mode));
+        __ CallBuiltin(Builtins::TrustedPointerBarrier(save_fp_mode));
 
         __ PopAll(saved);
         __ Jump(*done);
@@ -705,11 +705,11 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
 
 void MaglevAssembler::StoreTrustedPointerFieldWithWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   AssertNotSmi(object);
   StoreTrustedPointerFieldNoWriteBarrier(object, offset, value);
-  CheckAndEmitDeferredIndirectPointerWriteBarrier(object, offset, value,
-                                                  register_snapshot, tag);
+  CheckAndEmitDeferredTrustedPointerWriteBarrier(object, offset, value,
+                                                 register_snapshot, tag);
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -807,15 +807,17 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
   {
     __ LoadByte(scratch1, FieldMemOperand(
                               scratch0, offsetof(FeedbackVector, osr_state_)));
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch1);
+    __ DecodeField<FeedbackVector::OsrState::OsrUrgencyBits>(scratch1);
     __ JumpIfByte(kUnsignedLessThanEqual, scratch1, node->loop_depth(),
                   *no_code_for_osr);
 
     // If tiering is already in progress wait.
-    static_assert(FeedbackVector::OsrTieringInProgressBit::kMask <= 0xff);
+    static_assert(FeedbackVector::Flags::OsrTieringInProgressBit::kMask <=
+                  0xff);
     __ TestUint8AndJumpIfAnySet(
         FieldMemOperand(scratch0, offsetof(FeedbackVector, flags_)),
-        FeedbackVector::OsrTieringInProgressBit::kMask, *no_code_for_osr);
+        FeedbackVector::Flags::OsrTieringInProgressBit::kMask,
+        *no_code_for_osr);
 
     {
       // The osr_urgency exceeds the current loop_depth, signaling an OSR
@@ -874,16 +876,15 @@ void MaglevAssembler::TryOnStackReplacement(ReduceInterruptBudgetForLoop* node,
     // In case we use maglev_osr, we need to explicitly know if there is
     // turbofan code waiting for us (i.e., ignore the
     // MaybeHasMaglevOsrCodeBit).
-    DecodeField<
-        base::BitFieldUnion<FeedbackVector::OsrUrgencyBits,
-                            FeedbackVector::MaybeHasTurbofanOsrCodeBit>>(
-        osr_state);
+    DecodeField<base::BitFieldUnion<
+        FeedbackVector::OsrState::OsrUrgencyBits,
+        FeedbackVector::OsrState::MaybeHasTurbofanOsrCodeBit>>(osr_state);
   }
 
   // The quick initial OSR check. If it passes, we proceed on to more
   // expensive OSR logic.
-  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::OsrState::MaybeHasTurbofanOsrCodeBit::encode(
+                    true) > FeedbackVector::kMaxOsrUrgency);
   CompareInt32AndJumpIf(
       osr_state, node->loop_depth(), kUnsignedGreaterThan,
       MakeDeferredCode(AttemptOnStackReplacement, no_code_for_osr, node,

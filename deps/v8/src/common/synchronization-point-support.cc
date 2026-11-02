@@ -91,7 +91,7 @@ bool SynchronizationPointSupport::WaitUntilBlocked(
     success = true;
   };
 
-  LocalHeap* local_heap = LocalHeap::Current();
+  LocalHeap* local_heap = LocalHeap::TryGetCurrent();
   if (local_heap && local_heap->IsRunning()) {
     local_heap->ExecuteWhileParked(wait_loop);
   } else {

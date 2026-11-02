@@ -46,6 +46,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
 #include "src/base/template-utils.h"
+#include "src/base/unique-array.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -1035,6 +1036,17 @@ void Context::SetEmbedderDataV2(int index, v8::Local<Data> value) {
             *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
 }
 
+void Context::SetEmbedderDataV3(int index, v8::Local<Data> value) {
+  const char* location = "v8::Context::SetEmbedderDataV3()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
+  auto val = Utils::OpenDirectHandle(*value);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
+  DCHECK_EQ(*Utils::OpenDirectHandle(*value),
+            *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
+}
+
 void* Context::GetAlignedPointerFromEmbedderData(int index,
                                                  EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
@@ -1078,12 +1090,37 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
 
+void Context::SetAlignedPointerInEmbedderDataV2(int index, void* value,
+                                                EmbedderDataTypeTag tag) {
+  const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
+  bool ok = i::EmbedderDataSlot::store_aligned_pointer(
+      i_isolate, data, index, value, ToExternalPointerTag(tag));
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
+  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
+}
+
 void Context::SetAlignedPointerInEmbedderDataInternal(int index, void* value,
                                                       CppHeapPointerTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
+  bool ok = i::EmbedderDataSlot(*data, index)
+                .store_aligned_pointer(i_isolate, *data, value, tag);
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
+}
+
+void Context::SetAlignedPointerInEmbedderDataInternalV2(int index, void* value,
+                                                        CppHeapPointerTag tag) {
+  const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
   bool ok = i::EmbedderDataSlot(*data, index)
                 .store_aligned_pointer(i_isolate, *data, value, tag);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
@@ -1397,7 +1434,7 @@ template <typename Getter, typename Setter>
 i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
                                                   v8::Local<Name> name,
                                                   Getter getter, Setter setter,
-                                                  v8::Local<Value> data,
+                                                  v8::Local<Data> data,
                                                   bool replace_on_access) {
   i::DirectHandle<i::AccessorInfo> obj =
       i_isolate->factory()->NewAccessorInfo();
@@ -1590,7 +1627,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
 
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
-                                   v8::Local<Value> data,
+                                   v8::Local<Data> data,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
@@ -1719,14 +1756,11 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
-  info->set_named_interceptor(i::Smi::zero());
-  info->set_indexed_interceptor(i::Smi::zero());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1749,9 +1783,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotPublished(cons,
                      "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
@@ -2301,7 +2334,7 @@ Module::Status Module::GetStatus() const {
       // TODO(syg): Expose kEvaluatingAsync in API as well.
     case i::Module::kEvaluated:
       return kEvaluated;
-    case i::Module::kErrored:
+    case i::Module::kEvaluatedError:
       return kErrored;
   }
   UNREACHABLE();
@@ -3072,12 +3105,26 @@ i::Tagged<i::Object> ToObject(void* object) {
   return i::Tagged<i::Object>(reinterpret_cast<i::Address>(object));
 }
 
+// A v8::TryCatch must propagate (not swallow or clear) a termination exception
+// when there is an outer v8::TryCatch handler (next_ != nullptr) or when
+// execution is still nested inside an outer V8 API call (!CallDepthIsZero()).
+// It must also propagate termination when should_check_side_effects() is
+// active: v8::debug::SideEffectCheckScope may span multiple sequential
+// top-level V8 API calls where CallDepthIsZero() is true between calls, and the
+// side-effect termination exception must remain pending until
+// Debug::StopSideEffectCheckMode() converts it into an EvalError.
+bool MustPropagateTerminationException(i::Isolate* isolate) {
+  return !isolate->thread_local_top()->CallDepthIsZero() ||
+         isolate->should_check_side_effects();
+}
+
 }  // namespace
 
 v8::TryCatch::~TryCatch() {
   if (HasCaught()) {
-    if (rethrow() || (V8_UNLIKELY(HasTerminated()) &&
-                      !i_isolate_->thread_local_top()->CallDepthIsZero())) {
+    if (rethrow() ||
+        (V8_UNLIKELY(HasTerminated()) &&
+         (next_ != nullptr || MustPropagateTerminationException(i_isolate_)))) {
       if (capture_message()) {
         // If an exception was caught and rethrow_ is indicated, the saved
         // message, script, and location need to be restored to Isolate TLS
@@ -3158,7 +3205,7 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 void v8::TryCatch::Reset() {
   if (rethrow()) return;
   if (V8_UNLIKELY(i_isolate_->is_execution_terminating()) &&
-      !i_isolate_->thread_local_top()->CallDepthIsZero()) {
+      MustPropagateTerminationException(i_isolate_)) {
     return;
   }
   i_isolate_->clear_internal_exception();
@@ -3926,6 +3973,10 @@ bool Value::IsArray() const {
   return IsJSArray(*Utils::OpenDirectHandle(this));
 }
 
+bool Value::IsArrayBufferBase() const {
+  return IsJSArrayBuffer(*Utils::OpenDirectHandle(this));
+}
+
 bool Value::IsArrayBuffer() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (!IsJSArrayBuffer(obj)) return false;
@@ -4176,7 +4227,9 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsSmi(*obj)) return ToApiHandle<Uint32>(obj);
+  if (i::IsSmi(*obj) && i::Smi::ToInt(*obj) >= 0) {
+    return ToApiHandle<Uint32>(obj);
+  }
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToUint32};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
@@ -4393,36 +4446,22 @@ void v8::BackingStore::EmptyDeleter(void* data, size_t length,
   DCHECK_NULL(deleter_data);
 }
 
-std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
+std::shared_ptr<v8::BackingStore> v8::ArrayBufferBase::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{false});
+    backing_store = i::BackingStore::EmptyBackingStore(self->is_shared());
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
 }
 
-void* v8::ArrayBuffer::Data() const {
+void* v8::ArrayBufferBase::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
 }
 
-bool v8::ArrayBuffer::IsResizableByUserJavaScript() const {
+bool v8::ArrayBufferBase::IsResizableByUserJavaScript() const {
   return Utils::OpenDirectHandle(this)->is_resizable_by_js().value();
-}
-
-std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
-  auto self = Utils::OpenDirectHandle(this);
-  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
-  if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{true});
-  }
-  std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
-  return std::static_pointer_cast<v8::BackingStore>(bs_base);
-}
-
-void* v8::SharedArrayBuffer::Data() const {
-  return Utils::OpenDirectHandle(this)->backing_store();
 }
 
 template <bool is_shared>
@@ -4450,17 +4489,10 @@ static size_t CopyArrayBufferBytesImpl(const void* source_buffer,
   return bytes_to_copy;
 }
 
-size_t v8::SharedArrayBuffer::CopyArrayBufferBytes(
-    size_t source_start, size_t bytes_to_copy, Local<SharedArrayBuffer> target,
-    size_t target_start) const {
-  i::DisallowGarbageCollection no_gc;
-  auto self = Utils::OpenDirectHandle(this);
-  auto that = Utils::OpenDirectHandle(*target);
-  DCHECK(!that->is_immutable());
-  return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
-                                        self->GetByteLength(),
-                                        that->backing_store(), target_start,
-                                        that->GetByteLength(), bytes_to_copy);
+void v8::ArrayBufferBase::CheckCast(Value* that) {
+  Utils::ApiCheck(IsJSArrayBuffer(*Utils::OpenDirectHandle(that)),
+                  "v8::ArrayBufferBase::Cast()",
+                  "Value is not an ArrayBuffer or SharedArrayBuffer");
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
@@ -4977,6 +5009,18 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
       i::JSReceiver::GetElement(i_isolate, self, index));
 }
 
+MaybeLocal<Value> v8::Object::TryGetWithNoSideEffects(Local<Context> context,
+                                                      Local<Name> key) {
+  auto i_isolate = i::Isolate::Current();
+  EnterV8NoScriptScope<InternalEscapableScope> api_scope{
+      i_isolate, context, RCCId::kAPI_Object_TryGetWithNoSideEffects};
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
+  i::PropertyKey lookup_key(i_isolate, key_obj);
+  i::LookupIterator it(i_isolate, self, lookup_key, self);
+  return api_scope.EscapeMaybe(i::JSReceiver::TryGetDataProperty(&it));
+}
+
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
                                          Local<Private> key) {
   return Get(context, key.UnsafeAs<Value>());
@@ -5318,7 +5362,7 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
 Maybe<bool> Object::SetNativeDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
     AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
-    v8::Local<Value> data, PropertyAttribute attributes,
+    v8::Local<Data> data, PropertyAttribute attributes,
     SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter, data,
@@ -6706,7 +6750,7 @@ v8::V8::SandboxMode v8::V8::GetSandboxMode() {
   Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxMode",
                   "The sandbox must be initialized first");
   const bool partial = sandbox->is_partially_reserved();
-  const bool smi_inaccessible = sandbox->smi_address_range_is_inaccessible();
+  const bool smi_inaccessible = sandbox->has_zero_segment();
 
   if (!partial && smi_inaccessible) {
     return SandboxMode::kSecure;
@@ -7145,6 +7189,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
 
     i::DisallowGarbageCollection no_gc;
+    if (i::IsInaccessible(obj)) return true;
     i::InstanceType obj_type = obj->map()->instance_type();
 
     // Skip common types that can't contain items to freeze.
@@ -7679,7 +7724,7 @@ inline int StringLength(const uint16_t* string) {
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           base::Vector<const char> string) {
+                                           std::string_view string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
@@ -7727,7 +7772,7 @@ static_assert(v8::String::kMaxLength == i::String::kMaxLength);
     if (length < 0) length = StringLength(data);                              \
     i::DirectHandle<i::String> handle_result =                                \
         NewString(i_isolate->factory(), type,                                 \
-                  base::Vector<const Char>(data, length))                     \
+                  {data, static_cast<size_t>(length)})                        \
             .ToHandleChecked();                                               \
     result = Utils::ToLocal(handle_result);                                   \
   }
@@ -7742,7 +7787,7 @@ Local<String> String::NewFromUtf8Literal(Isolate* v8_isolate,
                                      RCCId::kAPI_String_NewFromUtf8Literal);
   i::DirectHandle<i::String> handle_result =
       NewString(i_isolate->factory(), type,
-                base::Vector<const char>(literal, length))
+                {literal, static_cast<size_t>(length)})
           .ToHandleChecked();
   return Utils::ToLocal(handle_result);
 }
@@ -8161,7 +8206,7 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
                       i::ToDateStringMode::kISODateAndTime);
   i::DirectHandle<i::String> str =
       i_isolate->factory()
-          ->NewStringFromUtf8(base::VectorOf(buffer))
+          ->NewStringFromUtf8({buffer.data(), buffer.size()})
           .ToHandleChecked();
   return Utils::ToLocal(str);
 }
@@ -8175,7 +8220,7 @@ v8::Local<v8::String> v8::Date::ToUTCString() const {
                       i::ToDateStringMode::kUTCDateAndTime);
   i::DirectHandle<i::String> str =
       i_isolate->factory()
-          ->NewStringFromUtf8(base::VectorOf(buffer))
+          ->NewStringFromUtf8({buffer.data(), buffer.size()})
           .ToHandleChecked();
   return Utils::ToLocal(str);
 }
@@ -8243,6 +8288,13 @@ v8::RegExp::Flags v8::RegExp::GetFlags() const {
 
 MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
                                         Local<v8::String> subject) {
+  Local<Value> result;
+  if (!ExecV2(context, subject).ToLocal(&result)) return {};
+  return result.UnsafeAs<Object>();
+}
+
+MaybeLocal<v8::Value> v8::RegExp::ExecV2(Local<Context> context,
+                                         Local<v8::String> subject) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_RegExp_Exec};
 
   i::Isolate* i_isolate = api_scope.i_isolate();
@@ -8259,11 +8311,7 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
            .ToHandle(&result)) {
     return {};
   }
-  // RegExp::Exec is documented to return Null on failure, but the return type
-  // is `MaybeLocal<Object>` which cannot legally hold `Null`, thus the unsafe
-  // `Utils::Convert<Object>`.
-  // TODO(jgruber): Fix this.
-  return api_scope.Escape(Utils::Convert<i::JSAny, Object>(result));
+  return api_scope.Escape(ToApiHandle<Value>(result));
 }
 
 Local<v8::Array> v8::Array::New(Isolate* v8_isolate, int length) {
@@ -9007,11 +9055,14 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   TRACE_EVENT0("v8.wasm", "wasm.SerializeModule");
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size})) {
+  base::UniqueArray<uint8_t> buffer =
+      base::UniqueArray<uint8_t>::NewForOverwrite(buffer_size);
+  if (!wasm_serializer.SerializeNativeModule(buffer.as_span())) {
     return {};
   }
-  return {std::move(buffer), buffer_size};
+  START_ALLOW_USE_DEPRECATED()
+  return {buffer.ReleaseData(), buffer_size};
+  END_ALLOW_USE_DEPRECATED()
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -9027,6 +9078,10 @@ std::span<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 }
 
 Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
+  return GetBuffer().UnsafeAs<ArrayBuffer>();
+}
+
+Local<ArrayBufferBase> v8::WasmMemoryObject::GetBuffer() {
 #if V8_ENABLE_WEBASSEMBLY
   i::DirectHandle<i::WasmMemoryObject> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -9054,12 +9109,11 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
     Isolate* v8_isolate, const CompiledWasmModule& compiled_module) {
 #if V8_ENABLE_WEBASSEMBLY
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::MaybeDirectHandle<i::WasmModuleObject> module_object =
+  i::DirectHandle<i::WasmModuleObject> module_object =
       i::wasm::GetWasmEngine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
-          base::VectorOf(compiled_module.source_url()));
-  if (module_object.is_null()) return {};
-  return Utils::ToLocal(module_object.ToHandleChecked());
+          compiled_module.source_url());
+  return Utils::ToLocal(module_object);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -9076,7 +9130,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #if V8_ENABLE_WEBASSEMBLY
   i::wasm::CompileTimeImports compile_imports =
       i::wasm::CompileTimeImportsFromOptions(options);
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
   // used for ESM integration, which in terms of security is equivalent to
@@ -9088,9 +9142,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        std::move(bytes),
-        base::Vector<const char>(options.source_url.data(),
-                                 options.source_url.size()));
+        std::move(bytes), options.source_url);
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) return {};
@@ -9182,27 +9234,37 @@ v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator(
 #endif  // defined(V8_COMPRESS_POINTERS) &&
         // !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 
-bool v8::ArrayBuffer::IsDetachable() const {
+bool v8::ArrayBufferBase::IsShared() const {
+  return Utils::OpenDirectHandle(this)->is_shared().value();
+}
+
+bool v8::ArrayBufferBase::IsDetachable() const {
   return Utils::OpenDirectHandle(this)->is_detachable();
 }
 
-bool v8::ArrayBuffer::WasDetached() const {
+bool v8::ArrayBufferBase::WasDetached() const {
   return Utils::OpenDirectHandle(this)->was_detached();
 }
 
-bool v8::ArrayBuffer::IsImmutable() const {
+bool v8::ArrayBufferBase::IsImmutable() const {
   return Utils::OpenDirectHandle(this)->is_immutable();
 }
 
-size_t v8::ArrayBuffer::CopyArrayBufferBytes(size_t source_start,
-                                             size_t bytes_to_copy,
-                                             Local<ArrayBuffer> target,
-                                             size_t target_start) const {
+size_t v8::ArrayBufferBase::CopyArrayBufferBytes(size_t source_start,
+                                                 size_t bytes_to_copy,
+                                                 Local<ArrayBufferBase> target,
+                                                 size_t target_start) const {
   i::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
   auto that = Utils::OpenDirectHandle(*target);
   if (self->was_detached()) return 0;
   if (that->was_detached() || that->is_immutable()) return 0;
+  if (self->is_shared() || that->is_shared()) {
+    return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
+                                          self->GetByteLength(),
+                                          that->backing_store(), target_start,
+                                          that->GetByteLength(), bytes_to_copy);
+  }
   return CopyArrayBufferBytesImpl<false>(self->backing_store(), source_start,
                                          self->GetByteLength(),
                                          that->backing_store(), target_start,
@@ -9254,11 +9316,11 @@ void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
   i::JSArrayBuffer::SetDetachKey(obj, i_key, i_isolate);
 }
 
-size_t v8::ArrayBuffer::ByteLength() const {
+size_t v8::ArrayBufferBase::ByteLength() const {
   return Utils::OpenDirectHandle(this)->GetByteLength();
 }
 
-size_t v8::ArrayBuffer::MaxByteLength() const {
+size_t v8::ArrayBufferBase::MaxByteLength() const {
   return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
@@ -9292,7 +9354,7 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
   i::DirectHandle<i::JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return {};
 
-  return Utils::ToLocal(array_buffer);
+  return Utils::ToLocalUnshared(array_buffer);
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(
@@ -9310,7 +9372,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
     i::V8::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
   }
 
-  return Utils::ToLocal(array_buffer);
+  return Utils::ToLocalUnshared(array_buffer);
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(
@@ -9332,7 +9394,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
           ->is_immutable()) {
     obj->MakeImmutable(i_isolate);
   }
-  return Utils::ToLocal(obj);
+  return Utils::ToLocalUnshared(obj);
 }
 
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
@@ -9375,6 +9437,14 @@ VirtualAddressSpace* v8::IsolateGroup::GetSandboxAddressSpace() {
   Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxAddressSpace",
                   "The sandbox must be initialized first");
   return sandbox->address_space();
+}
+
+void v8::IsolateGroup::SetInSandboxAllocator(
+    std::shared_ptr<Allocator> allocator) {
+  Utils::ApiCheck(isolate_group_->GetIsolateCount() == 0,
+                  "v8::IsolateGroup::SetInSandboxAllocator",
+                  "The allocator must be set before creating an Isolate");
+  isolate_group_->sandbox()->set_in_sandbox_allocator(std::move(allocator));
 }
 #endif
 
@@ -9431,6 +9501,10 @@ std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
 }
 
 Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
+  return GetBuffer().UnsafeAs<ArrayBuffer>();
+}
+
+Local<ArrayBufferBase> v8::ArrayBufferView::GetBuffer() {
   auto obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
   if (i::IsJSDataView(*obj)) {
@@ -9550,51 +9624,31 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
               "v8::TypedArray::kMaxByteLength must match "
               "i::JSTypedArray::kMaxByteLength");
 
-#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                            \
-  Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,      \
-                                      size_t byte_offset, size_t length) {  \
-    i::Isolate* i_isolate = i::Isolate::Current();                          \
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
-                                       RCCId::kAPI_##Type##Array_New);      \
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
-    if (!Utils::ApiCheck(length <= kMaxLength,                              \
-                         "v8::" #Type                                       \
-                         "Array::New(Local<ArrayBuffer>, size_t, size_t)",  \
-                         "length exceeds max allowed value")) {             \
-      return {};                                                            \
-    }                                                                       \
-    auto buffer = Utils::OpenDirectHandle(*array_buffer);                   \
-    i::DirectHandle<i::JSTypedArray> obj =                                  \
-        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
-                                              buffer, byte_offset, length); \
-    return Utils::ToLocal##Type##Array(obj);                                \
-  }                                                                         \
-  Local<Type##Array> Type##Array::New(                                      \
-      Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,     \
-      size_t length) {                                                      \
-    i::Isolate* i_isolate = i::Isolate::Current();                          \
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
-                                       RCCId::kAPI_##Type##Array_New);      \
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
-    if (!Utils::ApiCheck(                                                   \
-            length <= kMaxLength,                                           \
-            "v8::" #Type                                                    \
-            "Array::New(Local<SharedArrayBuffer>, size_t, size_t)",         \
-            "length exceeds max allowed value")) {                          \
-      return {};                                                            \
-    }                                                                       \
-    auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);            \
-    i::DirectHandle<i::JSTypedArray> obj =                                  \
-        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
-                                              buffer, byte_offset, length); \
-    return Utils::ToLocal##Type##Array(obj);                                \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                               \
+  Local<Type##Array> Type##Array::New(Local<ArrayBufferBase> array_buffer,     \
+                                      size_t byte_offset, size_t length) {     \
+    i::Isolate* i_isolate = i::Isolate::Current();                             \
+    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                              \
+                                       RCCId::kAPI_##Type##Array_New);         \
+    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                      \
+    if (!Utils::ApiCheck(length <= kMaxLength,                                 \
+                         "v8::" #Type                                          \
+                         "Array::New(Local<ArrayBufferBase>, size_t, size_t)", \
+                         "length exceeds max allowed value")) {                \
+      return {};                                                               \
+    }                                                                          \
+    auto buffer = Utils::OpenDirectHandle(*array_buffer);                      \
+    i::DirectHandle<i::JSTypedArray> obj =                                     \
+        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,       \
+                                              buffer, byte_offset, length);    \
+    return Utils::ToLocal##Type##Array(obj);                                   \
   }
 
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
 
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
-Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
+Local<DataView> DataView::New(Local<ArrayBufferBase> array_buffer,
                               size_t byte_offset, size_t byte_length) {
   auto buffer = Utils::OpenDirectHandle(*array_buffer);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -9604,26 +9658,6 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
       i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
                                                            byte_length));
   return Utils::ToLocal(obj);
-}
-
-Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
-                              size_t byte_offset, size_t byte_length) {
-  auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_DataView_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  auto obj = i::Cast<i::JSDataView>(
-      i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
-                                                           byte_length));
-  return Utils::ToLocal(obj);
-}
-
-size_t v8::SharedArrayBuffer::ByteLength() const {
-  return Utils::OpenDirectHandle(this)->GetByteLength();
-}
-
-size_t v8::SharedArrayBuffer::MaxByteLength() const {
-  return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
@@ -11048,11 +11082,19 @@ CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback)
+CALLBACK_SETTER(DynamicScriptCompiledFromEmbedderCallback,
+                DynamicScriptCompiledFromEmbedderCallback,
+                dynamic_script_callback)
 CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
-CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
-CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
+CALLBACK_SETTER(WasmModuleCallback, WasmModuleCallback, wasm_module_callback)
+CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback,
+                deprecated_wasm_module_callback)
+CALLBACK_SETTER(WasmInstanceCallback, WasmInstanceCallback,
+                wasm_instance_callback)
+CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback,
+                deprecated_wasm_instance_callback)
 
 CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
                 wasm_streaming_callback)
@@ -11697,6 +11739,11 @@ EmbedderStateTag CpuProfile::GetSampleEmbedderState(int index) const {
   return profile->sample(index).embedder_state_tag;
 }
 
+void* CpuProfile::GetSampleContext(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).sample_context;
+}
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->start_time().since_origin().InMicroseconds();
@@ -11733,15 +11780,15 @@ CpuProfiler* CpuProfiler::New(Isolate* v8_isolate,
       reinterpret_cast<i::Isolate*>(v8_isolate), naming_mode, logging_mode));
 }
 
-CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
-                                         unsigned max_samples,
-                                         int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context,
-                                         CpuProfileSource profile_source)
+CpuProfilingOptions::CpuProfilingOptions(
+    CpuProfilingMode mode, unsigned max_samples, int sampling_interval_us,
+    MaybeLocal<Context> filter_context, CpuProfileSource profile_source,
+    SampleContextExtractor sample_context_extractor)
     : mode_(mode),
       max_samples_(max_samples),
       sampling_interval_us_(sampling_interval_us),
-      profile_source_(profile_source) {
+      profile_source_(profile_source),
+      sample_context_extractor_(sample_context_extractor) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);
@@ -12116,11 +12163,11 @@ SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream,
   return heap_profiler->PushHeapObjectsStats(stream, timestamp_us);
 }
 
-bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
-                                             int stack_depth,
-                                             SamplingFlags flags) {
+bool HeapProfiler::StartSamplingHeapProfiler(
+    uint64_t sample_interval, int stack_depth, SamplingFlags flags,
+    SampleContextExtractor sample_context_extractor) {
   return reinterpret_cast<i::HeapProfiler*>(this)->StartSamplingHeapProfiler(
-      sample_interval, stack_depth, flags);
+      sample_interval, stack_depth, flags, sample_context_extractor);
 }
 
 void HeapProfiler::StopSamplingHeapProfiler() {

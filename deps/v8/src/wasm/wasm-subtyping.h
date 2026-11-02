@@ -38,6 +38,10 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
                                                    const WasmModule* module1,
                                                    const WasmModule* module2);
 
+V8_EXPORT_PRIVATE bool EquivalentIndices(ModuleTypeIndex index1,
+                                         ModuleTypeIndex index2,
+                                         const WasmModule* module);
+
 // Checks if {subtype}, defined in {module1}, is a subtype of {supertype},
 // defined in {module2}.
 // Subtyping between value types is described by the following rules

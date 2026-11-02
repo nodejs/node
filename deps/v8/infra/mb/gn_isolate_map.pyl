@@ -39,6 +39,10 @@
     "label": "//test/unittests:generate-bytecode-expectations",
     "type": "script",
   },
+  "intl": {
+    "label": "//test/intl:v8_intl",
+    "type": "script",
+  },
   "mjsunit": {
     "label": "//test/mjsunit:v8_mjsunit",
     "type": "script",

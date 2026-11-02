@@ -5,7 +5,13 @@
 #ifndef V8_BASE_NUMBERS_BIGNUM_H_
 #define V8_BASE_NUMBERS_BIGNUM_H_
 
-#include "src/base/vector.h"
+#include <stdint.h>
+
+#include <array>
+#include <string_view>
+
+#include "src/base/base-export.h"
+#include "src/base/logging.h"
 
 namespace v8 {
 namespace base {
@@ -17,15 +23,15 @@ class V8_BASE_EXPORT Bignum {
   // exponent.
   static const int kMaxSignificantBits = 3584;
 
-  Bignum();
+  Bignum() = default;
   Bignum(const Bignum&) = delete;
   Bignum& operator=(const Bignum&) = delete;
   void AssignUInt16(uint16_t value);
   void AssignUInt64(uint64_t value);
   void AssignBignum(const Bignum& other);
 
-  void AssignDecimalString(Vector<const char> value);
-  void AssignHexString(Vector<const char> value);
+  void AssignDecimalString(std::string_view value);
+  void AssignHexString(std::string_view value);
 
   void AssignPowerUInt16(uint16_t base, int exponent);
 
@@ -106,13 +112,11 @@ class V8_BASE_EXPORT Bignum {
   Chunk BigitAt(int index) const;
   void SubtractTimes(const Bignum& other, int factor);
 
-  Chunk bigits_buffer_[kBigitCapacity];
-  // A vector backed by bigits_buffer_. This way accesses to the array are
-  // checked for out-of-bounds errors.
-  Vector<Chunk> bigits_;
-  int used_digits_;
+  // Zero-initialize the bigits storage.
+  std::array<Chunk, kBigitCapacity> bigits_ = {};
+  int used_digits_ = 0;
   // The Bignum's value equals value(bigits_) * 2^(exponent_ * kBigitSize).
-  int exponent_;
+  int exponent_ = 0;
 };
 
 }  // namespace base

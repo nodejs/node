@@ -9,6 +9,9 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <string_view>
+
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8::internal::wasm {
@@ -32,7 +35,8 @@ class V8_EXPORT_PRIVATE WasmSerializer {
   // [1] version hash (uint32_t)
   // [2] supported CPU features (uint32_t)
   // [3] flag hash (uint32_t)
-  // [4] enabled features (via flags and OT) (uint32_t)
+  // [4] enabled features (via flags and OT), with the trap handler state in the
+  //     most significant bit (uint32_t)
   // [5] compile time imports (variable size)
   static constexpr size_t kVersionHashOffset = kUInt32Size;
 
@@ -50,9 +54,8 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 // vector); otherwise ownership stays with the caller.
 V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
-    base::OwnedVector<const uint8_t>& wire_bytes,
-    const CompileTimeImports& compile_imports,
-    base::Vector<const char> source_url);
+    base::UniqueArray<const uint8_t>& wire_bytes,
+    const CompileTimeImports& compile_imports, std::string_view source_url);
 
 }  // namespace v8::internal::wasm
 

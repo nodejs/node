@@ -879,15 +879,17 @@ void ObjectStatsCollectorImpl::CollectStatistics(
   DisallowGarbageCollection no_gc;
   Tagged<Map> map = obj->map();
   InstanceType instance_type = map->instance_type();
+  SBXCHECK_IMPLIES(InstanceTypeChecker::IsTrustedObject(instance_type),
+                   OutsideSandboxOrInReadonlySpace(obj));
   switch (phase) {
     case kPhase1:
       if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (Is<BytecodeArray>(obj)) {
+      } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
         RecordVirtualBytecodeArrayDetails(TrustedCast<BytecodeArray>(obj));
-      } else if (Is<InstructionStream>(obj)) {
+      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
         RecordVirtualCodeDetails(TrustedCast<InstructionStream>(obj));
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
@@ -1029,7 +1031,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
   if (Tagged<DescriptorArray> array;
       map->owns_descriptors() &&
 #if V8_ENABLE_WEBASSEMBLY
-      !IsWasmObjectMap(map) &&
+      !IsAnyWasmObjectMap(map) &&
 #endif  // V8_ENABLE_WEBASSEMBLY
       (array = map->instance_descriptors()) !=
           ReadOnlyRoots(heap_).empty_descriptor_array()) {

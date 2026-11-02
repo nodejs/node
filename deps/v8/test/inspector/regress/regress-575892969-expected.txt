@@ -1,0 +1,11 @@
+Checks that the console.table column loop stops after a column getter terminated execution.
+table: 1 argument(s)
+{
+    code : -32000
+    message : Execution was terminated
+}
+table: 1 argument(s)
+{
+    code : -32000
+    message : Execution was terminated
+}

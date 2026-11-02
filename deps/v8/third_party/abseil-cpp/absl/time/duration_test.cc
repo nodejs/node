@@ -1831,6 +1831,17 @@ TEST(Duration, ParseDuration) {
   EXPECT_TRUE(absl::ParseDuration("0.429496729501234567890123456789s", &d));
   EXPECT_EQ(absl::Nanoseconds(429496729) + absl::Nanoseconds(1) / 2, d);
 
+  // Huge fractional counts of a large unit.  The scaled intermediate must not
+  // saturate to infinity before it is divided back down.
+  EXPECT_TRUE(absl::ParseDuration("0.3000000000000000h", &d));
+  EXPECT_EQ(absl::Minutes(18), d);
+  EXPECT_TRUE(absl::ParseDuration("0.200000000000000000m", &d));
+  EXPECT_EQ(absl::Seconds(12), d);
+  EXPECT_TRUE(absl::ParseDuration("0.999999999999999999h", &d));
+  EXPECT_EQ(absl::Hours(1) - absl::Nanoseconds(1) / 4, d);
+  EXPECT_TRUE(absl::ParseDuration("-0.999999999999999999h", &d));
+  EXPECT_EQ(-(absl::Hours(1) - absl::Nanoseconds(1) / 4), d);
+
   // Negative durations.
   EXPECT_TRUE(absl::ParseDuration("-1s", &d));
   EXPECT_EQ(absl::Seconds(-1), d);

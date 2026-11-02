@@ -108,6 +108,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
       builtin == Builtin::kJSToWasmWrapper ||
       builtin == Builtin::kJSToWasmHandleReturns ||
+      builtin == Builtin::kWasmReturnPromiseOnSuspendAsm ||
+      builtin == Builtin::kJSToWasmStressSwitchStacksAsm ||
 #ifdef V8_ENABLE_DRUMBRAKE
       builtin == Builtin::kJSToWasmInterpreterHandleReturns ||
       builtin == Builtin::kJSToWasmInterpreterWrapper ||
@@ -278,7 +280,7 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
           isolate, builtin, generator,
           [argc](Zone* zone) {
             return compiler::Linkage::GetJSCallDescriptor(
-                zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
+                zone, false, argc, compiler::CallDescriptor::kNoFlags);
           },
           name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;

@@ -560,10 +560,31 @@ bool Is64BitsWide(const InstructionOperand& op) {
 #endif
 }
 
+#if V8_TARGET_ARCH_X64
+bool IsSimd256(const InstructionOperand& op) {
+  return op.IsAnyLocationOperand() &&
+         LocationOperand::cast(&op)->representation() ==
+             MachineRepresentation::kSimd256;
+}
+#endif  // V8_TARGET_ARCH_X64
+
 bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
   if (!a->source().EqualsCanonicalized(b->source())) {
     return a->source().CompareCanonicalized(b->source());
   }
+#if V8_TARGET_ARCH_X64
+  // Simd256 must be preferred over Simd128 as the group's representative
+  // destination. kSimd256 and kSimd128 may share the same virtual register
+  // (e.g. an elided 128-bit lane-0 extraction aliased to its 256-bit
+  // producer on x64), so a Simd256 destination must never be rewritten to
+  // source from a Simd128 one, which would silently zero the upper 128 bits.
+  if (IsSimd256(a->destination()) && !IsSimd256(b->destination())) {
+    return true;
+  }
+  if (!IsSimd256(a->destination()) && IsSimd256(b->destination())) {
+    return false;
+  }
+#endif  // V8_TARGET_ARCH_X64
   // The replacements below are only safe if wider values are preferred.
   // In particular, replacing an uncompressed pointer with a compressed
   // pointer is disallowed.

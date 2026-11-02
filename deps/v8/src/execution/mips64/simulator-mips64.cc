@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -308,10 +309,10 @@ void MipsDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -470,7 +471,7 @@ void MipsDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -509,7 +510,7 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -599,7 +600,7 @@ void MipsDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -626,7 +627,7 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -7543,7 +7544,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
   pc_modified_ = false;
 
-  v8::base::EmbeddedVector<char, 256> buffer;
+  std::array<char, 256> buffer;
 
   if (v8_flags.trace_sim) {
     base::SNPrintF(trace_buf_, " ");
@@ -7570,8 +7571,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   if (v8_flags.trace_sim) {
     PrintF("  0x%08" PRIxPTR "   %-44s   %s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.begin(),
-           trace_buf_.begin());
+           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
   }
 
   if (!pc_modified_) {

@@ -1,1 +1,9 @@
 Checks that Runtime.getHeapUsage works
+getHeapUsage is not allowed for untrusted clients
+{
+    error : {
+        code : -32000
+        message : Runtime.getHeapUsage is not allowed for untrusted clients
+    }
+    id : <messageId>
+}

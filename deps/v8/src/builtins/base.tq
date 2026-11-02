@@ -13,7 +13,6 @@
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/hash-seed-wrapper.h'
-#include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
@@ -301,7 +300,10 @@ type TrustedPointer
 type TrustedPointer<To : type extends ExposedTrustedObject> extends
     TrustedPointer;
 type ProtectedPointer extends Tagged;
-type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
+// A protected pointer may also hold a Smi or a weak reference, as
+// ProtectedTaggedMember<UnionOf<...>> does in C++.
+type ProtectedPointer<To : type extends TrustedObject|Smi|
+                      Weak<TrustedObject>> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'BuiltinPtr';
 
@@ -311,8 +313,6 @@ type Numeric = Number|BigInt;
 extern class TransitionArray extends WeakFixedArray;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
-
-type NoSharedNameSentinel extends Smi;
 
 // Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
@@ -345,11 +345,8 @@ extern enum CallFeedbackContent extends int32 { kTarget, kReceiver }
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants
-extern enum PromiseState extends int31 constexpr 'Promise::PromiseState' {
-  kPending,
-  kFulfilled,
-  kRejected
-}
+extern enum PromisePromiseState extends int31
+    constexpr 'Promise::PromiseState' { kPending, kFulfilled, kRejected }
 
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
 const kDoubleSize: constexpr int31 generates 'kDoubleSize';
@@ -605,9 +602,6 @@ const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 const kSwissNameDictionaryInitialCapacity:
     constexpr int32 generates 'SwissNameDictionary::kInitialCapacity';
-
-const kWasmArrayHeaderSize:
-    constexpr int32 generates 'WasmArray::kHeaderSize';
 
 const kHeapObjectHeaderSize: constexpr int32 generates 'sizeof(HeapObject)';
 
@@ -1341,7 +1335,7 @@ operator '+' macro StringAdd(
 }
 
 operator '==' macro PromiseStateEquals(
-    s1: PromiseState, s2: PromiseState): bool {
+    s1: PromisePromiseState, s2: PromisePromiseState): bool {
   return Word32Equal(s1, s2);
 }
 
@@ -2270,7 +2264,8 @@ extern operator '[]' macro LoadWeakFixedArrayElement(
 extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 extern operator '[]' macro LoadUint64Ptr(RawPtr<uint64>, intptr): uint64;
 
-extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
+extern enum NameHashFieldType extends uint32
+    constexpr 'Name::HashFieldType' {
   kHash,
   kIntegerIndex,
   kForwardingIndex,
@@ -2278,7 +2273,7 @@ extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
 }
 
 operator '==' macro HashFieldTypeEquals(
-    s1: HashFieldType, s2: HashFieldType): bool {
+    s1: NameHashFieldType, s2: NameHashFieldType): bool {
   return Word32Equal(s1, s2);
 }
 

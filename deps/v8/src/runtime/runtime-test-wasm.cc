@@ -9,6 +9,7 @@
 #include "src/api/api.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
@@ -96,17 +97,15 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
   isolate->ThrowException(NewRangeException(isolate, message));
 }
 
-bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
-  if (IsWasmCompileAllowed(info.GetIsolate(), info[0], false)) return false;
-  ThrowRangeException(info.GetIsolate(), "Sync compile not allowed");
+bool WasmModuleOverride(v8::Isolate* isolate, v8::Local<v8::Value> source) {
+  if (IsWasmCompileAllowed(isolate, source, false)) return false;
+  ThrowRangeException(isolate, "Sync compile not allowed");
   return true;
 }
 
-bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
-  if (IsWasmInstantiateAllowed(info.GetIsolate(), info[0], false)) return false;
-  ThrowRangeException(info.GetIsolate(), "Sync instantiate not allowed");
+bool WasmInstanceOverride(v8::Isolate* isolate, v8::Local<v8::Value> source) {
+  if (IsWasmInstantiateAllowed(isolate, source, false)) return false;
+  ThrowRangeException(isolate, "Sync instantiate not allowed");
   return true;
 }
 
@@ -548,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
           IsWasmStringViewIter(*value) || IsForeign(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
-      value = wasm::WasmToJSObject(isolate, value);
+      value = wasm::WasmToJSObject(isolate, value, wasm::kUnshareStrings);
       DCHECK(IsPrimitiveHeapObject(*value) || IsJSReceiver(*value));
     }
     externalized_values->set(i, *value);
@@ -778,7 +777,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   }
   // Create and compile the wasm module.
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(module_bytes);
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
   MaybeDirectHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
       isolate, wasm::WasmEnabledFeatures(), wasm::CompileTimeImports(),
@@ -1171,7 +1170,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
       wasm::GetWasmEngine()->SyncCompile(isolate,
                                          wasm::WasmEnabledFeatures::FromFlags(),
                                          wasm::CompileTimeImports{}, &thrower,
-                                         base::OwnedCopyOf(module_bytes));
+                                         base::UniqueCopyOf(module_bytes));
   if (thrower.error()) {
     FATAL(
         "wasm::GenerateRandomWasmModule produced a module which did not "

@@ -392,7 +392,7 @@ TEST(GetObjectProperties) {
   CHECK(props2->brief == std::string("2 (0x2)"));
 
   // Verify the result for a heap object field which is itself a struct: the
-  // "descriptors" field on a DescriptorArray.
+  // "entries" field on a DescriptorArray.
   // Start by getting the object's map and the map's descriptor array.
   uintptr_t map_ptr = ReadProp<i::Tagged_t>(*props, "map");
 #if V8_MAP_PACKING
@@ -408,12 +408,12 @@ TEST(GetObjectProperties) {
   uint16_t number_of_all_descriptors =
       *reinterpret_cast<uint16_t*>(props->properties[1]->address);
   CHECK_GE(number_of_all_descriptors, 2);
-  // The "descriptors" property should describe the struct layout for each
+  // The "entries" property should describe the struct layout for each
   // element in the array.
   const d::ObjectProperty& descriptors = *props->properties[5];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
-  CheckProp(descriptors, /*type=*/"", "descriptors",
+  CheckProp(descriptors, /*type=*/"", "entries",
             d::PropertyKind::kArrayOfKnownSize, number_of_all_descriptors);
   CHECK_EQ(descriptors.size, 3 * i::kTaggedSize);
   CHECK_EQ(descriptors.num_struct_fields, 3);
@@ -491,7 +491,7 @@ static void FrameIterationCheck(
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
     if (frame->is_javascript()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      CHECK_EQ(props->num_properties, 5);
+      CHECK_EQ(props->num_properties, 7);
       auto js_function = js_frame->function();
       // This one is Tagged, not TaggedMember, because it's from the stack.
       CheckProp(*props->properties[0],
@@ -523,6 +523,19 @@ static void FrameIterationCheck(
       CheckStructProp(*function_character_offset.struct_fields[1],
                       "v8::internal::TaggedMember<v8::internal::Object>", "end",
                       4);
+
+      // These are Tagged too because they are stack slots.
+      CheckProp(*props->properties[5],
+                "v8::internal::Tagged<v8::internal::Object>", "receiver",
+                js_frame->receiver().ptr());
+      const d::ObjectProperty& arguments = *props->properties[6];
+      uint32_t argc = js_frame->GetActualArgumentCount();
+      CheckProp(arguments, "v8::internal::Tagged<v8::internal::Object>",
+                "arguments", d::PropertyKind::kArrayOfKnownSize, argc);
+      for (uint32_t arg = 0; arg < argc; arg++) {
+        CHECK_EQ(reinterpret_cast<Address*>(arguments.address)[arg],
+                 js_frame->GetParameter(arg).ptr());
+      }
     } else {
       CHECK_EQ(props->num_properties, 0);
     }
@@ -542,10 +555,17 @@ THREADED_TEST(GetFrameStack) {
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
             .FromJust());
-  v8::Script::Compile(env.local(), v8_str("function foo() {"
+  // Cover matched, under-applied, and over-applied argument counts.
+  v8::Script::Compile(env.local(), v8_str("function exact(a) {"
                                           "  return obj.xxx;"
                                           "}"
-                                          "foo();"))
+                                          "function underapplied(a, b, c) {"
+                                          "  return exact(40);"
+                                          "}"
+                                          "function overapplied(x) {"
+                                          "  return underapplied(41);"
+                                          "}"
+                                          "overapplied(42, 43);"))
       .ToLocalChecked()
       ->Run(env.local())
       .ToLocalChecked();
@@ -570,7 +590,9 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
       d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
   CHECK_EQ(props->type, std::string("v8::internal::SmallOrderedHashSet"));
-  CHECK_EQ(props->num_properties, 8);
+  // The variable-length tail (data, hash and chain tables) is not visible to
+  // Torque and thus not reported by the debug helper.
+  CHECK_EQ(props->num_properties, 5);
 
   CheckProp(*props->properties[0],
             "v8::internal::TaggedMember<v8::internal::Map>", "map");
@@ -584,15 +606,6 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   CheckProp(*props->properties[4], "uint8_t", "padding",
             d::PropertyKind::kArrayOfKnownSize, 1);
 #endif
-  CheckProp(*props->properties[5],
-            "v8::internal::TaggedMember<v8::internal::Object>", "data_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
-  CheckProp(*props->properties[6], "uint8_t", "hash_table",
-            d::PropertyKind::kArrayOfKnownSize, number_of_buckets);
-  CheckProp(*props->properties[7], "uint8_t", "chain_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
 }
 
 }  // namespace internal

@@ -42,7 +42,7 @@ transitioning javascript builtin TypedArrayPrototypeSet(
     // 4. Assert: target has a [[ViewedArrayBuffer]] internal slot.
     target = Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameSet);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   }
 
   try {

@@ -51,7 +51,7 @@ static __thread int recursive = 0;
 static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
 // Waiting until static initializers run seems to be late enough.
 // This file is included into stacktrace.cc so this will only run once.
-ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
+[[maybe_unused]] static int stacktraces_enabler = []() {
   disable_stacktraces.store(false, std::memory_order_relaxed);
   return 0;
 }();

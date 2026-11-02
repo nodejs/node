@@ -39,7 +39,8 @@ class WasmExportWrapperCache : public AllStatic {
   static void Verify(Heap* heap);
 #endif  // VERIFY_HEAP
 
-  // Defined in cctest/test-run-wasm-wrappers.cc to not bloat shipping binaries.
+  // Defined in test/unittests/wasm/run-wasm-wrappers-unittest.cc to not bloat
+  // shipping binaries.
   static int CountWrappersForTesting(Isolate* isolate);
 
  private:

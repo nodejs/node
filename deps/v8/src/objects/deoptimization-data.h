@@ -46,7 +46,6 @@ enum class DeoptimizationLiteralKind : uint8_t {
   kNumber,
   kSignedBigInt64,
   kUnsignedBigInt64,
-  kHoleNaN,
   kInvalid,
 
   // These kinds are used by Wasm only (as unoptimized JS doesn't have these
@@ -86,12 +85,6 @@ class DeoptimizationLiteral {
   explicit DeoptimizationLiteral(Tagged<Smi> smi)
       : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int32_(smi.value()) {}
 
-  static DeoptimizationLiteral HoleNaN() {
-    DeoptimizationLiteral literal;
-    literal.kind_ = DeoptimizationLiteralKind::kHoleNaN;
-    return literal;
-  }
-
   IndirectHandle<Object> object() const { return object_; }
 
   bool operator==(const DeoptimizationLiteral& other) const {
@@ -111,8 +104,6 @@ class DeoptimizationLiteral {
         return int64_ == other.int64_;
       case DeoptimizationLiteralKind::kUnsignedBigInt64:
         return uint64_ == other.uint64_;
-      case DeoptimizationLiteralKind::kHoleNaN:
-        return other.kind() == DeoptimizationLiteralKind::kHoleNaN;
       case DeoptimizationLiteralKind::kInvalid:
         return true;
       case DeoptimizationLiteralKind::kWasmFloat32:
@@ -123,7 +114,8 @@ class DeoptimizationLiteral {
     UNREACHABLE();
   }
 
-  DirectHandle<Object> Reify(Isolate* isolate) const;
+  template <typename IsolateT>
+  DirectHandle<Object> Reify(IsolateT* isolate) const;
 
 #if V8_ENABLE_WEBASSEMBLY
   Float64 GetFloat64() const {

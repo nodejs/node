@@ -85,7 +85,12 @@
 // Note: As the GCC manual states, "[s]ince non-static C++ methods
 // have an implicit 'this' argument, the arguments of such methods
 // should be counted from two, not one."
-#if ABSL_HAVE_ATTRIBUTE(format) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::format)
+#define ABSL_PRINTF_ATTRIBUTE(string_index, first_to_check) \
+  [[gnu::format(printf, string_index, first_to_check)]]
+#define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
+  [[gnu::format(scanf, string_index, first_to_check)]]
+#elif ABSL_HAVE_ATTRIBUTE(format) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_PRINTF_ATTRIBUTE(string_index, first_to_check) \
   __attribute__((__format__(__printf__, string_index, first_to_check)))
 #define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
@@ -99,9 +104,18 @@
 // ABSL_ATTRIBUTE_NOINLINE
 //
 // Forces functions to either inline or not inline. Introduced in gcc 3.1.
+//
+// Note that guarantees are ultimately toolchain-dependent. For example, MSVC
+// will not inline any function by default, meaning at least /Ob1 or a higher
+// levels of optimization is necessary.
 #if ABSL_HAVE_ATTRIBUTE(always_inline) || \
     (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+#define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
+#elif defined(_MSC_VER) && \
+    (_MSC_VER >= 1937 ||   \
+     (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
+#define ABSL_ATTRIBUTE_ALWAYS_INLINE [[msvc::forceinline]]
 #define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
 #else
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE
@@ -109,6 +123,11 @@
 
 #if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_NOINLINE __attribute__((noinline))
+#define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
+#elif defined(_MSC_VER) && \
+    (_MSC_VER >= 1937 ||   \
+     (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
+#define ABSL_ATTRIBUTE_NOINLINE [[msvc::noinline]]
 #define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
 #else
 #define ABSL_ATTRIBUTE_NOINLINE
@@ -375,9 +394,9 @@
 // link.
 //
 #define ABSL_ATTRIBUTE_SECTION_START(name) \
-  (reinterpret_cast<void *>(__start_##name))
+  (reinterpret_cast<void*>(__start_##name))
 #define ABSL_ATTRIBUTE_SECTION_STOP(name) \
-  (reinterpret_cast<void *>(__stop_##name))
+  (reinterpret_cast<void*>(__stop_##name))
 
 #else  // !ABSL_HAVE_ATTRIBUTE_SECTION
 
@@ -389,8 +408,8 @@
 #define ABSL_INIT_ATTRIBUTE_SECTION_VARS(name)
 #define ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(name)
 #define ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(name)
-#define ABSL_ATTRIBUTE_SECTION_START(name) (reinterpret_cast<void *>(0))
-#define ABSL_ATTRIBUTE_SECTION_STOP(name) (reinterpret_cast<void *>(0))
+#define ABSL_ATTRIBUTE_SECTION_START(name) (reinterpret_cast<void*>(0))
+#define ABSL_ATTRIBUTE_SECTION_STOP(name) (reinterpret_cast<void*>(0))
 
 #endif  // ABSL_ATTRIBUTE_SECTION
 
@@ -419,8 +438,7 @@
 //
 // Tells the compiler to warn about unused results.
 //
-// For code or headers that are assured to only build with C++17 and up, prefer
-// just using the standard `[[nodiscard]]` directly over this macro.
+// Deprecated: Use the standard C++17 `[[nodiscard]]` instead.
 //
 // When annotating a function, it must appear as the first part of the
 // declaration or definition. The compiler will warn if the return value from
@@ -442,15 +460,6 @@
 //
 //   Sprocket* SprocketPointer();
 //   SprocketPointer();  // Does *not* trigger a warning.
-//
-// ABSL_MUST_USE_RESULT allows using cast-to-void to suppress the unused result
-// warning. For that, warn_unused_result is used only for clang but not for gcc.
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
-//
-// Note: past advice was to place the macro after the argument list.
-//
-// TODO(b/176172494): Use ABSL_HAVE_CPP_ATTRIBUTE(nodiscard) when all code is
-// compliant with the stricter [[nodiscard]].
 #if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
 #define ABSL_MUST_USE_RESULT __attribute__((warn_unused_result))
 #else
@@ -467,13 +476,17 @@
 // Example:
 //
 //   int foo() ABSL_ATTRIBUTE_HOT;
-#if ABSL_HAVE_ATTRIBUTE(hot) || (defined(__GNUC__) && !defined(__clang__))
+#if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::hot)
+#define ABSL_ATTRIBUTE_HOT [[gnu::hot]]
+#elif ABSL_HAVE_ATTRIBUTE(hot) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_HOT __attribute__((hot))
 #else
 #define ABSL_ATTRIBUTE_HOT
 #endif
 
-#if ABSL_HAVE_ATTRIBUTE(cold) || (defined(__GNUC__) && !defined(__clang__))
+#if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::cold)
+#define ABSL_ATTRIBUTE_COLD [[gnu::cold]]
+#elif ABSL_HAVE_ATTRIBUTE(cold) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_COLD __attribute__((cold))
 #else
 #define ABSL_ATTRIBUTE_COLD
@@ -577,11 +590,26 @@
 // Due to differences in positioning requirements between the old, compiler
 // specific __attribute__ syntax and the now standard `[[maybe_unused]]`, this
 // macro does not attempt to take advantage of `[[maybe_unused]]`.
-#if ABSL_HAVE_ATTRIBUTE(unused) || (defined(__GNUC__) && !defined(__clang__))
-#undef ABSL_ATTRIBUTE_UNUSED
-#define ABSL_ATTRIBUTE_UNUSED __attribute__((__unused__))
+#ifdef ABSL_ATTRIBUTE_UNUSED
+#error "ABSL_ATTRIBUTE_UNUSED should not be defined."
+#endif
+#if defined(__cplusplus) && defined(__clang__) && \
+    ABSL_HAVE_ATTRIBUTE(diagnose_if) && !defined(SWIG)
+struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
+// Trick: We use __attribute__((diagnose_if(...))) to refer to our own
+// deprecated symbol, which then causes a deprecation message to be emitted when
+// the macro is used. Since diagnose_if() isn't valid on every declaration, we
+// also suppress the warning regarding that.
+#define ABSL_ATTRIBUTE_UNUSED                                                \
+  [[maybe_unused]]                                                           \
+  _Pragma("clang diagnostic push") /*                                     */ \
+      _Pragma("clang diagnostic ignored \"-Wignored-attributes\"")           \
+          __attribute__((diagnose_if(                                        \
+              sizeof(_absl_unused_macro*) == 0, "",                          \
+              "warning"))) /*                                             */ \
+          _Pragma("clang diagnostic pop")
 #else
-#define ABSL_ATTRIBUTE_UNUSED
+#define ABSL_ATTRIBUTE_UNUSED [[maybe_unused]]
 #endif
 
 // ABSL_ATTRIBUTE_INITIAL_EXEC
@@ -659,8 +687,7 @@
 // declarations. The macro argument is used as a custom diagnostic message (e.g.
 // suggestion of a better alternative).
 //
-// For code or headers that are assured to only build with C++14 and up, prefer
-// just using the standard `[[deprecated("message")]]` directly over this macro.
+// Deprecated: Use the standard `[[deprecated("message")]]` macro instead.
 //
 // Examples:
 //
@@ -680,8 +707,11 @@
 // GCC/Clang's `-Wdeprecated-declarations` option. Google's production toolchain
 // turns this warning off by default, instead relying on clang-tidy to report
 // new uses of deprecated code.
+#ifdef ABSL_DEPRECATED
+#error "ABSL_DEPRECATED should not be defined."
+#endif
 #if ABSL_HAVE_ATTRIBUTE(deprecated)
-#define ABSL_DEPRECATED(message) __attribute__((deprecated(message)))
+#define ABSL_DEPRECATED(message) [[deprecated(message)]]
 #else
 #define ABSL_DEPRECATED(message)
 #endif
@@ -691,7 +721,7 @@
 // deprecated code can be surrounded with these directives to achieve that
 // result.
 //
-// class ABSL_DEPRECATED("Use Bar instead") Foo;
+// class [[deprecated("Use Bar instead")]] Foo;
 //
 // ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
 // Baz ComputeBazFromFoo(Foo f);
@@ -699,8 +729,8 @@
 #if defined(__GNUC__) || defined(__clang__)
 // Clang also supports these GCC pragmas.
 #define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING \
-  _Pragma("GCC diagnostic push")             \
-  _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+  _Pragma("GCC diagnostic push")                             \
+      _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING \
   _Pragma("GCC diagnostic pop")
 #elif defined(_MSC_VER)
@@ -736,40 +766,36 @@
 //
 // See the upstream documentation for more details:
 // https://clang.llvm.org/docs/AttributeReference.html#require-explicit-initialization
-#ifdef __cplusplus
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::require_explicit_initialization)
-// clang-format off
-#define ABSL_REQUIRE_EXPLICIT_INIT \
+#if defined(__cplusplus) && !defined(SWIG)
+#if defined(_MSC_VER) && !defined(__clang__)
+// Workaround for MSVC: https://github.com/abseil/abseil-cpp/issues/2157
+#define ABSL_REQUIRE_EXPLICIT_INIT
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_explicit_initialization)
+#define ABSL_REQUIRE_EXPLICIT_INIT             \
   [[clang::require_explicit_initialization]] = \
-    AbslInternal_YouForgotToExplicitlyInitializeAField::v
+      AbslInternal_YouForgotToExplicitlyInitializeAField::v
 #else
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   = AbslInternal_YouForgotToExplicitlyInitializeAField::v
 #endif
-// clang-format on
 #else
-// clang-format off
 #if ABSL_HAVE_ATTRIBUTE(require_explicit_initialization)
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   __attribute__((require_explicit_initialization))
 #else
-#define ABSL_REQUIRE_EXPLICIT_INIT \
-  /* No portable fallback for C is available */
+// No portable fallback for C is available
+#define ABSL_REQUIRE_EXPLICIT_INIT
 #endif
-// clang-format on
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SWIG)
 struct AbslInternal_YouForgotToExplicitlyInitializeAField {
   // A portable version of [[clang::require_explicit_initialization]] that
   // never builds, as a last resort for all toolchains.
   // The error messages are poor, so we don't rely on this unless we have to.
   template <class T>
-#if !defined(SWIG)
-  constexpr
-#endif
-  operator T() const /* NOLINT */ {
-    const void *volatile deliberately_volatile_ptr = nullptr;
+  constexpr operator T() const /* NOLINT */ {
+    const void* volatile deliberately_volatile_ptr = nullptr;
     // Infinite loop to prevent constexpr compilation
     for (;;) {
       // This assignment ensures the 'this' pointer is not optimized away, so
@@ -815,7 +841,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // Note that `ABSL_CONST_INIT` must not be used on a variable declared
 // constexpr.
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
-#define ABSL_CONST_INIT constinit
+#define ABSL_CONST_INIT constinit  // NOLINT(clang-diagnostic-pre-c++20-compat)
 #elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
 #define ABSL_CONST_INIT [[clang::require_constant_initialization]]
 #else
@@ -1046,7 +1072,8 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // overriding the compiler flag.
 //
 // See https://clang.llvm.org/docs/AttributeReference.html#uninitialized
-// and https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
+// and
+// https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED [[clang::uninitialized]]
 #elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::uninitialized)
@@ -1083,6 +1110,54 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 #define ABSL_ATTRIBUTE_WARN_UNUSED [[gnu::warn_unused]]
 #else
 #define ABSL_ATTRIBUTE_WARN_UNUSED
+#endif
+
+// ABSL_UNSAFE_BUFFERS()
+//
+// Wraps code that performs unsafe buffer accesses or pointer arithmetic. Used
+// to suppress warnings when `-Wunsafe-buffer-usage` is enabled.
+//
+// **WARNING**: This macro should be used when unavoidable. Applying it means
+// the compiler is unable to prove that your code avoids out-of-bounds reads or
+// writes, forcing reliance on manual review. Over time, code evolves and
+// undocumented assumptions can silently break, introducing vulnerabilities.
+// Always prioritize refactoring to safer alternatives (e.g. std::array,
+// absl::Span, or bounds-checked containers) over using this suppression.
+//
+// When using this macro is unavoidable, restrict its scope to the smallest
+// possible expression or statement. You must also add a `// SAFETY: ...`
+// comment explaining why the operation is actually safe.
+// Justifications include:
+//  * Explicit bounds checks (e.g., `CHECK()`) immediately preceding the access.
+//  * Invariants strictly enforced by surrounding types or functions.
+//  * Preconditions required of the caller (though this is heavily discouraged).
+//
+// Example (expression):
+//
+//   // SAFETY: `buf` is NUL-terminated so `strdup` won't read past the end.
+//   return ABSL_UNSAFE_BUFFERS(strdup(buf));
+//
+// Example (single-line statement):
+//
+//   // SAFETY: `offset` is bounds-checked above to be within `buffer`.
+//   ABSL_UNSAFE_BUFFERS(buffer += offset;)
+//
+// Example (multi-line statement):
+//
+//   // SAFETY: `offset` is bounds-checked above to be within `buffer`.
+//   ABSL_UNSAFE_BUFFERS(
+//       char* p = buffer + offset;
+//       p[0] = 'a';
+//   )
+//
+// Note: When wrapping a multi-line statement, placing a semicolon after the
+// closing parenthesis may produce an extra semicolon warning.
+#if defined(__clang__)
+#define ABSL_UNSAFE_BUFFERS(...)             \
+  _Pragma("clang unsafe_buffer_usage begin") \
+      __VA_ARGS__ _Pragma("clang unsafe_buffer_usage end")
+#else
+#define ABSL_UNSAFE_BUFFERS(...) __VA_ARGS__
 #endif
 
 #endif  // ABSL_BASE_ATTRIBUTES_H_

@@ -60,6 +60,12 @@ typedef struct {
 #if __ARM_FP
   long fopaque[8]; // d8-d15
 #endif
+#elif defined(__hexagon__)
+  // Callee-saved registers r16-r27, followed by sp (r29), fp (r30) and lr
+  // (r31). r16-r27 are saved and restored as register pairs using memd, which
+  // requires the buffer to be 8-byte aligned, hence long long rather than
+  // long. That also rounds the size up, leaving one word of tail padding.
+  long long opaque[8];
 #else
 #error "__jmp_buf not available for your target architecture."
 #endif

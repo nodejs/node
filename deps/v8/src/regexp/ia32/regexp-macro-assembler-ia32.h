@@ -103,6 +103,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
 
  private:
   Operand StaticVariable(const ExternalReference& ext);
+  // The field at the given offset of the regexp stack's thread-local block,
+  // addressed absolutely.
+  Operand RegExpStackField(int offset);
   // Offsets from ebp of function parameters and stored registers.
   static constexpr int kFramePointerOffset = 0;
   // Above the frame pointer - function parameters and return address.
@@ -207,7 +210,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   inline void Pop(Register target);
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 

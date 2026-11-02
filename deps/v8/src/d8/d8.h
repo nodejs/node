@@ -27,7 +27,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/d8/async-hooks-wrapper.h"
 // For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
 #include "src/d8/hardware-watchpoints.h"
@@ -267,8 +267,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
  public:
   static constexpr i::ManagedTypeId kTypeID = i::ManagedTypeId::kD8Worker;
 
-  explicit Worker(Isolate* parent_isolate, const char* script,
-                  bool flush_denormals);
+  explicit Worker(Isolate* parent_isolate, const char* script);
   ~Worker();
 
   // Post a message to the worker. The worker will take ownership of the
@@ -348,7 +347,6 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   base::Thread* thread_ = nullptr;
   char* script_;
-  bool flush_denormals_;
   std::atomic<State> state_;
   bool is_joined_ = false;
   // For signalling that the worker has started.
@@ -459,6 +457,11 @@ class PerIsolateData {
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
+  // See Shell::GetOrCreateLeafInterfaceTypeTemplate.
+  Global<FunctionTemplate> leaf_interface_type_template_;
+  // The template of the global object of all contexts that d8 creates in this
+  // isolate, see Shell::GetOrCreateGlobalTemplate.
+  Global<ObjectTemplate> global_template_;
   // Track workers and their callbacks separately, so that we know both which
   // workers are still registered, and which of them have callbacks. We can't
   // rely on Shell::running_workers_ or worker.IsTerminated(), because these are
@@ -508,7 +511,7 @@ class ShellOptions {
   class DisallowReassignment {
    public:
     DisallowReassignment(const char* name, T value)
-        : name_(name), value_(value) {}
+        : name_(name), value_(value), default_value_(value) {}
 
     operator T() const { return value_; }
     T get() const { return value_; }
@@ -529,6 +532,10 @@ class ShellOptions {
       return *this;
     }
     void Overwrite(T value) { value_ = value; }
+    void Reset() {
+      value_ = default_value_;
+      specified_ = false;
+    }
 
     bool WasSpecified() const { return specified_; }
 
@@ -537,6 +544,7 @@ class ShellOptions {
    private:
     const char* name_;
     T value_;
+    const T default_value_;
     bool specified_ = false;
   };
   DisallowReassignment<bool> can_block = {"can_block", true};
@@ -572,12 +580,6 @@ class ShellOptions {
       "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
-  DisallowReassignment<bool> mock_arraybuffer_allocator = {
-      "mock-arraybuffer-allocator", false};
-  DisallowReassignment<size_t> mock_arraybuffer_allocator_limit = {
-      "mock-arraybuffer-allocator-limit", 0};
-  DisallowReassignment<bool> multi_mapped_mock_allocator = {
-      "multi-mapped-mock-allocator", false};
   // This flag enables a bare-bones InspectorClient implementation in the shell.
   // It is only a harness for basic tests in `test/debugger`, and not shipped
   // in production. `test/inspector` uses the `inspector-test` binary instead.
@@ -637,7 +639,6 @@ class ShellOptions {
   DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowReassignment<bool> expose_fast_api = {"expose-fast-api", false};
-  DisallowReassignment<bool> flush_denormals = {"flush-denormals", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
   DisallowReassignment<bool> bundle = {"bundle", false};
@@ -761,8 +762,6 @@ class Shell : public i::AllStatic {
 
   static void InstallConditionalFeatures(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void SetFlushDenormals(
-      const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -815,7 +814,7 @@ class Shell : public i::AllStatic {
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateWasmMemoryMapDescriptor(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static base::OwnedVector<char> ReadChars(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadChars(const char* name);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -929,7 +928,8 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
-  static base::OwnedVector<char> ReadCharsFromTcpPort(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadCharsFromTcpPort(
+      const char* name);
 
   static void set_script_executed() { script_executed_.store(true); }
   static bool ChangeWorkingDirectory(const std::string& path,
@@ -1004,6 +1004,7 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateNodeTemplates(
       Isolate* isolate, Local<FunctionTemplate> event_target);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> GetOrCreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
@@ -1012,6 +1013,10 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateTestFastCApiTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateLeafInterfaceTypeTemplate(
       Isolate* isolate);
   static void CreateInterceptorObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);

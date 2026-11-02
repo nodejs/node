@@ -128,10 +128,10 @@ bool InspectorIsolateData::CreateContext(int context_group_id,
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
   if (context.IsEmpty()) return false;
-  context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this,
-                                           kInspectorIsolateDataTag);
+  context->SetAlignedPointerInEmbedderDataV2(kIsolateDataIndex, this,
+                                             kInspectorIsolateDataTag);
   // Should be 2-byte aligned.
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2),
       kContextGroupIdTag);
   contexts_[context_group_id].emplace_back(isolate_.get(), context);

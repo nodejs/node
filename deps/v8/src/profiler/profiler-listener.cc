@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/source-position-table.h"
@@ -366,8 +367,8 @@ void ProfilerListener::CodeSweepEvent() { weak_code_registry_.Sweep(this); }
 
 const char* ProfilerListener::GetName(base::Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
-  base::OwnedVector<char> null_terminated =
-      base::OwnedVector<char>::New(name.size() + 1);
+  base::UniqueArray<char> null_terminated =
+      base::UniqueArray<char>::New(name.size() + 1);
 #if defined(__GNUC__) && !defined(__clang__)
   // Work around a spurious GCC-12 warning (-Werror=array-bounds).
   if (name.end() < name.begin()) return nullptr;

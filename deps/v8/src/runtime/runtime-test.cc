@@ -45,7 +45,6 @@
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
@@ -155,6 +154,14 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
   DCHECK_EQ(args.length(), 1);
   DirectHandle<String> s = args.at<String>(0);
   return isolate->heap()->ToBoolean(s->IsFlat());
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsOneByteRepresentation) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsOneByteRepresentation());
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
@@ -271,6 +278,10 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = direct_handle(it.frame()->function(), isolate);
   CHECK_UNLESS_FUZZING(!function.is_null());
 
+  if (it.frame()->is_optimized()) {
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    it.frame()->LookupCode());
+  }
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
                                     function->code(isolate));
@@ -391,8 +402,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     DirectHandle<Object> type = args.at(1);
     CHECK_UNLESS_FUZZING(IsString(*type));
-    if (Cast<String>(type)->IsOneByteEqualTo(
-            base::StaticCharVector("concurrent")) &&
+    if (Cast<String>(type)->IsOneByteEqualTo("concurrent") &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -871,6 +881,18 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DisableEagerInlining) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  Handle<Object> function_object = args.at(0);
+  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
+  auto function = Cast<JSFunction>(function_object);
+
+  ManualOptimizationTable::MarkFunctionForDisabledEagerInlining(isolate,
+                                                                function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -878,6 +900,9 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK_UNLESS_FUZZING(!sfi->HasWasmFunctionData(isolate));
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
@@ -1226,7 +1251,6 @@ int FixedArrayLenFromSize(int size) {
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
                            SemiSpaceNewSpace* space) {
-  DCHECK(!v8_flags.single_generation);
   heap->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(heap);
   while (space->GetSpaceRemainingOnCurrentPageForTesting() > 0) {
@@ -1248,6 +1272,12 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  if (v8_flags.single_generation) {
+    PrintF(
+        "Warning: %%SimulateNewspaceFull does nothing in single-generation "
+        "mode\n");
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   heap->FreeMainThreadLinearAllocationAreas();
@@ -2316,15 +2346,6 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
                                         GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
-  HandleScope scope(isolate);
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  CHECK_UNLESS_FUZZING(IsJSSynchronizationPrimitive(*args.at(0)));
-  DirectHandle<JSSynchronizationPrimitive> primitive =
-      args.at<JSSynchronizationPrimitive>(0);
-  return primitive->NumWaitersForTesting(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {

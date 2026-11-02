@@ -5,11 +5,11 @@
 #ifndef TEST_BENCHMARK_CPP_BENCHMARK_UTILS_H_
 #define TEST_BENCHMARK_CPP_BENCHMARK_UTILS_H_
 
+#include "benchmark/benchmark.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-isolate.h"
 #include "include/v8-platform.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 namespace v8::benchmarking {
 

@@ -4,11 +4,13 @@
 
 #include "src/deoptimizer/deoptimizer.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
@@ -593,6 +595,10 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.wasm_growable_stacks &&
+      Builtins::EntryOf(Builtin::kWasmReturnFromSegment, isolate) == address) {
+    return address;
+  }
   if (v8_flags.wasm_deopt &&
       wasm::GetWasmCodeManager()->LookupCode(isolate, address) != nullptr) {
     // TODO(42204618): This does not check for the PC being a valid "deopt
@@ -607,10 +613,6 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
 
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
-  // TODO(mliedtke,415707239): Ideally we'd only reset this when destroying this
-  // object, however when calling the WasmLiftoffDeoptFinish builtin, we read
-  // from the heap (probably in DEBUG-only code).
-  deoptimizer->disallow_sandbox_access_.reset();
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
@@ -795,6 +797,7 @@ Deoptimizer::~Deoptimizer() {
   DCHECK_NULL(shadow_stack_);
 #endif
   DCHECK_NULL(disallow_garbage_collection_);
+  DCHECK(!disallow_sandbox_access_.has_value());
   delete trace_scope_;
 }
 
@@ -818,6 +821,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete disallow_garbage_collection_;
   disallow_garbage_collection_ = nullptr;
 #endif  // DEBUG
+  disallow_sandbox_access_.reset();
 }
 
 Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
@@ -1015,6 +1019,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   // WasmCodeManager as a deopt was reached.
   wasm::UnpublishedWasmCode compiled_code =
       native_module->AddCompiledCode(result);
+  compiled_code.for_deopt = true;
   wasm::WasmCodeRefScope code_ref_scope;
   // TODO(mliedtke): This might unoptimize functions because they were inlined
   // into a function that now needs to deopt them while the optimized function
@@ -1229,19 +1234,10 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           output_frame->SetSimd128Register(liftoff_iter->reg().simd128().code(),
                                            value.simd_value());
         } else if (!Is64() && liftoff_iter->is_gp_reg_pair()) {
-          intptr_t reg_value = kZapValue;
-          switch (value.kind()) {
-            case TranslatedValue::Kind::kInt32:
-              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kI64);
-              // Ensure that the upper half is zeroed out.
-              reg_value = static_cast<uint32_t>(value.int32_value());
-              break;
-            case TranslatedValue::Kind::kTagged:
-              reg_value = value.raw_literal().ptr();
-              break;
-            default:
-              UNREACHABLE();
-          }
+          CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kI64);
+          CHECK_EQ(value.kind(), TranslatedValue::Kind::kInt32);
+          // Ensure that the upper half is zeroed out.
+          intptr_t reg_value = static_cast<uint32_t>(value.int32_value());
           int8_t reg = int64_lowering_is_low
                            ? liftoff_iter->reg().low_gp().code()
                            : liftoff_iter->reg().high_gp().code();
@@ -1340,25 +1336,10 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   }
 
   // Store frame kind.
-  // For growable stacks, the frame at the entry point of a new stack segment
-  // is marked as WASM_SEGMENT_START. Preserving this marker on the bottommost
-  // frame during deoptimization ensures that the return sequence will shrink
-  // the stack segment when returning to the caller.
   uint32_t frame_type_offset =
       base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
-  StackFrame::Type frame_type = StackFrame::WASM;
-  if (is_bottommost) {
-    intptr_t input_frame_marker =
-        base::Memory<intptr_t>(input_->GetFramePointerAddress() +
-                               TypedFrameConstants::kFrameTypeOffset);
-    if (StackFrame::MarkerToType(input_frame_marker) ==
-        StackFrame::WASM_SEGMENT_START) {
-      DCHECK(v8_flags.wasm_growable_stacks);
-      frame_type = StackFrame::WASM_SEGMENT_START;
-    }
-  }
   output_frame->SetFrameSlot(frame_type_offset,
-                             StackFrame::TypeToMarker(frame_type));
+                             StackFrame::TypeToMarker(StackFrame::WASM));
   // Fill feedback vector stack slot.
   // Instead of storing the actual feedback vector, we simply store the declared
   // function index of the wasm function. This is done because the feedback
@@ -2074,17 +2055,10 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   {
     AllowSandboxAccess sandbox_access(
-        "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
-        "only do it when debugging is enabled. Just in case the defence in "
-        "depth checks below should protect against swaps.");
-    std::optional<Tagged<DebugInfo>> debug_info =
-        translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
-    if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-      bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
-      // Defence-in-depth in case bytecode is swapped.
-      SBXCHECK_EQ(bytecode_array->parameter_count(), parameters_count);
-      SBXCHECK_EQ(bytecode_array->register_count(), locals_count);
-    }
+        "Fetching DebugBytecodeArray via SFI. This is safe because we verify "
+        "below that the SFI's original BytecodeArray matches the frame's "
+        "trusted BytecodeArray.");
+    bytecode_array = translated_frame->GetActiveBytecodeArray(isolate());
   }
 
   // Allocate and store the output frame description.
@@ -3086,21 +3060,21 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       config->num_allocatable_general_registers();
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
-    auto str = base::OwnedVector<char>::NewForOverwrite(128);
+    std::array<char, 128> str;
     if (verbose_tracing_enabled()) {
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
-        SNPrintF(
-            str.as_vector(),
+        base::SNPrintF(
+            str,
             "tagged argument count %s (will be untagged by continuation)\n",
             RegisterName(Register::from_code(code)));
       } else {
-        SNPrintF(str.as_vector(), "builtin register argument %s\n",
-                 RegisterName(Register::from_code(code)));
+        base::SNPrintF(str, "builtin register argument %s\n",
+                       RegisterName(Register::from_code(code)));
       }
     }
     frame_writer.PushTranslatedValue(
-        register_values[code], verbose_tracing_enabled() ? str.begin() : "");
+        register_values[code], verbose_tracing_enabled() ? str.data() : "");
   }
 
   // Some architectures must pad the stack frame with extra stack slots

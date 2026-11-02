@@ -35,8 +35,10 @@ using StackVisitorCallback = void (*)(StackVisitor*);
 class V8_EXPORT_PRIVATE Stack final {
  public:
   // Sets the start of the stack to the provided stack start.
-  void SetStackStart(const void* stack_start) {
+  void SetStackStart(const void* stack_start, bool check_for_tls) {
+    v8::base::MutexGuard guard(&lock_);
     current_segment_.start = stack_start;
+    check_for_tls_ = check_for_tls;
 #ifdef V8_USE_ADDRESS_SANITIZER
     current_segment_.asan_fake_stack = __asan_get_current_fake_stack();
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -178,6 +180,9 @@ class V8_EXPORT_PRIVATE Stack final {
     stack->current_segment_.unsafe_stack_top =
         __builtin___get_unsafe_stack_ptr();
 #endif  // V8_USE_SAFE_STACK
+    v8::base::Stack::ValidateStackSegment(stack->current_segment_.start,
+                                          stack->current_segment_.top,
+                                          stack->check_for_tls_);
     Callback* callback = static_cast<Callback*>(argument);
     (*callback)();
     stack->current_segment_ = previous_segment;
@@ -204,8 +209,10 @@ class V8_EXPORT_PRIVATE Stack final {
       // - asan_fake_start
       // - unsafe stack start
       // - unsafe stack top
-      background_stacks[thread] =
-          Segment(v8::base::Stack::GetStackStart(), stack_end);
+      Segment segment(v8::base::Stack::GetEffectiveStackStart(), stack_end);
+      v8::base::Stack::ValidateStackSegment(segment.start, segment.top,
+                                            stack->check_for_tls_);
+      background_stacks[thread] = segment;
     }
     (*callback)();
     {
@@ -221,6 +228,7 @@ class V8_EXPORT_PRIVATE Stack final {
   void IteratePointersInSegment(StackVisitor* visitor, Segment segment) const;
 
   Segment current_segment_;
+  bool check_for_tls_ = false;
 
   mutable v8::base::Mutex lock_;
   std::map<ThreadId, Segment> background_stacks_;

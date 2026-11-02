@@ -208,7 +208,7 @@ TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
   Unreachable();
 
   BIND(&range_error);
-  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
+  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex, index);
 
   // 6. Return accessIndex.
   BIND(&done);

@@ -209,15 +209,27 @@ class SparseBitVector : public ZoneObject {
     return {bit_in_segment / kBitsPerWord, bit_in_segment % kBitsPerWord};
   }
 
-  V8_NOINLINE void InsertBitAfter(Segment* segment, int i) {
-    Segment* new_segment = zone_->New<Segment>();
+  V8_NOINLINE V8_PRESERVE_MOST void InsertBitAfter(Segment* segment, int i) {
+    // Search for an empty segment to reuse.
+    Segment* new_segment = nullptr;
+    for (Segment* prev = &first_segment_; prev->next; prev = prev->next) {
+      if (Segment* curr = prev->next; curr->empty()) {
+        prev->next = curr->next;
+        curr->next = nullptr;
+        new_segment = curr;
+        // If {segment} itself was empty and unlinked, insert after {prev}.
+        if (curr == segment) segment = prev;
+        break;
+      }
+    }
+    if (!new_segment) new_segment = zone_->New<Segment>();
     new_segment->offset = i / kNumBitsPerSegment * kNumBitsPerSegment;
     set(new_segment, i);
     InsertSegmentAfter(segment, new_segment);
     DCHECK(Contains(i));
   }
 
-  V8_NOINLINE void InsertSegmentAfter(Segment* segment, Segment* new_segment) {
+  void InsertSegmentAfter(Segment* segment, Segment* new_segment) {
     DCHECK_NOT_NULL(segment);
     DCHECK_LT(segment->offset, new_segment->offset);
     insert_after(segment, new_segment);

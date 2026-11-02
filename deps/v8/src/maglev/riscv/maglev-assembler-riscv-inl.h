@@ -917,7 +917,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   li(dst, Operand(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {

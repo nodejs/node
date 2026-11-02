@@ -37,9 +37,9 @@ class MaglevGraphProcessorTest : public TestWithNativeContextAndZone {
         MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
     Graph* graph = Graph::New(info.get());
     compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    PersistentHandlesScope persistent_scope(isolate());
     MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                      info->toplevel_compilation_unit(), graph);
-    PersistentHandlesScope persistent_scope(isolate());
     ASSERT_TRUE(graph_builder.Build());
 
     ReachableExceptionHandlerTracker tracker(graph);
@@ -139,9 +139,9 @@ TEST_F(MaglevGraphProcessorTest, GraphBackwardMultiProcessorOrder) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   ASSERT_TRUE(graph_builder.Build());
 
   EventRecorder recorder;

@@ -47,6 +47,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "TemporalZonedDateTime";
     case ManagedTypeId::kDisplayNamesInternal:
       return "DisplayNamesInternal";
+    case ManagedTypeId::kPluralRulesInternal:
+      return "PluralRulesInternal";
     case ManagedTypeId::kD8Worker:
       return "D8Worker";
     case ManagedTypeId::kD8ModuleEmbedderData:

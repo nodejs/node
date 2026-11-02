@@ -1,0 +1,2 @@
+Regression test for crbug.com/569886678.
+Paused on exception: TypeError: Cannot convert a Symbol value to a number

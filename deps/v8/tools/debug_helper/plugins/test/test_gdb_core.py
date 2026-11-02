@@ -7,6 +7,9 @@ import os
 import unittest
 from typing import cast
 
+from .helpers.args import check_args
+from .helpers.args import check_args_mismatch
+from .helpers.args import check_frame_relative_inspect
 from .helpers.backtrace import check_backtrace
 from .helpers.corruptions import check_corruption
 from .helpers.corruptions import check_corrupted_map_inspect
@@ -128,6 +131,37 @@ class GdbSourceCoreTest(unittest.TestCase):
     """Checks `v8 source` rendering, flags, and error handling."""
     with self._session() as session:
       check_source(session)
+
+
+class GdbArgsCoreTest(unittest.TestCase):
+  """Checks `v8 args` and frame-relative `v8 inspect` with a GDB core dump."""
+
+  def _session(self):
+    return GdbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        core_path=os.path.join(_CORE_DIR, "throw.core"),
+    )
+
+  def test_args(self):
+    """Checks `v8 args` rendering, flags, and error handling."""
+    with self._session() as session:
+      check_args(session)
+
+  def test_frame_relative_inspect(self):
+    """Checks `v8 inspect this|argN` against the selected frame."""
+    with self._session() as session:
+      check_frame_relative_inspect(session)
+
+  def test_args_mismatch(self):
+    """Checks under- and over-applied frames report call-site arguments."""
+    session = GdbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        core_path=os.path.join(_CORE_DIR, "args-mismatch.core"),
+    )
+    with session:
+      check_args_mismatch(session)
 
 
 class GdbCorruptedMapCoreTest(unittest.TestCase):

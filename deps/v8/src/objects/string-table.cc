@@ -820,14 +820,10 @@ void StringTable::InsertForIsolateDeserialization(
     Data* const data = EnsureCapacity(isolate, length);
 
     for (const DirectHandle<InternalizedString>& s : strings) {
-      StringTableInsertionKey key(
-          isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
       InternalIndex entry =
-          data->table().FindEntryOrInsertionEntry(isolate, &key, key.hash());
-
-      DirectHandle<String> inserted_string = key.GetHandleForInsertion(isolate);
-      DCHECK_IMPLIES(v8_flags.shared_string_table, inserted_string->IsShared());
-      data->table().AddAt(isolate, entry, *inserted_string);
+          data->table().FindInsertionEntry(isolate, s->EnsureHash());
+      DCHECK_IMPLIES(v8_flags.shared_string_table, s->IsShared());
+      data->table().AddAt(isolate, entry, *s);
     }
   }
 

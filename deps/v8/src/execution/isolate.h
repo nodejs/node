@@ -501,9 +501,13 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(LogEventCallback, event_logger, nullptr)                                \
   V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,     \
     nullptr)                                                                \
+  V(DynamicScriptCompiledFromEmbedderCallback, dynamic_script_callback,     \
+    nullptr)                                                                \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                  \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                \
+  V(WasmModuleCallback, wasm_module_callback, nullptr)                      \
+  V(ExtensionCallback, deprecated_wasm_module_callback, nullptr)            \
+  V(WasmInstanceCallback, wasm_instance_callback, nullptr)                  \
+  V(ExtensionCallback, deprecated_wasm_instance_callback, nullptr)          \
   V(SharedArrayBufferConstructorEnabledCallback,                            \
     sharedarraybuffer_constructor_enabled_callback, nullptr)                \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                \
@@ -895,12 +899,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   inline Address* c_entry_fp_address() {
     return &thread_local_top()->c_entry_fp_;
-  }
-  static uint32_t c_entry_fp_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, thread_local_top_) +
-                                 OFFSET_OF(ThreadLocalTop, c_entry_fp_) -
-                                 isolate_root_bias());
   }
   inline Address* handler_address() { return &thread_local_top()->handler_; }
   inline Address* c_function_address() {
@@ -1391,34 +1389,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &isolate_data_.thread_local_top_;
   }
 
-  constexpr static uint32_t context_offset() {
-    return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, context_) -
-        isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_sp_offset() {
-    return static_cast<uintptr_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                  OFFSET_OF(IsolateData, thread_local_top_) +
-                                  OFFSET_OF(ThreadLocalTop, central_stack_sp_) -
-                                  isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_limit_offset() {
-    return static_cast<uintptr_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, central_stack_limit_) - isolate_root_bias());
-  }
-
-  static uint32_t error_message_param_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, error_message_param_) -
-                                 isolate_root_bias());
-  }
-
   uint8_t error_message_param() { return isolate_data_.error_message_param_; }
 
   THREAD_LOCAL_TOP_ADDRESS(uint8_t, is_on_central_stack_flag)
@@ -1700,12 +1670,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   const std::string& DefaultLocale();
 
+  bool DefaultLocaleMayRequireSpecialCaseMapping() const {
+    return isolate_data_.default_locale_may_require_special_case_mapping_;
+  }
+
   void ResetDefaultLocale();
 
-  void set_default_locale(const std::string& locale) {
-    DCHECK_EQ(default_locale_.length(), 0);
-    default_locale_ = locale;
-  }
+  void set_default_locale(const std::string& locale);
 
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
@@ -2225,8 +2196,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
-  bool flush_denormals() const { return flush_denormals_; }
-
   // Register a finalizer to be called at isolate teardown.
   void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
@@ -2294,10 +2263,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.external_pointer_table_;
   }
 
-  Address external_pointer_table_address() {
-    return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
-  }
-
   ExternalPointerTable& shared_external_pointer_table() {
     return *isolate_data_.shared_external_pointer_table_;
   }
@@ -2334,10 +2299,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.trusted_pointer_table_;
   }
 
-  Address trusted_pointer_table_base_address() const {
-    return isolate_data_.trusted_pointer_table_.base_address();
-  }
-
   TrustedPointerTable& shared_trusted_pointer_table() {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
@@ -2352,11 +2313,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
-  }
-
-  Address shared_trusted_pointer_table_base_address() {
-    return reinterpret_cast<Address>(
-        &isolate_data_.shared_trusted_pointer_table_);
   }
 
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope() const {
@@ -2539,6 +2495,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void Freeze(bool is_frozen) {
     is_frozen_ = is_frozen;
+    if (v8_flags.freeze_forces_marking_finalization && IsFrozen()) {
+      // We will either finalize an ongoing GC, or simply do a GC to reclaim
+      // any unreachable memory.
+      heap()->FinalizeIncrementalMarkingAtomicallyIfRunning(
+          i::GarbageCollectionReason::kFrozen);
+    }
   }
 
   static void IterateRegistersAndStackOfSimulator(
@@ -2944,7 +2906,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       abort_on_uncaught_exception_callback_ = nullptr;
 
   bool allow_atomics_wait_ = true;
-  bool flush_denormals_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;

@@ -144,6 +144,7 @@ namespace internal {
   V(GlobalDictionary)                           \
   V(HashSeedWrapper)                            \
   V(HeapNumber)                                 \
+  V(UninitializedHeapNumber)                    \
   V(InterceptorInfo)                            \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \
@@ -154,8 +155,6 @@ namespace internal {
   V(JSAsyncFromSyncIterator)                    \
   V(JSAsyncFunctionObject)                      \
   V(JSAsyncGeneratorObject)                     \
-  V(JSAtomicsCondition)                         \
-  V(JSAtomicsMutex)                             \
   V(JSBoundFunction)                            \
   V(JSCollection)                               \
   V(JSCollectionIterator)                       \
@@ -208,7 +207,6 @@ namespace internal {
   V(JSSharedStruct)                             \
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
-  V(JSSynchronizationPrimitive)                 \
   V(JSDetachedTypedArray)                       \
   V(JSTypedArray)                               \
   V(JSValidIteratorWrapper)                     \
@@ -494,6 +492,7 @@ namespace internal {
   V(JSSetIteratorPrototype)                  \
   V(JSStringIteratorPrototype)               \
   V(TypedArrayConstructor)                   \
+  V(Uint8JSTypedArray)                       \
   V(Uint8TypedArrayConstructor)              \
   V(Int8TypedArrayConstructor)               \
   V(Uint16TypedArrayConstructor)             \
@@ -550,11 +549,13 @@ namespace internal {
   V(Numeric)
 
 // These forward-declarations expose heap object types to most of our codebase.
-#define DEF_FWD_DECLARATION(Type) class Type;
+#define DEF_FWD_DECLARATION(Type, ...) class Type;
 HEAP_OBJECT_ORDINARY_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
 VIRTUAL_OBJECT_TYPE_LIST(DEF_FWD_DECLARATION)
+ODDBALL_LIST(DEF_FWD_DECLARATION)
+HOLE_LIST(DEF_FWD_DECLARATION)
 #undef DEF_FWD_DECLARATION
 
 #ifndef V8_ENABLE_TDZ_HOLE

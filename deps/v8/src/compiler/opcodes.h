@@ -814,7 +814,7 @@
   V(LoadImmutable)                       \
   V(Store)                               \
   V(StorePair)                           \
-  V(StoreIndirectPointer)                \
+  V(StoreTrustedPointer)                 \
   V(StackSlot)                           \
   V(Word32Popcnt)                        \
   V(Word64Popcnt)                        \

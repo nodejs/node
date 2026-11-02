@@ -116,7 +116,7 @@ void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
 
   // Convert input string.
   i::MaybeDirectHandle<i::String> maybe_source =
-      factory_->NewStringFromUtf8(v8::base::CStrVector(regexp_input.c_str()));
+      factory_->NewStringFromUtf8(regexp_input);
   i::DirectHandle<i::String> source;
   if (!maybe_source.ToHandle(&source)) {
     i_isolate_->clear_exception();

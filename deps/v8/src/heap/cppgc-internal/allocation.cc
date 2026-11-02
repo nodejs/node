@@ -35,8 +35,8 @@ static_assert(api_constants::kMaxSupportedAlignment >=
 // static
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, index, ObjectAllocator::MayContainMixins::kNo);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kNo>(size, index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -45,8 +45,9 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
     GCInfoIndex index) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, alignment, index, ObjectAllocator::MayContainMixins::kNo);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kNo>(size, alignment,
+                                                              index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -55,8 +56,9 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index,
     CustomSpaceIndex space_index) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, index, space_index, ObjectAllocator::MayContainMixins::kNo);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kNo>(size, index,
+                                                              space_index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -65,15 +67,15 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
     GCInfoIndex index, CustomSpaceIndex space_index) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, alignment, index, space_index,
-      ObjectAllocator::MayContainMixins::kNo);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kNo>(
+          size, alignment, index, space_index);
 }
 
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index, MixinTag) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, index, ObjectAllocator::MayContainMixins::kYes);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kYes>(size, index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -82,8 +84,9 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
     GCInfoIndex index, MixinTag) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, alignment, index, ObjectAllocator::MayContainMixins::kYes);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kYes>(size, alignment,
+                                                               index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -92,8 +95,9 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index,
     CustomSpaceIndex space_index, MixinTag) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, index, space_index, ObjectAllocator::MayContainMixins::kYes);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kYes>(size, index,
+                                                               space_index);
 }
 
 // Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
@@ -102,9 +106,9 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
     GCInfoIndex index, CustomSpaceIndex space_index, MixinTag) {
-  return static_cast<ObjectAllocator&>(handle).AllocateObject(
-      size, alignment, index, space_index,
-      ObjectAllocator::MayContainMixins::kYes);
+  return static_cast<ObjectAllocator&>(handle)
+      .AllocateObject<ObjectAllocator::MayContainMixins::kYes>(
+          size, alignment, index, space_index);
 }
 
 }  // namespace internal

@@ -10,6 +10,7 @@ types:
   - type_name: speed_t
   - type_name: pid_t
   - type_name: cc_t
+  - type_name: struct_winsize
 enums: []
 objects: []
 functions:
@@ -87,3 +88,17 @@ functions:
       - type: int
       - type: int
       - type: struct termios *
+  - name: tcgetwinsize
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct winsize *
+  - name: tcsetwinsize
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const struct winsize *

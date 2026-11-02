@@ -1,0 +1,11 @@
+Checks that custom formatters budget correctly charges for undefined/function properties.
+
+Running test: setUp
+
+Running test: testShared60k
+Evaluating shared-60k
+no custom preview
+
+Running test: testDAG
+Evaluating DAG
+no custom preview

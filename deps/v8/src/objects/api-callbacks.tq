@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppScope('InterceptorInfo')
-bitfield struct InterceptorInfoFlags extends uint31 {
+@cppScope('InterceptorInfo::Flags')
+bitfield struct InterceptorInfoFlags extends uint32 {
   can_intercept_symbols: bool: 1 bit;
   non_masking: bool: 1 bit;
   named: bool: 1 bit;
@@ -39,7 +39,7 @@ extern class AccessCheckInfo extends Struct {
 
 type SideEffectType extends int32 constexpr 'SideEffectType';
 
-@cppScope('AccessorInfo')
+@cppScope('AccessorInfo::Flags')
 bitfield struct AccessorInfoFlags extends uint32 {
   is_sloppy: bool: 1 bit;
   replace_on_access: bool: 1 bit;

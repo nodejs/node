@@ -1,0 +1,11 @@
+Checks side-effect free evaluation while a pause on the next function call is requested.
+Evaluate side-effect free call:
+{
+    description : 42
+    type : number
+    value : 42
+}
+Evaluate side-effecting call:
+EvalError: Possible side-effect in debug-evaluate
+Pause request is still honored afterwards:
+Paused in (anonymous)

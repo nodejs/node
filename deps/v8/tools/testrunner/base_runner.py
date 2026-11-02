@@ -337,6 +337,11 @@ class BaseTestRunner(object):
     parser.add_option("--no-harness", "--noharness",
                       default=False, action="store_true",
                       help="Run without test harness of a given suite")
+    parser.add_option(
+        "--no-fork-server",
+        default=False,
+        action="store_true",
+        help="Do not use fork server for running v8_unittests")
     parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
     parser.add_option("--run-skipped", help="Also run skipped tests.",
@@ -772,6 +777,7 @@ class BaseTestRunner(object):
         timeout=timeout,
         verbose=self.options.verbose,
         regenerate_expected_files=self.options.regenerate_expected_files,
+        no_fork_server=self.options.no_fork_server,
     )
 
   # TODO(majeski): remove options & args parameters

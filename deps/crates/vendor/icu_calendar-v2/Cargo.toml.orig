@@ -5,7 +5,7 @@
 [package]
 name = "icu_calendar"
 description = "Date APIs for Gregorian and non-Gregorian calendars"
-version = "2.2.1"
+version.workspace = true
 categories.workspace = true
 keywords = ["unicode", "formatting", "date"]
 
@@ -36,7 +36,7 @@ databake = { workspace = true, features = ["derive"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 
 icu_calendar_data = { workspace = true, optional = true }
-icu_locale = { workspace = true, optional = true }
+icu_locale_fallback = { workspace = true, optional = true }
 
 chrono = { workspace = true, optional = true }
 jiff = { workspace = true, optional = true }
@@ -50,7 +50,7 @@ serde = { workspace = true, features = ["derive", "alloc"] }
 serde_json = { workspace = true }
 simple_logger = { workspace = true }
 ureq = { workspace = true }
-insta = "1.38.0"
+insta = { workspace = true }
 time = { workspace = true, features = ["large-dates"]}
 
 
@@ -62,9 +62,9 @@ criterion = { workspace = true }
 default = ["compiled_data", "ixdtf"]
 ixdtf = ["dep:ixdtf"]
 logging = ["calendrical_calculations/logging"]
-serde = ["dep:serde", "zerovec/serde", "tinystr/serde", "icu_provider/serde"]
-datagen = ["serde", "dep:databake", "zerovec/databake", "tinystr/databake", "alloc", "icu_provider/export"]
-compiled_data = ["dep:icu_calendar_data", "dep:icu_locale", "icu_locale?/compiled_data", "icu_provider/baked"]
+serde = ["dep:serde", "zerovec/serde", "tinystr/serde", "icu_provider/serde", "icu_locale_core/serde"]
+datagen = ["serde", "dep:databake", "zerovec/databake", "tinystr/databake", "alloc", "icu_provider/export", "icu_locale_core/databake"]
+compiled_data = ["dep:icu_calendar_data", "dep:icu_locale_fallback", "icu_locale_fallback?/compiled_data", "icu_provider/baked"]
 unstable = []
 unstable_jiff_0_2 = ["dep:jiff"]
 unstable_chrono_0_4 = ["dep:chrono"]
@@ -82,6 +82,10 @@ harness = false
 
 [[bench]]
 name = "convert"
+harness = false
+
+[[bench]]
+name = "preferred"
 harness = false
 
 [[test]]

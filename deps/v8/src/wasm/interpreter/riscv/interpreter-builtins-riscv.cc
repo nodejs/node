@@ -217,7 +217,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldMemOperand(shared_function_info,
                       offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kWasmExportedFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
   shared_function_info = no_reg;
 
   LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);

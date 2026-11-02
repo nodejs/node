@@ -51,10 +51,10 @@ TEST_F(MaglevGraphBuilderTest, LoopEffectEpochComparison) {
       MaglevGraphLabellerScope graph_labeller_scope(info->graph_labeller());
       Graph* graph = Graph::New(info.get());
       compiler::CurrentHeapBrokerScope current_broker(info->broker());
+      PersistentHandlesScope persistent_scope(isolate());
       MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                        info->toplevel_compilation_unit(),
                                        graph);
-      PersistentHandlesScope persistent_scope(isolate());
       ASSERT_TRUE(graph_builder.Build());
       int loop_count = 0;
       for (BasicBlock* block : graph->blocks()) {
@@ -105,9 +105,9 @@ TEST_F(MaglevGraphBuilderTest, TrailingArgumentsRemoval) {
         MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
     Graph* graph = Graph::New(info.get());
     compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    PersistentHandlesScope persistent_scope(isolate());
     MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                      info->toplevel_compilation_unit(), graph);
-    PersistentHandlesScope persistent_scope(isolate());
     CHECK(graph_builder.Build());
     CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
     CHECK_EQ(strict ? 2 : 4, func->num_args());
@@ -133,9 +133,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemoval) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   CHECK_EQ(2, func->num_args());
@@ -167,9 +167,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalHighIndex) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   // No trailing arguments to remove: all 6 are formal parameters.
@@ -204,9 +204,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalWithTruncation) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   // The trailing 6th argument has been dropped, leaving the 5 formal params.
@@ -250,9 +250,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalSignExtension) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   CHECK_EQ(32, func->num_args());

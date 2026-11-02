@@ -10,7 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/string.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::compiler {
@@ -360,7 +360,7 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
 }
 
 Node* WasmGraphAssembler::LoadTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
+    Node* object, int field_offset, TrustedPointerTagRange tag) {
 #ifdef V8_ENABLE_SANDBOX
   return AddNode(graph()->NewNode(common_.LoadTrustedPointer(field_offset, tag),
                                   object, effect(), control()));
@@ -395,15 +395,7 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   return LoadTrustedPointerFromObject(
       shared,
       offsetof(SharedFunctionInfo, trusted_function_data_) - kHeapObjectTag,
-      kWasmExportedFunctionDataIndirectPointerTag);
-}
-
-Node* WasmGraphAssembler::LoadExportedFunctionInstanceData(
-    Node* exported_function_data) {
-  return LoadImmutableProtectedPointerFromObject(
-      exported_function_data,
-      offsetof(WasmExportedFunctionData, protected_instance_data_) -
-          kHeapObjectTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
 }
 
 // JavaScript objects.
@@ -417,17 +409,18 @@ Node* WasmGraphAssembler::LoadJSArrayElements(Node* js_array) {
 
 Node* WasmGraphAssembler::FieldOffset(const wasm::StructType* type,
                                       uint32_t field_index) {
-  return IntPtrConstant(WasmStruct::kHeaderSize +
-                        type->field_offset(field_index) - kHeapObjectTag);
+  return IntPtrConstant(WasmStruct::FieldOffset(type, field_index) -
+                        kHeapObjectTag);
 }
 
 Node* WasmGraphAssembler::WasmArrayElementOffset(Node* index,
-                                                 wasm::ValueType element_type) {
+                                                 const wasm::ArrayType* type) {
   Node* index_intptr =
       mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(index) : index;
   return IntAdd(
-      IntPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag),
-      IntMul(index_intptr, IntPtrConstant(element_type.value_kind_size())));
+      IntPtrConstant(WasmArray::HeaderSize(type->is_shared()) - kHeapObjectTag),
+      IntMul(index_intptr,
+             IntPtrConstant(type->element_type().value_kind_size())));
 }
 
 Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
@@ -436,9 +429,15 @@ Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
   // unsigned comparison.
   Node* comparison_value =
       Int32Sub(instance_type, Int32Constant(FIRST_WASM_OBJECT_TYPE));
-  return Uint32LessThanOrEqual(
-      comparison_value,
-      Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE));
+  // Computing both conditions and OR-ing them isn't the most efficient
+  // approach, but this code is deprecated anyway (only used for Wasm-into-JS
+  // inlining currently, slated to be replaced by Turboshaft).
+  return Word32Or(
+      Uint32LessThanOrEqual(
+          comparison_value,
+          Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE)),
+      Word32Equal(comparison_value, Int32Constant(WASM_CUSTOM_MAP_TYPE -
+                                                  FIRST_WASM_OBJECT_TYPE)));
 }
 
 Node* WasmGraphAssembler::WasmTypeCheck(Node* object, Node* rtt,
@@ -554,7 +553,7 @@ Node* WasmGraphAssembler::LoadTrustedDataFromInstanceObject(
   return LoadTrustedPointerFromObject(
       instance_object,
       offsetof(WasmInstanceObject, trusted_data_) - kHeapObjectTag,
-      kWasmTrustedInstanceDataIndirectPointerTag);
+      kWasmTrustedInstanceDataTrustedPointerTag);
 }
 
 // Generic HeapObject helpers.

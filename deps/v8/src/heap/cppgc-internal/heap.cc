@@ -76,7 +76,7 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
     : HeapBase(platform, options.custom_spaces, options.stack_support,
                options.marking_support, options.sweeping_support, gc_invoker_,
-               options.stack_start_marker),
+               options.stack_start_marker, options.allocation_sampler),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
@@ -214,6 +214,8 @@ void Heap::FinalizeGarbageCollectionImpl(StackState stack_state) {
 #if defined(CPPGC_YOUNG_GENERATION)
   ResetRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  FilterSampledObjects();
 
   subtle::NoGarbageCollectionScope no_gc(*this);
   const SweepingConfig sweeping_config{

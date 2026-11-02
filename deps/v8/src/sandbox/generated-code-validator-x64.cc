@@ -38,7 +38,7 @@ struct FdInstrFormatter {
     }                                                      \
   } while (false)
 
-class InstructionChecker {
+class InstructionHandler {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   static constexpr int cage_base_register = kPtrComprCageBaseRegister.code();
   static_assert(kRootRegister != no_reg);
@@ -48,33 +48,91 @@ class InstructionChecker {
   using ViolationsReporter = GeneratedCodeValidator::ViolationsReporter;
   using Utils = GeneratedCodeValidator::Utils;
   using State = GeneratedCodeValidator::State;
+  using BoolValue = State::BoolValue;
+  using Node = GeneratedCodeValidator::ControlFlowGraph<FdInstr>::Node;
 
  public:
-  InstructionChecker(Isolate* isolate, Tagged<Code> code,
-                     ViolationsReporter& violations_reproter)
+  InstructionHandler(Isolate* isolate, Tagged<Code> code,
+                     ViolationsReporter& violations_reporter)
       : isolate_(isolate),
         code_(code),
-        violations_reporter_(violations_reproter),
-        state_(code_) {}
+        violations_reporter_(violations_reporter) {}
 
-  void Check(const uint8_t* pc, const FdInstr& instr) {
+  void CheckStateDataFlowIndependent(const uint8_t* pc, const FdInstr& instr) {
     static_assert(kMaxOperands == (sizeof(instr.operands) / sizeof(FdOp)));
-    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
-    if (code_->kind() != CodeKind::REGEXP) {
-      CheckNoWritesToCageBaseRegister(pc, instr);
-      CheckNoWritesToRootRegister(pc, instr);
-    }
     CheckNoSegmentRegisters(pc, instr);
   }
 
+  State UpdateState(const Node& node) {
+    State state = node.input_state();
+    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
+    if (code_->kind() != CodeKind::REGEXP) {
+      const FdInstr& instr = node.instr();
+      UpdateCageBaseRegisterState(instr, state);
+      UpdateRootRegisterState(instr, state);
+    }
+    return state;
+  }
+
+  void CheckState(const Node& node) {
+    const uint8_t* pc = node.pc();
+    const FdInstr& instr = node.instr();
+    const State& state = node.input_state();
+    // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
+    if (code_->kind() != CodeKind::REGEXP) {
+      CheckNoWritesToCageBaseRegister(pc, instr, state);
+      CheckNoWritesToRootRegister(pc, instr, state);
+    }
+  }
+
  private:
+  void UpdateCageBaseRegisterState(const FdInstr& instr, State& state) {
+    switch (FD_TYPE(&instr)) {
+      case FDI_POP:
+        if (IsCageBaseReg(instr, 0) &&
+            (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
+          state.is_cage_base_reg_valid_ = BoolValue::kFalse;
+        }
+        break;
+      case FDI_MOV:
+        if (IsCageBaseReg(instr, 0) &&
+            IsValidCageBaseRegInitialization(instr)) {
+          state.is_cage_base_reg_valid_ = BoolValue::kTrue;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  void UpdateRootRegisterState(const FdInstr& instr, State& state) {
+    switch (FD_TYPE(&instr)) {
+      case FDI_POP:
+        if (IsRootReg(instr, 0) &&
+            (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
+          state.is_root_reg_valid_ = BoolValue::kFalse;
+        }
+        break;
+      case FDI_MOV:
+      case FDI_MOVABS:
+        if (IsRootReg(instr, 0) && Utils::IsEntryCode(code_)) {
+          state.is_root_reg_valid_ = IsValidRootRegInitialization(instr)
+                                         ? BoolValue::kTrue
+                                         : BoolValue::kFalse;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   // Verifies whether the instruction accesses the pointer compression cage base
   // register (r14) directly. The cage base register must remain read-only
   // across all generated code to preserve sandbox integrity and prevent pointer
   // corruption. This will not block using the case base register as a
   // base address for a memory operand.
-  void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
-                                       const FdInstr& instr) {
+  void CheckNoWritesToCageBaseRegister(const uint8_t* pc, const FdInstr& instr,
+                                       const State& state) {
     switch (FD_TYPE(&instr)) {
       // Cmp is used to assert that a register holds a heap object in the main
       // cage.
@@ -110,7 +168,6 @@ class InstructionChecker {
           // register so that the deoptimizer can update register values as
           // needed. Since the cage base register is callee saved and should not
           // change, can we avoid saving and restoring it?
-          state_.is_cage_base_reg_valid_ = false;
           return;
         }
         break;
@@ -120,15 +177,12 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr, 0)) {
           return;
         }
-        VALIDATOR_CHECK(!state_.is_cage_base_reg_valid_,
+        VALIDATOR_CHECK(state.is_cage_base_reg_valid_ == BoolValue::kFalse,
                         "Instruction overwrites a valid cage base register");
-        if (Utils::IsEntryCode(code_) &&
-            IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
-                                    IsolateData::cage_base_offset())) {
+        if (IsValidCageBaseRegInitialization(instr)) {
           VALIDATOR_CHECK(
-              state_.is_root_reg_valid_,
+              state.is_root_reg_valid_ == BoolValue::kTrue,
               "Cage base register initialization uses invalid root register");
-          state_.is_cage_base_reg_valid_ = true;
           return;
         }
         break;
@@ -151,7 +205,8 @@ class InstructionChecker {
   // directly. The root register must remain read-only across all generated code
   // to preserve sandbox integrity and prevent pointer corruption. This will not
   // block using the root register as a base address for a memory operand.
-  void CheckNoWritesToRootRegister(const uint8_t* pc, const FdInstr& instr) {
+  void CheckNoWritesToRootRegister(const uint8_t* pc, const FdInstr& instr,
+                                   const State& state) {
     switch (FD_TYPE(&instr)) {
       // Push is used by entry and deopt builtins to save the root register's
       // value in C++ code.
@@ -173,7 +228,6 @@ class InstructionChecker {
         // change, can we avoid saving and restoring it?
         if (IsRootReg(instr, 0) &&
             (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
-          state_.is_root_reg_valid_ = false;
           return;
         }
         break;
@@ -183,9 +237,9 @@ class InstructionChecker {
         if (!IsRootReg(instr, 0)) {
           return;
         }
-        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+        VALIDATOR_CHECK(state.is_root_reg_valid_ == BoolValue::kFalse,
                         "Instruction overwrites a valid root register");
-        if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
+        if (IsValidRootRegInitialization(instr)) {
           return;
         }
         break;
@@ -245,35 +299,127 @@ class InstructionChecker {
            (FD_OP_DISP(&instr, op_idx) == displacement);
   }
 
-  bool IsValidRootRegInitialization(const FdInstr& instr) {
+  bool IsValidCageBaseRegInitialization(const FdInstr& instr) const {
+    DCHECK(IsCageBaseReg(instr, 0));
+    return Utils::IsEntryCode(code_) && (FD_TYPE(&instr) == FDI_MOV) &&
+           IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
+                                   IsolateData::cage_base_offset());
+  }
+
+  bool IsValidRootRegInitialization(const FdInstr& instr) const {
     DCHECK(IsRootReg(instr, 0));
+    if (!Utils::IsEntryCode(code_)) {
+      return false;
+    }
     switch (FD_TYPE(&instr)) {
       case FDI_MOVABS: {
         DCHECK_EQ(FD_OT_IMM, FD_OP_TYPE(&instr, 1));
         const int64_t imm_value = FD_OP_IMM(&instr, 1);
-        state_.is_root_reg_valid_ =
-            static_cast<const uint64_t>(imm_value) ==
-            ExternalReference::isolate_root(isolate_).raw();
-        break;
+        return static_cast<const uint64_t>(imm_value) ==
+               ExternalReference::isolate_root(isolate_).raw();
       }
       case FDI_MOV:
         // Assumes builtins receive the correct value as their first
         // argument.
-        state_.is_root_reg_valid_ =
-            (code_->kind() == CodeKind::BUILTIN) &&
-            IsExpectedReg(instr, 1, kCArgRegs[0].code());
-        break;
+        return (code_->kind() == CodeKind::BUILTIN) &&
+               IsExpectedReg(instr, 1, kCArgRegs[0].code());
       default:
         UNREACHABLE();
     }
-    return state_.is_root_reg_valid_;
   }
 
   Isolate* const isolate_;
   const Tagged<Code> code_;
   ViolationsReporter& violations_reporter_;
-  State state_;
 };
+
+namespace {
+
+// TODO(523128533): Handle jump tables, indirect calls, and tail calls.
+base::SmallVector<const uint8_t*, 2> GetSuccessors(const uint8_t* pc,
+                                                   const FdInstr& instr,
+                                                   const uint8_t* next_pc) {
+  bool falls_through = true;
+  const uint8_t* jump_target = nullptr;
+  switch (FD_TYPE(&instr)) {
+    // Unconditional jumps.
+    case FDI_JMP:
+      falls_through = false;
+      if (FD_OP_TYPE(&instr, 0) == FD_OT_OFF) {
+        jump_target = pc + FD_SIZE(&instr) + FD_OP_IMM(&instr, 0);
+      } else {
+        // TODO(523128533): Handle jump tables and indirect jumps.
+      }
+      break;
+    case FDI_JMPF:
+      // TODO(523128533): Handle indirect jumps.
+      falls_through = false;
+      break;
+    // Conditional direct jumps.
+    case FDI_JA:
+    case FDI_JBE:
+    case FDI_JC:
+    case FDI_JCXZ:
+    case FDI_JG:
+    case FDI_JGE:
+    case FDI_JL:
+    case FDI_JLE:
+    case FDI_JNC:
+    case FDI_JNO:
+    case FDI_JNP:
+    case FDI_JNS:
+    case FDI_JNZ:
+    case FDI_JO:
+    case FDI_JP:
+    case FDI_JS:
+    case FDI_JZ:
+    case FDI_LOOP:
+    case FDI_LOOPNZ:
+    case FDI_LOOPZ:
+      DCHECK_EQ(FD_OP_TYPE(&instr, 0), FD_OT_OFF);
+      jump_target = pc + FD_SIZE(&instr) + FD_OP_IMM(&instr, 0);
+      break;
+    // Return instructions.
+    case FDI_RET:
+    case FDI_RETF:
+    case FDI_IRET:
+    case FDI_UIRET:
+    case FDI_ERETS:
+    case FDI_ERETU:
+    case FDI_SYSRET:
+    case FDI_SYSEXIT:
+    case FDI_RSM:
+    case FDI_SEAMRET:
+      falls_through = false;
+      break;
+    // Call instructions are treated as non-control-flow to keep the graph
+    // intra-procedural.
+    // TODO(523128533): Properly handle calls, including handling of register
+    // values across calls.
+    case FDI_CALL:
+    case FDI_CALLF:
+      DCHECK(falls_through);
+      break;
+    default:
+      break;
+  }
+  base::SmallVector<const uint8_t*, 2> successors;
+  if (falls_through && next_pc != nullptr) {
+    successors.push_back(next_pc);
+  }
+  if (jump_target != nullptr && (!falls_through || jump_target != next_pc)) {
+    successors.push_back(jump_target);
+  }
+  return successors;
+}
+
+}  // namespace
+
+// static
+size_t GeneratedCodeValidator::EstimateInstructionCount(Tagged<Code> code) {
+  static constexpr size_t kAverageInstructionSize = 4;
+  return code->instruction_size() / kAverageInstructionSize;
+}
 
 void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
   const uint8_t* const code_start =
@@ -281,8 +427,8 @@ void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
   const uint8_t* const code_end = code_start + code->instruction_size();
 
   ViolationsReporter reporter(code);
-
-  InstructionChecker instruction_checker(isolate, code, reporter);
+  InstructionHandler instruction_handler(isolate, code, reporter);
+  ControlFlowGraph<FdInstr> graph(code);
 
   InstructionIteratorSkippingData it(code);
 
@@ -302,9 +448,13 @@ void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
       reporter.RecordDisassembledInstruction(pc, res,
                                              FdInstrFormatter::Format(instr));
     }
-    instruction_checker.Check(pc, instr);
+    instruction_handler.CheckStateDataFlowIndependent(pc, instr);
     it.Advance(res);
+    const uint8_t* next_pc = it.IsDone() ? nullptr : it.GetCurrent();
+    graph.AddNode(pc, instr, GetSuccessors(pc, instr, next_pc));
   }
+
+  graph.Validate(instruction_handler);
 }
 
 }  // namespace v8::internal

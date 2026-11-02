@@ -34,7 +34,5 @@ function TestSharedObjectCannotRedefineProperty(sharedObj) {
   assertTrue(Object.isSealed(sharedObj));
 }
 
-TestSharedObjectCannotRedefineProperty(new Atomics.Condition());
-TestSharedObjectCannotRedefineProperty(new Atomics.Mutex());
 TestSharedObjectCannotRedefineProperty(new (new SharedStructType(['p'])));
 TestSharedObjectCannotRedefineProperty(new SharedArray(1));

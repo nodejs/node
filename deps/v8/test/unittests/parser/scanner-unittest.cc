@@ -53,6 +53,48 @@ const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 // names. That should have the same result, but has much nicer error messaages.
 #define CHECK_TOK(a, b) CHECK_EQ(Token::Name(a), Token::Name(b))
 
+TEST_F(ScannerTest, HasImmediateCommaOrRightBracket) {
+  const struct {
+    const char* source;
+    Token::Value literal;
+    Token::Value following;
+    bool is_immediate_delimiter;
+  } cases[] = {
+      {"1,2", Token::kSmi, Token::kComma, true},
+      {"1]", Token::kSmi, Token::kRightBracket, true},
+      {"1 ,2", Token::kSmi, Token::kComma, false},
+      {"1\n]", Token::kSmi, Token::kRightBracket, false},
+      {"1/*comment*/,2", Token::kSmi, Token::kComma, false},
+      {"1//comment\n]", Token::kSmi, Token::kRightBracket, false},
+      {"1n]", Token::kBigInt, Token::kRightBracket, true},
+      {"'s',2", Token::kString, Token::kComma, true},
+      {"null]", Token::kNullLiteral, Token::kRightBracket, true},
+      {"1", Token::kSmi, Token::kEos, false},
+      {"1/*", Token::kSmi, Token::kIllegal, false},
+      {"1+2]", Token::kSmi, Token::kAdd, false},
+      {"1/*]*/+2", Token::kSmi, Token::kAdd, false},
+      {"'s'.length]", Token::kString, Token::kPeriod, false},
+  };
+  for (const auto& test_case : cases) {
+    for (int lookahead = 0; lookahead < 3; ++lookahead) {
+      auto scanner = make_scanner(test_case.source);
+      if (lookahead > 0) scanner->PeekAhead();
+      if (lookahead > 1) scanner->PeekAheadAhead();
+      CHECK_EQ(test_case.is_immediate_delimiter && lookahead == 0,
+               scanner->HasImmediateCommaOrRightBracket());
+      CHECK_TOK(test_case.literal, scanner->Next());
+      CHECK_TOK(test_case.following, scanner->Next());
+
+      auto error_scanner = make_scanner(test_case.source);
+      if (lookahead > 0) error_scanner->PeekAhead();
+      if (lookahead > 1) error_scanner->PeekAheadAhead();
+      error_scanner->set_parser_error();
+      CHECK(!error_scanner->HasImmediateCommaOrRightBracket());
+      CHECK_TOK(Token::kIllegal, error_scanner->Next());
+    }
+  }
+}
+
 TEST_F(ScannerTest, Bookmarks) {
   // Scan through the given source and record the tokens for use as reference
   // below.

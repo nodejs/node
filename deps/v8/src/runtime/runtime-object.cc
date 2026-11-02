@@ -1462,6 +1462,21 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
 }
 }  // namespace
 
+MaybeDirectHandle<Object> Runtime::HasPrivateMember(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<String> desc) {
+  std::vector<PrivateMember> results;
+  MAYBE_RETURN_NULL(
+      CollectPrivateMembersFromReceiver(isolate, receiver, desc, &results));
+
+  if (results.size() > 1) {
+    THROW_NEW_ERROR(isolate,
+                    NewError(MessageTemplate::kConflictingPrivateName, desc));
+  }
+
+  return isolate->factory()->ToBoolean(!results.empty());
+}
+
 MaybeDirectHandle<Object> Runtime::GetPrivateMember(
     Isolate* isolate, DirectHandle<JSReceiver> receiver,
     DirectHandle<String> desc) {
@@ -1528,6 +1543,23 @@ MaybeDirectHandle<Object> Runtime::SetPrivateMember(
     }
   }
   UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_HasPrivateMember) {
+  HandleScope scope(isolate);
+  // TODO(chromium:1381806) support specifying scopes, or selecting the right
+  // one from the conflicting names.
+  DCHECK_EQ(args.length(), 2);
+  DirectHandle<Object> receiver = args.at<Object>(0);
+  Handle<String> desc = args.at<String>(1);
+  if (IsJSReceiver(*receiver)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
+        Runtime::HasPrivateMember(isolate, Cast<JSReceiver>(receiver), desc));
+  }
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kInvalidInOperatorUse, desc, receiver));
 }
 
 RUNTIME_FUNCTION(Runtime_GetPrivateMember) {
@@ -1747,7 +1779,7 @@ RUNTIME_FUNCTION(Runtime_CheckFastIterableToListPrototype) {
 
   // Switch prototype to fast mode in order to ensure that constness tracking
   // will invalidate the prototype's validity cell in case of modification.
-  JSObject::OptimizeAsPrototype(prototype);
+  JSObject::MakePrototypesFast(prototype, kStartAtReceiver, isolate);
 
   // 1. Check if the prototype has expected [Symbol.iterator] property (kData
   // and kConst).

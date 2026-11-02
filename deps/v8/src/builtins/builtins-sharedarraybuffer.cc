@@ -100,7 +100,7 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
       access_index >= typed_array_length) {
     isolate->Throw(*isolate->factory()->NewRangeError(
-        MessageTemplate::kInvalidAtomicAccessIndex));
+        MessageTemplate::kInvalidAtomicAccessIndex, access_index_obj));
     return Nothing<size_t>();
   }
   return Just<size_t>(access_index);

@@ -24,6 +24,10 @@ impl<const N: usize> TinyAsciiStr<N> {
         bytes: [AsciiByte::B0; N],
     };
 
+    pub const fn default() -> Self {
+        Self::EMPTY
+    }
+
     #[inline]
     pub const fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
@@ -842,6 +846,12 @@ impl<const N: usize> Deref for TinyAsciiStr<N> {
     #[inline]
     fn deref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl<const N: usize> Default for TinyAsciiStr<N> {
+    fn default() -> Self {
+        Self::default()
     }
 }
 

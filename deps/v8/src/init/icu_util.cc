@@ -12,8 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <memory>
+
 #include "src/base/build_config.h"
 #include "src/base/file-utils.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "unicode/putil.h"
 #include "unicode/udata.h"
@@ -29,9 +32,15 @@ namespace internal {
 
 #if defined(V8_INTL_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
+#if V8_OS_POSIX && !V8_OS_ZOS
+base::OS::MemoryMappedFile* g_icu_data_file = nullptr;
+
+void free_icu_data_file() { delete g_icu_data_file; }
+#else
 char* g_icu_data_ptr = nullptr;
 
 void free_icu_data_ptr() { delete[] g_icu_data_ptr; }
+#endif
 
 }  // namespace
 #endif
@@ -69,6 +78,22 @@ bool InitializeICU(const char* icu_data_file) {
 #elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
   if (!icu_data_file) return false;
 
+// On Windows MemoryMappedFile decodes the path as UTF-8 while fopen uses the
+// ANSI code page, and on z/OS MemoryMappedFile::open mishandles a missing
+// file, so both keep reading the file into a heap buffer.
+#if V8_OS_POSIX && !V8_OS_ZOS
+  if (g_icu_data_file) return true;
+
+  std::unique_ptr<base::OS::MemoryMappedFile> file(
+      base::OS::MemoryMappedFile::open(
+          icu_data_file, base::OS::MemoryMappedFile::FileMode::kReadOnly));
+  // Empty files are opened but not mapped.
+  if (!file || !file->memory()) return false;
+
+  g_icu_data_file = file.release();
+  atexit(free_icu_data_file);
+  const void* data = g_icu_data_file->memory();
+#else
   if (g_icu_data_ptr) return true;
 
   FILE* inf = base::Fopen(icu_data_file, "rb");
@@ -93,9 +118,11 @@ bool InitializeICU(const char* icu_data_file) {
   base::Fclose(inf);
 
   atexit(free_icu_data_ptr);
+  const void* data = g_icu_data_ptr;
+#endif
 
   UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(g_icu_data_ptr), &err);
+  udata_setCommonData(data, &err);
   // Never try to load ICU data from files.
   udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
   return err == U_ZERO_ERROR;

@@ -112,8 +112,8 @@ ______________________________________________________________________
   thoroughly understood and strictly necessary to reproduce the issue. Remove
   all useless or redundant flags.
 - **Prefer "Leaf" Flags over "Compound" Flags**:
-  - **Bad**: Using `--jit-fuzzing` or `--fuzzing` because it implies a massive,
-    ever-changing bundle of underlying behaviors.
+  - **Bad**: Using `--jit-fuzzing`, `--fuzzing`, or `--experimental-fuzzing`
+    because they imply a massive, ever-changing bundle of underlying behaviors.
   - **Good**: Identifying and specifying the exact leaf flags responsible (e.g.,
     `--no-lazy-feedback-allocation`, `--homomorphic-ic`,
     `--stress-concurrent-inlining-attach-code`).
@@ -162,3 +162,13 @@ Avoid default fuzzer variable and function names (`__f_0`, `__v_10`, `v17`,
   invocations solely to cover different compiler pipelines, unless the test
   specifically exercises tier-up dynamics, on-stack replacement, or
   deoptimization transitions between them.
+
+### 6. Component-Specific Subdirectories
+
+- Place new `mjsunit` regression tests in the most specific component
+  subdirectory (e.g., `test/mjsunit/compiler/`, `test/mjsunit/maglev/`,
+  `test/mjsunit/turbolev/`, `test/mjsunit/turboshaft/`, `test/mjsunit/wasm/`)
+  rather than the generic catch-all `test/mjsunit/regress/` directory, and test
+  features in the configuration where they are enabled by default.
+- When inheriting or rebasing a regression test from an earlier draft, audit it
+  against all guidelines in this skill before uploading.

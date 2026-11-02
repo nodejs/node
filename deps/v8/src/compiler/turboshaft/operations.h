@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cmath>
+#include <compare>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -1044,7 +1045,8 @@ struct alignas(OpIndex) Operation {
   void PrintOptions(std::ostream& os) const;
 
   // Returns true if {this} is the only operation using {value}.
-  bool IsOnlyUserOf(const Operation& value, const Graph& graph) const;
+  V8_EXPORT_PRIVATE bool IsOnlyUserOf(const Operation& value,
+                                      const Graph& graph) const;
 
   void Print() const;
 
@@ -3149,6 +3151,8 @@ struct LoadOp : OperationT<LoadOp> {
     bool is_immutable : 1;
     // The load should be atomic.
     bool is_atomic : 1;
+    // The `base` input *may* be a tagged pointer to a shared HeapObject.
+    bool shared_base : 1;
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {
       switch (base_is_tagged) {
@@ -3165,7 +3169,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind RawAligned() {
       return {.tagged_base = false,
@@ -3173,7 +3178,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind RawUnaligned() {
       return {.tagged_base = false,
@@ -3181,7 +3187,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind Trapping() {
       return {.tagged_base = false,
@@ -3189,7 +3196,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind TrapOnNull() {
       return {.tagged_base = true,
@@ -3197,7 +3205,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
       return rep == MemoryRepresentation::Int8() ||
@@ -3225,13 +3234,13 @@ struct LoadOp : OperationT<LoadOp> {
       return new_kind;
     }
 
-    bool operator==(const Kind& other) const {
-      return tagged_base == other.tagged_base &&
-             maybe_unaligned == other.maybe_unaligned &&
-             with_trap_handler == other.with_trap_handler &&
-             load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
+    [[nodiscard]] constexpr Kind SharedBase() const {
+      Kind new_kind(*this);
+      new_kind.shared_base = true;
+      return new_kind;
     }
+
+    auto operator<=>(const Kind& other) const = default;
   };
   Kind kind;
   MemoryRepresentation loaded_rep;
@@ -3243,7 +3252,12 @@ struct LoadOp : OperationT<LoadOp> {
     // Loads might depend on checks for pointer validity, object layout, bounds
     // checks, etc.
     // TODO(tebbi): Distinguish between on-heap and off-heap loads.
-    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    OpEffects effects = OpEffects().CanDependOnChecks();
+    if (kind.is_immutable) {
+      effects = effects.CanReadImmutableMemory();
+    } else {
+      effects = effects.CanReadMemory();
+    }
     if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
     if (kind.is_atomic) {
       // Atomic load should not be reordered with other loads.
@@ -3315,6 +3329,11 @@ struct LoadOp : OperationT<LoadOp> {
   auto options() const {
     return std::tuple{kind, loaded_rep, result_rep, offset, element_size_log2};
   }
+  bool operator<(const LoadOp& other) const {
+    return std::tuple{base(), index().value_or_invalid(), options()} <
+           std::tuple{other.base(), other.index().value_or_invalid(),
+                      other.options()};
+  }
 };
 
 V8_INLINE size_t hash_value(LoadOp::Kind kind) {
@@ -3327,7 +3346,7 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
 #if V8_ENABLE_SANDBOX
 struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   LoadOp::Kind kind;
-  IndirectPointerTagRange tag_range;
+  TrustedPointerTagRange tag_range;
   const int offset;
 
   OpEffects Effects() const {
@@ -3340,7 +3359,7 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
 
   explicit LoadTrustedPointerOp(V<HeapObject> base, V<WordPtr> table,
                                 LoadOp::Kind kind,
-                                IndirectPointerTagRange tag_range, int offset)
+                                TrustedPointerTagRange tag_range, int offset)
       : Base(base, table), kind(kind), tag_range(tag_range), offset(offset) {
     DCHECK(kind.tagged_base);
     DCHECK(!kind.is_atomic);
@@ -3716,7 +3735,7 @@ struct StoreOp : OperationT<StoreOp> {
   AtomicMemoryOrder memory_order_;  // use the padding after prev field
 
  public:
-  uint16_t indirect_pointer_tag_;
+  uint16_t trusted_pointer_tag_;
 
   std::optional<AtomicMemoryOrder> memory_order() const {
     if (kind.is_atomic) return memory_order_;
@@ -3768,16 +3787,15 @@ struct StoreOp : OperationT<StoreOp> {
     return input_count == 3 ? input(2) : OpIndex::Invalid();
   }
 
-  IndirectPointerTag indirect_pointer_tag() const {
-    return static_cast<IndirectPointerTag>(indirect_pointer_tag_);
+  TrustedPointerTag trusted_pointer_tag() const {
+    return static_cast<TrustedPointerTag>(trusted_pointer_tag_);
   }
 
-  StoreOp(
-      OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag)
+  StoreOp(OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
+          MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+          std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
+          uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+          TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag)
       : Base(2 + index.valid()),
         kind(kind),
         stored_rep(stored_rep),
@@ -3787,9 +3805,8 @@ struct StoreOp : OperationT<StoreOp> {
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
         memory_order_(memory_order.value_or(AtomicMemoryOrder::kSeqCst)),
-        indirect_pointer_tag_(
-            static_cast<uint16_t>(maybe_indirect_pointer_tag)) {
-    DCHECK_EQ(indirect_pointer_tag(), maybe_indirect_pointer_tag);
+        trusted_pointer_tag_(static_cast<uint16_t>(maybe_trusted_pointer_tag)) {
+    DCHECK_EQ(trusted_pointer_tag(), maybe_trusted_pointer_tag);
     input(0) = base;
     input(1) = value;
     if (index.valid()) {
@@ -3802,7 +3819,7 @@ struct StoreOp : OperationT<StoreOp> {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
               kind, stored_rep, write_barrier, memory_order(), offset,
               element_size_log2, maybe_initializing_or_transitioning,
-              indirect_pointer_tag());
+              trusted_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
@@ -3817,11 +3834,11 @@ struct StoreOp : OperationT<StoreOp> {
       WriteBarrierKind write_barrier,
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
       uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,
                      stored_rep, write_barrier, memory_order, offset,
                      element_size_log2, maybe_initializing_or_transitioning,
-                     maybe_indirect_pointer_tag);
+                     maybe_trusted_pointer_tag);
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -3834,7 +3851,7 @@ struct StoreOp : OperationT<StoreOp> {
                       offset,
                       element_size_log2,
                       maybe_initializing_or_transitioning,
-                      indirect_pointer_tag()};
+                      trusted_pointer_tag()};
   }
 };
 
@@ -4221,9 +4238,7 @@ struct PrepareForLoopOp : FixedArityOperationT<1, PrepareForLoopOp> {
 #if V8_ENABLE_WEBASSEMBLY
 
 // A WebAssembly stack check operation.
-// If input_count > 0:
-// - input(0) is trusted_instance_data
-struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
+struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
 
@@ -4231,7 +4246,8 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     switch (kind) {
       case Kind::kLoop:
         // A loop stack check can have arbitrary side effects via debugger
-        // interrupt requests; in particular it can trigger memory growth.
+        // interrupt requests; in particular it can trigger shared memory
+        // growth.
         return OpEffects()
             .RequiredWhenUnused()
             .CanReadMemory()
@@ -4247,55 +4263,17 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     UNREACHABLE();
   }
 
-  OptionalV<WasmTrustedInstanceData> trusted_instance_data() const {
-    return input_count > 0 ? input<WasmTrustedInstanceData>(0)
-                           : V<WasmTrustedInstanceData>::Invalid();
-  }
-
-  WasmStackCheckOp(OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-                   Kind kind)
-      : Base(trusted_instance_data.valid() ? 1 : 0), kind(kind) {
-    if (trusted_instance_data.valid()) {
-      input(0) = trusted_instance_data.value();
-    }
-  }
-
-  static WasmStackCheckOp& New(
-      Graph* graph, OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      Kind kind) {
-    size_t input_count = trusted_instance_data.valid() ? 1 : 0;
-    return Base::New(graph, input_count, trusted_instance_data, kind);
-  }
-
-  template <typename Fn, typename Mapper>
-  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(trusted_instance_data()), kind);
-  }
+  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    if (input_count == 0) {
-      return {};
-    }
-    storage.resize(input_count);
-    storage[0] = MaybeRegisterRepresentation::Tagged();
-    return base::VectorOf(storage);
+    return {};
   }
 
   void Validate(const Graph& graph) const {
-    if (kind == Kind::kFunctionEntry) {
-      DCHECK_EQ(input_count, 0);
-      DCHECK(!trusted_instance_data().valid());
-    } else if (kind == Kind::kLoop) {
-      DCHECK_LE(input_count, 1);
-      if (input_count > 0) {
-        DCHECK(trusted_instance_data().valid());
-      }
-    } else {
-      UNREACHABLE();
-    }
+    DCHECK(kind == Kind::kFunctionEntry || kind == Kind::kLoop);
   }
 
   auto options() const { return std::tuple{kind}; }
@@ -4931,11 +4909,6 @@ struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
 };
 
 struct ReturnOp : OperationT<ReturnOp> {
-  // spill_caller_frame_slots signals that all caller stack located return
-  // values should be spilled before reaching the InstructionSelector.
-  // The growable stacks implementation does extra work to spill these values
-  // and it cannot be performed during InstructionSelector lowering efficiently.
-  bool spill_caller_frame_slots;
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -4953,10 +4926,8 @@ struct ReturnOp : OperationT<ReturnOp> {
     return inputs().SubVector(1, input_count);
   }
 
-  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values,
-           bool spill_caller_frame_slots)
-      : Base(1 + return_values.size()),
-        spill_caller_frame_slots(spill_caller_frame_slots) {
+  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values)
+      : Base(1 + return_values.size()) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = pop_count;
     inputs.SubVector(1, inputs.size()).OverwriteWith(return_values);
@@ -4966,17 +4937,14 @@ struct ReturnOp : OperationT<ReturnOp> {
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     OpIndex mapped_pop_count = mapper.Map(pop_count());
     auto mapped_return_values = mapper.template Map<4>(return_values());
-    return fn(mapped_pop_count, base::VectorOf(mapped_return_values),
-              spill_caller_frame_slots);
+    return fn(mapped_pop_count, base::VectorOf(mapped_return_values));
   }
 
   static ReturnOp& New(Graph* graph, V<Word32> pop_count,
-                       base::Vector<const OpIndex> return_values,
-                       bool spill_caller_frame_slots) {
-    return Base::New(graph, 1 + return_values.size(), pop_count, return_values,
-                     spill_caller_frame_slots);
+                       base::Vector<const OpIndex> return_values) {
+    return Base::New(graph, 1 + return_values.size(), pop_count, return_values);
   }
-  auto options() const { return std::tuple{spill_caller_frame_slots}; }
+  auto options() const { return std::tuple{}; }
 };
 
 struct GotoOp : FixedArityOperationT<0, GotoOp> {
@@ -7800,7 +7768,8 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
 struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
   WasmTypeCheckConfig config;
 
-  static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
+  static constexpr OpEffects effects =
+      OpEffects().AssumesConsistentHeap().CanDependOnChecks();
 
   WasmTypeCheckOp(V<Object> object, OptionalV<Map> rtt,
                   WasmTypeCheckConfig config)
@@ -8007,7 +7976,10 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
 struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   bool is_nullable;
 
-  static constexpr OpEffects effects = OpEffects();
+  // Cares about non-null values actually being non-null. We could eliminate
+  // the dependency on "checks" if we marked this as a trapping instruction
+  // when necessary.
+  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
 
   explicit ExternConvertAnyOp(V<Object> object, bool is_nullable)
       : Base(object), is_nullable(is_nullable) {}
@@ -8334,6 +8306,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   bool is_signed;
   const wasm::ArrayType* array_type;
   std::optional<AtomicMemoryOrder> memory_order;
+  SharedFlag shared_base;  // Currently only used for TSAN.
 
   // ArrayGetOp may never trap as it is always protected by a length check.
   OpEffects Effects() const {
@@ -8351,11 +8324,13 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 
   ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
              const wasm::ArrayType* array_type, bool is_signed,
-             std::optional<AtomicMemoryOrder> memory_order)
+             std::optional<AtomicMemoryOrder> memory_order,
+             SharedFlag shared_base)
       : Base(array, index),
         is_signed(is_signed),
         array_type(array_type),
-        memory_order(memory_order) {}
+        memory_order(memory_order),
+        shared_base(shared_base) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -8371,7 +8346,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   }
 
   auto options() const {
-    return std::tuple{array_type, is_signed, memory_order};
+    return std::tuple{array_type, is_signed, memory_order, shared_base};
   }
   void PrintOptions(std::ostream& os) const;
 };
@@ -8379,8 +8354,9 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   // Initialization has stricter OpEffects limiting e.g. the rescheduling of the
   // operation.
-  enum class Kind { kInitialize, kAssign };
+  enum class Kind : bool { kInitialize, kAssign };
   wasm::ValueType element_type;
+  SharedFlag is_shared;
   std::optional<AtomicMemoryOrder> memory_order;
   WriteBarrierKind write_barrier;
   Kind kind;
@@ -8398,11 +8374,12 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   }
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-             wasm::ValueType element_type,
+             wasm::ValueType element_type, SharedFlag is_shared,
              std::optional<AtomicMemoryOrder> memory_order,
              WriteBarrierKind write_barrier, Kind kind)
       : Base(array, index, value),
         element_type(element_type),
+        is_shared(is_shared),
         memory_order(memory_order),
         write_barrier(write_barrier),
         kind(kind) {}
@@ -8421,7 +8398,8 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   }
 
   auto options() const {
-    return std::tuple{element_type, memory_order, write_barrier, kind};
+    return std::tuple{element_type, is_shared, memory_order, write_barrier,
+                      kind};
   }
   void PrintOptions(std::ostream& os) const;
 };
@@ -8429,8 +8407,9 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
 struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   using BinOp = AtomicRMWOp::BinOp;
   BinOp bin_op;
-  wasm::ValueType element_type;
+  SharedFlag is_shared;
   AtomicMemoryOrder memory_order;
+  wasm::ValueType element_type;
 
   OpEffects Effects() const {
     return OpEffects()
@@ -8442,11 +8421,13 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
   ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, OpIndex value,
                    OptionalV<Any> expected, BinOp bin_op,
-                   wasm::ValueType element_type, AtomicMemoryOrder memory_order)
+                   wasm::ValueType element_type, SharedFlag is_shared,
+                   AtomicMemoryOrder memory_order)
       : Base(3 + expected.valid()),
         bin_op(bin_op),
-        element_type(element_type),
-        memory_order(memory_order) {
+        is_shared(is_shared),
+        memory_order(memory_order),
+        element_type(element_type) {
     input(0) = array;
     input(1) = index;
     input(2) = value;
@@ -8458,16 +8439,18 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(array()), mapper.Map(index()), mapper.Map(value()),
-              mapper.Map(expected()), bin_op, element_type, memory_order);
+              mapper.Map(expected()), bin_op, element_type, is_shared,
+              memory_order);
   }
 
   static ArrayAtomicRMWOp& New(Graph* graph, V<WasmArrayNullable> array,
                                V<Word32> index, OpIndex value,
                                OptionalV<Any> expected, BinOp bin_op,
                                wasm::ValueType element_type,
+                               SharedFlag is_shared,
                                AtomicMemoryOrder memory_order) {
     return Base::New(graph, 3 + expected.valid(), array, index, value, expected,
-                     bin_op, element_type, memory_order);
+                     bin_op, element_type, is_shared, memory_order);
   }
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
@@ -8502,12 +8485,13 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   }
 
   auto options() const {
-    return std::tuple{bin_op, element_type, memory_order};
+    return std::tuple{bin_op, element_type, is_shared, memory_order};
   }
 };
 
 struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   CheckForNull null_check;
+  SharedFlag shared_base;  // Currently only used for TSAN.
 
   OpEffects Effects() const {
     OpEffects result =
@@ -8524,8 +8508,10 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
 
   explicit ArrayLengthOp(V<WasmArrayNullable> array,
                          OptionalV<EagerFrameState> frame_state,
-                         CheckForNull null_check)
-      : Base(1 + frame_state.valid()), null_check(null_check) {
+                         CheckForNull null_check, SharedFlag shared_base)
+      : Base(1 + frame_state.valid()),
+        null_check(null_check),
+        shared_base(shared_base) {
     input(0) = array;
     if (frame_state.valid()) {
       input(1) = frame_state.value();
@@ -8549,17 +8535,18 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(array()), mapper.Map(frame_state()), null_check);
+    return fn(mapper.Map(array()), mapper.Map(frame_state()), null_check,
+              shared_base);
   }
 
   static ArrayLengthOp& New(Graph* graph, V<WasmArrayNullable> array,
                             OptionalV<EagerFrameState> frame_state,
-                            CheckForNull null_check) {
+                            CheckForNull null_check, SharedFlag shared_base) {
     return Base::New(graph, 1 + frame_state.valid(), array, frame_state,
-                     null_check);
+                     null_check, shared_base);
   }
 
-  auto options() const { return std::tuple{null_check}; }
+  auto options() const { return std::tuple{null_check, shared_base}; }
 };
 
 struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
@@ -8567,12 +8554,10 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
       OpEffects().CanAllocate().CanDoRawHeapAccess().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
-  SharedFlag is_shared;
 
   explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
-                               const wasm::ArrayType* array_type,
-                               SharedFlag is_shared)
-      : Base(rtt, length), array_type(array_type), is_shared(is_shared) {}
+                               const wasm::ArrayType* array_type)
+      : Base(rtt, length), array_type(array_type) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
   V<Word32> length() const { return Base::input<Word32>(1); }
@@ -8587,7 +8572,7 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  auto options() const { return std::tuple{array_type, is_shared}; }
+  auto options() const { return std::tuple{array_type}; }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9548,6 +9533,11 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
+  static bool IsArithmeticShiftRight(Kind kind) {
+    return kind == any_of(Kind::kI8x16ShrS, Kind::kI16x8ShrS, Kind::kI32x4ShrS,
+                          Kind::kI64x2ShrS);
+  }
+
   static MachineRepresentation InputElementRep(Kind kind) {
     switch (kind) {
       default:
@@ -9607,6 +9597,8 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
+
+  bool IsArithmeticShiftRight() const { return IsArithmeticShiftRight(kind); }
 
   MachineRepresentation input_element_rep() const {
     return InputElementRep(kind);
@@ -11247,7 +11239,7 @@ constexpr size_t input_count(MemoryRepresentation) { return 0; }
 constexpr size_t input_count(OpEffects) { return 0; }
 constexpr size_t input_count(ExternalPointerTagRange) { return 0; }
 #if V8_ENABLE_SANDBOX
-constexpr size_t input_count(IndirectPointerTagRange) { return 0; }
+constexpr size_t input_count(TrustedPointerTagRange) { return 0; }
 #endif
 inline size_t input_count(const ElementsTransition) { return 0; }
 inline size_t input_count(const ElementsTransitionWithMultipleSources) {

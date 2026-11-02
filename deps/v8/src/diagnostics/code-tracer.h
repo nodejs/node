@@ -5,12 +5,12 @@
 #ifndef V8_DIAGNOSTICS_CODE_TRACER_H_
 #define V8_DIAGNOSTICS_CODE_TRACER_H_
 
+#include <array>
 #include <optional>
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
-#include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
@@ -29,7 +29,7 @@ class CodeTracer final : public Malloced {
 
     if (v8_flags.redirect_code_traces_to != nullptr) {
       base::StrNCpy(filename_, v8_flags.redirect_code_traces_to,
-                    filename_.size());
+                    base::checked_cast<uint32_t>(filename_.size()));
     } else if (isolate_id >= 0) {
       base::SNPrintF(filename_, "code-%d-%d.asm",
                      base::OS::GetCurrentProcessId(), isolate_id);
@@ -37,7 +37,7 @@ class CodeTracer final : public Malloced {
       base::SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
     }
 
-    WriteChars(filename_.begin(), "", 0, false);
+    WriteChars(filename_.data(), "", 0, false);
   }
 
   class V8_NODISCARD Scope {
@@ -79,7 +79,7 @@ class CodeTracer final : public Malloced {
     }
 
     if (file_ == nullptr) {
-      file_ = base::OS::FOpen(filename_.begin(), "ab");
+      file_ = base::OS::FOpen(filename_.data(), "ab");
       CHECK_WITH_MSG(file_ != nullptr,
                      "could not open file. If on Android, try passing "
                      "--redirect-code-traces-to=/sdcard/Download/<file-name>");
@@ -105,7 +105,7 @@ class CodeTracer final : public Malloced {
  private:
   static bool ShouldRedirect() { return v8_flags.redirect_code_traces; }
 
-  base::EmbeddedVector<char, 128> filename_;
+  std::array<char, 128> filename_;
   FILE* file_;
   int scope_depth_;
 };

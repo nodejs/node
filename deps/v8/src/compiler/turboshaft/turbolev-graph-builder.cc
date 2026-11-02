@@ -1217,9 +1217,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::TaggedIndexConstant* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): should this really be a SmiConstant, or rather a
-    // Word32Constant?
-    SetMap(node, __ SmiConstant(i::Tagged<Smi>(node->value().ptr())));
+    SetMap(node,
+           __ TaggedIndexConstant(static_cast<int32_t>(node->value().value())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TrustedConstant* node,
@@ -1609,7 +1608,7 @@ class GraphBuildingNodeProcessor {
           graph_zone(), false,
           std::max<int>(actual_parameter_count,
                         node->expected_parameter_count()),
-          CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+          node->expected_parameter_count(), CallDescriptor::kNeedsFrameState);
 
       LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
 
@@ -2012,16 +2011,9 @@ class GraphBuildingNodeProcessor {
     V<FeedbackCell> feedback_cell =
         __ HeapConstant(node->feedback_cell().object());
 
-    V<JSFunction> closure;
-    if (node->pretenured()) {
-      closure = __ template CallRuntime<runtime::NewClosure_Tenured>(
-          context, {.shared_function_info = shared_function_info,
-                    .feedback_cell = feedback_cell});
-    } else {
-      closure = __ template CallRuntime<runtime::NewClosure>(
-          context, {.shared_function_info = shared_function_info,
-                    .feedback_cell = feedback_cell});
-    }
+    V<JSFunction> closure = __ template CallRuntime<runtime::NewClosure>(
+        context, {.shared_function_info = shared_function_info,
+                  .feedback_cell = feedback_cell});
 
     SetMap(node, closure);
 
@@ -2109,7 +2101,7 @@ class GraphBuildingNodeProcessor {
     arguments.push_back(Map(node->NewTargetInput()));
     arguments.push_back(__ Word32Constant(node->num_args()));
 
-#ifndef V8_TARGET_ARCH_ARM64
+#if !defined(V8_TARGET_ARCH_ARM64) && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     arguments.push_back(__ WordPtrConstant(node->feedback().index()));
     arguments.push_back(__ HeapConstant(node->feedback().vector));
 #endif
@@ -2120,16 +2112,17 @@ class GraphBuildingNodeProcessor {
 
     arguments.push_back(Map(node->ContextInput()));
 
-#ifndef V8_TARGET_ARCH_ARM64
-    // Construct_WithFeedback can't be called from Turbofan on Arm64, because of
-    // the stack alignment requirements: the feedback vector is dropped by
-    // Construct_WithFeedback while the other arguments are passed through to
-    // Construct. As a result, when the feedback vector is pushed on the stack,
-    // it should be padded to 16-bytes, but there is no way to express this in
-    // Turbofan.
+#if !defined(V8_TARGET_ARCH_ARM64) && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+    // Construct_WithFeedback can't be called from Turboshaft when stack
+    // alignment is enforced, because of the stack alignment requirements:
+    // the feedback vector is dropped by Construct_WithFeedback while the other
+    // arguments are passed through to Construct. As a result, when the feedback
+    // vector is pushed on the stack, it should be padded to 16-bytes, but there
+    // is no way to express this in Turboshaft.
     // Anyways, long-term we'll want to feedback-specialize Construct in the
     // frontend (ie, probably in Maglev), so we don't really need to adapt
-    // Turbofan to be able to call Construct_WithFeedback on Arm64.
+    // Turboshaft to be able to call Construct_WithFeedback when stack alignment
+    // is enforced.
     static constexpr int kFeedbackVector = 1;
     int stack_arg_count = node->num_args() + kFeedbackVector;
     Builtin builtin = Builtin::kConstruct_WithFeedback;
@@ -3645,8 +3638,8 @@ class GraphBuildingNodeProcessor {
       const maglev::ProcessingState& state) {
     __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
              StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::IndirectPointer(),
-             WriteBarrierKind::kIndirectPointerWriteBarrier, node->offset(),
+             MemoryRepresentation::TrustedPointer(),
+             WriteBarrierKind::kTrustedPointerWriteBarrier, node->offset(),
              node->initializing_or_transitioning(), node->tag());
     return maglev::ProcessResult::kContinue;
   }
@@ -4349,6 +4342,14 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     V<Word32> condition = Map(node->ConditionInput());
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::BranchIfInt32BitwiseAndNonZero* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> masked =
+        __ Word32BitwiseAnd(Map(node->ValueInput()), node->mask());
+    __ Branch(masked, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5702,8 +5703,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::SetPendingMessage* node,
                                 const maglev::ProcessingState& state) {
-    V<WordPtr> message_address = __ ExternalConstant(
-        ExternalReference::address_of_pending_message(isolate_));
+    V<WordPtr> message_address =
+        __ IsolateField(IsolateFieldId::kPendingMessage);
     V<Object> old_message = __ LoadMessage(message_address);
     __ StoreMessage(message_address, Map(node->ValueInput()));
     SetMap(node, old_message);
@@ -6374,8 +6375,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kTrustedPointer:
             case maglev::vobj::FieldType::kFloat64:
             case maglev::vobj::FieldType::kInt32:
-              AddVirtualObjectNestedValue(builder, virtual_objects, vobj,
-                                          value_node);
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
               break;
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
@@ -6387,7 +6387,7 @@ class GraphBuildingNodeProcessor {
   void AddVirtualObjectNestedValue(
       FrameStateData::Builder& builder,
       const maglev::VirtualObjectList& virtual_objects,
-      const maglev::VirtualObject* vobj, const maglev::ValueNode* value) {
+      const maglev::ValueNode* value) {
     if (maglev::IsConstantNode(value->opcode())) {
       switch (value->opcode()) {
         case maglev::Opcode::kHeapConstant:
@@ -6398,29 +6398,17 @@ class GraphBuildingNodeProcessor {
           break;
 
         case maglev::Opcode::kFloat64Constant:
-        case maglev::Opcode::kHoleyFloat64Constant: {
-          i::Float64 value_as_float =
-              value->opcode() == maglev::Opcode::kFloat64Constant
-                  ? value->Cast<maglev::Float64Constant>()->value()
-                  : value->Cast<maglev::HoleyFloat64Constant>()->value();
-          DCHECK(vobj->has_static_map());
-          const bool is_fixed_double_array =
-              vobj->map()->IsFixedDoubleArrayMap();
-          if (is_fixed_double_array && value_as_float.is_hole_nan()) {
-            builder.AddInput(
-                MachineType::AnyTagged(),
-                __ HeapConstantHole(local_factory_->the_hole_value()));
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          } else if (is_fixed_double_array &&
-                     value_as_float.is_undefined_nan()) {
-            builder.AddInput(MachineType::AnyTagged(), undefined_value_);
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-          } else {
-            builder.AddInput(MachineType::AnyTagged(),
-                             __ NumberConstant(value_as_float));
-          }
+          builder.AddInput(
+              MachineType::Float64(),
+              __ Float64Constant(
+                  value->Cast<maglev::Float64Constant>()->value()));
           break;
-        }
+        case maglev::Opcode::kHoleyFloat64Constant:
+          builder.AddInput(
+              MachineType::HoleyFloat64(),
+              __ Float64Constant(
+                  value->Cast<maglev::HoleyFloat64Constant>()->value()));
+          break;
         case maglev::Opcode::kInt32Constant:
           builder.AddInput(
               MachineType::AnyTagged(),
@@ -6591,16 +6579,13 @@ class GraphBuildingNodeProcessor {
     FrameStateType type = maglev_frame.is_javascript()
                               ? FrameStateType::kJavaScriptBuiltinContinuation
                               : FrameStateType::kBuiltinContinuation;
+    DCHECK_IMPLIES(
+        maglev_frame.is_javascript(),
+        Builtins::CallInterfaceDescriptorFor(maglev_frame.builtin_id())
+                .GetRegisterParameterCount() ==
+            JSTrampolineDescriptor::GetRegisterParameterCount());
     uint16_t parameter_count =
-        static_cast<uint16_t>(maglev_frame.parameters().length());
-    if (maglev_frame.is_javascript()) {
-      constexpr int kExtraFixedJSFrameParameters =
-          V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
-      DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(maglev_frame.builtin_id())
-                    .GetRegisterParameterCount(),
-                kExtraFixedJSFrameParameters);
-      parameter_count += kExtraFixedJSFrameParameters;
-    }
+        static_cast<uint16_t>(maglev_frame.translation_height());
     Handle<SharedFunctionInfo> shared_info =
         GetSharedFunctionInfo(maglev_frame).object();
     constexpr int kLocalCount = 0;

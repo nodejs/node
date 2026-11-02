@@ -11,7 +11,7 @@ extern transitioning runtime SetPropertyWithReceiver(
 
 transitioning macro CallThrowTypeErrorIfStrict(
     implicit context: Context)(message: constexpr MessageTemplate): void {
-  ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
+  ThrowTypeErrorIfStrict(SmiConstant(message), TheHole, TheHole);
 }
 
 // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver

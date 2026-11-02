@@ -14,10 +14,72 @@ namespace internal {
 
 namespace {
 
-// Returns either a FixedArray or, if the given {receiver} has an enum cache
-// that contains all enumerable properties of the {receiver} and its prototypes
-// have none, the map of the {receiver}. This is used to speed up the check for
-// deletions during a for-in.
+MaybeDirectHandle<ForInEnumeratorHolder> TryCreateEnumeratorHolder(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    FastKeyAccumulator* accumulator) {
+  if (!v8_flags.forin_enumerator_holder) return {};
+  if (!IsJSObject(*receiver)) return {};
+  DirectHandle<JSObject> object = Cast<JSObject>(receiver);
+
+  if (!accumulator->has_empty_prototype()) return {};
+
+  ElementsKind elements_kind = object->GetElementsKind();
+  if (!IsFastPackedElementsKind(elements_kind)) return {};
+
+  uint32_t elem_len;
+  if (IsJSArray(*object)) {
+    Tagged<Object> length = Cast<JSArray>(*object)->length();
+    if (!IsSmi(length) || Smi::ToInt(length) <= 0) return {};
+    elem_len = static_cast<uint32_t>(Smi::ToInt(length));
+  } else {
+    elem_len = object->elements()->ulength().value();
+    if (elem_len == 0 || !Smi::IsValid(elem_len)) return {};
+  }
+
+  DirectHandle<Map> map(object->map(), isolate);
+  if (!map->OnlyHasSimpleProperties()) return {};
+  DCHECK(!map->is_dictionary_map());
+
+  int enum_length = map->EnumLength();
+  if (enum_length == kInvalidEnumCacheSentinel) {
+    enum_length = map->NumberOfEnumerableProperties();
+    if (enum_length > 0) {
+      DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(),
+                                                isolate);
+      DirectHandle<FixedArray> keys(descriptors->enum_cache()->keys(), isolate);
+      if (static_cast<uint32_t>(enum_length) <= keys->ulength().value()) {
+        map->SetEnumLength(enum_length);
+      } else {
+        FastKeyAccumulator::InitializeFastPropertyEnumCache(isolate, map,
+                                                            enum_length);
+      }
+    } else {
+      map->SetEnumLength(0);
+    }
+  }
+
+  if (elem_len > static_cast<uint32_t>(FixedArray::kMaxLength - enum_length)) {
+    return {};
+  }
+
+  DirectHandle<FixedArray> named_keys =
+      enum_length > 0
+          ? direct_handle(map->instance_descriptors()->enum_cache()->keys(),
+                          isolate)
+          : isolate->factory()->empty_fixed_array();
+
+  int int_elem_len = static_cast<int>(elem_len);
+  return isolate->factory()->NewForInEnumeratorHolder(
+      map, named_keys, Smi::FromInt(int_elem_len),
+      Smi::FromInt(int_elem_len + enum_length));
+}
+
+// Returns either a FixedArray of keys, a ForInEnumeratorHolder (if {receiver}
+// has fast packed elements, simple properties, and an empty prototype chain),
+// or, if the given {receiver} has an enum cache that contains all enumerable
+// properties of the {receiver} and its prototypes have none, the map of the
+// {receiver}. This is used to speed up the check for deletions during a
+// for-in.
 MaybeDirectHandle<HeapObject> Enumerate(Isolate* isolate,
                                         DirectHandle<JSReceiver> receiver) {
   JSObject::MakePrototypesFast(receiver, kStartAtReceiver, isolate);
@@ -26,6 +88,11 @@ MaybeDirectHandle<HeapObject> Enumerate(Isolate* isolate,
                                  ENUMERABLE_STRINGS, true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
+    if (DirectHandle<ForInEnumeratorHolder> holder;
+        TryCreateEnumeratorHolder(isolate, receiver, &accumulator)
+            .ToHandle(&holder)) {
+      return holder;
+    }
     DirectHandle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, keys,

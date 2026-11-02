@@ -273,7 +273,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
     // Mark the promise as handled.
     StoreObjectFieldNoWriteBarrier(
         js_promise, offsetof(JSPromise, flags_),
-        SmiOr(promise_flags, SmiConstant(JSPromise::HasHandlerBit::kMask)));
+        SmiOr(promise_flags,
+              SmiConstant(JSPromise::Flags::HasHandlerBit::kMask)));
 
     // Extract the fulfilled value.
     TNode<Object> fulfilled_value =

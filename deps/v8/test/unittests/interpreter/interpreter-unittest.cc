@@ -10,6 +10,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
+#include "src/execution/frames-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
@@ -4916,6 +4917,136 @@ TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {
   CheckStringEqual("LdaLookupSlotExtraWideHandler",
                    Builtins::name(extraWideLdaLookupSlot->builtin_id()));
 }
+
+#ifdef V8_ENABLE_SPARKPLUG
+TEST_F(InterpreterTest, UnoptimizedFrameSlotAlignment) {
+  if (v8_flags.jitless) return;
+  SaveFlags save_flags;
+  v8_flags.always_sparkplug = false;
+  v8_flags.sparkplug = true;
+
+  static StackFrame::Type expected_frame_type = StackFrame::INTERPRETED;
+  static int expected_register_count = 0;
+  static int callback_count = 0;
+  callback_count = 0;
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate());
+  v8::Local<v8::FunctionTemplate> check_frame_tmpl = v8::FunctionTemplate::New(
+      v8_isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+        JavaScriptStackFrameIterator it(isolate);
+        CHECK(!it.done());
+        JavaScriptFrame* frame = it.frame();
+        CHECK_EQ(frame->type(), expected_frame_type);
+
+        // Between the caller's register file and frame->sp() (which is the
+        // API_CALLBACK_EXIT frame's caller_sp()) are:
+        // - 2 outgoing JS argument slots (receiver + 1 argument)
+        // - 4 FunctionCallbackInfo implicit argument slots pushed by
+        //   CallApiCallback before EnterExitFrame.
+        constexpr int kOutgoingCallSlots =
+            2 +
+            ApiCallbackExitFrameConstants::kFunctionCallbackInfoApiArgsLength;
+        int slots_below_fp =
+            static_cast<int>((frame->fp() - frame->sp()) / kSystemPointerSize);
+        int fixed_and_register_slots_below_fp =
+            slots_below_fp - kOutgoingCallSlots;
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+        constexpr bool kAlignRegisterSlots = true;
+#else
+        constexpr bool kAlignRegisterSlots = false;
+#endif
+        int expected_register_slots = kAlignRegisterSlots
+                                          ? RoundUp(expected_register_count, 2)
+                                          : expected_register_count;
+        CHECK_EQ(fixed_and_register_slots_below_fp,
+                 InterpreterFrameConstants::kFixedSlotCountFromFp +
+                     expected_register_slots);
+        if (kAlignRegisterSlots) {
+          CHECK_EQ((InterpreterFrameConstants::kFixedSlotCount +
+                    expected_register_slots) %
+                       2,
+                   0);
+          CHECK_EQ(fixed_and_register_slots_below_fp % 2, 0);
+          if (expected_register_count % 2 == 1) {
+            // Verify the register-file padding slot is initialized to
+            // undefined.
+            Address padding_addr =
+                frame->fp() -
+                fixed_and_register_slots_below_fp * kSystemPointerSize;
+            CHECK_EQ(base::Memory<Address>(padding_addr),
+                     ReadOnlyRoots(isolate).undefined_value().ptr());
+          }
+        }
+        info.GetReturnValue().Set(info[0]);
+        callback_count++;
+      });
+  context()
+      ->Global()
+      ->Set(context(),
+            v8::String::NewFromUtf8(v8_isolate, "check_frame").ToLocalChecked(),
+            check_frame_tmpl->GetFunction(context()).ToLocalChecked())
+      .FromJust();
+
+  // Include functions with:
+  // - small register counts (< 16, unrolled PrologueFillFrame path), even & odd
+  // - incoming new.target register, even & odd
+  // - large register counts (>= 16, looped PrologueFillFrame path), even & odd
+  const char* sources[] = {
+      "(function(a) { return check_frame(a); })",
+      "(function(a) { let x = a + 1; return check_frame(x); })",
+      "(function(a) { let x = a + 1, y = x + 2; return check_frame(x + y); })",
+      "(function(a) { let x = new.target ? 1 : a; return check_frame(x); })",
+      "(function(a) { let x = new.target ? 1 : a, y = x + 1;"
+      "  return check_frame(y); })",
+      "(function(a) {"
+      "  let r0 = a, r1 = a + 1, r2 = a + 2, r3 = a + 3,"
+      "      r4 = a + 4, r5 = a + 5, r6 = a + 6, r7 = a + 7,"
+      "      r8 = a + 8, r9 = a + 9, r10 = a + 10, r11 = a + 11,"
+      "      r12 = a + 12, r13 = a + 13, r14 = a + 14, r15 = a + 15;"
+      "  return check_frame(r0 + r15);"
+      "})",
+      "(function(a) {"
+      "  let r0 = a, r1 = a + 1, r2 = a + 2, r3 = a + 3,"
+      "      r4 = a + 4, r5 = a + 5, r6 = a + 6, r7 = a + 7,"
+      "      r8 = a + 8, r9 = a + 9, r10 = a + 10, r11 = a + 11,"
+      "      r12 = a + 12, r13 = a + 13, r14 = a + 14, r15 = a + 15,"
+      "      r16 = a + 16;"
+      "  return check_frame(r0 + r16);"
+      "})",
+  };
+
+  for (const char* src : sources) {
+    Handle<JSFunction> func = Cast<JSFunction>(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(CompileRun(src))));
+    expected_register_count =
+        func->shared()->GetBytecodeArray(i_isolate())->register_count();
+
+    DirectHandle<Object> args[] = {
+        direct_handle(Smi::FromInt(41), i_isolate())};
+
+    // 1. Call in Ignition (func starts with InterpreterEntryTrampoline).
+    expected_frame_type = StackFrame::INTERPRETED;
+    Execution::Call(i_isolate(), func,
+                    i_isolate()->factory()->undefined_value(),
+                    base::VectorOf(args, 1))
+        .ToHandleChecked();
+
+    // 2. Compile to Sparkplug and call again (func now has BASELINE code).
+    IsCompiledScope is_compiled_scope(
+        func->shared()->is_compiled_scope(i_isolate()));
+    JSFunction::EnsureFeedbackVector(i_isolate(), func, &is_compiled_scope);
+    CHECK(Compiler::CompileBaseline(
+        i_isolate(), func, Compiler::CLEAR_EXCEPTION, &is_compiled_scope));
+    expected_frame_type = StackFrame::BASELINE;
+    Execution::Call(i_isolate(), func,
+                    i_isolate()->factory()->undefined_value(),
+                    base::VectorOf(args, 1))
+        .ToHandleChecked();
+  }
+  CHECK_EQ(callback_count, static_cast<int>(arraysize(sources) * 2));
+}
+#endif  // V8_ENABLE_SPARKPLUG
 
 }  // namespace interpreter
 }  // namespace internal

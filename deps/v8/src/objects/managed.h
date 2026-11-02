@@ -402,11 +402,20 @@ class TrustedManaged : public TrustedForeign {
   TrustedManaged* operator->() { return this; }
   const TrustedManaged* operator->() const { return this; }
 
-  // Get a raw pointer to the C++ object.
-  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+  // Get a raw pointer to the C++ object. The returned pointer is only valid as
+  // long as no GC happens.
+  V8_INLINE CppType* raw(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) const {
+    return GetSharedPtrPtr()->get();
+  }
 
-  // Get a reference to the shared pointer to the C++ object.
-  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
+  // Get a raw pointer to the C++ object without a DisallowGarbageCollection
+  // scope. The caller must ensure that the TrustedManaged object stays alive
+  // while the returned pointer is in use.
+  V8_INLINE CppType* unsafe_raw() const { return GetSharedPtrPtr()->get(); }
+
+  // Get a copy of the shared pointer to the C++ object.
+  V8_INLINE std::shared_ptr<CppType> get() const { return *GetSharedPtrPtr(); }
 
   // Create a {Managed<CppType>} from an existing {std::shared_ptr} or
   // {std::unique_ptr} (which will implicitly convert to {std::shared_ptr}).

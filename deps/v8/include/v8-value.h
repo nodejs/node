@@ -252,6 +252,11 @@ class V8_EXPORT Value : public Data {
   bool IsWeakRef() const;
 
   /**
+   * Returns true if this value is an ArrayBuffer or SharedArrayBuffer.
+   */
+  bool IsArrayBufferBase() const;
+
+  /**
    * Returns true if this value is an ArrayBuffer.
    */
   bool IsArrayBuffer() const;

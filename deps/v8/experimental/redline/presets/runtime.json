@@ -1,0 +1,8 @@
+{
+  "d8_extra_args": ["--no-turbofan", "--no-maglev", "--no-sparkplug"],
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
+    "generators": {"strategy": "adaptive", "params": {"weights": {
+      "JitOptimize": 0, "JitBaseline": 0, "Deopt": 0, "OsrLoop": 0,
+      "PropertyStore": 6, "DefineProperty": 4, "ShapeChange": 4, "PrototypeSet": 3, "ProxyDecl": 3,
+      "FreezeSeal": 2}}}}
+}

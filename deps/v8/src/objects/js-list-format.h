@@ -110,7 +110,7 @@ V8_OBJECT class JSListFormat : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<Foreign> icu_formatter_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSListFormatFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSListFormat::kHeaderSize = sizeof(JSListFormat);

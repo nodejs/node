@@ -18,11 +18,11 @@ namespace test_bignum {
 static const int kBufferSize = 1024;
 
 static void AssignHexString(Bignum* bignum, const char* str) {
-  bignum->AssignHexString(CStrVector(str));
+  bignum->AssignHexString(str);
 }
 
 static void AssignDecimalString(Bignum* bignum, const char* str) {
-  bignum->AssignDecimalString(CStrVector(str));
+  bignum->AssignDecimalString(str);
 }
 
 TEST_F(BignumTest, Assign) {

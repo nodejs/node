@@ -1,0 +1,5 @@
+Regression test for crbug.com/537219980
+Paused in $trigger at column 206
+Breakpoint set: true
+Threw WebAssembly.RuntimeError: true
+breakpoint_set: true

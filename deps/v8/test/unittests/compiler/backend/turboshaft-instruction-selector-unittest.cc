@@ -51,8 +51,12 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
   // Initialize an instruction sequence.
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), graph);
-  InstructionSequence sequence(test_->isolate(), test_->zone(),
-                               instruction_blocks);
+  bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+  is_wasm = call_descriptor()->IsAnyWasmFunctionCall();
+#endif  // V8_ENABLE_WEBASSEMBLY
+  InstructionSequence sequence(is_wasm ? nullptr : test_->isolate(),
+                               test_->zone(), instruction_blocks);
 
   TickCounter tick_counter;
   size_t max_unoptimized_frame_height = 0;
@@ -62,7 +66,8 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, scheduling_mode,
-      InstructionSelector::kEnableRootsRelativeAddressing,
+      is_wasm ? InstructionSelector::kDisableRootsRelativeAddressing
+              : InstructionSelector::kEnableRootsRelativeAddressing,
       InstructionSelector::kDisableTraceTurboJson,
       InstructionSelector::kNoDeterministicNan);
 
@@ -327,8 +332,7 @@ TARGET_TEST_F(TurboshaftInstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> empty_type(zone());
 
   auto call_descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, 1,
-      CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+      zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
   Node* parameters = m.AddNode(

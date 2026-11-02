@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-enum class EnsureTypeResult;
+enum class V8_NODISCARD EnsureTypeResult;
 struct MaglevCallSiteInfo;
 class MaglevGraphBuilder;
 template <typename BaseT>
@@ -807,6 +807,11 @@ class MaglevReducer {
   MaybeReduceResult TryBuildLoadFixedArrayElementConstantIndex(
       ValueNode* elements, int32_t index, LoadType type);
 
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(int32_t index);
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(ValueNode* index);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
@@ -1003,6 +1008,7 @@ class MaglevReducer {
   uint32_t NewObjectId() { return graph()->NewObjectId(); }
 
   VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateUninitializedHeapNumber();
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1049,7 +1055,8 @@ class MaglevReducer {
 
   ReduceResult BuildLoadTaggedField(
       ValueNode* object, uint32_t offset, NodeType type = NodeType::kUnknown,
-      bool is_const = false, PropertyKey key = PropertyKey::None(),
+      PropertyConstness constness = PropertyConstness::kMutable,
+      PropertyKey key = PropertyKey::None(),
       IsArrayLength is_array_length = IsArrayLength::kNo,
       compiler::OptionalMapRef stable_field_map = {});
 
@@ -1069,7 +1076,7 @@ class MaglevReducer {
 
   ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
                                              ValueNode* value, int offset,
-                                             IndirectPointerTag tag,
+                                             TrustedPointerTag tag,
                                              StoreTaggedMode store_mode);
 
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
@@ -1090,6 +1097,10 @@ class MaglevReducer {
 
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
+  ValueNode* TryGetParentContext(ValueNode* node);
+  MaybeReduceResult TryGetConstantContextValue(
+      ValueNode* context, int offset, MaybeAssignedFlag assigned,
+      VariableMode mode = VariableMode::kVar);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
@@ -1379,13 +1390,19 @@ class MaglevReducer {
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
   void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
-                           ValueNode* value, bool is_const,
+                           ValueNode* value, PropertyConstness constness,
                            compiler::AccessMode access_mode);
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
       return GetRootConstant(RootIndex::kUndefinedValue);
     }
     return maybe_value;
+  }
+
+  // Optional integer positions treat an omitted or known undefined value as 0.
+  ValueNode* GetValueOrZeroIfUndefined(ValueNode* maybe_value) {
+    ValueNode* value = GetValueOrUndefined(maybe_value);
+    return value->IsUndefinedValue() ? GetInt32Constant(0) : value;
   }
 
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
@@ -1559,7 +1576,7 @@ class MaglevReducer {
     return graph()->GetConstant(ref);
   }
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag) {
+                                TrustedPointerTag tag) {
     return graph()->GetTrustedConstant(ref, tag);
   }
 
@@ -1638,10 +1655,12 @@ class MaglevReducer {
   MaybeReduceResult TryFoldTestTypeOf(
       ValueNode* input, interpreter::TestTypeOfFlags::LiteralFlag literal);
 
-  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+  V8_NODISCARD bool CheckType(ValueNode* node, NodeType type,
+                              NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);
   }
-  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
+  V8_NODISCARD NodeType CheckTypes(ValueNode* node,
+                                   std::initializer_list<NodeType> types) {
     return known_node_aspects().CheckTypes(broker(), node, types);
   }
 

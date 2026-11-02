@@ -31,6 +31,9 @@
 #include <sys/types.h>    // mmap & munmap
 #include <sys/utsname.h>  // uname
 #include <unistd.h>       // sysconf
+#if defined(V8_HOST_ARCH_X64)
+#include <asm/prctl.h>
+#endif  // defined(V8_HOST_ARCH_X64)
 
 #include <cmath>
 #include <cstdio>
@@ -52,6 +55,10 @@
 // it. Instead, we check at runtime in KernelSupportsRemapDontUnmap.
 #define MREMAP_DONTUNMAP 4
 #endif
+
+#if defined(V8_HOST_ARCH_X64) && !defined(ARCH_GET_UNTAG_MASK)
+#define ARCH_GET_UNTAG_MASK 0x4001
+#endif  // defined(V8_HOST_ARCH_X64) && !defined(ARCH_GET_UNTAG_MASK)
 
 namespace v8 {
 namespace base {
@@ -428,6 +435,19 @@ bool SignalSafeMapsParser::ReadDecimal(uintptr_t* out_val, char* out_delim) {
       return true;
     }
   }
+}
+
+// static
+uint64_t OS::GetAddressUntagMask() {
+  // TODO(559990948): The check clashes with Chrome's seccomp policy, disable it
+  // temporarily.
+  // #if defined(V8_HOST_ARCH_X64)
+  //   uint64_t untag_mask = ~uint64_t{0};
+  //   if (syscall(SYS_arch_prctl, ARCH_GET_UNTAG_MASK, &untag_mask) == 0) {
+  //     return untag_mask;
+  //   }
+  // #endif  // defined(V8_HOST_ARCH_X64)
+  return ~uint64_t{0};
 }
 
 }  // namespace base

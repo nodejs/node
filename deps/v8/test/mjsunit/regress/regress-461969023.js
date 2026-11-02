@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --shared-string-table
+// Flags: --allow-natives-syntax --shared-strings
 
 for (let v1 = 0; v1 < 5; v1++) {
     const v3 = %ShareObject(("6").repeat(v1));

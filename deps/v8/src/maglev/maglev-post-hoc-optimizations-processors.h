@@ -675,11 +675,7 @@ class ReachableExceptionHandlerTracker {
 
  private:
   BlockProcessResult AbortBlock(BasicBlock* block) {
-    ControlNode* control = block->reset_control_node();
-    block->RemovePredecessorFollowing(control);
-    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
-    block->set_deferred(true);
-    block->set_control_node(control);
+    block->OverwriteControlWithAbort(AbortReason::kUnreachable);
     block->mark_dead();
     graph_->set_may_have_unreachable_blocks();
     return BlockProcessResult::kSkip;

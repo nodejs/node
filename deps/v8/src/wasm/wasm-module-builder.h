@@ -10,6 +10,7 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <optional>
+#include <string_view>
 
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
@@ -95,9 +96,9 @@ class ZoneBuffer : public ZoneObject {
     pos_ += size;
   }
 
-  void write_string(base::Vector<const char> name) {
+  void write_string(std::string_view name) {
     write_size(name.size());
-    write(reinterpret_cast<const uint8_t*>(name.begin()), name.size());
+    write(reinterpret_cast<const uint8_t*>(name.data()), name.size());
   }
 
   size_t reserve_u32v() {
@@ -197,7 +198,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitValueType(ValueType type);
   void EmitDirectCallIndex(uint32_t index);
   void EmitFromInitializerExpression(const WasmInitExpr& init_expr);
-  void SetName(base::Vector<const char> name);
+  void SetName(std::string_view name);
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, uint8_t value) {
@@ -228,7 +229,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   ModuleTypeIndex signature_index_;
   uint32_t func_index_;
   ZoneBuffer body_;
-  base::Vector<const char> name_;
+  std::string_view name_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
@@ -302,15 +303,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   // Building methods.
-  uint32_t AddImport(base::Vector<const char> name, const FunctionSig* sig,
-                     base::Vector<const char> module = {},
-                     bool force_new_sig = false);
+  uint32_t AddImport(std::string_view name, const FunctionSig* sig,
+                     std::string_view module = {}, bool force_new_sig = false);
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
   WasmFunctionBuilder* AddFunction(ModuleTypeIndex sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init);
-  uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,
-                           bool mutability,
-                           base::Vector<const char> module = {});
+  uint32_t AddGlobalImport(std::string_view name, ValueType type,
+                           bool mutability, std::string_view module = {});
   void AddDataSegment(const uint8_t* data, uint32_t size, uint32_t dest);
   void AddPassiveDataSegment(const uint8_t* data, uint32_t size);
   // Add an element segment to this {WasmModuleBuilder}. {segment}'s enties
@@ -347,14 +346,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddMemory64(uint32_t min_pages);
   uint32_t AddMemory64(uint32_t min_pages, uint32_t max_pages);
   void MarkStartFunction(WasmFunctionBuilder* builder);
-  void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
+  void AddExport(std::string_view name, ImportExportKindCode kind,
                  uint32_t index);
-  void AddExport(base::Vector<const char> name, WasmFunctionBuilder* builder) {
+  void AddExport(std::string_view name, WasmFunctionBuilder* builder) {
     AddExport(name, kExternalFunction, builder->func_index());
   }
   uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
-                             base::Vector<const char> name);
-  void ExportImportedFunction(base::Vector<const char> name, int import_index);
+                             std::string_view name);
+  void ExportImportedFunction(std::string_view name, int import_index);
 
   // Start a recursive type group; must be followed by `EndRecursiveTypeGroup()`
   // after adding all types of the recursion group.
@@ -477,21 +476,21 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
  private:
   struct WasmFunctionImport {
-    base::Vector<const char> module;
-    base::Vector<const char> name;
+    std::string_view module;
+    std::string_view name;
     ModuleTypeIndex sig_index;
   };
 
   struct WasmGlobalImport {
-    base::Vector<const char> module;
-    base::Vector<const char> name;
+    std::string_view module;
+    std::string_view name;
     // TODO(manoskouk): Extend to full value type.
     ValueTypeCode type_code;
     bool mutability;
   };
 
   struct WasmExport {
-    base::Vector<const char> name;
+    std::string_view name;
     ImportExportKindCode kind;
     int index;  // Can be negative for re-exported imports.
   };

@@ -338,11 +338,10 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
 }
 
 Node* JSGraphAssembler::ClearPendingMessage() {
-  ExternalReference const ref =
-      ExternalReference::address_of_pending_message(isolate());
-  return AddNode(graph()->NewNode(
-      simplified()->StoreMessage(), jsgraph()->ExternalConstant(ref),
-      jsgraph()->TheHoleConstant(), effect(), control()));
+  Node* const pending_message = IsolateField(IsolateFieldId::kPendingMessage);
+  return AddNode(graph()->NewNode(simplified()->StoreMessage(), pending_message,
+                                  jsgraph()->TheHoleConstant(), effect(),
+                                  control()));
 }
 
 #ifdef V8_MAP_PACKING
@@ -707,7 +706,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
@@ -732,7 +734,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
@@ -838,7 +843,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             return RoundDownToElementSize(
                 a.UintPtrSub(byte_length, byte_offset));
@@ -862,7 +870,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             return RoundDownToElementSize(
                 a.UintPtrSub(byte_length, byte_offset));
@@ -984,7 +995,7 @@ TNode<Word32T> JSGraphAssembler::ArrayBufferDetachedBit(
       LoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(), buffer),
       UseInfo::TruncatingWord32());
   return Word32And(bitfield,
-                   Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+                   Uint32Constant(JSArrayBuffer::Bits::WasDetachedBit::kMask));
 }
 
 TNode<Word32T> JSGraphAssembler::ArrayBufferViewDetachedBit(
