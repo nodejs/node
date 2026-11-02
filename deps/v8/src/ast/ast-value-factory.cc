@@ -32,7 +32,8 @@
 #include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/objects/string.h"
+#include "src/objects/string-inl.h"
+#include "src/roots/roots.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/utils-inl.h"
 
@@ -83,7 +84,7 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
   if (!IsIntegerIndex()) return false;
   if (length() <= Name::kMaxCachedArrayIndexLength) {
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        raw_hash_field_, HashSeed(ReadOnlyHeap::GetReadOnlyRoots()));
+        raw_hash_field_, HashSeed(GetReadOnlyRoots()));
     return true;
   }
   // Might be an index, but too big to cache it. Do the slow conversion. This
