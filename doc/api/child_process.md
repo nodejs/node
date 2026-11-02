@@ -1432,7 +1432,11 @@ changes:
 
 The `child_process.spawnSync()` method is generally identical to
 [`child_process.spawn()`][] with the exception that the function will not return
-until the child process has fully closed. When a timeout has been encountered
+until the child process has fully closed and all stdio streams have reached EOF.
+If the spawned process spawns a detached background child that inherits standard
+I/O streams, those open descriptors can keep stdio streams open after the spawned
+process has exited, causing `spawnSync()` to wait until all descriptors close or
+the configured `timeout` expires. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
 completely exited. If the process intercepts and handles the `SIGTERM` signal
 and doesn't exit, the parent process will wait until the child process has
