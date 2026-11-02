@@ -11,14 +11,14 @@ let
       (final: prev: {
         # Disable compiling tools we do not use
         perfetto = prev.perfetto.overrideAttrs (old: {
-            gnFlags = old.gnFlags ++ [
-              "enable_perfetto_x64_cpu_opt=false"
-              ''extra_target_ldflags="-static"''
-            ];
-            doCheck = false;
-            ninjaFlags = [ "trace_processor_shell" ];
-            installPhase = "install -Dt $tools/bin $ninjaFlags";
-            nativeInstallCheckInputs = [ ];
+          gnFlags = old.gnFlags ++ [
+            "enable_perfetto_x64_cpu_opt=false"
+            ''extra_target_ldflags="-static"''
+          ];
+          doCheck = false;
+          ninjaFlags = [ "trace_processor_shell" ];
+          installPhase = "install -Dt $tools/bin $ninjaFlags";
+          nativeInstallCheckInputs = [ ];
         });
       })
       (
@@ -85,6 +85,20 @@ let
               });
           }
         )
+        // prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == "powerpc64le-linux") {
+          perfetto = prev.perfetto.overrideAttrs (
+            old:
+            let
+              patch = final.fetchpatch2 {
+                url = "https://github.com/google/perfetto/commit/a7c43b904ba74e90e8971357b90fb6c98d6a47d1.patch?full_index=1";
+                hash = "sha256-ERtRmwBsfNmVl+h8eoEnIDDFKVBXxnEn3/m/u1A5ywU=";
+              };
+            in
+            {
+              patches = (old.patches or [ ]) ++ final.lib.optional (!(builtins.elem patch old.patches)) patch;
+            }
+          );
+        }
       )
     ];
   };

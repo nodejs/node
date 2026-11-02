@@ -5,7 +5,7 @@
   },
   "linux-ppc64le": {
     "crossSystem": "musl-power",
-    "storePath": "/nix/store/i66m4s4agv26wiid9s8r6wgzq1ynvjba-perfetto-static-powerpc64le-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
+    "storePath": "/nix/store/qk1qgscid4094r5g7sz6f91w5ha71y35-perfetto-static-powerpc64le-unknown-linux-musl-59.1-tools/bin/trace_processor_shell"
   },
   "linux-s390x": {
     "crossSystem": "s390x",
