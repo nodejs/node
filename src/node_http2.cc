@@ -843,8 +843,8 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
 }
 
 void Http2Session::FinishClose(uint32_t code,
-                              bool socket_closed,
-                              int write_status) {
+                               bool socket_closed,
+                               int write_status) {
   CHECK(is_closing());
 
   // Stop reading on the i/o stream
