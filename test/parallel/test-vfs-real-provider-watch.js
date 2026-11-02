@@ -35,10 +35,22 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   await iter.return();
 })().then(common.mustCall());
 
-// watchFile / unwatchFile
+// watchFile / unwatchFile: the listener must be forwarded to the real fs
+// watcher (not stubbed), fire on change, and be removable by identity.
 {
   fs.writeFileSync(path.join(root, 'wf.txt'), 'a');
-  const listener = () => {};
-  myVfs.watchFile('/wf.txt', { persistent: false }, listener);
-  myVfs.unwatchFile('/wf.txt', listener);
+  // Unwatch on the first call because writeFileSync truncates before writing,
+  // so a poll landing between the two would report a second change. The
+  // watcher is persistent, so the process only exits once it has been removed.
+  const listener = common.mustCall(() => {
+    myVfs.unwatchFile('/wf.txt', listener);
+  });
+  myVfs.watchFile('/wf.txt', { interval: 10 }, listener);
+  // uv_fs_poll records the first stat asynchronously as the baseline and
+  // only reports subsequent changes, so mutate the file only after that
+  // baseline reflects 'a'; otherwise the change is folded into the baseline
+  // and the listener never fires. Change the size too, because some
+  // platforms (e.g. AIX) only report timestamps to the second, so a
+  // same-size rewrite within that second would look unchanged.
+  setTimeout(() => fs.writeFileSync(path.join(root, 'wf.txt'), 'bb'), 100);
 }
