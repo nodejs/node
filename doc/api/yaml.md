@@ -43,6 +43,12 @@ and block scalars are strings unless a tag changes their type, as in
 `!!int "42"`. Mappings become plain objects and sequences become arrays, as
 with [`JSON.parse()`][].
 
+Documents are read with YAML 1.2 rules whether or not they carry a `%YAML`
+directive. A `%YAML 1.1` directive is accepted, as the specification requires,
+and the document is still read as YAML 1.2: there is no YAML 1.1 compatibility
+mode, so `no` and `0777` are a string and the decimal number 777. A `%YAML`
+directive with a major version other than 1 throws.
+
 ```mjs
 import yaml from 'node:yaml';
 
