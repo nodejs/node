@@ -933,8 +933,9 @@ changes:
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
-  * `importAttributes` {Object} An object whose key-value pairs represent the
-    attributes for the module to import
+  * `importAttributes` {Object|undefined} An object whose key-value pairs
+    represent the attributes for the module to import, or `undefined` if the
+    module is loaded by `require()`
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
@@ -1024,7 +1025,8 @@ changes:
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain. This can be any string value as an input; input values do not need to
     conform to the list of acceptable return values described below.
-  * `importAttributes` {Object}
+  * `importAttributes` {Object|undefined} `undefined` if the module is loaded
+    by `require()`
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `url` {string}
