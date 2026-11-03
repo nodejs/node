@@ -8,9 +8,8 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const { once } = require('node:events');
 const http = require('node:http');
 
-// This test ensures that an idle keep-alive socket does not retain the
-// context of the requests that created and reused it, through either its
-// handle or its timeout.
+// Idle keep-alive sockets must release request contexts held by their
+// handles and timeout timers.
 // Refs: https://github.com/nodejs/node/issues/67181
 
 const storage = new AsyncLocalStorage();
@@ -28,8 +27,8 @@ function requestInContext() {
   const store = {};
   const reference = new WeakRef(store);
   return storage.run(store, common.mustCall(() => new Promise((resolve, reject) => {
-    // Use an IP address, so the first DNS lookup does not create the default
-    // resolver, which keeps the context it was created in, inside the store.
+    // Avoid initializing the default DNS resolver inside ALS: it can retain
+    // the request context independently of the Agent.
     http.get({
       agent,
       host: '127.0.0.1',

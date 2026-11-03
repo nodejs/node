@@ -7,10 +7,8 @@ const { once } = require('node:events');
 const http = require('node:http');
 const { setImmediate } = require('node:timers/promises');
 
-// This test ensures that a keep-alive socket runs its callbacks in the context
-// of the request currently using it, and in no request context while it is
-// idle in the agent pool. Other work started by a request must keep its
-// context after the socket is released.
+// Idle socket callbacks must not inherit a completed request's context.
+// Active requests and independent asynchronous work must keep theirs.
 // Refs: https://github.com/nodejs/node/issues/67181
 
 const storage = new AsyncLocalStorage();
@@ -66,8 +64,6 @@ async function main() {
   await setImmediate();
   assertPooled(created);
 
-  // A request that reuses the socket must observe its own context in the
-  // socket timeout.
   const secondStore = { requestId: 'second' };
   await storage.run(secondStore, common.mustCall(() => new Promise((resolve) => {
     const req = request('/stall');
@@ -82,12 +78,9 @@ async function main() {
     req.on('close', common.mustCall(resolve));
   })));
 
-  // Releasing the socket must not alter the context of other work.
   releaseBackgroundWork();
   await backgroundWork;
 
-  // An idle socket times out and is closed by the agent outside of the
-  // context of the request that created it.
   const thirdStore = { requestId: 'third' };
   const idle = await storage.run(thirdStore,
                                  common.mustCall(() => completedRequest(thirdStore)));
