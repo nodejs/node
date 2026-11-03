@@ -73,11 +73,11 @@ class SQLitePermissionVFS {
   bool AllowsPath(std::string_view path, bool read, bool write) const;
   bool AllowsSidecarPath(std::string_view path, bool read, bool write) const;
   bool AllowsTemporaryFile(bool read, bool write) const;
+  // Returns true in audit mode, after reporting the denial.
+  bool Denied(std::string_view path, bool read) const;
 
  private:
   bool AllowsCanonicalPath(std::string_view path, bool read, bool write) const;
-  // Returns true in audit mode, after reporting the denial.
-  bool Denied(std::string_view path, bool read) const;
 
   sqlite3_vfs vfs_{};
   sqlite3_vfs* parent_ = nullptr;

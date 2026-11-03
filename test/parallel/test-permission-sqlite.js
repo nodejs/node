@@ -443,9 +443,11 @@ if (!common.isWindows) {
 
 {
   // Audit mode reports SQLite file access without denying it, including
-  // ATTACH filenames that the authorizer cannot inspect.
+  // ATTACH filenames that the authorizer cannot inspect (reported as an
+  // empty resource) and URI-selected VFSes.
   const auditDbPath = tmpdir.resolve('audit.sqlite');
   const auditAttachPath = tmpdir.resolve('audit-attach.sqlite');
+  const vfsUri = `file:${tmpdir.resolve('audit-vfs.sqlite')}?vfs=memdb`;
   const code = `const dc = require('node:diagnostics_channel');
     const { DatabaseSync } = require('node:sqlite');
     const seen = new Set();
@@ -454,17 +456,25 @@ if (!common.isWindows) {
     db.prepare('ATTACH ? AS other').run(process.env.ATTACH_PATH);
     db.exec('CREATE TABLE other.data(value)');
     db.close();
+    new DatabaseSync(process.env.VFS_URI).close();
     process.on('exit', () => console.log(JSON.stringify([...seen])));`;
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     ['--permission-audit', '--eval', code],
     {
       encoding: 'utf8',
-      env: { ...process.env, DB_PATH: auditDbPath, ATTACH_PATH: auditAttachPath },
+      env: {
+        ...process.env,
+        DB_PATH: auditDbPath,
+        ATTACH_PATH: auditAttachPath,
+        VFS_URI: vfsUri,
+      },
     },
   );
   assert.strictEqual(status, 0, `stderr: ${stderr}`);
   const seen = JSON.parse(stdout);
   assert(seen.includes(auditDbPath), stdout);
   assert(seen.includes(auditAttachPath), stdout);
+  assert(seen.includes(''), stdout);
+  assert(seen.includes(vfsUri), stdout);
 }

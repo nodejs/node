@@ -314,7 +314,8 @@ int PermissionFileControl(sqlite3_file* file, int operation, void* argument) {
     const std::string_view proxy_path = static_cast<const char*>(argument);
     const bool allowed =
         proxy_path == ":auto:"
-            ? permission_file->vfs->AllowsTemporaryFile(true, true)
+            ? permission_file->vfs->AllowsTemporaryFile(true, true) ||
+                  permission_file->vfs->Denied("", true)
             : permission_file->vfs->AllowsPath(proxy_path, true, true);
     if (!allowed) return SQLITE_PERM;
   }
@@ -665,8 +666,6 @@ bool SQLitePermissionVFS::AllowsSidecarPath(std::string_view path,
 }
 
 bool SQLitePermissionVFS::AllowsTemporaryFile(bool read, bool write) const {
-  if (permission_->warning_only()) return true;
-
   // SQLite does not provide a pathname for anonymous temporary files. Disk
   // storage is allowed only with global permissions. Otherwise xOpen uses
   // SQLite's memory VFS.

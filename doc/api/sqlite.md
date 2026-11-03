@@ -109,6 +109,10 @@ against the granted file system permissions:
 * Temporary files are kept in memory unless file system access is granted for
   all paths.
 
+In audit mode, the restrictions above are reported to the
+`node:permission-model:fs` diagnostics channel instead. An `ATTACH DATABASE`
+filename that is not a string literal is reported with an empty `resource`.
+
 ## Type conversion between JavaScript and SQLite
 
 When Node.js writes to or reads from SQLite, it is necessary to convert between
