@@ -177,6 +177,37 @@ assert.deepStrictEqual(parse(new TextEncoder().encode('[1]').buffer), [1]);
   assert.strictEqual(Object.getOwnPropertyDescriptor(value, '__proto__').value, 1);
 }
 
+// Properties inherited from Object.prototype do not affect mappings.
+{
+  Object.defineProperty(Object.prototype, 'setter', {
+    __proto__: null,
+    get: common.mustNotCall(),
+    set: common.mustNotCall(),
+    configurable: true,
+  });
+  Object.defineProperty(Object.prototype, 'readonly', {
+    __proto__: null,
+    value: 'inherited',
+    writable: false,
+    configurable: true,
+  });
+  try {
+    const value = parse('setter: 1\nreadonly: 2\n{a: 1, setter: 2}: 3\n');
+    assert.strictEqual(Object.getPrototypeOf(value), Object.prototype);
+    assert.deepStrictEqual(Object.keys(value), ['setter', 'readonly', '{"a":1,"setter":2}']);
+    assert.strictEqual(value.setter, 1);
+    assert.strictEqual(value.readonly, 2);
+    const pairs = parse('[setter: 1, ? readonly]');
+    assert.deepStrictEqual(pairs, [{ setter: 1 }, { readonly: null }]);
+    assert.strictEqual(Object.getPrototypeOf(pairs[0]), Object.prototype);
+    assert.strictEqual(Object.getPrototypeOf(pairs[1]), Object.prototype);
+    assert.throws(() => parse('readonly: 1\nreadonly: 2\n'), { code: 'ERR_INVALID_YAML' });
+  } finally {
+    delete Object.prototype.setter;
+    delete Object.prototype.readonly;
+  }
+}
+
 // Errors.
 for (const input of [1, null, undefined, {}, [], Symbol('x')]) {
   assert.throws(() => parse(input), { code: 'ERR_INVALID_ARG_TYPE' });
