@@ -24,6 +24,8 @@ class ManagedX509 final : public MemoryRetainer {
  public:
   static std::shared_ptr<ManagedX509> Adopt(ncrypto::X509Pointer cert);
 
+  // Prevent Coverity 367349: copy and copy-assignment are deleted to avoid
+  // multiple smart pointers managing the same raw pointer.
   ManagedX509(const ManagedX509&) = delete;
   ManagedX509& operator=(const ManagedX509&) = delete;
 

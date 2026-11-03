@@ -95,6 +95,8 @@ X509Pointer ParseCertificate(const X509CertificateSnapshot::DER& certificate) {
 
 }  // namespace
 
+// ManagedX509 is non-copyable to prevent multiple smart pointers managing the
+// same raw pointer (Coverity 367349); ownership transfer is explicit via Adopt.
 ManagedX509::ManagedX509(X509Pointer cert) : cert_(std::move(cert)) {}
 
 std::shared_ptr<ManagedX509> ManagedX509::Adopt(X509Pointer cert) {
