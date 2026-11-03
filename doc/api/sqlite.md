@@ -91,6 +91,24 @@ console.log(query.all());
 query.close();
 ```
 
+## Permission Model
+
+When the [Permission Model][] is enabled, file access by SQLite is checked
+against the granted file system permissions:
+
+* Opening a database requires [`--allow-fs-read`][] for its path, and
+  [`--allow-fs-write`][] unless it is opened read-only. In-memory databases
+  require no permissions.
+* Databases added with [`ATTACH DATABASE`][] and [`sqlite.backup()`][]
+  destinations are checked the same way. A database that may be read but not
+  written is attached read-only.
+* Journal, WAL, and shared-memory files are covered by the permissions of
+  their database.
+* SQLite URI filenames cannot select a VFS with the `vfs` parameter, and
+  `ATTACH DATABASE` filenames must be string literals.
+* Temporary files are kept in memory unless file system access is granted for
+  all paths.
+
 ## Type conversion between JavaScript and SQLite
 
 When Node.js writes to or reads from SQLite, it is necessary to convert between
@@ -2102,10 +2120,13 @@ callback function to indicate what type of operation is being authorized.
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [Limit Constants]: https://www.sqlite.org/c3ref/c_limit_attached.html
+[Permission Model]: permissions.md#permission-model
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
+[`--allow-fs-read`]: cli.md#--allow-fs-read
+[`--allow-fs-write`]: cli.md#--allow-fs-write
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
@@ -2121,6 +2142,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`diagnostics_channel`]: diagnostics_channel.md
 [`session.close()`]: #sessionclose
+[`sqlite.backup()`]: #sqlitebackupsourcedb-path-options
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep

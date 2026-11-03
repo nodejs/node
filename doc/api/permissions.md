@@ -209,9 +209,9 @@ If both [`--permission`][] and [`--permission-audit`][] are specified,
 
 #### File System Permissions
 
-The Permission Model, by default, restricts access to the file system through the `node:fs` module.
-It does not guarantee that users will not be able to access the file system through other means,
-such as through the `node:sqlite` module.
+The Permission Model, by default, restricts access to the file system through the `node:fs` and
+`node:sqlite` modules. It does not guarantee that users will not be able to access the file system
+through other means.
 
 To allow access to the file system, use the [`--allow-fs-read`][] and
 [`--allow-fs-write`][] flags:
@@ -507,6 +507,8 @@ There are constraints you need to know before using this system:
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
   enabled, affecting the sqlite module.
+* SQLite URI filenames cannot select a VFS, and `ATTACH DATABASE` filenames
+  must be string literals, when the Permission Model is enabled.
 * Using existing file descriptors via the `node:fs` module bypasses the
   Permission Model.
 
