@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-serialization.h"
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
@@ -322,7 +323,7 @@ static_assert(std::is_trivially_destructible_v<ExternalReferenceList>,
 // Translate the signature IDs in the effect handler table from canonical to
 // module-relative or vice-versa.
 template <typename TranslateSigIdCallback>
-base::OwnedVector<uint8_t> TranslateEffectHandlersTable(
+base::UniqueArray<uint8_t> TranslateEffectHandlersTable(
     base::Vector<const uint8_t> effect_handlers,
     TranslateSigIdCallback translate_sig_id) {
   if (effect_handlers.empty()) return {};
@@ -362,7 +363,7 @@ base::OwnedVector<uint8_t> TranslateEffectHandlersTable(
     }
   }
 
-  return base::OwnedVector<uint8_t>::NewByCopying(result.data(), result.size());
+  return base::UniqueArray<uint8_t>::CopiedFrom(result);
 }
 
 }  // namespace
@@ -385,7 +386,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   void WriteTieringBudget(Writer* writer);
 
   uint32_t CanonicalSigIdToModuleLocalTypeId(uint32_t canonical_sig_id);
-  base::OwnedVector<uint8_t> TranslateEffectHandlersToModuleRelative(
+  base::UniqueArray<uint8_t> TranslateEffectHandlersToModuleRelative(
       base::Vector<const uint8_t> effect_handlers);
 
   const NativeModule* const native_module_;
@@ -395,7 +396,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   std::unordered_map<uint32_t, uint32_t> canonical_sig_ids_to_module_local_ids_;
   // Effect handler tables with canonical signature indices translated to
   // module-relative indices.
-  std::unordered_map<const WasmCode*, base::OwnedVector<uint8_t>>
+  std::unordered_map<const WasmCode*, base::UniqueArray<uint8_t>>
       translated_effect_handlers_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
@@ -429,7 +430,7 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) {
     return sizeof(uint8_t);
   }
 
-  base::OwnedVector<uint8_t> effect_handlers =
+  base::UniqueArray<uint8_t> effect_handlers =
       TranslateEffectHandlersToModuleRelative(code->effect_handlers());
   size_t effect_handlers_size = effect_handlers.size();
   translated_effect_handlers_.emplace(code, std::move(effect_handlers));
@@ -680,7 +681,7 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
   return it->second;
 }
 
-base::OwnedVector<uint8_t>
+base::UniqueArray<uint8_t>
 NativeModuleSerializer::TranslateEffectHandlersToModuleRelative(
     base::Vector<const uint8_t> effect_handlers) {
   return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
@@ -816,7 +817,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
 
-  base::OwnedVector<uint8_t> TranslateEffectHandlersToCanonical(
+  base::UniqueArray<uint8_t> TranslateEffectHandlersToCanonical(
       base::Vector<const uint8_t> effect_handlers);
 
   NativeModule* const native_module_;
@@ -1036,7 +1037,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto trapping_instructions =
       reader->ReadVector<uint8_t>(trapping_instructions_size);
   auto raw_effect_handlers = reader->ReadVector<uint8_t>(effect_handlers_size);
-  base::OwnedVector<uint8_t> effect_handlers =
+  base::UniqueArray<uint8_t> effect_handlers =
       TranslateEffectHandlersToCanonical(raw_effect_handlers);
 
   base::Vector<uint8_t> instructions =
@@ -1054,7 +1055,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   return unit;
 }
 
-base::OwnedVector<uint8_t>
+base::UniqueArray<uint8_t>
 NativeModuleDeserializer::TranslateEffectHandlersToCanonical(
     base::Vector<const uint8_t> effect_handlers) {
   return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
@@ -1199,7 +1200,7 @@ bool HeaderMatches(base::Vector<const uint8_t> data,
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> data,
-    base::OwnedVector<const uint8_t>& wire_bytes_vec,
+    base::UniqueArray<const uint8_t>& wire_bytes_vec,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};

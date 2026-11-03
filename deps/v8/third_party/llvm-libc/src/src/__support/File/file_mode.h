@@ -62,6 +62,9 @@ public:
       case 'x':
         file_mode_ |= static_cast<Mode>(CreateType::EXCLUSIVE);
         break;
+      case 'e':
+        file_mode_ |= static_cast<Mode>(Extension::CLOSE_ON_EXEC);
+        break;
       default:
         file_mode_ = 0;
       }
@@ -108,6 +111,10 @@ public:
     return (file_mode_ & static_cast<Mode>(CreateType::EXCLUSIVE)) != 0;
   }
 
+  constexpr bool is_close_on_exec() const {
+    return (file_mode_ & static_cast<Mode>(Extension::CLOSE_ON_EXEC)) != 0;
+  }
+
 private:
   // Mode is a generic or abstract mode bit for all kinds of modes
   // (open-mode, 'content-mode', 'create-modes')
@@ -115,7 +122,7 @@ private:
 
   // Denotes the mode of the file.
   //
-  // The three different types of flags below are to be used with '|' operator.
+  // The different types of flags below are to be used with '|' operator.
   // Their values correspond to mutually exclusive bits in a 32-bit unsigned
   // integer value. A flag set can include both READ and WRITE if the file
   // is opened in update mode (ie. if the file was opened with a '+' the mode
@@ -136,6 +143,11 @@ private:
   // Denotes a file to be created for writing.
   enum class CreateType : Mode {
     EXCLUSIVE = 0x100,
+  };
+
+  // POSIX extensions to the ISO C file modes.
+  enum class Extension : Mode {
+    CLOSE_ON_EXEC = 0x1000,
   };
 
   // This property tracks the mode for the particular file instance (i.e

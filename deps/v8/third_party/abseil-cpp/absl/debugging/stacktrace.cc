@@ -161,8 +161,14 @@ void SetStackUnwinder(Unwinder w) {
   custom.store(w, std::memory_order_release);
 }
 
-int DefaultStackUnwinder(void** pcs, int* sizes, int depth, int skip,
-                         const void* uc, int* min_dropped_frames) {
+// As of LLVM commit go/compilers/fc1afa6edce98a973ce2ce969c589da4f3aee975,
+// CFI functions are inlinable in the ThinLTO backend. As a result, these
+// wrappers were inlined into their callers, causing stack unwinding to skip an
+// extra caller frame. Prevent inlining to ensure their stack frames are
+// preserved when calculating `skip_count`.
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int DefaultStackUnwinder(
+    void** pcs, int* sizes, int depth, int skip, const void* uc,
+    int* min_dropped_frames) {
   skip++;  // For this function
   decltype(&UnwindImpl<false, false>) f;
   if (sizes == nullptr) {

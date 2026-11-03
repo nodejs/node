@@ -205,8 +205,11 @@ uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate* isolate,
 uint64_t CodeDataSourceIncrementalState::InternJsFunction(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> info,
     uint64_t v8_js_script_iid, int line_num, int column_num) {
+  // Some callers already have a `DisallowGarbageCollection` scope open, hence
+  // we should never allocate in this method.
+  DisallowGarbageCollection no_gc;
   DirectHandle<String> function_name =
-      SharedFunctionInfo::DebugName(isolate, info);
+      SharedFunctionInfo::DebugName(isolate, info, AllowAllocation{false});
   uint64_t v8_js_function_name_iid = InternJsFunctionName(*function_name);
 
   auto [it, was_inserted] = functions_.emplace(

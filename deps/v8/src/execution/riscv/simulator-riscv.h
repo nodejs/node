@@ -50,6 +50,7 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include <array>
 #include <functional>
 
 #include "src/base/float16.h"
@@ -77,6 +78,7 @@ typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constants-arch.h"
 #include "src/execution/simulator-base.h"
@@ -553,6 +555,14 @@ class Simulator : public SimulatorBase {
   template <typename T>
   T FMaxMinHelper(T a, T b, MaxMinKind kind);
 
+  // Fused multiply-add of three Float16 operands with a single rounding to
+  // Float16. The intermediate computation is done in double precision, whose
+  // 53-bit significand is far more than the 2*11+2 bits needed to make the
+  // additional rounding innocuous (avoids the double rounding that a float
+  // intermediate would introduce). Returns the canonical quiet NaN and raises
+  // the invalid operation flag for signaling NaNs / invalid operations.
+  uint16_t F16FmaHelper(Float16 a, Float16 b, Float16 c);
+
   // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
   template <typename T>
   T FMaxMinMHelper(T a, T b, MaxMinKind kind);
@@ -949,8 +959,9 @@ class Simulator : public SimulatorBase {
     for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
       const char* format =
           i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
-      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
-                             format, value.chunks[i]);
+      int written = SNPrintF(
+          base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
+          format, value.chunks[i]);
       offset += written;
     }
     return offset;
@@ -959,7 +970,7 @@ class Simulator : public SimulatorBase {
   inline void rvv_trace_vd() {
     if (v8_flags.trace_sim) {
       int offset = snprintf_vreg(rvv_vd_reg());
-      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
                " (%" PRId64 ")", icount_);
     }
   }
@@ -995,7 +1006,7 @@ class Simulator : public SimulatorBase {
       for (; i < trace_buf_.size(); i++) {
         if (trace_buf_[i] == '\0') break;
       }
-      SNPrintF(trace_buf_.SubVector(i, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(i, trace_buf_.size()),
                "  sew:%s lmul:%s vstart:%" PRId64 " vl:%" PRId64, rvv_sew_s(),
                rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
@@ -1289,8 +1300,8 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
-  base::Vector<uintptr_t> shadow_stack_ =
-      base::Vector<uintptr_t>::New(kInitialShadowStackSize);
+  base::UniqueArray<uintptr_t> shadow_stack_ =
+      base::UniqueArray<uintptr_t>::New(kInitialShadowStackSize);
   size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
   int64_t ss_mismatch_count_ = 0;
 
@@ -1333,7 +1344,7 @@ class Simulator : public SimulatorBase {
   sreg_t* watch_address_ = nullptr;
   sreg_t watch_value_ = 0;
   int break_count_;
-  base::EmbeddedVector<char, 256> trace_buf_;
+  std::array<char, 256> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

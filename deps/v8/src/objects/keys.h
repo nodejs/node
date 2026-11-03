@@ -73,7 +73,8 @@ class KeyAccumulator final {
   // Does not throw for uninitialized exports in module namespace objects, so
   // this has to be checked separately.
   static Handle<FixedArray> GetOwnEnumPropertyKeys(
-      Isolate* isolate, DirectHandle<JSObject> object);
+      Isolate* isolate, DirectHandle<JSObject> object,
+      bool& is_from_enum_cache);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus
   AddKey(Tagged<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
@@ -191,13 +192,15 @@ class FastKeyAccumulator {
   FastKeyAccumulator(const FastKeyAccumulator&) = delete;
   FastKeyAccumulator& operator=(const FastKeyAccumulator&) = delete;
 
-  bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
+  bool has_initialized_and_usable_enum_cache() {
+    return has_initialized_and_usable_enum_cache_;
+  }
   bool has_empty_prototype() { return has_empty_prototype_; }
   bool may_have_elements() { return may_have_elements_; }
   bool MayHaveSymbols();
 
-  MaybeHandle<FixedArray> GetKeys(
-      GetKeysConversion convert = GetKeysConversion::kKeepNumbers);
+  MaybeHandle<FixedArray> GetKeys(GetKeysConversion convert,
+                                  bool& is_from_enum_cache);
 
   // Initialize the enum cache for a map with all of the following:
   //   - uninitialized enum length
@@ -214,12 +217,14 @@ class FastKeyAccumulator {
 
  private:
   void Prepare();
-  MaybeHandle<FixedArray> GetKeysFast(GetKeysConversion convert);
+  MaybeHandle<FixedArray> GetKeysFast(GetKeysConversion convert,
+                                      bool& is_from_enum_cache);
   MaybeHandle<FixedArray> GetKeysSlow(GetKeysConversion convert);
   MaybeHandle<FixedArray> GetKeysWithPrototypeInfoCache(
-      GetKeysConversion convert);
+      GetKeysConversion convert, bool& is_from_enum_cache);
 
-  MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumLength();
+  MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumLength(
+      bool& is_from_enum_cache);
 
   bool MayHaveElements(Tagged<JSReceiver> receiver);
   bool TryPrototypeInfoCache(DirectHandle<JSReceiver> receiver);
@@ -233,7 +238,7 @@ class FastKeyAccumulator {
   PropertyFilter filter_;
   bool is_for_in_ = false;
   bool skip_indices_ = false;
-  bool is_receiver_simple_enum_ = false;
+  bool has_initialized_and_usable_enum_cache_ = false;
   bool has_empty_prototype_ = false;
   bool may_have_elements_ = true;
   bool has_prototype_info_cache_ = false;

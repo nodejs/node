@@ -406,11 +406,7 @@ class Trace {
   bool GetStoredPosition(int reg, int* cp_offset) const;
   // These set methods and AdvanceCurrentPositionInTrace should be used only on
   // new traces - the intention is that traces are immutable after creation.
-  void add_action(ActionNode* new_action) {
-    DCHECK(action_ == nullptr);  // Otherwise we lose an action.
-    action_ = new_action;
-    flags_ = HasAnyActionsField::update(flags_, true);
-  }
+  void add_action(ActionNode* new_action);
   // Clears any inherited parked-position grant; see parked_grant() for when
   // an alternative must do this.
   void reset_parked_grant() {

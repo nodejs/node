@@ -358,6 +358,14 @@ class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
   }
 };
 
+class UninitializedHeapNumber::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(UninitializedHeapNumber);
+  }
+};
+
 class HashSeedWrapper::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1507,9 +1515,6 @@ class WasmSuspenderObject::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kWasmSuspenderIndirectPointerTag, v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(offsetof(WasmSuspenderObject, stack_),
-                                          kWasmStackMemoryTag));
     IterateProtectedPointer(obj, offsetof(WasmSuspenderObject, parent_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, promise_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, resume_), v);
@@ -1638,7 +1643,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     if (!WasmArray::GcSafeElementType(map).is_ref()) return;
-    IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
+    IteratePointers(obj, WasmArray::HeaderSize(map), object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1795,8 +1800,10 @@ class WasmCustomMap::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    Map::BodyDescriptor::IterateBody(map, obj, object_size, v);
-    IteratePointer(obj, offsetof(WasmCustomMap, js_wrapper_), v);
+    static_assert(Map::kSize == offsetof(WasmCustomMap, js_wrapper_));
+    Map::BodyDescriptor::IterateBody(map, obj, Map::kSize, v);
+    IteratePointers(obj, offsetof(WasmCustomMap, js_wrapper_),
+                    WasmCustomMap::kHeaderSize, v);
 
     Tagged<WasmCustomMap> wasm_struct = UncheckedCast<WasmCustomMap>(obj);
     // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.

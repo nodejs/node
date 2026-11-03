@@ -68,6 +68,7 @@ using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
 #include <algorithm>
 #include <vector>
 
+#include "absl/base/internal/sysinfo.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -579,6 +580,13 @@ Sampler::Sampler(Isolate* isolate)
   // Abseil's deadlock detection uses locks. If we end up taking a sample absl
   // internally holds this lock, we can end up deadlocking.
   SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
+  // Abseil's Mutex contention path lazily calibrates the nominal CPU frequency
+  // on first contention using a 1ms nanosleep loop. If SIGPROF signals arrive
+  // at high frequency during that calibration, Linux's timer slack on relative
+  // nanosleep restarts can cause the remaining sleep time to grow on every
+  // EINTR, livelocking the thread. Trigger the one-time initialization before
+  // sampling starts.
+  absl::base_internal::NominalCPUFrequency();
 }
 
 Sampler::~Sampler() { DCHECK(!IsActive()); }

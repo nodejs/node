@@ -55,9 +55,6 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # Boot up memory use is bloated in debug mode.
-  'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
-
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
@@ -75,9 +72,6 @@
 
   # BUG(7054)
   'test-cpu-profiler/StaticCollectSampleAPI': [SKIP],
-
-  # BUG(2340). Preprocessing stack traces is disabled at the moment.
-  'test-heap/PreprocessStackTrace': [FAIL],
 
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [FAIL],
@@ -98,7 +92,6 @@
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
-  'test-heap/TestInternalWeakLists': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-serialize/SharedStrings': [PASS, SLOW],
@@ -121,8 +114,6 @@
   'test-serialize/StartupSerializerOnceRunScript': [PASS, SLOW, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, SLOW, HEAVY],
   'test-serialize/StaticRootsPredictableSnapshot': [PASS, SLOW, HEAVY],
-  'test-spaces/OldLargeObjectSpace': [PASS, HEAVY],
-  'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
 
@@ -137,9 +128,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
-
-  # TODO(https://crbug.com/467830526): Currently too flaky:
-  'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
 
   ##############################################################################
   # Behavioural differences between Maglev and Turbofan when the former is used
@@ -211,8 +199,6 @@
   # signal.
   'test-cpu-profiler/*': [SKIP],
 
-  # Slow tests on TSAN
-  'test-heap/Regress8014': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
@@ -241,17 +227,8 @@
   'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, FAIL],
 
-  # BUG(v8:3154).
-  'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
-
   # BUG(v8:3155).
   'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
-
-  # BUG(v8:3247).
-  'test-mark-compact/NoPromotion': [SKIP],
-
-  # BUG(v8:3446).
-  'test-mark-compact/Promotion': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -260,10 +237,6 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
-
-   # https://crbug.com/420743936
-  'test-run-wasm-f16/RunWasmLiftoff_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
-  'test-run-wasm-f16/RunWasmTurbofan_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
@@ -303,12 +276,6 @@
   # Field representation tracking is disabled in nooptimization mode.
   'test-field-type-tracking/*': [SKIP],
 }],  # variant == nooptimization
-
-##############################################################################
-['variant == stress_concurrent_allocation', {
-  # https://crbug.com/42204548
-  'test-mark-compact/MarkCompactCollector': [PASS, SKIP],
-}],  # variant == stress_concurrent_allocation
 
 ##############################################################################
 ['asan == True', {
@@ -351,11 +318,6 @@
 ['tsan == True', {
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
-  # BUG(v8:8296). The tests allocate a lot of objects and timeout in
-  # the --stress-concurrent-allocation variant.
-  'test-heap/OutOfMemorySmallObjects': [PASS, NO_VARIANTS],
-  'test-heap/OutOfMemory': [PASS, NO_VARIANTS],
-
   # Too slow for tsan in debug mode:
   'test-serialize/StaticRootsPredictableSnapshot': [PASS, ['mode == debug', SKIP]],
 }],  # 'tsan == True'
@@ -373,8 +335,6 @@
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
-  'test-heap/Regress8014': [SKIP],
-  'test-heap/TestInternalWeakLists': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],
@@ -440,12 +400,6 @@
 }],  # 'arch == mips64'
 ##############################################################################
 ['arch == mips64el or arch == mips64', {
-  # BUG(v8:3154).
-  'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
-
-  # TODO(mips-team): Improve code-size on large RegExp's.
-  'test-heap/TestSizeOfRegExpCode':  [SKIP],
-
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
@@ -635,7 +589,6 @@
   'test-cpu-profiler/*': [SKIP],
   'test-debug/*': [SKIP],
   'test-heap-profiler/*': [SKIP],
-  'test-heap/*': [SKIP],
   'test-inobject-slack-tracking/*': [SKIP],
   'test-lockers/*': [SKIP],
   'test-run-machops/*': [SKIP],
@@ -703,9 +656,6 @@
 ##############################################################################
 ['lite_mode or variant == jitless', {
 
-  # Slow tests
-  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
-
   # Tests that generate code at runtime.
   'test-accessor-assembler/*': [SKIP],
   'test-atomic-load-store-codegen/*': [SKIP],
@@ -743,12 +693,6 @@
   'test-heap-profiler/WeakReference': [SKIP],
   'test-alloc/StressJS': [SKIP],
   'test-alloc/StressHandles': [SKIP],
-  'test-heap/CodeLargeObjectSpace': [SKIP],
-  'test-heap/CodeLargeObjectSpace64k': [SKIP],
-  'test-heap/CodeObjectRegistry': [SKIP],
-  'test-heap/HeapObjects': [SKIP],
-  'test-heap/Regress10900': [SKIP],
-  'test-weak-references/WeakReferencesBasic': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],
@@ -761,8 +705,6 @@
 ['has_jitless', {
   # invocation_count maintenance is disabled.
   'test-debug/DebugCoverage*': [SKIP],
-  # Feedback collection maintenance is (mostly) disabled.
-  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
   # WebAssembly not included.
   'test-api/Threading8': [SKIP],
 }],  # has_jitless
@@ -782,7 +724,6 @@
 ['variant == jitless', {
   # https://crbug.com/v8/7777
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
-  'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
@@ -835,13 +776,6 @@
   'test-debug/BreakPointInlining': [PASS, FAIL],
   # BUG(11524): Crashing flakily.
   'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
-  # crbug.com/v8/11513: Flakily failing due to the additional compile task.
-  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, FAIL],
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, FAIL],
-  'test-heap/LeakNativeContextVia*': [PASS, FAIL],
-  'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
-  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
 
 ################################################################################
@@ -866,12 +800,6 @@
 
 ##############################################################################
 ['variant == assert_types', {
-  # Type assertions add strong pointers, breaking these test.
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
-  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
-  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
-  'test-heap/LeakNativeContextViaMapKeyed': [SKIP],
-  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
   # Type assertions only work without concurrent compilation, but this test
   # always triggers a concurrent compilation.
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
@@ -882,18 +810,10 @@
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
 }],  # direct_handle
 
-['clang_coverage', {
-  # Slow tests.
-  'test-heap/OutOfMemory': [PASS, SLOW],
-  'test-heap/OutOfMemoryIneffectiveGC': [PASS, SLOW],
-}],
-
 ['clang_coverage and mode == debug', {
   # Too slow tests.
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
-  'test-heap/Regress8014': [SKIP],
-  'test-heap/TestInternalWeakLists': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],

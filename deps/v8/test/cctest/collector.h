@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/iterator.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/common/checks.h"
 
@@ -27,21 +28,15 @@ template <typename T, int growth_factor = 2, int max_growth = 1 * MB>
 class Collector {
  public:
   explicit Collector(int initial_capacity = kMinCapacity)
-      : index_(0), size_(0) {
-    current_chunk_ = base::Vector<T>::New(initial_capacity);
-  }
+      : current_chunk_(base::UniqueArray<T>::NewForOverwrite(initial_capacity)),
+        index_(0),
+        size_(0) {}
 
-  virtual ~Collector() {
-    // Free backing store (in reverse allocation order).
-    current_chunk_.Dispose();
-    for (auto& chunk : base::Reversed(chunks_)) {
-      chunk.Dispose();
-    }
-  }
+  virtual ~Collector() = default;
 
   // Add a single element.
   inline void Add(T value) {
-    if (index_ >= current_chunk_.length()) {
+    if (index_ >= current_chunk_.as_vector().length()) {
       Grow(1);
     }
     current_chunk_[index_] = value;
@@ -55,7 +50,7 @@ class Collector {
   // is alive.
   inline base::Vector<T> AddBlock(int size, T initial_value) {
     DCHECK_GT(size, 0);
-    if (size > current_chunk_.length() - index_) {
+    if (size > current_chunk_.as_vector().length() - index_) {
       Grow(size);
     }
     T* position = current_chunk_.begin() + index_;
@@ -72,7 +67,7 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline base::Vector<T> AddBlock(base::Vector<const T> source) {
-    if (source.length() > current_chunk_.length() - index_) {
+    if (source.length() > current_chunk_.as_vector().length() - index_) {
       Grow(source.length());
     }
     T* position = current_chunk_.begin() + index_;
@@ -88,9 +83,9 @@ class Collector {
   void WriteTo(base::Vector<T> destination) {
     DCHECK(size_ <= destination.length());
     int position = 0;
-    for (const base::Vector<T>& chunk : chunks_) {
-      for (int j = 0; j < chunk.length(); j++) {
-        destination[position] = chunk[j];
+    for (const Chunk& chunk : chunks_) {
+      for (int j = 0; j < chunk.length; j++) {
+        destination[position] = chunk.data[j];
         position++;
       }
     }
@@ -102,19 +97,15 @@ class Collector {
 
   // Allocate a single contiguous vector, copy all the collected
   // elements to the vector, and return it.
-  // The caller is responsible for freeing the memory of the returned
-  // vector (e.g., using Vector::Dispose).
-  base::Vector<T> ToVector() {
-    base::Vector<T> new_store = base::Vector<T>::New(size_);
-    WriteTo(new_store);
+  base::UniqueArray<T> ToVector() {
+    base::UniqueArray<T> new_store =
+        base::UniqueArray<T>::NewForOverwrite(size_);
+    WriteTo(new_store.as_vector());
     return new_store;
   }
 
   // Resets the collector to be empty.
   virtual void Reset() {
-    for (auto& chunk : base::Reversed(chunks_)) {
-      chunk.Dispose();
-    }
     chunks_.clear();
     index_ = 0;
     size_ = 0;
@@ -124,9 +115,14 @@ class Collector {
   inline int size() { return size_; }
 
  protected:
+  struct Chunk {
+    base::UniqueArray<T> data;
+    int length;
+  };
+
   static const int kMinCapacity = 16;
-  std::vector<base::Vector<T>> chunks_;
-  base::Vector<T>
+  std::vector<Chunk> chunks_;
+  base::UniqueArray<T>
       current_chunk_;        // Block of memory currently being written into.
   int index_;                // Current index in current chunk.
   int size_;                 // Total number of elements in collector.
@@ -135,7 +131,7 @@ class Collector {
   void Grow(int min_capacity) {
     DCHECK_GT(growth_factor, 1);
     int new_capacity;
-    int current_length = current_chunk_.length();
+    int current_length = current_chunk_.as_vector().length();
     if (current_length < kMinCapacity) {
       // The collector started out as empty.
       new_capacity = min_capacity * growth_factor;
@@ -151,7 +147,7 @@ class Collector {
       }
     }
     NewChunk(new_capacity);
-    DCHECK(index_ + min_capacity <= current_chunk_.length());
+    DCHECK(index_ + min_capacity <= current_chunk_.as_vector().length());
   }
 
   // Before replacing the current chunk, give a subclass the option to move
@@ -159,13 +155,12 @@ class Collector {
   // the current index_ value to represent data no longer in the current chunk.
   // Returns the initial index of the new chunk (after copied data).
   virtual void NewChunk(int new_capacity) {
-    base::Vector<T> new_chunk = base::Vector<T>::New(new_capacity);
+    base::UniqueArray<T> new_chunk =
+        base::UniqueArray<T>::NewForOverwrite(new_capacity);
     if (index_ > 0) {
-      chunks_.push_back(current_chunk_.SubVector(0, index_));
-    } else {
-      current_chunk_.Dispose();
+      chunks_.push_back({std::move(current_chunk_), index_});
     }
-    current_chunk_ = new_chunk;
+    current_chunk_ = std::move(new_chunk);
     index_ = 0;
   }
 };
@@ -198,7 +193,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
     if (sequence_start == this->index_) return base::Vector<T>();
-    return this->current_chunk_.SubVector(sequence_start, this->index_);
+    return this->current_chunk_.as_vector().SubVector(sequence_start,
+                                                      this->index_);
   }
 
   // Drops the currently added sequence, and all collected elements in it.
@@ -227,19 +223,17 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
       return;
     }
     int sequence_length = this->index_ - sequence_start_;
-    base::Vector<T> new_chunk =
-        base::Vector<T>::New(sequence_length + new_capacity);
-    DCHECK(sequence_length < new_chunk.length());
+    base::UniqueArray<T> new_chunk =
+        base::UniqueArray<T>::NewForOverwrite(sequence_length + new_capacity);
+    DCHECK(sequence_length < new_chunk.as_vector().length());
     for (int i = 0; i < sequence_length; i++) {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];
     }
     if (sequence_start_ > 0) {
       this->chunks_.push_back(
-          this->current_chunk_.SubVector(0, sequence_start_));
-    } else {
-      this->current_chunk_.Dispose();
+          {std::move(this->current_chunk_), sequence_start_});
     }
-    this->current_chunk_ = new_chunk;
+    this->current_chunk_ = std::move(new_chunk);
     this->index_ = sequence_length;
     sequence_start_ = 0;
   }

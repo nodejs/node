@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -185,7 +186,7 @@ void EncodeSafepointEntry(int stack_slot_count, uint32_t common_prefix,
 // Updates {ptr} as it consumes input.
 template <bool update_tagged_slots>
 void DecodeSafepointEntry(const uint8_t** ptr,
-                          base::OwnedVector<uint8_t>& tagged_slots) {
+                          base::UniqueArray<uint8_t>& tagged_slots) {
   uint8_t first_byte = **ptr;
   if (first_byte == 0) {
     (*ptr)++;
@@ -265,9 +266,9 @@ void DecodeSafepointEntry(const uint8_t** ptr,
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void DecodeSafepointEntry<
-    true>(const uint8_t** ptr, base::OwnedVector<uint8_t>& tagged_slots);
+    true>(const uint8_t** ptr, base::UniqueArray<uint8_t>& tagged_slots);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void DecodeSafepointEntry<
-    false>(const uint8_t** ptr, base::OwnedVector<uint8_t>& tagged_slots);
+    false>(const uint8_t** ptr, base::UniqueArray<uint8_t>& tagged_slots);
 
 void SafepointTable::ResetIteration() {
   ptr_ = safepoint_table_address_ + kHeaderSize;

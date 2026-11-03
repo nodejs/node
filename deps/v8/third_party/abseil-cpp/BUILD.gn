@@ -306,6 +306,7 @@ if (absl_build_tests) {
         "absl/base:tracing_internal_weak_test",
         "absl/base:unique_small_name_test",
         "absl/cleanup:cleanup_test",
+        "absl/container:btree_instantiate_test",
         "absl/container:chunked_queue_test",
         "absl/container:common_policy_traits_test",
         "absl/container:compressed_tuple_test",

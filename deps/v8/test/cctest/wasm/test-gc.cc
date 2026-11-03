@@ -98,8 +98,9 @@ class WasmGCTester {
                        ModuleTypeIndex supertype = kNoSuperType,
                        bool is_final = false) {
     return HeapType::Index(
-        builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
-                              is_final, supertype),
+        builder_.AddArrayType(
+            zone_.New<ArrayType>(element_type, mutability, SharedFlag{false}),
+            is_final, supertype),
         SharedFlag{false}, RefTypeKind::kArray);
   }
 
@@ -945,7 +946,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
       &sig_q_v, {},
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kLongLength)), kExprEnd});
 
-  ArrayType array_type(kWasmI32, true);
+  ArrayType array_type(kWasmI32, true, SharedFlag{false});
   const uint32_t kTooLong = WasmArray::MaxLength(&array_type) + 1;
   const uint8_t kAllocateTooLarge = tester.DefineFunction(
       &sig_q_v, {},

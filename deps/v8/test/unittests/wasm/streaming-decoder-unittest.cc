@@ -4,6 +4,7 @@
 
 #include "src/wasm/streaming-decoder.h"
 
+#include "src/base/unique-array.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "test/common/flag-utils.h"
@@ -18,7 +19,7 @@ struct MockStreamingResult {
   size_t num_sections = 0;
   size_t num_functions = 0;
   bool error;
-  base::OwnedVector<const uint8_t> received_bytes;
+  base::UniqueArray<const uint8_t> received_bytes;
 
   bool ok() const { return !error; }
 
@@ -79,7 +80,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   void OnFinishedChunk() override {}
 
   // Finish the processing of the stream.
-  void OnFinishedStream(base::OwnedVector<const uint8_t> bytes,
+  void OnFinishedStream(base::UniqueArray<const uint8_t> bytes,
                         bool after_error) override {
     result_->received_bytes = std::move(bytes);
     result_->error = after_error;
@@ -88,7 +89,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   void OnAbort() override {}
 
   bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                   base::OwnedVector<const uint8_t>& wire_bytes) override {
+                   base::UniqueArray<const uint8_t>& wire_bytes) override {
     return false;
   }
 

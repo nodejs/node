@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 
 #include "include/v8-internal.h"
 #include "src/base/compiler-specific.h"
@@ -198,6 +199,10 @@ class Intl {
       Isolate* isolate, DirectHandle<Object> key);
 
   // For locale sensitive functions
+  static constexpr std::string_view kCaseMappingSpecialLocales[] = {"az", "el",
+                                                                    "lt", "tr"};
+  static bool LocaleRequiresSpecialCaseMapping(std::string_view locale);
+
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String>
   StringLocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
                           bool is_upper, DirectHandle<Object> locales);

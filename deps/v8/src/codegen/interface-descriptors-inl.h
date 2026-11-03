@@ -630,6 +630,12 @@ constexpr auto GetIteratorStackParameterDescriptor::registers() {
 }
 
 // static
+constexpr auto
+ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
@@ -820,6 +826,11 @@ WasmHandleStackOverflowDescriptor::FrameBaseRegister() {
 
 constexpr inline Register WasmHandleStackOverflowDescriptor::GapRegister() {
   return std::get<kGap>(registers());
+}
+
+constexpr inline Register
+WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister() {
+  return std::get<kParameterSlotsSize>(registers());
 }
 
 constexpr auto WasmToJSWrapperDescriptor::registers() {

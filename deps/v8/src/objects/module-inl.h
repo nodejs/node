@@ -8,6 +8,7 @@
 #include "src/objects/module.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/cell-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info.h"
@@ -43,13 +44,8 @@ BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
                     SourceTextModule::AsyncEvaluationOrdinalBits)
 
-BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
-
-inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
-  DCHECK(PhaseBits::is_valid(phase));
-  uint32_t hints = flags();
-  hints = PhaseBits::update(hints, phase);
-  set_flags(hints);
+inline unsigned ModuleRequest::position() const {
+  return PositionBits::decode(flags());
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
@@ -172,6 +168,7 @@ void SourceTextModule::DecrementPendingAsyncDependencies() {
 
 Tagged<ObjectHashTable> Module::exports() const { return exports_.load(); }
 void Module::set_exports(Tagged<ObjectHashTable> value, WriteBarrierMode mode) {
+  CHECK(!ExportsFinalized());
   exports_.store(this, value, mode);
 }
 
@@ -195,6 +192,16 @@ Tagged<UnionOf<Cell, Undefined>> Module::deferred_module_namespace() const {
 void Module::set_deferred_module_namespace(
     Tagged<UnionOf<Cell, Undefined>> value, WriteBarrierMode mode) {
   deferred_module_namespace_.store(this, value, mode);
+}
+
+bool Module::ExportsFinalized() const {
+  bool res =
+      (!IsUndefined(module_namespace()) &&
+       IsJSModuleNamespace(Cast<Cell>(module_namespace())->value())) ||
+      (!IsUndefined(deferred_module_namespace()) &&
+       IsJSModuleNamespace(Cast<Cell>(deferred_module_namespace())->value()));
+  DCHECK_IMPLIES(res, status() >= kLinking);
+  return res;
 }
 
 Tagged<Module> JSModuleNamespace::module() const { return module_.load(); }

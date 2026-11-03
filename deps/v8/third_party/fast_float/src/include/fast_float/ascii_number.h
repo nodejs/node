@@ -32,7 +32,13 @@ template <typename UC> fastfloat_really_inline constexpr bool has_simd_opt() {
 // able to optimize it well.
 template <typename UC>
 fastfloat_really_inline constexpr bool is_integer(UC c) noexcept {
-  return static_cast<unsigned>(c - UC('0')) <= 9u;
+  // UC can be signed (wchar_t is a signed int on Linux and macOS), and the
+  // subtraction is then promoted to int and overflows for code units near the
+  // bottom of the range. Subtracting in the unsigned type wraps instead, which
+  // selects the same code units, as ch_to_digit already does.
+  using UnsignedUC = typename std::make_unsigned<UC>::type;
+  return static_cast<UnsignedUC>(static_cast<UnsignedUC>(c) -
+                                 static_cast<UnsignedUC>(UC('0'))) <= 9u;
 }
 
 fastfloat_really_inline constexpr uint64_t byteswap(uint64_t val) {
@@ -308,13 +314,16 @@ template <typename UC> struct parsed_number_string_t {
   int64_t exponent{0};
   uint64_t mantissa{0};
   UC const *lastmatch{nullptr};
+  // The field order matters: placing 'error' next to the booleans avoids
+  // padding, keeping the struct at 64 bytes on 64-bit systems instead of 72.
+  // See https://github.com/fastfloat/fast_float/issues/418
+  parse_error error{parse_error::no_error};
   bool negative{false};
   bool valid{false};
   bool too_many_digits{false};
   // contains the range of the significant digits
   span<UC const> integer{};  // non-nullable
   span<UC const> fraction{}; // nullable
-  parse_error error{parse_error::no_error};
 };
 
 using byte_span = span<char const>;
@@ -339,10 +348,11 @@ report_parse_error(UC const *p, parse_error error) {
 // spans (read only by the rare digit_comp slow path) are not materialized,
 // which keeps the fat parsed_number_string_t off the hot path. The caller
 // re-parses with store_spans=true if the slow path is actually reached.
-template <bool basic_json_fmt, typename UC>
+template <bool basic_json_fmt, bool basic_javascript_fmt, typename UC>
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 parsed_number_string_t<UC>
-parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
-                    bool store_spans = true) noexcept {
+parse_number_string_impl(UC const *p, UC const *pend,
+                         parse_options_t<UC> options,
+                         bool store_spans) noexcept {
   chars_format const fmt = detail::adjust_for_feature_macros(options.format);
   UC const decimal_point = options.decimal_point;
 
@@ -424,7 +434,7 @@ parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
                                     parse_error::leading_zeros_in_integer_part);
     }
   }
-  else if (uint64_t(fmt & detail::basic_javascript_fmt)) {
+  else FASTFLOAT_IF_CONSTEXPR17(basic_javascript_fmt) {
     // ECMAScript DecimalIntegerLiteral is "0" or a non-zero digit followed by
     // digits: no leading zeros. Unlike JSON, the integer part may be empty
     // (".5"); the no_digits_in_mantissa check below still rejects ".".
@@ -585,6 +595,40 @@ parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
   answer.exponent = exponent;
   answer.mantissa = i;
   return answer;
+}
+
+// Cold instantiation of the parser: the ECMAScript integer-part rule costs two
+// error returns plus the Annex B octal scan, and parse_number_string_impl is
+// force-inlined, so an inlined javascript body would enlarge the frame of every
+// caller that never asks for it. Out of line, it costs those callers nothing.
+template <typename UC>
+fastfloat_never_inline FASTFLOAT_CONSTEXPR20 parsed_number_string_t<UC>
+parse_number_string_javascript(UC const *p, UC const *pend,
+                               parse_options_t<UC> options,
+                               bool store_spans) noexcept {
+  return parse_number_string_impl<false, true, UC>(p, pend, options,
+                                                   store_spans);
+}
+
+// Public entry point, behaviour unchanged: chars_format::javascript is still
+// honoured, it is just selected here once instead of being re-tested inside the
+// parser loop. Callers that have already ruled the format out (see
+// from_chars_float_advanced) should call parse_number_string_impl directly so
+// that not even this test reaches their hot path.
+template <bool basic_json_fmt, typename UC>
+fastfloat_really_inline FASTFLOAT_CONSTEXPR20 parsed_number_string_t<UC>
+parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
+                    bool store_spans = true) noexcept {
+  // JSON and JavaScript are mutually exclusive, so only the non-JSON
+  // instantiation has to look at the flag.
+  FASTFLOAT_IF_CONSTEXPR17(!basic_json_fmt) {
+    if fastfloat_unlikely (uint64_t(options.format &
+                                    detail::basic_javascript_fmt)) {
+      return parse_number_string_javascript<UC>(p, pend, options, store_spans);
+    }
+  }
+  return parse_number_string_impl<basic_json_fmt, false, UC>(p, pend, options,
+                                                             store_spans);
 }
 
 template <typename T, typename UC>

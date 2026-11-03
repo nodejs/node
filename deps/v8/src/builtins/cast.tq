@@ -95,6 +95,11 @@ macro IsJSPrototype(o: HeapObject): bool {
 }
 
 @export
+macro IsUninitializedHeapNumber(o: HeapObject): bool {
+  return Is<UninitializedHeapNumber>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }

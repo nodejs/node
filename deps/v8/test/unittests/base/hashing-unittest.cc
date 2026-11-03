@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <set>
+#include <span>
 
 #include "test/unittests/test-utils.h"
 
@@ -118,6 +119,55 @@ TYPED_TEST(HashingTest, HashValueArrayUsesHashRange) {
   EXPECT_EQ(hash_range(values, values + arraysize(values)), hash_value(values));
 }
 
+TYPED_TEST(HashingTest, HashSpanUsesHashRange) {
+  TypeParam values[128];
+  this->rng()->NextBytes(&values, sizeof(values));
+  const size_t expected = hash_range(values, values + arraysize(values));
+
+  std::span<TypeParam> dynamic_span(values);
+  std::span<const TypeParam> const_dynamic_span(values);
+  std::span<TypeParam, 128> static_span(values);
+  std::span<const TypeParam, 128> const_static_span(values);
+
+  EXPECT_EQ(expected, hash<std::span<TypeParam>>{}(dynamic_span));
+  EXPECT_EQ(expected, hash<std::span<const TypeParam>>{}(const_dynamic_span));
+  EXPECT_EQ(expected, (hash<std::span<TypeParam, 128>>{}(static_span)));
+  EXPECT_EQ(expected,
+            (hash<std::span<const TypeParam, 128>>{}(const_static_span)));
+
+  EXPECT_EQ(expected, hash_value(dynamic_span));
+  EXPECT_EQ(expected, hash_value(const_dynamic_span));
+  EXPECT_EQ(expected, hash_value(static_span));
+  EXPECT_EQ(expected, hash_value(const_static_span));
+
+  const size_t expected_combined = Hasher{}.AddHash(expected).hash();
+  EXPECT_EQ(expected_combined, Hasher::Combine(dynamic_span));
+  EXPECT_EQ(expected_combined, Hasher::Combine(const_dynamic_span));
+  EXPECT_EQ(expected_combined, Hasher::Combine(static_span));
+  EXPECT_EQ(expected_combined, Hasher::Combine(const_static_span));
+
+  const size_t expected_empty = hash_range(values, values);
+  std::span<TypeParam> empty_dynamic_span{};
+  std::span<const TypeParam> empty_const_dynamic_span{};
+  std::span<TypeParam, 0> empty_static_span(values, 0);
+
+  EXPECT_EQ(expected_empty, hash<std::span<TypeParam>>{}(empty_dynamic_span));
+  EXPECT_EQ(expected_empty,
+            hash<std::span<const TypeParam>>{}(empty_const_dynamic_span));
+  EXPECT_EQ(expected_empty,
+            (hash<std::span<TypeParam, 0>>{}(empty_static_span)));
+
+  EXPECT_EQ(expected_empty, hash_value(empty_dynamic_span));
+  EXPECT_EQ(expected_empty, hash_value(empty_const_dynamic_span));
+  EXPECT_EQ(expected_empty, hash_value(empty_static_span));
+
+  const size_t expected_empty_combined =
+      Hasher{}.AddHash(expected_empty).hash();
+  EXPECT_EQ(expected_empty_combined, Hasher::Combine(empty_dynamic_span));
+  EXPECT_EQ(expected_empty_combined, Hasher::Combine(empty_const_dynamic_span));
+  EXPECT_EQ(expected_empty_combined, Hasher::Combine(empty_static_span));
+}
+
 TYPED_TEST(HashingTest, BitEqualTo) {
   bit_equal_to<TypeParam> pred;
   for (size_t i = 0; i < 128; ++i) {
@@ -166,6 +216,10 @@ TEST(HashingTest, HashUsesArgumentDependentLookup) {
       hash<Foo> h;
       Foo foo = {x, y};
       EXPECT_EQ(hash_combine(x, y), h(foo));
+      std::span<const Foo> foo_span(&foo, 1);
+      EXPECT_EQ(hash_range(&foo, &foo + 1),
+                hash<std::span<const Foo>>{}(foo_span));
+      EXPECT_EQ(hash_range(&foo, &foo + 1), hash_value(foo_span));
     }
   }
 }

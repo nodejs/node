@@ -312,8 +312,6 @@ extern class TransitionArray extends WeakFixedArray;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
 
-type NoSharedNameSentinel extends Smi;
-
 // Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
 
@@ -605,9 +603,6 @@ const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 const kSwissNameDictionaryInitialCapacity:
     constexpr int32 generates 'SwissNameDictionary::kInitialCapacity';
-
-const kWasmArrayHeaderSize:
-    constexpr int32 generates 'WasmArray::kHeaderSize';
 
 const kHeapObjectHeaderSize: constexpr int32 generates 'sizeof(HeapObject)';
 

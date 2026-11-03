@@ -127,7 +127,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
     string = local_isolate()->heap()->NewPersistentHandle(local_string);
   }
 
-  EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
+  EXPECT_TRUE(string->IsOneByteEqualTo("foo"));
   EXPECT_TRUE(IsInternalizedString(*string));
 
   Handle<String> same_string = isolate()
@@ -159,7 +159,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_DuplicateIsDeduplicated) {
     string_2 = local_isolate()->heap()->NewPersistentHandle(local_string_2);
   }
 
-  EXPECT_TRUE(string_1->IsOneByteEqualTo(base::CStrVector("foo")));
+  EXPECT_TRUE(string_1->IsOneByteEqualTo("foo"));
   EXPECT_TRUE(IsInternalizedString(*string_1));
   EXPECT_EQ(*string_1, *string_2);
 }
@@ -179,7 +179,7 @@ TEST_F(LocalFactoryTest, AstRawString_IsInternalized) {
     string = local_isolate()->heap()->NewPersistentHandle(raw_string->string());
   }
 
-  EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
+  EXPECT_TRUE(string->IsOneByteEqualTo("foo"));
   EXPECT_TRUE(IsInternalizedString(*string));
 }
 
@@ -242,7 +242,7 @@ TEST_F(LocalFactoryTest, LazyFunction) {
   DirectHandle<SharedFunctionInfo> lazy_sfi = shared;
 
   EXPECT_EQ(lazy_sfi->function_literal_id(kRelaxedLoad), 1);
-  EXPECT_TRUE(lazy_sfi->Name()->IsOneByteEqualTo(base::CStrVector("lazy")));
+  EXPECT_TRUE(lazy_sfi->Name()->IsOneByteEqualTo("lazy"));
   EXPECT_FALSE(lazy_sfi->is_compiled());
   EXPECT_TRUE(lazy_sfi->HasUncompiledDataWithoutPreparseData(local_isolate()));
 }
@@ -269,7 +269,7 @@ TEST_F(LocalFactoryTest, EagerFunction) {
   DirectHandle<SharedFunctionInfo> eager_sfi = shared;
 
   EXPECT_EQ(eager_sfi->function_literal_id(kRelaxedLoad), 1);
-  EXPECT_TRUE(eager_sfi->Name()->IsOneByteEqualTo(base::CStrVector("eager")));
+  EXPECT_TRUE(eager_sfi->Name()->IsOneByteEqualTo("eager"));
   EXPECT_FALSE(eager_sfi->HasUncompiledData(local_isolate()));
   // TODO(leszeks): Add compilation support and enable these checks.
   // EXPECT_TRUE(eager_sfi->is_compiled());
@@ -300,8 +300,7 @@ TEST_F(LocalFactoryTest, ImplicitNameFunction) {
   DirectHandle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(kRelaxedLoad), 1);
-  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
-      base::CStrVector("implicit_name")));
+  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo("implicit_name"));
 }
 
 TEST_F(LocalFactoryTest, GCDuringPublish) {
@@ -328,8 +327,7 @@ TEST_F(LocalFactoryTest, GCDuringPublish) {
   DirectHandle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(kRelaxedLoad), 1);
-  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
-      base::CStrVector("implicit_name")));
+  EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo("implicit_name"));
 }
 
 }  // namespace internal

@@ -17,6 +17,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/oddball.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/templates.h"
 #include "src/utils/memcopy.h"
 
@@ -32,6 +33,13 @@ static_assert(Internals::kCallbackInfoDataOffset ==
               offsetof(AccessorInfo, data_));
 static_assert(Internals::kCallbackInfoDataOffset ==
               offsetof(InterceptorInfo, data_));
+
+AccessCheckInfo::AccessCheckInfo(const AllocationWitness& witness)
+    : Struct(witness.roots().access_check_info_map()),
+      callback_(witness.roots().undefined_value()),
+      named_interceptor_(Smi::zero()),
+      indexed_interceptor_(Smi::zero()),
+      data_(witness.roots().undefined_value()) {}
 
 Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
   return callback_.load();

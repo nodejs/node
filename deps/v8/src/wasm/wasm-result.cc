@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-result.h"
 
+#include <bit>
+
 #include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
@@ -21,7 +23,7 @@ void VPrintFToString(std::string* str, size_t str_offset, const char* format,
   DCHECK_LE(str_offset, str->size());
   size_t len = str_offset + strlen(format);
   // Allocate increasingly large buffers until the message fits.
-  for (;; len = base::bits::RoundUpToPowerOfTwo64(len + 1)) {
+  for (;; len = std::bit_ceil(len + 1)) {
     DCHECK_GE(kMaxInt, len);
     str->resize(len);
     va_list args_copy;

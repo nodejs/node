@@ -65,10 +65,10 @@ XX	+4916-12307	America/Vancouver	Mountain Standard (MST) - British Columbia (mos
 XX	+332654-1120424	America/Phoenix	Mountain Standard (MST) - Arizona; western Mexico; Yukon
 #
 # -07/-06 - MST/MDT (North America DST)
-XX	+394421-1045903	America/Denver	Mountain (MST/MDT) - US; Mexico near US border; northern Canada
+XX	+394421-1045903	America/Denver	Mountain (MST/MDT) - US; Mexico near US border; western Nunavut
 #
 # -07/-06 - MST/MDT (North America DST) until 2026-11-01 02:00; then CST
-XX	+5333-11328	America/Edmonton	Central Standard (CST) - Alberta and some neighbors
+XX	+5333-11328	America/Edmonton	Central Standard (CST) - Alberta, NWT, and some neighbors
 #
 # -06
 XX	-0054-08936	Pacific/Galapagos	Galápagos

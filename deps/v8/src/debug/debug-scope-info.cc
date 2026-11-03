@@ -745,6 +745,15 @@ std::optional<DebugScriptScope> FindClosureScope(
   return std::nullopt;
 }
 
+std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info,
+    Tagged<SharedFunctionInfo> shared) {
+  ScopeType scope_type = shared->scope_info()->scope_type();
+  if (scope_type != FUNCTION_SCOPE) return DebugScriptScope::FromIndex(info, 0);
+  return FindClosureScope(info, shared->StartPosition(), shared->EndPosition(),
+                          scope_type);
+}
+
 namespace {
 
 // Visits all descendants of `scope` and narrows `*best` down to the scope with
@@ -753,6 +762,7 @@ void NarrowToInnermostScope(DebugScriptScope scope, int position,
                             DebugScriptScope* best) {
   for (std::optional<DebugScriptScope> child = scope.first_child();
        child.has_value(); child = child->next_sibling()) {
+    if (child->is_function_scope()) continue;
     // Update `*best` if `child` contains `position` and is a tighter fit than
     // the currently best scope. Generators have the same source position as
     // the scope they belong to, so we also check for equality.
@@ -772,6 +782,28 @@ DebugScriptScope FindInnermostScope(DebugScriptScope closure_scope,
   DebugScriptScope best = closure_scope;
   NarrowToInnermostScope(closure_scope, position, &best);
   return best;
+}
+
+std::optional<DebugScriptScope> FindEvalOuterScope(
+    Isolate* isolate, DirectHandle<Script> script) {
+  if (script->compilation_kind() != Script::CompilationKind::kDirectEval ||
+      !script->has_eval_from_shared()) {
+    return std::nullopt;
+  }
+  DirectHandle<SharedFunctionInfo> outer_shared(script->eval_from_shared(),
+                                                isolate);
+  if (!IsScript(outer_shared->script())) return std::nullopt;
+  DirectHandle<Script> outer_script(Cast<Script>(outer_shared->script()),
+                                    isolate);
+  Handle<DebugScriptScopeInfo> outer_info =
+      EnsureDebugScriptScopeInfo(isolate, outer_script);
+  if (outer_info.is_null()) return std::nullopt;
+
+  std::optional<DebugScriptScope> closure_scope =
+      FindClosureScope(outer_info, *outer_shared);
+  if (!closure_scope.has_value()) return std::nullopt;
+  return FindInnermostScope(*closure_scope,
+                            Script::GetEvalPosition(isolate, script));
 }
 
 #ifdef VERIFY_HEAP

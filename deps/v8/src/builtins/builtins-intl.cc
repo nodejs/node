@@ -1037,8 +1037,9 @@ bool IsFastLocale(Tagged<Object> maybe_locale) {
   }
   char first = chars[0] | 0x20;
   char second = chars[1] | 0x20;
-  return (first != 'a' || second != 'z') && (first != 'e' || second != 'l') &&
-         (first != 'l' || second != 't') && (first != 't' || second != 'r');
+  char language[] = {first, second};
+  return !Intl::LocaleRequiresSpecialCaseMapping(
+      std::string_view(language, arraysize(language)));
 }
 
 // https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
@@ -1046,7 +1047,11 @@ BUILTIN(StringPrototypeToLocaleUpperCase) {
   HandleScope scope(isolate);
   DirectHandle<Object> maybe_locale = args.atOrUndefined(isolate, 1);
   TO_THIS_STRING(string, "String.prototype.toLocaleUpperCase");
-  if (IsUndefined(*maybe_locale) || IsFastLocale(*maybe_locale)) {
+  bool can_use_fast_path =
+      IsUndefined(*maybe_locale)
+          ? !isolate->DefaultLocaleMayRequireSpecialCaseMapping()
+          : IsFastLocale(*maybe_locale);
+  if (can_use_fast_path) {
     string = String::Flatten(isolate, string);
     RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, string));
   } else {

@@ -1,3 +1,11 @@
+add_header_library(
+  file_io_result
+  HDRS
+    file_io_result.h
+  DEPENDS
+    libc.src.__support.macros.config
+)
+
 if(NOT (TARGET libc.src.__support.threads.mutex)
   OR LIBC_TARGET_OS_IS_GPU)
   # Not all platforms have a mutex implementation. If mutex is unvailable,
@@ -12,6 +20,7 @@ add_object_library(
   HDRS
     file.h
   DEPENDS
+    .file_io_result
     libc.hdr.stdio_macros
     libc.hdr.stdint_proxy
     libc.hdr.func.realloc
@@ -32,6 +41,19 @@ add_object_library(
     libc.hdr.errno_macros
 )
 
+add_header_library(
+  dir_scan_impl
+  HDRS
+    dir_scan_impl.h
+  DEPENDS
+    libc.src.__support.error_or
+    libc.src.__support.CPP.limits
+    libc.src.stdlib.qsort_util
+    libc.src.string.memory_utils.inline_memcpy
+    libc.hdr.errno_macros
+    libc.hdr.types.struct_dirent
+)
+
 add_object_library(
   dir
   SRCS
@@ -39,6 +61,7 @@ add_object_library(
   HDRS
     dir.h
   DEPENDS
+    .dir_scan_impl
     libc.src.__support.CPP.mutex
     libc.src.__support.CPP.new
     libc.src.__support.CPP.span

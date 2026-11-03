@@ -17,7 +17,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "absl/base/config.h"
 #include "absl/crc/internal/crc.h"
 #include "absl/crc/internal/crc32c.h"
 #include "absl/crc/internal/crc_memcpy.h"

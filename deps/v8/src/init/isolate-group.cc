@@ -151,6 +151,20 @@ IsolateGroup::~IsolateGroup() {
 
 #ifdef V8_ENABLE_SANDBOX
 void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
+  {
+    // metadata_pointer_table_ is a large array (~512K), which is initially
+    // zero-filled and is only partly used at runtime.
+    // Tell the OS to reclaim this memory for now and zero-fill on demand if we
+    // actually need more of the table.
+    v8::VirtualAddressSpace* as = GetPlatformVirtualAddressSpace();
+    size_t page_size = as->page_size();
+    uintptr_t start = reinterpret_cast<uintptr_t>(&metadata_pointer_table_);
+    uintptr_t start_aligned = RoundUp(start, page_size);
+    size_t discard_len = RoundDown(
+        sizeof(metadata_pointer_table_) - (start_aligned - start), page_size);
+    (void)as->DiscardSystemPages(start_aligned, discard_len);
+  }
+
   DCHECK(!reservation_.IsReserved());
   CHECK(sandbox->is_initialized());
   process_wide_ = process_wide;

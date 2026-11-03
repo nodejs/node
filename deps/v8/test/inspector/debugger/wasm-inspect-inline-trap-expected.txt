@@ -5,10 +5,12 @@ Instantiating.
 Calling trapping function.
 Paused at:
 --- 0 ---
-Script wasm://wasm/c24ede22 byte offset 58: Wasm opcode 0x28 (kExprI32LoadMem)
+Script wasm://wasm/f7d6287a byte offset 89: Wasm opcode 0x28 (kExprI32LoadMem)
  - scope (wasm-expression-stack):
-   stack: [42 (i32)]
+   stack: [42 (i32), 11 (i32), 3.5 (f64), Struct ((ref $canon32))]
  - scope (local):
+   $var0: 10 (i32)
+   $var1: 2.5 (f64)
  - scope (module):
    instance: <module-scope>
    module: <module-scope>
@@ -16,7 +18,7 @@ Script wasm://wasm/c24ede22 byte offset 58: Wasm opcode 0x28 (kExprI32LoadMem)
    memories: <module-scope>
 --- 1 ---
   try {
-    instance.exports.#trigger_oob_trap();
+    instance.exports.#trigger_oob_trap(10, 2.5);
   } catch (e) {
 
 --- 2 ---

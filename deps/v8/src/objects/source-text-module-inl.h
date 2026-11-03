@@ -14,6 +14,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,79 +22,71 @@
 namespace v8 {
 namespace internal {
 
-Tagged<String> ModuleRequest::specifier() const { return specifier_.load(); }
-void ModuleRequest::set_specifier(Tagged<String> value, WriteBarrierMode mode) {
-  specifier_.store(this, value, mode);
+ModuleRequest::ModuleRequest(const AllocationWitness& witness,
+                             Tagged<String> specifier, ModuleImportPhase phase,
+                             Tagged<FixedArray> import_attributes, int position)
+    : Struct(witness.roots().module_request_map()),
+      specifier_(witness, specifier),
+      import_attributes_(witness, import_attributes),
+      flags_(Smi::From31BitPattern(PhaseBits::encode(phase) |
+                                   PositionBits::encode(position))) {
+  DCHECK_GE(position, 0);
 }
+
+Tagged<String> ModuleRequest::specifier() const { return specifier_.load(); }
 
 Tagged<FixedArray> ModuleRequest::import_attributes() const {
   return import_attributes_.load();
-}
-void ModuleRequest::set_import_attributes(Tagged<FixedArray> value,
-                                          WriteBarrierMode mode) {
-  import_attributes_.store(this, value, mode);
 }
 
 uint32_t ModuleRequest::flags() const {
   return static_cast<uint32_t>(flags_.load().value());
 }
-void ModuleRequest::set_flags(uint32_t value) {
-  flags_.store(this, Smi::From31BitPattern(value));
-}
+
+SourceTextModuleInfoEntry::SourceTextModuleInfoEntry(
+    const AllocationWitness& witness,
+    Tagged<UnionOf<String, Undefined>> export_name,
+    Tagged<UnionOf<String, Undefined>> local_name,
+    Tagged<UnionOf<String, Undefined>> import_name, int module_request,
+    int cell_index, int beg_pos, int end_pos)
+    : Struct(witness.roots().module_info_entry_map()),
+      export_name_(witness, export_name),
+      local_name_(witness, local_name),
+      import_name_(witness, import_name),
+      module_request_(Smi::FromInt(module_request)),
+      cell_index_(Smi::FromInt(cell_index)),
+      beg_pos_(Smi::FromInt(beg_pos)),
+      end_pos_(Smi::FromInt(end_pos)) {}
 
 Tagged<UnionOf<String, Undefined>> SourceTextModuleInfoEntry::export_name()
     const {
   return export_name_.load();
-}
-void SourceTextModuleInfoEntry::set_export_name(
-    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
-  export_name_.store(this, value, mode);
 }
 
 Tagged<UnionOf<String, Undefined>> SourceTextModuleInfoEntry::local_name()
     const {
   return local_name_.load();
 }
-void SourceTextModuleInfoEntry::set_local_name(
-    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
-  local_name_.store(this, value, mode);
-}
 
 Tagged<UnionOf<String, Undefined>> SourceTextModuleInfoEntry::import_name()
     const {
   return import_name_.load();
 }
-void SourceTextModuleInfoEntry::set_import_name(
-    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
-  import_name_.store(this, value, mode);
-}
 
 int SourceTextModuleInfoEntry::module_request() const {
   return module_request_.load().value();
-}
-void SourceTextModuleInfoEntry::set_module_request(int value) {
-  module_request_.store(this, Smi::FromInt(value));
 }
 
 int SourceTextModuleInfoEntry::cell_index() const {
   return cell_index_.load().value();
 }
-void SourceTextModuleInfoEntry::set_cell_index(int value) {
-  cell_index_.store(this, Smi::FromInt(value));
-}
 
 int SourceTextModuleInfoEntry::beg_pos() const {
   return beg_pos_.load().value();
 }
-void SourceTextModuleInfoEntry::set_beg_pos(int value) {
-  beg_pos_.store(this, Smi::FromInt(value));
-}
 
 int SourceTextModuleInfoEntry::end_pos() const {
   return end_pos_.load().value();
-}
-void SourceTextModuleInfoEntry::set_end_pos(int value) {
-  end_pos_.store(this, Smi::FromInt(value));
 }
 
 Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>

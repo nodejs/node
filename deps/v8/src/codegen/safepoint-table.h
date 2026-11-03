@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/safepoint-table-base.h"
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
@@ -54,7 +55,7 @@ class SafepointEntry : public SafepointEntryBase {
     SafepointEntryBase::operator=(src);
     tagged_register_indexes_ = src.tagged_register_indexes_;
     tagged_slots_.ReleaseData();
-    tagged_slots_ = base::OwnedCopyOf(src.tagged_slots());
+    tagged_slots_ = base::UniqueCopyOf(src.tagged_slots());
   }
 
  private:
@@ -67,7 +68,7 @@ class SafepointEntry : public SafepointEntryBase {
   void ResetTaggedSlots(uint32_t num_tagged_slots) {
     size_t num_bytes = (num_tagged_slots + kBitsPerByte - 1) / kBitsPerByte;
     if (tagged_slots_.size() == 0) {
-      tagged_slots_ = base::OwnedVector<uint8_t>::New(num_bytes);
+      tagged_slots_ = base::UniqueArray<uint8_t>::New(num_bytes);
     } else {
       std::fill(tagged_slots_.begin(), tagged_slots_.end(), 0);
     }
@@ -75,7 +76,7 @@ class SafepointEntry : public SafepointEntryBase {
   }
 
   uint32_t tagged_register_indexes_ = 0;
-  base::OwnedVector<uint8_t> tagged_slots_;
+  base::UniqueArray<uint8_t> tagged_slots_;
 };
 
 // A wrapper class for accessing the safepoint table embedded into the
@@ -372,7 +373,7 @@ V8_EXPORT_PRIVATE void EncodeSafepointEntry(int stack_slot_count,
 template <bool update_tagged_slots>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 void DecodeSafepointEntry(const uint8_t** ptr,
-                          base::OwnedVector<uint8_t>& tagged_slots);
+                          base::UniqueArray<uint8_t>& tagged_slots);
 
 }  // namespace internal
 }  // namespace v8

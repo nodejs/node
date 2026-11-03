@@ -85,8 +85,10 @@ class JSStrictArgumentsObject : public JSArgumentsObject {
 // - all attributes are available as part if the property details
 V8_OBJECT class AliasedArgumentsEntry : public Struct {
  public:
+  inline AliasedArgumentsEntry(const AllocationWitness& witness,
+                               int aliased_context_slot);
+
   inline int aliased_context_slot() const;
-  inline void set_aliased_context_slot(int value);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -94,7 +96,7 @@ V8_OBJECT class AliasedArgumentsEntry : public Struct {
   DECL_VERIFIER(AliasedArgumentsEntry)
 
  public:
-  TaggedMember<Smi> aliased_context_slot_;
+  const TaggedMember<Smi> aliased_context_slot_;
 } V8_OBJECT_END;
 
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS, dividing
@@ -185,7 +187,10 @@ V8_OBJECT class SloppyArgumentsElements
   // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Context> context_;
   TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
-  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
+  V8_TQ_TAIL_NAME(mapped_entries);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects,
+                        V8_TQ_TYPE(Smi | TheHole));
 } V8_OBJECT_END;
 
 }  // namespace internal

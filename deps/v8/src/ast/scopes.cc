@@ -118,9 +118,11 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   DCHECK(!is_script_scope());
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
-  set_private_name_lookup_skips_outer_class(
-      outer_scope->is_class_scope() &&
-      outer_scope->AsClassScope()->IsParsingHeritage());
+  if (outer_scope->is_class_scope() &&
+      outer_scope->AsClassScope()->IsParsingHeritage()) {
+    set_private_name_lookup_skips_outer_class(true);
+    outer_scope->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
   outer_scope_->AddInnerScope(this);
 }
 
@@ -180,6 +182,9 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone) {
   DCHECK(!is_script_scope());
   SetDefaults();
+  if (V8_UNLIKELY(private_name_lookup_skips_outer_class())) {
+    RecordNeedsPrivateNameContextChainRecalc();
+  }
 }
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
@@ -305,18 +310,14 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     DCHECK(IsClassConstructor(function_kind()));
     set_class_scope_has_private_brand(true);
   }
+  if (V8_UNLIKELY(private_name_lookup_skips_outer_class())) {
+    RecordNeedsPrivateNameContextChainRecalc();
+  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
              MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info)
-    : outer_scope_(nullptr),
-      variables_(zone),
-      scope_info_(scope_info),
-      scope_type_(CATCH_SCOPE) {
-  SetDefaults();
-#ifdef DEBUG
-  already_resolved_ = true;
-#endif
+    : Scope(zone, CATCH_SCOPE, nullptr, scope_info) {
   // Cache the catch variable, even though it's also available via the
   // scope_info, as the parser expects that a catch scope always has the catch
   // variable as first and only variable.
@@ -326,7 +327,6 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
               kCreatedInitialized, maybe_assigned, &was_added);
   DCHECK(was_added);
   AllocateHeapSlot(variable);
-  set_is_hoisted_in_context(scope_info->is_hoisted_in_context());
 }
 
 void DeclarationScope::SetDefaults() {
@@ -454,9 +454,14 @@ Scope* Scope::DeserializeScopeChain(
       eval_scope->set_start_position(position);
       eval_scope->set_end_position(position);
       eval_scope->set_eval_position(position);
-
       if (current_scope != nullptr) {
+        eval_scope->set_private_name_lookup_skips_outer_class(
+            current_scope->private_name_lookup_skips_outer_class());
+        current_scope->set_private_name_lookup_skips_outer_class(false);
         eval_scope->AddInnerScope(current_scope);
+      } else if (parse_info != nullptr) {
+        eval_scope->set_private_name_lookup_skips_outer_class(
+            parse_info->flags().private_name_lookup_skips_outer_class());
       }
       current_scope = eval_scope;
       if (innermost_scope == nullptr) innermost_scope = current_scope;
@@ -497,6 +502,9 @@ Scope* Scope::DeserializeScopeChain(
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      script_scope->set_has_context_cells(scope_info->HasContextCells());
+      script_scope->set_is_hoisted_in_context(
+          scope_info->is_hoisted_in_context());
       script_scope->num_heap_slots_ = scope_info->ContextLength();
       script_scope->set_start_position(scope_info->StartPosition());
       script_scope->set_end_position(scope_info->EndPosition());
@@ -940,6 +948,7 @@ Scope* Scope::FinalizeBlockScope() {
       scope->outer_scope_ = outer_scope();
       if (private_name_lookup_skips_outer_class()) {
         scope->set_private_name_lookup_skips_outer_class(true);
+        scope->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
       }
       if (scope->is_function_scope()) {
         scope->set_is_hoisted_in_context(false);
@@ -997,12 +1006,14 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     for (; inner_scope->sibling() != top_inner_scope_;
          inner_scope = inner_scope->sibling()) {
       inner_scope->outer_scope_ = new_parent;
+      inner_scope->set_private_name_lookup_skips_outer_class(false);
       if (inner_scope->inner_scope_calls_eval()) {
         new_parent->set_inner_scope_calls_eval(true);
       }
       DCHECK_NE(inner_scope, new_parent);
     }
     inner_scope->outer_scope_ = new_parent;
+    inner_scope->set_private_name_lookup_skips_outer_class(false);
     if (inner_scope->inner_scope_calls_eval()) {
       new_parent->set_inner_scope_calls_eval(true);
     }
@@ -1409,6 +1420,25 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
   return nullptr;
 }
 
+bool DeclarationScope::HasConflictingArgumentsVarDeclaration(
+    AstValueFactory* ast_value_factory) {
+  DCHECK(is_eval_scope());
+  if (!is_sloppy(language_mode())) return false;
+
+  Variable* var = LookupLocal(ast_value_factory->arguments_string());
+  if (var == nullptr || IsLexicalVariableMode(var->mode())) return false;
+
+  // During parameter initialization, the parameter environment of a
+  // non-arrow function with non-simple parameters contains an implicit
+  // `arguments` binding between the eval's lexical and variable environments.
+  DeclarationScope* var_scope = outer_scope()->GetNonEvalDeclarationScope();
+  if (!var_scope->is_function_scope() || var_scope->is_arrow_scope()) {
+    return false;
+  }
+  DCHECK(var_scope->from_scope_info());
+  return !var_scope->scope_info()->HasSimpleParameters();
+}
+
 const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
                                                   VariableMode mode_limit) {
   const VariableMap& variables = scope->variables_;
@@ -1454,7 +1484,12 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   }
 
   // Don't allocate variables of preparsed scopes.
-  if (!was_lazily_parsed()) AllocateVariablesRecursively();
+  if (!was_lazily_parsed()) {
+    AllocateVariablesRecursively();
+    if (needs_private_name_context_chain_recalc()) {
+      RecalcPrivateNameContextChain();
+    }
+  }
 
   return true;
 }
@@ -1746,6 +1781,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   sloppy_block_functions_.Clear();
   rare_data_ = nullptr;
   set_has_rest(false);
+  set_has_using_declaration(false);
+  set_has_await_using_declaration(false);
   function_ = nullptr;
 
   DCHECK_NE(zone(), ast_value_factory->single_parse_zone());
@@ -2332,6 +2369,12 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   if (cache_scope != nullptr) cache_scope->variables_.Remove(invalidated);
 
   Scope* target = cache_scope == nullptr ? scope : cache_scope;
+  if (invalidated->IsReplGlobal()) {
+    // Top-level lexical variables in REPL mode can be redeclared across
+    // scripts and are looked up globally via the ScriptContextTable rather
+    // than at a fixed context slot index, so treat them as kDynamicGlobal.
+    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+  }
   var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
   var->set_local_if_not_shadowed(invalidated);
 
@@ -2922,10 +2965,6 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
       outer_scope = outer->scope_info_;
       CHECK(!outer_scope.ToHandleChecked()->IsEmpty());
     }
-  }
-
-  if (scope->needs_private_name_context_chain_recalc()) {
-    scope->RecalcPrivateNameContextChain();
   }
 
   Tagged<WeakFixedArray> infos = script->infos();

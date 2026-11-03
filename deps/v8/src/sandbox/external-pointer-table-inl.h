@@ -40,26 +40,6 @@ Address ExternalPointerTableEntry::GetExternalPointer(
   return payload.Untag(tag_range);
 }
 
-void ExternalPointerTableEntry::SetExternalPointer(Address value,
-                                                   ExternalPointerTag tag) {
-  // The 2nd most significant byte must be empty as we store the tag in int.
-  DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
-  DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
-
-  auto old_payload = payload_.load(std::memory_order_relaxed);
-  while (true) {
-    Payload new_payload(value, tag);
-    if (old_payload.HasMarkBitSet()) {
-      new_payload.SetMarkBit();
-    }
-    if (payload_.compare_exchange_weak(old_payload, new_payload,
-                                       std::memory_order_relaxed)) {
-      break;
-    }
-  }
-  MaybeUpdateRawPointerForLSan(value);
-}
-
 bool ExternalPointerTableEntry::HasExternalPointer(
     ExternalPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_relaxed);
@@ -72,6 +52,7 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
     Address value, ExternalPointerTag tag) {
   // The 2nd most significant byte must be empty as we store the tag in int.
   DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
+  DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
   auto old_payload = payload_.load(std::memory_order_relaxed);
   while (true) {
@@ -86,6 +67,11 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
       return old_payload.Untag(tag);
     }
   }
+}
+
+void ExternalPointerTableEntry::SetExternalPointer(Address value,
+                                                   ExternalPointerTag tag) {
+  ExchangeExternalPointer(value, tag);
 }
 
 ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
@@ -278,6 +264,14 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   if (handle == kNullExternalPointerHandle) return;
 
   uint32_t index = HandleToIndex(handle);
+
+  // In legitimate execution, host objects only reference handles allocated in
+  // their own EPT space (e.g. young host -> young space, old host -> old
+  // space).
+  //
+  // Space membership is not security-critical for the sandbox as it merely
+  // creates corruptions that can already appear by swapping around untrusted
+  // handles.
   DCHECK(space->Contains(index));
 
   // Bail out in case the entry was already marked.

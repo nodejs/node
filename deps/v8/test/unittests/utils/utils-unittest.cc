@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils/utils.h"
+
 #include <limits>
 
 #include "src/base/bounds.h"
-#include "src/utils/utils.h"
+#include "src/base/unique-array.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -146,10 +148,10 @@ TEST(UtilsTest, PassesFilterTest) {
   // Copy the vectors to give ASan a chance to catch off-by-one OOB reads,
   // which are hidden when the string literal is embedded into the binary
   // and hence always null-terminated.
-  base::OwnedVector<const char> name =
-      base::OwnedCopyOf(base::CStrVector("abcdefgh"));
-  base::OwnedVector<const char> filter =
-      base::OwnedCopyOf(base::CStrVector("abcdefgh*"));
+  base::UniqueArray<const char> name =
+      base::UniqueCopyOf(base::CStrVector("abcdefgh"));
+  base::UniqueArray<const char> filter =
+      base::UniqueCopyOf(base::CStrVector("abcdefgh*"));
   EXPECT_TRUE(PassesFilter(name.as_vector(), filter.as_vector()));
 }
 

@@ -122,6 +122,34 @@ void TrustedPointerField::ClearTrustedPointerField(Tagged<HeapObject> host,
 // semantics as the under-the-hood indirect pointer loads/stores use
 // acquire/release loads/stores anyway.
 template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<T> value)
+    : TrustedPointerMember(witness, value, witness.write_barrier_mode()) {}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<T> value, WriteBarrierMode mode) {
+  store(witness.object(), value, mode);
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<UnionOf<T, Undefined>> maybe_value)
+    : TrustedPointerMember(witness, maybe_value, witness.write_barrier_mode()) {
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<UnionOf<T, Undefined>> maybe_value,
+    WriteBarrierMode mode) {
+  if (Tagged<T> value; TryCast(maybe_value, &value)) {
+    store(witness.object(), value, mode);
+  } else {
+    DCHECK(IsUndefined(maybe_value));
+    clear(witness.object());
+  }
+}
+template <typename T, IndirectPointerTagRange kTagRange>
 Tagged<T> TrustedPointerMember<T, kTagRange>::load(
     IsolateForSandbox isolate) const {
   return Acquire_Load(isolate);

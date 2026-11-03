@@ -826,6 +826,49 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
           }
         }
       }
+
+      // The receiver and the arguments are the caller's outgoing stack slots
+      // right above the return address. The slots hold uncompressed pointers
+      // even on pointer-compressed builds, so report them as Tagged values
+      // with the system pointer size.
+      props.push_back(std::make_unique<ObjectProperty>(
+          "receiver",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset, 1,
+          i::kSystemPointerSize, std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kSingle));
+
+      // The argc slot counts the receiver. Report the user-visible arguments
+      // as an array. If the slot is unreadable or the count is out of range,
+      // report an array of unknown size so debug tools can still show the
+      // base address.
+      intptr_t argc = 0;
+      size_t argument_count = 0;
+      d::PropertyKind arguments_kind =
+          d::PropertyKind::kArrayOfUnknownSizeDueToInvalidMemory;
+      d::MemoryAccessResult argc_validity =
+          memory_accessor(frame_pointer + StandardFrameConstants::kArgCOffset,
+                          reinterpret_cast<void*>(&argc), sizeof(intptr_t));
+      if (argc_validity == d::MemoryAccessResult::kOk) {
+        intptr_t user_argc = argc - i::kJSArgcReceiverSlots;
+        if (user_argc >= 0 && user_argc <= i::Code::kMaxArguments) {
+          argument_count = static_cast<size_t>(user_argc);
+          arguments_kind = d::PropertyKind::kArrayOfKnownSize;
+        }
+      } else if (argc_validity ==
+                 d::MemoryAccessResult::kAddressValidButInaccessible) {
+        arguments_kind =
+            d::PropertyKind::kArrayOfUnknownSizeDueToValidButInaccessibleMemory;
+      }
+      props.push_back(std::make_unique<ObjectProperty>(
+          "arguments",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset +
+              i::kSystemPointerSize,
+          argument_count, i::kSystemPointerSize,
+          std::vector<std::unique_ptr<StructProperty>>(), arguments_kind));
     }
   }
 

@@ -144,6 +144,15 @@ class TrustedPointerMember
 {
  public:
   constexpr TrustedPointerMember() = default;
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<T> value);
+  inline TrustedPointerMember(const AllocationWitness& witness, Tagged<T> value,
+                              WriteBarrierMode mode);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value,
+                              WriteBarrierMode mode);
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
   inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
@@ -168,7 +177,7 @@ class TrustedPointerMember
 
   inline Address storage_address() const;
 
-  std::atomic<IndirectPointerHandle> handle_;
+  std::atomic<IndirectPointerHandle> handle_{kNullIndirectPointerHandle};
 #else
   using Base = TaggedMember<T>;
 #endif

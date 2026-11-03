@@ -144,6 +144,7 @@ namespace internal {
   V(GlobalDictionary)                           \
   V(HashSeedWrapper)                            \
   V(HeapNumber)                                 \
+  V(UninitializedHeapNumber)                    \
   V(InterceptorInfo)                            \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \
@@ -550,11 +551,13 @@ namespace internal {
   V(Numeric)
 
 // These forward-declarations expose heap object types to most of our codebase.
-#define DEF_FWD_DECLARATION(Type) class Type;
+#define DEF_FWD_DECLARATION(Type, ...) class Type;
 HEAP_OBJECT_ORDINARY_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
 VIRTUAL_OBJECT_TYPE_LIST(DEF_FWD_DECLARATION)
+ODDBALL_LIST(DEF_FWD_DECLARATION)
+HOLE_LIST(DEF_FWD_DECLARATION)
 #undef DEF_FWD_DECLARATION
 
 #ifndef V8_ENABLE_TDZ_HOLE

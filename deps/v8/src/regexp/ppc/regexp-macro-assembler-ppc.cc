@@ -20,6 +20,8 @@ namespace regexp {
 
 /*
  * This assembler uses the following register assignment convention
+ * - r24: Address of the regexp stack's thread-local block, which holds the
+ *        stack limit, memory top and saved stack pointer.
  * - r25: Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
  * - r26: Pointer to current InstructionStream object including heap object tag.
@@ -47,7 +49,7 @@ namespace regexp {
  *  --- sp when called ---
  *  - fp[28]  return address     (lr).
  *  - fp[24]  old frame pointer  (r31).
- *  - fp[0..20]  backup of registers r25..r30
+ *  - fp[0..24]  backup of registers r24..r30
  *  --- frame pointer ----
  *  - fp[-4]  frame marker
  *  - fp[-8]  isolate
@@ -681,26 +683,16 @@ void RegExpMacroAssemblerPPC::Fail() {
 }
 
 void RegExpMacroAssemblerPPC::LoadRegExpStackPointerFromMemory(Register dst) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ mov(dst, Operand(ref));
-  __ LoadU64(dst, MemOperand(dst));
+  __ LoadU64(dst, MemOperand(regexp_stack(), Stack::kStackPointerOffset));
 }
 
-void RegExpMacroAssemblerPPC::StoreRegExpStackPointerToMemory(
-    Register src, Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ mov(scratch, Operand(ref));
-  __ StoreU64(src, MemOperand(scratch));
+void RegExpMacroAssemblerPPC::StoreRegExpStackPointerToMemory(Register src) {
+  __ StoreU64(src, MemOperand(regexp_stack(), Stack::kStackPointerOffset));
 }
 
 void RegExpMacroAssemblerPPC::PushRegExpBasePointer(Register stack_pointer,
                                                     Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(scratch, Operand(ref));
-  __ LoadU64(scratch, MemOperand(scratch));
+  __ LoadU64(scratch, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ SubS64(scratch, stack_pointer, scratch);
   __ StoreU64(scratch,
               MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
@@ -708,14 +700,11 @@ void RegExpMacroAssemblerPPC::PushRegExpBasePointer(Register stack_pointer,
 
 void RegExpMacroAssemblerPPC::PopRegExpBasePointer(Register stack_pointer_out,
                                                    Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ LoadU64(stack_pointer_out,
              MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
-  __ mov(scratch, Operand(ref));
-  __ LoadU64(scratch, MemOperand(scratch));
+  __ LoadU64(scratch, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ AddS64(stack_pointer_out, stack_pointer_out, scratch);
-  StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
+  StoreRegExpStackPointerToMemory(stack_pointer_out);
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
@@ -740,6 +729,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
 
     // Ensure register assigments are consistent with callee save mask
     DCHECK(kRegExpCalleeSaved.has(r25));
+    DCHECK(kRegExpCalleeSaved.has(regexp_stack()));
     DCHECK(kRegExpCalleeSaved.has(code_pointer()));
     DCHECK(kRegExpCalleeSaved.has(current_input_offset()));
     DCHECK(kRegExpCalleeSaved.has(current_character()));
@@ -774,6 +764,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     static_assert(kRegExpStackBasePointerOffset ==
                   kBacktrackCountOffset - kSystemPointerSize);
     __ push(r3);  // The regexp stack base ptr.
+
+    __ mov(regexp_stack(),
+           Operand(ExternalReference::address_of_regexp_stack_thread_local(
+               isolate())));
 
     // Initialize backtrack stack pointer. It must not be clobbered from here
     // on. Note the backtrack_stackpointer is callee-saved.
@@ -816,7 +810,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
       __ b(&return_r3);
 
       __ bind(&stack_limit_hit);
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer());
       CallCheckStackGuardState(r3, extra_space_for_variables);
       __ cmpi(r3, Operand::Zero());
       // If returned value is non-zero, we exit with the returned value as
@@ -1003,7 +997,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
 
     // Skip sp past regexp registers and local variables..
     __ mr(sp, frame_pointer());
-    // Restore registers r25..r31 and return (restoring lr to pc).
+    // Restore registers r24..r31 and return (restoring lr to pc).
     __ MultiPop(registers_to_retain);
     __ PopLR();
     __ blr();
@@ -1020,7 +1014,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     if (check_preempt_label_.is_linked()) {
       SafeCallTarget(&check_preempt_label_);
 
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer());
 
       CallCheckStackGuardState(r3);
       __ cmpi(r3, Operand::Zero());
@@ -1042,7 +1036,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
 
       // Call GrowStack(isolate).
 
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer());
 
       static constexpr int kNumArguments = 1;
       __ PrepareCallCFunction(kNumArguments);
@@ -1148,19 +1142,13 @@ void RegExpMacroAssemblerPPC::ReadCurrentPositionFromRegister(int reg) {
 }
 
 void RegExpMacroAssemblerPPC::WriteStackPointerToRegister(int reg) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(r4, Operand(ref));
-  __ LoadU64(r4, MemOperand(r4));
+  __ LoadU64(r4, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ SubS64(r3, backtrack_stackpointer(), r4);
   __ StoreU64(r3, register_location(reg));
 }
 
 void RegExpMacroAssemblerPPC::ReadStackPointerFromRegister(int reg) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(r3, Operand(ref));
-  __ LoadU64(r3, MemOperand(r3));
+  __ LoadU64(r3, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ LoadU64(backtrack_stackpointer(), register_location(reg));
   __ AddS64(backtrack_stackpointer(), backtrack_stackpointer(), r3);
 }
@@ -1403,10 +1391,7 @@ void RegExpMacroAssemblerPPC::CheckPreemption() {
 }
 
 void RegExpMacroAssemblerPPC::CheckStackLimit() {
-  ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit_address(isolate());
-  __ mov(r3, Operand(stack_limit));
-  __ LoadU64(r3, MemOperand(r3));
+  __ LoadU64(r3, MemOperand(regexp_stack(), Stack::kLimitOffset));
   __ CmpU64(backtrack_stackpointer(), r3);
   SafeCall(&stack_overflow_label_, le);
 }
@@ -1415,9 +1400,7 @@ void RegExpMacroAssemblerPPC::AssertAboveStackLimitMinusSlack() {
   DCHECK(v8_flags.slow_debug_code);
   Label no_stack_overflow;
   ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
-  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
-  __ mov(r3, Operand(l));
-  __ LoadU64(r3, MemOperand(r3));
+  __ LoadU64(r3, MemOperand(regexp_stack(), Stack::kLimitOffset));
   __ SubS64(r3, r3, Operand(Stack::kStackLimitSlackSize));
   __ CmpU64(backtrack_stackpointer(), r3);
   __ bgt(&no_stack_overflow);

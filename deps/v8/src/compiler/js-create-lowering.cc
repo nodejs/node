@@ -1835,16 +1835,15 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
 
     // Uninitialized fields are marked through the `uninitialized_value` marker
     // (even for Smi representation!), or in the case of Double representation
-    // through a HeapNumber containing the hole-NaN. Since Double-to-Tagged
+    // through an UninitializedHeapNumber. Since Double-to-Tagged
     // representation changes are done in-place, we may even encounter these
-    // HeapNumbers in Tagged representation.
+    // UninitializedHeapNumbers in Tagged representation.
     // Note that although we create nodes to write `uninitialized_value` into
     // the object, the field should be overwritten immediately with a real
     // value, and `uninitialized_value` should never be exposed to JS.
     ObjectRef uninitialized_marker = broker()->uninitialized_value();
     if (boilerplate_value.equals(uninitialized_marker) ||
-        (boilerplate_value.IsHeapNumber() &&
-         boilerplate_value.AsHeapNumber().value_as_bits() == kHoleNanInt64)) {
+        boilerplate_value.IsUninitializedHeapNumber()) {
       access.const_field_info = ConstFieldInfo::None();
     }
 
@@ -1857,11 +1856,16 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
       if (!maybe_value.has_value()) return {};
       value = effect = maybe_value.value();
     } else if (property_details.representation().IsDouble()) {
-      double number = boilerplate_value.AsHeapNumber().value();
-      // Allocate a mutable HeapNumber box and store the value into it.
+      // Allocate a mutable or uninitialized HeapNumber and store the value
+      // into it.
+      bool is_uninitialized = boilerplate_value.IsUninitializedHeapNumber();
+      MapRef map = is_uninitialized ? broker()->uninitialized_heap_number_map()
+                                    : broker()->heap_number_map();
+      double number =
+          is_uninitialized ? 0.0 : boilerplate_value.AsHeapNumber().value();
       AllocationBuilder builder(jsgraph(), broker(), effect, control);
       builder.Allocate(sizeof(HeapNumber), allocation);
-      builder.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
+      builder.Store(AccessBuilder::ForMap(), map);
       builder.Store(AccessBuilder::ForHeapNumberValue(),
                     jsgraph()->ConstantMaybeHole(number));
       value = effect = builder.Finish();

@@ -12,6 +12,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -20,6 +21,66 @@
 
 namespace v8 {
 namespace internal {
+
+Script::Script(const AllocationWitness& witness,
+               Tagged<UnionOf<String, Undefined>> source, int script_id)
+    : Struct(witness.roots().script_map()),
+      source_(witness, source),
+      name_(witness.roots().undefined_value()),
+      line_offset_(Smi::zero()),
+      column_offset_(Smi::zero()),
+      context_data_(witness.roots().undefined_value()),
+      script_type_(Smi::FromEnum(Script::Type::kNormal)),
+      line_ends_(Smi::zero()),
+      id_(Smi::FromInt(script_id)),
+      eval_from_shared_or_wrapped_arguments_(witness.roots().undefined_value()),
+      eval_from_position_(Smi::zero()),
+      eval_from_scope_info_(witness.roots().undefined_value()),
+      infos_(witness.roots().empty_weak_fixed_array()),
+      compiled_lazy_function_positions_(witness.roots().undefined_value()),
+      flags_(Smi::zero(), kRelaxedStore),
+      source_url_(witness.roots().undefined_value()),
+      source_mapping_url_(witness.roots().undefined_value()),
+      debug_id_(witness.roots().undefined_value()),
+      host_defined_options_(witness.roots().empty_fixed_array()),
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+      script_or_modules_(witness.roots().empty_array_list()),
+#endif
+      source_hash_(witness.roots().undefined_value()) {
+}
+
+Script::Script(const AllocationWitness& witness, Tagged<Script> old_script,
+               Tagged<String> source, int script_id
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+               ,
+               Tagged<ArrayList> script_or_modules
+#endif
+               )
+    : Struct(witness.roots().script_map()),
+      source_(witness, source),
+      name_(witness, old_script->name()),
+      line_offset_(Smi::FromInt(old_script->line_offset())),
+      column_offset_(Smi::FromInt(old_script->column_offset())),
+      context_data_(witness, old_script->context_data()),
+      script_type_(Smi::FromEnum(old_script->type())),
+      line_ends_(Smi::zero()),
+      id_(Smi::FromInt(script_id)),
+      eval_from_shared_or_wrapped_arguments_(
+          witness, old_script->eval_from_shared_or_wrapped_arguments()),
+      eval_from_position_(Smi::FromInt(old_script->eval_from_position())),
+      eval_from_scope_info_(witness, old_script->eval_from_scope_info_.load()),
+      infos_(witness.roots().empty_weak_fixed_array()),
+      compiled_lazy_function_positions_(witness.roots().undefined_value()),
+      flags_(Smi::FromInt(old_script->flags()), kRelaxedStore),
+      source_url_(witness.roots().undefined_value()),
+      source_mapping_url_(witness.roots().undefined_value()),
+      debug_id_(witness.roots().undefined_value()),
+      host_defined_options_(witness, old_script->host_defined_options()),
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+      script_or_modules_(witness, script_or_modules),
+#endif
+      source_hash_(witness.roots().undefined_value()) {
+}
 
 Tagged<UnionOf<String, Undefined>> Script::source() const {
   return source_.load();
@@ -70,11 +131,13 @@ void Script::set_line_ends(Tagged<UnionOf<FixedArray, Smi>> value,
 int Script::id() const { return id_.load().value(); }
 void Script::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
 
-Tagged<Object> Script::eval_from_shared_or_wrapped_arguments() const {
+Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+Script::eval_from_shared_or_wrapped_arguments() const {
   return eval_from_shared_or_wrapped_arguments_.load();
 }
-void Script::set_eval_from_shared_or_wrapped_arguments(Tagged<Object> value,
-                                                       WriteBarrierMode mode) {
+void Script::set_eval_from_shared_or_wrapped_arguments(
+    Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+    WriteBarrierMode mode) {
   eval_from_shared_or_wrapped_arguments_.store(this, value, mode);
 }
 

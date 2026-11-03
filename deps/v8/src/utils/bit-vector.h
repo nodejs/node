@@ -6,6 +6,7 @@
 #define V8_UTILS_BIT_VECTOR_H_
 
 #include <algorithm>
+#include <bit>
 
 #include "src/base/bits.h"
 #include "src/zone/zone.h"
@@ -211,6 +212,21 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     std::copy_n(other.data_begin_, data_length(), data_begin_);
   }
 
+  void CopyFrom(const BitVector& other, int index, int count) {
+    DCHECK_LE(other.length(), length());
+    DCHECK_LE(index + count, other.length());
+    ForRange(
+        index, count,
+        [&](int w, uintptr_t mask) {
+          data_begin_[w] =
+              (data_begin_[w] & ~mask) | (other.data_begin_[w] & mask);
+        },
+        [&](int start_w, int num_words) {
+          std::copy_n(other.data_begin_ + start_w, num_words,
+                      data_begin_ + start_w);
+        });
+  }
+
   void Resize(int new_length, Zone* zone) {
     DCHECK_GT(new_length, length());
     int old_data_length = data_length();
@@ -240,6 +256,14 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     data_begin_[word(i)] |= bit(i);
   }
 
+  void Add(int index, int count) {
+    ForRange(
+        index, count, [&](int w, uintptr_t mask) { data_begin_[w] |= mask; },
+        [&](int start_w, int num_words) {
+          std::fill_n(data_begin_ + start_w, num_words, ~uintptr_t{0});
+        });
+  }
+
   void AddAll() {
     if (V8_UNLIKELY(length() == 0)) return;
     int partial_size = length() % kDataBits;
@@ -253,6 +277,14 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   void Remove(int i) {
     DCHECK(i >= 0 && i < length());
     data_begin_[word(i)] &= ~bit(i);
+  }
+
+  void Remove(int index, int count) {
+    ForRange(
+        index, count, [&](int w, uintptr_t mask) { data_begin_[w] &= ~mask; },
+        [&](int start_w, int num_words) {
+          std::fill_n(data_begin_ + start_w, num_words, 0);
+        });
   }
 
   void Union(const BitVector& other) {
@@ -355,6 +387,38 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     explicit DataStorage(uintptr_t value) : inline_(value) {}
   };
 
+  template <typename WordOp, typename FullWordsOp>
+  void ForRange(int index, int count, WordOp word_op,
+                FullWordsOp full_words_op) {
+    DCHECK_GE(index, 0);
+    DCHECK_GE(count, 0);
+    DCHECK_LE(index + count, length());
+    if (count == 0) return;
+
+    int start_word = word(index);
+    int start_bit = index & (kDataBits - 1);
+    if (start_bit + count <= kDataBits) {
+      uintptr_t mask = (~uintptr_t{0} >> (kDataBits - count)) << start_bit;
+      word_op(start_word, mask);
+      return;
+    }
+
+    uintptr_t first_mask = ~uintptr_t{0} << start_bit;
+    word_op(start_word, first_mask);
+
+    int remaining = count - (kDataBits - start_bit);
+    int current_word = start_word + 1;
+    int full_words = remaining >> kDataBitShift;
+    full_words_op(current_word, full_words);
+
+    remaining &= (kDataBits - 1);
+    if (remaining > 0) {
+      current_word += full_words;
+      uintptr_t last_mask = ~uintptr_t{0} >> (kDataBits - remaining);
+      word_op(current_word, last_mask);
+    }
+  }
+
   bool is_inline() const { return data_begin_ == &data_.inline_; }
   int data_length() const { return static_cast<int>(data_end_ - data_begin_); }
 
@@ -427,11 +491,10 @@ class GrowableBitVector {
 
   V8_NOINLINE void Grow(int needed_value, Zone* zone) {
     DCHECK(!InBitsRange(needed_value));
-    // Ensure that {RoundUpToPowerOfTwo32} does not overflow {int} range.
+    // Ensure that {std::bit_ceil} does not overflow {int} range.
     CHECK_GE(kMaxSupportedValue, needed_value);
-    int new_length = std::max(
-        kInitialLength, static_cast<int>(base::bits::RoundUpToPowerOfTwo32(
-                            static_cast<uint32_t>(needed_value + 1))));
+    int new_length = std::max<int>(kInitialLength,
+                                   std::bit_ceil<uint32_t>(needed_value + 1));
     bits_.Resize(new_length, zone);
   }
 

@@ -1,0 +1,66 @@
+[workspace]
+auto-update-stale = true
+
+[git]
+auto-local-bookmark = false
+write-change-id-header = true
+
+[gerrit]
+default-remote = "origin"
+default-remote-branch = "main"
+
+[revset-aliases]
+"trunk()" = "main@origin"
+"immutable_heads()" = "remote_bookmarks() | tags()"
+
+[aliases]
+# Gerrit CL URL preview matching Chromium
+# ("6a6a6964" = ASCII "jjid" padding 32-hex jj UUID to 40-hex Gerrit Change-Id)
+"gerrit-url" = [
+  "log",
+  "--no-graph",
+  "-T",
+  '"https://chromium-review.googlesource.com/q/" ++ if(trailers.contains_key("Change-Id"), trailers.filter(|t| t.key() == "Change-Id").map(|t| t.value()), "I" ++ change_id.normal_hex() ++ "6a6a6964") ++ "\n"'
+]
+
+# Chromium-style porcelain aliases
+"v8-sync"   = ["util", "exec", "--", "bash", "-c", """
+jj git fetch
+jj rebase -b 'mutable() & ::@' -d 'trunk()' --skip-emptied
+""", ""]
+"sync"      = ["v8-sync"]
+
+# Runs `jj fix` on the stack, then pushes to Gerrit
+"v8-upload" = ["util", "exec", "--", "bash", "-c", """
+rev="@"
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-r" ]; then rev="$arg"; break; fi
+  prev="$arg"
+done
+jj fix -s "mutable()::($rev)"
+jj gerrit upload "$@"
+""", ""]
+"upload"    = ["v8-upload"]
+
+# Disable google3format for internal Piper users
+[fix.tools.google3format]
+enabled = false
+command = ["/dev/null"]
+patterns = ["null"]
+
+# Mirror depot_tools/git_cl.py formatters exactly as Chromium does:
+[fix.tools.clang-format]
+command = ["clang_format.py", "--assume-filename=$path"]
+line-range-arg = "--lines=$first:$last"
+patterns = [
+  "glob:'**/*.cc'",
+  "glob:'**/*.h'",
+  "glob:'**/*.js'",
+  "glob:'**/*.mjs'",
+  "glob:'**/*.ts'",
+]
+
+[fix.tools.gn-format]
+command = ["gn", "format", "--stdin"]
+patterns = ["glob:'**/*.gn'", "glob:'**/*.gni'"]

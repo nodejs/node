@@ -38,7 +38,7 @@ template <typename Callback>
 void NormalPage::ForAllFreeListCategories(Callback callback) {
   for (int i = kFirstCategory; i < owner()->free_list()->number_of_categories();
        i++) {
-    callback(categories_[i]);
+    callback(&categories_[i]);
   }
 }
 

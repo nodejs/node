@@ -742,7 +742,9 @@ V8_OBJECT class Context : public HeapObject {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  public:
-  TaggedMember<Smi> length_;
+  V8_TQ_CONST TaggedMember<Smi> length_;
+  V8_TQ_TAIL_NAME(elements);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
 } V8_OBJECT_END;
 
@@ -940,9 +942,11 @@ V8_OBJECT class ScriptContextTable
       (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 
  public:
-  uint32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
   TaggedMember<NameToIndexHashTable> names_to_context_index_;
+  V8_TQ_TAIL_NAME(objects);
+  V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -996,7 +1000,7 @@ V8_OBJECT class ContextCell : public HeapObject {
 
   TaggedMember<JSAny> tagged_value_;
   TaggedMember<DependentCode> dependent_code_;
-  std::atomic<State> state_;
+  std::atomic<State> state_ V8_TQ_TYPE(int32);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

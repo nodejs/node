@@ -595,7 +595,7 @@ BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
   int start_position_from_data = scope_data_->ReadVarint32();
   CHECK_EQ(start_position, start_position_from_data);
   *end_position = scope_data_->ReadVarint32();
-  DCHECK_GT(*end_position, start_position);
+  CHECK_GT(*end_position, start_position);
 
   uint32_t has_data_and_num_parameters = scope_data_->ReadVarint32();
   bool has_data = HasDataField::decode(has_data_and_num_parameters);

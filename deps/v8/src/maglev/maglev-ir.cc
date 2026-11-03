@@ -533,9 +533,6 @@ DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame* top_frame,
     : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
-  if (top_frame().type() == DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-    return reg == interpreter::Register::virtual_accumulator();
-  }
   if (V8_LIKELY(result_size() == 1)) {
     return reg == result_location_;
   }
@@ -555,6 +552,14 @@ bool LazyDeoptInfo::InReturnValues(interpreter::Register reg,
   }
   return base::IsInRange(reg.index(), result_location.index(),
                          result_location.index() + result_size - 1);
+}
+
+int BuiltinContinuationDeoptFrame::translation_height() const {
+  // parameters() in JS Continuation only holds the stack params as the JS
+  // trampoline's register ones are appended during translation.
+  return parameters().length() +
+         (is_javascript() ? JSTrampolineDescriptor::GetRegisterParameterCount()
+                          : 0);
 }
 
 int InterpretedDeoptFrame::ComputeReturnOffset(
@@ -1171,17 +1176,12 @@ DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
 }
 
 DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HoleyFloat64Constant::DoReify(
     LocalIsolate* isolate) const {
-  if (value_.is_undefined_or_hole_nan()) {
-    return isolate->factory()->undefined_value();
-  }
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HeapConstant::DoReify(LocalIsolate* isolate) const {
@@ -1256,6 +1256,21 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm,
 #undef V
     default:
       UNREACHABLE();
+  }
+}
+
+bool ValueNode::MaterializesToZero() const {
+  switch (opcode()) {
+    case Opcode::kSmiConstant:
+      return Cast<SmiConstant>()->value() == Smi::zero();
+    case Opcode::kInt32Constant:
+      return Cast<Int32Constant>()->value() == 0;
+    case Opcode::kUint32Constant:
+      return Cast<Uint32Constant>()->value() == 0;
+    case Opcode::kIntPtrConstant:
+      return Cast<IntPtrConstant>()->value() == 0;
+    default:
+      return false;
   }
 }
 
@@ -3784,12 +3799,18 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(ValueInput());
   if (NoWriteBarrier()) {
     if (MaglevAssembler::kSupportsStoreTaggedConstant) {
+      if (kind() == Kind::kTransitioning) {
+        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+      }
       __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
                                         map_.object());
       __ AssertElidedWriteBarrier(object, map_, register_snapshot());
     } else {
       Register value = temps.Acquire();
       __ MoveTagged(value, map_.object());
+      if (kind() == Kind::kTransitioning) {
+        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+      }
       __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
                                         value);
       __ AssertElidedWriteBarrier(object, value, register_snapshot());
@@ -3800,6 +3821,9 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(object, WriteBarrierDescriptor::ObjectRegister());
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
+  if (kind() == Kind::kTransitioning) {
+    __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+  }
   __ StoreTaggedFieldWithWriteBarrier(
       object, offsetof(HeapObject, map_), value, register_snapshot(),
       MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);

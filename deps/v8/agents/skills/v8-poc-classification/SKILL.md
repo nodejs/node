@@ -84,8 +84,8 @@ Technical proof of the vulnerability's severity.
   - If it stops crashing or is caught by a hardened check (`SBXCHECK`, `FATAL`),
     classify it as **Intended Behavior** or a **Bug**.
 - **Crashing POC for ClusterFuzz**: A crashing POC (segfault) is highly
-  preferred for ClusterFuzz upload. Always try to provide a standalone `.js`
-  file that crashes on a Release build.
+  preferred for ClusterFuzz upload (see the `clusterfuzz` skill). Always try to
+  provide a standalone `.js` file that crashes on a Release build.
 - **Deep Dive (GDB)**:
   - Verify **Attacker Control**: Do registers or memory at the crash site
     reflect values set in the POC (e.g., `0x41414141`)?
@@ -101,18 +101,22 @@ Technical proof of the vulnerability's severity.
 The classification MUST be supported by empirical evidence from the local
 reproduction:
 
-- **Local Reproduction Findings**:
-  - **Status**: Reproduced / Not Reproduced.
-  - **Reproduction**: `d8 <flags> <poc.js>` (Exact command used locally).
-  - **Result**: Summarize the result of running the command (output, crash,
-    sandbox violation, harmless memory access).
-  - **Build**: The build variant (e.g., x64.release, x64.debug, asan). Always
-    include the V8 version from `src/utils/version.h` and the specific git hash
-    using `git rev-parse HEAD` for technical accuracy.
-  - **Verified Impact**: Summarize the **Verified Impact** (e.g., confirmed OOB
-    write). If the bug is purely logical and caught by runtime protections (like
-    `ref.cast` or bounds checks) without crashing, state this clearly.
-  - **GDB Backtrace**: Include a snippet if it supports the classification.
+- **Local Reproduction Findings** (keep sub-bullets to 1 concise line, except
+  `GDB Backtrace` if multiple lines help):
+  - **Status**: `Reproduced` / `Not Reproduced`.
+  - **Reproduction**: `d8 <flags> <poc.js>` (filename only, omit local paths).
+  - **Result**: 1–2 short sentences summarizing the output, crash, or sandbox
+    violation.
+  - **Build**: Build variant(s) (e.g., `x64.release`, `x64.asan`), V8 version
+    (from `include/v8-version.h`), and revision number (from
+    `Cr-Commit-Position`), skipping the git hash and with no link to Gerrit
+    (only link to Gerrit and include the commit title when the specific *change*
+    in a commit is important; omit boilerplate GN args).
+  - **Verified Impact**: 1 sentence stating the verified primitive and attacker
+    control.
+  - **GDB Backtrace**: A concise snippet of the faulting instruction/registers
+    and relevant stack frames (can span multiple lines if helpful; trim
+    unrelated frames).
 
 Summary of rules from [triaging.md](../../../docs/security/triaging.md) based on
 the threat model:

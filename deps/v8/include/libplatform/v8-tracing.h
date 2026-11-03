@@ -35,7 +35,6 @@ class TraceEventListener;
 
 const int kTraceMaxNumArgs = 2;
 
-#if !defined(V8_USE_PERFETTO)
 class V8_PLATFORM_EXPORT TraceObject {
  public:
   union ArgValue {
@@ -177,7 +176,6 @@ class V8_PLATFORM_EXPORT TraceBuffer {
   TraceBuffer(const TraceBuffer&) = delete;
   void operator=(const TraceBuffer&) = delete;
 };
-#endif  // !defined(V8_USE_PERFETTO)
 
 // Options determines how the trace buffer stores data.
 enum TraceRecordMode {

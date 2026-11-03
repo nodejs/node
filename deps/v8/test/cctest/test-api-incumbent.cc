@@ -8,6 +8,7 @@
 #include "include/v8-function.h"
 #include "src/api/api.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::Context;
@@ -107,7 +108,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
     {
       Context::Scope context_scope(context);
 
-      auto src = v8::base::OwnedVector<char>::NewForOverwrite(30);
+      auto src = v8::base::UniqueArray<char>::NewForOverwrite(30);
       v8::base::SNPrintF(src.as_vector(), "Object.prototype.id = %d", i);
       CompileRun(src.begin());
     }
@@ -125,7 +126,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
     // Add "realmX" properties referencing contextX->global.
     for (int j = 0; j < n; j++) {
       Local<Context> another_context = contexts[j];
-      auto name = v8::base::OwnedVector<char>::NewForOverwrite(30);
+      auto name = v8::base::UniqueArray<char>::NewForOverwrite(30);
       v8::base::SNPrintF(name.as_vector(), "realm%d", j);
 
       CHECK(context->Global()
@@ -133,7 +134,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
                 .FromJust());
 
       // Check that 'id' property matches the realm index.
-      auto src = v8::base::OwnedVector<char>::NewForOverwrite(30);
+      auto src = v8::base::UniqueArray<char>::NewForOverwrite(30);
       v8::base::SNPrintF(src.as_vector(), "realm%d.id", j);
       Local<Value> value = CompileRun(src.begin());
       CHECK_EQ(j, value.As<Integer>()->Value());
@@ -215,7 +216,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
                                          expected_incumbent_context_ptr)
                                .ToLocalChecked();
 
-    auto name = v8::base::OwnedVector<char>::NewForOverwrite(30);
+    auto name = v8::base::UniqueArray<char>::NewForOverwrite(30);
     v8::base::SNPrintF(name.as_vector(), "realm%d.f", static_cast<int>(i));
     func->SetName(v8_str(name.begin()));
 

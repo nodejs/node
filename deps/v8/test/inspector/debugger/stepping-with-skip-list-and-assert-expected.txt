@@ -1,0 +1,25 @@
+Tests that the skipList of stepInto and stepOver does not suppress assert pauses.
+
+Test: stepInto into a skipped range hits an assert in the skipped range
+Paused with reason: step
+  debugger;
+  #skippedBody();
+  return 0;
+
+Paused with reason: ambiguous (assert, step)
+  let a = 1;
+  console.#assert(false, "assert failed");
+  let b = 2;
+
+
+Test: stepOver into a skipped range hits an assert in the skipped range
+Paused with reason: step
+  debugger;
+  #skippedBody();
+  return 0;
+
+Paused with reason: ambiguous (assert, step)
+  let a = 1;
+  console.#assert(false, "assert failed");
+  let b = 2;
+

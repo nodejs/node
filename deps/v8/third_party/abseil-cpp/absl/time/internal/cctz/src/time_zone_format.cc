@@ -34,6 +34,7 @@
 // declare strptime.
 #include <time.h>
 
+#include <cassert>
 #include <cctype>
 #include <chrono>
 #include <cstddef>
@@ -708,6 +709,14 @@ bool FromWeek(int week_num, weekday week_start, year_t* year, std::tm* tm) {
 bool parse(const std::string& format, const std::string& input,
            const time_zone& tz, time_point<seconds>* sec,
            detail::femtoseconds* fs, std::string* err) {
+#if __cplusplus < 202002L
+  // Assert that the std::chrono::system_clock epoch is the Unix epoch.
+  // This is required by C++20, but was also ubiquitous before that.
+  // We use this in join_seconds() to simplify overflow detection.
+  assert(std::chrono::system_clock::from_time_t(0).time_since_epoch() ==
+         std::chrono::system_clock::duration::zero());
+#endif
+
   // The unparsed input.  Even though we allow NULs in input, and
   // match them against corresponding NULs in format, we depend on
   // *edata being a NUL so that we can call strptime().  This also
