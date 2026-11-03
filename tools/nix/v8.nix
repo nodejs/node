@@ -139,6 +139,10 @@ stdenv.mkDerivation (finalAttrs: {
     def help():
       return ""
     EOF
+    cat -> tools/configure.d/openssl.py <<'EOF'
+    def __getattr__(name):
+      return lambda *args, **kwargs: None
+    EOF
     cat -> tools/getmoduleversion.py <<'EOF'
     def get_version():
       return "99"
