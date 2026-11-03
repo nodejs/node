@@ -37,6 +37,7 @@ using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
@@ -277,6 +278,32 @@ BaseObjectPtr<FFIFunctionInfo> FFIFunctionInfo::Create(
   return MakeWeakBaseObject<FFIFunctionInfo>(env, obj, std::move(fn), library);
 }
 
+// V8 strongly caches instantiations of low-serial FunctionTemplates, which
+// would root the function and, through FFIFunctionInfo, its library and
+// trampoline. An ObjectTemplate property is the only public way to make a
+// FunctionTemplate uncacheable (see v8::Template::Set()), so add one and delete
+// it from the instance. It is shared because its own instantiation is cached.
+static MaybeLocal<Function> GetUncachedFunction(Environment* env,
+                                                Local<FunctionTemplate> tmpl) {
+  Local<Context> context = env->context();
+  IsolateData* isolate_data = env->isolate_data();
+
+  Local<ObjectTemplate> placeholder =
+      isolate_data->ffi_uncacheable_placeholder_template();
+  if (placeholder.IsEmpty()) {
+    placeholder = ObjectTemplate::New(env->isolate());
+    isolate_data->set_ffi_uncacheable_placeholder_template(placeholder);
+  }
+  tmpl->Set(env->pointer_string(), placeholder);
+
+  Local<Function> ret;
+  if (!tmpl->GetFunction(context).ToLocal(&ret) ||
+      !ret->Delete(context, env->pointer_string()).FromMaybe(false)) {
+    return MaybeLocal<Function>();
+  }
+  return ret;
+}
+
 MaybeLocal<Function> DynamicLibrary::CreateFunction(
     Environment* env,
     const std::string& name,
@@ -340,7 +367,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
                               v8::ConstructorBehavior::kThrow,
                               v8::SideEffectType::kHasSideEffect,
                               &info->fast_metadata->c_function);
-    maybe_ret = tmpl->GetFunction(context);
+    maybe_ret = GetUncachedFunction(env, tmpl);
   } else {
     // Non-Fast signatures either use the SharedBuffer invoker, where JS writes
     // argument slots before calling with no arguments, or the generic invoker
@@ -492,7 +519,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
                                 v8::SideEffectType::kHasSideEffect,
                                 &info->fast_buffer_metadata->c_function);
       Local<Function> fast_buffer_invoke;
-      if (!tmpl->GetFunction(context).ToLocal(&fast_buffer_invoke)) {
+      if (!GetUncachedFunction(env, tmpl).ToLocal(&fast_buffer_invoke)) {
         return MaybeLocal<Function>();
       }
       if (!ret->DefineOwnProperty(context,
