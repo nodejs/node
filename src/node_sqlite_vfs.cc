@@ -382,7 +382,8 @@ void PermissionShmBarrier(sqlite3_file* file) {
 
 int PermissionShmUnmap(sqlite3_file* file, int delete_flag) {
   PermissionFile* permission_file = PermissionFileFromBase(file);
-  if (delete_flag && !permission_file->can_write_sidecar) return SQLITE_PERM;
+  // Unmapping must still happen; only the unlink of the SHM file is denied.
+  if (!permission_file->can_write_sidecar) delete_flag = 0;
   sqlite3_file* real = RealFile(permission_file);
   if (real->pMethods->xShmUnmap == nullptr) return SQLITE_NOTFOUND;
   return real->pMethods->xShmUnmap(real, delete_flag);
