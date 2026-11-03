@@ -52,23 +52,29 @@ test('ffi function pointer registry does not retain callables', async (t) => {
   }
 });
 
-test('ffi failed pointer callable construction releases its registration', async (t) => {
+test('ffi pointer callable construction ignores throwing inherited setters', async (t) => {
   const { lib } = ffi.dlopen(libraryPath);
+  t.after(() => lib.close());
+  const address = lib.getSymbol('add_i32');
   const original = Object.getOwnPropertyDescriptor(Function.prototype, 'pointer');
-  let escaped;
+  let fn;
+  let setterCalls = 0;
   const failure = new Error('pointer setter failed');
   try {
     Object.defineProperty(Function.prototype, 'pointer', {
       configurable: true,
       get() { return undefined; },
       set() {
-        escaped = this;
+        setterCalls++;
         throw failure;
       },
     });
-    t.assert.throws(() => lib.toFunction(lib.getSymbol('add_i32'), {
+    fn = lib.toFunction(address, {
       arguments: ['i32', 'i32'], return: 'i32',
-    }), (error) => error === failure);
+    });
+    t.assert.strictEqual(setterCalls, 0);
+    t.assert.strictEqual(Object.getOwnPropertyDescriptor(fn, 'pointer').value, address);
+    t.assert.strictEqual(fn(20, 22), 42);
   } finally {
     if (original === undefined) {
       delete Function.prototype.pointer;
@@ -77,33 +83,37 @@ test('ffi failed pointer callable construction releases its registration', async
     }
   }
   try {
-    t.assert.throws(() => escaped(20, 22), { code: 'ERR_FFI_LIBRARY_CLOSED' });
-    const ref = new WeakRef(escaped);
-    escaped = null;
-    await gcUntil('ffi failed pointer callable is collected', () => ref.deref() === undefined);
+    const ref = new WeakRef(fn);
+    fn = null;
+    await gcUntil('ffi pointer callable with inherited setter is collected',
+                  () => ref.deref() === undefined);
   } finally {
     lib.close();
   }
 });
 
-test('ffi pointer callable construction detects library closure', async (t) => {
+test('ffi pointer callable construction ignores inherited setters that close the library', async (t) => {
   const { lib } = ffi.dlopen(libraryPath);
   t.after(() => lib.close());
   const address = lib.getSymbol('add_i32');
   const original = Object.getOwnPropertyDescriptor(Function.prototype, 'pointer');
-  let escaped;
+  let fn;
+  let setterCalls = 0;
   try {
     Object.defineProperty(Function.prototype, 'pointer', {
       configurable: true,
       get() { return undefined; },
       set() {
-        escaped = this;
+        setterCalls++;
         lib.close();
       },
     });
-    t.assert.throws(() => lib.toFunction(address, {
+    fn = lib.toFunction(address, {
       arguments: ['i32', 'i32'], return: 'i32',
-    }), { code: 'ERR_FFI_LIBRARY_CLOSED' });
+    });
+    t.assert.strictEqual(setterCalls, 0);
+    t.assert.strictEqual(Object.getOwnPropertyDescriptor(fn, 'pointer').value, address);
+    t.assert.strictEqual(fn(20, 22), 42);
   } finally {
     if (original === undefined) {
       delete Function.prototype.pointer;
@@ -111,9 +121,10 @@ test('ffi pointer callable construction detects library closure', async (t) => {
       Object.defineProperty(Function.prototype, 'pointer', original);
     }
   }
-  t.assert.throws(() => escaped(20, 22), { code: 'ERR_FFI_LIBRARY_CLOSED' });
-  const ref = new WeakRef(escaped);
-  escaped = null;
+  lib.close();
+  t.assert.throws(() => fn(20, 22), { code: 'ERR_FFI_LIBRARY_CLOSED' });
+  const ref = new WeakRef(fn);
+  fn = null;
   await gcUntil('ffi pointer callable from closed library is collected',
                 () => ref.deref() === undefined);
 });
