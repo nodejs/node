@@ -564,6 +564,7 @@ SQLitePermissionVFS::SQLitePermissionVFS(Environment* env)
       memory_vfs_(sqlite3_vfs_find("memdb")),
       env_(env),
       permission_(env->permission()),
+      owner_thread_(uv_thread_self()),
       name_("node-permission-" + std::to_string(++next_vfs_id)) {
   CHECK_NOT_NULL(parent_);
   CHECK_NOT_NULL(memory_vfs_);
@@ -623,29 +624,52 @@ bool SQLitePermissionVFS::AllowsCanonicalPath(std::string_view path,
                         permission::PermissionScope::kFileSystemWrite, path));
 }
 
+bool SQLitePermissionVFS::Denied(std::string_view path, bool read) const {
+  if (!permission_->warning_only()) return false;
+
+  // VFS callbacks run in the middle of SQLite calls, possibly on a thread
+  // pool thread, where JavaScript subscribers must not run.
+  const permission::PermissionScope scope =
+      read && !permission_->is_granted_no_side_effects(
+                  permission::PermissionScope::kFileSystemRead, path)
+          ? permission::PermissionScope::kFileSystemRead
+          : permission::PermissionScope::kFileSystemWrite;
+  auto publish = [scope, path = std::string(path)](Environment* env) {
+    env->permission()->PublishDenied(env, scope, path);
+  };
+  const uv_thread_t self = uv_thread_self();
+  if (uv_thread_equal(&self, &owner_thread_)) {
+    env_->SetImmediate(std::move(publish));
+  } else {
+    env_->SetImmediateThreadsafe(std::move(publish));
+  }
+  return true;
+}
+
 bool SQLitePermissionVFS::AllowsPath(std::string_view path,
                                      bool read,
                                      bool write) const {
-  if (permission_->warning_only()) return true;
-
   const std::string canonical =
       CanonicalPath(const_cast<SQLitePermissionVFS*>(this), path);
-  return !canonical.empty() && AllowsCanonicalPath(canonical, read, write);
+  if (canonical.empty()) return false;
+  return AllowsCanonicalPath(canonical, read, write) ||
+         Denied(canonical, read);
 }
 
 bool SQLitePermissionVFS::AllowsSidecarPath(std::string_view path,
                                             bool read,
                                             bool write) const {
-  if (permission_->warning_only()) return true;
-
   const std::string canonical =
       CanonicalPath(const_cast<SQLitePermissionVFS*>(this), path);
   if (canonical.empty()) return false;
   if (AllowsCanonicalPath(canonical, read, write)) return true;
 
   std::string database_path;
-  return IsSidecarPath(canonical, &database_path) &&
-         AllowsCanonicalPath(database_path, read, write);
+  if (IsSidecarPath(canonical, &database_path) &&
+      AllowsCanonicalPath(database_path, read, write)) {
+    return true;
+  }
+  return Denied(canonical, read);
 }
 
 bool SQLitePermissionVFS::AllowsTemporaryFile(bool read, bool write) const {

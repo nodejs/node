@@ -410,3 +410,31 @@ if (!common.isWindows) {
   assert.strictEqual(status, 1, `stderr: ${stderr}`);
   assert.match(stderr, /Access to this API has been restricted/);
 }
+
+{
+  // Audit mode reports SQLite file access without denying it, including
+  // ATTACH filenames that the authorizer cannot inspect.
+  const auditDbPath = tmpdir.resolve('audit.sqlite');
+  const auditAttachPath = tmpdir.resolve('audit-attach.sqlite');
+  const code = `const dc = require('node:diagnostics_channel');
+    const { DatabaseSync } = require('node:sqlite');
+    const seen = new Set();
+    dc.subscribe('node:permission-model:fs', (msg) => seen.add(msg.resource));
+    const db = new DatabaseSync(process.env.DB_PATH);
+    db.prepare('ATTACH ? AS other').run(process.env.ATTACH_PATH);
+    db.exec('CREATE TABLE other.data(value)');
+    db.close();
+    process.on('exit', () => console.log(JSON.stringify([...seen])));`;
+  const { status, stdout, stderr } = spawnSync(
+    process.execPath,
+    ['--permission-audit', '--eval', code],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, DB_PATH: auditDbPath, ATTACH_PATH: auditAttachPath },
+    },
+  );
+  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  const seen = JSON.parse(stdout);
+  assert(seen.includes(auditDbPath), stdout);
+  assert(seen.includes(auditAttachPath), stdout);
+}

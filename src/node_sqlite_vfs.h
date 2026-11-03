@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "sqlite3.h"
+#include "uv.h"
 
 #include <string>
 #include <string_view>
@@ -75,12 +76,15 @@ class SQLitePermissionVFS {
 
  private:
   bool AllowsCanonicalPath(std::string_view path, bool read, bool write) const;
+  // Returns true in audit mode, after reporting the denial.
+  bool Denied(std::string_view path, bool read) const;
 
   sqlite3_vfs vfs_{};
   sqlite3_vfs* parent_ = nullptr;
   sqlite3_vfs* memory_vfs_ = nullptr;
   Environment* env_ = nullptr;
   permission::Permission* permission_ = nullptr;
+  uv_thread_t owner_thread_;
   std::string name_;
   bool registered_ = false;
 };

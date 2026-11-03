@@ -1915,7 +1915,8 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   };
   const auto validate_uri_vfs =
       [&](std::string value) -> std::optional<std::string> {
-    if (env->permission()->enabled() && HasSQLiteVfsUriParameter(value)) {
+    if (env->permission()->enabled() && !env->permission()->warning_only() &&
+        HasSQLiteVfsUriParameter(value)) {
       THROW_ERR_INVALID_ARG_VALUE(
           env->isolate(),
           "The \"%s\" argument must not specify a SQLite VFS.",
@@ -3419,6 +3420,7 @@ int Database::AuthorizerCallback(void* user_data,
   // SQLite only passes the ATTACH filename when it is a string literal. A
   // bound or computed filename cannot be checked for a URI-selected VFS.
   if (db->permission_vfs_ != nullptr && action_code == SQLITE_ATTACH &&
+      !db->env()->permission()->warning_only() &&
       (param1 == nullptr || HasSQLiteVfsUriParameter(param1))) {
     return SQLITE_DENY;
   }
