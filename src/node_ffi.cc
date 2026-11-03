@@ -687,7 +687,6 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   std::vector<uint64_t> values(expected_args, 0);
   std::vector<void*> ffi_args(expected_args, nullptr);
   std::vector<std::string> strings;
-  strings.reserve(expected_args);
 
   for (unsigned int i = 0; i < expected_args; i++) {
     FFIArgumentCategory res;
@@ -996,7 +995,6 @@ void DynamicLibrary::ToFunction(const FunctionCallbackInfo<Value>& args) {
         std::make_shared<std::unordered_set<FFIFunction*>>();
   }
   fn->pointer_registry = lib->pointer_functions_;
-  fn->closed = true;
   lib->pointer_functions_->insert(fn.get());
   Local<Function> ret;
   if (!lib->BuildFunction(env, "<pointer>", fn, false).ToLocal(&ret)) {
@@ -1004,12 +1002,6 @@ void DynamicLibrary::ToFunction(const FunctionCallbackInfo<Value>& args) {
     fn->ptr = nullptr;
     return;
   }
-  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
-  if (lib->is_closed()) {
-    THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return;
-  }
-  fn->closed = false;
   args.GetReturnValue().Set(ret);
 }
 
