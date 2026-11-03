@@ -266,6 +266,7 @@ std::vector<T> MakeAddrTTLBuffer(const unsigned char* buf, int len) {
   return std::vector<T>(GetAnswerCountForTTLBuffer(buf, len));
 }
 
+// Migrate deprecated c-ares reply parsing APIs to ares_dns_parse (Refs: #52464).
 Maybe<int> ParseGeneralReply(Environment* env,
                              const unsigned char* buf,
                              int len,
@@ -2257,7 +2258,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = arr->Length();
 
   // An empty list clears all configured servers. ares_set_servers_ports_csv()
-  // treats an empty string as "blank all servers".
+  // treats an empty string as "blank all servers" (Fixes: #52464).
   std::string csv;
 
   for (uint32_t i = 0; i < len; i++) {
