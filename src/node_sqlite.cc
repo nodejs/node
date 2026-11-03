@@ -3383,6 +3383,7 @@ void Database::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsNull()) {
     db->object()->SetInternalField(kAuthorizerCallback, Null(isolate));
+    db->has_authorizer_ = false;
     if (db->permission_vfs_ == nullptr) {
       sqlite3_set_authorizer(db->connection_.get(), nullptr, nullptr);
     } else {
@@ -3401,6 +3402,7 @@ void Database::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Local<Function> fn = args[0].As<Function>();
 
   db->object()->SetInternalField(kAuthorizerCallback, fn);
+  db->has_authorizer_ = true;
 
   int r = sqlite3_set_authorizer(
       db->connection_.get(), Database::AuthorizerCallback, db);
@@ -3424,6 +3426,7 @@ int Database::AuthorizerCallback(void* user_data,
       (param1 == nullptr || HasSQLiteVfsUriParameter(param1))) {
     return SQLITE_DENY;
   }
+  if (!db->has_authorizer_) return SQLITE_OK;
 
   Environment* env = db->env();
   Isolate* isolate = env->isolate();
@@ -3431,7 +3434,7 @@ int Database::AuthorizerCallback(void* user_data,
 
   Local<Value> cb =
       db->object()->GetInternalField(kAuthorizerCallback).template As<Value>();
-  if (!cb->IsFunction()) return SQLITE_OK;
+  CHECK(cb->IsFunction());
 
   CallbackDepthGuard guard(db);
   AuthorizerDepthGuard authorizer_guard(db);

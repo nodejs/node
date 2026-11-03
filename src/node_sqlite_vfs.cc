@@ -2,6 +2,7 @@
 
 #include "env-inl.h"
 #include "path.h"
+#include "util-inl.h"
 #include "permission/permission.h"
 
 #include <algorithm>
@@ -95,17 +96,6 @@ bool GetSQLiteUriParameter(std::string_view path,
     parameter_start = parameter_end + 1;
   }
   return found;
-}
-
-bool EqualsIgnoreCase(std::string_view left, std::string_view right) {
-  if (left.size() != right.size()) return false;
-  for (size_t i = 0; i < left.size(); ++i) {
-    if (std::tolower(static_cast<unsigned char>(left[i])) !=
-        std::tolower(static_cast<unsigned char>(right[i]))) {
-      return false;
-    }
-  }
-  return true;
 }
 
 bool IsSidecarPath(std::string_view path, std::string* database_path) {
@@ -521,8 +511,9 @@ bool SQLiteUriBooleanParameter(std::string_view path,
   if (!value.empty() && std::isdigit(static_cast<unsigned char>(value[0]))) {
     return std::strtoll(value.c_str(), nullptr, 10) != 0;
   }
-  return EqualsIgnoreCase(value, "on") || EqualsIgnoreCase(value, "yes") ||
-         EqualsIgnoreCase(value, "true");
+  return StringEqualNoCase(value.c_str(), "on") ||
+         StringEqualNoCase(value.c_str(), "yes") ||
+         StringEqualNoCase(value.c_str(), "true");
 }
 
 std::string SQLitePathForPermission(std::string_view path) {
@@ -743,7 +734,9 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
     }
     if (allowed && permission_name != nullptr &&
         (flags & SQLITE_OPEN_MAIN_DB)) {
-      can_write_sidecar = AllowsPath(permission_name, false, true);
+      const std::string canonical = CanonicalPath(this, permission_name);
+      can_write_sidecar = write || permission_->warning_only() ||
+                          AllowsCanonicalPath(canonical, false, true);
       if (!can_write_sidecar) {
         permission_file->parent_name = CreateReadOnlyShmFilename(name);
         if (permission_file->parent_name == nullptr) return SQLITE_NOMEM;

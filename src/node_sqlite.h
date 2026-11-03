@@ -354,6 +354,7 @@ class Database : public BaseObject {
   int trace_suppression_depth_ = 0;
   std::vector<sqlite3_stmt*> stepping_statements_;
   std::shared_ptr<SQLitePermissionVFS> permission_vfs_;
+  bool has_authorizer_ = false;
 
   // SQLite owns these scalar and aggregate/window function registrations. Its
   // destroy callbacks untrack replaced functions and failed registrations.
