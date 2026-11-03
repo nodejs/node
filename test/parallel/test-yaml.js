@@ -180,7 +180,16 @@ assert.deepStrictEqual(parse(new TextEncoder().encode('[1]').buffer), [1]);
 // Errors.
 for (const input of [1, null, undefined, {}, [], Symbol('x')]) {
   assert.throws(() => parse(input), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => parse(input, { throwIfInvalid: false }), { code: 'ERR_INVALID_ARG_TYPE' });
 }
+for (const options of [null, 1, { throwIfInvalid: 'no' }]) {
+  assert.throws(() => parse('a: 1', options), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+assert.strictEqual(parse('a: [1, 2', { throwIfInvalid: false }), undefined);
+assert.strictEqual(parse('a: 1\na: 2', { throwIfInvalid: false }), undefined);
+assert.deepStrictEqual(parse('a: 1', { throwIfInvalid: false }), { a: 1 });
+assert.strictEqual(parse('', { throwIfInvalid: false }), null);
+assert.deepStrictEqual(parse('--- 1\n--- 2', { throwIfInvalid: true }), [1, 2]);
 const invalid = [
   ['a: 1\n b: 2', /Implicit mapping keys must be on a single line \(line 1, column 4\)/],
   ['a: [1]\n  b: 2', /Bad indentation \(line 2, column 3\)/],

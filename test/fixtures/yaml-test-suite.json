@@ -973,11 +973,11 @@
   "error": false,
   "json": [
    {
+    "23": false,
     "a": "b",
     "c": 42,
     "e": "f",
-    "g": "h",
-    "23": false
+    "g": "h"
    }
   ]
  },
@@ -1028,7 +1028,7 @@
  },
  {
   "id": "7BUB",
-  "name": "Spec Example 2.10. Node for \u201cSammy Sosa\u201d appears twice in this document",
+  "name": "Spec Example 2.10. Node for “Sammy Sosa” appears twice in this document",
   "yaml": "---\nhr:\n  - Mark McGwire\n  # Following node labeled SS\n  - &SS Sammy Sosa\nrbi:\n  - *SS # Subsequent occurrence\n  - Ken Griffey\n",
   "error": false,
   "json": [
@@ -1248,7 +1248,7 @@
  {
   "id": "8XYN",
   "name": "Anchor with unicode character",
-  "yaml": "---\n- &\ud83d\ude01 unicode anchor\n",
+  "yaml": "---\n- &😁 unicode anchor\n",
   "error": false,
   "json": [
    [
@@ -1668,7 +1668,7 @@
  },
  {
   "id": "BEC7",
-  "name": "Spec Example 6.14. \u201cYAML\u201d directive",
+  "name": "Spec Example 6.14. “YAML” directive",
   "yaml": "%YAML 1.3 # Attempt parsing\n          # with a warning\n---\n\"foo\"\n",
   "error": false,
   "json": [
@@ -2336,7 +2336,7 @@
   "error": false,
   "json": [
    {
-    "unicode": "Sosa did fine.\u263a",
+    "unicode": "Sosa did fine.☺",
     "control": "\b1998\t1999\t2000\n",
     "hex esc": "\r\n is \r\n",
     "single": "\"Howdy!\" he cried.",
@@ -2412,11 +2412,11 @@
  {
   "id": "H3Z8",
   "name": "Literal unicode",
-  "yaml": "---\nwanted: love \u2665 and peace \u262e\n",
+  "yaml": "---\nwanted: love ♥ and peace ☮\n",
   "error": false,
   "json": [
    {
-    "wanted": "love \u2665 and peace \u262e"
+    "wanted": "love ♥ and peace ☮"
    }
   ]
  },
@@ -3234,7 +3234,7 @@
  {
   "id": "P2AD",
   "name": "Spec Example 8.1. Block Scalar Header",
-  "yaml": "- | # Empty header\u2193\n literal\n- >1 # Indentation indicator\u2193\n  folded\n- |+ # Chomping indicator\u2193\n keep\n\n- >1- # Both indicators\u2193\n  strip\n",
+  "yaml": "- | # Empty header↓\n literal\n- >1 # Indentation indicator↓\n  folded\n- |+ # Chomping indicator↓\n keep\n\n- >1- # Both indicators↓\n  strip\n",
   "error": false,
   "json": [
    [
@@ -3754,7 +3754,7 @@
  },
  {
   "id": "U3C3",
-  "name": "Spec Example 6.16. \u201cTAG\u201d directive",
+  "name": "Spec Example 6.16. “TAG” directive",
   "yaml": "%TAG !yaml! tag:yaml.org,2002:\n---\n!yaml!str \"foo\"\n",
   "error": false,
   "json": [
