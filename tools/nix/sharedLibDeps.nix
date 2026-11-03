@@ -19,6 +19,7 @@
     nghttp2
     simdjson
     simdutf
+    uvwasi
     zlib
     zstd
     ;
@@ -27,19 +28,6 @@
   hdr-histogram = pkgs.hdrhistogram_c;
   highway = pkgs.libhwy;
   http-parser = pkgs.llhttp;
-
-  # TODO: remove this override once the pin we use has picked up https://github.com/NixOS/nixpkgs/pull/575002
-  uvwasi = pkgs.uvwasi.overrideAttrs (old: {
-    patches = old.patches ++ [
-      (pkgs.fetchpatch2 {
-        url = "https://github.com/nodejs/uvwasi/commit/fe602a6911207efd8dcfc070a752bcf76813c978.patch?full_index=1";
-        hash = "sha256-MyFvRuEhcqZR+Bz2pY9vani8U1iyQrDeni2kKKnJGEI=";
-      })
-    ];
-
-    buildInputs = [ ];
-    propagatedBuildInputs = old.buildInputs;
-  });
 }
 // (pkgs.lib.optionalAttrs withLief {
   # TODO: remove this override once the pin we use has picked up a new LIEF version that includes that patch.
