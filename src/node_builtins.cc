@@ -68,6 +68,19 @@ BuiltinLoader::BuiltinLoader()
   AddExternalizedBuiltin("internal/deps/amaro/dist/index",
                          STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH));
 #endif  // NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
+#ifdef NODE_SHARED_BUILTIN_AMARO_DIST_NODEJS_PATH
+  AddExternalizedBuiltin("internal/deps/amaro/dist/nodejs",
+                         STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_NODEJS_PATH));
+#endif  // NODE_SHARED_BUILTIN_AMARO_DIST_NODEJS_PATH
+#ifdef NODE_SHARED_BUILTIN_AMARO_DIST_TRANSFORM_PATH
+  AddExternalizedBuiltin(
+      "internal/deps/amaro/dist/transform",
+      STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_TRANSFORM_PATH));
+#endif  // NODE_SHARED_BUILTIN_AMARO_DIST_TRANSFORM_PATH
+#ifdef NODE_SHARED_BUILTIN_AMARO_LIB_WASM_PATH
+  AddExternalizedBuiltin("internal/deps/amaro/lib/wasm",
+                         STRINGIFY(NODE_SHARED_BUILTIN_AMARO_LIB_WASM_PATH));
+#endif  // NODE_SHARED_BUILTIN_AMARO_LIB_WASM_PATH
 #endif  // HAVE_AMARO
 }
 
