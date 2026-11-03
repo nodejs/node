@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@babel/core": "^8.0.7",
+    "@babel/core": "^8.0.9",
     "@babel/eslint-parser": "^8.0.7",
     "@babel/plugin-syntax-import-defer": "^8.0.1",
     "@babel/plugin-syntax-import-source": "^8.0.1",
@@ -12,7 +12,7 @@
     "@stylistic/eslint-plugin": "^5.10.0",
     "eslint": "^10.13.0",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^65.4.0",
+    "eslint-plugin-jsdoc": "^65.4.2",
     "eslint-plugin-regexp": "^3.3.1",
     "globals": "^17.13.0"
   }
