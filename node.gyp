@@ -75,8 +75,6 @@
       'deps/v8/tools/tickprocessor.mjs',
       'deps/v8/tools/sourcemap.mjs',
       'deps/v8/tools/tickprocessor-driver.mjs',
-      'deps/acorn/acorn/dist/acorn.js',
-      'deps/acorn/acorn-walk/dist/walk.js',
       '<@(node_builtin_shareable_builtins)',
     ],
     'node_sources': [

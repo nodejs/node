@@ -6,7 +6,7 @@ export ROOT
 # This function compare new version with current version of a dependency and
 # exit the script if the versions are the same
 #
-# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See the file
+# $1 is the package name e.g. 'ada', 'amaro', 'base64' etc. See the file
 # https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md
 # for a complete list of package name
 # $2 is the new version.
@@ -25,7 +25,7 @@ compare_dependency_version() {
 # and print the last line of the script "NEW_VERSION=$NEW_VERSION" as we need
 # to add it to $GITHUB_ENV variable.
 #
-# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See the file
+# $1 is the package name e.g. 'ada', 'amaro', 'base64' etc. See the file
 # https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md
 # for a complete list of package name
 # $2 is the new version.
@@ -51,7 +51,7 @@ finalize_version_update() {
 # This function logs the archive checksum and, if provided, compares it with
 # the deposited checksum
 #
-# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See the file
+# $1 is the package name e.g. 'ada', 'amaro', 'base64' etc. See the file
 # https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md
 # for a complete list of package name
 # $2 is the downloaded archive

@@ -13,8 +13,6 @@ on:
         type: choice
         options:
           - all
-          - acorn
-          - acorn-walk
           - ada
           - amaro
           - brotli
@@ -64,22 +62,6 @@ jobs:
       fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
         include:
-          - id: acorn
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-acorn.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: acorn-walk
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-acorn-walk.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: ada
             subsystem: deps
             label: dependencies

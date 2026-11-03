@@ -1,5 +1,4 @@
 #include "node_metadata.h"
-#include "acorn_version.h"
 #include "ada.h"
 #include "amaro_version.h"
 #include "ares.h"
@@ -141,12 +140,11 @@ Metadata::Versions::Versions() {
   undici = UNDICI_VERSION;
 #endif
 
-  acorn = ACORN_VERSION;
   merve = MERVE_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
   zstd = ZSTD_VERSION_STRING;
 
-#ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
+#ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INTERNAL_PATH
 #if HAVE_AMARO
   amaro = AMARO_VERSION;
 #endif

@@ -4582,7 +4582,6 @@ Will generate an object similar to:
 
 ```console
 { node: '26.0.0-pre',
-  acorn: '8.15.0',
   ada: '3.4.1',
   amaro: '1.1.5',
   ares: '1.34.6',
