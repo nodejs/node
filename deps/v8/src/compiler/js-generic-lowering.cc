@@ -759,9 +759,6 @@ void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   SharedFunctionInfoRef shared = p.shared();
   TemplateObjectDescriptionRef description = p.description();
 
-  DCHECK_EQ(node->op()->ControlInputCount(), 1);
-  node->RemoveInput(NodeProperties::FirstControlIndex(node));
-
   static_assert(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(shared, broker()));
   node->InsertInput(zone(), 1,

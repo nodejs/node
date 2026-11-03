@@ -1614,7 +1614,7 @@ const Operator* JSOperatorBuilder::GetTemplateObject(
   GetTemplateObjectParameters parameters(description, shared, feedback);
   return zone()->New<Operator1<GetTemplateObjectParameters>>(  // --
       IrOpcode::kJSGetTemplateObject,                          // opcode
-      Operator::kEliminatable,                                 // properties
+      Operator::kNoDeopt | Operator::kNoThrow,                 // properties
       "JSGetTemplateObject",                                   // name
       1, 1, 1, 1, 1, 0,                                        // counts
       parameters);                                             // parameter
