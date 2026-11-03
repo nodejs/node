@@ -1,11 +1,11 @@
 {
   pkgs ? import ./pkgs.nix { },
+  withFFI ? true,
   withLief ? true,
+  withPerfetto ? true,
   withQuic ? false,
   withSQLite ? true,
   withSSL ? true,
-  withFFI ? true,
-  withPerfetto ? false,
   withTemporal ? true,
 }:
 {
