@@ -14,12 +14,11 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const { DatabaseSync } = require('node:sqlite');
-const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const dbPath = fixtures.path('permission', 'sqlite.db');
+const dbPath = tmpdir.resolve('sqlite.db');
 const deniedPath = tmpdir.resolve('denied.sqlite');
 const backupPath = tmpdir.resolve('backup.sqlite');
 const allowedBackupPath = tmpdir.resolve('allowed-backup.sqlite');
@@ -27,7 +26,11 @@ const sidecarDbPath = tmpdir.resolve('sidecars.sqlite');
 const walDbPath = tmpdir.resolve('read-only-wal.sqlite');
 const suffixDbPath = dbPath + '-wal';
 
-fs.rmSync(suffixDbPath, { force: true });
+{
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE data(value)');
+  db.close();
+}
 
 function run(code, permissions, env = {}) {
   return spawnSync(
