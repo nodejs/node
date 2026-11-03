@@ -916,6 +916,7 @@ int64_t PortableTimeGM(struct tm* t) {
 // SPKAC
 
 bool VerifySpkac(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
 #ifdef OPENSSL_IS_BORINGSSL
   // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
   // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
@@ -934,6 +935,7 @@ bool VerifySpkac(const char* input, size_t length) {
 }
 
 BIOPointer ExportPublicKey(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
 
@@ -955,6 +957,7 @@ BIOPointer ExportPublicKey(const char* input, size_t length) {
 }
 
 Buffer<char> ExportChallenge(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
 #ifdef OPENSSL_IS_BORINGSSL
   // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
   // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
@@ -4358,6 +4361,7 @@ bool ECKeyHasMissingOid(const EVPKeyPointer& key) {
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
     const PrivateKeyEncodingConfig& config,
     const Buffer<const unsigned char>& buffer) {
+  ERR_clear_error();
   static constexpr auto keyOrError = [](EVPKeyPointer pkey,
                                         bool had_passphrase = false) {
     if (unsigned long err = ERR_peek_error()) {  // NOLINT(runtime/int)
