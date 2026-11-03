@@ -23,7 +23,7 @@ const yaml = require('node:yaml');
 
 Loading the module emits an `ExperimentalWarning`.
 
-## `yaml.parse(input)`
+## `yaml.parse(input[, options])`
 
 <!-- YAML
 added: REPLACEME
@@ -31,6 +31,9 @@ added: REPLACEME
 
 * `input` {string|ArrayBuffer|SharedArrayBuffer|TypedArray|DataView} The YAML
   text. Binary input is decoded as UTF-8.
+* `options` {Object}
+  * `throwIfInvalid` {boolean} Whether invalid YAML throws. When `false`,
+    `parse()` returns `undefined` instead. **Default:** `true`.
 * Returns: {any} The value of the document, or an array with the value of each
   document when the stream holds more than one. An empty stream yields `null`.
 
@@ -71,7 +74,16 @@ their JSON text and are limited to 1024 characters. Duplicate keys throw.
 
 Invalid YAML throws an [`ERR_INVALID_YAML`][] `SyntaxError` with the line and
 column. The parser rejects disallowed control characters and nesting deeper
-than 1000 levels.
+than 1000 levels. With `throwIfInvalid: false` the parser returns `undefined`
+instead of building an error. A document never has the value `undefined`, so
+the result is unambiguous.
+
+```mjs
+import yaml from 'node:yaml';
+
+console.log(yaml.parse('a: [1, 2', { throwIfInvalid: false }));
+// undefined
+```
 
 [YAML 1.2]: https://yaml.org/spec/1.2.2/
 [`--experimental-yaml`]: cli.md#--experimental-yaml
