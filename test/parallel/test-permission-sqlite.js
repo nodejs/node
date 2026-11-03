@@ -213,6 +213,33 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
 }
 
 {
+  // A database that may be read but not written is attached read-only.
+  const readOnlyAttachPath = tmpdir.resolve('read-only-attach.sqlite');
+  const setup = new DatabaseSync(readOnlyAttachPath);
+  setup.exec('CREATE TABLE data(value); INSERT INTO data VALUES (1)');
+  setup.close();
+  const code = `const assert = require('node:assert');
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(process.env.DB_PATH);
+    const attachPath = process.env.ATTACH_PATH.replaceAll("'", "''");
+    db.exec("ATTACH DATABASE '" + attachPath + "' AS outside");
+    assert.strictEqual(
+      db.prepare('SELECT value FROM outside.data').get().value, 1);
+    assert.throws(() => db.exec('INSERT INTO outside.data VALUES (2)'),
+                  /readonly database/);`;
+  const { status, stderr } = run(
+    code,
+    [
+      '--allow-fs-read=' + dbPath,
+      '--allow-fs-write=' + dbPath,
+      '--allow-fs-read=' + readOnlyAttachPath,
+    ],
+    { ATTACH_PATH: readOnlyAttachPath },
+  );
+  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+}
+
+{
   // URI VFS overrides on ATTACH cannot bypass the permission VFS, even if
   // the public authorizer callback is cleared.
   const code = `const { DatabaseSync } = require('node:sqlite');

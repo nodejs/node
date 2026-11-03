@@ -731,6 +731,15 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
               ((flags & SQLITE_OPEN_SUPER_JOURNAL)
                    ? AllowsSidecarPath(permission_name, read, write)
                    : AllowsPath(permission_name, read, write));
+    if (!allowed && write && (flags & SQLITE_OPEN_MAIN_DB) &&
+        permission_name != nullptr &&
+        AllowsPath(permission_name, read, false)) {
+      // Like the OS VFS on EACCES, fall back to a read-only open.
+      write = false;
+      parent_flags &= ~(SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
+      parent_flags |= SQLITE_OPEN_READONLY;
+      allowed = true;
+    }
     if (allowed && permission_name != nullptr &&
         (flags & SQLITE_OPEN_MAIN_DB)) {
       can_write_sidecar = AllowsPath(permission_name, false, true);
