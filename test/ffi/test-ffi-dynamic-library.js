@@ -92,11 +92,16 @@ test('DynamicLibrary exposes functions and symbols', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
 
   try {
+    // An inherited non-writable `pointer` must not shadow the address.
+    Object.defineProperty(Function.prototype, 'pointer', {
+      value: 1, writable: false, configurable: true,
+    });
     const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
     const addU64 = lib.getFunction('add_u64', {
       return: 'u64',
       arguments: ['u64', 'u64'],
     });
+    delete Function.prototype.pointer;
     const addI32Ptr = lib.getSymbol('add_i32');
 
     assert.strictEqual(addI32(20, 22), 42);
