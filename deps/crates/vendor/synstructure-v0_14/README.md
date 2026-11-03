@@ -3,7 +3,7 @@
 [![Latest Version](https://img.shields.io/crates/v/synstructure.svg)](https://crates.io/crates/synstructure)
 [![Documentation](https://docs.rs/synstructure/badge.svg)](https://docs.rs/synstructure)
 [![Build Status](https://github.com/mystor/synstructure/actions/workflows/ci.yml/badge.svg)](https://github.com/mystor/synstructure/actions)
-[![Rustc Version 1.31+](https://img.shields.io/badge/rustc-1.31+-lightgray.svg)](https://blog.rust-lang.org/2018/12/06/Rust-1.31-and-rust-2018.html)
+[![Rustc Version 1.71+](https://img.shields.io/badge/rustc-1.71+-lightgray.svg)](https://blog.rust-lang.org/2023/07/13/Rust-1.71.0/)
 
 > NOTE: What follows is an exerpt from the module level documentation. For full
 > details read the docs on [docs.rs](https://docs.rs/synstructure/)

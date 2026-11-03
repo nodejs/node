@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.71"
 name = "synstructure"
-version = "0.13.2"
+version = "0.14.0"
 authors = ["Nika Layzell <nika@thelayzells.com>"]
 build = false
 include = [
@@ -39,6 +40,14 @@ keywords = [
 license = "MIT"
 repository = "https://github.com/mystor/synstructure"
 
+[features]
+default = ["proc-macro"]
+proc-macro = [
+    "proc-macro2/proc-macro",
+    "syn/proc-macro",
+    "quote/proc-macro",
+]
+
 [lib]
 name = "synstructure"
 path = "src/lib.rs"
@@ -52,7 +61,7 @@ version = "1"
 default-features = false
 
 [dependencies.syn]
-version = "2"
+version = "3"
 features = [
     "derive",
     "parsing",
@@ -65,11 +74,3 @@ default-features = false
 
 [dev-dependencies.synstructure_test_traits]
 version = "0.1"
-
-[features]
-default = ["proc-macro"]
-proc-macro = [
-    "proc-macro2/proc-macro",
-    "syn/proc-macro",
-    "quote/proc-macro",
-]
