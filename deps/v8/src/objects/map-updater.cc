@@ -400,7 +400,9 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   ElementsKind to_kind = old_map->elements_kind();
 
   IntegrityLevelTransitionInfo info(old_map);
-  if (root_map->is_extensible() != old_map->is_extensible()) {
+  if (!root_map->is_extensible() && old_map != root_map) {
+    return {};
+  } else if (root_map->is_extensible() != old_map->is_extensible()) {
     DCHECK(!old_map->is_extensible());
     DCHECK(root_map->is_extensible());
     info = DetectIntegrityLevelTransitions(old_map, isolate, &no_gc, cmode);
@@ -412,7 +414,7 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsTypedArrayOrRabGsabTypedArrayElementsKind(to_kind) ||
-           IsAnyHoleyNonextensibleElementsKind(to_kind));
+           IsAnyNonextensibleElementsKind(to_kind));
     to_kind = info.integrity_level_source_map->elements_kind();
   }
   if (from_kind != to_kind) {
@@ -622,6 +624,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
           direct_handle(root_map_->prototype(), isolate_),
           root_map_->instance_type())) {
     return Normalize("Normalize_NotEquivalent");
+  } else if (!root_map_->is_extensible() && *old_map_ != *root_map_) {
+    return Normalize("Normalize_PrivateSymbolsOnNonExtensible");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
     DCHECK(root_map_->is_extensible());

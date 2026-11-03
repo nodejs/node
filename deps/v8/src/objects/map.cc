@@ -603,10 +603,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
   MaybeObjectDirectHandle wrapped_type = WrapFieldType(type);
   Descriptor d = Descriptor::DataField(name, offset, attributes, constness,
                                        representation, wrapped_type);
-  Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
-
-  new_map->AccountAddedPropertyField();
-  return new_map;
+  return Map::CopyAddDescriptor(isolate, map, &d, flag);
 }
 
 MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, DirectHandle<Map> map,
@@ -1615,6 +1612,10 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, DirectHandle<Map> map,
     DisallowGarbageCollection no_gc;
     descriptors->Append(descriptor);
     result->InitializeDescriptors(*descriptors);
+    // Account for the field before publishing the transition.
+    if (descriptor->GetDetails().location() == PropertyLocation::kField) {
+      result->AccountAddedPropertyField();
+    }
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
@@ -2333,7 +2334,12 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, DirectHandle<Map> map,
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
-  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag,
+  auto InitMap = [&](DirectHandle<Map> new_map) {
+    if (descriptor->GetDetails().location() == PropertyLocation::kField) {
+      new_map->AccountAddedPropertyField();
+    }
+  };
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag, InitMap,
                                 descriptor->GetKey(), "CopyAddDescriptor",
                                 SIMPLE_PROPERTY_TRANSITION);
 }

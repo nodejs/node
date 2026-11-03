@@ -1258,9 +1258,12 @@ void Map::InobjectSlackTrackingStep(Isolate* isolate) {
   DCHECK(IsUndefined(GetBackPointer()));
   if (!this->IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
-  set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
+    // The last decrement must happen under the map_updater_access mutex,
+    // together with the instance size changes.
     MapUpdater::CompleteInobjectSlackTracking(isolate, this);
+  } else {
+    set_construction_counter(counter - 1);
   }
 }
 
