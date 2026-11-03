@@ -260,6 +260,56 @@ test('a dropped function wrapper is collectable', async () => {
   }
 });
 
+for (const symbol of [
+  'multiply_f64', // Fast API, no JS wrapper
+  'add_i32', // Fast API, JS wrapper
+  'get_counter', // Fast API, no arguments
+  'pointer_to_usize', // Fast API, JS wrapper and Buffer invoker
+]) {
+  test(`dropping ${symbol} releases the function and its library`, async () => {
+    let lib = new ffi.DynamicLibrary(libraryPath);
+    let fn = lib.getFunction(symbol, fixtureSymbols[symbol]);
+    const fnRef = new WeakRef(fn);
+    const libRef = new WeakRef(lib);
+    lib = null;
+    fn = null;
+
+    await gcUntil(`dropping ${symbol} releases the function and its library`, () => {
+      return fnRef.deref() === undefined && libRef.deref() === undefined;
+    });
+  });
+}
+
+test('an optimized Fast API call target can be collected', async () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    function callMultiply(fn) {
+      return fn(20, 22);
+    }
+    eval('%PrepareFunctionForOptimization(callMultiply)');
+
+    // Collect a function that optimized code has called, then make sure a new
+    // function for the same symbol works through a fresh trampoline.
+    let fn = lib.getFunction('multiply_f64', fixtureSymbols.multiply_f64);
+    assert.strictEqual(callMultiply(fn), 440);
+    assert.strictEqual(callMultiply(fn), 440);
+    eval('%OptimizeFunctionOnNextCall(callMultiply)');
+    assert.strictEqual(callMultiply(fn), 440);
+
+    const ref = new WeakRef(fn);
+    fn = null;
+    await gcUntil('an optimized Fast API call target can be collected', () => {
+      return ref.deref() === undefined;
+    });
+
+    fn = lib.getFunction('multiply_f64', fixtureSymbols.multiply_f64);
+    assert.strictEqual(callMultiply(fn), 440);
+  } finally {
+    lib.close();
+  }
+});
+
 test('FFI functions keep their owning library alive', async () => {
   let lib = new ffi.DynamicLibrary(libraryPath);
   const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
