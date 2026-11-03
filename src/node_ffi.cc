@@ -364,7 +364,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   }
   ret->SetName(name_str.As<String>());
 
-  if (!ret->Set(
+  if (!ret->CreateDataProperty(
               context,
               env->pointer_string(),
               BigInt::NewFromUnsigned(
