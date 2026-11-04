@@ -22,6 +22,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#include <openssl/rand.h>
 #endif
 
 using ncrypto::Ec;
@@ -120,6 +121,55 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
 }
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
+TEST(NodeCrypto, DhNamedGroupCheckDoesNotRequireRandomness) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(
+      RAND_set_DRBG_type(
+          libctx.get(), "node-test-unavailable-rng", nullptr, nullptr, nullptr),
+      1);
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Primality checks need randomness. Known groups must skip those checks.
+  unsigned char random_byte;
+  ASSERT_NE(RAND_bytes_ex(libctx.get(), &random_byte, 1, 0), 1);
+  ERR_clear_error();
+
+  using DH = ncrypto::DHPointer;
+  for (const char* name :
+       {"modp5", "modp14", "modp15", "modp16", "modp17", "modp18"}) {
+    auto prime = DH::FindGroup(name);
+    auto generator = DH::GetStandardGenerator();
+    ASSERT_TRUE(prime);
+    ASSERT_TRUE(generator);
+    auto dh = DH::New(std::move(prime), std::move(generator));
+    ASSERT_TRUE(dh);
+    EXPECT_EQ(dh.check(), DH::CheckResult::NONE) << name;
+  }
+
+  auto prime = DH::FindGroup("modp14");
+  auto generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(prime.get(), 1), 1);
+  auto composite = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(composite);
+  EXPECT_EQ(composite.check(), DH::CheckResult::P_NOT_PRIME);
+
+  prime = DH::FindGroup("modp14");
+  generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(generator.get(), 1), 1);
+  auto other_generator = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(other_generator);
+  EXPECT_EQ(other_generator.check(), DH::CheckResult::CHECK_FAILED);
+}
+
 TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
