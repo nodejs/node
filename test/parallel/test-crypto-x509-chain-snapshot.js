@@ -8,6 +8,7 @@ const assert = require('node:assert');
 const { X509Certificate } = require('node:crypto');
 const { once } = require('node:events');
 const tls = require('node:tls');
+const { deserialize, serialize } = require('node:v8');
 const {
   MessageChannel,
   Worker,
@@ -88,6 +89,7 @@ const server = tls.createServer({
   assertChain(structuredClone(first));
   assertChain(await cloneViaMessagePort(first));
   assertChain(await cloneViaWorker(first));
+  assertChain(deserialize(serialize(first)));
 
   socket.destroy();
   server.close();
