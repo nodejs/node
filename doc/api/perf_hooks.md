@@ -17,6 +17,12 @@ Node.js supports the following [Web Performance APIs][]:
 * [User Timing][]
 * [Resource Timing][]
 
+The Performance Timeline provided by this API is separate from the
+**Performance** panel in Chrome DevTools. When profiling Node.js, that panel
+records CPU profiles and does not display entries created by
+[`performance.mark()`][] or [`performance.measure()`][]. Use a
+[`PerformanceObserver`][] to collect these entries, as in the following example.
+
 ```mjs
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 
@@ -3479,6 +3485,7 @@ dns.promises.resolve('localhost');
 [Welch's t-test]: https://en.wikipedia.org/wiki/Welch%27s_t-test
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
+[`PerformanceObserver`]: #class-performanceobserver
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.diff()`]: #histogramdiffother
 [`histogram.exceeds`]: #histogramexceeds
@@ -3489,6 +3496,8 @@ dns.promises.resolve('localhost');
 [`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
+[`performance.mark()`]: #performancemarkname-options
+[`performance.measure()`]: #performancemeasurename-startmarkoroptions-endmark
 [`performanceNodeTiming.uvMetricsInfoBigInt`]: #performancenodetiminguvmetricsinfobigint
 [`performanceNodeTiming.uvMetricsInfo`]: #performancenodetiminguvmetricsinfo
 [`process.hrtime()`]: process.md#processhrtimetime
