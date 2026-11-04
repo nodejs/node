@@ -1861,7 +1861,8 @@ typedef enum ngtcp2_token_type {
 #define NGTCP2_SETTINGS_V2 2
 #define NGTCP2_SETTINGS_V3 3
 #define NGTCP2_SETTINGS_V4 4
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V4
+#define NGTCP2_SETTINGS_V5 5
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V5
 
 /**
  * @struct
@@ -1913,7 +1914,7 @@ typedef struct ngtcp2_settings {
    * :member:`token_type` field.
    *
    * Client sets this field if it intends to send token in its Initial
-   * packet.
+   * packet.  A token longer than 512 bytes is ignored.
    *
    * `ngtcp2_conn_server_new` and `ngtcp2_conn_client_new` make a copy
    * of token.
@@ -2087,11 +2088,12 @@ typedef struct ngtcp2_settings {
   /* The following fields have been added since NGTCP2_SETTINGS_V3. */
   /**
    * :member:`glitch_ratelim_burst` is the maximum number of tokens
-   * available to "glitch" rate limiter.  "glitch" is a suspicious
-   * activity from a remote endpoint.  If detected, certain amount of
-   * tokens are consumed.  If no tokens are available to consume, the
-   * connection is closed.  The rate of token generation is specified
-   * by :member:`glitch_ratelim_rate`.
+   * available to "glitch" rate limiter.  It is clamped to UINT64_MAX
+   * / NGTCP2_SECONDS.  "glitch" is a suspicious activity from a
+   * remote endpoint.  If detected, certain amount of tokens are
+   * consumed.  If no tokens are available to consume, the connection
+   * is closed.  The rate of token generation is specified by
+   * :member:`glitch_ratelim_rate`.
    *
    * .. version-added:: 1.15.0
    */
@@ -2116,6 +2118,29 @@ typedef struct ngtcp2_settings {
    * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
+  /* The following fields have been added since NGTCP2_SETTINGS_V5. */
+  /**
+   * :member:`write_stream_data_thresh` is the threshold for the
+   * length of STREAM frame payload that the local endpoint sends.  If
+   * there is data more than this value to send, and the flow control
+   * does not allow sending more than this length, the data is not
+   * sent, waiting for the window update from the remote endpoint.
+   * This effectively means that flow control credit less than or
+   * equal to :member:`write_stream_data_thresh` is considered 0.  It
+   * implies that the connection to the remote endpoint that only
+   * grants less than or equal to :member:`write_stream_data_thresh`
+   * stalls.  But normally the endpoint offers far more flow control
+   * credits.  Those that only gives small credit are most likely
+   * badly configured or manipulated by an attacker, and no need to be
+   * supported.  If nonzero value is set to this field, the
+   * application should use
+   * `ngtcp2_conn_get_max_data_left_write_thresh` instead of
+   * `ngtcp2_conn_get_max_data_left`, so that the streams are not
+   * blocked by the connection-level flow control.
+   *
+   * .. version-added:: 1.26.0
+   */
+  size_t write_stream_data_thresh;
 } ngtcp2_settings;
 
 /**
@@ -3324,6 +3349,10 @@ typedef enum ngtcp2_connection_id_status_type {
  * :type:`ngtcp2_connection_id_status` is a callback function which is
  * called when the status of Destination Connection ID changes.
  *
+ * This callback function is not called before handshake completes.
+ * When handshake completes, it is called for Destination Connection
+ * ID in use at that time.
+ *
  * |token| is the associated stateless reset token, and it is ``NULL``
  * if no token is present.
  *
@@ -3500,6 +3529,8 @@ typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * .. version-added:: 1.24.0
  */
 typedef int (*ngtcp2_recv_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
                                         uint64_t app_error_code,
@@ -3595,6 +3626,10 @@ typedef int (*ngtcp2_get_new_connection_id2)(
  *
  * :type:`ngtcp2_connection_id_status2` is a callback function which
  * is called when the status of Destination Connection ID changes.
+ *
+ * This callback function is not called before handshake completes.
+ * When handshake completes, it is called for Destination Connection
+ * ID in use at that time.
  *
  * |token| is the associated stateless reset token, and it is ``NULL``
  * if no token is present.
@@ -3719,12 +3754,29 @@ typedef int (*ngtcp2_stream_close2)(ngtcp2_conn *conn, uint32_t flags,
                                     uint64_t tx_app_error_code, void *user_data,
                                     void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_extend_max_data` is a callback function which is
+ * invoked when max session data is extended.  |max_data| is a
+ * cumulative number of bytes an endpoint can send on this session.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * .. version-added:: 1.26.0
+ */
+typedef int (*ngtcp2_extend_max_data)(ngtcp2_conn *conn, uint64_t max_data,
+                                      void *user_data);
+
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
 #define NGTCP2_CALLBACKS_V3 3
 #define NGTCP2_CALLBACKS_V4 4
 #define NGTCP2_CALLBACKS_V5 5
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V5
+#define NGTCP2_CALLBACKS_V6 6
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V6
 
 /**
  * @struct
@@ -4086,6 +4138,16 @@ typedef struct ngtcp2_callbacks {
    * .. version-added:: 1.25.0
    */
   ngtcp2_stream_close2 stream_close2;
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V6. */
+  /**
+   * :member:`extend_max_data` is callback function which is invoked
+   * when the maximum offset of session data that a local endpoint can
+   * send is increased.  This callback function is optional.
+   *
+   * .. version-added:: 1.26.0
+   */
+  ngtcp2_extend_max_data extend_max_data;
 } ngtcp2_callbacks;
 
 /**
@@ -4532,6 +4594,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_0rtt_key(
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_rx_key` has already been called.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
   ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
@@ -4563,6 +4627,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_tx_key` has already been called.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_key(
   ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
@@ -4578,8 +4644,12 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_key(
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_INVALID_STATE`
- *     The previous key update has not been confirmed yet; or key
- *     update is too frequent; or new keys are not available yet.
+ *     The handshake has not been confirmed yet; or the connection is
+ *     in the closing or draining period; or the previous key update
+ *     has not been confirmed yet; or key update is too frequent; or
+ *     new keys are not available yet; or no packet encrypted with the
+ *     current key has been acknowledged since the previous key
+ *     update.
  */
 NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
                                                   ngtcp2_tstamp ts);
@@ -5894,8 +5964,8 @@ ngtcp2_conn_get_negotiated_version2(const ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_tls_early_data_rejected` tells |conn| that early data
  * was rejected by a server during TLS handshake, or client decided
- * not to attempt early data for some reason.  |conn| discards the
- * following connection states:
+ * not to attempt early data for some reason.  Only client can call
+ * this function.  |conn| discards the following connection states:
  *
  * - Any opened streams.
  * - Stream identifier allocations.
@@ -6175,8 +6245,26 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
  * connection-level flow control.
  *
  * .. version-added:: 1.23.0
+ *
+ * .. seealso::
+ *   `ngtcp2_conn_get_max_data_left_write_thresh`
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left2(const ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_data_left_write_thresh` returns the number of
+ * bytes that this local endpoint can send in this connection without
+ * violating connection-level flow control.  If the remaining credit
+ * is less than or equal to
+ * :member:`ngtcp2_settings.write_stream_data_thresh`, this function
+ * returns 0.
+ *
+ * .. version-added:: 1.26.0
+ */
+NGTCP2_EXTERN uint64_t
+ngtcp2_conn_get_max_data_left_write_thresh(const ngtcp2_conn *conn);
 
 /**
  * @function
@@ -6879,7 +6967,8 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_get_send_quantum2` returns the maximum number of bytes
- * that can be sent in one go without packet spacing.
+ * that can be sent in one go without packet spacing.  It is at least
+ * `ngtcp2_conn_get_path_max_tx_udp_payload_size2` bytes.
  *
  * .. version-added:: 1.23.0
  */
@@ -7109,8 +7198,8 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * @function
  *
  * `ngtcp2_settings_default` initializes |settings| with the default
- * values.  First this function fills |settings| with 0, and set the
- * default value to the following fields:
+ * values.  First this function fills |settings| with 0, and sets the
+ * default values to the following fields:
  *
  * * :member:`cc_algo <ngtcp2_settings.cc_algo>` =
  *   :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUBIC`
@@ -7133,8 +7222,8 @@ NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
  * @function
  *
  * `ngtcp2_transport_params_default` initializes |params| with the
- * default values.  First this function fills |params| with 0, and set
- * the default value to the following fields:
+ * default values.  First this function fills |params| with 0, and
+ * sets the default values to the following fields:
  *
  * * :member:`max_udp_payload_size
  *   <ngtcp2_transport_params.max_udp_payload_size>` =

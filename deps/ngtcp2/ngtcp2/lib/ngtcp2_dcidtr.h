@@ -159,30 +159,17 @@ int ngtcp2_dcidtr_verify_stateless_reset(
   const ngtcp2_stateless_reset_token *token);
 
 /*
- * ngtcp2_dcidtr_verify_token_uniqueness verifies that the uniqueness
- * of the combination of |seq|, |cid|, and |token| against the exiting
- * Destination Connection IDs.  That is:
- *
- * - If they do not share the same seq, then their Connection IDs must
- *   be different.
- *
- * - If they share the same seq, then their Connection IDs and tokens
- *   must be the same.
- *
- * If this function succeeds, and there is Destination Connection ID
- * which shares |seq|, |cid|, and |token|, |*pfound| is set to
- * nonzero.
+ * ngtcp2_dcidtr_verify_cid_uniqueness verifies that |dtr| does not
+ * contain |cid|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_PROTO
- *     The given combination of values does not satisfy the above
- *     conditions.
+ *     |dtr| contains |cid|.
  */
-int ngtcp2_dcidtr_verify_token_uniqueness(
-  const ngtcp2_dcidtr *dtr, int *pfound, uint64_t seq, const ngtcp2_cid *cid,
-  const ngtcp2_stateless_reset_token *token);
+int ngtcp2_dcidtr_verify_cid_uniqueness(const ngtcp2_dcidtr *dtr,
+                                        const ngtcp2_cid *cid);
 
 /*
  * ngtcp2_dcidtr_retire_inactive_dcid_prior_to retires inactive

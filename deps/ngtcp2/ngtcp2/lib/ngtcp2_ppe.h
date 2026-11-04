@@ -70,7 +70,8 @@ void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
                      size_t dgram_offset, ngtcp2_crypto_cc *cc);
 
 /*
- * ngtcp2_ppe_encode_hd encodes |hd|.
+ * ngtcp2_ppe_encode_hd encodes |hd|.  If it succeeds, it is
+ * guaranteed that at least 1 byte of payload can be written.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:

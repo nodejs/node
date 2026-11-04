@@ -134,6 +134,8 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
     a = &dst[0];
     b = &src[0];
 
+    ++*pdstcnt;
+
     if (left < b->len) {
       a->len = left;
       a->base = b->base;
@@ -144,7 +146,6 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
     }
 
     *a = *b;
-    ++*pdstcnt;
     left -= b->len;
     i = 1;
   }
