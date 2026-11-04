@@ -6,6 +6,62 @@ const npa = require('npm-package-arg')
 const libaccess = require('libnpmaccess')
 
 /**
+ * Caches the runtime state of the active OIDC token exchange
+ * so it can be cleared on subsequent OIDC attempts in workflows
+ * that run OIDC multiple times within one runtime execution,
+ * preventing the previous exchange token from being reused.
+ */
+let activeExchangeRecord
+
+const setOidcToken = ({ config, opts, authTokenKey, token }) => {
+  activeExchangeRecord = {
+    config,
+    authTokenKey,
+    token,
+    previousCliToken: config.get(authTokenKey, 'cli'),
+    opts,
+    previousOptsToken: opts[authTokenKey],
+  }
+  opts[authTokenKey] = token
+  config.set(authTokenKey, token, 'cli')
+  log.verbose('oidc', 'Successfully retrieved and set token')
+}
+
+const clearOidcToken = ({ config, opts }) => {
+  if (!activeExchangeRecord) {
+    return
+  }
+
+  const {
+    config: previousConfig,
+    authTokenKey,
+    token,
+    previousCliToken,
+    opts: previousOpts,
+    previousOptsToken,
+  } = activeExchangeRecord
+  if (previousConfig.get(authTokenKey, 'cli') === token) {
+    if (previousCliToken === undefined) {
+      previousConfig.delete(authTokenKey, 'cli')
+    } else {
+      previousConfig.set(authTokenKey, previousCliToken, 'cli')
+    }
+  }
+  for (const requestOpts of new Set([previousOpts, opts])) {
+    if (requestOpts[authTokenKey] === token) {
+      const fallback = requestOpts === previousOpts ? previousOptsToken : config.get(authTokenKey)
+      if (fallback === undefined) {
+        delete requestOpts[authTokenKey]
+      } else {
+        requestOpts[authTokenKey] = fallback
+      }
+    }
+  }
+  activeExchangeRecord = undefined
+  log.verbose('oidc', 'Cleared previous exchange token')
+}
+
+/**
  * Handles OpenID Connect (OIDC) token retrieval and exchange for CI environments.
  *
  * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions, GitLab, and CircleCI.
@@ -13,18 +69,35 @@ const libaccess = require('libnpmaccess')
  *
  * This function is intended to never throw, as it mutates the state of the `opts` and `config` objects on success.
  * OIDC is always an optional feature, and the function should not throw if OIDC is not configured by the registry.
+ * Before each attempt, it restores credentials replaced by the previous exchange so package-specific tokens are never used as fallback credentials.
  *
  * @see https://github.com/watson/ci-info for CI environment detection.
  * @see https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect for GitHub Actions OIDC.
  * @see https://circleci.com/docs/openid-connect-tokens/ for CircleCI OIDC.
  */
-async function oidc ({ packageName, registry, opts, config }) {
+async function oidc ({
+  // Selects the package-specific npm token exchange endpoint.
+  packageName,
+  // Determines the OIDC audience, exchange host, and registry-scoped auth key.
+  registry,
+  // Mutable request options for the current command, often called flatOptions.
+  // The exchanged token is added here so subsequent registry requests use it immediately.
+  opts,
+  // npm's live configuration state. This is also updated so credential lookups see the token.
+  config,
+  // Publish and stage publish can infer provenance from trusted-publishing claims and package
+  // visibility so users do not need to set --provenance. Other commands that use OIDC, such as
+  // npm dist-tag, only need token exchange and must not enable unrelated publish provenance.
+  enableProvenanceAutoConfiguration = false,
+}) {
   /*
    * This code should never run when people try to publish locally on their machines.
    * It is designed to execute only in Continuous Integration (CI) environments.
    */
 
   try {
+    clearOidcToken({ config, opts })
+
     if (!(
       /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L152 */
       ciInfo.GITHUB_ACTIONS ||
@@ -133,13 +206,17 @@ async function oidc ({ packageName, registry, opts, config }) {
     }
 
     /*
-     * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command, eventually reaching `otplease`.
-     * To ensure the token is accessible during the publishing process, it must be directly attached to the `opts` object.
-     * Additionally, the token is required by the "live" configuration or getters within `config`.
+     * `opts` is derived from npm.flatOptions and carried through the current command.
+     * Publish and dist-tag pass it to later registry requests, including mutations wrapped by
+     * `otplease`, so the exchanged token must be attached directly to this object.
+     * The non-persistable cli layer also makes the token available to credential lookups without
+     * modifying any file-backed configuration.
      */
-    opts[authTokenKey] = response.token
-    config.set(authTokenKey, response.token, 'user')
-    log.verbose('oidc', `Successfully retrieved and set token`)
+    setOidcToken({ config, opts, authTokenKey, token: response.token })
+
+    if (!enableProvenanceAutoConfiguration) {
+      return undefined
+    }
 
     try {
       const isDefaultProvenance = config.isDefault('provenance')
