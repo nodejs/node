@@ -66,6 +66,28 @@ assert.deepStrictEqual(util.parseEnv(''), { __proto__: null });
 assert.deepStrictEqual(util.parseEnv('FOO=bar\nFOO=baz\n'),
                        { __proto__: null, FOO: 'baz' });
 
+// An empty value must not consume the next line or skip key normalization.
+assert.deepStrictEqual(util.parseEnv('EMPTY=   \nNEXT=value\n'),
+                       { __proto__: null, EMPTY: '', NEXT: 'value' });
+assert.deepStrictEqual(util.parseEnv('EMPTY=\t\nNEXT=value'),
+                       { __proto__: null, EMPTY: '', NEXT: 'value' });
+assert.deepStrictEqual(util.parseEnv('export EMPTY=\nexport SPACED=   '),
+                       { __proto__: null, EMPTY: '', SPACED: '' });
+assert.deepStrictEqual(util.parseEnv('=\nNEXT=value'),
+                       { __proto__: null, NEXT: 'value' });
+
+// Comments indented with spaces are ignored after every kind of line.
+assert.deepStrictEqual(util.parseEnv([
+  'A="a"', '  # X=1',
+  "B='b'", '  # X=2',
+  'C=`c`', '  # X=3',
+  'D=', '  # X=4',
+  'E=   ', '  # X=5',
+  '= # X=6',
+  '# comment', '  # X=7',
+  'F=f',
+].join('\n')), { __proto__: null, A: 'a', B: 'b', C: 'c', D: '', E: '', F: 'f' });
+
 // Test for invalid input.
 assert.throws(() => {
   for (const value of [null, undefined, {}, []]) {
