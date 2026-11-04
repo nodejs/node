@@ -64,10 +64,12 @@
 // OpenSSL 4 makes ASN1_STRING opaque and provides a checked BIT STRING length
 // accessor. Earlier OpenSSL releases and pinned BoringSSL expose the decoded
 // unused-bit count through ASN1_STRING::flags.
-#if !NCRYPTO_USE_BORINGSSL && OPENSSL_VERSION_PREREQ(4, 0)
+#if NCRYPTO_USE_OPENSSL_PROVIDER && OPENSSL_VERSION_PREREQ(4, 0)
 #define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 1
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER || NCRYPTO_USE_BORINGSSL
 #define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 0
+#else
+#error "Unsupported crypto backend"
 #endif
 
 // BoringSSL's X.509 signer can encode only its restricted RSA-PSS parameter
