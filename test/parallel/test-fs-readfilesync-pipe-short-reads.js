@@ -13,6 +13,9 @@ const assert = require('assert');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
+if (!fs.existsSync('/proc/self/io'))
+  common.skip('Requires /proc/<pid>/io.');
+
 const kShortWrite = 4000;
 const kShortWrites = 20;
 const kTail = 100_000;
