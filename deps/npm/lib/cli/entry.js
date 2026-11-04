@@ -26,7 +26,7 @@ module.exports = async (process, validateEngines) => {
 
   // It is now safe to log a warning if they are using a version of node that is not going to fail on syntax errors but is still unsupported and untested and might not work reliably.
   // This is safe to use the logger now which we want since this will show up in the error log too.
-  if (!satisfies(validateEngines.node, validateEngines.engines)) {
+  if (!satisfies(validateEngines.node, validateEngines.engines, { includePrerelease: true })) {
     log.warn('cli', validateEngines.unsupportedMessage)
   }
 

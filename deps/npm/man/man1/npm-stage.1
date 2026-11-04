@@ -1,4 +1,4 @@
-.TH "NPM-STAGE" "1" "September 2026" "NPM@11.20.0" ""
+.TH "NPM-STAGE" "1" "November 2026" "NPM@11.21.2" ""
 .SH "NAME"
 \fBnpm-stage\fR - Stage packages for publishing
 .SS "Synopsis"
@@ -25,6 +25,8 @@ Staged packages share the same semver version unique index as published packages
 .IP \(bu 4
 You can still publish packages normally while you have staged packages pending.
 .IP \(bu 4
+Staged publishing will allow you to create a new package if it does not exist.
+.IP \(bu 4
 You can stage multiple versions of the same package.
 .IP \(bu 4
 \fBnpm stage publish\fR has parity with \fBnpm publish\fR and will respect \fB"private": true\fR in \fBpackage.json\fR, refusing to stage the package.
@@ -36,8 +38,6 @@ Before using \fBnpm stage\fR commands, ensure the following requirements are met
 .RS 0
 .IP \(bu 4
 \fBWrite permissions on the package:\fR You must have write access to the package you're configuring.
-.IP \(bu 4
-\fBPackage must exist:\fR The package you're configuring must already exist on the npm registry.
 .IP \(bu 4
 \fB2FA enabled on your account:\fR Commands that require 2FA will prompt you to authenticate. If you don't already have 2FA enabled on your account, you must enable it before using these commands.
 .RE 0

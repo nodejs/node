@@ -5,11 +5,13 @@ const binTarget = require('./bin-target.js')
 const manTarget = require('./man-target.js')
 const { resolve, basename, extname } = require('path')
 const isWindows = require('./is-windows.js')
+const normalize = require('npm-normalize-package-bin')
 module.exports = ({ path, pkg, global, top }) => {
   if (top && !global) {
     return []
   }
 
+  pkg = normalize({ ...pkg })
   const binSet = []
   const binTarg = binTarget({ path, top })
   if (pkg.bin) {

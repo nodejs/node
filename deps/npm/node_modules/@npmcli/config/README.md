@@ -180,6 +180,8 @@ Set the key to the specified value, at the specified level in the config stack.
 
 Delete the configuration key from the specified level in the config stack.
 
+Deleting an override exposes the next applicable value from the lower-priority sources and invalidates cached flattened options.
+
 ### `config.validate(where)`
 
 Verify that all known configuration options are set to valid values, and log a warning if they are invalid.
