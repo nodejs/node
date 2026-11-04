@@ -103,4 +103,16 @@ const exportsPkg = require('test-exports-pkg');
 assert.strictEqual(exportsPkg.fromExports, true, 'exports-only package should resolve');
 console.log('exports-only package lookup test passed');
 
-console.log('All SEA VFS tests passed!');
+// A worker started from a script among the assets can load it, and the
+// assets next to it, from the same mount point as the main thread.
+const { Worker } = require('worker_threads');
+const worker = new Worker(path.join(__dirname, 'worker.js'));
+worker.once('message', (message) => {
+  assert.deepStrictEqual(message, {
+    dirname: __dirname,
+    greeting: 'Hello from SEA VFS!',
+    sum: 5,
+  });
+  console.log('worker test passed');
+  console.log('All SEA VFS tests passed!');
+});
