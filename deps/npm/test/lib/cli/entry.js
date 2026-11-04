@@ -150,6 +150,36 @@ t.test('unsupported node version', async t => {
   )
 })
 
+t.test('prerelease node versions', async t => {
+  for (const [version, supported] of [
+    ['v27.0.0-alpha.0.0.0', true],
+    ['v28.0.0-alpha.0.0.0', true],
+    ['v27.0.0-rc.0', true],
+    ['v26.0.0-alpha.0', true],
+    ['v23.0.0-alpha.0', true],
+    ['v22.9.1-alpha.0', true],
+    ['v20.17.1-alpha.0', true],
+    ['v22.9.0-alpha.0', false],
+    ['v21.0.0-alpha.0', false],
+    ['v20.17.0-alpha.0', false],
+  ]) {
+    await t.test(version, async t => {
+      const { cli, logs } = await cliMock(t, {
+        globals: {
+          'process.argv': ['node', 'npm', '--version'],
+          'process.version': version,
+        },
+      })
+      await cli(process)
+      if (supported) {
+        t.strictSame(logs.warn, [])
+      } else {
+        t.match(logs.warn[0], `does not support Node.js ${version}.`)
+      }
+    })
+  }
+})
+
 t.test('non-ascii dash', async t => {
   const { cli, logs } = await cliMock(t, {
     globals: {

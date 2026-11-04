@@ -334,3 +334,64 @@ t.test('install-scripts prune fails for global installs', async t => {
     { code: 'EGLOBAL' }
   )
 })
+
+t.test('install-scripts prune under linked strategy keeps the registry pin, drops store paths', async t => {
+  // Regression for npm/cli#9939: the buggy writer produced file:.store keys; prune must drop those and keep the valid registry pin covering the store package.
+  const storeDir = 'canvas@1.0.0-c2FsdHNhbHRzYWx0c2FsdA'
+  const storeLoc = `node_modules/.store/${storeDir}/node_modules/canvas`
+  const tarUrl = 'https://registry.npmjs.org/canvas/-/canvas-1.0.0.tgz'
+  const pkg = {
+    name: 'host',
+    version: '1.0.0',
+    dependencies: { canvas: '^1.0.0' },
+    allowScripts: {
+      'canvas@1.0.0': true,
+      [`file:.store/${storeDir}/node_modules/canvas`]: true,
+    },
+  }
+  const { npm, prefix, joinedOutput } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify(pkg, null, 2),
+      node_modules: {
+        '.package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            [`node_modules/.store/${storeDir}`]: {},
+            [storeLoc]: {
+              version: '1.0.0',
+              resolved: tarUrl,
+              hasInstallScript: true,
+            },
+            'node_modules/canvas': {
+              resolved: storeLoc,
+              link: true,
+            },
+          },
+        }),
+        '.store': {
+          [storeDir]: {
+            node_modules: {
+              canvas: {
+                'package.json': JSON.stringify({
+                  name: 'canvas',
+                  version: '1.0.0',
+                  scripts: { install: 'echo install' },
+                }),
+              },
+            },
+          },
+        },
+        canvas: t.fixture('symlink', `.store/${storeDir}/node_modules/canvas`),
+      },
+    },
+  })
+  // loadActual only trusts the hidden lockfile when it is newer than every dir under node_modules (assertNoNewer allows 10ms), and fixture creation order makes that racy, so bump its mtime past the fixture writes.
+  const future = new Date(Date.now() + 60_000)
+  fs.utimesSync(resolve(prefix, 'node_modules', '.package-lock.json'), future, future)
+  await npm.exec('install-scripts', ['prune'])
+
+  const updated = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(updated.allowScripts, { 'canvas@1.0.0': true })
+  t.match(joinedOutput(), /file:\.store.*\(package not installed\)/)
+})
