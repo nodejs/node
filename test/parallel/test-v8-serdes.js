@@ -57,6 +57,17 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 }
 
 {
+  const buffer = Buffer.from([1, 2, 3, 4]);
+  Object.defineProperty(buffer, Symbol.toStringTag, {
+    value: 'CustomBuffer',
+  });
+
+  const deserialized = v8.deserialize(v8.serialize(buffer));
+  assert(Buffer.isBuffer(deserialized));
+  assert.deepStrictEqual(deserialized, Buffer.from(buffer));
+}
+
+{
   const ser = new v8.DefaultSerializer();
   ser._getDataCloneError = common.mustCall((message) => {
     assert.strictEqual(message, '#<Object> could not be cloned.');
