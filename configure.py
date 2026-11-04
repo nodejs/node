@@ -2511,7 +2511,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
             info(f'Using floating patch "{patchfile}" from "{dir_base}"')
         file_list.append(srcfile)
     break
-  return file_list
+  return sorted(file_list)
 
 def configure_intl(o):
   def icu_download(path):
