@@ -73,6 +73,15 @@
 #define NCRYPTO_USE_LEGACY_KEY_TYPES 0
 #endif
 
+// OpenSSL 4 makes ASN1_STRING opaque and provides a checked BIT STRING length
+// accessor. Earlier OpenSSL releases and pinned BoringSSL expose the decoded
+// unused-bit count through ASN1_STRING::flags.
+#if !NCRYPTO_USE_BORINGSSL && OPENSSL_VERSION_PREREQ(4, 0)
+#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 1
+#else
+#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 0
+#endif
+
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 #include <openssl/core_names.h>
 #include <openssl/encoder.h>
@@ -1642,6 +1651,20 @@ class X509Name final {
   int total_;
 };
 
+struct X509NameAttribute final {
+  int set = 0;
+  std::string oid;
+  std::optional<std::string> value;
+};
+
+using X509NameInspection = std::vector<X509NameAttribute>;
+
+struct X509RawExtension final {
+  std::string oid;
+  bool critical = false;
+  std::vector<unsigned char> value;
+};
+
 class X509View final {
  public:
   static X509View From(const SSLPointer& ssl);
@@ -1678,6 +1701,11 @@ class X509View final {
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;
+
+  std::optional<int64_t> getVersion() const;
+  std::optional<X509NameInspection> inspectSubjectName() const;
+  std::optional<X509NameInspection> inspectIssuerName() const;
+  std::optional<std::vector<X509RawExtension>> inspectExtensions() const;
 
   bool isCA() const;
   bool isIssuedBy(const X509View& other) const;
