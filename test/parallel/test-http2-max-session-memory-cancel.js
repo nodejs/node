@@ -11,9 +11,14 @@ const { once } = require('events');
 (async () => {
   // Keep the entire upload queued until it is canceled.
   const server = http2.createServer({ settings: { initialWindowSize: 0 } });
+  let serverPush;
   server.on('stream', common.mustCall((stream, headers) => {
     stream.on('error', () => {});
     if (headers[':path'] === '/cancel') return;
+    stream.pushStream({ ':path': '/push' }, common.mustSucceed((push) => {
+      serverPush = push;
+      push.on('error', () => {});
+    }));
     stream.respond({ ':status': 200 });
     stream.end();
   }, 2));
@@ -35,7 +40,9 @@ const { once } = require('events');
   // Native write queue cleanup runs on an immediate after stream destruction.
   await new Promise(setImmediate);
 
-  // The canceled upload must no longer count towards maxSessionMemory.
+  // Push admission uses the full memory check, so leaked outbound accounting
+  // cannot be hidden by the DATA exception on local streams.
+  const promised = once(client, 'stream');
   const req = client.request({ ':path': '/check' });
   const response = once(req, 'response');
   req.end();
@@ -44,6 +51,14 @@ const { once } = require('events');
   const ended = once(req, 'end');
   req.resume();
   await ended;
+  const [push] = await promised;
+  const pushedResponse = once(push, 'push');
+  const pushedEnd = once(push, 'end');
+  push.resume();
+  serverPush.respond({ ':status': 200 });
+  serverPush.end();
+  const [[pushedHeaders]] = await Promise.all([pushedResponse, pushedEnd]);
+  assert.strictEqual(pushedHeaders[':status'], 200);
   client.close();
   server.close();
 })().then(common.mustCall());
