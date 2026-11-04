@@ -28,7 +28,7 @@ await libexec({
 
 - `opts`:
   - `args`: List of pkgs to execute **Array<String>**, defaults to `[]`
-  - `call`: An alternative command to run when using `packages` option **String**, defaults to empty string.
+  - `call`: An alternative shell script to run when using `packages` option **String**, defaults to empty string. Unlike an executable selected from `args` or a package's `bin`, this is intentionally interpreted as shell syntax.
   - `cache`: The path location to where the npm cache folder is placed **String**
   - `npxCache`: The path location to where the npx cache folder is placed **String**
   - `chalk`: Chalk instance to use for colors? **Required**
@@ -41,6 +41,14 @@ await libexec({
   - `scriptShell`: Default shell to be used **String**, defaults to `sh` on POSIX systems, `process.env.ComSpec` OR `cmd` on Windows
   - `yes`: Should skip download confirmation prompt when fetching missing packages from the registry? **Boolean**
   - `registry`, `cache`, and more options that are forwarded to [@npmcli/arborist](https://github.com/npm/cli/blob/latest/workspaces/arborist/README.md) and [pacote](https://github.com/npm/pacote/#options) **Object**
+
+  Executable names are escaped for the selected shell, including POSIX shells and
+  PowerShell used on Windows. For inferred PowerShell invocations, arguments are
+  also escaped as literal strings. With `cmd.exe`, executable names containing double
+  quotes, percent signs, exclamation marks, or control characters are rejected
+  with `EINVALIDCOMMAND`. Use a bin name without these characters. On a matching
+  npx-cache hit, command selection uses the installed package's `bin` rather than
+  the registry's bin metadata.
 
 ## LICENSE
 
