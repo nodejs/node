@@ -46,6 +46,15 @@ using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 
+struct ASN1SequenceDeleter final {
+  void operator()(ASN1_SEQUENCE_ANY* sequence) const {
+    sk_ASN1_TYPE_pop_free(sequence, ASN1_TYPE_free);
+  }
+};
+
+using ASN1SequencePointer =
+    std::unique_ptr<ASN1_SEQUENCE_ANY, ASN1SequenceDeleter>;
+
 #if NCRYPTO_USE_OPENSSL_PROVIDER
 using X509PubKeyPointer = DeleteFnPtr<X509_PUBKEY, X509_PUBKEY_free>;
 // OSSL_STORE_close() returns int, so it needs a void-returning adapter to be
@@ -1604,6 +1613,164 @@ bool X509View::isCA() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return false;
   return X509_check_ca(const_cast<X509*>(cert_)) == 1;
+}
+
+namespace {
+bool CopyStringBytes(const ASN1_STRING* value,
+                     std::vector<unsigned char>* output) {
+  if (value == nullptr) return false;
+  const int length = ASN1_STRING_length(value);
+  const unsigned char* data = ASN1_STRING_get0_data(value);
+  if (length < 0 || (length > 0 && data == nullptr)) return false;
+  if (length == 0) {
+    output->clear();
+  } else {
+    output->assign(data, data + static_cast<size_t>(length));
+  }
+  return true;
+}
+
+bool CanConvertNameValueToUtf8(const ASN1_STRING* value) {
+  if (value == nullptr) return false;
+  switch (ASN1_STRING_type(value)) {
+    case V_ASN1_UTF8STRING:
+    case V_ASN1_NUMERICSTRING:
+    case V_ASN1_PRINTABLESTRING:
+    case V_ASN1_T61STRING:
+    case V_ASN1_IA5STRING:
+    case V_ASN1_UTCTIME:
+    case V_ASN1_GENERALIZEDTIME:
+    case V_ASN1_ISO64STRING:
+    case V_ASN1_UNIVERSALSTRING:
+    case V_ASN1_BMPSTRING:
+      return true;
+    default:
+      return false;
+  }
+}
+
+std::optional<size_t> GetEncodedRdnCount(const X509_NAME* name) {
+  const unsigned char* der = nullptr;
+  size_t der_length = 0;
+  if (X509_NAME_get0_der(name, &der, &der_length) != 1 || der == nullptr ||
+      der_length > static_cast<size_t>(LONG_MAX)) {
+    return std::nullopt;
+  }
+
+  const unsigned char* cursor = der;
+  ASN1SequencePointer rdns(d2i_ASN1_SEQUENCE_ANY(
+      nullptr, &cursor, static_cast<long>(der_length)));  // NOLINT(runtime/int)
+  if (!rdns || cursor != der + der_length) return std::nullopt;
+
+  const OPENSSL_SIZE_T count = sk_ASN1_TYPE_num(rdns.get());
+  for (OPENSSL_SIZE_T i = 0; i < count; i++) {
+    const ASN1_TYPE* rdn = sk_ASN1_TYPE_value(rdns.get(), i);
+    if (rdn == nullptr || ASN1_TYPE_get(rdn) != V_ASN1_SET) {
+      return std::nullopt;
+    }
+  }
+  return static_cast<size_t>(count);
+}
+
+std::optional<X509NameInspection> InspectName(const X509_NAME* name) {
+  if (name == nullptr) return std::nullopt;
+  const int count = X509_NAME_entry_count(name);
+  if (count < 0) return std::nullopt;
+  const auto encoded_rdn_count = GetEncodedRdnCount(name);
+  if (!encoded_rdn_count.has_value()) return std::nullopt;
+
+  X509NameInspection output;
+  output.reserve(static_cast<size_t>(count));
+  int previous_set = -1;
+  for (int i = 0; i < count; i++) {
+    const X509_NAME_ENTRY* entry = X509_NAME_get_entry(name, i);
+    if (entry == nullptr) return std::nullopt;
+
+    const ASN1_OBJECT* object = X509_NAME_ENTRY_get_object(entry);
+    const ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+    auto oid = ObjectToText(object, true);
+    const int set = X509_NAME_ENTRY_set(entry);
+    if (!oid.has_value() || value == nullptr || set < 0 ||
+        (set != previous_set &&
+         (previous_set == INT_MAX || set != previous_set + 1))) {
+      return std::nullopt;
+    }
+    previous_set = set;
+
+    X509NameAttribute attribute{
+        .set = set,
+        .oid = std::move(oid.value()),
+    };
+    if (CanConvertNameValueToUtf8(value)) {
+      unsigned char* data = nullptr;
+      const int length = ASN1_STRING_to_UTF8(&data, value);
+      DataPointer owned(data, length > 0 ? static_cast<size_t>(length) : 0);
+      if (length < 0 || (length > 0 && !owned)) return std::nullopt;
+      attribute.value =
+          length == 0 ? std::string()
+                      : std::string(reinterpret_cast<const char*>(owned.get()),
+                                    static_cast<size_t>(length));
+    }
+    output.push_back(std::move(attribute));
+  }
+  const size_t inspected_rdn_count =
+      previous_set < 0 ? 0 : static_cast<size_t>(previous_set) + 1;
+  if (inspected_rdn_count != encoded_rdn_count.value()) return std::nullopt;
+  return output;
+}
+
+std::optional<std::vector<X509RawExtension>> InspectExtensions(
+    const X509* certificate) {
+  if (certificate == nullptr) return std::nullopt;
+  const int count = X509_get_ext_count(certificate);
+  if (count < 0) return std::nullopt;
+
+  std::vector<X509RawExtension> output;
+  output.reserve(static_cast<size_t>(count));
+  for (int i = 0; i < count; i++) {
+    const X509_EXTENSION* extension = X509_get_ext(certificate, i);
+    if (extension == nullptr) return std::nullopt;
+
+    auto* mutable_extension = const_cast<X509_EXTENSION*>(extension);
+    auto oid = ObjectToText(X509_EXTENSION_get_object(mutable_extension), true);
+    const ASN1_OCTET_STRING* value = X509_EXTENSION_get_data(mutable_extension);
+    if (!oid.has_value() || value == nullptr) return std::nullopt;
+
+    X509RawExtension inspected{
+        .oid = std::move(oid.value()),
+        .critical = X509_EXTENSION_get_critical(mutable_extension) != 0,
+    };
+    if (!CopyStringBytes(value, &inspected.value)) return std::nullopt;
+    output.push_back(std::move(inspected));
+  }
+  return output;
+}
+}  // namespace
+
+std::optional<int64_t> X509View::getVersion() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  const long version = X509_get_version(cert_);  // NOLINT(runtime/int)
+  if (version < 0 || version > 2) return std::nullopt;
+  return static_cast<int64_t>(version) + 1;
+}
+
+std::optional<X509NameInspection> X509View::inspectSubjectName() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  return InspectName(X509_get_subject_name(cert_));
+}
+
+std::optional<X509NameInspection> X509View::inspectIssuerName() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  return InspectName(X509_get_issuer_name(cert_));
+}
+
+std::optional<std::vector<X509RawExtension>> X509View::inspectExtensions()
+    const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  return InspectExtensions(cert_);
 }
 
 bool X509View::isIssuedBy(const X509View& issuer) const {

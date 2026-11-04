@@ -1026,6 +1026,14 @@ TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
   const ncrypto::BIOPointer subject = cert.view().getSubject();
   ASSERT_TRUE(subject);
   EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().getVersion().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectSubjectName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectIssuerName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectExtensions().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
   ERR_clear_error();
 }
 
