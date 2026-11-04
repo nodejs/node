@@ -1009,7 +1009,6 @@ Maybe<void> X509GenerateTraits::AdditionalConfig(
       return Nothing<void>();
     case ncrypto::X509View::CheckKeyResult::UNSUPPORTED_OPERATION:
       break;
-    case ncrypto::X509View::CheckKeyResult::INVALID_CERTIFICATE:
     case ncrypto::X509View::CheckKeyResult::OPERATION_FAILED:
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to compare public keys");
       return Nothing<void>();

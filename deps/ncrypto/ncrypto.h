@@ -1691,7 +1691,6 @@ class X509View final {
   enum class CheckKeyResult {
     MATCH,                  // The requested comparison passed.
     NO_MATCH,               // It completed and produced an ordinary mismatch.
-    INVALID_CERTIFICATE,    // Reserved for certificate verification.
     UNSUPPORTED_OPERATION,  // The backend cannot compare these keys.
     OPERATION_FAILED,       // The backend failed for another reason.
   };
