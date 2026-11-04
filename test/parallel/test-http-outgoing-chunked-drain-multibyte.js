@@ -13,11 +13,15 @@ const { Duplex } = require('stream');
 
 // Behaves like net.Socket for this purpose: strings are counted in UTF-16
 // code units and writes complete asynchronously, so flushed data is still in
-// flight when uncork() returns.
+// flight when uncork() returns. The high water mark is pinned because the
+// default is platform dependent (16 KiB on Windows), and the coalesced
+// payloads below must exceed it in bytes while staying under it in code
+// units, so that the socket never emits 'drain' on its own.
 function createSocket() {
   const pending = [];
   const socket = new Duplex({
     decodeStrings: false,
+    writableHighWaterMark: 64 * 1024,
     read() {},
     write(chunk, encoding, callback) {
       pending.push(callback);
@@ -56,9 +60,11 @@ const row = 'a'.repeat(100) + 'ع'.repeat(150) + '\n'; // 401 bytes
 }
 
 // 'drain' must not be emitted once the response has been destroyed from a
-// write callback.
+// write callback. The socket stays below its own high water mark, so the
+// only candidate emitter is the message itself.
 {
   const socket = createSocket();
+  socket.on('drain', common.mustNotCall());
   const server = http.createServer(common.mustCall((req, res) => {
     res.on('drain', common.mustNotCall());
     const ret = res.write(row.repeat(200), common.mustCall(() => {
