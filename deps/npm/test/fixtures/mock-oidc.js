@@ -54,6 +54,7 @@ const mockOidc = async (t, {
   mockGithubOidcOptions = false,
   mockOidcTokenExchangeOptions = false,
   publishOptions = {},
+  publish = true,
   provenance = false,
   oidcVisibilityOptions = false,
 }) => {
@@ -139,7 +140,9 @@ const mockOidc = async (t, {
     registry.getVisibility({ spec: packageName, visibility: oidcVisibilityOptions })
   }
 
-  registry.publish(packageName, publishOptions)
+  if (publish) {
+    registry.publish(packageName, publishOptions)
+  }
 
   /**
    * this will nock / mock all the successful requirements for provenance and
