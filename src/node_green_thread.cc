@@ -435,12 +435,21 @@ class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
   void set_heap_used(size_t heap_used) { heap_used_ = heap_used; }
 
  private:
+  // Leaves some of the limit for the heap to grow into before the next GC,
+  // which checks the heap and ArrayBuffers together, so that running out of
+  // memory through ArrayBuffers throws a RangeError rather than terminating
+  // the isolate.
   bool Reserve(size_t length) {
     size_t allocated = allocated_.fetch_add(length) + length;
-    if (limit_ == 0 || allocated + heap_used_.load() <= limit_) return true;
+    if (limit_ == 0 ||
+        allocated + heap_used_.load() <= limit_ - limit_ / kHeadroomDivisor) {
+      return true;
+    }
     allocated_ -= length;
     return false;
   }
+
+  static constexpr size_t kHeadroomDivisor = 16;
 
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   const size_t limit_;
@@ -1043,6 +1052,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Context::Scope context_scope(context);
         context_.Reset(isolate, context);
         if (!InstallGlobals(isolate, context)) fatal_ = true;
+        // Until the first GC, ArrayBuffer allocations are checked against
+        // the heap as it is now.
+        v8::HeapStatistics stats;
+        isolate->GetHeapStatistics(&stats);
+        allocator_->set_heap_used(stats.used_heap_size());
       }
     }
     if (fatal_) return;
