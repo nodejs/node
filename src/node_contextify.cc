@@ -185,7 +185,7 @@ ContextifyContext::ContextifyContext(Environment* env,
   DCHECK_NULL(v8_context->GetAlignedPointerFromEmbedderData(
       ContextEmbedderIndex::kContextifyContext,
       EmbedderDataTag::kPerContextData));
-  v8_context->SetAlignedPointerInEmbedderData(
+  v8_context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kContextifyContext,
       this,
       EmbedderDataTag::kPerContextData);

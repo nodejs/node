@@ -728,14 +728,14 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 void Environment::AssignToContext(Local<v8::Context> context,
                                   Realm* realm,
                                   const ContextInfo& info) {
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+  context->SetAlignedPointerInEmbedderDataV2(ContextEmbedderIndex::kEnvironment,
                                            this,
                                            EmbedderDataTag::kPerContextData);
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kRealm, realm, EmbedderDataTag::kPerContextData);
 
   // ContextifyContexts will update this to a pointer to the native object.
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kContextifyContext,
       nullptr,
       EmbedderDataTag::kPerContextData);
@@ -753,13 +753,13 @@ void Environment::AssignToContext(Local<v8::Context> context,
 
 void Environment::UnassignFromContext(Local<v8::Context> context) {
   if (!context.IsEmpty()) {
-    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+    context->SetAlignedPointerInEmbedderDataV2(ContextEmbedderIndex::kEnvironment,
                                              nullptr,
                                              EmbedderDataTag::kPerContextData);
-    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
+    context->SetAlignedPointerInEmbedderDataV2(ContextEmbedderIndex::kRealm,
                                              nullptr,
                                              EmbedderDataTag::kPerContextData);
-    context->SetAlignedPointerInEmbedderData(
+    context->SetAlignedPointerInEmbedderDataV2(
         ContextEmbedderIndex::kContextifyContext,
         nullptr,
         EmbedderDataTag::kPerContextData);
