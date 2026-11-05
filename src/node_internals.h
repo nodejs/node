@@ -377,7 +377,10 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 namespace green_thread {
 // Terminates all green threads in the process and waits until their isolates
 // are disposed.
-void TerminateAll();
+// Returns false if green threads were abandoned, because they didn't stop
+// when asked to. Their isolates are never disposed, so V8 and the platform
+// must then not be disposed either.
+bool TerminateAll();
 }  // namespace green_thread
 
 // This overload automatically picks the right 'main_script_id' if no callback

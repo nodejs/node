@@ -1,6 +1,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_messaging.h"
@@ -12,6 +13,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <csetjmp>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -24,6 +27,13 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+// Where a pool thread that runs JS which ignores termination can be cut off.
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#define NODE_GREEN_THREAD_CAN_CUT_OFF 1
+#include <pthread.h>
+#include <ucontext.h>
+#endif
 
 namespace node {
 namespace green_thread {
@@ -92,6 +102,7 @@ enum EventType : int32_t {
   kEventError,
   kEventExit,
   kEventWarmPoolFull,
+  kEventAbandoned,
 };
 
 // Values of the `id` field of kEventError events.
@@ -103,9 +114,28 @@ enum ErrorKind : int32_t {
 
 // Flags passed to the GreenThread constructor.
 enum Flags : uint32_t {
-  // Installs __greenThreadInfo(), for tests.
+  // Installs __greenThreadInfo() and __greenThreadBlock(), for tests.
   kFlagTestingGlobals = 1 << 0,
+  // Makes the isolate ignore termination, like JS that V8 has compiled into
+  // code that doesn't handle interrupts would, for tests.
+  kFlagTestingIgnoreTermination = 1 << 1,
 };
+
+// How long a green thread has to stop after it has been asked to, before it
+// is abandoned, and how long after that the backup watchdog tries to cut off
+// the pool thread that runs it, before aborting the process. In nanoseconds,
+// adjustable for tests.
+std::atomic<uint64_t> unresponsive_grace_period{1000 * 1000000ull};
+std::atomic<uint64_t> cut_off_period{10000 * 1000000ull};
+constexpr uint64_t kCutOffRetryInterval = 5 * 1000000ull;
+
+#ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
+// A real-time signal, which Node.js doesn't otherwise use, and which JS can't
+// install handlers for.
+int CutOffSignal() {
+  return SIGRTMIN + 7;
+}
+#endif
 
 using Bytes = std::vector<uint8_t>;
 
@@ -175,6 +205,18 @@ class PoolThread {
 
   bool is_idle() const { return !busy_.load(); }
   size_t index() const { return index_; }
+
+  // The green isolate whose work this thread is running, if any, and the one
+  // that the backup watchdog wants to cut off. See RunGuarded().
+  sigjmp_buf* cut_off_jump() { return &cut_off_jump_; }
+  GreenIsolate* running() const { return running_.load(); }
+  void set_running(GreenIsolate* green) { running_ = green; }
+  GreenIsolate* cut_off_target() const { return cut_off_target_.load(); }
+  void set_cut_off_target(GreenIsolate* green) { cut_off_target_ = green; }
+
+  // May be called from any thread. Returns false if cutting threads off is
+  // not supported.
+  inline bool SendCutOffSignal(GreenIsolate* target);
   uv_loop_t* loop() { return &loop_; }
   uintptr_t stack_limit() const { return stack_limit_; }
 
@@ -195,6 +237,9 @@ class PoolThread {
   std::deque<Callback> queue_;
   uintptr_t stack_limit_ = 0;
   std::atomic<bool> busy_{false};
+  sigjmp_buf cut_off_jump_;
+  std::atomic<GreenIsolate*> running_{nullptr};
+  std::atomic<GreenIsolate*> cut_off_target_{nullptr};
 };
 
 // The process-wide set of pool threads, and the queue of green isolates that
@@ -649,6 +694,10 @@ Mutex& live_green_isolates_mutex = *new Mutex();
 std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>&
     live_green_isolates =
         *new std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>();
+// Green isolates that didn't stop when asked to, and were abandoned. They are
+// never freed. Guarded by live_green_isolates_mutex.
+std::vector<std::shared_ptr<GreenIsolate>>* abandoned_green_isolates =
+    new std::vector<std::shared_ptr<GreenIsolate>>();
 
 // The foreground task runner V8 uses for a green isolate. Tasks are run like
 // other work for the isolate, with the isolate locked.
@@ -721,6 +770,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     std::string source;
     std::string filename;
     bool testing_globals = false;
+    bool testing_ignore_termination = false;
     // Fixed when the isolate is created.
     size_t max_old_generation_size = 0;
     size_t max_young_generation_size = 0;
@@ -771,6 +821,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // before Prepare()'s work has run. Must be called once. May be called from
   // any thread but a pool thread.
   void Activate(std::shared_ptr<HostChannel> host, Options options) {
+    ignore_termination_ = options.testing_ignore_termination;
     {
       Mutex::ScopedLock lock(host_mutex_);
       host_ = std::move(host);
@@ -821,7 +872,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     terminate_requested_ = true;
     {
       Mutex::ScopedLock lock(isolate_mutex_);
-      if (isolate_ != nullptr) isolate_->TerminateExecution();
+      if (isolate_ != nullptr) TerminateExecution(isolate_);
     }
     Mutex::ScopedLock lock(scheduler_mutex_);
     MaybeScheduleLocked();
@@ -831,8 +882,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // thread and waits until its isolate is disposed. Unless a pool thread is
   // running the isolate right now, which termination interrupts, it is shut
   // down on the calling thread, so that this never waits for pool threads
-  // that are busy with other isolates.
-  void TerminateAndWait() {
+  // that are busy with other isolates. If the green thread doesn't stop, this
+  // waits until it is abandoned, or, if `wait_for_thread` is true, until the
+  // pool thread that runs it has been cut off, or the process aborted.
+  void TerminateAndWait(bool wait_for_thread) {
     CHECK_NULL(current_pool_thread);
     Terminate();
     bool shut_down_here = false;
@@ -849,7 +902,31 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       locked_ = false;
     }
     Mutex::ScopedLock lock(disposal_mutex_);
-    while (!disposed_) disposal_cv_.Wait(lock);
+    while (!disposed_ && !cut_off_ && (wait_for_thread || !abandoned_)) {
+      disposal_cv_.Wait(lock);
+    }
+  }
+
+  // Code that V8 generated for this isolate, or V8's built-in code. While a
+  // thread runs such code, it holds no locks. Read by signal handlers.
+  bool IsGeneratedCode(uintptr_t pc) const {
+    auto contains = [pc](const std::pair<uintptr_t, size_t>& range) {
+      return pc >= range.first && pc - range.first < range.second;
+    };
+    return contains(code_range_) || contains(embedded_code_range_);
+  }
+
+  // Runs `work`, unless the backup watchdog cuts it off, in which case this
+  // returns false: the signal handler then jumps back here, leaving behind
+  // the frames of the work, which never return.
+  static V8_NOINLINE bool RunGuarded(PoolThread* thread,
+                                     GreenIsolate* green,
+                                     Work* work) {
+    if (sigsetjmp(*thread->cut_off_jump(), 0) != 0) return false;
+    thread->set_running(green);
+    (*work)(green);
+    thread->set_running(nullptr);
+    return true;
   }
 
   // May be called from any thread.
@@ -917,7 +994,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         work = std::move(queue_.front().work);
         queue_.pop_front();
       }
-      work(this);
+      work_epoch_++;
+      running_thread_ = thread;
+      const bool completed = RunGuarded(thread, this, &work);
+      running_thread_ = nullptr;
+      if (!completed) return OnCutOff(thread, std::move(work));
+      work_epoch_++;
     }
     // Only after `work` is gone, since it may own V8 tasks that must not
     // outlive the isolate.
@@ -1079,6 +1161,16 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       Mutex::ScopedLock lock(isolate_mutex_);
       isolate_ = isolate;
     }
+    {
+      void* start;
+      size_t length;
+      isolate->GetCodeRange(&start, &length);
+      code_range_ = {reinterpret_cast<uintptr_t>(start), length};
+      const void* embedded_start;
+      isolate->GetEmbeddedCodeRange(&embedded_start, &length);
+      embedded_code_range_ = {reinterpret_cast<uintptr_t>(embedded_start),
+                              length};
+    }
 
     const uint32_t default_context_id = CreateInvocationContext(thread);
     CHECK_EQ(default_context_id, kDefaultInvocation);
@@ -1120,11 +1212,16 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     max_cpu_time_ = options.max_cpu_time;
     max_task_cpu_time_ = options.max_task_cpu_time;
     RunTask(kDefaultInvocation, [&](Isolate* isolate, Local<Context> context) {
-      if (options.testing_globals && !DefineFunction(isolate,
-                                                     context,
-                                                     context->Global(),
-                                                     "__greenThreadInfo",
-                                                     InfoCallback)) {
+      if (options.testing_globals && (!DefineFunction(isolate,
+                                                      context,
+                                                      context->Global(),
+                                                      "__greenThreadInfo",
+                                                      InfoCallback) ||
+                                      !DefineFunction(isolate,
+                                                      context,
+                                                      context->Global(),
+                                                      "__greenThreadBlock",
+                                                      BlockCallback))) {
         return;
       }
       Local<Script> script;
@@ -1255,22 +1352,52 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Watchdog::Get()->Arm(this, deadline, [weak = weak_from_this()]() {
       std::shared_ptr<GreenIsolate> self = weak.lock();
       if (!self) return;
-      Mutex::ScopedLock lock(self->isolate_mutex_);
-      if (self->isolate_ != nullptr) {
+      {
+        Mutex::ScopedLock lock(self->isolate_mutex_);
+        if (self->isolate_ == nullptr) return;
         self->isolate_->RequestInterrupt(CheckCpuTime, self.get());
       }
+      // V8 may have compiled the running code in a way that doesn't handle
+      // interrupts, and then the CPU time is never checked.
+      const uint64_t requested = ++self->cpu_checks_requested_;
+      const uint64_t epoch = self->work_epoch_.load();
+      Watchdog::Get()->Arm(
+          &self->cpu_checks_requested_,
+          uv_hrtime() + unresponsive_grace_period.load(),
+          [weak = self->weak_from_this(), requested, epoch]() {
+            if (std::shared_ptr<GreenIsolate> self = weak.lock()) {
+              self->OnCpuCheckOverdue(requested, epoch);
+            }
+          });
     });
+  }
+
+  // On the watchdog thread, a grace period after the CPU time check
+  // `requested` was requested.
+  void OnCpuCheckOverdue(uint64_t requested, uint64_t epoch) {
+    if (work_epoch_.load() != epoch ||
+        cpu_checks_serviced_.load() >= requested) {
+      return;
+    }
+    cpu_limit_exceeded_ = true;
+    {
+      Mutex::ScopedLock lock(isolate_mutex_);
+      if (isolate_ != nullptr) TerminateExecution(isolate_);
+    }
+    // It has had its grace period already.
+    OnUnresponsive(epoch);
   }
 
   // Runs on the thread that runs the isolate, with the isolate locked. It may
   // run in a later task than the one it was requested for.
   static void CheckCpuTime(Isolate* isolate, void* data) {
     GreenIsolate* self = static_cast<GreenIsolate*>(data);
+    self->cpu_checks_serviced_ = self->cpu_checks_requested_.load();
     if (!self->in_cpu_limited_task_) return;
     const uint64_t used = ThreadCpuTime() - self->task_cpu_start_;
     if (used >= self->task_cpu_budget_) {
       self->cpu_limit_exceeded_ = true;
-      isolate->TerminateExecution();
+      self->TerminateExecution(isolate);
     } else {
       // Don't check more often than that, in case the CPU time clock is
       // coarse. A task may overrun its budget by about as much.
@@ -1292,8 +1419,122 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (stats.used_heap_size() + self->allocator_->allocated() >
         self->allocator_->limit()) {
       self->out_of_memory_ = true;
-      isolate->TerminateExecution();
+      self->TerminateExecution(isolate);
     }
+  }
+
+  // Asks V8 to stop running JS, and arms the backup watchdog in case it
+  // doesn't, which can happen if V8 compiled the running code in a way that
+  // doesn't handle interrupts. May be called from any thread.
+  void TerminateExecution(Isolate* isolate) {
+    if (!ignore_termination_) isolate->TerminateExecution();
+    const uint64_t epoch = work_epoch_.load();
+    // Nothing is running; anything that runs next checks CanRunJS().
+    if (epoch % 2 == 0) return;
+    if (backup_epoch_.exchange(epoch) == epoch) return;
+    Watchdog::Get()->Arm(
+        &backup_epoch_,
+        uv_hrtime() + unresponsive_grace_period.load(),
+        [weak = weak_from_this(), epoch]() {
+          if (std::shared_ptr<GreenIsolate> self = weak.lock()) {
+            self->OnUnresponsive(epoch);
+          }
+        });
+  }
+
+  // On the watchdog thread, once the green thread has had its grace period
+  // to stop the work that was running when termination was requested.
+  void OnUnresponsive(uint64_t epoch) {
+    {
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      if (work_epoch_.load() != epoch || abandoned_) return;
+      // No more work is accepted. Should the work stop on its own after all,
+      // the slice still shuts the isolate down.
+      abandoned_ = true;
+      stopped_ = true;
+    }
+    // It must never be freed: the platform and V8 keep pointers to it.
+    {
+      Mutex::ScopedLock lock(live_green_isolates_mutex);
+      abandoned_green_isolates->push_back(shared_from_this());
+    }
+    if (cpu_limit_exceeded_) {
+      PushEvent({kEventError, kErrorCpuLimit, false, {}});
+    } else if (out_of_memory_) {
+      PushEvent({kEventError, kErrorOutOfMemory, false, {}});
+    }
+    PushEvent({kEventAbandoned,
+               static_cast<int32_t>(unresponsive_grace_period.load() / 1000000),
+               true,
+               {}});
+    PushExit(1);
+    {
+      Mutex::ScopedLock lock(disposal_mutex_);
+      disposal_cv_.Broadcast(lock);
+    }
+    cut_off_deadline_ = uv_hrtime() + cut_off_period.load();
+    TryCutOff(epoch);
+  }
+
+  // On the watchdog thread. Tries to cut off the pool thread that is stuck in
+  // work `epoch` until it no longer is, or aborts the process.
+  void TryCutOff(uint64_t epoch) {
+    if (work_epoch_.load() != epoch) return;
+    if (uv_hrtime() >= cut_off_deadline_) {
+      OnFatalError("node::green_thread::GreenIsolate::TryCutOff()",
+                   "A green thread ignored termination, and the thread "
+                   "running it could not be stopped.");
+    }
+    if (PoolThread* thread = running_thread_.load()) {
+      thread->SendCutOffSignal(this);
+    }
+    Watchdog::Get()->Arm(&backup_epoch_,
+                         uv_hrtime() + kCutOffRetryInterval,
+                         [weak = weak_from_this(), epoch]() {
+                           if (auto self = weak.lock()) self->TryCutOff(epoch);
+                         });
+  }
+
+  // On `thread`, after the signal handler cut off `work`. The isolate is left
+  // as it was, in the middle of running JS, and is never used again. Only
+  // the state of this thread is cleaned up, so that it can run other
+  // isolates.
+  void OnCutOff(PoolThread* thread, Work&& work) {
+    // Nothing that the work may have left inconsistent is destroyed.
+    new Work(std::move(work));
+    thread->set_running(nullptr);
+    thread->set_cut_off_target(nullptr);
+#ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, CutOffSignal());
+    pthread_sigmask(SIG_UNBLOCK, &set, nullptr);
+#endif
+    current_green_isolate = nullptr;
+    for (int i = 0; i < 8 && v8::Isolate::TryGetCurrent() == isolate_; i++) {
+      isolate_->Exit();
+    }
+    CHECK_NE(v8::Isolate::TryGetCurrent(), isolate_);
+    in_cpu_limited_task_ = false;
+    Watchdog::Get()->Disarm(this);
+    Watchdog::Get()->Disarm(&backup_epoch_);
+    // Timers live on pool threads' loops. Their records hold V8 handles, so
+    // they stay.
+    for (auto& [id, timer] : timers_) timer.handle->Close();
+    {
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      for (auto& [key, entry] : delayed_v8_tasks_) entry.first->Close();
+      // `locked_` stays set, so nothing ever runs or shuts the isolate down.
+      stopped_ = true;
+    }
+    work_epoch_++;
+    {
+      Mutex::ScopedLock lock(live_green_isolates_mutex);
+      live_green_isolates.erase(this);
+    }
+    Mutex::ScopedLock lock(disposal_mutex_);
+    cut_off_ = true;
+    disposal_cv_.Broadcast(lock);
   }
 
   // May be called from any thread. Events are dropped while there is no host.
@@ -1367,6 +1608,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     {
       Mutex::ScopedLock lock(live_green_isolates_mutex);
       live_green_isolates.erase(this);
+      // Its work stopped after all. Callers of Shutdown() hold a reference.
+      if (abandoned_) {
+        std::erase_if(*abandoned_green_isolates, [this](const auto& green) {
+          return green.get() == this;
+        });
+      }
     }
     Mutex::ScopedLock lock(disposal_mutex_);
     disposed_ = true;
@@ -1537,7 +1784,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
               exception,
               OnCloneError::kSendString);
     // Stop any further JS, including the remaining microtasks.
-    isolate->TerminateExecution();
+    TerminateExecution(isolate);
   }
 
   void CheckUnhandledRejections(Isolate* isolate, Local<Context> context) {
@@ -1590,7 +1837,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     self->out_of_memory_ = true;
     // Give the current GC some leeway, then stop running JS.
-    self->isolate_->TerminateExecution();
+    self->TerminateExecution(self->isolate_);
     return current_heap_limit + kExtraHeapAllowance;
   }
 
@@ -1750,6 +1997,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   // Only installed for tests: describes where the caller is running.
+  // Blocks in C++ forever, where a thread can't be cut off.
+  static void BlockCallback(const FunctionCallbackInfo<Value>& args) {
+    for (;;) uv_sleep(1000);
+  }
+
   static void InfoCallback(const FunctionCallbackInfo<Value>& args) {
     GreenIsolate* self = Current();
     Isolate* isolate = args.GetIsolate();
@@ -1837,6 +2089,18 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   ConditionVariable disposal_cv_;
   bool disposed_ = false;
 
+  // Backup watchdog. Odd while a work item runs.
+  std::atomic<uint64_t> work_epoch_{0};
+  std::atomic<PoolThread*> running_thread_{nullptr};
+  // The work item that the backup watchdog was last armed for.
+  std::atomic<uint64_t> backup_epoch_{0};
+  std::atomic<bool> abandoned_{false};
+  std::atomic<bool> cut_off_{false};
+  std::atomic<bool> ignore_termination_{false};
+  uint64_t cut_off_deadline_ = 0;
+  std::pair<uintptr_t, size_t> code_range_{0, 0};
+  std::pair<uintptr_t, size_t> embedded_code_range_{0, 0};
+
   // Guarded by scheduler_mutex_.
   Mutex scheduler_mutex_;
   std::deque<QueuedWork> queue_;
@@ -1858,7 +2122,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   uint64_t task_cpu_start_ = 0;
   uint64_t task_cpu_budget_ = 0;
   bool in_cpu_limited_task_ = false;
-  bool cpu_limit_exceeded_ = false;
+  // Set on the watchdog thread too.
+  std::atomic<bool> cpu_limit_exceeded_{false};
+  std::atomic<uint64_t> cpu_checks_requested_{0};
+  std::atomic<uint64_t> cpu_checks_serviced_{0};
   bool fatal_ = false;
   bool close_requested_ = false;
   std::atomic<bool> out_of_memory_{false};
@@ -1875,6 +2142,57 @@ void GreenTaskRunner::Post(std::unique_ptr<Task> task,
   if (std::shared_ptr<GreenIsolate> owner = owner_.lock()) {
     owner->PostV8Task(std::move(task), delay_in_seconds);
   }
+}
+
+#ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
+uintptr_t ProgramCounter(void* context) {
+  const mcontext_t& mcontext = static_cast<ucontext_t*>(context)->uc_mcontext;
+#if defined(__x86_64__)
+  return static_cast<uintptr_t>(mcontext.gregs[REG_RIP]);
+#else
+  return static_cast<uintptr_t>(mcontext.pc);
+#endif
+}
+
+// Cuts off the work that the receiving pool thread runs, if it belongs to
+// the green isolate that is to be cut off, and the thread is running code
+// that V8 generated, which holds no locks. Otherwise, the backup watchdog
+// tries again later.
+void OnCutOffSignal(int signal, siginfo_t* info, void* context) {
+  PoolThread* thread = current_pool_thread;
+  if (thread == nullptr) return;
+  GreenIsolate* target = thread->cut_off_target();
+  if (target == nullptr || thread->running() != target) return;
+  if (!target->IsGeneratedCode(ProgramCounter(context))) return;
+  siglongjmp(*thread->cut_off_jump(), 1);
+}
+
+// Whether the signal handler could be installed.
+bool InstallCutOffSignalHandler() {
+  static const bool installed = []() {
+    struct sigaction old_action;
+    if (sigaction(CutOffSignal(), nullptr, &old_action) != 0 ||
+        old_action.sa_handler != SIG_DFL) {
+      return false;
+    }
+    struct sigaction action {};
+    action.sa_sigaction = OnCutOffSignal;
+    action.sa_flags = SA_SIGINFO | SA_RESTART;
+    sigemptyset(&action.sa_mask);
+    return sigaction(CutOffSignal(), &action, nullptr) == 0;
+  }();
+  return installed;
+}
+#endif
+
+bool PoolThread::SendCutOffSignal(GreenIsolate* target) {
+#ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
+  if (!InstallCutOffSignalHandler()) return false;
+  set_cut_off_target(target);
+  return pthread_kill(tid_, CutOffSignal()) == 0;
+#else
+  return false;
+#endif
 }
 
 std::shared_ptr<GreenIsolate> GreenThreadPool::TakeReady(PoolThread* thread) {
@@ -2003,7 +2321,8 @@ class WarmPool {
     const size_t ready = std::count_if(
         idle_.begin(), idle_.end(), [](const Entry& e) { return e.ready; });
     if (ready < size_) return;
-    for (auto& waiter : waiters_) waiter->Push({kEventWarmPoolFull});
+    for (auto& waiter : waiters_)
+      waiter->Push({kEventWarmPoolFull, 0, true, {}});
     waiters_.clear();
   }
 
@@ -2024,7 +2343,7 @@ class WarmPool {
 
 }  // namespace
 
-void TerminateAll() {
+bool TerminateAll() {
   WarmPool::Get()->Shutdown();
   std::vector<std::shared_ptr<GreenIsolate>> green_isolates;
   {
@@ -2038,7 +2357,9 @@ void TerminateAll() {
   // Interrupt all of them first, so that none of them keeps a pool thread
   // busy while another one is waited for.
   for (auto& green : green_isolates) green->Terminate();
-  for (auto& green : green_isolates) green->TerminateAndWait();
+  for (auto& green : green_isolates) green->TerminateAndWait(true);
+  Mutex::ScopedLock lock(live_green_isolates_mutex);
+  return abandoned_green_isolates->empty();
 }
 
 namespace {
@@ -2166,6 +2487,10 @@ class GreenThreadWrap final : public HandleWrap {
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
+    SetMethod(context,
+              target,
+              "setUnresponsiveTimeoutsForTesting",
+              SetUnresponsiveTimeoutsForTesting);
     SetConstructorFunction(context,
                            target,
                            "WarmPoolWaiter",
@@ -2179,6 +2504,16 @@ class GreenThreadWrap final : public HandleWrap {
               FIXED_ONE_BYTE_STRING(isolate, "isolateGroupsSupported"),
               Boolean::New(isolate, v8::IsolateGroup::CanCreateNewGroups()))
         .Check();
+#ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
+    constexpr bool can_cut_off_threads = true;
+#else
+    constexpr bool can_cut_off_threads = false;
+#endif
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "canCutOffThreads"),
+              Boolean::New(isolate, can_cut_off_threads))
+        .Check();
 
 #define V(name, value)                                                         \
   target                                                                       \
@@ -2191,10 +2526,12 @@ class GreenThreadWrap final : public HandleWrap {
     V("kEventEvalResult", kEventEvalResult)
     V("kEventError", kEventError)
     V("kEventExit", kEventExit)
+    V("kEventAbandoned", kEventAbandoned)
     V("kErrorException", kErrorException)
     V("kErrorOutOfMemory", kErrorOutOfMemory)
     V("kErrorCpuLimit", kErrorCpuLimit)
     V("kFlagTestingGlobals", kFlagTestingGlobals)
+    V("kFlagTestingIgnoreTermination", kFlagTestingIgnoreTermination)
     V("kIsolateGroupDefault", static_cast<int32_t>(IsolateGroupKind::kDefault))
     V("kIsolateGroupNew", static_cast<int32_t>(IsolateGroupKind::kNew))
     V("kIsolateGroupShared", static_cast<int32_t>(IsolateGroupKind::kShared))
@@ -2207,6 +2544,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Evaluate);
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
+    registry->Register(SetUnresponsiveTimeoutsForTesting);
     WarmPoolWaiter::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
   }
@@ -2225,6 +2563,15 @@ class GreenThreadWrap final : public HandleWrap {
   SET_SELF_SIZE(GreenThreadWrap)
 
  private:
+  // setUnresponsiveTimeoutsForTesting(gracePeriodMs, cutOffPeriodMs)
+  static void SetUnresponsiveTimeoutsForTesting(
+      const FunctionCallbackInfo<Value>& args) {
+    CHECK(args[0]->IsUint32());
+    CHECK(args[1]->IsUint32());
+    unresponsive_grace_period = args[0].As<Uint32>()->Value() * 1000000ull;
+    cut_off_period = args[1].As<Uint32>()->Value() * 1000000ull;
+  }
+
   // setWarmPoolSize(size, waiter)
   static void SetWarmPoolSize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -2262,6 +2609,8 @@ class GreenThreadWrap final : public HandleWrap {
     options.max_young_generation_size = megabytes(args[3]);
     options.testing_globals =
         (args[4].As<Uint32>()->Value() & kFlagTestingGlobals) != 0;
+    options.testing_ignore_termination =
+        (args[4].As<Uint32>()->Value() & kFlagTestingIgnoreTermination) != 0;
     auto milliseconds = [](Local<Value> value) -> uint64_t {
       constexpr double kMaxMilliseconds = 1e12;
       if (!value->IsNumber()) return 0;
@@ -2316,7 +2665,7 @@ class GreenThreadWrap final : public HandleWrap {
   void Detach() {
     if (!green_) return;
     channel_->Close();
-    green_->TerminateAndWait();
+    green_->TerminateAndWait(false);
     green_.reset();
   }
 
