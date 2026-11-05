@@ -347,8 +347,9 @@ static Isolate* NewIsolateImpl(Isolate::CreateParams* params,
                                MultiIsolatePlatform* platform,
                                const SnapshotData* snapshot_data,
                                const IsolateSettings& settings,
+                               const IsolateGroup& group,
+                               bool use_first_snapshot,
                                RegisterFn register_isolate) {
-  IsolateGroup group = GetOrCreateIsolateGroup();
   Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
 
@@ -356,7 +357,7 @@ static Isolate* NewIsolateImpl(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-  UseFirstSnapshot(params);
+  if (use_first_snapshot) UseFirstSnapshot(params);
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
@@ -384,20 +385,32 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     MultiIsolatePlatform* platform,
                     const SnapshotData* snapshot_data,
                     const IsolateSettings& settings) {
-  return NewIsolateImpl(
-      params, platform, snapshot_data, settings, [&](Isolate* isolate) {
-        platform->RegisterIsolate(isolate, event_loop);
-      });
+  return NewIsolateImpl(params,
+                        platform,
+                        snapshot_data,
+                        settings,
+                        GetOrCreateIsolateGroup(),
+                        true,
+                        [&](Isolate* isolate) {
+                          platform->RegisterIsolate(isolate, event_loop);
+                        });
 }
 
 Isolate* NewIsolate(Isolate::CreateParams* params,
                     IsolatePlatformDelegate* delegate,
                     MultiIsolatePlatform* platform,
-                    const IsolateSettings& settings) {
-  return NewIsolateImpl(
-      params, platform, nullptr, settings, [&](Isolate* isolate) {
-        platform->RegisterIsolate(isolate, delegate);
-      });
+                    const IsolateSettings& settings,
+                    const IsolateGroup& group,
+                    bool use_first_snapshot) {
+  return NewIsolateImpl(params,
+                        platform,
+                        nullptr,
+                        settings,
+                        group,
+                        use_first_snapshot,
+                        [&](Isolate* isolate) {
+                          platform->RegisterIsolate(isolate, delegate);
+                        });
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator,
