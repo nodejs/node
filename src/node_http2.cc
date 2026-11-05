@@ -2151,10 +2151,10 @@ int Http2Session::OnSendData(
       continue;
     }
 
-    // Slice off `length` bytes of the first write in the queue.
-    session->PushOutgoingBuffer(NgHttp2StreamWrite {
-      uv_buf_init(write.buf.base, length)
-    });
+    // Slice off `length` bytes of the first write in the queue. Retain the
+    // originating request until the slice is no longer used by the socket.
+    session->PushOutgoingBuffer(NgHttp2StreamWrite{
+        nullptr, write.buffer_owner, uv_buf_init(write.buf.base, length)});
     write.buf.base += length;
     write.buf.len -= length;
     break;
@@ -2758,14 +2758,16 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
     return UV_EOF;
   }
   Debug(this, "queuing %d buffers to send", nbufs);
+  BaseObjectPtr<AsyncWrap> buffer_owner(req_wrap->GetAsyncWrap());
   for (size_t i = 0; i < nbufs; ++i) {
     // Store the req_wrap on the last write info in the queue, so that it is
     // only marked as finished once all buffers associated with it are finished.
-    queue_.emplace(NgHttp2StreamWrite {
-      BaseObjectPtr<AsyncWrap>(
-          i == nbufs - 1 ? req_wrap->GetAsyncWrap() : nullptr),
-      bufs[i]
-    });
+    // Every entry retains the request separately so partial slices remain valid
+    // until the underlying socket write completes.
+    queue_.emplace(NgHttp2StreamWrite{
+        BaseObjectPtr<AsyncWrap>(i == nbufs - 1 ? buffer_owner : nullptr),
+        buffer_owner,
+        bufs[i]});
     IncrementAvailableOutboundLength(bufs[i].len);
   }
   CHECK_NE(nghttp2_session_resume_data(
@@ -3542,6 +3544,7 @@ void Http2Ping::DetachFromSession() {
 void NgHttp2StreamWrite::MemoryInfo(MemoryTracker* tracker) const {
   if (req_wrap)
     tracker->TrackField("req_wrap", req_wrap);
+  if (buffer_owner) tracker->TrackField("buffer_owner", buffer_owner);
   tracker->TrackField("buf", buf);
 }
 
