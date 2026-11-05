@@ -149,7 +149,13 @@ class Publish extends BaseCommand {
 
     const registry = npmFetch.pickRegistry(resolved, opts)
 
-    await oidc({ packageName: manifest.name, registry, opts, config: this.npm.config })
+    await oidc({
+      packageName: manifest.name,
+      registry,
+      opts,
+      config: this.npm.config,
+      enableProvenanceAutoConfiguration: true,
+    })
 
     const creds = this.npm.config.getCredentialsByURI(registry)
     const noCreds = !(creds.token || creds.username || creds.certfile && creds.keyfile)

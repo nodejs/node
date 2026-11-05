@@ -113,6 +113,70 @@ class RegistryFetcher extends Fetcher {
     }
   }
 
+  // Registry signatures and attestations authenticate `name@version`, so the
+  // manifest must claim the requested name and be listed under its own
+  // version.  Otherwise a registry could replay validly signed metadata from
+  // another package (or another version) and have it verify as this one.
+  #verifyManifestIdentity (packument, picked) {
+    const pickedId = `${picked.name}@${picked.version}`
+    if (picked.name !== this.spec.name) {
+      const message = [
+        `${this.spec.name} registry manifest has mismatched package name:`,
+        `expected ${this.spec.name} but got ${pickedId}`,
+      ].join(' ')
+      throw Object.assign(new Error(message), {
+        code: 'EMANIFESTMISMATCH',
+        expected: this.spec.name,
+        found: pickedId,
+      })
+    }
+    if (picked._id && picked._id !== pickedId) {
+      const message = [
+        `${pickedId} registry manifest has mismatched id:`,
+        `expected ${pickedId} but got ${picked._id}`,
+      ].join(' ')
+      throw Object.assign(new Error(message), {
+        code: 'EMANIFESTMISMATCH',
+        expected: pickedId,
+        found: picked._id,
+      })
+    }
+
+    // without dist there are no signatures or attestations to authenticate
+    if (!picked.dist) {
+      return
+    }
+
+    // npm-pick-manifest may return a shallow copy, so match on the dist object
+    const matchesPickedManifest = manifest => manifest.dist === picked.dist
+    const versionCollections = [
+      packument.versions,
+      packument.stagedVersions?.versions,
+      packument.policyRestrictions?.versions,
+    ]
+    const matchingVersionKeys = []
+    for (const manifestsByVersion of versionCollections) {
+      for (const versionKey in manifestsByVersion) {
+        if (Object.hasOwn(manifestsByVersion, versionKey) &&
+            matchesPickedManifest(manifestsByVersion[versionKey])) {
+          matchingVersionKeys.push(versionKey)
+        }
+      }
+    }
+
+    if (matchingVersionKeys.some(versionKey => versionKey !== picked.version)) {
+      const message = [
+        `${pickedId} registry manifest has mismatched version:`,
+        `listed in the packument as ${matchingVersionKeys.join(', ')}`,
+      ].join(' ')
+      throw Object.assign(new Error(message), {
+        code: 'EMANIFESTMISMATCH',
+        expected: matchingVersionKeys,
+        found: pickedId,
+      })
+    }
+  }
+
   async manifest () {
     if (this.package) {
       return this.package
@@ -127,11 +191,16 @@ class RegistryFetcher extends Fetcher {
 
     const packument = await this.packument()
     const steps = PackageJson.normalizeSteps.filter(s => s !== '_attributes')
-    const mani = await new PackageJson().fromContent(pickManifest(packument, this.spec.fetchSpec, {
+    const picked = pickManifest(packument, this.spec.fetchSpec, {
       ...this.opts,
       defaultTag: this.defaultTag,
       before: this.before,
-    })).normalize({ steps }).then(p => p.content)
+    })
+    if (this.opts.verifySignatures || this.opts.verifyAttestations) {
+      this.#verifyManifestIdentity(packument, picked)
+    }
+    const mani = await new PackageJson().fromContent(picked)
+      .normalize({ steps }).then(p => p.content)
 
     /* XXX add ETARGET and E403 revalidation of cached packuments here */
 

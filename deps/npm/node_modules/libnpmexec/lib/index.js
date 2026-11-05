@@ -267,8 +267,8 @@ const exec = async (opts) => {
     })
     const lockPath = join(installDir, 'concurrency.lock')
     const npxTree = await withLock(lockPath, () => npxArb.loadActual())
-    await Promise.all(needInstall.map(async ({ spec }) => {
-      const { manifest } = await missingFromTree({
+    await Promise.all(needInstall.map(async ({ spec, manifest: requestedManifest }) => {
+      const { manifest, node } = await missingFromTree({
         spec,
         tree: npxTree,
         flatOptions,
@@ -281,6 +281,10 @@ const exec = async (opts) => {
         } else {
           add.push(manifest._id)
         }
+      } else if (needPackageCommandSwap && commandManifest === requestedManifest) {
+        // A cache hit must use the installed bin, not mutable registry metadata.
+        commandManifest = node.package
+        args[0] = getBinFromManifest(commandManifest)
       }
     }))
 
