@@ -127,6 +127,22 @@ may briefly exceed the limit.
 `maxOldGenerationSizeMb` and `maxYoungGenerationSizeMb` limit only the heap,
 like the [`Worker`][] options of the same names.
 
+### Green threads that don't stop
+
+Resource limits and [`greenThread.terminate()`][] interrupt the running
+JavaScript code. In rare cases, V8 compiles code in a way that no longer
+handles interrupts, so the green thread keeps running. Node.js then stops
+waiting for it after one second: the green thread emits the [`'error'`][]
+event for the limit it reached, if any, and the [`'exit'`][] event with exit
+code `1`, and the process emits a `GreenThreadWarning`. The green thread is
+abandoned: it never runs again, and the memory it uses is not freed until the
+process exits.
+
+Node.js then stops the pool thread that was running it as soon as that thread
+runs JavaScript code, so that it can run other green threads again. Where that
+isn't possible, or doesn't succeed within 10 seconds, Node.js aborts the
+process. Stopping pool threads is only supported on Linux on x64 and arm64.
+
 ## `greenThreads.setWarmPoolSize(size)`
 
 <!-- YAML

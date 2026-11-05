@@ -1203,7 +1203,7 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   env->set_stopping(true);
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
-  green_thread::TerminateAll();
+  const bool green_threads_disposed = green_thread::TerminateAll();
   env->isolate()->DumpAndResetStats();
   // The tracing agent could be in the process of writing data using the
   // threadpool. Stop it before shutting down libuv. The rest of the tracing
@@ -1216,7 +1216,7 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // in node_v8_platform-inl.h
   uv_library_shutdown();
   // The isolate is not disposed on this path, see NodePlatform::Shutdown().
-  DisposePlatform(env->isolate());
+  if (green_threads_disposed) DisposePlatform(env->isolate());
 
 #if HAVE_OPENSSL
   crypto::CleanupCachedRootCertificates();
