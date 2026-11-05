@@ -5,7 +5,9 @@ const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
 
 let DatabaseSync
 
-const VERSION = 3
+// Bump when entries written by an older cache policy are unsafe to reuse.
+// Version 4 invalidates entries that may have been poisoned through redirects.
+const VERSION = 4
 
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
