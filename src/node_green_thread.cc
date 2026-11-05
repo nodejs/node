@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -96,6 +97,7 @@ enum EventType : int32_t {
 enum ErrorKind : int32_t {
   kErrorException = 0,
   kErrorOutOfMemory,
+  kErrorCpuLimit,
 };
 
 // Flags passed to the GreenThread constructor.
@@ -232,6 +234,33 @@ class GreenThreadPool {
     return !ready_.empty();
   }
 
+  // Queues work that only runs when a pool thread has nothing else to do.
+  // May be called from any thread.
+  void PostBackground(std::function<void()> callback) {
+    {
+      Mutex::ScopedLock lock(ready_mutex_);
+      background_.push_back(std::move(callback));
+    }
+    WakeIdleThread(nullptr);
+  }
+
+  bool HasBackground() {
+    Mutex::ScopedLock lock(ready_mutex_);
+    return !background_.empty();
+  }
+
+  // Runs one item of background work, if there is any.
+  void RunBackground() {
+    std::function<void()> callback;
+    {
+      Mutex::ScopedLock lock(ready_mutex_);
+      if (background_.empty()) return;
+      callback = std::move(background_.front());
+      background_.pop_front();
+    }
+    callback();
+  }
+
   inline void RunReady(PoolThread* thread, size_t budget);
 
  private:
@@ -261,6 +290,7 @@ class GreenThreadPool {
   std::atomic<size_t> next_{0};
   Mutex ready_mutex_;
   std::deque<std::shared_ptr<GreenIsolate>> ready_;
+  std::deque<std::function<void()>> background_;
 };
 
 void PoolThread::OnWakeup(uv_async_t* handle) {
@@ -273,16 +303,21 @@ void PoolThread::OnWakeup(uv_async_t* handle) {
   }
   for (Callback& callback : callbacks) callback();
   self->pool_->RunReady(self, kReadyBudget);
+  if (!self->HasCallbacks() && !self->pool_->HasReady()) {
+    self->pool_->RunBackground();
+  }
 
   // Return to the loop so that its timers can run, but come back right away
   // if there is more work.
-  if (self->HasCallbacks() || self->pool_->HasReady()) {
+  if (self->HasCallbacks() || self->pool_->HasReady() ||
+      self->pool_->HasBackground()) {
     self->Wake();
     return;
   }
   self->busy_ = false;
-  // ScheduleReady() may have skipped this thread while it was still busy.
-  if (self->pool_->HasReady()) {
+  // ScheduleReady() and PostBackground() may have skipped this thread while
+  // it was still busy.
+  if (self->pool_->HasReady() || self->pool_->HasBackground()) {
     self->busy_ = true;
     self->Wake();
   }
@@ -343,6 +378,147 @@ class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
   bool started_ = false;
   bool closed_ = false;
   std::shared_ptr<TimerHandle> self_;
+};
+
+// The CPU time used by the calling thread, in nanoseconds.
+uint64_t ThreadCpuTime() {
+#ifdef CLOCK_THREAD_CPUTIME_ID
+  // More precise than getrusage(), which is only updated on scheduler ticks
+  // on some systems.
+  timespec ts;
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) == 0) {
+    return static_cast<uint64_t>(ts.tv_sec) * 1000000000 +
+           static_cast<uint64_t>(ts.tv_nsec);
+  }
+#endif
+  uv_rusage_t usage;
+  if (uv_getrusage_thread(&usage) != 0) return 0;
+  auto ns = [](const uv_timeval_t& tv) {
+    return static_cast<uint64_t>(tv.tv_sec) * 1000000000 +
+           static_cast<uint64_t>(tv.tv_usec) * 1000;
+  };
+  return ns(usage.ru_utime) + ns(usage.ru_stime);
+}
+
+// An ArrayBuffer allocator that counts what it has allocated, and refuses
+// allocations that would take the isolate over its memory limit, together
+// with the size of the JS heap as of the last GC. Free() may be called from
+// any thread.
+class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit LimitedAllocator(size_t limit)
+      : allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator()),
+        limit_(limit) {}
+
+  void* Allocate(size_t length) override {
+    if (!Reserve(length)) return nullptr;
+    void* data = allocator_->Allocate(length);
+    if (data == nullptr) allocated_ -= length;
+    return data;
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    if (!Reserve(length)) return nullptr;
+    void* data = allocator_->AllocateUninitialized(length);
+    if (data == nullptr) allocated_ -= length;
+    return data;
+  }
+
+  void Free(void* data, size_t length) override {
+    allocator_->Free(data, length);
+    allocated_ -= length;
+  }
+
+  size_t limit() const { return limit_; }
+  size_t allocated() const { return allocated_.load(); }
+  void set_heap_used(size_t heap_used) { heap_used_ = heap_used; }
+
+ private:
+  bool Reserve(size_t length) {
+    size_t allocated = allocated_.fetch_add(length) + length;
+    if (limit_ == 0 || allocated + heap_used_.load() <= limit_) return true;
+    allocated_ -= length;
+    return false;
+  }
+
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
+  const size_t limit_;
+  std::atomic<size_t> allocated_{0};
+  std::atomic<size_t> heap_used_{0};
+};
+
+// Calls a callback once a deadline (in uv_hrtime() nanoseconds) has passed,
+// on its own thread. Used to interrupt green threads that may have used up
+// their CPU time. Created on first use and intentionally never destroyed.
+class Watchdog {
+ public:
+  using Callback = std::function<void()>;
+
+  static Watchdog* Get() {
+    static Watchdog* watchdog = new Watchdog();
+    return watchdog;
+  }
+
+  // Replaces the deadline of `key`, if any. May be called from any thread.
+  void Arm(const void* key, uint64_t deadline, Callback callback) {
+    Mutex::ScopedLock lock(mutex_);
+    entries_[key] = {deadline, std::move(callback)};
+    cv_.Signal(lock);
+  }
+
+  // May be called from any thread. The callback of `key` may still be
+  // running, or about to run, when this returns.
+  void Disarm(const void* key) {
+    Mutex::ScopedLock lock(mutex_);
+    entries_.erase(key);
+  }
+
+ private:
+  struct Entry {
+    uint64_t deadline;
+    Callback callback;
+  };
+
+  Watchdog() {
+    CHECK_EQ(
+        uv_thread_create(
+            &tid_, [](void* arg) { static_cast<Watchdog*>(arg)->Run(); }, this),
+        0);
+  }
+
+  void Run() {
+    uv_thread_setname("GreenWatchdog");
+    Mutex::ScopedLock lock(mutex_);
+    for (;;) {
+      if (entries_.empty()) {
+        cv_.Wait(lock);
+        continue;
+      }
+      const uint64_t now = uv_hrtime();
+      uint64_t next = UINT64_MAX;
+      std::vector<Callback> due;
+      for (auto it = entries_.begin(); it != entries_.end();) {
+        if (it->second.deadline <= now) {
+          due.push_back(std::move(it->second.callback));
+          it = entries_.erase(it);
+        } else {
+          next = std::min(next, it->second.deadline);
+          ++it;
+        }
+      }
+      if (!due.empty()) {
+        Mutex::ScopedUnlock unlock(lock);
+        for (Callback& callback : due) callback();
+        continue;
+      }
+      cv_.TimedWait(lock, next - now);
+    }
+  }
+
+  uv_thread_t tid_;
+  Mutex mutex_;
+  ConditionVariable cv_;
+  std::unordered_map<const void*, Entry> entries_;
 };
 
 class SerializerDelegate final : public ValueSerializer::Delegate {
@@ -504,25 +680,58 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   struct Options {
     std::string source;
     std::string filename;
+    bool testing_globals = false;
+    // Fixed when the isolate is created.
     size_t max_old_generation_size = 0;
     size_t max_young_generation_size = 0;
-    bool testing_globals = false;
+    size_t max_memory = 0;
+    // In nanoseconds.
+    uint64_t max_cpu_time = 0;
+    uint64_t max_task_cpu_time = 0;
+
+    // Whether an isolate created with the default options (i.e. a warm one)
+    // can be used.
+    bool CanUseDefaultIsolate() const {
+      return max_old_generation_size == 0 && max_young_generation_size == 0 &&
+             max_memory == 0;
+    }
   };
 
-  GreenIsolate(MultiIsolatePlatform* platform,
-               std::shared_ptr<HostChannel> host)
-      : platform_(platform), host_(std::move(host)) {}
+  explicit GreenIsolate(MultiIsolatePlatform* platform) : platform_(platform) {}
 
-  // Must be called once, from the host thread, right after construction.
-  void Start(Options options) {
+  // Creates the isolate and its context, using the isolate options from
+  // `options`. Must be called once, right after construction. May be called
+  // from any thread but a pool thread.
+  void Prepare(const Options& options) {
     task_runner_ = std::make_shared<GreenTaskRunner>(weak_from_this());
     {
       Mutex::ScopedLock lock(live_green_isolates_mutex);
       live_green_isolates.emplace(this, weak_from_this());
     }
-    Submit([options = std::move(options)](GreenIsolate* self) {
-      self->Initialize(options);
-    });
+    Submit([options](GreenIsolate* self) { self->Initialize(options); });
+  }
+
+  // Connects the green thread to its host and runs its script, possibly
+  // before Prepare()'s work has run. Must be called once. May be called from
+  // any thread but a pool thread.
+  void Activate(std::shared_ptr<HostChannel> host, Options options) {
+    {
+      Mutex::ScopedLock lock(host_mutex_);
+      host_ = std::move(host);
+    }
+    {
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      if (!stopped_) {
+        queue_.push_back(
+            {nullptr, [options = std::move(options)](GreenIsolate* self) {
+               self->Run(options);
+             }});
+        MaybeScheduleLocked();
+        return;
+      }
+    }
+    // It failed to initialize, or was terminated, before it had a host.
+    PushExit(1);
   }
 
   // IsolatePlatformDelegate. May be called from any thread.
@@ -664,7 +873,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
  private:
-  enum class State { kPending, kRunning, kStopped };
+  // kWarm: initialized, but not activated yet.
+  enum class State { kPending, kWarm, kRunning, kStopped };
 
   // Context IDs passed to RunTask().
   static constexpr uint32_t kNewInvocation = 0;
@@ -752,7 +962,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // discarded when the lock is acquired, so the flags are checked as well.
   bool CanRunJS(Isolate* isolate) const {
     return !terminate_requested_ && !fatal_ && !out_of_memory_ &&
-           !isolate->IsExecutionTerminating();
+           !cpu_limit_exceeded_ && !isolate->IsExecutionTerminating();
   }
 
   bool ShouldShutdown() const {
@@ -765,10 +975,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     PoolThread* thread = current_pool_thread;
 
     Isolate::CreateParams params;
-    params.array_buffer_allocator_shared = ArrayBufferAllocator::Create();
-    if (options.max_old_generation_size > 0) {
+    allocator_ = std::make_shared<LimitedAllocator>(options.max_memory);
+    params.array_buffer_allocator_shared = allocator_;
+    size_t max_old_generation_size = options.max_old_generation_size;
+    if (max_old_generation_size == 0) {
+      max_old_generation_size = options.max_memory;
+    }
+    if (max_old_generation_size > 0) {
       params.constraints.set_max_old_generation_size_in_bytes(
-          options.max_old_generation_size);
+          max_old_generation_size);
     }
     if (options.max_young_generation_size > 0) {
       params.constraints.set_max_young_generation_size_in_bytes(
@@ -794,7 +1009,6 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       isolate_ = isolate;
     }
 
-    testing_globals_ = options.testing_globals;
     const uint32_t default_context_id = CreateInvocationContext(thread);
     CHECK_EQ(default_context_id, kDefaultInvocation);
     {
@@ -803,6 +1017,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       isolate->SetStackLimit(thread->stack_limit());
       HandleScope handle_scope(isolate);
       isolate->AddNearHeapLimitCallback(NearHeapLimit, this);
+      if (options.max_memory > 0) {
+        isolate->AddGCEpilogueCallback(AfterGarbageCollection, this);
+      }
       isolate->AddMessageListenerWithErrorLevel(
           OnMessage, Isolate::MessageErrorLevel::kMessageError);
       // The default context of the startup snapshot contains only what V8
@@ -817,9 +1034,23 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
     }
     if (fatal_) return;
+    state_ = State::kWarm;
+  }
 
+  // Runs the green thread's script. Always queued after Initialize().
+  void Run(const Options& options) {
+    if (state_ != State::kWarm) return;
     state_ = State::kRunning;
+    max_cpu_time_ = options.max_cpu_time;
+    max_task_cpu_time_ = options.max_task_cpu_time;
     RunTask(kDefaultInvocation, [&](Isolate* isolate, Local<Context> context) {
+      if (options.testing_globals && !DefineFunction(isolate,
+                                                     context,
+                                                     context->Global(),
+                                                     "__greenThreadInfo",
+                                                     InfoCallback)) {
+        return;
+      }
       Local<Script> script;
       if (!Compile(isolate, context, options.source, options.filename)
                .ToLocal(&script)) {
@@ -869,6 +1100,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     running_context_id_ = context_id;
 
+    const bool cpu_limited = max_cpu_time_ > 0 || max_task_cpu_time_ > 0;
+    if (cpu_limited) StartCpuAccounting();
+
     Isolate* isolate = isolate_;
     {
       Locker locker(isolate);
@@ -895,10 +1129,107 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
     running_context_id_ = 0;
     MaybeReleaseInvocationContext(context_id);
+    if (cpu_limited) StopCpuAccounting();
     if (out_of_memory_ && !fatal_) {
       fatal_ = true;
-      host_->Push({kEventError, kErrorOutOfMemory, false, {}});
+      PushEvent({kEventError, kErrorOutOfMemory, false, {}});
     }
+    if (cpu_limit_exceeded_ && !fatal_) {
+      fatal_ = true;
+      PushEvent({kEventError, kErrorCpuLimit, false, {}});
+    }
+  }
+
+  // CPU time accounting. Each task gets the smaller of the per-task limit and
+  // what is left of the overall limit. While a task runs, the watchdog is
+  // armed for the earliest point in time at which the task's budget could be
+  // used up: a thread can't use more CPU time than wall time. It then
+  // interrupts the isolate, which checks the CPU time of its thread and
+  // either terminates the task or re-arms the watchdog.
+  void StartCpuAccounting() {
+    uint64_t budget = UINT64_MAX;
+    if (max_task_cpu_time_ > 0) budget = max_task_cpu_time_;
+    if (max_cpu_time_ > 0) {
+      budget = std::min(
+          budget,
+          max_cpu_time_ > cpu_time_used_ ? max_cpu_time_ - cpu_time_used_ : 0);
+    }
+    task_cpu_budget_ = budget;
+    task_cpu_start_ = ThreadCpuTime();
+    in_cpu_limited_task_ = true;
+    if (budget == 0) {
+      cpu_limit_exceeded_ = true;
+    } else {
+      ArmWatchdog(budget);
+    }
+  }
+
+  void StopCpuAccounting() {
+    in_cpu_limited_task_ = false;
+    Watchdog::Get()->Disarm(this);
+    const uint64_t used = ThreadCpuTime() - task_cpu_start_;
+    cpu_time_used_ += used;
+    if (used >= task_cpu_budget_) cpu_limit_exceeded_ = true;
+  }
+
+  void ArmWatchdog(uint64_t remaining) {
+    const uint64_t now = uv_hrtime();
+    const uint64_t deadline =
+        remaining > UINT64_MAX - now ? UINT64_MAX : now + remaining;
+    Watchdog::Get()->Arm(this, deadline, [weak = weak_from_this()]() {
+      std::shared_ptr<GreenIsolate> self = weak.lock();
+      if (!self) return;
+      Mutex::ScopedLock lock(self->isolate_mutex_);
+      if (self->isolate_ != nullptr) {
+        self->isolate_->RequestInterrupt(CheckCpuTime, self.get());
+      }
+    });
+  }
+
+  // Runs on the thread that runs the isolate, with the isolate locked. It may
+  // run in a later task than the one it was requested for.
+  static void CheckCpuTime(Isolate* isolate, void* data) {
+    GreenIsolate* self = static_cast<GreenIsolate*>(data);
+    if (!self->in_cpu_limited_task_) return;
+    const uint64_t used = ThreadCpuTime() - self->task_cpu_start_;
+    if (used >= self->task_cpu_budget_) {
+      self->cpu_limit_exceeded_ = true;
+      isolate->TerminateExecution();
+    } else {
+      // Don't check more often than that, in case the CPU time clock is
+      // coarse. A task may overrun its budget by about as much.
+      constexpr uint64_t kMinCheckInterval = 1000000;
+      self->ArmWatchdog(
+          std::max(self->task_cpu_budget_ - used, kMinCheckInterval));
+    }
+  }
+
+  // Enforces the memory limit for the heap and ArrayBuffers together.
+  static void AfterGarbageCollection(Isolate* isolate,
+                                     v8::GCType,
+                                     v8::GCCallbackFlags,
+                                     void* data) {
+    GreenIsolate* self = static_cast<GreenIsolate*>(data);
+    v8::HeapStatistics stats;
+    isolate->GetHeapStatistics(&stats);
+    self->allocator_->set_heap_used(stats.used_heap_size());
+    if (stats.used_heap_size() + self->allocator_->allocated() >
+        self->allocator_->limit()) {
+      self->out_of_memory_ = true;
+      isolate->TerminateExecution();
+    }
+  }
+
+  // May be called from any thread. Events are dropped while there is no host.
+  void PushEvent(HostEvent&& event) {
+    Mutex::ScopedLock lock(host_mutex_);
+    if (host_) host_->Push(std::move(event));
+  }
+
+  // May be called from any thread. Only the first exit event is sent.
+  void PushExit(int32_t code) {
+    if (exit_pushed_.exchange(true)) return;
+    PushEvent({kEventExit, code, true, {}});
   }
 
   void RunTimer(uint32_t id) {
@@ -955,7 +1286,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
 
     const bool clean_exit = close_requested_ && !fatal_ && !out_of_memory_;
-    host_->Push({kEventExit, clean_exit ? 0 : 1, true, {}});
+    PushExit(clean_exit ? 0 : 1);
 
     {
       Mutex::ScopedLock lock(live_green_isolates_mutex);
@@ -1114,7 +1445,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
     }
     if (try_catch.HasTerminated()) return;
-    host_->Push({type, id, ok, bytes ? std::move(*bytes) : Bytes{}});
+    PushEvent({type, id, ok, bytes ? std::move(*bytes) : Bytes{}});
   }
 
   void ReportUncaughtException(Isolate* isolate,
@@ -1171,10 +1502,39 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                               size_t current_heap_limit,
                               size_t initial_heap_limit) {
     GreenIsolate* self = static_cast<GreenIsolate*>(data);
+    // V8 also calls this when an ArrayBuffer allocation fails, e.g. because
+    // of the memory limit, while the heap is nowhere near full. Let the
+    // allocation fail with a RangeError then. The committed size is checked,
+    // since fragmentation may keep the used size well below the limit when
+    // the heap really is full.
+    v8::HeapStatistics stats;
+    self->isolate_->GetHeapStatistics(&stats);
+    if (stats.total_heap_size() < current_heap_limit / 4 * 3) {
+      return current_heap_limit;
+    }
     self->out_of_memory_ = true;
     // Give the current GC some leeway, then stop running JS.
     self->isolate_->TerminateExecution();
     return current_heap_limit + kExtraHeapAllowance;
+  }
+
+  static bool DefineFunction(Isolate* isolate,
+                             Local<Context> context,
+                             Local<Object> target,
+                             const char* name,
+                             v8::FunctionCallback callback,
+                             Local<Value> data = Local<Value>()) {
+    Local<String> name_string = OneByteString(isolate, name);
+    Local<Function> fn;
+    if (!Function::New(context, callback, data, 0, ConstructorBehavior::kThrow)
+             .ToLocal(&fn)) {
+      return false;
+    }
+    fn->SetName(name_string);
+    return target
+        ->DefineOwnProperty(
+            context, name_string, fn, PropertyAttribute::DontEnum)
+        .IsJust();
   }
 
   bool InstallGlobals(Isolate* isolate, Local<Context> context) {
@@ -1183,18 +1543,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                       const char* name,
                       v8::FunctionCallback callback,
                       Local<Value> data = Local<Value>()) {
-      Local<String> name_string = OneByteString(isolate, name);
-      Local<Function> fn;
-      if (!Function::New(
-               context, callback, data, 0, ConstructorBehavior::kThrow)
-               .ToLocal(&fn)) {
-        return false;
-      }
-      fn->SetName(name_string);
-      return target
-          ->DefineOwnProperty(
-              context, name_string, fn, PropertyAttribute::DontEnum)
-          .IsJust();
+      return DefineFunction(isolate, context, target, name, callback, data);
     };
 
     if (!define(global, "postMessage", PostMessageCallback) ||
@@ -1203,9 +1552,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         !define(global, "setTimeout", SetTimeoutCallback) ||
         !define(global, "setInterval", SetIntervalCallback) ||
         !define(global, "clearTimeout", ClearTimerCallback) ||
-        !define(global, "clearInterval", ClearTimerCallback) ||
-        (testing_globals_ &&
-         !define(global, "__greenThreadInfo", InfoCallback))) {
+        !define(global, "clearInterval", ClearTimerCallback)) {
       return false;
     }
 
@@ -1244,7 +1591,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Context> context = isolate->GetCurrentContext();
     std::optional<Bytes> bytes = Serialize(isolate, context, args[0], false);
     if (!bytes) return;
-    self->host_->Push({kEventMessage, 0, true, std::move(*bytes)});
+    self->PushEvent({kEventMessage, 0, true, std::move(*bytes)});
   }
 
   static void CloseCallback(const FunctionCallbackInfo<Value>& args) {
@@ -1384,12 +1731,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       bytes = Serialize(isolate, context, array, false);
       if (!bytes) return;
     }
-    self->host_->Push({kEventConsole, level, true, std::move(*bytes)});
+    self->PushEvent({kEventConsole, level, true, std::move(*bytes)});
   }
 
   MultiIsolatePlatform* const platform_;
-  const std::shared_ptr<HostChannel> host_;
   std::shared_ptr<GreenTaskRunner> task_runner_;
+
+  Mutex host_mutex_;
+  std::shared_ptr<HostChannel> host_;
+  std::atomic<bool> exit_pushed_{false};
 
   // Written in slices; read by Terminate() on any thread.
   Mutex isolate_mutex_;
@@ -1414,7 +1764,14 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // Only accessed in slices.
   State state_ = State::kPending;
   Global<Context> context_;
-  bool testing_globals_ = false;
+  std::shared_ptr<LimitedAllocator> allocator_;
+  uint64_t max_cpu_time_ = 0;
+  uint64_t max_task_cpu_time_ = 0;
+  uint64_t cpu_time_used_ = 0;
+  uint64_t task_cpu_start_ = 0;
+  uint64_t task_cpu_budget_ = 0;
+  bool in_cpu_limited_task_ = false;
+  bool cpu_limit_exceeded_ = false;
   bool fatal_ = false;
   bool close_requested_ = false;
   std::atomic<bool> out_of_memory_{false};
@@ -1459,9 +1816,87 @@ void GreenThreadPool::RunReady(PoolThread* thread, size_t budget) {
   }
 }
 
+// Isolates that were created ahead of time, with the default isolate options,
+// so that starting a green thread doesn't have to wait for one. Used isolates
+// are never returned; the pool is refilled instead. Created on first use and
+// intentionally never destroyed.
+class WarmPool {
+ public:
+  static WarmPool* Get() {
+    static WarmPool* pool = new WarmPool();
+    return pool;
+  }
+
+  // Stops refilling for good. Once this returns, all isolates that the pool
+  // created are known to TerminateAll(). May be called from any thread but a
+  // pool thread.
+  void Shutdown() {
+    Mutex::ScopedLock lock(mutex_);
+    shut_down_ = true;
+    size_ = 0;
+  }
+
+  // May be called from any thread but a pool thread.
+  void SetSize(size_t size, MultiIsolatePlatform* platform) {
+    std::deque<std::shared_ptr<GreenIsolate>> removed;
+    {
+      Mutex::ScopedLock lock(mutex_);
+      if (shut_down_) return;
+      if (platform_ != platform) {
+        removed.swap(idle_);
+        platform_ = platform;
+      }
+      size_ = size;
+      while (idle_.size() > size_) {
+        removed.push_back(std::move(idle_.back()));
+        idle_.pop_back();
+      }
+      RefillLocked();
+    }
+    for (auto& green : removed) green->Terminate();
+  }
+
+  // Returns nullptr if no isolate is available. May be called from any
+  // thread but a pool thread.
+  std::shared_ptr<GreenIsolate> Take(MultiIsolatePlatform* platform) {
+    Mutex::ScopedLock lock(mutex_);
+    if (idle_.empty() || platform_ != platform) return nullptr;
+    std::shared_ptr<GreenIsolate> green = std::move(idle_.front());
+    idle_.pop_front();
+    RefillLocked();
+    return green;
+  }
+
+ private:
+  // Refilling happens in the background, so that it doesn't delay green
+  // threads that are starting, which may be what emptied the pool.
+  void RefillLocked() {
+    for (; idle_.size() + refilling_ < size_; refilling_++) {
+      GreenThreadPool::Get()->PostBackground([this]() { RefillOne(); });
+    }
+  }
+
+  void RefillOne() {
+    Mutex::ScopedLock lock(mutex_);
+    refilling_--;
+    if (shut_down_ || idle_.size() + refilling_ >= size_) return;
+    auto green = std::make_shared<GreenIsolate>(platform_);
+    green->Prepare({});
+    idle_.push_back(std::move(green));
+  }
+
+  Mutex mutex_;
+  size_t size_ = 0;
+  size_t refilling_ = 0;
+  bool shut_down_ = false;
+  MultiIsolatePlatform* platform_ = nullptr;
+  std::deque<std::shared_ptr<GreenIsolate>> idle_;
+};
+
 }  // namespace
 
 void TerminateAll() {
+  WarmPool::Get()->Shutdown();
   std::vector<std::shared_ptr<GreenIsolate>> green_isolates;
   {
     Mutex::ScopedLock lock(live_green_isolates_mutex);
@@ -1498,6 +1933,7 @@ class GreenThreadWrap final : public HandleWrap {
     SetProtoMethod(isolate, constructor, "terminate", Terminate);
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
+    SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
 
 #define V(name, value)                                                         \
   target                                                                       \
@@ -1512,6 +1948,7 @@ class GreenThreadWrap final : public HandleWrap {
     V("kEventExit", kEventExit)
     V("kErrorException", kErrorException)
     V("kErrorOutOfMemory", kErrorOutOfMemory)
+    V("kErrorCpuLimit", kErrorCpuLimit)
     V("kFlagTestingGlobals", kFlagTestingGlobals)
 #undef V
   }
@@ -1521,6 +1958,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(PostMessage);
     registry->Register(Evaluate);
     registry->Register(Terminate);
+    registry->Register(SetWarmPoolSize);
   }
 
   void Close(Local<Value> close_callback) override {
@@ -1537,8 +1975,17 @@ class GreenThreadWrap final : public HandleWrap {
   SET_SELF_SIZE(GreenThreadWrap)
 
  private:
+  // setWarmPoolSize(size)
+  static void SetWarmPoolSize(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK(args[0]->IsUint32());
+    WarmPool::Get()->SetSize(args[0].As<Uint32>()->Value(),
+                             env->isolate_data()->platform());
+  }
+
   // new GreenThread(source, filename, maxOldGenerationSizeMb,
-  //                 maxYoungGenerationSizeMb, flags)
+  //                 maxYoungGenerationSizeMb, flags[, maxMemoryMb,
+  //                 maxCpuTimeMs, maxTaskCpuTimeMs])
   static void New(const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
     Environment* env = Environment::GetCurrent(args);
@@ -1562,6 +2009,17 @@ class GreenThreadWrap final : public HandleWrap {
     options.max_young_generation_size = megabytes(args[3]);
     options.testing_globals =
         (args[4].As<Uint32>()->Value() & kFlagTestingGlobals) != 0;
+    auto milliseconds = [](Local<Value> value) -> uint64_t {
+      constexpr double kMaxMilliseconds = 1e12;
+      if (!value->IsNumber()) return 0;
+      const double milliseconds = value.As<Number>()->Value();
+      if (!(milliseconds > 0)) return 0;
+      return static_cast<uint64_t>(
+          std::max(std::min(milliseconds, kMaxMilliseconds) * 1e6, 1.0));
+    };
+    if (args[5]->IsNumber()) options.max_memory = megabytes(args[5]);
+    options.max_cpu_time = milliseconds(args[6]);
+    options.max_task_cpu_time = milliseconds(args[7]);
 
     new GreenThreadWrap(env, args.This(), std::move(options));
   }
@@ -1575,9 +2033,15 @@ class GreenThreadWrap final : public HandleWrap {
                    AsyncWrap::PROVIDER_GREENTHREAD) {
     CHECK_EQ(uv_async_init(env->event_loop(), &async_, OnAsync), 0);
     channel_ = std::make_shared<HostChannel>(&async_);
-    green_ = std::make_shared<GreenIsolate>(env->isolate_data()->platform(),
-                                            channel_);
-    green_->Start(std::move(options));
+    MultiIsolatePlatform* platform = env->isolate_data()->platform();
+    if (options.CanUseDefaultIsolate()) {
+      green_ = WarmPool::Get()->Take(platform);
+    }
+    if (!green_) {
+      green_ = std::make_shared<GreenIsolate>(platform);
+      green_->Prepare(options);
+    }
+    green_->Activate(channel_, std::move(options));
   }
 
   // Stops the green thread and waits until its isolate is disposed, so that

@@ -1535,6 +1535,13 @@ file in chunks.
 The number of file system events queued without being handled exceeded the size specified in
 `maxQueue` in `fs.watch()`.
 
+<a id="ERR_GREEN_THREAD_CPU_LIMIT"></a>
+
+### `ERR_GREEN_THREAD_CPU_LIMIT`
+
+A [green thread][] was terminated because it reached one of its CPU time
+limits.
+
 <a id="ERR_GREEN_THREAD_EXITED"></a>
 
 ### `ERR_GREEN_THREAD_EXITED`

@@ -73,13 +73,77 @@ with exit code `1`.
 
 A green thread is not tied to an OS thread. Each message, evaluation, and
 timer callback is a separate task, and the tasks of a green thread run one at
-a time, in order, but not necessarily on the same OS thread. Green threads are
-not preempted: a task that never returns keeps one pool thread busy until the
-green thread is terminated. Other green threads keep running on the remaining
-pool threads.
+a time, in order, but not necessarily on the same OS thread. Other than
+through [CPU time limits][], green threads are not preempted: a task that
+never returns keeps one pool thread busy until the green thread is
+terminated. Other green threads keep running on the remaining pool threads.
 
 Timers belong to the message or evaluation that created them, or to the
 initial script, and their callbacks run on the same OS thread as that task.
+
+## Resource limits
+
+Each green thread can have its own CPU time and memory limits, which are set
+with the `resourceLimits` option of the [`GreenThread`][] constructor. A green
+thread that reaches a limit is stopped, without affecting any other thread.
+
+### CPU time limits
+
+`maxTaskCpuTimeMs` limits the CPU time of each task, and `maxCpuTimeMs` that of
+all tasks of the green thread together. A task includes the microtasks that
+run after it, such as promise reactions. Time spent waiting, for example for
+a timer, does not count.
+
+When a task reaches either limit, it is interrupted, even if it never yields:
+the green thread emits an [`'error'`][] event with an
+[`ERR_GREEN_THREAD_CPU_LIMIT`][] error and exits. Limits are enforced within
+about a millisecond, and by the time a task is interrupted it may have used
+slightly more CPU time than allowed.
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+
+const greenThread = new GreenThread('for (;;);', {
+  resourceLimits: { maxTaskCpuTimeMs: 50 },
+});
+greenThread.on('error', (error) => {
+  console.log(error.code);  // Prints: ERR_GREEN_THREAD_CPU_LIMIT
+});
+```
+
+### Memory limits
+
+`maxMemoryMb` limits the memory used by the JavaScript heap and by
+`ArrayBuffer`s together. An `ArrayBuffer` allocation that would exceed the
+limit throws a `RangeError`, which the green thread can catch. When the heap
+together with the `ArrayBuffer`s still in use exceeds the limit, the green
+thread emits an [`'error'`][] event with an [`ERR_GREEN_THREAD_OUT_OF_MEMORY`][]
+error and exits. This is checked after each garbage collection, so memory use
+may briefly exceed the limit.
+
+`maxOldGenerationSizeMb` and `maxYoungGenerationSizeMb` limit only the heap,
+like the [`Worker`][] options of the same names.
+
+## `greenThreads.setWarmPoolSize(size)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {integer} An integer between `0` and `1024`.
+
+Sets how many green threads are prepared ahead of time, for the whole process.
+**Default:** `0`.
+
+Most of the time it takes to start a green thread is spent creating its V8
+isolate. Isolates in the warm pool are created in the background, when pool
+threads have nothing else to do, so green threads that use them start almost
+immediately. Each isolate is used by one green thread only: the pool is
+refilled after a green thread takes one. Isolates in the warm pool use memory,
+about 3 MB each.
+
+Only green threads without the `maxMemoryMb`, `maxOldGenerationSizeMb` and
+`maxYoungGenerationSizeMb` options use the warm pool.
 
 ## Class: `GreenThread`
 
@@ -105,10 +169,16 @@ added: REPLACEME
     * `maxYoungGenerationSizeMb` {number} The maximum size of the heap space
       for recently created objects, in MB. `0` uses the V8 default.
       **Default:** `0`.
+    * `maxMemoryMb` {number} The maximum size of the heap and `ArrayBuffer`s
+      together, in MB. Also limits the main heap, unless
+      `maxOldGenerationSizeMb` is set. `0` means no limit. **Default:** `0`.
+    * `maxCpuTimeMs` {number} The maximum CPU time of all tasks together, in
+      milliseconds. `0` means no limit. **Default:** `0`.
+    * `maxTaskCpuTimeMs` {number} The maximum CPU time of each task, in
+      milliseconds. `0` means no limit. **Default:** `0`.
 
-Starts a green thread that runs `source`. If the heap limit is reached, the
-green thread emits an [`'error'`][] event with an
-[`ERR_GREEN_THREAD_OUT_OF_MEMORY`][] error and exits.
+Starts a green thread that runs `source`. See [Resource limits][] for what
+happens when a limit is reached.
 
 ### Event: `'error'`
 
@@ -119,7 +189,8 @@ added: REPLACEME
 * `error` {any}
 
 Emitted when the green thread throws an uncaught exception, has an unhandled
-promise rejection, or runs out of memory. The green thread then exits.
+promise rejection, or reaches a [resource limit][Resource limits]. The green
+thread then exits.
 
 ### Event: `'exit'`
 
@@ -237,12 +308,16 @@ added: REPLACEME
 
 Calls [`greenThread.terminate()`][].
 
+[CPU time limits]: #cpu-time-limits
+[Resource limits]: #resource-limits
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
 [`'message'`]: #event-message
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
+[`ERR_GREEN_THREAD_CPU_LIMIT`]: errors.md#err_green_thread_cpu_limit
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
 [`ERR_GREEN_THREAD_OUT_OF_MEMORY`]: errors.md#err_green_thread_out_of_memory
+[`GreenThread`]: #new-greenthreadsource-options
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue
 [`greenThread.terminate()`]: #greenthreadterminate
