@@ -112,6 +112,14 @@ class DebugOptions : public Options {
     return break_first_line || break_node_first_line;
   }
 
+  const char* inspector_option_name() const {
+    if (break_node_first_line) return "--inspect-brk-node";
+    if (break_first_line) return "--inspect-brk";
+    if (inspect_wait) return "--inspect-wait";
+    if (inspector_enabled) return "--inspect";
+    return nullptr;
+  }
+
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
 };
