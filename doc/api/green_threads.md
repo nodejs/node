@@ -52,6 +52,9 @@ the following globals:
   [`DOMException`][]. There is no DOM tree, so events are only dispatched to
   their target. Errors thrown by event listeners are uncaught errors of the
   green thread.
+* `env`: The `env` option of the [`GreenThread`][] constructor, if it was
+  given. See [RPC][].
+* [`RpcTarget`][]: See [RPC][].
 
 Green threads have no access to `require()`, `import`, `process`, or any
 other Node.js API.
@@ -72,6 +75,85 @@ greenThread.postMessage(21);
 An uncaught exception or unhandled promise rejection inside a green thread
 emits an [`'error'`][] event on the host, followed by an [`'exit'`][] event
 with exit code `1`.
+
+## RPC
+
+A green thread can only use what its host passes it. Besides messages, the
+host can give it an `env` object whose functions the green thread can call,
+and the green thread can pass functions and objects back. Calls return
+promises, which are fulfilled with structured clones of what the call returns.
+
+```cjs
+const { GreenThread, RpcTarget } = require('node:green_threads');
+
+class Counter extends RpcTarget {
+  #count = 0;
+  increment() {
+    return ++this.#count;
+  }
+}
+
+const store = new Map();
+const greenThread = new GreenThread(`
+  (async () => {
+    await env.db.put('greeting', 'hello');
+    const counter = await env.newCounter();
+    await counter.increment();
+    postMessage([await env.db.get('greeting'), await counter.increment()]);
+  })();
+`, {
+  env: {
+    db: {
+      get: (key) => store.get(key),
+      put: (key, value) => { store.set(key, value); },
+    },
+    newCounter: () => new Counter(),
+  },
+});
+greenThread.on('message', (value) => {
+  console.log(value);  // Prints: [ 'hello', 2 ]
+  greenThread.terminate();
+});
+```
+
+These values are not cloned, but passed as stubs that call the side they came
+from:
+
+* Functions in the `env` object, at any depth within plain objects and arrays.
+* Functions that are passed directly as arguments, or returned.
+* [`RpcTarget`][] instances, anywhere in arguments and results. Their stubs
+  have the methods of the instance, including inherited ones, but no other
+  properties.
+
+A stub that is passed back to the side it came from is the original function
+or object again. Each side can call the other's stubs: a green thread can
+pass the host a callback, or an `RpcTarget` of its own.
+
+[`AbortSignal`][]s can be passed too, anywhere in arguments and results. The
+other side gets an `AbortSignal` that aborts with a clone of the reason when
+the original does.
+
+Errors thrown by a call reject its promise with a structured clone of the
+error. [`DOMException`][]s keep their class. Values that can't be cloned are
+passed as strings.
+
+Once a side no longer uses a stub, and it is garbage collected, or disposed
+with `stub[Symbol.dispose]()`, the other side releases the function or object
+that it refers to. When a green thread exits, calls that are pending, and
+calls to its stubs on the host, are rejected with [`ERR_GREEN_THREAD_EXITED`][].
+
+The result of a call that a green thread makes continues in the invocation
+context that made it, so that timers it creates run on the same pool thread,
+as if no call had been made.
+
+## Class: `RpcTarget`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The base class of objects that are passed as stubs, whose methods the other
+side can call. Green threads have it as a global too.
 
 ## Scheduling
 
@@ -285,6 +367,9 @@ added: REPLACEME
 
 * `source` {string} The script to run in the green thread.
 * `options` {Object}
+  * `env` {Object} The `env` global of the green thread. Functions in it, at
+    any depth within plain objects and arrays, and [`RpcTarget`][]s, are
+    passed as stubs. Everything else is cloned. See [RPC][].
   * `filename` {string} The file name used in stack traces.
     **Default:** `'green-thread.js'`.
   * `isolateGroup` {string|IsolateGroup} The isolate group of the green
@@ -438,6 +523,7 @@ Calls [`greenThread.terminate()`][].
 
 [CPU time limits]: #cpu-time-limits
 [Isolate groups]: #isolate-groups
+[RPC]: #rpc
 [Resource limits]: #resource-limits
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
@@ -455,6 +541,7 @@ Calls [`greenThread.terminate()`][].
 [`GreenThread`]: #new-greenthreadsource-options
 [`IsolateGroup.supported`]: #static-property-isolategroupsupported
 [`IsolateGroup`]: #class-isolategroup
+[`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue
 [`greenThread.terminate()`]: #greenthreadterminate

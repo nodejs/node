@@ -1564,6 +1564,27 @@ They require building Node.js with `--experimental-enable-pointer-compression`.
 
 A [green thread][] was terminated because it reached its heap limit.
 
+<a id="ERR_GREEN_THREAD_RPC_DISPOSED"></a>
+
+### `ERR_GREEN_THREAD_RPC_DISPOSED`
+
+A method of an RPC stub of a [green thread][] was called after the stub was
+disposed.
+
+<a id="ERR_GREEN_THREAD_RPC_NO_SUCH_METHOD"></a>
+
+### `ERR_GREEN_THREAD_RPC_NO_SUCH_METHOD`
+
+An RPC call between a [green thread][] and its host was made for a method that
+the target doesn't have.
+
+<a id="ERR_GREEN_THREAD_RPC_UNKNOWN_EXPORT"></a>
+
+### `ERR_GREEN_THREAD_RPC_UNKNOWN_EXPORT`
+
+An RPC call between a [green thread][] and its host was made to a target that
+was already released.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
