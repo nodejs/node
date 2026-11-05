@@ -3,10 +3,20 @@
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+const { cpSync } = require('fs');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const { join } = require('path');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const testFixtures = fixtures.path('test-runner');
+
+tmpdir.refresh();
+const literalDirs = ['matching-patterns[1]', 'matching-patterns{1,2}'].map((dir) => join(tmpdir.path, dir));
+for (const dir of literalDirs) {
+  cpSync(join(testFixtures, 'matching-patterns'), dir, { recursive: true });
+}
+// This sibling must not be selected by treating the directory as a glob.
+cpSync(join(testFixtures, 'default-behavior'), join(tmpdir.path, 'matching-patterns1'), { recursive: true });
 
 for (const isolation of ['none', 'process']) {
   {
@@ -67,7 +77,8 @@ for (const isolation of ['none', 'process']) {
     // A directory argument is searched for the default test files within it,
     // both bare and with a trailing separator.
     // Refs: https://github.com/nodejs/node/issues/64555
-    for (const dir of ['matching-patterns', 'matching-patterns/']) {
+    for (const dir of ['matching-patterns', 'matching-patterns/',
+                       ...literalDirs, ...literalDirs.map((dir) => `${dir}/`)]) {
       const args = ['--test', '--test-reporter=tap',
                     '--no-experimental-strip-types',
                     `--test-isolation=${isolation}`, dir];
