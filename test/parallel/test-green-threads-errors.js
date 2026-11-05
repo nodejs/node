@@ -42,6 +42,13 @@ async function expectError(source, expected, options, message) {
   await expectError('const items = []; for (;;) items.push(new Array(1e4));',
                     { code: 'ERR_GREEN_THREAD_OUT_OF_MEMORY' },
                     { resourceLimits: { maxOldGenerationSizeMb: 16 } });
+  // No JS runs after reaching the heap limit, not even queued microtasks.
+  await expectError(`
+    queueMicrotask(() => postMessage('unreachable'));
+    const items = [];
+    for (;;) items.push(new Array(1e4));
+  `, { code: 'ERR_GREEN_THREAD_OUT_OF_MEMORY' },
+                    { resourceLimits: { maxOldGenerationSizeMb: 16 } });
 
   // A rejection that is handled in the same task is not an error.
   {
