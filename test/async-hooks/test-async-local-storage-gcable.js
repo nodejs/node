@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_gc
+// Flags: --expose_gc --no-deprecation
 
 // This test ensures that AsyncLocalStorage gets gced once it was disabled
 // and no strong references remain in userland.
