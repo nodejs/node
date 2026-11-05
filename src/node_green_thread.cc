@@ -296,21 +296,27 @@ class GreenThreadPool {
     WakeIdleThread(nullptr);
   }
 
+  // Whether there is background work that may run now.
   bool HasBackground() {
     Mutex::ScopedLock lock(ready_mutex_);
-    return !background_.empty();
+    return !background_.empty() && background_running_ < MaxBackground();
   }
 
-  // Runs one item of background work, if there is any.
+  // Runs one item of background work, if there is any that may run now.
   void RunBackground() {
     std::function<void()> callback;
     {
       Mutex::ScopedLock lock(ready_mutex_);
-      if (background_.empty()) return;
+      if (background_.empty() || background_running_ >= MaxBackground()) {
+        return;
+      }
       callback = std::move(background_.front());
       background_.pop_front();
+      background_running_++;
     }
     callback();
+    Mutex::ScopedLock lock(ready_mutex_);
+    background_running_--;
   }
 
   inline void RunReady(PoolThread* thread, size_t budget);
@@ -338,11 +344,18 @@ class GreenThreadPool {
 
   inline std::shared_ptr<GreenIsolate> TakeReady(PoolThread* thread);
 
+  // Background work can take a while, e.g. creating an isolate, and can't be
+  // interrupted, so some threads are always left for other work.
+  size_t MaxBackground() const {
+    return std::max<size_t>(1, threads_.size() / 2);
+  }
+
   std::vector<std::unique_ptr<PoolThread>> threads_;
   std::atomic<size_t> next_{0};
   Mutex ready_mutex_;
   std::deque<std::shared_ptr<GreenIsolate>> ready_;
   std::deque<std::function<void()>> background_;
+  size_t background_running_ = 0;
 };
 
 void PoolThread::OnWakeup(uv_async_t* handle) {
@@ -811,11 +824,19 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     Submit([options](GreenIsolate* self) {
       self->Initialize(options);
+      {
+        Mutex::ScopedLock lock(self->scheduler_mutex_);
+        self->low_priority_ = false;
+      }
       if (self->on_initialized_) {
         self->on_initialized_(self->state_ == State::kWarm && !self->fatal_);
       }
     });
   }
+
+  // Makes Prepare()'s work background work, which only runs when pool threads
+  // have nothing else to do. Must be called before Prepare().
+  void set_low_priority() { low_priority_ = true; }
 
   // Called on a pool thread once Prepare()'s work has run, with whether the
   // isolate is ready to be activated. Must be set before Prepare().
@@ -1083,6 +1104,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (bound != nullptr) {
       bound->Post(
           [self = shared_from_this(), bound]() { self->RunSlice(bound); });
+    } else if (low_priority_) {
+      GreenThreadPool::Get()->PostBackground([self = shared_from_this()]() {
+        self->RunSlice(current_pool_thread);
+      });
     } else {
       GreenThreadPool::Get()->ScheduleReady(shared_from_this(),
                                             last_thread_.load());
@@ -2112,6 +2137,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::deque<QueuedWork> queue_;
   bool locked_ = false;
   bool scheduled_ = false;
+  // Until Prepare()'s work has run. See set_low_priority().
+  bool low_priority_ = false;
   bool stopped_ = false;
   uint64_t next_delayed_v8_task_id_ = 0;
   DelayedV8Tasks delayed_v8_tasks_;
@@ -2278,9 +2305,14 @@ class WarmPool {
   // thread but a pool thread.
   std::shared_ptr<GreenIsolate> Take(MultiIsolatePlatform* platform) {
     Mutex::ScopedLock lock(mutex_);
-    if (idle_.empty() || platform_ != platform) return nullptr;
-    std::shared_ptr<GreenIsolate> green = std::move(idle_.front().green);
-    idle_.pop_front();
+    if (platform_ != platform) return nullptr;
+    // An isolate that is still being initialized would make the green thread
+    // wait for background work.
+    auto it = std::find_if(
+        idle_.begin(), idle_.end(), [](const Entry& e) { return e.ready; });
+    if (it == idle_.end()) return nullptr;
+    std::shared_ptr<GreenIsolate> green = std::move(it->green);
+    idle_.erase(it);
     RefillLocked();
     return green;
   }
@@ -2301,6 +2333,7 @@ class WarmPool {
     auto green = std::make_shared<GreenIsolate>(platform_);
     green->set_on_initialized(
         [this, key = green.get()](bool ok) { OnInitialized(key, ok); });
+    green->set_low_priority();
     green->Prepare({});
     idle_.push_back({std::move(green), false});
   }
