@@ -407,9 +407,21 @@ uint64_t ThreadCpuTime() {
 // any thread.
 class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
  public:
-  explicit LimitedAllocator(size_t limit)
+  // In sandbox builds, memory has to come from the sandbox of the isolate's
+  // group.
+  LimitedAllocator(size_t limit, const v8::IsolateGroup& group)
+#if defined(V8_COMPRESS_POINTERS) &&                                           \
+    !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+      : allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator(group)),
+#else
       : allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator()),
-        limit_(limit) {}
+#endif
+        limit_(limit) {
+  }
+
+  v8::PageAllocator* GetPageAllocator() override {
+    return allocator_->GetPageAllocator();
+  }
 
   void* Allocate(size_t length) override {
     if (!Reserve(length)) return nullptr;
@@ -430,9 +442,15 @@ class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
     allocated_ -= length;
   }
 
-  size_t limit() const { return limit_; }
-  size_t allocated() const { return allocated_.load(); }
-  void set_heap_used(size_t heap_used) { heap_used_ = heap_used; }
+  size_t limit() const {
+    return limit_;
+  }
+  size_t allocated() const {
+    return allocated_.load();
+  }
+  void set_heap_used(size_t heap_used) {
+    heap_used_ = heap_used;
+  }
 
  private:
   // Leaves some of the limit for the heap to grow into before the next GC,
@@ -682,6 +700,18 @@ class GreenTaskRunner final : public TaskRunner {
 // used up or the next item is bound to another thread. Threads never block
 // waiting for an isolate. Except where noted, methods run in a slice, i.e.
 // with the logical lock held.
+enum class IsolateGroupKind : int32_t { kDefault = 0, kNew = 1, kShared = 2 };
+
+// Like Node.js' own isolates, green isolates get a group of their own if the
+// build supports that.
+IsolateGroupKind DefaultIsolateGroupKind() {
+  return v8::IsolateGroup::CanCreateNewGroups() ? IsolateGroupKind::kNew
+                                                : IsolateGroupKind::kDefault;
+}
+
+// Identifies isolate groups in tests. 0 is V8's default group.
+std::atomic<uint64_t> next_isolate_group_id{1};
+
 class GreenIsolate final : public IsolatePlatformDelegate,
                            public std::enable_shared_from_this<GreenIsolate> {
  public:
@@ -698,12 +728,17 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // In nanoseconds.
     uint64_t max_cpu_time = 0;
     uint64_t max_task_cpu_time = 0;
+    // The isolate group to create the isolate in: V8's default group, a new
+    // one, or `shared_group`. `group_id` identifies the group in tests.
+    IsolateGroupKind group = DefaultIsolateGroupKind();
+    std::optional<v8::IsolateGroup> shared_group;
+    uint64_t group_id = 0;
 
     // Whether an isolate created with the default options (i.e. a warm one)
     // can be used.
     bool CanUseDefaultIsolate() const {
       return max_old_generation_size == 0 && max_young_generation_size == 0 &&
-             max_memory == 0;
+             max_memory == 0 && group == DefaultIsolateGroupKind();
     }
   };
 
@@ -996,7 +1031,21 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     PoolThread* thread = current_pool_thread;
 
     Isolate::CreateParams params;
-    allocator_ = std::make_shared<LimitedAllocator>(options.max_memory);
+    v8::IsolateGroup group = v8::IsolateGroup::GetDefault();
+    group_id_ = 0;
+    if (options.group == IsolateGroupKind::kNew) {
+      group = v8::IsolateGroup::Create();
+      group_id_ = next_isolate_group_id++;
+    } else if (options.group == IsolateGroupKind::kShared) {
+      group = *options.shared_group;
+      group_id_ = options.group_id;
+    }
+    // Isolates in V8's default group must use the snapshot that all other
+    // isolates in it use, Node.js' own. Groups that only contain green
+    // isolates can use V8's built-in snapshot, which is much smaller, since
+    // green threads don't need any of Node.js' per-isolate state.
+    uses_node_snapshot_ = group == v8::IsolateGroup::GetDefault();
+    allocator_ = std::make_shared<LimitedAllocator>(options.max_memory, group);
     params.array_buffer_allocator_shared = allocator_;
     size_t max_old_generation_size = options.max_old_generation_size;
     if (max_old_generation_size == 0) {
@@ -1020,7 +1069,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     settings.allow_wasm_code_generation_callback =
         [](Local<Context>, Local<String>) { return true; };
 
-    Isolate* isolate = NewIsolate(&params, this, platform_, settings);
+    Isolate* isolate = NewIsolate(
+        &params, this, platform_, settings, group, uses_node_snapshot_);
     if (isolate == nullptr) {
       fatal_ = true;
       return;
@@ -1712,7 +1762,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         FIXED_ONE_BYTE_STRING(isolate, "contextThread"),
         FIXED_ONE_BYTE_STRING(isolate, "contexts"),
         FIXED_ONE_BYTE_STRING(isolate, "timers"),
+        FIXED_ONE_BYTE_STRING(isolate, "isolateGroup"),
+        FIXED_ONE_BYTE_STRING(isolate, "usesNodeSnapshot"),
+        FIXED_ONE_BYTE_STRING(isolate, "heapUsed"),
     };
+    v8::HeapStatistics heap;
+    isolate->GetHeapStatistics(&heap);
     Local<Value> values[] = {
         Number::New(isolate, current_pool_thread->index()),
         Number::New(isolate, GreenThreadPool::Get()->size()),
@@ -1720,6 +1775,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Number::New(isolate, self->contexts_.at(context_id).thread->index()),
         Number::New(isolate, self->contexts_.size()),
         Number::New(isolate, self->timers_.size()),
+        Number::New(isolate, static_cast<double>(self->group_id_)),
+        Boolean::New(isolate, self->uses_node_snapshot_),
+        Number::New(isolate, static_cast<double>(heap.used_heap_size())),
     };
     args.GetReturnValue().Set(Object::New(
         isolate, v8::Null(isolate), names, values, arraysize(names)));
@@ -1792,6 +1850,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   State state_ = State::kPending;
   Global<Context> context_;
   std::shared_ptr<LimitedAllocator> allocator_;
+  uint64_t group_id_ = 0;
+  bool uses_node_snapshot_ = true;
   uint64_t max_cpu_time_ = 0;
   uint64_t max_task_cpu_time_ = 0;
   uint64_t cpu_time_used_ = 0;
@@ -1983,6 +2043,47 @@ void TerminateAll() {
 
 namespace {
 
+// A V8 isolate group that green threads can share.
+class IsolateGroupWrap final : public BaseObject {
+ public:
+  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
+    constructor->InstanceTemplate()->SetInternalFieldCount(
+        IsolateGroupWrap::kInternalFieldCount);
+    return constructor;
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    registry->Register(New);
+  }
+
+  const v8::IsolateGroup& group() const { return group_; }
+  uint64_t id() const { return id_; }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(IsolateGroupWrap)
+  SET_SELF_SIZE(IsolateGroupWrap)
+
+ private:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    CHECK(v8::IsolateGroup::CanCreateNewGroups());
+    new IsolateGroupWrap(Environment::GetCurrent(args), args.This());
+  }
+
+  IsolateGroupWrap(Environment* env, Local<Object> object)
+      : BaseObject(env, object),
+        group_(v8::IsolateGroup::Create()),
+        id_(next_isolate_group_id++) {
+    MakeWeak();
+  }
+
+  // Green isolates hold their own references to the group.
+  v8::IsolateGroup group_;
+  const uint64_t id_;
+};
+
 // Calls its `onready` method once the warm pool is full, then can be closed.
 class WarmPoolWaiter final : public HandleWrap {
  public:
@@ -2069,6 +2170,15 @@ class GreenThreadWrap final : public HandleWrap {
                            target,
                            "WarmPoolWaiter",
                            WarmPoolWaiter::GetConstructorTemplate(env));
+    SetConstructorFunction(context,
+                           target,
+                           "IsolateGroup",
+                           IsolateGroupWrap::GetConstructorTemplate(env));
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "isolateGroupsSupported"),
+              Boolean::New(isolate, v8::IsolateGroup::CanCreateNewGroups()))
+        .Check();
 
 #define V(name, value)                                                         \
   target                                                                       \
@@ -2085,6 +2195,9 @@ class GreenThreadWrap final : public HandleWrap {
     V("kErrorOutOfMemory", kErrorOutOfMemory)
     V("kErrorCpuLimit", kErrorCpuLimit)
     V("kFlagTestingGlobals", kFlagTestingGlobals)
+    V("kIsolateGroupDefault", static_cast<int32_t>(IsolateGroupKind::kDefault))
+    V("kIsolateGroupNew", static_cast<int32_t>(IsolateGroupKind::kNew))
+    V("kIsolateGroupShared", static_cast<int32_t>(IsolateGroupKind::kShared))
 #undef V
   }
 
@@ -2095,6 +2208,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
     WarmPoolWaiter::RegisterExternalReferences(registry);
+    IsolateGroupWrap::RegisterExternalReferences(registry);
   }
 
   void Close(Local<Value> close_callback) override {
@@ -2159,6 +2273,20 @@ class GreenThreadWrap final : public HandleWrap {
     if (args[5]->IsNumber()) options.max_memory = megabytes(args[5]);
     options.max_cpu_time = milliseconds(args[6]);
     options.max_task_cpu_time = milliseconds(args[7]);
+    // args[8]: an IsolateGroupKind, or undefined for the default. args[9]: the
+    // IsolateGroup for kShared.
+    if (args[8]->IsInt32()) {
+      options.group =
+          static_cast<IsolateGroupKind>(args[8].As<Int32>()->Value());
+      CHECK(options.group == IsolateGroupKind::kDefault ||
+            v8::IsolateGroup::CanCreateNewGroups());
+      if (options.group == IsolateGroupKind::kShared) {
+        IsolateGroupWrap* group;
+        ASSIGN_OR_RETURN_UNWRAP(&group, args[9]);
+        options.shared_group = group->group();
+        options.group_id = group->id();
+      }
+    }
 
     new GreenThreadWrap(env, args.This(), std::move(options));
   }

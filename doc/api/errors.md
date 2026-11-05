@@ -1550,6 +1550,14 @@ An operation was attempted on a [green thread][] that has exited, or a pending
 [`greenThread.evaluate()`][] call was interrupted because the green thread
 exited.
 
+<a id="ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED"></a>
+
+### `ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`
+
+An [`IsolateGroup`][] was created, or a [green thread][] was asked to use a new
+isolate group, but this build of Node.js does not support isolate groups.
+They require building Node.js with `--experimental-enable-pointer-compression`.
+
 <a id="ERR_GREEN_THREAD_OUT_OF_MEMORY"></a>
 
 ### `ERR_GREEN_THREAD_OUT_OF_MEMORY`
@@ -4819,6 +4827,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`EventEmitter`]: events.md#class-eventemitter
+[`IsolateGroup`]: green_threads.md#class-isolategroup
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf

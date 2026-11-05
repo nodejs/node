@@ -158,7 +158,69 @@ refilled after a green thread takes one. Isolates in the warm pool use memory,
 about 3 MB each.
 
 Only green threads without the `maxMemoryMb`, `maxOldGenerationSizeMb` and
-`maxYoungGenerationSizeMb` options use the warm pool.
+`maxYoungGenerationSizeMb` options, and in their default isolate group, use the
+warm pool.
+
+## Isolate groups
+
+When Node.js is built with `--experimental-enable-pointer-compression`, V8
+limits the heaps of all isolates in an isolate group to 4 GB together. Isolates
+in different groups are independent of each other: each group has its own
+pointer compression cage and its own copy of the read-only part of the heap.
+[`IsolateGroup.supported`][] tells whether this build of Node.js supports
+creating isolate groups.
+
+Where it does, each green thread gets an isolate group of its own by default,
+so that green threads can't use up the heap space of the main thread or of
+each other. Isolates in groups that only green threads use also start from
+V8's own startup snapshot, which is smaller than the one Node.js uses, so they
+use less memory. The `isolateGroup` option of the [`GreenThread`][] constructor
+selects the group instead:
+
+* `'new'`: a group of its own. The default where isolate groups are supported.
+* `'default'`: V8's default group, which the main thread and workers are in
+  unless they have groups of their own. The default where isolate groups are
+  not supported.
+* An [`IsolateGroup`][]: a group that green threads share.
+
+```cjs
+const { GreenThread, IsolateGroup } = require('node:green_threads');
+
+if (IsolateGroup.supported) {
+  const group = new IsolateGroup();
+  // Both green threads together can use at most 4 GB of heap.
+  const a = new GreenThread('', { isolateGroup: group });
+  const b = new GreenThread('', { isolateGroup: group });
+}
+```
+
+## Class: `IsolateGroup`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A V8 isolate group that green threads can share. See [Isolate groups][].
+
+### `new IsolateGroup()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Creates an isolate group. Throws an
+[`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`][] error if this build of Node.js
+doesn't support isolate groups.
+
+### Static property: `IsolateGroup.supported`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Whether this build of Node.js supports isolate groups.
 
 ## Class: `GreenThread`
 
@@ -178,6 +240,10 @@ added: REPLACEME
 * `options` {Object}
   * `filename` {string} The file name used in stack traces.
     **Default:** `'green-thread.js'`.
+  * `isolateGroup` {string|IsolateGroup} The isolate group of the green
+    thread: `'new'`, `'default'`, or an {IsolateGroup}. See
+    [Isolate groups][]. **Default:** `'new'` if this build of Node.js supports
+    isolate groups, `'default'` otherwise.
   * `resourceLimits` {Object}
     * `maxOldGenerationSizeMb` {number} The maximum size of the main heap, in
       MB. `0` uses the V8 default. **Default:** `0`.
@@ -324,6 +390,7 @@ added: REPLACEME
 Calls [`greenThread.terminate()`][].
 
 [CPU time limits]: #cpu-time-limits
+[Isolate groups]: #isolate-groups
 [Resource limits]: #resource-limits
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
@@ -331,8 +398,11 @@ Calls [`greenThread.terminate()`][].
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
 [`ERR_GREEN_THREAD_CPU_LIMIT`]: errors.md#err_green_thread_cpu_limit
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
+[`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_green_thread_isolate_groups_unsupported
 [`ERR_GREEN_THREAD_OUT_OF_MEMORY`]: errors.md#err_green_thread_out_of_memory
 [`GreenThread`]: #new-greenthreadsource-options
+[`IsolateGroup.supported`]: #static-property-isolategroupsupported
+[`IsolateGroup`]: #class-isolategroup
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue
 [`greenThread.terminate()`]: #greenthreadterminate
