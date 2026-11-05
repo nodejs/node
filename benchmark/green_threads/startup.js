@@ -15,18 +15,13 @@ async function main({ kind, n }) {
     case 'green-thread':
     case 'green-thread-warm': {
       const { GreenThread, setWarmPoolSize } = require('node:green_threads');
-      if (kind === 'green-thread-warm') {
-        setWarmPoolSize(n);
-        // There is no way to know when the pool is full, so give it time to
-        // fill up.
-        await new Promise((resolve) => setTimeout(resolve, 200 + n * 5));
-      }
+      if (kind === 'green-thread-warm') await setWarmPoolSize(n);
       bench.start();
       const greenThreads = Array.from(
         { length: n }, () => new GreenThread('postMessage(0);'));
       await Promise.all(greenThreads.map((g) => once(g, 'message')));
       bench.end(n);
-      setWarmPoolSize(0);
+      await setWarmPoolSize(0);
       await Promise.all(greenThreads.map((g) => g.terminate()));
       break;
     }
