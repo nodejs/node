@@ -406,7 +406,6 @@
           'variables': {
             'mksnapshot_flags': [
               '--turbo_instruction_scheduling',
-              '--turbo-always-optimize-spills',
               # In cross builds, the snapshot may be generated for both the host and
               # target toolchains.  The same host binary is used to generate both, so
               # mksnapshot needs to know which target OS to use at runtime.  It's weird,
