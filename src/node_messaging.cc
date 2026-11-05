@@ -269,6 +269,8 @@ MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
   return emit_message_val.As<Function>();
 }
 
+}  // anonymous namespace
+
 MaybeLocal<Function> GetDOMException(Local<Context> context) {
   Isolate* isolate = Isolate::GetCurrent();
   Local<Object> per_context_bindings;
@@ -297,6 +299,8 @@ void ThrowDataCloneException(Local<Context> context, Local<String> message) {
   }
   isolate->ThrowException(exception);
 }
+
+namespace {
 
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
