@@ -53,4 +53,6 @@ runs:
             .[0]
           ' "$NODE_WPT_REPORT" "$UNDICI_WPT_REPORT" > "${NODE_WPT_REPORT}.tmp"
           mv "${NODE_WPT_REPORT}.tmp" "$NODE_WPT_REPORT"
+        else
+          echo "::warning::Undici WPT did not produce a report; uploading the Node.js WPT report without Undici results."
         fi
