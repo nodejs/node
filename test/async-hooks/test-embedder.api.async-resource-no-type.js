@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 'use strict';
 
 const common = require('../common');
@@ -25,7 +26,7 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  const args = process.argv.slice(1).concat('child');
+  const args = [...process.execArgv, ...process.argv.slice(1), 'child'];
   spawn(process.execPath, args)
     .on('close', common.mustCall((code) => {
       // No error because the type was defaulted
