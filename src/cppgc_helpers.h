@@ -15,6 +15,12 @@
 
 namespace node {
 
+// The tag of the pointers from JS wrappers to cppgc-managed objects. V8 only
+// defines a default tag when the sandbox is disabled, since embedders that use
+// the sandbox should use specific tags; this one has the same value.
+constexpr v8::CppHeapPointerTag kCppgcWrappableTag =
+    v8::CppHeapPointerTag::kFirstEmbedderWrappableTag;
+
 class Environment;
 class Realm;
 class CppgcWrapperListNode;
