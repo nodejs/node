@@ -124,7 +124,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
     "internal/bootstrap/",
     "internal/per_context/",
     "internal/deps/",
-    "internal/main/"
+    "internal/main/",
+    // Only run in green threads.
+    "internal/green_threads/",
   };
 
   builtin_categories.cannot_be_required = std::set<std::string> {
