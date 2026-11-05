@@ -91,6 +91,7 @@ enum EventType : int32_t {
   kEventEvalResult,
   kEventError,
   kEventExit,
+  kEventWarmPoolFull,
 };
 
 // Values of the `id` field of kEventError events.
@@ -708,7 +709,18 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       Mutex::ScopedLock lock(live_green_isolates_mutex);
       live_green_isolates.emplace(this, weak_from_this());
     }
-    Submit([options](GreenIsolate* self) { self->Initialize(options); });
+    Submit([options](GreenIsolate* self) {
+      self->Initialize(options);
+      if (self->on_initialized_) {
+        self->on_initialized_(self->state_ == State::kWarm && !self->fatal_);
+      }
+    });
+  }
+
+  // Called on a pool thread once Prepare()'s work has run, with whether the
+  // isolate is ready to be activated. Must be set before Prepare().
+  void set_on_initialized(std::function<void(bool)> on_initialized) {
+    on_initialized_ = std::move(on_initialized);
   }
 
   // Connects the green thread to its host and runs its script, possibly
@@ -1736,6 +1748,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   MultiIsolatePlatform* const platform_;
   std::shared_ptr<GreenTaskRunner> task_runner_;
+  std::function<void(bool)> on_initialized_;
 
   Mutex host_mutex_;
   std::shared_ptr<HostChannel> host_;
@@ -1834,11 +1847,16 @@ class WarmPool {
     Mutex::ScopedLock lock(mutex_);
     shut_down_ = true;
     size_ = 0;
+    waiters_.clear();
   }
 
-  // May be called from any thread but a pool thread.
-  void SetSize(size_t size, MultiIsolatePlatform* platform) {
-    std::deque<std::shared_ptr<GreenIsolate>> removed;
+  // Sets the size of the pool. Once it holds that many initialized isolates,
+  // an event is pushed to `waiter`, unless it is null. May be called from any
+  // thread but a pool thread.
+  void SetSize(size_t size,
+               MultiIsolatePlatform* platform,
+               std::shared_ptr<HostChannel> waiter) {
+    std::deque<Entry> removed;
     {
       Mutex::ScopedLock lock(mutex_);
       if (shut_down_) return;
@@ -1851,9 +1869,11 @@ class WarmPool {
         removed.push_back(std::move(idle_.back()));
         idle_.pop_back();
       }
+      if (waiter) waiters_.push_back(std::move(waiter));
       RefillLocked();
+      MaybeNotifyLocked();
     }
-    for (auto& green : removed) green->Terminate();
+    for (Entry& entry : removed) entry.green->Terminate();
   }
 
   // Returns nullptr if no isolate is available. May be called from any
@@ -1861,7 +1881,7 @@ class WarmPool {
   std::shared_ptr<GreenIsolate> Take(MultiIsolatePlatform* platform) {
     Mutex::ScopedLock lock(mutex_);
     if (idle_.empty() || platform_ != platform) return nullptr;
-    std::shared_ptr<GreenIsolate> green = std::move(idle_.front());
+    std::shared_ptr<GreenIsolate> green = std::move(idle_.front().green);
     idle_.pop_front();
     RefillLocked();
     return green;
@@ -1881,16 +1901,51 @@ class WarmPool {
     refilling_--;
     if (shut_down_ || idle_.size() + refilling_ >= size_) return;
     auto green = std::make_shared<GreenIsolate>(platform_);
+    green->set_on_initialized(
+        [this, key = green.get()](bool ok) { OnInitialized(key, ok); });
     green->Prepare({});
-    idle_.push_back(std::move(green));
+    idle_.push_back({std::move(green), false});
   }
+
+  // Runs on a pool thread.
+  void OnInitialized(const GreenIsolate* key, bool ok) {
+    Mutex::ScopedLock lock(mutex_);
+    auto it = std::find_if(idle_.begin(), idle_.end(), [&](const Entry& e) {
+      return e.green.get() == key;
+    });
+    // It may have been taken already.
+    if (it == idle_.end()) return;
+    if (ok) {
+      it->ready = true;
+    } else {
+      idle_.erase(it);
+      RefillLocked();
+    }
+    MaybeNotifyLocked();
+  }
+
+  void MaybeNotifyLocked() {
+    if (waiters_.empty()) return;
+    const size_t ready = std::count_if(
+        idle_.begin(), idle_.end(), [](const Entry& e) { return e.ready; });
+    if (ready < size_) return;
+    for (auto& waiter : waiters_) waiter->Push({kEventWarmPoolFull});
+    waiters_.clear();
+  }
+
+  struct Entry {
+    std::shared_ptr<GreenIsolate> green;
+    // Whether its isolate has been initialized.
+    bool ready;
+  };
 
   Mutex mutex_;
   size_t size_ = 0;
   size_t refilling_ = 0;
   bool shut_down_ = false;
   MultiIsolatePlatform* platform_ = nullptr;
-  std::deque<std::shared_ptr<GreenIsolate>> idle_;
+  std::deque<Entry> idle_;
+  std::vector<std::shared_ptr<HostChannel>> waiters_;
 };
 
 }  // namespace
@@ -1914,6 +1969,68 @@ void TerminateAll() {
 
 namespace {
 
+// Calls its `onready` method once the warm pool is full, then can be closed.
+class WarmPoolWaiter final : public HandleWrap {
+ public:
+  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
+    constructor->InstanceTemplate()->SetInternalFieldCount(
+        WarmPoolWaiter::kInternalFieldCount);
+    constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
+    return constructor;
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    registry->Register(New);
+  }
+
+  const std::shared_ptr<HostChannel>& channel() const { return channel_; }
+
+  void Close(Local<Value> close_callback) override {
+    channel_->Close();
+    HandleWrap::Close(close_callback);
+  }
+
+  ~WarmPoolWaiter() override { channel_->Close(); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WarmPoolWaiter)
+  SET_SELF_SIZE(WarmPoolWaiter)
+
+ private:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    new WarmPoolWaiter(Environment::GetCurrent(args), args.This());
+  }
+
+  WarmPoolWaiter(Environment* env, Local<Object> object)
+      : HandleWrap(env,
+                   object,
+                   reinterpret_cast<uv_handle_t*>(&async_),
+                   AsyncWrap::PROVIDER_GREENTHREAD) {
+    CHECK_EQ(uv_async_init(env->event_loop(), &async_, OnAsyncCallback), 0);
+    channel_ = std::make_shared<HostChannel>(&async_);
+  }
+
+  static void OnAsyncCallback(uv_async_t* handle) {
+    WarmPoolWaiter* waiter = ContainerOf(&WarmPoolWaiter::async_, handle);
+    waiter->OnAsync();
+  }
+
+  void OnAsync() {
+    if (channel_->Take().empty() || IsHandleClosing()) return;
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+    MakeCallback(FIXED_ONE_BYTE_STRING(env()->isolate(), "onready").As<Name>(),
+                 0,
+                 nullptr);
+  }
+
+  uv_async_t async_;
+  std::shared_ptr<HostChannel> channel_;
+};
+
 // The host side of a green thread.
 class GreenThreadWrap final : public HandleWrap {
  public:
@@ -1934,6 +2051,10 @@ class GreenThreadWrap final : public HandleWrap {
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
+    SetConstructorFunction(context,
+                           target,
+                           "WarmPoolWaiter",
+                           WarmPoolWaiter::GetConstructorTemplate(env));
 
 #define V(name, value)                                                         \
   target                                                                       \
@@ -1959,6 +2080,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Evaluate);
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
+    WarmPoolWaiter::RegisterExternalReferences(registry);
   }
 
   void Close(Local<Value> close_callback) override {
@@ -1975,12 +2097,15 @@ class GreenThreadWrap final : public HandleWrap {
   SET_SELF_SIZE(GreenThreadWrap)
 
  private:
-  // setWarmPoolSize(size)
+  // setWarmPoolSize(size, waiter)
   static void SetWarmPoolSize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsUint32());
+    WarmPoolWaiter* waiter;
+    ASSIGN_OR_RETURN_UNWRAP(&waiter, args[1]);
     WarmPool::Get()->SetSize(args[0].As<Uint32>()->Value(),
-                             env->isolate_data()->platform());
+                             env->isolate_data()->platform(),
+                             waiter->channel());
   }
 
   // new GreenThread(source, filename, maxOldGenerationSizeMb,

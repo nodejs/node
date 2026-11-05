@@ -131,9 +131,21 @@ added: REPLACEME
 -->
 
 * `size` {integer} An integer between `0` and `1024`.
+* Returns: {Promise} Fulfilled with `undefined` once the pool holds `size`
+  isolates that are ready to use.
 
 Sets how many green threads are prepared ahead of time, for the whole process.
 **Default:** `0`.
+
+```cjs
+const { GreenThread, setWarmPoolSize } = require('node:green_threads');
+
+(async () => {
+  await setWarmPoolSize(16);
+  // These start without having to create an isolate.
+  const greenThreads = Array.from({ length: 16 }, () => new GreenThread(''));
+})();
+```
 
 Most of the time it takes to start a green thread is spent creating its V8
 isolate. Isolates in the warm pool are created in the background, when pool
