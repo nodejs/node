@@ -32,9 +32,13 @@ module.exports = class DecoratorHandler {
   onResponseStart (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
-    assert(!this.#onResponseStartCalled)
 
-    this.#onResponseStartCalled = true
+    // Interim 1xx responses (e.g. 103 Early Hints) come before the final one.
+    const statusCode = args[1]
+    if (statusCode >= 200) {
+      assert(!this.#onResponseStartCalled)
+      this.#onResponseStartCalled = true
+    }
 
     return this.#handler.onResponseStart?.(...args)
   }

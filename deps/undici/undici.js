@@ -7045,14 +7045,35 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             "Response body object should not be disturbed or locked"
           );
         }
-        stream = webidl.is.ReadableStream(object) ? object : ReadableStream.from(object).pipeThrough(new TransformStream({
-          transform(chunk, controller) {
-            const bytes = isUint8Array(chunk) ? chunk : Buffer.from(chunk);
-            if (bytes.byteLength) {
-              controller.enqueue(bytes);
+        if (webidl.is.ReadableStream(object)) {
+          stream = object;
+        } else {
+          const reader = ReadableStream.from(object).getReader();
+          let cancelled = false;
+          stream = new ReadableStream({
+            async pull(controller) {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (cancelled) {
+                  return;
+                }
+                if (done) {
+                  controller.close();
+                  return;
+                }
+                const bytes = isUint8Array(value) ? value : Buffer.from(value);
+                if (bytes.byteLength) {
+                  controller.enqueue(bytes);
+                  return;
+                }
+              }
+            },
+            cancel(reason) {
+              cancelled = true;
+              return reader.cancel(reason);
             }
-          }
-        }));
+          }, { highWaterMark: 0 });
+        }
       }
       if (typeof source === "string" || isUint8Array(source)) {
         action = /* @__PURE__ */ __name(() => source, "action");
@@ -7292,7 +7313,9 @@ var require_client_h1 = __commonJS({
       const llhttpWasmData = process.env.JEST_WORKER_ID ? require_llhttp_wasm() : void 0;
       let mod;
       let useWasmSIMD = true;
-      if (process.arch === "ppc64") {
+      if (process.arch === "riscv64") {
+        useWasmSIMD = false;
+      } else if (process.arch === "ppc64") {
         const [major, minor] = process.versions.node.split(".").map((n) => parseInt(n, 10));
         if (major < 24 || major === 24 && minor < 12) {
           useWasmSIMD = false;
@@ -8638,7 +8661,6 @@ var require_client_h2 = __commonJS({
     } = require_symbols();
     var { channels } = require_diagnostics();
     var kOpenStreams = /* @__PURE__ */ Symbol("open streams");
-    var kRequestStreamId = /* @__PURE__ */ Symbol("request stream id");
     var kRequestStream = /* @__PURE__ */ Symbol("request stream");
     var kRequestStreamCleanup = /* @__PURE__ */ Symbol("request stream cleanup");
     var kRequestStreamState = /* @__PURE__ */ Symbol("request stream state");
@@ -8646,6 +8668,7 @@ var require_client_h2 = __commonJS({
     var kGoAwayReplayAttempts = /* @__PURE__ */ Symbol("goaway replay attempts");
     var kRefusedStreamRetry = /* @__PURE__ */ Symbol("refused stream retry");
     var MAX_GOAWAY_REPLAY_ATTEMPTS = 1;
+    var HTTP2_FRAME_TYPE_HEADERS = 1;
     var MIN_PROBE_TIMEOUT = 1e3;
     var extractBody;
     var http2;
@@ -8699,7 +8722,8 @@ var require_client_h2 = __commonJS({
         if (request == null) {
           continue;
         }
-        if (typeof request[kRequestStreamId] !== "number" || request[kRequestStreamId] > maxAcceptedStreamID) {
+        const streamId = request[kRequestStream]?.id;
+        if (typeof streamId !== "number" || streamId > maxAcceptedStreamID) {
           return i;
         }
       }
@@ -8707,7 +8731,6 @@ var require_client_h2 = __commonJS({
     }
     __name(getGoAwayPendingIdx, "getGoAwayPendingIdx");
     function detachRequestFromStream(request) {
-      request[kRequestStreamId] = null;
       request[kRequestStream] = null;
       request[kRequestStreamCleanup] = null;
     }
@@ -8717,7 +8740,6 @@ var require_client_h2 = __commonJS({
       const previousStream = request[kRequestStream];
       detachRequestFromStream(request);
       previousCleanup?.(previousStream);
-      request[kRequestStreamId] = stream.id;
       request[kRequestStream] = stream;
       request[kRequestStreamCleanup] = cleanup;
     }
@@ -8795,7 +8817,8 @@ var require_client_h2 = __commonJS({
         closeStreamSession(stream);
       }
       if (!stream.destroyed && !stream.closed) {
-        stream.once("error", noop);
+        stream.off("error", noop);
+        stream.on("error", noop);
       }
     }
     __name(severRequestStream, "severRequestStream");
@@ -9151,14 +9174,12 @@ var require_client_h2 = __commonJS({
           }
         }
       }
-      for (let i = 0; i < streamsToClose.length; i++) {
-        closeStream(streamsToClose[i]);
-      }
       if (pendingIdx !== previousPendingIdx) {
         const remainingPendingRequests = client[kQueue].slice(previousPendingIdx);
         client[kQueue].length = pendingIdx;
         client[kQueue].push(...retriableRequests, ...remainingPendingRequests);
       }
+      client[kPendingIdx] = pendingIdx;
       if (client[kHTTP2Session] === this) {
         client[kSocket] = null;
         client[kHTTPContext] = null;
@@ -9170,10 +9191,12 @@ var require_client_h2 = __commonJS({
       clearHttp2IdleTimeout(this);
       clearNoStreamsTimeout(this);
       clearHttp2ProbeTimeout(this);
+      for (let i = 0; i < streamsToClose.length; i++) {
+        closeStream(streamsToClose[i]);
+      }
       if (!this.closed && !this.destroyed) {
         this.close();
       }
-      client[kPendingIdx] = pendingIdx;
       client.emit("disconnect", client[kUrl], [client], err);
       client[kResume]();
     }
@@ -9257,7 +9280,6 @@ var require_client_h2 = __commonJS({
     }
     __name(closeStreamSession, "closeStreamSession");
     function onUpgradeStreamClose() {
-      this.off("error", noop);
       const state = this[kRequestStreamState];
       this[kRequestStreamState] = null;
       failUpgradeStream(state, new InformationalError("HTTP/2: stream closed before response headers"));
@@ -9335,7 +9357,7 @@ var require_client_h2 = __commonJS({
       }
       removeUpgradeStreamListeners(stream);
       if (!stream.destroyed && !stream.closed) {
-        stream.once("error", noop);
+        stream.on("error", noop);
       }
     }
     __name(releaseUpgradeStream, "releaseUpgradeStream");
@@ -9640,7 +9662,7 @@ var require_client_h2 = __commonJS({
       }
       if (!stream.destroyed && !stream.closed) {
         removeRequestStreamListeners(stream);
-        stream.once("error", noop);
+        stream.on("error", noop);
       }
     }
     __name(releaseRequestStream, "releaseRequestStream");
@@ -9760,15 +9782,29 @@ var require_client_h2 = __commonJS({
         return false;
       }
       request[kRefusedStreamRetry] = true;
+      requeueStreamRequest(client, state);
+      return true;
+    }
+    __name(retryRefusedStream, "retryRefusedStream");
+    function retryUnsentStream(state) {
+      const { client, request, session } = state;
+      if (!session[kReceivedGoAway] || state.responseReceived || request.aborted || request.completed || !canReplayRequest(request) || !registerGoAwayRefusal(request)) {
+        return false;
+      }
+      requeueStreamRequest(client, state);
+      return true;
+    }
+    __name(retryUnsentStream, "retryUnsentStream");
+    function requeueStreamRequest(client, state) {
+      const { request } = state;
       detachRequestStreamForClose(request);
       state.stream = null;
       state.requestFinalized = true;
       completeRequest(client, request);
       client[kQueue].splice(client[kPendingIdx], 0, request);
       client[kResume]();
-      return true;
     }
-    __name(retryRefusedStream, "retryRefusedStream");
+    __name(requeueStreamRequest, "requeueStreamRequest");
     function onError(err) {
       const stream = this;
       const state = stream[kRequestStreamState];
@@ -9776,6 +9812,7 @@ var require_client_h2 = __commonJS({
         return;
       }
       stream.off("error", onError);
+      stream.on("error", noop);
       if (state.responseContentLength != null && state.bytesRead !== state.responseContentLength) {
         err = new ResponseContentLengthMismatchError();
       }
@@ -9795,6 +9832,9 @@ var require_client_h2 = __commonJS({
         return;
       }
       stream.off("frameError", onFrameError);
+      if (type === HTTP2_FRAME_TYPE_HEADERS && retryUnsentStream(state)) {
+        return;
+      }
       state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`));
     }
     __name(onFrameError, "onFrameError");
@@ -13311,44 +13351,69 @@ var require_request2 = __commonJS({
     var { URLSerializer } = require_data_url();
     var { kConstruct } = require_symbols();
     var assert = require("node:assert");
-    var { getMaxListeners, setMaxListeners, defaultMaxListeners } = require("node:events");
-    var kAbortController = /* @__PURE__ */ Symbol("abortController");
-    var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
-      signal.removeEventListener("abort", abort);
+    var requestFinalizer = new FinalizationRegistry(({ signal, reference }) => {
+      removeSignalFollower(signal, reference);
     });
-    var dependentControllerMap = /* @__PURE__ */ new WeakMap();
-    var abortSignalHasEventHandlerLeakWarning;
-    try {
-      abortSignalHasEventHandlerLeakWarning = getMaxListeners(new AbortController().signal) > 0;
-    } catch {
-      abortSignalHasEventHandlerLeakWarning = false;
-    }
-    function buildAbort(acRef) {
-      return abort;
-      function abort() {
-        const ac = acRef.deref();
-        if (ac !== void 0) {
-          requestFinalizer.unregister(abort);
-          this.removeEventListener("abort", abort);
-          ac.abort(this.reason);
-          const controllerList = dependentControllerMap.get(ac.signal);
-          if (controllerList !== void 0) {
-            if (controllerList.size !== 0) {
-              for (const ref of controllerList) {
-                const ctrl = ref.deref();
-                if (ctrl !== void 0) {
-                  ctrl.abort(this.reason);
-                }
-              }
-              controllerList.clear();
-            }
-            dependentControllerMap.delete(ac.signal);
-          }
-        }
+    var requestSignals = /* @__PURE__ */ new WeakMap();
+    var signalFollowers = /* @__PURE__ */ new WeakMap();
+    function removeSignalFollower(signal, reference) {
+      const followers = signalFollowers.get(signal);
+      if (followers instanceof Set) {
+        followers.delete(reference);
+        if (followers.size !== 0) return;
       }
-      __name(abort, "abort");
+      signal.removeEventListener("abort", abortSignalFollowers);
+      signalFollowers.delete(signal);
     }
-    __name(buildAbort, "buildAbort");
+    __name(removeSignalFollower, "removeSignalFollower");
+    function abortSignalFollower(reference, reason) {
+      requestFinalizer.unregister(reference);
+      const ac = reference.deref();
+      if (ac !== void 0) {
+        requestSignals.delete(ac.signal);
+        ac.abort(reason);
+      }
+    }
+    __name(abortSignalFollower, "abortSignalFollower");
+    function abortSignalFollowers() {
+      this.removeEventListener("abort", abortSignalFollowers);
+      const followers = signalFollowers.get(this);
+      if (followers instanceof Set) {
+        for (const reference of followers) {
+          abortSignalFollower(reference, this.reason);
+        }
+        followers.clear();
+      } else {
+        abortSignalFollower(followers, this.reason);
+      }
+      signalFollowers.delete(this);
+    }
+    __name(abortSignalFollowers, "abortSignalFollowers");
+    function createDependentSignal(signal) {
+      const ac = new AbortController();
+      if (signal == null) return ac.signal;
+      if (signal.aborted) {
+        ac.abort(signal.reason);
+        return ac.signal;
+      }
+      const reference = new WeakRef(ac);
+      const followers = signalFollowers.get(signal);
+      if (followers === void 0) {
+        util.addAbortListener(signal, abortSignalFollowers);
+        signalFollowers.set(signal, reference);
+      } else if (followers instanceof WeakRef) {
+        const controllers = /* @__PURE__ */ new Set();
+        controllers.add(followers);
+        controllers.add(reference);
+        signalFollowers.set(signal, controllers);
+      } else {
+        followers.add(reference);
+      }
+      requestFinalizer.register(ac, { signal, reference }, reference);
+      requestSignals.set(ac.signal, { controller: ac, source: signal, reference });
+      return ac.signal;
+    }
+    __name(createDependentSignal, "createDependentSignal");
     var patchMethodWarning = false;
     var setRequestSignal;
     var getRequestDispatcher;
@@ -13368,12 +13433,6 @@ var require_request2 = __commonJS({
       /** @type {Headers} */
       #headers;
       #state;
-      /**
-       * Removes the `abort` listener that makes this request's signal follow the
-       * passed signal. `null` when no such listener was registered.
-       * @type {(() => void) | null}
-       */
-      #abortCleanup = null;
       // https://fetch.spec.whatwg.org/#dom-request
       constructor(input, init = void 0) {
         webidl.util.markAsUncloneable(this);
@@ -13559,27 +13618,7 @@ var require_request2 = __commonJS({
           signal = init.signal;
         }
         this.#state = request;
-        const ac = new AbortController();
-        this.#signal = ac.signal;
-        if (signal != null) {
-          if (signal.aborted) {
-            ac.abort(signal.reason);
-          } else {
-            this[kAbortController] = ac;
-            const acRef = new WeakRef(ac);
-            const abort = buildAbort(acRef);
-            if (abortSignalHasEventHandlerLeakWarning && getMaxListeners(signal) === defaultMaxListeners) {
-              setMaxListeners(1500, signal);
-            }
-            const removeAbortListener = util.addAbortListener(signal, abort);
-            requestFinalizer.register(ac, { signal, abort }, abort);
-            this.#abortCleanup = () => {
-              requestFinalizer.unregister(abort);
-              removeAbortListener();
-              this.#abortCleanup = null;
-            };
-          }
-        }
+        this.#signal = createDependentSignal(signal);
         this.#headers = new Headers(kConstruct);
         setHeadersList(this.#headers, request.headersList);
         setHeadersGuard(this.#headers, "request");
@@ -13773,23 +13812,8 @@ var require_request2 = __commonJS({
           throw new TypeError("unusable");
         }
         const clonedRequest = cloneRequest(this.#state);
-        const ac = new AbortController();
-        if (this.signal.aborted) {
-          ac.abort(this.signal.reason);
-        } else {
-          let list = dependentControllerMap.get(this.signal);
-          if (list === void 0) {
-            list = /* @__PURE__ */ new Set();
-            dependentControllerMap.set(this.signal, list);
-          }
-          const acRef = new WeakRef(ac);
-          list.add(acRef);
-          util.addAbortListener(
-            ac.signal,
-            buildAbort(acRef)
-          );
-        }
-        return fromInnerRequest(clonedRequest, this.#dispatcher, ac.signal, getHeadersGuard(this.#headers));
+        const signal = createDependentSignal(this.#signal);
+        return fromInnerRequest(clonedRequest, this.#dispatcher, signal, getHeadersGuard(this.#headers));
       }
       [nodeUtil.inspect.custom](depth, options) {
         if (options.depth === null) {
@@ -13835,7 +13859,12 @@ var require_request2 = __commonJS({
           request.#state = newState;
         }, "setRequestState");
         removeRequestAbortListener = /* @__PURE__ */ __name((request) => {
-          request.#abortCleanup?.();
+          const state = requestSignals.get(request.#signal);
+          if (state !== void 0) {
+            requestSignals.delete(request.#signal);
+            requestFinalizer.unregister(state.reference);
+            removeSignalFollower(state.source, state.reference);
+          }
         }, "removeRequestAbortListener");
         webidl.is.Request = (arg) => {
           return arg != null && typeof arg === "object" && #state in arg;
@@ -14121,7 +14150,7 @@ var require_subresource_integrity = __commonJS({
     __name(getStrongestMetadata, "getStrongestMetadata");
     function parseMetadata(metadata) {
       const result = [];
-      for (const item of metadata.split(" ")) {
+      for (const item of metadata.split(/[\t\n\f\r ]+/)) {
         const expressionAndOptions = item.split("?", 1);
         const algorithmExpression = expressionAndOptions[0];
         let base64Value = "";
@@ -14379,11 +14408,8 @@ var require_fetch = __commonJS({
           cleanupAbortListeners();
         }, "processResponseEndOfBody"),
         processResponse,
-        dispatcher: getRequestDispatcher(requestObject),
+        dispatcher: getRequestDispatcher(requestObject)
         // undici
-        // Keep requestObject alive to prevent its AbortController from being GC'd
-        // See https://github.com/nodejs/undici/issues/4627
-        requestObject
       });
       return p.promise;
     }
@@ -14454,10 +14480,8 @@ var require_fetch = __commonJS({
       processResponseEndOfBody,
       processResponseConsumeBody,
       useParallelQueue = false,
-      dispatcher = getGlobalDispatcher2(),
+      dispatcher = getGlobalDispatcher2()
       // undici
-      requestObject = null
-      // Keep alive to prevent AbortController GC, see #4627
     }) {
       assert(dispatcher);
       let taskDestination = null;
@@ -14480,9 +14504,7 @@ var require_fetch = __commonJS({
         processResponseConsumeBody,
         processResponseEndOfBody,
         taskDestination,
-        crossOriginIsolatedCapability,
-        // Keep requestObject alive to prevent its AbortController from being GC'd
-        requestObject
+        crossOriginIsolatedCapability
       };
       assert(!request.body || request.body.stream);
       if (request.window === "client") {

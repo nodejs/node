@@ -205,7 +205,10 @@ added: v4.0.0
 -->
 
 * `options` {Object}
-  * `origin` {string|URL} (optional) The origin to dispatch the request to.
+  * `origin` {string|URL} The origin to dispatch the request to. Optional for a
+    dispatcher that is already bound to a single origin, such as `Client` or
+    `Pool`, which then use their own origin. Required on `Agent`, which is not
+    bound to one origin and throws an `InvalidArgumentError` when it is missing.
   * `path` {string} The request path.
   * `method` {string} The HTTP method, e.g. `'GET'` or `'POST'`.
   * `body` {string|Buffer|Uint8Array|Readable|FormData|null} The request body.

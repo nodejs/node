@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "8.12.3",
+  "version": "8.12.4",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -111,7 +111,7 @@
     "prepare": "husky && node ./scripts/platform-shell.js"
   },
   "devDependencies": {
-    "@fastify/busboy": "3.2.3",
+    "@fastify/busboy": "3.2.4",
     "@matteo.collina/tspl": "^0.2.0",
     "@metcoder95/https-pem": "^1.0.0",
     "@sinonjs/fake-timers": "^12.0.0",
