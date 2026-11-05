@@ -47,7 +47,12 @@ class RedirectHandler {
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
-    // Retain cache-control from suppressed redirect hops for an outer cache.
+    // Per-hop metadata for each intermediate (suppressed) redirect hop: the
+    // hop's status code and response headers. An outer cache uses it to honor a
+    // hop's storage policy (e.g. `no-store`, `no-cache`, `Vary: *`) that would
+    // otherwise be lost because the hop's response is not forwarded. It travels
+    // as a non-enumerable property of the history array so it reaches the cache
+    // without becoming part of the public request/response context.
     Object.defineProperty(this.history, kRedirectCacheControl, {
       value: [],
       enumerable: false
@@ -135,7 +140,14 @@ class RedirectHandler {
       return
     }
 
-    this.history[kRedirectCacheControl].push(headers['cache-control'])
+    // This hop's response is suppressed (only its Location is used). Record its
+    // status and headers so an outer cache can honor a restrictive policy that
+    // would otherwise be lost when the final response is stored.
+    this.history[kRedirectCacheControl].push({
+      statusCode,
+      headers: { ...headers },
+      receivedAt: Date.now()
+    })
 
     const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
     const path = search ? `${pathname}${search}` : pathname
@@ -223,9 +235,25 @@ function shouldRemoveHeader (header, removeContent, unknownOrigin) {
 function cleanRequestHeaders (headers, removeContent, unknownOrigin) {
   const ret = []
   if (Array.isArray(headers)) {
-    for (let i = 0; i < headers.length; i += 2) {
-      if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin)) {
-        ret.push(headers[i], headers[i + 1])
+    // Headers may be either a flat alternating [name, value, name, value, ...]
+    // list or an iterable of [name, value] pairs. A plain JavaScript array of
+    // tuples (e.g. `Object.entries(headers)`) satisfies the iterable-of-pairs
+    // public type, so we must distinguish the two representations before
+    // iterating. Treating every Array as a flat list misreads each tuple as a
+    // header name/value pair and defeats the cross-origin credential stripping.
+    if (headers.length > 0 && Array.isArray(headers[0])) {
+      // Array of [name, value] pairs.
+      for (const [key, value] of headers) {
+        if (!shouldRemoveHeader(key, removeContent, unknownOrigin)) {
+          ret.push(key, value)
+        }
+      }
+    } else {
+      // Flat alternating [name, value, name, value, ...] list.
+      for (let i = 0; i < headers.length; i += 2) {
+        if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin)) {
+          ret.push(headers[i], headers[i + 1])
+        }
       }
     }
   } else if (headers && typeof headers === 'object') {

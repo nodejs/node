@@ -6,7 +6,16 @@ const util = require('../core/util')
 const CacheHandler = require('../handler/cache-handler')
 const MemoryCacheStore = require('../cache/memory-cache-store')
 const CacheRevalidationHandler = require('../handler/cache-revalidation-handler')
-const { assertCacheStore, assertCacheMethods, makeCacheKey, normalizeHeaders, parseCacheControlHeader, isInvalidOrWildcardVaryHeader } = require('../util/cache.js')
+const {
+  assertCacheStore,
+  assertCacheMethods,
+  makeCacheKey,
+  normalizeHeaders,
+  parseCacheControlHeader,
+  isInvalidOrWildcardVaryHeader,
+  parseVaryHeader,
+  isEtagUsable
+} = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 const { parseHttpDate } = require('../util/date.js')
 
@@ -138,6 +147,25 @@ function revalidationResponseUpdatesCacheControl (headers) {
   return headers['cache-control'] !== undefined
 }
 
+/**
+ * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
+ * @param {Record<string, string | string[] | null> | undefined} varyDirectives
+ * @returns {boolean}
+ */
+function revalidationResponseAddsVary (result, varyDirectives) {
+  if (!varyDirectives) {
+    return false
+  }
+
+  for (const key in varyDirectives) {
+    if (result.vary == null || !Object.hasOwn(result.vary, key)) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function deleteCachedValue (store, cacheKey) {
   try {
     store.delete(cacheKey)?.catch?.(nop)
@@ -172,6 +200,47 @@ function makeRevalidationHeaders (opts, result) {
   }
 
   return headers
+}
+
+function revalidationTargetMatchesCacheKey (cacheKey, context) {
+  const history = context?.history
+  if (!Array.isArray(history) || history.length === 0) {
+    return true
+  }
+
+  try {
+    const cachedUrl = new URL(cacheKey.path, cacheKey.origin)
+    const responseUrl = history[history.length - 1]
+    return responseUrl.origin === cachedUrl.origin &&
+      responseUrl.pathname === cachedUrl.pathname &&
+      responseUrl.search === cachedUrl.search
+  } catch {
+    return false
+  }
+}
+
+function revalidationEtagMatchesCachedValue (result, headers) {
+  if (!Object.hasOwn(headers, 'etag')) {
+    return true
+  }
+
+  const responseEtag = headers.etag
+  const cachedEtag = result.etag
+  if (
+    typeof responseEtag !== 'string' ||
+    typeof cachedEtag !== 'string' ||
+    !isEtagUsable(responseEtag) ||
+    !isEtagUsable(cachedEtag)
+  ) {
+    return false
+  }
+
+  if (!responseEtag.startsWith('W/')) {
+    return responseEtag === cachedEtag
+  }
+
+  const cachedOpaqueTag = cachedEtag.startsWith('W/') ? cachedEtag.slice(2) : cachedEtag
+  return responseEtag.slice(2) === cachedOpaqueTag
 }
 
 /**
@@ -316,21 +385,35 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
 
   stream
     .on('error', function (err) {
+      // Never rethrow: this runs from a stream event on a later tick, where a
+      // throw would crash the process. Like core's Request.onResponseError,
+      // the error is dropped if the handler has no onResponseError.
       if (!this.readableEnded) {
-        if (typeof handler.onResponseError === 'function') {
-          handler.onResponseError(controller, err)
-        } else {
-          throw err
-        }
+        handler.onResponseError?.(controller, err)
       }
     })
     .on('close', function () {
       if (!this.errored) {
-        handler.onResponseEnd?.(controller, {})
+        try {
+          handler.onResponseEnd?.(controller, {})
+        } catch (err) {
+          // The stream is already closed, so the error can't be routed
+          // through it; report it to the handler directly instead.
+          handler.onResponseError?.(controller, err)
+        }
       }
     })
 
-  handler.onRequestStart?.(controller, context)
+  // Downstream handler calls below run outside the dispatcher's own error
+  // handling (on later ticks for the body, or inside a promise callback for
+  // async stores), so a throw must be converged to a per-request error
+  // instead of escaping as an uncaught exception.
+  try {
+    handler.onRequestStart?.(controller, context)
+  } catch (err) {
+    stream.destroy(err)
+    return
+  }
 
   if (stream.destroyed) {
     return
@@ -346,13 +429,24 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
     headers.warning = '110 - "response is stale"'
   }
 
-  handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
+  controller.rawHeaders = util.toRawHeaders(headers)
+
+  try {
+    handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
+  } catch (err) {
+    stream.destroy(err)
+    return
+  }
 
   if (opts.method === 'HEAD') {
     stream.destroy()
   } else {
     stream.on('data', function (chunk) {
-      handler.onResponseData?.(controller, chunk)
+      try {
+        handler.onResponseData?.(controller, chunk)
+      } catch (err) {
+        stream.destroy(err)
+      }
     })
   }
 }
@@ -450,6 +544,14 @@ function handleResult (
     }
 
     const headers = makeRevalidationHeaders(opts, result)
+    const refetch = () => {
+      if (util.isStream(result.body)) {
+        result.body.on('error', nop).destroy()
+      }
+
+      deleteCachedValue(globalOpts.store, cacheKey)
+      return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
+    }
 
     // We need to revalidate the response
     return dispatch(
@@ -461,17 +563,18 @@ function handleResult (
         (success, context, statusCode, headers) => {
           if (success) {
             if (statusCode === 304) {
-              if (revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)) {
-                if (util.isStream(result.body)) {
-                  result.body.on('error', nop).destroy()
-                }
-
-                deleteCachedValue(globalOpts.store, cacheKey)
-                return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
+              if (
+                !revalidationTargetMatchesCacheKey(cacheKey, context) ||
+                !revalidationEtagMatchesCachedValue(result, headers) ||
+                revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)
+              ) {
+                return refetch()
               }
 
               if (revalidationResponseUpdatesCacheControl(headers)) {
                 deleteCachedValue(globalOpts.store, cacheKey)
+              } else if (revalidationResponseAddsVary(result, headers.vary ? parseVaryHeader(headers.vary, opts.headers) : undefined)) {
+                return refetch()
               }
             }
 
@@ -605,6 +708,28 @@ module.exports = (opts = {}) => {
             reqCacheControl,
             result
           ))
+          .catch((err) => {
+            // Any throw escaping handleResult on the async-store path (e.g. a
+            // rejection from store.get() itself, or a throw in a code path not
+            // converged by sendCachedValue) would otherwise surface as an
+            // unhandled promise rejection and crash the process. Route it to
+            // the handler instead, matching the synchronous store path where
+            // the error propagates to the request() call site.
+            if (typeof handler.onResponseError === 'function') {
+              handler.onResponseError({
+                rawHeaders: [],
+                rawTrailers: [],
+                pause () {},
+                resume () {},
+                get paused () { return false },
+                get aborted () { return false },
+                get reason () { return null },
+                abort () {}
+              }, err)
+            } else {
+              throw err
+            }
+          })
       } else {
         return handleResult(
           dispatch,
