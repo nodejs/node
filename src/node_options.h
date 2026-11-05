@@ -214,6 +214,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
+  DEFINE_BOOL_FIELD(experimental_green_threads) = false;
   DEFINE_BOOL_FIELD(experimental_web_worker) = true;
   DEFINE_BOOL_FIELD(experimental_websocket) = true;
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;

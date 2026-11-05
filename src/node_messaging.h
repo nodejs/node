@@ -380,6 +380,11 @@ class JSTransferable : public BaseObject {
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
     IsolateData* isolate_data);
 
+v8::MaybeLocal<v8::Function> GetDOMException(v8::Local<v8::Context> context);
+// Throws a DOMException named DataCloneError in `context`.
+void ThrowDataCloneException(v8::Local<v8::Context> context,
+                             v8::Local<v8::String> message);
+
 }  // namespace worker
 }  // namespace node
 
