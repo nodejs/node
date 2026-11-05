@@ -69,6 +69,18 @@ An uncaught exception or unhandled promise rejection inside a green thread
 emits an [`'error'`][] event on the host, followed by an [`'exit'`][] event
 with exit code `1`.
 
+## Scheduling
+
+A green thread is not tied to an OS thread. Each message, evaluation, and
+timer callback is a separate task, and the tasks of a green thread run one at
+a time, in order, but not necessarily on the same OS thread. Green threads are
+not preempted: a task that never returns keeps one pool thread busy until the
+green thread is terminated. Other green threads keep running on the remaining
+pool threads.
+
+Timers belong to the message or evaluation that created them, or to the
+initial script, and their callbacks run on the same OS thread as that task.
+
 ## Class: `GreenThread`
 
 <!-- YAML
