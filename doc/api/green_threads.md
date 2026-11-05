@@ -39,7 +39,8 @@ the following globals:
   [`greenThread.postMessage()`][].
 * `onmessage`: Set this to a function to receive messages sent with
   [`greenThread.postMessage()`][]. The function is called with an object
-  whose `data` property holds the message.
+  whose `data` property holds the message, and whose `ports` property holds
+  the [`MessagePort`][]s that were transferred with it.
 * `close()`: Stops the green thread once the current task has completed. The
   exit code is `0`.
 * `queueMicrotask(callback)`
@@ -53,6 +54,8 @@ the following globals:
   [`DOMException`][]. There is no DOM tree, so events are only dispatched to
   their target. Errors thrown by event listeners are uncaught errors of the
   green thread.
+* [`MessageChannel`][], [`MessagePort`][] and `MessageEvent`. See
+  [Message ports][].
 * `env`: The `env` option of the [`GreenThread`][] constructor, if it was
   given. See [RPC][].
 * [`RpcTarget`][]: See [RPC][].
@@ -146,6 +149,47 @@ calls to its stubs on the host, are rejected with [`ERR_GREEN_THREAD_EXITED`][].
 The result of a call that a green thread makes continues in the invocation
 context that made it, so that timers it creates run on the same pool thread,
 as if no call had been made.
+
+## Message ports
+
+Green threads have the web's [`MessageChannel`][] and [`MessagePort`][]. Their
+ports are the same as those of `node:worker_threads` underneath, so a port can
+connect green threads with each other, with their host, and with
+[`Worker`][]s. Ports are transferred
+with `postMessage()` on either side, or with a port's own `postMessage()`, by
+listing them in the transfer list:
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+const { MessageChannel } = require('node:worker_threads');
+
+const greenThread = new GreenThread(`
+  onmessage = ({ ports: [port] }) => {
+    port.onmessage = ({ data }) => port.postMessage(data * 2);
+  };
+`);
+const { port1, port2 } = new MessageChannel();
+greenThread.postMessage('port', [port2]);
+port1.once('message', (value) => {
+  console.log(value);  // Prints: 42
+  port1.close();
+  greenThread.terminate();
+});
+port1.postMessage(21);
+```
+
+In green threads, ports are [`EventTarget`][]s. They emit `'message'` and
+`'messageerror'` events, which are `MessageEvent`s, and a `'close'` event once
+either port of the channel is closed. As in `node:worker_threads`, a port starts
+delivering messages once `start()` is called, `onmessage` is set, or a
+`'message'` listener is added. Ports stay open until they are closed or
+transferred, or their green thread exits.
+
+Ports can carry what `postMessage()` can, including transferred `ArrayBuffer`s
+and other ports, but not [RPC][] stubs. A message from Node.js that a green
+thread can't receive, such as one with a {FileHandle} or a
+`WebAssembly.Module`, is a `'messageerror'` event whose `data` is a
+`DataCloneError`.
 
 ## Class: `RpcTarget`
 
@@ -475,15 +519,16 @@ added: REPLACEME
 -->
 
 * `value` {any}
-* `transfer` {ArrayBuffer\[]|Object} `ArrayBuffer`s to transfer rather than
-  copy, or an object whose `transfer` property is such an array.
+* `transfer` {Array|Object} `ArrayBuffer`s and [`MessagePort`][]s to transfer
+  rather than copy, or an object whose `transfer` property is such an array.
 
 Sends a structured clone of `value` to the green thread's `onmessage` handler.
 Messages are dropped if `onmessage` is not set. Calling this after the green
 thread has exited has no effect.
 
-`ArrayBuffer`s in `transfer` are moved to the receiver, and detached on the
-sending side, as with [`port.postMessage()`][]. If the sender or the receiver
+`ArrayBuffer`s and ports in `transfer` are moved to the receiver, and
+detached on the sending side, as with [`port.postMessage()`][]. See
+[Message ports][]. If the sender or the receiver
 has a [`maxMemoryMb`][Memory limits] limit, their contents are copied, so that
 they count towards the limit only while the green thread has them. Receiving
 an `ArrayBuffer` that the receiving green thread has no memory left for is an
@@ -539,6 +584,7 @@ Calls [`greenThread.terminate()`][].
 [CPU time limits]: #cpu-time-limits
 [Isolate groups]: #isolate-groups
 [Memory limits]: #memory-limits
+[Message ports]: #message-ports
 [RPC]: #rpc
 [Resource limits]: #resource-limits
 [`'error'`]: #event-error
@@ -557,6 +603,8 @@ Calls [`greenThread.terminate()`][].
 [`GreenThread`]: #new-greenthreadsource-options
 [`IsolateGroup.supported`]: #static-property-isolategroupsupported
 [`IsolateGroup`]: #class-isolategroup
+[`MessageChannel`]: worker_threads.md#class-messagechannel
+[`MessagePort`]: worker_threads.md#class-messageport
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer

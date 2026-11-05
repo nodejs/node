@@ -148,13 +148,20 @@ int CutOffSignal() {
 #endif
 
 using Bytes = std::vector<uint8_t>;
+using worker::MessagePortData;
+using PortDataList = std::vector<std::unique_ptr<MessagePortData>>;
 
-// A value serialized by Serialize(), with the ArrayBuffers that were
-// transferred and the SharedArrayBuffers that are shared with it.
+// A value serialized by Serialize(), with the ArrayBuffers and MessagePorts
+// that were transferred and the SharedArrayBuffers that are shared with it.
+// It uses the format of Node.js' messages, so that it can be sent through
+// MessagePorts.
 struct SerializedValue {
   Bytes data;
   std::vector<std::shared_ptr<v8::BackingStore>> array_buffers;
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers;
+  // Taken by Deserialize(). Shared so that work that delivers the value can
+  // be copied.
+  std::shared_ptr<PortDataList> ports;
 
   bool empty() const { return data.empty(); }
 };
@@ -656,6 +663,13 @@ Local<v8::Private> RpcBrand(Isolate* isolate) {
       isolate, FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:rpc"));
 }
 
+// The private symbol that holds the ID of a green thread's MessagePort. See
+// internal/green_threads/runtime/message_port.
+Local<v8::Private> PortIdSymbol(Isolate* isolate) {
+  return v8::Private::ForApi(
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:port_id"));
+}
+
 // Calls `hooks[name](arg)`, where `hooks` is an RpcSession's hooks: see
 // internal/green_threads/runtime/bootstrap and lib/green_threads.js.
 MaybeLocal<Value> CallRpcHook(Isolate* isolate,
@@ -670,6 +684,23 @@ MaybeLocal<Value> CallRpcHook(Isolate* isolate,
   CHECK(hook->IsFunction());
   return hook.As<Function>()->Call(context, hooks, 1, &arg);
 }
+
+// How the host or a green thread represents MessagePorts.
+class PortAdapter {
+ public:
+  virtual ~PortAdapter() = default;
+  // Whether `object` is a MessagePort, and if so, whether it is detached.
+  virtual bool IsPort(Local<Object> object, bool* detached) = 0;
+  // Takes the data of a port that is not detached, which detaches it.
+  virtual std::unique_ptr<MessagePortData> TakePort(Local<Object> port) = 0;
+  // Creates a port for data that was transferred.
+  virtual MaybeLocal<Object> CreatePort(
+      std::unique_ptr<MessagePortData> data) = 0;
+};
+
+// What Node.js' messages use for the host object index of an object that is
+// serialized in place, such as process.env.
+constexpr uint32_t kNormalObject = static_cast<uint32_t>(-1);
 
 class SerializerDelegate final : public ValueSerializer::Delegate {
  public:
@@ -696,6 +727,13 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   }
 
   void set_serializer(ValueSerializer* serializer) { serializer_ = serializer; }
+  // Ports in `transfer_ports` are written as their indices in it, as in
+  // Node.js' messages.
+  void set_ports(PortAdapter* ports,
+                 const LocalVector<Object>* transfer_ports) {
+    ports_ = ports;
+    transfer_ports_ = transfer_ports;
+  }
   void set_shared_array_buffers(
       std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers) {
     shared_array_buffers_ = shared_array_buffers;
@@ -730,16 +768,34 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   }
 
   bool HasCustomHostObject(Isolate* isolate) override {
-    return !rpc_hooks_.IsEmpty();
+    return !rpc_hooks_.IsEmpty() || ports_ != nullptr;
   }
 
   Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object) override {
     // What V8 does without custom host objects.
     if (object->InternalFieldCount() > 0) return Just(true);
+    bool detached;
+    if (ports_ != nullptr && ports_->IsPort(object, &detached)) {
+      return Just(true);
+    }
     return IsRpcObject(object);
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
+    if (ports_ != nullptr) {
+      for (size_t i = 0; i < transfer_ports_->size(); i++) {
+        if ((*transfer_ports_)[i] == object) {
+          serializer_->WriteUint32(static_cast<uint32_t>(i));
+          return Just(true);
+        }
+      }
+      bool detached;
+      if (ports_->IsPort(object, &detached)) {
+        ThrowDataCloneError(FIXED_ONE_BYTE_STRING(
+            isolate, "A MessagePort must be in the transfer list to be sent"));
+        return Nothing<bool>();
+      }
+    }
     Maybe<bool> is_rpc_object = IsRpcObject(object);
     if (is_rpc_object.IsNothing()) return Nothing<bool>();
     if (!is_rpc_object.FromJust()) {
@@ -769,6 +825,7 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
 
  private:
   Maybe<bool> IsRpcObject(Local<Object> object) {
+    if (rpc_hooks_.IsEmpty()) return Just(false);
     Maybe<bool> branded = object->HasPrivate(context_, rpc_brand_);
     if (branded.IsNothing() || branded.FromJust()) return branded;
     if (abort_signal_prototype_.IsEmpty()) return Just(false);
@@ -792,6 +849,8 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   std::vector<Global<Value>> descriptors_;
   std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers_ =
       nullptr;
+  PortAdapter* ports_ = nullptr;
+  const LocalVector<Object>* transfer_ports_ = nullptr;
 };
 
 // Reads the host objects written by SerializerDelegate, which were imported
@@ -824,8 +883,13 @@ class DeserializerDelegate final : public ValueDeserializer::Delegate {
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
     uint32_t index;
     Local<Value> object;
-    if (objects_.IsEmpty() || !deserializer_->ReadUint32(&index) ||
-        index >= objects_->Length() ||
+    if (!deserializer_->ReadUint32(&index)) return {};
+    if (index == kNormalObject) {
+      if (!deserializer_->ReadValue(context_).ToLocal(&object)) return {};
+      CHECK(object->IsObject());
+      return object.As<Object>();
+    }
+    if (objects_.IsEmpty() || index >= objects_->Length() ||
         !objects_->Get(context_, index).ToLocal(&object) ||
         !object->IsObject()) {
       isolate->ThrowException(Exception::Error(
@@ -851,7 +915,8 @@ MaybeLocal<Value> GetTransferList(Local<Context> context, Local<Value> arg) {
 }
 
 // Serializes `value` alone, adding the SharedArrayBuffers in it to
-// `shared_array_buffers`, and transferring the ArrayBuffers in `transfer`.
+// `shared_array_buffers`, and transferring the ArrayBuffers in `transfer` and
+// the ports in `transfer_ports`.
 std::optional<Bytes> SerializeBytes(
     Isolate* isolate,
     Local<Context> context,
@@ -859,9 +924,13 @@ std::optional<Bytes> SerializeBytes(
     bool is_host,
     Local<Object> rpc_hooks,
     const LocalVector<v8::ArrayBuffer>& transfer,
+    PortAdapter* ports,
+    const LocalVector<Object>& transfer_ports,
     std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers,
     Local<v8::Array>* descriptors) {
   SerializerDelegate delegate(isolate, context, is_host, rpc_hooks);
+  // Before V8 asks the delegate whether it has custom host objects.
+  if (ports != nullptr) delegate.set_ports(ports, &transfer_ports);
   ValueSerializer serializer(isolate, &delegate);
   delegate.set_serializer(&serializer);
   delegate.set_shared_array_buffers(shared_array_buffers);
@@ -877,22 +946,34 @@ std::optional<Bytes> SerializeBytes(
   return bytes;
 }
 
+struct TransferOptions {
+  // An array of what to transfer, or undefined.
+  Local<Value> list;
+  // If MessagePorts can be transferred, how they are represented.
+  PortAdapter* ports = nullptr;
+  // The port that sends the value, which can't be transferred.
+  Local<Object> source_port;
+  // The allocator of a sender with a memory limit. Transferred ArrayBuffers
+  // are copied, so that they no longer count towards the limit.
+  std::shared_ptr<LimitedAllocator> limited_allocator;
+};
+
 // Throws a JS exception and returns std::nullopt if `value` is not cloneable,
-// or `transfer` is not an array of distinct, detachable ArrayBuffers. With
-// `rpc_hooks`, the data starts with the length of the serialized descriptors
-// of its host objects, and those descriptors. With `limited_allocator`, the
-// allocator of a sender with a memory limit, transferred ArrayBuffers are
-// copied, so that they no longer count towards the limit.
-std::optional<SerializedValue> Serialize(
-    Isolate* isolate,
-    Local<Context> context,
-    Local<Value> value,
-    bool is_host,
-    Local<Object> rpc_hooks = {},
-    Local<Value> transfer_list = {},
-    std::shared_ptr<LimitedAllocator> limited_allocator = nullptr) {
+// or the transfer list is not an array of distinct, detachable ArrayBuffers
+// and ports. With `rpc_hooks`, the data starts with the length of the
+// serialized descriptors of its host objects, and those descriptors.
+std::optional<SerializedValue> Serialize(Isolate* isolate,
+                                         Local<Context> context,
+                                         Local<Value> value,
+                                         bool is_host,
+                                         Local<Object> rpc_hooks = {},
+                                         const TransferOptions& options = {}) {
   SerializedValue result;
   LocalVector<v8::ArrayBuffer> transfer(isolate);
+  LocalVector<Object> transfer_ports(isolate);
+  const Local<Value> transfer_list = options.list;
+  const std::shared_ptr<LimitedAllocator>& limited_allocator =
+      options.limited_allocator;
   if (!transfer_list.IsEmpty() && !transfer_list->IsUndefined()) {
     SerializerDelegate delegate(isolate, context, is_host);
     auto fail = [&](const char* message) {
@@ -906,8 +987,28 @@ std::optional<SerializedValue> Serialize(
     for (uint32_t i = 0; i < array->Length(); i++) {
       Local<Value> item;
       if (!array->Get(context, i).ToLocal(&item)) return std::nullopt;
+      bool detached = false;
+      if (item->IsObject() && options.ports != nullptr &&
+          options.ports->IsPort(item.As<Object>(), &detached)) {
+        Local<Object> port = item.As<Object>();
+        if (port == options.source_port) {
+          return fail("Transfer list contains source port");
+        }
+        if (detached) {
+          return fail("MessagePort in transfer list is already detached");
+        }
+        if (std::find(transfer_ports.begin(), transfer_ports.end(), port) !=
+            transfer_ports.end()) {
+          return fail("A MessagePort is in the transfer list more than once");
+        }
+        transfer_ports.push_back(port);
+        continue;
+      }
       if (!item->IsArrayBuffer()) {
-        return fail("Only ArrayBuffers can be transferred");
+        return fail(
+            options.ports != nullptr
+                ? "Only ArrayBuffers and MessagePorts can be transferred"
+                : "Only ArrayBuffers can be transferred");
       }
       Local<v8::ArrayBuffer> buffer = item.As<v8::ArrayBuffer>();
       if (!buffer->IsDetachable() || buffer->WasDetached()) {
@@ -929,6 +1030,8 @@ std::optional<SerializedValue> Serialize(
                      is_host,
                      rpc_hooks,
                      transfer,
+                     options.ports,
+                     transfer_ports,
                      &result.shared_array_buffers,
                      rpc_hooks.IsEmpty() ? nullptr : &descriptors);
   if (!bytes) return std::nullopt;
@@ -942,6 +1045,8 @@ std::optional<SerializedValue> Serialize(
                          is_host,
                          {},
                          LocalVector<v8::ArrayBuffer>(isolate),
+                         nullptr,
+                         LocalVector<Object>(isolate),
                          &result.shared_array_buffers,
                          nullptr);
       if (!serialized) return std::nullopt;
@@ -972,6 +1077,12 @@ std::optional<SerializedValue> Serialize(
   for (Local<v8::ArrayBuffer> buffer : transfer) {
     CHECK(buffer->Detach(Local<Value>()).FromJust());
   }
+  if (!transfer_ports.empty()) {
+    result.ports = std::make_shared<PortDataList>();
+    for (Local<Object> port : transfer_ports) {
+      result.ports->push_back(options.ports->TakePort(port));
+    }
+  }
   return result;
 }
 
@@ -1001,7 +1112,27 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
                               Local<Context> context,
                               const SerializedValue& value,
                               Local<Object> rpc_hooks = {},
-                              bool copy_array_buffers = false) {
+                              bool copy_array_buffers = false,
+                              PortAdapter* ports = nullptr,
+                              Local<v8::Array>* port_list = nullptr) {
+  Local<v8::Array> port_objects;
+  if (value.ports && !value.ports->empty()) {
+    CHECK(rpc_hooks.IsEmpty());
+    CHECK_NOT_NULL(ports);
+    PortDataList data = std::move(*value.ports);
+    LocalVector<Value> objects(isolate);
+    for (std::unique_ptr<MessagePortData>& port_data : data) {
+      Local<Object> object;
+      if (!ports->CreatePort(std::move(port_data)).ToLocal(&object)) return {};
+      objects.push_back(object);
+    }
+    port_objects = v8::Array::New(isolate, objects.data(), objects.size());
+  }
+  if (port_list != nullptr) {
+    *port_list =
+        port_objects.IsEmpty() ? v8::Array::New(isolate, 0) : port_objects;
+  }
+
   LocalVector<v8::ArrayBuffer> transferred(isolate);
   for (const std::shared_ptr<v8::BackingStore>& store : value.array_buffers) {
     if (!copy_array_buffers || store->IsResizableByUserJavaScript()) {
@@ -1031,7 +1162,8 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
                             bytes.data(),
                             bytes.size(),
                             transferred,
-                            value.shared_array_buffers);
+                            value.shared_array_buffers,
+                            port_objects);
   }
   uint32_t length;
   CHECK_GE(bytes.size(), sizeof(length));
@@ -1064,6 +1196,51 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
                           transferred,
                           value.shared_array_buffers,
                           host_objects);
+}
+
+// A Node.js message with the contents of `value`, for MessagePorts.
+std::shared_ptr<worker::Message> ToMessage(SerializedValue&& value) {
+  MallocedBuffer<char> payload(value.data.size());
+  memcpy(payload.data, value.data.data(), value.data.size());
+  auto message = std::make_shared<worker::Message>(std::move(payload));
+  for (std::shared_ptr<v8::BackingStore>& store : value.array_buffers) {
+    message->AddArrayBuffer(std::move(store));
+  }
+  for (std::shared_ptr<v8::BackingStore>& store : value.shared_array_buffers) {
+    message->AddSharedArrayBuffer(std::move(store));
+  }
+  if (value.ports) {
+    for (std::unique_ptr<MessagePortData>& port : *value.ports) {
+      message->AddTransferable(std::move(port));
+    }
+  }
+  return message;
+}
+
+// The contents of a Node.js message that isn't the close message. Returns
+// std::nullopt if it has contents that green threads can't receive: objects
+// other than MessagePorts that were transferred or cloned with it, such as
+// FileHandles, or WebAssembly modules.
+std::optional<SerializedValue> FromMessage(worker::Message* message) {
+  if (message->has_wasm_modules_or_shared_values()) return std::nullopt;
+  SerializedValue value;
+  for (std::unique_ptr<worker::TransferData>& data :
+       message->mutable_transferables()) {
+    if (data->AsMessagePortData() == nullptr) return std::nullopt;
+  }
+  const MallocedBuffer<char>& payload = message->payload();
+  value.data.assign(payload.data, payload.data + payload.size);
+  value.array_buffers = std::move(message->array_buffers());
+  value.shared_array_buffers = message->shared_array_buffers();
+  if (!message->mutable_transferables().empty()) {
+    value.ports = std::make_shared<PortDataList>();
+    for (std::unique_ptr<worker::TransferData>& data :
+         message->mutable_transferables()) {
+      value.ports->emplace_back(data.release()->AsMessagePortData());
+    }
+    message->mutable_transferables().clear();
+  }
+  return value;
 }
 
 struct HostEvent {
@@ -1188,7 +1365,49 @@ IsolateGroupKind DefaultIsolateGroupKind() {
 // Identifies isolate groups in tests. 0 is V8's default group.
 std::atomic<uint64_t> next_isolate_group_id{1};
 
+// A MessagePort of a green thread, which its runtime's MessagePort object
+// refers to by its ID. Owned by its green isolate, and only used by it, but
+// for OnIncomingMessage().
+class GreenPort final : public MessagePortData::Owner {
+ public:
+  GreenPort(GreenIsolate* green, uint32_t id) : green_(green), id_(id) {}
+  ~GreenPort() override { Detach(); }
+
+  void Attach(std::unique_ptr<MessagePortData> data) {
+    data_ = std::move(data);
+    data_->SetOwner(this);
+  }
+
+  // Once this returns, OnIncomingMessage() is no longer called.
+  std::unique_ptr<MessagePortData> Detach() {
+    if (data_) data_->SetOwner(nullptr);
+    return std::move(data_);
+  }
+
+  // Null once the port is closed or transferred.
+  MessagePortData* data() const { return data_.get(); }
+
+  // May be called from any thread.
+  void OnIncomingMessage() override { Notify(); }
+  // Makes the green isolate take the port's messages, unless that is queued.
+  void Notify();
+  // Before taking the port's messages.
+  void ClearNotified() { notified_ = false; }
+
+  Global<Object> object;
+  // Whether it delivers messages other than the close message.
+  bool started = false;
+
+ private:
+  // Outlives the port. Abandoned green isolates are never freed.
+  GreenIsolate* const green_;
+  const uint32_t id_;
+  std::unique_ptr<MessagePortData> data_;
+  std::atomic<bool> notified_ = false;
+};
+
 class GreenIsolate final : public IsolatePlatformDelegate,
+                           public PortAdapter,
                            public std::enable_shared_from_this<GreenIsolate> {
  public:
   using Work = std::function<void(GreenIsolate*)>;
@@ -1319,6 +1538,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
             self->EvaluateSource(isolate, context, id, source, filename);
           });
     });
+  }
+
+  // May be called from any thread. Delivers the messages of a port.
+  void DrainPortLater(uint32_t id) {
+    Submit([id](GreenIsolate* self) { self->DrainPort(id); });
   }
 
   // May be called from any thread. Interrupts running JS, if any.
@@ -2067,6 +2291,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         HandleScope handle_scope(isolate);
         for (auto& [id, timer] : timers_) timer.handle->Close();
         timers_.clear();
+        // Closes them, which closes the ports they are entangled with.
+        ports_.clear();
         contexts_.clear();
         pending_rejections_.clear();
         runtime_.Reset();
@@ -2144,12 +2370,16 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return;
     }
     Local<Value> value;
-    if (!Deserialize(isolate, context, data, {}, has_memory_limit())
+    Local<v8::Array> ports;
+    if (!Deserialize(
+             isolate, context, data, {}, has_memory_limit(), this, &ports)
              .ToLocal(&value)) {
       return;
     }
     Local<Object> event = Object::New(isolate);
     if (event->Set(context, FIXED_ONE_BYTE_STRING(isolate, "data"), value)
+            .IsNothing() ||
+        event->Set(context, FIXED_ONE_BYTE_STRING(isolate, "ports"), ports)
             .IsNothing()) {
       return;
     }
@@ -2168,6 +2398,173 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return;
     }
     USE(CallRpcHook(isolate, context, runtime, "onRpc", message));
+  }
+
+  // Calls `runtime_[name](...argv)`.
+  MaybeLocal<Value> CallRuntime(Isolate* isolate,
+                                Local<Context> context,
+                                const char* name,
+                                int argc,
+                                Local<Value> argv[]) {
+    Local<Object> runtime = runtime_.Get(isolate);
+    Local<Value> function;
+    if (!runtime->Get(context, OneByteString(isolate, name))
+             .ToLocal(&function)) {
+      return {};
+    }
+    CHECK(function->IsFunction());
+    return function.As<Function>()->Call(context, runtime, argc, argv);
+  }
+
+  // The ID of a port object, or 0 if `object` is not one.
+  uint32_t PortId(Local<Object> object) {
+    Isolate* isolate = isolate_;
+    Local<Value> id;
+    if (!object->GetPrivate(isolate->GetCurrentContext(), PortIdSymbol(isolate))
+             .ToLocal(&id) ||
+        !id->IsUint32()) {
+      return 0;
+    }
+    return id.As<Uint32>()->Value();
+  }
+
+  GreenPort* FindPort(Local<Value> object) {
+    if (!object->IsObject()) return nullptr;
+    auto it = ports_.find(PortId(object.As<Object>()));
+    return it == ports_.end() ? nullptr : it->second.get();
+  }
+
+  // PortAdapter.
+  bool IsPort(Local<Object> object, bool* detached) override {
+    const uint32_t id = PortId(object);
+    if (id == 0) return false;
+    auto it = ports_.find(id);
+    *detached = it == ports_.end() || it->second->data() == nullptr;
+    return true;
+  }
+
+  std::unique_ptr<MessagePortData> TakePort(Local<Object> object) override {
+    auto it = ports_.find(PortId(object));
+    CHECK(it != ports_.end());
+    std::unique_ptr<MessagePortData> data = it->second->Detach();
+    ports_.erase(it);
+    return data;
+  }
+
+  MaybeLocal<Object> CreatePort(
+      std::unique_ptr<MessagePortData> data) override {
+    Isolate* isolate = isolate_;
+    Local<Context> context = isolate->GetCurrentContext();
+    const uint32_t id = next_port_id_++;
+    Local<Value> argv[] = {Uint32::NewFromUnsigned(isolate, id)};
+    Local<Value> object;
+    if (!CallRuntime(
+             isolate, context, "createMessagePort", arraysize(argv), argv)
+             .ToLocal(&object)) {
+      return {};
+    }
+    CHECK(object->IsObject());
+    auto port = std::make_unique<GreenPort>(this, id);
+    port->object.Reset(isolate, object.As<Object>());
+    GreenPort* raw_port = port.get();
+    ports_.emplace(id, std::move(port));
+    raw_port->Attach(std::move(data));
+    return object.As<Object>();
+  }
+
+  // Delivers some of the messages of a port, each in an invocation context of
+  // its own, and queues delivering the others.
+  void DrainPort(uint32_t id) {
+    static constexpr size_t kMessageBudget = 16;
+    auto it = ports_.find(id);
+    if (it == ports_.end()) return;
+    it->second->ClearNotified();
+    for (size_t n = 0; n < kMessageBudget; n++) {
+      it = ports_.find(id);
+      if (it == ports_.end() || it->second->data() == nullptr ||
+          ShouldShutdown()) {
+        return;
+      }
+      GreenPort* port = it->second.get();
+      std::shared_ptr<worker::Message> message =
+          port->data()->TakeIncomingMessage(!port->started);
+      if (!message) return;
+      if (message->IsCloseMessage()) {
+        ClosePort(id);
+        return;
+      }
+      RunTask(kNewInvocation, [&](Isolate* isolate, Local<Context> context) {
+        DeliverPortMessage(isolate, context, id, message.get());
+      });
+    }
+    DrainPortLater(id);
+  }
+
+  // Dispatches a 'message' event on the port, or a 'messageerror' event if
+  // the message can't be deserialized.
+  void DeliverPortMessage(Isolate* isolate,
+                          Local<Context> context,
+                          uint32_t id,
+                          worker::Message* message) {
+    auto it = ports_.find(id);
+    if (it == ports_.end()) return;
+    Local<Object> port = it->second->object.Get(isolate);
+    Local<Value> data;
+    Local<v8::Array> ports;
+    bool ok;
+    {
+      TryCatch try_catch(isolate);
+      std::optional<SerializedValue> value = FromMessage(message);
+      if (value) {
+        ok = Deserialize(
+                 isolate, context, *value, {}, has_memory_limit(), this, &ports)
+                 .ToLocal(&data);
+      } else {
+        SerializerDelegate(isolate, context, false)
+            .ThrowDataCloneError(FIXED_ONE_BYTE_STRING(
+                isolate,
+                "The message contains objects that green threads can't "
+                "receive"));
+        ok = false;
+      }
+      if (!ok) {
+        if (!try_catch.HasCaught() || try_catch.HasTerminated()) {
+          try_catch.ReThrow();
+          return;
+        }
+        data = try_catch.Exception();
+      }
+    }
+    Local<Value> argv[] = {
+        port,
+        data,
+        ok ? ports.As<Value>() : v8::Undefined(isolate).As<Value>(),
+        Boolean::New(isolate, ok),
+    };
+    USE(CallRuntime(
+        isolate, context, "dispatchPortMessage", arraysize(argv), argv));
+  }
+
+  // Closes a port, which closes the port it is entangled with, and queues
+  // its 'close' event.
+  void ClosePort(uint32_t id) {
+    auto it = ports_.find(id);
+    if (it == ports_.end() || it->second->data() == nullptr) return;
+    std::unique_ptr<MessagePortData> data = it->second->Detach();
+    data->Disentangle();
+    data.reset();
+    Submit([id](GreenIsolate* self) {
+      auto it = self->ports_.find(id);
+      if (it == self->ports_.end()) return;
+      std::unique_ptr<GreenPort> port = std::move(it->second);
+      self->ports_.erase(it);
+      self->RunTask(
+          kNewInvocation, [&](Isolate* isolate, Local<Context> context) {
+            Local<Value> argv[] = {port->object.Get(isolate)};
+            USE(self->CallRuntime(
+                isolate, context, "dispatchPortClose", arraysize(argv), argv));
+          });
+    });
   }
 
   void EvaluateSource(Isolate* isolate,
@@ -2438,6 +2835,18 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                           RpcBrand(isolate));
     natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "rpcSend"),
                           FunctionTemplate::New(isolate, RpcSendCallback));
+    natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portId"),
+                          PortIdSymbol(isolate));
+    natives_template->Set(
+        FIXED_ONE_BYTE_STRING(isolate, "messageChannel"),
+        FunctionTemplate::New(isolate, MessageChannelCallback));
+    natives_template->Set(
+        FIXED_ONE_BYTE_STRING(isolate, "portPostMessage"),
+        FunctionTemplate::New(isolate, PortPostMessageCallback));
+    natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portStart"),
+                          FunctionTemplate::New(isolate, PortStartCallback));
+    natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portClose"),
+                          FunctionTemplate::New(isolate, PortCloseCallback));
     Local<ObjectTemplate> private_symbols_template =
         ObjectTemplate::New(isolate);
     private_symbols_template->Set(
@@ -2623,16 +3032,71 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Context> context = isolate->GetCurrentContext();
     Local<Value> transfer;
     if (!GetTransferList(context, args[1]).ToLocal(&transfer)) return;
-    std::optional<SerializedValue> bytes =
-        Serialize(isolate,
-                  context,
-                  args[0],
-                  false,
-                  {},
-                  transfer,
-                  self->has_memory_limit() ? self->allocator_ : nullptr);
+    std::optional<SerializedValue> bytes = Serialize(
+        isolate, context, args[0], false, {}, self->Transfer(transfer));
     if (!bytes) return;
     self->PushEvent({kEventMessage, 0, true, std::move(*bytes)});
+  }
+
+  TransferOptions Transfer(Local<Value> list, Local<Object> source_port = {}) {
+    TransferOptions options;
+    options.list = list;
+    options.ports = this;
+    options.source_port = source_port;
+    if (has_memory_limit()) options.limited_allocator = allocator_;
+    return options;
+  }
+
+  // messageChannel(): returns two entangled ports.
+  static void MessageChannelCallback(const FunctionCallbackInfo<Value>& args) {
+    GreenIsolate* self = Current();
+    Isolate* isolate = args.GetIsolate();
+    auto data1 = std::make_unique<MessagePortData>(nullptr);
+    auto data2 = std::make_unique<MessagePortData>(nullptr);
+    MessagePortData::Entangle(data1.get(), data2.get());
+    Local<Object> port1;
+    Local<Object> port2;
+    if (!self->CreatePort(std::move(data1)).ToLocal(&port1) ||
+        !self->CreatePort(std::move(data2)).ToLocal(&port2)) {
+      return;
+    }
+    Local<Value> ports[] = {port1, port2};
+    args.GetReturnValue().Set(v8::Array::New(isolate, ports, arraysize(ports)));
+  }
+
+  // portPostMessage(port, value, transfer). Like Node.js' ports, ports that
+  // are closed serialize the value, and then drop it.
+  static void PortPostMessageCallback(const FunctionCallbackInfo<Value>& args) {
+    GreenIsolate* self = Current();
+    Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    CHECK(args[0]->IsObject());
+    Local<Value> transfer;
+    if (!GetTransferList(context, args[2]).ToLocal(&transfer)) return;
+    std::optional<SerializedValue> value =
+        Serialize(isolate,
+                  context,
+                  args[1],
+                  false,
+                  {},
+                  self->Transfer(transfer, args[0].As<Object>()));
+    if (!value) return;
+    GreenPort* port = self->FindPort(args[0]);
+    if (port == nullptr || port->data() == nullptr) return;
+    USE(port->data()->Dispatch(ToMessage(std::move(*value))));
+  }
+
+  static void PortStartCallback(const FunctionCallbackInfo<Value>& args) {
+    GreenPort* port = Current()->FindPort(args[0]);
+    if (port == nullptr || port->started) return;
+    port->started = true;
+    if (port->data() != nullptr) port->Notify();
+  }
+
+  static void PortCloseCallback(const FunctionCallbackInfo<Value>& args) {
+    GreenIsolate* self = Current();
+    if (!args[0]->IsObject()) return;
+    self->ClosePort(self->PortId(args[0].As<Object>()));
   }
 
   // rpcSend(message, isCall): sends an RPC message to the host. The
@@ -2855,6 +3319,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // The exports of internal/green_threads/runtime/bootstrap.
   Global<Object> runtime_;
   std::shared_ptr<LimitedAllocator> allocator_;
+  std::unordered_map<uint32_t, std::unique_ptr<GreenPort>> ports_;
+  uint32_t next_port_id_ = 1;
   uint64_t group_id_ = 0;
   bool uses_node_snapshot_ = true;
   uint64_t max_cpu_time_ = 0;
@@ -2877,6 +3343,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::unordered_map<uint32_t, TimerRecord> timers_;
   std::vector<std::pair<Global<Promise>, Global<Value>>> pending_rejections_;
 };
+
+void GreenPort::Notify() {
+  if (!notified_.exchange(true)) green_->DrainPortLater(id_);
+}
 
 void GreenTaskRunner::Post(std::unique_ptr<Task> task,
                            double delay_in_seconds) {
@@ -3219,6 +3689,40 @@ class WarmPoolWaiter final : public HandleWrap {
 };
 
 // The host side of a green thread.
+// Node.js' MessagePorts, for messages between a host and its green threads.
+class HostPortAdapter final : public PortAdapter {
+ public:
+  explicit HostPortAdapter(Environment* env) : env_(env) {}
+
+  bool IsPort(Local<Object> object, bool* detached) override {
+    if (!worker::GetMessagePortConstructorTemplate(env_->isolate_data())
+             ->HasInstance(object)) {
+      return false;
+    }
+    worker::MessagePort* port = BaseObject::Unwrap<worker::MessagePort>(object);
+    *detached = port == nullptr || port->GetTransferMode() !=
+                                       BaseObject::TransferMode::kTransferable;
+    return true;
+  }
+
+  std::unique_ptr<MessagePortData> TakePort(Local<Object> object) override {
+    worker::MessagePort* port = BaseObject::Unwrap<worker::MessagePort>(object);
+    return static_unique_pointer_cast<MessagePortData>(
+        port->TransferForMessaging());
+  }
+
+  MaybeLocal<Object> CreatePort(
+      std::unique_ptr<MessagePortData> data) override {
+    worker::MessagePort* port =
+        worker::MessagePort::New(env_, env_->context(), std::move(data));
+    if (port == nullptr) return {};
+    return port->object();
+  }
+
+ private:
+  Environment* env_;
+};
+
 class GreenThreadWrap final : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -3481,8 +3985,12 @@ class GreenThreadWrap final : public HandleWrap {
     Environment* env = wrap->env();
     Local<Value> transfer;
     if (!GetTransferList(env->context(), args[1]).ToLocal(&transfer)) return;
+    HostPortAdapter ports(env);
+    TransferOptions options;
+    options.list = transfer;
+    options.ports = &ports;
     std::optional<SerializedValue> bytes =
-        Serialize(env->isolate(), env->context(), args[0], true, {}, transfer);
+        Serialize(env->isolate(), env->context(), args[0], true, {}, options);
     if (!bytes) return;
     wrap->green_->PostMessage(std::move(*bytes));
   }
@@ -3529,7 +4037,9 @@ class GreenThreadWrap final : public HandleWrap {
         if (event.type == kEventRpc && !rpc_hooks_.IsEmpty()) {
           rpc_hooks = rpc_hooks_.Get(isolate);
         }
-        if (!Deserialize(isolate, context, event.payload, rpc_hooks)
+        HostPortAdapter ports(env);
+        if (!Deserialize(
+                 isolate, context, event.payload, rpc_hooks, false, &ports)
                  .ToLocal(&value)) {
           value = Undefined(isolate);
         }
