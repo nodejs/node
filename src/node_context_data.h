@@ -138,7 +138,7 @@ class ContextEmbedderTag {
   static inline void TagNodeContext(v8::Local<v8::Context> context) {
     // Used by ContextEmbedderTag::IsNodeContext to know that we are on a node
     // context.
-    context->SetAlignedPointerInEmbedderData(
+    context->SetAlignedPointerInEmbedderDataV2(
         ContextEmbedderIndex::kContextTag,
         ContextEmbedderTag::kNodeContextTagPtr,
         EmbedderDataTag::kPerContextData);
