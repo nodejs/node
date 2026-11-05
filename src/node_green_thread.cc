@@ -18,6 +18,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <deque>
 #include <functional>
@@ -105,6 +106,7 @@ enum EventType : int32_t {
   kEventExit,
   kEventWarmPoolFull,
   kEventAbandoned,
+  kEventRpc,
 };
 
 // Values of the `id` field of kEventError events.
@@ -615,10 +617,53 @@ class Watchdog {
   std::unordered_map<const void*, Entry> entries_;
 };
 
+// The private symbol that RpcTargets and RPC stubs are branded with, in both
+// green threads and their hosts. See internal/green_threads/rpc.
+Local<v8::Private> RpcBrand(Isolate* isolate) {
+  return v8::Private::ForApi(
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:rpc"));
+}
+
+// Calls `hooks[name](arg)`, where `hooks` is an RpcSession's hooks: see
+// internal/green_threads/runtime/bootstrap and lib/green_threads.js.
+MaybeLocal<Value> CallRpcHook(Isolate* isolate,
+                              Local<Context> context,
+                              Local<Object> hooks,
+                              const char* name,
+                              Local<Value> arg) {
+  Local<Value> hook;
+  if (!hooks->Get(context, OneByteString(isolate, name)).ToLocal(&hook)) {
+    return {};
+  }
+  CHECK(hook->IsFunction());
+  return hook.As<Function>()->Call(context, hooks, 1, &arg);
+}
+
 class SerializerDelegate final : public ValueSerializer::Delegate {
  public:
-  SerializerDelegate(Isolate* isolate, Local<Context> context, bool is_host)
-      : isolate_(isolate), context_(context), is_host_(is_host) {}
+  // With `rpc_hooks`, RpcTargets, RPC stubs and AbortSignals are serialized
+  // as indices into descriptors(), which holds what the hooks'
+  // exportHostObject() returns for them.
+  SerializerDelegate(Isolate* isolate,
+                     Local<Context> context,
+                     bool is_host,
+                     Local<Object> rpc_hooks = {})
+      : isolate_(isolate),
+        context_(context),
+        is_host_(is_host),
+        rpc_hooks_(rpc_hooks) {
+    if (rpc_hooks_.IsEmpty()) return;
+    rpc_brand_ = RpcBrand(isolate);
+    Local<Value> prototype;
+    if (rpc_hooks_
+            ->Get(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "abortSignalPrototype"))
+            .ToLocal(&prototype)) {
+      abort_signal_prototype_ = prototype;
+    }
+  }
+
+  void set_serializer(ValueSerializer* serializer) { serializer_ = serializer; }
 
   void ThrowDataCloneError(Local<String> message) override {
     if (is_host_) {
@@ -636,33 +681,182 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
     isolate_->ThrowException(error);
   }
 
+  bool HasCustomHostObject(Isolate* isolate) override {
+    return !rpc_hooks_.IsEmpty();
+  }
+
+  Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object) override {
+    // What V8 does without custom host objects.
+    if (object->InternalFieldCount() > 0) return Just(true);
+    return IsRpcObject(object);
+  }
+
+  Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
+    Maybe<bool> is_rpc_object = IsRpcObject(object);
+    if (is_rpc_object.IsNothing()) return Nothing<bool>();
+    if (!is_rpc_object.FromJust()) {
+      return ValueSerializer::Delegate::WriteHostObject(isolate, object);
+    }
+    Local<Value> descriptor;
+    if (!CallRpcHook(isolate, context_, rpc_hooks_, "exportHostObject", object)
+             .ToLocal(&descriptor)) {
+      return Nothing<bool>();
+    }
+    serializer_->WriteUint32(static_cast<uint32_t>(descriptors_.size()));
+    // V8 writes each object in a HandleScope of its own.
+    descriptors_.emplace_back(isolate, descriptor);
+    return Just(true);
+  }
+
+  // Once the value is serialized.
+  Local<v8::Array> descriptors() {
+    if (descriptors_.empty()) return {};
+    LocalVector<Value> values(isolate_);
+    values.reserve(descriptors_.size());
+    for (const Global<Value>& descriptor : descriptors_) {
+      values.push_back(descriptor.Get(isolate_));
+    }
+    return v8::Array::New(isolate_, values.data(), values.size());
+  }
+
  private:
+  Maybe<bool> IsRpcObject(Local<Object> object) {
+    Maybe<bool> branded = object->HasPrivate(context_, rpc_brand_);
+    if (branded.IsNothing() || branded.FromJust()) return branded;
+    if (abort_signal_prototype_.IsEmpty()) return Just(false);
+    // Like `instanceof AbortSignal`, without calling into JS.
+    constexpr int kMaxDepth = 8;
+    Local<Value> prototype = object->GetPrototype();
+    for (int i = 0; i < kMaxDepth && prototype->IsObject(); i++) {
+      if (prototype == abort_signal_prototype_) return Just(true);
+      prototype = prototype.As<Object>()->GetPrototype();
+    }
+    return Just(false);
+  }
+
   Isolate* isolate_;
   Local<Context> context_;
   bool is_host_;
+  Local<Object> rpc_hooks_;
+  Local<v8::Private> rpc_brand_;
+  Local<Value> abort_signal_prototype_;
+  ValueSerializer* serializer_ = nullptr;
+  std::vector<Global<Value>> descriptors_;
+};
+
+// Reads the host objects written by SerializerDelegate, which were imported
+// before deserializing, since JS can't run while V8 deserializes.
+class DeserializerDelegate final : public ValueDeserializer::Delegate {
+ public:
+  DeserializerDelegate(Local<Context> context, Local<v8::Array> objects)
+      : context_(context), objects_(objects) {}
+
+  void set_deserializer(ValueDeserializer* deserializer) {
+    deserializer_ = deserializer;
+  }
+
+  MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
+    uint32_t index;
+    Local<Value> object;
+    if (objects_.IsEmpty() || !deserializer_->ReadUint32(&index) ||
+        index >= objects_->Length() ||
+        !objects_->Get(context_, index).ToLocal(&object) ||
+        !object->IsObject()) {
+      isolate->ThrowException(Exception::Error(
+          FIXED_ONE_BYTE_STRING(isolate, "Invalid RPC host object")));
+      return {};
+    }
+    return object.As<Object>();
+  }
+
+ private:
+  Local<Context> context_;
+  Local<v8::Array> objects_;
+  ValueDeserializer* deserializer_ = nullptr;
 };
 
 // Throws a JS exception and returns std::nullopt if `value` is not cloneable.
+// With `rpc_hooks`, the result starts with the length of the serialized
+// descriptors of its host objects, and those descriptors.
 std::optional<Bytes> Serialize(Isolate* isolate,
                                Local<Context> context,
                                Local<Value> value,
-                               bool is_host) {
-  SerializerDelegate delegate(isolate, context, is_host);
+                               bool is_host,
+                               Local<Object> rpc_hooks = {}) {
+  SerializerDelegate delegate(isolate, context, is_host, rpc_hooks);
   ValueSerializer serializer(isolate, &delegate);
+  delegate.set_serializer(&serializer);
   serializer.WriteHeader();
   if (serializer.WriteValue(context, value).IsNothing()) return std::nullopt;
   std::pair<uint8_t*, size_t> buffer = serializer.Release();
-  Bytes bytes(buffer.first, buffer.first + buffer.second);
+  Bytes bytes;
+  if (!rpc_hooks.IsEmpty()) {
+    Bytes descriptors;
+    Local<v8::Array> descriptor_array = delegate.descriptors();
+    if (!descriptor_array.IsEmpty()) {
+      std::optional<Bytes> serialized =
+          Serialize(isolate, context, descriptor_array, is_host);
+      if (!serialized) {
+        free(buffer.first);
+        return std::nullopt;
+      }
+      descriptors = std::move(*serialized);
+    }
+    const uint32_t length = descriptors.size();
+    const uint8_t* length_bytes = reinterpret_cast<const uint8_t*>(&length);
+    bytes.insert(bytes.end(), length_bytes, length_bytes + sizeof(length));
+    bytes.insert(bytes.end(), descriptors.begin(), descriptors.end());
+  }
+  bytes.insert(bytes.end(), buffer.first, buffer.first + buffer.second);
   free(buffer.first);
   return bytes;
 }
 
 MaybeLocal<Value> Deserialize(Isolate* isolate,
                               Local<Context> context,
-                              const Bytes& bytes) {
-  ValueDeserializer deserializer(isolate, bytes.data(), bytes.size());
+                              const uint8_t* data,
+                              size_t size,
+                              Local<v8::Array> host_objects = {}) {
+  DeserializerDelegate delegate(context, host_objects);
+  ValueDeserializer deserializer(isolate, data, size, &delegate);
+  delegate.set_deserializer(&deserializer);
   if (deserializer.ReadHeader(context).IsNothing()) return {};
   return deserializer.ReadValue(context);
+}
+
+// Deserializes what Serialize() returned. With `rpc_hooks`, imports the host
+// objects with the hooks' importHostObjects() first.
+MaybeLocal<Value> Deserialize(Isolate* isolate,
+                              Local<Context> context,
+                              const Bytes& bytes,
+                              Local<Object> rpc_hooks = {}) {
+  if (rpc_hooks.IsEmpty()) {
+    return Deserialize(isolate, context, bytes.data(), bytes.size());
+  }
+  uint32_t length;
+  CHECK_GE(bytes.size(), sizeof(length));
+  memcpy(&length, bytes.data(), sizeof(length));
+  CHECK_LE(length, bytes.size() - sizeof(length));
+  const uint8_t* descriptors = bytes.data() + sizeof(length);
+  Local<v8::Array> host_objects;
+  if (length > 0) {
+    Local<Value> descriptor_array;
+    Local<Value> objects;
+    if (!Deserialize(isolate, context, descriptors, length)
+             .ToLocal(&descriptor_array) ||
+        !CallRpcHook(
+             isolate, context, rpc_hooks, "importHostObjects", descriptor_array)
+             .ToLocal(&objects)) {
+      return {};
+    }
+    CHECK(objects->IsArray());
+    host_objects = objects.As<v8::Array>();
+  }
+  return Deserialize(isolate,
+                     context,
+                     descriptors + length,
+                     bytes.size() - sizeof(length) - length,
+                     host_objects);
 }
 
 struct HostEvent {
@@ -795,6 +989,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   struct Options {
     std::string source;
     std::string filename;
+    // The serialized `env` global, if any.
+    Bytes env;
     bool testing_globals = false;
     bool testing_ignore_termination = false;
     // Fixed when the isolate is created.
@@ -888,6 +1084,23 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                     [&](Isolate* isolate, Local<Context> context) {
                       self->DeliverMessage(isolate, context, data);
                     });
+    });
+  }
+
+  // May be called from any thread. `context_id` is the invocation context
+  // of the call that this is the result of, or 0.
+  void PostRpc(Bytes data, uint32_t context_id) {
+    Submit([data = std::move(data), context_id](GreenIsolate* self) {
+      self->RunTask(context_id == 0 ? kNewInvocation : context_id,
+                    [&](Isolate* isolate, Local<Context> context) {
+                      self->DeliverRpc(isolate, context, data);
+                    });
+      if (context_id == 0) return;
+      auto it = self->contexts_.find(context_id);
+      if (it != self->contexts_.end() && it->second.pending > 0) {
+        it->second.pending--;
+        self->MaybeReleaseInvocationContext(context_id);
+      }
     });
   }
 
@@ -1264,6 +1477,19 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                                                       "__greenThreadBlock",
                                                       BlockCallback))) {
         return;
+      }
+      if (!options.env.empty()) {
+        Local<Value> env;
+        if (!Deserialize(isolate, context, options.env, runtime_.Get(isolate))
+                 .ToLocal(&env) ||
+            context->Global()
+                ->DefineOwnProperty(context,
+                                    FIXED_ONE_BYTE_STRING(isolate, "env"),
+                                    env,
+                                    PropertyAttribute::DontEnum)
+                .IsNothing()) {
+          return;
+        }
       }
       Local<Script> script;
       if (!Compile(isolate, context, options.source, options.filename)
@@ -1713,6 +1939,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         context, context->Global(), arraysize(argv), argv));
   }
 
+  void DeliverRpc(Isolate* isolate, Local<Context> context, const Bytes& data) {
+    Local<Object> runtime = runtime_.Get(isolate);
+    Local<Value> message;
+    if (!Deserialize(isolate, context, data, runtime).ToLocal(&message)) return;
+    USE(CallRpcHook(isolate, context, runtime, "onRpc", message));
+  }
+
   void EvaluateSource(Isolate* isolate,
                       Local<Context> context,
                       int32_t id,
@@ -1962,8 +2195,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   // Runs the JS part of the green thread runtime: its primordials, Node.js'
-  // DOMException, then internal/green_threads/bootstrap, whose exports are
-  // kept in runtime_.
+  // DOMException, then internal/green_threads/runtime/bootstrap, whose exports
+  // are kept in runtime_.
   bool RunBootstrap(Isolate* isolate, Local<Context> context) {
     TryCatch try_catch(isolate);
     auto set = [&](Local<Object> target, const char* name, Local<Value> value) {
@@ -1976,6 +2209,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // What internalBinding() returns in the runtime's modules. Private
     // symbols can only be passed to JS through templates.
     Local<ObjectTemplate> natives_template = ObjectTemplate::New(isolate);
+    natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "rpcBrand"),
+                          RpcBrand(isolate));
+    natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "rpcSend"),
+                          FunctionTemplate::New(isolate, RpcSendCallback));
     Local<ObjectTemplate> private_symbols_template =
         ObjectTemplate::New(isolate);
     private_symbols_template->Set(
@@ -2013,8 +2250,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Require(isolate,
                 context,
                 data,
-                FIXED_ONE_BYTE_STRING(isolate,
-                                      "internal/green_threads/primordials"))
+                FIXED_ONE_BYTE_STRING(
+                    isolate, "internal/green_threads/runtime/primordials"))
             .IsEmpty()) {
       return ReportBootstrapError(isolate, context, try_catch);
     }
@@ -2029,11 +2266,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                                  args,
                                  nullptr)
             .IsEmpty() ||
-        !Require(
-             isolate,
-             context,
-             data,
-             FIXED_ONE_BYTE_STRING(isolate, "internal/green_threads/bootstrap"))
+        !Require(isolate,
+                 context,
+                 data,
+                 FIXED_ONE_BYTE_STRING(
+                     isolate, "internal/green_threads/runtime/bootstrap"))
              .ToLocal(&bootstrap_exports)) {
       return ReportBootstrapError(isolate, context, try_catch);
     }
@@ -2161,6 +2398,25 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     std::optional<Bytes> bytes = Serialize(isolate, context, args[0], false);
     if (!bytes) return;
     self->PushEvent({kEventMessage, 0, true, std::move(*bytes)});
+  }
+
+  // rpcSend(message, isCall): sends an RPC message to the host. The
+  // invocation context of a call is kept until its result arrives, and the
+  // result continues in it.
+  static void RpcSendCallback(const FunctionCallbackInfo<Value>& args) {
+    GreenIsolate* self = Current();
+    Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    std::optional<Bytes> bytes = Serialize(
+        isolate, context, args[0], false, self->runtime_.Get(isolate));
+    if (!bytes) return;
+    uint32_t context_id = 0;
+    if (args[1]->IsTrue()) {
+      context_id = self->CurrentInvocationContextId(isolate);
+      self->contexts_.at(context_id).pending++;
+    }
+    self->PushEvent(
+        {kEventRpc, static_cast<int32_t>(context_id), true, std::move(*bytes)});
   }
 
   static void CloseCallback(const FunctionCallbackInfo<Value>& args) {
@@ -2361,7 +2617,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // Only accessed in slices.
   State state_ = State::kPending;
   Global<Context> context_;
-  // The exports of internal/green_threads/bootstrap.
+  // The exports of internal/green_threads/runtime/bootstrap.
   Global<Object> runtime_;
   std::shared_ptr<LimitedAllocator> allocator_;
   uint64_t group_id_ = 0;
@@ -2750,6 +3006,7 @@ class GreenThreadWrap final : public HandleWrap {
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     SetProtoMethod(isolate, constructor, "postMessage", PostMessage);
+    SetProtoMethod(isolate, constructor, "rpc", Rpc);
     SetProtoMethod(isolate, constructor, "evaluate", Evaluate);
     SetProtoMethod(isolate, constructor, "terminate", Terminate);
 
@@ -2780,6 +3037,17 @@ class GreenThreadWrap final : public HandleWrap {
               FIXED_ONE_BYTE_STRING(isolate, "canCutOffThreads"),
               Boolean::New(isolate, can_cut_off_threads))
         .Check();
+    {
+      // Private symbols can only be passed to JS through templates.
+      Local<ObjectTemplate> brand_template = ObjectTemplate::New(isolate);
+      Local<String> name = FIXED_ONE_BYTE_STRING(isolate, "rpcBrand");
+      brand_template->Set(name, RpcBrand(isolate));
+      Local<Value> brand = brand_template->NewInstance(context)
+                               .ToLocalChecked()
+                               ->Get(context, name)
+                               .ToLocalChecked();
+      target->Set(context, name, brand).Check();
+    }
 
 #define V(name, value)                                                         \
   target                                                                       \
@@ -2793,6 +3061,7 @@ class GreenThreadWrap final : public HandleWrap {
     V("kEventError", kEventError)
     V("kEventExit", kEventExit)
     V("kEventAbandoned", kEventAbandoned)
+    V("kEventRpc", kEventRpc)
     V("kErrorException", kErrorException)
     V("kErrorOutOfMemory", kErrorOutOfMemory)
     V("kErrorCpuLimit", kErrorCpuLimit)
@@ -2807,6 +3076,7 @@ class GreenThreadWrap final : public HandleWrap {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
     registry->Register(New);
     registry->Register(PostMessage);
+    registry->Register(Rpc);
     registry->Register(Evaluate);
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
@@ -2906,8 +3176,21 @@ class GreenThreadWrap final : public HandleWrap {
         options.group_id = group->id();
       }
     }
+    // args[10]: the hooks of the host's RpcSession. args[11]: the env, if
+    // any, which is serialized with them.
+    Local<Object> rpc_hooks;
+    if (args[10]->IsObject()) {
+      rpc_hooks = args[10].As<Object>();
+      if (!args[11]->IsUndefined()) {
+        std::optional<Bytes> bytes = Serialize(
+            env->isolate(), env->context(), args[11], true, rpc_hooks);
+        if (!bytes) return;
+        options.env = std::move(*bytes);
+      }
+    }
 
-    new GreenThreadWrap(env, args.This(), std::move(options));
+    auto* wrap = new GreenThreadWrap(env, args.This(), std::move(options));
+    if (!rpc_hooks.IsEmpty()) wrap->rpc_hooks_.Reset(env->isolate(), rpc_hooks);
   }
 
   GreenThreadWrap(Environment* env,
@@ -2937,6 +3220,23 @@ class GreenThreadWrap final : public HandleWrap {
     channel_->Close();
     green_->TerminateAndWait(false);
     green_.reset();
+  }
+
+  // rpc(message, contextId)
+  static void Rpc(const FunctionCallbackInfo<Value>& args) {
+    GreenThreadWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+    CHECK(args[1]->IsUint32());
+    if (!wrap->green_ || wrap->rpc_hooks_.IsEmpty()) return;
+    Environment* env = wrap->env();
+    std::optional<Bytes> bytes =
+        Serialize(env->isolate(),
+                  env->context(),
+                  args[0],
+                  true,
+                  wrap->rpc_hooks_.Get(env->isolate()));
+    if (!bytes) return;
+    wrap->green_->PostRpc(std::move(*bytes), args[1].As<Uint32>()->Value());
   }
 
   static void PostMessage(const FunctionCallbackInfo<Value>& args) {
@@ -2988,7 +3288,12 @@ class GreenThreadWrap final : public HandleWrap {
       Local<Value> value = Undefined(isolate);
       if (!event.payload.empty()) {
         TryCatch try_catch(isolate);
-        if (!Deserialize(isolate, context, event.payload).ToLocal(&value)) {
+        Local<Object> rpc_hooks;
+        if (event.type == kEventRpc && !rpc_hooks_.IsEmpty()) {
+          rpc_hooks = rpc_hooks_.Get(isolate);
+        }
+        if (!Deserialize(isolate, context, event.payload, rpc_hooks)
+                 .ToLocal(&value)) {
           value = Undefined(isolate);
         }
       }
@@ -3010,6 +3315,7 @@ class GreenThreadWrap final : public HandleWrap {
   uv_async_t async_;
   std::shared_ptr<HostChannel> channel_;
   std::shared_ptr<GreenIsolate> green_;
+  Global<Object> rpc_hooks_;
 };
 
 }  // namespace
