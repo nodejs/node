@@ -48,6 +48,10 @@ the following globals:
 * `console.log()`, `console.info()`, `console.warn()`, `console.error()`,
   `console.debug()`: Forwarded to the host's `console`. Arguments that can't
   be cloned are forwarded as strings.
+* [`EventTarget`][], [`Event`][], [`AbortController`][], [`AbortSignal`][] and
+  [`DOMException`][]. There is no DOM tree, so events are only dispatched to
+  their target. Errors thrown by event listeners are uncaught errors of the
+  green thread.
 
 Green threads have no access to `require()`, `import`, `process`, or any
 other Node.js API.
@@ -439,10 +443,15 @@ Calls [`greenThread.terminate()`][].
 [`'exit'`]: #event-exit
 [`'message'`]: #event-message
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
+[`AbortController`]: globals.md#class-abortcontroller
+[`AbortSignal`]: globals.md#class-abortsignal
+[`DOMException`]: globals.md#class-domexception
 [`ERR_GREEN_THREAD_CPU_LIMIT`]: errors.md#err_green_thread_cpu_limit
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
 [`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_green_thread_isolate_groups_unsupported
 [`ERR_GREEN_THREAD_OUT_OF_MEMORY`]: errors.md#err_green_thread_out_of_memory
+[`EventTarget`]: events.md#class-eventtarget
+[`Event`]: events.md#class-event
 [`GreenThread`]: #new-greenthreadsource-options
 [`IsolateGroup.supported`]: #static-property-isolategroupsupported
 [`IsolateGroup`]: #class-isolategroup
