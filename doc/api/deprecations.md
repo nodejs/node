@@ -4849,7 +4849,7 @@ Type: Documentation-only
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67271
     description: Runtime deprecation.
 -->
 

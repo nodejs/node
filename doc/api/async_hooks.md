@@ -151,7 +151,7 @@ added: v8.1.0
 deprecated: REPLACEME
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67271
     description: Runtime deprecation (DEP0212).
 -->
 
