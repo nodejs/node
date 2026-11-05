@@ -3713,8 +3713,9 @@ void Session::OnTimeout() {
   // on a freed object.
   BaseObjectPtr<Session> ref(this);
   HandleScope scope(env()->isolate());
-  int ret;
-  {
+  int ret = 0;
+  // Once we're draining, we don't want ngtcp to handle expired timeouts
+  if (!is_in_draining_period()) {
     NgTcp2CallbackScope callback_scope(this);
     ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
   }
