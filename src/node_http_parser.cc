@@ -33,7 +33,7 @@
 
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
-
+#include <vector>
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -84,6 +84,7 @@ const uint32_t kOnTimeout = 6;
 const size_t kMaxHeaderFieldsCount = 32;
 // Maximum size of chunk extensions
 const size_t kMaxChunkExtensionsSize = 16384;
+const size_t kMaxBufferedBodySize = 64 * 1024;
 
 const uint32_t kLenientNone = 0;
 const uint32_t kLenientHeaders = 1 << 0;
@@ -519,35 +520,65 @@ class Parser : public AsyncWrap, public StreamListener {
     return static_cast<int>(val);
   }
 
-
   int on_body(const char* at, size_t length) {
     if (length == 0)
       return 0;
+
+    if (pending_body_len_ + length > kMaxBufferedBodySize && !FlushBody()) {
+      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
+      return HPE_USER;
+    }
+
+    if (pending_body_len_ == 0) {
+      pending_body_ = at;
+    } else {
+      if (body_buf_.empty()) {
+        body_buf_.reserve(kMaxBufferedBodySize);
+        body_buf_.assign(pending_body_, pending_body_ + pending_body_len_);
+      }
+      body_buf_.insert(body_buf_.end(), at, at + length);
+    }
+    pending_body_len_ += length;
+
+    return 0;
+  }
+
+  bool FlushBody() {
+    if (pending_body_len_ == 0) return true;
+
+    const char* data = body_buf_.empty() ? pending_body_ : body_buf_.data();
+    size_t length = pending_body_len_;
+    pending_body_len_ = 0;
+
+    if (got_exception_) {
+      body_buf_.clear();
+      return true;
+    }
 
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
 
     Local<Value> cb = CachedCallback(kOnBody, kOnBodyCallback);
-
-    if (!cb->IsFunction())
-      return 0;
-
-    Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
-
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
-
-    if (r.IsEmpty()) {
-      got_exception_ = true;
-      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
-      return HPE_USER;
+    if (!cb->IsFunction()) {
+      body_buf_.clear();
+      return true;
     }
 
-    return 0;
-  }
+    Local<Value> buffer = Buffer::Copy(env, data, length).ToLocalChecked();
+    body_buf_.clear();
 
+    if (MakeCallback(cb.As<Function>(), 1, &buffer).IsEmpty()) {
+      got_exception_ = true;
+      return false;
+    }
+
+    return true;
+  }
 
   int on_message_complete() {
     HandleScope scope(env()->isolate());
+
+    if (!FlushBody()) return -1;
 
     if (connectionsList_ != nullptr) {
       connectionsList_->PopActive(this);
@@ -884,6 +915,9 @@ class Parser : public AsyncWrap, public StreamListener {
       Save();
     }
 
+    // Deliver buffered body spans while `data` is still alive.
+    FlushBody();
+
     // Calculate bytes read and resume after Upgrade/CONNECT pause
     size_t nread = len;
     if (err != HPE_OK) {
@@ -1139,6 +1173,9 @@ class Parser : public AsyncWrap, public StreamListener {
   bool is_being_freed_ = false;
   size_t current_buffer_len_;
   const char* current_buffer_data_;
+  const char* pending_body_ = nullptr;
+  size_t pending_body_len_ = 0;
+  std::vector<char> body_buf_;
   bool headers_completed_ = false;
   size_t header_pairs_ = 0;
   double max_header_pairs_ = -1;
