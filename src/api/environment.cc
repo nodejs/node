@@ -342,13 +342,12 @@ bool IsFirstSnapshotBlob(const char* data) {
   return first_snapshot_recorded && data == first_snapshot_blob.data;
 }
 
-// TODO(joyeecheung): we may want to expose this, but then we need to be
-// careful about what we override in the params.
-Isolate* NewIsolate(Isolate::CreateParams* params,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform,
-                    const SnapshotData* snapshot_data,
-                    const IsolateSettings& settings) {
+template <typename RegisterFn>
+static Isolate* NewIsolateImpl(Isolate::CreateParams* params,
+                               MultiIsolatePlatform* platform,
+                               const SnapshotData* snapshot_data,
+                               const IsolateSettings& settings,
+                               RegisterFn register_isolate) {
   IsolateGroup group = GetOrCreateIsolateGroup();
   Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
@@ -361,7 +360,7 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
-  platform->RegisterIsolate(isolate, event_loop);
+  register_isolate(isolate);
 
   // Ensure that there is always a CppHeap.
   if (settings.cpp_heap == nullptr) {
@@ -376,6 +375,29 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
   SetIsolateUpForNode(isolate, settings);
 
   return isolate;
+}
+
+// TODO(joyeecheung): we may want to expose this, but then we need to be
+// careful about what we override in the params.
+Isolate* NewIsolate(Isolate::CreateParams* params,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform,
+                    const SnapshotData* snapshot_data,
+                    const IsolateSettings& settings) {
+  return NewIsolateImpl(
+      params, platform, snapshot_data, settings, [&](Isolate* isolate) {
+        platform->RegisterIsolate(isolate, event_loop);
+      });
+}
+
+Isolate* NewIsolate(Isolate::CreateParams* params,
+                    IsolatePlatformDelegate* delegate,
+                    MultiIsolatePlatform* platform,
+                    const IsolateSettings& settings) {
+  return NewIsolateImpl(
+      params, platform, nullptr, settings, [&](Isolate* isolate) {
+        platform->RegisterIsolate(isolate, delegate);
+      });
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator,
