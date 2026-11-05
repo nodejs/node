@@ -12,6 +12,8 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const envSuffix = common.isWindows ? '-windows' : '';
 
+tmpdir.refresh();
+
 describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
@@ -333,6 +335,46 @@ describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, ()
       { cwd: __dirname },
     );
     assert.match(child.stderr, /Can't find package\.json/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 1);
+  });
+
+  it('skips node_modules directories that cannot be inspected', {
+    skip: common.isWindows || process.getuid() === 0,
+  }, async () => {
+    const projectDir = tmpdir.resolve('unreadable-node-modules');
+    const nodeModules = path.join(projectDir, 'node_modules');
+    fs.mkdirSync(nodeModules, { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify({
+      scripts: { test: 'echo ok' },
+    }));
+    fs.chmodSync(nodeModules, 0o000);
+    try {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        [ '--run', 'test'],
+        { cwd: projectDir },
+      );
+      assert.strictEqual(child.stdout.trim(), 'ok');
+      assert.strictEqual(child.stderr, '');
+      assert.strictEqual(child.code, 0);
+    } finally {
+      fs.chmodSync(nodeModules, 0o755);
+    }
+  });
+
+  it('returns error when the current working directory is removed', {
+    // Windows and SunOS refuse to remove a directory that is in use as a cwd.
+    skip: common.isWindows || common.isSunOS,
+  }, async () => {
+    const removedDir = tmpdir.resolve('removed-cwd');
+    fs.mkdirSync(removedDir);
+    const child = await common.spawnPromisified(
+      '/bin/sh',
+      [ '-c', 'rmdir "$PWD" && exec "$0" --run test', process.execPath],
+      { cwd: removedDir },
+    );
+    assert.match(child.stderr, /Can't determine the current working directory/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
