@@ -232,7 +232,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 {
   const { GreenThread } = internalBinding('green_thread');
-  const handle = new GreenThread('', 'green-thread.js', 0, 0);
+  const handle = new GreenThread('', 'green-thread.js', 0, 0, 0);
   testInitialized(handle, 'GreenThread');
   handle.close();
 }
