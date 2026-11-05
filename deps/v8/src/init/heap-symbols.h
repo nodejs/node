@@ -583,8 +583,6 @@
   V(_, as_string, "as")                                                       \
   V(_, assert_string, "assert")                                               \
   V(_, async_string, "async")                                                 \
-  V(_, AtomicsCondition_string, "Atomics.Condition")                          \
-  V(_, AtomicsMutex_string, "Atomics.Mutex")                                  \
   V(_, auto_string, "auto")                                                   \
   V(_, BigInt64Array_string, "BigInt64Array")                                 \
   V(_, BigInt_string, "BigInt")                                               \
@@ -821,7 +819,6 @@
   V(_, SetIterator_string, "Set Iterator")                                    \
   V(_, setPrototypeOf_string, "setPrototypeOf")                               \
   V(_, ShadowRealm_string, "ShadowRealm")                                     \
-  V(_, SharedArray_string, "SharedArray")                                     \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                         \
   V(_, SharedStruct_string, "SharedStruct")                                   \
   V(_, short_string, "short")                                                 \
@@ -926,7 +923,6 @@
   V(_, sealed_symbol)                                     \
   V(_, shared_struct_map_elements_template_symbol)        \
   V(_, shared_struct_map_registry_key_symbol)             \
-  V(_, strict_function_transition_symbol)                 \
   V(_, template_literal_function_literal_id_symbol)       \
   V(_, template_literal_slot_id_symbol)                   \
   V(_, wasm_cross_instance_call_symbol)                   \

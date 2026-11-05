@@ -42,11 +42,11 @@ void JSBoundFunction::set_bound_target_function(Tagged<JSCallable> value,
                                                 WriteBarrierMode mode) {
   bound_target_function_.store(this, value, mode);
 }
-Tagged<Object> JSBoundFunction::bound_this() const {
+Tagged<UnionOf<JSAny, SourceTextModule>> JSBoundFunction::bound_this() const {
   return bound_this_.load();
 }
-void JSBoundFunction::set_bound_this(Tagged<Object> value,
-                                     WriteBarrierMode mode) {
+void JSBoundFunction::set_bound_this(
+    Tagged<UnionOf<JSAny, SourceTextModule>> value, WriteBarrierMode mode) {
   bound_this_.store(this, value, mode);
 }
 Tagged<FixedArray> JSBoundFunction::bound_arguments() const {
@@ -134,8 +134,6 @@ void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
       return;
     }
   }
-  // Required for being able to deoptimize this code.
-  code->set_js_dispatch_handle(dispatch_handle());
   UpdateCodeImpl(isolate, code, mode, false);
 }
 
@@ -150,15 +148,21 @@ void JSFunction::UpdateCodeImpl(Isolate* isolate, Tagged<Code> value,
     DCHECK_NE(handle, kNullJSDispatchHandle);
     set_dispatch_handle(handle, mode);
   }
+  if (value->is_optimized_code()) {
+    // Required for being able to deoptimize this code.
+    DCHECK_EQ(value->js_dispatch_handle(), kNullJSDispatchHandle);
+    value->set_js_dispatch_handle(handle);
+  }
   if (keep_tiering_request) {
-    UpdateDispatchEntryKeepTieringRequest(isolate, value, mode);
+    isolate->js_dispatch_table().SetCodeKeepTieringRequest(handle, value, this,
+                                                           isolate, mode);
   } else {
-    UpdateDispatchEntry(isolate, value, mode);
+    isolate->js_dispatch_table().SetCode(handle, value, this, isolate, mode);
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     isolate->js_dispatch_table().SetTieringRequest(
-        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
+        handle, TieringBuiltin::kFunctionLogNextExecution, isolate);
   }
 }
 
@@ -214,18 +218,7 @@ JSDispatchHandle JSFunction::AllocateDispatchHandle(
 void JSFunction::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                      WriteBarrierMode mode) {
-  dispatch_handle_.Relaxed_Store(this, handle, mode);
-}
-void JSFunction::UpdateDispatchEntry(Isolate* isolate, Tagged<Code> new_code,
-                                     WriteBarrierMode mode) {
-  isolate->js_dispatch_table().SetCode(dispatch_handle(), new_code, this,
-                                       isolate, mode);
-}
-void JSFunction::UpdateDispatchEntryKeepTieringRequest(Isolate* isolate,
-                                                       Tagged<Code> new_code,
-                                                       WriteBarrierMode mode) {
-  isolate->js_dispatch_table().SetCodeKeepTieringRequest(
-      dispatch_handle(), new_code, this, isolate, mode);
+  dispatch_handle_.Release_Store(this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
   return dispatch_handle_.Relaxed_Load();
@@ -577,14 +570,15 @@ Tagged<JSAny> JSFunction::prototype() const {
 }
 
 bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
-  return code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
+  return dispatch_handle(kAcquireLoad) != kNullJSDispatchHandle &&
+         code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
          shared()->is_compiled();
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // The function is only used sequentially. Concurrent cases need to take care
   // of loading the fields themselves.
-  Tagged<SharedFunctionInfo> sfi = TrustedCast<SharedFunctionInfo>(shared());
+  Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(shared());
   Tagged<Code> code = TrustedCast<Code>(raw_code(isolate));
   return NeedsResetDueToFlushedBytecode(isolate, sfi, code);
 }

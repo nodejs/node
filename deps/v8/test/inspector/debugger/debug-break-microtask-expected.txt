@@ -1,0 +1,8 @@
+Tests stepping into microtasks across Promise chains.
+  console.log(1);
+}
+    return 2;
+    return 2;
+    throw new Error();
+    console.log(3);
+  }  // STOP

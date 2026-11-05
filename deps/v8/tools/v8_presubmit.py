@@ -36,7 +36,8 @@ import json
 import multiprocessing
 import optparse
 import os
-from os.path import abspath, join, dirname, basename, exists, isfile, isdir
+from os.path import (abspath, join, dirname, basename, exists, isfile, isdir,
+                     relpath)
 import pickle
 import re
 import subprocess
@@ -75,6 +76,9 @@ LINT_RULES = """
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
 FLAGS_LINE = re.compile(r"//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+WRAPPED_FLAGS_LINE = re.compile(
+    r"//\s*Flags:[^\n]*\n[ \t]*//[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?"
+    r"(?:[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?)*[ \t]*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_MAGLEV = re.compile(r"//\s*Flags:.*--maglev[^-].*\n")
 FLAGS_ENABLE_TURBOLEV = re.compile(r"//\s*Flags:.*--turbolev[^-].*\n")
@@ -249,13 +253,21 @@ class SourceFileProcessor(object):
   files and invoke a custom check on the files.
   """
 
+  # Checked-in generated files. The build compares them against the
+  # generator output, so editing them to satisfy a source check does not
+  # work. See src/gen/README.md. PRESUBMIT.py skips the same paths.
+  GENERATED_PATHS = (join('src', 'gen') + os.sep,)
+
   def RunOnPath(self, path):
     """Runs processor on all files under the given path."""
 
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    return self.ProcessFiles(all_files)
+    return self.ProcessFiles([
+        f for f in all_files
+        if not relpath(f, path).startswith(SourceFileProcessor.GENERATED_PATHS)
+    ])
 
   def RunOnFiles(self, files):
     """Runs processor only on affected files."""
@@ -658,6 +670,11 @@ class SourceProcessor(SourceFileProcessor):
       match = FLAGS_LINE.search(contents)
       if match:
         print("%s Flags should use '-' (not '_')" % name)
+        result = False
+      if WRAPPED_FLAGS_LINE.search(contents):
+        print(
+            "%s Continuation of '// Flags:' must also start with '// Flags:'" %
+            name)
         result = False
       if (not "mjsunit/mjsunit.js" in name and
           not "mjsunit/mjsunit_numfuzz.js" in name):

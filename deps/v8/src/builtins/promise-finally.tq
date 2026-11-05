@@ -179,11 +179,10 @@ transitioning javascript builtin PromisePrototypeFinally(
   let constructor: Constructor = UnsafeCast<Constructor>(promiseFun);
   const receiverMap = jsReceiver.map;
   if (!IsJSPromiseMap(receiverMap) ||
-      !IsPromiseSpeciesLookupChainIntact(nativeContext, receiverMap))
-    deferred {
-      constructor =
-          UnsafeCast<Constructor>(SpeciesConstructor(jsReceiver, promiseFun));
-    }
+      !IsPromiseSpeciesLookupChainIntact(nativeContext, receiverMap)) deferred {
+    constructor =
+        UnsafeCast<Constructor>(SpeciesConstructor(jsReceiver, promiseFun));
+  }
 
   // 4. Assert: IsConstructor(C) is true.
   dcheck(IsConstructor(constructor));

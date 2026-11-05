@@ -178,7 +178,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(2), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(19),
-  /*   48 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   48 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star5),
   /*   74 E> */ B(CallUndefinedReceiver0), R(5), FBV(0),
                 B(LdaZero),
@@ -261,7 +261,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(3),
                 B(Star3),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(3),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(3),
@@ -281,6 +281,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -307,7 +308,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(2),
@@ -324,7 +325,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(4:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(5:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*   47 E> */ B(Throw),
                 B(Ldar), R(2),
@@ -340,7 +341,9 @@ constant pool: [
   Smi [20],
   Smi [63],
   Smi [10],
+  Smi [10],
   Smi [7],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]

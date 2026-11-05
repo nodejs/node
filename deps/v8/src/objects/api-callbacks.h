@@ -6,6 +6,7 @@
 #define V8_OBJECTS_API_CALLBACKS_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/struct.h"
 #include "src/sandbox/external-pointer.h"
 
@@ -37,8 +38,27 @@ V8_OBJECT class AccessorInfo : public HeapObject {
   inline void set_name(Tagged<Name> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsSloppyBit = First<bool, 1>;
+    using ReplaceOnAccessBit = IsSloppyBit::Next<bool, 1>;
+    using GetterSideEffectTypeBits =
+        ReplaceOnAccessBit::Next<SideEffectType, 2>;
+    using SetterSideEffectTypeBits =
+        GetterSideEffectTypeBits::Next<SideEffectType, 2>;
+    using InitialAttributesBits =
+        SetterSideEffectTypeBits::Next<PropertyAttributes, 3>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_sloppy, IsSloppyBit)
+    BIT_FIELD_GROUP_ACCESSORS(replace_on_access, ReplaceOnAccessBit)
+    BIT_FIELD_GROUP_ACCESSORS(getter_side_effect_type, GetterSideEffectTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(setter_side_effect_type, SetterSideEffectTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(initial_attributes, InitialAttributesBits)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // C function pointer that can be called from native code.
   DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
@@ -92,24 +112,14 @@ V8_OBJECT class AccessorInfo : public HeapObject {
   static const int kSize;
 
  private:
-  // Bit positions in |flags|.
-  using IsSloppyBit = base::BitField<bool, 0, 1, uint32_t>;
-  using ReplaceOnAccessBit = IsSloppyBit::Next<bool, 1>;
-  using GetterSideEffectTypeBits = ReplaceOnAccessBit::Next<SideEffectType, 2>;
-  using SetterSideEffectTypeBits =
-      GetterSideEffectTypeBits::Next<SideEffectType, 2>;
-  using InitialAttributesBits =
-      SetterSideEffectTypeBits::Next<PropertyAttributes, 3>;
-
   friend class TorqueGeneratedAccessorInfoAsserts;
-  friend class TorqueGeneratedBitFieldAsserts;
 
  public:
   TaggedMember<Object> data_;
   TaggedMember<Name> name_;
   ExternalPointerMember<kAccessorInfoGetterTag> getter_;
   ExternalPointerMember<kAccessorInfoSetterTag> setter_;
-  uint32_t flags_;
+  Flags flags_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES
@@ -127,6 +137,8 @@ inline constexpr int AccessorInfo::kSize = sizeof(AccessorInfo);
 
 V8_OBJECT class AccessCheckInfo : public Struct {
  public:
+  inline explicit AccessCheckInfo(const AllocationWitness& witness);
+
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);
 
@@ -158,9 +170,9 @@ V8_OBJECT class AccessCheckInfo : public Struct {
  private:
   friend class TorqueGeneratedAccessCheckInfoAsserts;
 
-  TaggedMember<UnionOf<Foreign, Smi, Undefined>> callback_;
-  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor_;
-  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor_;
+  TaggedMember<UnionOf<Foreign, Zero, Undefined>> callback_;
+  TaggedMember<UnionOf<InterceptorInfo, Zero, Undefined>> named_interceptor_;
+  TaggedMember<UnionOf<InterceptorInfo, Zero, Undefined>> indexed_interceptor_;
   TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
@@ -187,9 +199,6 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
   inline Tagged<Object> data() const;
   inline void set_data(Tagged<Object> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
 
   // Convenient predicates without named/indexed prefix.
   inline bool has_getter() const;
@@ -250,23 +259,28 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
   DECL_BOOLEAN_ACCESSORS(has_dont_delete_property)
 
-  using CanInterceptSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
-  using NonMaskingBit = CanInterceptSymbolsBit::Next<bool, 1>;
-  using NamedBit = NonMaskingBit::Next<bool, 1>;
-  using HasNoSideEffectBit = NamedBit::Next<bool, 1>;
-  using HasNewCallbacksSignatureBit = HasNoSideEffectBit::Next<bool, 1>;
-  using HasDontDeletePropertyBit = HasNewCallbacksSignatureBit::Next<bool, 1>;
-  enum Flag : uint32_t {
-    kNone = 0,
-    kCanInterceptSymbols = CanInterceptSymbolsBit::kMask,
-    kNonMasking = NonMaskingBit::kMask,
-    kNamed = NamedBit::kMask,
-    kHasNoSideEffect = HasNoSideEffectBit::kMask,
-    kHasNewCallbacksSignature = HasNewCallbacksSignatureBit::kMask,
-    kHasDontDeleteProperty = HasDontDeletePropertyBit::kMask,
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using CanInterceptSymbolsBit = First<bool, 1>;
+    using NonMaskingBit = CanInterceptSymbolsBit::Next<bool, 1>;
+    using NamedBit = NonMaskingBit::Next<bool, 1>;
+    using HasNoSideEffectBit = NamedBit::Next<bool, 1>;
+    using HasNewCallbacksSignatureBit = HasNoSideEffectBit::Next<bool, 1>;
+    using HasDontDeletePropertyBit = HasNewCallbacksSignatureBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(can_intercept_symbols, CanInterceptSymbolsBit)
+    BIT_FIELD_GROUP_ACCESSORS(non_masking, NonMaskingBit)
+    BIT_FIELD_GROUP_ACCESSORS(named, NamedBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_no_side_effect, HasNoSideEffectBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_new_callbacks_signature,
+                              HasNewCallbacksSignatureBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_dont_delete_property,
+                              HasDontDeletePropertyBit)
   };
-  using Flags = base::Flags<Flag>;
-  static constexpr int kFlagCount = 6;
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   DECL_PRINTER(InterceptorInfo)
   DECL_VERIFIER(InterceptorInfo)
@@ -295,7 +309,7 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
 
  public:
   TaggedMember<Object> data_;
-  uint32_t flags_;
+  Flags flags_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

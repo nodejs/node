@@ -11,7 +11,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 // it if possible and quietly skip it otherwise.
 // Meaning of these validation bytes: "(module (type (array (field v128))))".
 const kSimdEnabled = WebAssembly.validate(
-    new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 94, 123, 0]));
+    new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d,  // wasm magic
+        0x01, 0x00, 0x00, 0x00,  // wasm version
+
+        0x01,                    // section kind: Type
+        0x04,                    // section length 4
+        0x01, 0x5e, 0x7b, 0x00,  // types count 1:  kind: array v128 immutable
+    ]));
 console.log(`Including SIMD test scenario: ${kSimdEnabled}`);
 
 let builder = new WasmModuleBuilder();

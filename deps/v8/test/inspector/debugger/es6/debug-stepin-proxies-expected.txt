@@ -1,0 +1,15 @@
+Tests stepping into Proxy traps.
+a0
+b10
+h4b17
+h16b17
+c10
+j4c16
+j14c16
+d0
+l4d11
+l17d11
+g0
+has: true
+get: 42
+log: ["a0","b10","h4b17","h16b17","c10","j4c16","j14c16","d0","l4d11","l17d11","g0"]

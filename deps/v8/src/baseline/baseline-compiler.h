@@ -5,6 +5,8 @@
 #ifndef V8_BASELINE_BASELINE_COMPILER_H_
 #define V8_BASELINE_BASELINE_COMPILER_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/base/numerics/checked_math.h"
 #include "src/base/pointer-with-payload.h"
@@ -141,20 +143,34 @@ class BaselineCompiler {
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   // Emits an inlined Smi compare for |kOperation|, followed by a slow-path
-  // call to |kSmiStub|. Returns false without emitting anything when inlining
-  // is disabled or when the compile-time embedded feedback hint is not exactly
-  // kSignedSmall.
+  // call to |kSmiBuiltin|. Returns false without emitting anything when
+  // inlining is disabled or when the compile-time embedded feedback hint is not
+  // exactly kSignedSmall.
   template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
   bool TryEmitInlineSmiCompare(CompareOperationFeedback::Type feedback_type,
                                int feedback_index_offset);
 
   // Emits an inlined Smi Inc/Dec for |kOperation|, followed by a slow-path
-  // call to |kSmiStub|. Returns false without emitting anything when inlining
-  // is disabled or when the compile-time embedded feedback hint is not exactly
-  // kSignedSmall.
+  // call to |kSmiBuiltin|. Returns false without emitting anything when
+  // inlining is disabled or when the compile-time embedded feedback hint is not
+  // exactly kSignedSmall.
   template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
   bool TryEmitInlineSmiUnary(BinaryOperationFeedback::Type feedback_type,
                              int feedback_index_offset);
+
+  struct CompareBranchCandidate {
+    int true_offset;
+    int false_offset;
+  };
+
+  std::optional<CompareBranchCandidate> GetCompareBranchCandidate();
+
+  // Emits an inlined Smi Add/Sub/And/Or/Xor/ShiftRight followed by a slow-path
+  // call to |kSmiBuiltin|.
+  template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+  bool TryEmitInlineSmiBinaryOperation(
+      BinaryOperationFeedback::Type feedback_type, int feedback_index_offset,
+      Register lhs, Tagged<Smi> rhs);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   // Jumps based on calling ToBoolean on kInterpreterAccumulatorRegister.

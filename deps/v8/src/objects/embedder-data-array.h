@@ -52,6 +52,7 @@ V8_OBJECT class EmbedderDataArray : public HeapObject {
   // EmbedderDataSlots stored inline; each slot occupies
   // kEmbedderDataSlotSize bytes (1 or 2 Address words depending on
   // whether pointer compression is enabled).
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(Address, slots);
 } V8_OBJECT_END;
 

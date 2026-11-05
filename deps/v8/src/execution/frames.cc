@@ -13,6 +13,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
 #include "src/base/strong-alias.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/maglev-safepoint-table.h"
@@ -24,6 +25,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/logging/counters.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/casting-inl.h"
@@ -32,6 +34,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
 
@@ -161,7 +164,15 @@ class StackHandlerIterator {
 // -------------------------------------------------------------------------
 
 StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate)
-    : isolate_(isolate), frame_(nullptr), handler_(nullptr) {}
+    : isolate_(isolate),
+      frame_(nullptr),
+      handler_(nullptr)
+#if V8_ENABLE_WEBASSEMBLY
+      ,
+      wasm_stack_(isolate->isolate_data()->active_stack())
+#endif
+{
+}
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
     : StackFrameIterator(isolate, isolate->thread_local_top()) {}
@@ -461,11 +472,18 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
-    if (!ThreadIsolation::CanLookupStartOfJitAllocationAt(pc)) {
+    std::optional<Address> istream_address =
+        ThreadIsolation::TryLookupStartOfJitAllocationAt(pc);
+    if (!istream_address.has_value()) {
       return {};
     }
-    Tagged<Code> interpreter_entry_trampoline =
-        isolate->heap()->FindCodeForInnerPointer(pc);
+    Tagged<InstructionStream> istream = UncheckedCast<InstructionStream>(
+        HeapObject::FromAddress(*istream_address));
+    Tagged<Code> interpreter_entry_trampoline;
+    if (!istream->TryGetCodeUnchecked(&interpreter_entry_trampoline,
+                                      kAcquireLoad)) {
+      return {};
+    }
     return interpreter_entry_trampoline->is_interpreter_trampoline_builtin();
   } else {
     return false;
@@ -507,12 +525,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NO_FRAME_TYPE),
       external_callback_scope_(isolate->external_callback_scope()),
-      top_link_register_(lr)
-#if V8_ENABLE_WEBASSEMBLY
-      ,
-      wasm_stacks_(isolate->wasm_stacks())
-#endif
-{
+      top_link_register_(lr) {
   if (!isolate->isolate_data()->stack_is_iterable()) {
     // The stack is not iterable in a short time interval during deoptimization.
     // See also: ExternalReference::stack_is_iterable_address.
@@ -890,7 +903,6 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::WASM_EXIT:
     case StackFrame::WASM_LIFTOFF_SETUP:
     case StackFrame::WASM_TO_JS:
-    case StackFrame::WASM_SEGMENT_START:
     case StackFrame::WASM_STACK_ENTRY:
     case StackFrame::WASM_STACK_EXIT:
 #if V8_ENABLE_DRUMBRAKE
@@ -1833,8 +1845,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type type = StackFrame::MarkerToType(marker);
-  DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT ||
-         type == WASM_SEGMENT_START);
+  DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT);
 #endif
 
   // Determine the fixed header and spill slot area size.
@@ -3531,8 +3542,39 @@ Tagged<BytecodeArray> UnoptimizedJSFrame::GetBytecodeArray() const {
   return TrustedCast<BytecodeArray>(GetExpression(index));
 }
 
+namespace {
+// Validates that an interpreter register index points to a legitimate register
+// in the unoptimized frame: either a local register in the register file,
+// a parameter passed by the caller, or a recognized fixed frame
+// pseudo-register. This prevents out-of-bounds reads into adjacent frames or
+// into the frame linkage gap (saved FP / return address) between the context
+// and parameters.
+bool IsValidInterpreterRegisterIndex(Tagged<BytecodeArray> bytecode_array,
+                                     int register_index) {
+  if (register_index >= 0) {
+    return register_index < bytecode_array->register_count();
+  }
+  if (bytecode_array->parameter_count() > 0) {
+    int max_param_reg = interpreter::Register::FromParameterIndex(0).index();
+    int min_param_reg = interpreter::Register::FromParameterIndex(
+                            bytecode_array->parameter_count() - 1)
+                            .index();
+    if (register_index >= min_param_reg && register_index <= max_param_reg) {
+      return true;
+    }
+  }
+  return register_index == interpreter::Register::current_context().index() ||
+         register_index == interpreter::Register::function_closure().index() ||
+         register_index == interpreter::Register::bytecode_array().index() ||
+         register_index == interpreter::Register::bytecode_offset().index() ||
+         register_index == interpreter::Register::feedback_vector().index();
+}
+}  // namespace
+
 Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
     int register_index) const {
+  Tagged<BytecodeArray> bytecode_array = GetBytecodeArray();
+  SBXCHECK(IsValidInterpreterRegisterIndex(bytecode_array, register_index));
   const int index = UnoptimizedFrameConstants::kRegisterFileExpressionIndex;
   DCHECK_EQ(UnoptimizedFrameConstants::kRegisterFileFromFp,
             UnoptimizedFrameConstants::kExpressionsOffset -
@@ -3577,6 +3619,12 @@ void InterpretedFrame::PatchBytecodeArray(
   SetExpression(index, bytecode_array);
 }
 
+Tagged<BytecodeArray> InterpretedFrame::GetOriginalBytecodeArray() const {
+  auto bytecodes = function()->shared()->GetBytecodeArrays(isolate());
+  SBXCHECK_EQ(bytecodes.active, GetBytecodeArray());
+  return bytecodes.original;
+}
+
 int BaselineFrame::GetBytecodeOffset() const {
   Tagged<Code> code = LookupCode();
   return code->GetBytecodeOffsetForBaselinePC(this->pc(), GetBytecodeArray());
@@ -3605,6 +3653,34 @@ uint32_t BuiltinFrame::ComputeParametersCount() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+void TypedFrame::UnwindWasmReturnFromSegment(State* state) const {
+  if (v8_flags.wasm_growable_stacks && iterator_->wasm_stack() != nullptr &&
+      state->fp != kNullAddress && *state->pc_address != kNullAddress) {
+    Address raw_pc = PointerAuthentication::StripPAC(*state->pc_address);
+    Address trampoline =
+        Builtins::EntryOf(Builtin::kWasmReturnFromSegment, isolate());
+    Address current_fp = fp();
+    while (raw_pc == trampoline) {
+      Address old_fp =
+          iterator_->wasm_stack()->GetParentSegmentOldFP(current_fp);
+      CHECK_NE(old_fp, 0);
+      state->pc_address =
+          ResolveReturnAddressLocation(reinterpret_cast<Address*>(
+              old_fp + StandardFrameConstants::kCallerPCOffset));
+      raw_pc = PointerAuthentication::StripPAC(*state->pc_address);
+      current_fp = old_fp;
+    }
+    if (current_fp != fp()) {
+      state->sp = current_fp + StandardFrameConstants::kCallerSPOffset;
+    }
+  }
+}
+
+void WasmFrame::ComputeCallerState(State* state) const {
+  TypedFrame::ComputeCallerState(state);
+  UnwindWasmReturnFromSegment(state);
+}
+
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
                       AllowAllocation allow_allocation) const {
   PrintIndex(accumulator, mode, index);
@@ -3765,9 +3841,18 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
-  auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
-                                                                 caller_pc());
-  SafepointEntry& safepoint_entry = pair.second;
+  auto [code, safepoint_entry] =
+      wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
+                                                         caller_pc());
+  if (!safepoint_entry.is_initialized()) {
+    // Trap handler traps from non-debugging code also enter a WASM_DEBUG_BREAK
+    // frame via kWasmTrapHandlerThrowTrap, but do not emit safepoints with
+    // callee-saved registers. In that case, there are no tagged registers to
+    // iterate. Debugging code, however, must always have an initialized
+    // safepoint.
+    DCHECK(!code || !code->for_debugging());
+    return;
+  }
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {
@@ -4001,6 +4086,7 @@ Address WasmLiftoffSetupFrame::CallingPC() const {
 
 void WasmLiftoffSetupFrame::ComputeCallerState(State* state) const {
   TypedFrame::ComputeCallerState(state);
+  UnwindWasmReturnFromSegment(state);
   // Unlike {CallingPC}, which only runs at safepoints, this can run on a
   // profiler tick: the setup builtin sets the frame marker a few instructions
   // before it signs and spills the calling PC, so the slot can still be

@@ -1,0 +1,34 @@
+Tests debug evaluation in async functions.
+-- Breakpoint 1 --
+frame(0) inner: inner
+frame(0) letInner: throws ReferenceError
+frame(0) constInner: throws ReferenceError
+frame(0) outer: outer
+frame(0) constOuter: const outer
+frame(0) letOuter: let outer
+frame(1) outer: outer
+frame(1) constOuter: const outer
+frame(1) letOuter: let outer
+frame(0) withVar: throws ReferenceError
+-- Breakpoint 2 --
+frame(0) inner: inner
+frame(0) letInner: throws ReferenceError
+frame(0) constInner: throws ReferenceError
+frame(0) x: 57
+frame(0) y: 100
+frame(0) outer: outer
+frame(0) constOuter: const outer
+frame(0) letOuter: let outer
+-- Breakpoint 3 --
+frame(0) inner: inner
+frame(0) letInner: let inner
+frame(0) constInner: const inner
+-- Breakpoint 4 --
+frame(0) error.message: oop
+frame(0) error.constructor.name: Error
+frame(0) bun: floof
+frame(0) cow: throws ReferenceError
+frame(0) outer: outer
+frame(0) constOuter: const outer
+frame(0) letOuter: let outer
+test() completed successfully

@@ -19,6 +19,7 @@
 
 namespace cppgc {
 class AllocationHandle;
+class AllocationSampler;
 class HeapHandle;
 }  // namespace cppgc
 
@@ -56,8 +57,14 @@ struct V8_EXPORT CppHeapCreateParams {
   /**
    * Optional marker representing the stack start of the thread creating the
    * heap.
+   * TODO(540324230): Remove once embedders migrate to StackStartScope.
    */
+  V8_DEPRECATE_SOON("Use StackStartScope instead.")
   std::optional<cppgc::StackStartMarker> stack_start_marker = std::nullopt;
+  /**
+   * Optional allocation sampler.
+   */
+  cppgc::AllocationSampler* allocation_sampler = nullptr;
 };
 
 /**

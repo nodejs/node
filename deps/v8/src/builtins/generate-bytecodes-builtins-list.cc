@@ -48,8 +48,8 @@ void WriteHeader(const char* header_filename) {
   out << "// Automatically generated from interpreter/bytecodes.h\n"
       << "// The following list macro is used to populate the builtins list\n"
       << "// with the bytecode handlers\n\n"
-      << "#ifndef V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n"
-      << "#define V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n\n"
+      << "#ifndef V8_GEN_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST_H_\n"
+      << "#define V8_GEN_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST_H_\n\n"
       << "#include <stdint.h>\n\n"
       << "#include \"src/common/globals.h\"\n\n"
       << "namespace v8 {\n"
@@ -91,7 +91,7 @@ void WriteHeader(const char* header_filename) {
       << "// Mapping from Bytecode to a dense form with all the illegal\n"
       << "// wide Bytecodes removed. Used to index into the builtins table.\n"
       << "constexpr uint8_t kWideBytecodeToBuiltinsMapping["
-      << Bytecodes::kBytecodeCount << "] = {    \n";
+      << Bytecodes::kBytecodeCount << "] = {\n";
 
   for (int i = Bytecodes::kBytecodeCount; i < 2 * Bytecodes::kBytecodeCount;
        ++i) {
@@ -107,7 +107,7 @@ void WriteHeader(const char* header_filename) {
   out << "};\n\n"
       << "}  // namespace internal\n"
       << "}  // namespace v8\n"
-      << "#endif  // V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n";
+      << "#endif  // V8_GEN_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST_H_\n";
 }
 
 }  // namespace interpreter

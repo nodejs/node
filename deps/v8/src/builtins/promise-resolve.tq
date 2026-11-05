@@ -66,13 +66,12 @@ transitioning builtin PromiseResolve(
       const result = NewJSPromise();
       ResolvePromise(context, result, value);
       return result;
-    } else
-      deferred {
-        const capability = NewPromiseCapability(constructor, True);
-        const resolve = UnsafeCast<Callable>(capability.resolve);
-        Call(context, resolve, Undefined, value);
-        return capability.promise;
-      }
+    } else deferred {
+      const capability = NewPromiseCapability(constructor, True);
+      const resolve = UnsafeCast<Callable>(capability.resolve);
+      Call(context, resolve, Undefined, value);
+      return capability.promise;
+    }
   }
 }
 
@@ -97,10 +96,9 @@ transitioning builtin ResolvePromise(
   // We can use pointer comparison here, since the {promise} is guaranteed
   // to be a JSPromise inside this function and thus is reference comparable.
   if (IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
-      TaggedEqual(promise, resolution))
-    deferred {
-      return runtime::ResolvePromise(promise, resolution);
-    }
+      TaggedEqual(promise, resolution)) deferred {
+    return runtime::ResolvePromise(promise, resolution);
+  }
 
   let then: Object = Undefined;
   try {

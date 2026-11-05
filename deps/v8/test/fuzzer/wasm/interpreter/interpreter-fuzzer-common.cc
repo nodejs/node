@@ -13,6 +13,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
@@ -128,7 +129,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       CHECK(!IsNull(*arg.to_ref()));
     }
   }
-  bool success = handle->raw()->Execute(
+  bool success = handle->get()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.
@@ -215,7 +216,7 @@ Handle<String> ExtractUtf8StringFromModuleBytes(
   base::Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   return isolate->factory()->InternalizeUtf8String(
-      base::Vector<const char>::cast(name_vec));
+      {reinterpret_cast<const char*>(name_vec.begin()), name_vec.size()});
 }
 
 Handle<JSObject> CreateImportObjectInternal(
@@ -531,25 +532,25 @@ int FastInterpretAndExecuteModules(
 
 void InitializeDrumbrakeForFuzzing() {
   // We should always pass jitless for wasm-jitless.
-  v8_flags.jitless = true;
-  v8_flags.wasm_jitless = true;
+  v8_flags.jitless.Set(true);
+  v8_flags.wasm_jitless.Set(true);
 
   // This configuration will make fuzzing slower, but helps to reproduce GC bugs
   // more reliably.
-  v8_flags.stress_compaction = true;
-  v8_flags.gc_interval = 500;
+  v8_flags.stress_compaction.Set(true);
+  v8_flags.gc_interval.Set(500);
 
   // Avoid restarting the fuzzer process due to timeout when there is an
   // infinite loop.
-  v8_flags.drumbrake_fuzzer_timeout = true;
+  v8_flags.drumbrake_fuzzer_timeout.Set(true);
 
   // Enable the isolate to be in a state where it can be used for fuzzing.
-  i::v8_flags.drumbrake_fuzzing_mode = true;
+  i::v8_flags.drumbrake_fuzzing_mode.Set(true);
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  v8_flags.wasm_max_mem_pages = 32;
-  v8_flags.wasm_max_table_size = 100;
+  v8_flags.wasm_max_mem_pages.Set(32);
+  v8_flags.wasm_max_table_size.Set(100);
 
   FlagList::EnforceFlagImplications();
 
@@ -604,7 +605,7 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   bool compiles = wasm::GetWasmEngine()
                       ->SyncCompile(i_isolate, enabled_features,
                                     fuzzing::CompileTimeImportsForFuzzing(),
-                                    &thrower, v8::base::OwnedCopyOf(buffer))
+                                    &thrower, v8::base::UniqueCopyOf(buffer))
                       .ToHandle(&module_object);
   // TODO(338326645): add similar GenerateTestCase code for wasm fast
   // interpreter.
@@ -679,13 +680,13 @@ int LLVMFuzzerTestTwoModulesCommon(
   bool compiles = wasm::GetWasmEngine()
                       ->SyncCompile(i_isolate, enabled_features,
                                     fuzzing::CompileTimeImportsForFuzzing(),
-                                    &thrower, v8::base::OwnedCopyOf(buffer_2))
+                                    &thrower, v8::base::UniqueCopyOf(buffer_2))
                       .ToHandle(&module_object);
   DirectHandle<WasmModuleObject> other_module_object;
   bool compiles_2 = wasm::GetWasmEngine()
                         ->SyncCompile(i_isolate, enabled_features,
                                       fuzzing::CompileTimeImportsForFuzzing(),
-                                      &thrower, v8::base::OwnedCopyOf(buffer))
+                                      &thrower, v8::base::UniqueCopyOf(buffer))
                         .ToHandle(&other_module_object);
   int execute_module_result = -1;
   if (compiles && compiles_2) {

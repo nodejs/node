@@ -18,6 +18,7 @@
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"

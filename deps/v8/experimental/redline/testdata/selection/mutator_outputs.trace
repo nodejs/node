@@ -1,0 +1,75 @@
+CodeGen	0	526b993a964cd7d4	inserted FunctionDecl+BuiltinInstanceDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	1	4655841d4b2fb34b	inserted Deopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	2	f0610171a91c4b7a	inserted UnaryOp+ConstructorFunctionDecl+MethodCall	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	3	a9784195088d4ec2	inserted NativeCall	let n = 42; let s = "text"; let a = [1, 2, 3]; %PrepareFunctionForOpti
+CodeGen	4	1ad9130d842be4a2	inserted JitOptimize	%PrepareFunctionForOptimization(f); f(23702, 46356); f(23702, 46356);
+Explore	0	229b8b1e75c3c53f	probing r f	let n = 42; let s = "text"; try {   __redline_explore("e8834", f, [s,
+Explore	1	be4a2707f13ec60b	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Explore	2	0558f152f37b2388	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; try {   __redline_explo
+Explore	3	8e962c9c42194a04	probing a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Explore	4	f238e3facb743364	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Probing	0	aff9e71d57cb5591	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; try {   __redline_probe
+Probing	1	278ead283dba57af	probing r C	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Probing	2	cf920d9572ee7281	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Probing	3	6a1c72a883a17202	probing a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Probing	4	30aa747d96df02e3	probing f t a	let n = 42; let s = "text"; try {   __redline_probe("p74410", f); } ca
+Prefix	0	1af5fb2886e6e2b7	inserted BooleanDecl+ResizableBufferDecl+DisposableDecl+ArrowDecl+ArrowDecl+TemplateDecl+ResizableBufferDecl+BuiltinInstanceDecl+ResizableBufferDecl+RegExpDecl+DisposableDecl+BuiltinInstanceDecl	let b0 = false; let rab0 = new ArrayBuffer(264, {maxByteLength: 274});
+Prefix	1	992905de6380abc4	inserted IntegerDecl+TemplateDecl+ObjectDecl+SpecialValueDecl+AsyncDisposableDecl+TypedArrayDecl+ArrayDecl+TemplateDecl+StringDecl+StringDecl	let v0 = 24096; let s0 = String.raw`, ${null}foo${9007199254740993n}x=
+Prefix	2	8aba6763d254edca	inserted ArrowDecl+BooleanDecl+StringDecl+FloatDecl+ConstructorFunctionDecl+ArrowDecl+TypedArrayDecl+BigIntDecl+ArrayDecl+BuiltinInstanceDecl	let f0 = function(a0, a1, a2) {   const e = a1.b;   let a = new Int16A
+Prefix	3	cea32d9f449fc3c4	inserted BigIntDecl+BooleanDecl+StringDecl+StringDecl+TemplateDecl+TemplateDecl+ArrowDecl+AsyncDisposableDecl+TypedArrayDecl+TemplateDecl+IntegerDecl+ObjectDecl	let n0 = 701096n; let b0 = false; const s0 = "-1"; const s1 = "h"; con
+Prefix	4	76efb107cca5fb87	inserted ObjectDecl+ArrayDecl+BooleanDecl+ArrayDecl+ObjectDecl+FloatDecl+ResizableBufferDecl+TemplateDecl+ArrayDecl+ArrowDecl+DisposableDecl	let obj0 = {f: null}; let arr0 = [61133, , ,]; var b0 = false; const a
+Splice	0	19ac12882fc55628	spliced VariableDeclaration (2 stmts, 18 nodes; 2 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; function g(x0) {   return x0 * 2; } let q0
+Splice	1	e6d6dbd8ae131135	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Splice	2	2dd1ce2e1198085b	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Splice	3	50207dfe55ca00a9	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Splice	4	230875f46334fb1d	spliced FunctionDeclaration (1 stmts, 8 nodes; 1 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; function g(x0) {   return x0 * 2; } let a
+Combine	0	086456d74bea46a1	combined flat (3 statements, 1 renamed)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Combine	1	086456d74bea46a1	combined flat (3 statements, 1 renamed)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Combine	2	3b0969c403cbc423	combined flat (3 statements, 1 renamed)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Combine	3	086456d74bea46a1	combined flat (3 statements, 1 renamed)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Combine	4	086456d74bea46a1	combined flat (3 statements, 1 renamed)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Input	0	03af1649ee349fee	input q -> a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Input	1	873a848ef11fcbc8	input p -> n	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Input	2	f8538ed13175caac	input t -> f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Input	3	528441f757780c1a	input t -> literal	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Input	4	a04dd3c9a8806caa	input t -> p	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Operation	0	20e57927760e33b0	property .v -> .valueOf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Operation	1	a6a5717f0911ab59	assignment += -> <<=	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Operation	2	1a3503d83e16668f	number 3 -> 1.5	let n = 42; let s = "text"; let a = [1, 2, 1.5]; let o = {x: 1, y: "tw
+Operation	3	15c40bc3aba651cd	number 0 -> -1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Operation	4	2df86dc044338d03	binary + -> **	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	0	b9eeee36f58687e6	expression `t += a[i]` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	1	538292a8d571b90d	expression `v` -> wrap	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	2	2ddf550805d81429	expression `i` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	3	b7dd983d6c4506d6	expression `this.v = v` -> accessor defineProperty	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	4	122499e690409939	expression `i < 3` -> variable	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	0	f198273bf22e1ea2	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	1	68d472d977541808	replaced argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	2	0ac442cc4901b7eb	callee -> f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	3	4b6d6ab90952fb60	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	4	68d472d977541808	replaced argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Remove	0	cb60992f805d2d55	removed array element	let n = 42; let s = "text"; let a = [2, 3]; let o = {x: 1, y: "two"};
+Remove	1	f616f94a2a5d3b59	removed ExpressionStatement `t += a[i];`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Remove	2	122f5bdf703ab95d	removed ForStatement `for (let i = 0; i < 3; i++) {   t += a[i]; }`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Remove	3	34c5f9ab9f31a7cf	removed ReturnStatement `return t;`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Remove	4	59cd6cf74bfcf485	removed VariableDeclaration `let s = "text";`	let n = 42; let a = [1, 2, 3]; let o = {x: 1, y: "two"}; function f(p,
+Wrap	0	7d5578c77697c1aa	wrapped 1 statement(s) in loop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Wrap	1	55dd99ce96b117f8	wrapped 1 statement(s) in label	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Wrap	2	69d5f91840afccea	wrapped 1 statement(s) in for-of	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Wrap	3	b585bc3fabc474f2	wrapped 1 statement(s) in label	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Wrap	4	cec1d879b6c7886a	wrapped 1 statement(s) in loop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Duplicate	0	29a450ad6e7879d3	duplicated FunctionDeclaration `function f(p, q) {   let t = p + q;   for (let i = 0; i <...`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Duplicate	1	ef454ec803004471	duplicated ExpressionStatement `t += a[i];`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Duplicate	2	5aeaf70ddb11ca47	duplicated ReturnStatement `return t;`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Duplicate	3	1a71a2c998acbfd9	duplicated FunctionDeclaration `function f(p, q) {   let t = p + q;   for (let i = 0; i <...`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Duplicate	4	ef454ec803004471	duplicated ExpressionStatement `t += a[i];`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Reorder	0	4d04c76df980deb4	swapped ForStatement and ReturnStatement	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Reorder	1	8467b3581d5f6f1e	swapped VariableDeclaration and VariableDeclaration	let n = 42; let s = "text"; let o = {x: 1, y: "two"}; let a = [1, 2, 3
+Reorder	2	85e178b5ff98c32c	swapped VariableDeclaration and VariableDeclaration	let n = 42; let a = [1, 2, 3]; let s = "text"; let o = {x: 1, y: "two"
+Reorder	3	8467b3581d5f6f1e	swapped VariableDeclaration and VariableDeclaration	let n = 42; let s = "text"; let o = {x: 1, y: "two"}; let a = [1, 2, 3
+Reorder	4	85e178b5ff98c32c	swapped VariableDeclaration and VariableDeclaration	let n = 42; let a = [1, 2, 3]; let s = "text"; let o = {x: 1, y: "two"
+JitStress	0	59c566773ab4f6c9	inserted JitOptimize+ElementsKind	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	1	e0e5e89c583cf811	inserted JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	2	a2a84376d550b394	inserted NativeCall+ShapeChange+NativeCall	let n = 42; let s = "text"; let v0 = %OptimizeMaglevOnNextCall(f); v0.
+JitStress	3	43f37a5f3b932710	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	4	3df36e315467ee3c	inserted Gc+Gc+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; gc({execution: "async"}

@@ -344,8 +344,8 @@ void Builtins::PrintBuiltinCode() {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
-    if (PassesFilter(base::CStrVector(builtin_name),
-                     base::CStrVector(v8_flags.print_builtin_code_filter))) {
+    if (PassesFilter(builtin_name,
+                     v8_flags.print_builtin_code_filter.value())) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
       Tagged<Code> builtin_code = code(builtin);
@@ -631,9 +631,16 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
   }
 
   switch (builtin) {
+    case Builtin::kConstructFunction:
+      // Technically ConstructFunction belongs in the section below (helper
+      // builtin with JS calling convention never supposed to be called directly
+      // from user JS code).
+      // We classify it as (unconditionally) flag dependent just for testing.
+      // See test/mjsunit/sandbox/regress/regress-435630464-disabled.js
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(false);
+
     // Helper builtins with JS calling convention which are not supposed to be
     // called directly from user JS code.
-    case Builtin::kConstructFunction:
     case Builtin::kConstructBoundFunction:
     case Builtin::kConstructedNonConstructable:
     case Builtin::kConstructProxy:
@@ -779,6 +786,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringCompare:
     case Builtin::kWebAssemblyConfigureAllPrototypes:
       return JSBuiltinStateFlag::kCoreJSLazy;
+    case Builtin::kWebAssemblySuspending:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(!v8_flags.wasm_jitless);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -828,17 +837,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedSpaceJSObjectHasInstance:
     case Builtin::kSharedStructTypeConstructor:
     case Builtin::kSharedStructTypeIsSharedStruct:
-    case Builtin::kSharedArrayConstructor:
-    case Builtin::kSharedArrayIsSharedArray:
-    case Builtin::kAtomicsMutexConstructor:
-    case Builtin::kAtomicsMutexLock:
-    case Builtin::kAtomicsMutexLockWithTimeout:
-    case Builtin::kAtomicsMutexTryLock:
-    case Builtin::kAtomicsMutexIsMutex:
-    case Builtin::kAtomicsConditionConstructor:
-    case Builtin::kAtomicsConditionWait:
-    case Builtin::kAtomicsConditionNotify:
-    case Builtin::kAtomicsConditionIsCondition:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);

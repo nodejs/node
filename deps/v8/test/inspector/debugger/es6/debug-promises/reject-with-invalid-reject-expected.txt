@@ -1,0 +1,4 @@
+Tests debug events with invalid reject closure in custom promise.
+Exception message: number is not a function
+Call frame count: 0
+Log: ["resolve","construct","end main","reject caught"]

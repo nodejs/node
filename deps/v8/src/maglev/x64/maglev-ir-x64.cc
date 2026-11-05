@@ -1046,12 +1046,11 @@ void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
 }
 void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
   // A Float64 value could contain a NaN with the bit pattern that has a special
   // interpretation in the HoleyFloat64 representation, so we need to canicalize
   // those before changing representation.
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
+  __ CanonicalizeNaN(ToDoubleRegister(result()),
+                     ToDoubleRegister(ValueInput()));
 }
 
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
@@ -1060,11 +1059,10 @@ void Float64ToSilencedFloat64::SetValueLocationConstraints() {
 }
 void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
+  __ CanonicalizeNaN(ToDoubleRegister(this->result()),
+                     ToDoubleRegister(ValueInput()));
 }
 
 void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {

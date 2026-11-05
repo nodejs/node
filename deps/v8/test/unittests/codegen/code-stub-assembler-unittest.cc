@@ -158,5 +158,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
   }
 }
 
+#undef __
+
 }  // namespace internal
 }  // namespace v8

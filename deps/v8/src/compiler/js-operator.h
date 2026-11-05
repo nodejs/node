@@ -747,36 +747,6 @@ class CreateBoundFunctionParameters final {
 const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
     const Operator* op);
 
-// Defines shared information for the closure that should be created. This is
-// used as a parameter by JSCreateClosure operators.
-class CreateClosureParameters final {
- public:
-  CreateClosureParameters(SharedFunctionInfoRef shared_info, CodeRef code,
-                          AllocationType allocation)
-      : shared_info_(shared_info), code_(code), allocation_(allocation) {}
-
-  SharedFunctionInfoRef shared_info() const { return shared_info_; }
-  CodeRef code() const { return code_; }
-  AllocationType allocation() const { return allocation_; }
-
- private:
-  const SharedFunctionInfoRef shared_info_;
-  const CodeRef code_;
-  AllocationType const allocation_;
-
-  friend bool operator==(CreateClosureParameters const&,
-                         CreateClosureParameters const&);
-  friend bool operator!=(CreateClosureParameters const&,
-                         CreateClosureParameters const&);
-
-  friend size_t hash_value(CreateClosureParameters const&);
-
-  friend std::ostream& operator<<(std::ostream&,
-                                  CreateClosureParameters const&);
-};
-
-const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
-
 class GetTemplateObjectParameters final {
  public:
   GetTemplateObjectParameters(TemplateObjectDescriptionRef description,
@@ -963,15 +933,18 @@ const ForInParameters& ForInParametersOf(const Operator* op);
 #if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallParameters final {
  public:
-  explicit JSWasmCallParameters(wasm::NativeModule* native_module,
-                                int function_index,
-                                SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback);
+  explicit JSWasmCallParameters(
+      wasm::NativeModule* native_module, int function_index,
+      SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+      IndirectHandle<WasmInternalFunction> internal_function = {});
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   FeedbackSource const& feedback() const { return feedback_; }
+  IndirectHandle<WasmInternalFunction> internal_function() const {
+    return internal_function_;
+  }
   int input_count() const;
   int arity_without_implicit_args() const;
 
@@ -980,6 +953,7 @@ class JSWasmCallParameters final {
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
+  IndirectHandle<WasmInternalFunction> internal_function_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -994,6 +968,9 @@ int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+
+SharedFunctionInfoRef SharedFunctionInfoOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 ScopeInfoRef ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
@@ -1070,9 +1047,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, MapRef map);
-  const Operator* CreateClosure(
-      SharedFunctionInfoRef shared_info, CodeRef code,
-      AllocationType allocation = AllocationType::kYoung);
+  const Operator* CreateClosure(SharedFunctionInfoRef shared_info);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
@@ -1877,8 +1852,8 @@ class JSCreateClosureNode final : public JSNodeWrapperBase {
     DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   }
 
-  const CreateClosureParameters& Parameters() const {
-    return CreateClosureParametersOf(node()->op());
+  SharedFunctionInfoRef shared_info() const {
+    return SharedFunctionInfoOf(node()->op());
   }
 
 #define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)

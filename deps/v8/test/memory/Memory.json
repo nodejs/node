@@ -1,7 +1,7 @@
 {
   "owners": ["yangguo@chromium.org", "jgruber@chromium.org"],
   "name": "Memory",
-  "run_count": 5,
+  "run_count": 30,
   "units": "bytes",
   "resources": ["run.js"],
   "main": "run.js",
@@ -39,15 +39,43 @@
     },
     {
       "name": "DeserializationTimeReadOnly",
+      "units": "ms",
       "results_regexp": "\\[Deserializing read-only space \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
     },
     {
       "name": "DeserializationTimeIsolate",
+      "units": "ms",
       "results_regexp": "\\[Deserializing isolate \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
     },
     {
+      "name": "DeserializationTimeSharedHeap",
+      "units": "ms",
+      "results_regexp": "\\[Deserializing shared heap \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
       "name": "DeserializationTimeContext",
+      "units": "ms",
       "results_regexp": "\\[Deserializing context #0 \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "SerializationTimeReadOnly",
+      "units": "ms",
+      "results_regexp": "\\[Serializing read-only space \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "SerializationTimeStartup",
+      "units": "ms",
+      "results_regexp": "\\[Serializing isolate \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "SerializationTimeSharedHeap",
+      "units": "ms",
+      "results_regexp": "\\[Serializing shared heap \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "SerializationTimeContext",
+      "units": "ms",
+      "results_regexp": "\\[Serializing context #0 \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
     },
     {
       "name": "EmbeddedBuiltinsSize",

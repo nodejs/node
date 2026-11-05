@@ -1,0 +1,4 @@
+Tests that closure in for (let) initializer sees the initializer block scope.
+Scope types: ["local","block","closure","global"]
+Block scope type: block
+x = 42

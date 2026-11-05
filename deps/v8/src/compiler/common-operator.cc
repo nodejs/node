@@ -529,14 +529,14 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 class LoadTrustedPointerOperator final
     : public Operator1<LoadTrustedPointerParameters> {
  public:
-  LoadTrustedPointerOperator(int offset, IndirectPointerTagRange tag)
+  LoadTrustedPointerOperator(int offset, TrustedPointerTagRange tag)
       : Operator1<LoadTrustedPointerParameters>(
             IrOpcode::kLoadTrustedPointer, Operator::kEliminatable,
             "LoadTrustedPointer", 1, 1, 1, 1, 1, 0, {offset, tag}) {}
 };
 
 const Operator* CommonOperatorBuilder::LoadTrustedPointer(
-    int offset, IndirectPointerTagRange tag) {
+    int offset, TrustedPointerTagRange tag) {
   return zone_->New<LoadTrustedPointerOperator>(offset, tag);
 }
 #endif  // V8_ENABLE_SANDBOX

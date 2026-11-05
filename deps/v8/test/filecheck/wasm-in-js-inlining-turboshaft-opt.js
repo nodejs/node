@@ -36,11 +36,23 @@ builder.addFunction('redundantRefCast', makeSig([kWasmExternRef], [kWasmI32])).a
   kExprLocalGet, 0,
   kGCPrefix, kExprAnyConvertExtern,
   kExprLocalSet, 1,
+  // 1. First ref.cast (non-null): emits HeapConstant(Map) + WasmTypeCast.
   kExprLocalGet, 1,
   kGCPrefix, kExprRefCast, array,
   kExprDrop,
+  // 2. Second identical ref.cast (non-null): because the RTT Map is baked in as
+  //    a HeapConstant, ValueNumberingReducer (GVN) in WasmInJSInliningPhase
+  //    deduplicates both the RTT constant and this identical WasmTypeCast
+  //    on-the-fly during inlining.
   kExprLocalGet, 1,
   kGCPrefix, kExprRefCast, array,
+  kExprDrop,
+  // 3. Third ref.cast null (nullable): has a different target type
+  //    (ref null $array), so GVN in WasmInJSInliningPhase does not fold it
+  //    (though it still shares the GVN'd RTT HeapConstant), leaving the cast
+  //    for WasmGCTypedOptimizationReducer to eliminate in WasmGCOptimizePhase.
+  kExprLocalGet, 1,
+  kGCPrefix, kExprRefCastNull, array,
   kGCPrefix, kExprArrayLen,
 ]).addLocals(kWasmAnyRef, 1).exportFunc();
 
@@ -202,11 +214,27 @@ const structBObj = wasmExports.newStructBAsExternref(3.14);
 
 // CHECK-LABEL: Considering Wasm function [{{[0-9]+}}] redundantRefCast of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-// CHECK: WasmTypeCast{{.*}} Refine type for object {{.*}} -> (ref 0)
-// CHECK: o{{[0-9]+}}:    WasmTypeCast
-// CHECK-NEXT: ╰─> n{{[0-9]+}}:    WasmTypeCast
-// CHECK: o{{[0-9]+}}:    WasmTypeCast
-// CHECK-NEXT: ╰─> #n{{[0-9]+}}
+// During WasmInJSInliningPhase:
+// - The RTT Map is baked in as a HeapConstant (rather than loaded at runtime via RttCanon).
+// - The second identical ref.cast (non-null) is GVN-deduplicated on-the-fly during inlining,
+//   so the next operation emitted is immediately the third cast (ref.cast null), reusing the
+//   same GVN'd RTT HeapConstant [[RTT_CONST]].
+// CHECK: n[[ANY_CONV:[0-9]+]]:    AnyConvertExtern
+// CHECK-NEXT: n[[RTT_CONST:[0-9]+]]:    Constant()[heap object: {{.*}} <Map{{.*}}>]
+// CHECK-NEXT: n{{[0-9]+}}:    WasmTypeCast(#n[[ANY_CONV]], #n[[RTT_CONST]], #n{{[0-9]+}})[anyref -> (ref 0) @kMayBeSubtype]
+// CHECK-NEXT: n{{[0-9]+}}:    WasmTypeCast(#n[[ANY_CONV]], #n[[RTT_CONST]], #n{{[0-9]+}})[anyref -> (ref null 0) @kMayBeSubtype]
+//
+// During WasmGCOptimizePhase:
+// - WasmGCTypeAnalyzer refines the input type to (ref 0).
+// - WasmGCTypedOptimizationReducer keeps the first WasmTypeCast and eliminates the third
+//   (nullable) WasmTypeCast.
+// CHECK: WasmTypeCast{{.*}} Refine type for object #[[ANY_CONV]](AnyConvertExtern) -> (ref 0)
+// CHECK: o{{[0-9]+}}:    AnyConvertExtern
+// CHECK-NEXT: ╰─> n[[OPT_ANY:[0-9]+]]:    AnyConvertExtern
+// CHECK: o{{[0-9]+}}:    WasmTypeCast{{.*}}[anyref -> (ref 0) @kMayBeSubtype]
+// CHECK-NEXT: ╰─> n{{[0-9]+}}:    WasmTypeCast{{.*}}[anyref -> (ref 0) @kMayBeSubtype]
+// CHECK: o{{[0-9]+}}:    WasmTypeCast{{.*}}[anyref -> (ref null 0) @kMayBeSubtype]
+// CHECK-NEXT: ╰─> #n[[OPT_ANY]]
 function js_redundantRefCast(arg) {
   return wasmExports.redundantRefCast(arg);
 }
@@ -327,10 +355,17 @@ assertEquals(42, js_typeBasedAliasing(structAObj, structBObj));
 
 // CHECK-LABEL: Considering Wasm function [{{[0-9]+}}] structGetOnce of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
+// CHECK: n[[STRUCT_ANY:[0-9]+]]:    AnyConvertExtern
+// CHECK-NEXT: n[[STRUCT_RTT:[0-9]+]]:    Constant()[heap object: {{.*}} <Map{{.*}}>]
+// CHECK-NEXT: n{{[0-9]+}}:    WasmTypeCast(#n[[STRUCT_ANY]], #n[[STRUCT_RTT]], #n{{[0-9]+}})
 //
 // The Wasm callee structGetOnce is inlined twice (once for each JS call in the expression).
+// Because the RTT Map is baked in as a HeapConstant, the second inlined call reuses #n[[STRUCT_RTT]]
+// via GVN in WasmInJSInliningPhase (while the two WasmTypeCast operations remain distinct until
+// WasmGCOptimizePhase because their FrameState inputs differ).
 // CHECK: Considering Wasm function [{{[0-9]+}}] structGetOnce of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
+// CHECK: n{{[0-9]+}}:    WasmTypeCast(#n[[STRUCT_ANY]], #n[[STRUCT_RTT]], #n{{[0-9]+}})
 //
 // Assert that the WasmGCTypeAnalyzer successfully refines the type of the unified AnyConvertExtern
 // node to the expected struct type (ref index).

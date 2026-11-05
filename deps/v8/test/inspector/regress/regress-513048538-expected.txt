@@ -1,0 +1,9 @@
+Regression test for crbug.com/513048538
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

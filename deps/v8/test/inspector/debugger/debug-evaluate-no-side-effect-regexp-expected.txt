@@ -1,0 +1,3 @@
+Tests debug-evaluate-no-side-effect-regexp.
+before: ["a","b","c","d","e","f","g","h","i","abcdefghij","j",">>>","<<<",">>>abcdefghij<<<"]
+after: ["a","b","c","d","e","f","g","h","i","abcdefghij","j",">>>","<<<",">>>abcdefghij<<<"]

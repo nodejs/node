@@ -9,7 +9,6 @@
 
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -222,7 +221,7 @@ class MemoryOptimizationReducer : public Next {
                skipped_write_barrier_kind_, store.memory_order(), store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
-               store.indirect_pointer_tag());
+               store.trusted_pointer_tag());
       return V<None>::Invalid();
     }
     DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
@@ -240,7 +239,7 @@ class MemoryOptimizationReducer : public Next {
                WriteBarrierKind::kPointerWriteBarrier, store.memory_order(),
                store.offset, store.element_size_log2,
                store.maybe_initializing_or_transitioning,
-               store.indirect_pointer_tag());
+               store.trusted_pointer_tag());
       return V<None>::Invalid();
     }
 
@@ -419,55 +418,22 @@ class MemoryOptimizationReducer : public Next {
         __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V<WordPtr> REDUCE(LoadExternalPointer)(V<Word32> handle,
                                          ExternalPointerTagRange tag_range) {
     // Decode loaded external pointer.
-    V<WordPtr> table;
-    if (isolate_ != nullptr) {
-      // Here we access the external pointer table through an ExternalReference.
-      // Alternatively, we could also hardcode the address of the table since it
-      // is never reallocated. However, in that case we must be able to
-      // guarantee that the generated code is never executed under a different
-      // Isolate, as that would allow access to external objects from different
-      // Isolates. It also would break if the code is serialized/deserialized at
-      // some point.
-      V<WordPtr> table_address =
-          IsSharedExternalPointerType(tag_range)
-              ? __
-                LoadOffHeap(
-                    __ ExternalConstant(
-                        ExternalReference::
-                            shared_external_pointer_table_address_address(
-                                isolate_)),
-                    MemoryRepresentation::UintPtr())
-              : __ ExternalConstant(
-                    ExternalReference::external_pointer_table_address(
-                        isolate_));
-      table = __ LoadOffHeap(table_address,
-                             Internals::kExternalEntityTableBasePointerOffset,
-                             MemoryRepresentation::UintPtr());
+    V<WordPtr> table_address;
+    if (IsSharedExternalPointerType(tag_range)) {
+      V<WordPtr> table_address_address =
+          __ IsolateField(IsolateFieldId::kSharedExternalPointerTable);
+      table_address = __ LoadOffHeap(table_address_address,
+                                     MemoryRepresentation::UintPtr());
     } else {
-#if V8_ENABLE_WEBASSEMBLY
-      V<WordPtr> isolate_root = __ LoadRootRegister();
-      if (IsSharedExternalPointerType(tag_range)) {
-        V<WordPtr> table_address =
-            __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                    MemoryRepresentation::UintPtr(),
-                    IsolateData::shared_external_pointer_table_offset());
-        table = __ Load(table_address, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::UintPtr(),
-                        Internals::kExternalEntityTableBasePointerOffset);
-      } else {
-        table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::UintPtr(),
-                        IsolateData::external_pointer_table_offset() +
-                            Internals::kExternalEntityTableBasePointerOffset);
-      }
-#else
-      UNREACHABLE();
-#endif
+      table_address = __ IsolateField(IsolateFieldId::kExternalPointerTable);
     }
+    V<WordPtr> table = __ LoadOffHeap(
+        table_address, Internals::kExternalEntityTableBasePointerOffset,
+        MemoryRepresentation::UintPtr());
 
     V<Word32> index =
         __ Word32ShiftRightLogical(handle, kExternalPointerIndexShift);
@@ -499,7 +465,7 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   V<None> REDUCE(MajorGCForCompilerTesting)() {
     __ template CallRuntime<runtime::MajorGCForCompilerTesting>(

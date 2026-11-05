@@ -155,7 +155,7 @@ template <ExternalPointerTag tag>
 V8_INLINE ExternalPointerHandle
 InitExternalPointerField(Address host_address, Address field_address,
                          IsolateForSandbox isolate, Address value) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
@@ -169,13 +169,13 @@ InitExternalPointerField(Address host_address, Address field_address,
 #else
   WriteExternalPointerField<tag>(field_address, isolate, value);
   return kNullExternalPointerHandle;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 V8_INLINE ExternalPointerHandle InitExternalPointerField(
     Address host_address, Address field_address, IsolateForSandbox isolate,
     ExternalPointerTag tag, Address value) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
@@ -189,10 +189,10 @@ V8_INLINE ExternalPointerHandle InitExternalPointerField(
 #else
   WriteExternalPointerField(field_address, isolate, tag, value);
   return kNullExternalPointerHandle;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 V8_INLINE ExternalPointerHandle
 Relaxed_ReadExternalPointerHandle(Address field_address) {
   // Handles may be written to objects from other threads so the handle needs
@@ -208,62 +208,62 @@ Relaxed_ReadExternalPointerHandle(Address field_address) {
 template <ExternalPointerTagRange tag_range>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static_assert(!tag_range.IsEmpty());
   ExternalPointerHandle handle =
       Relaxed_ReadExternalPointerHandle(field_address);
   return isolate.GetExternalPointerTableFor(tag_range).Get(handle, tag_range);
 #else
   return ReadMaybeUnalignedValue<Address>(field_address);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate,
                                            ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(tag_range.first, kExternalPointerNullTag);
   ExternalPointerHandle handle =
       Relaxed_ReadExternalPointerHandle(field_address);
   return isolate.GetExternalPointerTableFor(tag_range).Get(handle, tag_range);
 #else
   return ReadMaybeUnalignedValue<Address>(field_address);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          IsolateForSandbox isolate,
                                          Address value) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
   ExternalPointerHandle handle =
       Relaxed_ReadExternalPointerHandle(field_address);
   isolate.GetExternalPointerTableFor(tag).Set(handle, value, tag);
 #else
   WriteMaybeUnalignedValue<Address>(field_address, value);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          IsolateForSandbox isolate,
                                          ExternalPointerTag tag,
                                          Address value) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerHandle handle =
       Relaxed_ReadExternalPointerHandle(field_address);
   isolate.GetExternalPointerTableFor(tag).Set(handle, value, tag);
 #else
   WriteMaybeUnalignedValue<Address>(field_address, value);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE Address ExchangeExternalPointerField(Address field_address,
                                                IsolateForSandbox isolate,
                                                Address value) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
   ExternalPointerHandle handle =
       Relaxed_ReadExternalPointerHandle(field_address);
@@ -272,7 +272,7 @@ V8_INLINE Address ExchangeExternalPointerField(Address field_address,
   Address old_value = ReadMaybeUnalignedValue<Address>(field_address);
   WriteMaybeUnalignedValue<Address>(field_address, value);
   return old_value;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 V8_INLINE void SetupLazilyInitializedExternalPointerField(

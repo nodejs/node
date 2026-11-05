@@ -12,8 +12,8 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -33,7 +33,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/heap/paged-spaces.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/zapping.h"
@@ -527,7 +526,6 @@ class PromotedPageRecordMigratedSlotVisitor final
                                       MaybeObjectSize maybe_object_size) {
     ArrayBufferExtension* extension = object->extension();
     if (extension) {
-      extension->InitializationBarrier();
       extension->YoungMarkPromoted();
     }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::

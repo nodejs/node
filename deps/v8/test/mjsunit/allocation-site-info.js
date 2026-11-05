@@ -213,8 +213,6 @@ obj = newarraycase_length_smidouble(2);
 assertKind(elements_kind.fast_double, obj);
 
 // Try to continue the transition to fast object.
-// TODO(mvstanton): re-enable commented out code when
-// v8_flags.pretenuring_call_new is turned on in the build.
 obj = newarraycase_length_smidouble("coates");
 assertKind(elements_kind.fast, obj);
 obj = newarraycase_length_smidouble(2);

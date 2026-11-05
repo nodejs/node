@@ -17,6 +17,7 @@
 
 #include <string.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -125,7 +126,10 @@ size_t FormatBoundedFields(absl::LogSeverity severity, absl::Time timestamp,
                                        p);
   p += 2;
   *p++ = '.';
-  const int64_t usecs = absl::ToInt64Microseconds(ci.subsecond);
+  // `ci.subsecond` is +/-InfiniteDuration() for absl::InfiniteFuture() and
+  // absl::InfinitePast(), so clamp it to the range PutTwoDigits() can encode.
+  const int64_t usecs =
+      std::clamp<int64_t>(absl::ToInt64Microseconds(ci.subsecond), 0, 999999);
   absl::numbers_internal::PutTwoDigits(static_cast<uint32_t>(usecs / 10000), p);
   p += 2;
   absl::numbers_internal::PutTwoDigits(static_cast<uint32_t>(usecs / 100 % 100),

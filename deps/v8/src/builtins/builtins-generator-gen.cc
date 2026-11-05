@@ -122,6 +122,10 @@ void GeneratorBuiltinsAssembler::InnerResume(
       case JSGeneratorObject::kRethrow:
         // Currently only async generators use this mode.
         UNREACHABLE();
+      case JSGeneratorObject::kNextTrySkipAlloc:
+      case JSGeneratorObject::kNextAllocSkipped:
+        // Handshake states only set by optimized callers or the generator body.
+        UNREACHABLE();
     }
     args->PopAndReturn(builtin_result);
   }

@@ -24,6 +24,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/pending-compilation-error-handler.h"
+#include "src/parsing/scanner.h"  // For Scanner::DebugMagicCommentLocations.
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
@@ -166,7 +167,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ParseRestriction restriction, int parameters_end_pos,
                       int eval_position,
                       ParsingWhileDebugging parsing_while_debugging =
-                          ParsingWhileDebugging::kNo);
+                          ParsingWhileDebugging::kNo,
+                      bool private_name_lookup_skips_outer_class = false);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
@@ -432,6 +434,12 @@ class OptimizedCompilationJob : public CompilationJob {
     return timer_.Elapsed();
   }
 
+  using RetainedMaps = base::SmallVector<IndirectHandle<Map>, 8>;
+
+  static RetainedMaps CollectRetainedMaps(
+      DirectHandle<Code> code,
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
+
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
@@ -440,12 +448,9 @@ class OptimizedCompilationJob : public CompilationJob {
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
   // Register weak object to optimized code dependencies.
-  GlobalHandleVector<Map> CollectRetainedMaps(Isolate* isolate,
-                                              DirectHandle<Code> code);
-  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
-                                          DirectHandle<NativeContext> context,
-                                          DirectHandle<Code> code,
-                                          GlobalHandleVector<Map> maps);
+  void RegisterWeakObjectsInOptimizedCode(
+      Isolate* isolate, DirectHandle<NativeContext> context,
+      DirectHandle<Code> code, base::Vector<const IndirectHandle<Map>> maps);
 
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
@@ -649,6 +654,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
   base::SmallVector<v8::Isolate::UseCounterFeature, 8> use_counts_;
   int total_preparse_skipped_ = 0;
+  // The source is not available on the background thread, so the debug magic
+  // comment values are created from these locations when finalizing.
+  Scanner::DebugMagicCommentLocations debug_magic_comment_locations_;
 
   // Single function data for top-level function compilation.
   MaybeIndirectHandle<SharedFunctionInfo> input_shared_info_;

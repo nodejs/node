@@ -35,9 +35,7 @@ namespace maglev {
 
 void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
                                      MergePointInterpreterFrameState& state,
-                                     bool preserve_known_node_aspects,
-                                     Zone* zone) {
-  DCHECK_IMPLIES(preserve_known_node_aspects, zone);
+                                     bool preserve_known_node_aspects) {
   const MaglevCompilationInfo* info = unit.info();
   TRACE(TraceColor::kInfo << "Copying frame state from merge @" << &state);
   if (known_node_aspects_) {
@@ -49,7 +47,7 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
         frame_[reg] = value;
       });
   if (preserve_known_node_aspects) {
-    known_node_aspects_ = state.CloneKnownNodeAspects(zone);
+    known_node_aspects_ = state.CloneKnownNodeAspects();
   } else {
     // Move "what we know" across without copying -- we can safely mutate it
     // now, as we won't be entering this merge point again.
@@ -84,8 +82,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
         i++;
       });
   merge_state->predecessors_[0] = predecessor;
-  merge_state->known_node_aspects_ =
-      state.known_node_aspects()->Clone(info.zone());
+  merge_state->known_node_aspects_ = state.known_node_aspects()->Clone();
   merge_state->context_scope_info_ = context_scope_info;
   return merge_state;
 }
@@ -142,8 +139,7 @@ MergePointInterpreterFrameState::NewForLoop(
     //  enter via the OSR loop header from the interpreter). Therefore, all
     //  resume blocks are dead and not built, and we don't need to treat loops
     //  as resumable (which would unnecessarily clear registers).
-    state->known_node_aspects_ =
-        info.zone()->New<KnownNodeAspects>(info.zone());
+    state->known_node_aspects_ = KnownNodeAspects::New(graph->kna_pool());
     state->set_is_resumable_loop(graph);
   }
   auto& assignments = loop_info->assignments();
@@ -201,8 +197,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForPeel(
         dst = template_state.frame_state_.GetValueOf(reg, info);
       });
   if (template_state.known_node_aspects_ != nullptr) {
-    state->known_node_aspects_ =
-        template_state.known_node_aspects_->Clone(info.zone());
+    state->known_node_aspects_ = template_state.known_node_aspects_->Clone();
   }
   return state;
 }
@@ -262,7 +257,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
 namespace {
 void PrintBeforeMerge(Graph* graph, bool is_tracing, ValueNode* current_value,
                       ValueNode* unmerged_value, interpreter::Register reg,
-                      KnownNodeAspects* kna) {
+                      const KnownNodeAspects* kna) {
   if (V8_LIKELY(!is_tracing)) return;
   TraceLogger logger = TraceLogger(Tracer(graph->compilation_info()));
   logger << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
@@ -287,7 +282,7 @@ void PrintBeforeMerge(Graph* graph, bool is_tracing, ValueNode* current_value,
   logger << ">";
 }
 void PrintAfterMerge(Graph* graph, bool is_tracing, ValueNode* merged_value,
-                     KnownNodeAspects* kna) {
+                     const KnownNodeAspects* kna) {
   if (V8_LIKELY(!is_tracing)) return;
   TraceLogger logger = TraceLogger(Tracer(graph->compilation_info()));
   logger << " => " << PrintNodeLabel(merged_value) << ": "
@@ -315,11 +310,11 @@ void MergePointInterpreterFrameState::MergePhis(
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, unmerged.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, *unmerged.known_node_aspects(), value,
                            unmerged.get(reg), &per_predecessor_alternatives_[i],
                            optimistic_loop_phis);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
         ++i;
       });
 }
@@ -445,7 +440,7 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK(is_unmerged_loop());
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
-      optimistic_initial_state, loop_effects, graph->zone());
+      optimistic_initial_state, loop_effects);
   AsLoopHeader()->InitializeLoopEffectEpoch(*known_node_aspects_);
   unmerged.virtual_objects().Snapshot();
   const MaglevCompilationInfo* info = compilation_unit.info();
@@ -507,10 +502,10 @@ void LoopMergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  if (graph->compilation_info()->is_turbolev() ||
-      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
-        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  if (!is_resumable_loop() &&
+      (graph->compilation_info()->is_turbolev() ||
+       graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
+    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
@@ -519,13 +514,16 @@ void LoopMergePointInterpreterFrameState::MergeLoop(
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                   interpreter::Register reg) {
     PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
-                     known_node_aspects_);
+                     known_node_aspects_.get());
     MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
                    value, loop_end_state.get(reg));
-    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  // Non-optimistic loops already transferred known_node_aspects_ to the loop
+  // header block via TakeKnownNodeAspects() in ProcessMergePoint.
+  DCHECK_NULL(known_node_aspects_);
 }
 
 bool LoopMergePointInterpreterFrameState::TryMergeLoop(
@@ -575,10 +573,10 @@ bool LoopMergePointInterpreterFrameState::TryMergeLoop(
     return false;
   }
 
-  if (graph->compilation_info()->is_turbolev() ||
-      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
-        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  if (!is_resumable_loop() &&
+      (graph->compilation_info()->is_turbolev() ||
+       graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
+    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
@@ -592,13 +590,14 @@ bool LoopMergePointInterpreterFrameState::TryMergeLoop(
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                   interpreter::Register reg) {
     PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
-                     known_node_aspects_);
+                     known_node_aspects_.get());
     MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
                    value, loop_end_state.get(reg));
-    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  ClearKnownNodeAspects();
   return true;
 }
 
@@ -617,7 +616,7 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ = known_node_aspects.Clone(graph->zone());
+    known_node_aspects_ = known_node_aspects.Clone();
   } else {
     known_node_aspects_->Merge(known_node_aspects, graph->zone());
     MergeVirtualObjects(graph, is_tracing, *handler_unit, known_node_aspects);
@@ -626,18 +625,18 @@ void MergePointInterpreterFrameState::MergeThrow(
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, known_node_aspects, value,
                            handler_frame.get(reg), nullptr);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, known_node_aspects, value,
                            handler_frame.get(reg), nullptr);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
       });
 
   // Pick out the context value from the incoming registers.
@@ -647,11 +646,11 @@ void MergePointInterpreterFrameState::MergeThrow(
   ValueNode*& context = frame_state_.context(*handler_unit);
   PrintBeforeMerge(graph, is_tracing, context,
                    handler_frame.get(catch_block_context_register_),
-                   catch_block_context_register_, known_node_aspects_);
+                   catch_block_context_register_, known_node_aspects_.get());
   context = MergeValue(
       graph, catch_block_context_register_, known_node_aspects, context,
       handler_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(graph, is_tracing, context, known_node_aspects_);
+  PrintAfterMerge(graph, is_tracing, context, known_node_aspects_.get());
 
   predecessors_so_far_++;
 }
@@ -685,6 +684,7 @@ ValueNode* FromInt32ToTagged(Graph* graph, NodeType node_type, ValueNode* value,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -703,6 +703,7 @@ ValueNode* FromUint32ToTagged(Graph* graph, NodeType node_type,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -717,6 +718,7 @@ ValueNode* FromIntPtrToTagged(Graph* graph, NodeType node_type,
   ValueNode* tagged = Node::New<IntPtrToNumber>(graph->zone(), {value});
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -732,6 +734,7 @@ ValueNode* FromFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -747,6 +750,7 @@ ValueNode* FromHoleyFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;

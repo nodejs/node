@@ -7,7 +7,10 @@
 #include <stdlib.h>
 #include <wchar.h>
 
+#include <array>
 #include <memory>
+#include <sstream>
+#include <string>
 
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
@@ -17,11 +20,16 @@
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/script-details.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/heap/factory.h"
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope.
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,9 +58,8 @@ static void SetGlobalProperty(const char* name, Tagged<Object> value) {
 
 static DirectHandle<JSFunction> Compile(const char* source) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
-  Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
+  Handle<String> source_code =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
@@ -67,10 +74,10 @@ static DirectHandle<JSFunction> Compile(const char* source) {
 
 static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
-  base::EmbeddedVector<char, 512> buffer;
-  SNPrintF(buffer, source, x);
+  std::array<char, 512> buffer;
+  base::SNPrintF(buffer, source, x);
 
-  DirectHandle<JSFunction> fun = Compile(buffer.begin());
+  DirectHandle<JSFunction> fun = Compile(buffer.data());
   if (fun.is_null()) return -1;
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -216,7 +223,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
-  v8_flags.expose_gc = true;
+  v8_flags.expose_gc.Set(true);
   v8::HandleScope scope(isolate());
   const char* extension_names[2] = {"v8/gc", PrintExtension::kName};
   v8::ExtensionConfiguration config(2, extension_names);
@@ -241,7 +248,7 @@ TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
   EXPECT_TRUE(IsJSFunction(*fun1));
 
   DirectHandle<Object> args[] = {
-      isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
+      isolate->factory()->InternalizeString("hello")};
   Execution::Call(isolate, Cast<JSFunction>(fun1), global, base::VectorOf(args))
       .Check();
 }
@@ -264,14 +271,14 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  auto buffer = base::OwnedVector<char>::NewForOverwrite(buffer_size);
-  memset(buffer.begin(), '\n', buffer_size - 1);
+  std::array<char, buffer_size> buffer;
+  memset(buffer.data(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 
   for (int i = 0; i < max_rows; ++i) {
     if (i > 0) buffer[i - 1] = '\n';
     MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
-    v8::Local<v8::String> script_body = NewString(buffer.begin());
+    v8::Local<v8::String> script_body = NewString(buffer.data());
     v8::Script::Compile(context(), script_body, &origin)
         .ToLocalChecked()
         ->Run(context())
@@ -284,7 +291,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   if (!i::v8_flags.turbofan) return;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
 
@@ -363,8 +370,8 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
 
 // Test that optimized code for different closures is actually shared.
 TEST_F(CompilerTest, OptimizedCodeSharing1) {
-  v8_flags.stress_compaction = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
   for (int i = 0; i < 3; i++) {
     context()
@@ -733,7 +740,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
 TEST_F(CompilerTest, InvocationCount) {
   if (v8_flags.lite_mode) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -868,6 +875,126 @@ TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
             peak_mem_after_last_lazy_compile);
 }
 
+TEST_F(CompilerTest, FailedConcurrentCompileReleasesZones) {
+  if (!v8_flags.turbofan || !i_isolate()->concurrent_recompilation_enabled()) {
+    return;
+  }
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.compilation_cache.Set(false);
+  v8_flags.use_osr.Set(false);
+  v8_flags.parallel_compile_tasks_for_eager_toplevel.Set(false);
+  v8_flags.parallel_compile_tasks_for_lazy.Set(false);
+  v8_flags.turbo_filter.Set("wide_target");
+  v8_flags.maglev_filter.Set("wide_target");
+#if V8_ENABLE_SPARKPLUG
+  v8_flags.baseline_batch_compilation.Set(false);
+#endif
+
+  // Keeping 1100 distinct values live across an earlier non-inlined call `cb()`
+  // forces > 1024 spill slots (> 4KB on both 32-bit and 64-bit targets, even
+  // with --turbo-instruction-scheduling), causing register allocation to bail
+  // out while keeping bytecode small enough to enter concurrent compilation.
+  // Build the source in C++ so no JS helper callbacks tier up concurrently.
+  std::ostringstream js_stream;
+  js_stream << "{\n"
+               "  function cb() { return arguments.length; }\n"
+               "  %NeverOptimizeFunction(cb);\n"
+               "  function wide_target(x, p) {\n"
+               "    let result = 0;\n"
+               "    for (let i = 0; i < 10; ++i) {\n"
+               "      if (x < 0) {\n";
+  for (int k = 0; k < 1100; ++k) {
+    js_stream << "        const v" << k << " = p ^ " << (k + 1) << ";\n";
+  }
+  js_stream << "        cb();\n"
+               "        return cb(";
+  for (int k = 0; k < 1100; ++k) {
+    if (k > 0) js_stream << ",";
+    js_stream << "v" << k;
+  }
+  js_stream << ");\n"
+               "      }\n"
+               "      result = (x + i) | 0;\n"
+               "    }\n"
+               "    return result;\n"
+               "  }\n"
+               "  %PrepareFunctionForOptimization(wide_target);\n"
+               "  wide_target(-1, 1);\n"
+               "  wide_target(1, 1);\n"
+               "  globalThis.wide_target = wide_target;\n"
+               "}\n";
+  const std::string js_source = js_stream.str();
+
+  auto prepare_wide_target = [&]() {
+    FlagScope<const char*> no_turbo(&v8_flags.turbo_filter, "~");
+    FlagScope<const char*> no_maglev(&v8_flags.maglev_filter, "~");
+    RunJS(js_source.c_str());
+    i_isolate()->WaitForConcurrentOptimizationJobs();
+    return Cast<JSFunction>(GetGlobalProperty("wide_target"));
+  };
+
+  {
+#ifdef V8_ENABLE_MAGLEV
+    FlagScope<bool> maglev(&v8_flags.maglev, false);
+#endif
+
+    for (bool turbolev : {false, true}) {
+#ifndef V8_ENABLE_MAGLEV
+      if (turbolev) continue;
+#endif
+      FlagScope<bool> turbolev_scope(&v8_flags.turbolev, turbolev);
+      v8::HandleScope scope(isolate());
+
+      DirectHandle<JSFunction> wide = prepare_wide_target();
+      i_isolate()->optimizing_compile_dispatcher()->set_finalize(false);
+      Compiler::CompileOptimized(i_isolate(), wide,
+                                 ConcurrencyMode::kConcurrent,
+                                 CodeKind::TURBOFAN_JS);
+      i_isolate()
+          ->optimizing_compile_dispatcher()
+          ->WaitUntilCompilationJobsDone();
+
+      // The failed job is now sitting in OptimizingCompileDispatcher's output
+      // queue waiting for main-thread finalization. Trigger a GC to verify
+      // CanonicalHandlesMap unregistered its GCRootsProvider before zone
+      // teardown, and check that no compiler zones are retained while queued.
+      ASSERT_TRUE(i_isolate()->optimizing_compile_dispatcher()->HasJobs());
+      InvokeMajorGC();
+      const size_t queued_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      i_isolate()->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+      i_isolate()->optimizing_compile_dispatcher()->set_finalize(true);
+      const size_t finalized_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+    }
+  }
+
+#ifdef V8_ENABLE_MAGLEV
+  if (i_isolate()->maglev_concurrent_dispatcher()->is_enabled()) {
+    FlagScope<bool> maglev(&v8_flags.maglev, true);
+    FlagScope<bool> destroy_sync(&v8_flags.maglev_destroy_on_background, false);
+    v8::HandleScope scope(isolate());
+
+    DirectHandle<JSFunction> wide = prepare_wide_target();
+    Compiler::CompileOptimized(i_isolate(), wide, ConcurrencyMode::kConcurrent,
+                               CodeKind::MAGLEV);
+    i_isolate()->maglev_concurrent_dispatcher()->AwaitCompileJobs();
+
+    ASSERT_TRUE(wide->tiering_in_progress());
+    InvokeMajorGC();
+    const size_t queued_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    i_isolate()->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+    i_isolate()->stack_guard()->ClearInstallMaglevCode();
+    EXPECT_FALSE(wide->tiering_in_progress());
+    const size_t finalized_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+  }
+#endif
+}
+
 namespace {
 
 // Dummy external source stream which returns the whole source in one go.
@@ -939,7 +1066,7 @@ using BackgroundMergeTest = TestWithNativeContext;
 
 // Tests that a GC during merge doesn't break the merge.
 TEST_F(BackgroundMergeTest, GCDuringMerge) {
-  v8_flags.verify_code_merge = true;
+  v8_flags.verify_code_merge.Set(true);
 
   HandleScope handle_scope(isolate());
   const char* source =
@@ -955,10 +1082,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
       "  }"
       "})";
   IndirectHandle<String> source_string =
-      isolate()
-          ->factory()
-          ->NewStringFromUtf8(base::CStrVector(source))
-          .ToHandleChecked();
+      isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   const int kTopLevelId = 0;
   const int kFId = 1;
@@ -1152,7 +1276,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 }
 
 TEST_F(BackgroundMergeTest, MergeWithEval) {
-  v8_flags.verify_code_merge = true;
+  v8_flags.verify_code_merge.Set(true);
 
   HandleScope handle_scope(isolate());
   const char* source =
@@ -1161,10 +1285,7 @@ TEST_F(BackgroundMergeTest, MergeWithEval) {
       "  return eval('1');"
       "};";
   IndirectHandle<String> source_string =
-      isolate()
-          ->factory()
-          ->NewStringFromUtf8(base::CStrVector(source))
-          .ToHandleChecked();
+      isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> top_level_sfi =

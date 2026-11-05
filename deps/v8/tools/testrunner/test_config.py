@@ -24,7 +24,8 @@ class TestConfig(object):
                target_os,
                timeout,
                verbose,
-               regenerate_expected_files=False):
+               regenerate_expected_files=False,
+               no_fork_server=False):
     self.command_prefix = command_prefix
     self.extra_flags = extra_flags
     self.extra_d8_flags = extra_d8_flags
@@ -44,3 +45,4 @@ class TestConfig(object):
     self.timeout = timeout
     self.verbose = verbose
     self.regenerate_expected_files = regenerate_expected_files
+    self.no_fork_server = no_fork_server

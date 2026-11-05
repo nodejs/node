@@ -1,0 +1,7 @@
+Tests stepping into callback from optimized string replace.
+Break 0: debugger;                                       // Break 0.
+Break 1: var result = "x".replace(re, replaceCallback);  // Break 1.
+Break 2: return "x"                                    // Break 2.
+Break 3: ;                                             // Break 3.
+Break 4: return result;                                  // Break 4.
+Total breaks: 5

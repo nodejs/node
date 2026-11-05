@@ -9,6 +9,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <array>
+
 #include "src/base/platform/wrappers.h"
 #include "src/strings/unicode.h"
 #include "src/utils/ostreams.h"
@@ -134,25 +136,21 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
         static_cast<int>(section_name_start - decoder->start()),
         string.length() < 20 ? string.length() : 20, section_name_start);
 
-  using SpecialSectionPair = std::pair<base::Vector<const char>, SectionCode>;
+  using SpecialSectionPair = std::pair<std::string_view, SectionCode>;
   static constexpr SpecialSectionPair kSpecialSections[]{
-      {base::StaticCharVector(kNameString), kNameSectionCode},
-      {base::StaticCharVector(kSourceMappingURLString),
-       kSourceMappingURLSectionCode},
-      {base::StaticCharVector(kInstTraceString), kInstTraceSectionCode},
-      {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
-      {base::StaticCharVector(kCompilationPriorityString),
-       kCompilationPrioritySectionCode},
-      {base::StaticCharVector(kInstructionFrequenciesString),
-       kInstFrequenciesSectionCode},
-      {base::StaticCharVector(kCallTargetsString), kCallTargetsSectionCode},
-      {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
-      {base::StaticCharVector(kExternalDebugInfoString),
-       kExternalDebugInfoSectionCode},
-      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode}};
+      {kNameString, kNameSectionCode},
+      {kSourceMappingURLString, kSourceMappingURLSectionCode},
+      {kInstTraceString, kInstTraceSectionCode},
+      {kBranchHintsString, kBranchHintsSectionCode},
+      {kCompilationPriorityString, kCompilationPrioritySectionCode},
+      {kInstructionFrequenciesString, kInstFrequenciesSectionCode},
+      {kCallTargetsString, kCallTargetsSectionCode},
+      {kDebugInfoString, kDebugInfoSectionCode},
+      {kExternalDebugInfoString, kExternalDebugInfoSectionCode},
+      {kBuildIdString, kBuildIdSectionCode}};
 
-  auto name_vec = base::Vector<const char>::cast(
-      base::VectorOf(section_name_start, string.length()));
+  std::string_view name_vec(reinterpret_cast<const char*>(section_name_start),
+                            string.length());
   for (auto& special_section : kSpecialSections) {
     if (name_vec == special_section.first) return special_section.second;
   }
@@ -292,9 +290,9 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
   // File are named `<hash>.{ok,failed}.wasm`.
   // Limit the hash to 8 characters (32 bits).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
-  base::EmbeddedVector<char, 32> buf;
-  SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
-  path += buf.begin();
+  std::array<char, 32> buf;
+  base::SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
+  path += buf.data();
   size_t rv = 0;
   if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
     rv = fwrite(module_bytes.begin(), module_bytes.size(), 1, file);
@@ -409,13 +407,6 @@ class ModuleDecoderImpl : public Decoder {
         // TODO(12868): If there's a tag section, assert that we're after the
         // tag section.
         return check_order(kMemorySectionCode, kGlobalSectionCode);
-      case kInstTraceSectionCode:
-        // Custom section following code.metadata tool convention containing
-        // offsets specifying where trace marks should be emitted.
-        // Be lenient with placement of instruction trace section. All except
-        // first occurrence after function section and before code section are
-        // ignored.
-        return true;
       default:
         return true;
     }
@@ -591,7 +582,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array();
+        const ArrayType* type = consume_array(is_shared);
         if (V8_UNLIKELY(type == nullptr)) {
           CHECK(!ok());
           return {};
@@ -605,10 +596,13 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
 
+        // TODO(clemensb): Clarify whether cont types take a heaptype (s33) or a
+        // typeidx (u32v); see
+        // https://github.com/WebAssembly/stack-switching/issues/157.
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (V8_UNLIKELY(!hp.has_index())) {
+        if (V8_UNLIKELY(!hp.has_index() || hp.is_exact())) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
@@ -1821,8 +1815,13 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeBranchHintsSection() {
     TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_branch_hinting();
-    if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
+    // Per spec, code metadata sections must precede the Code section. Enforcing
+    // this is also required for thread safety during streaming compilation,
+    // where background workers read hints concurrently once the Code section
+    // starts.
+    if (!has_seen_unordered_section(kBranchHintsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_branch_hinting();
       set_seen_unordered_section(kBranchHintsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1901,8 +1900,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeCompilationPrioritySection() {
     TRACE("DecodeCompilationPriority module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCompilationPrioritySectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCompilationPrioritySectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCompilationPrioritySectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1988,8 +1990,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeInstructionFrequenciesSection() {
     TRACE("DecodeInstructionFrequencies module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kInstFrequenciesSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kInstFrequenciesSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kInstFrequenciesSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -2063,8 +2068,11 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeCallTargetsSection() {
     TRACE("DecodeCallTargets module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCallTargetsSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCallTargetsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCallTargetsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -2880,12 +2888,13 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  const ArrayType* consume_array() {
+  const ArrayType* consume_array(SharedFlag is_shared) {
     ValueType element_type = consume_storage_type();
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (V8_UNLIKELY(failed())) return nullptr;
-    return module_->signature_storage.New<ArrayType>(element_type, mutability);
+    return module_->signature_storage.New<ArrayType>(element_type, mutability,
+                                                     is_shared);
   }
 
   // Consume the attribute field of an exception.

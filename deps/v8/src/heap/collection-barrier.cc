@@ -17,6 +17,7 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

@@ -150,6 +150,32 @@ String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
   return String16(buffer.get(), length);
 }
 
+String16 toProtocolStringTruncated(v8::Isolate* isolate,
+                                   v8::Local<v8::String> value,
+                                   size_t maxLength) {
+  if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
+  uint32_t length = value->Length();
+  if (length == 0 || maxLength == 0) return String16();
+  if (static_cast<size_t>(length) <= maxLength) {
+    return toProtocolString(isolate, value);
+  }
+  std::unique_ptr<UChar[]> buffer(new UChar[maxLength + 1]);
+  value->Write(isolate, 0, static_cast<uint32_t>(maxLength),
+               reinterpret_cast<uint16_t*>(buffer.get()));
+  size_t cutIndex = maxLength;
+  // If the truncation boundary falls on a high (leading) surrogate
+  // (0xD800..0xDBFF), back off by one code unit to avoid leaving an unpaired
+  // leading surrogate before the ellipsis.
+  if (cutIndex > 0 && buffer[cutIndex - 1] >= 0xD800 &&
+      buffer[cutIndex - 1] <= 0xDBFF) {
+    --cutIndex;
+  }
+  constexpr UChar kHorizontalEllipsis =
+      0x2026;  // U+2026 HORIZONTAL ELLIPSIS ('…')
+  buffer[cutIndex] = kHorizontalEllipsis;
+  return String16(buffer.get(), cutIndex + 1);
+}
+
 String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,
                                        v8::Local<v8::Value> value) {
   if (value.IsEmpty() || !value->IsString()) return String16();

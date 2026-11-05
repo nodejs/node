@@ -129,29 +129,6 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS128Load32Zero";
     case LoadTransformation::kS128Load64Zero:
       return os << "kS128Load64Zero";
-    // Simd256
-    case LoadTransformation::kS256Load8Splat:
-      return os << "kS256Load8Splat";
-    case LoadTransformation::kS256Load16Splat:
-      return os << "kS256Load16Splat";
-    case LoadTransformation::kS256Load32Splat:
-      return os << "kS256Load32Splat";
-    case LoadTransformation::kS256Load64Splat:
-      return os << "kS256Load64Splat";
-    case LoadTransformation::kS256Load8x16S:
-      return os << "kS256Load8x16S";
-    case LoadTransformation::kS256Load8x16U:
-      return os << "kS256Load8x16U";
-    case LoadTransformation::kS256Load8x8U:
-      return os << "kS256Load8x8U";
-    case LoadTransformation::kS256Load16x8S:
-      return os << "kS256Load16x8S";
-    case LoadTransformation::kS256Load16x8U:
-      return os << "kS256Load16x8U";
-    case LoadTransformation::kS256Load32x4S:
-      return os << "kS256Load32x4S";
-    case LoadTransformation::kS256Load32x4U:
-      return os << "kS256Load32x4U";
   }
   UNREACHABLE();
 }
@@ -241,7 +218,7 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
          IrOpcode::kTrappingStore == op->opcode() ||
          IrOpcode::kStoreTrapOnNull == op->opcode() ||
-         IrOpcode::kStoreIndirectPointer == op->opcode());
+         IrOpcode::kStoreTrustedPointer == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -454,7 +431,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_SIMD128(V, F32x4PromoteLowF16x8, Operator::kNoProperties, 1, 0, 1)        \
   IF_SIMD128(V, F16x8Qfma, Operator::kNoProperties, 3, 0, 1)                   \
   IF_SIMD128(V, F16x8Qfms, Operator::kNoProperties, 3, 0, 1)                   \
-  IF_SIMD256(V, I64x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I64x2Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)           \
   IF_SIMD128(V, I64x2Abs, Operator::kNoProperties, 1, 0, 1)                    \
@@ -478,7 +454,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_SIMD128(V, I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)        \
   IF_SIMD128(V, I64x2ExtMulLowI32x4U, Operator::kCommutative, 2, 0, 1)         \
   IF_SIMD128(V, I64x2ExtMulHighI32x4U, Operator::kCommutative, 2, 0, 1)        \
-  IF_SIMD256(V, I32x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I32x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)          \
   IF_SIMD128(V, I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)       \
@@ -514,7 +489,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_SIMD128(V, I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)   \
   IF_SIMD128(V, I32x4TruncSatF64x2SZero, Operator::kNoProperties, 1, 0, 1)     \
   IF_SIMD128(V, I32x4TruncSatF64x2UZero, Operator::kNoProperties, 1, 0, 1)     \
-  IF_SIMD256(V, I16x16Splat, Operator::kNoProperties, 1, 0, 1)                 \
   IF_SIMD128(V, I16x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)       \
   IF_SIMD128(V, I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)      \
@@ -553,10 +527,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_SIMD128(V, I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)        \
   IF_SIMD128(V, I16x8ExtAddPairwiseI8x16S, Operator::kNoProperties, 1, 0, 1)   \
   IF_SIMD128(V, I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)   \
-  IF_SIMD256(V, I8x32Splat, Operator::kNoProperties, 1, 0, 1)                  \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                              \
-  IF_SIMD256(V, F64x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
-  IF_SIMD256(V, F32x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
   IF_SIMD128(V, I8x16Neg, Operator::kNoProperties, 1, 0, 1)                    \
   IF_SIMD128(V, I8x16Shl, Operator::kNoProperties, 2, 0, 1)                    \
   IF_SIMD128(V, I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                   \
@@ -606,169 +577,13 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_SIMD128(V, F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
   IF_SIMD128(V, F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
   IF_SIMD128(V, F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
-  IF_SIMD256(V, F32x8RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
-  IF_SIMD256(V, F32x8RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
-  IF_SIMD256(V, F64x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
-  IF_SIMD256(V, F64x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
   IF_SIMD128(V, I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)     \
   IF_SIMD128(V, I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)     \
   IF_SIMD128(V, I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1) \
   IF_SIMD128(V, I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1) \
   IF_SIMD128(V, I16x8RelaxedQ15MulRS, Operator::kCommutative, 2, 0, 1)         \
   IF_SIMD128(V, I16x8DotI8x16I7x16S, Operator::kNoProperties, 2, 0, 1)         \
-  IF_SIMD128(V, I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)      \
-  IF_SIMD256(V, F64x4Min, Operator::kAssociative | Operator::kCommutative, 2,  \
-             0, 1)                                                             \
-  IF_SIMD256(V, F64x4Max, Operator::kAssociative | Operator::kCommutative, 2,  \
-             0, 1)                                                             \
-  IF_SIMD256(V, F64x4Add, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, F64x4Abs, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, F64x4Neg, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_SIMD256(V, F32x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, F32x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, F32x8Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_SIMD256(V, F32x8Add, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I64x4Add, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I32x8Add, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I16x16Add, Operator::kCommutative, 2, 0, 1)                    \
-  IF_SIMD256(V, I8x32Add, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, F64x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, F32x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I64x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I16x16Sub, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I8x32Sub, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, F64x4Mul, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, F32x8Mul, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I64x4Mul, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I32x8Mul, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I16x16Mul, Operator::kCommutative, 2, 0, 1)                    \
-  IF_SIMD256(V, F64x4Div, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, F32x8Div, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I16x16AddSatS, Operator::kCommutative, 2, 0, 1)                \
-  IF_SIMD256(V, I8x32AddSatS, Operator::kCommutative, 2, 0, 1)                 \
-  IF_SIMD256(V, I16x16AddSatU, Operator::kCommutative, 2, 0, 1)                \
-  IF_SIMD256(V, I8x32AddSatU, Operator::kCommutative, 2, 0, 1)                 \
-  IF_SIMD256(V, I16x16SubSatS, Operator::kNoProperties, 2, 0, 1)               \
-  IF_SIMD256(V, I8x32SubSatS, Operator::kNoProperties, 2, 0, 1)                \
-  IF_SIMD256(V, I16x16SubSatU, Operator::kNoProperties, 2, 0, 1)               \
-  IF_SIMD256(V, I8x32SubSatU, Operator::kNoProperties, 2, 0, 1)                \
-  IF_SIMD256(V, F32x8Min, Operator::kAssociative | Operator::kCommutative, 2,  \
-             0, 1)                                                             \
-  IF_SIMD256(V, F32x8Max, Operator::kAssociative | Operator::kCommutative, 2,  \
-             0, 1)                                                             \
-  IF_SIMD256(V, F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, F32x8Eq, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, F64x4Eq, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I64x4Eq, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I32x8Eq, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I16x16Eq, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I8x32Eq, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, F32x8Ne, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, F64x4Ne, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I64x4GtS, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I32x8GtS, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I16x16GtS, Operator::kCommutative, 2, 0, 1)                    \
-  IF_SIMD256(V, I8x32GtS, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, F64x4Lt, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_SIMD256(V, F32x8Lt, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_SIMD256(V, F64x4Le, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_SIMD256(V, F32x8Le, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_SIMD256(V, I32x8MinS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16MinS, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I8x32MinS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I32x8MinU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16MinU, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I8x32MinU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I32x8MaxS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16MaxS, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I8x32MaxS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I32x8MaxU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16MaxU, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I8x32MaxU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I64x4Ne, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I64x4GeS, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8Ne, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I32x8GtU, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8GeS, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8GeU, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I16x16Ne, Operator::kCommutative, 2, 0, 1)                     \
-  IF_SIMD256(V, I16x16GtU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16GeS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16GeU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I8x32Ne, Operator::kCommutative, 2, 0, 1)                      \
-  IF_SIMD256(V, I8x32GtU, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I8x32GeS, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I8x32GeU, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8SConvertF32x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, I32x8UConvertF32x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, F32x8UConvertI32x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)            \
-  IF_SIMD256(V, I64x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, I64x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, I32x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, I32x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
-  IF_SIMD256(V, I16x16SConvertI8x16, Operator::kNoProperties, 1, 0, 1)         \
-  IF_SIMD256(V, I16x16UConvertI8x16, Operator::kNoProperties, 1, 0, 1)         \
-  IF_SIMD256(V, I16x16SConvertI32x8, Operator::kNoProperties, 2, 0, 1)         \
-  IF_SIMD256(V, I16x16UConvertI32x8, Operator::kNoProperties, 2, 0, 1)         \
-  IF_SIMD256(V, I8x32SConvertI16x16, Operator::kNoProperties, 2, 0, 1)         \
-  IF_SIMD256(V, I8x32UConvertI16x16, Operator::kNoProperties, 2, 0, 1)         \
-  IF_SIMD256(V, I32x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, I32x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, I16x16Neg, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_SIMD256(V, I16x16Abs, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_SIMD256(V, I8x32Neg, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, I8x32Abs, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_SIMD256(V, I64x4Shl, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I64x4ShrU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I32x8Shl, Operator::kNoProperties, 2, 0, 1)                    \
-  IF_SIMD256(V, I32x8ShrS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I32x8ShrU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16Shl, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, I16x16ShrS, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I16x16ShrU, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)              \
-  IF_SIMD256(V, I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)       \
-  IF_SIMD256(V, I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)        \
-  IF_SIMD256(V, I64x4ExtMulI32x4S, Operator::kCommutative, 2, 0, 1)            \
-  IF_SIMD256(V, I64x4ExtMulI32x4U, Operator::kCommutative, 2, 0, 1)            \
-  IF_SIMD256(V, I32x8ExtMulI16x8S, Operator::kCommutative, 2, 0, 1)            \
-  IF_SIMD256(V, I32x8ExtMulI16x8U, Operator::kCommutative, 2, 0, 1)            \
-  IF_SIMD256(V, I16x16ExtMulI8x16S, Operator::kCommutative, 2, 0, 1)           \
-  IF_SIMD256(V, I16x16ExtMulI8x16U, Operator::kCommutative, 2, 0, 1)           \
-  IF_SIMD256(V, I32x8ExtAddPairwiseI16x16S, Operator::kNoProperties, 1, 0, 1)  \
-  IF_SIMD256(V, I32x8ExtAddPairwiseI16x16U, Operator::kNoProperties, 1, 0, 1)  \
-  IF_SIMD256(V, I16x16ExtAddPairwiseI8x32S, Operator::kNoProperties, 1, 0, 1)  \
-  IF_SIMD256(V, I16x16ExtAddPairwiseI8x32U, Operator::kNoProperties, 1, 0, 1)  \
-  IF_SIMD256(V, F64x4Pmin, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, F64x4Pmax, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_SIMD256(V, S256Zero, Operator::kNoProperties, 0, 0, 1)                    \
-  IF_SIMD256(V, S256And, Operator::kAssociative | Operator::kCommutative, 2,   \
-             0, 1)                                                             \
-  IF_SIMD256(V, S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, \
-             1)                                                                \
-  IF_SIMD256(V, S256Xor, Operator::kAssociative | Operator::kCommutative, 2,   \
-             0, 1)                                                             \
-  IF_SIMD256(V, S256Not, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_SIMD256(V, S256Select, Operator::kNoProperties, 3, 0, 1)                  \
-  IF_SIMD256(V, S256AndNot, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_SIMD256(V, F32x8Qfma, Operator::kNoProperties, 3, 0, 1)                   \
-  IF_SIMD256(V, F32x8Qfms, Operator::kNoProperties, 3, 0, 1)                   \
-  IF_SIMD256(V, F64x4Qfma, Operator::kNoProperties, 3, 0, 1)                   \
-  IF_SIMD256(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)                   \
-  IF_SIMD256(V, I64x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
-  IF_SIMD256(V, I32x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
-  IF_SIMD256(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)     \
-  IF_SIMD256(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
-  IF_SIMD256(V, I32x8DotI8x32I7x32AddS, Operator::kNoProperties, 3, 0, 1)      \
-  IF_SIMD256(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)        \
-  IF_SIMD256(V, I32x8RelaxedTruncF32x8S, Operator::kNoProperties, 1, 0, 1)     \
-  IF_SIMD256(V, I32x8RelaxedTruncF32x8U, Operator::kNoProperties, 1, 0, 1)
+  IF_SIMD128(V, I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -807,7 +622,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
   V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
   V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
-  V(BitcastWord32ToWord64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                \
@@ -1048,17 +862,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(S128Load32x2S)             \
   V(S128Load32x2U)             \
   V(S128Load32Zero)            \
-  V(S128Load64Zero)            \
-  V(S256Load8Splat)            \
-  V(S256Load16Splat)           \
-  V(S256Load32Splat)           \
-  V(S256Load64Splat)           \
-  V(S256Load8x16S)             \
-  V(S256Load8x16U)             \
-  V(S256Load16x8S)             \
-  V(S256Load16x8U)             \
-  V(S256Load32x4S)             \
-  V(S256Load32x4U)
+  V(S128Load64Zero)
 
 #if TAGGED_SIZE_8_BYTES
 
@@ -1519,32 +1323,31 @@ struct MachineOperatorGlobalCache {
 #undef STORE_PAIR
 
   // Indirect pointer stores have an additional value input (the
-  // IndirectPointerTag associated with the field being stored to), but
+  // TrustedPointerTag associated with the field being stored to), but
   // otherwise are identical to regular stores.
-  struct StoreIndirectPointerOperator : public Operator1<StoreRepresentation> {
-    explicit StoreIndirectPointerOperator(WriteBarrierKind write_barrier_kind)
+  struct StoreTrustedPointerOperator : public Operator1<StoreRepresentation> {
+    explicit StoreTrustedPointerOperator(WriteBarrierKind write_barrier_kind)
         : Operator1<StoreRepresentation>(
-              IrOpcode::kStoreIndirectPointer,
+              IrOpcode::kStoreTrustedPointer,
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
-              "StoreIndirectPointer", 4, 1, 1, 0, 1, 0,
-              StoreRepresentation(MachineRepresentation::kIndirectPointer,
+              "StoreTrustedPointer", 4, 1, 1, 0, 1, 0,
+              StoreRepresentation(MachineRepresentation::kTrustedPointer,
                                   write_barrier_kind)) {}
   };
-  struct StoreIndirectPointerNoWriteBarrierOperator final
-      : public StoreIndirectPointerOperator {
-    StoreIndirectPointerNoWriteBarrierOperator()
-        : StoreIndirectPointerOperator(kNoWriteBarrier) {}
+  struct StoreTrustedPointerNoWriteBarrierOperator final
+      : public StoreTrustedPointerOperator {
+    StoreTrustedPointerNoWriteBarrierOperator()
+        : StoreTrustedPointerOperator(kNoWriteBarrier) {}
   };
-  struct StoreIndirectPointerWithIndirectPointerWriteBarrierOperator final
-      : public StoreIndirectPointerOperator {
-    StoreIndirectPointerWithIndirectPointerWriteBarrierOperator()
-        : StoreIndirectPointerOperator(kIndirectPointerWriteBarrier) {}
+  struct StoreTrustedPointerWithTrustedPointerWriteBarrierOperator final
+      : public StoreTrustedPointerOperator {
+    StoreTrustedPointerWithTrustedPointerWriteBarrierOperator()
+        : StoreTrustedPointerOperator(kTrustedPointerWriteBarrier) {}
   };
 
-  StoreIndirectPointerNoWriteBarrierOperator
-      kStoreIndirectPointerNoWriteBarrier;
-  StoreIndirectPointerWithIndirectPointerWriteBarrierOperator
-      kStoreIndirectPointerIndirectPointerWriteBarrier;
+  StoreTrustedPointerNoWriteBarrierOperator kStoreTrustedPointerNoWriteBarrier;
+  StoreTrustedPointerWithTrustedPointerWriteBarrierOperator
+      kStoreTrustedPointerTrustedPointerWriteBarrier;
 
 #define ATOMIC_LOAD_WITH_KIND(Type, Kind)                           \
   struct Word32SeqCstLoad##Type##Kind##Operator                     \
@@ -1892,7 +1695,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2156,8 +1959,7 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
-  DCHECK_NE(store_rep.representation(),
-            MachineRepresentation::kIndirectPointer);
+  DCHECK_NE(store_rep.representation(), MachineRepresentation::kTrustedPointer);
   switch (store_rep.representation()) {
 #define STORE(kRep)                                              \
   case MachineRepresentation::kRep:                              \
@@ -2172,7 +1974,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
         return &cache_.k##Store##kRep##MapWriteBarrier;          \
       case kPointerWriteBarrier:                                 \
         return &cache_.k##Store##kRep##PointerWriteBarrier;      \
-      case kIndirectPointerWriteBarrier:                         \
+      case kTrustedPointerWriteBarrier:                          \
         UNREACHABLE();                                           \
       case kEphemeronKeyWriteBarrier:                            \
         return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
@@ -2184,7 +1986,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2192,13 +1994,13 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   UNREACHABLE();
 }
 
-const Operator* MachineOperatorBuilder::StoreIndirectPointer(
+const Operator* MachineOperatorBuilder::StoreTrustedPointer(
     WriteBarrierKind write_barrier_kind) {
   switch (write_barrier_kind) {
     case kNoWriteBarrier:
-      return &cache_.kStoreIndirectPointerNoWriteBarrier;
-    case kIndirectPointerWriteBarrier:
-      return &cache_.kStoreIndirectPointerIndirectPointerWriteBarrier;
+      return &cache_.kStoreTrustedPointerNoWriteBarrier;
+    case kTrustedPointerWriteBarrier:
+      return &cache_.kStoreTrustedPointerTrustedPointerWriteBarrier;
     default:
       UNREACHABLE();
   }
@@ -2234,7 +2036,7 @@ const Operator* MachineOperatorBuilder::TrappingStore(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2256,7 +2058,7 @@ const Operator* MachineOperatorBuilder::StoreTrapOnNull(
 #undef STORE
     case MachineRepresentation::kBit:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
@@ -2783,42 +2585,6 @@ const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
     return &cache_.kI8x16Swizzle;
   }
 }
-
-#if V8_ENABLE_SIMD256
-S256ImmediateParameter const& S256ImmediateParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kI8x32Shuffle == op->opcode() ||
-         IrOpcode::kS256Const == op->opcode());
-  return OpParameter<S256ImmediateParameter>(op);
-}
-
-const Operator* MachineOperatorBuilder::S256Const(const uint8_t value[32]) {
-  return zone_->New<Operator1<S256ImmediateParameter>>(
-      IrOpcode::kS256Const, Operator::kPure, "Immediate256", 0, 0, 0, 1, 0, 0,
-      S256ImmediateParameter(value));
-}
-
-const Operator* MachineOperatorBuilder::I8x32Shuffle(
-    const uint8_t shuffle[32]) {
-  return zone_->New<Operator1<S256ImmediateParameter>>(
-      IrOpcode::kI8x32Shuffle, Operator::kPure, "I8x32Shuffle", 2, 0, 0, 1, 0,
-      0, S256ImmediateParameter(shuffle));
-}
-
-const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
-  DCHECK(0 <= lane_index && lane_index < 2);
-  class ExtractF128Operator final : public Operator1<int32_t> {
-   public:
-    explicit ExtractF128Operator(int32_t lane_index)
-        : Operator1<int32_t>(IrOpcode::kExtractF128, Operator::kPure,
-                             "ExtractF128", 1, 0, 0, 1, 0, 0, lane_index) {
-      lane_index_ = lane_index;
-    }
-
-    int32_t lane_index_;
-  };
-  return zone_->New<ExtractF128Operator>(lane_index);
-}
-#endif  // V8_ENABLE_SIMD256
 #endif  // V8_ENABLE_SIMD128
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -1,0 +1,27 @@
+header: sys/shm.h
+public_includes:
+  - sys/ipc.h
+standards:
+  - posix
+macros:
+  - macro_name: SHM_RDONLY
+    macro_header: sys-shm-macros.h
+  - macro_name: SHM_RND
+    macro_header: sys-shm-macros.h
+  - macro_name: SHM_REMAP
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_EXEC
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+types:
+  - type_name: intptr_t
+  - type_name: pid_t
+  - type_name: shmatt_t
+  - type_name: size_t
+  - type_name: time_t
+enums: []
+objects: []
+functions: []

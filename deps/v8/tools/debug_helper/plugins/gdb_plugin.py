@@ -19,6 +19,7 @@ from gdb.FrameDecorator import (  # pyright: ignore[reportMissingModuleSource]
 
 from v8dbg.commands import debug_helper_lib_warning
 from v8dbg.commands import dispatch_v8_command
+from v8dbg.hints import resolve_heap_hints
 from v8dbg.shared_bridge import get_bridge
 
 _VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
@@ -149,8 +150,9 @@ def _resolve_frame_fp(index):
 class V8DbgFrameDecorator(FrameDecorator):
   """Appends V8 JS frame annotations to backtraces."""
 
-  def __init__(self, frame_obj):
+  def __init__(self, frame_obj, hints):
     super().__init__(frame_obj)
+    self._hints = hints
 
   def function(self):
     """Keep the native frame name when it is useful, else append JS context."""
@@ -183,7 +185,8 @@ class V8DbgFrameDecorator(FrameDecorator):
     # frame_suffix() consults debug_helper, which returns a non-empty
     # annotation only for genuine JS frames, otherwise it returns an empty string.
     bridge = get_bridge(_ptr_size())
-    suffix = bridge.frame_suffix(frame_pointer, _read_memory_callback)
+    suffix = bridge.frame_suffix(frame_pointer, _read_memory_callback,
+                                 self._hints)
     if not suffix:
       return base_name
     if not base_name:
@@ -206,7 +209,8 @@ class V8DbgFrameFilter:
 
   def filter(self, iterator):
     """Wrap each frame with the V8-aware decorator."""
-    return (V8DbgFrameDecorator(frame_obj) for frame_obj in iterator)
+    hints = resolve_heap_hints(_GdbResolver(_ptr_size()))
+    return (V8DbgFrameDecorator(frame_obj, hints) for frame_obj in iterator)
 
 
 class V8Command(gdb.Command):
@@ -217,11 +221,19 @@ class V8Command(gdb.Command):
 
     - inspect -- Inspect the heap object at <addr> with the V8 inspector.
 
-      v8 inspect <addr> [--type T] [--depth N] [--array-length N]
+      v8 inspect <addr>|this|[N]|<param-name> [--type T] [--depth N] [--array-length N]
 
+      * this / [N] / <param-name>: inspect the receiver or an argument of
+        the selected JS frame instead of a raw address.
       * --type T: treat the object as if it has type T (e.g. `v8::internal::JSArray`).
       * --depth N: limit recursive inspection depth to N (default: 1).
       * --array-length N: for arrays, inspect up to N elements (default: 16).
+
+    - args -- Print the receiver and the arguments of a JS frame.
+
+      v8 args [frame#]
+
+      * frame#: the frame to show (default: the selected frame).
 
     - isolate -- Print the current Isolate address of the selected thread.
 

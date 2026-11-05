@@ -77,3 +77,10 @@ and issue tracking.
 - **Missing Dependencies**: If a required tool (like `poetry` for Crossbench) is
   missing or failing, do NOT try to install it yourself. Follow the fallback
   advice in the specific workflow skill or ask the user for guidance.
+
+### 3. Rift (Optional Btrfs Workspaces)
+
+`agents/scripts/create_worktree.sh` and `agents/scripts/cleanup_worktree.sh`
+automatically use Rift Btrfs copy-on-write snapshots when `rift` is installed
+and configured for V8 (`rift config set workspace_root v8`). For installation
+and setup instructions, see [go/rift](http://go/rift).

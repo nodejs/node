@@ -1,0 +1,31 @@
+Test debug event catch prediction for thrown exceptions.
+Running TryCatch:
+result: boom1
+result: boom2
+result: boom3
+Collect log: [["boom1",false],["boom2",false],["boom3",false]]
+Running TryFinally:
+result: 11
+result: 12
+result: 13
+Collect log: [["baem1",true],["baem2",true],["baem3",true]]
+Running TryCatchFinally:
+result: wosh11
+result: wosh22
+result: wosh33
+Collect log: [["wosh1",false],["wosh2",false],["wosh3",false]]
+Running TryCatchNestedFinally:
+result: bang11
+result: bang22
+result: bang33
+Collect log: [["bang1",false],["bang2",false],["bang3",false]]
+Running TryFinallyNestedCatch:
+result: 11
+result: 12
+result: 13
+Collect log: [["peng1",false],["peng2",false],["peng3",false]]
+Running TryFinallyNestedFinally:
+result: 11
+result: 12
+result: 13
+Collect log: [["oops1",true],["oops2",true],["oops3",true]]

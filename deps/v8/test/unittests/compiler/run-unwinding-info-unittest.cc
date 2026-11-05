@@ -22,9 +22,9 @@ using RunUnwindingInfoTest = TestWithPlatform;
 
 TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
   SaveFlags save_flags;
-  v8_flags.perf_prof_unwinding_info = true;
-  v8_flags.jit_fuzzing = true;
-  v8_flags.concurrent_recompilation = false;
+  v8_flags.perf_prof_unwinding_info.Set(true);
+  v8_flags.jit_fuzzing.Set(true);
+  v8_flags.concurrent_recompilation.Set(false);
   FlagList::EnforceFlagImplications();
 
   IsolateWithContextWrapper isolate_wrapper;

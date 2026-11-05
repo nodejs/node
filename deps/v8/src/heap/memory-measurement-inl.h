@@ -15,14 +15,26 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/map.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
 bool NativeContextInferrer::Infer(PtrComprCageBase cage_base, Tagged<Map> map,
                                   Tagged<HeapObject> object,
                                   Address* native_context) {
-  Tagged<Object> maybe_native_context =
-      map->map()->raw_native_context_or_null();
+  Tagged<Map> meta_map = map->map();
+#if V8_ENABLE_WEBASSEMBLY
+  if (!IsMetaMap(meta_map)) [[unlikely]] {
+    DCHECK(IsWasmCustomMap(map));
+    *native_context =
+        Cast<WasmCustomMap>(map)->native_context_for_wrapper().ptr();
+    return true;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  Tagged<Object> maybe_native_context = meta_map->raw_native_context_or_null();
   *native_context = maybe_native_context.ptr();
   // The value might be equal to Smi::uninitialized_deserialization_value()
   // during NativeContext deserialization.

@@ -38,6 +38,7 @@
 #include <stdio.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "src/codegen/assembler.h"
@@ -84,7 +85,7 @@ class Operand {
   V8_INLINE explicit Operand(intptr_t immediate,
                              RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
-    value_.immediate = immediate;
+    immediate_ = immediate;
   }
 
   V8_INLINE explicit Operand(Tagged<Smi> value)
@@ -92,7 +93,7 @@ class Operand {
 
   V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = static_cast<intptr_t>(f.address());
+    immediate_ = static_cast<intptr_t>(f.address());
   }
 
   explicit Operand(Handle<HeapObject> handle,
@@ -106,30 +107,37 @@ class Operand {
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
 
+  // Heap-number requests do not refer to a real, relocatable handle location.
+  // They are patched into the constant pool after it has been emitted (see
+  // Assembler::PatchInHeapNumberRequest), so there is no meaningful immediate
+  // to return here. Returning 0 makes callers construct a null handle, which
+  // AssemblerBase::AddEmbeddedObject deliberately does not deduplicate.
   inline intptr_t immediate_for_heap_number_request() const {
     DCHECK(rmode() == RelocInfo::FULL_EMBEDDED_OBJECT);
-    return value_.immediate;
+    DCHECK(IsHeapNumberRequest());
+    DCHECK_EQ(immediate_, 0);
+    return immediate_;
   }
 
   inline intptr_t immediate() const {
     DCHECK(!is_reg());
     DCHECK(!IsHeapNumberRequest());
-    return value_.immediate;
+    return immediate_;
   }
 
   bool IsImmediate() const { return !rm_.is_valid(); }
 
   HeapNumberRequest heap_number_request() const {
     DCHECK(IsHeapNumberRequest());
-    return value_.heap_number_request;
+    return *heap_number_request_;
   }
 
   bool IsHeapNumberRequest() const {
-    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_number_request_,
+    DCHECK_IMPLIES(heap_number_request_.has_value(), IsImmediate());
+    DCHECK_IMPLIES(heap_number_request_.has_value(),
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_number_request_;
+    return heap_number_request_.has_value();
   }
 
   Register rm() const { return rm_; }
@@ -138,12 +146,10 @@ class Operand {
 
  private:
   Register rm_;
-  union Value {
-    Value() {}
-    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
-    intptr_t immediate;                     // otherwise
-  } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_number_request_ = false;
+  intptr_t immediate_ = 0;  // valid if rm_ == no_reg
+  // Kept out of the immediate union so that a request's double payload can
+  // never be mistaken for a handle location.
+  std::optional<HeapNumberRequest> heap_number_request_;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -607,10 +613,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     void set(int32_t avl, VSew sew, Vlmul lmul, TailAgnosticType tail = ta) {
       DCHECK(is_uint5(avl));
-      if (avl != avl_ || sew != sew_ || lmul != lmul_) {
+      if (avl != avl_ || sew != sew_ || lmul != lmul_ || tail != tail_) {
         avl_ = avl;
         sew_ = sew;
         lmul_ = lmul;
+        tail_ = tail;
         assm_->vsetivli(zero_reg, static_cast<uint8_t>(avl), sew_, lmul_, tail);
       }
     }
@@ -621,6 +628,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = sew;
       lmul_ = lmul;
+      tail_ = tail;
     }
 
     bool IsConfiguredForSimd128() const {
@@ -628,30 +636,44 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       return (avl_ == expected_avl);
     }
 
-    void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      // Just support riscv zve64x now.
-      // ELEN * LMUL >= SEW
-      //  --> 2^(elen + 3) * 2^(-n) >= 2^(sew + 3)
-      //  --> elen >= sew + n
-      // mf2 -> n is 1.
-      // mf4 -> n is 2.
-      // mf8 -> n is 3.
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = m1;
-          break;
-        case 256:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        case 512:
-          lmul = (sew + 2) > E64 ? m1 : mf4;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
+    static Vlmul MinimumLmulForTargetBits(int target_bits, VSew sew) {
+      const int vlen = CpuFeatures::vlen();
+      DCHECK(vlen >= 128 && vlen <= kMaxRvvVLEN && (vlen % 128) == 0);
+      const int sew_bits = 8 << static_cast<int>(sew);
+      // LMUL must satisfy RVV 1.0: LMUL * ELEN >= SEW and VLMAX >= avl, where
+      // avl = target_bits / SEW. Equivalently, LMUL >= max(SEW / ELEN,
+      // target_bits / VLEN).
+      const int64_t req_num_from_sew = sew_bits;
+      const int64_t req_den_from_sew = kRvvELEN;
+      const int64_t req_num_from_vlen = target_bits;
+      const int64_t req_den_from_vlen = vlen;
+      int64_t req_num;
+      int64_t req_den;
+      if (req_num_from_sew * req_den_from_vlen >=
+          req_num_from_vlen * req_den_from_sew) {
+        req_num = req_num_from_sew;
+        req_den = req_den_from_sew;
+      } else {
+        req_num = req_num_from_vlen;
+        req_den = req_den_from_vlen;
       }
+      static constexpr struct {
+        Vlmul lmul;
+        int num;
+        int den;
+      } kOptions[] = {{mf8, 1, 8}, {mf4, 1, 4}, {mf2, 1, 2}, {m1, 1, 1},
+                      {m2, 2, 1},  {m4, 4, 1},  {m8, 8, 1}};
+      for (const auto& option : kOptions) {
+        if (static_cast<int64_t>(option.num) * req_den >=
+            req_num * option.den) {
+          return option.lmul;
+        }
+      }
+      UNREACHABLE();
+    }
+
+    void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
+      Vlmul lmul = MinimumLmulForTargetBits(128, sew);
       if (sew == E8) {
         set(16, sew, lmul, tail);
       } else if (sew == E16) {
@@ -666,22 +688,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void SetSimd128Half(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        case 256:
-          lmul = (sew + 2) > E64 ? (sew == E32 ? mf2 : m1) : mf4;
-          break;
-        case 512:
-          lmul = (sew + 3) > E64 ? (sew <= E32 ? mf2 : m1) : mf8;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
-      }
+      Vlmul lmul = MinimumLmulForTargetBits(64, sew);
       if (sew == E8) {
         set(8, sew, lmul, tail);
       } else if (sew == E16) {
@@ -696,22 +703,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void SetSimd128x2(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = m2;
-          break;
-        case 256:
-          lmul = m1;
-          break;
-        case 512:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
-      }
+      Vlmul lmul = MinimumLmulForTargetBits(256, sew);
       if (sew == E8) {
         set(32, sew, lmul, tail);
       } else if (sew == E16) {
@@ -731,12 +723,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = kVsInvalid;
       lmul_ = kVlInvalid;
+      tail_ = ta;
     }
 
    private:
     int32_t avl_ = -1;
     VSew sew_ = kVsInvalid;
     Vlmul lmul_ = kVlInvalid;
+    TailAgnosticType tail_ = ta;
     Assembler* assm_;
     FPURoundingMode mode_ = RNE;
   };

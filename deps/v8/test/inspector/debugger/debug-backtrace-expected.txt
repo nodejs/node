@@ -1,0 +1,12 @@
+Tests that debugger backtrace returns expected call frames and local variables.
+Frame count: 4
+f (test.js:2:2)
+m (test.js:6:2)
+g (test.js:10:2)
+(anonymous) (expr.js:0:0)
+Frame 0: f at 2:2
+Frame 0 local count: 2
+  x: 1
+  y: undefined
+Frame 1: m at 6:2
+Frame 1 local count: 0

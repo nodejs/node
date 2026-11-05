@@ -126,6 +126,8 @@ function VerifyBoundsCheck64(func, memtype_size) {
   }
   // Test out of bounds at maximum + 1
   assertTraps(kTrapMemOutOfBounds, () => func((maxSize + 1) * kPageSize, 5n, 1n));
+  // Test negative index (bit 31 set, e.g. -kPageSize = 0xffff0000).
+  assertTraps(kTrapMemOutOfBounds, () => func(-kPageSize, 5n, 1n));
 }
 
 function VerifyBoundsCheck(func, memtype_size) {
@@ -143,6 +145,8 @@ function VerifyBoundsCheck(func, memtype_size) {
   }
   // Test out of bounds at maximum + 1
   assertTraps(kTrapMemOutOfBounds, () => func((maxSize + 1) * kPageSize, 5, 1));
+  // Test negative index (bit 31 set, e.g. -kPageSize = 0xffff0000).
+  assertTraps(kTrapMemOutOfBounds, () => func(-kPageSize, 5, 1));
 }
 
 // Test many elements in the small range, make bigger steps later. This is still
@@ -796,4 +800,62 @@ function CmpExchgLoop(opcode, alignment) {
     // error is reported.
     assertTraps(kTrapUnalignedAccess, () => fct(unaligned + oob));
   }
+})();
+
+(function TestAtomicLoadWrapI64Index() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, true);
+  builder.addFunction("atomicLoadWrap", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32ConvertI64,
+      kAtomicPrefix, kExprI32AtomicLoad, /*align*/ 0x02, /*offset*/ 0x00,
+    ]).exportFunc();
+  builder.addFunction("atomicLoadWrapOffset", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32ConvertI64,
+      kAtomicPrefix, kExprI32AtomicLoad, /*align*/ 0x02, /*offset*/ 0x10,
+    ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  // Upper 32 bits must be ignored after i32.wrap_i64.
+  assertEquals(0, wasm.atomicLoadWrap(0x1_0000_0000n));
+  assertEquals(0, wasm.atomicLoadWrapOffset(0x1_0000_0000n));
+  // Bit 31 set must be zero-extended (not sign-extended) to 64-bit address.
+  assertTraps(kTrapMemOutOfBounds,
+              () => wasm.atomicLoadWrap(0xffff_ffff_8000_0000n));
+  assertTraps(kTrapMemOutOfBounds,
+              () => wasm.atomicLoadWrapOffset(0xffff_ffff_8000_0000n));
+  // Index + offset out of bounds.
+  assertEquals(0, wasm.atomicLoadWrapOffset(BigInt(kPageSize - 0x14)));
+  assertTraps(kTrapMemOutOfBounds,
+              () => wasm.atomicLoadWrapOffset(BigInt(kPageSize - 0x10)));
+})();
+
+(function TestAtomicLoadMemory64() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 1, true);
+  builder.addFunction("atomicLoad", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kAtomicPrefix, kExprI32AtomicLoad, /*align*/ 0x02, /*offset*/ 0x00,
+    ]).exportFunc();
+  builder.addFunction("atomicLoadOffset", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kAtomicPrefix, kExprI32AtomicLoad, /*align*/ 0x02, /*offset*/ 0x10,
+    ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  assertEquals(0, wasm.atomicLoad(0n));
+  assertEquals(0, wasm.atomicLoadOffset(0n));
+  assertEquals(0, wasm.atomicLoadOffset(BigInt(kPageSize - 0x14)));
+  assertTraps(kTrapMemOutOfBounds,
+              () => wasm.atomicLoadOffset(BigInt(kPageSize - 0x10)));
+  // Upper 32 bits must NOT be ignored on memory64.
+  assertTraps(kTrapMemOutOfBounds, () => wasm.atomicLoad(0x1_0000_0000n));
+  assertTraps(kTrapMemOutOfBounds, () => wasm.atomicLoadOffset(0x1_0000_0000n));
 })();

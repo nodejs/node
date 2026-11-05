@@ -57,8 +57,8 @@ macro ExtractFixedDoubleArray(
     const length: uint32 = Unsigned(Convert<int32>(length));
     if (length == 0) return kEmptyFixedArray;
     if (length > kFixedDoubleArrayMaxLength) deferred {
-        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-      }
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
     return new FixedDoubleArray{
       map: kFixedDoubleArrayMap,
       length,
@@ -73,8 +73,8 @@ macro ExtractFixedDoubleArray(
     const length: uint32 = Unsigned(Convert<int32>(length));
     if (length == 0) return kEmptyFixedArray;
     if (length > kFixedDoubleArrayMaxLength) deferred {
-        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-      }
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
     return new
     FixedDoubleArray{map: kFixedDoubleArrayMap, length, values: ...it};
   }

@@ -1151,10 +1151,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
+                                            ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
-  liftoff::Store(this, frame_pointer, offset, src, kind);
+  liftoff::Store(this, fp, offset, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
@@ -2042,13 +2041,13 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
     if (memtype == MachineType::Int32()) {
-      VU.SetSimd128(E32);
+      VU.SetSimd128(E32, tu);
       vxor_vv(dst_v, dst_v, dst_v);
       Lw(scratch, src_op);
       vmv_sx(dst_v, scratch);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
-      VU.SetSimd128(E64);
+      VU.SetSimd128(E64, tu);
       vxor_vv(dst_v, dst_v, dst_v);
       LoadDouble(kScratchDoubleReg, src_op);
       vfmv_sf(dst_v, kScratchDoubleReg);
@@ -2158,7 +2157,7 @@ void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  VU.SetSimd128(E32);
+  VU.SetSimd128(E32, tu);
   vmv_vx(kSimd128ScratchReg, src2.high_gp());
   vmv_sx(kSimd128ScratchReg, src2.low_gp());
   VU.SetSimd128(E64);
@@ -2200,7 +2199,7 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  VU.SetSimd128(E32);
+  VU.SetSimd128(E32, tu);
   // li(kScratchReg, 0x0006000400020000);
   li(kScratchReg, 0x00060004);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
@@ -2220,7 +2219,7 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  VU.SetSimd128(E32);
+  VU.SetSimd128(E32, tu);
   // li(kScratchReg, 0x0006000400020000);
   li(kScratchReg, 0x00060004);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
@@ -2240,7 +2239,7 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  VU.SetSimd128(E32);
+  VU.SetSimd128(E32, tu);
   // li(kScratchReg, 0x0E0C0A0806040200);
   li(kScratchReg, 0x0E0C0A08);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
@@ -2260,7 +2259,7 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  VU.SetSimd128(E32);
+  VU.SetSimd128(E32, tu);
   // li(kScratchReg, 0x0E0C0A0806040200);
   li(kScratchReg, 0x0E0C0A08);
   vmv_vx(kSimd128ScratchReg, kScratchReg);

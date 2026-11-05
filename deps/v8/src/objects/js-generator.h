@@ -23,7 +23,14 @@ V8_OBJECT class JSGeneratorObject : public JSObject {
   V8_IT_OWN_TYPE;
 
  public:
-  enum ResumeMode { kNext, kReturn, kThrow, kRethrow };
+  enum ResumeMode {
+    kNext,
+    kNextTrySkipAlloc,
+    kReturn,
+    kThrow,
+    kRethrow,
+    kNextAllocSkipped
+  };
 
   inline Tagged<JSFunction> function() const;
   inline void set_function(Tagged<JSFunction> value,

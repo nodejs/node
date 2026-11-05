@@ -247,10 +247,7 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       *mode = kNoImmediate;
       return kPPC_LoadSimd128;
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::ProtectedPointer():
-    case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::SandboxedPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
@@ -305,7 +302,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       case MachineRepresentation::kFloat16:
         UNIMPLEMENTED();
       case MachineRepresentation::kProtectedPointer:  // Fall through.
-      case MachineRepresentation::kIndirectPointer:   // Fall through.
+      case MachineRepresentation::kTrustedPointer:    // Fall through.
       case MachineRepresentation::kSandboxedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
@@ -367,11 +364,7 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
   bool is_atomic = store.is_atomic();
 
   MachineRepresentation rep = store_rep.representation();
-  WriteBarrierKind write_barrier_kind = kNoWriteBarrier;
-
-  if (!is_atomic) {
-    write_barrier_kind = store_rep.write_barrier_kind();
-  }
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
 
   if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
@@ -412,16 +405,17 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
     InstructionCode code;
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
-      code = kArchStoreSkippedWriteBarrier;
+      code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
+                       : kArchStoreSkippedWriteBarrier;
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      code = kArchStoreWithWriteBarrier;
+      code = is_atomic ? kArchAtomicStoreWithWriteBarrier
+                       : kArchStoreWithWriteBarrier;
       code |= RecordWriteModeField::encode(record_write_mode);
     }
 
     code |= AddressingModeField::encode(addressing_mode);
-    CHECK_EQ(is_atomic, false);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;
@@ -492,9 +486,6 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
         mode = kNoImmediate;
         break;
       case MemoryRepresentation::TrustedPointer():
-        // Only LoadTrustedPointer uses this representation.
-        UNREACHABLE();
-      case MemoryRepresentation::IndirectPointer():
       case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
         UNREACHABLE();
@@ -1319,12 +1310,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {
 
 void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   VisitTryTruncateDouble(this, kPPC_DoubleToUint32, node);
-}
-
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {

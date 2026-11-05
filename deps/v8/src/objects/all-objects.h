@@ -57,7 +57,6 @@
 #include "src/objects/instruction-stream.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-collection-iterator.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-disposable-stack.h"
@@ -72,7 +71,6 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/js-shadow-realm.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects.h"
@@ -80,6 +78,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-cache.h"
+#include "src/objects/lookup-table.h"
 #include "src/objects/lookup.h"
 #include "src/objects/managed.h"
 #include "src/objects/map.h"

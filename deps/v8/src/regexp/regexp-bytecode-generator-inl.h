@@ -8,6 +8,8 @@
 #include "src/regexp/regexp-bytecode-generator.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <bit>
+
 #include "src/regexp/regexp-bytecodes-inl.h"
 
 namespace v8 {
@@ -56,7 +58,7 @@ void BytecodeWriter::EnsureCapacity(size_t size_delta) {
     size = kInitialBufferSizeInBytes;
   } else if (required_size <= kMaxBufferGrowthInBytes) {
     // We use a doubling strategy until hitting the limit.
-    size = base::bits::RoundUpToPowerOfTwo(required_size);
+    size = std::bit_ceil(required_size);
   } else {
     // .. and kMaxBufferGrowthInBytes chunks afterwards.
     size = RoundUp<kMaxBufferGrowthInBytes>(required_size);

@@ -105,8 +105,8 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   // If all promises were already resolved (and/or rejected for allSettled), the
   // remaining count will already be 0.
   if (remainingElementsCount == 0) deferred {
-      return Undefined;
-    }
+    return Undefined;
+  }
 
   let values = *ContextSlot(
       context,
@@ -114,14 +114,14 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
           kPromiseAllResolveElementValuesSlot);
   const newCapacity = index + 1;
   if (newCapacity > values.length_intptr) deferred {
-      // This happens only when the promises are resolved during iteration.
-      values = ExtractFixedArray(
-          values, 0, values.length_intptr, newCapacity, PromiseHole);
-      *ContextSlot(
-          context,
-          PromiseAllResolveElementContextSlots::
-              kPromiseAllResolveElementValuesSlot) = values;
-    }
+    // This happens only when the promises are resolved during iteration.
+    values = ExtractFixedArray(
+        values, 0, values.length_intptr, newCapacity, PromiseHole);
+    *ContextSlot(
+        context,
+        PromiseAllResolveElementContextSlots::
+            kPromiseAllResolveElementValuesSlot) = values;
+  }
 
   // Check whether a reject or resolve closure was already called for this
   // promise.

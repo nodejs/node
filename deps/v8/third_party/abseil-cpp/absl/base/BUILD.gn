@@ -306,6 +306,7 @@ absl_source_set("exception_safety_testing") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
+    ":core_headers",
     ":pretty_function",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
@@ -347,6 +348,16 @@ absl_test("spinlock_test") {
     ":base_internal",
     ":config",
     ":core_headers",
+    "//third_party/abseil-cpp/absl/synchronization",
+  ]
+}
+
+absl_test("spinlock_profiling_test") {
+  sources = [ "spinlock_profiling_test.cc" ]
+  deps = [
+    ":base",
+    ":base_internal",
+    ":config",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
 }

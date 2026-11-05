@@ -18,8 +18,10 @@ if [ -z "$COMMON_DIR" ] || [ -z "$TOPLEVEL" ]; then
 fi
 V8_ROOT="$(cd "$COMMON_DIR/.." && pwd)"
 WS_ROOT="$(dirname "$TOPLEVEL")"
+RIFT=$(PATH="$PATH:$HOME/bin" command -v rift 2>/dev/null)
 
-if command -v rift >/dev/null 2>&1 && [ -f "$WS_ROOT/.rift_prime_directive.json" ]; then
+# Inside an existing Rift workspace: close the child subagent workspace.
+if [ -n "$RIFT" ] && [ -f "$WS_ROOT/.rift_prime_directive.json" ]; then
   CURRENT_WS="$(basename "$WS_ROOT")"
 
   # Mirror create_worktree.sh: a bare TASK_ID names the subagent workspace only
@@ -30,13 +32,20 @@ if command -v rift >/dev/null 2>&1 && [ -f "$WS_ROOT/.rift_prime_directive.json"
     SUBAGENT_WS="${CURRENT_WS}_subagent_${TASK_ID}"
   fi
 
-  if ! rift -y subagent close "$TASK_ID" > /dev/null 2>&1; then
-    rift close -y "$SUBAGENT_WS" > /dev/null 2>&1
+  if ! "$RIFT" -y subagent close "$TASK_ID" > /dev/null 2>&1; then
+    "$RIFT" close -y "$SUBAGENT_WS" > /dev/null 2>&1
   fi
   exit 0
 fi
 
 BRANCH_NAME="task-$TASK_ID"
+
+# Outside a Rift workspace: close the top-level Rift workspace if it exists.
+if [ -n "$RIFT" ] && "$RIFT" path "$BRANCH_NAME" >/dev/null 2>&1; then
+  "$RIFT" close -y "$BRANCH_NAME" > /dev/null 2>&1
+  exit 0
+fi
+
 WORKTREE_PATH="$V8_ROOT/worktrees/$BRANCH_NAME"
 
 git worktree remove --force "$WORKTREE_PATH" > /dev/null 2>&1

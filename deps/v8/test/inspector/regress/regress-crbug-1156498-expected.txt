@@ -1,0 +1,6 @@
+Tests crbug.com/1156498.
+    var simp_class = class {
+      static var1  = #unreferenced;
+    }
+
+ReferenceError: unreferenced is not defined

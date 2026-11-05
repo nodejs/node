@@ -17,7 +17,7 @@
 #define SCHED_FIFO 1
 #define SCHED_RR 2
 
-// Linux extentions
+// Linux extensions
 #define SCHED_BATCH 3
 #define SCHED_ISO 4 // Not yet implemented, reserved.
 #define SCHED_IDLE 5

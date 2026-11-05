@@ -24,12 +24,12 @@ class SimulatorForTest : public Simulator {
 }  // namespace
 
 TEST_F(SimulatorArm64Test, AddressUntag) {
-  v8_flags.sim_arm64_tbi = true;
+  v8_flags.sim_arm64_tbi.Set(true);
   uintptr_t addr = 0x0000111122223333;
   uintptr_t tagged_addr = 0xaa00111122223333;
   EXPECT_EQ(addr, SimMemory::AddressUntag(tagged_addr));
 
-  v8_flags.sim_arm64_tbi = false;
+  v8_flags.sim_arm64_tbi.Set(false);
   EXPECT_EQ(tagged_addr, SimMemory::AddressUntag(tagged_addr));
 }
 
@@ -41,7 +41,7 @@ TEST_F(SimulatorArm64Test, MemoryReadWriteTBI) {
   auto decoder = new Decoder<DispatchingDecoderVisitor>();
   SimulatorForTest simulator(decoder, i_isolate());
 
-  v8_flags.sim_arm64_tbi = true;
+  v8_flags.sim_arm64_tbi.Set(true);
 
   simulator.MemoryWrite(tagged_addr, 0x1122334455667788ULL);
   EXPECT_EQ(0x1122334455667788ULL, data);
@@ -57,7 +57,7 @@ TEST_F(SimulatorArm64Test, ProbeMemoryTBI) {
   auto decoder = new Decoder<DispatchingDecoderVisitor>();
   SimulatorForTest simulator(decoder, i_isolate());
 
-  v8_flags.sim_arm64_tbi = true;
+  v8_flags.sim_arm64_tbi.Set(true);
 
   // ProbeMemory should return true for a valid (but tagged) address.
   EXPECT_TRUE(simulator.ProbeMemory(tagged_addr, 1));

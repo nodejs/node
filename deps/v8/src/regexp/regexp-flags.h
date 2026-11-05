@@ -61,7 +61,7 @@ constexpr bool IsEitherUnicode(Flags f) {
 }
 
 // Whether to rewind the index when it initially points into the middle of a
-// surrogate pair. See also OptionallyStepBackToLeadSurrogate().
+// surrogate pair.
 constexpr bool ShouldOptionallyStepBackToLeadSurrogate(Flags f) {
   return IsEitherUnicode(f) && (IsGlobal(f) || IsSticky(f));
 }

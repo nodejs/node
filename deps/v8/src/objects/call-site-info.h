@@ -8,9 +8,10 @@
 #include <optional>
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
-#include "src/objects/trusted-pointer.h"
+#include "src/sandbox/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,30 +24,48 @@ class StructBodyDescriptor;
 
 V8_OBJECT class CallSiteInfo : public Struct {
  public:
-  using IsWasmBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsStrictBit = IsWasmBit::Next<bool, 1>;
-  using IsConstructorBit = IsStrictBit::Next<bool, 1>;
-  using IsAsyncBit = IsConstructorBit::Next<bool, 1>;
-  using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
-  using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
-  using IsDeferredBaselineFrameBit = IsSourcePositionComputedBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsWasmBit = First<bool, 1>;
+    using IsStrictBit = IsWasmBit::Next<bool, 1>;
+    using IsConstructorBit = IsStrictBit::Next<bool, 1>;
+    using IsAsyncBit = IsConstructorBit::Next<bool, 1>;
+    using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
+    using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
+    using IsDeferredBaselineFrameBit =
+        IsSourcePositionComputedBit::Next<bool, 1>;
 #if V8_ENABLE_DRUMBRAKE
-  using IsWasmInterpretedFrameBit = IsDeferredBaselineFrameBit::Next<bool, 1>;
+    using IsWasmInterpretedFrameBit = IsDeferredBaselineFrameBit::Next<bool, 1>;
 #endif
-  enum Flag : uint32_t {
-    kNone = 0,
-    kIsWasm = IsWasmBit::kMask,
-    kIsStrict = IsStrictBit::kMask,
-    kIsConstructor = IsConstructorBit::kMask,
-    kIsAsync = IsAsyncBit::kMask,
-    kIsBuiltin = IsBuiltinBit::kMask,
-    kIsSourcePositionComputed = IsSourcePositionComputedBit::kMask,
-    kIsDeferredBaselineFrame = IsDeferredBaselineFrameBit::kMask,
+
+    BIT_FIELD_GROUP_ACCESSORS(is_wasm, IsWasmBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_strict, IsStrictBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_constructor, IsConstructorBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_async, IsAsyncBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_builtin, IsBuiltinBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_source_position_computed,
+                              IsSourcePositionComputedBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_deferred_baseline_frame,
+                              IsDeferredBaselineFrameBit)
 #if V8_ENABLE_DRUMBRAKE
-    kIsWasmInterpretedFrame = IsWasmInterpretedFrameBit::kMask,
+    BIT_FIELD_GROUP_ACCESSORS(is_wasm_interpreted_frame,
+                              IsWasmInterpretedFrameBit)
 #endif
   };
-  using Flags = base::Flags<Flag>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsWasm = Flags::IsWasmBit::kMask,
+    kIsStrict = Flags::IsStrictBit::kMask,
+    kIsConstructor = Flags::IsConstructorBit::kMask,
+    kIsAsync = Flags::IsAsyncBit::kMask,
+    kIsBuiltin = Flags::IsBuiltinBit::kMask,
+    kIsSourcePositionComputed = Flags::IsSourcePositionComputedBit::kMask,
+    kIsDeferredBaselineFrame = Flags::IsDeferredBaselineFrameBit::kMask,
+#if V8_ENABLE_DRUMBRAKE
+    kIsWasmInterpretedFrame = Flags::IsWasmInterpretedFrameBit::kMask,
+#endif
+  };
 #if V8_ENABLE_DRUMBRAKE
   static constexpr int kFlagCount = 8;
 #else
@@ -74,25 +93,24 @@ V8_OBJECT class CallSiteInfo : public Struct {
   bool IsPromiseAny() const;
   bool IsNative() const;
 
+  inline CallSiteInfo(const AllocationWitness& witness,
+                      Tagged<JSAny> receiver_or_instance,
+                      Tagged<Union<JSFunction, Smi>> function,
+                      Tagged<Union<Code, BytecodeArray, Undefined>> code_object,
+                      int code_offset_or_source_position, int flags);
+
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(
-      Tagged<Union<Code, BytecodeArray, Undefined>> code,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<JSAny> receiver_or_instance() const;
-  inline void set_receiver_or_instance(
-      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Union<JSFunction, Smi>> function() const;
-  inline void set_function(Tagged<Union<JSFunction, Smi>> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int code_offset_or_source_position() const;
   inline void set_code_offset_or_source_position(
       int value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
@@ -174,17 +192,17 @@ V8_OBJECT class CallSiteInfo : public Struct {
   friend class TorqueGeneratedCallSiteInfoAsserts;
   friend struct ObjectTraits<CallSiteInfo>;
 
-  static constexpr IndirectPointerTagRange kCodeObjectTagRange =
-      IndirectPointerTagRange(kBytecodeArrayIndirectPointerTag,
-                              kCodeIndirectPointerTag);
+  static constexpr TrustedPointerTagRange kCodeObjectTagRange =
+      TrustedPointerTagRange(kBytecodeArrayTrustedPointerTag,
+                             kCodeTrustedPointerTag);
   static_assert(kCodeObjectTagRange.Size() == 2);
 
-  TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
+  const TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
       code_object_;
-  TaggedMember<JSAny> receiver_or_instance_;
-  TaggedMember<Union<JSFunction, Smi>> function_;
+  const TaggedMember<JSAny> receiver_or_instance_;
+  const TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
-  TaggedMember<Smi> flags_;
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 template <>

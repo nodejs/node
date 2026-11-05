@@ -1,0 +1,6 @@
+Checks that InjectedScript::wrapTable does not dereference null mirror
+table: 1 argument(s)
+{
+    code : -32000
+    message : Execution was terminated
+}

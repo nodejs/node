@@ -14,6 +14,7 @@
 #include "src/api/api.h"
 #include "src/base/platform/platform-win32.h"
 #include "src/base/platform/platform.h"
+#include "src/base/unique-array.h"
 #include "src/d8/d8.h"
 
 namespace v8 {
@@ -43,9 +44,10 @@ void Shell::PreProcessUnicodeFilenameArg(char* argv[], int i) {
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {}
 
-base::OwnedVector<char> Shell::ReadCharsFromTcpPort(const char* name) {
+std::optional<base::UniqueArray<char>> Shell::ReadCharsFromTcpPort(
+    const char* name) {
   // TODO(leszeks): No reason this shouldn't exist on windows.
-  return {};
+  return std::nullopt;
 }
 
 void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {

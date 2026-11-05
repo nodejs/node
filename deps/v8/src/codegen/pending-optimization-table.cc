@@ -6,6 +6,8 @@
 
 #include "src/base/flags.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/local-isolate-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-objects.h"
@@ -55,6 +57,44 @@ bool ManualOptimizationTable::IsMarkedForManualOptimization(
       isolate);
 
   return !IsTheHole(*entry);
+}
+
+void ManualOptimizationTable::MarkFunctionForDisabledEagerInlining(
+    Isolate* isolate, DirectHandle<JSFunction> function) {
+  DCHECK(v8_flags.allow_natives_syntax);
+  base::MutexGuard guard(isolate->shared_function_info_access());
+
+  DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+
+  Handle<ObjectHashTable> table =
+      IsUndefined(
+          isolate->heap()->functions_marked_for_disabled_eager_inlining())
+          ? ObjectHashTable::New(isolate, 1)
+          : handle(Cast<ObjectHashTable>(
+                       isolate->heap()
+                           ->functions_marked_for_disabled_eager_inlining()),
+                   isolate);
+  table = ObjectHashTable::Put(isolate, table, shared_info,
+                               isolate->factory()->true_value());
+  isolate->heap()->SetFunctionsMarkedForDisabledEagerInlining(*table);
+}
+
+bool ManualOptimizationTable::IsMarkedForDisabledEagerInlining(
+    LocalIsolate* isolate, Tagged<SharedFunctionInfo> function) {
+  if (!v8_flags.allow_natives_syntax) return false;
+
+  MutexGuardIfOffThread<LocalIsolate> mutex_guard(
+      isolate->shared_function_info_access(), isolate);
+
+  Tagged<Object> table = isolate->GetMainThreadIsolateUnsafe()
+                             ->heap()
+                             ->functions_marked_for_disabled_eager_inlining();
+  if (IsUndefined(table)) return false;
+
+  Tagged<Object> entry =
+      Cast<ObjectHashTable>(table)->Lookup(direct_handle(function, isolate));
+
+  return !IsTheHole(entry);
 }
 
 }  // namespace internal

@@ -80,6 +80,17 @@ bool run_test_suite(const char* d8_path, bool bundle) {
   expect_success("42");
   expect_failure("async function fail() { throw 42; }; fail()");
 
+  // Verify that a CPU profiler started by console.profile() (without a
+  // matching console.profileEnd()) does not keep running across executions.
+  // If it did, console.profileEnd() in the next execution would stop it and
+  // invoke the OnProfileEnd listener.
+  expect_success("console.profile();");
+  expect_success(
+      "let called = false;"
+      "d8.profiler.setOnProfileEndListener(() => { called = true; });"
+      "console.profileEnd();"
+      "if (called) throw 'profiler leaked from previous execution';");
+
   reprl_destroy_context(ctx);
   return true;
 }

@@ -56,8 +56,11 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   KnownNodeAspects& known_node_aspects() {
     return kna_processor_.known_node_aspects();
   }
-  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
-    kna_processor_.set_known_node_aspects(known_node_aspects);
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
+    return kna_processor_.TakeKnownNodeAspects();
+  }
+  void set_known_node_aspects(KnownNodeAspects::Ptr known_node_aspects) {
+    kna_processor_.set_known_node_aspects(std::move(known_node_aspects));
   }
 
   // GetDeoptFrameForEagerDeopt can only clone an existing eager deopt frame, so
@@ -176,8 +179,7 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
 
-  template <typename FixedArrayT, typename NodeT>
-  MaybeReduceResult AbortIfInvalidFixedArrayIndex(NodeT* node);
+  ProcessResult OverwriteWith(Opcode opcode);
 
   ProcessResult ReplaceWith(ValueNode* node);
 
@@ -251,7 +253,7 @@ class V8_EXPORT_PRIVATE Subgraph<MaglevGraphOptimizer>
   ZoneVector<BasicBlock*> blocks_;
   BasicBlock* saved_block_;
   BasicBlockPosition saved_position_;
-  KnownNodeAspects* saved_kna_;
+  KnownNodeAspects::Ptr saved_kna_;
   // Enclosing subgraph, or nullptr if this is a top-level subgraph.
   Subgraph<MaglevGraphOptimizer>* parent_;
 

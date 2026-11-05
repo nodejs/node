@@ -11,7 +11,8 @@
 #include "src/codegen/safepoint-table-base.h"
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/utils/utils.h"
+#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -242,19 +243,26 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
 
   class Safepoint {
    public:
+    Safepoint(const Safepoint&) = delete;
+    Safepoint& operator=(const Safepoint&) = delete;
+
+    ~Safepoint() { table_->entries_.push_back(entry_); }
+
     void DefineTaggedRegister(int reg_code) {
       DCHECK_LT(reg_code,
                 kBitsPerByte * sizeof(EntryBuilder::tagged_register_indexes));
-      entry_->tagged_register_indexes |= 1u << reg_code;
+      entry_.tagged_register_indexes |= 1u << reg_code;
     }
     void SetNumExtraSpillSlots(uint8_t num_slots) {
-      entry_->num_extra_spill_slots = num_slots;
+      entry_.num_extra_spill_slots = num_slots;
     }
 
    private:
     friend class MaglevSafepointTableBuilder;
-    explicit Safepoint(EntryBuilder* entry) : entry_(entry) {}
-    EntryBuilder* const entry_;
+    Safepoint(int pc, MaglevSafepointTableBuilder* table)
+        : entry_(pc), table_(table) {}
+    EntryBuilder entry_;
+    MaglevSafepointTableBuilder* const table_;
   };
 
   // Define a new safepoint for the current position in the body.
@@ -272,7 +280,7 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
 
  private:
   const uint32_t num_tagged_slots_;
-  ZoneChunkList<EntryBuilder> entries_;
+  ZoneVector<EntryBuilder> entries_;
 };
 
 }  // namespace internal

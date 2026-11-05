@@ -1,0 +1,7 @@
+Tests that debugger statement inside evaluateOnCallFrame does not trigger a nested pause.
+pause #1:
+function a() {
+#} // BREAK
+
+A
+B

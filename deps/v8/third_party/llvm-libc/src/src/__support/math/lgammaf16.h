@@ -18,6 +18,7 @@
 #include "src/__support/FPUtil/NearestIntegerOperations.h"
 #include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
@@ -53,7 +54,7 @@ LIBC_INLINE float16 lgammaf16(float16 x) {
     return FPBits::inf().get_val();
   }
 
-  if (LIBC_UNLIKELY(is_integer(x))) {
+  if (LIBC_UNLIKELY(fputil::is_integer(x))) {
     if (xbits.is_neg()) {
       // pole -> +Inf
       fputil::raise_except_if_required(FE_DIVBYZERO);

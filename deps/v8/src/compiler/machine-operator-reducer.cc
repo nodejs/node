@@ -927,13 +927,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kBitcastWord32ToWord64: {
-      Int32Matcher m(node->InputAt(0));
-      if (m.HasResolvedValue()) return ReplaceInt64(m.ResolvedValue());
-      // No need to truncate the value, since top 32 bits are not important.
-      if (m.IsTruncateInt64ToInt32()) return Replace(m.node()->InputAt(0));
-      break;
-    }
     case IrOpcode::kChangeInt32ToInt64: {
       Int32Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) return ReplaceInt64(m.ResolvedValue());

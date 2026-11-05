@@ -42,6 +42,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
@@ -187,7 +188,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
   ic_info.state += "->";
   ic_info.state += TransitionMarkFromState(new_state);
   ic_info.state += modifier;
-  ic_info.state += ")";
+  ic_info.state += ')';
   if (!map.is_null()) {
     ic_info.map = reinterpret_cast<void*>(map->ptr());
     ic_info.is_dictionary_map = map->is_dictionary_map();
@@ -712,7 +713,7 @@ bool IC::UpdateOneMapManyNamesIC(DirectHandle<Name> new_name) {
   // For JS objects, using the generic stub is faster. Wasm objects benefit
   // from collecting a map that the optimizing compiler can use.
   Tagged<Map> old_map = nexus()->GetFirstMap();
-  if (old_map.is_null() || !IsWasmObjectMap(old_map)) return false;
+  if (old_map.is_null() || !IsAnyWasmObjectMap(old_map)) return false;
   if (old_map != *lookup_start_object_map()) return false;
   Tagged<Name> old_name = nexus()->GetName();
   if (old_name.is_null()) return false;     // Saw indexed access before.
@@ -756,12 +757,22 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
         // Filter out deprecated maps to ensure their instances get migrated.
         deprecated_maps++;
       } else if (map.is_identical_to(existing_map)) {
+        if (LoadHandler::IsFastProxyHandler(*handler) &&
+            !DataHandler::AreEquivalent(handler, existing_handler)) {
+          // Special case for FastProxy: if we are seeing the same map again,
+          // this means the inner loadIC or the inner callIC missed. We
+          // downgrade to a normal slow proxy handler and not directly to
+          // MEGAMORPHIC.
+          override_handler =
+              MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate()));
+        }
+
         // If both map and handler stayed the same (and the name is also the
         // same as checked above, for keyed accesses), we're not progressing
         // in the lattice and need to go MEGAMORPHIC instead. There's one
         // exception to this rule, which is when we're in RECOMPUTE_HANDLER
         // state, there we allow to migrate to a new handler.
-        if (handler.is_identical_to(existing_handler) &&
+        if (DataHandler::AreEquivalent(override_handler, existing_handler) &&
             state() != RECOMPUTE_HANDLER) {
           if (v8_flags.sparkplug_plus &&
               caller_frame_type() == CallerFrameType::kBaseline) {
@@ -778,14 +789,7 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
           return false;
         }
 
-        if (LoadHandler::IsFastProxyHandler(*handler)) {
-          // Special case for FastProxy: if we are seeing the same map again,
-          // this means the inner loadIC or the inner callIC missed. We
-          // downgrade to a normal slow proxy handler and not directly to
-          // MEGAMORPHIC.
-          override_handler =
-              MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate()));
-        } else if (map->is_dictionary_map()) {
+        if (map->is_dictionary_map() && !IsJSProxyMap(*map)) {
           // If the receiver type is a dictionary map and the handler is
           // different, it means the dictionary rehashed. Go MEGAMORPHIC to
           // prevent deopt loops.
@@ -850,10 +854,10 @@ Builtin CalculatePatchingTarget(Builtin current_builtin, Builtin handler) {
   static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
   // Currently we only have LoadIC handlers. {current_builtin} should not be the
   // generic handler because we should be able to return early in that case.
-  DCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
-         current_builtin < Builtin::kLastLoadICHandler);
-  DCHECK(handler > Builtin::kFirstLoadICHandler &&
-         handler <= Builtin::kLastLoadICHandler);
+  SBXCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
+           current_builtin < Builtin::kLastLoadICHandler);
+  SBXCHECK(handler > Builtin::kFirstLoadICHandler &&
+           handler <= Builtin::kLastLoadICHandler);
   // No need to patch when the current and target handlers are the same.
   if (current_builtin == handler) return Builtin::kNoBuiltinId;
   // Uninitialized handler can be patch to any other handlers.
@@ -978,7 +982,7 @@ bool IC::TryHealMonomorphicIC(const MaybeObjectHandle& handler) {
   MaybeObjectDirectHandle feedback_handler =
       nexus()->FindHandlerForMap(lookup_start_object_map());
   if (feedback_handler.is_null()) return false;
-  if (!feedback_handler.is_identical_to(handler)) return false;
+  if (!DataHandler::AreEquivalent(feedback_handler, handler)) return false;
 
   Builtin current_builtin = GetCurrentBaselineBuiltin();
   DCHECK(current_builtin == Builtin::kLoadICUninitializedBaseline ||
@@ -1098,6 +1102,18 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         TraceIC("LoadGlobalIC", lookup->name());
         return;
       }
+      // Own DATA properties above are accessed directly via PropertyCell on the
+      // JSGlobalObject and don't involve the JSGlobalProxy. For anything else
+      // (e.g. prototype accessors), the handler would substitute global_proxy
+      // as the receiver without performing an access check on it, and
+      // LookupIterator didn't fail an access check because JSGlobalObject
+      // belongs to the current (detached) native context while its global_proxy
+      // may have been rebound to a new cross-origin context.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        SetCache(lookup->GetName(), LoadHandler::LoadSlow(isolate()));
+        TraceIC("LoadGlobalIC", lookup->GetName());
+        return;
+      }
     }
     handler = ComputeHandler(lookup);
     CHECK(lookup->state() == LookupIterator::STRING_LOOKUP_START_OBJECT ||
@@ -1112,10 +1128,11 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 }
 
 StubCache* IC::stub_cache() {
-  // HasICs and each of the store own ICs require its own stub cache.
-  // Until we create them, don't allow accessing the load/store stub caches.
-  DCHECK(!IsAnyHas());
-  if (IsAnyLoad()) {
+  // Each IC kind needs its own stub cache: a has-handler and a load-handler
+  // for the same (map, name) pair are not interchangeable.
+  if (IsAnyHas()) {
+    return isolate()->has_stub_cache();
+  } else if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
   } else if (IsAnyDefineOwn()) {
     return isolate()->define_own_stub_cache();
@@ -1127,17 +1144,15 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                                 const MaybeObjectDirectHandle& handler) {
-  if (!IsAnyHas()) {
-    if (LoadHandler::IsFastProxyHandler(*handler)) {
-      // Special case for FastProxy: if we are seeing the same map again,
-      // this means the inner loadIC or the inner callIC missed. We downgrade
-      // to a normal slow proxy handler and not directly to MEGAMORPHIC.
-      stub_cache()->Set(
-          *name, *map,
-          *MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate())));
-    } else {
-      stub_cache()->Set(*name, *map, *handler);
-    }
+  if (!IsAnyHas() && LoadHandler::IsFastProxyHandler(*handler)) {
+    // Special case for FastProxy: if we are seeing the same map again,
+    // this means the inner loadIC or the inner callIC missed. We downgrade
+    // to a normal slow proxy handler and not directly to MEGAMORPHIC.
+    stub_cache()->Set(
+        *name, *map,
+        *MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate())));
+  } else {
+    stub_cache()->Set(*name, *map, *handler);
   }
 }
 
@@ -1651,14 +1666,8 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
       // the {receiver}s prototype is either the initial Object.prototype
       // or the initial Array.prototype, which are both guarded by the
       // "no elements" protector checked above.
-      DirectHandle<HeapObject> receiver_prototype(receiver_map->prototype(),
-                                                  isolate);
-      InstanceType prototype_type = receiver_prototype->map()->instance_type();
-      if (prototype_type == JS_OBJECT_PROTOTYPE_TYPE ||
-          (prototype_type == JS_ARRAY_TYPE &&
-           isolate->IsInCreationContext(
-               Cast<JSObject>(*receiver_prototype),
-               Context::INITIAL_ARRAY_PROTOTYPE_INDEX))) {
+      Tagged<HeapObject> receiver_prototype = receiver_map->prototype();
+      if (receiver_prototype->map()->IsMapInArrayPrototypeChain(isolate)) {
         return true;
       }
     }
@@ -1845,7 +1854,13 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     Tagged<Map> tmap = old_map->FindElementsKindTransitionedMap(
         isolate(), old_maps_and_handlers->maps(),
         ConcurrencyMode::kSynchronous);
-    if (!tmap.is_null()) {
+    // Do not transition on load for simple map-change transitions (such as
+    // PACKED_ELEMENTS -> HOLEY_ELEMENTS or SMI -> OBJECT), as they share the
+    // same backing store representation and optimized code
+    // (ConsolidateElementLoad) consolidates them without transitioning.
+    if (!tmap.is_null() &&
+        !IsSimpleMapChangeTransition(old_map->elements_kind(),
+                                     tmap->elements_kind())) {
       // Mark all stable receiver maps that have elements kind transition map
       // among receiver_maps as unstable because the ICs and the optimizing
       // compilers may perform an elements kind transition for this kind of
@@ -2160,7 +2175,7 @@ MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
         script_contexts->get(lookup_result.context_index);
     if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       AllowGarbageCollection yes_gc;
-      return TypeError(MessageTemplate::kConstAssign, global, name);
+      THROW_NEW_ERROR(isolate(), NewTypeError(MessageTemplate::kConstAssign));
     }
 
     if (script_context->IsElementTdzHole(lookup_result.slot_index)) {
@@ -2416,6 +2431,16 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
         TraceIC("StoreGlobalIC", lookup->GetName());
         return;
       }
+      // See comment in LoadIC::UpdateCaches: own DATA properties above use
+      // PropertyCell on the JSGlobalObject directly, whereas other handlers
+      // (e.g. prototype accessors) substitute global_proxy as the receiver,
+      // which may have been rebound to a cross-origin context upon detachment.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        set_slow_stub_reason("detached global object");
+        SetCache(lookup->GetName(), StoreHandler::StoreSlow(isolate()));
+        TraceIC("StoreGlobalIC", lookup->GetName());
+        return;
+      }
     }
     handler = ComputeHandler(lookup);
   } else {
@@ -2436,16 +2461,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       if (IsJSGlobalObject(*store_target)) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
-        if (IsJSGlobalObject(*lookup_start_object_map())) {
-          DCHECK(IsStoreGlobalIC());
-#ifdef DEBUG
-          DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-          DCHECK_EQ(*lookup->GetReceiver(), *holder);
-          DCHECK_EQ(*store_target, *holder);
-#endif
-          return StoreHandler::StoreGlobal(
-              indirect_handle(lookup->transition_cell(), isolate()));
-        }
         if (IsDefineKeyedOwnIC()) {
           // Private field can't be deleted from this global object and can't
           // be overwritten, so install slow handler in order to make store IC
@@ -2662,9 +2677,19 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder)) {
+          DCHECK(!IsStoreGlobalIC());
+          DCHECK(IsJSGlobalProxy(*receiver));
+          if (IsAnyDefineOwn()) {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+            return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+          }
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
-          return MaybeObjectHandle(StoreHandler::StoreGlobal(
-              indirect_handle(lookup->GetPropertyCell(), isolate())));
+          DirectHandle<Smi> smi_handler =
+              StoreHandler::StoreGlobalProxy(isolate());
+          Handle<Object> handler = StoreHandler::StoreThroughPrototype(
+              isolate(), lookup_start_object_map(), holder, *smi_handler,
+              MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell()));
+          return MaybeObjectHandle(handler);
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
@@ -2684,16 +2709,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(StoreHandler::StoreSharedStructField(
               isolate(), descriptor, index, lookup->representation()));
         }
-        PropertyConstness constness = lookup->constness();
-        if (constness == PropertyConstness::kConst &&
-            IsDefineNamedOwnICKind(nexus()->kind())) {
-          // DefineNamedOwnICs are used for initializing object literals
-          // therefore we must store the value unconditionally even to
-          // VariableMode::kConst fields.
-          constness = PropertyConstness::kMutable;
-        }
         return MaybeObjectHandle(StoreHandler::StoreField(
-            isolate(), descriptor, index, constness, lookup->representation()));
+            isolate(), descriptor, index, lookup->constness(),
+            lookup->representation()));
       }
 
       // -------------- Constant properties --------------
@@ -2877,6 +2895,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
   if (!IsJSObjectMap(*receiver_map) || receiver_map->is_access_check_needed() ||
+      receiver_map->has_indexed_interceptor() ||
       receiver_map->IsMapInArrayPrototypeChain(isolate())) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
     // should handled by the slow stub below instead of the proxy stub.
@@ -2885,7 +2904,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     }
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObjectMap(*receiver_map)) {
+    if (IsAnyWasmObjectMap(*receiver_map)) {
       set_slow_stub_reason("wasm object");
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3149,7 +3168,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
 #if V8_ENABLE_WEBASSEMBLY
-        } else if (IsWasmObjectMap(*old_receiver_map)) {
+        } else if (IsAnyWasmObjectMap(*old_receiver_map)) {
           // Handle object types for which we don't need to check for
           // read-only prototype elements because we'll use the slow handler
           // anyway.
@@ -3313,8 +3332,8 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
   // Get target builtin's address.
   FeedbackNexus nexus(isolate, vector, vector_slot);
   Builtin target_builtin = nexus.ic_handler();
-  DCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
-         target_builtin <= Builtin::kLastLoadICHandler);
+  SBXCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
+           target_builtin <= Builtin::kLastLoadICHandler);
   Address target = Builtins::EntryOf(target_builtin, isolate);
 
   {
@@ -3496,10 +3515,9 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
 
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
-  // When there is no feedback vector it is OK to use the SetNamedStrict as
-  // the feedback slot kind. We only reuse this for DefineNamedOwnIC when
-  // installing the handler for storing const properties. This will happen only
-  // when feedback vector is available.
+  // When there is no feedback vector it is OK to use SetNamedStrict as the
+  // feedback slot kind because StoreIC::Store deduces strictness from the
+  // caller frame rather than the feedback slot kind.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector)) {
@@ -3515,6 +3533,9 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+// Shared between DefineNamedOwn and DefineNamedOwnInLiteral. This
+// is fine, since the IC handlers we create are identical - only when using the
+// handler we check whether we're in the "in literal" case or not.
 RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
@@ -3547,6 +3568,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+// Also usable for both DefineNamedOwn and DefineNamedOwnInLiteral.
 RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -3629,7 +3651,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
         script_contexts->get(lookup_result.context_index), isolate);
     if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
+          isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
 
     {

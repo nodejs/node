@@ -276,12 +276,12 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   if (access_info.field_representation().IsDouble()) {
     std::optional<Float64> value = holder->GetOwnFastConstantDoubleProperty(
         broker(), access_info.field_index(), dependencies());
-    return value.has_value() ? jsgraph()->ConstantMaybeHole(*value) : nullptr;
+    return value.has_value() ? jsgraph()->ConstantNoHole(*value) : nullptr;
   }
   OptionalObjectRef value = holder->GetOwnFastConstantDataProperty(
       broker(), access_info.field_representation(), access_info.field_index(),
       dependencies());
-  return value.has_value() ? jsgraph()->ConstantMaybeHole(*value, broker())
+  return value.has_value() ? jsgraph()->ConstantNoHole(*value, broker())
                            : nullptr;
 }
 

@@ -252,6 +252,18 @@ class BaselineAssembler {
   inline void SmiAddConstantAndJumpIfOverflow(
       Register value, int constant, Label* overflow,
       Label::Distance distance = Label::kFar);
+
+  // Computes a tagged Smi Add/Sub into |output|. |output| may alias |lhs|.
+  // Jumps to |overflow| without modifying |lhs| when the result is not a Smi.
+  inline void SmiAddSubAndJumpIfOverflow(
+      Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
+      Label* overflow, Label::Distance distance = Label::kFar);
+
+  // Computes BitwiseAnd/BitwiseOr/BitwiseXor/ShiftRight in place.
+  // TODO(yuheng): Add support for ShiftLeft and ShiftRightLogical with overflow
+  // checks. They are currently omitted because their results can exceed the Smi
+  // range.
+  inline void SmiBitwiseOp(Register lhs, Tagged<Smi> rhs, Operation operation);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   inline void Switch(Register reg, int case_value_base, Label** labels,

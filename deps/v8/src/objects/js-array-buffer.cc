@@ -61,7 +61,8 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   };
   clear_padding();
   init_extension();
-  set_views_or_detach_key(views);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(views));
   set_bit_field(0);
   set_is_shared(shared);
   set_is_resizable_by_js(resizable);
@@ -71,6 +72,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
+    DCHECK(!resizable);
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);
@@ -251,7 +253,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
       HandleScope scope(isolate);
       isolate->array_buffer_detach_callback()(
           reinterpret_cast<v8::Isolate*>(isolate),
-          Utils::ToLocal(array_buffer));
+          Utils::ToLocalUnshared(array_buffer));
     }
   }
 }
@@ -341,8 +343,9 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
                        ? ArrayBufferExtension::Age::kYoung
                        : ArrayBufferExtension::Age::kOld;
-  ArrayBufferExtension* extension = new ArrayBufferExtension(
-      std::move(backing_store), age, is_shared(), is_resizable_by_js());
+  ArrayBufferExtension* extension =
+      new ArrayBufferExtension(isolate->heap(), std::move(backing_store), age,
+                               is_shared(), is_resizable_by_js());
   set_extension(extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;

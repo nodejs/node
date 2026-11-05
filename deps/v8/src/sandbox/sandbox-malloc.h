@@ -24,29 +24,6 @@ namespace internal {
 // for example generally unsafe to store any pointers in the returned memory.
 
 template <typename T>
-T* SandboxAlloc() {
-  // It is generally unsafe to allocate non-trivial objects inside the sandbox,
-  // in particular anything containing pointers. The static_assert is a
-  // best-effort attempt to catch such cases, but it doesn't work for all
-  // unsafe cases, for example raw pointer fields or Address values.
-  // TODO(427464384): this is a little too strict, e.g. for std::atomic.
-  static_assert(std::is_trivial_v<T>,
-                "Must only allocate trivial C++ types inside the sandbox");
-
-  size_t size = sizeof(T);
-
-#ifdef V8_ENABLE_SANDBOX
-  auto* allocator = IsolateGroup::current()->GetInSandboxAllocator();
-  void* raw_memory = allocator->Allocate(size);
-#else
-  void* raw_memory = base::Malloc(size);
-#endif  // V8_ENABLE_SANDBOX
-
-  memset(raw_memory, 0, size);
-  return static_cast<T*>(raw_memory);
-}
-
-template <typename T>
 T* SandboxAllocArray(size_t num_elements) {
   // It is generally unsafe to allocate non-trivial objects inside the sandbox,
   // in particular anything containing pointers. The static_assert is a
@@ -60,13 +37,22 @@ T* SandboxAllocArray(size_t num_elements) {
 
 #ifdef V8_ENABLE_SANDBOX
   auto* allocator = IsolateGroup::current()->GetInSandboxAllocator();
-  void* raw_memory = allocator->Allocate(size);
+  void* raw_memory = allocator->AllocateUninitialized(size);
 #else
   void* raw_memory = base::Malloc(size);
 #endif  // V8_ENABLE_SANDBOX
 
+  if (!raw_memory) {
+    internal::V8::FatalProcessOutOfMemory(nullptr, "SandboxAllocArray");
+  }
+
   memset(raw_memory, 0, size);
   return static_cast<T*>(raw_memory);
+}
+
+template <typename T>
+T* SandboxAlloc() {
+  return SandboxAllocArray<T>(1);
 }
 
 inline void SandboxFree(void* ptr) {

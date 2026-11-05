@@ -11,6 +11,7 @@
 
 #include "common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
 #include "exp_constants.h"
+#include "hdr/errno_macros.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"

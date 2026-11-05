@@ -28,6 +28,7 @@ extern builtin CallVarargs(
     ): JSAny;
 
 extern macro StackAlignmentInBytes(): intptr;
+extern macro WasmToJSWrapperFixedSlotCount(): intptr;
 
 const kSignatureOffset: constexpr intptr
     generates 'WasmToJSWrapperConstants::kSignatureOffset';
@@ -64,10 +65,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   // Caller FP + return address.
   const sigSlot = LoadFramePointer() + kSignatureOffset;
   *GetRefAt<RawPtr>(sigSlot, 0) = data.sig;
-  const alignment: intptr =
-      StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
-  // 1 fixed slot, rounded up to stack alignment.
-  const numFixedSlots = alignment;
+  const numFixedSlots = WasmToJSWrapperFixedSlotCount();
 
   // Trigger a wrapper tier-up when this function got called often enough.
   let budget: Smi = UnsafeCast<Smi>(data.wrapper_budget.value);

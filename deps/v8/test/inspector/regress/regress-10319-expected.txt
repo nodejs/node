@@ -1,0 +1,18 @@
+Tests regress-10319.
+[
+    [0] : {
+        name : result
+        value : undefined
+    }
+]
+[
+    [0] : local
+    [1] : global
+]
+result = 3 -> 3
+result -> 3
+{
+    result : {
+        type : undefined
+    }
+}

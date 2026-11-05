@@ -6,9 +6,9 @@
 
 #include "src/api/api.h"
 #include "src/base/logging.h"
+#include "src/base/thread-id.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/base/stack.h"
@@ -116,7 +116,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
   // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   // TODO(leszeks): Check if the main thread owns this handle.
   return true;
@@ -150,13 +150,15 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   // We are pretty strict with handle dereferences on background threads: A
   // background local heap is only allowed to dereference its own local handles.
-  if (!local_heap->is_main_thread())
-    return ::heap::base::Stack::IsOnStack(this);
+  if (!local_heap->is_main_thread()) {
+    return ::heap::base::Stack::IsOnStack(this) ||
+           local_heap->ContainsStrongRoot(FullObjectSlot(&obj_));
+  }
 
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
   // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   return true;
 }

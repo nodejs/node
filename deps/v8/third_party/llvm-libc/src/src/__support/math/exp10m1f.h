@@ -10,6 +10,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP10M1F_H
 
 #include "exp10f_utils.h"
+#include "hdr/errno_macros.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
@@ -17,7 +18,6 @@
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
-#include "src/__support/libc_errno.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 

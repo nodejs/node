@@ -6,10 +6,10 @@
 
 type JSListFormatStyle extends int32 constexpr 'JSListFormat::Style';
 type JSListFormatType extends int32 constexpr 'JSListFormat::Type';
-@cppScope('JSListFormat')
+@cppScope('JSListFormat::Flags')
 bitfield struct JSListFormatFlags extends uint31 {
   style: JSListFormatStyle: 2 bit;
-  Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
+  type: JSListFormatType: 2 bit;
 }
 
 @cppObjectLayoutDefinition

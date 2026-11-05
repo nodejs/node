@@ -323,6 +323,12 @@ functions:
     arguments:
       - type: _Float16
     guard: LIBC_TYPES_HAS_FLOAT16
+  - name: cosh
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: double
   - name: coshf
     standards:
       - stdc
@@ -2653,6 +2659,12 @@ functions:
       - type: float
       - type: float *
       - type: float *
+  - name: sinh
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: double
   - name: sinhf
     standards:
       - stdc
@@ -2730,6 +2742,12 @@ functions:
     arguments:
       - type: _Float16
     guard: LIBC_TYPES_HAS_FLOAT16
+  - name: tanh
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: double
   - name: tanhf
     standards:
       - stdc

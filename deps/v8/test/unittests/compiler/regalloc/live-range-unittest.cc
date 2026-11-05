@@ -9,11 +9,8 @@
 #ifdef DEBUG
 #define V8_ASSERT_DEBUG_DEATH(statement, regex) \
   ASSERT_DEATH_IF_SUPPORTED(statement, regex)
-#define DISABLE_IN_RELEASE(Name) Name
-
 #else
 #define V8_ASSERT_DEBUG_DEATH(statement, regex) statement
-#define DISABLE_IN_RELEASE(Name) DISABLED_##Name
 #endif  // DEBUG
 
 namespace v8 {
@@ -129,20 +126,20 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
 
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
-  V8_ASSERT_DEBUG_DEATH(Split(range, 0), ".*");
+  ASSERT_DEATH_IF_SUPPORTED(Split(range, 0), ".*");
 }
 
-TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(InvalidSplitEnd)) {
+TEST_F(LiveRangeUnitTest, InvalidSplitEnd) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 1), ".*");
 }
 
-TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(SplitInvalidPreStart)) {
+TEST_F(LiveRangeUnitTest, SplitInvalidPreStart) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(1, 2);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 0), ".*");
 }
 
-TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(SplitInvalidPostEnd)) {
+TEST_F(LiveRangeUnitTest, SplitInvalidPostEnd) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 2), ".*");
 }

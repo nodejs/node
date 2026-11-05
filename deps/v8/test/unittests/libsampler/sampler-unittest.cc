@@ -72,16 +72,20 @@ static void RunSampler(v8::Local<v8::Context> env,
                        v8::Local<v8::Value> argv[], int argc,
                        unsigned min_js_samples = 0,
                        unsigned min_external_samples = 0) {
-  TestSampler sampler(v8::Isolate::GetCurrent());
-  TestSamplingThread thread(&sampler);
-  sampler.Start();
-  sampler.StartCountingSamples();
+  // Allocate the sampler on the heap rather than on the stack: when hardware
+  // sandboxing is enabled, the main thread's stack is tagged with
+  // extension_pkey_, which is made read-only inside the SIGPROF signal
+  // handler.
+  auto sampler = std::make_unique<TestSampler>(v8::Isolate::GetCurrent());
+  TestSamplingThread thread(sampler.get());
+  sampler->Start();
+  sampler->StartCountingSamples();
   thread.StartSynchronously();
   do {
     function->Call(env, env->Global(), argc, argv).ToLocalChecked();
-  } while (sampler.js_sample_count() < min_js_samples ||
-           sampler.external_sample_count() < min_external_samples);
-  sampler.Stop();
+  } while (sampler->js_sample_count() < min_js_samples ||
+           sampler->external_sample_count() < min_external_samples);
+  sampler->Stop();
   thread.Join();
 }
 
@@ -217,6 +221,35 @@ TEST_F(SamplerTest, AtomicGuard_GetBlockingSuccess) {
   }
   AtomicGuard guard(&atomic);
   CHECK(guard.is_success());
+}
+
+TEST_F(SamplerTest, StopSamplerWhileSignalPendingDoesNotCrash) {
+  class SampleAndStopThread : public base::Thread {
+   public:
+    explicit SampleAndStopThread(Sampler* sampler)
+        : Thread(base::Thread::Options("SampleAndStopThread")),
+          sampler_(sampler) {}
+
+    void Run() override {
+      sampler_->DoSample();
+      sampler_->Stop();
+    }
+
+   private:
+    Sampler* sampler_;
+  };
+
+  for (int i = 0; i < 100; ++i) {
+    // Allocate the sampler on the heap rather than on the stack: when hardware
+    // sandboxing is enabled, the main thread's stack is tagged with
+    // extension_pkey_, which is made read-only inside the SIGPROF signal
+    // handler.
+    auto sampler = std::make_unique<CountingSampler>(isolate());
+    sampler->Start();
+    SampleAndStopThread thread(sampler.get());
+    CHECK(thread.Start());
+    thread.Join();
+  }
 }
 
 #endif  // USE_SIGNALS

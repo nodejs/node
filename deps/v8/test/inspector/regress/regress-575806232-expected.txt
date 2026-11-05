@@ -1,0 +1,6 @@
+Checks that console argument wrapping stops after a custom formatter terminated execution.
+log: 1 argument(s)
+{
+    code : -32000
+    message : Execution was terminated
+}

@@ -134,6 +134,18 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+inline bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
+  return (function_mode & kWithPrototypeBits) != 0;
+}
+
+inline bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
+  return (function_mode & kWithWritablePrototypeBit) != 0;
+}
+
+inline bool IsFunctionModeWithName(FunctionMode function_mode) {
+  return (function_mode & kWithNameBit) != 0;
+}
+
 enum class ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
@@ -142,6 +154,8 @@ enum class ArrayStorageAllocationMode {
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
+  using FactoryBase<Factory>::New;
+
   inline ReadOnlyRoots read_only_roots() const;
 
   DirectHandle<Hole> NewHole();
@@ -251,29 +265,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  RelaxedStoreTag tag,
                                  AllocationType allocation);
 
+  DirectHandle<ForInEnumeratorHolder> NewForInEnumeratorHolder(
+      DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+      Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Create a new PropertyDescriptorObject struct.
   DirectHandle<PropertyDescriptorObject> NewPropertyDescriptorObject();
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(base::Vector<const char> str);
-  Handle<String> InternalizeUtf8String(const char* str) {
-    return InternalizeUtf8String(base::CStrVector(str));
-  }
+  Handle<String> InternalizeUtf8String(std::string_view str);
 
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
-
-  Handle<InternalizedString> InternalizeString(base::Vector<const char> str,
-                                               bool convert_encoding = false) {
-    return InternalizeString(base::Vector<const uint8_t>::cast(str),
-                             convert_encoding);
-  }
-
-  Handle<InternalizedString> InternalizeString(const char* str,
-                                               bool convert_encoding = false) {
-    return InternalizeString(base::OneByteVector(str), convert_encoding);
-  }
 
   template <typename SeqString, template <typename> typename HandleType>
     requires(
@@ -326,22 +331,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   //     encoded.  If the characters are all Latin1 characters, the result
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
-  // One-byte strings are pretenured when used as keys in the SourceCodeCache.
+  // One-byte strings are allocated in old space when used as keys in the
+  // SourceCodeCache.
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N], AllocationType allocation = AllocationType::kYoung);
 
-  // UTF8 strings are pretenured when used for regexp literal patterns and
-  // flags in the parser.
+  // UTF8 strings are allocated in old space when used for regexp literal
+  // patterns and flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      base::Vector<const char> str,
-      AllocationType allocation = AllocationType::kYoung);
-
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      std::string_view str,
-      AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromUtf8(base::StrVector(str), allocation);
-  }
+      std::string_view str, AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       base::Vector<const uint8_t> str, UnicodeConfig config,
@@ -390,13 +389,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  // `known_one_byte_content` indicates that the caller (typically the
-  // string-table lookup path that just hashed `string`) knows the content
-  // fits in one byte; the impl then allocates a SeqOneByteString even when
-  // `string`'s representation is two-byte. False is always safe.
+  // `known_one_byte_content` indicates that `string`'s content fits in one
+  // byte; the impl then allocates a SeqOneByteString even when `string`'s
+  // representation is two-byte.
   DirectHandle<InternalizedString> NewInternalizedStringImpl(
       DirectHandle<String> string, int len, uint32_t hash_field,
-      bool known_one_byte_content = false);
+      bool known_one_byte_content);
 
   // Compute the internalization strategy for the input string.
   //
@@ -414,7 +412,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeInternalizationStrategyForString(
       DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map,
-      bool known_one_byte_content = false);
+      bool known_one_byte_content);
 
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
@@ -462,9 +460,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
-      const v8::String::ExternalOneByteStringResource* resource);
+      v8::String::ExternalOneByteStringResource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
-      const v8::String::ExternalStringResource* resource);
+      v8::String::ExternalStringResource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);
@@ -528,6 +526,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int aliased_context_slot);
 
   DirectHandle<AccessorInfo> NewAccessorInfo();
+  DirectHandle<AccessCheckInfo> NewAccessCheckInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
       InterceptorKind kind, AllocationType allocation = AllocationType::kOld);
@@ -567,7 +566,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSReceiver> thenable, DirectHandle<JSReceiver> then,
       DirectHandle<Context> context);
 
-  // Foreign objects are pretenured when allocated by the bootstrapper.
+  // Foreign objects are allocated in old space when allocated by the
+  // bootstrapper.
   template <ExternalPointerTag tag>
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
@@ -593,7 +593,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       uint32_t number_of_transitions, uint32_t slack = 0);
 
   // Allocate a tenured AllocationSite. Its payload is null.
-  Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
+  Handle<AllocationSite> NewAllocationSite();
 
   // Allocates and initializes a new Map.
   Handle<Map> NewMap(DirectHandle<HeapObject> meta_map_holder, int map_size,
@@ -739,8 +739,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
-  // JS objects are pretenured when allocated by the bootstrapper and
-  // runtime.
+  // JS objects are allocated in old space when allocated by the bootstrapper
+  // and runtime.
   Handle<JSObject> NewJSObject(
       DirectHandle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung,
@@ -750,26 +750,25 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // JSObject without a prototype, in dictionary mode.
   Handle<JSObject> NewSlowJSObjectWithNullProto();
 
-  // Global objects are pretenured and initialized based on a constructor.
+  // Global objects are allocated in old space and initialized based on a
+  // constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(
       DirectHandle<JSFunction> constructor);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Passing an allocation site means that a memento will be created that
   // points to the site.
-  // JS objects are pretenured when allocated by the bootstrapper and
-  // runtime.
+  // JS objects are allocated in old space when allocated by the bootstrapper
+  // and runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
@@ -777,8 +776,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
@@ -790,8 +788,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
       DirectHandle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
       DirectHandle<FixedArrayBase> elements);
-
-  // JS arrays are pretenured when allocated by the parser.
 
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
@@ -1126,24 +1122,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<InterpreterData> NewInterpreterData(
       DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code);
 
-  static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
-    return (function_mode & kWithPrototypeBits) != 0;
-  }
-
-  static bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
-    return (function_mode & kWithWritablePrototypeBit) != 0;
-  }
-
-  static bool IsFunctionModeWithName(FunctionMode function_mode) {
-    return (function_mode & kWithNameBit) != 0;
-  }
-
-  DirectHandle<Map> CreateSloppyFunctionMap(
+  DirectHandle<Map> CreateFunctionMap(
       FunctionMode function_mode,
-      MaybeDirectHandle<JSFunction> maybe_empty_function);
-
-  DirectHandle<Map> CreateStrictFunctionMap(
-      FunctionMode function_mode, DirectHandle<JSFunction> empty_function);
+      MaybeDirectHandle<JSFunction> maybe_empty_function = {});
 
   DirectHandle<Map> CreateClassFunctionMap(
       DirectHandle<JSFunction> empty_function);
@@ -1238,13 +1219,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<JSSharedStruct> NewJSSharedStruct(
       DirectHandle<JSFunction> constructor,
       MaybeDirectHandle<NumberDictionary> maybe_elements_template);
-
-  DirectHandle<JSSharedArray> NewJSSharedArray(
-      DirectHandle<JSFunction> constructor, int length);
-
-  Handle<JSAtomicsMutex> NewJSAtomicsMutex();
-
-  Handle<JSAtomicsCondition> NewJSAtomicsCondition();
 
   DirectHandle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
                                                              bool do_not_cache);
@@ -1465,7 +1439,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       DirectHandle<Map> map, AllocationType allocation,
-      DirectHandle<AllocationSite> allocation_site);
+      MaybeDirectHandle<AllocationSite> allocation_site);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
@@ -1498,7 +1472,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
-  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string,
+                                           uint32_t length,
                                            AllocationType allocation);
 
   // Creates a new JSArray with the given backing storage. Performs no

@@ -132,8 +132,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                      VisitElementOrProperty(copy, value));
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
-          uint64_t double_value = Cast<HeapNumber>(raw)->value_as_bits();
-          auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
+          Handle<UnionOf<HeapNumber, UninitializedHeapNumber>> value;
+          if (IsUninitializedHeapNumber(raw)) {
+            value = isolate->factory()->NewUninitializedHeapNumber();
+          } else {
+            uint64_t bits = Cast<HeapNumber>(raw)->value_as_bits();
+            value = isolate->factory()->NewHeapNumberFromBits(bits);
+          }
           copy->FastPropertyAtPut(index, *value);
         }
       }
@@ -177,8 +182,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
+    case HOLEY_ELEMENTS: {
       DirectHandle<FixedArray> elements(Cast<FixedArray>(copy->elements()),
                                         isolate);
       uint32_t elements_len = elements->ulength().value();
@@ -254,21 +258,21 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     if (top().is_null()) {
       // We are creating the top level AllocationSite as opposed to a nested
       // AllocationSite.
-      InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
+      InitializeTraversal(isolate()->factory()->NewAllocationSite());
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (v8_flags.trace_creation_allocation_sites) {
-        PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
+        PrintF("*** Creating top level AllocationSite %p\n",
                reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
-      scope_site = isolate()->factory()->NewAllocationSite(false);
+      scope_site = isolate()->factory()->NewAllocationSite();
       if (v8_flags.trace_creation_allocation_sites) {
         PrintF(
-            "*** Creating nested %s AllocationSite (top, current, new) (%p, "
+            "*** Creating nested AllocationSite (top, current, new) (%p, "
             "%p, "
             "%p)\n",
-            "Slim", reinterpret_cast<void*>(top()->ptr()),
+            reinterpret_cast<void*>(top()->ptr()),
             reinterpret_cast<void*>(current()->ptr()),
             reinterpret_cast<void*>(scope_site->ptr()));
       }

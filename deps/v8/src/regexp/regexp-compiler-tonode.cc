@@ -1376,6 +1376,7 @@ Node* BackReference::ToNodeImpl(Compiler* compiler, Node* on_success) {
   // back-references to unmatched captures are treated as empty, we can simply
   // create back-references to all possible captures.
   for (auto capture : *captures()) {
+    capture->set_is_backreferenced();
     backref_node = compiler->zone()->New<BackReferenceNode>(
         Capture::StartRegister(capture->index()),
         Capture::EndRegister(capture->index()), compiler->read_backward(),
@@ -1485,23 +1486,24 @@ Node* Lookaround::ToNodeImpl(Compiler* compiler, Node* on_success) {
 }
 
 Node* Capture::ToNodeImpl(Compiler* compiler, Node* on_success) {
-  return ToNode(body(), index(), compiler, on_success);
+  return ToNode(body(), compiler, on_success, this);
 }
 
 // static
-Node* Capture::ToNode(Tree* body, int index, Compiler* compiler,
-                      Node* on_success) {
+Node* Capture::ToNode(Tree* body, Compiler* compiler, Node* on_success,
+                      const Capture* capture) {
   DCHECK_NOT_NULL(body);
+  int index = capture == nullptr ? 0 : capture->index();
   int start_reg = Capture::StartRegister(index);
   int end_reg = Capture::EndRegister(index);
   if (compiler->read_backward()) std::swap(start_reg, end_reg);
-  Node* store_end =
-      ActionNode::StorePosition(end_reg, on_success, compiler->flags());
+  Node* store_end = ActionNode::StorePosition(end_reg, on_success,
+                                              compiler->flags(), capture);
   REGISTER_NODE(store_end);
   Node* body_node = body->ToNode(compiler, store_end);
   if (body_node->IsBacktrack()) return body_node;
-  Node* node =
-      ActionNode::StorePosition(start_reg, body_node, compiler->flags());
+  Node* node = ActionNode::StorePosition(start_reg, body_node,
+                                         compiler->flags(), capture);
   REGISTER_NODE(node);
   return node;
 }

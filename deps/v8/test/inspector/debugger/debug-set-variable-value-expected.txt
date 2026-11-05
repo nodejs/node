@@ -1,0 +1,17 @@
+Tests Debugger.setVariableValue across different scope types.
+Running closure test cases...
+Closure test 0: v1 (cat -> 5) => 5
+Closure test 1: t (2 -> 7) => 9
+Closure test 2: t (3 -> 10) => 13
+Closure test 3: s (17 -> Bird) => Bird
+Closure test 4: foo (capybara -> 77) => 77
+Closure test 5: eee (Alpha -> 5) => 5Beta
+Running local test cases...
+Local test 0: u (You -> We) => HelloWe
+Local test 1: p (world -> GoodBye) => HelloGoodBye
+Local test 2: v1 (mouse -> dog) => dog
+Local test 3: v1 (mouse -> dog) => dog
+Local test 4: v (Blue -> Green) => Green
+Local test 5: p (5 -> 2012) => 2012
+Running script scope test...
+Script test: abc (12 -> 42) => 42

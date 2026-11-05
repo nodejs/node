@@ -132,8 +132,6 @@ const char* ElementsKindToString(ElementsKind kind) {
 #undef PRINT_NAME
     case WASM_ARRAY_ELEMENTS:
       return "WASM_ARRAY_ELEMENTS";
-    case SHARED_ARRAY_ELEMENTS:
-      return "SHARED_ARRAY_ELEMENTS";
     case NO_ELEMENTS:
       return "NO_ELEMENTS";
   }

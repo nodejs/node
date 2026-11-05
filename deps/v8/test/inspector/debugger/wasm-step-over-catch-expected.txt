@@ -1,0 +1,34 @@
+Test stepping over a wasm exception catch block
+Paused on:
+  f ()
+  g ()
+  h ()
+  run ()
+   ()
+  function f() {
+    #debugger;
+    try {
+
+Stepping over...
+Paused on:
+  f ()
+  g ()
+  h ()
+  run ()
+   ()
+    try {
+      #wasmFn();
+    } catch(e) {
+
+Stepping over...
+Paused on:
+  f ()
+  g ()
+  h ()
+  run ()
+   ()
+    } catch(e) {
+      var x = #1;
+    }
+
+Resuming...

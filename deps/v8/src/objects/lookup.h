@@ -438,15 +438,23 @@ class ConcurrentLookupIterator final : public AllStatic {
                                                 Tagged<String> string,
                                                 size_t index);
 
+  enum class SearchCachedProperty {
+    kYes,
+    kNo,
+  };
+
   // This method reimplements the following sequence in a concurrent setting:
   //
   // LookupIterator it(holder, isolate, name, LookupIterator::OWN);
-  // it.TryLookupCachedProperty();
+  // if (search_cached_property == SearchCachedProperty::kYes) {
+  //   it.TryLookupCachedProperty();
+  // }
   // if (it.state() == LookupIterator::DATA) it.GetPropertyCell();
   V8_EXPORT_PRIVATE static std::optional<Tagged<PropertyCell>>
   TryGetPropertyCell(Isolate* isolate, LocalIsolate* local_isolate,
                      DirectHandle<JSGlobalObject> holder,
-                     DirectHandle<Name> name);
+                     DirectHandle<Name> name,
+                     SearchCachedProperty search_cached_property);
 };
 
 }  // namespace v8::internal

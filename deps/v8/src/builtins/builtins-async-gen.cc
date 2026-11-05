@@ -289,14 +289,14 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
     TNode<Int32T> promise_flags = SmiToInt32(
         LoadObjectField<Smi>(js_promise, offsetof(JSPromise, flags_)));
 
-    TNode<Int32T> status =
-        Word32And(promise_flags, Int32Constant(JSPromise::StatusBits::kMask));
+    TNode<Int32T> status = Word32And(
+        promise_flags, Int32Constant(JSPromise::Flags::StatusBits::kMask));
     GotoIfNot(Word32Equal(status, Int32Constant(v8::Promise::kFulfilled)),
               &if_perform_promise_then);
 
     // Mark the promise as handled.
-    TNode<Int32T> new_flags =
-        Word32Or(promise_flags, Int32Constant(JSPromise::HasHandlerBit::kMask));
+    TNode<Int32T> new_flags = Word32Or(
+        promise_flags, Int32Constant(JSPromise::Flags::HasHandlerBit::kMask));
     StoreObjectFieldNoWriteBarrier(js_promise, offsetof(JSPromise, flags_),
                                    SmiFromInt32(new_flags));
 

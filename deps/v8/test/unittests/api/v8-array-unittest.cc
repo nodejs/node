@@ -246,7 +246,7 @@ TEST_F(ArrayTest, IteratorValueChangeShouldInvalidateArrayIteratorProtectCell) {
 }
 
 TEST_F(ArrayTest, IterateWithGC) {
-  i::v8_flags.expose_gc = true;
+  i::v8_flags.expose_gc.Set(true);
   HandleScope scope(isolate());
 
   struct ArrayTestCase {

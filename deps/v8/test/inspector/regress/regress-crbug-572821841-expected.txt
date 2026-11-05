@@ -1,0 +1,4 @@
+Tests that custom formatter error strings are not retained in group 0 when context is destroyed.
+
+Running test: testMemoryLeak
+No leak detected.

@@ -185,7 +185,18 @@ const threeParameterFuncs = [
         resizeTo = 2 * ctor.BYTES_PER_ELEMENT;
         const lengthTracking = new ctor(rab);
 
-        assertThrows(() => { func(lengthTracking, evilIndex); }, TypeError);
+        assertThrows(() => { func(lengthTracking, evilIndex); }, RangeError);
+    }
+    // Length tracking TA with offset + first parameter resizes below offset.
+    for (let ctor of intCtors) {
+        rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                         8 * ctor.BYTES_PER_ELEMENT);
+        resizeTo = 1 * ctor.BYTES_PER_ELEMENT;
+        const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+        assertThrows(() => { func(lengthTrackingWithOffset,
+                                  { valueOf: () => { rab.resize(resizeTo); return 0; }}); },
+                     TypeError);
     }
   }
 
@@ -217,7 +228,7 @@ const threeParameterFuncs = [
       const lengthTracking = new ctor(rab);
       const one = IsBigIntTypedArray(lengthTracking) ? 1n : 1;
 
-      assertThrows(() => { func(lengthTracking, evilIndex, one); }, TypeError);
+      assertThrows(() => { func(lengthTracking, evilIndex, one); }, RangeError);
     }
     // Length tracking TA + second parameter resizes.
     for (let ctor of intCtors) {
@@ -226,7 +237,7 @@ const threeParameterFuncs = [
       resizeTo = 2 * ctor.BYTES_PER_ELEMENT;
       const lengthTracking = new ctor(rab);
 
-      assertThrows(() => { func(lengthTracking, 2, evilValue); }, TypeError);
+      assertThrows(() => { func(lengthTracking, 2, evilValue); }, RangeError);
     }
   }
 
@@ -273,7 +284,7 @@ const threeParameterFuncs = [
       const one = IsBigIntTypedArray(lengthTracking) ? 1n : 1;
 
       assertThrows(() => { func(lengthTracking, evilIndex, one, one); },
-                   TypeError);
+                   RangeError);
     }
     // Length tracking TA + second parameter resizes.
     for (let ctor of intCtors) {
@@ -284,7 +295,7 @@ const threeParameterFuncs = [
       const one = IsBigIntTypedArray(lengthTracking) ? 1n : 1;
 
       assertThrows(() => { func(lengthTracking, 2, evilValue, one); },
-                   TypeError);
+                   RangeError);
     }
     // Length tracking TA + third parameter resizes.
     for (let ctor of intCtors) {
@@ -295,7 +306,57 @@ const threeParameterFuncs = [
       const one = IsBigIntTypedArray(lengthTracking) ? 1n : 1;
 
       assertThrows(() => { func(lengthTracking, 2, one, evilValue); },
-                   TypeError);
+                   RangeError);
+    }
+  }
+
+  // Test barely-too-short resizes (excluding a single byte of the target element).
+  for (let ctor of intCtors) {
+    const bpe = ctor.BYTES_PER_ELEMENT;
+    const maxByteLength = bpe * 4;
+    const fixedByteOffset = maxByteLength / 2;
+    rab = CreateResizableArrayBuffer(maxByteLength, maxByteLength);
+    const fixedLength = new ctor(rab, fixedByteOffset, 2);
+    const autoLength = new ctor(rab);
+    const one = IsBigIntTypedArray(autoLength) ? 1n : 1;
+
+    const allFuncs = [
+      (view, makeIndex) => Atomics.load(view, { valueOf: makeIndex }),
+      (view, makeIndex) => Atomics.store(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.add(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.sub(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.and(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.or(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.xor(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) => Atomics.exchange(view, { valueOf: makeIndex }, one),
+      (view, makeIndex) =>
+          Atomics.compareExchange(view, { valueOf: makeIndex }, one, one),
+    ];
+
+    for (let f of allFuncs) {
+      rab.resize(maxByteLength);
+      assertThrows(() => {
+        f(fixedLength, () => {
+          rab.resize(fixedByteOffset + bpe * 2 - 1);
+          return 1;
+        });
+      }, TypeError);
+
+      rab.resize(maxByteLength);
+      assertThrows(() => {
+        f(autoLength, () => {
+          rab.resize(bpe * 2 - 1);
+          return 1;
+        });
+      }, RangeError);
+
+      rab.resize(maxByteLength);
+      assertThrows(() => {
+        f(autoLength, () => {
+          rab.resize(bpe - 1);
+          return 0;
+        });
+      }, RangeError);
     }
   }
 })();

@@ -720,20 +720,6 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
               .Build();
 }
 
-RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  DirectHandle<Context> context(isolate->context(), isolate);
-  // The caller ensures that we pretenure closures that are assigned
-  // directly to properties.
-  return *Factory::JSFunctionBuilder{isolate, shared, context}
-              .set_feedback_cell(feedback_cell)
-              .set_allocation_type(AllocationType::kOld)
-              .Build();
-}
-
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -950,8 +936,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
                                       value);
     } else {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }
@@ -966,8 +951,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     if ((attributes & READ_ONLY) == 0) {
       Context::Set(holder_context, index, value, isolate);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }

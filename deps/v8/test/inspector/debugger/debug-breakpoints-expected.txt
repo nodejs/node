@@ -1,0 +1,43 @@
+Tests setting and clearing multiple breakpoints within functions.
+--- Function f (single line) ---
+() {[B0]a=1;b=2}
+() {a=1;b=2}
+() {a=1;[B0]b=2}
+() {[B0]a=1;[B1]b=2}
+() {[B0]a=1;[B1]b=2[B2]}
+() {[B0]a=1;b=2[B1]}
+() {a=1;b=2[B0]}
+() {a=1;b=2}
+--- Function g (multi-line) ---
+() {
+  [B0]a=1;
+  b=2;
+}
+() {
+  a=1;
+  b=2;
+}
+() {
+  a=1;
+  [B0]b=2;
+}
+() {
+  [B0]a=1;
+  [B1]b=2;
+}
+() {
+  [B0]a=1;
+  [B1]b=2;
+[B2]}
+() {
+  [B0]a=1;
+  b=2;
+[B1]}
+() {
+  a=1;
+  b=2;
+[B0]}
+() {
+  a=1;
+  b=2;
+}

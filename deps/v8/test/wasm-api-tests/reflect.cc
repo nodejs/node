@@ -39,16 +39,15 @@ TEST_F(WasmCapiTest, Reflect) {
   ValueType types[] = {kWasmI32, kWasmExternRef, kWasmI32,
                        kWasmI64, kWasmF32,       kWasmF64};
   FunctionSig sig(2, 4, types);
-  AddExportedFunction(base::CStrVector(kFuncName), code, sizeof(code), &sig);
+  AddExportedFunction(kFuncName, code, sizeof(code), &sig);
 
-  builder()->AddExportedGlobal(kWasmF64, false, WasmInitExpr(0.0),
-                               base::CStrVector(kGlobalName));
+  builder()->AddExportedGlobal(kWasmF64, false, WasmInitExpr(0.0), kGlobalName);
 
   builder()->AddTable(kWasmFuncRef, 12, 12);
-  builder()->AddExport(base::CStrVector(kTableName), kExternalTable, 0);
+  builder()->AddExport(kTableName, kExternalTable, 0);
 
   builder()->AddMemory(1);
-  builder()->AddExport(base::CStrVector(kMemoryName), kExternalMemory, 0);
+  builder()->AddExport(kMemoryName, kExternalMemory, 0);
 
   vec<Extern*> imports = vec<Extern*>::make_uninitialized();
   Instantiate(imports);

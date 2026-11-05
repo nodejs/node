@@ -50,7 +50,7 @@ class CodeAssemblerTester {
             [this](Builtin, Handle<Code> code) { this->code_ = code; },
             [parameter_count](Zone* zone) {
               return Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                                  CallDescriptor::kCanUseRoots);
+                                                  CallDescriptor::kNoFlags);
             },
             CodeKind::FOR_TESTING_JS, name)),
         scope_(isolate) {

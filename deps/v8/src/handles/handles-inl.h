@@ -84,20 +84,17 @@ V8_INLINE IndirectHandle<T> handle(Tagged<T> object, LocalHeap* local_heap) {
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, Isolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, Isolate* isolate) {
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, LocalIsolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, LocalIsolate* isolate) {
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, LocalHeap* local_heap) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, LocalHeap* local_heap) {
   return handle(Tagged<T>(object), local_heap);
 }
 
@@ -280,7 +277,7 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   if (!AllowHandleUsageOnAllThreads::IsAllowed()) {
     DCHECK(isolate->main_thread_local_heap()->IsRunning());
     DCHECK_WITH_MSG(
-        isolate->thread_id() == ThreadId::Current(),
+        isolate->thread_id() == base::ThreadId::Current(),
         "main-thread handle can only be created on the main thread.");
   }
   // We should only allocate handles for objects that can be referenced from the

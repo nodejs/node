@@ -30,8 +30,10 @@ class V8_EXPORT_PRIVATE Descriptor final {
   MaybeObjectDirectHandle GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   int GetSortedKeyIndex() const { return details_.pointer(); }
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   static Descriptor DataField(Isolate* isolate, DirectHandle<Name> key,
                               int field_offset, PropertyAttributes attributes,

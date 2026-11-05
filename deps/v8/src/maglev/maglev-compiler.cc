@@ -9,9 +9,9 @@
 #include <ostream>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
@@ -40,6 +40,7 @@
 #include "src/maglev/maglev-truncation.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
+#include "src/tracing/trace-event.h"
 
 #ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
 #define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true
@@ -82,6 +83,7 @@ void PrintAndVerify(Graph* graph, bool printing_condition, MaglevPhase phase) {
   PrintGraph(graph, printing_condition, phase);
   VerifyGraph(graph, phase);
 }
+
 }  // namespace
 
 // static
@@ -191,17 +193,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                      MaglevPhase::kTruncation);
     }
 
-    if (v8_flags.maglev_licm) {
-      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                  "V8.Maglev.LoopOptimizations");
-      SYNCHRONIZATION_POINT("MaglevLoopOptimizations");
-      GraphProcessor<LoopOptimizationProcessor> loop_optimizations(
-          compilation_info);
-      loop_optimizations.ProcessGraph(graph);
-      PrintAndVerify(graph, v8_flags.print_maglev_graphs,
-                     MaglevPhase::kLoopOptimization);
-    }
-
     if (v8_flags.maglev_untagged_phis) {
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.PhiUntagging");
@@ -301,6 +292,9 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
     bool success = code_generator->Assemble();
+    if (v8_flags.maglev_build_code_on_background || !success) {
+      compilation_info->broker()->DetachCanonicalHandles(compilation_info);
+    }
     if (!success) {
       return false;
     }
@@ -308,6 +302,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
+  if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    graph->ExtractOptimizedCodeCoverage();
+  }
+#endif
 
   return true;
 }

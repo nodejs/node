@@ -1,0 +1,52 @@
+Tests scope chain inspection and scope objects.
+Local 1 passed
+Local 2 passed
+Local 3 passed
+Local 4 passed
+Local 5 passed
+Local 6 passed
+Local 7 passed
+With 1 passed
+With 2 passed
+With 3 passed
+With 4 passed
+With 5 passed
+With 6 passed
+With 7 passed
+Closure 1 passed
+Closure 2 passed
+Closure 3 passed
+Closure 4 passed
+Closure 5 passed
+Closure 6 passed
+Closure 7 passed
+Closure 8 passed
+Closure 9 passed
+Closure with Inferred Name 1 passed
+Closure with Inferred Name 2 passed
+Closure with Inferred Name 3 passed
+Closure passed to optimized Array.prototype.forEach passed
+The full monty passed
+Closure inside With 1 passed
+Closure inside With 2 passed
+Closure inside With 3 passed
+Closure inside With 4 passed
+Global passed
+Catch block 1 passed
+Catch block 2 passed
+Catch block 3 passed
+Catch block 4 passed
+Catch block 5 passed
+Catch block 6 passed
+Catch block 7 passed
+Classes and methods 1 passed
+Scope positions passed
+Scope positions in catch and 'with' statement passed
+Scope positions in for statement passed
+Scope positions in for statement with lexical block passed
+Scope positions in lexical for each statement passed
+Scope positions in lexical for each statement with lexical block passed
+Scope positions in non-lexical for each statement passed
+Scope positions in non-lexical for each statement with lexical block passed
+Switch discriminant is outside switch block scope passed
+All 52 tests completed successfully (52 breaks).

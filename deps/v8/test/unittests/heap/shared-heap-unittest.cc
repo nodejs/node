@@ -28,6 +28,7 @@ namespace v8 {
 namespace internal {
 
 using SharedHeapTest = TestJSSharedMemoryWithIsolate;
+using SharedHeapTestWithInternals = WithHeapInternals<SharedHeapTest>;
 
 class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
  public:
@@ -101,6 +102,22 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
 
         ParkingThread::ParkedJoinAll(parked, threads);
       });
+}
+
+TEST_F(SharedHeapTestWithInternals,
+       AllocationGCInSharedTrustedSpaceOnMainIsolate) {
+  CHECK(i_isolate()->is_shared_space_isolate());
+  ManualGCScope manual_gc_scope(i_isolate());
+  SimulateFullSpace(heap()->shared_trusted_space());
+  SetForceGCOnNextAllocation(true);
+
+  const GCEpoch initial_gc_count = heap()->gc_count();
+  DirectHandle<TrustedByteArray> array =
+      i_isolate()->factory()->NewTrustedByteArray(
+          16, AllocationType::kSharedTrusted);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*array)->Metadata()->owner()->identity(),
+           SHARED_TRUSTED_SPACE);
+  EXPECT_GT(heap()->gc_count(), initial_gc_count);
 }
 
 namespace {
@@ -463,7 +480,7 @@ void AllocateInSharedHeap(int iterations = 100) {
 }
 
 TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
-  v8_flags.max_old_space_size = 8;
+  v8_flags.max_old_space_size.Set(8);
   i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       []() { AllocateInSharedHeap(); });
 }
@@ -480,7 +497,7 @@ class SharedFixedArrayAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
-  v8_flags.max_old_space_size = 8;
+  v8_flags.max_old_space_size.Set(8);
 
   i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
@@ -1044,7 +1061,7 @@ TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
 template <typename TMixin>
 class WithEmptySharedHeapFlagsMixin : public TMixin {
  public:
-  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap = true; }
+  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap.Set(true); }
 };
 
 using SharedHeapEmptyTestPlatform =

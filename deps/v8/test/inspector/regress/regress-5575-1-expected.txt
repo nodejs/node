@@ -1,0 +1,9 @@
+Tests that setting a breakpoint on an outer function does not break suspended inner generator objects.
+pause #1:
+  return function* generator() {
+    #debugger;
+    yield 42;
+
+{
+    done : true
+}

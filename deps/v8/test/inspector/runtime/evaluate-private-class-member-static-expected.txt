@@ -13,6 +13,24 @@ const obj = new Klass();
 
 Running test: evaluatePrivateMembers
 Checking private fields
+Runtime.evaluate: `#field in Klass`
+{
+    type : boolean
+    value : true
+}
+Runtime.evaluate: `#nonExistent in Klass`
+{
+    type : boolean
+    value : false
+}
+Runtime.evaluate: `#field in 1`
+{
+    className : TypeError
+    description : TypeError: Cannot use 'in' operator to search for '#field' in 1     at <anonymous>:1:11
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Runtime.evaluate: `Klass.#field`
 {
     type : string
@@ -67,6 +85,11 @@ Runtime.evaluate: `Klass.#field`
     value : 0
 }
 Checking private getter-only accessors
+Runtime.evaluate: `#getterOnly in Klass`
+{
+    type : boolean
+    value : true
+}
 Runtime.evaluate: `Klass.#getterOnly`
 {
     type : string
@@ -102,6 +125,11 @@ Runtime.evaluate: `Klass.#getterOnly`
     value : getterOnly
 }
 Checking private setter-only accessors
+Runtime.evaluate: `#setterOnly in Klass`
+{
+    type : boolean
+    value : true
+}
 Runtime.evaluate: `Klass.#setterOnly`
 {
     className : Error
@@ -138,6 +166,11 @@ Runtime.evaluate: `Klass.#field`
     value : setterOnlyCalled
 }
 Checking private accessors
+Runtime.evaluate: `#accessor in Klass`
+{
+    type : boolean
+    value : true
+}
 Runtime.evaluate: `Klass.#accessor`
 {
     type : string
@@ -190,6 +223,11 @@ Runtime.evaluate: `Klass.#field`
     value : 0
 }
 Checking private methods
+Runtime.evaluate: `#method in Klass`
+{
+    type : boolean
+    value : true
+}
 Runtime.evaluate: `Klass.#method`
 {
     className : Function

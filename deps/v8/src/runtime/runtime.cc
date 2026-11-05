@@ -219,6 +219,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kArrayBufferDetach:
       case Runtime::kDeoptimizeFunction:
       case Runtime::kDeoptimizeNow:
+      case Runtime::kInlineDeoptimizeNow:
+      case Runtime::kDisableEagerInlining:
       case Runtime::kDisableOptimizationFinalization:
       case Runtime::kEnableCodeLoggingForTesting:
       case Runtime::kFinalizeOptimization:
@@ -228,7 +230,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kOptimizeMaglevOnNextCall:
       case Runtime::kOptimizeOsr:
       case Runtime::kPrepareFunctionForOptimization:
-      case Runtime::kPretenureAllocationSite:
       case Runtime::kSetAllocationTimeout:
       case Runtime::kSetDispatchTableGCInterval:
       case Runtime::kSetForceSlowPath:
@@ -317,6 +318,13 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
              v8_flags.verify_bytecode_full;
 
+    case Runtime::kGetCodeCache:
+    case Runtime::kConsumeCodeCache:
+      // These consume code caches with a replaced untrusted section, which
+      // only makes sense with the sandbox crash filter.
+      return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
+             v8_flags.code_cache_fuzzing;
+
     case Runtime::kIsSmi:
       return true;  // Enabled when not performing differential fuzzing.
 
@@ -328,10 +336,13 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   switch (id) {
     // Functions used in testing and outside
     case Runtime::kArrayBufferDetach:
+    case Runtime::kArrayBufferSetDetachKey:
 #define F(name, nargs, ressize, ...) case k##name:
-#define I(name, nargs, ressize, ...) case kInline##name:
-    FOR_EACH_INTRINSIC_TEST(F, I)
-    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
+#define I(name, nargs, ressize, ...) \
+  case k##name:                      \
+  case kInline##name:
+      FOR_EACH_INTRINSIC_TEST(F, I)
+      IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I
 #undef F
     return true;

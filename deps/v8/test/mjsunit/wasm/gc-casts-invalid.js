@@ -197,6 +197,31 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     /type error in branch\[0\] \(expected \(ref 0\), got anyref\)/);
 })();
 
+(function TestBrOnCastFailTargetTypeUpcast() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('fct', makeSig([wasmRefType(struct)], [kWasmI32]))
+  .addBody([
+    kExprBlock, kWasmRef, kAnyRefCode,
+      kExprLocalGet, 0,
+      ...wasmBrOnCastFail(0, wasmRefType(kWasmAnyRef), wasmRefType(kWasmAnyRef)),
+      kGCPrefix, kExprStructGet, struct, 0,
+      kExprReturn,
+    kExprEnd,
+    kExprDrop,
+    kExprI32Const, 0,
+  ])
+  .exportFunc();
+  // While the value stack type is (ref struct), the target type in the
+  // br_on_cast_fail is specified as (ref any), so the fallthrough type becomes
+  // the less specific (ref any).
+  assertThrows(() => builder.instantiate(),
+    WebAssembly.CompileError,
+    /struct.get\[0\] expected type \(ref null 0\), found br_on_cast_fail of type \(ref any\)/);
+})();
+
 // Test that validation and code generation works fine in unreachable paths.
 (function TestBrOnCastUnreachable() {
   print(arguments.callee.name);

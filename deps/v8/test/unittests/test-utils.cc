@@ -5,6 +5,7 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
@@ -75,7 +76,37 @@ IsolateWrapper::~IsolateWrapper() {
 
 namespace internal {
 
+namespace {
+CrashKeyStore* g_current_crash_key_store = nullptr;
+}  // namespace
+
+CrashKeyStore::CrashKeyStore() {
+  CHECK_NULL(g_current_crash_key_store);
+  g_current_crash_key_store = this;
+  v8::V8::SetCrashKeyCallbacks(&CrashKeyStore::AllocateCallback,
+                               &CrashKeyStore::SetCallback);
+}
+
+CrashKeyStore::~CrashKeyStore() {
+  CHECK_EQ(this, g_current_crash_key_store);
+  v8::V8::SetCrashKeyCallbacks(nullptr, nullptr);
+  g_current_crash_key_store = nullptr;
+}
+
+// static
+CrashKey CrashKeyStore::AllocateCallback(const char key[], CrashKeySize size) {
+  CHECK_NOT_NULL(g_current_crash_key_store);
+  return g_current_crash_key_store->AllocateKey(key, size);
+}
+
+// static
+void CrashKeyStore::SetCallback(CrashKey crash_key, std::string_view value) {
+  CHECK_NOT_NULL(g_current_crash_key_store);
+  g_current_crash_key_store->SetValue(crash_key, value);
+}
+
 std::unordered_set<std::string> CrashKeyStore::KeyNames() const {
+  base::MutexGuard guard(&mutex_);
   std::unordered_set<std::string> names;
   names.reserve(entries_.size());
   for (const auto& [name, unused] : entries_) {
@@ -85,17 +116,8 @@ std::unordered_set<std::string> CrashKeyStore::KeyNames() const {
   return names;
 }
 
-void CrashKeyStore::InstallCallbacks() {
-  isolate_->SetCrashKeyStringCallbacks(
-      [this](const char key[], CrashKeySize size) {
-        return AllocateKey(key, size);
-      },
-      [this](CrashKey crash_key, const std::string_view value) {
-        SetValue(crash_key, value);
-      });
-}
-
 CrashKey CrashKeyStore::AllocateKey(const char key[], CrashKeySize size) {
+  base::MutexGuard guard(&mutex_);
   auto [it, inserted] = entries_.emplace(key, nullptr);
   if (inserted || it->second == nullptr) {
     it->second = std::make_unique<Entry>();
@@ -106,8 +128,9 @@ CrashKey CrashKeyStore::AllocateKey(const char key[], CrashKeySize size) {
   return static_cast<CrashKey>(entry_ptr);
 }
 
-void CrashKeyStore::SetValue(CrashKey crash_key, const std::string_view value) {
-  auto* entry = static_cast<Entry*>(crash_key);
+void CrashKeyStore::SetValue(CrashKey crash_key, std::string_view value) {
+  base::MutexGuard guard(&mutex_);
+  Entry* entry = static_cast<Entry*>(crash_key);
   bool found = false;
   for (const auto& [name, entry_holder] : entries_) {
     if (entry_holder.get() == entry) {

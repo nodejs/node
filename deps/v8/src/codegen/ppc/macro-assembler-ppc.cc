@@ -4773,6 +4773,57 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   LoadU64(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
 }
 
+void MacroAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTagRange tag_range,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(!tag_range.IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(tag_range));
+  {
+    UseScratchRegisterScope temps(this);
+    Register external_table = temps.Acquire();
+    if (isolate_root == no_reg) {
+      DCHECK(root_array_available_);
+      isolate_root = kRootRegister;
+    }
+    LoadU64(external_table,
+            MemOperand(isolate_root,
+                       IsolateData::external_pointer_table_offset() +
+                           Internals::kExternalEntityTableBasePointerOffset));
+    LoadU32(destination, field_operand);
+    ShiftRightU64(destination, destination,
+                  Operand(kExternalPointerIndexShift));
+    ShiftLeftU64(destination, destination,
+                 Operand(kExternalPointerTableEntrySizeLog2));
+    LoadU64(destination, MemOperand(external_table, destination));
+  }
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  // Although interceptor callbacks can be empty in general, once we decide
+  // to generate a code loading a callback value it's guaranteed that the
+  // external pointer handle is not empty.
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range) ||
+         kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range));
+
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    static_assert(!V8_ENABLE_SANDBOX_BOOL);
+    AndU64(destination, destination, Operand(kExternalPointerPayloadMask));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
+#else
+  LoadU64(destination, field_operand);
+#endif  // V8_COMPRESS_POINTERS
+}
+
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
@@ -4795,7 +4846,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   UseScratchRegisterScope temps(this);
   Register dispatch_handle = temps.Acquire();

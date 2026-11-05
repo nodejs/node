@@ -16,6 +16,8 @@ bodies.
 # operator alternation has.
 LITERAL = list("abcxyzABXY019") + list("=:;,~!@%&<>")
 LITERAL_WIDE = ["é", "Ω", "\U0001f0a1"]
+# Halves of U+1F0A1, which is already in the subject noise pool.
+SURROGATES = ["\ud83c", "\udca1"]
 
 # `\xHH` reaches U+00FF and no further, so its pool is the Latin-1 subset:
 # LITERAL_WIDE's other members would silently truncate ("x%02x" % 0x3A9 is
@@ -35,6 +37,9 @@ ASCII_LETTER = list("abcxyzABXYZ")
 # The character each ControlEscape stands for, so the subject pool can contain
 # something the pattern can actually match.
 ESCAPE_LITERALS = {"f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
+
+# Line terminators and CRLF: suffixes that distinguish `\Z` from `\z`.
+LINE_TERMINATORS = ["\n", "\r", "\r\n", "\u2028", "\u2029"]
 
 # Property names that exist in every ICU build V8 ships with.
 UNICODE_PROPERTIES = [
@@ -77,6 +82,9 @@ SUBJECT_NOISE = list("abcxyz019 \n") + ["é", "\U0001f0a1"]
 # makes a meaningful share of cases match at all (see gen_subject).
 SUBJECT_LITERAL_SHARE = 0.75
 SUBJECT_MAX_LEN = 10
+
+# Probability of appending a tail requested by the pattern.
+SUBJECT_TAIL_SHARE = 0.5
 
 # Probability that a case sets a nonzero lastIndex.
 LAST_INDEX_SHARE = 0.3

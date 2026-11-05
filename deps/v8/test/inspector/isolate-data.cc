@@ -128,10 +128,10 @@ bool InspectorIsolateData::CreateContext(int context_group_id,
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
   if (context.IsEmpty()) return false;
-  context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this,
-                                           kInspectorIsolateDataTag);
+  context->SetAlignedPointerInEmbedderDataV2(kIsolateDataIndex, this,
+                                             kInspectorIsolateDataTag);
   // Should be 2-byte aligned.
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2),
       kContextGroupIdTag);
   contexts_[context_group_id].emplace_back(isolate_.get(), context);
@@ -164,17 +164,18 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module)) {
     return;
   }
+  modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
   if (!module
            ->InstantiateModule(context,
                                &InspectorIsolateData::ModuleResolveCallback)
            .FromMaybe(false)) {
+    modules_.erase(name);
     return;
   }
   if (evaluate) {
     v8::Local<v8::Value> result;
     if (!module->Evaluate(context).ToLocal(&result)) return;
   }
-  modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
 }
 
 // static
@@ -437,7 +438,8 @@ void InspectorIsolateData::FreeContext(v8::Local<v8::Context> context) {
   int context_group_id = GetContextGroupId(context);
   auto it = contexts_.find(context_group_id);
   if (it == contexts_.end()) return;
-  contexts_.erase(it);
+  std::erase(it->second, context);
+  if (it->second.empty()) contexts_.erase(it);
 }
 
 std::vector<int> InspectorIsolateData::GetSessionIds(int context_group_id) {

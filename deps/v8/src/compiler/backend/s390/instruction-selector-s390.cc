@@ -397,10 +397,7 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
       return kS390_LoadSimd128;
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::ProtectedPointer():
-    case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::SandboxedPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
@@ -458,7 +455,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kFloat16:
       UNIMPLEMENTED();
     case MachineRepresentation::kProtectedPointer:  // Fall through.
-    case MachineRepresentation::kIndirectPointer:   // Fall through.
+    case MachineRepresentation::kTrustedPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:  // Fall through.
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
@@ -1016,9 +1013,6 @@ static void VisitGeneralStore(
         // We never store directly to protected pointers from generated code.
         UNREACHABLE();
       case MemoryRepresentation::TrustedPointer():
-        // Only LoadTrustedPointer uses this representation.
-        UNREACHABLE();
-      case MemoryRepresentation::IndirectPointer():
       case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
         UNREACHABLE();
@@ -1795,12 +1789,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   VisitTryTruncateDouble(this, kS390_DoubleToUint32, node);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitFloat64Mod(OpIndex node) {
   S390OperandGenerator g(this);
   const FloatBinopOp& op = Cast<FloatBinopOp>(node);
@@ -2409,13 +2397,38 @@ void InstructionSelector::VisitWord32AtomicLoad(OpIndex node) {
   VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
+static void VisitAtomicStore(InstructionSelector* selector, OpIndex node) {
+  S390OperandGenerator g(selector);
+  auto store = selector->store_view(node);
+  MachineRepresentation rep = store.stored_rep().representation();
+  WriteBarrierKind write_barrier_kind = store.stored_rep().write_barrier_kind();
+  bool needs_write_barrier =
+      write_barrier_kind != kNoWriteBarrier && !v8_flags.disable_write_barriers;
+
+  if (store.memory_order().value() != AtomicMemoryOrder::kSeqCst ||
+      !CanBeTaggedOrCompressedPointer(rep) || needs_write_barrier) {
+    VisitGeneralStore(selector, node, rep, write_barrier_kind);
+    return;
+  }
+
+  OptionalOpIndex index = store.index();
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  AddressingMode addressing_mode = g.GenerateMemoryOperandInputs(
+      index, store.base(), store.displacement(),
+      DisplacementMode::kPositiveDisplacement, inputs, &input_count,
+      S390OperandGenerator::RegisterUseKind::kUseUniqueRegister);
+  DCHECK_LT(input_count, 4);
+  inputs[input_count++] = g.UseUniqueRegister(store.value());
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionCode code = kS390_AtomicStoreCompressTagged |
+                         AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, 0, nullptr, input_count, inputs, arraysize(temps),
+                 temps);
+}
+
 void InstructionSelector::VisitWord32AtomicStore(OpIndex node) {
-  auto store = store_view(node);
-  AtomicStoreParameters store_params(store.stored_rep().representation(),
-                                     store.stored_rep().write_barrier_kind(),
-                                     store.memory_order().value(),
-                                     store.access_kind());
-  VisitGeneralStore(this, node, store_params.representation());
+  VisitAtomicStore(this, node);
 }
 
 void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
@@ -2699,12 +2712,7 @@ void InstructionSelector::VisitWord64AtomicLoad(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64AtomicStore(OpIndex node) {
-  auto store = store_view(node);
-  AtomicStoreParameters store_params(store.stored_rep().representation(),
-                                     store.stored_rep().write_barrier_kind(),
-                                     store.memory_order().value(),
-                                     store.access_kind());
-  VisitGeneralStore(this, node, store_params.representation());
+  VisitAtomicStore(this, node);
 }
 
 #define SIMD_TYPES(V) \

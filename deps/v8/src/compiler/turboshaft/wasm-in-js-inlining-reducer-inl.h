@@ -21,6 +21,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -104,7 +105,6 @@ class WasmInJSInliningReducer : public Next {
 
       uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-      V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
       // Prepare data for the Wasm-in-JS body inlining, if enabled.
@@ -147,8 +147,9 @@ class WasmInJSInliningReducer : public Next {
       // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
       CHECK_IMPLIES(sig->parameter_count() > 0, caller_frame_state.has_value());
       V<Any> result = builder.BuildJSToWasmWrapper(
-          js_closure, js_context, arguments, continuation_frame_state,
-          descriptor->lazy_deopt_on_throw, caller_frame_state);
+          descriptor->js_wasm_call_parameters->internal_function(), js_context,
+          arguments, continuation_frame_state, descriptor->lazy_deopt_on_throw,
+          caller_frame_state);
       // The wrapper inlining will always succeed and produce a JS value, except
       // if the wrapper or body inlining _unconditionally_ produced a trap /
       // type error and we are thus in unreachable code.
@@ -706,9 +707,8 @@ class WasmInJsInliningInterface {
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
-              TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op = __ AssertNotNull(obj.get<Object>(), frame_state_, obj.type,
+                                  TrapId::kTrapIllegalCast);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -740,7 +740,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, {});
+                             is_signed, {}, imm.heap_type().is_shared());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -750,7 +750,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 wasm::ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
@@ -758,15 +758,22 @@ class WasmInJsInliningInterface {
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
         array_obj.get<WasmArrayNullable>(), frame_state_,
-        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        array_obj.type.is_shared());
   }
 
-  V<FixedArray> managed_object_maps() {
-    // TODO(dlehmann): Optimize this by baking in the Map into the generated
-    // code as a HeapConstant (which we can do in JS, but not in Wasm).
-    return LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data_,
-                                         ManagedObjectMaps,
-                                         MemoryRepresentation::TaggedPointer());
+  // Unlike standalone Wasm compilation (which is isolate-independent and
+  // therefore emits runtime loads via `__ RttCanon(managed_object_maps(),
+  // ...)`), Wasm-in-JS inlining compiles for a specific
+  // `WasmTrustedInstanceData` known at compile time, so we can embed the RTT
+  // `Map` directly as a `HeapConstant`.
+  V<Map> RttCanon(wasm::ModuleTypeIndex ref_index) {
+    if (__ generating_unreachable_operations()) return V<Map>::Invalid();
+    Tagged<Map> rtt_map =
+        Cast<Map>(__ data()->wasm_instance()->managed_object_maps()->get(
+            ref_index.index));
+    return __ HeapConstant(
+        __ data()->broker()->CanonicalPersistentHandle(rtt_map));
   }
 
   // TODO(dlehmann): This and other decoder interface method implementations
@@ -784,7 +791,7 @@ class WasmInJsInliningInterface {
       Forward(decoder, object, result);
       return;
     }
-    V<Map> rtt = __ RttCanon(managed_object_maps(), target.ref_index());
+    V<Map> rtt = RttCanon(target.ref_index());
     compiler::WasmTypeCheckConfig config{
         object.type, target,
         compiler::GetExactness(decoder->module_, target.heap_type())};

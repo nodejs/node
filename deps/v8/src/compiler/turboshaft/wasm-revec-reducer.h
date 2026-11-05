@@ -924,7 +924,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (!og_index.valid()) {
       const LoadOp& start = analyzer_.GetStartOperation(pnode, ig_index, load)
                                 .template Cast<LoadOp>();
-      DCHECK_EQ(start.base(), load.base());
+      DCHECK(AreEquivalentBases(start.base(), load.base()));
 
       OpIndex base = __ MapToNewGraph(load.base());
       // We need to use {load}'s index here because there could be different
@@ -952,7 +952,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       const StoreOp& start =
           (analyzer_.GetStartOperation(pnode, ig_index, store))
               .template Cast<StoreOp>();
-      DCHECK_EQ(start.base(), store.base());
+      DCHECK(AreEquivalentBases(start.base(), store.base()));
 
       // It's possible that an OOB is trapped at the higher 128-bit address
       // after the lower 128-bit store is executed. To ensure a consistent
@@ -1311,7 +1311,9 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     // can have a block including operations {a1, a2, b1, b2}, and the
     // SLPTree can be pnode1: (a2, a1), pnode2: (b1, b2) if a2 is input
     // of b1, and a1 is input of b2.
-    for (size_t i = 0; i < pnode->nodes().size(); i++) {
+    const bool swap_order = pnode->nodes()[0] > pnode->nodes()[1];
+    for (size_t idx = 0; idx < pnode->nodes().size(); idx++) {
+      const size_t i = swap_order ? 1 - idx : idx;
       OpIndex cur_index = pnode->nodes()[i];
       if ((*og_index).valid() && cur_index == ig_index) {
         og_inputs[i] = *og_index;
@@ -1482,6 +1484,15 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       default:
         UNREACHABLE();
     }
+  }
+
+  bool AreEquivalentBases(OpIndex base0, OpIndex base1) {
+    if (base0 == base1) return true;
+    const LoadOp* load0 =
+        __ input_graph().Get(base0).template TryCast<LoadOp>();
+    const LoadOp* load1 =
+        __ input_graph().Get(base1).template TryCast<LoadOp>();
+    return load0 && load1 && load0->kind.is_immutable && *load0 == *load1;
   }
 
   const wasm::WasmModule* module_{__ data()->wasm_module()};

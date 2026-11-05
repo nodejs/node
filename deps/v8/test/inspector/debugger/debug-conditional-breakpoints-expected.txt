@@ -1,0 +1,15 @@
+Tests conditional breakpoints.
+Syntax error condition hits: 0
+false condition hits: 0
+true condition hits: 1
+double quotes condition hits: 1
+single quotes condition hits: 1
+x==1 before x defined hits: 0
+x==1 after x=1 hits: 1
+count % 2 == 0 hits: 5
+x % 2 == 0 hits: 5
+a % 2 == 0 hits: 5
+setBreakpoint error: Breakpoint at specified location already exists.
+same condition duplicate hits: 5
+setBreakpoint error: Breakpoint at specified location already exists.
+different condition duplicate hits: 5

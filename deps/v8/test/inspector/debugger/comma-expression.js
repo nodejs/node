@@ -22,11 +22,68 @@ function bar() {
 }
 
 const baz = () => 0;
+
+function testLoopConditions() {
+  while (baz(), baz()) {}
+  for (; baz(), baz();) {}
+  while ((baz(), baz()), baz()) {}
+  while (baz(), (baz(), baz())) {}
+  while ((baz(), baz()), baz(), baz()) {}
+  while ((baz(), baz(), baz()), baz()) {}
+}
 `;
 
 const url = 'test.js';
 contextGroup.addScript(source, 0, 0, url);
 session.setupScriptMap();
+
+async function stepThrough(expression, lineNumber, stepIntoFunction) {
+  const [, , {params: {scriptId}}] = await Promise.all([
+    Protocol.Runtime.enable(),
+    Protocol.Debugger.enable(),
+    Protocol.Debugger.onceScriptParsed(),
+  ]);
+  const {breakpointId} = await Protocol.Debugger.setBreakpoint({
+    location: {
+      scriptId,
+      lineNumber,
+    }
+  });
+  const evalPromise = Protocol.Runtime.evaluate({expression});
+  for (;;) {
+    const {method, params} = await Promise.race([
+      evalPromise,
+      Protocol.Debugger.oncePaused(),
+    ]);
+    if (method !== 'Debugger.paused') {
+      break;
+    }
+    const callFrames = params.callFrames.filter(
+        callFrame => callFrame.location.scriptId === scriptId);
+    if (callFrames.length === 0) {
+      InspectorTest.log('Resuming and finishing...');
+      await Protocol.Debugger.resume();
+    } else {
+      const [{functionName, location}, ...callerFrames] = callFrames;
+      InspectorTest.log(`Execution paused in ${functionName}:`);
+      await session.logSourceLocation(location);
+      for (const {location, functionName} of callerFrames) {
+        InspectorTest.log(`Called from ${functionName}:`);
+        await session.logSourceLocation(location);
+      }
+      if (functionName === stepIntoFunction) {
+        await Protocol.Debugger.stepInto();
+      } else {
+        await Protocol.Debugger.stepOver();
+      }
+    }
+  }
+  await Promise.all([
+    Protocol.Debugger.removeBreakpoint({breakpointId}),
+    Protocol.Debugger.disable(),
+    Protocol.Runtime.disable(),
+  ]);
+}
 
 InspectorTest.runAsyncTestSuite([
   async function testBreakLocations() {
@@ -46,51 +103,10 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testStepping() {
-    const [, , {params: {scriptId}}] = await Promise.all([
-      Protocol.Runtime.enable(),
-      Protocol.Debugger.enable(),
-      Protocol.Debugger.onceScriptParsed(),
-    ]);
-    const {breakpointId} = await Protocol.Debugger.setBreakpoint({
-      location: {
-        scriptId,
-        lineNumber: 2,
-      }
-    });
-    const evalPromise =
-        Protocol.Runtime.evaluate({expression: 'testFunction()'});
-    for (;;) {
-      const {method, params} = await Promise.race([
-        evalPromise,
-        Protocol.Debugger.oncePaused(),
-      ]);
-      if (method !== 'Debugger.paused') {
-        break;
-      }
-      const callFrames = params.callFrames.filter(
-          callFrame => callFrame.location.scriptId === scriptId);
-      if (callFrames.length === 0) {
-        InspectorTest.log('Resuming and finishing...');
-        await Protocol.Debugger.resume();
-      } else {
-        const [{functionName, location}, ...callerFrames] = callFrames;
-        InspectorTest.log(`Execution paused in ${functionName}:`);
-        await session.logSourceLocation(location);
-        for (const {location, functionName} of callerFrames) {
-          InspectorTest.log(`Called from ${functionName}:`);
-          await session.logSourceLocation(location);
-        }
-        if (functionName === 'testFunction') {
-          await Protocol.Debugger.stepInto();
-        } else {
-          await Protocol.Debugger.stepOver();
-        }
-      }
-    }
-    await Promise.all([
-      Protocol.Debugger.removeBreakpoint({breakpointId}),
-      Protocol.Debugger.disable(),
-      Protocol.Runtime.disable(),
-    ]);
-  }
+    await stepThrough('testFunction()', 2, 'testFunction');
+  },
+
+  async function testSteppingInLoopConditions() {
+    await stepThrough('testLoopConditions()', 19, 'testLoopConditions');
+  },
 ]);

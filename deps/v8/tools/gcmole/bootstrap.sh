@@ -38,6 +38,14 @@ BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
 BUILD_DIR="${THIS_DIR}/bootstrap/build"
 
+# Put third_party/ninja on PATH ahead of third_party/depot_tools so cmake and
+# ninja invoke the CIPD ninja binary directly instead of depot_tools/ninja,
+# which requires an initialized python3_bin_reldir.txt in depot_tools.
+THIRD_PARTY_NINJA_DIR="$(readlink -f "${THIS_DIR}/../../third_party/ninja")"
+if [ -d "${THIRD_PARTY_NINJA_DIR}" ]; then
+  export PATH="${THIRD_PARTY_NINJA_DIR}:${PATH}"
+fi
+
 # Die if any command dies.
 set -e
 

@@ -31,11 +31,13 @@ cpp::optional<in_addr_t> inet_addr(cpp::string_view src);
 /// provided address into the destination buffer. In case of error, returns
 /// false and does not modify the buffer.
 [[nodiscard]] bool ipv4_to_str(const struct in_addr &src, cpp::span<char> dst);
+[[nodiscard]] bool str_to_ipv4(cpp::string_view src, struct in_addr &dst);
 
 /// Writes a string representation (including the terminating \0) of the
 /// provided address into the destination buffer. In case of error, returns
 /// false and does not modify the buffer.
 [[nodiscard]] bool ipv6_to_str(const struct in6_addr &src, cpp::span<char> dst);
+[[nodiscard]] bool str_to_ipv6(cpp::string_view src, struct in6_addr &dst);
 
 } // namespace net
 } // namespace LIBC_NAMESPACE_DECL

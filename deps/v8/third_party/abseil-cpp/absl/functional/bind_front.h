@@ -21,10 +21,11 @@
 // it does not require the use of argument placeholders. The simpler syntax of
 // `absl::bind_front()` allows you to avoid known misuses with `std::bind()`.
 //
-// `absl::bind_front()` is meant as a drop-in replacement for C++20's upcoming
-// `std::bind_front()`, which similarly resolves these issues with
-// `std::bind()`. Both `bind_front()` alternatives, unlike `std::bind()`, allow
-// partial function application. (See
+// `absl::bind_front()` is meant as a drop-in replacement for C++20's
+// `std::bind_front(func, args...)` and C++26's
+// `std::bind_front<ConstFn>(args...)`, which similarly resolve these issues
+// with `std::bind()`. Both `bind_front()` alternatives, unlike `std::bind()`,
+// allow partial function application. (See
 // https://en.wikipedia.org/wiki/Partial_application).
 
 #ifndef ABSL_FUNCTIONAL_BIND_FRONT_H_
@@ -39,10 +40,26 @@
 #include <functional>  // For std::bind_front.
 #endif  // defined(__cpp_lib_bind_front) && __cpp_lib_bind_front >= 201907L
 
+#include <type_traits>
 #include <utility>
 
 #include "absl/functional/internal/front_binder.h"
 #include "absl/utility/utility.h"
+
+// ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT
+//
+// Defined if the standard library implements C++26 `std::bind_front<ConstFn>`,
+// which `absl::bind_front<ConstFn>` then aliases.
+//
+// libc++ 17 through 22 define `__cpp_lib_bind_front` as 202306L in C++26 mode,
+// but `std::bind_front<ConstFn>` was first implemented in libc++ 23:
+// https://github.com/llvm/llvm-project/pull/165096#issuecomment-4487517016
+#ifdef ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT
+#error ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT cannot be directly set
+#elif defined(__cpp_lib_bind_front) && __cpp_lib_bind_front >= 202306L && \
+    (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION >= 230000)
+#define ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT 1
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -50,6 +67,13 @@ ABSL_NAMESPACE_BEGIN
 // bind_front()
 //
 // Binds the first N arguments of an invocable object and stores them by value.
+// The target invocable can be passed either as a runtime argument
+// `absl::bind_front(func, args...)` (C++20 `std::bind_front`) or as a
+// compile-time non-type template parameter `absl::bind_front<ConstFn>(args...)`
+// (C++26 `std::bind_front`).
+//
+// Passing `ConstFn` as a non-type template parameter avoids storing a function
+// pointer or pointer-to-member at runtime.
 //
 // Like `std::bind()`, `absl::bind_front()` is implicitly convertible to
 // `std::function`.  In particular, it may be used as a simpler replacement for
@@ -57,7 +81,8 @@ ABSL_NAMESPACE_BEGIN
 // specified. More importantly, it provides more reliable correctness guarantees
 // than `std::bind()`; while `std::bind()` will silently ignore passing more
 // parameters than expected, for example, `absl::bind_front()` will report such
-// mis-uses as errors. In C++20, `absl::bind_front` is replaced by
+// mis-uses as errors. In C++20 (for runtime callables) and C++26 (for
+// non-type template parameter callables), `absl::bind_front` aliases
 // `std::bind_front`.
 //
 // absl::bind_front(a...) can be seen as storing the results of
@@ -70,6 +95,8 @@ ABSL_NAMESPACE_BEGIN
 //   assert(absl::bind_front(Minus)(3, 2) == 3 - 2);
 //   assert(absl::bind_front(Minus, 3)(2) == 3 - 2);
 //   assert(absl::bind_front(Minus, 3, 2)() == 3 - 2);
+//   assert(absl::bind_front<&Minus>()(3, 2) == 3 - 2);
+//   assert(absl::bind_front<&Minus>(3)(2) == 3 - 2);
 //
 // Example: Binding a member function.
 //
@@ -80,8 +107,10 @@ ABSL_NAMESPACE_BEGIN
 //   Math math;
 //
 //   assert(absl::bind_front(&Math::Double)(&math, 3) == 2 * 3);
+//   assert(absl::bind_front<&Math::Double>()(&math, 3) == 2 * 3);
 //   // Stores a pointer to math inside the functor.
 //   assert(absl::bind_front(&Math::Double, &math)(3) == 2 * 3);
+//   assert(absl::bind_front<&Math::Double>(&math)(3) == 2 * 3);
 //   // Stores a copy of math inside the functor.
 //   assert(absl::bind_front(&Math::Double, math)(3) == 2 * 3);
 //   // Stores std::unique_ptr<Math> inside the functor.
@@ -193,7 +222,23 @@ constexpr functional_internal::bind_front_t<F, BoundArgs...> bind_front(
 }
 #endif  // defined(__cpp_lib_bind_front) && __cpp_lib_bind_front >= 201907L
 
+#ifndef ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT
+template <auto ConstFn, class... BoundArgs>
+constexpr auto bind_front(BoundArgs&&... args) {
+  using F = decltype(ConstFn);
+  if constexpr (std::is_pointer_v<F> || std::is_member_pointer_v<F>) {
+    static_assert(ConstFn != nullptr,
+                  "bind_front: ConstFn cannot be equal to nullptr");
+  }
+  // The runtime `bind_front` checks the requirements on `BoundArgs`.
+  return absl::bind_front(functional_internal::ConstFnInvoker<ConstFn>{},
+                          std::forward<BoundArgs>(args)...);
+}
+#endif  // ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT
+
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#undef ABSL_INTERNAL_HAVE_STD_NTTP_BIND_FRONT
 
 #endif  // ABSL_FUNCTIONAL_BIND_FRONT_H_

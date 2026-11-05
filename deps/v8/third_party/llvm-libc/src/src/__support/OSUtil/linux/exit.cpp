@@ -6,10 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall_wrappers/exit_group.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
-#include <sys/syscall.h> // For syscall numbers.
 
 namespace LIBC_NAMESPACE_DECL {
 namespace internal {
@@ -21,10 +20,7 @@ __attribute__((no_stack_protector))
 #endif
 __attribute__((noreturn)) void
 exit(int status) {
-  for (;;) {
-    LIBC_NAMESPACE::syscall_impl<long>(SYS_exit_group, status);
-    LIBC_NAMESPACE::syscall_impl<long>(SYS_exit, status);
-  }
+  linux_syscalls::exit_group(status);
 }
 
 } // namespace internal

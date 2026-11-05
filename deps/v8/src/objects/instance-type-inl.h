@@ -27,6 +27,8 @@ constexpr std::optional<RootIndex> Map::TryGetMapRootIdxFor(InstanceType type) {
     return RootIndex::k##Name##Map;
     STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE
+    case ALLOCATION_SITE_TYPE:
+      return RootIndex::kAllocationSiteMap;
     case DESCRIPTOR_ARRAY_TYPE:
       return RootIndex::kDescriptorArrayMap;
     case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
@@ -122,12 +124,9 @@ using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
 using TaggedAddressRange = std::pair<Tagged_t, Tagged_t>;
 
 #if V8_STATIC_ROOTS_BOOL
-constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
+constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 8>
     kUniqueMapRangeOfInstanceTypeRangeList = {
-        {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
-          {StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
-           StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap}},
-         {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
+        {{{FIRST_STRING_TYPE, LAST_STRING_TYPE},
           {InstanceTypeChecker::kStringMapLowerBound,
            InstanceTypeChecker::kStringMapUpperBound}},
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
@@ -703,7 +702,7 @@ V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
   return IsJSApiWrapperObject(instance_type) ||
          IsCppHeapExternalObject(instance_type) ||
          IsCppGCManagedBase(instance_type) ||
-         IsEmbedderDataArray(instance_type);
+         IsEmbedderDataArray(instance_type) || IsExternalString(instance_type);
 }
 
 V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
@@ -719,6 +718,15 @@ V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
+
+#if V8_ENABLE_WEBASSEMBLY
+
+inline bool IsAnyWasmObjectMap(Tagged<Map> map) {
+  // Most Wasm object types form a contiguous range and can be covered by a
+  // single generated range-based check, but WASM_CUSTOM_MAP_TYPE is separate.
+  return IsWasmObjectMap(map) || IsWasmCustomMapMap(map);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace v8::internal
 

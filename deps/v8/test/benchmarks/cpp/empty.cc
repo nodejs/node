@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "benchmark/benchmark.h"
 #include "src/base/macros.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 static void BM_Empty(benchmark::State& state) {
   for (auto _ : state) {

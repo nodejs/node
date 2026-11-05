@@ -39,6 +39,12 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                        TNode<Context> context,
                                        TNode<Int32T> elements_kind);
 
+  void RevalidateAtomicAccess(TNode<JSTypedArray> array,
+                              TNode<UintPtrT> index_word,
+                              TNode<Context> context,
+                              TNode<Int32T> elements_kind,
+                              Label* detached_or_out_of_bounds);
+
   inline void DebugCheckAtomicIndex(TNode<JSTypedArray> array,
                                     TNode<UintPtrT> index);
 
@@ -167,8 +173,6 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
     if (is_shared_struct_or_shared_array) {
       GotoIf(IsJSSharedStruct(maybe_array_or_shared_object),
              is_shared_struct_or_shared_array);
-      GotoIf(IsJSSharedArray(maybe_array_or_shared_object),
-             is_shared_struct_or_shared_array);
     }
     ThrowTypeError(context, MessageTemplate::kNotIntegerTypedArray,
                    maybe_array_or_shared_object);
@@ -184,23 +188,21 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
 }
 
 // https://tc39.es/ecma262/#sec-validateatomicaccess
-// ValidateAtomicAccess( typedArray, requestIndex )
+// ValidateAtomicAccess( taRecord, requestIndex )
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
     TNode<JSTypedArray> array, TNode<JSAny> index, TNode<Context> context,
     TNode<Int32T> elements_kind) {
   Label done(this), range_error(this), unreachable(this);
 
-  // 1. Assert: typedArray is an Object that has a [[ViewedArrayBuffer]]
-  // internal slot.
-  // 2. Let length be IntegerIndexedObjectLength(typedArray);
+  // 1. Let length be TypedArrayLength(taRecord).
   TNode<UintPtrT> array_length = LoadJSTypedArrayLengthAndValidate(
       array, TypedArrayAccessMode::kRead, &unreachable, elements_kind);
 
-  // 3. Let accessIndex be ? ToIndex(requestIndex).
+  // 2. Let accessIndex be ? ToIndex(requestIndex).
   TNode<UintPtrT> index_uintptr = ToIndex(context, index, &range_error);
 
-  // 4. Assert: accessIndex ≥ 0.
-  // 5. If accessIndex ≥ length, throw a RangeError exception.
+  // 3. Assert: accessIndex ≥ 0.
+  // 4. If accessIndex ≥ length, throw a RangeError exception.
   Branch(UintPtrLessThan(index_uintptr, array_length), &done, &range_error);
 
   BIND(&unreachable);
@@ -208,11 +210,34 @@ TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
   Unreachable();
 
   BIND(&range_error);
-  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
+  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex, index);
 
-  // 6. Return accessIndex.
+  // Steps 5-7 compute byteIndexInBuffer. We return accessIndex and compute the
+  // offset at the operation site.
+  // 8. Return accessIndex.
   BIND(&done);
   return index_uintptr;
+}
+
+// https://tc39.es/ecma262/#sec-revalidateatomicaccess
+void SharedArrayBufferBuiltinsAssembler::RevalidateAtomicAccess(
+    TNode<JSTypedArray> array, TNode<UintPtrT> index_word,
+    TNode<Context> context, TNode<Int32T> elements_kind,
+    Label* detached_or_out_of_bounds) {
+  Label done(this), range_error(this, Label::kDeferred);
+  // 2. Let taRecord be ? ValidateTypedArrayBounds(typedArray, ~unordered~).
+  TNode<UintPtrT> array_length = LoadJSTypedArrayLengthAndValidate(
+      array, TypedArrayAccessMode::kRead, detached_or_out_of_bounds,
+      elements_kind);
+  // 4. If byteIndexInBuffer ≥ taRecord.[[CachedBufferByteLength]],
+  //    throw a RangeError exception.
+  Branch(UintPtrLessThan(index_word, array_length), &done, &range_error);
+
+  BIND(&range_error);
+  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex,
+                  ChangeUintPtrToTagged(index_word));
+
+  BIND(&done);
 }
 
 void SharedArrayBufferBuiltinsAssembler::DebugCheckAtomicIndex(
@@ -271,7 +296,9 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
+  // 1. Let byteIndexInBuffer be ?
+  // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+  // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
   Label validate_failed(this), is_shared_struct_or_shared_array(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
@@ -281,18 +308,14 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
                             TypedArrayAccessMode::kRead);
   TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
-  // 3. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // 4. NOTE: The above check is not redundant with the check in
-  // ValidateIntegerTypedArray because the call to ValidateAtomicAccess on the
-  // preceding line can have arbitrary side effects, which could cause the
-  // buffer to become detached.
-  CheckJSTypedArrayIndex(array, index_word, &validate_failed);
+  // 2. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
-  // Steps 5-10.
+  // Steps 3-5.
   //
   // (Not copied from ecma262 due to the axiomatic nature of the memory model.)
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
@@ -361,44 +384,41 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
-  Label validate_fail(this), is_shared_struct_or_shared_array(this);
+  // 1. Let byteIndexInBuffer be ?
+  // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+  // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
+  Label validate_failed(this), is_shared_struct_or_shared_array(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
   ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_fail,
+                            &elements_kind, &backing_store, &validate_failed,
                             &is_shared_struct_or_shared_array,
                             TypedArrayAccessMode::kWrite);
   TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
   Label u8(this), u16(this), u32(this), u64(this), other(this);
 
-  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
-  // 4. If arrayTypeName is "BigUint64Array" or "BigInt64Array",
-  //    let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   static_assert(BIGINT64_ELEMENTS > INT32_ELEMENTS);
   static_assert(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &u64);
 
-  // 5. Otherwise, let v be ? ToInteger(value).
+  // 3. Else, let coerced be 𝔽(? ToIntegerOrInfinity(value)).
   TNode<Number> value_integer = ToInteger_Inline(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // 7. NOTE: The above check is not redundant with the check in
-  // ValidateIntegerTypedArray because the call to ToBigInt or ToInteger on the
-  // preceding lines can have arbitrary side effects, which could cause the
-  // buffer to become detached.
-  CheckJSTypedArrayIndex(array, index_word, &validate_fail);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
   DebugCheckAtomicIndex(array, index_word);
 
-  // Steps 8-13.
+  // Steps 5-8.
   //
   // (Not copied from ecma262 due to the axiomatic nature of the memory model.)
   int32_t case_values[] = {
@@ -425,12 +445,13 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Return(value_integer);
 
   BIND(&u64);
-  // 4. If arrayTypeName is "BigUint64Array" or "BigInt64Array",
-  //    let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  CheckJSTypedArrayIndex(array, index_word, &validate_fail);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
@@ -446,7 +467,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   BIND(&other);
   Unreachable();
 
-  BIND(&validate_fail);
+  BIND(&validate_failed);
   {
     ThrowTypeError(context,
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
@@ -472,17 +493,18 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // Inlines AtomicReadModifyWrite
   // https://tc39.es/ecma262/#sec-atomicreadmodifywrite
 
-  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
-  Label validate_fail(this), is_shared_struct_or_shared_array(this);
+  // 1. Let byteIndexInBuffer be ?
+  // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+  // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
+  Label validate_failed(this), is_shared_struct_or_shared_array(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
   ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_fail,
+                            &elements_kind, &backing_store, &validate_failed,
                             &is_shared_struct_or_shared_array,
                             TypedArrayAccessMode::kWrite);
   TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
@@ -495,27 +517,24 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
 
-  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
-  // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   static_assert(BIGINT64_ELEMENTS > INT32_ELEMENTS);
   static_assert(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
-  // 5. Otherwise, let v be ? ToInteger(value).
+  // 3. Else, let coerced be 𝔽(? ToIntegerOrInfinity(value)).
   TNode<Number> value_integer = ToInteger_Inline(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // 7. NOTE: The above check is not redundant with the check in
-  // ValidateIntegerTypedArray because the call to ToBigInt or ToInteger on the
-  // preceding lines can have arbitrary side effects, which could cause the
-  // buffer to become detached.
-  CheckJSTypedArrayIndex(array, index_word, &validate_fail);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
-  // Steps 8-12.
+  // Steps 5-7.
   //
   // (Not copied from ecma262 due to the axiomatic nature of the memory model.)
   int32_t case_values[] = {
@@ -559,11 +578,13 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
                      ComputeStoreOffset(index_word, 2), value_word32))));
 
   BIND(&big);
-  // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  CheckJSTypedArrayIndex(array, index_word, &validate_fail);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
@@ -590,7 +611,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS64
 
-  BIND(&validate_fail);
+  BIND(&validate_failed);
   {
     ThrowTypeError(context,
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
@@ -614,7 +635,9 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   auto new_value = Parameter<JSAny>(Descriptor::kNewValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
+  // 1. Let byteIndexInBuffer be ?
+  // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+  // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
   Label validate_failed(this), is_shared_struct_or_shared_array(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
@@ -624,7 +647,6 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
                             TypedArrayAccessMode::kWrite);
   TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
@@ -636,8 +658,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
 
-  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
-  // 4. If typedArray.[[ContentType]] is BigInt, then
+  // 4. If typedArray.[[ContentType]] is ~bigint~, then
   //   a. Let expected be ? ToBigInt(expectedValue).
   //   b. Let replacement be ? ToBigInt(replacementValue).
   static_assert(BIGINT64_ELEMENTS > INT32_ELEMENTS);
@@ -645,17 +666,14 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
   // 5. Else,
-  //   a. Let expected be ? ToInteger(expectedValue).
-  //   b. Let replacement be ? ToInteger(replacementValue).
+  //   a. Let expected be 𝔽(? ToIntegerOrInfinity(expectedValue)).
+  //   b. Let replacement be 𝔽(? ToIntegerOrInfinity(replacementValue)).
   TNode<Number> old_value_integer = ToInteger_Inline(context, old_value);
   TNode<Number> new_value_integer = ToInteger_Inline(context, new_value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // 7. NOTE: The above check is not redundant with the check in
-  // ValidateIntegerTypedArray because the call to ToBigInt or ToInteger on the
-  // preceding lines can have arbitrary side effects, which could cause the
-  // buffer to become detached.
-  CheckJSTypedArrayIndex(array, index_word, &validate_failed);
+  // 6. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
@@ -664,7 +682,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   TNode<Word32T> new_value_word32 =
       TruncateTaggedToWord32(context, new_value_integer);
 
-  // Steps 8-14.
+  // Steps 7-15.
   //
   // (Not copied from ecma262 due to the axiomatic nature of the memory model.)
   int32_t case_values[] = {
@@ -708,14 +726,15 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
       old_value_word32, new_value_word32))));
 
   BIND(&big);
-  // 4. If typedArray.[[ContentType]] is BigInt, then
+  // 4. If typedArray.[[ContentType]] is ~bigint~, then
   //   a. Let expected be ? ToBigInt(expectedValue).
   //   b. Let replacement be ? ToBigInt(replacementValue).
   TNode<BigInt> old_value_bigint = ToBigInt(context, old_value);
   TNode<BigInt> new_value_bigint = ToBigInt(context, new_value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  CheckJSTypedArrayIndex(array, index_word, &validate_failed);
+  // 6. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
@@ -753,7 +772,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   {
     ThrowTypeError(context,
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
-                   "Atomics.store");
+                   "Atomics.compareExchange");
   }
 
   BIND(&is_shared_struct_or_shared_array);
@@ -796,7 +815,9 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
     AssemblerFunction64<AtomicUint64> function_uint_64,
     Runtime::FunctionId runtime_function, const char* method_name,
     TypedArrayAccessMode access_mode) {
-  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
+  // 1. Let byteIndexInBuffer be ?
+  // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
+  // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
   Label validate_failed(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
@@ -805,7 +826,6 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
                             access_mode);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index, context, elements_kind);
 
@@ -816,27 +836,24 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
 
-  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
-  // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   static_assert(BIGINT64_ELEMENTS > INT32_ELEMENTS);
   static_assert(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
-  // 5. Otherwise, let v be ? ToInteger(value).
+  // 3. Else, let coerced be 𝔽(? ToIntegerOrInfinity(value)).
   TNode<Number> value_integer = ToInteger_Inline(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // 7. NOTE: The above check is not redundant with the check in
-  // ValidateIntegerTypedArray because the call to ToBigInt or ToInteger on the
-  // preceding lines can have arbitrary side effects, which could cause the
-  // buffer to become detached or resized.
-  CheckJSTypedArrayIndex(array, index_word, &validate_failed);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
-  // Steps 8-12.
+  // Steps 5-7.
   //
   // (Not copied from ecma262 due to the axiomatic nature of the memory model.)
   int32_t case_values[] = {
@@ -874,11 +891,13 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
       (this->*function)(MachineType::Uint32(), backing_store,
                         ComputeStoreOffset(index_word, 2), value_word32))));
   BIND(&big);
-  // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
+  // 2. If typedArray.[[ContentType]] is ~bigint~, let coerced be ?
+  // ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  CheckJSTypedArrayIndex(array, index_word, &validate_failed);
+  // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
+  RevalidateAtomicAccess(array, index_word, context, elements_kind,
+                         &validate_failed);
 
   DebugCheckAtomicIndex(array, index_word);
 

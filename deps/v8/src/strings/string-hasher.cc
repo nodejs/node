@@ -77,7 +77,7 @@ uint64_t HashConvertingTo8Bit(const uint16_t* chars, uint32_t length,
 
 bool IsOnly8BitSIMD(const uint16_t* chars, unsigned len) {
   namespace hw = hwy::HWY_NAMESPACE;
-  hw::FixedTag<uint16_t, 8> tag;
+  hw::CappedTag<uint16_t, 8> tag;
   const size_t stride = hw::Lanes(tag);
   const auto high_byte_mask = hw::Set(tag, static_cast<uint16_t>(0xFF00));
   const auto zero = hw::Zero(tag);

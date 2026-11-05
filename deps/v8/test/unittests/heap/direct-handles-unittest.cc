@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "src/heap/heap.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -329,6 +330,8 @@ void TestContainerOfDirectHandles(i::Isolate* isolate, Container& container,
     EXPECT_FALSE(string.is_null());
   }
   for (int i = 0; i < capacity; ++i) {
+    EXPECT_GT(container[i]->length(), 0u);
+    EXPECT_GT((*container[i])->length(), 0u);
     Local<String> string = Utils::ToLocal(container[i]);
     EXPECT_EQ(i, string->ToNumber(context).ToLocalChecked()->Value());
   }
@@ -339,6 +342,44 @@ void VerifyNoRemainingDirectHandles() {
   DCHECK_EQ(0, i::DirectHandleBase::NumberOfHandles());
 #endif
 }
+
+template <typename Container>
+class ContainerBackgroundThread final : public i::ParkingThread {
+ public:
+  ContainerBackgroundThread(i::Isolate* isolate, int capacity)
+      : ParkingThread(base::Thread::Options("ContainerBackgroundThread")),
+        isolate_(isolate),
+        capacity_(capacity) {}
+
+  void Run() override {
+    {
+      i::LocalIsolate isolate(isolate_, i::ThreadKind::kBackground);
+      i::UnparkedScope unparked_scope(&isolate);
+      i::LocalHandleScope handle_scope(&isolate);
+
+      Container container(&isolate);
+      for (int i = 0; i < capacity_; ++i) {
+        container.push_back(
+            isolate.factory()->NewHeapNumber<i::AllocationType::kOld>(i));
+      }
+
+      EXPECT_EQ(static_cast<size_t>(capacity_), container.size());
+
+      for (const auto& number : container) {
+        EXPECT_FALSE(number.is_null());
+      }
+      for (int i = 0; i < capacity_; ++i) {
+        EXPECT_EQ(i, container[i]->value());
+        EXPECT_EQ(i, (*container[i])->value());
+      }
+    }
+    VerifyNoRemainingDirectHandles();
+  }
+
+ private:
+  i::Isolate* isolate_;
+  int capacity_;
+};
 }  // anonymous namespace
 
 TEST_F(DirectHandlesContainerTest, Vector) {
@@ -367,6 +408,68 @@ TEST_F(DirectHandlesContainerTest, SmallVectorBig) {
   }
   VerifyNoRemainingDirectHandles();
 }
+
+TEST_F(DirectHandlesContainerTest, VectorInBackgroundThread) {
+  auto thread = std::make_unique<
+      ContainerBackgroundThread<i::DirectHandleVector<i::HeapNumber>>>(
+      i_isolate(), 42);
+  CHECK(thread->Start());
+  thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+}
+
+TEST_F(DirectHandlesContainerTest, SmallVectorSmallInBackgroundThread) {
+  auto thread = std::make_unique<
+      ContainerBackgroundThread<i::DirectHandleSmallVector<i::HeapNumber, 10>>>(
+      i_isolate(), 7);
+  CHECK(thread->Start());
+  thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+}
+
+TEST_F(DirectHandlesContainerTest, SmallVectorBigInBackgroundThread) {
+  auto thread = std::make_unique<
+      ContainerBackgroundThread<i::DirectHandleSmallVector<i::HeapNumber, 10>>>(
+      i_isolate(), 42);
+  CHECK(thread->Start());
+  thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+}
+
+#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(ENABLE_SLOW_DCHECKS)
+namespace {
+class ForeignContainerBackgroundThread final : public i::ParkingThread {
+ public:
+  ForeignContainerBackgroundThread(
+      i::Isolate* isolate, const i::DirectHandleVector<i::HeapNumber>& vec)
+      : ParkingThread(
+            base::Thread::Options("ForeignContainerBackgroundThread")),
+        isolate_(isolate),
+        vec_(vec) {}
+
+  void Run() override {
+    i::LocalIsolate isolate(isolate_, i::ThreadKind::kBackground);
+    i::UnparkedScope unparked_scope(&isolate);
+    i::LocalHandleScope handle_scope(&isolate);
+    // Dereferencing a DirectHandleVector owned by the main thread must fail.
+    CHECK_EQ(42.0, vec_[0]->value());
+  }
+
+ private:
+  i::Isolate* isolate_;
+  const i::DirectHandleVector<i::HeapNumber>& vec_;
+};
+}  // anonymous namespace
+
+TEST_F(DirectHandlesContainerTest, ForeignVectorInBackgroundThreadFails) {
+  HandleScope scope(isolate());
+  i::DirectHandleVector<i::HeapNumber> vec(i_isolate());
+  vec.push_back(i_isolate()->factory()->NewHeapNumber(42.0));
+  ExpectFailure([this, &vec]() {
+    auto thread =
+        std::make_unique<ForeignContainerBackgroundThread>(i_isolate(), vec);
+    CHECK(thread->Start());
+    thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+  });
+}
+#endif  // defined(V8_ENABLE_DIRECT_HANDLE) && defined(ENABLE_SLOW_DCHECKS)
 
 using DirectHandleVectorTest = DirectHandlesTest;
 

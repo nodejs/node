@@ -34,7 +34,9 @@ for more details about the presubmit API built into gcl.
 import ast
 import json
 import os
+import platform
 import re
+import subprocess
 import sys
 import traceback
 
@@ -53,10 +55,14 @@ _LICENSE_FILE = (
     r"LICENSE"
 )
 
+# Checked-in generated files. The build compares them against the generator
+# output, so editing them to satisfy a source check does not work; the
+# generator would have to change. See src/gen/README.md.
+_GENERATED_CHECKED_IN_PATHS = (r'src[\\\/]gen[\\\/].+',)
+
 # Regular expression that matches code which should not be run through cpplint.
 _NO_LINT_PATHS = (
-    r'src[\\\/]base[\\\/]export-template\.h',
-)
+    r'src[\\\/]base[\\\/]export-template\.h',) + _GENERATED_CHECKED_IN_PATHS
 
 
 # Regular expression that matches code only used for test binaries
@@ -109,6 +115,10 @@ def _V8PresubmitChecks(input_api, output_api):
       affected_file,
       files_to_check=(r'.+\.m?js'))
 
+  def FilterGeneratedFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file, files_to_skip=_GENERATED_CHECKED_IN_PATHS)
+
   results = []
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
@@ -122,7 +132,8 @@ def _V8PresubmitChecks(input_api, output_api):
                               include_deletes=False)):
     results.append(output_api.PresubmitError("JS format check failed"))
   if not SourceProcessor().RunOnFiles(
-      input_api.AffectedFiles(include_deletes=False)):
+      input_api.AffectedFiles(
+          file_filter=FilterGeneratedFile, include_deletes=False)):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
@@ -291,7 +302,9 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
   file_inclusion_pattern = r'src/.+\.h'
 
   def FilterFile(affected_file):
-    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
+    files_to_skip = (
+        _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP +
+        _GENERATED_CHECKED_IN_PATHS)
     return input_api.FilterSourceFile(
       affected_file,
       files_to_check=(file_inclusion_pattern, ),
@@ -669,6 +682,9 @@ def _CommonChecks(input_api, output_api):
       input_api.canned_checks.CheckOwnersFormat,
       input_api.canned_checks.CheckOwners,
       _CheckCommitMessageBugEntry,
+      _CheckNoLocalPathsInDescription,
+      _CheckDescriptionFooters,
+      _CheckRegressionTest,
       _CheckLandOnChromiumBranch,
       input_api.canned_checks.CheckPatchFormatted,
       _CheckGenderNeutralInLicenses,
@@ -682,6 +698,7 @@ def _CommonChecks(input_api, output_api):
       _CheckMetagenHeaders,
       _CheckNoexceptAnnotations,
       _CheckBannedCpp,
+      _CheckPublicApiHeaders,
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
       _CheckMultiLineIfBraces,
@@ -921,44 +938,109 @@ def _CheckMetagenHeaders(input_api, output_api):
 
 
 def _CheckBannedCpp(input_api, output_api):
-  # We only check for a single pattern right now; feel free to add more, but
-  # potentially change the logic for files_to_skip then (and skip individual
-  # checks for individual files instead).
+  # Each entry is (regex_pattern, message, optional_files_to_skip_tuple).
   bad_cpp = [
-      ('std::bit_cast',
-       'Use base::bit_cast instead, which has additional checks'),
+      (
+          r'\bstd::bit_cast\b',
+          'Use base::bit_cast instead, which has additional checks',
+          (
+              # The implementation of base::bit_cast uses std::bit_cast.
+              r'src[\\\/]base[\\\/]macros\.h',
+              # src/base/numerics is a dependency-free header-only library,
+              # hence uses std::bit_cast directly.
+              r'src[\\\/]base[\\\/]numerics[\\\/].*',
+          ),
+      ),
+      (
+          r'\bstd::vector<\s*(?:v8::)?Local<',
+          'Use v8::LocalVector<T> instead of std::vector<v8::Local<T>> for GC '
+          'stack-scanning safety.',
+          (),
+      ),
+      (
+          r'\bfor\s*\(\s*(?:uint(?:8|16|32|64)_t|size_t|unsigned)\s+(\w+)\s*='
+          r'[^;]+;\s*\1\s*>=\s*0\s*;',
+          'Unsigned loop index with ">= 0" termination condition is an '
+          'infinite loop; use "for (uint32_t i = n; i-- > 0;)".',
+          (),
+      ),
+      (
+          r'\b__u?int128(?:_t)?\b',
+          'Use absl::int128 or absl::uint128 instead of compiler-specific '
+          '__int128 types.',
+          (
+              r'src[\\\/]bigint[\\\/].*',
+              r'src[\\\/]base[\\\/].*',
+              r'src[\\\/].*[\\\/](?:arm|arm64|ia32|loong64|mips64|ppc|riscv|s390|x64)[\\\/].*',
+          ),
+      ),
   ]
+
+  compiled_bad_cpp = [(
+      pattern,
+      input_api.re.compile(pattern),
+      message,
+      [input_api.re.compile(skip) for skip in skips],
+  ) for pattern, message, skips in bad_cpp]
 
   def file_filter(x):
     return input_api.FilterSourceFile(
         x,
-        files_to_skip=[
-            # The implementation of base::bit_cast uses std::bit_cast.
-            r'src/base/macros\.h',
-            # src/base/numerics is a dependency-free header-only library, hence
-            # uses std::bit_cast directly.
-            r'src/base/numerics/.*'
-        ],
+        files_to_skip=_EXCLUDED_PATHS,
         files_to_check=[r'.*\.h$', r'.*\.cc$'])
 
   errors = []
   for f in input_api.AffectedSourceFiles(file_filter):
+    local_path = f.LocalPath()
     for line_number, line in f.ChangedContents():
-      for pattern, message in bad_cpp:
-        if not pattern in line:
+      # Strip trailing single-line comments before matching.
+      code_line = line.split('//', 1)[0]
+      if not code_line.strip():
+        continue
+      for raw_pattern, compiled_regex, message, skip_regexes in compiled_bad_cpp:
+        if any(skip_re.search(local_path) for skip_re in skip_regexes):
           continue
-        # Skip if part of a comment.
-        if '//' in line and line.index('//') < line.index(pattern):
-          continue
-
-        # Make sure there are word separators around the pattern.
-        regex = r'\b%s\b' % pattern
-        if not input_api.re.search(regex, line):
+        if not compiled_regex.search(code_line):
           continue
 
         errors.append(
             output_api.PresubmitError('Banned pattern ({}):\n  {}:{} {}'.format(
-                regex, f.LocalPath(), line_number, message)))
+                raw_pattern, local_path, line_number, message)))
+  return errors
+
+
+def _CheckPublicApiHeaders(input_api, output_api):
+  """Checks public API headers under include/ for banned patterns."""
+  bad_public_api = [
+      (
+          r'^\s*#\s*(?:ifdef\s+DEBUG\b|if\s+defined\s*\(\s*DEBUG\s*\))',
+          'Use #ifdef V8_ENABLE_CHECKS instead of #ifdef DEBUG in public API '
+          'headers.',
+      ),
+  ]
+
+  compiled_checks = [(pattern, input_api.re.compile(pattern), message)
+                     for pattern, message in bad_public_api]
+
+  def file_filter(x):
+    return input_api.FilterSourceFile(
+        x,
+        files_to_skip=_EXCLUDED_PATHS + (r'^include[\\\/]v8config\.h$',),
+        files_to_check=[r'^include[\\\/].*\.h$'])
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(file_filter):
+    local_path = f.LocalPath()
+    for line_number, line in f.ChangedContents():
+      code_line = line.split('//', 1)[0]
+      if not code_line.strip():
+        continue
+      for raw_pattern, compiled_regex, message in compiled_checks:
+        if compiled_regex.search(code_line):
+          errors.append(
+              output_api.PresubmitError(
+                  'Banned public API header pattern ({}):\n  {}:{} {}'.format(
+                      raw_pattern, local_path, line_number, message)))
   return errors
 
 
@@ -985,15 +1067,364 @@ def _CheckMarkdown(input_api, output_api):
   ])
 
 
+_AI_AGENT_ENV_VARS = (
+    'AI_AGENT',
+    'ANTIGRAVITY_AGENT',
+    'CLAUDECODE',
+    'CODEX_SANDBOX',
+    'COPILOT_CLI',
+    'CURSOR_AGENT',
+    'GEMINI_CLI',
+)
+
+_MAX_COMMIT_LINE_LENGTH = 72
+
+_PRIORITY_PREFIX_RE = re.compile(r'^\[P([0-4])\]\s*')
+
+_COMMIT_FOOTER_RE = re.compile(
+    r'^(?:[A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+:|(?:Bug|Fixed|Test):|[A-Z][A-Z0-9_]*=)'
+)
+
+_LOCAL_PATH_RE = re.compile(
+    r'file://\S+'
+    r'|/usr/local/(?:google/home|btrfs_mount)/\S+'
+    r'|/google/(?:src|cog)/\S+'
+    r'|(?<![\w/])(?:/home/[\w-]+|/Users/[\w-]+|/tmp|~)/\S+'
+    r'|\.gemini/\S+'
+    r'|\bworktrees/task-\S+')
+
+
+def _IsAiAgent(input_api):
+  """Returns True if the presubmit is running in an AI agent environment."""
+  if any(
+      str(input_api.environ.get(var, '')).lower() not in ('', '0', 'false')
+      for var in _AI_AGENT_ENV_VARS):
+    return True
+  desc = input_api.change.FullDescriptionText() or ''
+  return bool(input_api.re.search(r'^TAG=agy\b', desc, input_api.re.MULTILINE))
+
+
+def _IsPriorityPrefixEnabled(input_api):
+  """Returns True if the CL priority prefix workflow is enabled."""
+  env_val = str(input_api.environ.get('V8_PRESUBMIT_PRIORITY_PREFIX',
+                                      '')).lower()
+  if env_val in ('0', 'false'):
+    return False
+  if env_val in ('1', 'true'):
+    return True
+  cfg = subprocess.run(
+      ['git', 'config', '--bool', 'v8.presubmit-priority-prefix'],
+      cwd=input_api.PresubmitLocalPath(),
+      capture_output=True,
+      text=True,
+      check=False)
+  return cfg.returncode == 0 and cfg.stdout.strip().lower() == 'true'
+
+
+def _CheckPriorityPrefix(input_api, output_api):
+  """Requires a [P0]-[P4] title prefix on upload and strips it before commit."""
+  if getattr(input_api, 'no_diffs', False):
+    return []
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [
+      line.strip()
+      for line in desc.splitlines()
+      if line.strip() and not line.lstrip().startswith('#')
+  ]
+  if not lines:
+    return []
+  title = lines[0]
+  m = _PRIORITY_PREFIX_RE.match(title)
+
+  if getattr(input_api, 'is_committing', False):
+    if getattr(input_api, 'dry_run', False):
+      return []
+    if m:
+      return [
+          output_api.PresubmitError(
+              f'Commit title still has priority prefix "[P{m.group(1)}]"; '
+              f'strip the priority prefix before merging: "{title}"')
+      ]
+    return []
+
+  if not _IsPriorityPrefixEnabled(input_api):
+    return []
+
+  if not m:
+    return [
+        output_api.PresubmitError(
+            'Commit title must start with a priority prefix "[P0]"-"[P4]" on '
+            f'upload (e.g. "[P1][component] Title"): "{title}"')
+    ]
+
+  rest = title[m.end():]
+  if not rest or _PRIORITY_PREFIX_RE.match(rest):
+    return [
+        output_api.PresubmitError(
+            'Commit title must include a subject after the "[P0]"-"[P4]" '
+            f'priority prefix: "{title}"')
+    ]
+
+  return []
+
+
+def _CheckNoLocalPathsInDescription(input_api, output_api):
+  """Rejects local workstation paths in the CL description."""
+  desc = input_api.change.FullDescriptionText() or ''
+  hits = [
+      f'  Line {i}: "{m.group(0)}"'
+      for i, line in enumerate(desc.splitlines(), start=1)
+      if not line.lstrip().startswith('#')
+      for m in _LOCAL_PATH_RE.finditer(line)
+  ]
+  if not hits:
+    return []
+  return [
+      output_api.PresubmitError(
+          'CL description contains local machine/workspace paths '
+          '(use repo-relative paths instead):\n' + '\n'.join(hits))
+  ]
+
+
+def _CheckDescriptionFooters(input_api, output_api):
+  """Checks footer placement and single Change-Id for all CLs."""
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [
+      l.strip()
+      for l in desc.splitlines()
+      if l.strip() and not l.lstrip().startswith('#')
+  ]
+  errors = []
+  in_tags = False
+  for line in lines[1:]:
+    if line.startswith(('TAG=', 'CONV=')):
+      in_tags = True
+    elif in_tags and not _COMMIT_FOOTER_RE.match(line):
+      errors.append(
+          'TAG= and CONV= lines must be placed at the bottom of the commit '
+          'description.')
+      break
+  if sum(1 for l in lines if l.startswith('Change-Id:')) > 1:
+    errors.append('Multiple Change-Id lines detected in commit description.')
+  return [output_api.PresubmitError(e) for e in errors]
+
+
+def _CheckAgentDescription(input_api, output_api):
+  """Validates commit message formatting and footers for AI agent CLs."""
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [(i, line)
+           for i, line in enumerate(desc.splitlines(), start=1)
+           if not line.lstrip().startswith('#')]
+  while lines and not lines[0][1].strip():
+    lines.pop(0)
+  if not lines:
+    return [output_api.PresubmitError('Commit description is empty.')]
+
+  errors = []
+  _, title = lines[0]
+  if _IsPriorityPrefixEnabled(input_api):
+    title = _PRIORITY_PREFIX_RE.sub('', title, count=1)
+  if not input_api.re.match(r'^(?:\[[^\[\]]+\])+\s+\S', title):
+    errors.append(
+        f'Commit title must follow "[component] Title" format: "{title}"')
+  if len(title) > _MAX_COMMIT_LINE_LENGTH:
+    errors.append(
+        f'Commit title is {len(title)} chars (max {_MAX_COMMIT_LINE_LENGTH}): '
+        f'"{title}"')
+  if len(lines) > 1 and lines[1][1].strip():
+    errors.append('Second line of commit description must be blank.')
+
+  long_lines = []
+  for line_num, line in lines[1:]:
+    stripped = line.strip()
+    if not stripped:
+      continue
+
+    is_url = any(u in line for u in ('://', 'go/', 'goto.google.com/'))
+    if (len(line) > _MAX_COMMIT_LINE_LENGTH and not is_url and
+        not _COMMIT_FOOTER_RE.match(stripped) and ' ' in stripped):
+      long_lines.append(
+          f'  Line {line_num} ({len(line)} chars): {line[:45]}...')
+
+    m_bug = input_api.re.match(r'^(bug|fixed)\s*([:=])\s*(.*)$', stripped,
+                               input_api.re.IGNORECASE)
+    if m_bug:
+      tag, sep, val = m_bug.groups()
+      if tag not in ('Bug', 'Fixed') or sep != ':':
+        errors.append(
+            f'Line {line_num}: Use "Bug:" or "Fixed:" instead of "{tag}{sep}".')
+      bugs = [b.strip() for b in val.split(',')]
+      if not val or not all(
+          input_api.re.match(r'^(?:b:)?\d+$', b) for b in bugs):
+        errors.append(
+            f'Line {line_num}: Invalid bug ID(s) in "{stripped}" (use '
+            '"<number>" for public bugs or "b:<number>" for Buganizer).')
+      elif len(bugs) > 5:
+        errors.append(
+            f'Line {line_num}: Too many bug IDs on a single "{tag}:" line '
+            f'({len(bugs)} found, max 5).')
+
+  if long_lines:
+    errors.append(
+        f'Commit description has lines exceeding {_MAX_COMMIT_LINE_LENGTH} '
+        'chars:\n' + '\n'.join(long_lines))
+
+  return [output_api.PresubmitError(e) for e in errors]
+
+
+def _CheckRegressionTest(input_api, output_api):
+  """Requires a test/ modification when Fixed: is present and src/ is modified."""
+  desc = input_api.change.FullDescriptionText() or ''
+  if not input_api.re.search(r'^Fixed:[ \t]*\S+', desc, input_api.re.MULTILINE):
+    return []
+  if input_api.re.search(r'^No-Regression-Test:[ \t]*\S+', desc,
+                         input_api.re.MULTILINE):
+    return []
+
+  paths = [
+      f.UnixLocalPath() for f in input_api.AffectedFiles(include_deletes=False)
+  ]
+  if any(p.startswith('src/')
+         for p in paths) and not any(p.startswith('test/') for p in paths):
+    return [
+        output_api.PresubmitError(
+            'CL has a "Fixed:" footer and modifies files under src/ without '
+            'modifying any files under test/. Every bug fix in V8 must '
+            'include a regression test, or include a '
+            '"No-Regression-Test: <reason>" footer in the CL description.')
+    ]
+  return []
+
+
+def _CheckAgentNoDuplicateCL(input_api, output_api):
+  """When creating a new CL, checks that no duplicate CL is already open."""
+  if input_api.change.issue or (
+      input_api.environ.get('PRESUBMIT_ALLOW_DUPLICATE_CL') == '1'):
+    return []
+
+  desc = (input_api.change.FullDescriptionText() or '').strip()
+  if not desc:
+    return []
+
+  local_title = desc.splitlines()[0].strip()
+  change_ids = input_api.re.findall(r'^Change-Id:\s*(I[0-9a-fA-F]+)', desc,
+                                    input_api.re.MULTILINE)
+  local_change_id = change_ids[-1] if change_ids else None
+  local_files = {
+      f.UnixLocalPath(): len(f.ChangedContents())
+      for f in input_api.AffectedFiles()
+  }
+
+  try:
+    import gerrit_util
+    open_changes = gerrit_util.QueryChanges(
+        'chromium-review.googlesource.com',
+        [('owner', 'self'), ('status', 'open'), ('project', 'v8/v8')],
+        o_params=['CURRENT_REVISION', 'CURRENT_FILES'],
+        limit=50,
+    )
+  except Exception:
+    return []
+
+  duplicates = []
+  for ch in open_changes or []:
+    cl_num = ch.get('_number')
+    if not cl_num:
+      continue
+    remote_subject = (ch.get('subject') or '').strip()
+    rev_info = (ch.get('revisions') or
+                {}).get(ch.get('current_revision', ''), {})
+    remote_files = {
+        path: int(info.get('lines_inserted', 0))
+        for path, info in (rev_info.get('files') or {}).items()
+        if path != '/COMMIT_MSG'
+    }
+
+    reasons = []
+    if local_change_id and ch.get('change_id') == local_change_id:
+      reasons.append(f'same Change-Id ({local_change_id})')
+    norm_remote = _PRIORITY_PREFIX_RE.sub('', remote_subject, count=1).lower()
+    norm_local = _PRIORITY_PREFIX_RE.sub('', local_title, count=1).lower()
+    if norm_local and norm_remote == norm_local:
+      reasons.append(f'identical title ("{remote_subject}")')
+    if local_files and remote_files == local_files:
+      reasons.append('identical diff footprint')
+    if reasons:
+      duplicates.append(
+          f'  - https://crrev.com/c/{cl_num} ("{remote_subject}"): ' +
+          ', '.join(reasons))
+
+  if not duplicates:
+    return []
+  return [
+      output_api.PresubmitError(
+          'Potential duplicate CL(s) already open on Gerrit:\n' +
+          '\n'.join(duplicates) +
+          '\nAssociate this branch via `git cl issue <cl_number>`, or set '
+          '`PRESUBMIT_ALLOW_DUPLICATE_CL=1` if intentional.')
+  ]
+
+
+def _CheckReleaseMjsunit(input_api, output_api):
+  """Runs opt-in gm.py release mjsunit check."""
+  if input_api.environ.get('UPLOAD_CL_NOCHECK') == '1':
+    return []
+  root = input_api.PresubmitLocalPath()
+  if input_api.environ.get('V8_PRESUBMIT_RELEASE_MJSUNIT') != '1':
+    cfg = subprocess.run(
+        ['git', 'config', '--bool', 'v8.presubmit-release-mjsunit'],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False)
+    if cfg.returncode != 0 or cfg.stdout.strip().lower() != 'true':
+      return []
+
+  code_prefixes = ('src/', 'include/', 'test/', 'gni/')
+  build_files = ('BUILD.gn', 'BUILD.bazel', 'DEPS')
+  if not any(
+      p.startswith(code_prefixes) or p in build_files
+      for p in input_api.UnixLocalPaths()):
+    return []
+
+  gm_py = input_api.os_path.join(root, 'tools', 'dev', 'gm.py')
+  if not input_api.os_path.isfile(gm_py):
+    return []
+
+  v8_arch = {
+      'aarch64': 'arm64',
+      'arm64': 'arm64',
+      'i686': 'ia32',
+      'i386': 'ia32',
+  }.get(platform.machine(), 'x64')
+  return input_api.RunTests([
+      input_api.Command(
+          name=f'gm.py {v8_arch}.release mjsunit',
+          cmd=[
+              input_api.python3_executable, gm_py, 'quiet',
+              f'{v8_arch}.release', 'mjsunit'
+          ],
+          kwargs={'cwd': root},
+          message=output_api.PresubmitError)
+  ])
+
+
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckPriorityPrefix(input_api, output_api))
+  if _IsAiAgent(input_api):
+    results.extend(_CheckAgentDescription(input_api, output_api))
+    results.extend(_CheckAgentNoDuplicateCL(input_api, output_api))
+  if not any(r.fatal for r in results):
+    results.extend(_CheckReleaseMjsunit(input_api, output_api))
   return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckPriorityPrefix(input_api, output_api))
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):

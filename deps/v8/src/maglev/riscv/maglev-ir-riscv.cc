@@ -837,8 +837,14 @@ void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   DoubleRegister input = ToDoubleRegister(ValueInput());
   DoubleRegister result = ToDoubleRegister(this->result());
-  __ fcvt_s_d(result, input);
-  __ fcvt_d_s(result, result);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister scratch = temps.AcquireScratchDouble();
+  // fcvt_s_d/fcvt_d_s turn every NaN into the positive canonical NaN. Copy
+  // the sign back from the input, matching CodeGenerator's kRiscvCvtSD and
+  // kRiscvCvtDS. For non-NaN values the sign is already correct.
+  __ fcvt_s_d(scratch, input);
+  __ fcvt_d_s(scratch, scratch);
+  __ fsgnj_d(result, scratch, input);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,

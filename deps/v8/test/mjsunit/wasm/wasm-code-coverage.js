@@ -838,3 +838,25 @@ TestCoverage(
     { "start": 13, "end": 13, "count": 1 },
   ]
 );
+
+function testCoverageWithNonAsciiFunctionName() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("á", kSig_i_v)
+    .addBody([
+      ...wasmI32Const(42),
+      ...wasmI32Const(11),
+      kExprI32Add,
+    ])
+    .exportAs("main");
+
+  instance = builder.instantiate({});
+  let result = instance.exports.main();
+  assertEquals(53, result);
+}
+TestCoverage(
+  "test coverage with non-ascii function name",
+  testCoverageWithNonAsciiFunctionName.toString(),
+  [{ "start": 0, "end": 6, "count": 1 }]
+);

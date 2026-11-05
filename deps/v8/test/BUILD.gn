@@ -201,7 +201,9 @@ v8_header_set("common_test_headers") {
 
   sources = [
     "common/assembler-tester.h",
+    "common/collector.h",
     "common/flag-utils.h",
+    "common/simulator-helper.h",
     "common/types-fuzz.h",
   ]
 

@@ -983,7 +983,7 @@ Instr Assembler::SF(Register rd) {
 }
 
 Instr Assembler::ImmAddSub(int imm) {
-  DCHECK(IsImmAddSub(imm));
+  CHECK(IsImmAddSub(imm));
   if (is_uint12(imm)) {  // No shift required.
     imm <<= ImmAddSub_offset;
   } else {
@@ -1086,6 +1086,12 @@ Instr Assembler::ImmShiftLS(unsigned shift_amount) {
 Instr Assembler::ImmException(int imm16) {
   DCHECK(is_uint16(imm16));
   return imm16 << ImmException_offset;
+}
+
+// udf is reserved for the constant pool marker, see IsConstantPoolAt.
+Instr Assembler::ImmUdf(int imm16) {
+  CHECK(is_uint16(imm16));
+  return imm16 << ImmUdf_offset;
 }
 
 Instr Assembler::ImmSystemRegister(int imm15) {

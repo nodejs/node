@@ -645,8 +645,6 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kRiscvLoadDecompressTrapping;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
@@ -691,10 +689,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
-      return kRiscvStoreIndirectPointer;
+      return kRiscvStoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kRiscvStoreEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -737,7 +732,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(riscv): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       V8_LIKELY(!v8_flags.disable_write_barriers)) {
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
     InstructionOperand inputs[4];
     InstructionCode code;
     size_t input_count = 0;
@@ -749,16 +744,16 @@ void InstructionSelector::VisitStore(OpIndex node) {
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
 
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+    if (rep == MachineRepresentation::kTrustedPointer) {
+      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectSkippedWriteBarrier
-                 : kArchStoreIndirectWithWriteBarrier;
-      code |= RecordWriteModeField::encode(
-          RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+                 ? kArchStoreTrustedSkippedWriteBarrier
+                 : kArchStoreTrustedWithWriteBarrier;
+      code |=
+          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
+      TrustedPointerTag tag = store_view.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
@@ -1070,10 +1065,13 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
         right_op.Is<Opmask::kWord64ShiftRightLogical>()) {
       RiscvOperandGenerator g(this);
       int64_t constant_left;
-      MatchSignedIntegralConstant(left_op.input(1), &constant_left);
+      bool is_constant_left =
+          MatchSignedIntegralConstant(left_op.input(1), &constant_left);
       int64_t constant_right;
-      MatchSignedIntegralConstant(right_op.input(1), &constant_right);
-      if (constant_right == 32 && constant_right == 32) {
+      bool is_constant_right =
+          MatchSignedIntegralConstant(right_op.input(1), &constant_right);
+      if (is_constant_left && is_constant_right && constant_left == 32 &&
+          constant_right == 32) {
         // Combine untagging shifts with Dmul high.
         Emit(kRiscvMulHigh64, g.DefineSameAsFirst(node),
              g.UseRegister(left_op.input(0)), g.UseRegister(right_op.input(0)));
@@ -1135,7 +1133,27 @@ void InstructionSelector::VisitUint64Sub128(OpIndex node) {
 }
 
 void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
-  UNIMPLEMENTED();
+  RiscvOperandGenerator g(this);
+  const auto& op = this->Get(node).Cast<Word64Add3Op>();
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  OptionalOpIndex out_high = FindProjection(node, 1);
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kRiscvAdd64);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kRiscvAdd64);
+
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kRiscvAdd64_3, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
@@ -1467,16 +1485,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   }
 
   Emit(kRiscvTruncUlD, output_count, outputs, 1, inputs);
-}
-
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  RiscvOperandGenerator g(this);
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 1);
-  Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)));
 }
 
 void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {

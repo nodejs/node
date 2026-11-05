@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -127,7 +127,8 @@ class ArrayBufferSweeper::SweepingState final {
         std::exchange(sweeper->young_bytes_adjustment_while_sweeping_, 0);
     sweeper->old_.bytes_ +=
         std::exchange(sweeper->old_bytes_adjustment_while_sweeping_, 0);
-    sweeper->DecrementExternalMemoryCounters(freed_bytes_);
+    // Bytes of dead extensions were already decremented in the atomic pause
+    // based on marking (see `RequestSweep()`).
   }
 
   void StartBackgroundSweeping() { job_handle_->NotifyConcurrencyIncrease(); }
@@ -142,7 +143,6 @@ class ArrayBufferSweeper::SweepingState final {
   std::atomic<Status> status_{Status::kInProgress};
   ArrayBufferList new_young_{ArrayBufferList::Age::kYoung};
   ArrayBufferList new_old_{ArrayBufferList::Age::kOld};
-  size_t freed_bytes_{0};
   const uint64_t initial_young_bytes_{0};
   const uint64_t initial_old_bytes_{0};
   // Track bytes accounted bytes during sweeping, including freed and promoted
@@ -287,6 +287,7 @@ void ArrayBufferSweeper::RequestSweep(
   DCHECK(!sweeping_in_progress());
 
   if (young_.IsEmpty() && (old_.IsEmpty() || type == SweepingType::kYoung)) {
+    DCHECK_EQ(0, marked_bytes_.load(std::memory_order_relaxed));
     return;
   }
 
@@ -299,6 +300,18 @@ void ArrayBufferSweeper::RequestSweep(
   auto trace_id = GetTraceIdForFlowEvent();
   TRACE_GC_WITH_FLOW(heap_->tracer(), scope_id,
                      perfetto::Flow::ProcessScoped(trace_id));
+  // All live extensions in the swept generation(s) were marked during marking.
+  // Decrement the bytes of dead extensions now, so that allocation limits
+  // computed in this atomic pause don't account for them. Sweeping doesn't
+  // decrement them again.
+  const uint64_t total_sweep_bytes =
+      type == SweepingType::kFull ? total_bytes_ : YoungBytes();
+  const uint64_t marked_bytes =
+      marked_bytes_.exchange(0, std::memory_order_relaxed);
+  DCHECK_GE(total_sweep_bytes, marked_bytes);
+  const size_t dead_bytes =
+      static_cast<size_t>(total_sweep_bytes - marked_bytes);
+  DecrementExternalMemoryCounters(dead_bytes);
   Prepare(type, treat_all_young_as_promoted, trace_id);
   DCHECK_IMPLIES(v8_flags.minor_ms && type == SweepingType::kYoung,
                  !heap_->ShouldReduceMemory());
@@ -340,6 +353,7 @@ void ArrayBufferSweeper::Finalize() {
   CHECK(state_->IsDone());
   state_->MergeTo(this);
   state_.reset();
+  marked_bytes_.store(0, std::memory_order_relaxed);
   DCHECK(!sweeping_in_progress());
 }
 
@@ -379,6 +393,7 @@ void ArrayBufferSweeper::Resize(ArrayBufferExtension* extension,
   const ArrayBufferExtension::AccountingState previous_value =
       extension->UpdateAccountingLength(delta);
   UpdateApproximateBytes(delta, previous_value.age());
+  AdjustMarkedBytes(previous_value, delta);
   if (delta > 0) {
     IncrementExternalMemoryCounters(delta);
   } else {
@@ -399,7 +414,20 @@ void ArrayBufferSweeper::Detach(ArrayBufferExtension* extension) {
 
   UpdateApproximateBytes(-previous_value.accounting_length(),
                          previous_value.age());
+  AdjustMarkedBytes(previous_value,
+                    -static_cast<int64_t>(previous_value.accounting_length()));
   DecrementExternalMemoryCounters(previous_value.accounting_length());
+}
+
+void ArrayBufferSweeper::AdjustMarkedBytes(
+    ArrayBufferExtension::AccountingState previous_state, int64_t delta) {
+  // Mark bits are set during marking and cleared by sweeping. Changes after
+  // marking finished (before sweeping clears the mark bit) are harmless, as
+  // `marked_bytes_` is reset when sweeping is finalized.
+  if (!previous_state.is_marked()) return;
+  // Unsigned arithmetic wraps around, see `marked_bytes_`.
+  marked_bytes_.fetch_add(static_cast<uint64_t>(delta),
+                          std::memory_order_relaxed);
 }
 
 void ArrayBufferSweeper::UpdateApproximateBytes(int64_t delta,
@@ -489,7 +517,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
   size_t swept_extensions = 0;
 
   while (current) {
-    current->InitializationBarrier();
     DCHECK_EQ(list.age_, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
@@ -507,7 +534,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
     current = next;
   }
 
-  state_.freed_bytes_ += freed_bytes;
   if (age == ArrayBufferExtension::Age::kYoung) {
     state_.young_bytes_accounted_ += (freed_bytes + accounted_bytes);
   } else {
@@ -535,7 +561,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   size_t swept_extensions = 0;
 
   while (current) {
-    current->InitializationBarrier();
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
@@ -544,9 +569,13 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
 
     if (!current->IsYoungMarked()) {
       const size_t bytes = current->accounting_length();
+      // Minor GCs don't run during major marking, and full sweeping clears all
+      // mark bits before the next minor GC.
+      DCHECK(!current->IsMarked());
       FinalizeAndDelete(current);
       if (bytes) freed_bytes += bytes;
     } else {
+      DCHECK(current->IsMarked());
       if ((treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::kYes) ||
           current->IsYoungPromoted()) {
         current->YoungUnmark();
@@ -560,7 +589,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
     current = next;
   }
 
-  state_.freed_bytes_ += freed_bytes;
   // Update young/old_bytes_accounted_; the worker may see a difference between
   // this and `initial_young/old_bytes_` due to concurrent main thread
   // adjustments.

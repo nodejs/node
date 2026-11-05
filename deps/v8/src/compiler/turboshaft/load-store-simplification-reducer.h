@@ -82,7 +82,7 @@ class LoadStoreSimplificationReducer : public Next,
                         std::optional<AtomicMemoryOrder> memory_order,
                         int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        TrustedPointerTag maybe_trusted_pointer_tag) {
     SimplifyLoadStore(base, index, kind, offset, element_size_log2,
                       (write_barrier == WriteBarrierKind::kNoWriteBarrier &&
                        !kind.tagged_base));
@@ -103,7 +103,7 @@ class LoadStoreSimplificationReducer : public Next,
     return Next::ReduceStore(
         base, index, value, kind, stored_rep, write_barrier, memory_order,
         offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_indirect_pointer_tag);
+        maybe_trusted_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicWord32Pair)(V<WordPtr> base, OptionalV<WordPtr> index,
@@ -136,12 +136,6 @@ class LoadStoreSimplificationReducer : public Next,
     return min <= offset && offset <= kMaxOffset;
   }
 
-  bool CanEncodeAtomic(OptionalOpIndex index, uint8_t element_size_log2,
-                       int32_t offset) const {
-    if (element_size_log2 != 0) return false;
-    return !(index.has_value() && offset != 0);
-  }
-
   void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
                          LoadOp::Kind& kind, int32_t& offset,
                          uint8_t& element_size_log2,
@@ -152,11 +146,7 @@ class LoadStoreSimplificationReducer : public Next,
       element_size_log2 = 0;
     }
 
-    // TODO(nicohartmann@): Remove the case for atomics once crrev.com/c/5237267
-    // is ported to x64.
-    if (!CanEncodeOffset(offset, kind.tagged_base) ||
-        (kind.is_atomic &&
-         !CanEncodeAtomic(index, element_size_log2, offset))) {
+    if (!CanEncodeOffset(offset, kind.tagged_base)) {
       intptr_t displacement = offset;
       if (kind.tagged_base) {
         kind.tagged_base = false;

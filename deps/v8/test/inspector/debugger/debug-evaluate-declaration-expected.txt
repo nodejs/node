@@ -1,0 +1,5 @@
+Tests variable and function declarations inside Debugger.evaluateOnCallFrame.
+x: 2
+y exception: ReferenceError
+z: 4
+bar(): 5

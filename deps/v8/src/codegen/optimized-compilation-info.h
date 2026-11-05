@@ -6,8 +6,9 @@
 #define V8_CODEGEN_OPTIMIZED_COMPILATION_INFO_H_
 
 #include <memory>
+#include <string>
+#include <string_view>
 
-#include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
@@ -112,7 +113,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       : OptimizedCompilationInfo(zone, isolate, shared, closure, code_kind,
                                  BytecodeOffset::None()) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
-  OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
+  OptimizedCompilationInfo(std::string_view debug_name, Zone* zone,
                            CodeKind code_kind,
                            Builtin builtin = Builtin::kNoBuiltinId);
 
@@ -122,6 +123,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   ~OptimizedCompilationInfo();
 
   Zone* zone() { return zone_; }
+  void reset_zone() { zone_ = nullptr; }
   bool is_osr() const { return !osr_offset_.IsNone(); }
   IndirectHandle<SharedFunctionInfo> shared_info() const {
     return shared_info_;
@@ -280,7 +282,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
   std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
-    DCHECK_NOT_NULL(canonical_handles_);
     return std::move(canonical_handles_);
   }
 
@@ -326,7 +327,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.
-  Zone* const zone_;
+  Zone* zone_;
 
   compiler::NodeObserver* node_observer_ = nullptr;
 

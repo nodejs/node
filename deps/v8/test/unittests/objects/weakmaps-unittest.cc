@@ -56,7 +56,7 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
 }
 
 TEST_F(WeakMapsTest, Weakness) {
-  v8_flags.incremental_marking = false;
+  v8_flags.incremental_marking.Set(false);
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
@@ -218,7 +218,7 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   if (i::v8_flags.single_generation) return;
   if (i::v8_flags.stress_incremental_marking) return;
   if (i::v8_flags.scavenger_chaos_mode) return;
-  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning.Set(false);
   Isolate* isolate = i_isolate();
   ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
@@ -260,8 +260,8 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
 // by other paths are correctly recorded in the slots buffer.
 TEST_F(WeakMapsTest, Regress2060a) {
   if (!i::v8_flags.compact) return;
-  v8_flags.compact_on_every_full_gc = true;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.compact_on_every_full_gc.Set(true);
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   Isolate* isolate = i_isolate();
   ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
@@ -298,11 +298,11 @@ TEST_F(WeakMapsTest, Regress2060a) {
 // other strong paths are correctly recorded in the slots buffer.
 TEST_F(WeakMapsTest, Regress2060b) {
   if (!i::v8_flags.compact) return;
-  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.compact_on_every_full_gc.Set(true);
 #ifdef VERIFY_HEAP
-  v8_flags.verify_heap = true;
+  v8_flags.verify_heap.Set(true);
 #endif
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
 
   Isolate* isolate = i_isolate();
   ManualGCScope manual_gc_scope(isolate);

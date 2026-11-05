@@ -154,7 +154,8 @@ class MaglevCompilationInfo final {
   }
   V8_EXPORT_PRIVATE ~MaglevCompilationInfo();
 
-  Zone* zone() { return &zone_; }
+  Zone* zone() { return zone_ptr_; }
+  void ReleaseBrokerAndZone();
   compiler::JSHeapBroker* broker() const { return broker_; }
   MaglevCompilationUnit* toplevel_compilation_unit() const {
     return toplevel_compilation_unit_;
@@ -192,17 +193,6 @@ class MaglevCompilationInfo final {
 
   bool specialize_to_function_context() const {
     return specialize_to_function_context_;
-  }
-
-  void InitializeSpecializationContext();
-
-  compiler::OptionalContextRef specialization_context() const {
-    DCHECK(specialization_context_initialized_);
-    return specialization_context_;
-  }
-  size_t specialization_context_distance() const {
-    DCHECK(specialization_context_initialized_);
-    return specialization_context_distance_;
   }
 
   // Must be called from within a MaglevCompilationHandleScope. Transfers owned
@@ -250,7 +240,8 @@ class MaglevCompilationInfo final {
   CanonicalHandlesMap* canonical_handles() { return canonical_handles_.get(); }
   friend compiler::JSHeapBroker;
 
-  Zone zone_;
+  std::optional<Zone> zone_;
+  Zone* zone_ptr_;
   compiler::JSHeapBroker* broker_;
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
@@ -292,12 +283,6 @@ class MaglevCompilationInfo final {
   // opportunities, but prevents code sharing between different function
   // contexts.
   const bool specialize_to_function_context_;
-
-  compiler::OptionalContextRef specialization_context_;
-  size_t specialization_context_distance_ = 0;
-#ifdef DEBUG
-  bool specialization_context_initialized_ = false;
-#endif
 
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope.

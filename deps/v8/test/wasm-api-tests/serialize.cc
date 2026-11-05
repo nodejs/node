@@ -24,10 +24,9 @@ own<Trap> Callback(const vec<Val>& args, vec<Val>& results) {
 
 TEST_F(WasmCapiTest, Serialize) {
   FunctionSig sig(0, 0, nullptr);
-  uint32_t callback_index =
-      builder()->AddImport(base::CStrVector("callback"), &sig);
+  uint32_t callback_index = builder()->AddImport("callback", &sig);
   uint8_t code[] = {WASM_CALL_FUNCTION0(callback_index)};
-  AddExportedFunction(base::CStrVector("run"), code, sizeof(code), &sig);
+  AddExportedFunction("run", code, sizeof(code), &sig);
   Compile();
 
   vec<byte_t> serialized = module()->serialize();
@@ -45,6 +44,9 @@ TEST_F(WasmCapiTest, Serialize) {
     // Ensure cage bases are initialized so that the V8 heap can be accessed.
     i::PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     Heap* heap = isolate->heap();
+    // We need to invoke GC without stack, otherwise the native module may
+    // survive.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->PreciseCollectAllGarbage(GCFlag::kForced,
                                    GarbageCollectionReason::kTesting);
     heap->PreciseCollectAllGarbage(GCFlag::kForced,

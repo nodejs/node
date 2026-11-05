@@ -127,9 +127,12 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                           bool includeCommandLineAPI = false) override;
   void stop() override;
 
-  V8Inspector::ClientTrustLevel clientTrustLevel() {
+  V8Inspector::ClientTrustLevel clientTrustLevel() const {
     return m_clientTrustLevel;
   }
+  uint64_t isolateId() const;
+
+  void restore(StringView savedState);
 
   void setWeakThis(std::weak_ptr<V8InspectorSessionImpl> weakThis) {
     m_weakThis = std::move(weakThis);

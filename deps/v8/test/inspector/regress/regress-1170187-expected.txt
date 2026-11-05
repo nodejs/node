@@ -1,0 +1,28 @@
+Tests regress-1170187.
+[
+    [0] : {
+        name : x
+        type : undefined
+    }
+    [1] : {
+        name : y
+        type : undefined
+    }
+    [2] : {
+        name : a
+        type : undefined
+    }
+    [3] : {
+        name : b
+        type : undefined
+    }
+    [4] : {
+        name : c
+        type : undefined
+    }
+]
+{
+    description : 3
+    type : number
+    value : 3
+}

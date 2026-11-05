@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --harmony-struct
 
 const sharedCtors = [
-  new SharedStructType(['x']), SharedArray, Atomics.Mutex, Atomics.Condition
+  new SharedStructType(['x']), SharedArray
 ];
 
 for (let ctor of sharedCtors) {

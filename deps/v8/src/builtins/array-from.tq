@@ -35,8 +35,8 @@ transitioning javascript builtin ArrayFrom(
   } else {
     // a. If IsCallable(mapfn) is false, throw a TypeError exception.
     if (!Is<Callable>(mapfn)) deferred {
-        ThrowCalledNonCallable(mapfn);
-      }
+      ThrowCalledNonCallable(mapfn);
+    }
     // b. Let mapping be true.
     mapping = true;
   }

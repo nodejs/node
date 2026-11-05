@@ -4,18 +4,22 @@
 
 #include "src/utils/allocation.h"
 
-#include "test/unittests/test-utils.h"
-
 #if V8_OS_POSIX
 #include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
 #endif  // V8_OS_POSIX
 
+#include <vector>
+
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-segment.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+namespace allocation_unittest {
 
 // TODO(eholk): Add a windows version of permissions tests.
 #if V8_OS_POSIX
@@ -232,5 +236,42 @@ TEST_F(AllocationTest, ResizeMemory) {
   // memory.
   CHECK_EQ(*byte_address, 0);
 }
+
+// ASAN isn't configured to return nullptr, so skip all of these tests.
+#if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+
+// We use |AllocateAtLeast| in the accounting allocator, so we check only that
+// we have _at least_ the expected amount of memory allocated.
+TEST_F(AllocationTest, AccountingAllocatorCurrentAndMax) {
+  v8::internal::AccountingAllocator allocator;
+  static constexpr size_t kAllocationSizes[] = {51, 231, 27};
+  std::vector<v8::internal::Segment*> segments;
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK_EQ(0, allocator.GetMaxMemoryUsage());
+  size_t expected_current = 0;
+  size_t expected_max = 0;
+  for (size_t size : kAllocationSizes) {
+    segments.push_back(allocator.AllocateSegment(size));
+    CHECK_NOT_NULL(segments.back());
+    CHECK_LE(size, segments.back()->total_size());
+    expected_current += segments.back()->total_size();
+    if (expected_current > expected_max) expected_max = expected_current;
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+    CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  }
+  for (auto* segment : segments) {
+    expected_current -= segment->total_size();
+    allocator.ReturnSegment(segment);
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+  }
+  CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+}
+
+#endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&
+        // !defined(THREAD_SANITIZER)
+
+}  // namespace allocation_unittest
 }  // namespace internal
 }  // namespace v8

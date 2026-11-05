@@ -5,7 +5,7 @@ add_proxy_header_library(
   DEPENDS
     libc.hdr.stdlib_overlay
   FULL_BUILD_DEPENDS
-    libc.include.stdlib
+    libc.include.llvm_libc_common_h
     libc.hdr.types.size_t
 )
 
@@ -16,7 +16,7 @@ add_proxy_header_library(
   DEPENDS
     libc.hdr.stdlib_overlay
   FULL_BUILD_DEPENDS
-    libc.include.stdlib
+    libc.include.llvm_libc_common_h
     libc.hdr.types.size_t
 )
 
@@ -27,7 +27,7 @@ add_proxy_header_library(
   DEPENDS
     libc.hdr.stdlib_overlay
   FULL_BUILD_DEPENDS
-    libc.include.stdlib
+    libc.include.llvm_libc_common_h
     libc.hdr.types.size_t
 )
 
@@ -38,5 +38,5 @@ add_proxy_header_library(
   DEPENDS
     libc.hdr.stdlib_overlay
   FULL_BUILD_DEPENDS
-    libc.include.stdlib
+    libc.include.llvm_libc_common_h
 )

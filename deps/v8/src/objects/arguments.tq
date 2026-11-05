@@ -29,7 +29,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 extern class SloppyArgumentsElements extends FixedArrayBase {
   context: Context;
   arguments: FixedArray|NumberDictionary;
-  mapped_entries[length]: Smi|TheHole;
+  objects[length]: Smi|TheHole;
 }
 
 @if(TAGGED_SIZE_8_BYTES)
@@ -42,7 +42,7 @@ extern class SloppyArgumentsElements extends FixedArrayBase {
       optional_padding: 0,
       context,
       arguments,
-      mapped_entries: ...it
+      objects: ...it
     };
   }
 
@@ -55,7 +55,7 @@ extern class SloppyArgumentsElements extends FixedArrayBase {
       length,
       context,
       arguments,
-      mapped_entries: ...it
+      objects: ...it
     };
   }
 
@@ -326,7 +326,7 @@ macro AccessSloppyArgumentsCommon(
 
   try {
     if (OutOfBounds(key, elements.length)) goto Unmapped;
-    const mappedIndex = elements.mapped_entries[key];
+    const mappedIndex = elements.objects[key];
     typeswitch (mappedIndex) {
       case (contextIndex: Smi): {
         return &(elements.context.elements[contextIndex]);

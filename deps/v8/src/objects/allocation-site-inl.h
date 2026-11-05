@@ -8,8 +8,6 @@
 #include "src/objects/allocation-site.h"
 // Include the non-inl header before the rest of the headers.
 
-#include <atomic>
-
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
@@ -45,20 +43,6 @@ void AllocationSite::set_dependent_code(Tagged<DependentCode> value,
   dependent_code_.store(this, value, mode);
 }
 
-inline int32_t AllocationSite::pretenure_data(RelaxedLoadTag) const {
-  return pretenure_data_.load(std::memory_order_relaxed);
-}
-inline void AllocationSite::set_pretenure_data(int32_t value, RelaxedStoreTag) {
-  pretenure_data_.store(value, std::memory_order_relaxed);
-}
-
-inline int32_t AllocationSite::pretenure_create_count() const {
-  return pretenure_create_count_;
-}
-inline void AllocationSite::set_pretenure_create_count(int32_t value) {
-  pretenure_create_count_ = value;
-}
-
 inline Tagged<JSObject> AllocationSite::boilerplate() const {
   DCHECK(PointsToLiteral());
   return Cast<JSObject>(transition_info_or_boilerplate_.load());
@@ -86,26 +70,12 @@ void AllocationSite::set_transition_info(int value) {
                                                 SKIP_WRITE_BARRIER);
 }
 
-inline bool AllocationSite::HasWeakNext() const {
-  return map() == GetReadOnlyRoots().allocation_site_map();
-}
-
 inline void AllocationSite::Initialize() {
   transition_info_or_boilerplate_.store(this, Smi::zero(), SKIP_WRITE_BARRIER);
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::zero());
-  set_pretenure_data(0, kRelaxedStore);
-  set_pretenure_create_count(0);
   set_dependent_code(DependentCode::empty_dependent_code(GetReadOnlyRoots()),
                      SKIP_WRITE_BARRIER);
-}
-
-inline bool AllocationSite::IsMaybeTenure() const {
-  return pretenure_decision() == kMaybeTenure;
-}
-
-inline bool AllocationSite::PretenuringDecisionMade() const {
-  return pretenure_decision() != kUndecided;
 }
 
 inline ElementsKind AllocationSite::GetElementsKind() const {
@@ -130,89 +100,16 @@ inline bool AllocationSite::PointsToLiteral() const {
   return !IsSmi(raw_value);
 }
 
-// Heuristic: We only need to create allocation site info if the boilerplate
-// elements kind is the initial elements kind.
+// We only need to create allocation site info if the boilerplate elements kind
+// can transition to a more general fast elements kind.
 inline bool AllocationSite::ShouldTrack(
     ElementsKind boilerplate_elements_kind) {
-  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
-  return IsSmiElementsKind(boilerplate_elements_kind);
+  return ShouldTrack(boilerplate_elements_kind, TERMINAL_FAST_ELEMENTS_KIND);
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
-  if (v8_flags.allocation_site_pretenuring) {
-    // TurboFan doesn't care at all about String pretenuring feedback,
-    // so don't bother even trying to track that.
-    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
-  }
   return type == JS_ARRAY_TYPE;
-}
-
-inline AllocationSite::PretenureDecision AllocationSite::pretenure_decision()
-    const {
-  return PretenureDecisionBits::decode(pretenure_data(kRelaxedLoad));
-}
-
-inline void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
-  int32_t value = pretenure_data(kRelaxedLoad);
-  set_pretenure_data(PretenureDecisionBits::update(value, decision),
-                     kRelaxedStore);
-}
-
-inline bool AllocationSite::deopt_dependent_code() const {
-  return DeoptDependentCodeBit::decode(pretenure_data(kRelaxedLoad));
-}
-
-inline void AllocationSite::set_deopt_dependent_code(bool deopt) {
-  int32_t value = pretenure_data(kRelaxedLoad);
-  set_pretenure_data(DeoptDependentCodeBit::update(value, deopt),
-                     kRelaxedStore);
-}
-
-inline int AllocationSite::memento_found_count() const {
-  return MementoFoundCountBits::decode(pretenure_data(kRelaxedLoad));
-}
-
-inline void AllocationSite::set_memento_found_count(int count) {
-  int32_t value = pretenure_data(kRelaxedLoad);
-  // Verify that we can count more mementos than we can possibly find in one
-  // new space collection.
-  DCHECK((Isolate::Current()->heap()->MaxSemiSpaceSize() /
-          (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
-           sizeof(AllocationSiteWithWeakNext))) < MementoFoundCountBits::kMax);
-  DCHECK_LT(count, MementoFoundCountBits::kMax);
-  set_pretenure_data(MementoFoundCountBits::update(value, count),
-                     kRelaxedStore);
-}
-
-inline int AllocationSite::memento_create_count() const {
-  return pretenure_create_count();
-}
-
-inline void AllocationSite::set_memento_create_count(int count) {
-  set_pretenure_create_count(count);
-}
-
-int AllocationSite::IncrementMementoFoundCount(int increment) {
-  int new_value = memento_found_count() + increment;
-  set_memento_found_count(new_value);
-  return new_value;
-}
-
-inline void AllocationSite::IncrementMementoCreateCount() {
-  DCHECK(v8_flags.allocation_site_pretenuring);
-  int value = memento_create_count();
-  set_memento_create_count(value + 1);
-}
-
-inline Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>>
-AllocationSiteWithWeakNext::weak_next() const {
-  return weak_next_.load();
-}
-inline void AllocationSiteWithWeakNext::set_weak_next(
-    Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> value,
-    WriteBarrierMode mode) {
-  weak_next_.store(this, value, mode);
 }
 
 void AllocationMemento::set_allocation_site(Tagged<AllocationSite> value,
@@ -220,11 +117,9 @@ void AllocationMemento::set_allocation_site(Tagged<AllocationSite> value,
   allocation_site_.store(this, value, mode);
 }
 inline Tagged<AllocationSite> AllocationMemento::GetAllocationSite() const {
-  return allocation_site_.load();
-}
-
-inline Address AllocationMemento::GetAllocationSiteUnchecked() const {
-  return allocation_site_.load().ptr();
+  Tagged<AllocationSite> site = allocation_site_.load();
+  CHECK(IsAllocationSite(site));
+  return site;
 }
 
 template <AllocationSiteUpdateMode update_or_check>
@@ -251,11 +146,9 @@ bool AllocationSite::DigestTransitionFeedback(Isolate* isolate,
           return true;
         }
         if (v8_flags.trace_track_allocation_sites) {
-          bool is_nested = site->IsNested();
-          PrintF("AllocationSite: JSArray %p boilerplate %supdated %s->%s\n",
+          PrintF("AllocationSite: JSArray %p boilerplate updated %s->%s\n",
                  reinterpret_cast<void*>(site->ptr()),
-                 is_nested ? "(nested)" : " ", ElementsKindToString(kind),
-                 ElementsKindToString(to_kind));
+                 ElementsKindToString(kind), ElementsKindToString(to_kind));
         }
         CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
         JSObject::TransitionElementsKind(isolate, boilerplate, to_kind);

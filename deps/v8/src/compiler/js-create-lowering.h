@@ -74,17 +74,16 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSGetTemplateObject(Node* node);
   Reduction ReduceNewArray(
       Node* node, Node* length, MapRef initial_map, ElementsKind elements_kind,
-      AllocationType allocation,
       const SlackTrackingPrediction& slack_tracking_prediction,
       const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, Node* length, int capacity, MapRef initial_map,
-      ElementsKind elements_kind, AllocationType allocation,
+      ElementsKind elements_kind,
       const SlackTrackingPrediction& slack_tracking_prediction,
       const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, std::vector<Node*> values, MapRef initial_map,
-      ElementsKind elements_kind, AllocationType allocation,
+      ElementsKind elements_kind,
       const SlackTrackingPrediction& slack_tracking_prediction,
       const FeedbackSource& feedback);
   Reduction ReduceJSCreateObject(Node* node);
@@ -108,22 +107,21 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     bool* has_aliased_arguments);
   std::optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
                                               JSObjectRef boilerplate,
-                                              AllocationType allocation,
                                               int max_depth,
                                               int* max_properties);
-  std::optional<Node*> TryAllocateFastLiteralElements(
-      Node* effect, Node* control, JSObjectRef boilerplate,
-      AllocationType allocation, int max_depth, int* max_properties);
+  std::optional<Node*> TryAllocateFastLiteralElements(Node* effect,
+                                                      Node* control,
+                                                      JSObjectRef boilerplate,
+                                                      int max_depth,
+                                                      int* max_properties);
 
   Node* AllocateElements(Node* effect, Node* control,
-                         ElementsKind elements_kind, int capacity,
-                         AllocationType allocation);
+                         ElementsKind elements_kind, int capacity);
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, Node* capacity_and_length);
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind,
-                         std::vector<Node*> const& values,
-                         AllocationType allocation);
+                         std::vector<Node*> const& values);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               RegExpBoilerplateDescriptionRef boilerplate);
 

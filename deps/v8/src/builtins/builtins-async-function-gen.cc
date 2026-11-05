@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler-inl.h"
+#include "src/execution/messages.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/microtask.h"
@@ -55,8 +56,52 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
                                  SmiConstant(resume_mode));
 
   // Resume the {receiver} using our trampoline.
-  CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, sent_value,
-              async_function_object);
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred), done(this);
+  {
+    compiler::ScopedExceptionHandler handler(this, &if_exception,
+                                             &var_exception);
+    CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, sent_value,
+                async_function_object);
+    Goto(&done);
+  }
+
+  BIND(&if_exception);
+  {
+    // The async function body itself is wrapped in a try-catch, so only a
+    // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+    // prologue, or an OSR entry prologue (which precedes exception handler
+    // setup) can reach this handler.
+#ifdef DEBUG
+    CSA_DCHECK(this,
+               SmiNotEqual(LoadObjectField<Smi>(
+                               async_function_object,
+                               offsetof(JSGeneratorObject, continuation_)),
+                           SmiConstant(JSGeneratorObject::kGeneratorClosed)));
+    CSA_DCHECK(this, TaggedIsNotSmi(var_exception.value()));
+    CSA_DCHECK(this,
+               HasInstanceType(CAST(var_exception.value()), JS_ERROR_TYPE));
+    TNode<Object> message = GetProperty(context, CAST(var_exception.value()),
+                                        isolate()->factory()->message_string());
+    TNode<String> expected = StringConstant(
+        MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
+    CSA_DCHECK(this,
+               TaggedEqual(CallRuntime(Runtime::kStringEqual,
+                                       NoContextConstant(), message, expected),
+                           TrueConstant()));
+#endif
+    // Clear the pending message since the exception is converted into a
+    // promise rejection rather than propagating as an uncaught exception.
+    SetPendingMessage(TheHoleConstant());
+    StoreObjectFieldNoWriteBarrier(
+        async_function_object, offsetof(JSGeneratorObject, continuation_),
+        SmiConstant(JSGeneratorObject::kGeneratorClosed));
+    CallBuiltin(Builtin::kAsyncFunctionReject, context, async_function_object,
+                var_exception.value());
+    Goto(&done);
+  }
+
+  BIND(&done);
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the
@@ -273,7 +318,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
     // Mark the promise as handled.
     StoreObjectFieldNoWriteBarrier(
         js_promise, offsetof(JSPromise, flags_),
-        SmiOr(promise_flags, SmiConstant(JSPromise::HasHandlerBit::kMask)));
+        SmiOr(promise_flags,
+              SmiConstant(JSPromise::Flags::HasHandlerBit::kMask)));
 
     // Extract the fulfilled value.
     TNode<Object> fulfilled_value =

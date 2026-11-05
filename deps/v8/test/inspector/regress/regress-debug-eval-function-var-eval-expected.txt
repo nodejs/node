@@ -1,0 +1,60 @@
+Tests that evaluateOnCallFrame resolves context-allocated function variables and eval-declared shadowing vars.
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Returned: 42
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function myFunc() {   eval("");   debugger; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function myFunc() {   debugger;   return () => myFunc; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 7
+            exception : {
+                className : TypeError
+                description : TypeError: Assignment to constant variable.     at eval (eval at myFunc (:20:3), <anonymous>:1:8)     at myFunc (<anonymous>:20:3)     at <anonymous>:1:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : TypeError
+            description : TypeError: Assignment to constant variable.     at eval (eval at myFunc (:20:3), <anonymous>:1:8)     at myFunc (<anonymous>:20:3)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

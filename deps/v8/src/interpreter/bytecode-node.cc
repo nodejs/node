@@ -17,7 +17,8 @@ void BytecodeNode::Print(std::ostream& os) const {
   os << Bytecodes::ToString(bytecode_);
 
   for (int i = 0; i < operand_count(); ++i) {
-    os << ' ' << std::setw(8) << std::setfill('0') << std::hex << operands_[i];
+    os << ' ' << std::setw(8) << std::setfill('0') << std::hex << operands_[i]
+       << std::dec;
   }
   os.copyfmt(saved_state);
 

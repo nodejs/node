@@ -626,10 +626,11 @@ class Simulator : public SimulatorBase {
     base::Mutex mutex;
 
     void NotifyLoadExcl(uintptr_t addr, TransactionSize size,
-                        ThreadId thread_id);
-    void NotifyStore(uintptr_t addr, TransactionSize size, ThreadId thread_id);
+                        base::ThreadId thread_id);
+    void NotifyStore(uintptr_t addr, TransactionSize size,
+                     base::ThreadId thread_id);
     bool NotifyStoreExcl(uintptr_t addr, TransactionSize size,
-                         ThreadId thread_id);
+                         base::ThreadId thread_id);
 
     static GlobalMonitor* Get();
 
@@ -643,7 +644,7 @@ class Simulator : public SimulatorBase {
     MonitorAccess access_state_ = MonitorAccess::Open;
     uintptr_t tagged_addr_ = 0;
     TransactionSize size_ = TransactionSize::None;
-    ThreadId thread_id_ = ThreadId::Invalid();
+    base::ThreadId thread_id_ = base::ThreadId::Invalid();
   };
 };
 

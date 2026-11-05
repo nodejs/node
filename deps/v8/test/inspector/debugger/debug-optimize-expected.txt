@@ -1,0 +1,11 @@
+Tests that setting a breakpoint deoptimizes inlined functions.
+Checking optimization status before breakpoint:
+f1 isOptimized: true
+f2 isOptimized: true
+f3 isOptimized: true
+Checking optimization status after breakpoint in f1:
+f1 isOptimized: false
+f2 isOptimized: true
+f3 isOptimized: false
+Optimizing f4 with breakpoint set:
+f4 isOptimized: true

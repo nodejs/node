@@ -1,0 +1,7 @@
+Tests stepping into valueOf callback.
+debugger;                 // Break 0.
+var result = 1 + o;       // Break 1.
+  return 2                // Break 2.
+  ;                       // Break 3.
+let finished = true;      // Break 4.
+result: 3

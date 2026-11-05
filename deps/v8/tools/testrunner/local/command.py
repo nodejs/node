@@ -5,6 +5,7 @@
 from contextlib import contextmanager
 from pathlib import Path
 
+import atexit
 import logging
 import os
 import signal
@@ -99,6 +100,7 @@ class BaseCommand(object):
     self.env = env or {}
     self.verbose = verbose
     self.handle_sigterm = handle_sigterm
+    self.use_fork_server = bool(getattr(test_case, 'use_fork_server', False))
 
     if log_process_stats:
       self.process_logger = self.get_process_logger()
@@ -210,7 +212,199 @@ class DesktopCommand(BaseCommand):
     return PROCESS_LOGGER
 
 
+# VariantProc cycles through all active variants per test, so keep capacity
+# above the 8 supported unittests variants (standard + ADDITIONAL_VARIANTS in
+# test/unittests/testcfg.py) to avoid LRU thrashing. Each cached server is an
+# idle, initialized v8_unittests process, i.e. up to 16 per worker.
+_FORK_SERVERS = {}
+_MAX_FORK_SERVERS = 16
+_FORK_SERVER_DISABLED = False
+
+
+def close_fork_servers():
+  for server in list(_FORK_SERVERS.values()):
+    server.close()
+  _FORK_SERVERS.clear()
+
+
+# Used by SingleThreadedExecutionPool (in-process execution); multiprocessing
+# workers exit via os._exit(0) and rely on stdin EOF for server shutdown.
+atexit.register(close_fork_servers)
+
+
+class _ForkServer(object):
+  """Persistent fork-server process speaking the line-framed pipe protocol:
+    Request (stdin):   "<gtest_filter>\\n"
+    Response (stdout): "RES <exit_code> <stdout_len> <stderr_len>\\n"
+                       followed by <stdout_len> stdout bytes and
+                       <stderr_len> stderr bytes.
+  """
+
+  def __init__(self, shell, base_args, env):
+    self.ok = False
+    self.process = subprocess.Popen(
+        args=[str(shell), '--fork-server'] + list(base_args),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        # Inherit stderr so that server-side diagnostics (flag errors, CHECK
+        # failures, sanitizer reports) remain visible.
+        stderr=None,
+        env=env,
+        start_new_session=True,
+    )
+
+  def read_exact(self, n):
+    chunks = []
+    remaining = n
+    while remaining > 0:
+      chunk = self.process.stdout.read(remaining)
+      if not chunk:
+        raise EOFError('Unexpected EOF from fork server')
+      chunks.append(chunk)
+      remaining -= len(chunk)
+    return b''.join(chunks)
+
+  def close(self):
+    if not self.process:
+      return
+    proc = self.process
+    self.process = None
+    try:
+      if proc.stdin:
+        proc.stdin.close()
+    except OSError:
+      pass
+    try:
+      proc.wait(timeout=1.0)
+    except subprocess.TimeoutExpired:
+      terminate_process_group_posix(proc)
+      try:
+        proc.wait(timeout=1.0)
+      except subprocess.TimeoutExpired:
+        pass
+    try:
+      if proc.stdout:
+        proc.stdout.close()
+    except OSError:
+      pass
+
+
 class PosixCommand(DesktopCommand):
+
+  def execute(self):
+    if (self.use_fork_server and not self.cmd_prefix and
+        not _FORK_SERVER_DISABLED):
+      # Only a single --gtest_filter is supported. With several (e.g. via
+      # --extra-flags), gtest's last-one-wins semantics would be hard to
+      # replicate, so fall back to direct execution.
+      filter_indices = [
+          i for i, arg in enumerate(self.args)
+          if arg.startswith('--gtest_filter=')
+      ]
+      if len(filter_indices) == 1:
+        i = filter_indices[0]
+        test_filter = self.args[i][len('--gtest_filter='):]
+        if test_filter:
+          base_args = self.args[:i] + self.args[i + 1:]
+          return self._execute_with_fork_server(test_filter, base_args)
+    return super().execute()
+
+  def _execute_with_fork_server(self, test_filter, base_args):
+    if self.verbose:
+      print('# %s (fork-server)' % self)
+
+    env = self._get_env()
+    key = (str(self.shell), tuple(base_args), tuple(sorted(env.items())))
+    server = _FORK_SERVERS.pop(key, None)
+    if (server is None or server.process is None or
+        server.process.poll() is not None):
+      if server is not None:
+        server.close()
+      while len(_FORK_SERVERS) >= _MAX_FORK_SERVERS:
+        oldest_key = next(iter(_FORK_SERVERS))
+        _FORK_SERVERS.pop(oldest_key).close()
+      try:
+        server = _ForkServer(self.shell, base_args, env)
+      except OSError as e:
+        self._disable_fork_server(e)
+        return super().execute()
+    _FORK_SERVERS[key] = server
+
+    proc = server.process
+    pid = proc.pid
+    timeout_occured = [False]
+    completed = False
+    error = None
+    with handle_sigterm(proc, self._abort, self.handle_sigterm):
+      timer = threading.Timer(self.timeout, self._abort,
+                              [proc, timeout_occured])
+      timer.start()
+      start_time = time.time()
+      try:
+        proc.stdin.write((test_filter + '\n').encode('utf-8'))
+        proc.stdin.flush()
+        res_line = proc.stdout.readline()
+        if not res_line or not res_line.startswith(b'RES '):
+          raise EOFError(f'Expected RES from fork server, got {res_line!r}')
+        parts = res_line.split()
+        if len(parts) != 4:
+          raise ValueError(f'Malformed RES header: {res_line!r}')
+        returncode = int(parts[1])
+        stdout = server.read_exact(int(parts[2]))
+        stderr = server.read_exact(int(parts[3]))
+        server.ok = True
+        completed = True
+      except Exception as e:
+        error = e
+      finally:
+        end_time = time.time()
+        timer.cancel()
+        if not completed:
+          # Also covers BaseException (e.g. KeyboardInterrupt): never leave a
+          # server with a half-read response in the cache.
+          _FORK_SERVERS.pop(key, None)
+          server.close()
+
+    if not completed:
+      if timeout_occured[0]:
+        return output.Output(
+            proc.returncode or -signal.SIGKILL,
+            True,
+            '',
+            '',
+            pid,
+            start_time,
+            end_time,
+            stats=None,
+        )
+      if not server.ok:
+        self._disable_fork_server(error)
+      else:
+        logging.warning(
+            'Fork server failed for %s (%r); falling back to direct execution',
+            self, error)
+      return super().execute()
+
+    return output.Output(
+        returncode,
+        timeout_occured[0],
+        stdout.decode('utf-8', 'replace'),
+        stderr.decode('utf-8', 'replace'),
+        pid,
+        start_time,
+        end_time,
+        stats=None,
+    )
+
+  def _disable_fork_server(self, error):
+    global _FORK_SERVER_DISABLED
+    _FORK_SERVER_DISABLED = True
+    close_fork_servers()
+    logging.warning(
+        'Fork server failed on first request for %s (%r); disabling fork '
+        'server in this worker and falling back to direct execution', self,
+        error)
+
   # TODO(machenbach): Use base process start without shell once
   # https://crbug.com/v8/8889 is resolved.
   def _start_process(self):
@@ -220,14 +414,14 @@ class PosixCommand(DesktopCommand):
       return arg
     try:
       return subprocess.Popen(
-        args=' '.join(map(wrapped, self._get_popen_args())),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=self._get_env(),
-        shell=True,
-        # Make the new shell create its own process group. This allows to kill
-        # all spawned processes reliably (https://crbug.com/v8/8292).
-        preexec_fn=os.setsid,
+          args=' '.join(map(wrapped, self._get_popen_args())),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          env=self._get_env(),
+          shell=True,
+          # Make the new shell create its own process group. This allows to kill
+          # all spawned processes reliably (https://crbug.com/v8/8292).
+          start_new_session=True,
       )
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)
@@ -279,7 +473,7 @@ class IOSCommand(BaseCommand):
           shell=True,
           # Make the new shell create its own process group. This allows to kill
           # all spawned processes reliably (https://crbug.com/v8/8292).
-          preexec_fn=os.setsid,
+          start_new_session=True,
       )
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)

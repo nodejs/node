@@ -193,7 +193,7 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   V8HeapObject obj;
   MemReaderScope reader_scope(sp_context);
 
-  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0, 0};
+  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0, 0, 0};
   // TODO ideally we'd provide real heap page pointers. For now, just testing
   // decompression based on the pointer to wherever we found this value,
   // which is likely (though not guaranteed) to be a heap pointer itself.

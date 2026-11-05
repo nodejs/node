@@ -17,7 +17,7 @@ std::ostream& PrintAsciiOrHex(std::ostream& os, base::uc16 c) {
   if (c < 128 && std::isprint(c)) {
     os << static_cast<char>(c);
   } else {
-    os << "0x" << std::hex << static_cast<int>(c);
+    os << "0x" << std::hex << static_cast<int>(c) << std::dec;
   }
   return os;
 }

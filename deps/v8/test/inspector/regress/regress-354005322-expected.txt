@@ -1,0 +1,19 @@
+Regression test for crbug.com/354005322.
+{
+    x : {
+        x : 42
+    }
+    y : 60
+}
+{
+    x : {
+        x : 42
+    }
+    y : 60
+}
+{
+    x : {
+        x : 42
+    }
+    y : 60
+}

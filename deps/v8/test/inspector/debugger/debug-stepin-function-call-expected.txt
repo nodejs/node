@@ -1,0 +1,78 @@
+Tests stepping into function call.
+Testing call1...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing call2...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing call3...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing call4...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing apply1...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing apply2...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing apply3...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing apply4...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing bind1...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing applyAndBind1...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3
+Testing runGlobalBound...
+Paused in g (state: 2):
+function g(t) {
+  #return t + 1; // expected line
+}
+
+state: 3

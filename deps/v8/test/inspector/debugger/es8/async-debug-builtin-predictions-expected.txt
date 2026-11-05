@@ -1,0 +1,7 @@
+Tests async debug builtin predictions.
+Exception #1 at line 3: matched
+Exception #2 at line 3: matched
+Exception #3 at line 3: matched
+Exception #4 at line 3: matched
+Exception #5 at line 3: matched
+Total exceptions: 5

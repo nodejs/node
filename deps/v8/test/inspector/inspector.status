@@ -5,11 +5,29 @@
 [
 ##############################################################################
 [ALWAYS, {
+  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
+  # not work, but we expect it to not crash.
+  'debugger/debug-step-turbofan': [PASS, FAIL],
+
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'debugger/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'debugger/es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'debugger/es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
+  # forcing weak callback in asan build change break order
+  'debugger/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
+
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
 
   # https://crbug.com/v8/13851
   'debugger/pause-on-oom': [SKIP],
+
+  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
+  # parameter value (the test causes indexing a FixedArray out of bounds ->
+  # CRASH is also a reasonable outcome).
+  'debugger/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
   # Require optimization, so can't be run on Lite mode.
   'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
@@ -17,6 +35,7 @@
 
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
+  'debugger/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 
   # https://crbug.com/1080638
   # The initial CL only fixed the crash. The test still causes an endless
@@ -25,12 +44,31 @@
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
+  'debugger/debug-stepout-scope-part1': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part2': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part3': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part4': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part5': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part6': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part7': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part8': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
+  'debugger/debug-scopes': [PASS, HEAVY],
 
   # Use-after-free regression tests, only meaningful under ASan.
   'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
+
+  # Sandbox regression tests requiring the memory corruption API.
+  'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-507490539': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-513048538': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-513360060': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-568338771': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-570558888': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-576575667': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-crbug-568986689': [PASS, ['not memory_corruption_api', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -71,10 +109,36 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
+  'debugger/restart-frame/wasm-*': [SKIP],
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'runtime/wasm-getter': [SKIP],
+  'regress/regress-502287689': [SKIP],
+  'regress/regress-513413942': [SKIP],
+  'regress/regress-517316174': [SKIP],
+  'regress/regress-519715438': [SKIP],
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
+  'regress/regress-527985808': [SKIP],
+  'regress/regress-529880019': [SKIP],
+  'regress/regress-530658019': [SKIP],
+  'regress/regress-534275413': [SKIP],
+  'regress/regress-534579660': [SKIP],
+  'regress/regress-537219980': [SKIP],
+  'regress/regress-569886678': [SKIP],
+  'regress/regress-570538338': [SKIP],
+  'regress/regress-570547314': [SKIP],
+  'regress/regress-571960156': [SKIP],
+  'regress/regress-571965281': [SKIP],
+  'regress/regress-572276045': [SKIP],
+  'regress/regress-572403047': [SKIP],
+  'regress/regress-572834323': [SKIP],
+  'regress/regress-577352626': [SKIP],
+  'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
+  'regress/regress-crbug-840288': [SKIP],
+  'regress/regress-nested-stack-switch-catch': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
@@ -84,6 +148,12 @@
   'cpu-profiler/coverage-block': [SKIP],
   'regress/regress-crbug-1233401': [SKIP],
 }], # variant == jitless
+
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debugger/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
 ['(arch == arm or arch == arm64 or arch == loong64 or arch == mips64el) and simulator_run', {
@@ -117,6 +187,9 @@
   'debugger/wasm-stepping-with-source-map': [SKIP],
   # Generic wasm-to-js wrapper must be enabled.
   'cpu-profiler/console-profile-wasm': [SKIP],
+  # Wasm code coverage is not supported yet.
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
@@ -180,10 +253,12 @@
   'debugger/get-possible-breakpoints-array-literal': [SKIP],
   'debugger/get-possible-breakpoints-main': [SKIP],
   'debugger/limit-size-of-collected-scripts': [SKIP],
+  'debugger/es8/async-function-debug-scopes': [SKIP],
   'debugger/not-hold-promises': [SKIP],
   'debugger/regression-424142': [SKIP],
   'debugger/return-break-locations': [SKIP],
   'debugger/script-on-after-compile': [SKIP],
+  'debugger/debug-evaluate-no-side-effect-builtins': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
@@ -233,6 +308,8 @@
 ##############################################################################
 ['lite_mode or variant in (nooptimization, jitless, assert_types)', {
   # Test relies on TurboFan being enabled.
+  'debugger/breakpoint-after-side-effect-check-optimized': [SKIP],
+  'debugger/debug-optimize': [SKIP],
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
   'debugger/value-unavailable-scopes': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
@@ -249,9 +326,44 @@
 }],  # 'clang_coverage and mode == debug'
 
 ##############################################################################
+# Tests requiring Sparkplug.
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
+  'debugger/regress-crbug-1357554': [SKIP],
+}],
+
+##############################################################################
 ['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x) or (simulator_run and direct_handle))', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x)
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Wasm code coverage is not currently supported.
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
+}],  # sandbox_hardware_support
+
+##############################################################################
+['verify_predictable', {
+  'debugger/debug-set-variable-value': [SKIP],
+  'debugger/regress-opt-after-debug-deopt': [SKIP],
+  'debugger/regress-prepare-break-while-recompile': [SKIP],
+  # https://crbug.com/374722652
+  'regress/regress-374013413': [SKIP],
+}],  # 'verify_predictable'
+
+##############################################################################
+['arch == arm and mode == debug', {
+  # Tests taking too long
+  'debugger/debug-stepout-scope-part1': [SKIP],
+  'debugger/debug-stepout-scope-part2': [SKIP],
+  'debugger/debug-stepout-scope-part3': [SKIP],
+  'debugger/debug-stepout-scope-part4': [SKIP],
+  'debugger/debug-stepout-scope-part5': [SKIP],
+  'debugger/debug-stepout-scope-part6': [SKIP],
+  'debugger/debug-stepout-scope-part7': [SKIP],
+  'debugger/debug-stepout-scope-part8': [SKIP],
+}],  # 'arch == arm and mode == debug'
 
 ]

@@ -1,0 +1,60 @@
+Tests that when wrapping a thrown exception fails a side-effect check during side-effect-free evaluation, result.result wraps the resulting EvalError under a SideEffectCheckScope.
+
+Running test: testPreviewSideEffectWrapsEvalErrorInResult
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+length after evaluate: 2
+sideEffects after evaluate: []
+
+Running test: testMirrorCreateSideEffectWrapsEvalErrorInResult
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+sideEffects after evaluate: []

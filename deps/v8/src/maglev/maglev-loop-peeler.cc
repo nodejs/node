@@ -652,6 +652,9 @@ void MaglevLoopPeeler::PeelLoop(const LoopInfo& loop) {
   RetargetOriginalLoopExits(ctx);
   RewireLoopConnections(ctx);
   SplicePeeledBlocks(ctx);
+  if (graph_->may_have_unreachable_blocks()) {
+    graph_->RemoveUnreachableBlocks();
+  }
 
   loop.header()->state()->set_is_loop_with_peeled_iteration();
   TRACE_PEEL_PEELED("@" << LoopHeaderBytecodeOffset(loop.header())
@@ -1120,12 +1123,21 @@ void MaglevLoopPeeler::RetargetOriginalLoopExits(PeelContext& ctx) {
                                   exit_edge.target, edge_splits.original_es);
         break;
       case OriginalSplitKind::kNone: {
-        // Jump source: retarget the original Jump from e.target to the PEM at
-        // its original-side slot (2*i + 1).
+        // Jump source: retarget the original Jump from exit_edge.target (or
+        // exit_edge.original_es) to the PEM at its original-side slot
+        // (2*i + 1).
         UnconditionalControlNode* uc =
             exit_edge.src->control_node()->Cast<UnconditionalControlNode>();
         uc->set_target(ctx.pem);
         uc->set_predecessor_id(2 * static_cast<int>(i) + 1);
+        if (exit_edge.original_es != nullptr) {
+          // A pre-existing kEdgeSplit left over from a folded Branch is now
+          // bypassed on both the peeled and original paths.
+          DCHECK_EQ(exit_edge.original_es->predecessor(), exit_edge.src);
+          DCHECK(exit_edge.original_es->nodes().empty());
+          exit_edge.original_es->set_predecessor(nullptr);
+          graph_->set_may_have_unreachable_blocks(true);
+        }
         break;
       }
       case OriginalSplitKind::kExisting:

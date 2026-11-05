@@ -9,9 +9,9 @@ add_header_library(
     libc.hdr.stdint_proxy
     libc.src.__support.CPP.bit
     libc.src.__support.CPP.type_traits
+    libc.src.__support.libc_errno
     libc.src.__support.macros.attributes
     libc.src.__support.macros.properties.cpu_features
-    libc.src.errno.errno
     libc.src.string.memory_utils.inline_memcpy
 )
 
@@ -25,7 +25,6 @@ add_header_library(
     libc.src.__support.macros.attributes
     libc.src.__support.macros.properties.architectures
     libc.src.__support.macros.sanitizer
-    libc.src.errno.errno
 )
 
 add_header_library(
@@ -43,6 +42,19 @@ add_header_library(
     libc.src.__support.math_extras
     libc.src.__support.sign
     libc.src.__support.uint128
+)
+
+add_header_library(
+  fp_bitwise
+  HDRS
+    fp_bitwise.h
+  DEPENDS
+    .fp_bits
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.architectures
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(
@@ -66,10 +78,10 @@ add_header_library(
     .fp_bits
     .fenv_impl
     .rounding_mode
+    libc.hdr.errno_macros
     libc.hdr.math_macros
     libc.src.__support.CPP.type_traits
     libc.src.__support.common
-    libc.src.errno.errno
 )
 
 add_header_library(
@@ -160,6 +172,7 @@ add_header_library(
     nearest_integer.h
   DEPENDS
     libc.src.__support.common
+    libc.src.__support.CPP.type_traits
     libc.src.__support.macros.optimization
     libc.src.__support.macros.properties.cpu_features
   FLAGS
@@ -245,6 +258,17 @@ add_header_library(
 )
 
 add_header_library(
+  is_integer
+  HDRS
+    is_integer.h
+  DEPENDS
+    .fp_bits
+    libc.src.__support.CPP.bit
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+)
+
+add_header_library(
   manipulation_functions
   HDRS
     ManipulationFunctions.h
@@ -255,9 +279,9 @@ add_header_library(
     .fp_bits
     .nearest_integer_operations
     .normal_float
+    libc.hdr.errno_macros
     libc.hdr.math_macros
     libc.hdr.stdint_proxy
-    libc.src.errno.errno
     libc.src.__support.common
     libc.src.__support.CPP.bit
     libc.src.__support.CPP.limits

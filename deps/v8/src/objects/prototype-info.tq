@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppScope('PrototypeInfo')
+@cppScope('PrototypeInfo::Flags')
 bitfield struct PrototypeInfoFlags extends uint31 {
   should_be_fast: bool: 1 bit;
 }

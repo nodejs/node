@@ -10,6 +10,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1F_H
 
 #include "common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
+#include "hdr/errno_macros.h"
 #include "src/__support/FPUtil/BasicOperations.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FMA.h"

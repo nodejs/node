@@ -191,10 +191,10 @@ transitioning javascript builtin ObjectPrototypeToLocaleString(
   // 1. Let O be the this value.
   // 2. Return ? Invoke(O, "toString").
   if (receiver == Null || receiver == Undefined) deferred {
-      ThrowTypeError(
-          MessageTemplate::kCalledOnNullOrUndefined,
-          'Object.prototype.toLocaleString');
-    }
+    ThrowTypeError(
+        MessageTemplate::kCalledOnNullOrUndefined,
+        'Object.prototype.toLocaleString');
+  }
   const method = GetProperty(receiver, 'toString');
   return Call(context, method, receiver);
 }

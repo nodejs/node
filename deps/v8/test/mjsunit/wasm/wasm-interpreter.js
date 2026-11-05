@@ -1531,10 +1531,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let sig_v_v = builder.addType(kSig_v_v);
   let sig_i_v = builder.addType(kSig_i_v);
+  let sig_v_r = builder.addType(makeSig([kWasmAnyRef], []));
+  let sig_i_r = builder.addType(makeSig([kWasmAnyRef], [kWasmI32]));
 
   builder.addFunction("test_br_on_non_null_with_nullref_nonvoidsig", kSig_i_i)
     .exportAs("test_br_on_non_null_with_nullref_nonvoidsig").addBody([
-      kExprLoop, sig_i_v,
+      kExprRefNull, kAnyRefCode,
+      kExprLoop, sig_i_r,
+        kExprDrop,
         ...wasmI32Const(5),
         kGCPrefix, kExprArrayNewDefault, array_type_index,
         ...wasmI32Const(-8),
@@ -1549,7 +1553,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("test_br_on_non_null_with_nullref_voidsig", kSig_v_v)
     .exportAs("test_br_on_non_null_with_nullref_voidsig").addBody([
-      kExprLoop, sig_v_v,
+      kExprRefNull, kAnyRefCode,
+      kExprLoop, sig_v_r,
+        kExprDrop,
         ...wasmI32Const(5),
         kGCPrefix, kExprArrayNewDefault, array_type_index,
         ...wasmI32Const(-8),
@@ -1568,7 +1574,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("test_br_on_non_null_with_nonnullref_nonvoidsig")
     .addLocals(kWasmI32, 1)
     .addBody([
-      kExprLoop, sig_i_v,
+      kExprRefNull, kAnyRefCode,
+      kExprLoop, sig_i_r,
+        kExprDrop,
         ...wasmI32Const(42),
         kExprLocalGet, 1,
         ...wasmI32Const(1),
@@ -1589,7 +1597,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("test_br_on_non_null_with_nonnullref_voidsig")
     .addLocals(kWasmI32, 1)
     .addBody([
-      kExprLoop, sig_v_v,
+      kExprRefNull, kAnyRefCode,
+      kExprLoop, sig_v_r,
+        kExprDrop,
         kExprLocalGet, 1,
         ...wasmI32Const(1),
         kExprLocalSet, 1, // set local to 0 to end loop at next iteration.

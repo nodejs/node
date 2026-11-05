@@ -16,6 +16,7 @@
 #include "dyadic_float.h"
 #include "rounding_mode.h"
 
+#include "hdr/errno_macros.h"
 #include "hdr/math_macros.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/limits.h" // INT_MAX, INT_MIN

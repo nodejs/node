@@ -521,8 +521,6 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     if (v8_flags.profile_guided_optimization &&
         shared->cached_tiering_decision() <=
             CachedTieringDecision::kEarlySparkplug) {
-      DCHECK_LT(v8_flags.invocation_count_for_early_optimization,
-                FeedbackVector::kInvocationCountBeforeStableDeoptSentinel);
       if (vector->invocation_count_before_stable() <
           v8_flags.invocation_count_for_early_optimization) {
         // Record how many invocation count were consumed before the last IC

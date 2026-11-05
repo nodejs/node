@@ -685,8 +685,8 @@ class NodeHashMapPolicy
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
-               ? &TypeErasedDerefAndApplyToSlotFirstFn<Hash, value_type,
-                                                       kIsAbsl, kSeedShift>
+               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsAbsl,
+                                                  kSeedShift>
                : nullptr;
   }
 };

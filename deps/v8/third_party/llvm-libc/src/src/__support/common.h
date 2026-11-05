@@ -64,7 +64,8 @@
   type __##name##_impl__ arglist
 
 #define LLVM_LIBC_ADD_FUNCTION_C_ALIAS(name, c_alias)                          \
-  extern "C" decltype(LIBC_NAMESPACE::name) c_alias [[gnu::alias(#name)]]
+  extern "C" LLVM_LIBC_FUNCTION_ATTR decltype(LIBC_NAMESPACE::name) c_alias    \
+      [[gnu::alias(#name)]]
 
 #else // LIBC_TARGET_USES_LEADING_UNDERSCORE
 #define LLVM_LIBC_FUNCTION_IMPL_4(type, name, arglist, c_alias)                \

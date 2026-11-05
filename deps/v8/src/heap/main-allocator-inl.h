@@ -8,6 +8,7 @@
 #include "src/heap/main-allocator.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/sanitizer/msan.h"
 #include "src/heap/marking-state-inl.h"
 
 namespace v8 {

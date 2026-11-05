@@ -13,6 +13,7 @@
 #include "src/heap/factory-base.h"
 #include "src/heap/factory.h"
 #include "src/heap/local-factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -36,6 +37,16 @@ class NativeModule;
 // Script describes a script which has been added to the VM.
 V8_OBJECT class Script : public Struct {
  public:
+  inline Script(const AllocationWitness& witness,
+                Tagged<UnionOf<String, Undefined>> source, int script_id);
+  inline Script(const AllocationWitness& witness, Tagged<Script> old_script,
+                Tagged<String> source, int script_id
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+                ,
+                Tagged<ArrayList> script_or_modules
+#endif
+  );
+
   // Script ID used for temporary scripts, which shouldn't be added to the
   // script list.
   static constexpr int kTemporaryScriptId = -2;
@@ -82,11 +93,6 @@ V8_OBJECT class Script : public Struct {
   inline int column_offset() const;
   inline void set_column_offset(int value);
 
-  // [context_data]: context data for the context this script was compiled in.
-  inline Tagged<UnionOf<Smi, Undefined, Symbol>> context_data() const;
-  inline void set_context_data(Tagged<UnionOf<Smi, Undefined, Symbol>> value,
-                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // [type]: the script type.
   inline Type type() const;
   inline void set_type(Type value);
@@ -100,13 +106,15 @@ V8_OBJECT class Script : public Struct {
   inline int id() const;
   inline void set_id(int value);
 
-  inline Tagged<Object> eval_from_shared_or_wrapped_arguments() const;
+  inline Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+  eval_from_shared_or_wrapped_arguments() const;
   inline void set_eval_from_shared_or_wrapped_arguments(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  Tagged<SharedFunctionInfo> eval_from_shared() const;
+  V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> eval_from_shared() const;
   void set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -194,17 +202,48 @@ V8_OBJECT class Script : public Struct {
   inline void set_break_on_entry(bool value);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using CompilationKindBits = First<Script::CompilationKind, 3>;
+    using CompilationStateBit =
+        CompilationKindBits::Next<Script::CompilationState, 1>;
+    using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
+    using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
+    using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
+    using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
+    using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
+    using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
+    using IsEmbeddedBit = OuterLanguageModeBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(compilation_kind, CompilationKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(compilation_state, CompilationStateBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_repl_mode, IsReplModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(origin_options, OriginOptionsBits)
+    BIT_FIELD_GROUP_ACCESSORS(break_on_entry, BreakOnEntryBit)
+    BIT_FIELD_GROUP_ACCESSORS(produce_compile_hints, ProduceCompileHintsBit)
+    BIT_FIELD_GROUP_ACCESSORS(deserialized, DeserializedBit)
+    BIT_FIELD_GROUP_ACCESSORS(outer_language_mode, OuterLanguageModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_embedded, IsEmbeddedBit)
+  };
+
   // Read/write the raw 'flags' field. This uses relaxed atomic loads/stores
   // because the flags are read by background compile threads and updated by the
   // main thread.
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t new_flags);
+  inline Flags flags() const;
+  inline void set_flags(Flags new_flags);
 
   inline bool produce_compile_hints() const;
   inline void set_produce_compile_hints(bool produce_compile_hints);
 
   inline bool deserialized() const;
   inline void set_deserialized(bool value);
+
+  // [is_embedded]: only ever set by the StartupSerializer for user scripts
+  // baked into a snapshot, and intentionally preserved through the code cache.
+  // Encoded in the 'flags' field.
+  inline bool is_embedded() const;
+  inline void set_is_embedded(bool value);
 
   // [compilation_state]: determines whether the script has already been
   // compiled. Encoded in the 'flags' field.
@@ -383,16 +422,16 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<Object> name_;
   TaggedMember<Smi> line_offset_;
   TaggedMember<Smi> column_offset_;
-  TaggedMember<UnionOf<Smi, Undefined, Symbol>> context_data_;
   TaggedMember<Smi> script_type_;
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
-  TaggedMember<Object> eval_from_shared_or_wrapped_arguments_;
+  TaggedMember<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+      eval_from_shared_or_wrapped_arguments_;
   TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;
-  TaggedMember<Smi> flags_;
+  SmiBitFieldMember<Flags> flags_;
   TaggedMember<UnionOf<String, Undefined>> source_url_;
   TaggedMember<Object> source_mapping_url_;
   TaggedMember<UnionOf<String, Undefined>> debug_id_;
@@ -411,19 +450,6 @@ V8_OBJECT class Script : public Struct {
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
-  friend class TorqueGeneratedBitFieldAsserts;
-
-  // Bit positions in the flags field.
-  using CompilationKindBits =
-      base::BitField<Script::CompilationKind, 0, 3, uint32_t>;
-  using CompilationStateBit =
-      CompilationKindBits::Next<Script::CompilationState, 1>;
-  using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
-  using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
-  using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
-  using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
-  using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
-  using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

@@ -18,7 +18,6 @@
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/tasks/cancelable-task.h"
 

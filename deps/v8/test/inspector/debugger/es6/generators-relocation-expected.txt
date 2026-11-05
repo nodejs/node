@@ -1,0 +1,31 @@
+Tests generator relocation.
+--- Test 1 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":2,"done":false}, paused: true
+step 3: {"done":true}
+--- Test 2 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":2,"done":false}, paused: true
+step 3: {"done":true}
+--- Test 3 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":2,"done":false}, paused: true
+step 3: {"done":true}
+--- Test 4 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":3,"done":false}, paused: true
+step 3: {"done":true}
+--- Test 5 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":2,"done":false}, paused: true
+step 3: {"done":true}
+--- Test 6 ---
+step 1: {"value":1,"done":false}
+Paused at line 4
+step 2: {"value":2,"done":false}, paused: true
+step 3: {"done":true}

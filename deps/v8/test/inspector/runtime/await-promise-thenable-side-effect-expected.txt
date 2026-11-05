@@ -1,0 +1,79 @@
+Tests that awaitPromise enforces throwOnSideEffect without microtasks
+
+Running test: testRuntimeEvaluateFulfilledPromise
+resolvedPromise: ok (42)
+(async () => 42)(): ok (42)
+
+Running test: testRuntimeEvaluateNonPromiseOrUnfulfilled
+primitive 42: exception (EvalError: Possible side-effect in debug-evaluate)
+plain object: exception (EvalError: Possible side-effect in debug-evaluate)
+thenableGetter: exception (EvalError: Possible side-effect in debug-evaluate)
+thenableGetter sideEffects: 0
+thenableMethod: exception (EvalError: Possible side-effect in debug-evaluate)
+thenableMethod sideEffects: 0
+proxyThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+proxyThenable sideEffects: 0
+pureThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+pureThenable sideEffects: 0
+nestedThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+nestedThenable sideEffects: 0
+nestedMethodThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+nestedMethodThenable sideEffects: 0
+pending promise: exception (EvalError: Possible side-effect in debug-evaluate)
+rejected promise: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testReplMode
+repl 1 + 2: ok (3)
+repl 'hello': ok ("hello")
+repl let x = 1: exception (EvalError: Possible side-effect in debug-evaluate)
+repl timeout: error (Internal error)
+
+Running test: testAsyncFunctionReturningThenableOrPromise
+awaitPromise=true: async returning thenableMethod: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise=true: async returning thenableMethod sideEffects: 0
+awaitPromise=true: async returning thenableGetter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise=true: async returning thenableGetter sideEffects: 0
+awaitPromise=true: async returning resolvedPromise: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise=true: async returning resolvedPromise sideEffects: 0
+awaitPromise=false: async returning thenableMethod: ok (object)
+awaitPromise=false: async returning thenableMethod sideEffects: 0
+awaitPromise=false: async returning thenableGetter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise=false: async returning thenableGetter sideEffects: 0
+awaitPromise=false: async returning resolvedPromise: ok (object)
+awaitPromise=false: async returning resolvedPromise sideEffects: 0
+
+Running test: testMicrotasksNotDrainedDuringThrowOnSideEffect
+side-effect-free evaluate while paused: ok (42)
+microtasks run while paused: 0
+microtasks run after resume: 1
+
+Running test: testRuntimeCallFunctionOn
+callFunctionOn resolvedPromise: ok (42)
+callFunctionOn async 42: ok (42)
+callFunctionOn primitive: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn plainObject: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn thenableGetter: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn thenableGetter sideEffects: 0
+callFunctionOn thenableMethod: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn thenableMethod sideEffects: 0
+callFunctionOn proxyThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn proxyThenable sideEffects: 0
+callFunctionOn pureThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn pureThenable sideEffects: 0
+callFunctionOn nestedThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn nestedThenable sideEffects: 0
+callFunctionOn nestedMethodThenable: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn nestedMethodThenable sideEffects: 0
+callFunctionOn pending promise: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn rejected promise: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn async returning thenableMethod: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn async returning thenableMethod sideEffects: 0
+callFunctionOn async returning resolvedPromise: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn async returning resolvedPromise sideEffects: 0
+
+Running test: testPauseOnExceptionsSuppressed
+pauseOnExceptions evaluate 42: exception (EvalError: Possible side-effect in debug-evaluate)
+pauseOnExceptions evaluate pending promise: exception (EvalError: Possible side-effect in debug-evaluate)
+pauseOnExceptions callFunctionOn 42: exception (EvalError: Possible side-effect in debug-evaluate)
+pauseOnExceptions callFunctionOn pending promise: exception (EvalError: Possible side-effect in debug-evaluate)
+total paused events: 0

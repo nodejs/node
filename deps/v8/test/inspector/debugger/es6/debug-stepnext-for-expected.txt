@@ -1,0 +1,100 @@
+Tests stepping through various for loops.
+  #debugger;                      // Break a
+  for (var i in #null_value) {    // Break c
+  for (j in #null_value) {        // Break d
+  for (var i in #a) {             // Break e
+  for (var #i in a) {             // Break e
+    #s += a[i];                   // Break E
+  for (var #i in a) {             // Break e
+    #s += a[i];                   // Break E
+  for (var #i in a) {             // Break e
+    #s += a[i];                   // Break E
+  for (j in #a) {                 // Break f
+  for (#j in a) {                 // Break f
+    #s += a[j];                   // Break F
+  for (#j in a) {                 // Break f
+    #s += a[j];                   // Break F
+  for (#j in a) {                 // Break f
+    #s += a[j];                   // Break F
+  for (let i in #a) {             // Break g
+  for (let #i in a) {             // Break g
+    #s += a[i];                   // Break G
+  for (let #i in a) {             // Break g
+    #s += a[i];                   // Break G
+  for (let #i in a) {             // Break g
+    #s += a[i];                   // Break G
+  for (var i of #a) {             // Break h
+  for (var #i of a) {             // Break h
+    #s += i;                      // Break H
+  for (var #i of a) {             // Break h
+    #s += i;                      // Break H
+  for (var #i of a) {             // Break h
+    #s += i;                      // Break H
+  for (j of #a) {                 // Break i
+  for (#j of a) {                 // Break i
+    #s += j;                      // Break I
+  for (#j of a) {                 // Break i
+    #s += j;                      // Break I
+  for (#j of a) {                 // Break i
+    #s += j;                      // Break I
+  for (let i  of  #a) {           // Break j
+  for (let #i  of  a) {           // Break j
+    #s += i;                      // Break J
+  for (let #i  of  a) {           // Break j
+    #s += i;                      // Break J
+  for (let #i  of  a) {           // Break j
+    #s += i;                      // Break J
+  for (var i = #0; i < 3; i++) {  // Break k
+  for (var i = 0; i #< 3; i++) {  // Break k
+    #s += a[i];                   // Break K
+  for (var i = 0; i < 3; i#++) {  // Break k
+  for (var i = 0; i #< 3; i++) {  // Break k
+    #s += a[i];                   // Break K
+  for (var i = 0; i < 3; i#++) {  // Break k
+  for (var i = 0; i #< 3; i++) {  // Break k
+    #s += a[i];                   // Break K
+  for (var i = 0; i < 3; i#++) {  // Break k
+  for (var i = 0; i #< 3; i++) {  // Break k
+  for (#j = 0; j < 3; j++) {      // Break l
+  for (j = 0; j #< 3; j++) {      // Break l
+    #s += a[j];                   // Break L
+  for (j = 0; j < 3; j#++) {      // Break l
+  for (j = 0; j #< 3; j++) {      // Break l
+    #s += a[j];                   // Break L
+  for (j = 0; j < 3; j#++) {      // Break l
+  for (j = 0; j #< 3; j++) {      // Break l
+    #s += a[j];                   // Break L
+  for (j = 0; j < 3; j#++) {      // Break l
+  for (j = 0; j #< 3; j++) {      // Break l
+  for (let i = #0; i < 3; i++) {  // Break m
+  for (let i = 0; i #< 3; i++) {  // Break m
+    #s += a[i];                   // Break M
+  for (let i = 0; i < 3; i#++) {  // Break m
+  for (let i = 0; i #< 3; i++) {  // Break m
+    #s += a[i];                   // Break M
+  for (let i = 0; i < 3; i#++) {  // Break m
+  for (let i = 0; i #< 3; i++) {  // Break m
+    #s += a[i];                   // Break M
+  for (let i = 0; i < 3; i#++) {  // Break m
+  for (let i = 0; i #< 3; i++) {  // Break m
+  for (let i of #a) {}            // Break n
+  for (let #i of a) {}            // Break n
+  #[1, ...a]                      // Break o
+  for await (let i of #c) {       // Break p
+  for await (let #i of c) {       // Break p
+    #s += i;                      // Break P
+  for await (let #i of c) {       // Break p
+    #s += i;                      // Break P
+  for await (let #i of c) {       // Break p
+    #s += i;                      // Break P
+  for await (j of #c) {           // Break q
+  for await (#j of c) {           // Break q
+    #s += j;                      // Break Q
+  for await (#j of c) {           // Break q
+    #s += j;                      // Break Q
+  for await (#j of c) {           // Break q
+    #s += j;                      // Break Q
+#}                                // Break y
+  #testComplete();                // Break z
+s: 66
+log: ["a2","c16","d12","e16","e11","E4","e11","E4","e11","E4","f12","f7","F4","f7","F4","f7","F4","g16","g11","G4","g11","G4","g11","G4","h16","h11","H4","h11","H4","h11","H4","i12","i7","I4","i7","I4","i7","I4","j18","j11","J4","j11","J4","j11","J4","k15","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20","l7","l16","L4","l22","l16","L4","l22","l16","L4","l22","l16","m15","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20","n16","n11","o2","p22","p17","P4","p17","P4","p17","P4","q18","q13","Q4","q13","Q4","q13","Q4","y0","z2"]

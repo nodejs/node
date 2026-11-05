@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/test-utils.h"
+#include "src/wasm/decoder.h"
 
 #include "src/base/overflowing-math.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/decoder.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
 
 namespace v8 {
 namespace internal {
@@ -521,7 +523,7 @@ TEST_F(DecoderTest, ReadI64v_OneByte) {
 
 TEST_F(DecoderTest, ReadU64v_PowerOf2) {
   const int kMaxSize = 10;
-  uint8_t data[kMaxSize];
+  uint8_t data[kMaxSize] = {};
 
   for (unsigned i = 0; i < 64; i++) {
     const uint64_t val = 1ull << i;
@@ -663,6 +665,287 @@ TEST_F(DecoderTest, FailOnNullData) {
   EXPECT_FALSE(decoder.ok());
   EXPECT_FALSE(decoder.toResult(nullptr).ok());
 }
+
+// Exercises all LEB128 fast-path and fallback boundaries:
+// - exact-sized heap buffers crossing 2-byte, 4-byte, and 8-byte SWAR
+//   thresholds (so ASan catches any out-of-bounds read past {end_});
+// - trailing bytes (0x00, 0x7f, 0x80, 0xff) inside the wider SWAR load right
+//   after the terminating byte;
+// - minimal and overlong encodings across extrema and bit-boundary widths for
+//   u32v, i32v, i33v, u64v, and i64v under both FullValidationTag and
+//   NoValidationTag.
+TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
+  constexpr uint8_t kPadBytes[] = {0x00, 0x7f, 0x80, 0xff};
+  constexpr uint32_t kBufferLimits32[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 16};
+  constexpr uint32_t kBufferLimits64[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16};
+  // Covers 0, all-ones (-1 / UINT*_MAX), signed max (0x7fff...), signed min
+  // (0x8000...), and two complementary mixed bit patterns when right-shifted by
+  // (64 - bits).
+  constexpr uint64_t kVals[] = {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL,
+                                0x7FFFFFFFFFFFFFFFULL, 0x8000000000000000ULL,
+                                0xAABBCCDD11223344ULL, 0x55443322EEDDCCBBULL};
+  // Covers bit 1, bit 64, and every 7-bit LEB byte boundary (7*k and 7*k + 1,
+  // including bit 56 at the top of the 8-byte SWAR load).
+  constexpr int kBitWidths64[] = {1,  7,  8,  14, 15, 21, 22, 28, 29, 35,
+                                  36, 42, 43, 49, 50, 56, 57, 63, 64};
+
+  std::array<std::unique_ptr<uint8_t[]>, 17> buffers;
+  for (uint32_t limit : kBufferLimits64) {
+    buffers[limit] = std::make_unique<uint8_t[]>(limit);
+  }
+
+  auto check_leb = [&](auto expected, uint32_t length, uint32_t limit,
+                       uint8_t pad, auto read_validated,
+                       auto read_unvalidated) {
+    uint8_t* data = buffers[limit].get();
+    uint32_t write_len = std::min(limit, length);
+    if (limit > write_len) {
+      memset(data + write_len, pad, limit - write_len);
+    }
+    for (uint32_t j = 0; j < write_len; j++) {
+      data[j] = static_cast<uint8_t>((expected >> (7 * j)) & MASK_7);
+      if (j + 1 < length) data[j] |= 0x80;
+    }
+    decoder.Reset(data, data + limit);
+    auto [res, len] = read_validated(data);
+    if (limit < length) {
+      EXPECT_FALSE(decoder.ok());
+      EXPECT_EQ(limit, decoder.error().offset());
+      EXPECT_EQ(decltype(expected){0}, res);
+      EXPECT_EQ(0u, len);
+    } else {
+      EXPECT_TRUE(decoder.ok());
+      EXPECT_EQ(expected, res);
+      EXPECT_EQ(length, len);
+      auto [res_noval, len_noval] = read_unvalidated(data);
+      EXPECT_EQ(expected, res_noval);
+      EXPECT_EQ(length, len_noval);
+    }
+  };
+
+  auto read_u32_val = [&](const uint8_t* p) {
+    return decoder.read_u32v<Decoder::FullValidationTag>(p);
+  };
+  auto read_u32_noval = [&](const uint8_t* p) {
+    return decoder.read_u32v<Decoder::NoValidationTag>(p);
+  };
+  auto read_i32_val = [&](const uint8_t* p) {
+    return decoder.read_i32v<Decoder::FullValidationTag>(p);
+  };
+  auto read_i32_noval = [&](const uint8_t* p) {
+    return decoder.read_i32v<Decoder::NoValidationTag>(p);
+  };
+  auto read_i33_val = [&](const uint8_t* p) {
+    return decoder.read_i33v<Decoder::FullValidationTag>(p);
+  };
+  auto read_i33_noval = [&](const uint8_t* p) {
+    return decoder.read_i33v<Decoder::NoValidationTag>(p);
+  };
+  auto read_u64_val = [&](const uint8_t* p) {
+    return decoder.read_u64v<Decoder::FullValidationTag>(p);
+  };
+  auto read_u64_noval = [&](const uint8_t* p) {
+    return decoder.read_u64v<Decoder::NoValidationTag>(p);
+  };
+  auto read_i64_val = [&](const uint8_t* p) {
+    return decoder.read_i64v<Decoder::FullValidationTag>(p);
+  };
+  auto read_i64_noval = [&](const uint8_t* p) {
+    return decoder.read_i64v<Decoder::NoValidationTag>(p);
+  };
+
+  for (uint8_t pad : kPadBytes) {
+    for (uint64_t raw_val : kVals) {
+      // Test u32v and i32v across 1..5 byte encodings (including overlong) and
+      // buffer limits crossing the 2-byte and 8-byte fast-path thresholds.
+      for (int bits = 1; bits <= 32; bits++) {
+        uint32_t uval = static_cast<uint32_t>(raw_val >> (64 - bits));
+        int32_t ival = static_cast<int32_t>(base::bit_cast<int64_t>(raw_val) >>
+                                            (64 - bits));
+        for (uint32_t length = 1 + (bits - 1) / 7; length <= 5; length++) {
+          for (uint32_t limit : kBufferLimits32) {
+            if (limit <= length && pad != kPadBytes[0]) continue;
+            check_leb(uval, length, limit, pad, read_u32_val, read_u32_noval);
+            check_leb(ival, length, limit, pad, read_i32_val, read_i32_noval);
+          }
+        }
+      }
+
+      // Test i33v across 1..5 byte encodings and buffer limits.
+      for (int bits = 1; bits <= 33; bits++) {
+        int64_t ival33 = base::bit_cast<int64_t>(raw_val) >> (64 - bits);
+        for (uint32_t length = 1 + (bits - 1) / 7; length <= 5; length++) {
+          for (uint32_t limit : kBufferLimits32) {
+            if (limit <= length && pad != kPadBytes[0]) continue;
+            check_leb(ival33, length, limit, pad, read_i33_val, read_i33_noval);
+          }
+        }
+      }
+
+      // Test u64v and i64v across 1..10 byte encodings (including <= 4 byte
+      // u64v SWAR path, 5..8 byte SWAR path, and 9..10 byte fallback).
+      for (int bits : kBitWidths64) {
+        uint64_t uval64 = raw_val >> (64 - bits);
+        int64_t ival64 = base::bit_cast<int64_t>(raw_val) >> (64 - bits);
+        for (uint32_t length = 1 + (bits - 1) / 7; length <= 10; length++) {
+          for (uint32_t limit : kBufferLimits64) {
+            if (limit <= length && pad != kPadBytes[0]) continue;
+            check_leb(uval64, length, limit, pad, read_u64_val, read_u64_noval);
+            check_leb(ival64, length, limit, pad, read_i64_val, read_i64_noval);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Exhaustively checks all 256 possible final-byte values at maximum LEB length
+// (5th byte for 32/33-bit, 10th byte for 64-bit) across both the < 8-byte
+// fallback path (buf_size == 5) and the >= 8-byte SWAR path (buf_size >= 8),
+// verifying decoded values, NoValidationTag parity, and error messages.
+TEST_F(DecoderTest, ReadLEB_ExhaustiveLastByteValidation) {
+  constexpr uint8_t kPadBytes[] = {0x00, 0x7f, 0x80, 0xff};
+  constexpr size_t kBufferSizes32[] = {5, 8, 16};
+  constexpr size_t kBufferSizes64[] = {10, 16};
+
+  auto check_last_byte = [&](uint8_t* data, size_t buf_size, uint8_t pad,
+                             uint32_t max_len, uint8_t last, bool is_valid,
+                             auto expected, auto read_validated,
+                             auto read_unvalidated) {
+    memset(data, pad, buf_size);
+    memset(data, 0x80, max_len - 1);
+    data[max_len - 1] = last;
+    decoder.Reset(data, data + buf_size);
+    auto [res, len] = read_validated(data);
+    if (is_valid) {
+      EXPECT_TRUE(decoder.ok());
+      EXPECT_EQ(expected, res);
+      EXPECT_EQ(max_len, len);
+      auto [res_noval, len_noval] = read_unvalidated(data);
+      EXPECT_EQ(expected, res_noval);
+      EXPECT_EQ(max_len, len_noval);
+    } else {
+      EXPECT_FALSE(decoder.ok());
+      EXPECT_EQ(max_len - 1, decoder.error().offset());
+      if (last & 0x80) {
+        EXPECT_THAT(decoder.error().message(),
+                    ::testing::HasSubstr("length overflow while decoding"));
+      } else {
+        EXPECT_EQ("extra bits in varint", decoder.error().message());
+      }
+    }
+  };
+
+  for (size_t buf_size : kBufferSizes32) {
+    std::unique_ptr<uint8_t[]> buf = std::make_unique<uint8_t[]>(buf_size);
+    uint8_t* data = buf.get();
+    for (uint8_t pad : kPadBytes) {
+      if (buf_size == 5 && pad != kPadBytes[0]) continue;
+      for (int byte_val = 0; byte_val < 256; byte_val++) {
+        uint8_t last = static_cast<uint8_t>(byte_val);
+
+        // u32v 5th byte: valid iff last < 0x10.
+        check_last_byte(
+            data, buf_size, pad, 5u, last, last < 0x10,
+            static_cast<uint32_t>(last) << 28,
+            [&](const uint8_t* p) {
+              return decoder.read_u32v<Decoder::FullValidationTag>(p);
+            },
+            [&](const uint8_t* p) {
+              return decoder.read_u32v<Decoder::NoValidationTag>(p);
+            });
+
+        // i32v 5th byte: valid iff last in [0x00..0x07] or [0x78..0x7f].
+        bool valid_i32 = (last <= 0x07) || (last >= 0x78 && last <= 0x7f);
+        int32_t expected_i32 =
+            base::bit_cast<int32_t>(static_cast<uint32_t>(last & 0x0f) << 28);
+        check_last_byte(
+            data, buf_size, pad, 5u, last, valid_i32, expected_i32,
+            [&](const uint8_t* p) {
+              return decoder.read_i32v<Decoder::FullValidationTag>(p);
+            },
+            [&](const uint8_t* p) {
+              return decoder.read_i32v<Decoder::NoValidationTag>(p);
+            });
+
+        // i33v 5th byte: valid iff last in [0x00..0x0f] or [0x70..0x7f].
+        bool valid_i33 = (last <= 0x0f) || (last >= 0x70 && last <= 0x7f);
+        int64_t sign_ext_last =
+            static_cast<int64_t>(static_cast<int8_t>(last << 1)) >> 1;
+        int64_t expected_i33 =
+            static_cast<int64_t>(static_cast<uint64_t>(sign_ext_last) << 28);
+        check_last_byte(
+            data, buf_size, pad, 5u, last, valid_i33, expected_i33,
+            [&](const uint8_t* p) {
+              return decoder.read_i33v<Decoder::FullValidationTag>(p);
+            },
+            [&](const uint8_t* p) {
+              return decoder.read_i33v<Decoder::NoValidationTag>(p);
+            });
+      }
+    }
+  }
+
+  for (size_t buf_size : kBufferSizes64) {
+    std::unique_ptr<uint8_t[]> buf = std::make_unique<uint8_t[]>(buf_size);
+    uint8_t* data = buf.get();
+    for (uint8_t pad : kPadBytes) {
+      if (buf_size == 10 && pad != kPadBytes[0]) continue;
+      for (int byte_val = 0; byte_val < 256; byte_val++) {
+        uint8_t last = static_cast<uint8_t>(byte_val);
+
+        // u64v 10th byte: valid iff last <= 0x01.
+        check_last_byte(
+            data, buf_size, pad, 10u, last, last <= 0x01,
+            static_cast<uint64_t>(last) << 63,
+            [&](const uint8_t* p) {
+              return decoder.read_u64v<Decoder::FullValidationTag>(p);
+            },
+            [&](const uint8_t* p) {
+              return decoder.read_u64v<Decoder::NoValidationTag>(p);
+            });
+
+        // i64v 10th byte: valid iff last == 0x00 or last == 0x7f.
+        bool valid_i64 = (last == 0x00) || (last == 0x7f);
+        int64_t expected_i64 =
+            last == 0 ? 0 : std::numeric_limits<int64_t>::min();
+        check_last_byte(
+            data, buf_size, pad, 10u, last, valid_i64, expected_i64,
+            [&](const uint8_t* p) {
+              return decoder.read_i64v<Decoder::FullValidationTag>(p);
+            },
+            [&](const uint8_t* p) {
+              return decoder.read_i64v<Decoder::NoValidationTag>(p);
+            });
+      }
+    }
+  }
+}
+
+#ifdef DEBUG
+TEST_F(DecoderTest, ReadLEB_TraceWasmDecoder) {
+  FLAG_SCOPE(trace_wasm_decoder);
+  // Multi-byte valid u32v and i32v in >= 8-byte buffer (bypasses SWAR fast
+  // paths to emit per-byte trace output).
+  const uint8_t valid_data[] = {U32V_2(300), U32V_3(-10000), 0, 0, 0, 0, 0};
+  decoder.Reset(valid_data, valid_data + sizeof(valid_data));
+  EXPECT_EQ(300u, decoder.consume_u32v("u32"));
+  EXPECT_EQ(-10000, decoder.consume_i32v("i32"));
+  EXPECT_TRUE(decoder.ok());
+
+  // Truncated multi-byte LEB (<end> trace branch).
+  const uint8_t truncated[] = {0x80, 0x80};
+  decoder.Reset(truncated, truncated + sizeof(truncated));
+  EXPECT_EQ(0u, decoder.consume_u32v("truncated"));
+  EXPECT_FALSE(decoder.ok());
+
+  // Length-overflow LEB (<length overflow> trace branch).
+  const uint8_t overflow[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0};
+  decoder.Reset(overflow, overflow + sizeof(overflow));
+  EXPECT_EQ(0u, decoder.consume_u32v("overflow"));
+  EXPECT_FALSE(decoder.ok());
+}
+#endif  // DEBUG
 
 #undef CHECK_UINT32V_INLINE
 #undef CHECK_INT32V_INLINE

@@ -5,8 +5,13 @@
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-allocator.h"
+#include "src/objects/smi.h"
+#include "src/roots/roots-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"
 
@@ -86,6 +91,75 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, ErrorMessage("abort: no reason"));
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
+TEST_F(MacroAssemblerTest, TestAssertZeroExtended) {
+  FLAG_SCOPE(debug_code);
+  FLAG_SCOPE(slow_debug_code);
+
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ CodeEntry();
+
+    __ AssertZeroExtended(x0);
+    __ Ret();
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+  // We need an isolate here to execute in the simulator.
+  auto f =
+      GeneratedCode<void, uint64_t>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
+  f.Call(42);
+  f.Call(0xFFFFFFFFULL);
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0x100000000ULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0xFFFFFFFFFFFFFFFFULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0x8000000000000000ULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+
+  {
+    auto buffer_w = AllocateAssemblerBuffer();
+    MacroAssembler masm_w(isolate(), AssemblerOptions{},
+                          CodeObjectRequired{false}, buffer_w->CreateView());
+    masm_w.set_root_array_available(false);
+    masm_w.set_abort_hard(true);
+
+    {
+      AssemblerBufferWriteScope rw_scope(*buffer_w);
+
+      masm_w.CodeEntry();
+      masm_w.AssertZeroExtended(w0);
+      masm_w.Ret();
+
+      CodeDesc desc;
+      masm_w.GetCode(isolate(), &desc);
+    }
+    auto f_w =
+        GeneratedCode<void, uint64_t>::FromBuffer(isolate(), buffer_w->start());
+
+    f_w.Call(0);
+    f_w.Call(42);
+    f_w.Call(0xFFFFFFFFULL);
+    ASSERT_DEATH_IF_SUPPORTED(
+        { f_w.Call(0x100000000ULL); },
+        ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+  }
+}
+#endif  // V8_ENABLE_DEBUG_CODE
+
 TEST_F(MacroAssemblerTest, CompareAndBranch) {
   const int kTestCases[] = {-42, 0, 42};
   static_assert(Condition::eq == 0);
@@ -135,6 +209,42 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
   }
 }
 
+TEST_F(MacroAssemblerTest, DispatchHandlePoolEntries) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  const uint32_t kHandleA = 0x1200;
+  const uint32_t kHandleB = 0x3400;
+
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ Mov(w0, Immediate(kHandleA, RelocInfo::JS_DISPATCH_HANDLE));
+    __ Mov(w1, Immediate(kHandleA, RelocInfo::JS_DISPATCH_HANDLE));
+    __ Mov(w2, Immediate(kHandleB, RelocInfo::JS_DISPATCH_HANDLE));
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+
+  Instruction* load_a = reinterpret_cast<Instruction*>(buffer->start());
+  Instruction* load_a_again = load_a->following();
+  Instruction* load_b = load_a_again->following();
+  ASSERT_TRUE(load_a->IsLdrLiteralW());
+  ASSERT_TRUE(load_a_again->IsLdrLiteralW());
+  ASSERT_TRUE(load_b->IsLdrLiteralW());
+  EXPECT_EQ(load_a->ImmPCOffsetTarget(), load_a_again->ImmPCOffsetTarget());
+  EXPECT_EQ(kHandleA,
+            *reinterpret_cast<uint32_t*>(load_a->ImmPCOffsetTarget()));
+  EXPECT_EQ(kHandleB,
+            *reinterpret_cast<uint32_t*>(load_b->ImmPCOffsetTarget()));
+
+  // The pool holds one 4-byte entry per handle.
+  Instruction* marker = load_b->following();
+  ASSERT_TRUE(marker->IsUdf());
+  EXPECT_EQ(2, marker->ImmUdf());
+}
+
 struct MoveObjectAndSlotTestCase {
   const char* comment;
   Register dst_object;
@@ -171,6 +281,110 @@ const MoveObjectAndSlotTestCase kMoveObjectAndSlotTestCases[] = {
 
 // Make sure we include offsets that cannot be encoded in an add instruction.
 const int kOffsets[] = {0, 42, kMaxRegularHeapObjectSize, 0x101001};
+
+TEST_F(MacroAssemblerTest, MaybeJumpIfReadOnlyOrSmallSmi) {
+  // The read-only shortcut of the write barrier must take the jump for
+  // read-only objects and small Smis, and must not for other heap objects. It
+  // tests the compressed half of the tagged value, so a decompressed pointer
+  // (cage base plus offset) has to match as well.
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ CodeEntry();
+
+    Label skip;
+    __ MaybeJumpIfReadOnlyOrSmallSmi(x0, &skip);
+    __ Mov(x0, 0);
+    __ Ret();
+    __ Bind(&skip);
+    __ Mov(x0, 1);
+    __ Ret();
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+  auto f = GeneratedCode<int, Address>::FromBuffer(isolate(), buffer->start());
+
+  HandleScope scope(isolate());
+  auto array = isolate()->factory()->NewFixedArray(1);
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  const int kReadOnlyOrSmallSmi = 1;
+#else
+  const int kReadOnlyOrSmallSmi = 0;
+#endif
+  EXPECT_EQ(kReadOnlyOrSmallSmi,
+            f.Call(ReadOnlyRoots(isolate()).undefined_value().ptr()));
+  EXPECT_EQ(kReadOnlyOrSmallSmi, f.Call(Smi::FromInt(42).ptr()));
+  EXPECT_EQ(0, f.Call((*array).ptr()));
+  EXPECT_EQ(0, f.Call(Smi::FromInt(-1).ptr()));
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // The shortcut covers the whole reservation: the last tagged address in it
+  // takes the jump and the first one past it does not.
+  const Address reservation_end =
+      isolate()->cage_base() + kContiguousReadOnlyReservationSize;
+  EXPECT_EQ(1, f.Call(reservation_end - kTaggedSize + kHeapObjectTag));
+  EXPECT_EQ(0, f.Call(reservation_end + kHeapObjectTag));
+#endif
+}
+
+TEST_F(MacroAssemblerTest, PreCheckSkippedWriteBarrier) {
+  // The verifier's fast path must accept a store into the most recent young
+  // allocation and a store of a read-only value, and must send everything
+  // else to the C++ verifier.
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ CodeEntry();
+    // The pre-check reads the allocation state through the root register,
+    // which is callee-saved.
+    __ Push(kRootRegister, padreg);
+    __ Mov(kRootRegister, x2);
+
+    Label ok, done;
+    __ PreCheckSkippedWriteBarrier(x0, x1, x3, &ok);
+    __ Mov(x0, 0);
+    __ B(&done);
+    __ Bind(&ok);
+    __ Mov(x0, 1);
+    __ Bind(&done);
+    __ Pop(padreg, kRootRegister);
+    __ Ret();
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+  auto f = GeneratedCode<int, Address, Address, Address>::FromBuffer(
+      isolate(), buffer->start());
+  const Address root = isolate()->isolate_root();
+
+  HandleScope scope(isolate());
+  auto object = isolate()->factory()->NewFixedArray(1);
+  auto value = isolate()->factory()->NewFixedArray(1);
+  HeapAllocator* allocator = isolate()->heap()->allocator();
+  // A store into the most recent young allocation may skip its barrier.
+  allocator->set_last_young_allocation((*object).address());
+  EXPECT_EQ(1, f.Call((*object).ptr(), (*value).ptr(), root));
+  // Otherwise only a read-only value may.
+  allocator->set_last_young_allocation(kNullAddress);
+  EXPECT_EQ(0, f.Call((*object).ptr(), (*value).ptr(), root));
+  EXPECT_EQ(1, f.Call((*object).ptr(),
+                      ReadOnlyRoots(isolate()).undefined_value().ptr(), root));
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // The check covers the whole reservation: the last tagged address in it
+  // passes and the first one past it does not.
+  const Address reservation_end =
+      isolate()->cage_base() + kContiguousReadOnlyReservationSize;
+  EXPECT_EQ(1, f.Call((*object).ptr(),
+                      reservation_end - kTaggedSize + kHeapObjectTag, root));
+  EXPECT_EQ(0, f.Call((*object).ptr(), reservation_end + kHeapObjectTag, root));
+#endif
+}
 
 template <typename T>
 class MacroAssemblerTestWithParam : public MacroAssemblerTest,
@@ -264,6 +478,38 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
 INSTANTIATE_TEST_SUITE_P(MacroAssemblerTest,
                          MacroAssemblerTestMoveObjectAndSlot,
                          ::testing::ValuesIn(kMoveObjectAndSlotTestCases));
+
+#ifdef V8_COMPRESS_POINTERS
+TEST_F(MacroAssemblerTest, ConstantPoolAlignmentGap) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  Handle<HeapObject> object = isolate()->factory()->undefined_value();
+
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ Mov(x0, Operand(object));
+    __ Mov(w1, Operand(object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+
+  Instruction* load64 = reinterpret_cast<Instruction*>(buffer->start());
+  Instruction* load32 = load64->following();
+  Instruction* marker = load32->following();
+  ASSERT_TRUE(load64->IsLdrLiteralX());
+  ASSERT_TRUE(load32->IsLdrLiteralW());
+  ASSERT_TRUE(marker->IsUdf());
+
+  // The 32-bit entry fills the alignment gap after the marker.
+  Instruction* gap = marker->following();
+  EXPECT_EQ(gap, load32->ImmPCOffsetTarget());
+  EXPECT_EQ(gap->following(), load64->ImmPCOffsetTarget());
+  EXPECT_EQ(3, marker->ImmUdf());
+}
+#endif  // V8_COMPRESS_POINTERS
 
 #undef __
 

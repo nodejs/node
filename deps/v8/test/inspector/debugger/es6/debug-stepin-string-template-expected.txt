@@ -1,0 +1,13 @@
+Tests stepping into string template expressions.
+a0
+b8
+d11b13
+d25b13
+b25
+d11b25
+d25b25
+f4b44
+f15b44
+c0
+s: 1 A 2 B 3 3 4 D
+log: ["a0","b8","d11b13","d25b13","b25","d11b25","d25b25","f4b44","f15b44","c0"]

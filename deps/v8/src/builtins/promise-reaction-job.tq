@@ -70,6 +70,10 @@ transitioning macro FuflfillPromiseReactionJob(
 extern builtin ResumeGeneratorTrampoline(Context, JSAny, JSGeneratorObject):
     JSAny;
 extern builtin AsyncGeneratorResumeNext(Context, JSAsyncGeneratorObject): JSAny;
+extern builtin AsyncGeneratorReject(Context, JSAsyncGeneratorObject, JSAny):
+    JSAny;
+extern builtin AsyncFunctionReject(Context, JSAsyncFunctionObject, JSAny):
+    JSAny;
 
 transitioning macro ResumeGenerator(
     implicit context: Context)(generator: JSGeneratorObject, argument: JSAny,
@@ -84,7 +88,27 @@ transitioning macro ResumeGenerator(
     const asyncGen = %RawDownCast<JSAsyncGeneratorObject>(generator);
     asyncGen.is_awaiting = SmiConstant(0);
   }
-  ResumeGeneratorTrampoline(context, argument, generator);
+  try {
+    ResumeGeneratorTrampoline(context, argument, generator);
+  } catch (e, _message) {
+    // The generator body itself is wrapped in a try-catch, so only a
+    // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+    // prologue, or an OSR entry prologue (which precedes exception handler
+    // setup) can reach this handler.
+    dcheck(generator.continuation != SmiConstant(kGeneratorClosed));
+    generator.continuation = SmiConstant(kGeneratorClosed);
+    typeswitch (generator) {
+      case (asyncGen: JSAsyncGeneratorObject): {
+        AsyncGeneratorReject(context, asyncGen, e);
+      }
+      case (asyncFun: JSAsyncFunctionObject): {
+        AsyncFunctionReject(context, asyncFun, e);
+      }
+      case (JSGeneratorObject): {
+        unreachable;
+      }
+    }
+  }
   if (Is<JSAsyncGeneratorObject>(generator)) {
     const asyncGen = %RawDownCast<JSAsyncGeneratorObject>(generator);
     AsyncGeneratorResumeNext(context, asyncGen);

@@ -1,0 +1,12 @@
+Tests regress-opt-after-debug-deopt.
+  var a = "foo";
+  var b = a.#substring("1");
+  [a, b].sort();
+
+isUnoptimized after breakpoint: true
+isUnoptimized after finalize: true
+  var a = "foo";
+  var b = a.#substring("1");
+  [a, b].sort();
+
+evaluate "a": foo

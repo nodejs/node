@@ -162,7 +162,8 @@ class TestModuleBuilder {
 
   HeapType AddArray(ValueType type, bool mutability,
                     SharedFlag is_shared = SharedFlag{false}) {
-    ArrayType* array = mod.signature_storage.New<ArrayType>(type, mutability);
+    ArrayType* array =
+        mod.signature_storage.New<ArrayType>(type, mutability, is_shared);
     const bool is_final = true;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
@@ -812,11 +813,33 @@ TEST_F(FunctionBodyDecoderTest, BlockBrBinop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, VoidBlockTypeVariants) {
-  // Valid kVoidCode encoded in 2 bytes.
-  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd});
+  // Single-byte kVoidCode is valid.
+  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode, kExprEnd});
+  // Multi-byte s33 encodings of kVoidCode (-64) are invalid.
+  ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd},
+                kAppendEnd, "invalid block type -64");
+  ExpectFailure(sigs.v_v(),
+                {kExprBlock, kVoidCode | 0x80, 0xFF, 0x7F, kExprEnd},
+                kAppendEnd, "invalid block type -64");
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprBlock, kVoidCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F, kExprEnd},
+      kAppendEnd, "invalid block type -64");
+  // Multi-byte s33 encodings of value type opcodes (e.g. kI32Code = -1) are
+  // invalid.
+  ExpectFailure(sigs.i_v(),
+                {kExprBlock, kI32Code | 0x80, 0x7F, WASM_ZERO, kExprEnd},
+                kAppendEnd, "invalid block type -1");
   // Invalid code, whose last 7 bits coincide with kVoidCode.
   ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x45, kExprEnd},
                 kAppendEnd, "invalid block type");
+  // Concrete signature indices (non-negative s33) can use 1- to 5-byte LEB128.
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.v_v());
+  ASSERT_EQ(0u, sig_index.index);
+  ExpectValidates(sigs.v_v(), {kExprBlock, 0x00, kExprEnd});
+  ExpectValidates(sigs.v_v(), {kExprBlock, 0x80, 0x00, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {kExprBlock, 0x80, 0x80, 0x80, 0x80, 0x00, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty1) {
@@ -2879,6 +2902,12 @@ TEST_F(FunctionBodyDecoderTest, SelectWithType_fail) {
                 {WASM_SELECT_L(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO)});
   ExpectFailure(sigs.l_l(),
                 {WASM_SELECT_I(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
+  // Select with type count > 255 whose low byte is 1 (e.g. 257 = 0x81, 0x02).
+  ExpectFailure(sigs.i_i(),
+                {WASM_LOCAL_GET(0), WASM_LOCAL_GET(0), WASM_ZERO,
+                 kExprSelectWithType, U32V_2(257), kI32Code},
+                kAppendEnd,
+                "Invalid number of types. Select accepts exactly one type");
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
@@ -3148,7 +3177,8 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
                               kExprI32Add});
   ExpectFailure(
       sigs.i_ii(),
-      {WASM_LOOP_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add});
+      {WASM_LOOP_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
+      kAppendEnd, "f32.add[0] expected type f32, found loop of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf) {
@@ -3902,6 +3932,35 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
                 "Type index 42 is out of bounds");
 }
 
+TEST_F(FunctionBodyDecoderTest, ExactHeapTypeEncoding) {
+  WASM_FEATURE_SCOPE(custom_descriptors);
+  WASM_FEATURE_SCOPE(shared);
+  HeapType struct_heap_type = builder.AddStruct({F(kWasmI32, true)});
+  uint8_t struct_index = struct_heap_type.ref_index().index;
+  const ValueType exact_type = ValueType::RefNull(struct_heap_type.AsExact());
+  const FunctionSig sig(1, 0, &exact_type);
+
+  // 1-byte kExactCode followed by 1-byte or multi-byte u32v type index.
+  ExpectValidates(&sig, {kExprRefNull, kExactCode, struct_index});
+  ExpectValidates(&sig, {kExprRefNull, kExactCode, U32V_2(struct_index)});
+
+  // Multi-byte encodings of kExactCode (0x62 = -30) are invalid.
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprRefNull, kExactCode | 0x80, 0x7f, struct_index, kExprDrop},
+      kAppendEnd, "Unknown heap type -30");
+  ExpectFailure(sigs.v_v(),
+                {kExprRefNull, kExactCode | 0x80, 0xff, 0xff, 0xff, 0x7f,
+                 struct_index, kExprDrop},
+                kAppendEnd, "Unknown heap type -30");
+
+  // 'shared' prefix before 'exact' is invalid.
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprRefNull, kSharedFlagCode, kExactCode, struct_index, kExprDrop},
+      kAppendEnd, "invalid heap type 'shared exact'");
+}
+
 TEST_F(FunctionBodyDecoderTest, RefIsNull) {
   ExpectValidates(sigs.i_i(),
                   {WASM_REF_IS_NULL(WASM_REF_NULL(kExternRefCode))});
@@ -3984,6 +4043,11 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
     // br_on_non_null does not leave a value on the stack.
     ExpectFailure(&sig, {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
                   "expected 1 elements on the stack for fallthru, found 0");
+
+    // Target branch must have arity >= 1.
+    ExpectFailure(FunctionSig::Build(this->zone(), {}, {reps[1]}),
+                  {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
+                  "br_on_non_null must target a branch of arity at least 1");
   }
 }
 
@@ -4521,6 +4585,20 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, sub_struct)},
       kAppendEnd,
       "type error in fallthru[0] (expected (ref null 1), got (ref null 0))");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {subtype}),
+      {WASM_BLOCK_R(supertype, WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, super_struct),
+                    WASM_RETURN0)},
+      kAppendEnd,
+      "type error in return[0] (expected (ref null 1), got (ref null 0))");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {subtype.AsNonNull()}),
+      {WASM_BLOCK_R(supertype, WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL(0, super_struct, super_struct),
+                    WASM_RETURN0)},
+      kAppendEnd,
+      "type error in return[0] (expected (ref null 1), got (ref 0))");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {supertype}),
       {WASM_BLOCK_I(WASM_LOCAL_GET(0),
@@ -5455,32 +5533,53 @@ class TypeReaderTest : public TestWithZone {
 TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
   HeapType heap_func = kWasmFuncRef;
   HeapType heap_bottom = kWasmBottom;
+  HeapType heap_index_0 =
+      HeapType::Index(ModuleTypeIndex{0}, SharedFlag{false},
+                      RefTypeKind::kOther, Exactness::kAnySubtype);
 
-  // 1- to 5-byte representation of kFuncRefCode.
+  // Abstract heap types must be encoded as a single byte; multi-byte s33
+  // encodings of kFuncRefCode are invalid.
   {
     const uint8_t data[] = {kFuncRefCode};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_TRUE(result == heap_func);
+    EXPECT_EQ(result, heap_func);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
+  }
+
+  // Concrete type indices (non-negative s33) can use 1- to 5-byte LEB128.
+  {
+    const uint8_t data[] = {0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
+  }
+  {
+    const uint8_t data[] = {0x80, 0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
+  }
+  {
+    const uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
   }
 
   {

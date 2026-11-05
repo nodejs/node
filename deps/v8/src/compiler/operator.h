@@ -37,7 +37,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
-  enum Property {
+  enum Property : uint8_t {
     kNoProperties = 0,
     kCommutative = 1 << 0,  // OP(a, b) == OP(b, a) for all inputs.
     kAssociative = 1 << 1,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.

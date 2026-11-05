@@ -5,13 +5,22 @@
 #ifndef V8_OBJECTS_JS_TEMPORAL_ZONEINFO64_H_
 #define V8_OBJECTS_JS_TEMPORAL_ZONEINFO64_H_
 
+#if __has_include("temporal/Provider.d.hpp")
+#include "temporal/Provider.d.hpp"
+#else
 #include "temporal_rs/Provider.d.hpp"
+#endif
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/udata.h"
 #else
 #include <vector>
 #endif
+
+namespace temporal {}
+namespace temporal_rs {
+using namespace ::temporal;
+}  // namespace temporal_rs
 
 namespace v8::internal {
 

@@ -28,7 +28,8 @@ struct V8StackTraceId;
 class StackFrame {
  public:
   StackFrame(String16&& functionName, int scriptId, String16&& sourceURL,
-             int lineNumber, int columnNumber, bool hasSourceURLComment);
+             int lineNumber, int columnNumber, bool hasSourceURLComment,
+             bool isScriptOpaque);
   ~StackFrame() = default;
 
   const String16& functionName() const;
@@ -36,6 +37,7 @@ class StackFrame {
   const String16& sourceURL() const;
   int lineNumber() const;    // 0-based.
   int columnNumber() const;  // 0-based.
+  bool isScriptOpaque() const;
   std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject(
       V8InspectorClient* client) const;
   bool isEqual(StackFrame* frame) const;
@@ -47,6 +49,7 @@ class StackFrame {
   int m_lineNumber;    // 0-based.
   int m_columnNumber;  // 0-based.
   bool m_hasSourceURLComment;
+  bool m_isScriptOpaque;
 };
 
 class V8StackTraceImpl : public V8StackTrace {
@@ -78,6 +81,7 @@ class V8StackTraceImpl : public V8StackTrace {
   int topColumnNumber() const override;  // 1-based.
   int topScriptId() const override;
   StringView topFunctionName() const override;
+  bool isTopScriptOpaque() const override;
   std::unique_ptr<protocol::Runtime::API::StackTrace> buildInspectorObject(
       int maxAsyncDepth) const override;
   std::unique_ptr<StringBuffer> toString() const override;

@@ -1,1 +1,9 @@
 Checks that Runtime.getIsolateId works
+getIsolateId is not allowed for untrusted clients
+{
+    error : {
+        code : -32000
+        message : Runtime.getIsolateId is not allowed for untrusted clients
+    }
+    id : <messageId>
+}

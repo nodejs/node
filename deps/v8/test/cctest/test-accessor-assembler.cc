@@ -194,7 +194,8 @@ TEST(TryProbeStubCache) {
         // Generate string.
         std::stringstream ss;
         ss << "s" << std::hex
-           << (rand_gen.NextInt(Smi::kMaxValue) % StubCache::kPrimaryTableSize);
+           << (rand_gen.NextInt(Smi::kMaxValue) % StubCache::kPrimaryTableSize)
+           << std::dec;
         name = factory->InternalizeUtf8String(ss.str().c_str());
         break;
       }

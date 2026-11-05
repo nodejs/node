@@ -15,6 +15,7 @@ class HeapHints:
   any_heap_pointer: int = 0
   metadata_pointer_table: int = 0
   isolate_heap_member_offset: int = 0
+  isolate: int = 0
 
 
 @dataclasses.dataclass

@@ -17,7 +17,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 void PipelineData::InitializeRegisterComponent(
-    const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
+    const RegisterConfiguration* config) {
   DCHECK(!register_component_.has_value());
   register_component_.emplace(zone_stats());
   auto& zone = register_component_->zone;

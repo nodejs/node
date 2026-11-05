@@ -48,7 +48,7 @@ using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
 using ::testing::Not;
 
-auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
+auto* test_env [[maybe_unused]] = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
 
 #if GTEST_HAS_DEATH_TEST

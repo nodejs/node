@@ -11,10 +11,13 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info-inl.h"
+#include "src/objects/source-text-module-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/roots/roots.h"
 
@@ -51,7 +54,7 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        int* out_last_checked_field) const {
   if (length() != other->length()) return false;
   // Fixed header fields.
-  if (Flags() != other->Flags()) return false;
+  if (flags() != other->flags()) return false;
   if (out_last_checked_field) *out_last_checked_field = kFlags;
   if (parameter_count() != other->parameter_count()) return false;
   if (out_last_checked_field) *out_last_checked_field = kParameterCount;
@@ -271,30 +274,30 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     }
 
     // Encode the flags.
-    uint32_t flags =
-        ScopeTypeBits::encode(scope->scope_type()) |
-        SloppyEvalCanExtendVarsBit::encode(sloppy_eval_can_extend_vars) |
-        LanguageModeBit::encode(scope->language_mode()) |
-        DeclarationScopeBit::encode(scope->is_declaration_scope()) |
-        ReceiverVariableBits::encode(receiver_info) |
-        ClassScopeHasPrivateBrandBit::encode(has_brand) |
-        HasSavedClassVariableBit::encode(should_save_class_variable) |
-        AllocatesArgumentsBit::encode(allocates_arguments) |
-        FunctionVariableBits::encode(function_name_info) |
-        HasInferredFunctionNameBit::encode(has_inferred_function_name) |
-        HasSimpleParametersBit::encode(has_simple_parameters) |
-        FunctionKindBits::encode(function_kind) |
-        HasOuterScopeInfoBit::encode(has_outer_scope_info) |
-        IsDebugEvaluateScopeBit::encode(false) |
-        ForceContextAllocationBit::encode(
-            scope->ForceContextForLanguageMode()) |
-        PrivateNameLookupSkipsOuterClassBit::encode(
-            scope->private_name_lookup_skips_outer_class()) |
-        HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
-        IsHiddenBit::encode(scope->is_hidden()) |
-        IsWrappedFunctionBit::encode(scope->is_wrapped_function()) |
-        HasContextCellsBit::encode(scope->has_context_cells()) |
-        IsHoistedInContextBit::encode(scope->is_hoisted_in_context());
+    const Flags flags =
+        Flags{}
+            .with_scope_type(scope->scope_type())
+            .with_sloppy_eval_can_extend_vars(sloppy_eval_can_extend_vars)
+            .with_language_mode(scope->language_mode())
+            .with_declaration_scope(scope->is_declaration_scope())
+            .with_receiver_variable(receiver_info)
+            .with_class_scope_has_private_brand(has_brand)
+            .with_has_saved_class_variable(should_save_class_variable)
+            .with_allocates_arguments(allocates_arguments)
+            .with_function_variable(function_name_info)
+            .with_has_inferred_function_name(has_inferred_function_name)
+            .with_has_simple_parameters(has_simple_parameters)
+            .with_function_kind(function_kind)
+            .with_has_outer_scope_info(has_outer_scope_info)
+            .with_is_debug_evaluate_scope(false)
+            .with_force_context_allocation(scope->ForceContextForLanguageMode())
+            .with_private_name_lookup_skips_outer_class(
+                scope->private_name_lookup_skips_outer_class())
+            .with_has_context_extension_slot(scope->HasContextExtensionSlot())
+            .with_is_hidden(scope->is_hidden())
+            .with_is_wrapped_function(scope->is_wrapped_function())
+            .with_has_context_cells(scope->has_context_cells())
+            .with_is_hoisted_in_context(scope->is_hoisted_in_context());
     scope_info->set_flags(flags, kRelaxedStore);
 
     scope_info->set_parameter_count(parameter_count);
@@ -533,25 +536,26 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
   DirectHandle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
-  uint32_t flags = ScopeTypeBits::encode(WITH_SCOPE) |
-                   SloppyEvalCanExtendVarsBit::encode(false) |
-                   LanguageModeBit::encode(LanguageMode::kSloppy) |
-                   DeclarationScopeBit::encode(false) |
-                   ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
-                   ClassScopeHasPrivateBrandBit::encode(false) |
-                   HasSavedClassVariableBit::encode(false) |
-                   AllocatesArgumentsBit::encode(false) |
-                   FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
-                   HasSimpleParametersBit::encode(true) |
-                   FunctionKindBits::encode(FunctionKind::kNormalFunction) |
-                   HasOuterScopeInfoBit::encode(has_outer_scope_info) |
-                   IsDebugEvaluateScopeBit::encode(false) |
-                   ForceContextAllocationBit::encode(false) |
-                   PrivateNameLookupSkipsOuterClassBit::encode(false) |
-                   HasContextExtensionSlotBit::encode(true) |
-                   IsHiddenBit::encode(false) |
-                   IsWrappedFunctionBit::encode(false) |
-                   IsHoistedInContextBit::encode(false);
+  const Flags flags = Flags{}
+                          .with_scope_type(WITH_SCOPE)
+                          .with_sloppy_eval_can_extend_vars(false)
+                          .with_language_mode(LanguageMode::kSloppy)
+                          .with_declaration_scope(false)
+                          .with_receiver_variable(VariableAllocationInfo::NONE)
+                          .with_class_scope_has_private_brand(false)
+                          .with_has_saved_class_variable(false)
+                          .with_allocates_arguments(false)
+                          .with_function_variable(VariableAllocationInfo::NONE)
+                          .with_has_simple_parameters(true)
+                          .with_function_kind(FunctionKind::kNormalFunction)
+                          .with_has_outer_scope_info(has_outer_scope_info)
+                          .with_is_debug_evaluate_scope(false)
+                          .with_force_context_allocation(false)
+                          .with_private_name_lookup_skips_outer_class(false)
+                          .with_has_context_extension_slot(true)
+                          .with_is_hidden(false)
+                          .with_is_wrapped_function(false)
+                          .with_is_hoisted_in_context(false);
   scope_info->set_flags(flags, kRelaxedStore);
 
   scope_info->set_parameter_count(0);
@@ -591,8 +595,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
     // set to true for all function scopes with the number of context locals (in
     // this case zero) below the threshold
     // v8_flags.function_context_cells_max_size.
-    scope_info->set_flags(
-        scope_info->Flags() | HasContextCellsBit::encode(true), kRelaxedStore);
+    scope_info->set_flags(scope_info->flags().with_has_context_cells(true),
+                          kRelaxedStore);
   }
   return scope_info;
 }
@@ -632,34 +636,37 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   DisallowGarbageCollection _nogc;
   // Encode the flags.
   DCHECK_IMPLIES(is_shadow_realm || is_script, !is_empty_function);
-  uint32_t flags =
-      ScopeTypeBits::encode(
-          is_empty_function
-              ? FUNCTION_SCOPE
-              : (is_shadow_realm ? SHADOW_REALM_SCOPE : SCRIPT_SCOPE)) |
-      SloppyEvalCanExtendVarsBit::encode(false) |
-      LanguageModeBit::encode(LanguageMode::kSloppy) |
-      DeclarationScopeBit::encode(true) |
-      ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
-                                             : VariableAllocationInfo::UNUSED) |
-      ClassScopeHasPrivateBrandBit::encode(false) |
-      HasSavedClassVariableBit::encode(false) |
-      // We don't know the value of this flag, so set defensively.
-      AllocatesArgumentsBit::encode(type == BootstrappingType::kFunction &&
-                                    !is_empty_function) |
-      FunctionVariableBits::encode(is_empty_function
-                                       ? VariableAllocationInfo::UNUSED
-                                       : VariableAllocationInfo::NONE) |
-      HasInferredFunctionNameBit::encode(has_inferred_function_name) |
-      HasSimpleParametersBit::encode(true) |
-      FunctionKindBits::encode(FunctionKind::kNormalFunction) |
-      HasOuterScopeInfoBit::encode(false) |
-      IsDebugEvaluateScopeBit::encode(false) |
-      ForceContextAllocationBit::encode(false) |
-      PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(is_native_context) |
-      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false) |
-      HasContextCellsBit::encode(false) | IsHoistedInContextBit::encode(false);
+  const Flags flags =
+      Flags{}
+          .with_scope_type(
+              is_empty_function
+                  ? FUNCTION_SCOPE
+                  : (is_shadow_realm ? SHADOW_REALM_SCOPE : SCRIPT_SCOPE))
+          .with_sloppy_eval_can_extend_vars(false)
+          .with_language_mode(LanguageMode::kSloppy)
+          .with_declaration_scope(true)
+          .with_receiver_variable(is_script ? VariableAllocationInfo::CONTEXT
+                                            : VariableAllocationInfo::UNUSED)
+          .with_class_scope_has_private_brand(false)
+          .with_has_saved_class_variable(false)
+          // We don't know the value of this flag, so set defensively.
+          .with_allocates_arguments(type == BootstrappingType::kFunction &&
+                                    !is_empty_function)
+          .with_function_variable(is_empty_function
+                                      ? VariableAllocationInfo::UNUSED
+                                      : VariableAllocationInfo::NONE)
+          .with_has_inferred_function_name(has_inferred_function_name)
+          .with_has_simple_parameters(true)
+          .with_function_kind(FunctionKind::kNormalFunction)
+          .with_has_outer_scope_info(false)
+          .with_is_debug_evaluate_scope(false)
+          .with_force_context_allocation(false)
+          .with_private_name_lookup_skips_outer_class(false)
+          .with_has_context_extension_slot(is_native_context)
+          .with_is_hidden(false)
+          .with_is_wrapped_function(false)
+          .with_has_context_cells(false)
+          .with_is_hoisted_in_context(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags, kRelaxedStore);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -766,7 +773,7 @@ bool ScopeInfo::IsEmpty() const {
 
 ScopeType ScopeInfo::scope_type() const {
   DCHECK(!this->IsEmpty());
-  return ScopeTypeBits::decode(Flags());
+  return flags().scope_type();
 }
 
 bool ScopeInfo::is_script_scope() const {
@@ -774,25 +781,24 @@ bool ScopeInfo::is_script_scope() const {
 }
 
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
-  bool sloppy_eval_can_extend_vars =
-      SloppyEvalCanExtendVarsBit::decode(Flags());
+  bool sloppy_eval_can_extend_vars = flags().sloppy_eval_can_extend_vars();
   DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_sloppy(language_mode()));
   DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_declaration_scope());
   return sloppy_eval_can_extend_vars;
 }
 
 LanguageMode ScopeInfo::language_mode() const {
-  return LanguageModeBit::decode(Flags());
+  return flags().language_mode();
 }
 
 bool ScopeInfo::is_declaration_scope() const {
-  return DeclarationScopeBit::decode(Flags());
+  return flags().declaration_scope();
 }
 
 int ScopeInfo::ContextLength() const {
   int context_locals = ContextLocalCount();
   bool function_name_context_slot = HasContextAllocatedFunctionName();
-  bool force_context = ForceContextAllocationBit::decode(Flags());
+  bool force_context = flags().force_context_allocation();
   bool has_context =
       context_locals > 0 || force_context || function_name_context_slot ||
       scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
@@ -826,15 +832,15 @@ int ScopeInfo::UniqueIdInScript() const {
 }
 
 bool ScopeInfo::HasContextExtensionSlot() const {
-  return HasContextExtensionSlotBit::decode(Flags());
+  return flags().has_context_extension_slot();
 }
 
 bool ScopeInfo::SomeContextHasExtension() const {
-  return SomeContextHasExtensionBit::decode(Flags());
+  return flags().some_context_has_extension();
 }
 
 void ScopeInfo::mark_some_context_has_extension() {
-  set_flags(SomeContextHasExtensionBit::update(Flags(), true), kRelaxedStore);
+  set_flags(flags().with_some_context_has_extension(true), kRelaxedStore);
 }
 
 int ScopeInfo::ContextHeaderLength() const {
@@ -843,7 +849,7 @@ int ScopeInfo::ContextHeaderLength() const {
 }
 
 bool ScopeInfo::HasReceiver() const {
-  return VariableAllocationInfo::NONE != ReceiverVariableBits::decode(Flags());
+  return VariableAllocationInfo::NONE != flags().receiver_variable();
 }
 
 bool ScopeInfo::HasAllocatedReceiver() const {
@@ -856,18 +862,18 @@ bool ScopeInfo::HasAllocatedReceiver() const {
   // 2. The scope is created as a debug evaluate scope, so this is not
   //    an actual reparse, we are not sure if the inner scope will access
   //    this, but the receiver should be allocated just in case.
-  VariableAllocationInfo allocation = ReceiverVariableBits::decode(Flags());
+  VariableAllocationInfo allocation = flags().receiver_variable();
   return allocation == VariableAllocationInfo::STACK ||
          allocation == VariableAllocationInfo::CONTEXT ||
          IsDebugEvaluateScope();
 }
 
 bool ScopeInfo::ClassScopeHasPrivateBrand() const {
-  return ClassScopeHasPrivateBrandBit::decode(Flags());
+  return flags().class_scope_has_private_brand();
 }
 
 bool ScopeInfo::HasSavedClassVariable() const {
-  return HasSavedClassVariableBit::decode(Flags());
+  return flags().has_saved_class_variable();
 }
 
 bool ScopeInfo::IsSloppyNormalJSFunction() const {
@@ -888,22 +894,21 @@ bool ScopeInfo::CanOnlyAccessFixedFormalParameters() const {
        function_kind == FunctionKind::kArrowFunction) &&
       // Can't have arguments allocated in the frame for any reason since this
       // indicates potential reachability.
-      !AllocatesArgumentsBit::decode(Flags()) &&
+      !flags().allocates_arguments() &&
       // Can't have rest parameters.
       HasSimpleParameters();
 }
 
 bool ScopeInfo::HasFunctionName() const {
-  return VariableAllocationInfo::NONE != FunctionVariableBits::decode(Flags());
+  return VariableAllocationInfo::NONE != flags().function_variable();
 }
 
 bool ScopeInfo::HasContextAllocatedFunctionName() const {
-  return VariableAllocationInfo::CONTEXT ==
-         FunctionVariableBits::decode(Flags());
+  return VariableAllocationInfo::CONTEXT == flags().function_variable();
 }
 
 bool ScopeInfo::HasInferredFunctionName() const {
-  return HasInferredFunctionNameBit::decode(Flags());
+  return flags().has_inferred_function_name();
 }
 
 bool ScopeInfo::HasSharedFunctionName() const {
@@ -923,21 +928,21 @@ void ScopeInfo::SetInferredFunctionName(Tagged<String> name) {
 }
 
 bool ScopeInfo::HasOuterScopeInfo() const {
-  return HasOuterScopeInfoBit::decode(Flags());
+  return flags().has_outer_scope_info();
 }
 
 bool ScopeInfo::IsDebugEvaluateScope() const {
-  return IsDebugEvaluateScopeBit::decode(Flags());
+  return flags().is_debug_evaluate_scope();
 }
 
 void ScopeInfo::SetIsDebugEvaluateScope() {
   CHECK(!this->IsEmpty());
   DCHECK_EQ(scope_type(), WITH_SCOPE);
-  set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true), kRelaxedStore);
+  set_flags(flags().with_is_debug_evaluate_scope(true), kRelaxedStore);
 }
 
 bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
-  return PrivateNameLookupSkipsOuterClassBit::decode(Flags());
+  return flags().private_name_lookup_skips_outer_class();
 }
 
 bool ScopeInfo::IsReplModeScope() const {
@@ -945,9 +950,8 @@ bool ScopeInfo::IsReplModeScope() const {
 }
 
 bool ScopeInfo::IsWrappedFunctionScope() const {
-  DCHECK_IMPLIES(IsWrappedFunctionBit::decode(Flags()),
-                 scope_type() == FUNCTION_SCOPE);
-  return IsWrappedFunctionBit::decode(Flags());
+  DCHECK_IMPLIES(flags().is_wrapped_function(), scope_type() == FUNCTION_SCOPE);
+  return flags().is_wrapped_function();
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -1146,7 +1150,7 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name) {
 }
 
 std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
-  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  DCHECK(flags().has_saved_class_variable());
   auto class_variable_info = saved_class_variable_info();
   if (HasInlinedLocalNames()) {
     // The saved class variable info corresponds to the context slot index.
@@ -1169,16 +1173,14 @@ std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
 }
 
 int ScopeInfo::ReceiverContextSlotIndex() const {
-  if (ReceiverVariableBits::decode(Flags()) ==
-      VariableAllocationInfo::CONTEXT) {
+  if (flags().receiver_variable() == VariableAllocationInfo::CONTEXT) {
     return ContextHeaderLength();
   }
   return -1;
 }
 
 int ScopeInfo::ParametersStartIndex() const {
-  if (ReceiverVariableBits::decode(Flags()) ==
-      VariableAllocationInfo::CONTEXT) {
+  if (flags().receiver_variable() == VariableAllocationInfo::CONTEXT) {
     return ContextHeaderLength() + 1;
   }
   return ContextHeaderLength();
@@ -1203,7 +1205,7 @@ int ScopeInfo::FunctionContextSlotIndex(Tagged<String> name) const {
 }
 
 FunctionKind ScopeInfo::function_kind() const {
-  return FunctionKindBits::decode(Flags());
+  return flags().function_kind();
 }
 
 int ScopeInfo::ContextLocalNamesIndex() const {
@@ -1314,18 +1316,10 @@ template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(
     IsolateT* isolate, DirectHandle<String> specifier, ModuleImportPhase phase,
     DirectHandle<FixedArray> import_attributes, int position) {
-  auto result = Cast<ModuleRequest>(
-      isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  Tagged<ModuleRequest> raw = *result;
-  raw->set_specifier(*specifier);
-  raw->set_import_attributes(*import_attributes);
-  raw->set_flags(0);
-
-  raw->set_phase(phase);
-  DCHECK_GE(position, 0);
-  raw->set_position(position);
-  return result;
+  return indirect_handle(
+      isolate->factory()->template New<ModuleRequest, AllocationType::kOld>(
+          specifier, phase, import_attributes, position),
+      isolate);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
@@ -1345,18 +1339,12 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     DirectHandle<UnionOf<String, Undefined>> local_name,
     DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos) {
-  auto result = Cast<SourceTextModuleInfoEntry>(isolate->factory()->NewStruct(
-      SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  Tagged<SourceTextModuleInfoEntry> raw = *result;
-  raw->set_export_name(*export_name);
-  raw->set_local_name(*local_name);
-  raw->set_import_name(*import_name);
-  raw->set_module_request(module_request);
-  raw->set_cell_index(cell_index);
-  raw->set_beg_pos(beg_pos);
-  raw->set_end_pos(end_pos);
-  return result;
+  return indirect_handle(
+      isolate->factory()
+          ->template New<SourceTextModuleInfoEntry, AllocationType::kOld>(
+              export_name, local_name, import_name, module_request, cell_index,
+              beg_pos, end_pos),
+      isolate);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

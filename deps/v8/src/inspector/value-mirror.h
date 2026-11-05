@@ -92,8 +92,21 @@ class ValueMirror {
       bool accessorPropertiesOnly);
 };
 
+static constexpr uint32_t kMaxArrayLength = 10'000'000;
+
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
+// The default stack size on macOS is small, and ASan uses more stack space.
+static constexpr int kMaxProtocolDepth = 900;
+#else
+static constexpr int kMaxProtocolDepth = 1000;
+#endif
+
 protocol::Response toProtocolValue(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value, int maxDepth,
+                                   std::unique_ptr<protocol::Value>* result);
+protocol::Response toProtocolValue(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Value> value, int maxDepth,
+                                   ProtocolValueBudget* budget,
                                    std::unique_ptr<protocol::Value>* result);
 protocol::Response arrayToProtocolValue(
     v8::Local<v8::Context> context, v8::Local<v8::Array> array, int maxDepth,

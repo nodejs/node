@@ -5,8 +5,6 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_H_
 #define V8_OBJECTS_ALLOCATION_SITE_H_
 
-#include <atomic>
-
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
@@ -25,17 +23,6 @@ V8_OBJECT class AllocationSite : public HeapObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
-  // Values for pretenure decision field.
-  enum PretenureDecision {
-    kUndecided = 0,
-    kDontTenure = 1,
-    kMaybeTenure = 2,
-    kTenure = 3,
-    kLastPretenureDecisionValue = kTenure
-  };
-
-  const char* PretenureDecisionName(PretenureDecision decision);
-
   inline Tagged<UnionOf<Smi, JSObject>> transition_info_or_boilerplate() const;
 
   inline Tagged<JSObject> boilerplate() const;
@@ -53,63 +40,16 @@ V8_OBJECT class AllocationSite : public HeapObject {
   inline void set_nested_site(Tagged<UnionOf<Smi, AllocationSite>> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Bitfield containing pretenuring information.
-  inline int32_t pretenure_data(RelaxedLoadTag) const;
-  inline void set_pretenure_data(int32_t value, RelaxedStoreTag);
-
-  inline int32_t pretenure_create_count() const;
-  inline void set_pretenure_create_count(int32_t value);
-
   inline Tagged<DependentCode> dependent_code() const;
   inline void set_dependent_code(Tagged<DependentCode> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void Initialize();
 
-  // Checks if the allocation site contain weak_next field;
-  inline bool HasWeakNext() const;
-
-  // This method is expensive, it should only be called for reporting.
-  bool IsNested();
-
   // transition_info bitfields, for constructed array transition info.
   using ElementsKindBits = base::BitField<ElementsKind, 0, 6>;
   using SpeculationDisabledBit = base::BitField<bool, 6, 1>;
   // Unused bits 7-30.
-
-  // Bitfields for pretenure_data
-  using MementoFoundCountBits = base::BitField<int, 0, 26>;
-  using PretenureDecisionBits = base::BitField<PretenureDecision, 26, 3>;
-  using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
-  static_assert(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
-
-  // Increments the mementos found counter and returns the new count.
-  inline int IncrementMementoFoundCount(int increment = 1);
-
-  inline void IncrementMementoCreateCount();
-
-  AllocationType GetAllocationType() const;
-
-  void ResetPretenureDecision();
-
-  inline PretenureDecision pretenure_decision() const;
-  inline void set_pretenure_decision(PretenureDecision decision);
-
-  inline bool deopt_dependent_code() const;
-  inline void set_deopt_dependent_code(bool deopt);
-
-  inline int memento_found_count() const;
-  inline void set_memento_found_count(int count);
-
-  inline int memento_create_count() const;
-  inline void set_memento_create_count(int count);
-
-  inline bool IsMaybeTenure() const;
-
-  inline bool MakePretenureDecision(PretenureDecision current_decision,
-                                    double ratio, bool maximum_size_scavenge);
-
-  inline bool DigestPretenuringFeedback(bool maximum_size_scavenge);
 
   inline ElementsKind GetElementsKind() const;
   inline void SetElementsKind(ElementsKind kind);
@@ -137,12 +77,8 @@ V8_OBJECT class AllocationSite : public HeapObject {
   class BodyDescriptor;
 
  private:
-  inline bool PretenuringDecisionMade() const;
-
- private:
   friend class CodeStubAssembler;
   friend class ArrayBuiltinsAssembler;
-  friend class ObjectBuiltinsAssembler;
   friend class V8HeapExplorer;
 
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
@@ -150,31 +86,6 @@ V8_OBJECT class AllocationSite : public HeapObject {
   TaggedMember<UnionOf<Smi, JSObject>> transition_info_or_boilerplate_;
   TaggedMember<UnionOf<Smi, AllocationSite>> nested_site_;
   TaggedMember<DependentCode> dependent_code_;
-  std::atomic<int32_t> pretenure_data_;
-  int32_t pretenure_create_count_;
-} V8_OBJECT_END;
-
-V8_OBJECT class AllocationSiteWithWeakNext : public AllocationSite {
-  V8_IT_REUSE_PARENT;
-
- public:
-  // heap->allocation_site_list() points to the last AllocationSite which form
-  // a linked list through the weak_next property. The GC might remove elements
-  // from the list by updating weak_next.
-  inline Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next()
-      const;
-  inline void set_weak_next(
-      Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
- private:
-  friend class CodeStubAssembler;
-  friend class AllocationSite::BodyDescriptor;
-  template <typename T>
-  friend struct WeakListVisitor;
-  friend class V8HeapExplorer;
-
-  TaggedMember<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next_;
 } V8_OBJECT_END;
 
 V8_OBJECT class AllocationMemento : public Struct {
@@ -183,7 +94,6 @@ V8_OBJECT class AllocationMemento : public Struct {
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<AllocationSite> GetAllocationSite() const;
-  inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
   DECL_VERIFIER(AllocationMemento)

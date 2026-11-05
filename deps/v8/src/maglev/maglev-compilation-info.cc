@@ -65,49 +65,13 @@ static bool SpecializeToFunctionContext(
 
 }  // namespace
 
-void MaglevCompilationInfo::InitializeSpecializationContext() {
-#ifdef DEBUG
-  specialization_context_initialized_ = true;
-#endif
-  if (!v8_flags.always_specialize_for_script_context || toplevel_is_osr()) {
-    return;
-  }
-  compiler::JSFunctionRef func_ref = compiler::MakeRefAssumeMemoryFence(
-      broker_, broker_->CanonicalPersistentHandle(toplevel_function_));
-  compiler::ContextRef current = func_ref.context(broker_);
-  if (current.map(broker_).instance_type() == NATIVE_CONTEXT_TYPE) {
-    return;
-  }
-  if (specialize_to_function_context_) {
-    specialization_context_ = current;
-    specialization_context_distance_ = 0;
-    return;
-  }
-  size_t distance = 0;
-  while (true) {
-    InstanceType instance_type = current.map(broker_).instance_type();
-    if (instance_type == NATIVE_CONTEXT_TYPE) {
-      break;
-    }
-    if (instance_type == MODULE_CONTEXT_TYPE ||
-        instance_type == SCRIPT_CONTEXT_TYPE) {
-      specialization_context_ = current;
-      specialization_context_distance_ = distance;
-      return;
-    }
-    size_t step = 1;
-    current = current.previous(broker_, &step);
-    if (step != 0) break;
-    distance++;
-  }
-}
-
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, IndirectHandle<JSFunction> function,
     BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,
     std::optional<bool> specialize_to_function_context, bool is_turbolev,
     std::string function_name)
-    : zone_(isolate->allocator(), kMaglevZoneName),
+    : zone_(std::in_place, isolate->allocator(), kMaglevZoneName),
+      zone_ptr_(&*zone_),
       broker_(js_broker.has_value()
                   ? js_broker.value()
                   : new compiler::JSHeapBroker(isolate, zone(),
@@ -129,7 +93,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
           isolate, osr_offset, function, specialize_to_function_context)) {
   if (owns_broker_) {
     canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
-        isolate->heap(), ZoneAllocationPolicy(&zone_));
+        isolate->heap(), ZoneAllocationPolicy(zone()));
     compiler::CurrentHeapBrokerScope current_broker(broker_);
 
     MaglevCompilationHandleScope compilation(isolate, this);
@@ -179,6 +143,24 @@ MaglevCompilationInfo::~MaglevCompilationInfo() {
   if (owns_broker_) {
     delete broker_;
   }
+}
+
+void MaglevCompilationInfo::ReleaseBrokerAndZone() {
+  DCHECK_NULL(canonical_handles_);
+  graph_labeller_.reset();
+#ifdef V8_ENABLE_MAGLEV
+  code_generator_.reset();
+#endif
+  toplevel_compilation_unit_ = nullptr;
+  if (owns_broker_) {
+    delete broker_;
+    owns_broker_ = false;
+  }
+  broker_ = nullptr;
+  // Reset zone_ last; zone() and broker() return nullptr afterwards, and
+  // failed-job disposal on the main thread must not dereference them.
+  zone_ptr_ = nullptr;
+  zone_.reset();
 }
 
 void MaglevCompilationInfo::set_graph_labeller(
@@ -239,7 +221,6 @@ bool MaglevCompilationInfo::is_detached() {
 
 std::unique_ptr<CanonicalHandlesMap>
 MaglevCompilationInfo::DetachCanonicalHandles() {
-  DCHECK_NOT_NULL(canonical_handles_);
   return std::move(canonical_handles_);
 }
 

@@ -13,6 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/logging.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8::internal::wasm {
 
@@ -105,6 +106,15 @@ auto WasmGraphBuilderBase<Assembler>::BuildImportedFunctionTargetAndImplicitArg(
 }
 
 template <typename Assembler>
+inline auto WasmGraphBuilderBase<Assembler>::LoadInternalFunctionFromFuncRef(
+    V<WasmFuncRef> func_ref, LoadOp::Kind load_kind)
+    -> V<WasmInternalFunction> {
+  return V<WasmInternalFunction>::Cast(__ LoadTrustedPointer(
+      func_ref, load_kind, kWasmInternalFunctionTrustedPointerTag,
+      offsetof(WasmFuncRef, trusted_internal_)));
+}
+
+template <typename Assembler>
 inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
     V<WasmInternalFunction> internal_function)
     -> std::pair<V<Word32>, V<ExposedTrustedObject>> {
@@ -116,8 +126,22 @@ inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
   V<Word32> target =
       __ Load(internal_function, LoadOp::Kind::TaggedBase().Immutable(),
               MemoryRepresentation::Uint32(),
-              offsetof(WasmInternalFunction, raw_call_target_));
+              offsetof(WasmInternalFunction, call_target_));
 
+  return {target, implicit_arg};
+}
+
+template <typename Assembler>
+inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
+    DirectHandle<WasmInternalFunction> internal_function)
+    -> std::pair<V<Word32>, V<ExposedTrustedObject>> {
+  DCHECK(!__ data()->is_wasm());
+  DCHECK_NOT_NULL(__ data()->broker());
+  V<ExposedTrustedObject> implicit_arg = V<ExposedTrustedObject>::Cast(
+      __ HeapConstant(__ data()->broker()->CanonicalPersistentHandle(
+          internal_function->implicit_arg())));
+  V<Word32> target =
+      __ Word32Constant(internal_function->call_target().value());
   return {target, implicit_arg};
 }
 
@@ -181,9 +205,9 @@ void WasmGraphBuilderBase<Assembler>::BuildSetNewStackLimit(
       old_limit, new_limit, RegisterRepresentation::WordPtr(),
       MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal,
       RegisterRepresentation::WordPtr());
-  __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
-           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
-           IsolateData::real_jslimit_offset());
+  __ Store(__ IsolateField(IsolateFieldId::kRealJsLimit), new_limit,
+           StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+           compiler::kNoWriteBarrier);
 }
 
 template <typename Assembler>
@@ -197,37 +221,43 @@ auto WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStack(
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                      MachineType::Pointer())
                  .Returns(MachineType::Pointer());
-  OpIndex central_stack_sp =
-      CallC(&sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
-            {__ ExternalConstant(ExternalReference::isolate_address()),
-             __ FramePointer()});
+  OpIndex central_stack_sp = CallC(
+      &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
+      {__ IsolateField(IsolateFieldId::kIsolateAddress), __ FramePointer()});
 
 #else
   // Set the is_on_central_stack flag.
-  OpIndex isolate_root = __ LoadRootRegister();
-  __ Store(isolate_root, __ Word32Constant(1), LoadOp::Kind::RawAligned(),
-           MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
-           IsolateData::is_on_central_stack_flag_offset());
+  V<WordPtr> is_on_central_stack_flag_address =
+      __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);
+  __ Store(is_on_central_stack_flag_address, __ Word32Constant(1),
+           StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+           compiler::kNoWriteBarrier);
 
   // Save the old fp and the target sp in the StackMemory's stack switch info.
   // We are not on the main stack, so the active stack must be set.
-  V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                                    MemoryRepresentation::UintPtr(),
-                                    IsolateData::active_stack_offset());
+  V<WordPtr> active_stack_address =
+      __ IsolateField(IsolateFieldId::kActiveStack);
+  V<WordPtr> active_stack =
+      __ Load(active_stack_address, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::UintPtr());
   __ Store(active_stack, __ FramePointer(), StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            StackMemory::stack_switch_source_fp_offset());
-  V<WordPtr> central_stack_sp = __ Load(
-      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-      Isolate::central_stack_sp_offset());
+  V<WordPtr> central_stack_sp_address =
+      __ IsolateField(IsolateFieldId::kCentralStackSP);
+  V<WordPtr> central_stack_sp =
+      __ Load(central_stack_sp_address, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::UintPtr());
   __ Store(active_stack, central_stack_sp, StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            StackMemory::stack_switch_target_sp_offset());
 
   // Switch the stack limit and the stack pointer.
-  V<WordPtr> central_stack_limit = __ Load(
-      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-      Isolate::central_stack_limit_offset());
+  V<WordPtr> central_stack_limit_address =
+      __ IsolateField(IsolateFieldId::kCentralStackLimit);
+  V<WordPtr> central_stack_limit =
+      __ Load(central_stack_limit_address, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::UintPtr());
   BuildSetNewStackLimit(old_limit, central_stack_limit);
 #endif
   OpIndex old_sp = __ LoadStackPointer();
@@ -239,16 +269,19 @@ template <typename Assembler>
 inline auto
 WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStackIfNeeded()
     -> std::pair<V<WordPtr>, V<WordPtr>> {
-  V<WordPtr> isolate_root = __ LoadRootRegister();
-  V<Word32> is_on_central_stack_flag = __ Load(
-      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
-      IsolateData::is_on_central_stack_flag_offset());
+  V<WordPtr> is_on_central_stack_flag_address =
+      __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);
+  V<Word32> is_on_central_stack_flag =
+      __ Load(is_on_central_stack_flag_address, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::Uint8());
   ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
   ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
   IF_NOT (LIKELY(is_on_central_stack_flag)) {
-    V<WordPtr> old_limit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                                   MemoryRepresentation::UintPtr(),
-                                   IsolateData::real_jslimit_offset());
+    V<WordPtr> real_jslimit_address =
+        __ IsolateField(IsolateFieldId::kRealJsLimit);
+    V<WordPtr> old_limit =
+        __ Load(real_jslimit_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr());
     V<WordPtr> old_sp = BuildSwitchToTheCentralStack(old_limit);
     old_sp_var = old_sp;
     old_limit_var = old_limit;
@@ -267,28 +300,33 @@ void WasmGraphBuilderBase<Assembler>::BuildSwitchBackFromCentralStack(
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer());
   IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
     CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
-          {__ ExternalConstant(ExternalReference::isolate_address())});
+          {__ IsolateField(IsolateFieldId::kIsolateAddress)});
 #else
   IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
     // Reset is_on_central_stack flag.
-    V<WordPtr> isolate_root = __ LoadRootRegister();
-    __ Store(isolate_root, __ Word32Constant(0), StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
-             IsolateData::is_on_central_stack_flag_offset());
+    V<WordPtr> is_on_central_stack_flag_address =
+        __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);
+    __ Store(is_on_central_stack_flag_address, __ Word32Constant(0),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+             compiler::kNoWriteBarrier);
 
     // Clear stack switch info.
     // We are not on the main stack, so the active stack must be set.
-    V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                                      MemoryRepresentation::UintPtr(),
-                                      IsolateData::active_stack_offset());
+    V<WordPtr> active_stack_address =
+        __ IsolateField(IsolateFieldId::kActiveStack);
+    V<WordPtr> active_stack =
+        __ Load(active_stack_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr());
     __ Store(active_stack, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
              MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              StackMemory::stack_switch_source_fp_offset());
 
     // Restore the old stack limit and stack pointer.
-    V<WordPtr> real_jslimit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                                      MemoryRepresentation::UintPtr(),
-                                      IsolateData::real_jslimit_offset());
+    V<WordPtr> real_jslimit_address =
+        __ IsolateField(IsolateFieldId::kRealJsLimit);
+    V<WordPtr> real_jslimit =
+        __ Load(real_jslimit_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr());
     BuildSetNewStackLimit(real_jslimit, old_limit);
 #endif
     __ SetStackPointer(old_sp);

@@ -154,8 +154,31 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
     Isolate* isolate, bool is_construct,
     DirectHandle<FunctionTemplateInfo> function, DirectHandle<Object> receiver,
     base::Vector<const DirectHandle<Object>> args,
-    DirectHandle<HeapObject> new_target) {
+    DirectHandle<HeapObject> new_target,
+    SideEffectType overrider_side_effect_type) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
+
+  if (!is_construct ||
+      (function->has_callback(isolate) && function->has_side_effects() &&
+       overrider_side_effect_type != SideEffectType::kHasNoSideEffect)) {
+    if (!AllowJavascriptExecution::IsAllowed(isolate)) {
+      GRACEFUL_FATAL("Invoke in DisallowJavascriptExecutionScope");
+    }
+    if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
+      isolate->ThrowIllegalOperation();
+      return MaybeHandle<Object>();
+    }
+    if (!DumpOnJavascriptExecution::IsAllowed(isolate)) {
+      V8::GetCurrentPlatform()->DumpWithoutCrashing();
+      if (is_construct) {
+        // TODO(crbug.com/576333024): Fix callers to handle empty return values
+        // without a pending exception when DumpOnJavascriptExecution disallows
+        // execution.
+        return isolate->factory()->NewJSObject(isolate->object_function());
+      }
+      return isolate->factory()->undefined_value();
+    }
+  }
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !IsJSReceiver(*receiver)) {

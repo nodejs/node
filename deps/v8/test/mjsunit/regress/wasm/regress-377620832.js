@@ -21,31 +21,46 @@ let $tab2 = builder.addTable(kWasmNullExnRef, 0, 1).exportAs("tab2");
 // test fails.
 
 builder.addFunction("test_glob0", kSig_v_v).exportFunc().addBody([
-  kExprGlobalGet, $glob0,
-  kExprBrOnNonNull, 0,
-  kExprUnreachable,
+  kExprBlock, kExnRefCode,
+    kExprGlobalGet, $glob0,
+    kExprBrOnNonNull, 0,
+    kExprUnreachable,
+  kExprEnd,
+  kExprDrop,
 ]);
 builder.addFunction("test_glob1", kSig_v_v).exportFunc().addBody([
-  kExprGlobalGet, $glob1.index,
-  kExprBrOnNonNull, 0,
-  kExprUnreachable,
+  kExprBlock, kExnRefCode,
+    kExprGlobalGet, $glob1.index,
+    kExprBrOnNonNull, 0,
+    kExprUnreachable,
+  kExprEnd,
+  kExprDrop,
 ]);
 builder.addFunction("test_glob2", kSig_v_v).exportFunc().addBody([
-  kExprGlobalGet, $glob2.index,
-  kExprBrOnNonNull, 0,
-  kExprUnreachable,
+  kExprBlock, kExnRefCode,
+    kExprGlobalGet, $glob2.index,
+    kExprBrOnNonNull, 0,
+    kExprUnreachable,
+  kExprEnd,
+  kExprDrop,
 ]);
 builder.addFunction("test_tab1", kSig_v_v).exportFunc().addBody([
-  kExprI32Const, 0,
-  kExprTableGet, $tab1.index,
-  kExprBrOnNonNull, 0,
-  kExprUnreachable,
+  kExprBlock, kExnRefCode,
+    kExprI32Const, 0,
+    kExprTableGet, $tab1.index,
+    kExprBrOnNonNull, 0,
+    kExprUnreachable,
+  kExprEnd,
+  kExprDrop,
 ]);
 builder.addFunction("test_tab2", kSig_v_v).exportFunc().addBody([
-  kExprI32Const, 0,
-  kExprTableGet, $tab2.index,
-  kExprBrOnNonNull, 0,
-  kExprUnreachable,
+  kExprBlock, kExnRefCode,
+    kExprI32Const, 0,
+    kExprTableGet, $tab2.index,
+    kExprBrOnNonNull, 0,
+    kExprUnreachable,
+  kExprEnd,
+  kExprDrop,
 ]);
 
 // This signature isn't JS-compatible, so we have to call the function

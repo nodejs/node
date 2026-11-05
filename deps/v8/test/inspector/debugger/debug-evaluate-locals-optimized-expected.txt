@@ -1,0 +1,5 @@
+Tests evaluating locals and arguments on optimized inlined frames.
+Pause 1: verified all frames
+Pause 2: verified all frames
+Pause 3: verified all frames
+Pause 4: verified all frames

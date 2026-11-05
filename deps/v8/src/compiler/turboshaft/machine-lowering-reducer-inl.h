@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 
+#include <bit>
 #include <optional>
 
 #include "src/base/logging.h"
@@ -3036,6 +3037,115 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  void TryGenerateShortConstantStringEqual(V<String> left, V<String> right,
+                                           Label<Boolean>* done) {
+    uint32_t max_inline_length =
+        v8_flags.turboshaft_max_inline_string_equal_length;
+    if (max_inline_length == 0) return;
+    const ConstantOp* left_cst =
+        __ Get(left).template TryCast<Opmask::kHeapConstant>();
+    const ConstantOp* right_cst =
+        __ Get(right).template TryCast<Opmask::kHeapConstant>();
+    if ((left_cst != nullptr) == (right_cst != nullptr)) return;
+
+    const ConstantOp* cst = left_cst != nullptr ? left_cst : right_cst;
+    V<String> other = left_cst != nullptr ? right : left;
+
+    UnparkedScopeIfNeeded unpark(broker_);
+    HeapObjectRef ref = MakeRef(broker_, cst->handle());
+    // Only InternalizedStrings are safe to read on a background thread:
+    // non-internalized strings can be converted in-place to ThinStrings or
+    // externalized on the main thread without holding
+    // internalized_string_access.
+    if (!ref.IsInternalizedString()) return;
+    StringRef str = ref.AsString();
+    if (!str.IsOneByteRepresentation()) return;
+    uint32_t length = str.length();
+    if (length == 0 || length > max_inline_length) return;
+
+    // If {other} is not a SeqOneByteString, fall through to the StringEqual
+    // builtin call in the caller.
+    IF (LIKELY(IsSeqOneByteStringMap(__ LoadMapField(other)))) {
+      uint32_t chunk_size =
+          std::min<uint32_t>(kSystemPointerSize, std::bit_floor(length));
+      MemoryRepresentation mem_rep;
+      switch (chunk_size) {
+        case 1:
+          mem_rep = MemoryRepresentation::Uint8();
+          break;
+        case 2:
+          mem_rep = MemoryRepresentation::Uint16();
+          break;
+        case 4:
+          mem_rep = MemoryRepresentation::Uint32();
+          break;
+        case 8:
+          mem_rep = MemoryRepresentation::Uint64();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      WordRepresentation word_rep(mem_rep.ToRegisterRepresentation());
+      constexpr int32_t kHeaderSize = OFFSET_OF_DATA_START(SeqOneByteString);
+
+      DisallowGarbageCollection no_gc;
+      SharedStringAccessGuardIfNeeded access_guard(*str.object(),
+                                                   broker_->local_isolate());
+      base::Vector<const uint8_t> chars =
+          str.object()->GetFlatContent(no_gc, access_guard).ToOneByteVector();
+
+      auto load_chunk = [&](uint32_t offset) -> V<Word> {
+        return __ Load(other, LoadOp::Kind::TaggedBase(), mem_rep,
+                       kHeaderSize + static_cast<int32_t>(offset));
+      };
+      auto expected_chunk = [&](uint32_t offset) -> V<Word> {
+        uint64_t val = 0;
+        switch (chunk_size) {
+          case 1:
+            val = chars[offset];
+            break;
+          case 2:
+            val = base::ReadUnalignedValue<uint16_t>(&chars[offset]);
+            break;
+          case 4:
+            val = base::ReadUnalignedValue<uint32_t>(&chars[offset]);
+            break;
+          case 8:
+            val = base::ReadUnalignedValue<uint64_t>(&chars[offset]);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        return __ WordConstant(val, word_rep);
+      };
+      auto difference = [&](uint32_t offset) -> V<Word> {
+        return __ WordBitwiseXor(load_chunk(offset), expected_chunk(offset),
+                                 word_rep);
+      };
+
+      V<Word32> is_equal;
+      if (length == chunk_size) {
+        is_equal = __ Equal(load_chunk(0), expected_chunk(0), word_rep);
+      } else {
+        // The final load overlaps the previous one when length is not a
+        // multiple of chunk_size.
+        V<Word> diff = difference(0);
+        for (uint32_t offset = chunk_size; offset + chunk_size < length;
+             offset += chunk_size) {
+          diff = __ WordBitwiseOr(diff, difference(offset), word_rep);
+        }
+        diff =
+            __ WordBitwiseOr(diff, difference(length - chunk_size), word_rep);
+        is_equal = __ Equal(diff, __ WordConstant(0, word_rep), word_rep);
+      }
+      IF (is_equal) {
+        GOTO(*done, __ HeapConstant(factory_->true_value()));
+      } ELSE {
+        GOTO(*done, __ HeapConstant(factory_->false_value()));
+      }
+    }
+  }
+
   void GenerateStringEqualBuiltinCall(V<String> left, V<String> right,
                                       Label<Boolean>* done) {
     V<Word32> left_length =
@@ -3043,6 +3153,7 @@ class MachineLoweringReducer : public Next {
     V<Word32> right_length =
         __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
     IF (__ Word32Equal(left_length, right_length)) {
+      TryGenerateShortConstantStringEqual(left, right, done);
       GOTO(*done, __ template CallBuiltin<builtin::StringEqual>(
                       {.left = left,
                        .right = right,

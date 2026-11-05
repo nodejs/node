@@ -19,12 +19,12 @@ namespace v8::internal::wasm {
 
 // Provides functionality for caching JS-to-Wasm wrappers in an {Isolate}.
 // Since these wrappers are JS-compatible {Code} objects living in managed
-// code space, the cache is also Isolate-specific. It uses a WeakFixedArray
-// as backing store in order to not leak unused wrappers, and a HashTable-
-// inspired indexing scheme rather than a dense array layout because we expect
-// only a minority of canonical type indices to have a corresponding wrapper.
-// For sandbox purposes, the cache itself is untrusted, but calls through the
-// wrappers are protected by our regular signature verification scheme.
+// code space, the cache is also Isolate-specific. It uses a
+// {ProtectedWeakFixedArray} in trusted space as backing store in order to not
+// leak unused wrappers and to protect cached entries from in-sandbox
+// corruption, and a HashTable-inspired indexing scheme rather than a dense
+// array layout because we expect only a minority of canonical type indices to
+// have a corresponding wrapper.
 class WasmExportWrapperCache : public AllStatic {
  public:
   // DCHECK-fails if a caller attempts to overwrite an existing wrapper.
@@ -32,14 +32,14 @@ class WasmExportWrapperCache : public AllStatic {
                   DirectHandle<Code> code);
 
   // Returns an empty Tagged if no cache entry was found.
-  static Tagged<CodeWrapper> Get(Isolate* isolate,
-                                 CanonicalTypeIndex sig_index);
+  static Tagged<Code> Get(Isolate* isolate, CanonicalTypeIndex sig_index);
 
 #ifdef VERIFY_HEAP
   static void Verify(Heap* heap);
 #endif  // VERIFY_HEAP
 
-  // Defined in cctest/test-run-wasm-wrappers.cc to not bloat shipping binaries.
+  // Defined in test/unittests/wasm/run-wasm-wrappers-unittest.cc to not bloat
+  // shipping binaries.
   static int CountWrappersForTesting(Isolate* isolate);
 
  private:
@@ -48,12 +48,13 @@ class WasmExportWrapperCache : public AllStatic {
   static constexpr int kNumUsedElementsIndex = 0;
   static constexpr int kReservedSlots = 1;
 
-  // Key (Smi), value (Weak<CodeWrapper>).
+  // Key (Smi), value (Weak<Code>).
   static constexpr int kSlotsPerEntry = 2;
 
-  static DirectHandle<WeakFixedArray> New(Isolate* isolate, uint32_t capacity);
+  static DirectHandle<ProtectedWeakFixedArray> New(Isolate* isolate,
+                                                   uint32_t capacity);
 
-  static uint32_t Capacity(Tagged<WeakFixedArray> cache);
+  static uint32_t Capacity(Tagged<ProtectedWeakFixedArray> cache);
 
   static uint32_t Hash(CanonicalTypeIndex sig_index) {
     // Note: "hash" is a bit of a misnomer here; we require this value to
@@ -62,7 +63,7 @@ class WasmExportWrapperCache : public AllStatic {
     return sig_index.index;
   }
 
-  // Maps the n-th entry to an index in the underlying WeakFixedArray.
+  // Maps the n-th entry to an index in the underlying ProtectedWeakFixedArray.
   static int ToArraySlot(InternalIndex entry) {
     return kReservedSlots + entry.as_int() * kSlotsPerEntry;
   }
@@ -81,12 +82,12 @@ class WasmExportWrapperCache : public AllStatic {
     return InternalIndex((last.as_uint32() + number) & (capacity - 1));
   }
 
-  V8_WARN_UNUSED_RESULT static Tagged<WeakFixedArray> EnsureCapacity(
+  V8_WARN_UNUSED_RESULT static Tagged<ProtectedWeakFixedArray> EnsureCapacity(
       Isolate* isolate);
 
   template <bool entry_may_exist>
-  static void PutInternal(Tagged<WeakFixedArray> cache, uint32_t hash,
-                          Tagged<MaybeObject> value);
+  static void PutInternal(Tagged<ProtectedWeakFixedArray> cache, uint32_t hash,
+                          Tagged<ProtectedWeakFixedArray::ElementT> value);
 };
 
 }  // namespace v8::internal::wasm

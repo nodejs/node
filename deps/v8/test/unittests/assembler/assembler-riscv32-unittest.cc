@@ -46,7 +46,7 @@ namespace internal {
 using AssemblerRISCV32Test = TestWithIsolate;
 
 // With 512-bit vectors, there are at most 64 elements.
-static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
+static_assert(kMaxRvvVLEN <= 1024, "Unsupported VLEN");
 const int kMaxElements = 64;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.

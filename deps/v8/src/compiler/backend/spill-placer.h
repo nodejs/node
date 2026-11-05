@@ -12,7 +12,6 @@ namespace internal {
 
 namespace compiler {
 
-class LiveRangeFinder;
 class TopLevelLiveRange;
 class RegisterAllocationData;
 
@@ -63,8 +62,7 @@ class RegisterAllocationData;
 //    at the beginning of those successors. If we manage to smear the "spill
 //    required" value all the way to the definition block, then insert a spill
 //    move at the definition instead. (Spilling at the definition implies that
-//    we didn't emit any other spill moves, and there is a DCHECK mechanism to
-//    ensure that invariant.)
+//    we didn't emit any other spill moves.)
 //
 // Loop back-edges can be safely ignored in every step. Anything that the loop
 // header needs on-stack will be spilled either in the loop header itself or
@@ -83,11 +81,8 @@ class SpillPlacer {
   SpillPlacer& operator=(const SpillPlacer&) = delete;
 
   // Adds the given TopLevelLiveRange to the SpillPlacer's state. Will
-  // eventually commit spill moves for that range and mark the range to indicate
-  // whether its value is spilled at the definition or some later point, so that
-  // subsequent phases can know whether to assume the value is always on-stack.
-  // However, those steps may happen during a later call to Add or during the
-  // destructor.
+  // eventually commit spill moves for that range. However, those steps may
+  // happen during a later call to Add or during the destructor.
   void Add(TopLevelLiveRange* range);
 
  private:
@@ -103,9 +98,8 @@ class SpillPlacer {
            vreg_numbers_[assigned_indices_ - 1] == vreg;
   }
 
-  // Processes all of the ranges which have been added, inserts spill moves for
-  // them to the instruction sequence, and marks the ranges with whether they
-  // are spilled at the definition or later.
+  // Processes all of the ranges which have been added and inserts spill moves
+  // for them to the instruction sequence.
   void CommitSpills();
 
   void ClearData();

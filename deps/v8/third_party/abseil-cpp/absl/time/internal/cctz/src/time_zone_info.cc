@@ -415,6 +415,9 @@ inline FilePtr FOpen(const char* path) {
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 0
+#endif
   const int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
   if (fd >= 0) {
 #if defined(__APPLE__)
@@ -787,8 +790,8 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
   for (std::size_t i = 0; i != hdr.typecnt; ++i) {
     transition_types_[i].utc_offset =
         static_cast<std::int_least32_t>(Decode32(bp));
-    if (transition_types_[i].utc_offset >= kSecsPerDay ||
-        transition_types_[i].utc_offset <= -kSecsPerDay)
+    if (transition_types_[i].utc_offset >= 26 * 60 * 60 ||
+        transition_types_[i].utc_offset <= -25 * 60 * 60)
       return false;
     bp += 4;
     transition_types_[i].is_dst = (Decode8(bp++) != 0);
@@ -887,12 +890,17 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
     ttp = &transition_types_[tr.type_index];
     tr.civil_sec = LocalTime(tr.unix_time, *ttp).cs;
     if (i != 0) {
-      // Check that offset changes don't cross each other. No one
-      // does this in practice, and we depend on increasing absolute
-      // and civil times in BreakTime() and MakeTime() respectively.
-      if (!Transition::ByUnixTime()(transitions_[i - 1], tr) ||
-          !Transition::ByCivilTime()(transitions_[i - 1], tr)) {
+      // Check that offset changes don't cross each other, including the
+      // civil times each one skips or repeats. No one does this in
+      // practice, and we depend on increasing absolute and civil times
+      // in BreakTime() and MakeTime() respectively.
+      const Transition& prev_tr(transitions_[i - 1]);
+      if (prev_tr.unix_time >= tr.unix_time) {
         return false;  // out of order
+      }
+      if (std::max(prev_tr.prev_civil_sec, prev_tr.civil_sec) >=
+          std::min(tr.prev_civil_sec, tr.civil_sec)) {
+        return false;  // transitions too close
       }
     }
   }

@@ -39,8 +39,7 @@ transitioning macro ReduceRightAllElements(
   }
   typeswitch (accumulator) {
     case (TheHole): {
-      ThrowTypeError(
-          MessageTemplate::kReduceNoInitial, kBuiltinNameReduceRight);
+      ThrowTypeError(MessageTemplate::kReduceNoInitial);
     }
     case (accumulator: JSAny): {
       return accumulator;
@@ -70,7 +69,7 @@ transitioning javascript builtin TypedArrayPrototypeReduceRight(
   } label NotCallable deferred {
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduceRight);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation,

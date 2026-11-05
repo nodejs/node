@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
 #include "test/cctest/cctest.h"
 #include "tools/debug_helper/debug-helper.h"
@@ -87,6 +90,16 @@ void CheckStructProp(const d::StructProperty& property,
   CHECK_EQ(property.shift_bits, expected_shift_bits);
 }
 
+const d::StructProperty& FindStructField(const d::ObjectProperty& property,
+                                         const char* name) {
+  for (size_t i = 0; i < property.num_struct_fields; i++) {
+    if (property.struct_fields[i]->name == std::string(name)) {
+      return *property.struct_fields[i];
+    }
+  }
+  UNREACHABLE();
+}
+
 const d::ObjectProperty& FindProp(const d::ObjectPropertiesResult& props,
                                   std::string name) {
   for (size_t i = 0; i < props.num_properties; ++i) {
@@ -140,7 +153,7 @@ TEST(GetObjectProperties) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   // Claim we don't know anything about the heap layout.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0, 0, 0};
 
   v8::Local<v8::Value> v = CompileRun("42");
   DirectHandle<Object> o = v8::Utils::OpenDirectHandle(*v);
@@ -392,7 +405,7 @@ TEST(GetObjectProperties) {
   CHECK(props2->brief == std::string("2 (0x2)"));
 
   // Verify the result for a heap object field which is itself a struct: the
-  // "descriptors" field on a DescriptorArray.
+  // "entries" field on a DescriptorArray.
   // Start by getting the object's map and the map's descriptor array.
   uintptr_t map_ptr = ReadProp<i::Tagged_t>(*props, "map");
 #if V8_MAP_PACKING
@@ -402,18 +415,21 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
       heap_addresses);
-  CHECK_EQ(props->num_properties, 6);
+  CHECK_EQ(props->num_properties,
+           V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ? 7 : 6);
   // It should have at least two descriptors (possibly plus slack).
   CheckProp(*props->properties[1], "uint16_t", "number_of_all_descriptors");
   uint16_t number_of_all_descriptors =
       *reinterpret_cast<uint16_t*>(props->properties[1]->address);
   CHECK_GE(number_of_all_descriptors, 2);
-  // The "descriptors" property should describe the struct layout for each
+  // The "entries" property should describe the struct layout for each
   // element in the array.
-  const d::ObjectProperty& descriptors = *props->properties[5];
+  const int descriptor_idx =
+      V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ? 6 : 5;
+  const d::ObjectProperty& descriptors = *props->properties[descriptor_idx];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
-  CheckProp(descriptors, /*type=*/"", "descriptors",
+  CheckProp(descriptors, /*type=*/"", "entries",
             d::PropertyKind::kArrayOfKnownSize, number_of_all_descriptors);
   CHECK_EQ(descriptors.size, 3 * i::kTaggedSize);
   CHECK_EQ(descriptors.num_struct_fields, 3);
@@ -482,6 +498,57 @@ TEST(GetObjectProperties) {
   }
 }
 
+TEST(GetObjectPropertiesWithOnlyIsolate) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  Heap* heap = i_isolate->heap();
+
+  // The debug helper uses the undefined value (which is supposed to be in
+  // read-only space) and the empty script (which is in old space)
+  // as reference objects to locate the first pages of the spaces.
+  // If the heap setup moves these reference objects, update the debug
+  // helper.
+  Tagged<HeapObject> undefined_value =
+      Cast<HeapObject>(*v8::Utils::OpenDirectHandle(*v8::Undefined(isolate)));
+  // No public API hands out a startup object that lives in old space.
+  Tagged<HeapObject> empty_script = heap->empty_script();
+  CHECK(heap->read_only_space()->pages().front()->Contains(
+      undefined_value.address()));
+  CHECK(heap->old_space()->first_page()->Contains(empty_script.address()));
+
+  // Check inspections of objects with only the isolate pointer work correctly.
+  d::HeapAddresses heap_addresses{
+      0, 0, 0, 0, 0, 0, reinterpret_cast<uintptr_t>(i_isolate)};
+  Tagged<HeapObject> true_value =
+      Cast<HeapObject>(*v8::Utils::OpenDirectHandle(*v8::True(isolate)));
+  Tagged<HeapObject> null_value =
+      Cast<HeapObject>(*v8::Utils::OpenDirectHandle(*v8::Null(isolate)));
+  d::ObjectPropertiesResultPtr props =
+      d::GetObjectProperties(true_value.ptr(), &ReadMemory, heap_addresses);
+  CHECK(StartsWith(props->brief, "TrueValue"));
+  props = d::GetObjectProperties(null_value.ptr(), &ReadMemory, heap_addresses);
+  CHECK(StartsWith(props->brief, "NullValue"));
+  props =
+      d::GetObjectProperties(empty_script.ptr(), &ReadMemory, heap_addresses);
+  CHECK(StartsWith(props->brief, "EmptyScript"));
+
+  // A new string should live in neither read-only space nor old space, except
+  // in single-generation builds.
+  Tagged<String> string = *v8::Utils::OpenDirectHandle(
+      *v8::String::NewFromUtf8Literal(isolate, "test string"));
+  CHECK(!heap->InSpace(string, RO_SPACE));
+  CHECK(v8_flags.single_generation || !heap->InSpace(string, OLD_SPACE));
+  props = d::GetObjectProperties(string.ptr(), &ReadMemory, heap_addresses);
+  std::stringstream expected;
+  expected << "\"test string\" (0x" << std::hex << string.ptr()
+           << " <v8::internal::SeqOneByteString>)";
+  CHECK(expected.str() == props->brief);
+}
+
 static void FrameIterationCheck(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
@@ -491,7 +558,7 @@ static void FrameIterationCheck(
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
     if (frame->is_javascript()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      CHECK_EQ(props->num_properties, 5);
+      CHECK_EQ(props->num_properties, 9);
       auto js_function = js_frame->function();
       // This one is Tagged, not TaggedMember, because it's from the stack.
       CheckProp(*props->properties[0],
@@ -513,9 +580,9 @@ static void FrameIterationCheck(
                 "function_name",
                 static_cast<i::Tagged_t>(scope_info->FunctionName().ptr()));
 
-      CheckProp(*props->properties[4], "", "function_character_offset");
+      CheckProp(*props->properties[6], "", "function_character_offset");
       const d::ObjectProperty& function_character_offset =
-          *props->properties[4];
+          *props->properties[6];
       CHECK_EQ(function_character_offset.num_struct_fields, 2);
       CheckStructProp(*function_character_offset.struct_fields[0],
                       "v8::internal::TaggedMember<v8::internal::Object>",
@@ -523,6 +590,47 @@ static void FrameIterationCheck(
       CheckStructProp(*function_character_offset.struct_fields[1],
                       "v8::internal::TaggedMember<v8::internal::Object>", "end",
                       4);
+
+      int context_local_count = scope_info->ContextLocalCount();
+      const d::ObjectProperty& local_names = *props->properties[4];
+      CheckProp(local_names, "v8::internal::TaggedMember<v8::internal::String>",
+                "context_local_names", d::PropertyKind::kArrayOfKnownSize,
+                context_local_count);
+      for (int local = 0; local < context_local_count; local++) {
+        CHECK_EQ(reinterpret_cast<i::Tagged_t*>(local_names.address)[local],
+                 static_cast<i::Tagged_t>(
+                     scope_info->ContextInlinedLocalName(local).ptr()));
+      }
+      const d::ObjectProperty& local_infos = *props->properties[5];
+      CheckProp(local_infos, "v8::internal::TaggedMember<v8::internal::Object>",
+                "context_local_infos", d::PropertyKind::kArrayOfKnownSize,
+                context_local_count);
+      CHECK_EQ(local_infos.address,
+               local_names.address + context_local_count * i::kTaggedSize);
+
+      // The shifts of these fields include the Smi tag.
+      const int smi_shift = i::kSmiTagSize + i::kSmiShiftSize;
+      CheckStructProp(FindStructField(local_infos, "is_parameter"), "bool",
+                      "is_parameter", 0, i::ScopeInfo::IsParameterBit::kSize,
+                      smi_shift + i::ScopeInfo::IsParameterBit::kShift);
+      CheckStructProp(
+          FindStructField(local_infos, "parameter_number_or_position"),
+          "uint32_t", "parameter_number_or_position", 0,
+          i::ScopeInfo::ParameterNumberOrPositionBits::kSize,
+          smi_shift + i::ScopeInfo::ParameterNumberOrPositionBits::kShift);
+
+      // These are Tagged too because they are stack slots.
+      CheckProp(*props->properties[7],
+                "v8::internal::Tagged<v8::internal::Object>", "receiver",
+                js_frame->receiver().ptr());
+      const d::ObjectProperty& arguments = *props->properties[8];
+      uint32_t argc = js_frame->GetActualArgumentCount();
+      CheckProp(arguments, "v8::internal::Tagged<v8::internal::Object>",
+                "arguments", d::PropertyKind::kArrayOfKnownSize, argc);
+      for (uint32_t arg = 0; arg < argc; arg++) {
+        CHECK_EQ(reinterpret_cast<Address*>(arguments.address)[arg],
+                 js_frame->GetParameter(arg).ptr());
+      }
     } else {
       CHECK_EQ(props->num_properties, 0);
     }
@@ -542,10 +650,17 @@ THREADED_TEST(GetFrameStack) {
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
             .FromJust());
-  v8::Script::Compile(env.local(), v8_str("function foo() {"
+  // Cover matched, under-applied, and over-applied argument counts.
+  v8::Script::Compile(env.local(), v8_str("function exact(a) {"
                                           "  return obj.xxx;"
                                           "}"
-                                          "foo();"))
+                                          "function underapplied(a, b, c) {"
+                                          "  return exact(40);"
+                                          "}"
+                                          "function overapplied(x) {"
+                                          "  return underapplied(41);"
+                                          "}"
+                                          "overapplied(42, 43);"))
       .ToLocalChecked()
       ->Run(env.local())
       .ToLocalChecked();
@@ -565,12 +680,14 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
 
   // Verify with the definition of SmallOrderedHashSet in
   // src\objects\ordered-hash-table.tq.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0, 0, 0};
   d::ObjectPropertiesResultPtr props =
       d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
   CHECK_EQ(props->type, std::string("v8::internal::SmallOrderedHashSet"));
-  CHECK_EQ(props->num_properties, 8);
+  // The variable-length tail (data, hash and chain tables) is not visible to
+  // Torque and thus not reported by the debug helper.
+  CHECK_EQ(props->num_properties, 5);
 
   CheckProp(*props->properties[0],
             "v8::internal::TaggedMember<v8::internal::Map>", "map");
@@ -584,15 +701,6 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   CheckProp(*props->properties[4], "uint8_t", "padding",
             d::PropertyKind::kArrayOfKnownSize, 1);
 #endif
-  CheckProp(*props->properties[5],
-            "v8::internal::TaggedMember<v8::internal::Object>", "data_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
-  CheckProp(*props->properties[6], "uint8_t", "hash_table",
-            d::PropertyKind::kArrayOfKnownSize, number_of_buckets);
-  CheckProp(*props->properties[7], "uint8_t", "chain_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
 }
 
 }  // namespace internal

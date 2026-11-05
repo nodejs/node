@@ -1,0 +1,47 @@
+Tests scope chain inspection and scope objects in modules.
+Local 1 passed
+Local 2 passed
+Local 3 passed
+Local 4 passed
+Local 5 passed
+Local 6 passed
+Local 7 passed
+Closure 1 passed
+Closure 2 passed
+Closure 3 passed
+Closure 4 passed
+Closure 5 passed
+Closure 6 passed
+Closure 7 passed
+Closure 8 passed
+Closure 9 passed
+Global passed
+Catch block 1 passed
+Catch block 3 passed
+Catch block 5 passed
+Catch block 6 passed
+Catch block 7 passed
+Classes and methods 1 passed
+Checking position.start = 58, .end = 118
+Checking position.start = 10, .end = 162
+Scope positions passed
+Checking position.start = 42, .end = 111
+Checking position.start = 22, .end = 145
+Scope positions in for statement passed
+Checking position.start = 66, .end = 147
+Checking position.start = 42, .end = 147
+Checking position.start = 22, .end = 181
+Scope positions in for statement with lexical block passed
+Checking position.start = 55, .end = 111
+Checking position.start = 27, .end = 145
+Scope positions in lexical for each statement passed
+Checking position.start = 57, .end = 147
+Checking position.start = 55, .end = 147
+Checking position.start = 27, .end = 181
+Scope positions in lexical for each statement with lexical block passed
+Checking position.start = 27, .end = 181
+Scope positions in non-lexical for each statement passed
+Checking position.start = 89, .end = 183
+Checking position.start = 27, .end = 217
+Scope positions in non-lexical for each statement with lexical block passed
+All 30 tests completed successfully (30 breaks).

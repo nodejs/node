@@ -21,9 +21,8 @@ SpillPlacer::~SpillPlacer() {
 }
 
 void SpillPlacer::Add(TopLevelLiveRange* range) {
-  DCHECK(range->HasGeneralSpillRange());
-  InstructionOperand spill_operand = range->GetSpillRangeOperand();
-  range->FilterSpillMoves(data(), spill_operand);
+  DCHECK(range->HasSpillRange());
+  range->FilterSpillMoves(data());
 
   InstructionSequence* code = data_->code();
   InstructionBlock* top_start_block =
@@ -38,14 +37,9 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
   // - If the value is defined in a deferred block, then the logic to select
   //   the earliest deferred block as the insertion point would cause
   //   incorrect behavior, so the value must be spilled at the definition.
-  // - Late spilling was only enabled for loop phis initially. However, we also
-  // saw benefits in some wasm benchmarks when enabling it for other ranges, so
-  // the "--turbo-always-optimize-spills" flag is enabled by default now. It can
-  // be cleaned up if this is stable and does not cause regressions.
-  if (range->GetSpillMoveInsertionLocations(data()) == nullptr ||
-      range->spilled() || top_start_block->IsDeferred() ||
-      (!v8_flags.turbo_always_optimize_spills && !range->is_loop_phi())) {
-    range->CommitSpillMoves(data(), spill_operand);
+  if (!range->HasSpillMoveInsertionLocations() || range->spilled() ||
+      top_start_block->IsDeferred()) {
+    range->CommitSpillMoves(data());
     return;
   }
 
@@ -62,7 +56,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
         if (start_block == top_start_block_number) {
           // Can't do late spilling if the first spill is within the
           // definition block.
-          range->CommitSpillMoves(data(), spill_operand);
+          range->CommitSpillMoves(data());
           // Verify that we never added any data for this range to the table.
           DCHECK(!IsLatestVreg(range->vreg()));
           return;
@@ -92,7 +86,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
         if (block_number == top_start_block_number) {
           // Can't do late spilling if the first spill is within the
           // definition block.
-          range->CommitSpillMoves(data(), spill_operand);
+          range->CommitSpillMoves(data());
           // Verify that we never added any data for this range to the table.
           DCHECK(!IsLatestVreg(range->vreg()));
           return;
@@ -105,7 +99,6 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
   // If we haven't yet marked anything for this range, then it never needs to
   // spill at all.
   if (!IsLatestVreg(range->vreg())) {
-    range->SetLateSpillingSelected(true);
     return;
   }
 
@@ -426,7 +419,7 @@ void SpillPlacer::SecondBackwardPass() {
     for (int index_to_spill : base::bits::IterateBits(spill_at_def)) {
       int vreg_to_spill = vreg_numbers_[index_to_spill];
       TopLevelLiveRange* top = data()->live_ranges()[vreg_to_spill];
-      top->CommitSpillMoves(data(), top->GetSpillRangeOperand());
+      top->CommitSpillMoves(data());
     }
 
     if (block->IsDeferred()) {
@@ -473,7 +466,6 @@ void SpillPlacer::CommitSpill(int vreg, InstructionBlock* predecessor,
                      Instruction::GapPosition::START, pred_op,
                      live_range->GetSpillRangeOperand());
   successor->mark_needs_frame();
-  live_range->SetLateSpillingSelected(true);
 }
 
 }  // namespace compiler

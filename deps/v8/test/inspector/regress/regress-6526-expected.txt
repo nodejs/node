@@ -1,0 +1,1 @@
+Tests optimizing function with try-catch inside forEach with debugger enabled.

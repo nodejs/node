@@ -14,9 +14,23 @@ PROFILES = {
     # prefix filter optimization actually sees.
     "anchored": {
         "Assertion.caret": 8.0,
+        "Assertion.start_of_input": 4.0,
         "Term.assertion": 2.0,
         "Disjunction.alternation": 2.0,
         "Atom.character_class": 2.0,
+    },
+    # Exercise assertions in groups and their legacy identity-escape meanings.
+    # `\Z` uses a forward lookahead even inside lookbehind.
+    "buffer_boundaries": {
+        "Assertion.start_of_input": 6.0,
+        "Assertion.end_of_input": 6.0,
+        "Assertion.end_of_buffer": 8.0,
+        "Term.assertion": 2.0,
+        "Assertion.lookbehind": 2.0,
+        "Assertion.negative_lookbehind": 2.0,
+        "Disjunction.alternation": 2.0,
+        "Atom.capturing_group": 2.0,
+        "CharacterEscape.identity_escape_boundary_letter": 6.0,
     },
     # v-mode set algebra: nested classes, intersection, subtraction, strings.
     "classes": {

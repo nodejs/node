@@ -8,6 +8,7 @@
 #include "src/handles/traced-handles.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/slots-inl.h"

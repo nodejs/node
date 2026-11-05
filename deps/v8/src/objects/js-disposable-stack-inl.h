@@ -30,11 +30,11 @@ void JSDisposableStackBase::set_stack(Tagged<FixedArray> value,
   stack_.store(this, value, mode);
 }
 
-int JSDisposableStackBase::status() const { return status_.load().value(); }
-
-void JSDisposableStackBase::set_status(int value) {
-  status_.store(this, Smi::From31BitPattern(value));
+JSDisposableStackBase::Status JSDisposableStackBase::status() const {
+  return status_.load();
 }
+
+void JSDisposableStackBase::set_status(Status value) { status_.store(value); }
 
 Tagged<UnionOf<Object, Hole>> JSDisposableStackBase::error() const {
   return error_.load();
@@ -55,38 +55,15 @@ void JSDisposableStackBase::set_error_message(
 }
 
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, state,
-                    JSDisposableStackBase::StateBit)
+                    JSDisposableStackBase::Status::StateBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needs_await,
-                    JSDisposableStackBase::NeedsAwaitBit)
+                    JSDisposableStackBase::Status::NeedsAwaitBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, has_awaited,
-                    JSDisposableStackBase::HasAwaitedBit)
+                    JSDisposableStackBase::Status::HasAwaitedBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressed_error_created,
-                    JSDisposableStackBase::SuppressedErrorCreatedBit)
+                    JSDisposableStackBase::Status::SuppressedErrorCreatedBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
-                    JSDisposableStackBase::LengthBits)
-
-// Verify our BitField layout matches the Torque bitfield struct. If the .tq
-// definition changes, these will catch the divergence at compile time.
-namespace torque_asserts {
-struct DisposableStackStatusTqFlags {
-  using StateBit = base::BitField<DisposableStackState, 0, 1, uint32_t>;
-  using NeedsAwaitBit = StateBit::Next<bool, 1>;
-  using HasAwaitedBit = NeedsAwaitBit::Next<bool, 1>;
-  using SuppressedErrorCreatedBit = HasAwaitedBit::Next<bool, 1>;
-  using LengthBits = SuppressedErrorCreatedBit::Next<int32_t, 27>;
-};
-#define CHECK_BITFIELD(f)                                      \
-  static_assert(JSDisposableStackBase::f::kShift ==            \
-                    DisposableStackStatusTqFlags::f::kShift && \
-                JSDisposableStackBase::f::kSize ==             \
-                    DisposableStackStatusTqFlags::f::kSize)
-CHECK_BITFIELD(StateBit);
-CHECK_BITFIELD(NeedsAwaitBit);
-CHECK_BITFIELD(HasAwaitedBit);
-CHECK_BITFIELD(SuppressedErrorCreatedBit);
-CHECK_BITFIELD(LengthBits);
-#undef CHECK_BITFIELD
-}  // namespace torque_asserts
+                    JSDisposableStackBase::Status::LengthBits)
 
 inline void JSDisposableStackBase::Add(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,

@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -185,17 +186,17 @@ void PPCDebugger::Debug() {
   UndoBreakpoint();
   // Disable tracing while simulating
   bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim = false;
+  v8_flags.trace_sim.Overwrite(false);
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -233,11 +234,10 @@ void PPCDebugger::Debug() {
             disasm::NameConverter converter;
             disasm::Disassembler dasm(converter);
             // use a reasonably large buffer
-            v8::base::EmbeddedVector<char, 256> buffer;
+            std::array<char, 256> buffer;
             dasm.InstructionDecode(buffer,
                                    reinterpret_cast<uint8_t*>(sim_->get_pc()));
-            PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                   buffer.begin());
+            PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.data());
             sim_->ExecuteInstruction(
                 reinterpret_cast<Instruction*>(sim_->get_pc()));
           }
@@ -414,7 +414,7 @@ void PPCDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* prev = nullptr;
         uint8_t* cur = nullptr;
@@ -455,7 +455,7 @@ void PPCDebugger::Debug() {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.begin());
+                 buffer.data());
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -624,7 +624,7 @@ void PPCDebugger::Debug() {
   // hit.
   RedoBreakpoint();
   // Restore tracing
-  v8_flags.trace_sim = trace;
+  v8_flags.trace_sim.Overwrite(trace);
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -5579,10 +5579,10 @@ void Simulator::Trace(Instruction* instr) {
   disasm::NameConverter converter;
   disasm::Disassembler dasm(converter);
   // use a reasonably large buffer
-  v8::base::EmbeddedVector<char, 256> buffer;
+  std::array<char, 256> buffer;
   dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
   PrintF("%05d  %08" V8PRIxPTR "  %s\n", icount_,
-         reinterpret_cast<intptr_t>(instr), buffer.begin());
+         reinterpret_cast<intptr_t>(instr), buffer.data());
 }
 
 // Executes the current instruction.
@@ -5831,12 +5831,12 @@ void Simulator::GlobalMonitor::Clear() {
   access_state_ = MonitorAccess::Open;
   tagged_addr_ = 0;
   size_ = TransactionSize::None;
-  thread_id_ = ThreadId::Invalid();
+  thread_id_ = base::ThreadId::Invalid();
 }
 
 void Simulator::GlobalMonitor::NotifyLoadExcl(uintptr_t addr,
                                               TransactionSize size,
-                                              ThreadId thread_id) {
+                                              base::ThreadId thread_id) {
   // TODO(s390): By using Global Monitors, we are effectively limiting one
   // active reservation across all processors. This would potentially serialize
   // parallel threads executing load&reserve + store conditional on unrelated
@@ -5849,7 +5849,7 @@ void Simulator::GlobalMonitor::NotifyLoadExcl(uintptr_t addr,
 }
 
 void Simulator::GlobalMonitor::NotifyStore(uintptr_t addr, TransactionSize size,
-                                           ThreadId thread_id) {
+                                           base::ThreadId thread_id) {
   if (access_state_ == MonitorAccess::Exclusive) {
     // Calculate if the transaction has been overlapped
     uintptr_t transaction_start = addr;
@@ -5867,7 +5867,7 @@ void Simulator::GlobalMonitor::NotifyStore(uintptr_t addr, TransactionSize size,
 
 bool Simulator::GlobalMonitor::NotifyStoreExcl(uintptr_t addr,
                                                TransactionSize size,
-                                               ThreadId thread_id) {
+                                               base::ThreadId thread_id) {
   bool permission = access_state_ == MonitorAccess::Exclusive &&
                     addr == tagged_addr_ && size_ == size &&
                     thread_id_ == thread_id;

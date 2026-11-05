@@ -82,7 +82,11 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   static_assert(!std::is_array_v<T> || std::extent_v<T> > 0,
                 "Arrays with unknown bounds cannot be used with FixedArray.");
 
-  static constexpr size_t kInlineBytesDefault = 256;
+  // 48 bytes of inline elements plus the size and data pointer keep a default
+  // FixedArray with a stateless allocator within one 64-byte cache line.
+  // Larger default buffers waste memory in heap-resident objects that hold few
+  // elements or allocate out of line.
+  static constexpr size_t kInlineBytesDefault = 48;
 
   using AllocatorTraits = std::allocator_traits<A>;
   template <typename Iterator>

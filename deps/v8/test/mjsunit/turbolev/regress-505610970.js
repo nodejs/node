@@ -7,7 +7,8 @@
 function foo() {
   const v1 = ("string").normalize();
   const v4 = new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([
-      0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+      0x00, 0x61, 0x73, 0x6d,  // wasm magic
+      0x01, 0x00, 0x00, 0x00,  // wasm version
   ])));
   const v5 = v4.exports;
   for (let v6 = 0; v6 < 5; v6++) {

@@ -1,0 +1,7 @@
+Tests top-level await in REPL mode evaluation.
+5; -> 5 (exception: false)
+let x = await Promise.resolve(42); -> undefined (exception: false)
+x -> 42
+throw new Error("ba dum tsh"); -> exception: true Error: ba dum tsh
+await Promise.reject("Reject promise!"); -> exception: true Reject promise!
+await y -> 21

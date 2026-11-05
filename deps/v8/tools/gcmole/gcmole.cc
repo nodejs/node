@@ -126,6 +126,12 @@ static bool HasAnonymousBase(const clang::CXXRecordDecl* record) {
   return false;
 }
 
+// Returns the fully qualified name of `record`. If `record` (or any of its base
+// classes) is declared inside an anonymous namespace, appends a sanitized
+// translation-unit path (`$<sanitized_main_file>`) so that identically named
+// file-local classes in different `.cc` files (e.g. two TUs each defining
+// `namespace { class MyVisitor : public ObjectVisitor {}; }`) do not collide
+// when `gcmole.py` merges `class_hierarchy_*.json` across all TUs.
 static std::string GetRecordQualifiedName(const clang::CXXRecordDecl* record) {
   std::string name = record->getQualifiedNameAsString();
   if (record->isInAnonymousNamespace() || HasAnonymousBase(record)) {
@@ -175,6 +181,115 @@ static std::string EscapeJSONString(const std::string& s) {
   return out;
 }
 
+// ----------------------------------------------------------------------------
+// Virtual Call Devirtualization & ObjectVisitor Call-Graph Modeling
+// ----------------------------------------------------------------------------
+//
+// GCMole operates in two passes across all translation units:
+//   - Pass 1 (`dump-callees`): `CalleesPrinter` and `FunctionDeclarationFinder`
+//     emit a per-TU call graph (`caller -> callee`) to stdout and a per-TU
+//     class hierarchy (`class_hierarchy_<tu>.json`) recording base classes,
+//     virtual methods, and `base_method -> override_method` mappings.
+//     `gcmole.py` merges these across all TUs, resolves virtual dispatch using
+//     Class Hierarchy Analysis (CHA), and propagates GC suspects backwards from
+//     `CollectGarbage` / `SafepointSlowPath` into `gcsuspects` and `gccauses`.
+//   - Pass 2 (`find-problems`): `FunctionAnalyzer` reads `gcsuspects` and
+//     checks whether any call site in the analyzed function can transitively
+//     trigger a GC.
+//
+// For a direct non-virtual call `Foo()`, `expr->getDirectCallee()` resolves
+// directly to the target `FunctionDecl`. For virtual calls (and
+// `ObjectVisitor::VisitRelocInfo`), static resolution at the call site only
+// sees the base declaration `Base::Foo`, not the concrete overrides in
+// subclasses. To model virtual dispatch accurately without cross-class
+// false positives, Pass 1 and `gcmole.py` use three kinds of synthetic
+// call-graph nodes:
+//
+// 1. External virtual calls (`VIRTUAL-<ReceiverClass>-<MangledMethod>`):
+//    When calling `b->Foo()` on a receiver `b` with static type `B*`,
+//    `CalleesPrinter` emits an edge to `VIRTUAL-B-<Method>` (where `<Method>`
+//    is the declaration found by name lookup on `B`: `B::Foo` if `B` overrides
+//    `Foo`, or `A::Foo` if `B` inherits it from `A`). `gcmole.py` normalizes
+//    `<Method>` to the root declaration `A::Foo` and links the node to the
+//    active implementation on `B` and to all overrides in subclasses of `B`
+//    (`C::Foo`), without linking to unrelated sibling classes (`D::Foo`):
+//
+//                 A::Foo (virtual)
+//                  +----------+
+//                  |          |
+//                  v          v
+//              B::Foo        D::Foo (causes GC)
+//                |
+//                v
+//              C::Foo
+//
+//        Caller(B* b) { b->Foo(); }
+//             |
+//             v
+//        VIRTUAL-B-<B::Foo>  --->  B::Foo
+//                            --->  C::Foo   (D::Foo is NOT linked)
+//
+// 2. Self virtual calls (`VIRTUALTHIS-<EnclosingClass>-<MangledMethod>`)
+//    and inherited virtual methods (`SYNTHOVER-<Derived>-<MangledBaseMethod>`):
+//    Suppose `Base::Helper()` is a virtual method that calls `this->Hook()`,
+//    and `Derived1` and `Derived2` both inherit `Base::Helper()` without
+//    overriding it, while only `Derived2::Hook()` can trigger GC:
+//
+//        struct Base {
+//          virtual void Helper() { this->Hook(); }
+//          virtual void Hook() {}
+//        };
+//        struct Derived1 : Base { void Hook() override { /* safe */ } };
+//        struct Derived2 : Base { void Hook() override { CollectGarbage(); } };
+//
+//    If `Base::Helper()` emitted a plain `VIRTUAL-Base-<Base::Hook>` edge,
+//    `Derived2::Hook()` would mark `Base::Helper()` as a GC suspect and falsely
+//    flag `d1->Helper()` on a `Derived1* d1`. Instead:
+//      - Inside `Base::Helper()`, `this->Hook()` (`*is_this_call = true`) emits
+//        `VIRTUALTHIS-Base-<Base::Hook>`.
+//      - For each subclass that inherits `Base::Helper()` without overriding
+//        it, `gcmole.py` creates a `SYNTHOVER-Derived-<Base::Helper>` node that
+//        clones `Base::Helper`'s outgoing edges and specializes
+//        `VIRTUALTHIS-Base-...` to `VIRTUALTHIS-Derived-...`:
+//
+//        d1->Helper()                            d2->Helper()
+//             |                                       |
+//             v                                       v
+//        VIRTUAL-Derived1-<Base::Helper> VIRTUAL-Derived2-<Base::Helper>
+//             |                                       |
+//             v                                       v
+//        SYNTHOVER-Derived1-<Base::Helper> SYNTHOVER-Derived2-<Base::Helper>
+//             |                                       |
+//             v                                       v
+//        VIRTUALTHIS-Derived1-<Base::Hook> VIRTUALTHIS-Derived2-<Base::Hook>
+//             |                                       |
+//             v                                       v
+//        Derived1::Hook (safe)                   Derived2::Hook --> <GC>
+//
+// 3. Non-virtual `ObjectVisitor::VisitRelocInfo` bypass:
+//    `ObjectVisitor::VisitRelocInfo(InstructionStream host, RelocIterator* it)`
+//    is a non-virtual method on `ObjectVisitor` that iterates `RelocIterator`
+//    and calls `rinfo->Visit(host, this)`. Inside `VisitRelocInfo`, `this` has
+//    static type `ObjectVisitor*`, erasing the caller's concrete visitor
+//    subclass `MyVisitor` and fanning out to every `ObjectVisitor` subclass in
+//    V8. To preserve `MyVisitor`, `IsVirtualOrVisitorCall` intercepts
+//    `v->VisitRelocInfo(...)` at the call site where `v`'s static type is still
+//    `MyVisitor*` and emits `VIRTUAL-MyVisitor-<VisitRelocInfo>`. `gcmole.py`
+//    then bypasses `VisitRelocInfo`'s AST body and connects the synthetic node
+//    directly to `MyVisitor`'s overrides of the six reloc visitor hooks:
+//
+//        MyVisitor* v;
+//        v->VisitRelocInfo(host, &it)
+//             |
+//             v
+//        VIRTUAL-MyVisitor-<VisitRelocInfo>
+//             |
+//             +---> MyVisitor::VisitCodeTarget (or SYNTHOVER-MyVisitor-...)
+//             +---> MyVisitor::VisitEmbeddedPointer
+//             +---> MyVisitor::VisitExternalReference
+//             +---> MyVisitor::VisitInternalReference
+//             +---> MyVisitor::VisitOffHeapTarget
+//             +---> MyVisitor::VisitJSDispatchTableEntry
 static bool IsVirtualOrVisitorCall(clang::MangleContext* ctx,
                                    const clang::CallExpr* expr,
                                    const clang::CXXRecordDecl** receiver_record,
@@ -200,6 +315,9 @@ static bool IsVirtualOrVisitorCall(clang::MangleContext* ctx,
         if (method->isVirtual()) {
           if (const auto* member_expr =
                   llvm::dyn_cast<clang::MemberExpr>(memcall->getCallee())) {
+            // Explicitly qualified calls (e.g. `this->Base::Foo()` or
+            // `obj->Base::Foo()`) bypass dynamic dispatch in C++ and always
+            // invoke `Base::Foo` directly.
             if (member_expr->hasQualifier()) return false;
           }
           *receiver_record = record;
@@ -262,6 +380,10 @@ struct Resolver {
          i++) {
       clang::NamedDecl* decl = *i;
 
+      if (llvm::isa<T>(decl)) {
+        return llvm::cast<T>(decl);
+      }
+
       // Try to strip off any type aliases.
       const clang::TypeAliasDecl* type_alias_decl =
           llvm::dyn_cast_or_null<clang::TypeAliasDecl>(decl);
@@ -290,11 +412,117 @@ struct Resolver {
     return nullptr;
   }
 
+  template <typename T>
+  T* ResolveCanonical(const char* n) {
+    T* decl = Resolve<T>(n);
+    return decl ? decl->getCanonicalDecl() : nullptr;
+  }
+
+  clang::CXXRecordDecl* ResolveDefinition(const char* n) {
+    clang::CXXRecordDecl* decl = Resolve<clang::CXXRecordDecl>(n);
+    return decl ? decl->getDefinition() : nullptr;
+  }
+
  private:
   clang::ASTContext& ctx_;
   clang::DeclContext* decl_ctx_;
 };
 
+struct KnownDecls {
+  clang::CXXRecordDecl* heap_object = nullptr;
+  clang::CXXRecordDecl* smi = nullptr;
+  clang::CXXRecordDecl* tagged_index = nullptr;
+  clang::CXXRecordDecl* cleared_weak_value = nullptr;
+  clang::ClassTemplateDecl* tagged = nullptr;
+  clang::CXXRecordDecl* js_dispatch_handle = nullptr;
+  clang::TypedefNameDecl* external_pointer_handle = nullptr;
+  clang::TypedefNameDecl* cpp_heap_pointer_handle = nullptr;
+  clang::TypedefNameDecl* trusted_pointer_handle = nullptr;
+  clang::CXXRecordDecl* js_dispatch_handle_member = nullptr;
+  clang::ClassTemplateDecl* external_pointer_member = nullptr;
+  clang::ClassTemplateDecl* trusted_pointer_member = nullptr;
+  clang::CXXRecordDecl* cpp_heap_pointer_member = nullptr;
+  clang::CXXRecordDecl* external_pointer_slot = nullptr;
+  clang::CXXRecordDecl* cpp_heap_pointer_slot = nullptr;
+  clang::CXXRecordDecl* trusted_pointer_slot = nullptr;
+  clang::ClassTemplateDecl* tagged_member = nullptr;
+  clang::ClassTemplateDecl* unaligned_value_member = nullptr;
+  clang::CXXRecordDecl* unaligned_double_member = nullptr;
+  clang::CXXRecordDecl* no_gc_mole = nullptr;
+  clang::CXXRecordDecl* conservative_pinning_scope = nullptr;
+
+  static KnownDecls Resolve(clang::ASTContext& ctx) {
+    Resolver v8_internal =
+        Resolver(ctx).ResolveNamespace("v8").ResolveNamespace("internal");
+    KnownDecls decls;
+    // It is a valid situation that no_gc_mole == nullptr when DisableGCMole is
+    // not included and can't be resolved. This is gracefully handled in the
+    // FunctionAnalyzer later.
+    decls.no_gc_mole =
+        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
+    decls.conservative_pinning_scope =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
+    decls.heap_object = v8_internal.ResolveDefinition("HeapObject");
+    decls.smi = v8_internal.ResolveDefinition("Smi");
+    decls.tagged_index = v8_internal.ResolveDefinition("TaggedIndex");
+    decls.cleared_weak_value =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
+    decls.tagged =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("Tagged");
+    decls.js_dispatch_handle =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>("JSDispatchHandle");
+    decls.external_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "ExternalPointerHandle");
+    decls.cpp_heap_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "CppHeapPointerHandle");
+    decls.trusted_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "TrustedPointerHandle");
+    decls.js_dispatch_handle_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "JSDispatchHandleMember");
+    decls.external_pointer_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "ExternalPointerMember");
+    decls.trusted_pointer_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "TrustedPointerMember");
+    decls.cpp_heap_pointer_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "CppHeapPointerMember");
+    decls.external_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "ExternalPointerSlot");
+    decls.cpp_heap_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "CppHeapPointerSlot");
+    decls.trusted_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "TrustedPointerSlot");
+    decls.tagged_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("TaggedMember");
+    decls.unaligned_value_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "UnalignedValueMember");
+    decls.unaligned_double_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "UnalignedDoubleMember");
+    return decls;
+  }
+
+  bool HasRequiredDecls() const {
+    return heap_object != nullptr && smi != nullptr &&
+           tagged_index != nullptr && tagged != nullptr;
+  }
+};
+
+// Pass 1 (`dump-callees`) visitor: walks every function body in the translation
+// unit (ignoring regions guarded by `DisableGCMole`) and prints `caller` ->
+// `callee` edges for `gcmole.py`. Virtual calls and `VisitRelocInfo` calls are
+// redirected to synthetic `VIRTUAL-` / `VIRTUALTHIS-` nodes (see the comment on
+// `IsVirtualOrVisitorCall` above).
 class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
  public:
   explicit CalleesPrinter(clang::MangleContext* ctx,
@@ -349,20 +577,19 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     bool is_this_call = false;
     if (IsVirtualOrVisitorCall(ctx_, expr, &receiver_record, &method_decl,
                                &is_this_call)) {
-      MangledName base_method_mangled;
-      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
+      MangledName method_mangled;
+      if (GetMangledName(ctx_, method_decl, &method_mangled)) {
         MangledName dummy_mangled;
         std::string dummy_qualified;
-        std::string derived_name = GetRecordQualifiedName(receiver_record);
+        std::string receiver_name = GetRecordQualifiedName(receiver_record);
         if (is_this_call) {
-          dummy_mangled =
-              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
+          dummy_mangled = "VIRTUALTHIS-" + receiver_name + "-" + method_mangled;
           dummy_qualified =
-              derived_name + "::" + method_decl->getNameAsString();
+              receiver_name + "::" + method_decl->getNameAsString();
         } else {
-          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
+          dummy_mangled = "VIRTUAL-" + receiver_name + "-" + method_mangled;
           dummy_qualified =
-              derived_name + "::" + method_decl->getNameAsString();
+              receiver_name + "::" + method_decl->getNameAsString();
         }
 
         mangled_to_function_[dummy_mangled] = dummy_qualified;
@@ -533,6 +760,10 @@ class FunctionDeclarationFinder
   }
 
  private:
+  // Records direct base classes, virtual methods, and `overridden_mangled ->
+  // override_mangled` mappings for `record`, serialized to
+  // `class_hierarchy_<tu>.json` so `gcmole.py` can construct the global class
+  // hierarchy DAG for `VIRTUAL-`, `VIRTUALTHIS-`, and `SYNTHOVER-` resolution.
   void RecordClassHierarchy(const clang::CXXRecordDecl* record) {
     std::string class_name = GetRecordQualifiedName(record);
     if (class_hierarchy_.find(class_name) != class_hierarchy_.end()) return;
@@ -700,19 +931,33 @@ static void LoadGCCauses() {
     std::abort();
   }
 
-  while (std::getline(fin, mangled, ',') && std::getline(fin, function)) {
+  std::string line;
+  auto read_entry = [&fin, &line](std::string* mangled, std::string* function) {
+    if (!std::getline(fin, line)) return false;
+    size_t comma = line.find(',');
+    if (comma == std::string::npos) {
+      *mangled = line;
+      *function = line;
+    } else {
+      *mangled = line.substr(0, comma);
+      *function = line.substr(comma + 1);
+    }
+    return true;
+  };
+
+  while (read_entry(&mangled, &function)) {
     if (mangled.empty()) break;
     std::string parent = mangled;
     demangled_names[parent] = function;
     // start,nested
-    if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+    if (!read_entry(&mangled, &function)) {
       std::cerr << "Error: Truncated gccauses database." << std::endl;
       std::abort();
     }
     assert(mangled.compare("start") == 0);
     assert(function.compare("nested") == 0);
     while (true) {
-      if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+      if (!read_entry(&mangled, &function)) {
         std::cerr << "Error: Truncated nested gccauses database." << std::endl;
         std::abort();
       }
@@ -798,23 +1043,35 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
   return false;
 }
 
+// Cumulative effects (kCausesGC, kRawDef, kRawUse) accumulate across sequential
+// subexpressions and parent AST nodes to detect unsequenced evaluation-order
+// hazards (e.g. `Foo(*raw_obj_handle, CauseGC())`):
+//   - kCausesGC: subexpression may trigger a garbage collection.
+//   - kRawDef: subexpression produces an unrooted on-heap value (e.g.
+//     dereferencing a Handle into a `Tagged<HeapObject>`, calling `so->` on a
+//     `Handle<SomeObject>`, or copying a `Tagged<T>` argument by value via
+//     `CXXConstructExpr`).
+//   - kRawUse: subexpression reads a raw variable that is already stale in
+//     `env` (note: `Use()` returns without setting `kRawUse` when
+//     `env.IsAlive(var_name)` is true, so `kRawUse` is only set when the
+//     variable was already killed by an earlier GC).
 static const int kNoEffect = 0;
-static const int kCausesGC = 1;
-static const int kRawDef = 2;
-static const int kRawUse = 4;
+static const int kCausesGC = 1 << 0;
+static const int kRawDef = 1 << 1;
+static const int kRawUse = 1 << 2;
 static const int kAllEffects = kCausesGC | kRawDef | kRawUse;
 
 class Environment;
 
 class ExprEffect {
  public:
-  bool hasGC() { return (effect_ & kCausesGC) != 0; }
+  bool hasGC() const { return (effect_ & kCausesGC) != 0; }
   void setGC() { effect_ |= kCausesGC; }
 
-  bool hasRawDef() { return (effect_ & kRawDef) != 0; }
+  bool hasRawDef() const { return (effect_ & kRawDef) != 0; }
   void setRawDef() { effect_ |= kRawDef; }
 
-  bool hasRawUse() { return (effect_ & kRawUse) != 0; }
+  bool hasRawUse() const { return (effect_ & kRawUse) != 0; }
   void setRawUse() { effect_ |= kRawUse; }
 
   static ExprEffect None() { return ExprEffect(kNoEffect, nullptr); }
@@ -827,17 +1084,16 @@ class ExprEffect {
   static ExprEffect MergeSeq(ExprEffect a, ExprEffect b);
   ExprEffect Define(const std::string& name);
 
-  Environment* env() {
-    return reinterpret_cast<Environment*>(effect_ & ~kAllEffects);
-  }
+  Environment* env() const { return env_; }
 
   static ExprEffect GC() { return ExprEffect(kCausesGC, nullptr); }
 
  private:
   ExprEffect(int effect, Environment* env)
-      : effect_((effect & kAllEffects) | reinterpret_cast<intptr_t>(env)) {}
+      : effect_(effect & kAllEffects), env_(env) {}
 
-  intptr_t effect_;
+  int effect_;
+  Environment* env_;
 };
 
 const std::string BAD_EXPR_MSG(
@@ -854,6 +1110,8 @@ class Environment {
     return env;
   }
 
+  bool IsUnreachable() const { return unreachable_; }
+
   static Environment Merge(const Environment& l, const Environment& r) {
     Environment out(l);
     out &= r;
@@ -861,7 +1119,8 @@ class Environment {
   }
 
   Environment ApplyEffect(ExprEffect effect) const {
-    Environment out = effect.hasGC() ? Environment() : Environment(*this);
+    Environment out(*this);
+    if (effect.hasGC()) out.live_.clear();
     if (effect.env()) out |= *effect.env();
     return out;
   }
@@ -874,8 +1133,9 @@ class Environment {
     return is_live(code->second);
   }
 
-  bool Equal(const Environment& env) {
+  bool Equal(const Environment& env) const {
     if (unreachable_ && env.unreachable_) return true;
+    if (unreachable_ != env.unreachable_) return false;
     size_t size = std::max(live_.size(), env.live_.size());
     for (size_t i = 0; i < size; ++i) {
       if (is_live(i) != env.is_live(i)) return false;
@@ -884,7 +1144,9 @@ class Environment {
   }
 
   Environment Define(const std::string& name) const {
-    return Environment(*this, SymbolToCode(name));
+    Environment out(*this);
+    out.MDefine(name);
+    return out;
   }
 
   void MDefine(const std::string& name) { set_live(SymbolToCode(name)); }
@@ -926,10 +1188,6 @@ class Environment {
   }
 
  private:
-  Environment(const Environment& l, int code) : live_(l.live_) {
-    set_live(code);
-  }
-
   void set_live(size_t pos) {
     if (unreachable_) return;
     if (pos >= live_.size()) live_.resize(pos + 1);
@@ -940,6 +1198,8 @@ class Environment {
     return unreachable_ || (live_.size() > pos && live_[pos]);
   }
 
+  // Applies sequential environment updates produced within an expression (e.g.
+  // `raw_var = GetObj()` or `&raw_var`).
   Environment& operator|=(const Environment& o) {
     if (o.unreachable_) {
       unreachable_ = true;
@@ -952,6 +1212,12 @@ class Environment {
     return *this;
   }
 
+  // Control-flow join (`IfStmt`, `SwitchStmt`, loop headers/exits, `?:`):
+  // conservatively intersects variable liveness (`live_`) so a variable is
+  // only considered live after the join if it is live on all incoming paths:
+  //   Tagged<HeapObject> obj = GetObj();
+  //   if (cond) CauseGC();  // kills `obj` on the `then` path
+  //   Use(obj);             // flagged: `obj` is not live on all incoming paths
   Environment& operator&=(const Environment& o) {
     if (o.unreachable_) return *this;
     if (unreachable_) return *this = o;
@@ -976,6 +1242,7 @@ class Environment {
 
   friend class ExprEffect;
   friend class CallProps;
+  friend class FunctionAnalyzer;
 };
 
 class CallProps {
@@ -1005,6 +1272,14 @@ class CallProps {
     return out;
   }
 
+  // Checks whether unsequenced sibling subexpressions (function arguments,
+  // binary operator operands, array base + index) are safe to evaluate in any
+  // order. Unsafe when one subexpression can cause GC and another produces an
+  // unrooted on-heap value (`raw_def_`) or reads an already-stale raw variable
+  // (`raw_use_`), e.g.:
+  //   Callee(*obj_handle, CauseGC());  // arg 1 is `raw_def_`, arg 2 is `gc_`
+  //   so->Method(*CauseGC());          // receiver `so->` is `raw_def_`,
+  //                                    // arg 1 is `gc_`
   bool IsSafe() {
     if (!gc_.any()) return true;
     std::bitset<kMaxNumberOfArguments> raw = (raw_def_ | raw_use_);
@@ -1024,6 +1299,8 @@ class CallProps {
 Environment::SymbolTable Environment::symbol_table_;
 std::vector<Environment*> Environment::envs_;
 
+// Combines two alternative branches of an expression (`cond ? a : b` or
+// `a && b` / `a || b`).
 ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
   Environment* a_env = a.env();
   Environment* b_env = b.env();
@@ -1035,6 +1312,12 @@ ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
   return ExprEffect(a.effect_ | b.effect_, out);
 }
 
+// Combines two sequentially evaluated subexpressions (`a` followed by `b`, e.g.
+// in a comma operator `(a, b)` or initializer list `{a, b}`). If `b` triggers a
+// GC, any variable definitions from `a` are killed:
+//   Foo{(obj = GetObj()), CauseGC(), obj};  // `obj` defined in `a` is killed
+//                                           // by `CauseGC()`, so the final
+//                                           // `obj` is flagged as stale.
 ExprEffect ExprEffect::MergeSeq(ExprEffect a, ExprEffect b) {
   Environment* a_env = b.hasGC() ? nullptr : a.env();
   Environment* b_env = b.env();
@@ -1059,36 +1342,9 @@ static std::string THIS("this");
 
 class FunctionAnalyzer {
  public:
-  FunctionAnalyzer(clang::MangleContext* ctx,
-                   clang::CXXRecordDecl* heap_object_decl,
-                   clang::CXXRecordDecl* smi_decl,
-                   clang::CXXRecordDecl* tagged_index_decl,
-                   clang::CXXRecordDecl* cleared_weak_value_decl,
-                   clang::ClassTemplateDecl* tagged_decl,
-                   clang::CXXRecordDecl* js_dispatch_handle_decl,
-                   clang::CXXRecordDecl* js_dispatch_handle_member_decl,
-                   clang::ClassTemplateDecl* tagged_member_decl,
-                   clang::ClassTemplateDecl* unaligned_value_member_decl,
-                   clang::CXXRecordDecl* unaligned_double_member_decl,
-                   clang::CXXRecordDecl* no_gc_mole_decl,
-                   clang::CXXRecordDecl* conservative_pinning_scope_decl,
+  FunctionAnalyzer(clang::MangleContext* ctx, const KnownDecls& decls,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
-      : ctx_(ctx),
-        heap_object_decl_(heap_object_decl),
-        smi_decl_(smi_decl),
-        tagged_index_decl_(tagged_index_decl),
-        cleared_weak_value_decl_(cleared_weak_value_decl),
-        tagged_decl_(tagged_decl),
-        js_dispatch_handle_decl_(js_dispatch_handle_decl),
-        js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
-        tagged_member_decl_(tagged_member_decl),
-        unaligned_value_member_decl_(unaligned_value_member_decl),
-        unaligned_double_member_decl_(unaligned_double_member_decl),
-        no_gc_mole_decl_(no_gc_mole_decl),
-        conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
-        d_(d),
-        sm_(sm),
-        block_(nullptr) {}
+      : ctx_(ctx), decls_(decls), d_(d), sm_(sm) {}
 
   ~FunctionAnalyzer() { delete ctx_; }
 
@@ -1217,19 +1473,19 @@ class FunctionAnalyzer {
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
     Environment after_cond = env.ApplyEffect(VisitExpr(expr->getCond(), env));
 
-    std::vector<GCScope> saved_scopes = scopes_;
+    std::vector<GCScope> saved_scopes = state_.scopes;
 
     ExprEffect true_effect = VisitExpr(expr->getTrueExpr(), after_cond);
-    std::vector<GCScope> true_scopes = scopes_;
+    std::vector<GCScope> true_scopes = state_.scopes;
 
-    scopes_ = saved_scopes;
+    state_.scopes = saved_scopes;
 
     ExprEffect false_effect = VisitExpr(expr->getFalseExpr(), after_cond);
-    std::vector<GCScope> false_scopes = scopes_;
+    std::vector<GCScope> false_scopes = state_.scopes;
 
     assert(true_scopes.size() == false_scopes.size());
     for (size_t i = 0; i < true_scopes.size(); ++i) {
-      scopes_[i] = MergeScopes(true_scopes[i], false_scopes[i]);
+      state_.scopes[i] = MergeScopes(true_scopes[i], false_scopes[i]);
     }
 
     return ExprEffect::Merge(true_effect, false_effect);
@@ -1241,9 +1497,8 @@ class FunctionAnalyzer {
   }
 
   bool IsRawPointerVar(clang::Expr* expr, std::string* var_name) {
-    if (llvm::isa<clang::DeclRefExpr>(expr)) {
-      *var_name =
-          llvm::cast<clang::DeclRefExpr>(expr)->getDecl()->getNameAsString();
+    if (auto* decl_ref = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
+      *var_name = decl_ref->getDecl()->getNameAsString();
       return true;
     }
 
@@ -1262,6 +1517,17 @@ class FunctionAnalyzer {
       case clang::BO_LAnd:
       case clang::BO_LOr:
         return ExprEffect::Merge(VisitExpr(lhs, env), VisitExpr(rhs, env));
+
+      case clang::BO_Assign: {
+        std::string var_name;
+        // Builtin assignment to a local variable (e.g. `raw_ptr = GetObj()` or
+        // `handle = GetTableHandle()`) refreshes the variable's liveness in the
+        // environment after evaluating the RHS.
+        if (IsRawPointerVar(lhs, &var_name)) {
+          return VisitExpr(rhs, env).Define(var_name);
+        }
+        return Parallel(expr, 2, exprs, env);
+      }
 
       default:
         return Parallel(expr, 2, exprs, env);
@@ -1389,6 +1655,16 @@ class FunctionAnalyzer {
   ExprEffect Use(const clang::Expr* parent, const clang::ValueDecl* var,
                  const Environment& env) {
     if (IsExternalVMState(var)) return ExprEffect::GC();
+    if (const auto* var_decl = llvm::dyn_cast<clang::VarDecl>(var)) {
+      // Environment only tracks liveness for local variables and parameters
+      // declared inside the analyzed function. Ignore constexpr constants and
+      // namespace/global-scope variables (such as kNullExternalPointerHandle or
+      // kNullJSDispatchHandle), which cannot become stale across GCs and are
+      // never registered in Environment.
+      if (var_decl->isConstexpr() || !var_decl->isLocalVarDeclOrParm()) {
+        return ExprEffect::None();
+      }
+    }
     return Use(parent, var->getType(), var->getNameAsString(),
                clang::FullSourceLoc(var->getLocation(), sm_), env);
   }
@@ -1410,6 +1686,96 @@ class FunctionAnalyzer {
     }
   }
 
+  // Checks whether `call` can transitively trigger a garbage collection and, if
+  // so, marks `out->setGC()` and records the call site in the active `GCScope`.
+  //
+  // Resolution proceeds in two stages:
+  //   1. CHA / Visitor synthetic node lookup (`IsVirtualOrVisitorCall`):
+  //      For unqualified virtual calls on `v8::internal` classes and calls to
+  //      `ObjectVisitor::VisitRelocInfo`, reconstructs the exact synthetic key
+  //      (`VIRTUAL-<ReceiverClass>-<MangledMethod>` or
+  //      `VIRTUALTHIS-<ReceiverClass>-<MangledMethod>`) emitted by
+  //      `CalleesPrinter` in Pass 1 and checks whether `gcmole.py` propagated a
+  //      GC suspect into that node. Always returns early because the synthetic
+  //      node already accounts for all reachable overrides in `ReceiverClass`
+  //      and its subclasses.
+  //   2. Direct and fallback lookup:
+  //      For direct non-virtual calls, explicitly qualified virtual calls
+  //      (`Base::Foo()`), or calls outside `IsVirtualOrVisitorCall`, checks an
+  //      exact mangled-name match (`IsKnownToCauseGC`). If `call` is still a
+  //      virtual member call that was not intercepted by step 1, attempts
+  //      Clang's static `getDevirtualizedMethod` first and falls back to an
+  //      unmangled `Class::Method` name match (`IsSuspectedToCauseGC`).
+  void CheckCallForGCCause(clang::CallExpr* call,
+                           clang::CXXMemberCallExpr* memcall,
+                           clang::FunctionDecl* callee, ExprEffect* out) {
+    const clang::CXXRecordDecl* receiver_record = nullptr;
+    const clang::CXXMethodDecl* method_decl = nullptr;
+    bool is_this_call = false;
+    if (IsVirtualOrVisitorCall(ctx_, call, &receiver_record, &method_decl,
+                               &is_this_call)) {
+      MangledName method_mangled;
+      if (GetMangledName(ctx_, method_decl, &method_mangled)) {
+        MangledName dummy_mangled;
+        std::string receiver_name = GetRecordQualifiedName(receiver_record);
+        if (is_this_call) {
+          dummy_mangled = "VIRTUALTHIS-" + receiver_name + "-" + method_mangled;
+        } else {
+          dummy_mangled = "VIRTUAL-" + receiver_name + "-" + method_mangled;
+        }
+
+        LoadGCSuspects();
+        LoadSuspectsAllowList();
+        bool is_allowlisted = false;
+        if (suspects_allowlist.find(method_decl->getNameAsString()) !=
+            suspects_allowlist.end()) {
+          is_allowlisted = true;
+        }
+        if (!is_allowlisted &&
+            gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
+          out->setGC();
+          state_.scopes.back().SetGCCauseLocation(
+              clang::FullSourceLoc(call->getExprLoc(), sm_), callee,
+              g_print_gc_call_chain ? std::move(dummy_mangled) : MangledName());
+        }
+      }
+      return;  // Always return early for virtual calls!
+    }
+
+    if (IsKnownToCauseGC(ctx_, callee)) {
+      out->setGC();
+      state_.scopes.back().SetGCCauseLocation(
+          clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
+    }
+
+    // Support for virtual methods that might be GC suspects.
+    if (memcall == nullptr) return;
+    clang::CXXMethodDecl* method =
+        llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
+    if (method == nullptr) return;
+    if (!method->isVirtual()) return;
+
+    clang::CXXMethodDecl* target = method->getDevirtualizedMethod(
+        memcall->getImplicitObjectArgument(), false);
+    if (target != nullptr) {
+      if (IsKnownToCauseGC(ctx_, target)) {
+        out->setGC();
+        state_.scopes.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_), target);
+      }
+    } else {
+      // According to the documentation, {getDevirtualizedMethod} might
+      // return nullptr, in which case we still want to use the partial
+      // match of the {method}'s name against the GC suspects in order
+      // to increase coverage.
+      if (IsSuspectedToCauseGC(ctx_, method)) {
+        out->setGC();
+        state_.scopes.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_), method);
+      }
+    }
+  }
+
   // After visiting the receiver and the arguments of the {call} node, this
   // function might report a GC-unsafe usage (due to the undefined evaluation
   // order of the receiver and the rest of the arguments).
@@ -1426,6 +1792,9 @@ class FunctionAnalyzer {
     std::string var_name;
     clang::CXXOperatorCallExpr* opcall =
         llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
+    // Overloaded `operator=` on a local variable (e.g. `tagged_var = GetObj()`)
+    // refreshes the variable's liveness in the environment after evaluating
+    // the RHS.
     if (opcall != nullptr && opcall->isAssignmentOp() &&
         IsRawPointerVar(opcall->getArg(0), &var_name)) {
       // TODO(gcmole): We are treating all assignment operator calls with
@@ -1446,71 +1815,7 @@ class FunctionAnalyzer {
     clang::FunctionDecl* callee = call->getDirectCallee();
     if (callee == nullptr) return out;
 
-    const clang::CXXRecordDecl* receiver_record = nullptr;
-    const clang::CXXMethodDecl* method_decl = nullptr;
-    bool is_this_call = false;
-    if (IsVirtualOrVisitorCall(ctx_, call, &receiver_record, &method_decl,
-                               &is_this_call)) {
-      MangledName base_method_mangled;
-      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
-        MangledName dummy_mangled;
-        std::string derived_name = GetRecordQualifiedName(receiver_record);
-        if (is_this_call) {
-          dummy_mangled =
-              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
-        } else {
-          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
-        }
-
-        LoadGCSuspects();
-        LoadSuspectsAllowList();
-        bool is_allowlisted = false;
-        if (suspects_allowlist.find(method_decl->getNameAsString()) !=
-            suspects_allowlist.end()) {
-          is_allowlisted = true;
-        }
-        if (!is_allowlisted &&
-            gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
-          out.setGC();
-          scopes_.back().SetGCCauseLocation(
-              clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
-        }
-      }
-      return out;  // Always return out early for virtual calls!
-    }
-
-    if (IsKnownToCauseGC(ctx_, callee)) {
-      out.setGC();
-      scopes_.back().SetGCCauseLocation(
-          clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
-    }
-
-    // Support for virtual methods that might be GC suspects.
-    if (memcall == nullptr) return out;
-    clang::CXXMethodDecl* method =
-        llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
-    if (method == nullptr) return out;
-    if (!method->isVirtual()) return out;
-
-    clang::CXXMethodDecl* target = method->getDevirtualizedMethod(
-        memcall->getImplicitObjectArgument(), false);
-    if (target != nullptr) {
-      if (IsKnownToCauseGC(ctx_, target)) {
-        out.setGC();
-        scopes_.back().SetGCCauseLocation(
-            clang::FullSourceLoc(call->getExprLoc(), sm_), target);
-      }
-    } else {
-      // According to the documentation, {getDevirtualizedMethod} might
-      // return nullptr, in which case we still want to use the partial
-      // match of the {method}'s name against the GC suspects in order
-      // to increase coverage.
-      if (IsSuspectedToCauseGC(ctx_, method)) {
-        out.setGC();
-        scopes_.back().SetGCCauseLocation(
-            clang::FullSourceLoc(call->getExprLoc(), sm_), method);
-      }
-    }
+    CheckCallForGCCause(call, memcall, callee, &out);
     return out;
   }
 
@@ -1589,7 +1894,7 @@ class FunctionAnalyzer {
 
     void MergeIn(const Environment& env) {
       Environment old_in = in_;
-      in_ = Environment::Merge(in_, env);
+      in_ &= env;
       changed_ = !old_in.Equal(in_);
     }
 
@@ -1603,9 +1908,7 @@ class FunctionAnalyzer {
 
     const Environment& out() { return out_; }
 
-    void MergeOut(const Environment& env) {
-      out_ = Environment::Merge(out_, env);
-    }
+    void MergeOut(const Environment& env) { out_ &= env; }
 
     void Sequential(clang::Stmt* a, clang::Stmt* b, clang::Stmt* c) {
       Environment a_out = owner_->VisitStmt(a, in());
@@ -1639,17 +1942,17 @@ class FunctionAnalyzer {
   };
 
   DECL_VISIT_STMT(BreakStmt) {
-    block_->MergeOut(env);
+    state_.block->MergeOut(env);
     return Environment::Unreachable();
   }
 
   DECL_VISIT_STMT(ContinueStmt) {
-    block_->MergeIn(env);
+    state_.block->MergeIn(env);
     return Environment::Unreachable();
   }
 
   DECL_VISIT_STMT(CompoundStmt) {
-    scopes_.push_back(GCScope());
+    state_.scopes.push_back(GCScope());
     Environment out = env;
     clang::CompoundStmt::body_iterator end = stmt->body_end();
     for (clang::CompoundStmt::body_iterator s = stmt->body_begin(); s != end;
@@ -1661,7 +1964,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(WhileStmt) {
-    scopes_.push_back(GCScope());
+    state_.scopes.push_back(GCScope());
     Block block(env, this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody());
@@ -1690,7 +1993,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(ForStmt) {
-    scopes_.push_back(GCScope());
+    state_.scopes.push_back(GCScope());
     Block block(VisitStmt(stmt->getInit(), env), this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
@@ -1700,23 +2003,23 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(IfStmt) {
-    scopes_.push_back(GCScope());
+    state_.scopes.push_back(GCScope());
     Environment init_out = VisitStmt(stmt->getInit(), env);
     Environment cond_out = VisitStmt(stmt->getCond(), init_out);
 
-    std::vector<GCScope> saved_scopes = scopes_;
+    std::vector<GCScope> saved_scopes = state_.scopes;
 
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
-    std::vector<GCScope> then_scopes = scopes_;
+    std::vector<GCScope> then_scopes = state_.scopes;
 
-    scopes_ = saved_scopes;
+    state_.scopes = saved_scopes;
 
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
-    std::vector<GCScope> else_scopes = scopes_;
+    std::vector<GCScope> else_scopes = state_.scopes;
 
     assert(then_scopes.size() == else_scopes.size());
     for (size_t i = 0; i < then_scopes.size(); ++i) {
-      scopes_[i] = MergeScopes(then_scopes[i], else_scopes[i]);
+      state_.scopes[i] = MergeScopes(then_scopes[i], else_scopes[i]);
     }
 
     PopScope();
@@ -1724,7 +2027,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(SwitchStmt) {
-    scopes_.push_back(GCScope());
+    state_.scopes.push_back(GCScope());
     Block block(env, this);
     block.Sequential(stmt->getCond(), stmt->getBody());
     PopScope();
@@ -1732,13 +2035,13 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(CaseStmt) {
-    Environment in = Environment::Merge(env, block_->in());
+    Environment in = Environment::Merge(env, state_.block->in());
     Environment after_lhs = VisitStmt(stmt->getLHS(), in);
     return VisitStmt(stmt->getSubStmt(), after_lhs);
   }
 
   DECL_VISIT_STMT(DefaultStmt) {
-    Environment in = Environment::Merge(env, block_->in());
+    Environment in = Environment::Merge(env, state_.block->in());
     return VisitStmt(stmt->getSubStmt(), in);
   }
 
@@ -1774,6 +2077,9 @@ class FunctionAnalyzer {
     return record->getDefinition();
   }
 
+  // Matches `Tagged<T>` specializations that point to heap objects (excluding
+  // non-moving values `Tagged<Smi>`, `Tagged<TaggedIndex>`, and
+  // `Tagged<ClearedWeakValue>`).
   bool IsTaggedPointer(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
     if (!InV8Namespace(record)) return false;
@@ -1782,7 +2088,7 @@ class FunctionAnalyzer {
     if (specialization) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
-      if (template_decl == tagged_decl_) {
+      if (template_decl == decls_.tagged) {
         auto& template_args = specialization->getTemplateArgs();
         if (template_args.size() != 1) {
           llvm::errs() << "v8::internal::Tagged<T> should have exactly one "
@@ -1799,27 +2105,57 @@ class FunctionAnalyzer {
 
         auto* tagged_type_record =
             template_args[0].getAsType()->getAsCXXRecordDecl();
-        return tagged_type_record != smi_decl_ &&
-               tagged_type_record != tagged_index_decl_ &&
-               tagged_type_record != cleared_weak_value_decl_;
+        return tagged_type_record != decls_.smi &&
+               tagged_type_record != decls_.tagged_index &&
+               tagged_type_record != decls_.cleared_weak_value;
       }
     }
     return false;
   }
 
-  bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
+  // By-value table handle types (stored as indices into pointer/dispatch tables
+  // whose entries can be reclaimed on GC):
+  //   JSDispatchHandle, ExternalPointerHandle, CppHeapPointerHandle,
+  //   TrustedPointerHandle
+  bool IsTableHandleType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (record && decls_.js_dispatch_handle &&
+        record->getCanonicalDecl() == decls_.js_dispatch_handle) {
+      return true;
+    }
+    clang::QualType current = qtype;
+    while (const auto* td_type = current->getAs<clang::TypedefType>()) {
+      const clang::TypedefNameDecl* decl =
+          td_type->getDecl()->getCanonicalDecl();
+      if ((decls_.external_pointer_handle &&
+           decl == decls_.external_pointer_handle) ||
+          (decls_.cpp_heap_pointer_handle &&
+           decl == decls_.cpp_heap_pointer_handle) ||
+          (decls_.trusted_pointer_handle &&
+           decl == decls_.trusted_pointer_handle)) {
+        return true;
+      }
+      current = decl->getUnderlyingType();
+    }
+    return false;
+  }
+
+  // Matches wrapper types used to declare fields inside `HeapObjectLayout`
+  // classes:
+  //   TaggedMember<T>, ExternalPointerMember<tag>,
+  //   TrustedPointerMember<T, tag>, UnalignedValueMember<T>,
+  //   JSDispatchHandleMember, CppHeapPointerMember, UnalignedDoubleMember
+  bool IsOnHeapMemberRecord(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
 
-    if (js_dispatch_handle_decl_ &&
-        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
-      return true;
-    }
-    if (js_dispatch_handle_member_decl_ &&
-        record->getCanonicalDecl() == js_dispatch_handle_member_decl_) {
-      return true;
-    }
-    if (unaligned_double_member_decl_ &&
-        record->getCanonicalDecl() == unaligned_double_member_decl_) {
+    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    if ((decls_.js_dispatch_handle_member &&
+         canonical == decls_.js_dispatch_handle_member) ||
+        (decls_.cpp_heap_pointer_member &&
+         canonical == decls_.cpp_heap_pointer_member) ||
+        (decls_.unaligned_double_member &&
+         canonical == decls_.unaligned_double_member)) {
       return true;
     }
 
@@ -1828,19 +2164,42 @@ class FunctionAnalyzer {
     if (specialization) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
-      if ((tagged_member_decl_ && template_decl == tagged_member_decl_) ||
-          (unaligned_value_member_decl_ &&
-           template_decl == unaligned_value_member_decl_)) {
+      if ((decls_.tagged_member && template_decl == decls_.tagged_member) ||
+          (decls_.external_pointer_member &&
+           template_decl == decls_.external_pointer_member) ||
+          (decls_.trusted_pointer_member &&
+           template_decl == decls_.trusted_pointer_member) ||
+          (decls_.unaligned_value_member &&
+           template_decl == decls_.unaligned_value_member)) {
         return true;
       }
     }
+    return false;
+  }
 
+  bool IsOnHeapClassOrMember(const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return false;
+    if (IsOnHeapMemberRecord(record)) return true;
     if (!InV8Namespace(record)) return false;
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) return false;
-    if (IsDerivedFrom(record, heap_object_decl_)) {
+    return IsDerivedFrom(record, decls_.heap_object);
+  }
+
+  bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return false;
+    if (IsOnHeapClassOrMember(record)) return true;
+
+    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    if ((decls_.external_pointer_slot &&
+         canonical == decls_.external_pointer_slot) ||
+        (decls_.cpp_heap_pointer_slot &&
+         canonical == decls_.cpp_heap_pointer_slot) ||
+        (decls_.trusted_pointer_slot &&
+         canonical == decls_.trusted_pointer_slot)) {
       return true;
     }
+
     return false;
   }
 
@@ -1857,11 +2216,10 @@ class FunctionAnalyzer {
   }
 
   bool IsInternalPointerType(clang::QualType qtype) {
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    if (record && js_dispatch_handle_decl_ &&
-        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
-      return false;
+    if (IsTableHandleType(qtype)) {
+      return true;
     }
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
     bool result = IsOnHeapValue(record);
     TRACE_LLVM_TYPE("is internal " << result, qtype);
     return result;
@@ -1885,32 +2243,37 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    return IsSameType(qtype, no_gc_mole_decl_);
+    return IsSameType(qtype, decls_.no_gc_mole);
   }
 
   bool IsConservativePinningScope(clang::QualType qtype) {
-    return IsSameType(qtype, conservative_pinning_scope_decl_);
+    return IsSameType(qtype, decls_.conservative_pinning_scope);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
-      Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
+      bool is_param = llvm::isa<clang::ParmVarDecl>(decl);
+      // For `ParmVarDecl`, `hasInit()` is true when the parameter has a default
+      // argument expression (`void Foo(int x = Expr())`), which is evaluated at
+      // the call site (`CXXDefaultArgExpr`) rather than on entry to the
+      // function body.
+      Environment out =
+          (!is_param && var->hasInit()) ? VisitStmt(var->getInit(), env) : env;
 
       clang::QualType var_type = var->getType();
-      if (llvm::dyn_cast<clang::ParmVarDecl>(decl) &&
-          var_type->isReferenceType()) {
+      if (is_param && var_type->isReferenceType()) {
         var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
       }
 
       if (RepresentsRawPointerType(var_type)) {
-        out = out.Define(var->getNameAsString());
+        out.MDefine(var->getNameAsString());
       }
       if (IsGCGuard(var_type)) {
-        scopes_.back().guard_location =
+        state_.scopes.back().guard_location =
             clang::FullSourceLoc(decl->getLocation(), sm_);
       }
       if (IsConservativePinningScope(var_type)) {
-        scopes_.back().conservative_pinning_scope_location =
+        state_.scopes.back().conservative_pinning_scope_location =
             clang::FullSourceLoc(decl->getLocation(), sm_);
       }
 
@@ -1936,8 +2299,7 @@ class FunctionAnalyzer {
     clang::FunctionDecl::param_const_iterator end = f->param_end();
     for (clang::FunctionDecl::param_const_iterator p = f->param_begin();
          p != end; ++p) {
-      env.MDefine((*p)->getNameAsString());
-      VisitDecl(*p, env);
+      env = VisitDecl(*p, env);
     }
   }
 
@@ -1945,7 +2307,7 @@ class FunctionAnalyzer {
     const clang::FunctionDecl* body = nullptr;
     if (f->hasBody(body)) {
       Environment env;
-      scopes_.push_back(GCScope());
+      state_.scopes.push_back(GCScope());
       DefineAndVisitParameters(body, env);
       VisitStmt(body->getBody(), env);
       PopScope();
@@ -1954,15 +2316,15 @@ class FunctionAnalyzer {
   }
 
   Block* EnterBlock(Block* block) {
-    Block* parent = block_;
-    block_ = block;
+    Block* parent = state_.block;
+    state_.block = block;
     return parent;
   }
 
-  void LeaveBlock(Block* block) { block_ = block; }
+  void LeaveBlock(Block* block) { state_.block = block; }
 
   bool HasActiveGuard() {
-    for (const auto& s : scopes_) {
+    for (const auto& s : state_.scopes) {
       if (s.IsBeforeGCCause()) return true;
     }
     return false;
@@ -1970,7 +2332,7 @@ class FunctionAnalyzer {
 
   bool HasActiveConservativePinning(
       const clang::FullSourceLoc decl_location) const {
-    for (const auto& s : scopes_) {
+    for (const auto& s : state_.scopes) {
       if (s.IsAfterConservativePinningScope(decl_location)) return true;
     }
     return false;
@@ -1987,12 +2349,35 @@ class FunctionAnalyzer {
     return record->getCanonicalDecl() == decl->getCanonicalDecl();
   }
 
+  // Prints the hierarchical GC call chain from `gccauses` when
+  // `--print-gc-call-chain` is enabled, starting from the GC-causing call site
+  // in the analyzed function and annotating synthetic devirtualization nodes
+  // with `(virtual)` (`VIRTUAL-` / `VIRTUALTHIS-`) and `(override)`
+  // (`SYNTHOVER-` or concrete targets reached from a `(virtual)` dispatch
+  // node):
+  //
+  //   note: └── (virtual) Derived2::Helper
+  //   note:     └── (override) Derived2::Helper
+  //   note:         └── (virtual) Derived2::Hook
+  //   note:             └── (override) Derived2::Hook
+  //   note:                 └── Heap::CollectGarbage
+  //   note:                     └── <GC> [Heap Allocation / Collect Garbage]
   void PrintGCCauseTree(const std::string& mangled,
                         std::set<std::string>& visited, int depth = 0,
                         bool is_caller_virtual = false) {
     if (depth > 12) return;
     std::string indent = "";
     for (int i = 0; i < depth; ++i) indent += "    ";
+
+    if (mangled == "<GC>") {
+      std::cout << "note: " << indent
+                << "└── <GC> [Heap Allocation / Collect Garbage]\n";
+      return;
+    }
+    if (mangled == "<Safepoint>") {
+      std::cout << "note: " << indent << "└── <Safepoint>\n";
+      return;
+    }
 
     auto name_it = demangled_names.find(mangled);
     std::string disp_name =
@@ -2041,12 +2426,6 @@ class FunctionAnalyzer {
 
     auto it = gc_causes.find(mangled);
     if (it == gc_causes.end() || it->second.empty()) {
-      if (mangled == "<GC>") {
-        std::cout << "note: " << indent
-                  << "    └── <GC> [Heap Allocation / Collect Garbage]\n";
-      } else if (mangled == "<Safepoint>") {
-        std::cout << "note: " << indent << "    └── <Safepoint>\n";
-      }
       return;
     }
 
@@ -2065,7 +2444,7 @@ class FunctionAnalyzer {
         << msg;
     // Find the relevant GC scope (see HasActiveGuard).
     const GCScope* pscope = nullptr;
-    for (auto ri = scopes_.rbegin(); ri != scopes_.rend(); ++ri) {
+    for (auto ri = state_.scopes.rbegin(); ri != state_.scopes.rend(); ++ri) {
       if (!ri->IsBeforeGCCause() && ri->gccause_location.isValid()) {
         pscope = &(*ri);
         break;
@@ -2088,37 +2467,21 @@ class FunctionAnalyzer {
 
     if (!g_print_gc_call_chain) return;
     LoadGCCauses();
-    MangledName name;
-    if (!GetMangledName(ctx_, gccause_decl, &name)) return;
+    MangledName name = scope.gccause_mangled;
+    if (name.empty() && !GetMangledName(ctx_, gccause_decl, &name)) return;
     std::cout << "Potential GC call chain:\n";
     std::set<std::string> visited;
     PrintGCCauseTree(name, visited);
   }
 
-  clang::MangleContext* ctx_;
-  clang::CXXRecordDecl* heap_object_decl_;
-  clang::CXXRecordDecl* smi_decl_;
-  clang::CXXRecordDecl* tagged_index_decl_;
-  clang::CXXRecordDecl* cleared_weak_value_decl_;
-  clang::ClassTemplateDecl* tagged_decl_;
-  clang::CXXRecordDecl* js_dispatch_handle_decl_;
-  clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
-  clang::ClassTemplateDecl* tagged_member_decl_;
-  clang::ClassTemplateDecl* unaligned_value_member_decl_;
-  clang::CXXRecordDecl* unaligned_double_member_decl_;
-  clang::CXXRecordDecl* no_gc_mole_decl_;
-  clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
-  clang::DiagnosticsEngine& d_;
-  clang::SourceManager& sm_;
-
-  Block* block_;
 
   struct GCScope {
     clang::FullSourceLoc guard_location;
     clang::FullSourceLoc gccause_location;
     clang::FullSourceLoc conservative_pinning_scope_location;
-    clang::FunctionDecl* gccause_decl;
+    clang::FunctionDecl* gccause_decl = nullptr;
+    MangledName gccause_mangled;
 
     // We're only interested in guards that are declared before any further GC
     // causing calls (see TestGuardedDeadVarAnalysisMidFunction for example).
@@ -2136,9 +2499,11 @@ class FunctionAnalyzer {
     }
 
     void SetGCCauseLocation(clang::FullSourceLoc gccause_location_,
-                            clang::FunctionDecl* decl) {
+                            clang::FunctionDecl* decl,
+                            MangledName mangled = "") {
       gccause_location = gccause_location_;
       gccause_decl = decl;
+      gccause_mangled = std::move(mangled);
     }
   };
 
@@ -2149,30 +2514,44 @@ class FunctionAnalyzer {
               b.gccause_location)) {
         merged.gccause_location = b.gccause_location;
         merged.gccause_decl = b.gccause_decl;
+        merged.gccause_mangled = b.gccause_mangled;
       } else {
         merged.gccause_location = a.gccause_location;
         merged.gccause_decl = a.gccause_decl;
+        merged.gccause_mangled = a.gccause_mangled;
       }
     } else if (b.gccause_location.isValid()) {
       merged.gccause_location = b.gccause_location;
       merged.gccause_decl = b.gccause_decl;
+      merged.gccause_mangled = b.gccause_mangled;
     }
     return merged;
   }
 
   void PopScope() {
-    if (scopes_.size() > 1) {
-      GCScope& inner = scopes_.back();
-      GCScope& outer = scopes_[scopes_.size() - 2];
+    if (state_.scopes.size() > 1) {
+      GCScope& inner = state_.scopes.back();
+      GCScope& outer = state_.scopes[state_.scopes.size() - 2];
       if (inner.gccause_location.isValid()) {
         outer.gccause_location = inner.gccause_location;
         outer.gccause_decl = inner.gccause_decl;
+        outer.gccause_mangled = inner.gccause_mangled;
       }
     }
-    scopes_.pop_back();
+    state_.scopes.pop_back();
   }
 
-  std::vector<GCScope> scopes_;
+  struct AnalysisState {
+    std::vector<GCScope> scopes;
+    Block* block = nullptr;
+  };
+
+  clang::MangleContext* ctx_;
+  KnownDecls decls_;
+  clang::DiagnosticsEngine& d_;
+  clang::SourceManager& sm_;
+
+  AnalysisState state_;
 };
 
 class ProblemsFinder : public clang::ASTConsumer,
@@ -2231,108 +2610,22 @@ class ProblemsFinder : public clang::ASTConsumer,
   void HandleTranslationUnit(clang::ASTContext& ctx) override {
     if (TranslationUnitIgnored()) return;
 
-    Resolver r(ctx);
-
-    // It is a valid situation that no_gc_mole_decl == nullptr when
-    // DisableGCMole is not included and can't be resolved. This is gracefully
-    // handled in the FunctionAnalyzer later.
-    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
-    clang::CXXRecordDecl* no_gc_mole_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
-
-    clang::CXXRecordDecl* conservative_pinning_scope_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
-
-    clang::CXXRecordDecl* heap_object_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("HeapObject");
-
-    clang::CXXRecordDecl* smi_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
-
-    clang::CXXRecordDecl* tagged_index_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("TaggedIndex");
-
-    clang::CXXRecordDecl* cleared_weak_value_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
-
-    clang::ClassTemplateDecl* tagged_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
-
-    clang::CXXRecordDecl* js_dispatch_handle_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandle");
-
-    clang::CXXRecordDecl* js_dispatch_handle_member_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandleMember");
-
-    clang::ClassTemplateDecl* tagged_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
-
-    clang::ClassTemplateDecl* unaligned_value_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("UnalignedValueMember");
-
-    clang::CXXRecordDecl* unaligned_double_member_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("UnalignedDoubleMember");
-
-    if (heap_object_decl != nullptr) {
-      heap_object_decl = heap_object_decl->getDefinition();
-    }
-
-    if (smi_decl != nullptr) {
-      smi_decl = smi_decl->getDefinition();
-    }
-
-    if (tagged_index_decl != nullptr) {
-      tagged_index_decl = tagged_index_decl->getDefinition();
-    }
-
-    if (tagged_decl != nullptr) {
-      tagged_decl = tagged_decl->getCanonicalDecl();
-    }
-
-    if (js_dispatch_handle_decl != nullptr) {
-      js_dispatch_handle_decl = js_dispatch_handle_decl->getCanonicalDecl();
-    }
-
-    if (js_dispatch_handle_member_decl != nullptr) {
-      js_dispatch_handle_member_decl =
-          js_dispatch_handle_member_decl->getCanonicalDecl();
-    }
-
-    if (tagged_member_decl != nullptr) {
-      tagged_member_decl = tagged_member_decl->getCanonicalDecl();
-    }
-
-    if (unaligned_value_member_decl != nullptr) {
-      unaligned_value_member_decl =
-          unaligned_value_member_decl->getCanonicalDecl();
-    }
-
-    if (unaligned_double_member_decl != nullptr) {
-      unaligned_double_member_decl =
-          unaligned_double_member_decl->getCanonicalDecl();
-    }
-
-    if (heap_object_decl != nullptr && smi_decl != nullptr &&
-        tagged_index_decl != nullptr && tagged_decl != nullptr) {
+    KnownDecls decls = KnownDecls::Resolve(ctx);
+    if (decls.HasRequiredDecls()) {
       function_analyzer_ = new FunctionAnalyzer(
-          clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
-          smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
-          js_dispatch_handle_decl, js_dispatch_handle_member_decl,
-          tagged_member_decl, unaligned_value_member_decl,
-          unaligned_double_member_decl, no_gc_mole_decl,
-          conservative_pinning_scope_decl, d_, sm_);
+          clang::ItaniumMangleContext::create(ctx, d_), decls, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
-      if (heap_object_decl == nullptr) {
+      if (decls.heap_object == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::HeapObject\n";
       }
-      if (smi_decl == nullptr) {
+      if (decls.smi == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
       }
-      if (tagged_index_decl == nullptr) {
+      if (decls.tagged_index == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::TaggedIndex\n";
       }
-      if (tagged_decl == nullptr) {
+      if (decls.tagged == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Tagged<T>\n";
       }
     }

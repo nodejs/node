@@ -194,6 +194,7 @@ inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
                            Input input) {
   if (input.operand().IsConstant()) {
+    if (input.node()->MaterializesToZero()) return zero_reg;
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
     return reg;
@@ -917,7 +918,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   li(dst, Operand(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -953,8 +954,19 @@ inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
 inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   DoubleRegister scratch = temps.AcquireScratchDouble();
-  // Convert double(Float64) to Float32
+  Register value_bits = temps.AcquireScratch();
+  Register src_bits = temps.AcquireScratch();
+  // Convert double(Float64) to Float32, preserving the NaN sign bit like
+  // CodeGenerator::AssembleArchInstruction(kRiscvCvtSD): fcvt_s_d turns every
+  // NaN into the positive canonical NaN, while V8's NaN semantics keep the
+  // sign of the input.
   fcvt_s_d(scratch, src);
+  fmv_x_w(value_bits, scratch);
+  fmv_x_d(src_bits, src);
+  srli(src_bits, src_bits, 63);
+  slli(src_bits, src_bits, 31);
+  or_(value_bits, value_bits, src_bits);
+  fmv_w_x(scratch, value_bits);
   StoreFloat(scratch, dst);
 }
 inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
@@ -996,9 +1008,14 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   DoubleRegister scratch_double = temps.AcquireScratchDouble();
+  Register src_bits = temps.AcquireScratch();
   Register address = temps.AcquireScratch();
   fcvt_s_d(scratch_double, src);
-  MacroAssembler::Move(scratch, scratch_double);
+  fmv_x_w(scratch, scratch_double);
+  fmv_x_d(src_bits, src);
+  srli(src_bits, src_bits, 63);
+  slli(src_bits, src_bits, 31);
+  or_(scratch, scratch, src_bits);
   ByteSwap(scratch, scratch, 4, address);
   Add64(address, base, index);
   Sw(scratch, MemOperand(address));

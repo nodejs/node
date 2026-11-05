@@ -29,6 +29,8 @@
 
 #include <stdlib.h>
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -123,7 +125,7 @@ void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
 static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
                                       const char* func_name,
                                       const char* trace_func_name) {
-  v8::base::EmbeddedVector<char, 256> trace_call_buf;
+  std::array<char, 256> trace_call_buf;
   v8::base::SNPrintF(trace_call_buf,
                      "function %s() {"
                      "  fp = new FPGrabber();"
@@ -136,7 +138,7 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
   CreateFramePointerGrabberConstructor(context, "FPGrabber");
 
   // Compile the script.
-  CompileRun(trace_call_buf.begin());
+  CompileRun(trace_call_buf.data());
 }
 
 
@@ -146,7 +148,7 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
 // walking.
 TEST(CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
@@ -196,7 +198,7 @@ TEST(CFromJSStackTrace) {
 TEST(PureJSStackTrace) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);

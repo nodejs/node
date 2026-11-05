@@ -145,7 +145,7 @@ TEST_F(FeedbackVectorTest, VectorICMetadata) {
 
 TEST_F(FeedbackVectorTest, VectorCallICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -173,7 +173,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStates) {
 // Test the Call IC states transfer with Function.prototype.apply
 TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -212,7 +212,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -241,8 +241,8 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.lazy_feedback_allocation = false;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.lazy_feedback_allocation.Set(false);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -271,7 +271,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -299,7 +299,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
 
 TEST_F(FeedbackVectorTest, VectorCallCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -329,7 +329,7 @@ TEST_F(FeedbackVectorTest, VectorCallCounts) {
 
 TEST_F(FeedbackVectorTest, VectorConstructCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -361,7 +361,7 @@ TEST_F(FeedbackVectorTest, VectorConstructCounts) {
 
 TEST_F(FeedbackVectorTest, VectorSpeculationMode) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -396,7 +396,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::v8_flags.use_ic) return;
   if (!i::v8_flags.turbofan) return;
   if (i::v8_flags.jitless) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -428,7 +428,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -480,7 +480,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
 
 TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -523,7 +523,7 @@ TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -579,7 +579,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
 
 TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -722,7 +722,7 @@ TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
 
 TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -745,9 +745,9 @@ TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
+TEST_F(FeedbackVectorTest, DefineNamedOwnInLiteralIC) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -767,6 +767,35 @@ TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);
   CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kDefineNamedOwn);
   FeedbackNexus nexus(i_isolate(), feedback_vector, helper.slot(1));
+  CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
+}
+
+TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
+  if (!i::v8_flags.use_ic) return;
+  v8_flags.lazy_feedback_allocation.Set(false);
+
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
+
+  TryRunJS(
+      "var C = class {"
+      "  a = 1;"
+      "};"
+      "new C();"
+      "new C();"
+      "new C();");
+  DirectHandle<JSFunction> c = GetFunction("C");
+  DirectHandle<JSFunction> initializer = Cast<JSFunction>(
+      JSReceiver::GetProperty(isolate, c,
+                              isolate->factory()->class_fields_symbol())
+          .ToHandleChecked());
+  // There should be one IC slot in the instance members initializer.
+  Handle<FeedbackVector> feedback_vector(initializer->feedback_vector(),
+                                         isolate);
+  FeedbackVectorHelper helper(feedback_vector);
+  CHECK_EQ(1, helper.slot_count());
+  CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kDefineNamedOwn);
+  FeedbackNexus nexus(isolate, feedback_vector, helper.slot(0));
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 

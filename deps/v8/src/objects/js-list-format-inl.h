@@ -33,32 +33,24 @@ void JSListFormat::set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
   icu_formatter_.store(this, value, mode);
 }
 
-int JSListFormat::flags() const { return flags_.load().value(); }
-void JSListFormat::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSListFormat::Flags JSListFormat::flags() const { return flags_.load(); }
+void JSListFormat::set_flags(Flags value) { flags_.store(value); }
 
 inline void JSListFormat::set_style(Style style) {
-  DCHECK(StyleBits::is_valid(style));
-  int hints = flags();
-  hints = StyleBits::update(hints, style);
-  set_flags(hints);
+  DCHECK(Flags::StyleBits::is_valid(style));
+  set_flags(flags().with_style(style));
 }
 
 inline JSListFormat::Style JSListFormat::style() const {
-  return StyleBits::decode(flags());
+  return flags().style();
 }
 
 inline void JSListFormat::set_type(Type type) {
-  DCHECK(TypeBits::is_valid(type));
-  int hints = flags();
-  hints = TypeBits::update(hints, type);
-  set_flags(hints);
+  DCHECK(Flags::TypeBits::is_valid(type));
+  set_flags(flags().with_type(type));
 }
 
-inline JSListFormat::Type JSListFormat::type() const {
-  return TypeBits::decode(flags());
-}
+inline JSListFormat::Type JSListFormat::type() const { return flags().type(); }
 
 }  // namespace internal
 }  // namespace v8

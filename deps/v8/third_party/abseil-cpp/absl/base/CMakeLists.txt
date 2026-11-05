@@ -365,6 +365,7 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::memory
     absl::meta
     absl::pretty_function
@@ -529,6 +530,23 @@ absl_cc_test(
     absl::base_internal
     absl::config
     absl::core_headers
+    absl::synchronization
+    GTest::gtest_main
+  SHARD_COUNT
+    4
+)
+
+absl_cc_test(
+  NAME
+    spinlock_profiling_test
+  SRCS
+    "spinlock_profiling_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::base_internal
+    absl::config
     absl::synchronization
     GTest::gtest_main
 )

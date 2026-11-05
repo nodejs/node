@@ -223,11 +223,17 @@ class Serializer : public SerializerDeserializer {
   V8_INLINE bool IsNotMappedSymbol(Tagged<HeapObject> obj) const;
 
   void SerializeDeferredObjects();
+  virtual void SerializeDeferredObject(Handle<HeapObject> obj);
   void SerializeObject(Handle<HeapObject> o, SlotType slot_type);
   virtual void SerializeObjectImpl(Handle<HeapObject> o,
                                    SlotType slot_type) = 0;
 
   virtual bool MustBeDeferred(Tagged<HeapObject> object);
+  // Whether sliced strings are serialized as sequential strings, so that the
+  // deserialized strings do not depend on their parents.
+  virtual bool SerializeSlicedStringsAsSequentialStrings() const {
+    return false;
+  }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -251,9 +257,6 @@ class Serializer : public SerializerDeserializer {
   // Returns true if the object was successfully serialized as a root.
   bool SerializeRoot(Tagged<HeapObject> obj);
 
-  // Returns true if the object was successfully serialized as hot object.
-  bool SerializeHotObject(Tagged<HeapObject> obj);
-
   // Returns true if the object was successfully serialized as back reference.
   bool SerializeBackReference(Tagged<HeapObject> obj);
 
@@ -270,8 +273,24 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.TryEncode(addr);
   }
 
+  // Returns true if the sandboxed external reference was serialized as a
+  // reference into the trusted section.
+  virtual bool SerializeTrustedExternalReference(
+      ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+    return false;
+  }
+
+  // Returns true if the resource of an external string was serialized as a
+  // reference into the trusted section, see kExternalStringResource.
+  virtual bool SerializeTrustedExternalStringResource(
+      ExternalReferenceEncoder::Value reference) {
+    return false;
+  }
+
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
+
+  void OptimizeBackReferences();
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
@@ -338,46 +357,12 @@ class Serializer : public SerializerDeserializer {
   }
 
  private:
-  // A circular queue of hot objects. This is added to in the same order as in
-  // Deserializer::HotObjectsList, but this stores the objects as an array of
-  // raw addresses that are considered strong roots. This allows objects to be
-  // added to the list without having to extend their handle's lifetime.
-  //
-  // We should never allow this class to return Handles to objects in the queue,
-  // as the object in the queue may change if kSize other objects are added to
-  // the queue during that Handle's lifetime.
-  class HotObjectsList {
-   public:
-    explicit HotObjectsList(Heap* heap);
-    ~HotObjectsList();
-    HotObjectsList(const HotObjectsList&) = delete;
-    HotObjectsList& operator=(const HotObjectsList&) = delete;
+  friend class TrustedSectionSerializer;
 
-    void Add(Tagged<HeapObject> object) {
-      circular_queue_[index_] = object.ptr();
-      index_ = (index_ + 1) & kSizeMask;
-    }
-
-    static const int kNotFound = -1;
-
-    int Find(Tagged<HeapObject> object) {
-      DCHECK(!AllowGarbageCollection::IsAllowed());
-      for (int i = 0; i < kSize; i++) {
-        if (circular_queue_[i] == object.ptr()) {
-          return i;
-        }
-      }
-      return kNotFound;
-    }
-
-   private:
-    static const int kSize = kHotObjectCount;
-    static const int kSizeMask = kSize - 1;
-    static_assert(base::bits::IsPowerOfTwo(kSize));
-    Heap* heap_;
-    StrongRootsEntry* strong_roots_entry_;
-    Address circular_queue_[kSize] = {kNullAddress};
-    int index_ = 0;
+  struct BackrefLocation {
+    uint32_t position;
+    uint32_t index;
+    uint8_t length;
   };
 
   // Disallow GC during serialization.
@@ -385,7 +370,6 @@ class Serializer : public SerializerDeserializer {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   Isolate* isolate_;
-  HotObjectsList hot_objects_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
@@ -394,6 +378,8 @@ class Serializer : public SerializerDeserializer {
   GlobalHandleVector<HeapObject>
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;
+  std::vector<BackrefLocation> backref_locations_;
+  std::vector<uint32_t> backref_counts_;
 
   // Used to provide deterministic IDs to the serialized dispatch handles.
   std::unordered_map<JSDispatchHandle, uint32_t> dispatch_handle_map_;
@@ -462,7 +448,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   }
   void Serialize(SlotType slot_type);
   void SerializeObject();
-  void SerializeDeferred();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
   void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
@@ -482,10 +467,10 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
 
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override;
-  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            IndirectPointerMode mode) override;
+  void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                           TrustedPointerMode mode) override;
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                     IndirectPointerSlot slot) override;
+                                     TrustedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
@@ -513,6 +498,9 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeNativeContext();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
+  void SerializeSlicedStringAsSequentialString();
+  void SerializeStringAsSequentialString(bool one_byte, uint32_t length,
+                                         const uint8_t* content);
 
   Isolate* isolate_;
   Serializer* serializer_;

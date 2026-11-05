@@ -670,6 +670,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
     os << ", element size: 2^" << int{element_size_log2};
   }
   if (offset != 0) os << ", offset: " << offset;
+  if (kind.shared_base) os << ", shared_base";
   os << ']';
 }
 
@@ -760,8 +761,8 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   }
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
-  if (indirect_pointer_tag() != kIndirectPointerNullTag) {
-    os << ", indirect pointer tag: " << indirect_pointer_tag();
+  if (trusted_pointer_tag() != kTrustedPointerNullTag) {
+    os << ", trusted pointer tag: " << trusted_pointer_tag();
   }
   os << ']';
 }
@@ -812,7 +813,7 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
@@ -1228,9 +1229,9 @@ std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
     if (h.is_switch()) {
-      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << "[switch]" << (&h == &hs.back() ? "" : " ");
     } else {
-      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << ":" << h.block << (&h == &hs.back() ? "" : " ");
     }
   }
   return os;
@@ -2176,7 +2177,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #if V8_ENABLE_WEBASSEMBLY
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type() << ", " << is_shared << ']';
+  os << '[' << array_type->element_type() << ", " << array_type->is_shared()
+     << ']';
 }
 
 void WasmAllocateStructOp::PrintOptions(std::ostream& os) const {
@@ -2220,6 +2222,7 @@ void ArrayGetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
+  if (shared_base) os << ", shared-base";
   os << ']';
 }
 

@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/logging/counters-scopes.h"
 #include "src/snapshot/serializer-deserializer.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

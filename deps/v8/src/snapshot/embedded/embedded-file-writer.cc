@@ -5,6 +5,7 @@
 #include "src/snapshot/embedded/embedded-file-writer.h"
 
 #include <algorithm>
+#include <array>
 #include <cinttypes>
 
 #include "src/codegen/code-comments.h"
@@ -54,7 +55,7 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   const bool is_default_variant =
       std::strcmp(embedded_variant_, kDefaultEmbeddedVariant) == 0;
 
-  base::EmbeddedVector<char, kTemporaryStringLength> builtin_symbol;
+  std::array<char, kTemporaryStringLength> builtin_symbol;
   if (is_default_variant) {
     // Create nicer symbol names for the default mode.
     base::SNPrintF(builtin_symbol, "Builtins_%s", i::Builtins::name(builtin));
@@ -67,7 +68,7 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   // Isolate::SetEmbeddedBlob that the blob layout remains unchanged, i.e.
   // that labels do not insert bytes into the middle of the blob byte
   // stream.
-  w->DeclareFunctionBegin(builtin_symbol.begin(),
+  w->DeclareFunctionBegin(builtin_symbol.data(),
                           blob->InstructionSizeOf(builtin));
 
   if (builtin_marker_sources_id_ != 0) {
@@ -157,7 +158,7 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
     i = next_offset;
   }
 
-  w->DeclareFunctionEnd(builtin_symbol.begin());
+  w->DeclareFunctionEnd(builtin_symbol.data());
 }
 
 void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
@@ -311,34 +312,32 @@ void EmbeddedFileWriter::WriteDebugSection(PlatformEmbeddedFileWriterBase* w,
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                                            const i::EmbeddedData* blob) const {
   {
-    base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_code_size_symbol;
+    std::array<char, kTemporaryStringLength> embedded_blob_code_size_symbol;
     base::SNPrintF(embedded_blob_code_size_symbol,
                    "v8_%s_embedded_blob_code_size_", embedded_variant_);
 
     w->Comment("The size of the embedded blob code in bytes.");
     w->SectionRoData();
     w->AlignToDataAlignment();
-    w->DeclareUint32(embedded_blob_code_size_symbol.begin(), blob->code_size());
+    w->DeclareUint32(embedded_blob_code_size_symbol.data(), blob->code_size());
     w->Newline();
 
-    base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_data_size_symbol;
+    std::array<char, kTemporaryStringLength> embedded_blob_data_size_symbol;
     base::SNPrintF(embedded_blob_data_size_symbol,
                    "v8_%s_embedded_blob_data_size_", embedded_variant_);
 
     w->Comment("The size of the embedded blob data section in bytes.");
-    w->DeclareUint32(embedded_blob_data_size_symbol.begin(), blob->data_size());
+    w->DeclareUint32(embedded_blob_data_size_symbol.data(), blob->data_size());
     w->Newline();
   }
 
 #if defined(V8_OS_WIN64)
   {
-    base::EmbeddedVector<char, kTemporaryStringLength> unwind_info_symbol;
+    std::array<char, kTemporaryStringLength> unwind_info_symbol;
     base::SNPrintF(unwind_info_symbol, "%s_Builtins_UnwindInfo",
                    embedded_variant_);
 
-    w->MaybeEmitUnwindData(unwind_info_symbol.begin(),
+    w->MaybeEmitUnwindData(unwind_info_symbol.data(),
                            EmbeddedBlobCodeSymbol().c_str(), blob,
                            reinterpret_cast<const void*>(&unwind_infos_[0]));
   }

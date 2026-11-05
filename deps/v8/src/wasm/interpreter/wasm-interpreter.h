@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <utility>
@@ -230,7 +231,7 @@ class WasmBytecode {
     return ref_slots_count_ - ref_rets_count_ - ref_args_count_;
   }
 
-  inline size_t frame_size() { return total_frame_size_in_bytes_; }
+  inline size_t frame_size() const { return total_frame_size_in_bytes_; }
 
   static inline uint32_t ArgsSizeInSlots(const FunctionSig* sig);
   static inline uint32_t RetsSizeInSlots(const FunctionSig* sig);
@@ -501,14 +502,16 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
    public:
     Activation(WasmInterpreterThread* thread,
                WasmInterpreterRuntime* wasm_runtime, Address frame_pointer,
-               uint8_t* start_fp, const FrameState& callee_frame_state)
+               const FrameState& callee_frame_state)
         : thread_(thread),
           wasm_runtime_(wasm_runtime),
           frame_pointer_(frame_pointer),
           current_frame_size_(0),
           current_ref_stack_fp_(0),
           current_ref_stack_frame_size_(0),
-          current_fp_(start_fp),
+          // No frame geometry is published yet. A reentry must publish its own
+          // (SetCurrentActivationFrame) before it can be used as a base.
+          current_fp_(nullptr),
           current_frame_state_(callee_frame_state)
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
           ,
@@ -553,9 +556,24 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
     }
 
+    // Reset the published frame pointer to a sentinel (null) that lies outside
+    // every live caller frame, so a later reentry that does not republish
+    // fails BeginExecution's bounds check.
+    void InvalidateCurrentActivationFrame() {
+      current_fp_ = nullptr;
+      current_frame_size_ = 0;
+    }
+
     uint8_t* NextFrameAddress() const {
+      if (current_fp_ == nullptr) return nullptr;
       return current_fp_ + current_frame_size_;
     }
+
+    // Check that a reentry starting its native frame at `interpreter_fp` (this
+    // activation's NextFrameAddress()) lies at or above this activation's live
+    // caller frame (or the interpreter stack base if there is none) and within
+    // this thread's interpreter stack reservation; SBXCHECK otherwise.
+    void CheckReentryStackFramePointer(uint8_t* interpreter_fp) const;
 
     uint32_t NextRefStackOffset() const {
       return current_ref_stack_fp_ + current_ref_stack_frame_size_;
@@ -729,7 +747,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   inline WasmInterpreterThread::Activation* StartActivation(
       WasmInterpreterRuntime* wasm_runtime, Address frame_pointer,
-      uint8_t* interpreter_fp, const FrameState& frame_state);
+      const FrameState& frame_state);
   inline void FinishActivation();
   inline const FrameState* GetCurrentActivationFor(
       const WasmInterpreterRuntime* wasm_runtime) const;
@@ -750,6 +768,14 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
         current_ref_stack_fp, current_ref_stack_frame_size);
   }
 
+  // Invalidate the top activation's published frame geometry once a callout
+  // returns. Safe to call redundantly; a no-op if there is no live activation.
+  inline void InvalidateActivationFrame() {
+    if (!activations_.empty()) {
+      activations_.back()->InvalidateCurrentActivationFrame();
+    }
+  }
+
   WasmInterpreterThread::Activation* GetActivation(
       Address frame_pointer) const {
     for (size_t i = 0; i < activations_.size(); i++) {
@@ -758,6 +784,16 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
       }
     }
     return nullptr;
+  }
+
+  // Check a reentry starting its native frame at `interpreter_fp` against the
+  // top (caller) activation's live frame; SBXCHECK otherwise. No-op if the
+  // thread has no live activation.
+  // See Activation::CheckReentryStackFramePointer.
+  void ValidateReentrantStackFramePointer(uint8_t* interpreter_fp) const {
+    if (!activations_.empty()) {
+      activations_.back()->CheckReentryStackFramePointer(interpreter_fp);
+    }
   }
 
   uint8_t* NextFrameAddress() const {
@@ -2288,10 +2324,10 @@ class InterpreterTracer final : public Malloced {
       base::SNPrintF(filename_, "trace-%d-%d.dbt",
                      base::OS::GetCurrentProcessId(), current_chunk_index_);
     }
-    WriteChars(filename_.begin(), "", 0, false);
+    WriteChars(filename_.data(), "", 0, false);
 
     if (file_ == nullptr) {
-      file_ = base::OS::FOpen(filename_.begin(), "w");
+      file_ = base::OS::FOpen(filename_.data(), "w");
       CHECK_WITH_MSG(file_ != nullptr, "could not open file.");
     }
   }
@@ -2336,7 +2372,7 @@ class InterpreterTracer final : public Malloced {
   static bool ShouldRedirect() { return v8_flags.redirect_drumbrake_traces; }
 
   int isolate_id_;
-  base::EmbeddedVector<char, 128> filename_;
+  std::array<char, 128> filename_;
   FILE* file_;
   absl::flat_hash_set<int> traced_functions_;
   int current_chunk_index_;

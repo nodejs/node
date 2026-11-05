@@ -23,7 +23,6 @@
 #include <tuple>
 #include <type_traits>
 #include <typeindex>
-#include <typeinfo>
 #include <utility>
 
 #include "gmock/gmock.h"
@@ -31,6 +30,7 @@
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "absl/container/internal/test_instance_tracker.h"
+#include "absl/functional/overload.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
@@ -174,7 +174,7 @@ DecomposeValueImpl(int, F&& f, Arg&& arg) {
 }
 
 template <class F, class Arg>
-const char* DecomposeValueImpl(char, F&& f, Arg&& arg) {
+const char* DecomposeValueImpl(char, F&&, Arg&&) {
   return "not decomposable";
 }
 
@@ -208,7 +208,7 @@ DecomposePairImpl(int, F&& f, Args&&... args) {
 }
 
 template <class F, class... Args>
-const char* DecomposePairImpl(char, F&& f, Args&&... args) {
+const char* DecomposePairImpl(char, F&&, Args&&...) {
   return "not decomposable";
 }
 
@@ -219,14 +219,21 @@ TryDecomposePair(F&& f, Args&&... args) {
 }
 
 TEST(DecomposePair, Decomposable) {
-  auto f = [](const int& x,  // NOLINT
-              std::piecewise_construct_t, std::tuple<int&&> k,
-              std::tuple<double>&& v) {
-    EXPECT_EQ(&x, &std::get<0>(k));
+  static constexpr auto f0 = [](const int& x,  // NOLINT
+                                int&& k, double&& v) {
+    EXPECT_EQ(&x, &k);
     EXPECT_EQ(42, x);
-    EXPECT_EQ(0.5, std::get<0>(v));
+    EXPECT_EQ(0.5, v);
     return 'A';
   };
+  static constexpr auto f = absl::Overload(
+      [](const int& x,  // NOLINT
+         std::piecewise_construct_t, std::tuple<int&&> k,
+         std::tuple<double>&& v) {
+        return f0(x, std::get<0>(std::move(k)), std::get<0>(std::move(v)));
+      },
+      f0);
+  EXPECT_EQ('A', TryDecomposePair(f, std::pair<int&&, double&&>(42, 0.5)));
   EXPECT_EQ('A', TryDecomposePair(f, 42, 0.5));
   EXPECT_EQ('A', TryDecomposePair(f, std::make_pair(42, 0.5)));
   EXPECT_EQ('A', TryDecomposePair(f, std::piecewise_construct,

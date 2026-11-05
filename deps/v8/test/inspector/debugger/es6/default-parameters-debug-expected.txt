@@ -1,0 +1,14 @@
+Tests default parameters debugging.
+Paused #1
+frame(0) evaluate('mode'): default
+frame(1) evaluate('b') threw: true
+frame(1) evaluate('c') threw: true
+Paused #2
+frame(1) evaluate('a.name'): modeFn
+frame(1) evaluate('b'): default
+frame(1) evaluate('c') threw: true
+Paused #3
+frame(0) evaluate('a.name'): modeFn
+frame(0) evaluate('b'): default
+frame(0) evaluate('d'): local
+Total breakpoints hit: 3

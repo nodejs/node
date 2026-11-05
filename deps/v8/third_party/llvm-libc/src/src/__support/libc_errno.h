@@ -17,17 +17,18 @@
 // - #include "src/__support/libc_errno.h"
 // - NOT #include <errno.h>
 // - Only use `libc_errno` in the code
-// - Depend on libc.src.errno.errno
+// - `libc.src.errno.errno` is linked automatically by test rules
 
 // Integration tests should:
 // - NOT #include "src/__support/libc_errno.h"
 // - #include <errno.h>
 // - Use regular `errno` in the code
-// - Still depend on libc.src.errno.errno
+// - `libc.src.errno.errno` is linked automatically by test rules
 
 // libc uses a fallback default value, either system or thread local.
 #define LIBC_ERRNO_MODE_DEFAULT 0
-// libc never stores a value; `errno` macro uses get link-time failure.
+// libc never stores a value; `libc_errno` is a no-op returning 0, while public
+// `<errno.h>` macro uses get a link-time failure.
 #define LIBC_ERRNO_MODE_UNDEFINED 1
 // libc maintains per-thread state (requires C++ `thread_local` support).
 #define LIBC_ERRNO_MODE_THREAD_LOCAL 2
@@ -77,6 +78,7 @@ LIBC_ERRNO_MODE_SYSTEM_INLINE.
 #else // !LIBC_ERRNO_MODE_SYSTEM_INLINE
 
 #include "hdr/errno_macros.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
@@ -84,11 +86,18 @@ namespace LIBC_NAMESPACE_DECL {
 extern "C" int *__llvm_libc_errno() noexcept;
 
 struct Errno {
-  void operator=(int);
-  operator int();
+#if LIBC_ERRNO_MODE == LIBC_ERRNO_MODE_UNDEFINED
+  LIBC_INLINE constexpr void operator=(int) const noexcept {}
+  LIBC_INLINE constexpr operator int() const noexcept { return 0; }
+  LIBC_INLINE constexpr int *operator&() const noexcept { return nullptr; }
+#else
+  LIBC_INLINE void operator=(int a) const noexcept { *__llvm_libc_errno() = a; }
+  LIBC_INLINE operator int() const noexcept { return *__llvm_libc_errno(); }
+  LIBC_INLINE int *operator&() const noexcept { return __llvm_libc_errno(); }
+#endif
 };
 
-extern Errno libc_errno;
+LIBC_INLINE_VAR constexpr Errno libc_errno{};
 
 } // namespace LIBC_NAMESPACE_DECL
 

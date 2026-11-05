@@ -10,6 +10,9 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/compiler/bytecode-analysis.h"
+#include "src/compiler/js-heap-broker.h"
+#include "src/execution/local-isolate.h"
+#include "src/heap/local-heap.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph.h"
@@ -44,6 +47,13 @@ namespace maglev {
 //   // overloading as appropriate to group node processing.
 //   void Process(FooNode* node, const ProcessingState& state) {}
 //
+// Safepoints:
+// Long unparked compilation passes poll for safepoint requests before each
+// block and node to avoid blocking GC. Consequently, a GC can trigger between
+// Process() calls or synchronously inside the poll on the main thread.
+//
+//   // Invariant: NodeProcessors must never hold raw Tagged<> values across
+//   // node visits
 template <typename NodeProcessor>
 class GraphProcessor;
 template <typename NodeProcessor>
@@ -79,13 +89,8 @@ enum class ProcessResult {
                    // is stitched in before the truncation point (the visited
                    // node and the tail are dropped; the subgraph's exit takes
                    // the original control, which becomes a dead edge).
-  kHoist,          // Hoist the current instruction to the parent basic block
-                   // and reset the current instruction to the beginning of the
-                   // block. Parent block must be dominating.
   kAbort,      // Stop processing now, do not process subsequent nodes/blocks.
                // Should not be used when processing Constants.
-  kSkipBlock,  // Stop processing this block and skip the remaining nodes (no
-               // MultiProcessor support).
 };
 
 class ProcessingState {
@@ -129,6 +134,12 @@ class ProcessingState {
   const int node_index_;  // Index inside the basic block.
 };
 
+// The LocalHeap that graph walks poll for safepoint requests. Falls back to the
+// main thread's LocalHeap for synchronous (main-thread) compilation.
+inline LocalHeap* GetLocalHeapForSafepointPolling(Graph* graph) {
+  return graph->broker()->local_isolate_or_isolate()->heap();
+}
+
 template <typename NodeProcessor>
 class GraphProcessor {
  public:
@@ -138,6 +149,7 @@ class GraphProcessor {
 
   void ProcessGraph(Graph* graph) {
     graph_ = graph;
+    LocalHeap* local_heap = GetLocalHeapForSafepointPolling(graph);
     // Initializing {current_block_index_} to `graph->num_blocks()` so that
     // the ProcessingState can return nullptr as the block of the constant
     // nodes.
@@ -158,9 +170,7 @@ class GraphProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -185,6 +195,7 @@ class GraphProcessor {
       if (V8_UNLIKELY(block->is_dead())) continue;
       bool process_control_block = true;
 
+      local_heap->Safepoint();
       BlockProcessResult preprocess_result =
           node_processor_.PreProcessBasicBlock(block);
       switch (preprocess_result) {
@@ -213,10 +224,7 @@ class GraphProcessor {
               break;
             case ProcessResult::kAbort:
               return;
-            case ProcessResult::kSkipBlock:
-              goto skip_block;
             case ProcessResult::kTruncateBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -231,6 +239,7 @@ class GraphProcessor {
           ++node_it_;
           continue;
         }
+        local_heap->Safepoint();
 #ifdef DEBUG
         const Node* const* debug_nodes_data = nullptr;
         size_t debug_nodes_size = 0;
@@ -279,26 +288,12 @@ class GraphProcessor {
                 break;
               }
             }
-            TruncateBlockAtNode(block, node);
+            block->TruncateAt(node);
             node_it_ = block->nodes().end();
             graph_->set_may_have_unreachable_blocks(true);
             break;
-          case ProcessResult::kHoist: {
-            DCHECK(block->predecessor_count() == 1 ||
-                   (block->predecessor_count() == 2 && block->is_loop()));
-            BasicBlock* target = block->predecessor_at(0);
-            DCHECK_EQ(target->successors().size(), 1);
-            Node* cur = *node_it_;
-            cur->set_owner(target);
-            *node_it_ = nullptr;
-            target->nodes().push_back(cur);
-            node_it_ = block->nodes().begin();
-            break;
-          }
           case ProcessResult::kAbort:
             return;
-          case ProcessResult::kSkipBlock:
-            goto skip_block;
         }
       }
 
@@ -312,17 +307,13 @@ class GraphProcessor {
           case ProcessResult::kRevisit:
             process_control_block = true;
             break;
-          case ProcessResult::kSkipBlock:
-            break;
           case ProcessResult::kAbort:
             return;
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
             UNREACHABLE();
         }
       }
-    skip_block:
       BlockProcessResult post_action =
           node_processor_.PostProcessBasicBlock(block);
       switch (post_action) {
@@ -374,18 +365,6 @@ class GraphProcessor {
     np->HasPendingSplice();
   };
 
-  // Truncates `block` to end just before `node`, dropping `node` and every
-  // node after it. The cut point is located by value rather than a cached
-  // iterator or index: a mid-block deopt or throw can emit an abrupt block
-  // end whose node flush reallocates block->nodes(), dangling any iterator
-  // taken before the flush.
-  void TruncateBlockAtNode(BasicBlock* block, Node* node) {
-    auto& nodes = block->nodes();
-    auto it = std::find(nodes.begin(), nodes.end(), node);
-    DCHECK_NE(it, nodes.end());
-    nodes.resize(it - nodes.begin());
-  }
-
   // Splices the subgraph recorded by the processor's reducer into the
   // graph at the visited node. If `truncate` is false, the tail (after the
   // visited node) moves to splice.exit; the visited node itself is expected
@@ -402,7 +381,7 @@ class GraphProcessor {
     ZoneVector<Node*> tail_nodes(graph_->zone());
     if (truncate) {
       // Drop the visited node and everything after it.
-      TruncateBlockAtNode(block, node);
+      block->TruncateAt(node);
     } else {
       // The visitor must have rewritten the visited node to an Identity
       // (typically to the spliced result Phi), so uses on the join-block
@@ -480,10 +459,12 @@ class GraphBackwardProcessor {
       : node_processor_(std::forward<Args>(args)...) {}
 
   void ProcessGraph(Graph* graph) {
+    LocalHeap* local_heap = GetLocalHeapForSafepointPolling(graph);
     node_processor_.PreProcessGraph(graph);
 
     for (BasicBlock* block : base::Reversed(graph->blocks())) {
       if (V8_UNLIKELY(block->is_dead())) continue;
+      local_heap->Safepoint();
       BlockProcessResult preprocess_result =
           node_processor_.PreProcessBasicBlock(block);
       switch (preprocess_result) {
@@ -505,14 +486,13 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
 
       for (Node* node : base::Reversed(block->nodes())) {
         if (node == nullptr) continue;
+        local_heap->Safepoint();
         ProcessResult result = ProcessNodeBase(node);
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
@@ -522,8 +502,6 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -544,8 +522,6 @@ class GraphBackwardProcessor {
               return;
             case ProcessResult::kTruncateBlock:
             case ProcessResult::kRevisit:
-            case ProcessResult::kSkipBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -565,10 +541,8 @@ class GraphBackwardProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kRevisit:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -657,11 +631,6 @@ class NodeMultiProcessor<Processor, Processors...>
       case ProcessResult::kRemove:
       case ProcessResult::kTruncateBlock:
         return res;
-      case ProcessResult::kHoist:
-      case ProcessResult::kSkipBlock:
-        // TODO(olivf): How to combine these with multiple processors depends on
-        // the needs of the actual processors. Implement once needed.
-        UNREACHABLE();
     }
     UNREACHABLE();
   }

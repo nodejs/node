@@ -165,6 +165,8 @@ namespace internal {
     debug_script_scope_info)                                                  \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
   V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)               \
+  V(_, FOR_IN_ENUMERATOR_HOLDER_TYPE, ForInEnumeratorHolder,                  \
+    for_in_enumerator_holder)                                                 \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \
     function_template_rare_data)                                              \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                    \
@@ -201,23 +203,6 @@ namespace internal {
 
 // Produces (Map, struct_name_map, StructNameMap) entries
 #define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
-
-//
-// The following macros define list of allocation size objects and list of
-// their maps.
-//
-#define ALLOCATION_SITE_LIST(V, _)                                          \
-  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithWeakNext, allocation_site) \
-  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithoutWeakNext,               \
-    allocation_site_without_weaknext)
-
-// Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
-#define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(Map, name_size##_map, Name##Size##Map)
-
-// Produces (Map, allocation_site_name_map, AllocationSiteNameMap) entries
-#define ALLOCATION_SITE_MAPS_LIST(V) \
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAPS_LIST_ADAPTER, V)
 
 //
 // The following macros define list of data handler objects and list of their

@@ -90,9 +90,6 @@ class Variable final : public ZoneObject {
   MaybeAssignedFlag maybe_assigned() const {
     return MaybeAssignedFlagField::decode(bit_field_);
   }
-  void clear_maybe_assigned() {
-    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kNotAssigned);
-  }
   void set_maybe_assigned() {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
   }

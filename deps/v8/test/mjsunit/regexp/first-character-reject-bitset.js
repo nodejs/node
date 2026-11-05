@@ -36,6 +36,8 @@ function check(re, str, expected, index) {
 // whose filter silently disappears still passes every check() above.
 function assertQuickCheckRejects(re, c) {
   re.exec('');  // Compile.
+  // The experimental engine does not build quick-check filters.
+  if (%RegexpTypeTag(re) === 'EXPERIMENTAL') return;
   assertTrue(%RegexpQuickCheckRejects(re, c), `${re} should reject '${c}'`);
 }
 

@@ -60,6 +60,7 @@ v8_header_set("cctest_headers") {
   ]
 
   deps = [
+    "..:common_test_headers",
     "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
@@ -78,15 +79,9 @@ v8_cluster_source_set("cctest_sources") {
   testonly = true
 
   exclude_from_cluster = [
-    "compiler/test-code-generator.cc",
-    "compiler/test-run-load-store.cc",
     "test-accessors.cc",
     "test-api.cc",
     "test-debug.cc",
-    "test-descriptor-array.cc",
-    "wasm/test-run-wasm.cc",
-    "wasm/test-streaming-compilation.cc",
-    "wasm/wasm-simd-utils.cc",
   ]
 
   sources = [
@@ -101,34 +96,17 @@ v8_cluster_source_set("cctest_sources") {
     "../common/value-helper.h",
     "../common/version-utils.h",
     "cctest-utils.h",
-    "collector.h",
     "expression-type-collector-macros.h",
     "feedback-vector-helper.h",
     "heap/heap-tester.h",
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
-    "heap/test-alloc.cc",
-    "heap/test-array-buffer-sweeper.cc",
-    "heap/test-compaction.cc",
-    "heap/test-concurrent-allocation.cc",
-    "heap/test-concurrent-marking.cc",
-    "heap/test-external-string-tracker.cc",
-    "heap/test-heap.cc",
-    "heap/test-incremental-marking.cc",
-    "heap/test-mark-compact.cc",
-    "heap/test-memory-measurement.cc",
-    "heap/test-pool.cc",
-    "heap/test-spaces.cc",
-    "heap/test-weak-references.cc",
-    "heap/test-write-barrier.cc",
     "jsonstream-helper.h",
-    "manually-externalized-buffer.h",
     "print-extension.cc",
     "print-extension.h",
     "profiler-extension.cc",
     "profiler-extension.h",
     "test-accessors.cc",
-    "test-allocation.cc",
     "test-api-array-buffer.cc",
     "test-api-incumbent.cc",
     "test-api-interceptors.cc",
@@ -136,87 +114,28 @@ v8_cluster_source_set("cctest_sources") {
     "test-api-typed-array.cc",
     "test-api.cc",
     "test-api.h",
-    "test-constantpool.cc",
     "test-cpu-profiler.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
     "test-disasm-regex-helper.cc",
     "test-disasm-regex-helper.h",
-    "test-field-type-tracking.cc",
-    "test-func-name-inference.cc",
     "test-heap-profiler.cc",
-    "test-icache.cc",
-    "test-inobject-slack-tracking.cc",
-    "test-js-weak-refs.cc",
     "test-lockers.cc",
-    "test-mementos.cc",
-    "test-orderedhashtable.cc",
     "test-profile-generator.cc",
-    "test-ptr-compr-cage.cc",
-    "test-random-number-generator.cc",
-    "test-regexp.cc",
     "test-sampler-api.cc",
-    "test-shared-strings.cc",
-    "test-smi-lexicographic-compare.cc",
-    "test-strings.cc",
-    "test-swiss-name-dictionary-infra.cc",
-    "test-swiss-name-dictionary.cc",
     "test-trace-event.cc",
-    "test-transitions.cc",
-    "test-transitions.h",
-    "test-typedarrays.cc",
-    "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
     "test-usecounters.cc",
-    "test-utils.cc",
-    "test-verifiers.cc",
     "trace-extension.cc",
     "trace-extension.h",
   ]
 
   if (v8_enable_turbofan) {
     sources += [
-      "compiler/codegen-tester.cc",
-      "compiler/codegen-tester.h",
       "compiler/function-tester.cc",
       "compiler/function-tester.h",
-      "compiler/test-atomic-load-store-codegen.cc",
-      "compiler/test-basic-block-profiler.cc",
-      "compiler/test-branch-combine.cc",
-      "compiler/test-calls-with-arraylike-or-spread.cc",
-      "compiler/test-code-assembler.cc",
-      "compiler/test-code-generator.cc",
-      "compiler/test-concurrent-shared-function-info.cc",
-      "compiler/test-gap-resolver.cc",
-      "compiler/test-graph-visualizer.cc",
-      "compiler/test-instruction-scheduler.cc",
-      "compiler/test-instruction.cc",
-      "compiler/test-js-constant-cache.cc",
-      "compiler/test-js-context-specialization.cc",
-      "compiler/test-js-typed-lowering.cc",
-      "compiler/test-jump-threading.cc",
-      "compiler/test-loop-analysis.cc",
-      "compiler/test-machine-operator-reducer.cc",
-      "compiler/test-node.cc",
-      "compiler/test-operator.cc",
-      "compiler/test-representation-change.cc",
-      "compiler/test-run-calls-to-external-references.cc",
-      "compiler/test-run-load-store.cc",
-      "compiler/test-run-machops.cc",
-      "compiler/test-select-combine.cc",
-      "compiler/test-verify-type.cc",
-      "compiler/turboshaft-codegen-tester.cc",
-      "compiler/turboshaft-codegen-tester.h",
-      "compiler/turboshaft-test-branch-combine.cc",
-      "compiler/turboshaft-test-compare-combine.cc",
-      "compiler/turboshaft-test-select-combine.cc",
-      "setup-isolate-for-tests.cc",
-      "setup-isolate-for-tests.h",
       "test-accessor-assembler.cc",
       "test-code-stub-assembler.cc",
-      "test-descriptor-array.cc",
-      "test-serialize.cc",
-      "test-swiss-name-dictionary-csa.cc",
       "torque/test-torque.cc",
     ]
   }
@@ -244,10 +163,6 @@ v8_cluster_source_set("cctest_sources") {
     ]
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
-    }
-  } else if (v8_current_cpu == "loong64") {
-    if (v8_enable_turbofan) {
-      sources += [ "compiler/test-run-machops-select-loong64.cc" ]
     }
   }
 
@@ -277,50 +192,8 @@ v8_cluster_source_set("cctest_sources") {
       "../common/wasm/test-signatures.h",
       "../common/wasm/wasm-macro-gen.h",
       "../common/wasm/wasm-run-utils.h",
-      "compiler/test-multiple-return.cc",
-
-      # test-run-native-calls uses wasm's LinkageAllocator.
-      "compiler/test-run-native-calls.cc",
-      "compiler/turboshaft-test-simd-shift.cc",
       "test-js-to-wasm.cc",
-      "wasm/test-backing-store.cc",
-      "wasm/test-c-wasm-entry.cc",
-      "wasm/test-compilation-cache.cc",
-      "wasm/test-fuzzer-steps.cc",
-      "wasm/test-gc.cc",
-      "wasm/test-grow-memory.cc",
-      "wasm/test-jump-table-assembler.cc",
-      "wasm/test-liftoff-for-fuzzing.cc",
-      "wasm/test-liftoff-inspection.cc",
-      "wasm/test-run-wasm-64.cc",
-      "wasm/test-run-wasm-atomics.cc",
-      "wasm/test-run-wasm-atomics64.cc",
-      "wasm/test-run-wasm-bulk-memory.cc",
-      "wasm/test-run-wasm-exceptions.cc",
-      "wasm/test-run-wasm-f16.cc",
-      "wasm/test-run-wasm-js.cc",
-      "wasm/test-run-wasm-memory64.cc",
-      "wasm/test-run-wasm-module.cc",
-      "wasm/test-run-wasm-relaxed-simd.cc",
-      "wasm/test-run-wasm-sign-extension.cc",
-      "wasm/test-run-wasm-simd-liftoff.cc",
-      "wasm/test-run-wasm-simd.cc",
-      "wasm/test-run-wasm-wrappers.cc",
-      "wasm/test-run-wasm.cc",
-      "wasm/test-streaming-compilation.cc",
-      "wasm/test-wasm-breakpoints.cc",
-      "wasm/test-wasm-codegen.cc",
-      "wasm/test-wasm-import-wrapper-cache.cc",
-      "wasm/test-wasm-metrics.cc",
-      "wasm/test-wasm-serialization.cc",
-      "wasm/test-wasm-shared-engine.cc",
-      "wasm/test-wasm-stack.cc",
-      "wasm/test-wasm-strings.cc",
-      "wasm/test-wasm-trap-position.cc",
-      "wasm/wasm-atomics-utils.h",
       "wasm/wasm-runner.h",
-      "wasm/wasm-simd-utils.cc",
-      "wasm/wasm-simd-utils.h",
     ]
     public_deps += [ "../..:wasm_test_common" ]
   }
@@ -337,24 +210,11 @@ v8_cluster_source_set("cctest_sources") {
     public_deps += [ v8_icu_path ]
   }
 
-  cflags = []
-  if (v8_current_cpu == "ppc64" || v8_current_cpu == "arm" ||
-      v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
-      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
-      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
-      v8_current_cpu == "riscv32") {
-    # Disable fmadd/fmsub so that expected results match generated code in
-    # RunFloat64MulAndFloat64Add1 and friends.
-    if (!is_win) {
-      cflags += [ "-ffp-contract=off" ]
-    }
-  }
-
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
-    cflags += [ "/wd4309" ]
+    cflags = [ "/wd4309" ]
 
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]

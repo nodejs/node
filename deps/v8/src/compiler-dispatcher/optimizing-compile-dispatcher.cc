@@ -5,10 +5,9 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
-#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
@@ -47,9 +46,6 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
       Isolate* const isolate = job->isolate();
 
       {
-        base::FlushDenormalsScope flush_denormals_scope(
-            isolate->flush_denormals());
-
         // Note that LocalIsolate's lifetime is shorter than the isolate value
         // in task_state which is only cleared after this LocalIsolate instance
         // was destroyed.
@@ -115,7 +111,7 @@ void OptimizingCompileTaskExecutor::EnsureStarted() {
     }
 
     task_states_ =
-        base::OwnedVector<OptimizingCompileTaskState>::New(max_tasks);
+        base::UniqueArray<OptimizingCompileTaskState>::New(max_tasks);
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         kTaskPriority, std::make_unique<CompileTask>(this));
   }
@@ -372,7 +368,7 @@ int OptimizingCompileDispatcher::InstallGeneratedBuiltins(int installed_count) {
 }
 
 bool OptimizingCompileDispatcher::HasJobs() {
-  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate_->thread_id());
   if (task_executor_->HasCompilationJobsForIsolate(isolate_)) {
     return true;
   }
@@ -394,7 +390,7 @@ void OptimizingCompileInputQueue::Prioritize(
     Isolate* isolate, Tagged<SharedFunctionInfo> function) {
   // Ensure that we only run this method on the main thread. This makes sure
   // that we never dereference handles during a safepoint.
-  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
+  DCHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
   base::MutexGuard access(&mutex_);
   auto it =
       std::find_if(queue_.begin(), queue_.end(),

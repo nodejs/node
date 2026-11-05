@@ -43,9 +43,6 @@
   V(rootIndexName, rootAccessorName, class_name##Map)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
-  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map,  \
-    AllocationSiteWithoutWeakNextMap)                                        \
-  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)   \
   V(arguments_to_string, arguments_to_string, ArgumentsToString)             \
   V(ArrayListMap, array_list_map, ArrayListMap)                              \
   V(Array_string, Array_string, ArrayString)                                 \

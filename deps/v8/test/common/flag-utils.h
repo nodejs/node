@@ -6,23 +6,36 @@
 #define V8_TEST_COMMON_FLAG_UTILS_H
 
 #include "src/base/macros.h"
+#include "src/flags/flags-impl.h"
 #include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
 
+// TODO(clemensb): Replace whole-test usages of {FlagScope} with direct calls to
+// {FlagValue::Set} (since tests run in isolated processes).
 template <typename T>
 class V8_NODISCARD FlagScope {
  public:
   FlagScope(FlagValue<T>* flag, T new_value)
-      : flag_(flag), previous_value_(*flag) {
-    *flag = new_value;
+      : flag_(flag),
+        previous_value_(*flag),
+        flag_meta_(FindFlagByPointer(flag)),
+        saved_meta_(*flag_meta_) {
+    flag_meta_->owns_ptr_ = false;
+    flag->Set(new_value);
   }
-  ~FlagScope() { *flag_ = previous_value_; }
+  ~FlagScope() {
+    flag_meta_->ReleaseDynamicAllocations();
+    *flag_meta_ = saved_meta_;
+    flag_->Overwrite(previous_value_);
+  }
 
  private:
   FlagValue<T>* flag_;
   T previous_value_;
+  Flag* flag_meta_;
+  Flag saved_meta_;
 };
 
 }  // namespace internal

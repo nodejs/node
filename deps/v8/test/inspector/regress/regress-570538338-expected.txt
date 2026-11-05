@@ -1,0 +1,6 @@
+Regression test for crbug.com/570538338.
+{
+    cond1Evaluated : true
+    cond2Evaluated : false
+    mainResult : 42
+}

@@ -20,6 +20,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
   isolate->debug()->OnPromiseReject(promise, value);
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    return isolate->TerminateExecution();
+  }
 
   // Report only if we don't actually have a handler.
   if (!promise->has_handler()) {
@@ -153,8 +156,12 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   DirectHandle<Object> reason = args.at(1);
   DirectHandle<Boolean> debug_event = args.at<Boolean>(2);
-  return *JSPromise::Reject(promise, reason,
-                            Object::BooleanValue(*debug_event, isolate));
+  DirectHandle<Object> result = JSPromise::Reject(
+      promise, reason, Object::BooleanValue(*debug_event, isolate));
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    return isolate->TerminateExecution();
+  }
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {
@@ -165,6 +172,9 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSPromise::Resolve(promise, resolution));
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    return isolate->TerminateExecution();
+  }
   return *result;
 }
 

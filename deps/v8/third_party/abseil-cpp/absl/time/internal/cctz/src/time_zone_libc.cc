@@ -40,11 +40,11 @@ namespace cctz {
 
 namespace {
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 // Uses the globals: '_timezone', '_dstbias' and '_tzname'.
-auto tm_gmtoff(const std::tm& tm) -> decltype(_timezone + _dstbias) {
+auto tm_gmtoff(const std::tm& tm) -> decltype(-_timezone + -_dstbias) {
   const bool is_dst = tm.tm_isdst > 0;
-  return _timezone + (is_dst ? _dstbias : 0);
+  return -_timezone + (is_dst ? -_dstbias : 0);
 }
 auto tm_zone(const std::tm& tm) -> decltype(_tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
@@ -52,9 +52,9 @@ auto tm_zone(const std::tm& tm) -> decltype(_tzname[0]) {
 }
 #elif defined(__sun) || defined(_AIX)
 // Uses the globals: 'timezone', 'altzone' and 'tzname'.
-auto tm_gmtoff(const std::tm& tm) -> decltype(timezone) {
+auto tm_gmtoff(const std::tm& tm) -> decltype(-timezone) {
   const bool is_dst = tm.tm_isdst > 0;
-  return is_dst ? altzone : timezone;
+  return is_dst ? -altzone : -timezone;
 }
 auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
@@ -63,9 +63,9 @@ auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
 #elif defined(__native_client__) || defined(__myriad2__) || \
     defined(__EMSCRIPTEN__)
 // Uses the globals: '_timezone' and 'tzname'.
-auto tm_gmtoff(const std::tm& tm) -> decltype(_timezone + 0) {
+auto tm_gmtoff(const std::tm& tm) -> decltype(-_timezone + 0) {
   const bool is_dst = tm.tm_isdst > 0;
-  return _timezone + (is_dst ? 60 * 60 : 0);
+  return -_timezone + (is_dst ? 60 * 60 : 0);
 }
 auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
@@ -73,14 +73,38 @@ auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
 }
 #elif defined(__VXWORKS__)
 // Uses the globals: 'timezone' and 'tzname'.
-auto tm_gmtoff(const std::tm& tm) -> decltype(timezone + 0) {
+auto tm_gmtoff(const std::tm& tm) -> decltype(-timezone + 0) {
   const bool is_dst = tm.tm_isdst > 0;
-  return timezone + (is_dst ? 60 * 60 : 0);
+  return -timezone + (is_dst ? 60 * 60 : 0);
 }
 auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
   return tzname[is_dst];
 }
+#elif defined(__NEWLIB__)
+// The struct std::tm extension fields are named by __TM_GMTOFF and __TM_ZONE,
+// either of which the configuration may leave undefined. Where it does, fall
+// back on the globals: '_timezone' and 'tzname'.
+#if defined(__TM_GMTOFF)
+auto tm_gmtoff(const std::tm& tm) -> decltype(tm.__TM_GMTOFF) {
+  return tm.__TM_GMTOFF;
+}
+#else
+auto tm_gmtoff(const std::tm& tm) -> decltype(-_timezone + 0) {
+  const bool is_dst = tm.tm_isdst > 0;
+  return -_timezone + (is_dst ? 60 * 60 : 0);
+}
+#endif
+#if defined(__TM_ZONE)
+auto tm_zone(const std::tm& tm) -> decltype(tm.__TM_ZONE) {
+  return tm.__TM_ZONE;
+}
+#else
+auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
+  const bool is_dst = tm.tm_isdst > 0;
+  return tzname[is_dst];
+}
+#endif
 #else
 // Adapt to different spellings of the struct std::tm extension fields.
 #if defined(tm_gmtoff)
@@ -121,7 +145,7 @@ auto tm_zone(const T& tm) -> decltype(tm.__tm_zone) {
 using tm_gmtoff_t = decltype(tm_gmtoff(std::tm{}));
 
 inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
   return gmtime_s(result, timep) ? nullptr : result;
 #else
   return gmtime_r(timep, result);
@@ -129,7 +153,7 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 }
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
   return localtime_s(result, timep) ? nullptr : result;
 #else
   return localtime_r(timep, result);

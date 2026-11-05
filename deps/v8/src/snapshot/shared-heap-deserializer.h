@@ -18,8 +18,11 @@ class SharedHeapDeserializer final : public Deserializer<Isolate> {
   explicit SharedHeapDeserializer(Isolate* isolate,
                                   const SnapshotData* shared_heap_data,
                                   bool can_rehash)
-      : Deserializer(isolate, shared_heap_data->Payload(),
-                     shared_heap_data->GetMagicNumber(), false, can_rehash) {}
+      : Deserializer(isolate, shared_heap_data->UntrustedPayload(),
+                     shared_heap_data->TrustedPayload(),
+                     shared_heap_data->GetMagicNumber(),
+                     /* deserializing_user_code */ false, can_rehash,
+                     SnapshotTrustLevel::kUntrusted) {}
 
   // Depending on runtime flags, deserialize shared heap objects into the
   // Isolate.

@@ -20,10 +20,21 @@ add_header_library(
 )
 
 add_header_library(
+  cleanup_stack
+  HDRS
+    cleanup_stack.h
+  DEPENDS
+    libc.hdr.types.struct___pthread_cleanup_frame
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+)
+
+add_header_library(
   thread_attributes
   HDRS
     thread_attributes.h
   DEPENDS
+    .cleanup_stack
     libc.hdr.stdint_proxy
     libc.hdr.types.size_t
     libc.src.__support.CPP.atomic
@@ -153,14 +164,17 @@ if(TARGET libc.src.__support.threads.${LIBC_TARGET_OS}.thread)
     SRCS
       thread.cpp
     DEPENDS
+      .cleanup_stack
       .mutex
       .${LIBC_TARGET_OS}.thread
-      libc.hdr.stdint_proxy
-      libc.src.__support.common
+      libc.hdr.limits_macros
+      libc.hdr.types.struct___pthread_cleanup_frame
       libc.src.__support.fixedvector
       libc.src.__support.CPP.array
       libc.src.__support.CPP.mutex
       libc.src.__support.CPP.optional
+      libc.src.__support.macros.attributes
+      libc.src.__support.macros.config
   )
 endif()
 

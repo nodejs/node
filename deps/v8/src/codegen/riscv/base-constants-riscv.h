@@ -340,7 +340,7 @@ constexpr int kRvvELEN = 64;
 // Maximum supported VLEN in bits.
 // Code that could fail with larger VLEN should static_assert against this
 // constant.
-constexpr int kMaxRvvVLEN = 512;
+constexpr int kMaxRvvVLEN = 1024;
 
 #if V8_TARGET_ARCH_RISCV64
 constexpr int kRvXLEN = 64;

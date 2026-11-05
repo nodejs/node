@@ -22,6 +22,20 @@
 namespace v8 {
 namespace internal {
 
+PrototypeInfo::PrototypeInfo(const AllocationWitness& witness)
+    : Struct(witness.roots().prototype_info_map()),
+      module_namespace_(witness.roots().undefined_value()),
+      prototype_users_(Smi::zero()),
+      prototype_chain_enum_cache_(witness.roots().undefined_value()),
+      registry_slot_(Smi::FromInt(UNREGISTERED)),
+      bit_field_(Flags{}),
+      derived_maps_(witness.roots().undefined_value()),
+      prototype_shared_closure_info_(witness.roots().undefined_value()) {
+  for (int i = 0; i < kCachedHandlerCount; i++) {
+    cached_handler_[i].store_no_write_barrier(Smi::zero());
+  }
+}
+
 Tagged<UnionOf<JSModuleNamespace, Undefined>> PrototypeInfo::module_namespace()
     const {
   return module_namespace_.load();
@@ -56,10 +70,10 @@ void PrototypeInfo::set_registry_slot(int value) {
   registry_slot_.store(this, Smi::FromInt(value));
 }
 
-int PrototypeInfo::bit_field() const { return bit_field_.load().value(); }
-void PrototypeInfo::set_bit_field(int value) {
-  bit_field_.store(this, Smi::FromInt(value));
+PrototypeInfo::Flags PrototypeInfo::bit_field() const {
+  return bit_field_.load();
 }
+void PrototypeInfo::set_bit_field(Flags value) { bit_field_.store(value); }
 
 Tagged<UnionOf<WeakArrayList, Undefined>> PrototypeInfo::derived_maps() const {
   return derived_maps_.load();
@@ -199,8 +213,8 @@ void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
   }
 }
 
-BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
-               ShouldBeFastBit::kShift)
+BIT_FIELD_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
+                    PrototypeInfo::Flags::ShouldBeFastBit)
 
 // TODO(375937549): Convert index to uint32_t.
 void PrototypeUsers::MarkSlotEmpty(Tagged<WeakArrayList> array, int index) {

@@ -1,6 +1,7 @@
 include_rules = [
   # See `include_dirs` from Chromium's `//third_party/rust/temporal_capi`.
-  "+temporal_rs"
+  "+temporal",
+  "+temporal_rs",
 ]
 
 specific_include_rules = {

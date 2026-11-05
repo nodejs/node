@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This example crashes if the AllocationSites have not been properly added to
-// the allocation_sites_list.
-
 // Flags: --expose-gc
 
 function __getProperties() {

@@ -182,6 +182,71 @@ TEST_F(ReducerTest, NoHoistingTaggedLoads) {
   ASSERT_EQ(test.CountOp(Opcode::kWordBinop), 5u);
 }
 
+#elif V8_TARGET_ARCH_X64
+
+TEST_F(ReducerTest, SimplifyAtomicStoreTaggedBaseZeroOffset) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    OpIndex tagged_base = Asm.GetParameter(0);
+    OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    OpIndex value = __ Word32Constant(42);
+    __ Store(tagged_base, index, value, StoreOp::Kind::TaggedBase().Atomic(),
+             MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
+             AtomicMemoryOrder::kSeqCst, 0, 0);
+    __ Return(tagged_base);
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kWordBinop), 0u);
+
+  test.Run<LoadStoreSimplificationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  EXPECT_EQ(test.CountOp(Opcode::kWordBinop), 0u);
+}
+
+TEST_F(ReducerTest, SimplifyAtomicStoreScaledIndexAndOffset) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    OpIndex raw_base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    OpIndex value = __ Word32Constant(42);
+    __ Store(raw_base, index, value, StoreOp::Kind::RawAligned().Atomic(),
+             MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
+             AtomicMemoryOrder::kSeqCst, 16, 2);
+    __ Return(Asm.GetParameter(0));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kWordBinop), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kShift), 0u);
+
+  test.Run<LoadStoreSimplificationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  EXPECT_EQ(test.CountOp(Opcode::kWordBinop), 0u);
+  EXPECT_EQ(test.CountOp(Opcode::kShift), 0u);
+}
+
+TEST_F(ReducerTest, SimplifyAtomicStoreUnencodableOffset) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    OpIndex raw_base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    OpIndex value = __ Word32Constant(42);
+    __ Store(raw_base, index, value, StoreOp::Kind::RawAligned().Atomic(),
+             MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
+             AtomicMemoryOrder::kSeqCst, std::numeric_limits<int32_t>::min(),
+             0);
+    __ Return(Asm.GetParameter(0));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kWordBinop), 0u);
+
+  test.Run<LoadStoreSimplificationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kStore), 1u);
+  EXPECT_EQ(test.CountOp(Opcode::kWordBinop), 1u);
+}
+
 #endif
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

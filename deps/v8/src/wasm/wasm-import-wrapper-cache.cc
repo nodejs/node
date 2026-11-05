@@ -132,6 +132,7 @@ WasmImportWrapperCache::CompileWrapper(Isolate* isolate,
   switch (cache_key.kind) {
     case ImportCallKind::kLinkError:
     case ImportCallKind::kWasmToWasm:
+    case ImportCallKind::kReexportedJSFunction:
     case ImportCallKind::kWasmToJSFastApi:
       UNREACHABLE();
     case ImportCallKind::kJSFunction:

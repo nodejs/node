@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/messages.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/microtask.h"
@@ -88,6 +89,10 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
         generator, offsetof(JSGeneratorObject, continuation_),
         SmiConstant(JSGeneratorObject::kGeneratorClosed));
   }
+
+  void CallResumeGeneratorTrampolineAndCatch(
+      TNode<Context> context, TNode<JSAsyncGeneratorObject> generator,
+      TNode<Object> value);
 
   inline TNode<HeapObject> LoadFirstAsyncGeneratorRequestFromQueue(
       const TNode<JSGeneratorObject> generator) {
@@ -220,6 +225,54 @@ AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
   return CAST(request);
 }
 
+void AsyncGeneratorBuiltinsAssembler::CallResumeGeneratorTrampolineAndCatch(
+    TNode<Context> context, TNode<JSAsyncGeneratorObject> generator,
+    TNode<Object> value) {
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred), done(this);
+  {
+    compiler::ScopedExceptionHandler handler(this, &if_exception,
+                                             &var_exception);
+    CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value, generator);
+    Goto(&done);
+  }
+
+  BIND(&if_exception);
+  {
+    // The async generator body itself is wrapped in a try-finally/try-catch, so
+    // only a StackOverflow thrown in ResumeGeneratorTrampoline, the callee
+    // entry prologue, or an OSR entry prologue (which precedes exception
+    // handler setup) can reach this handler.
+#ifdef DEBUG
+    CSA_DCHECK(this, Word32BinaryNot(IsGeneratorClosed(generator)));
+    CSA_DCHECK(this, TaggedIsNotSmi(var_exception.value()));
+    CSA_DCHECK(this,
+               HasInstanceType(CAST(var_exception.value()), JS_ERROR_TYPE));
+    TNode<Object> message = GetProperty(context, CAST(var_exception.value()),
+                                        isolate()->factory()->message_string());
+    TNode<String> expected = StringConstant(
+        MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
+    CSA_DCHECK(this,
+               TaggedEqual(CallRuntime(Runtime::kStringEqual,
+                                       NoContextConstant(), message, expected),
+                           TrueConstant()));
+#endif
+    // Clear the pending message since the exception is converted into a
+    // promise rejection rather than propagating as an uncaught exception.
+    SetPendingMessage(TheHoleConstant());
+    // Close the generator before rejecting so that input_or_debug_pos_ (which
+    // ResumeGeneratorTrampoline already overwrote with the resume value) is not
+    // left holding a non-Smi value while the generator appears suspended, and
+    // so subsequent requests in the queue see a closed generator.
+    CloseGenerator(generator);
+    CallBuiltin(Builtin::kAsyncGeneratorReject, context, generator,
+                var_exception.value());
+    Goto(&done);
+  }
+
+  BIND(&done);
+}
+
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
     TNode<Context> context,
     TNode<JSAsyncGeneratorObject> async_generator_object, TNode<Object> value,
@@ -233,8 +286,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
                                  offsetof(JSGeneratorObject, resume_mode_),
                                  SmiConstant(resume_mode));
 
-  CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
-              async_generator_object);
+  CallResumeGeneratorTrampolineAndCatch(context, async_generator_object, value);
 
   TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context,
                   async_generator_object);
@@ -497,8 +549,8 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     StoreObjectFieldNoWriteBarrier(
         generator, offsetof(JSGeneratorObject, resume_mode_), resume_type);
 
-    CallBuiltin(Builtin::kResumeGeneratorTrampoline, context,
-                LoadValueFromAsyncGeneratorRequest(next), generator);
+    CallResumeGeneratorTrampolineAndCatch(
+        context, generator, LoadValueFromAsyncGeneratorRequest(next));
     var_state = LoadGeneratorState(generator);
     var_next = LoadFirstAsyncGeneratorRequestFromQueue(generator);
     Goto(&start);

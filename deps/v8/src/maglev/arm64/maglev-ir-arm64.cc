@@ -1136,12 +1136,11 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Mov(params_size, Immediate(formal_params_size));
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ CompareAndBranch(params_size, actual_params_size, ge,
-                      &corrected_args_count);
-  __ Mov(params_size, actual_params_size);
-  __ Bind(&corrected_args_count);
+  // arguments. A conditional select rather than a branch over the move, as in
+  // Sparkplug's EmitReturn: one instruction fewer and no branch in the
+  // epilogue.
+  __ Cmp(params_size, actual_params_size);
+  __ Csel(params_size, actual_params_size, params_size, lt);
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);

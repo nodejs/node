@@ -1,0 +1,2 @@
+Tests regress-crbug-582048.
+local: ["a"]

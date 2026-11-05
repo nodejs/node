@@ -14,8 +14,8 @@
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -111,18 +111,18 @@ void HeapObject::WriteExternalPointerField(size_t offset,
 }
 
 void HeapObject::SetupLazilyInitializedExternalPointerField(size_t offset) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   auto location =
       reinterpret_cast<ExternalPointerHandle*>(field_address(offset));
   base::AsAtomic32::Release_Store(location, kNullExternalPointerHandle);
 #else
   WriteMaybeUnalignedValue<Address>(field_address(offset), kNullAddress);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
     size_t offset) const {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   auto location =
       reinterpret_cast<ExternalPointerHandle*>(field_address(offset));
   ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
@@ -130,7 +130,7 @@ bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
 #else
   return ReadMaybeUnalignedValue<Address>(field_address(offset)) !=
          kNullAddress;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 template <ExternalPointerTag tag>
@@ -142,7 +142,7 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value,
     ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   auto location =
@@ -161,7 +161,7 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
   }
 #else
   WriteMaybeUnalignedValue<Address>(field_address(offset), value);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void HeapObject::SetupLazilyInitializedCppHeapPointerField(size_t offset) {
@@ -197,9 +197,9 @@ CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {
   return CppHeapPointerSlot(field_address(byte_offset));
 }
 
-IndirectPointerSlot HeapObject::RawIndirectPointerField(
-    int byte_offset, IndirectPointerTagRange tag_range) const {
-  return IndirectPointerSlot(field_address(byte_offset), tag_range);
+TrustedPointerSlot HeapObject::RawTrustedPointerField(
+    int byte_offset, TrustedPointerTagRange tag_range) const {
+  return TrustedPointerSlot(field_address(byte_offset), tag_range);
 }
 
 }  // namespace internal

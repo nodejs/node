@@ -9,7 +9,6 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -389,18 +388,25 @@ struct Xor {
   V(Uint32, uint32, UINT32, uint32_t) \
   V(Int32, int32, INT32, int32_t)
 
-#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(               \
-    isolate, sta, index, method_name)                                          \
-  do {                                                                         \
-    bool out_of_bounds = false;                                                \
-    auto length = sta->GetLengthOrOutOfBounds(out_of_bounds);                  \
-    if (V8_UNLIKELY(sta->WasDetached() || out_of_bounds || index >= length)) { \
-      THROW_NEW_ERROR_RETURN_FAILURE(                                          \
-          isolate,                                                             \
-          NewTypeError(                                                        \
-              MessageTemplate::kTypedArrayValidateWriteErrorOperation,         \
-              isolate->factory()->NewStringFromAsciiChecked(method_name)));    \
-    }                                                                          \
+#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(              \
+    isolate, sta, index, method_name)                                         \
+  do {                                                                        \
+    bool out_of_bounds = false;                                               \
+    auto length = sta->GetLengthOrOutOfBounds(out_of_bounds);                 \
+    DCHECK_IMPLIES(sta->WasDetached() || out_of_bounds, length == 0);         \
+    if (V8_UNLIKELY(index >= length)) {                                       \
+      if (sta->WasDetached() || out_of_bounds) {                              \
+        THROW_NEW_ERROR_RETURN_FAILURE(                                       \
+            isolate,                                                          \
+            NewTypeError(                                                     \
+                MessageTemplate::kTypedArrayValidateWriteErrorOperation,      \
+                isolate->factory()->NewStringFromAsciiChecked(method_name))); \
+      }                                                                       \
+      THROW_NEW_ERROR_RETURN_FAILURE(                                         \
+          isolate,                                                            \
+          NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex,           \
+                        isolate->factory()->NewNumberFromSize(index)));       \
+    }                                                                         \
   } while (false)
 
 // This is https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer

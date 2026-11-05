@@ -1,0 +1,9 @@
+Tests scope chain when paused in inlined function.
+function f() {
+  #debugger;
+}
+
+[
+    [0] : local
+    [1] : global
+]

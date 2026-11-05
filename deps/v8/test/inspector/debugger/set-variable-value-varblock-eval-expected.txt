@@ -1,0 +1,10 @@
+Checks that Debugger.setVariableValue can set eval-introduced vars in the varblock scope of a function with non-simple parameters
+Scope chain: block, local, global
+Block scope variables: leaked=1
+Setting "leaked" on the block scope to 42:
+{
+    id : <messageId>
+    result : {
+    }
+}
+f() returned: 42

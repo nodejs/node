@@ -560,9 +560,9 @@ transitioning javascript builtin MathRandom(
     let state: XorShift128State = LoadMathRandomState(stateArray);
 
     if (state.s0 == 0 && state.s1 == 0) deferred {
-        InitializeAndMaybeRefillMathRandom(context);
-        state = LoadMathRandomState(stateArray);
-      }
+      InitializeAndMaybeRefillMathRandom(context);
+      state = LoadMathRandomState(stateArray);
+    }
 
     const result = XorShift128(state.s0, state.s1);
     StoreMathRandomState(stateArray, result.state);

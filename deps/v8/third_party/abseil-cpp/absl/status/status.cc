@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <type_traits>
@@ -28,6 +29,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
 #include "absl/status/internal/status_internal.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
@@ -424,7 +426,9 @@ StatusCode ErrnoToStatusCode(int error_number) {
     case ENETRESET:     // Connection aborted by network
     case ENETUNREACH:   // Network unreachable
     case ENOLCK:        // No locks available
+#ifdef ENOLINK
     case ENOLINK:       // Link has been severed
+#endif
 #ifdef ENONET
     case ENONET:  // Machine is not on the network
 #endif

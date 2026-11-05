@@ -47,6 +47,38 @@ class AccessCheckTest : public TestWithIsolate {
         .FromJust();
     Context::Scope context_scope(accessing_context);
 
+    g_expect_interceptor_call = false;
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->SetNativeDataProperty(
+                    accessing_context, NewString("foo"),
+                    [](Local<Name>, const PropertyCallbackInfo<Value>&) {
+                      FAIL();
+                    })
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->SetLazyDataProperty(
+                    accessing_context, NewString("foo"),
+                    [](Local<Name>, const PropertyCallbackInfo<Value>&) {
+                      FAIL();
+                    })
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->CreateDataProperty(accessing_context, NewString("foo"),
+                                     v8::Integer::New(isolate(), 42))
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+
     g_expect_interceptor_call = true;
     g_cross_context_int = 23;
 

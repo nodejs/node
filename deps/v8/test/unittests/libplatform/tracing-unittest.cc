@@ -632,7 +632,7 @@ class TestListener : public TraceEventListener {
         } else if (it.has_string_value()) {
           value << "(string)" << it.string_value();
         } else if (it.has_pointer_value()) {
-          value << "(pointer)0x" << std::hex << it.pointer_value();
+          value << "(pointer)0x" << std::hex << it.pointer_value() << std::dec;
         } else if (it.has_legacy_json_value()) {
           value << "(json)" << it.legacy_json_value();
         } else if (it.has_nested_value()) {
@@ -673,6 +673,10 @@ class TracingTestHarness {
   void StartTracing() {
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8");
+    tracing_controller_->StartTracing(trace_config);
+  }
+
+  void StartTracingWithConfig(TraceConfig* trace_config) {
     tracing_controller_->StartTracing(trace_config);
   }
 
@@ -853,6 +857,7 @@ TEST_F(PlatformTracingTest, MultipleArgsAndCopy) {
   for (size_t i = 0; i < 20; i++) CHECK_EQ("E:.", harness.get_event(24 + i));
 }
 
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
 TEST_F(PlatformTracingTest, JsonIntegrationTest) {
   // Check that tricky values are rendered correctly in the JSON output.
   double big_num = 1e100;
@@ -886,6 +891,49 @@ TEST_F(PlatformTracingTest, JsonIntegrationTest) {
   CHECK_EQ("\"2\":\"NaN\"", all_args[i++]);
   CHECK_EQ("\"3\":\"Infinity\"", all_args[i++]);
   CHECK_EQ("\"4\":\"-Infinity\"", all_args[i++]);
+}
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
+
+TEST_F(PlatformTracingTest, RunMicrotasksRundownAttribution) {
+  TracingTestHarness harness;
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->AddIncludedCategory("v8.execute");
+  trace_config->AddIncludedCategory(
+      TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"));
+  harness.StartTracingWithConfig(trace_config);
+
+  {
+    IsolateWithContextWrapper isolate_wrapper;
+    v8::Isolate* isolate = isolate_wrapper.v8_isolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    const char* source =
+        "async function myAsyncFn() { await Promise.resolve(1); return 2; }\n"
+        "Promise.resolve().then(function myMicrotaskFn() { return 1; });\n"
+        "myAsyncFn();\n";
+    v8::Local<v8::String> src_str =
+        v8::String::NewFromUtf8(isolate, source).ToLocalChecked();
+    v8::Local<v8::Script> script =
+        v8::Script::Compile(context, src_str).ToLocalChecked();
+    script->Run(context).ToLocalChecked();
+  }
+
+  harness.StopTracing();
+
+  bool found_then = false;
+  bool found_async = false;
+  for (size_t i = 0; i < harness.events_size(); ++i) {
+    const std::string& ev = harness.get_event(i);
+    if (ev.find("v8.runMicrotask") != std::string::npos &&
+        ev.find("functionName=(string)myMicrotaskFn") != std::string::npos) {
+      found_then = true;
+    }
+    if (ev.find("v8.runMicrotask") != std::string::npos &&
+        ev.find("functionName=(string)myAsyncFn") != std::string::npos) {
+      found_async = true;
+    }
+  }
+  CHECK(found_then);
+  CHECK(found_async);
 }
 
 #endif  // V8_USE_PERFETTO

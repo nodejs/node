@@ -34,6 +34,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/common/assembler-tester.h"
 #include "test/common/value-helper.h"
@@ -1577,6 +1578,33 @@ TEST_F(MacroAssemblerTest, LoadFPRImmediate_Double_NonEncodable_Fallback) {
     int64_t res = GenAndRunTest(fn);
     CHECK_EQ(bits, base::bit_cast<uint64_t>(res));
   }
+}
+
+TEST_F(MacroAssemblerTest, HeapNumberRequestNotDeduplicatedWithEmbeddedObject) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  // A heap number request carries the raw bits of the double it materializes.
+  // Those bits must not be mistaken for the location of an object's handle,
+  // because constant-pool entries are deduplicated by handle location. Use the
+  // location of a real handle as the double's bit pattern so that a buggy
+  // implementation deterministically merges both constants into one entry.
+  Handle<HeapObject> object = isolate->factory()->NewFixedArray(1);
+  int smi_value;
+  double value =
+      base::bit_cast<double>(static_cast<uint64_t>(object.address()));
+  CHECK(!DoubleToSmiInteger(value, &smi_value));
+
+  auto fn = [&](MacroAssembler& masm) {
+    __ li(a0, Operand(object, RelocInfo::FULL_EMBEDDED_OBJECT));
+    __ li(a1, Operand::EmbeddedNumber(value));
+  };
+  int64_t result = GenAndRunTest(fn);
+
+  // Loading the embedded object must still yield `object`; if the heap number
+  // request was deduplicated with it, the request would overwrite the shared
+  // constant-pool slot and this would be the heap number instead.
+  CHECK_EQ(object->ptr(), static_cast<Address>(result));
 }
 
 #undef __

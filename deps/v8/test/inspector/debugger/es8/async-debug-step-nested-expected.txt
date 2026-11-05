@@ -1,0 +1,7 @@
+Tests stepping in nested async functions.
+  debugger;          // B0 StepOver
+       await         // B1 StepInto
+  var b = 0 +        // B2 StepInto
+  return new Promise( // B3 StepOut
+  return b;          // B4 StepOut
+  return a;          // B5 Continue

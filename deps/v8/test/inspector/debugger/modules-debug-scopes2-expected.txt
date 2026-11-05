@@ -1,0 +1,4 @@
+Tests scope chain inspection and scope content for modules.
+Pass 0 passed
+Pass 1 passed
+Pass 2 passed

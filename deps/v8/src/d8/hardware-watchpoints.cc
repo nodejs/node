@@ -863,6 +863,10 @@ void SetHardwareWatchpointCallback(
     ThrowTypeError(isolate, "First argument must be an object");
     return;
   }
+  if (i::HeapLayout::InReadOnlySpace(*object)) {
+    ThrowTypeError(isolate, "First argument must not be a read-only object");
+    return;
+  }
 
   int32_t offset;
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {

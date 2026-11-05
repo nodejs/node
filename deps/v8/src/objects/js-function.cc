@@ -1076,11 +1076,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
@@ -1486,7 +1489,8 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   }
 
   // Check if we have source code for the {function}.
-  if (!shared_info->HasSourceCode()) {
+  if (!shared_info->HasSourceCode() ||
+      shared_info->StartPosition() == shared_info->EndPosition()) {
     return NativeCodeFunctionSourceString(isolate, shared_info);
   }
 

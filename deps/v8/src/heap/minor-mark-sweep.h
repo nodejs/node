@@ -17,7 +17,6 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/parallel-work-item.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/young-generation-marking-visitor.h"
@@ -234,9 +233,6 @@ class MinorMarkSweepCollector final {
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
   Sweeper* const sweeper_;
-
-  std::unique_ptr<PretenuringHandler::PretenuringFeedbackMap>
-      pretenuring_feedback_;
 
   std::unique_ptr<YoungGenerationRememberedSetsMarkingWorklist>
       remembered_sets_marking_handler_;

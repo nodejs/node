@@ -1,0 +1,10 @@
+include_rules = [
+  # Redline is a standalone executable (like d8) that brings up its own
+  # platform for the in-process syntax oracle.
+  "+include/libplatform/libplatform.h",
+  # The lexer and the printer use V8's number conversions and character
+  # classes, so that they read and print literals and identifiers as V8 does.
+  "+src/base/vector.h",
+  "+src/numbers/conversions.h",
+  "+src/strings/char-predicates-inl.h",
+]

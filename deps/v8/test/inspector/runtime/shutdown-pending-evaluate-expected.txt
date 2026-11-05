@@ -1,0 +1,1 @@
+Tests that an unresolved asynchronous Runtime.evaluate does not cause a use-after-free during inspector and session teardown.

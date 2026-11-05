@@ -13,6 +13,7 @@
 #include "src/base/iterator.h"
 #include "src/common/assert-scope.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/sandbox.h"
 #include "src/sandbox/segmented-table-inl.h"
 #include "src/utils/allocation.h"
 
@@ -47,6 +48,7 @@ bool ExternalEntityTable<Entry, size>::Space::Contains(uint32_t index) {
 
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::Initialize() {
+  CHECK(IsTaggingMaskCompatible(kTagAndMarkBitMask));
   Base::Initialize(size, kSegmentSize * kNumReadOnlySegments,
                    Entry::IsWriteProtected);
 }

@@ -1,0 +1,8 @@
+Tests debug events when we only listen to uncaught exceptions and there is a catch handler for the to-be-rejected Promise.
+Paused on exception: uncaught=true
+Exception message: uncaught reject p
+At event line: true
+Total exception events: 1
+Test done: true
+Test error: null
+Log: ["postpone p","resolve q","end main","reject p"]
