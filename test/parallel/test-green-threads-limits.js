@@ -132,7 +132,9 @@ async function expectCpuLimit(source, resourceLimits, options) {
       const buffers = [];
       for (let i = 0; i < 24; i++) buffers.push(new ArrayBuffer(1024 * 1024));
       const items = [];
-      for (;;) items.push(new Array(1000).fill(items.length));
+      // Not \`new Array(n)\`: V8 may optimize such a loop so that it no
+      // longer handles interrupts.
+      for (;;) items.push([items.length, items.length, items.length]);
     `, { maxMemoryMb: 32 });
     assert.strictEqual(error.code, 'ERR_GREEN_THREAD_OUT_OF_MEMORY');
     assert.strictEqual(code, 1);

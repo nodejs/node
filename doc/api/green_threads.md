@@ -115,7 +115,10 @@ greenThread.on('error', (error) => {
 
 `maxMemoryMb` limits the memory used by the JavaScript heap and by
 `ArrayBuffer`s together. An `ArrayBuffer` allocation that would exceed the
-limit throws a `RangeError`, which the green thread can catch. When the heap
+limit throws a `RangeError`, which the green thread can catch. To leave room
+for the heap to grow until the next garbage collection, such allocations fail
+once the heap and `ArrayBuffer`s together would use more than 15/16 of the
+limit. When the heap
 together with the `ArrayBuffer`s still in use exceeds the limit, the green
 thread emits an [`'error'`][] event with an [`ERR_GREEN_THREAD_OUT_OF_MEMORY`][]
 error and exits. This is checked after each garbage collection, so memory use
