@@ -10,7 +10,7 @@ const common = require('../common');
 const assert = require('assert');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const { internalBinding } = require('internal/test/binding');
-const { GreenThread } = require('node:green_threads');
+const { GreenThread, setUnresponsiveTimeouts } = require('node:green_threads');
 
 const binding = internalBinding('green_thread');
 const {
@@ -25,15 +25,32 @@ const {
 
 const kGracePeriodMs = 100;
 
+for (const [timeouts, code] of [
+  [null, 'ERR_INVALID_ARG_TYPE'],
+  [{ gracePeriodMs: 0 }, 'ERR_OUT_OF_RANGE'],
+  [{ gracePeriodMs: Infinity }, 'ERR_OUT_OF_RANGE'],
+  [{ gracePeriodMs: 1.5 }, 'ERR_OUT_OF_RANGE'],
+  [{ abortTimeoutMs: -1 }, 'ERR_OUT_OF_RANGE'],
+  [{ abortTimeoutMs: 2 ** 31 }, 'ERR_OUT_OF_RANGE'],
+  [{ abortTimeoutMs: '1' }, 'ERR_INVALID_ARG_TYPE'],
+]) {
+  assert.throws(() => setUnresponsiveTimeouts(timeouts), { code });
+}
+
 // A green thread stuck in C++, where it can't be cut off, aborts the process.
-// This works everywhere.
+// This works everywhere. Unless that is turned off: then the process can still
+// exit.
 if (process.argv[2] === 'block') {
-  binding.setUnresponsiveTimeoutsForTesting(kGracePeriodMs, 200);
+  setUnresponsiveTimeouts({
+    gracePeriodMs: kGracePeriodMs,
+    abortTimeoutMs: process.argv[3] === 'never' ? Infinity : 200,
+  });
   const handle = new binding.GreenThread(
     'postMessage(0); __greenThreadBlock();', 'test.js', 0, 0,
     kFlagTestingGlobals);
   handle.onevent = (type) => {
     if (type === kEventMessage) handle.terminate();
+    if (type === kEventExit) handle.close();
   };
   return;
 }
@@ -46,13 +63,20 @@ if (process.argv[2] === 'block') {
   assert.match(child.stderr.toString(),
                /A green thread ignored termination, and the thread running it could not be stopped/);
 }
+spawnSyncAndAssert(process.execPath, [
+  '--expose-internals', '--experimental-green-threads', '--no-warnings',
+  __filename, 'block', 'never',
+], { status: 0, stdout: '', stderr: '' });
 
 if (!binding.canCutOffThreads) {
   common.printSkipMessage('Cutting off threads is not supported here');
   return;
 }
 
-binding.setUnresponsiveTimeoutsForTesting(kGracePeriodMs, 30000);
+setUnresponsiveTimeouts({
+  gracePeriodMs: kGracePeriodMs,
+  abortTimeoutMs: 30000,
+});
 
 // Resolves with the events of a green thread that ignores termination. Its
 // source posts a message once it is about to get stuck, and it's terminated
@@ -132,7 +156,10 @@ async function checkPool() {
       `
       const { internalBinding } = require('internal/test/binding');
       const binding = internalBinding('green_thread');
-      binding.setUnresponsiveTimeoutsForTesting(${kGracePeriodMs}, 30000);
+      require('node:green_threads').setUnresponsiveTimeouts({
+        gracePeriodMs: ${kGracePeriodMs},
+        abortTimeoutMs: 30000,
+      });
       const handle = new binding.GreenThread(
         'postMessage(0); for (;;);', 'test.js', 0, 0,
         binding.kFlagTestingIgnoreTermination);

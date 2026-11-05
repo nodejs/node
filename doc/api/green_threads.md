@@ -132,7 +132,8 @@ like the [`Worker`][] options of the same names.
 Resource limits and [`greenThread.terminate()`][] interrupt the running
 JavaScript code. In rare cases, V8 compiles code in a way that no longer
 handles interrupts, so the green thread keeps running. Node.js then stops
-waiting for it after one second: the green thread emits the [`'error'`][]
+waiting for it after a grace period, one second by default: the green thread
+emits the [`'error'`][]
 event for the limit it reached, if any, and the [`'exit'`][] event with exit
 code `1`, and the process emits a `GreenThreadWarning`. The green thread is
 abandoned: it never runs again, and the memory it uses is not freed until the
@@ -140,8 +141,34 @@ process exits.
 
 Node.js then stops the pool thread that was running it as soon as that thread
 runs JavaScript code, so that it can run other green threads again. Where that
-isn't possible, or doesn't succeed within 10 seconds, Node.js aborts the
-process. Stopping pool threads is only supported on Linux on x64 and arm64.
+isn't possible, or doesn't succeed within 10 seconds by default, Node.js
+aborts the process. Stopping pool threads is only supported on Linux on x64
+and arm64. [`greenThreads.setUnresponsiveTimeouts()`][] changes both
+durations.
+
+## `greenThreads.setUnresponsiveTimeouts(timeouts)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `timeouts` {Object}
+  * `gracePeriodMs` {integer} How long a green thread has to stop after it was
+    asked to, in milliseconds, before it is abandoned. Between `1` and
+    `2 ** 31 - 1`. **Default:** `1000`.
+  * `abortTimeoutMs` {integer|Infinity} How long Node.js tries to stop the
+    pool thread running an abandoned green thread, in milliseconds, before it
+    aborts the process. Between `0` and `2 ** 31 - 1`, or `Infinity` to never
+    abort. **Default:** `10000`.
+
+Sets, for the whole process, how Node.js handles [green threads that don't
+stop][]. Omitted values are not changed. The new values apply to green threads
+that are asked to stop from then on.
+
+A short grace period may abandon green threads that would have stopped, for
+example after a long garbage collection. With an `abortTimeoutMs` of
+`Infinity`, a pool thread that can't be stopped keeps using CPU time until the
+process exits, and the process doesn't wait for it when it exits.
 
 ## `greenThreads.setWarmPoolSize(size)`
 
@@ -422,3 +449,5 @@ Calls [`greenThread.terminate()`][].
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue
 [`greenThread.terminate()`]: #greenthreadterminate
+[`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
+[green threads that don't stop]: #green-threads-that-dont-stop
