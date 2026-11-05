@@ -131,7 +131,6 @@ export default [
         DisposableStack: 'readonly',
         EventSource: 'readonly',
         fetch: 'readonly',
-        FileList: 'readonly',
         FileReader: 'readonly',
         FileReaderSync: 'readonly',
         Float16Array: 'readonly',

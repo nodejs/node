@@ -607,32 +607,36 @@ added: v20.0.0
 
 See {File}.
 
-## Class: `FileList`
-
-<!-- YAML
-added: REPLACEME
--->
-
-A browser-compatible implementation of {FileList} from the [File API][]. The
-interface has no constructor. It is a list of {File} objects, with a `length`
-attribute and an `item(index)` method that returns the `File` at `index`, or
-`null` when `index` is past the end of the list.
-
 ## Class: `FileReader`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-A browser-compatible implementation of {FileReader} from the [File API][].
-`readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
-`readAsDataURL()` read a {Blob} asynchronously and report the result through
-`loadstart`, `progress`, `load`, `abort`, `error`, and `loadend` events.
-`readyState` is `FileReader.EMPTY` (`0`), `FileReader.LOADING` (`1`), or
-`FileReader.DONE` (`2`).
+> Stability: 1 - Experimental
+
+An implementation of {FileReader} from the [File API][]. `readAsArrayBuffer()`,
+`readAsBinaryString()`, `readAsText()`, and `readAsDataURL()` read a {Blob}
+asynchronously and report the result through `loadstart`, `progress`, `load`,
+`abort`, `error`, and `loadend` events. `readyState` is `FileReader.EMPTY`
+(`0`), `FileReader.LOADING` (`1`), or `FileReader.DONE` (`2`).
 
 `readAsDataURL()` produces a base64 `data:` URL. When the blob's type is the
-empty string, the URL has no media type.
+empty string, the URL has no media type (`data:;base64,...`). Chrome and
+Firefox use `application/octet-stream` in that case.
+
+`readAsText()` follows {TextDecoder} for the chosen encoding, including its
+ICU requirement. Labels that the Encoding Standard maps to the replacement
+encoding, such as `'iso-2022-kr'`, decode to U+FFFD when the input is not
+empty.
+
+```js
+const reader = new FileReader();
+reader.addEventListener('load', () => {
+  console.log(reader.result); // Prints: hello
+});
+reader.readAsText(new Blob(['hello']));
+```
 
 ## Class: `FileReaderSync`
 
@@ -640,14 +644,22 @@ empty string, the URL has no media type.
 added: REPLACEME
 -->
 
-A browser-compatible implementation of {FileReaderSync} from the [File API][].
-It is exposed only inside a [Web Worker][] (`--experimental-web-worker`),
-matching `[Exposed=(DedicatedWorker,SharedWorker)]`. It is not available on
-the main thread or in threads created with `node:worker_threads`.
+> Stability: 1 - Experimental
+
+An implementation of {FileReaderSync} from the [File API][]. It is
+`[Exposed=(DedicatedWorker,SharedWorker)]`, so it exists only inside a
+[Web Worker][] (`--experimental-web-worker`). It is not available on the main
+thread or in threads created with `node:worker_threads`.
 
 `readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
 `readAsDataURL()` read a {Blob} synchronously. A file-backed blob, such as
 one returned by [`fs.openAsBlob()`][], throws a `NotReadableError`.
+
+```js
+// Inside a Web Worker (`--experimental-web-worker`):
+const text = new FileReaderSync().readAsText(new Blob(['hello']));
+postMessage(text); // Sends 'hello'
+```
 
 ## Class: `FormData`
 
@@ -990,12 +1002,25 @@ The process object. See the [`process` object][] section.
 added: REPLACEME
 -->
 
-A browser-compatible implementation of {ProgressEvent} from the
-[XMLHttpRequest Standard][]. `FileReader` dispatches `ProgressEvent`s for
-`loadstart`, `progress`, `load`, `abort`, `error`, and `loadend`. Those events
-do not bubble and are not cancelable. `lengthComputable`, `loaded`, and
-`total` return the values they were initialized to (`false`, `0`, and `0`
-when omitted).
+> Stability: 1 - Experimental
+
+An implementation of {ProgressEvent} from the [XMLHttpRequest Standard][].
+`FileReader`
+dispatches `ProgressEvent`s for `loadstart`, `progress`, `load`, `abort`,
+`error`, and `loadend`. Those events do not bubble and are not cancelable.
+`lengthComputable`, `loaded`, and `total` return the values they were
+initialized to (`false`, `0`, and `0` when omitted). The File API's
+"fire a progress event" algorithm does not set those three fields, so events
+fired by `FileReader` leave them at the defaults.
+
+```js
+const event = new ProgressEvent('progress', {
+  lengthComputable: true,
+  loaded: 50,
+  total: 100,
+});
+console.log(event.loaded / event.total); // Prints: 0.5
+```
 
 ## `queueMicrotask(callback)`
 
