@@ -34,3 +34,28 @@ for (const bufferSize of ['', '1', null, undefined]) {
 fs.opendir(tmpdir.path, { bufferSize: 1 }, common.mustSucceed((dir) => {
   dir.closeSync();
 }));
+
+// bufferSize is read only once, so a getter can't pass the validation and then
+// return an invalid value when the directory has been opened.
+{
+  let reads = 0;
+  const options = {
+    get bufferSize() {
+      return reads++ === 0 ? 1 : 0;
+    },
+  };
+  fs.opendir(tmpdir.path, options, common.mustSucceed((dir) => {
+    assert.strictEqual(reads, 1);
+    dir.closeSync();
+  }));
+}
+
+// A non-enumerable bufferSize is ignored, the same as in fs.opendirSync().
+{
+  const options = {};
+  Object.defineProperty(options, 'bufferSize', { value: 0 });
+  fs.opendirSync(tmpdir.path, options).closeSync();
+  fs.opendir(tmpdir.path, options, common.mustSucceed((dir) => {
+    dir.closeSync();
+  }));
+}
