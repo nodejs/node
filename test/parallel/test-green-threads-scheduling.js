@@ -45,6 +45,22 @@ function spawn(source) {
   };
 }
 
+// Returns a green thread that never yields on the given pool thread.
+async function occupy(thread) {
+  for (let i = 0; i < 1000; i++) {
+    const candidate = spawn(`
+      onmessage = () => {
+        postMessage(__greenThreadInfo().thread);
+        for (;;);
+      };
+    `);
+    candidate.post(0);
+    if (await candidate.next() === thread) return candidate;
+    await candidate.terminate();
+  }
+  assert.fail(`could not occupy pool thread ${thread}`);
+}
+
 (async () => {
   const probe = spawn('postMessage(__greenThreadInfo());');
   const { poolSize, context, contexts } = await probe.next();
@@ -214,27 +230,43 @@ function spawn(source) {
     greenThread.post(0);
     const first = await greenThread.next();
 
-    // Find a blocker that occupies the same thread.
-    let blocker;
-    for (let i = 0; i < 1000 && blocker === undefined; i++) {
-      const candidate = spawn(`
-        onmessage = () => {
-          postMessage(__greenThreadInfo().thread);
-          for (;;);
-        };
-      `);
-      candidate.post(0);
-      if (await candidate.next() === first) {
-        blocker = candidate;
-      } else {
-        await candidate.terminate();
-      }
-    }
-    assert.notStrictEqual(blocker, undefined);
+    const blocker = await occupy(first);
 
     greenThread.post(0);
     assert.notStrictEqual(await greenThread.next(), first);
     await greenThread.terminate();
     assert.strictEqual(await blocker.terminate(), 1);
+  }
+
+  // An interval that comes due many times while its isolate is busy on
+  // another thread fires once when the isolate is free, not once per missed
+  // interval.
+  {
+    const greenThread = spawn(`
+      let ticks = 0;
+      onmessage = ({ data }) => {
+        if (data === 'start') {
+          setInterval(() => { ticks++; }, 1);
+          postMessage(__greenThreadInfo().thread);
+        } else if (data === 'spin') {
+          postMessage(__greenThreadInfo().thread);
+          const end = Date.now() + 300;
+          while (Date.now() < end);
+          const before = ticks;
+          setTimeout(() => postMessage(ticks - before), 0);
+        }
+      };
+    `);
+    greenThread.post('start');
+    const intervalThread = await greenThread.next();
+    const blocker = await occupy(intervalThread);
+    greenThread.post('spin');
+    // It has to run elsewhere, since the blocker occupies the thread.
+    assert.notStrictEqual(await greenThread.next(), intervalThread);
+    // Free the interval's thread, so that it fires while the isolate spins.
+    await blocker.terminate();
+    const missed = await greenThread.next();
+    assert(missed <= 3, `ran ${missed} queued interval callbacks`);
+    await greenThread.terminate();
   }
 })().then(common.mustCall());
