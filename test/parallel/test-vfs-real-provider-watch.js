@@ -54,3 +54,14 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   // same-size rewrite within that second would look unchanged.
   setTimeout(() => fs.writeFileSync(path.join(root, 'wf.txt'), 'bb'), 100);
 }
+
+// watchFile listener fires on change
+(async () => {
+  fs.writeFileSync(path.join(root, 'wf2.txt'), 'a');
+  const fired = new Promise((resolve) => {
+    myVfs.watchFile('/wf2.txt', { interval: 25 }, common.mustCall(resolve));
+  });
+  fs.writeFileSync(path.join(root, 'wf2.txt'), 'b');
+  await fired;
+  myVfs.unwatchFile('/wf2.txt');
+})().then(common.mustCall());
