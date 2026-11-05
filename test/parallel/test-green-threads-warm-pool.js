@@ -22,6 +22,24 @@ async function echo(options) {
 }
 
 (async () => {
+  // setWarmPoolSize() returns a promise that is fulfilled once the pool is
+  // full.
+  {
+    const greenThreads = [];
+    await setWarmPoolSize(0);
+    await setWarmPoolSize(16);
+    for (let i = 0; i < 16; i++) {
+      greenThreads.push(new GreenThread('postMessage(0);'));
+    }
+    await Promise.all(greenThreads.map((g) => once(g, 'message')));
+    await Promise.all(greenThreads.map((g) => g.terminate()));
+    // It is refilled after green threads take isolates from it.
+    await setWarmPoolSize(16);
+    // Shrinking a full pool fulfills right away, as does every pending call.
+    await Promise.all([setWarmPoolSize(8), setWarmPoolSize(4)]);
+    assert.strictEqual(await setWarmPoolSize(0), undefined);
+  }
+
   setWarmPoolSize(4);
   // More green threads than the pool holds, some of them created before the
   // pool has refilled, and some with options that warm isolates can't be
