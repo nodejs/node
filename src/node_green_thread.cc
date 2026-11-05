@@ -123,10 +123,16 @@ enum Flags : uint32_t {
 
 // How long a green thread has to stop after it has been asked to, before it
 // is abandoned, and how long after that the backup watchdog tries to cut off
-// the pool thread that runs it, before aborting the process. In nanoseconds,
-// adjustable for tests.
+// the pool thread that runs it, before aborting the process. In nanoseconds;
+// UINT64_MAX means never. Set with setUnresponsiveTimeouts().
 std::atomic<uint64_t> unresponsive_grace_period{1000 * 1000000ull};
 std::atomic<uint64_t> cut_off_period{10000 * 1000000ull};
+
+// Now plus `delay` nanoseconds, in uv_hrtime() time.
+uint64_t DeadlineAfter(uint64_t delay) {
+  const uint64_t now = uv_hrtime();
+  return delay > UINT64_MAX - now ? UINT64_MAX : now + delay;
+}
 constexpr uint64_t kCutOffRetryInterval = 5 * 1000000ull;
 
 #ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
@@ -1363,7 +1369,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       const uint64_t epoch = self->work_epoch_.load();
       Watchdog::Get()->Arm(
           &self->cpu_checks_requested_,
-          uv_hrtime() + unresponsive_grace_period.load(),
+          DeadlineAfter(unresponsive_grace_period.load()),
           [weak = self->weak_from_this(), requested, epoch]() {
             if (std::shared_ptr<GreenIsolate> self = weak.lock()) {
               self->OnCpuCheckOverdue(requested, epoch);
@@ -1434,7 +1440,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (backup_epoch_.exchange(epoch) == epoch) return;
     Watchdog::Get()->Arm(
         &backup_epoch_,
-        uv_hrtime() + unresponsive_grace_period.load(),
+        DeadlineAfter(unresponsive_grace_period.load()),
         [weak = weak_from_this(), epoch]() {
           if (std::shared_ptr<GreenIsolate> self = weak.lock()) {
             self->OnUnresponsive(epoch);
@@ -1472,7 +1478,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       Mutex::ScopedLock lock(disposal_mutex_);
       disposal_cv_.Broadcast(lock);
     }
-    cut_off_deadline_ = uv_hrtime() + cut_off_period.load();
+    cut_off_deadline_ = DeadlineAfter(cut_off_period.load());
     TryCutOff(epoch);
   }
 
@@ -1480,7 +1486,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // work `epoch` until it no longer is, or aborts the process.
   void TryCutOff(uint64_t epoch) {
     if (work_epoch_.load() != epoch) return;
-    if (uv_hrtime() >= cut_off_deadline_) {
+    if (cut_off_deadline_ != UINT64_MAX && uv_hrtime() >= cut_off_deadline_) {
       OnFatalError("node::green_thread::GreenIsolate::TryCutOff()",
                    "A green thread ignored termination, and the thread "
                    "running it could not be stopped.");
@@ -2357,7 +2363,11 @@ bool TerminateAll() {
   // Interrupt all of them first, so that none of them keeps a pool thread
   // busy while another one is waited for.
   for (auto& green : green_isolates) green->Terminate();
-  for (auto& green : green_isolates) green->TerminateAndWait(true);
+  // Without the last resort, a pool thread may never be cut off. Since V8 is
+  // not disposed if green threads were abandoned, the process can then exit
+  // while it still runs.
+  const bool wait_for_threads = cut_off_period.load() != UINT64_MAX;
+  for (auto& green : green_isolates) green->TerminateAndWait(wait_for_threads);
   Mutex::ScopedLock lock(live_green_isolates_mutex);
   return abandoned_green_isolates->empty();
 }
@@ -2487,10 +2497,8 @@ class GreenThreadWrap final : public HandleWrap {
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
-    SetMethod(context,
-              target,
-              "setUnresponsiveTimeoutsForTesting",
-              SetUnresponsiveTimeoutsForTesting);
+    SetMethod(
+        context, target, "setUnresponsiveTimeouts", SetUnresponsiveTimeouts);
     SetConstructorFunction(context,
                            target,
                            "WarmPoolWaiter",
@@ -2544,7 +2552,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Evaluate);
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
-    registry->Register(SetUnresponsiveTimeoutsForTesting);
+    registry->Register(SetUnresponsiveTimeouts);
     WarmPoolWaiter::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
   }
@@ -2563,13 +2571,17 @@ class GreenThreadWrap final : public HandleWrap {
   SET_SELF_SIZE(GreenThreadWrap)
 
  private:
-  // setUnresponsiveTimeoutsForTesting(gracePeriodMs, cutOffPeriodMs)
-  static void SetUnresponsiveTimeoutsForTesting(
-      const FunctionCallbackInfo<Value>& args) {
-    CHECK(args[0]->IsUint32());
-    CHECK(args[1]->IsUint32());
-    unresponsive_grace_period = args[0].As<Uint32>()->Value() * 1000000ull;
-    cut_off_period = args[1].As<Uint32>()->Value() * 1000000ull;
+  // setUnresponsiveTimeouts(gracePeriodMs, abortTimeoutMs). Either may be
+  // undefined, to keep the current value. Infinity means never.
+  static void SetUnresponsiveTimeouts(const FunctionCallbackInfo<Value>& args) {
+    auto nanoseconds = [](Local<Value> value) {
+      const double milliseconds = value.As<Number>()->Value();
+      CHECK_GE(milliseconds, 0);
+      if (std::isinf(milliseconds)) return uint64_t{UINT64_MAX};
+      return static_cast<uint64_t>(milliseconds) * uint64_t{1000000};
+    };
+    if (args[0]->IsNumber()) unresponsive_grace_period = nanoseconds(args[0]);
+    if (args[1]->IsNumber()) cut_off_period = nanoseconds(args[1]);
   }
 
   // setWarmPoolSize(size, waiter)
