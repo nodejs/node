@@ -558,6 +558,9 @@
     'conditions': [
       ['clang==0 and OS!="win"', {
         'cflags': [ '-Wno-restrict', ],
+        'cflags_cc': [
+          '-Wno-invalid-constexpr',
+        ],
       }],
       # TODO(joyeecheung): investigate if it breaks addons.
       # ['OS=="mac"', {
