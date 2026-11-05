@@ -439,9 +439,12 @@ thread_local GreenIsolate* current_green_isolate = nullptr;
 
 // All green isolates that have not been disposed yet, so that they can be
 // stopped before the process exits.
-Mutex live_green_isolates_mutex;
-std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>
-    live_green_isolates;
+// Leaked, since pool threads may still use it while exit() runs static
+// destructors.
+Mutex& live_green_isolates_mutex = *new Mutex();
+std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>&
+    live_green_isolates =
+        *new std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>();
 
 // The foreground task runner V8 uses for a green isolate. Tasks are run like
 // other work for the isolate, with the isolate locked.
@@ -559,51 +562,66 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     MaybeScheduleLocked();
   }
 
-  // May be called from any thread.
-  void WaitForDisposal() {
+  // May be called from any thread but a pool thread. Terminates the green
+  // thread and waits until its isolate is disposed. Unless a pool thread is
+  // running the isolate right now, which termination interrupts, it is shut
+  // down on the calling thread, so that this never waits for pool threads
+  // that are busy with other isolates.
+  void TerminateAndWait() {
+    CHECK_NULL(current_pool_thread);
+    Terminate();
+    bool shut_down_here = false;
+    {
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      if (!stopped_ && !locked_) {
+        locked_ = true;
+        shut_down_here = true;
+      }
+    }
+    if (shut_down_here) {
+      Shutdown();
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      locked_ = false;
+    }
     Mutex::ScopedLock lock(disposal_mutex_);
     while (!disposed_) disposal_cv_.Wait(lock);
   }
 
   // May be called from any thread.
   void PostV8Task(std::unique_ptr<Task> task, double delay_in_seconds) {
-    auto holder = std::make_shared<std::unique_ptr<Task>>(std::move(task));
-    Work work = [holder](GreenIsolate* self) {
-      std::unique_ptr<Task> task = std::move(*holder);
-      if (!task) return;
-      self->RunTask(kDefaultInvocation,
-                    [&](Isolate*, Local<Context>) { task->Run(); });
-    };
-    if (delay_in_seconds <= 0) return Submit(std::move(work));
+    if (delay_in_seconds <= 0) return Submit(MakeV8TaskWork(std::move(task)));
 
     // A due delayed task may run on any thread; its timer just needs a loop.
+    // The timer's callback must not own the task, since the callback may
+    // outlive the isolate. Until the task is due, it's owned by
+    // delayed_v8_tasks_, and then by the queue, which are both emptied before
+    // the isolate is freed.
     uint64_t key;
     {
       Mutex::ScopedLock lock(scheduler_mutex_);
       if (stopped_) return;
       key = ++next_delayed_v8_task_id_;
     }
-    std::weak_ptr<GreenIsolate> weak = weak_from_this();
     auto handle = std::make_shared<TimerHandle>(
         GreenThreadPool::Get()->Next(),
         static_cast<uint64_t>(delay_in_seconds * 1000),
         0,
-        [weak, key, work = std::move(work)]() {
+        [weak = weak_from_this(), key]() {
           std::shared_ptr<GreenIsolate> self = weak.lock();
           if (!self) return;
-          {
-            Mutex::ScopedLock lock(self->scheduler_mutex_);
-            auto it = self->delayed_v8_tasks_.find(key);
-            if (it == self->delayed_v8_tasks_.end()) return;
-            it->second.first->Close();
-            self->delayed_v8_tasks_.erase(it);
-          }
-          self->Submit(work);
+          Mutex::ScopedLock lock(self->scheduler_mutex_);
+          auto it = self->delayed_v8_tasks_.find(key);
+          if (it == self->delayed_v8_tasks_.end()) return;
+          it->second.first->Close();
+          self->queue_.push_back(
+              {nullptr, MakeV8TaskWork(std::move(it->second.second))});
+          self->delayed_v8_tasks_.erase(it);
+          self->MaybeScheduleLocked();
         });
     {
       Mutex::ScopedLock lock(scheduler_mutex_);
       if (stopped_) return;
-      delayed_v8_tasks_.emplace(key, std::make_pair(handle, holder));
+      delayed_v8_tasks_.emplace(key, std::make_pair(handle, std::move(task)));
     }
     handle->Start();
   }
@@ -617,8 +635,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     {
       Mutex::ScopedLock lock(scheduler_mutex_);
       CHECK(scheduled_);
-      CHECK(!locked_);
       scheduled_ = false;
+      // TerminateAndWait() took the lock to shut the isolate down.
+      if (locked_ || stopped_) return;
       locked_ = true;
     }
     last_thread_ = thread;
@@ -664,6 +683,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     bool repeat;
     uint32_t context_id;
     std::shared_ptr<TimerHandle> handle;
+    // Set while a fire of this timer is queued, so that an interval whose
+    // isolate is busy elsewhere fires once when it's due, not once per
+    // missed interval.
+    std::shared_ptr<std::atomic<bool>> fire_queued;
   };
 
   struct QueuedWork {
@@ -673,10 +696,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   // Delayed V8 tasks that are not due yet, with their timers. The tasks are
   // owned separately so that they can be destroyed before the isolate.
-  using DelayedV8Tasks =
-      std::unordered_map<uint64_t,
-                         std::pair<std::shared_ptr<TimerHandle>,
-                                   std::shared_ptr<std::unique_ptr<Task>>>>;
+  using DelayedV8Tasks = std::unordered_map<
+      uint64_t,
+      std::pair<std::shared_ptr<TimerHandle>, std::unique_ptr<Task>>>;
 
   class CurrentScope {
    public:
@@ -711,6 +733,26 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       GreenThreadPool::Get()->ScheduleReady(shared_from_this(),
                                             last_thread_.load());
     }
+  }
+
+  // The returned work owns `task`. Work is only ever owned by the queue or by
+  // the slice running it, both of which are gone before the isolate is freed.
+  static Work MakeV8TaskWork(std::unique_ptr<Task> task) {
+    auto holder = std::make_shared<std::unique_ptr<Task>>(std::move(task));
+    return [holder](GreenIsolate* self) {
+      std::unique_ptr<Task> task = std::move(*holder);
+      self->RunTask(kDefaultInvocation,
+                    [&](Isolate*, Local<Context>) { task->Run(); });
+    };
+  }
+
+  // Whether JS may run (again) in the current task. Once a termination has
+  // unwound the stack, IsExecutionTerminating() is false again, and a
+  // TerminateExecution() request made while the isolate was unlocked is
+  // discarded when the lock is acquired, so the flags are checked as well.
+  bool CanRunJS(Isolate* isolate) const {
+    return !terminate_requested_ && !fatal_ && !out_of_memory_ &&
+           !isolate->IsExecutionTerminating();
   }
 
   bool ShouldShutdown() const {
@@ -788,7 +830,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   uint32_t CreateInvocationContext(PoolThread* thread) {
-    uint32_t id = ++next_context_id_;
+    uint32_t id;
+    do {
+      id = ++next_context_id_;
+    } while (id == kNewInvocation || contexts_.contains(id));
     contexts_.emplace(id, InvocationContext{thread});
     return id;
   }
@@ -836,21 +881,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       isolate->SetContinuationPreservedEmbedderData(
           Uint32::NewFromUnsigned(isolate, context_id));
 
-      // A TerminateExecution() request made while the isolate was unlocked
-      // is discarded when the lock is acquired, so check the flag as well.
-      if (!terminate_requested_ && !isolate->IsExecutionTerminating()) {
+      if (CanRunJS(isolate)) {
         TryCatch try_catch(isolate);
         fn(isolate, context);
         if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
           ReportUncaughtException(isolate, context, try_catch.Exception());
         }
       }
-      if (!terminate_requested_ && !isolate->IsExecutionTerminating()) {
-        isolate->PerformMicrotaskCheckpoint();
-      }
-      if (!fatal_ && !isolate->IsExecutionTerminating()) {
-        CheckUnhandledRejections(isolate, context);
-      }
+      if (CanRunJS(isolate)) isolate->PerformMicrotaskCheckpoint();
+      if (CanRunJS(isolate)) CheckUnhandledRejections(isolate, context);
       isolate->SetContinuationPreservedEmbedderData(Undefined(isolate));
     }
 
@@ -865,6 +904,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   void RunTimer(uint32_t id) {
     auto it = timers_.find(id);
     if (it == timers_.end()) return;
+    it->second.fire_queued->store(false);
     RunTask(it->second.context_id,
             [&](Isolate* isolate, Local<Context> context) {
               auto it = timers_.find(id);
@@ -936,10 +976,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       queue.swap(queue_);
       delayed.swap(delayed_v8_tasks_);
     }
-    for (auto& [key, entry] : delayed) {
-      entry.first->Close();
-      entry.second->reset();
-    }
+    for (auto& [key, entry] : delayed) entry.first->Close();
+    // `queue` and `delayed`, and with them the tasks, are destroyed here.
   }
 
   MaybeLocal<Script> Compile(Isolate* isolate,
@@ -1246,11 +1284,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     InvocationContext& invocation = self->contexts_.at(context_id);
     PoolThread* thread = invocation.thread;
     const uint32_t id = ++self->next_timer_id_;
+    auto fire_queued = std::make_shared<std::atomic<bool>>(false);
     auto handle = std::make_shared<TimerHandle>(
         thread,
         timeout,
         repeat ? timeout : 0,
-        [weak = self->weak_from_this(), id, thread]() {
+        [weak = self->weak_from_this(), id, thread, fire_queued]() {
+          if (fire_queued->exchange(true)) return;
           if (std::shared_ptr<GreenIsolate> self = weak.lock()) {
             self->Submit([id](GreenIsolate* self) { self->RunTimer(id); },
                          thread);
@@ -1262,7 +1302,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         TimerRecord{Global<Function>(isolate, args[0].As<Function>()),
                     repeat,
                     context_id,
-                    handle});
+                    handle,
+                    fire_queued});
     handle->Start();
     args.GetReturnValue().Set(Uint32::NewFromUnsigned(isolate, id));
   }
@@ -1430,8 +1471,10 @@ void TerminateAll() {
       }
     }
   }
+  // Interrupt all of them first, so that none of them keeps a pool thread
+  // busy while another one is waited for.
   for (auto& green : green_isolates) green->Terminate();
-  for (auto& green : green_isolates) green->WaitForDisposal();
+  for (auto& green : green_isolates) green->TerminateAndWait();
 }
 
 namespace {
@@ -1508,10 +1551,15 @@ class GreenThreadWrap final : public HandleWrap {
     GreenIsolate::Options options;
     options.source = Utf8Value(env->isolate(), args[0]).ToString();
     options.filename = Utf8Value(env->isolate(), args[1]).ToString();
-    options.max_old_generation_size =
-        static_cast<size_t>(args[2].As<Number>()->Value() * kMB);
-    options.max_young_generation_size =
-        static_cast<size_t>(args[3].As<Number>()->Value() * kMB);
+    // Clamped, since out-of-range float to integer conversions are undefined.
+    auto megabytes = [](Local<Value> value) -> size_t {
+      constexpr double kMaxMegabytes = 1 << 20;
+      const double megabytes = value.As<Number>()->Value();
+      if (!(megabytes > 0)) return 0;
+      return static_cast<size_t>(std::min(megabytes, kMaxMegabytes) * kMB);
+    };
+    options.max_old_generation_size = megabytes(args[2]);
+    options.max_young_generation_size = megabytes(args[3]);
     options.testing_globals =
         (args[4].As<Uint32>()->Value() & kFlagTestingGlobals) != 0;
 
@@ -1537,8 +1585,7 @@ class GreenThreadWrap final : public HandleWrap {
   void Detach() {
     if (!green_) return;
     channel_->Close();
-    green_->Terminate();
-    green_->WaitForDisposal();
+    green_->TerminateAndWait();
     green_.reset();
   }
 

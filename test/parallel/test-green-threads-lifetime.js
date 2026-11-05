@@ -45,6 +45,53 @@ spawnSyncAndAssert(process.execPath, [
   `,
 ], { status: 0, stdout: 'exit 0\n', stderr: '' });
 
+// Tearing down an Environment doesn't wait for pool threads that are busy
+// with other green threads. Here, every pool thread runs a green thread that
+// never yields, and the green thread whose handle is closed first has work
+// queued that no pool thread can pick up.
+const setupBusyPool = `
+  const os = require('os');
+  const { GreenThread } = require('node:green_threads');
+  const { once } = require('events');
+  const poolSize = Math.min(os.availableParallelism(), 8);
+  async function setup() {
+    const queued = new GreenThread('onmessage = () => {};');
+    await queued.evaluate('0');
+    const busy = [];
+    for (let i = 0; i < poolSize; i++) {
+      const greenThread = new GreenThread('postMessage(0); for (;;);');
+      await once(greenThread, 'message');
+      busy.push(greenThread);
+    }
+    queued.postMessage(0);
+    return [queued, ...busy];
+  }
+`;
+
+{
+  const worker = new Worker(`${setupBusyPool}
+    setup().then(() => require('worker_threads').parentPort.postMessage('ready'));
+  `, { eval: true });
+  worker.on('message', common.mustCall(() => worker.terminate()));
+  worker.on('exit', common.mustCall());
+}
+
+for (const exit of [
+  // Natural teardown of the main Environment.
+  'greenThreads.forEach((greenThread) => greenThread.unref());',
+  // process.exit(), which doesn't close handles.
+  'process.exit(0);',
+]) {
+  spawnSyncAndAssert(process.execPath, [
+    '--experimental-green-threads',
+    '--no-warnings',
+    '-e',
+    `${setupBusyPool}
+    setup().then((greenThreads) => { ${exit} });
+    `,
+  ], { status: 0, stdout: '', stderr: '' });
+}
+
 // Workers can host green threads, and terminating the worker terminates them.
 {
   const worker = new Worker(`
