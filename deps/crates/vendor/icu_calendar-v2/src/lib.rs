@@ -40,7 +40,7 @@
 //! as well as the calendar type.
 //!
 //! ```rust
-//! use icu::calendar::{types::Weekday, Date};
+//! use icu::calendar::{Date, types::Weekday};
 //!
 //! // Creating ISO date: 1992-09-02.
 //! let mut date_iso = Date::try_new_iso(1992, 9, 2)
@@ -59,8 +59,8 @@
 //! Example of converting an ISO date across Indian and Buddhist calendars.
 //!
 //! ```rust
-//! use icu::calendar::cal::{Buddhist, Indian};
 //! use icu::calendar::Date;
+//! use icu::calendar::cal::{Buddhist, Indian};
 //!
 //! // Creating ISO date: 1992-09-02.
 //! let mut date_iso = Date::try_new_iso(1992, 9, 2)

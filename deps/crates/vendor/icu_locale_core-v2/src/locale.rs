@@ -367,7 +367,7 @@ impl Locale {
     ///     }
     /// }
     ///
-    /// let _: BTreeSet<LocaleTotalOrd> = unimplemented!();
+    /// BTreeSet::<LocaleTotalOrd>::new();
     /// ```
     ///
     /// [`BTreeSet`]: alloc::collections::BTreeSet

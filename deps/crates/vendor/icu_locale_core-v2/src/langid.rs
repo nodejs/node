@@ -362,7 +362,7 @@ impl LanguageIdentifier {
     ///     }
     /// }
     ///
-    /// let _: BTreeSet<LanguageIdentifierTotalOrd> = unimplemented!();
+    /// BTreeSet::<LanguageIdentifierTotalOrd>::new();
     /// ```
     ///
     /// [`BTreeSet`]: alloc::collections::BTreeSet

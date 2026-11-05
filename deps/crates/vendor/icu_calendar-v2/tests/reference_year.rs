@@ -5,11 +5,11 @@
 use std::{collections::HashSet, fmt::Debug};
 
 use icu_calendar::{
+    Calendar, Date,
     cal::*,
     error::DateFromFieldsError,
     options::{DateFromFieldsOptions, MissingFieldsStrategy, Overflow},
     types::{DateFields, Month},
-    Calendar, Date,
 };
 
 /// Test that a given calendar produces valid monthdays
@@ -133,13 +133,13 @@ where
                 if let Ok(reject_result) = reject_result {
                     // We didn't need to constrain here, update the last valid date
                     last_valid_date = Some(reject_result);
-                } else if let Some(last_valid_date) = last_valid_date {
-                    if md_validity != ValidityState::ChineseConstrain {
-                        assert_eq!(
-                            last_valid_date, reference_date,
-                            "Constrain should constrain to the last valid date in the month"
-                        );
-                    }
+                } else if let Some(last_valid_date) = last_valid_date
+                    && md_validity != ValidityState::ChineseConstrain
+                {
+                    assert_eq!(
+                        last_valid_date, reference_date,
+                        "Constrain should constrain to the last valid date in the month"
+                    );
                 }
 
                 // Test that ordinal months cause it to fail (even if the month code is still set)
@@ -239,7 +239,7 @@ fn hijri_tabular_md_condition(month_number: u8, is_leap: bool, day_number: u8) -
     }
 
     // Odd months have 30 days, even months have 29, except for M12 in a leap year
-    ValidityState::from(if month_number % 2 == 0 {
+    ValidityState::from(if month_number.is_multiple_of(2) {
         if month_number == 12 {
             day_number <= 30
         } else {

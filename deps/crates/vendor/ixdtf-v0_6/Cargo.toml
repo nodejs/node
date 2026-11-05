@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "ixdtf"
-version = "0.6.6"
+version = "0.6.7"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [

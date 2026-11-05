@@ -67,7 +67,8 @@
 //! use icu::calendar::{Date, Gregorian, types::Weekday};
 //!
 //! // Convert a time::Date into an ICU4X Date<Gregorian>
-//! let time_date = time::Date::from_calendar_date(2025, time::Month::January, 15).unwrap();
+//! let time_date =
+//!     time::Date::from_calendar_date(2025, time::Month::January, 15).unwrap();
 //! let icu_date = Date::<Gregorian>::from(time_date);
 //! assert_eq!(icu_date.era_year().year, 2025);
 //!

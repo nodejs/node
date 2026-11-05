@@ -7,6 +7,7 @@
 #![allow(clippy::unit_arg)]
 
 use crate::cal::*;
+use crate::provider::CalendarPreferredV1;
 use crate::{AsCalendar, Calendar, Date, Ref};
 
 use crate::preferences::{CalendarAlgorithm, CalendarPreferences, HijriCalendarAlgorithm};
@@ -75,7 +76,7 @@ macro_rules! make_any_calendar {
             ) -> Result<Self::DateInner, $crate::error::DateNewError> {
                 Ok(match self {
                     $(
-                        &Self::$variant(ref c) => $any_date_ident::$variant(c.new_date(year, month, day)?),
+                        &Self::$variant(c) => $any_date_ident::$variant(c.new_date(year, month, day)?),
                     )+
                 })
             }
@@ -87,7 +88,7 @@ macro_rules! make_any_calendar {
             ) -> Result<Self::DateInner, $crate::error::DateFromFieldsError> {
                 Ok(match self {
                     $(
-                        &Self::$variant(ref c) => $any_date_ident::$variant(c.from_fields(fields, options)?),
+                        &Self::$variant(c) => $any_date_ident::$variant(c.from_fields(fields, options)?),
                     )+
                 })
             }
@@ -95,7 +96,7 @@ macro_rules! make_any_calendar {
             fn has_cheap_iso_conversion(&self) -> bool {
                 match self {
                     $(
-                        Self::$variant(ref c) => c.has_cheap_iso_conversion(),
+                        Self::$variant(c) => c.has_cheap_iso_conversion(),
                     )+
                 }
             }
@@ -103,7 +104,7 @@ macro_rules! make_any_calendar {
             fn from_iso(&self, iso: <$crate::Iso as $crate::Calendar>::DateInner) -> Self::DateInner {
                 match self {
                     $(
-                        &Self::$variant(ref c) => $any_date_ident::$variant(c.from_iso(iso)),
+                        &Self::$variant(c) => $any_date_ident::$variant(c.from_iso(iso)),
                     )+
                 }
             }
@@ -111,7 +112,7 @@ macro_rules! make_any_calendar {
             fn to_iso(&self, date: &Self::DateInner) -> <$crate::Iso as $crate::Calendar>::DateInner {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.to_iso(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.to_iso(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -121,7 +122,7 @@ macro_rules! make_any_calendar {
             fn from_rata_die(&self, rd: $crate::types::RataDie) -> Self::DateInner {
                 match self {
                     $(
-                        &Self::$variant(ref c) => $any_date_ident::$variant(c.from_rata_die(rd)),
+                        &Self::$variant(c) => $any_date_ident::$variant(c.from_rata_die(rd)),
                     )+
                 }
             }
@@ -129,7 +130,7 @@ macro_rules! make_any_calendar {
             fn to_rata_die(&self, date: &Self::DateInner) -> $crate::types::RataDie {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.to_rata_die(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.to_rata_die(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -139,7 +140,7 @@ macro_rules! make_any_calendar {
             fn months_in_year(&self, date: &Self::DateInner) -> u8 {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.months_in_year(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.months_in_year(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -149,7 +150,7 @@ macro_rules! make_any_calendar {
             fn days_in_year(&self, date: &Self::DateInner) -> u16 {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.days_in_year(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.days_in_year(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -159,7 +160,7 @@ macro_rules! make_any_calendar {
             fn days_in_month(&self, date: &Self::DateInner) -> u8 {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.days_in_month(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.days_in_month(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -169,7 +170,7 @@ macro_rules! make_any_calendar {
             fn year_info(&self, date: &Self::DateInner) -> $crate::types::YearInfo {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.year_info(&d).into(),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.year_info(&d).into(),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -180,7 +181,7 @@ macro_rules! make_any_calendar {
             fn is_in_leap_year(&self, date: &Self::DateInner) -> bool {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.is_in_leap_year(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.is_in_leap_year(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -191,7 +192,7 @@ macro_rules! make_any_calendar {
             fn month(&self, date: &Self::DateInner) -> $crate::types::MonthInfo {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.month(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.month(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -202,7 +203,7 @@ macro_rules! make_any_calendar {
             fn day_of_month(&self, date: &Self::DateInner) -> $crate::types::DayOfMonth {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.day_of_month(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.day_of_month(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -213,7 +214,7 @@ macro_rules! make_any_calendar {
             fn day_of_year(&self, date: &Self::DateInner) -> $crate::types::DayOfYear {
                 match (self, date) {
                     $(
-                        (&Self::$variant(ref c), &$any_date_ident::$variant(d)) => c.day_of_year(&d),
+                        (&Self::$variant(c), &$any_date_ident::$variant(d)) => c.day_of_year(&d),
                     )+
                     // This is only reached from misuse of from_raw, a semi-internal api
                     _ => panic!(concat!(stringify!($any_calendar_ident), " with mismatched date type")),
@@ -229,7 +230,7 @@ macro_rules! make_any_calendar {
                 let mut date = *date;
                 match (self, &mut date) {
                     $(
-                        (&Self::$variant(ref c), $any_date_ident::$variant(ref mut d)) => {
+                        (&Self::$variant(c), $any_date_ident::$variant(d)) => {
                             *d = c.add(d, duration, options)?;
                         },
                     )+
@@ -247,7 +248,7 @@ macro_rules! make_any_calendar {
             ) -> $crate::types::DateDuration {
                 match (self, date1, date2) {
                     $(
-                        (Self::$variant(ref c), $any_date_ident::$variant(d1), $any_date_ident::$variant(d2)) => {
+                        (Self::$variant(c), $any_date_ident::$variant(d1), $any_date_ident::$variant(d2)) => {
                             c.until(d1, d2, options)
                         }
                     )+
@@ -259,7 +260,7 @@ macro_rules! make_any_calendar {
             fn check_date_compatibility(&self, other: &Self) -> Result<(), Self::DateCompatibilityError> {
                 match (self, other) {
                     $(
-                        (Self::$variant(ref c1), Self::$variant(ref c2)) if c1.check_date_compatibility(c2).is_ok() => {
+                        (Self::$variant(c1), Self::$variant(c2)) if c1.check_date_compatibility(c2).is_ok() => {
                             Ok(())
                         }
                     )+
@@ -278,7 +279,7 @@ macro_rules! make_any_calendar {
             fn calendar_algorithm(&self) -> Option<CalendarAlgorithm> {
                 match self {
                     $(
-                        Self::$variant(ref c) => c.calendar_algorithm(),
+                        Self::$variant(c) => c.calendar_algorithm(),
                     )+
                 }
             }
@@ -352,6 +353,8 @@ make_any_calendar!(
     ///
     /// There are many ways of constructing an [`AnyCalendar`]'d date:
     /// ```
+    /// # #![allow(clippy::eq_op)]
+    /// # #![allow(clippy::neg_cmp_op_on_partial_ord)]
     /// use icu::calendar::{AnyCalendar, AnyCalendarKind, Date, cal::{Japanese, Gregorian}, types::MonthCode};
     /// use icu::locale::locale;
     /// use tinystr::tinystr;
@@ -359,7 +362,7 @@ make_any_calendar!(
     ///
     /// let locale = locale!("en-u-ca-japanese"); // English with the Japanese calendar
     ///
-    /// let calendar = AnyCalendar::new(AnyCalendarKind::new(locale.into()));
+    /// let calendar = AnyCalendar::new(AnyCalendarKind::try_new(locale.into()).unwrap());
     ///
     /// // This is a Date<AnyCalendar>
     /// let any_japanese_date = Date::try_new_gregorian(2020, 9, 1)
@@ -403,6 +406,7 @@ make_any_calendar!(
     Japanese(Japanese),
     #[deprecated(since = "2.2.0", note = "see `Japanese`")]
     JapaneseExtended(Japanese),
+    Julian(Julian),
     Persian(Persian),
     Roc(Roc),
 );
@@ -420,6 +424,7 @@ make_any_calendar_impls!(
     Indian(Indian),
     Iso(Iso),
     Japanese(Japanese),
+    Julian(Julian),
     Persian(Persian),
     Roc(Roc),
     HijriSimulated(Hijri<hijri::AstronomicalSimulation>),
@@ -471,6 +476,7 @@ impl AnyCalendar {
             AnyCalendarKind::Japanese | AnyCalendarKind::JapaneseExtended => {
                 AnyCalendar::Japanese(Japanese::new())
             }
+            AnyCalendarKind::Julian => AnyCalendar::Julian(Julian),
             AnyCalendarKind::Persian => AnyCalendar::Persian(Persian),
             AnyCalendarKind::Roc => AnyCalendar::Roc(Roc),
         }
@@ -523,6 +529,7 @@ impl AnyCalendar {
             AnyCalendarKind::Japanese | AnyCalendarKind::JapaneseExtended => {
                 AnyCalendar::Japanese(Japanese::try_new_with_buffer_provider(provider)?)
             }
+            AnyCalendarKind::Julian => AnyCalendar::Julian(Julian),
             AnyCalendarKind::Persian => AnyCalendar::Persian(Persian),
             AnyCalendarKind::Roc => AnyCalendar::Roc(Roc),
         })
@@ -571,6 +578,7 @@ impl AnyCalendar {
             AnyCalendarKind::Japanese | AnyCalendarKind::JapaneseExtended => {
                 AnyCalendar::Japanese(Japanese::try_new_unstable(provider)?)
             }
+            AnyCalendarKind::Julian => AnyCalendar::Julian(Julian),
             AnyCalendarKind::Persian => AnyCalendar::Persian(Persian),
             AnyCalendarKind::Roc => AnyCalendar::Roc(Roc),
         })
@@ -618,6 +626,7 @@ impl AnyCalendar {
             AnyCalendarKind::Japanese | AnyCalendarKind::JapaneseExtended => {
                 AnyCalendar::Japanese(Japanese::default())
             }
+            AnyCalendarKind::Julian => AnyCalendar::Julian(Julian),
             AnyCalendarKind::Persian => AnyCalendar::Persian(Persian),
             AnyCalendarKind::Roc => AnyCalendar::Roc(Roc),
         }
@@ -653,6 +662,7 @@ impl AnyCalendar {
             Self::Iso(_) => AnyCalendarKind::Iso,
             #[allow(deprecated)]
             Self::Japanese(_) | Self::JapaneseExtended(_) => AnyCalendarKind::Japanese,
+            Self::Julian(_) => AnyCalendarKind::Julian,
             Self::Persian(_) => AnyCalendarKind::Persian,
             Self::Roc(_) => AnyCalendarKind::Roc,
         }
@@ -726,6 +736,8 @@ pub enum AnyCalendarKind {
     /// Deprecated, use `Japanese`.
     #[deprecated(since = "2.2.0", note = "use `Japanese`")]
     JapaneseExtended,
+    /// The kind of a [`Julian`] calendar
+    Julian,
     /// The kind of a [`Persian`] calendar
     ///
     /// This corresponds to the `"persian"` [CLDR calendar](https://unicode.org/reports/tr35/#UnicodeCalendarIdentifier).
@@ -737,12 +749,76 @@ pub enum AnyCalendarKind {
 }
 
 impl AnyCalendarKind {
+    #[deprecated(since = "2.2.0", note = "use `AnyCalendarKind::try_new`")]
     /// Selects the [`AnyCalendarKind`] appropriate for the given [`CalendarPreferences`].
     pub fn new(prefs: CalendarPreferences) -> Self {
+        #[allow(deprecated)]
         prefs
             .resolved_algorithm()
             .try_into()
             .unwrap_or(Self::Gregorian)
+    }
+
+    icu_provider::gen_buffer_data_constructors!(
+        (prefs: CalendarPreferences) -> error: DataError,
+        /// Selects the [`AnyCalendarKind`] appropriate for the given [`CalendarPreferences`].
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use icu::calendar::{AnyCalendarKind, preferences::{CalendarPreferences, HijriCalendarAlgorithm}};
+        /// use icu::locale::locale;
+        ///
+        /// assert_eq!(AnyCalendarKind::try_new(locale!("und").into()).unwrap(), AnyCalendarKind::Gregorian);
+        /// assert_eq!(AnyCalendarKind::try_new(locale!("und-US-u-ca-hebrew").into()).unwrap(), AnyCalendarKind::Hebrew);
+        /// assert_eq!(AnyCalendarKind::try_new(locale!("und-AF").into()).unwrap(), AnyCalendarKind::Persian);
+        /// assert_eq!(AnyCalendarKind::try_new(locale!("fa").into()).unwrap(), AnyCalendarKind::Persian);
+        /// assert_eq!(AnyCalendarKind::try_new(locale!("und-US-u-rg-thxxxx").into()).unwrap(), AnyCalendarKind::Buddhist);
+        /// assert_eq!(
+        ///     AnyCalendarKind::try_new(locale!("und-US-u-ca-islamic").into()).unwrap(),
+        ///     AnyCalendarKind::HijriTabularTypeIIFriday
+        /// );
+        /// # assert_eq!(AnyCalendarKind::try_new("und-US-u-ca-islamic-rgsa".parse::<icu::locale::Locale>().unwrap().into()).unwrap(),
+        /// #     AnyCalendarKind::HijriTabularTypeIIFriday
+        /// # );
+        /// # assert_eq!(AnyCalendarKind::try_new("und-US-u-ca-islamic-foo".parse::<icu::locale::Locale>().unwrap().into()).unwrap(),
+        /// #     AnyCalendarKind::Gregorian
+        /// # );
+        /// # assert_eq!(AnyCalendarKind::try_new("und-US-u-ca-hebrew-foo".parse::<icu::locale::Locale>().unwrap().into()).unwrap(),
+        /// #     AnyCalendarKind::Gregorian
+        /// # );
+        /// ```
+    );
+
+    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::try_new)]
+    pub fn try_new_unstable<P: DataProvider<CalendarPreferredV1>>(
+        provider: &P,
+        mut prefs: CalendarPreferences,
+    ) -> Result<Self, DataError> {
+        if prefs.calendar_algorithm
+            == Some(CalendarAlgorithm::Hijri(Some(HijriCalendarAlgorithm::Rgsa)))
+        {
+            // Resolve islamic-rgsa to the region's Hijri default.
+            prefs.calendar_algorithm = Some(CalendarAlgorithm::Hijri(None));
+        }
+
+        let algorithm = match prefs.calendar_algorithm {
+            Some(algorithm) if !matches!(algorithm, CalendarAlgorithm::Hijri(None)) => algorithm,
+            unresolved => DataProvider::<CalendarPreferredV1>::load(
+                &provider,
+                DataRequest {
+                    id: DataIdentifierBorrowed::for_locale(&CalendarPreferredV1::make_locale(
+                        prefs.locale_preferences,
+                    )),
+                    metadata: Default::default(),
+                },
+            )?
+            .payload
+            .get()
+            .resolve(unresolved),
+        };
+
+        Ok(algorithm.try_into().unwrap_or(Self::Gregorian))
     }
 }
 
@@ -850,9 +926,9 @@ impl<C: IntoAnyCalendar> Date<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Ref;
     use crate::error::DateNewError;
     use crate::types::{Month, YearInput};
-    use crate::Ref;
 
     #[track_caller]
     fn single_test_roundtrip(

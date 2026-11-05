@@ -2,6 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::Date;
 use crate::calendar_arithmetic::{CONSTRUCTOR_YEAR_RANGE, GENEROUS_YEAR_RANGE, VALID_RD_RANGE};
 use crate::duration::DateDuration;
 use crate::error::DateAddError;
@@ -10,7 +11,6 @@ use crate::options::{
     DateAddOptions, DateDifferenceOptions, DateDurationUnit, DateFromFieldsOptions, Overflow,
 };
 use crate::types::{DateFields, Month, YearInput};
-use crate::Date;
 use calendrical_calculations::gregorian::fixed_from_gregorian;
 use calendrical_calculations::rata_die::RataDie;
 
@@ -139,7 +139,11 @@ super::test_all_cals!(
                     for overflow in [CONSTRAIN, REJECT] {
                         let added = start_date.try_added_with_options(duration_bound, overflow);
                         if added.is_err() && overflow == REJECT {
-                            assert_ne!(added, Err(DateAddError::Overflow), "{start_date:?} + {duration_bound:?} should not produce overflow error in Reject mode");
+                            assert_ne!(
+                                added,
+                                Err(DateAddError::Overflow),
+                                "{start_date:?} + {duration_bound:?} should not produce overflow error in Reject mode"
+                            );
                         } else {
                             assert_eq!(
                                 added,
@@ -186,8 +190,11 @@ super::test_all_cals!(
 
             for generous_duration in [generous_max_duration, generous_max_neg_duration] {
                 for overflow in [CONSTRAIN, REJECT] {
-                    assert_eq!(start_date.try_added_with_options(generous_duration, overflow), Err(DateAddError::Overflow),
-                               "Adding durations from the generously-large range should always fail (but never panic)");
+                    assert_eq!(
+                        start_date.try_added_with_options(generous_duration, overflow),
+                        Err(DateAddError::Overflow),
+                        "Adding durations from the generously-large range should always fail (but never panic)"
+                    );
                 }
             }
         }

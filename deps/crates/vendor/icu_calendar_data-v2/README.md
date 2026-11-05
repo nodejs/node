@@ -4,7 +4,7 @@
 
 Data for the `icu_calendar` crate
 
-This data was generated with CLDR version 48.2.0, ICU version release-78.1rc, and
+This data was generated with CLDR version 49.0.0, Unicode version 18.0.0, and
 LSTM segmenter version v0.1.0.
 
 <!-- cargo-rdme end -->

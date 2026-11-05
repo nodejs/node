@@ -47,6 +47,7 @@ impl CalendarPreferences {
     /// # Example
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// use icu::calendar::preferences::{CalendarAlgorithm, CalendarPreferences, HijriCalendarAlgorithm};
     /// use icu::locale::locale;
     ///
@@ -68,8 +69,9 @@ impl CalendarPreferences {
     /// #     CalendarAlgorithm::Gregory
     /// # );
     /// ```
+    #[deprecated(since = "2.3.0")]
     pub fn resolved_algorithm(self) -> CalendarAlgorithm {
-        use icu_locale_core::subtags::{region, Region};
+        use icu_locale_core::subtags::{Region, region};
         const AE: Region = region!("AE");
         const BH: Region = region!("BH");
         const KW: Region = region!("KW");
