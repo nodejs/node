@@ -1706,6 +1706,9 @@ struct Session::Impl final : public MemoryRetainer {
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
 #endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
+#endif
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -1757,6 +1760,9 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
+#endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
 #endif
   };
 };
