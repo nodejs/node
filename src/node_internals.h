@@ -363,6 +363,12 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         MultiIsolatePlatform* platform,
                         const SnapshotData* snapshot_data = nullptr,
                         const IsolateSettings& settings = {});
+// Like the overload above, but registers the isolate with `delegate` as its
+// foreground task runner instead of binding it to a libuv loop.
+v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
+                        IsolatePlatformDelegate* delegate,
+                        MultiIsolatePlatform* platform,
+                        const IsolateSettings& settings);
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(
