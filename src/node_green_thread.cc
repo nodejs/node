@@ -1,6 +1,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "node_builtins.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -63,6 +64,7 @@ using v8::Name;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
@@ -713,6 +715,11 @@ Mutex& live_green_isolates_mutex = *new Mutex();
 std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>&
     live_green_isolates =
         *new std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>();
+// The sources and code cache of built-in modules, for pool threads. Set by
+// the first Environment that loads the binding; leaked.
+Mutex shared_builtin_loader_mutex;
+builtins::BuiltinLoader* shared_builtin_loader = nullptr;
+
 // Green isolates that didn't stop when asked to, and were abandoned. They are
 // never freed. Guarded by live_green_isolates_mutex.
 std::vector<std::shared_ptr<GreenIsolate>>* abandoned_green_isolates =
@@ -1224,7 +1231,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       } else {
         Context::Scope context_scope(context);
         context_.Reset(isolate, context);
-        if (!InstallGlobals(isolate, context)) fatal_ = true;
+        if (!InstallGlobals(isolate, context) ||
+            !RunBootstrap(isolate, context)) {
+          fatal_ = true;
+        }
         // Until the first GC, ArrayBuffer allocations are checked against
         // the heap as it is now.
         v8::HeapStatistics stats;
@@ -1617,6 +1627,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         timers_.clear();
         contexts_.clear();
         pending_rejections_.clear();
+        runtime_.Reset();
         context_.Reset();
       }
       {
@@ -1934,6 +1945,210 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                .IsJust();
   }
 
+  // Like InitializePrimordials(), which also runs before there is an
+  // Environment. Shares the sources and code cache of the first Environment
+  // that loaded the binding, like workers do. Pool threads live until the
+  // process exits.
+  static builtins::BuiltinLoader* GetBuiltinLoader() {
+    // NOLINTNEXTLINE(runtime/thread_local)
+    thread_local builtins::BuiltinLoader* loader = []() {
+      auto* loader = new builtins::BuiltinLoader();
+      Mutex::ScopedLock lock(shared_builtin_loader_mutex);
+      CHECK_NOT_NULL(shared_builtin_loader);
+      loader->CopySourceAndCodeCacheReferenceFrom(shared_builtin_loader);
+      return loader;
+    }();
+    return loader;
+  }
+
+  // Runs the JS part of the green thread runtime: its primordials, Node.js'
+  // DOMException, then internal/green_threads/bootstrap, whose exports are
+  // kept in runtime_.
+  bool RunBootstrap(Isolate* isolate, Local<Context> context) {
+    TryCatch try_catch(isolate);
+    auto set = [&](Local<Object> target, const char* name, Local<Value> value) {
+      return target->Set(context, OneByteString(isolate, name), value).IsJust();
+    };
+    Local<Object> per_context_exports = Object::New(isolate);
+    Local<Object> primordials =
+        Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+
+    // What internalBinding() returns in the runtime's modules. Private
+    // symbols can only be passed to JS through templates.
+    Local<ObjectTemplate> natives_template = ObjectTemplate::New(isolate);
+    Local<ObjectTemplate> private_symbols_template =
+        ObjectTemplate::New(isolate);
+    private_symbols_template->Set(
+        FIXED_ONE_BYTE_STRING(isolate, "transfer_mode_private_symbol"),
+        v8::Private::ForApi(
+            isolate,
+            FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:transfer_mode")));
+    Local<Object> natives;
+    Local<Object> private_symbols;
+    Local<Object> per_isolate_symbols = Object::New(isolate);
+    Local<Object> bindings = Object::New(isolate);
+    Local<Object> modules = Object::New(isolate);
+    Local<v8::Array> data = v8::Array::New(isolate, kRequireDataLength);
+    Local<Function> internal_binding;
+    Local<Function> require;
+    if (!natives_template->NewInstance(context).ToLocal(&natives) ||
+        !private_symbols_template->NewInstance(context).ToLocal(
+            &private_symbols) ||
+        !set(per_isolate_symbols,
+             "messaging_clone_symbol",
+             v8::Symbol::New(isolate)) ||
+        !set(per_isolate_symbols,
+             "messaging_deserialize_symbol",
+             v8::Symbol::New(isolate)) ||
+        !set(bindings, "green_thread_runtime", natives) ||
+        !set(bindings, "per_context", per_context_exports) ||
+        !Function::New(context, InternalBindingCallback, bindings)
+             .ToLocal(&internal_binding) ||
+        !Function::New(context, RequireCallback, data).ToLocal(&require) ||
+        data->Set(context, kRequireDataModules, modules).IsNothing() ||
+        data->Set(context, kRequireDataPrimordials, primordials).IsNothing() ||
+        data->Set(context, kRequireDataInternalBinding, internal_binding)
+            .IsNothing() ||
+        data->Set(context, kRequireDataRequire, require).IsNothing() ||
+        Require(isolate,
+                context,
+                data,
+                FIXED_ONE_BYTE_STRING(isolate,
+                                      "internal/green_threads/primordials"))
+            .IsEmpty()) {
+      return ReportBootstrapError(isolate, context, try_catch);
+    }
+
+    Local<Value> args[] = {
+        per_context_exports, primordials, private_symbols, per_isolate_symbols};
+    Local<Value> bootstrap_exports;
+    if (GetBuiltinLoader()
+            ->CompileAndCallWith(context,
+                                 "internal/per_context/domexception",
+                                 arraysize(args),
+                                 args,
+                                 nullptr)
+            .IsEmpty() ||
+        !Require(
+             isolate,
+             context,
+             data,
+             FIXED_ONE_BYTE_STRING(isolate, "internal/green_threads/bootstrap"))
+             .ToLocal(&bootstrap_exports)) {
+      return ReportBootstrapError(isolate, context, try_catch);
+    }
+    CHECK(bootstrap_exports->IsObject());
+    runtime_.Reset(isolate, bootstrap_exports.As<Object>());
+    return true;
+  }
+
+  // A bug in the runtime, which runs before any user code.
+  static bool ReportBootstrapError(Isolate* isolate,
+                                   Local<Context> context,
+                                   const TryCatch& try_catch) {
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      Local<Value> stack;
+      if (!try_catch.StackTrace(context).ToLocal(&stack)) {
+        stack = try_catch.Exception();
+      }
+      Utf8Value message(isolate, stack);
+      FPrintF(stderr, "Green thread bootstrap failed: %s\n", *message);
+    }
+    return false;
+  }
+
+  enum RequireData {
+    kRequireDataModules,
+    kRequireDataPrimordials,
+    kRequireDataInternalBinding,
+    kRequireDataRequire,
+    kRequireDataLength,
+  };
+
+  // require(id) in the runtime's modules. Only loads the runtime's own
+  // modules, once each.
+  static MaybeLocal<Value> Require(Isolate* isolate,
+                                   Local<Context> context,
+                                   Local<v8::Array> data,
+                                   Local<String> id) {
+    Local<Value> modules_value;
+    if (!data->Get(context, kRequireDataModules).ToLocal(&modules_value)) {
+      return {};
+    }
+    Local<Object> modules = modules_value.As<Object>();
+    Local<Value> cached;
+    if (!modules->Get(context, id).ToLocal(&cached)) return {};
+    if (!cached->IsUndefined()) return cached;
+
+    Utf8Value id_string(isolate, id);
+    if (!id_string.ToStringView().starts_with("internal/green_threads/") ||
+        !GetBuiltinLoader()->Exists(*id_string)) {
+      isolate->ThrowException(Exception::Error(String::Concat(
+          isolate, FIXED_ONE_BYTE_STRING(isolate, "No such module: "), id)));
+      return {};
+    }
+    Local<Object> exports = Object::New(isolate);
+    Local<Object> module = Object::New(isolate);
+    Local<Value> primordials, internal_binding, require;
+    Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
+    if (module->Set(context, exports_string, exports).IsNothing() ||
+        !data->Get(context, kRequireDataPrimordials).ToLocal(&primordials) ||
+        !data->Get(context, kRequireDataInternalBinding)
+             .ToLocal(&internal_binding) ||
+        !data->Get(context, kRequireDataRequire).ToLocal(&require)) {
+      return {};
+    }
+    Local<Value> args[] = {exports,
+                           require,
+                           module,
+                           v8::Undefined(isolate),
+                           internal_binding,
+                           primordials};
+    Local<Value> result;
+    if (GetBuiltinLoader()
+            ->CompileAndCallWith(
+                context, *id_string, arraysize(args), args, nullptr)
+            .IsEmpty() ||
+        !module->Get(context, exports_string).ToLocal(&result) ||
+        modules->Set(context, id, result).IsNothing()) {
+      return {};
+    }
+    return result;
+  }
+
+  static void RequireCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    if (!args[0]->IsString()) {
+      isolate->ThrowException(Exception::TypeError(
+          FIXED_ONE_BYTE_STRING(isolate, "The module id must be a string")));
+      return;
+    }
+    Local<Value> result;
+    if (Require(isolate,
+                isolate->GetCurrentContext(),
+                args.Data().As<v8::Array>(),
+                args[0].As<String>())
+            .ToLocal(&result)) {
+      args.GetReturnValue().Set(result);
+    }
+  }
+
+  static void InternalBindingCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Value> binding;
+    if (!args[0]->IsString() ||
+        !args.Data().As<Object>()->Get(context, args[0]).ToLocal(&binding)) {
+      return;
+    }
+    if (binding->IsUndefined()) {
+      isolate->ThrowException(
+          Exception::Error(FIXED_ONE_BYTE_STRING(isolate, "No such binding")));
+      return;
+    }
+    args.GetReturnValue().Set(binding);
+  }
+
   static GreenIsolate* Current() {
     CHECK_NOT_NULL(current_green_isolate);
     return current_green_isolate;
@@ -2146,6 +2361,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // Only accessed in slices.
   State state_ = State::kPending;
   Global<Context> context_;
+  // The exports of internal/green_threads/bootstrap.
+  Global<Object> runtime_;
   std::shared_ptr<LimitedAllocator> allocator_;
   uint64_t group_id_ = 0;
   bool uses_node_snapshot_ = true;
@@ -2519,6 +2736,14 @@ class GreenThreadWrap final : public HandleWrap {
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
     Isolate* isolate = env->isolate();
+    {
+      Mutex::ScopedLock lock(shared_builtin_loader_mutex);
+      if (shared_builtin_loader == nullptr) {
+        shared_builtin_loader = new builtins::BuiltinLoader();
+        shared_builtin_loader->CopySourceAndCodeCacheReferenceFrom(
+            env->builtin_loader());
+      }
+    }
     Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         GreenThreadWrap::kInternalFieldCount);
