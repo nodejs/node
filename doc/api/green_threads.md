@@ -34,8 +34,9 @@ process-wide pool of OS threads, which makes them much cheaper to create.
 A green thread only has the JavaScript built-ins defined by ECMAScript, plus
 the following globals:
 
-* `postMessage(value)`: Sends a structured clone of `value` to the host. The
-  host receives it as a [`'message'`][] event.
+* `postMessage(value[, transfer])`: Sends a structured clone of `value` to the
+  host. The host receives it as a [`'message'`][] event. `transfer` is as for
+  [`greenThread.postMessage()`][].
 * `onmessage`: Set this to a function to receive messages sent with
   [`greenThread.postMessage()`][]. The function is called with an object
   whose `data` property holds the message.
@@ -208,7 +209,8 @@ limit. When the heap
 together with the `ArrayBuffer`s still in use exceeds the limit, the green
 thread emits an [`'error'`][] event with an [`ERR_GREEN_THREAD_OUT_OF_MEMORY`][]
 error and exits. This is checked after each garbage collection, so memory use
-may briefly exceed the limit.
+may briefly exceed the limit. See [`greenThread.postMessage()`][] for
+`ArrayBuffer`s that are transferred.
 
 `maxOldGenerationSizeMb` and `maxYoungGenerationSizeMb` limit only the heap,
 like the [`Worker`][] options of the same names.
@@ -466,17 +468,30 @@ added: REPLACEME
 
 The exit code, or `undefined` while the green thread is running.
 
-### `greenThread.postMessage(value)`
+### `greenThread.postMessage(value[, transfer])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `value` {any}
+* `transfer` {ArrayBuffer\[]|Object} `ArrayBuffer`s to transfer rather than
+  copy, or an object whose `transfer` property is such an array.
 
 Sends a structured clone of `value` to the green thread's `onmessage` handler.
 Messages are dropped if `onmessage` is not set. Calling this after the green
 thread has exited has no effect.
+
+`ArrayBuffer`s in `transfer` are moved to the receiver, and detached on the
+sending side, as with [`port.postMessage()`][]. If the sender or the receiver
+has a [`maxMemoryMb`][Memory limits] limit, their contents are copied, so that
+they count towards the limit only while the green thread has them. Receiving
+an `ArrayBuffer` that the receiving green thread has no memory left for is an
+uncaught `RangeError` in it.
+
+`SharedArrayBuffer`s are shared rather than copied. `Atomics.wait()` throws in
+green threads, since it would block the pool thread, and with it other green
+threads.
 
 ### `greenThread.ref()`
 
@@ -523,6 +538,7 @@ Calls [`greenThread.terminate()`][].
 
 [CPU time limits]: #cpu-time-limits
 [Isolate groups]: #isolate-groups
+[Memory limits]: #memory-limits
 [RPC]: #rpc
 [Resource limits]: #resource-limits
 [`'error'`]: #event-error
@@ -543,7 +559,8 @@ Calls [`greenThread.terminate()`][].
 [`IsolateGroup`]: #class-isolategroup
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
-[`greenThread.postMessage()`]: #greenthreadpostmessagevalue
+[`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate
 [`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
+[`port.postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [green threads that don't stop]: #green-threads-that-dont-stop
