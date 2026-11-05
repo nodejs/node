@@ -292,20 +292,20 @@ ContextifyContext* ContextifyContext::New(Local<Context> v8_context,
   // to the ContextifyContext wrapper which in turn internally references
   // the context from its constructor.
   if (sandbox_obj.IsEmpty()) {
-    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
+    v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kSandboxObject,
                                 v8::Undefined(env->isolate()));
   } else {
-    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
+    v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kSandboxObject,
                                 sandbox_obj);
   }
 
   // Delegate the code generation validation to
   // node::ModifyCodeGenerationFromStrings.
   v8_context->AllowCodeGenerationFromStrings(false);
-  v8_context->SetEmbedderData(
+  v8_context->SetEmbedderDataV3(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
       options->allow_code_gen_strings);
-  v8_context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
+  v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                               options->allow_code_gen_wasm);
 
   Utf8Value name_val(env->isolate(), options->name);
