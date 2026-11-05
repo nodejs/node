@@ -1535,6 +1535,20 @@ file in chunks.
 The number of file system events queued without being handled exceeded the size specified in
 `maxQueue` in `fs.watch()`.
 
+<a id="ERR_GREEN_THREAD_EXITED"></a>
+
+### `ERR_GREEN_THREAD_EXITED`
+
+An operation was attempted on a [green thread][] that has exited, or a pending
+[`greenThread.evaluate()`][] call was interrupted because the green thread
+exited.
+
+<a id="ERR_GREEN_THREAD_OUT_OF_MEMORY"></a>
+
+### `ERR_GREEN_THREAD_OUT_OF_MEMORY`
+
+A [green thread][] was terminated because it reached its heap limit.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
@@ -4833,6 +4847,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`fs.symlinkSync()`]: fs.md#fssymlinksynctarget-path-type
 [`fs.unlink`]: fs.md#fsunlinkpath-callback
 [`fs`]: fs.md
+[`greenThread.evaluate()`]: green_threads.md#greenthreadevaluatesource-options
 [`hash.digest()`]: crypto.md#hashdigestencoding
 [`hash.update()`]: crypto.md#hashupdatedata-inputencoding
 [`http`]: http.md
@@ -4875,6 +4890,7 @@ An error occurred trying to allocate memory. This should never happen.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[green thread]: green_threads.md
 [package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name

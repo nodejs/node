@@ -787,6 +787,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_FFI);
 #endif  // HAVE_FFI
+  AddOption("--experimental-green-threads",
+            "experimental node:green_threads module",
+            BOOL_FIELD(experimental_green_threads),
+            kAllowedInEnvvar);
   AddOption("--experimental-web-worker",
             "experimental Web Worker API",
             BOOL_FIELD(experimental_web_worker),

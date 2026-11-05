@@ -42,6 +42,7 @@ namespace node {
   V(FSEVENTWRAP)                                                               \
   V(FSREQCALLBACK)                                                             \
   V(GLOBREQUEST)                                                               \
+  V(GREENTHREAD)                                                               \
   V(FSREQPROMISE)                                                              \
   V(GETADDRINFOREQWRAP)                                                        \
   V(GETNAMEINFOREQWRAP)                                                        \

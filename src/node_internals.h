@@ -369,6 +369,12 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         IsolatePlatformDelegate* delegate,
                         MultiIsolatePlatform* platform,
                         const IsolateSettings& settings);
+namespace green_thread {
+// Terminates all green threads in the process and waits until their isolates
+// are disposed.
+void TerminateAll();
+}  // namespace green_thread
+
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(
