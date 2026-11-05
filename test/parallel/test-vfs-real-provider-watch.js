@@ -54,3 +54,19 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   // same-size rewrite within that second would look unchanged.
   setTimeout(() => fs.writeFileSync(path.join(root, 'wf.txt'), 'bb'), 100);
 }
+
+// watchFile listener fires when the underlying file changes.
+// Refs: https://github.com/nodejs/node/issues/64536
+{
+  const target = path.join(root, 'wf-change.txt');
+  fs.writeFileSync(target, 'a');
+  let size = 2;
+  const rewrite = setInterval(() => {
+    fs.writeFileSync(target, 'x'.repeat(size++));
+  }, 100);
+  myVfs.watchFile('/wf-change.txt', { interval: 50 }, common.mustCall((curr, prev) => {
+    clearInterval(rewrite);
+    myVfs.unwatchFile('/wf-change.txt');
+    assert.notStrictEqual(curr.size, prev.size);
+  }));
+}
