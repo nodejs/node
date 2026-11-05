@@ -149,6 +149,16 @@ int CutOffSignal() {
 
 using Bytes = std::vector<uint8_t>;
 
+// A value serialized by Serialize(), with the ArrayBuffers that were
+// transferred and the SharedArrayBuffers that are shared with it.
+struct SerializedValue {
+  Bytes data;
+  std::vector<std::shared_ptr<v8::BackingStore>> array_buffers;
+  std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers;
+
+  bool empty() const { return data.empty(); }
+};
+
 class GreenIsolate;
 class GreenThreadPool;
 class PoolThread;
@@ -520,6 +530,28 @@ class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
     heap_used_ = heap_used;
   }
 
+  // A copy of `store` in memory that doesn't count towards the limit, for
+  // ArrayBuffers that are transferred away. Returns nullptr if allocating
+  // fails.
+  static std::unique_ptr<v8::BackingStore> CopyUntracked(
+      std::shared_ptr<LimitedAllocator> self, const v8::BackingStore& store) {
+    const size_t length = store.ByteLength();
+    void* data = self->allocator_->AllocateUninitialized(length);
+    if (data == nullptr && length > 0) return nullptr;
+    if (length > 0) memcpy(data, store.Data(), length);
+    auto* holder = new std::shared_ptr<LimitedAllocator>(std::move(self));
+    return v8::ArrayBuffer::NewBackingStore(
+        data,
+        length,
+        [](void* data, size_t length, void* holder_data) {
+          auto* holder =
+              static_cast<std::shared_ptr<LimitedAllocator>*>(holder_data);
+          (*holder)->allocator_->Free(data, length);
+          delete holder;
+        },
+        holder);
+  }
+
  private:
   // Leaves some of the limit for the heap to grow into before the next GC,
   // which checks the heap and ArrayBuffers together, so that running out of
@@ -664,6 +696,22 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   }
 
   void set_serializer(ValueSerializer* serializer) { serializer_ = serializer; }
+  void set_shared_array_buffers(
+      std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers) {
+    shared_array_buffers_ = shared_array_buffers;
+  }
+
+  Maybe<uint32_t> GetSharedArrayBufferId(
+      Isolate* isolate, Local<v8::SharedArrayBuffer> buffer) override {
+    std::shared_ptr<v8::BackingStore> store = buffer->GetBackingStore();
+    for (size_t i = 0; i < shared_array_buffers_->size(); i++) {
+      if ((*shared_array_buffers_)[i] == store) {
+        return Just(static_cast<uint32_t>(i));
+      }
+    }
+    shared_array_buffers_->push_back(std::move(store));
+    return Just(static_cast<uint32_t>(shared_array_buffers_->size() - 1));
+  }
 
   void ThrowDataCloneError(Local<String> message) override {
     if (is_host_) {
@@ -742,14 +790,32 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   Local<Value> abort_signal_prototype_;
   ValueSerializer* serializer_ = nullptr;
   std::vector<Global<Value>> descriptors_;
+  std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers_ =
+      nullptr;
 };
 
 // Reads the host objects written by SerializerDelegate, which were imported
 // before deserializing, since JS can't run while V8 deserializes.
 class DeserializerDelegate final : public ValueDeserializer::Delegate {
  public:
-  DeserializerDelegate(Local<Context> context, Local<v8::Array> objects)
-      : context_(context), objects_(objects) {}
+  DeserializerDelegate(Local<Context> context,
+                       Local<v8::Array> objects,
+                       const std::vector<std::shared_ptr<v8::BackingStore>>*
+                           shared_array_buffers)
+      : context_(context),
+        objects_(objects),
+        shared_array_buffers_(shared_array_buffers) {}
+
+  MaybeLocal<v8::SharedArrayBuffer> GetSharedArrayBufferFromId(
+      Isolate* isolate, uint32_t id) override {
+    if (shared_array_buffers_ == nullptr ||
+        id >= shared_array_buffers_->size()) {
+      isolate->ThrowException(Exception::Error(
+          FIXED_ONE_BYTE_STRING(isolate, "Invalid SharedArrayBuffer")));
+      return {};
+    }
+    return v8::SharedArrayBuffer::New(isolate, (*shared_array_buffers_)[id]);
+  }
 
   void set_deserializer(ValueDeserializer* deserializer) {
     deserializer_ = deserializer;
@@ -772,66 +838,200 @@ class DeserializerDelegate final : public ValueDeserializer::Delegate {
  private:
   Local<Context> context_;
   Local<v8::Array> objects_;
+  const std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers_;
   ValueDeserializer* deserializer_ = nullptr;
 };
 
-// Throws a JS exception and returns std::nullopt if `value` is not cloneable.
-// With `rpc_hooks`, the result starts with the length of the serialized
-// descriptors of its host objects, and those descriptors.
-std::optional<Bytes> Serialize(Isolate* isolate,
-                               Local<Context> context,
-                               Local<Value> value,
-                               bool is_host,
-                               Local<Object> rpc_hooks = {}) {
+// The transfer list of postMessage(value, transfer), where `transfer` is an
+// array, or an object with a `transfer` property.
+MaybeLocal<Value> GetTransferList(Local<Context> context, Local<Value> arg) {
+  if (!arg->IsObject() || arg->IsArray()) return arg;
+  return arg.As<Object>()->Get(
+      context, FIXED_ONE_BYTE_STRING(Isolate::GetCurrent(), "transfer"));
+}
+
+// Serializes `value` alone, adding the SharedArrayBuffers in it to
+// `shared_array_buffers`, and transferring the ArrayBuffers in `transfer`.
+std::optional<Bytes> SerializeBytes(
+    Isolate* isolate,
+    Local<Context> context,
+    Local<Value> value,
+    bool is_host,
+    Local<Object> rpc_hooks,
+    const LocalVector<v8::ArrayBuffer>& transfer,
+    std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers,
+    Local<v8::Array>* descriptors) {
   SerializerDelegate delegate(isolate, context, is_host, rpc_hooks);
   ValueSerializer serializer(isolate, &delegate);
   delegate.set_serializer(&serializer);
+  delegate.set_shared_array_buffers(shared_array_buffers);
   serializer.WriteHeader();
-  if (serializer.WriteValue(context, value).IsNothing()) return std::nullopt;
-  std::pair<uint8_t*, size_t> buffer = serializer.Release();
-  Bytes bytes;
-  if (!rpc_hooks.IsEmpty()) {
-    Bytes descriptors;
-    Local<v8::Array> descriptor_array = delegate.descriptors();
-    if (!descriptor_array.IsEmpty()) {
-      std::optional<Bytes> serialized =
-          Serialize(isolate, context, descriptor_array, is_host);
-      if (!serialized) {
-        free(buffer.first);
-        return std::nullopt;
-      }
-      descriptors = std::move(*serialized);
-    }
-    const uint32_t length = descriptors.size();
-    const uint8_t* length_bytes = reinterpret_cast<const uint8_t*>(&length);
-    bytes.insert(bytes.end(), length_bytes, length_bytes + sizeof(length));
-    bytes.insert(bytes.end(), descriptors.begin(), descriptors.end());
+  for (size_t i = 0; i < transfer.size(); i++) {
+    serializer.TransferArrayBuffer(static_cast<uint32_t>(i), transfer[i]);
   }
-  bytes.insert(bytes.end(), buffer.first, buffer.first + buffer.second);
+  if (serializer.WriteValue(context, value).IsNothing()) return std::nullopt;
+  if (descriptors != nullptr) *descriptors = delegate.descriptors();
+  std::pair<uint8_t*, size_t> buffer = serializer.Release();
+  Bytes bytes(buffer.first, buffer.first + buffer.second);
   free(buffer.first);
   return bytes;
 }
 
-MaybeLocal<Value> Deserialize(Isolate* isolate,
-                              Local<Context> context,
-                              const uint8_t* data,
-                              size_t size,
-                              Local<v8::Array> host_objects = {}) {
-  DeserializerDelegate delegate(context, host_objects);
+// Throws a JS exception and returns std::nullopt if `value` is not cloneable,
+// or `transfer` is not an array of distinct, detachable ArrayBuffers. With
+// `rpc_hooks`, the data starts with the length of the serialized descriptors
+// of its host objects, and those descriptors. With `limited_allocator`, the
+// allocator of a sender with a memory limit, transferred ArrayBuffers are
+// copied, so that they no longer count towards the limit.
+std::optional<SerializedValue> Serialize(
+    Isolate* isolate,
+    Local<Context> context,
+    Local<Value> value,
+    bool is_host,
+    Local<Object> rpc_hooks = {},
+    Local<Value> transfer_list = {},
+    std::shared_ptr<LimitedAllocator> limited_allocator = nullptr) {
+  SerializedValue result;
+  LocalVector<v8::ArrayBuffer> transfer(isolate);
+  if (!transfer_list.IsEmpty() && !transfer_list->IsUndefined()) {
+    SerializerDelegate delegate(isolate, context, is_host);
+    auto fail = [&](const char* message) {
+      delegate.ThrowDataCloneError(OneByteString(isolate, message));
+      return std::nullopt;
+    };
+    if (!transfer_list->IsArray()) {
+      return fail("The transfer list must be an array");
+    }
+    Local<v8::Array> array = transfer_list.As<v8::Array>();
+    for (uint32_t i = 0; i < array->Length(); i++) {
+      Local<Value> item;
+      if (!array->Get(context, i).ToLocal(&item)) return std::nullopt;
+      if (!item->IsArrayBuffer()) {
+        return fail("Only ArrayBuffers can be transferred");
+      }
+      Local<v8::ArrayBuffer> buffer = item.As<v8::ArrayBuffer>();
+      if (!buffer->IsDetachable() || buffer->WasDetached()) {
+        return fail("An ArrayBuffer is detached or can't be detached");
+      }
+      if (std::find(transfer.begin(), transfer.end(), buffer) !=
+          transfer.end()) {
+        return fail("An ArrayBuffer is in the transfer list more than once");
+      }
+      transfer.push_back(buffer);
+    }
+  }
+
+  Local<v8::Array> descriptors;
+  std::optional<Bytes> bytes =
+      SerializeBytes(isolate,
+                     context,
+                     value,
+                     is_host,
+                     rpc_hooks,
+                     transfer,
+                     &result.shared_array_buffers,
+                     rpc_hooks.IsEmpty() ? nullptr : &descriptors);
+  if (!bytes) return std::nullopt;
+  if (!rpc_hooks.IsEmpty()) {
+    Bytes descriptor_bytes;
+    if (!descriptors.IsEmpty()) {
+      std::optional<Bytes> serialized =
+          SerializeBytes(isolate,
+                         context,
+                         descriptors,
+                         is_host,
+                         {},
+                         LocalVector<v8::ArrayBuffer>(isolate),
+                         &result.shared_array_buffers,
+                         nullptr);
+      if (!serialized) return std::nullopt;
+      descriptor_bytes = std::move(*serialized);
+    }
+    const uint32_t length = descriptor_bytes.size();
+    const uint8_t* length_bytes = reinterpret_cast<const uint8_t*>(&length);
+    result.data.insert(
+        result.data.end(), length_bytes, length_bytes + sizeof(length));
+    result.data.insert(
+        result.data.end(), descriptor_bytes.begin(), descriptor_bytes.end());
+  }
+  result.data.insert(result.data.end(), bytes->begin(), bytes->end());
+
+  for (Local<v8::ArrayBuffer> buffer : transfer) {
+    std::shared_ptr<v8::BackingStore> store = buffer->GetBackingStore();
+    if (limited_allocator && !store->IsResizableByUserJavaScript()) {
+      store = LimitedAllocator::CopyUntracked(limited_allocator, *store);
+      if (!store) {
+        isolate->ThrowException(Exception::RangeError(
+            FIXED_ONE_BYTE_STRING(isolate, "Array buffer allocation failed")));
+        return std::nullopt;
+      }
+    }
+    result.array_buffers.push_back(std::move(store));
+  }
+  // Nothing can fail anymore.
+  for (Local<v8::ArrayBuffer> buffer : transfer) {
+    CHECK(buffer->Detach(Local<Value>()).FromJust());
+  }
+  return result;
+}
+
+MaybeLocal<Value> DeserializeBytes(
+    Isolate* isolate,
+    Local<Context> context,
+    const uint8_t* data,
+    size_t size,
+    const LocalVector<v8::ArrayBuffer>& transferred,
+    const std::vector<std::shared_ptr<v8::BackingStore>>& shared_array_buffers,
+    Local<v8::Array> host_objects = {}) {
+  DeserializerDelegate delegate(context, host_objects, &shared_array_buffers);
   ValueDeserializer deserializer(isolate, data, size, &delegate);
   delegate.set_deserializer(&deserializer);
   if (deserializer.ReadHeader(context).IsNothing()) return {};
+  for (size_t i = 0; i < transferred.size(); i++) {
+    deserializer.TransferArrayBuffer(static_cast<uint32_t>(i), transferred[i]);
+  }
   return deserializer.ReadValue(context);
 }
 
-// Deserializes what Serialize() returned. With `rpc_hooks`, imports the host
-// objects with the hooks' importHostObjects() first.
+// Deserializes what Serialize() returned, once. With `rpc_hooks`, imports the
+// host objects with the hooks' importHostObjects() first. With
+// `copy_array_buffers`, for receivers with a memory limit, transferred
+// ArrayBuffers are copied into memory of the isolate's own.
 MaybeLocal<Value> Deserialize(Isolate* isolate,
                               Local<Context> context,
-                              const Bytes& bytes,
-                              Local<Object> rpc_hooks = {}) {
+                              const SerializedValue& value,
+                              Local<Object> rpc_hooks = {},
+                              bool copy_array_buffers = false) {
+  LocalVector<v8::ArrayBuffer> transferred(isolate);
+  for (const std::shared_ptr<v8::BackingStore>& store : value.array_buffers) {
+    if (!copy_array_buffers || store->IsResizableByUserJavaScript()) {
+      transferred.push_back(v8::ArrayBuffer::New(isolate, store));
+      continue;
+    }
+    std::unique_ptr<v8::BackingStore> copy = v8::ArrayBuffer::NewBackingStore(
+        isolate,
+        store->ByteLength(),
+        v8::BackingStoreInitializationMode::kUninitialized,
+        v8::BackingStoreOnFailureMode::kReturnNull);
+    if (!copy) {
+      isolate->ThrowException(Exception::RangeError(
+          FIXED_ONE_BYTE_STRING(isolate, "Array buffer allocation failed")));
+      return {};
+    }
+    if (store->ByteLength() > 0) {
+      memcpy(copy->Data(), store->Data(), store->ByteLength());
+    }
+    transferred.push_back(v8::ArrayBuffer::New(isolate, std::move(copy)));
+  }
+
+  const Bytes& bytes = value.data;
   if (rpc_hooks.IsEmpty()) {
-    return Deserialize(isolate, context, bytes.data(), bytes.size());
+    return DeserializeBytes(isolate,
+                            context,
+                            bytes.data(),
+                            bytes.size(),
+                            transferred,
+                            value.shared_array_buffers);
   }
   uint32_t length;
   CHECK_GE(bytes.size(), sizeof(length));
@@ -842,7 +1042,12 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
   if (length > 0) {
     Local<Value> descriptor_array;
     Local<Value> objects;
-    if (!Deserialize(isolate, context, descriptors, length)
+    if (!DeserializeBytes(isolate,
+                          context,
+                          descriptors,
+                          length,
+                          LocalVector<v8::ArrayBuffer>(isolate),
+                          value.shared_array_buffers)
              .ToLocal(&descriptor_array) ||
         !CallRpcHook(
              isolate, context, rpc_hooks, "importHostObjects", descriptor_array)
@@ -852,18 +1057,20 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
     CHECK(objects->IsArray());
     host_objects = objects.As<v8::Array>();
   }
-  return Deserialize(isolate,
-                     context,
-                     descriptors + length,
-                     bytes.size() - sizeof(length) - length,
-                     host_objects);
+  return DeserializeBytes(isolate,
+                          context,
+                          descriptors + length,
+                          bytes.size() - sizeof(length) - length,
+                          transferred,
+                          value.shared_array_buffers,
+                          host_objects);
 }
 
 struct HostEvent {
   EventType type;
   int32_t id = 0;
   bool ok = true;
-  Bytes payload;
+  SerializedValue payload;
 };
 
 // Carries events from a green thread to its host. The host closes it before
@@ -990,7 +1197,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     std::string source;
     std::string filename;
     // The serialized `env` global, if any.
-    Bytes env;
+    SerializedValue env;
     bool testing_globals = false;
     bool testing_ignore_termination = false;
     // Fixed when the isolate is created.
@@ -1078,7 +1285,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   bool IdleTasksEnabled() override { return false; }
 
   // May be called from any thread.
-  void PostMessage(Bytes data) {
+  void PostMessage(SerializedValue data) {
     Submit([data = std::move(data)](GreenIsolate* self) {
       self->RunTask(kNewInvocation,
                     [&](Isolate* isolate, Local<Context> context) {
@@ -1089,7 +1296,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   // May be called from any thread. `context_id` is the invocation context
   // of the call that this is the result of, or 0.
-  void PostRpc(Bytes data, uint32_t context_id) {
+  void PostRpc(SerializedValue data, uint32_t context_id) {
     Submit([data = std::move(data), context_id](GreenIsolate* self) {
       self->RunTask(context_id == 0 ? kNewInvocation : context_id,
                     [&](Isolate* isolate, Local<Context> context) {
@@ -1152,6 +1359,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     while (!disposed_ && !cut_off_ && (wait_for_thread || !abandoned_)) {
       disposal_cv_.Wait(lock);
     }
+  }
+
+  // Whether ArrayBuffers that are transferred to or from this isolate must be
+  // copied, so that they count towards its memory limit only while it uses
+  // them.
+  bool has_memory_limit() const {
+    return allocator_ != nullptr && allocator_->limit() > 0;
   }
 
   // Code that V8 generated for this isolate, or V8's built-in code. While a
@@ -1408,6 +1622,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       fatal_ = true;
       return;
     }
+    // It would block the pool thread, and with it other green threads.
+    isolate->SetAllowAtomicsWait(false);
     {
       Mutex::ScopedLock lock(isolate_mutex_);
       isolate_ = isolate;
@@ -1919,7 +2135,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   void DeliverMessage(Isolate* isolate,
                       Local<Context> context,
-                      const Bytes& data) {
+                      const SerializedValue& data) {
     Local<Value> handler;
     if (!context->Global()
              ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "onmessage"))
@@ -1928,7 +2144,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return;
     }
     Local<Value> value;
-    if (!Deserialize(isolate, context, data).ToLocal(&value)) return;
+    if (!Deserialize(isolate, context, data, {}, has_memory_limit())
+             .ToLocal(&value)) {
+      return;
+    }
     Local<Object> event = Object::New(isolate);
     if (event->Set(context, FIXED_ONE_BYTE_STRING(isolate, "data"), value)
             .IsNothing()) {
@@ -1939,10 +2158,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         context, context->Global(), arraysize(argv), argv));
   }
 
-  void DeliverRpc(Isolate* isolate, Local<Context> context, const Bytes& data) {
+  void DeliverRpc(Isolate* isolate,
+                  Local<Context> context,
+                  const SerializedValue& data) {
     Local<Object> runtime = runtime_.Get(isolate);
     Local<Value> message;
-    if (!Deserialize(isolate, context, data, runtime).ToLocal(&message)) return;
+    if (!Deserialize(isolate, context, data, runtime, has_memory_limit())
+             .ToLocal(&message)) {
+      return;
+    }
     USE(CallRpcHook(isolate, context, runtime, "onRpc", message));
   }
 
@@ -2025,7 +2249,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                  Local<Value> value,
                  OnCloneError on_clone_error = OnCloneError::kSendError) {
     TryCatch try_catch(isolate);
-    std::optional<Bytes> bytes = Serialize(isolate, context, value, false);
+    std::optional<SerializedValue> bytes =
+        Serialize(isolate, context, value, false);
     if (!bytes && try_catch.HasCaught() && !try_catch.HasTerminated()) {
       Local<Value> fallback = try_catch.Exception();
       try_catch.Reset();
@@ -2043,7 +2268,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
     }
     if (try_catch.HasTerminated()) return;
-    PushEvent({type, id, ok, bytes ? std::move(*bytes) : Bytes{}});
+    PushEvent({type, id, ok, bytes ? std::move(*bytes) : SerializedValue{}});
   }
 
   void ReportUncaughtException(Isolate* isolate,
@@ -2391,11 +2616,21 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return current_green_isolate;
   }
 
+  // postMessage(value[, transfer])
   static void PostMessageCallback(const FunctionCallbackInfo<Value>& args) {
     GreenIsolate* self = Current();
     Isolate* isolate = args.GetIsolate();
     Local<Context> context = isolate->GetCurrentContext();
-    std::optional<Bytes> bytes = Serialize(isolate, context, args[0], false);
+    Local<Value> transfer;
+    if (!GetTransferList(context, args[1]).ToLocal(&transfer)) return;
+    std::optional<SerializedValue> bytes =
+        Serialize(isolate,
+                  context,
+                  args[0],
+                  false,
+                  {},
+                  transfer,
+                  self->has_memory_limit() ? self->allocator_ : nullptr);
     if (!bytes) return;
     self->PushEvent({kEventMessage, 0, true, std::move(*bytes)});
   }
@@ -2407,7 +2642,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     GreenIsolate* self = Current();
     Isolate* isolate = args.GetIsolate();
     Local<Context> context = isolate->GetCurrentContext();
-    std::optional<Bytes> bytes = Serialize(
+    std::optional<SerializedValue> bytes = Serialize(
         isolate, context, args[0], false, self->runtime_.Get(isolate));
     if (!bytes) return;
     uint32_t context_id = 0;
@@ -2548,7 +2783,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     for (int i = 0; i < args.Length(); i++) values.push_back(args[i]);
     Local<Array> array = Array::New(isolate, values.data(), values.size());
 
-    std::optional<Bytes> bytes;
+    std::optional<SerializedValue> bytes;
     {
       TryCatch try_catch(isolate);
       bytes = Serialize(isolate, context, array, false);
@@ -3182,7 +3417,7 @@ class GreenThreadWrap final : public HandleWrap {
     if (args[10]->IsObject()) {
       rpc_hooks = args[10].As<Object>();
       if (!args[11]->IsUndefined()) {
-        std::optional<Bytes> bytes = Serialize(
+        std::optional<SerializedValue> bytes = Serialize(
             env->isolate(), env->context(), args[11], true, rpc_hooks);
         if (!bytes) return;
         options.env = std::move(*bytes);
@@ -3229,7 +3464,7 @@ class GreenThreadWrap final : public HandleWrap {
     CHECK(args[1]->IsUint32());
     if (!wrap->green_ || wrap->rpc_hooks_.IsEmpty()) return;
     Environment* env = wrap->env();
-    std::optional<Bytes> bytes =
+    std::optional<SerializedValue> bytes =
         Serialize(env->isolate(),
                   env->context(),
                   args[0],
@@ -3244,8 +3479,10 @@ class GreenThreadWrap final : public HandleWrap {
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     if (!wrap->green_) return;
     Environment* env = wrap->env();
-    std::optional<Bytes> bytes =
-        Serialize(env->isolate(), env->context(), args[0], true);
+    Local<Value> transfer;
+    if (!GetTransferList(env->context(), args[1]).ToLocal(&transfer)) return;
+    std::optional<SerializedValue> bytes =
+        Serialize(env->isolate(), env->context(), args[0], true, {}, transfer);
     if (!bytes) return;
     wrap->green_->PostMessage(std::move(*bytes));
   }
