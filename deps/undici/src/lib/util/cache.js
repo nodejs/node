@@ -192,15 +192,48 @@ function normalizeHeaders (opts) {
     headers = {}
 
     if (hasSafeIterator(opts.headers)) {
-      for (const x of opts.headers) {
-        if (!Array.isArray(x)) {
-          throw new Error('opts.headers is not a valid header map')
+      if (Array.isArray(opts.headers)) {
+        // Array format: either flat alternating [key, value, ...] or an array
+        // of [key, value] pairs.
+        if (Array.isArray(opts.headers[0])) {
+          for (const x of opts.headers) {
+            if (!Array.isArray(x)) {
+              throw new Error('opts.headers is not a valid header map')
+            }
+            const [key, val] = x
+            if (typeof key !== 'string' || typeof val !== 'string') {
+              throw new Error('opts.headers is not a valid header map')
+            }
+            appendHeader(headers, key, val)
+          }
+        } else {
+          if (opts.headers.length % 2 !== 0) {
+            throw new Error('opts.headers is not a valid header map')
+          }
+          for (let i = 0; i < opts.headers.length; i += 2) {
+            const key = opts.headers[i]
+            const val = opts.headers[i + 1]
+            if (typeof key !== 'string' || (typeof val !== 'string' && !Array.isArray(val))) {
+              throw new Error('opts.headers is not a valid header map')
+            }
+            if (typeof val === 'string') {
+              appendHeader(headers, key, val)
+            } else {
+              appendHeader(headers, key, val.map(item => typeof item === 'string' ? item : item.toString('latin1')))
+            }
+          }
         }
-        const [key, val] = x
-        if (typeof key !== 'string' || typeof val !== 'string') {
-          throw new Error('opts.headers is not a valid header map')
+      } else {
+        for (const x of opts.headers) {
+          if (!Array.isArray(x)) {
+            throw new Error('opts.headers is not a valid header map')
+          }
+          const [key, val] = x
+          if (typeof key !== 'string' || typeof val !== 'string') {
+            throw new Error('opts.headers is not a valid header map')
+          }
+          appendHeader(headers, key, val)
         }
-        appendHeader(headers, key, val)
       }
     } else {
       for (const key of Object.keys(opts.headers)) {

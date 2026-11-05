@@ -123,7 +123,7 @@ class Request {
 
     this.method = method
 
-    this.typeOfService = typeOfService ?? 0
+    this.typeOfService = typeOfService
 
     this.abort = null
 

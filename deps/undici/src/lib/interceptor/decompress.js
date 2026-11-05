@@ -429,7 +429,13 @@ class DecompressHandler extends DecoratorHandler {
    * @returns {void}
    */
   onResponseStart (controller, statusCode, headers, statusMessage) {
-    const contentEncoding = headers['content-encoding']
+    // Repeated field lines reach us as an array. RFC 9110 section 5.3 lets a
+    // recipient join them with commas, which yields the single-line form the
+    // decompression chain already handles.
+    const rawContentEncoding = headers['content-encoding']
+    const contentEncoding = Array.isArray(rawContentEncoding)
+      ? rawContentEncoding.join(',')
+      : rawContentEncoding
 
     // If content encoding is not supported or status code is in skip list
     if (this.#shouldSkipDecompression(contentEncoding, statusCode)) {

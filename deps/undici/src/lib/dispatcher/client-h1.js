@@ -61,6 +61,7 @@ const removeAllListeners = util.removeAllListeners
 const kIdleSocketValidation = Symbol('kIdleSocketValidation')
 const kIdleSocketValidationTimeout = Symbol('kIdleSocketValidationTimeout')
 const kSocketUsed = Symbol('kSocketUsed')
+const kTypeOfService = Symbol('kTypeOfService')
 
 let extractBody
 
@@ -1109,6 +1110,32 @@ function shouldSendContentLength (method) {
   return method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && method !== 'TRACE' && method !== 'CONNECT'
 }
 
+function setTypeOfService (socket, request) {
+  if (typeof socket.setTypeOfService !== 'function') {
+    return
+  }
+
+  const typeOfService = request.typeOfService
+
+  if (typeOfService === undefined) {
+    return
+  }
+
+  const currentTypeOfService = socket[kTypeOfService]
+
+  if (currentTypeOfService === typeOfService) {
+    return
+  }
+
+  try {
+    socket.setTypeOfService(typeOfService)
+    socket[kTypeOfService] = typeOfService
+  } catch {
+    // QoS marking is best-effort. setTypeOfService() can throw synchronously on
+    // some platforms depending on socket state, but that must not abort the request.
+  }
+}
+
 /**
  * @param {import('./client.js')} client
  * @param {import('../core/request.js')} request
@@ -1248,9 +1275,7 @@ function writeH1 (client, request) {
     socket[kBlocking] = true
   }
 
-  if (socket.setTypeOfService) {
-    socket.setTypeOfService(request.typeOfService)
-  }
+  setTypeOfService(socket, request)
 
   let header = `${method} ${path} HTTP/1.1\r\n`
 

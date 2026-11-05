@@ -113,7 +113,7 @@ declare namespace Dispatcher {
     idempotent?: boolean;
     /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. Defaults to `method !== 'HEAD'`. */
     blocking?: boolean;
-    /** The IP Type of Service (ToS) value for the request socket. Must be an integer between 0 and 255. Default: `0` */
+    /** The IP Type of Service (ToS) value for the request socket. Must be an integer between 0 and 255. */
     typeOfService?: number | null;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
