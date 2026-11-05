@@ -1532,12 +1532,12 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [ECMAScript module]: esm.md
 [File API]: https://w3c.github.io/FileAPI/
 [HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
-[Web Worker]: #class-worker
-[XMLHttpRequest Standard]: https://xhr.spec.whatwg.org/#interface-progressevent
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Refable protocol]: process.md#processrefmayberefable
 [Web Crypto API]: webcrypto.md
+[Web Worker]: #class-worker
+[XMLHttpRequest Standard]: https://xhr.spec.whatwg.org/#interface-progressevent
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
 [`--localstorage-file`]: cli.md#--localstorage-filefile
