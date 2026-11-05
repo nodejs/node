@@ -607,6 +607,48 @@ added: v20.0.0
 
 See {File}.
 
+## Class: `FileList`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A browser-compatible implementation of {FileList} from the [File API][]. The
+interface has no constructor. It is a list of {File} objects, with a `length`
+attribute and an `item(index)` method that returns the `File` at `index`, or
+`null` when `index` is past the end of the list.
+
+## Class: `FileReader`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A browser-compatible implementation of {FileReader} from the [File API][].
+`readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
+`readAsDataURL()` read a {Blob} asynchronously and report the result through
+`loadstart`, `progress`, `load`, `abort`, `error`, and `loadend` events.
+`readyState` is `FileReader.EMPTY` (`0`), `FileReader.LOADING` (`1`), or
+`FileReader.DONE` (`2`).
+
+`readAsDataURL()` produces a base64 `data:` URL. When the blob's type is the
+empty string, the URL has no media type.
+
+## Class: `FileReaderSync`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A browser-compatible implementation of {FileReaderSync} from the [File API][].
+It is exposed only inside a [Web Worker][] (`--experimental-web-worker`),
+matching `[Exposed=(DedicatedWorker,SharedWorker)]`. It is not available on
+the main thread or in threads created with `node:worker_threads`.
+
+`readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
+`readAsDataURL()` read a {Blob} synchronously. A file-backed blob, such as
+one returned by [`fs.openAsBlob()`][], throws a `NotReadableError`.
+
 ## Class: `FormData`
 
 <!-- YAML
@@ -941,6 +983,19 @@ added: v0.1.7
 * Type: {Object}
 
 The process object. See the [`process` object][] section.
+
+## Class: `ProgressEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A browser-compatible implementation of {ProgressEvent} from the
+[XMLHttpRequest Standard][]. `FileReader` dispatches `ProgressEvent`s for
+`loadstart`, `progress`, `load`, `abort`, `error`, and `loadend`. Those events
+do not bubble and are not cancelable. `lengthComputable`, `loaded`, and
+`total` return the values they were initialized to (`false`, `0`, and `0`
+when omitted).
 
 ## `queueMicrotask(callback)`
 
@@ -1475,7 +1530,10 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS module]: modules.md
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
+[File API]: https://w3c.github.io/FileAPI/
 [HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
+[Web Worker]: #class-worker
+[XMLHttpRequest Standard]: https://xhr.spec.whatwg.org/#interface-progressevent
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Refable protocol]: process.md#processrefmayberefable
