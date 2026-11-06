@@ -97,6 +97,10 @@
 #endif
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
+#if defined(__MVS__)
+#include "node_zos.h"
+#endif
+
 // ========== global C headers ==========
 
 #include <fcntl.h>  // _O_RDWR
@@ -187,7 +191,11 @@ const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
   ResetStdio();
+#ifdef __MVS__
+  zosSignalExit(signo, info, ucontext);
+#else
   raise(signo);
+#endif
 }
 #endif  // __POSIX__
 
@@ -483,6 +491,11 @@ void RegisterSignalHandler(int signal,
   memset(&sa, 0, sizeof(sa));
   sa.sa_sigaction = handler;
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
+#ifdef __MVS__
+  // ON_STACK: to use alt stack (created in zosStart()) to not interfere
+  // with z/OS LE; SA_SIGINFO: to use handler specified by sa_sigaction.
+  sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+#endif
   sigfillset(&sa.sa_mask);
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
@@ -623,6 +636,9 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     RegisterSignalHandler(SIGINT, SignalExit, true);
     RegisterSignalHandler(SIGTERM, SignalExit, true);
+#ifdef __MVS__
+    RegisterSignalHandler(SIGABRT, SignalExit, true);
+#endif
   }
 
   if (!(flags & ProcessInitializationFlags::kNoAdjustResourceLimits)) {
@@ -832,6 +848,10 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     V8::SetFlagsFromCommandLine(&argc, v8_args_as_char_ptr.data(), true);
     v8_args_as_char_ptr.resize(argc);
   }
+
+#ifdef __MVS__
+  V8::SetFlagsFromString("--nohard_abort", sizeof("--nohard_abort") - 1);
+#endif
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (size_t i = 1; i < v8_args_as_char_ptr.size(); i++)
@@ -1281,6 +1301,9 @@ InitializeOncePerProcessInternal(
   if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {
     if (per_process::cli_options->print_version) {
       printf("%s\n", NODE_VERSION);
+#if defined(__MVS__)
+      __build_version();
+#endif
       result->exit_code_ = ExitCode::kNoFailure;
       result->early_return_ = true;
       return result;
@@ -1453,6 +1476,9 @@ InitializeOncePerProcessInternal(
       }
     }
   }
+#ifdef __MVS__
+  zosCreateSignalHandler();
+#endif
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
     uv_thread_setname("node-MainThread");
@@ -1586,6 +1612,11 @@ void TearDownOncePerProcess() {
 #if HAVE_OPENSSL
   crypto::CleanupCachedRootCertificates();
 #endif  // HAVE_OPENSSL
+
+#ifdef __MVS__
+  zosCancelSignalHandler();
+  zosDestroyThread();
+#endif
 }
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
@@ -1779,6 +1810,13 @@ static ExitCode StartInternal(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
+#ifdef __MVS__
+  ExitCode exit_code = zosStart();
+  if (exit_code != ExitCode::kNoFailure) {
+    return exit_code;
+  }
+#endif
+
   std::shared_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
           std::vector<std::string>(argv, argv + argc),
@@ -1788,6 +1826,9 @@ static ExitCode StartInternal(int argc, char** argv) {
     FPrintF(stderr, "%s: %s\n", result->args().at(0), error);
   }
   if (result->early_return()) {
+#ifdef __MVS__
+    zosDestroyThread();
+#endif
     return result->exit_code_enum();
   }
 
@@ -1804,6 +1845,9 @@ static ExitCode StartInternal(int argc, char** argv) {
   });
 
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
+#ifdef __MVS__
+  zosIgnorePipeChildSignals();
+#endif
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
 #if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
