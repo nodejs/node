@@ -1,6 +1,11 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
 #define SRC_JS_NATIVE_API_V8_H_
 
+#include <array>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
@@ -46,6 +51,43 @@ class RefTracker {
  private:
   RefList* next_ = nullptr;
   RefList* prev_ = nullptr;
+};
+
+// Creates the objects of node_api_create_object_with_properties().
+// v8::Object::New() puts the properties of every object it creates in a
+// dictionary, so those objects are slow to read, and with a null prototype
+// each of them also gets a map of its own. When the same property names are
+// passed again, this cache creates a v8::DictionaryTemplate for them and
+// instantiates it instead, so the objects get fast properties and share a
+// map, like objects created from an object literal.
+class ObjectShapeCache {
+ public:
+  v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
+                                 v8::Local<v8::Context> context,
+                                 v8::Local<v8::Value> prototype_or_null,
+                                 v8::Local<v8::Name>* names,
+                                 v8::Local<v8::Value>* values,
+                                 size_t count);
+
+ private:
+  // The first kMaxShapes lists of names that are passed a second time get a
+  // template, and keep it for the life of the env. A list passed once is only
+  // recorded by its hash, in a direct-mapped table of kSeenEntries.
+  static constexpr size_t kMaxShapes = 256;
+  static constexpr size_t kSeenEntries = 1024;
+  // From 128 properties V8 creates the objects in dictionary mode anyway, as
+  // it does for object literals.
+  static constexpr size_t kMaxProperties = 127;
+
+  struct Shape {
+    std::vector<v8::Global<v8::Name>> names;
+    // Empty when V8 cannot create a template for the names.
+    v8::Global<v8::DictionaryTemplate> tmpl;
+  };
+
+  // Keyed by a hash of the names.
+  std::unordered_map<uint32_t, Shape> shapes_;
+  std::array<uint32_t, kSeenEntries> seen_{};
 };
 
 }  // end of namespace v8impl
@@ -161,6 +203,8 @@ struct napi_env__ {
   void* instance_data = nullptr;
   int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
   bool in_gc_finalizer = false;
+  // Created by the first node_api_create_object_with_properties() call.
+  std::unique_ptr<v8impl::ObjectShapeCache> object_shape_cache;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
