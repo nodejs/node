@@ -1,5 +1,5 @@
 'use strict';
-const { skipIfSQLiteMissing, mustCall } = require('../common');
+const { skipIfSQLiteMissing, mustCall, enoughTestMem } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
 const { Database } = require('node:sqlite');
@@ -345,6 +345,28 @@ suite('Database.prototype.function()', () => {
         code: 'ERR_SQLITE_ERROR',
         message: /Asynchronous user-defined functions are not supported/,
       });
+    });
+
+    test('throws if returned buffer exceeds INT_MAX bytes', {
+      skip: !enoughTestMem && 'insufficient memory',
+    }, (t) => {
+      const db = new Database(':memory:');
+      for (const size of [2 ** 31, 2 ** 32 + 5]) {
+        let buf;
+        try {
+          buf = new ArrayBuffer(size);
+        } catch {
+          return t.skip('insufficient memory');
+        }
+        db.function('retLargeBuffer', () => buf);
+        const stmt = db.prepare('SELECT retLargeBuffer() AS retLargeBuffer');
+        assert.throws(() => {
+          stmt.get();
+        }, {
+          code: 'ERR_SQLITE_ERROR',
+          message: /string or blob too big/,
+        });
+      }
     });
 
     test('throws on unsupported return types', () => {
