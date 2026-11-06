@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { gcUntil } = require('../common/gc');
 const assert = require('assert');
 const { once } = require('node:events');
 const { describe, it } = require('node:test');
@@ -38,5 +39,16 @@ describe('AbortSignal.any() with timeout signals', () => {
     } finally {
       clearTimeout(timeout);
     }
+  });
+
+  it('should not retain a timeout signal that has already fired', async () => {
+    let signal = AbortSignal.timeout(1);
+    const ref = new WeakRef(signal);
+    await once(signal, 'abort');
+
+    AbortSignal.any([signal]);
+    signal = null;
+
+    await gcUntil('fired timeout signal is collected', () => ref.deref() === undefined);
   });
 });
