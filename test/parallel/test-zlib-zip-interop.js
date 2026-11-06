@@ -81,9 +81,19 @@ test('an archive written by createZipArchive is readable by unzip, zipinfo, and 
 
     const zipinfo = spawnSync('zipinfo', [archivePath], { env });
     assert.strictEqual(zipinfo.status, 0);
+    const zipinfoOut = zipinfo.stdout.toString();
     for (const name of Object.keys(files)) {
-      if (!zipinfoUnicode && /[^\x20-\x7e]/.test(name)) continue;
-      assert.ok(zipinfo.stdout.toString().includes(name), `zipinfo missing ${name}`);
+      if (zipinfoOut.includes(name)) continue;
+      // Info-ZIP's zipinfo replaces non-ASCII bytes with '?' unless built with
+      // wide-character support (e.g. natspec or alt-iconv-utf8-print); stock
+      // builds replace non-ASCII bytes with '?' regardless of UNICODE_SUPPORT,
+      // which can leave replacement characters (U+FFFD) once decoded.
+      if (/[^\x20-\x7e]/.test(name)) {
+        if (!zipinfoUnicode) continue;
+        const placeholder = name.replace(/[^\x20-\x7e]+/g, '?');
+        if (zipinfoOut.replace(/[?\uFFFD]+/g, '?').includes(placeholder)) continue;
+      }
+      assert.fail(`zipinfo missing ${name}`);
     }
 
     const extractDir = path.join(dir, 'out');
