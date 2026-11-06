@@ -1067,6 +1067,12 @@ a warning is printed and Temporal support is disabled.
 
 Passing both options to `configure.py` is an error.
 
+For non-Windows cross builds with bundled Temporal, set `CARGO_BUILD_TARGET`
+to the Rust target triple when running `configure.py` (for example,
+`aarch64-unknown-linux-gnu`). Otherwise, Temporal support is disabled with a
+warning, or `configure.py` stops with an error when
+`--v8-enable-temporal-support` is passed.
+
 ## Building Node.js with external core modules
 
 It is possible to specify one or more JavaScript text files to be bundled in
