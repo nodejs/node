@@ -1,4 +1,4 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --expose-internals --no-warnings --no-deprecation
 
 'use strict';
 

@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 'use strict';
 // Test that trackPromises default to true.
 const common = require('../common');

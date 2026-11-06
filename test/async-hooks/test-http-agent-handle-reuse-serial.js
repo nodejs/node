@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-internals
+// Flags: --expose-internals --no-deprecation
 const common = require('../common');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');

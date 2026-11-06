@@ -148,7 +148,15 @@ function promiseResolve(asyncId) { }
 
 <!-- YAML
 added: v8.1.0
+deprecated: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67271
+    description: Runtime deprecation (DEP0212).
 -->
+
+> Stability: 0 - Deprecated: Use [`AsyncLocalStorage`][] or
+> [Diagnostics Channel][] instead. See [DEP0212][].
 
 * `options` {Object} The [Hook Callbacks][] to register
   * `init` {Function} The [`init` callback][].
@@ -960,6 +968,7 @@ The documentation for this class has moved [`AsyncResource`][].
 The documentation for this class has moved [`AsyncLocalStorage`][].
 
 [DEP0111]: deprecations.md#dep0111-processbinding
+[DEP0212]: deprecations.md#dep0212-async_hookscreatehook
 [Diagnostics Channel]: diagnostics_channel.md
 [Hook Callbacks]: #hook-callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit

@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --no-deprecation
 
 const common = require('../common');
 const assert = require('assert');

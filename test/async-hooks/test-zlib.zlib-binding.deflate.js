@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-deprecation
 'use strict';
 
 const common = require('../common');
