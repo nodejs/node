@@ -21,6 +21,7 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
+using ncrypto::ClearErrorOnReturn;
 using ncrypto::ECKeyPointer;
 using ncrypto::ECPointPointer;
 using ncrypto::EVPKeyCtxPointer;
@@ -680,6 +681,7 @@ static KeyObjectData ImportRawKey(Environment* env,
 // Shared helper for importing a JWK asymmetric key.  Extracts kty from the
 // JWK object and dispatches to the appropriate importer.
 static KeyObjectData ImportJWKFromArgs(Environment* env, Local<Object> jwk) {
+  ClearErrorOnReturn clear_error_on_return;
   Local<Value> kty;
   if (!jwk->Get(env->context(), env->jwk_kty_string()).ToLocal(&kty) ||
       !kty->IsString()) {
@@ -1311,6 +1313,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
     case kKeyTypePublic:
       // Fall through
     case kKeyTypePrivate: {
+      ClearErrorOnReturn clear_error_on_return;
       EVP_PKEY* pkey = key.GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2.GetAsymmetricKey().get();
 #ifndef OPENSSL_IS_BORINGSSL

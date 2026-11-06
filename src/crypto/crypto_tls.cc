@@ -73,6 +73,20 @@ namespace crypto {
 
 namespace {
 
+void InjectOpenSSLErrorForTesting(const FunctionCallbackInfo<Value>&) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+#elif NCRYPTO_USE_BORINGSSL
+  ERR_put_error(ERR_LIB_USER, 0, ERR_R_INTERNAL_ERROR, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
+
+void HasOpenSSLErrorForTesting(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(ERR_peek_error() != 0);
+}
+
 // Our custom implementation of the certificate verify callback
 // used when establishing a TLS handshake. Because we cannot perform
 // I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
@@ -883,6 +897,7 @@ void TLSWrap::ClearOut() {
   for (;;) {
     {
       SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
       read = SSL_read(ssl_.get(), out + length, kClearOutChunkSize - length);
     }
     Debug(this, "Read %d bytes of cleartext output", read);
@@ -1016,6 +1031,7 @@ void TLSWrap::ClearIn() {
   int written;
   {
     SSLLibraryCallScope ssl_library_call_scope(this);
+    if (ERR_set_mark() != 0) ERR_clear_error();
     written = SSL_write(ssl_.get(), bs->Data(), bs->ByteLength());
   }
   Debug(this, "Writing %zu bytes, written = %d", bs->ByteLength(), written);
@@ -1214,6 +1230,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(length);
     {
       SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
       written = SSL_write(ssl_.get(), bs->Data(), length);
     }
   } else {
@@ -1222,6 +1239,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(buf->len);
     {
       SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
       written = SSL_write(ssl_.get(), buf->base, buf->len);
     }
 
@@ -2351,6 +2369,12 @@ void TLSWrap::Initialize(
   Isolate* isolate = env->isolate();
 
   SetMethod(context, target, "wrap", TLSWrap::Wrap);
+  SetMethod(context,
+            target,
+            "injectOpenSSLErrorForTesting",
+            InjectOpenSSLErrorForTesting);
+  SetMethodNoSideEffect(
+      context, target, "hasOpenSSLErrorForTesting", HasOpenSSLErrorForTesting);
 
   NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
 
@@ -2445,6 +2469,8 @@ void TLSWrap::Initialize(
 void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TLSWrap::Wrap);
   registry->Register(GetWriteQueueSize);
+  registry->Register(InjectOpenSSLErrorForTesting);
+  registry->Register(HasOpenSSLErrorForTesting);
 
   registry->Register(CertCbDone);
   registry->Register(ClientHelloDone);
