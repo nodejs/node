@@ -81,6 +81,22 @@ An uncaught exception or unhandled promise rejection inside a green thread
 emits an [`'error'`][] event on the host, followed by an [`'exit'`][] event
 with exit code `1`.
 
+### Errors
+
+Errors that a green thread throws reach the host as copies: in
+[`'error'`][] events, as rejections of [`greenThread.evaluate()`][], and from
+calls to stubs, in both directions. As with errors of [`Worker`][]s, the
+copies keep the class of the error, or of the nearest built-in error class
+it extends, such as `TypeError`, and its data properties, own and inherited,
+such as `name`, `message`, `stack` and `code`. `cause`, and the `errors` of
+an `AggregateError`, are copied the same way. They are real errors:
+`Error.isError()` is `true` for them. Properties that can't be cloned are
+left out. [`DOMException`][]s stay `DOMException`s. Other thrown values are
+structured clones, or strings if they can't be cloned.
+
+Errors that are passed as values, such as in messages or results, are
+structured clones, as with [`port.postMessage()`][].
+
 ## RPC
 
 A green thread can only use what its host passes it. Besides messages, the
@@ -138,9 +154,8 @@ pass the host a callback, or an `RpcTarget` of its own.
 other side gets an `AbortSignal` that aborts with a clone of the reason when
 the original does.
 
-Errors thrown by a call reject its promise with a structured clone of the
-error. [`DOMException`][]s keep their class. Values that can't be cloned are
-passed as strings.
+Errors thrown by a call reject its promise with a copy of the error, as
+described in [Errors][].
 
 Once a side no longer uses a stub, and it is garbage collected, or disposed
 with `stub[Symbol.dispose]()`, the other side releases the function or object
@@ -250,9 +265,6 @@ in an invocation context of its own, as messages do. Other exports are
 copies, taken when the main module has been evaluated. Exported classes
 can't be constructed from the host. Export a function that returns an
 [`RpcTarget`][] instead.
-
-Errors of green threads, including module loading errors, reach the host as
-structured clones, which have no `code` property.
 
 ## Class: `RpcTarget`
 
@@ -672,6 +684,7 @@ Calls [`greenThread.terminate()`][].
 
 [CPU time limits]: #cpu-time-limits
 [ES modules]: #es-modules
+[Errors]: #errors
 [Isolate groups]: #isolate-groups
 [Memory limits]: #memory-limits
 [Message ports]: #message-ports
@@ -697,6 +710,7 @@ Calls [`greenThread.terminate()`][].
 [`MessagePort`]: worker_threads.md#class-messageport
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
+[`greenThread.evaluate()`]: #greenthreadevaluatesource-options
 [`greenThread.exports`]: #greenthreadexports
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate

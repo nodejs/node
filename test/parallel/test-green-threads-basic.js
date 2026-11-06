@@ -55,7 +55,8 @@ const { GreenThread } = require('node:green_threads');
     await assert.rejects(greenThread.evaluate('Promise.reject(new Error("no"))'),
                          { message: 'no' });
     await assert.rejects(greenThread.evaluate('() => {}'),
-                         { name: 'Error', message: /could not be cloned/ });
+                         { name: 'DataCloneError',
+                           message: /could not be cloned/ });
     await assert.rejects(greenThread.evaluate('syntax error'),
                          { name: 'SyntaxError' });
     assert.strictEqual(await greenThread.evaluate('counter'), 2);
@@ -127,7 +128,7 @@ const { GreenThread } = require('node:green_threads');
       name: 'DataCloneError',
     });
     await assert.rejects(greenThread.evaluate('postMessage(Symbol())'), {
-      name: 'Error',
+      name: 'DataCloneError',
     });
     await greenThread.terminate();
   }

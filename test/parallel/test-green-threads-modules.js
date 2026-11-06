@@ -129,23 +129,25 @@ async function mainModuleError(greenThread) {
     await greenThread.terminate();
   }
 
-  // Errors while loading or evaluating the main module. Like other errors
-  // of green threads, they arrive without properties such as `code`.
+  // Errors while loading or evaluating the main module.
   for (const [source, options, check] of [
     ['export const = 1;', {}, { name: 'SyntaxError' }],
-    ['import "./missing.js";', {}, { message: /^Cannot find module 'file:\/\/\/missing\.js'/ }],
+    ['import "./missing.js";', {},
+     { code: 'ERR_MODULE_NOT_FOUND',
+       message: /^Cannot find module 'file:\/\/\/missing\.js'/ }],
     ['import "bare";', {},
-     { message: "Cannot find module 'bare' imported from file:///main.js" }],
-    ['import "node:fs";', {}, { message: 'Importing node:fs is not supported in green threads' }],
+     { code: 'ERR_MODULE_NOT_FOUND',
+       message: "Cannot find module 'bare' imported from file:///main.js" }],
+    ['import "node:fs";', {}, { code: 'ERR_UNSUPPORTED_ESM_URL_SCHEME' }],
     ['import "./data.json";',
      { modules: { 'file:///data.json': { source: '1', format: 'json' } } },
-     { name: 'TypeError', message: /needs an import attribute of "type: json"/ }],
+     { code: 'ERR_IMPORT_ATTRIBUTE_MISSING' }],
     ['import "./code.js" with { type: "json" };',
      { modules: { 'file:///code.js': '' } },
-     { name: 'TypeError', message: /is not of type "json"/ }],
+     { code: 'ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE' }],
     ['import "./code.js" with { type: "css" };',
      { modules: { 'file:///code.js': '' } },
-     { name: 'TypeError', message: /"type" with value "css" is not supported/ }],
+     { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }],
     ['import { nope } from "./code.js";',
      { modules: { 'file:///code.js': 'export const yes = 1;' } },
      { name: 'SyntaxError' }],
@@ -155,11 +157,14 @@ async function mainModuleError(greenThread) {
      { resolve() { throw new TypeError('resolve failed'); } },
      { name: 'TypeError', message: 'resolve failed' }],
     ['import "bare";', { resolve: () => ({ url: 'not a url' }) },
-     { name: 'TypeError', message: /"url" from the "resolve" hook/ }],
+     { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+       message: /"url" from the "resolve" hook/ }],
     ['import "./code.js";', { load: () => ({ source: 1 }) },
-     { name: 'TypeError', message: /"source" from the "load" hook/ }],
+     { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+       message: /"source" from the "load" hook/ }],
     ['import "./code.js";', { load: () => ({ source: '', format: 'wasm' }) },
-     { name: 'TypeError', message: /"format" from the "load" hook/ }],
+     { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+       message: /"format" from the "load" hook/ }],
   ]) {
     const greenThread = new GreenThread(source, {
       type: 'module',

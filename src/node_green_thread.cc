@@ -2659,38 +2659,74 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     OnEvalSettled(args, false);
   }
 
-  enum class OnCloneError { kSendError, kSendString };
+  // Kinds of encoded thrown values. Must match internal/green_threads/rpc.
+  enum EncodedErrorKind : int32_t { kEncodedValue = 0, kEncodedString = 3 };
 
-  // Sends `value` to the host. If it can't be cloned, sends either the clone
-  // error (with ok = false) or the string form of `value` instead.
+  // Encodes a thrown value with the runtime's encodeError(), which keeps
+  // the properties of errors. With `minimal`, the result can always be
+  // cloned.
+  MaybeLocal<Value> EncodeError(Isolate* isolate,
+                                Local<Context> context,
+                                Local<Value> error,
+                                bool minimal) {
+    if (!runtime_.IsEmpty()) {
+      TryCatch try_catch(isolate);
+      Local<Value> argv[] = {error, Boolean::New(isolate, minimal)};
+      Local<Value> encoded;
+      if (CallRuntime(isolate, context, "encodeError", arraysize(argv), argv)
+              .ToLocal(&encoded)) {
+        return encoded;
+      }
+      if (try_catch.HasTerminated()) return {};
+    }
+    // Before the runtime exists, or if it fails.
+    Local<String> string;
+    if (minimal) {
+      TryCatch try_catch(isolate);
+      if (!error->ToDetailString(context).ToLocal(&string)) {
+        if (try_catch.HasTerminated()) return {};
+        string = FIXED_ONE_BYTE_STRING(isolate, "Error");
+      }
+    }
+    Local<Value> elements[] = {
+        Integer::New(isolate, minimal ? kEncodedString : kEncodedValue),
+        minimal ? string.As<Value>() : error,
+    };
+    return v8::Array::New(isolate, elements, arraysize(elements));
+  }
+
+  // Sends `value` to the host, or if `ok` is false, the thrown value
+  // `value`, encoded with EncodeError(). If a value can't be cloned, sends
+  // the clone error instead, with `ok` false.
   void PushValue(Isolate* isolate,
                  Local<Context> context,
                  EventType type,
                  int32_t id,
                  bool ok,
-                 Local<Value> value,
-                 OnCloneError on_clone_error = OnCloneError::kSendError) {
+                 Local<Value> value) {
     TryCatch try_catch(isolate);
-    std::optional<SerializedValue> bytes =
-        Serialize(isolate, context, value, false);
-    if (!bytes && try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      Local<Value> fallback = try_catch.Exception();
+    std::optional<SerializedValue> bytes;
+    if (ok) {
+      bytes = Serialize(isolate, context, value, false);
+      if (bytes || try_catch.HasTerminated()) {
+        if (try_catch.HasTerminated()) return;
+        PushEvent({type, id, true, std::move(*bytes)});
+        return;
+      }
+      value = try_catch.Exception();
       try_catch.Reset();
-      if (on_clone_error == OnCloneError::kSendError) {
-        ok = false;
-        bytes = Serialize(isolate, context, fallback, false);
-        try_catch.Reset();
-      }
-      Local<String> string;
-      if (!bytes && !try_catch.HasTerminated()) {
-        if (on_clone_error == OnCloneError::kSendString) fallback = value;
-        if (fallback->ToDetailString(context).ToLocal(&string)) {
-          bytes = Serialize(isolate, context, string, false);
-        }
-      }
+      ok = false;
     }
-    if (try_catch.HasTerminated()) return;
-    PushEvent({type, id, ok, bytes ? std::move(*bytes) : SerializedValue{}});
+    for (bool minimal : {false, true}) {
+      Local<Value> encoded;
+      if (EncodeError(isolate, context, value, minimal).ToLocal(&encoded)) {
+        bytes = Serialize(isolate, context, encoded, false);
+      }
+      if (try_catch.HasTerminated()) return;
+      try_catch.Reset();
+      if (bytes) break;
+    }
+    PushEvent({type, id, false, bytes ? std::move(*bytes) : SerializedValue{}});
   }
 
   void ReportUncaughtException(Isolate* isolate,
@@ -2698,13 +2734,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                                Local<Value> exception) {
     if (fatal_) return;
     fatal_ = true;
-    PushValue(isolate,
-              context,
-              kEventError,
-              kErrorException,
-              false,
-              exception,
-              OnCloneError::kSendString);
+    PushValue(isolate, context, kEventError, kErrorException, false, exception);
     // Stop any further JS, including the remaining microtasks.
     TerminateExecution(isolate);
   }
