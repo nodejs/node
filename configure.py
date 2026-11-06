@@ -56,6 +56,7 @@ valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
 maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv64')
+sparkplug_plus_enabled_architectures = ('x64', 'arm64', 'loong64')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -1235,6 +1236,17 @@ parser.add_argument('--v8-disable-maglev',
     default=None,
     help=f"Disable V8's Maglev compiler. {maglev_enabled_by_default_help}")
 
+sparkplug_plus_enabled_by_default_help = (
+    f"(Sparkplug+ is enabled on {','.join(sparkplug_plus_enabled_architectures)} "
+    "when short builtin calls are enabled, which is the default on x64)")
+
+parser.add_argument('--v8-disable-sparkplug-plus',
+    action='store_true',
+    dest='v8_disable_sparkplug_plus',
+    default=None,
+    help="Disable V8's Sparkplug+ (dynamic patching of baseline code). " +
+         sparkplug_plus_enabled_by_default_help)
+
 parser.add_argument('--v8-enable-short-builtin-calls',
     action='store_true',
     dest='v8_enable_short_builtin_calls',
@@ -2281,6 +2293,12 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
   if options.v8_enable_short_builtin_calls or o['variables']['target_arch'] == 'x64':
     o['variables']['v8_enable_short_builtin_calls'] = 1
+  # Sparkplug+ patches pc-relative builtin calls in baseline code, so V8 only
+  # uses it when short builtin calls are enabled.
+  o['variables']['v8_enable_sparkplug_plus'] = B(
+      not options.v8_disable_sparkplug_plus and
+      o['variables']['target_arch'] in sparkplug_plus_enabled_architectures and
+      o['variables'].get('v8_enable_short_builtin_calls') == 1)
   if options.v8_enable_snapshot_compression:
     o['variables']['v8_enable_snapshot_compression'] = 1
   if all(opt in sys.argv for opt in ['--v8-enable-object-print', '--v8-disable-object-print']):
