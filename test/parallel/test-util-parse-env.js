@@ -65,6 +65,8 @@ const fs = require('node:fs');
 assert.deepStrictEqual(util.parseEnv(''), { __proto__: null });
 assert.deepStrictEqual(util.parseEnv('FOO=bar\nFOO=baz\n'),
                        { __proto__: null, FOO: 'baz' });
+assert.deepStrictEqual(util.parseEnv('\uFEFFA=1\r\nB=2\r\n'),
+                       { __proto__: null, A: '1', B: '2' });
 
 // Test for invalid input.
 assert.throws(() => {
