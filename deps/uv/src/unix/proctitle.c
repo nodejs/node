@@ -39,7 +39,8 @@ static void* args_mem;
 
 
 static void init_process_title_mutex_once(void) {
-  uv_mutex_init(&process_title_mutex);
+  if (uv_mutex_init(&process_title_mutex))
+    abort();
 }
 
 

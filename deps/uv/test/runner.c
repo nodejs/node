@@ -28,7 +28,9 @@
 #include "uv.h"
 
 /* Refs: https://github.com/libuv/libuv/issues/4369 */
-#if defined(__ANDROID__)
+/* Refs: https://github.com/libuv/libuv/issues/5092 */
+#if defined(__ANDROID__) && __ANDROID_API__ >= __ANDROID_API_Q__
+#define USE_FDSAN
 #include <android/fdsan.h>
 #endif
 
@@ -149,7 +151,7 @@ void log_tap_result(int test_count,
 
 void enable_fdsan(void) {
 /* Refs: https://github.com/libuv/libuv/issues/4369 */
-#if defined(__ANDROID__)
+#if defined(USE_FDSAN)
   android_fdsan_set_error_level(ANDROID_FDSAN_ERROR_LEVEL_WARN_ALWAYS);
 #endif
 }

@@ -41,6 +41,16 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
+/* uv_poll_init_socket() does not take ownership of the socket. */
+static void close_socket(uv_os_sock_t sock) {
+#ifdef _WIN32
+  ASSERT_OK(closesocket(sock));
+#else
+  ASSERT_OK(close(sock));
+#endif
+}
+
+
 TEST_IMPL(poll_close) {
   uv_os_sock_t sockets[NUM_SOCKETS];
   uv_poll_t poll_handles[NUM_SOCKETS];
@@ -67,6 +77,9 @@ TEST_IMPL(poll_close) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT_EQ(close_cb_called, NUM_SOCKETS);
+
+  for (i = 0; i < NUM_SOCKETS; i++)
+    close_socket(sockets[i]);
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
