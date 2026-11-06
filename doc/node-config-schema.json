@@ -311,6 +311,10 @@
               "type": "string",
               "description": "set default value of verbatim in dns.lookup. Options are 'ipv4first' (IPv4 addresses are placed before IPv6 addresses) 'ipv6first' (IPv6 addresses are placed before IPv4 addresses) 'verbatim' (addresses are in the order the DNS resolver returned)"
             },
+            "enable-async-hooks": {
+              "type": "boolean",
+              "description": "enable use of async_hooks.createHook"
+            },
             "enable-fips": {
               "type": "boolean",
               "description": "enable FIPS crypto at startup"

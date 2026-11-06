@@ -1,3 +1,4 @@
+// Flags: --enable-async-hooks
 'use strict';
 // Test that trackPromises default to true.
 const common = require('../common');

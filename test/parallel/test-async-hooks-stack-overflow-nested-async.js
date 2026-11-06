@@ -66,7 +66,7 @@ if (process.argv[2] === 'child') {
   // Parent process - spawn the child and check exit code
   spawnSyncAndAssert(
     process.execPath,
-    [__filename, 'child'],
+    ['--enable-async-hooks', __filename, 'child'],
     { encoding: 'utf8', timeout: 30000 },
     {
       stdout: /SUCCESS: try-catch caught the stack overflow/,

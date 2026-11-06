@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 // just like test-gc-http-client.js,
 // but with an on('error') handler that does nothing.
 
