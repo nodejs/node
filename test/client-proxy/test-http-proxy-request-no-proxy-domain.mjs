@@ -10,7 +10,7 @@ import { runProxiedRequest } from '../common/proxy-server.js';
 const server = http.createServer(common.mustCall((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
-}, 5));
+}, 7));
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -70,6 +70,44 @@ await once(proxy, 'listening');
   });
 
   // The request should succeed and bypass proxy
+  assert.match(stdout, /Status Code: 200/);
+  assert.match(stdout, /Hello World/);
+  assert.match(stdout, /Resolving lookup for test\.example\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+// Test NO_PROXY ignores a trailing dot in the request hostname.
+{
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://test.example.com.:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${proxy.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'test.example.com.',
+    NO_PROXY: 'test.example.com',
+  });
+
+  // The request should succeed and bypass proxy.
+  assert.match(stdout, /Status Code: 200/);
+  assert.match(stdout, /Hello World/);
+  assert.match(stdout, /Resolving lookup for test\.example\.com\./);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+// Test NO_PROXY ignores a trailing dot in the entry.
+{
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://test.example.com:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${proxy.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'test.example.com',
+    NO_PROXY: 'test.example.com.',
+  });
+
+  // The request should succeed and bypass proxy.
   assert.match(stdout, /Status Code: 200/);
   assert.match(stdout, /Hello World/);
   assert.match(stdout, /Resolving lookup for test\.example\.com/);
