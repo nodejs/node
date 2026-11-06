@@ -1,0 +1,99 @@
+name: Test Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  RUSTC_VERSION: '1.86'
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        autocrlf: [true, false]
+    name: Windows tests (${{ matrix.autocrlf && 'with' || 'without' }} autocrlf)
+    runs-on: windows-2025
+    steps:
+      - name: Set git config core.autocrlf
+        run: git config --global core.autocrlf ${{ matrix.autocrlf }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install deps
+        run: choco install nasm
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set ${{ env.RUSTC_VERSION }}
+          rustup --version
+      - name: Build
+        run: ./vcbuild.bat clang-cl v8temporal cctest
+      - name: Test
+        # after the test "test-child-process-exec-any-shells-windows" is fixed change to `./vcbuild.bat noprojgen nobuild test`
+        run: |
+          ./vcbuild.bat noprojgen nobuild build-addons build-js-native-api-tests build-node-api-tests build-ffi-tests
+          python3 tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=keep_retrying --measure-flakiness 9 default pummel addons ffi js-native-api node-api embedding benchmark --skip-tests="test-child-process-exec-any-shells-windows"
