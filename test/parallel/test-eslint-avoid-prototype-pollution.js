@@ -75,6 +75,19 @@ new RuleTester()
       'function name({ [Symbol.match]: m } = kEmptyObject){}',
       'function name({ [Symbol.match]: m } = { __proto__: null, [Symbol.match]: 1 }){}',
       'function name({ [Symbol.match]: m, c } = { __proto__: null, c: 1 }){}',
+      'const kNull = ObjectFreeze({ __proto__: null }); ObjectDefineProperty({}, "key", { __proto__: kNull })',
+      'const kNull = ObjectFreeze({ __proto__: null }); ReflectDefineProperty({}, "key", { __proto__: kNull })',
+      'const kNull = ObjectFreeze({ "__proto__": null }); ObjectDefineProperties({}, { key: { __proto__: kNull } })',
+      'const kNull = ObjectFreeze(ObjectCreate(null)); ObjectCreate(null, { key: { __proto__: kNull, value: 1 } })',
+      'const kNull = ObjectFreeze({ __proto__: null });' +
+        'function f() { ObjectDefineProperty({}, "k", { __proto__: kNull }) }',
+      'const kA = ObjectFreeze({ __proto__: null }); const kB = kA; ObjectDefineProperty({}, "k", { __proto__: kB })',
+      'const kA = ObjectFreeze({ __proto__: null }); const kB = ObjectFreeze({ __proto__: kA });' +
+        'ObjectDefineProperty({}, "k", { __proto__: kB })',
+      'const { kEmptyObject } = require("internal/util"); ObjectDefineProperty({}, "k", { __proto__: kEmptyObject })',
+      'const { kEmptyObject: kE } = require("internal/util"); ObjectDefineProperty({}, "k", { __proto__: kE })',
+      'const kNull = ObjectFreeze({ __proto__: null }); async function myFn() { return { __proto__: kNull } }',
+      'const kNull = ObjectFreeze({ __proto__: null }); new Proxy({}, { __proto__: kNull })',
     ],
     invalid: [
       {
@@ -198,6 +211,50 @@ new RuleTester()
       },
       {
         code: 'ReflectDefineProperty({}, "key", { enumerable: true })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'ObjectDefineProperty({}, "key", { __proto__: kUnknown })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kNull = { __proto__: null }; ObjectDefineProperty({}, "key", { __proto__: kNull })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'let kNull = ObjectFreeze({ __proto__: null }); ObjectDefineProperty({}, "key", { __proto__: kNull })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kObj = ObjectFreeze({}); ObjectDefineProperty({}, "key", { __proto__: kObj })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kObj = ObjectFreeze({ __proto__: ObjectPrototype });' +
+          'ObjectDefineProperty({}, "key", { __proto__: kObj })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kObj = ObjectFreeze(ObjectCreate(ObjectPrototype));' +
+          'ObjectDefineProperty({}, "key", { __proto__: kObj })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kNull = ObjectFreeze({ __proto__: null });' +
+          'function f(kNull) { ObjectDefineProperty({}, "key", { __proto__: kNull }) }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const { kEmptyObject } = require("internal/other");' +
+          'ObjectDefineProperty({}, "k", { __proto__: kEmptyObject })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const { other } = require("internal/util"); ObjectDefineProperty({}, "k", { __proto__: other })',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const kObj = ObjectFreeze({}); new Proxy({}, { __proto__: kObj })',
         errors: [{ message: /null-prototype/ }],
       },
       {

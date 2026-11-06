@@ -16,27 +16,120 @@ function checkProperties(context, node) {
   }
   if (node.type !== 'ObjectExpression') return;
   for (const { key, value } of node.properties) {
-    if (
-      key != null && value != null &&
-      !(key.type === 'Identifier' && key.name === '__proto__') &&
-      !(key.type === 'Literal' && key.value === '__proto__')
-    ) {
+    if (key != null && value != null && !isProtoKey(key)) {
       checkPropertyDescriptor(context, value);
     }
   }
 }
 
-function isNullPrototypeObjectExpression(node) {
+function isProtoKey(key) {
+  return key != null &&
+    ((key.type === 'Identifier' && key.name === '__proto__') ||
+      (key.type === 'Literal' && key.value === '__proto__'));
+}
+
+function findVariable(context, identifier) {
+  let scope = context.sourceCode.getScope(identifier);
+  while (scope != null) {
+    const variable = scope.set.get(identifier.name);
+    if (variable != null) return variable;
+    scope = scope.upper;
+  }
+  return null;
+}
+
+// Frozen null-prototype objects exported from internal modules that can be
+// safely used as the prototype of an object literal.
+const knownNullPrototypeExports = {
+  'internal/util': ['kEmptyObject'],
+};
+
+function isRequireOfKnownNullPrototypeExport(declarator, name) {
+  const { id, init } = declarator;
+  if (
+    id.type !== 'ObjectPattern' ||
+    init == null ||
+    init.type !== 'CallExpression' ||
+    init.callee.type !== 'Identifier' ||
+    init.callee.name !== 'require' ||
+    init.arguments.length !== 1 ||
+    init.arguments[0].type !== 'Literal'
+  ) {
+    return false;
+  }
+  const allowed = knownNullPrototypeExports[init.arguments[0].value];
+  if (allowed == null) return false;
+  return id.properties.some((property) =>
+    property.type === 'Property' &&
+    !property.computed &&
+    property.key.type === 'Identifier' &&
+    allowed.includes(property.key.name) &&
+    property.value.type === 'Identifier' &&
+    property.value.name === name,
+  );
+}
+
+// Returns true if `node` is an expression that is known to evaluate to a
+// frozen object whose prototype is null, e.g.:
+//   const kNullProtoObject = ObjectFreeze({ __proto__: null });
+// Using such an object as the `__proto__` of an object literal is equivalent
+// to `__proto__: null` in terms of protection against prototype pollution, but
+// avoids V8 creating the object literal in dictionary mode.
+function isFrozenNullPrototypeObject(context, node, seen = new Set()) {
+  if (node.type === 'Identifier') {
+    const variable = findVariable(context, node);
+    if (variable == null || seen.has(variable) || variable.defs.length !== 1) {
+      return false;
+    }
+    seen.add(variable);
+    const [def] = variable.defs;
+    if (
+      def.type !== 'Variable' ||
+      def.parent.kind !== 'const' ||
+      def.node.init == null
+    ) {
+      return false;
+    }
+    if (def.node.id.type === 'Identifier') {
+      return isFrozenNullPrototypeObject(context, def.node.init, seen);
+    }
+    return isRequireOfKnownNullPrototypeExport(def.node, node.name);
+  }
+
+  if (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'ObjectFreeze' &&
+    node.arguments.length === 1
+  ) {
+    const [arg] = node.arguments;
+    if (
+      arg.type === 'CallExpression' &&
+      arg.callee.type === 'Identifier' &&
+      arg.callee.name === 'ObjectCreate' &&
+      arg.arguments.length === 1 &&
+      arg.arguments[0].type === 'Literal' &&
+      arg.arguments[0].value === null
+    ) {
+      return true;
+    }
+    return isNullPrototypeObjectExpression(context, arg, seen);
+  }
+
+  return false;
+}
+
+function isNullPrototypeObjectExpression(context, node, seen) {
   if (node.type !== 'ObjectExpression') return;
 
   for (const { key, value } of node.properties) {
-    if (
-      key != null && value != null &&
-      ((key.type === 'Identifier' && key.name === '__proto__') ||
-        (key.type === 'Literal' && key.value === '__proto__')) &&
-      value.type === 'Literal' && value.value === null
-    ) {
-      return true;
+    if (isProtoKey(key) && value != null) {
+      if (value.type === 'Literal' && value.value === null) {
+        return true;
+      }
+      if (isFrozenNullPrototypeObject(context, value, seen)) {
+        return true;
+      }
     }
   }
   return false;
@@ -63,7 +156,7 @@ function checkPropertyDescriptor(context, node) {
       }],
     });
   }
-  if (isNullPrototypeObjectExpression(node) === false) {
+  if (isNullPrototypeObjectExpression(context, node) === false) {
     context.report({
       node,
       message: 'Must use null-prototype object for property descriptors',
@@ -133,7 +226,7 @@ module.exports = {
 
           if (!parent.async) return;
         }
-        if (isNullPrototypeObjectExpression(node) === false) {
+        if (isNullPrototypeObjectExpression(context, node) === false) {
           context.report({
             node,
             message: 'Use null-prototype when returning from async function',
@@ -178,16 +271,7 @@ module.exports = {
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.split%', 'Symbol.split'),
 
       'NewExpression[callee.name="Proxy"][arguments.1.type="ObjectExpression"]'(node) {
-        for (const { key, value } of node.arguments[1].properties) {
-          if (
-            key != null && value != null &&
-            ((key.type === 'Identifier' && key.name === '__proto__') ||
-              (key.type === 'Literal' && key.value === '__proto__')) &&
-            value.type === 'Literal' && value.value === null
-          ) {
-            return;
-          }
-        }
+        if (isNullPrototypeObjectExpression(context, node.arguments[1])) return;
         context.report({
           node,
           message: 'Proxy handler must be a null-prototype object',
