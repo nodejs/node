@@ -2,6 +2,7 @@
 const util = require('util');
 
 const common = require('../common.js');
+const assert = require('node:assert');
 
 const opts = {
   showHidden: { showHidden: true },
@@ -19,6 +20,8 @@ const bench = common.createBenchmark(main, {
     'String_boxed',
     'Date',
     'Set',
+    'Set_large',
+    'Map',
     'Error',
     'Array',
     'TypedArray',
@@ -29,11 +32,14 @@ const bench = common.createBenchmark(main, {
 });
 
 function benchmark(n, obj, options) {
+  let output;
   bench.start();
   for (let i = 0; i < n; i += 1) {
-    util.inspect(obj, options);
+    output = util.inspect(obj, options);
   }
   bench.end(n);
+  assert.strictEqual(typeof output, 'string');
+  assert.notStrictEqual(output.length, 0);
 }
 
 function main({ method, n, option }) {
@@ -75,6 +81,20 @@ function main({ method, n, option }) {
       break;
     case 'Set':
       obj = new Set([5, 3]);
+      benchmark(n, obj, options);
+      break;
+    case 'Set_large':
+      obj = new Set();
+      for (let i = 0; i < 50; i++) {
+        obj.add(i);
+      }
+      benchmark(n, obj, options);
+      break;
+    case 'Map':
+      obj = new Map();
+      for (let i = 0; i < 50; i++) {
+        obj.set(i, i);
+      }
       benchmark(n, obj, options);
       break;
     case 'Error':
