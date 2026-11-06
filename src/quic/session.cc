@@ -2077,27 +2077,26 @@ void Session::SendPendingData() {
         closed = true;
         return;
       }
-    } else if (stream_data.id >= 0) {
+    } else if (ndatalen < 0 && nwrite >= 0 && stream_data.id >= 0) {
       Debug(this,
             "Session did not accept any bytes from stream %" PRIi64
             " into packet",
             stream_data.id);
+      // ndatalen < 0 means this stream's frame (data or FIN) was left out of
+      // the packet, due to congestion/pacing (nwrite == 0) or because other
+      // frames filled it. Reschedule the stream so it is retried later.
+      // This calls Application::ResumeStream directly (not
+      // Session::ResumeStream) to avoid creating a SendPendingDataScope -
+      // we're already inside SendPendingData.
+      if (stream_data.count > 0 || stream_data.fin) {
+        application().ResumeStream(stream_data.id);
+      }
     }
 
     // When nwrite is zero, it means we are congestion limited or it is
-    // just not our turn to send something. Re-schedule the stream if it
-    // had unsent data (payload or FIN) so the next timer-triggered
-    // SendPendingData retries it. Without this, a FIN-only send that
-    // hits nwrite=0 is lost forever — the stream already returned EOS
-    // from Pull and won't be re-scheduled by anyone else.
-    // We call Application::ResumeStream directly (not Session::ResumeStream)
-    // to avoid creating a SendPendingDataScope — we're already inside
-    // SendPendingData and re-entering would just hit nwrite=0 again.
+    // just not our turn to send something.
     if (nwrite == 0 && (stream_data.id >= 0 || !HasPendingDatagrams())) {
       Debug(this, "Congestion or not our turn to send");
-      if (stream_data.id >= 0 && (stream_data.count > 0 || stream_data.fin)) {
-        application().ResumeStream(stream_data.id);
-      }
       return;
     }
 
