@@ -1,0 +1,11 @@
+{
+  "filereader_readAsDataURL.any.js": {
+    "fail": {
+      "note": "package data returns a data URL without a media type when the blob type is empty",
+      "expected": [
+        "readAsDataURL result for Blob with unspecified MIME type",
+        "readAsDataURL result for empty Blob"
+      ]
+    }
+  }
+}

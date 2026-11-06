@@ -607,6 +607,62 @@ added: v20.0.0
 
 See {File}.
 
+## Class: `FileReader`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
+
+An implementation of {FileReader} from the [File API][]. `readAsArrayBuffer()`,
+`readAsBinaryString()`, `readAsText()`, and `readAsDataURL()` read a {Blob}
+asynchronously and report the result through `loadstart`, `progress`, `load`,
+`abort`, `error`, and `loadend` events. `readyState` is `FileReader.EMPTY`
+(`0`), `FileReader.LOADING` (`1`), or `FileReader.DONE` (`2`).
+
+`readAsDataURL()` produces a base64 `data:` URL. When the blob's type is the
+empty string, the URL has no media type (`data:;base64,...`). Chrome and
+Firefox use `application/octet-stream` in that case.
+
+`readAsText()` follows {TextDecoder} for the chosen encoding, including its
+ICU requirement. Labels that the Encoding Standard maps to the replacement
+encoding, such as `'iso-2022-kr'`, decode to U+FFFD when the input is not
+empty.
+
+```js
+const reader = new FileReader();
+reader.addEventListener('load', () => {
+  console.log(reader.result); // Prints: hello
+});
+reader.readAsText(new Blob(['hello']));
+```
+
+## Class: `FileReaderSync`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
+
+An implementation of {FileReaderSync} from the [File API][]. It is
+`[Exposed=(DedicatedWorker,SharedWorker)]`, so it exists only inside a
+[Web Worker][] (`--experimental-web-worker`). It is not available on the main
+thread or in threads created with `node:worker_threads`.
+
+`readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
+`readAsDataURL()` read a {Blob} synchronously. A file-backed blob, such as
+one returned by [`fs.openAsBlob()`][], throws a `NotReadableError`.
+
+```js
+// Inside a Web Worker (`--experimental-web-worker`):
+const text = new FileReaderSync().readAsText(new Blob(['hello']));
+postMessage(text); // Sends 'hello'
+```
+
 ## Class: `FormData`
 
 <!-- YAML
@@ -941,6 +997,33 @@ added: v0.1.7
 * Type: {Object}
 
 The process object. See the [`process` object][] section.
+
+## Class: `ProgressEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
+
+An implementation of {ProgressEvent} from the [XMLHttpRequest Standard][].
+`FileReader`
+dispatches `ProgressEvent`s for `loadstart`, `progress`, `load`, `abort`,
+`error`, and `loadend`. Those events do not bubble and are not cancelable.
+`lengthComputable`, `loaded`, and `total` return the values they were
+initialized to (`false`, `0`, and `0` when omitted). The File API's
+"fire a progress event" algorithm does not set those three fields, so events
+fired by `FileReader` leave them at the defaults.
+
+```js
+const event = new ProgressEvent('progress', {
+  lengthComputable: true,
+  loaded: 50,
+  total: 100,
+});
+console.log(event.loaded / event.total); // Prints: 0.5
+```
 
 ## `queueMicrotask(callback)`
 
@@ -1475,12 +1558,16 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS module]: modules.md
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
+[File API]: https://w3c.github.io/FileAPI/
 [HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Refable protocol]: process.md#processrefmayberefable
 [Web Crypto API]: webcrypto.md
+[Web Worker]: #class-worker
+[XMLHttpRequest Standard]: https://xhr.spec.whatwg.org/#interface-progressevent
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
+[`--experimental-fileapi`]: cli.md#--experimental-fileapi
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
