@@ -119,10 +119,8 @@ The current security stewards are documented in the main Node.js
     Security release pre-alert:
 
     We will release new versions of <add versions> release lines on or shortly
-    after Day Month Date, Year in order to address:
-
-    * # high severity issues
-    * # moderate severity issues
+    after Day Month Date, Year in order to address security vulnerabilities.
+    The highest severity issue fixed in this release is <add max severity>.
 
     https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
     ```
