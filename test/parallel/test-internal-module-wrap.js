@@ -4,7 +4,10 @@ const common = require('../common');
 const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
-const { ModuleWrap } = internalBinding('module_wrap');
+const {
+  ModuleWrap,
+  kEvaluationPhase,
+} = internalBinding('module_wrap');
 
 async function testModuleWrap() {
   const unlinked = new ModuleWrap('unlinked', undefined, 'export * from "bar";', 0, 0);
@@ -43,7 +46,7 @@ async function testModuleWrap() {
   assert.strictEqual(bar.hasAsyncGraph, false);
   assert.strictEqual(foo.hasAsyncGraph, false);
 
-  assert.strictEqual(await foo.evaluate(-1, false), undefined);
+  assert.strictEqual(await foo.evaluate(-1, false, kEvaluationPhase), undefined);
   assert.strictEqual(foo.getNamespace().five, 5);
 
   // Check that the module requests are the same after linking, instantiate, and evaluation.
@@ -68,7 +71,7 @@ async function testAsyncGraph() {
   assert.strictEqual(bar.hasAsyncGraph, true);
   assert.strictEqual(foo.hasAsyncGraph, true);
 
-  const evalPromise = foo.evaluate(-1, false);
+  const evalPromise = foo.evaluate(-1, false, kEvaluationPhase);
   assert.throws(() => foo.getNamespace().five, ReferenceError);
   assert.strictEqual(await evalPromise, undefined);
   assert.strictEqual(foo.getNamespace().five, 5);
