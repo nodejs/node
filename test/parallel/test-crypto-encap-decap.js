@@ -116,7 +116,7 @@ for (const [name, {
 }] of Object.entries(keys)) {
   if (!supported) {
     assert.throws(() => crypto.encapsulate(publicKey),
-                  { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM|ERR_CRYPTO_OPERATION_FAILED/ });
+                  { code: /ERR_OSSL_UNSUPPORTED|ERR_OSSL_PEM_NO_START_LINE|ERR_CRYPTO_OPERATION_FAILED/ });
     continue;
   }
 
