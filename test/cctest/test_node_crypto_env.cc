@@ -35,6 +35,56 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
                                       "any errors on the OpenSSL error stack\n";
 }
 
+TEST_F(NodeCryptoEnv, KeyObjectEqualsClearsErrorQueue) {
+  v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv};
+
+  ERR_clear_error();
+  auto result = node::LoadEnvironment(*env, R"JS(
+    const { generateKeyPairSync } = require('node:crypto');
+    const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const ec = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    return rsa.publicKey.equals(ec.publicKey);
+  )JS")
+                    .ToLocalChecked();
+  EXPECT_TRUE(result->IsFalse());
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
+TEST_F(NodeCryptoEnv, InvalidEcJwkClearsErrorQueue) {
+  v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv};
+
+  ERR_clear_error();
+  auto result = node::LoadEnvironment(*env, R"JS(
+    const { diffieHellman, generateKeyPairSync } = require('node:crypto');
+    const { privateKey } = generateKeyPairSync(
+      'ec', { namedCurve: 'P-256' });
+    try {
+      diffieHellman({
+        privateKey,
+        publicKey: {
+          key: {
+            kty: 'EC',
+            crv: 'P-256',
+            x: 'AAAA',
+            y: 'AAAA',
+          },
+          format: 'jwk',
+        },
+      });
+      return false;
+    } catch (error) {
+      return error.code === 'ERR_CRYPTO_INVALID_JWK';
+    }
+  )JS")
+                    .ToLocalChecked();
+  EXPECT_TRUE(result->IsTrue());
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 TEST_F(NodeCryptoEnv, ExportIncompleteRsaPrivateKeyAsJwk) {
   v8::HandleScope handle_scope(isolate_);

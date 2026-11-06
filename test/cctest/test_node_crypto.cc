@@ -71,6 +71,16 @@ std::string BioContents(const ncrypto::BIOPointer& bio) {
   return std::string(mem->data, mem->length);
 }
 
+void RaiseTestError() {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+#elif NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
+  ERR_put_error(ERR_LIB_USER, 0, ERR_R_INTERNAL_ERROR, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
+
 }  // namespace
 
 /*
@@ -100,6 +110,50 @@ TEST(NodeCrypto, TryGetIntCipherOutputLength) {
 
   EXPECT_FALSE(node::crypto::TryGetIntCipherOutputLength(
       0, static_cast<size_t>(INT_MAX) + 1, &output_len));
+}
+
+TEST(NodeCrypto, SpkacOperationsClearErrorQueue) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  constexpr std::string_view invalid = "garbage";
+
+  EXPECT_FALSE(ncrypto::VerifySpkac(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  EXPECT_FALSE(ncrypto::ExportPublicKey(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  const auto challenge =
+      ncrypto::ExportChallenge(invalid.data(), invalid.size());
+  EXPECT_EQ(challenge.data, nullptr);
+  EXPECT_EQ(challenge.len, 0UL);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
+TEST(NodeCrypto, PrivateKeyParsingIgnoresUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  const EVPKeyPointer::PrivateKeyEncodingConfig config(
+      false,
+      EVPKeyPointer::PKFormatType::PEM,
+      EVPKeyPointer::PKEncodingType::PKCS8);
+  auto encoded = key.writePrivateKey(config);
+  ASSERT_TRUE(encoded);
+  const BUF_MEM* mem = encoded.value;
+  ASSERT_NE(mem, nullptr);
+
+  RaiseTestError();
+  ASSERT_NE(ERR_peek_error(), 0UL);
+  auto parsed = EVPKeyPointer::TryParsePrivateKey(
+      config, {reinterpret_cast<const unsigned char*>(mem->data), mem->length});
+  EXPECT_TRUE(parsed);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
 }
 
 TEST(NodeCrypto, KeyAlgorithmNames) {
