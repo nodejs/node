@@ -34,7 +34,10 @@ bool is_tree_granted(
     node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
     std::string_view param) {
-  std::string resolved_param = node::PathResolve(env, {param});
+  // Without an Environment (e.g. on SQLite worker threads), the path must
+  // already be absolute and no diagnostics are published.
+  std::string resolved_param =
+      env == nullptr ? std::string(param) : node::PathResolve(env, {param});
 #ifdef _WIN32
   // Remove leading "\\?\" from UNC path
   if (resolved_param.starts_with("\\\\?\\")) {
@@ -51,11 +54,13 @@ bool is_tree_granted(
   }
 #endif
   auto _is_granted = granted_tree->Lookup(resolved_param, true);
-  node::Debug(env,
-              node::DebugCategory::PERMISSION_MODEL,
-              "Access %d to %s\n",
-              _is_granted,
-              param);
+  if (env != nullptr) {
+    node::Debug(env,
+                node::DebugCategory::PERMISSION_MODEL,
+                "Access %d to %s\n",
+                _is_granted,
+                param);
+  }
 
   return _is_granted;
 }
@@ -263,6 +268,11 @@ bool FSPermission::is_granted(Environment* env,
     default:
       return false;
   }
+}
+
+bool FSPermission::is_granted_no_side_effects(PermissionScope perm,
+                                              std::string_view param) const {
+  return is_granted(nullptr, perm, param);
 }
 
 FSPermission::RadixTree::RadixTree() : root_node_(std::make_unique<Node>("")) {}

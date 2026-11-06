@@ -339,6 +339,17 @@ void Permission::AsyncThrowAccessDenied(Environment* env,
   // superseding error to be thrown.
 }
 
+bool Permission::is_granted_no_side_effects(PermissionScope permission,
+                                            std::string_view resource) const {
+  if (!enabled_) return true;
+
+  CHECK(permission != PermissionScope::kPermissionsRoot &&
+        permission != PermissionScope::kPermissionsCount);
+  auto& perm_node = nodes_[static_cast<size_t>(permission)];
+  return perm_node &&
+         perm_node->is_granted_no_side_effects(permission, resource);
+}
+
 void Permission::EnablePermissions() {
   if (!enabled_) {
     enabled_ = true;
