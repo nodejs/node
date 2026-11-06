@@ -1366,7 +1366,7 @@ TEST(NodeCrypto, X509UsageVisitorPreservesCallbackErrors) {
 
   ERR_clear_error();
   int calls = 0;
-  EXPECT_TRUE(cert.view().enumUsages([&calls](const char* oid) {
+  const auto result = cert.view().enumUsages([&calls](const char* oid) {
     calls++;
     EXPECT_STREQ(oid, "1.3.6.1.5.5.7.3.1");
 #if NCRYPTO_USE_OPENSSL_PROVIDER
@@ -1376,10 +1376,68 @@ TEST(NodeCrypto, X509UsageVisitorPreservesCallbackErrors) {
 #else
 #error "Unsupported crypto backend"
 #endif
-  }));
+  });
+  EXPECT_EQ(result, ncrypto::X509View::UsageResult::PRESENT);
   EXPECT_EQ(calls, 1);
   EXPECT_NE(ERR_peek_error(), 0UL);
   ERR_clear_error();
+}
+
+TEST(NodeCrypto, X509UsageVisitorReportsFailures) {
+  using UsageResult = ncrypto::X509View::UsageResult;
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  const auto unexpected_usage = [](const char*) {
+    ADD_FAILURE() << "Unexpected extended key usage";
+  };
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage), UsageResult::ABSENT);
+
+  ncrypto::StackOfASN1 usages(sk_ASN1_OBJECT_new_null());
+  ASSERT_TRUE(usages);
+  X509ExtensionPointer empty_eku(
+      X509V3_EXT_i2d(NID_ext_key_usage, 0, usages.get()));
+  ASSERT_TRUE(empty_eku);
+  ASSERT_EQ(X509_add_ext(cert.get(), empty_eku.get(), -1), 1);
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage), UsageResult::PRESENT);
+
+  ASSERT_EQ(X509_add_ext(cert.get(), empty_eku.get(), -1), 1);
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage),
+            UsageResult::OPERATION_FAILED);
+
+  ncrypto::X509Pointer malformed(X509_new());
+  ncrypto::DeleteFnPtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> value(
+      ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(malformed);
+  ASSERT_TRUE(value);
+  const unsigned char truncated_sequence[] = {0x30};
+  ASSERT_EQ(ASN1_OCTET_STRING_set(
+                value.get(), truncated_sequence, sizeof(truncated_sequence)),
+            1);
+  X509ExtensionPointer malformed_eku(
+      X509_EXTENSION_create_by_NID(nullptr, NID_ext_key_usage, 0, value.get()));
+  ASSERT_TRUE(malformed_eku);
+  ASSERT_EQ(X509_add_ext(malformed.get(), malformed_eku.get(), -1), 1);
+  EXPECT_EQ(malformed.view().enumUsages(unexpected_usage),
+            UsageResult::OPERATION_FAILED);
+}
+
+TEST(NodeCrypto, X509InfoAccessReportsPresence) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  bool has_extension = true;
+  EXPECT_FALSE(cert.view().getInfoAccess(&has_extension));
+  EXPECT_FALSE(has_extension);
+
+  AccessDescriptionsPointer descriptions(sk_ACCESS_DESCRIPTION_new_null());
+  ASSERT_TRUE(descriptions);
+  X509ExtensionPointer info_access(
+      X509V3_EXT_i2d(NID_info_access, 0, descriptions.get()));
+  ASSERT_TRUE(info_access);
+  ASSERT_EQ(X509_add_ext(cert.get(), info_access.get(), -1), 1);
+  EXPECT_FALSE(cert.view().getInfoAccess(&has_extension));
+  EXPECT_TRUE(has_extension);
 }
 
 TEST(NodeCrypto, PreservesLongX509NameObjectIdentifiers) {

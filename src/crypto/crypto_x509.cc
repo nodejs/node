@@ -173,6 +173,11 @@ void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 namespace {
+enum class X509ConversionMode {
+  kThrow,
+  kLegacyTLS,
+};
+
 enum class MalformedSubjectAltNameMode {
   kThrow,
   kReturnLegacySentinel,
@@ -180,14 +185,19 @@ enum class MalformedSubjectAltNameMode {
 
 constexpr std::string_view kMalformedSubjectAltName = "DNS:";
 
-MaybeLocal<Value> GetFingerprintDigest(Environment* env,
-                                       const Digest& method,
-                                       const X509View& cert) {
+MaybeLocal<Value> GetFingerprintDigest(
+    Environment* env,
+    const Digest& method,
+    const X509View& cert,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   auto fingerprint = cert.getFingerprint(method);
-  // Returning an empty string indicates that the digest failed for
-  // some reason.
   if (!fingerprint.has_value()) [[unlikely]] {
-    return Undefined(env->isolate());
+    if (mode == X509ConversionMode::kLegacyTLS) {
+      return Undefined(env->isolate());
+    }
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                      "Failed to calculate X.509 fingerprint");
+    return {};
   }
   auto& fp = fingerprint.value();
   return OneByteString(env->isolate(), fp.data(), fp.length());
@@ -209,44 +219,49 @@ MaybeLocal<String> ToV8Value(Environment* env, std::string_view val) {
       env->isolate(), val.data(), NewStringType::kNormal, val.size());
 }
 
-MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
-  if (!bio) [[unlikely]]
+MaybeLocal<Value> ToV8Value(
+    Local<Context> context,
+    const BIOPointer& bio,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
+  Environment* env = Environment::GetCurrent(context);
+  if (!bio) [[unlikely]] {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to format X.509 value");
+    }
     return {};
+  }
   BUF_MEM* mem = bio;
-  if (!mem) [[unlikely]]
+  if (!mem) [[unlikely]] {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to read X.509 output BIO");
+    }
     return {};
+  }
   Local<Value> ret;
-  if (!String::NewFromUtf8(Isolate::GetCurrent(),
-                           mem->data,
-                           NewStringType::kNormal,
-                           mem->length)
+  if (!String::NewFromUtf8(
+           env->isolate(), mem->data, NewStringType::kNormal, mem->length)
            .ToLocal(&ret))
     return {};
   return ret;
 }
 
-MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
-  if (!bio) [[unlikely]]
+MaybeLocal<Value> ToBuffer(
+    Environment* env,
+    BIOPointer* bio,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
+  if (bio == nullptr || !*bio) [[unlikely]] {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to encode X.509 value");
+    }
     return {};
-  BUF_MEM* mem = bio;
-  if (!mem) [[unlikely]]
-    return {};
-  Local<Value> ret;
-  if (!String::NewFromUtf8(Isolate::GetCurrent(),
-                           mem->data,
-                           NewStringType::kNormal,
-                           mem->length)
-           .ToLocal(&ret))
-    return {};
-  return ret;
-}
-
-MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
-  if (bio == nullptr || !*bio) [[unlikely]]
-    return {};
+  }
   BUF_MEM* mem = *bio;
-  if (!mem) [[unlikely]]
+  if (!mem) [[unlikely]] {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to read X.509 output BIO");
+    }
     return {};
+  }
   auto backing = AdoptIntoBackingStore(
       env->isolate(),
       mem->data,
@@ -265,12 +280,15 @@ MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
   return ret;
 }
 
-MaybeLocal<Value> GetDer(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetDer(Environment* env,
+                         const X509View& view,
+                         X509ConversionMode mode = X509ConversionMode::kThrow) {
   Local<Value> ret;
   auto bio = view.toDER();
-  if (!bio) [[unlikely]]
+  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
     return Undefined(env->isolate());
-  if (!ToBuffer(env, &bio).ToLocal(&ret)) {
+  }
+  if (!ToBuffer(env, &bio, mode).ToLocal(&ret)) {
     return {};
   }
   return ret;
@@ -279,7 +297,8 @@ MaybeLocal<Value> GetDer(Environment* env, const X509View& view) {
 MaybeLocal<Value> GetSubjectAltNameString(
     Environment* env,
     const X509View& view,
-    MalformedSubjectAltNameMode malformed_name_mode) {
+    MalformedSubjectAltNameMode malformed_name_mode,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   Local<Value> ret;
   bool has_extension = false;
   auto bio = view.getSubjectAltName(&has_extension);
@@ -299,38 +318,66 @@ MaybeLocal<Value> GetSubjectAltNameString(
         env, "Failed to format subject alternative name");
     return {};
   }
-  if (!ToV8Value(env->context(), bio).ToLocal(&ret)) return {};
+  if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) return {};
   return ret;
 }
 
-MaybeLocal<Value> GetInfoAccessString(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetInfoAccessString(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   Local<Value> ret;
-  auto bio = view.getInfoAccess();
-  if (!bio) [[unlikely]]
-    return Undefined(env->isolate());
-  if (!ToV8Value(env->context(), bio).ToLocal(&ret)) {
+  bool has_extension = false;
+  auto bio = view.getInfoAccess(&has_extension);
+  if (!bio) [[unlikely]] {
+    if (!has_extension || mode == X509ConversionMode::kLegacyTLS) {
+      return Undefined(env->isolate());
+    }
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to format authority information access");
+    return {};
+  }
+  if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) {
     return {};
   }
   return ret;
 }
 
-MaybeLocal<Value> GetValidFrom(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetValidFrom(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
+  if (mode == X509ConversionMode::kThrow &&
+      !view.getValidFromTime().has_value()) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notBefore");
+    return {};
+  }
   Local<Value> ret;
   auto bio = view.getValidFrom();
-  if (!bio) [[unlikely]]
+  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
     return Undefined(env->isolate());
-  if (!ToV8Value(env->context(), bio).ToLocal(&ret)) {
+  }
+  if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) {
     return {};
   }
   return ret;
 }
 
-MaybeLocal<Value> GetValidTo(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetValidTo(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
+  if (mode == X509ConversionMode::kThrow && !view.getValidToTime().has_value())
+      [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notAfter");
+    return {};
+  }
   Local<Value> ret;
   auto bio = view.getValidTo();
-  if (!bio) [[unlikely]]
+  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
     return Undefined(env->isolate());
-  if (!ToV8Value(env->context(), bio).ToLocal(&ret)) {
+  }
+  if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) {
     return {};
   }
   return ret;
@@ -338,18 +385,20 @@ MaybeLocal<Value> GetValidTo(Environment* env, const X509View& view) {
 
 MaybeLocal<Value> GetValidFromDate(Environment* env, const X509View& view) {
   const auto valid_from_time = view.getValidFromTime();
-  const double milliseconds = valid_from_time.has_value()
-                                  ? valid_from_time.value() * 1000.
-                                  : std::numeric_limits<double>::quiet_NaN();
-  return Date::New(env->context(), milliseconds);
+  if (!valid_from_time.has_value()) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notBefore");
+    return {};
+  }
+  return Date::New(env->context(), valid_from_time.value() * 1000.);
 }
 
 MaybeLocal<Value> GetValidToDate(Environment* env, const X509View& view) {
   const auto valid_to_time = view.getValidToTime();
-  const double milliseconds = valid_to_time.has_value()
-                                  ? valid_to_time.value() * 1000.
-                                  : std::numeric_limits<double>::quiet_NaN();
-  return Date::New(env->context(), milliseconds);
+  if (!valid_to_time.has_value()) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notAfter");
+    return {};
+  }
+  return Date::New(env->context(), valid_to_time.value() * 1000.);
 }
 
 MaybeLocal<Value> GetSignatureAlgorithm(Environment* env,
@@ -367,8 +416,11 @@ MaybeLocal<Value> GetSignatureAlgorithm(Environment* env,
 MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
                                            const X509View& view) {
   auto oid = view.getSignatureAlgorithmOID();
-  if (!oid.has_value()) [[unlikely]]
-    return Undefined(env->isolate());
+  if (!oid.has_value()) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to read X.509 signature algorithm OID");
+    return {};
+  }
   Local<Value> ret;
   if (!ToV8Value(env, oid.value()).ToLocal(&ret)) {
     return {};
@@ -376,20 +428,40 @@ MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
   return ret;
 }
 
-MaybeLocal<Value> GetSerialNumber(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetSerialNumber(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   if (auto serial = view.getSerialNumber()) {
     return ToV8Value(
         env, ToUpper(std::string_view(static_cast<char*>(serial.get()))));
   }
-  return Undefined(env->isolate());
+  if (mode == X509ConversionMode::kLegacyTLS) {
+    return Undefined(env->isolate());
+  }
+  THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to read X.509 serial number");
+  return {};
 }
 
-MaybeLocal<Value> GetKeyUsage(Environment* env, const X509View& cert) {
+MaybeLocal<Value> GetKeyUsage(
+    Environment* env,
+    const X509View& cert,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   LocalVector<Value> vec(env->isolate());
-  bool res = cert.enumUsages([&](std::string_view view) {
+  const auto result = cert.enumUsages([&](std::string_view view) {
     vec.push_back(OneByteString(env->isolate(), view));
   });
-  if (!res) return Undefined(env->isolate());
+  if (result == X509View::UsageResult::ABSENT) {
+    return Undefined(env->isolate());
+  }
+  if (result == X509View::UsageResult::OPERATION_FAILED) {
+    if (mode == X509ConversionMode::kLegacyTLS) {
+      return Undefined(env->isolate());
+    }
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                      "Failed to parse extended key usage");
+    return {};
+  }
   return Array::New(env->isolate(), vec.data(), vec.size());
 }
 
@@ -948,18 +1020,29 @@ void CheckIssued(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   CHECK(args[0]->IsObject());
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data().GetKeyType(), kKeyTypePrivate);
-  args.GetReturnValue().Set(
-      cert->view().checkPrivateKey(key->Data().GetAsymmetricKey()) ==
-      X509View::CheckKeyResult::MATCH);
+  switch (cert->view().checkPrivateKey(key->Data().GetAsymmetricKey())) {
+    case X509View::CheckKeyResult::MATCH:
+      return args.GetReturnValue().Set(true);
+    case X509View::CheckKeyResult::NO_MATCH:
+      return args.GetReturnValue().Set(false);
+    case X509View::CheckKeyResult::UNSUPPORTED_OPERATION:
+      return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env, "Unsupported public key comparison");
+    case X509View::CheckKeyResult::OPERATION_FAILED:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                               "Failed to compare public keys");
+  }
 }
 
 void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
 
@@ -969,8 +1052,14 @@ void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
   // A Public Key can be derived from a private key, so we allow both.
   CHECK_NE(key->Data().GetKeyType(), kKeyTypeSecret);
 
-  args.GetReturnValue().Set(
-      cert->view().checkPublicKey(key->Data().GetAsymmetricKey()));
+  const auto result =
+      cert->view().checkPublicKey(key->Data().GetAsymmetricKey());
+  if (!result) {
+    return ThrowCryptoError(env,
+                            result.openssl_error.value_or(0),
+                            "Failed to verify X.509 signature");
+  }
+  args.GetReturnValue().Set(result.value);
 }
 
 template <typename F>
@@ -1123,8 +1212,14 @@ bool Set(Environment* env,
 // Each entry of the name is converted into a property of the object.
 // The property value may be a single string or an array of strings.
 static MaybeLocal<Value> GetX509NameObject(Environment* env,
-                                           const X509Name& name) {
-  if (!name) return {};
+                                           const X509Name& name,
+                                           X509ConversionMode mode) {
+  if (!name) {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to read X.509 name");
+    }
+    return {};
+  }
 
   Local<Value> v8_name;
   Local<Value> v8_value;
@@ -1191,30 +1286,36 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
   return result;
 }
 
-MaybeLocal<Object> GetPubKey(Environment* env, const ncrypto::Rsa& rsa) {
+MaybeLocal<Object> GetPubKey(Environment* env,
+                             const ncrypto::Rsa& rsa,
+                             X509ConversionMode mode) {
   auto bio = rsa.derPublicKey();
   Local<Value> ret;
-  if (!ToBuffer(env, &bio).ToLocal(&ret)) return {};
+  if (!ToBuffer(env, &bio, mode).ToLocal(&ret)) return {};
   return ret.As<Object>();
 }
 
-MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
+MaybeLocal<Value> GetModulusString(Environment* env,
+                                   const BIGNUM* n,
+                                   X509ConversionMode mode) {
   auto bio = BIOPointer::New(n);
-  if (!bio) [[unlikely]]
-    return {};
-  return ToV8Value(env->context(), bio);
+  return ToV8Value(env->context(), bio, mode);
 }
 
-MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
+MaybeLocal<Value> GetExponentString(Environment* env,
+                                    const BIGNUM* e,
+                                    X509ConversionMode mode) {
   if (e == nullptr) return Null(env->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
   auto bio = BIOPointer::NewMem();
-  if (!bio) [[unlikely]]
-    return {};
-  if (!BIOPointer::WriteAll(bio, "0x") || BN_print(bio.get(), e) != 1) {
+  if (!bio || !BIOPointer::WriteAll(bio, "0x") || BN_print(bio.get(), e) != 1)
+      [[unlikely]] {
+    if (mode == X509ConversionMode::kThrow) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to format RSA exponent");
+    }
     return {};
   }
-  return ToV8Value(env->context(), bio);
+  return ToV8Value(env->context(), bio, mode);
 }
 
 MaybeLocal<Value> GetECPubKey(Environment* env, const ncrypto::Ec& ec) {
@@ -1246,7 +1347,9 @@ MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
                      : MaybeLocal<Value>(Undefined(env->isolate()));
 }
 
-MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
+MaybeLocal<Object> X509ToObject(Environment* env,
+                                const X509View& cert,
+                                X509ConversionMode mode) {
   EscapableHandleScope scope(env->isolate());
 
   auto tmpl = env->x509_dictionary_template();
@@ -1277,37 +1380,58 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
   }
 
   Local<Value> subject;
-  if (!GetX509NameObject(env, cert.getSubjectName()).ToLocal(&subject)) {
+  if (!GetX509NameObject(env, cert.getSubjectName(), mode).ToLocal(&subject)) {
     return {};
   }
 
   Local<Value> issuer;
-  if (!GetX509NameObject(env, cert.getIssuerName()).ToLocal(&issuer)) {
+  if (!GetX509NameObject(env, cert.getIssuerName(), mode).ToLocal(&issuer)) {
     return {};
   }
 
   MaybeLocal<Value> values[] = {
       subject,
       issuer,
-      GetSubjectAltNameString(
-          env, cert, MalformedSubjectAltNameMode::kReturnLegacySentinel),
-      GetInfoAccessString(env, cert),
+      Undefined(env->isolate()),  // subjectaltname
+      Undefined(env->isolate()),  // infoAccess
       Boolean::New(env->isolate(), cert.isCA()),
       Undefined(env->isolate()),  // modulus
       Undefined(env->isolate()),  // exponent
       Undefined(env->isolate()),  // pubkey
       Undefined(env->isolate()),  // bits
-      GetValidFrom(env, cert),
-      GetValidTo(env, cert),
-      GetFingerprintDigest(env, Digest::SHA1, cert),
-      GetFingerprintDigest(env, Digest::SHA256, cert),
-      GetFingerprintDigest(env, Digest::SHA512, cert),
-      GetKeyUsage(env, cert),
-      GetSerialNumber(env, cert),
-      GetDer(env, cert),
+      Undefined(env->isolate()),  // valid_from
+      Undefined(env->isolate()),  // valid_to
+      Undefined(env->isolate()),  // fingerprint
+      Undefined(env->isolate()),  // fingerprint256
+      Undefined(env->isolate()),  // fingerprint512
+      Undefined(env->isolate()),  // ext_key_usage
+      Undefined(env->isolate()),  // serialNumber
+      Undefined(env->isolate()),  // raw
       Undefined(env->isolate()),  // asn1curve
       Undefined(env->isolate()),  // nistcurve
   };
+
+  values[2] = GetSubjectAltNameString(
+      env, cert, MalformedSubjectAltNameMode::kReturnLegacySentinel, mode);
+  if (values[2].IsEmpty()) return {};
+  values[3] = GetInfoAccessString(env, cert, mode);
+  if (values[3].IsEmpty()) return {};
+  values[9] = GetValidFrom(env, cert, mode);
+  if (values[9].IsEmpty()) return {};
+  values[10] = GetValidTo(env, cert, mode);
+  if (values[10].IsEmpty()) return {};
+  values[11] = GetFingerprintDigest(env, Digest::SHA1, cert, mode);
+  if (values[11].IsEmpty()) return {};
+  values[12] = GetFingerprintDigest(env, Digest::SHA256, cert, mode);
+  if (values[12].IsEmpty()) return {};
+  values[13] = GetFingerprintDigest(env, Digest::SHA512, cert, mode);
+  if (values[13].IsEmpty()) return {};
+  values[14] = GetKeyUsage(env, cert, mode);
+  if (values[14].IsEmpty()) return {};
+  values[15] = GetSerialNumber(env, cert, mode);
+  if (values[15].IsEmpty()) return {};
+  values[16] = GetDer(env, cert, mode);
+  if (values[16].IsEmpty()) return {};
 
   // X509_get0_pubkey() fails when the linked OpenSSL cannot decode the
   // certificate's public key (e.g. an unsupported curve in FIPS builds).
@@ -1322,34 +1446,41 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
         NewDictionaryInstance(env->context(), tmpl, values));
   }
 
-  cert.ifRsa([&](const ncrypto::Rsa& rsa) {
-    auto pub_key = rsa.getPublicKey();
-    values[5] = GetModulusString(env, pub_key.n);   // modulus
-    values[6] = GetExponentString(env, pub_key.e);  // exponent
-    values[7] = GetPubKey(env, rsa);                // pubkey
-    values[8] = Integer::New(env->isolate(),
-                             BignumPointer::GetBitCount(pub_key.n));  // bits
-    // TODO(@jasnell): The true response is a left-over from the original
-    // non DictionaryTemplate-based implementation. It can be removed later.
-    return true;
-  });
+  if (!cert.ifRsa([&](const ncrypto::Rsa& rsa) {
+        auto pub_key = rsa.getPublicKey();
+        values[5] = GetModulusString(env, pub_key.n, mode);  // modulus
+        if (values[5].IsEmpty()) return false;
+        values[6] = GetExponentString(env, pub_key.e, mode);  // exponent
+        if (values[6].IsEmpty()) return false;
+        values[7] = GetPubKey(env, rsa, mode);  // pubkey
+        if (values[7].IsEmpty()) return false;
+        values[8] =
+            Integer::New(env->isolate(),
+                         BignumPointer::GetBitCount(pub_key.n));  // bits
+        return true;
+      })) {
+    return {};
+  }
 
-  cert.ifEc([&](const ncrypto::Ec& ec) {
-    const auto group = ec.getGroup();
-    values[7] = GetECPubKey(env, ec);         // pubkey
-    values[8] = GetECGroupBits(env, group);   // bits
-    const int nid = ec.getCurve();
-    if (nid != 0) {
-      // Curve is well-known, get its OID and NIST nick-name (if it has
-      // one).
-      values[17] = GetCurveName<OBJ_nid2sn>(env, nid);         // asn1curve
-      values[18] = GetCurveName<EC_curve_nid2nist>(env, nid);  // nistcurve
-    }
-    // Unnamed curves can be described by their mathematical properties,
-    // but aren't used much (at all?) with X.509/TLS. Support later if
-    // needed.
-    return true;
-  });
+  if (!cert.ifEc([&](const ncrypto::Ec& ec) {
+        const auto group = ec.getGroup();
+        values[7] = GetECPubKey(env, ec);  // pubkey
+        if (values[7].IsEmpty()) return false;
+        values[8] = GetECGroupBits(env, group);  // bits
+        const int nid = ec.getCurve();
+        if (nid != 0) {
+          // Curve is well-known, get its OID and NIST nick-name (if it has
+          // one).
+          values[17] = GetCurveName<OBJ_nid2sn>(env, nid);         // asn1curve
+          values[18] = GetCurveName<EC_curve_nid2nist>(env, nid);  // nistcurve
+        }
+        // Unnamed curves can be described by their mathematical properties,
+        // but aren't used much (at all?) with X.509/TLS. Support later if
+        // needed.
+        return true;
+      })) {
+    return {};
+  }
 
   return scope.EscapeMaybe(NewDictionaryInstance(env->context(), tmpl, values));
 }
@@ -1705,14 +1836,18 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
 }
 
 v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env) {
-  return toObject(env, view());
+  return X509ToObject(env, view(), X509ConversionMode::kThrow)
+      .FromMaybe(Local<Value>());
 }
 
 v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env,
                                                     const X509View& cert) {
   if (!cert) [[unlikely]]
     return {};
-  return X509ToObject(env, cert).FromMaybe(Local<Value>());
+  // TLS also builds legacy certificate objects during the handshake. An
+  // inspection failure must not change certificate acceptance there.
+  return X509ToObject(env, cert, X509ConversionMode::kLegacyTLS)
+      .FromMaybe(Local<Value>());
 }
 
 X509Certificate::X509Certificate(

@@ -819,7 +819,7 @@ declare namespace InternalCryptoBinding {
     keyUsage(): string[] | undefined;
     serialNumber(): string;
     signatureAlgorithm(): string | undefined;
-    signatureAlgorithmOid(): string | undefined;
+    signatureAlgorithmOid(): string;
     version(): number | undefined;
     subjectName(): X509Name | undefined;
     issuerName(): X509Name | undefined;
