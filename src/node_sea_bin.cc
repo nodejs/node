@@ -444,6 +444,14 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
     return ExitCode::kGenericUserError;
   }
 
+  std::string output_path = config.output_path;
+  if (LIEF::PE::is_pe(exe_data) &&
+      (output_path.size() < 4 ||
+       !StringEqualNoCaseN(
+           output_path.data() + output_path.size() - 4, ".exe", 4))) {
+    output_path += ".exe";
+  }
+
   std::vector<char> sea_blob;
   ExitCode code =
       GenerateSingleExecutableBlob(&sea_blob, config, args, exec_args);
@@ -470,23 +478,23 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
 
   uv_buf_t buf = uv_buf_init(reinterpret_cast<char*>(out.data.data()),
                              static_cast<size_t>(out.data.size()));
-  r = WriteFileSync(config.output_path.c_str(), buf);
+  r = WriteFileSync(output_path.c_str(), buf);
   if (r != 0) {
     FPrintF(stderr,
             "Error: Couldn't write output executable: %s: %s\n",
-            config.output_path,
+            output_path,
             uv_strerror(r));
     return ExitCode::kGenericUserError;
   }
 
   // Copy file permissions (including execute bit) from source executable
-  r = uv_fs_chmod(nullptr, &req, config.output_path.c_str(), src_mode, nullptr);
+  r = uv_fs_chmod(nullptr, &req, output_path.c_str(), src_mode, nullptr);
   uv_fs_req_cleanup(&req);
   if (r != 0) {
     FPrintF(stderr,
             "Warning: Couldn't set permissions %d on %s: %s\n",
             src_mode,
-            config.output_path,
+            output_path,
             uv_strerror(r));
   }
 
@@ -494,7 +502,7 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
           "Generated single executable %s + %s -> %s\n",
           config.executable_path,
           sea_config_path,
-          config.output_path);
+          output_path);
   return ExitCode::kNoFailure;
 }
 #else
