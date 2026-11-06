@@ -1,3 +1,4 @@
+#include "ada.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -1415,8 +1416,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   struct Options {
     std::string source;
     std::string filename;
-    // The serialized `env` global, if any.
-    SerializedValue env;
+    // Whether `source` is an ES module rather than a script.
+    bool is_module = false;
+    // What the runtime's initialize() gets, serialized, if anything: the
+    // `env` global, the module bundle and the module loader hooks.
+    SerializedValue init;
     bool testing_globals = false;
     bool testing_ignore_termination = false;
     // Fixed when the isolate is created.
@@ -1711,6 +1715,19 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     uint32_t pending = 0;
   };
 
+  // The ES modules of the green thread. The runtime's module loader
+  // (internal/green_threads/runtime/modules) refers to them by their IDs.
+  struct ModuleRecord {
+    Global<v8::Module> module;
+    std::string url;
+    // The value of a JSON module.
+    Global<Value> json;
+    // The modules that its requests resolve to, in the order of
+    // GetModuleRequests(), once the loader has linked it.
+    std::vector<uint32_t> dependencies;
+    bool linked = false;
+  };
+
   struct TimerRecord {
     Global<Function> callback;
     bool repeat;
@@ -1848,6 +1865,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     // It would block the pool thread, and with it other green threads.
     isolate->SetAllowAtomicsWait(false);
+    isolate->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
+    isolate->SetHostInitializeImportMetaObjectCallback(InitializeImportMeta);
     {
       Mutex::ScopedLock lock(isolate_mutex_);
       isolate_ = isolate;
@@ -1918,18 +1937,22 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                                                       BlockCallback))) {
         return;
       }
-      if (!options.env.empty()) {
-        Local<Value> env;
-        if (!Deserialize(isolate, context, options.env, runtime_.Get(isolate))
-                 .ToLocal(&env) ||
-            context->Global()
-                ->DefineOwnProperty(context,
-                                    FIXED_ONE_BYTE_STRING(isolate, "env"),
-                                    env,
-                                    PropertyAttribute::DontEnum)
-                .IsNothing()) {
+      if (!options.init.empty()) {
+        Local<Value> init;
+        if (!Deserialize(isolate, context, options.init, runtime_.Get(isolate))
+                 .ToLocal(&init) ||
+            CallRuntime(isolate, context, "initialize", 1, &init).IsEmpty()) {
           return;
         }
+      }
+      if (options.is_module) {
+        Local<Value> argv[2];
+        if (!ToV8Value(context, options.source, isolate).ToLocal(&argv[0]) ||
+            !ToV8Value(context, options.filename, isolate).ToLocal(&argv[1])) {
+          return;
+        }
+        USE(CallRuntime(isolate, context, "runMain", arraysize(argv), argv));
+        return;
       }
       Local<Script> script;
       if (!Compile(isolate, context, options.source, options.filename)
@@ -2293,6 +2316,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         timers_.clear();
         // Closes them, which closes the ports they are entangled with.
         ports_.clear();
+        modules_.clear();
+        modules_by_hash_.clear();
         contexts_.clear();
         pending_rejections_.clear();
         runtime_.Reset();
@@ -2847,6 +2872,21 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                           FunctionTemplate::New(isolate, PortStartCallback));
     natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portClose"),
                           FunctionTemplate::New(isolate, PortCloseCallback));
+    static constexpr std::pair<const char*, v8::FunctionCallback>
+        kModuleNatives[] = {
+            {"compileModule", CompileModuleCallback},
+            {"createJsonModule", CreateJsonModuleCallback},
+            {"moduleRequests", ModuleRequestsCallback},
+            {"linkModule", LinkModuleCallback},
+            {"instantiateModule", InstantiateModuleCallback},
+            {"evaluateModule", EvaluateModuleCallback},
+            {"moduleNamespace", ModuleNamespaceCallback},
+            {"resolveUrl", ResolveUrlCallback},
+        };
+    for (const auto& [name, callback] : kModuleNatives) {
+      natives_template->Set(OneByteString(isolate, name),
+                            FunctionTemplate::New(isolate, callback));
+    }
     Local<ObjectTemplate> private_symbols_template =
         ObjectTemplate::New(isolate);
     private_symbols_template->Set(
@@ -3045,6 +3085,282 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     options.source_port = source_port;
     if (has_memory_limit()) options.limited_allocator = allocator_;
     return options;
+  }
+
+  uint32_t AddModule(Isolate* isolate,
+                     Local<v8::Module> module,
+                     std::string url,
+                     Local<Value> json = {}) {
+    const uint32_t id = next_module_id_++;
+    ModuleRecord& record = modules_[id];
+    record.module.Reset(isolate, module);
+    record.url = std::move(url);
+    if (!json.IsEmpty()) record.json.Reset(isolate, json);
+    modules_by_hash_.emplace(module->GetIdentityHash(), id);
+    return id;
+  }
+
+  ModuleRecord* FindModule(Isolate* isolate, Local<v8::Module> module) {
+    auto [begin, end] = modules_by_hash_.equal_range(module->GetIdentityHash());
+    for (auto it = begin; it != end; ++it) {
+      ModuleRecord& record = modules_.at(it->second);
+      if (record.module.Get(isolate) == module) return &record;
+    }
+    return nullptr;
+  }
+
+  // The module with the ID in args[0]. Throws if there is none.
+  static ModuleRecord* ModuleArg(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    GreenIsolate* self = Current();
+    auto it = args[0]->IsUint32()
+                  ? self->modules_.find(args[0].As<Uint32>()->Value())
+                  : self->modules_.end();
+    if (it == self->modules_.end()) {
+      isolate->ThrowException(Exception::TypeError(
+          FIXED_ONE_BYTE_STRING(isolate, "Invalid module")));
+      return nullptr;
+    }
+    return &it->second;
+  }
+
+  // compileModule(source, url): returns the ID of the module.
+  static void CompileModuleCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    CHECK(args[0]->IsString());
+    CHECK(args[1]->IsString());
+    ScriptOrigin origin(
+        args[1], 0, 0, false, -1, Local<Value>(), false, false, true);
+    ScriptCompiler::Source source(args[0].As<String>(), origin);
+    Local<v8::Module> module;
+    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+      return;
+    }
+    Utf8Value url(isolate, args[1]);
+    args.GetReturnValue().Set(Uint32::NewFromUnsigned(
+        isolate, Current()->AddModule(isolate, module, url.ToString())));
+  }
+
+  static MaybeLocal<Value> EvaluateJsonModule(Local<Context> context,
+                                              Local<v8::Module> module) {
+    Isolate* isolate = Isolate::GetCurrent();
+    ModuleRecord* record = Current()->FindModule(isolate, module);
+    CHECK_NOT_NULL(record);
+    if (module
+            ->SetSyntheticModuleExport(
+                isolate,
+                FIXED_ONE_BYTE_STRING(isolate, "default"),
+                record->json.Get(isolate))
+            .IsNothing()) {
+      return {};
+    }
+    Local<v8::Promise::Resolver> resolver;
+    if (!v8::Promise::Resolver::New(context).ToLocal(&resolver) ||
+        resolver->Resolve(context, v8::Undefined(isolate)).IsNothing()) {
+      return {};
+    }
+    return resolver->GetPromise();
+  }
+
+  // createJsonModule(url, value): returns the ID of a module whose default
+  // export is `value`.
+  static void CreateJsonModuleCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    CHECK(args[0]->IsString());
+    Local<String> export_names[] = {FIXED_ONE_BYTE_STRING(isolate, "default")};
+    Local<v8::Module> module = v8::Module::CreateSyntheticModule(
+        isolate,
+        args[0].As<String>(),
+        export_names,
+        [](Local<Context> context,
+           Local<v8::Module> module) -> MaybeLocal<v8::Promise> {
+          Local<Value> promise;
+          if (!EvaluateJsonModule(context, module).ToLocal(&promise)) return {};
+          return promise.As<v8::Promise>();
+        });
+    Utf8Value url(isolate, args[0]);
+    args.GetReturnValue().Set(Uint32::NewFromUnsigned(
+        isolate,
+        Current()->AddModule(isolate, module, url.ToString(), args[1])));
+  }
+
+  // moduleRequests(id): returns [specifier, attributes] for each of the
+  // module's requests, where `attributes` is an object.
+  static void ModuleRequestsCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    ModuleRecord* record = ModuleArg(args);
+    if (record == nullptr) return;
+    Local<v8::Module> module = record->module.Get(isolate);
+    LocalVector<Value> requests(isolate);
+    if (!module->IsSyntheticModule()) {
+      Local<v8::FixedArray> module_requests = module->GetModuleRequests();
+      for (int i = 0; i < module_requests->Length(); i++) {
+        Local<v8::ModuleRequest> request =
+            module_requests->Get(i).As<v8::ModuleRequest>();
+        Local<Object> attributes;
+        if (!ImportAttributesToObject(
+                 context, request->GetImportAttributes(), 3)
+                 .ToLocal(&attributes)) {
+          return;
+        }
+        Local<Value> pair[] = {request->GetSpecifier(), attributes};
+        requests.push_back(v8::Array::New(isolate, pair, arraysize(pair)));
+      }
+    }
+    args.GetReturnValue().Set(
+        v8::Array::New(isolate, requests.data(), requests.size()));
+  }
+
+  // An object with the attributes in `attributes`, whose entries have
+  // `stride` elements, starting with the key and the value.
+  static MaybeLocal<Object> ImportAttributesToObject(
+      Local<Context> context, Local<v8::FixedArray> attributes, int stride) {
+    Isolate* isolate = Isolate::GetCurrent();
+    Local<Object> object =
+        Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+    for (int i = 0; i + 1 < attributes->Length(); i += stride) {
+      Local<Value> key = attributes->Get(i).As<Value>();
+      Local<Value> value = attributes->Get(i + 1).As<Value>();
+      if (object->Set(context, key, value).IsNothing()) return {};
+    }
+    return object;
+  }
+
+  // linkModule(id, dependencyIds): sets the modules that the module's
+  // requests resolve to.
+  static void LinkModuleCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    ModuleRecord* record = ModuleArg(args);
+    if (record == nullptr) return;
+    CHECK(args[1]->IsArray());
+    Local<v8::Array> ids = args[1].As<v8::Array>();
+    std::vector<uint32_t> dependencies;
+    for (uint32_t i = 0; i < ids->Length(); i++) {
+      Local<Value> id;
+      if (!ids->Get(context, i).ToLocal(&id)) return;
+      CHECK(id->IsUint32());
+      CHECK(Current()->modules_.contains(id.As<Uint32>()->Value()));
+      dependencies.push_back(id.As<Uint32>()->Value());
+    }
+    record->dependencies = std::move(dependencies);
+    record->linked = true;
+  }
+
+  static MaybeLocal<v8::Module> ResolveModule(Local<Context> context,
+                                              size_t index,
+                                              Local<v8::Module> referrer) {
+    Isolate* isolate = Isolate::GetCurrent();
+    GreenIsolate* self = Current();
+    ModuleRecord* record = self->FindModule(isolate, referrer);
+    if (record == nullptr || !record->linked ||
+        index >= record->dependencies.size()) {
+      isolate->ThrowException(Exception::Error(
+          FIXED_ONE_BYTE_STRING(isolate, "The module is not linked")));
+      return {};
+    }
+    return self->modules_.at(record->dependencies[index]).module.Get(isolate);
+  }
+
+  // instantiateModule(id): links the module's graph, which the loader has
+  // linked.
+  static void InstantiateModuleCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    ModuleRecord* record = ModuleArg(args);
+    if (record == nullptr) return;
+    USE(record->module.Get(isolate)->InstantiateModule(
+        isolate->GetCurrentContext(), ResolveModule));
+  }
+
+  // evaluateModule(id): returns a promise that settles once the module is
+  // evaluated.
+  static void EvaluateModuleCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    ModuleRecord* record = ModuleArg(args);
+    if (record == nullptr) return;
+    Local<v8::Promise> promise;
+    if (record->module.Get(isolate)
+            ->Evaluate(isolate->GetCurrentContext())
+            .ToLocal(&promise)) {
+      args.GetReturnValue().Set(promise);
+    }
+  }
+
+  static void ModuleNamespaceCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    ModuleRecord* record = ModuleArg(args);
+    if (record == nullptr) return;
+    args.GetReturnValue().Set(
+        record->module.Get(isolate)->GetModuleNamespace());
+  }
+
+  // resolveUrl(input[, base]): returns the URL's href, or undefined if it
+  // is not a valid URL.
+  static void ResolveUrlCallback(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    CHECK(args[0]->IsString());
+    Utf8Value input(isolate, args[0]);
+    std::optional<ada::url_aggregator> url;
+    if (args[1]->IsString()) {
+      Utf8Value base_input(isolate, args[1]);
+      auto base = ada::parse<ada::url_aggregator>(base_input.ToStringView());
+      if (!base) return;
+      auto result =
+          ada::parse<ada::url_aggregator>(input.ToStringView(), &*base);
+      if (result) url = std::move(*result);
+    } else {
+      auto result = ada::parse<ada::url_aggregator>(input.ToStringView());
+      if (result) url = std::move(*result);
+    }
+    if (!url) return;
+    Local<Value> href;
+    if (ToV8Value(isolate->GetCurrentContext(), url->get_href(), isolate)
+            .ToLocal(&href)) {
+      args.GetReturnValue().Set(href);
+    }
+  }
+
+  // import(): the runtime's module loader imports the module.
+  static MaybeLocal<v8::Promise> ImportModuleDynamically(
+      Local<Context> context,
+      Local<v8::Data> host_defined_options,
+      Local<Value> resource_name,
+      Local<String> specifier,
+      Local<v8::FixedArray> import_attributes) {
+    Isolate* isolate = Isolate::GetCurrent();
+    GreenIsolate* self = Current();
+    Local<Object> attributes;
+    if (!ImportAttributesToObject(context, import_attributes, 2)
+             .ToLocal(&attributes)) {
+      return {};
+    }
+    Local<Value> argv[] = {
+        specifier,
+        resource_name->IsString() ? resource_name : v8::Undefined(isolate),
+        attributes,
+    };
+    Local<Value> promise;
+    if (!self->CallRuntime(
+                 isolate, context, "importModule", arraysize(argv), argv)
+             .ToLocal(&promise)) {
+      return {};
+    }
+    CHECK(promise->IsPromise());
+    return promise.As<v8::Promise>();
+  }
+
+  static void InitializeImportMeta(Local<Context> context,
+                                   Local<v8::Module> module,
+                                   Local<Object> meta) {
+    Isolate* isolate = Isolate::GetCurrent();
+    ModuleRecord* record = Current()->FindModule(isolate, module);
+    if (record == nullptr) return;
+    Local<Value> url;
+    if (!ToV8Value(context, record->url, isolate).ToLocal(&url)) return;
+    USE(meta->Set(context, FIXED_ONE_BYTE_STRING(isolate, "url"), url));
   }
 
   // messageChannel(): returns two entangled ports.
@@ -3321,6 +3637,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::shared_ptr<LimitedAllocator> allocator_;
   std::unordered_map<uint32_t, std::unique_ptr<GreenPort>> ports_;
   uint32_t next_port_id_ = 1;
+
+  // See ModuleRecord.
+  std::unordered_map<uint32_t, ModuleRecord> modules_;
+  std::unordered_multimap<int, uint32_t> modules_by_hash_;
+  uint32_t next_module_id_ = 1;
   uint64_t group_id_ = 0;
   bool uses_node_snapshot_ = true;
   uint64_t max_cpu_time_ = 0;
@@ -3915,8 +4236,9 @@ class GreenThreadWrap final : public HandleWrap {
         options.group_id = group->id();
       }
     }
-    // args[10]: the hooks of the host's RpcSession. args[11]: the env, if
-    // any, which is serialized with them.
+    // args[10]: the hooks of the host's RpcSession. args[11]: what the
+    // runtime's initialize() gets, if anything, which is serialized with
+    // them. args[12]: whether the source is an ES module.
     Local<Object> rpc_hooks;
     if (args[10]->IsObject()) {
       rpc_hooks = args[10].As<Object>();
@@ -3924,9 +4246,10 @@ class GreenThreadWrap final : public HandleWrap {
         std::optional<SerializedValue> bytes = Serialize(
             env->isolate(), env->context(), args[11], true, rpc_hooks);
         if (!bytes) return;
-        options.env = std::move(*bytes);
+        options.init = std::move(*bytes);
       }
     }
+    options.is_module = args[12]->IsTrue();
 
     auto* wrap = new GreenThreadWrap(env, args.This(), std::move(options));
     if (!rpc_hooks.IsEmpty()) wrap->rpc_hooks_.Reset(env->isolate(), rpc_hooks);
