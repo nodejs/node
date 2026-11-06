@@ -68,7 +68,7 @@ static constexpr std::array<uint8_t, 256> path_signature_table =
       for (size_t i = 0; i < 256; i++) {
         if (i <= 0x20 || i == 0x22 || i == 0x23 || i == 0x3c || i == 0x3e ||
             i == 0x3f || i == 0x5e || i == 0x60 || i == 0x7b || i == 0x7d ||
-            i > 0x7e) {
+            i == 0x2e || i > 0x7e) {
           result[i] = 1;
         } else if (i == 0x25) {
           result[i] = 8;
