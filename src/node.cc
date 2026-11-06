@@ -155,7 +155,7 @@ namespace per_process {
 
 // node_dotenv.h
 // Instance is used to store environment variables including NODE_OPTIONS.
-node::Dotenv dotenv_file = Dotenv();
+node::Dotenv dotenv_file = Dotenv::ForProcessEnvironment();
 
 // node_config_file.h
 node::ConfigReader config_reader = ConfigReader();
@@ -1399,9 +1399,14 @@ InitializeOncePerProcessInternal(
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
     {
+      // The env files are not applied to the environment yet at this point.
+      // A variable from the real environment takes precedence over them.
       std::string extra_ca_certs;
-      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs) ||
+          credentials::SafeGetenvFromEnvFile("NODE_EXTRA_CA_CERTS",
+                                             &extra_ca_certs)) {
         crypto::UseExtraCaCerts(extra_ca_certs);
+      }
     }
 #endif  // HAVE_OPENSSL
   }

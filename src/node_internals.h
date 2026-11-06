@@ -333,6 +333,10 @@ class ThreadPoolWork {
 
 namespace credentials {
 bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
+// Looks up a variable in the env files passed with --env-file, with the same
+// privilege check as SafeGetenv(). For variables that are read before the env
+// files are applied to the environment.
+bool SafeGetenvFromEnvFile(const char* key, std::string* text);
 }  // namespace credentials
 
 void TraceEnvVar(Environment* env, const char* message);
