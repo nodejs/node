@@ -19,6 +19,14 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_strings;
   v8::Local<v8::Boolean> allow_code_gen_wasm;
   v8::MicrotaskQueue* own_microtask_queue = nullptr;
+  // Set when a vm.MicrotaskQueue (see ContextifyMicrotaskQueue below) is
+  // passed in via `microtaskMode: { type: 'manual', queue }`. Unlike
+  // own_microtask_queue, this queue is not exclusively owned by the context:
+  // it may be shared by multiple contexts, and none of them auto-drain it
+  // (see ContextifyContext::microtask_queue()). v8::MicrotaskQueue is
+  // cppgc-managed, so (like own_microtask_queue) this is a non-owning
+  // pointer; ContextifyContext keeps it alive via a cppgc::Persistent.
+  v8::MicrotaskQueue* shared_microtask_queue = nullptr;
   v8::Local<v8::Symbol> host_defined_options_id;
   bool vanilla = false;
 };
@@ -186,6 +194,44 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
       const v8::PropertyCallbackInfo<v8::Array>& args);
 
   v8::TracedReference<v8::Context> context_;
+  cppgc::Persistent<v8::MicrotaskQueue> microtask_queue_;
+  // Keep the queue alive even after its JS handle is collected.
+  cppgc::Persistent<v8::MicrotaskQueue> shared_microtask_queue_;
+};
+
+/**
+ * JS-facing handle for an explicit v8::MicrotaskQueue that can be shared by
+ * multiple vm.Context instances (see ContextOptions::shared_microtask_queue
+ * and ContextifyContext::New()). Created from JS via vm.createMicrotaskQueue().
+ *
+ * Unlike ContextifyContext, this does not need to be cppgc-managed itself:
+ * v8::MicrotaskQueue is its own cppgc-managed object, and every holder (this
+ * wrapper, plus each ContextifyContext that uses it) keeps it alive with an
+ * independent cppgc::Persistent root. That means the queue survives
+ * independently of this wrapper's own JS lifetime, so a plain (weak-by-
+ * default) BaseObject is sufficient here.
+ */
+class ContextifyMicrotaskQueue final : public BaseObject {
+ public:
+  ContextifyMicrotaskQueue(Environment* env, v8::Local<v8::Object> wrap);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunMicrotasks(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsMicrotaskQueue(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  inline v8::MicrotaskQueue* microtask_queue() const {
+    return microtask_queue_.Get();
+  }
+
+  SET_MEMORY_INFO_NAME(ContextifyMicrotaskQueue)
+  SET_SELF_SIZE(ContextifyMicrotaskQueue)
+  SET_NO_MEMORY_INFO()
+
+ private:
   cppgc::Persistent<v8::MicrotaskQueue> microtask_queue_;
 };
 
