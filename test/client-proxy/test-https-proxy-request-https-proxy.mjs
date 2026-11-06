@@ -29,6 +29,9 @@ await once(server, 'listening');
 
 // Start an HTTPS proxy server.
 const { proxy, logs } = createProxyServer({ https: true });
+proxy.on('secureConnection', common.mustCall((socket) => {
+  assert.strictEqual(socket.servername, 'localhost');
+}));
 proxy.listen(0);
 await once(proxy, 'listening');
 
