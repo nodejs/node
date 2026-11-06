@@ -11,6 +11,7 @@
 #include "glob/glob_program.h"
 #include "glob/glob_walker.h"
 #include "lru_cache-inl.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_snapshotable.h"
 #include "threadpoolwork-inl.h"
@@ -37,6 +38,35 @@ class JsExcludeFilter final : public ExcludeFilter {
 
   Environment* env_;
   v8::Global<v8::Function> callback_;
+  bool failed_ = false;
+};
+
+// The reads a JavaScript reader serves, see internal/fs/glob.
+enum ReadOp : int {
+  kReadLstat = 0,
+  kReadStat = 1,
+  kReadRealpath = 2,
+  kReadScandir = 3,
+};
+
+// Reads the filesystem through a JavaScript function: the fs hooks of a
+// mounted virtual file system.
+class JsFsReader final : public FsReader {
+ public:
+  JsFsReader(Environment* env, v8::Local<v8::Function> read);
+
+  StatInfo Lstat(const std::string& path) override;
+  bool IsDirectory(const std::string& path) override;
+  std::string Realpath(const std::string& path) override;
+  std::vector<DirEntry> Scandir(const std::string& path) override;
+  bool failed() const override { return failed_; }
+
+ private:
+  // Nothing when the function threw; the exception stays pending.
+  v8::MaybeLocal<v8::Value> Call(ReadOp op, const std::string& path);
+
+  Environment* env_;
+  v8::Global<v8::Function> read_;
   bool failed_ = false;
 };
 
@@ -72,7 +102,8 @@ class BindingData : public SnapshotableObject {
                          WalkOptions* options,
                          std::vector<CompiledPatternPtr>* includes,
                          std::vector<CompiledPatternPtr>* excludes,
-                         std::unique_ptr<JsExcludeFilter>* filter);
+                         std::unique_ptr<JsExcludeFilter>* filter,
+                         std::unique_ptr<JsFsReader>* reader);
 
   // Compiles (or fetches) `pattern`; returns nullptr on a compile error,
   // with the reason written to *error.
@@ -103,7 +134,8 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
               const WalkOptions& options,
               const std::vector<CompiledPatternPtr>& includes,
               const std::vector<CompiledPatternPtr>& excludes,
-              std::unique_ptr<JsExcludeFilter> filter);
+              std::unique_ptr<JsExcludeFilter> filter,
+              std::unique_ptr<JsFsReader> reader);
 
   // How many results an iterator pull returns at a time.
   // See the explanation in this header's .cc file for
@@ -123,6 +155,15 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
 
  private:
   static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args, bool drain);
+  // How many results the pull in flight still wants.
+  size_t MaxResults() const;
+  // A slice of a walk that reads through JavaScript, run on the main
+  // thread from a later loop turn.
+  void RunMainThreadSlice();
+  // Settles the pull in flight: with the batch, or with the exception a
+  // callback threw.
+  void Resolve();
+  void Reject(const errors::TryCatchScope& try_catch);
   v8::MaybeLocal<v8::Value> Settle();
   // The main-thread half of a slice: publishes the permission denials the
   // walk met and puts the questions of a directory waiting on the exclude
@@ -130,8 +171,9 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
   void PublishDenials();
   void AnswerQuestions();
 
-  // Declared before the walk, which points at it.
+  // Declared before the walk, which points at them.
   std::unique_ptr<JsExcludeFilter> filter_;
+  std::unique_ptr<JsFsReader> reader_;
   Walk walk_;
   const bool with_file_types_;
   // Set by all(): the pull consumes the rest of the walk in one batch.

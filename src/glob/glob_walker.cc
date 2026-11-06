@@ -268,13 +268,6 @@ bool MatchFullPath(const CompiledPattern& pattern,
   return MatchPattern(pattern, PatternView(*scratch));
 }
 
-struct StatInfo {
-  bool exists = false;
-  bool is_dir = false;
-  bool is_link = false;
-  int type = UV_DIRENT_UNKNOWN;
-};
-
 // The dirent type a stat's mode describes; special files keep their real
 // type, as the previous implementation's lstat-built Dirents did.
 int TypeOfMode(uint64_t mode) {
@@ -310,11 +303,6 @@ int DirentTypeOf(const StatInfo& info) {
          : info.is_dir ? UV_DIRENT_DIR
                        : UV_DIRENT_FILE;
 }
-
-struct DirEntry {
-  std::string name;
-  int type = UV_DIRENT_UNKNOWN;
-};
 
 // One blocking scandir with no Environment access, callable from any thread.
 std::vector<DirEntry> ScanDir(const char* path) {
@@ -652,6 +640,7 @@ class WalkerState {
   bool RunSlice(size_t max_results,
                 bool on_main_thread,
                 std::vector<WalkEntry>* out) {
+    CHECK_IMPLIES(options_.fs_reader != nullptr, on_main_thread);
     on_main_thread_ = on_main_thread;
     if (!started_) {
       started_ = true;
@@ -706,11 +695,13 @@ class WalkerState {
   // visited once and nothing can observe the traversal while it runs:
   // one pattern row, no '..' hops or absolute heads (revisits), no
   // symlink following (realpath chains), no exclude pattern or callback
-  // (pruning), and no permission model (per-path checks).
+  // (pruning), no reader (main-thread reads), and no permission model
+  // (per-path checks).
   bool ClassifyFree() const {
     if (rows_.size() != 1) return false;
     if (!excludes_.empty() || options_.exclude_filter != nullptr) return false;
     if (options_.follow_symlinks) return false;
+    if (options_.fs_reader != nullptr) return false;
     if (env_->permission()->enabled()) return false;
     const CompiledPattern::Row& row = *rows_[0];
     if (row.parts.empty()) return false;
@@ -922,18 +913,28 @@ class WalkerState {
     return fn(nullptr, &req->req, args..., nullptr);
   }
 
+  // A reader call that threw ends the walk, its exception pending.
+  void CheckReader() {
+    if (options_.fs_reader->failed()) aborted_ = true;
+  }
+
   StatInfo StatSync(const std::string& path) {
     auto it = stat_cache_.find(path);
     if (it != stat_cache_.end()) return it->second;
     StatInfo info;
     if (PermissionGranted(path)) {
-      fs::FSReqWrapSync req("lstat", path.c_str());
-      if (FsCall(&req, uv_fs_lstat, path.c_str()) == 0) {
-        const uint64_t mode = req.req.statbuf.st_mode;
-        info.exists = true;
-        info.is_dir = (mode & S_IFMT) == S_IFDIR;
-        info.is_link = (mode & S_IFMT) == S_IFLNK;
-        info.type = TypeOfMode(mode);
+      if (options_.fs_reader != nullptr) {
+        info = options_.fs_reader->Lstat(path);
+        CheckReader();
+      } else {
+        fs::FSReqWrapSync req("lstat", path.c_str());
+        if (FsCall(&req, uv_fs_lstat, path.c_str()) == 0) {
+          const uint64_t mode = req.req.statbuf.st_mode;
+          info.exists = true;
+          info.is_dir = (mode & S_IFMT) == S_IFDIR;
+          info.is_link = (mode & S_IFMT) == S_IFLNK;
+          info.type = TypeOfMode(mode);
+        }
       }
     }
     stat_cache_.emplace(path, info);
@@ -949,9 +950,14 @@ class WalkerState {
     if (it != follow_stat_cache_.end()) return it->second;
     bool is_dir = false;
     if (PermissionGranted(path)) {
-      fs::FSReqWrapSync req("stat", path.c_str());
-      if (FsCall(&req, uv_fs_stat, path.c_str()) == 0) {
-        is_dir = (req.req.statbuf.st_mode & S_IFMT) == S_IFDIR;
+      if (options_.fs_reader != nullptr) {
+        is_dir = options_.fs_reader->IsDirectory(path);
+        CheckReader();
+      } else {
+        fs::FSReqWrapSync req("stat", path.c_str());
+        if (FsCall(&req, uv_fs_stat, path.c_str()) == 0) {
+          is_dir = (req.req.statbuf.st_mode & S_IFMT) == S_IFDIR;
+        }
       }
     }
     follow_stat_cache_.emplace(path, is_dir);
@@ -963,10 +969,15 @@ class WalkerState {
     if (it != realpath_cache_.end()) return it->second;
     std::string real;
     if (PermissionGranted(path)) {
-      fs::FSReqWrapSync req("realpath", path.c_str());
-      if (FsCall(&req, uv_fs_realpath, path.c_str()) == 0 &&
-          req.req.ptr != nullptr) {
-        real = static_cast<const char*>(req.req.ptr);
+      if (options_.fs_reader != nullptr) {
+        real = options_.fs_reader->Realpath(path);
+        CheckReader();
+      } else {
+        fs::FSReqWrapSync req("realpath", path.c_str());
+        if (FsCall(&req, uv_fs_realpath, path.c_str()) == 0 &&
+            req.req.ptr != nullptr) {
+          real = static_cast<const char*>(req.req.ptr);
+        }
       }
     }
     return realpath_cache_.emplace(path, std::move(real)).first->second;
@@ -977,7 +988,10 @@ class WalkerState {
     if (it != readdir_cache_.end()) return it->second;
     std::vector<DirEntry> entries;
     if (PermissionGranted(path)) {
-      if (!prefetcher_.Take(path, &entries)) {
+      if (options_.fs_reader != nullptr) {
+        entries = options_.fs_reader->Scandir(path);
+        CheckReader();
+      } else if (!prefetcher_.Take(path, &entries)) {
         fs::FSReqWrapSync req("scandir", path.c_str());
         if (FsCall(&req, uv_fs_scandir, path.c_str(), 0) >= 0) {
           uv_dirent_t ent;
@@ -1003,6 +1017,7 @@ class WalkerState {
   }
 
   void MaybePrefetch(const QueueItem& item) {
+    if (options_.fs_reader != nullptr) return;
     const bool needs_listing =
         std::ranges::any_of(item.patterns, [](const PatternState& pattern) {
           return pattern.indexes.size() != 1 ||
@@ -1108,10 +1123,12 @@ class WalkerState {
     return depth;
   }
 
-  // Whether two spellings name one directory.
+  // Whether two spellings name one directory. A reader's stats carry no
+  // identity (a virtual file system need not have inodes), so its paths
+  // are told apart by realpath, as on Windows.
   bool SamePath(const std::string& a, const std::string& b) {
     if (a == b) return true;
-    if (kWindows) {
+    if (kWindows || options_.fs_reader != nullptr) {
       const std::string real = RealpathSync(a);
       return !real.empty() && real == RealpathSync(b);
     } else {
