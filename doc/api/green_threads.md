@@ -6,7 +6,7 @@
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.0 - Early development
 
 <!-- source_link=lib/green_threads.js -->
 
@@ -60,8 +60,9 @@ the following globals:
   given. See [RPC][].
 * [`RpcTarget`][]: See [RPC][].
 
-Green threads have no access to `require()`, `import`, `process`, or any
-other Node.js API.
+Green threads have no access to `require()`, `process`, or any other Node.js
+API. They can only import the modules that the host supplies. See
+[ES modules][].
 
 ```cjs
 const { GreenThread } = require('node:green_threads');
@@ -190,6 +191,68 @@ and other ports, but not [RPC][] stubs. A message from Node.js that a green
 thread can't receive, such as one with a {FileHandle} or a
 `WebAssembly.Module`, is a `'messageerror'` event whose `data` is a
 `DataCloneError`.
+
+## ES modules
+
+With `type: 'module'`, `source` is an ES module. It can import other modules,
+which the host supplies, and its exports can be called from the host:
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+
+const greenThread = new GreenThread(`
+  import { scale } from './scale.js';
+  export function resize(width, height) {
+    return [scale(width), scale(height)];
+  }
+`, {
+  type: 'module',
+  filename: 'file:///app/main.js',
+  modules: {
+    'file:///app/scale.js': 'export const scale = (x) => x / 2;',
+  },
+});
+greenThread.exports.then(async ({ resize }) => {
+  console.log(await resize(640, 480));  // Prints: [ 320, 240 ]
+  greenThread.terminate();
+});
+```
+
+Green threads have no access to the file system, so modules come from the
+host:
+
+* Specifiers that are URLs, or start with `/`, `./` or `../`, are resolved as
+  URLs, relative to the URL of the importing module. Other specifiers are
+  resolved with the `resolve` hook. `node:` URLs can't be imported.
+* Modules are taken from `modules`, by URL, and otherwise from the `load`
+  hook.
+
+The hooks run on the host's thread, and may be asynchronous. They are called
+at most once for each specifier and module:
+
+* `resolve(specifier, context)`: `context` has the `referrer`, the URL of the
+  importing module, and the import `attributes`. Returns `{ url }`, where
+  `url` is an absolute URL, or `undefined` if the specifier can't be resolved.
+* `load(url, context)`: `context` has the import `attributes`. Returns
+  `{ source, format }`, where `source` is a string, an `ArrayBuffer` or a
+  `TypedArray` containing UTF-8, and `format` is `'module'` (the default) or
+  `'json'`, or `undefined` if there is no such module. JSON modules have to be
+  imported `with { type: 'json' }`.
+
+What can't be imported is an `ERR_MODULE_NOT_FOUND` error. A green thread
+fetches all modules that a module imports before it runs any of them, also
+for `import()`. Scripts can use `import()` too. `import.meta.url` is the
+module's URL.
+
+[`greenThread.exports`][] is a promise for the exports of the main module.
+Its functions are stubs, as with [RPC][]: each call runs in the green thread,
+in an invocation context of its own, as messages do. Other exports are
+copies, taken when the main module has been evaluated. Exported classes
+can't be constructed from the host. Export a function that returns an
+[`RpcTarget`][] instead.
+
+Errors of green threads, including module loading errors, reach the host as
+structured clones, which have no `code` property.
 
 ## Class: `RpcTarget`
 
@@ -411,13 +474,25 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* `source` {string} The script to run in the green thread.
+* `source` {string} The script, or with `type: 'module'` the main module, to
+  run in the green thread.
 * `options` {Object}
   * `env` {Object} The `env` global of the green thread. Functions in it, at
     any depth within plain objects and arrays, and [`RpcTarget`][]s, are
     passed as stubs. Everything else is cloned. See [RPC][].
-  * `filename` {string} The file name used in stack traces.
-    **Default:** `'green-thread.js'`.
+  * `type` {string} `'script'` or `'module'`. See [ES modules][].
+    **Default:** `'script'`.
+  * `filename` {string} The file name used in stack traces. For modules, the
+    URL of the main module, as an absolute URL or path.
+    **Default:** `'green-thread.js'`, or `'file:///green-thread.js'` for
+    modules.
+  * `modules` {Object} Modules that the green thread can import, by URL. Each
+    value is the module's source, or an object like those returned by
+    `load()`. See [ES modules][].
+  * `resolve` {Function} Resolves specifiers that are neither URLs nor
+    relative. See [ES modules][].
+  * `load` {Function} Loads modules that are not in `modules`. See
+    [ES modules][].
   * `isolateGroup` {string|IsolateGroup} The isolate group of the green
     thread: `'new'`, `'default'`, or an {IsolateGroup}. See
     [Isolate groups][]. **Default:** `'new'` if this build of Node.js supports
@@ -438,6 +513,20 @@ added: REPLACEME
 
 Starts a green thread that runs `source`. See [Resource limits][] for what
 happens when a limit is reached.
+
+### `greenThread.exports`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise|undefined}
+
+For green threads with `type: 'module'`, a promise for the exports of the
+main module. It is fulfilled once the main module has been evaluated,
+including any top-level `await`, and rejected if the module can't be loaded
+or throws, or the green thread exits first. `undefined` for scripts. See
+[ES modules][].
 
 ### Event: `'error'`
 
@@ -582,6 +671,7 @@ added: REPLACEME
 Calls [`greenThread.terminate()`][].
 
 [CPU time limits]: #cpu-time-limits
+[ES modules]: #es-modules
 [Isolate groups]: #isolate-groups
 [Memory limits]: #memory-limits
 [Message ports]: #message-ports
@@ -607,6 +697,7 @@ Calls [`greenThread.terminate()`][].
 [`MessagePort`]: worker_threads.md#class-messageport
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
+[`greenThread.exports`]: #greenthreadexports
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate
 [`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
