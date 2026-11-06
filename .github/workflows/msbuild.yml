@@ -1,0 +1,2493 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: MSBuild
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: .
+
+  # Configuration type to build.
+  # You can convert this to a build matrix if you need coverage of multiple configuration types.
+  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  BUILD_CONFIGURATION: Release
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+- name: SQLite Cloud - docs search
+  # You may pin to the exact commit or the version.
+  # uses: sqlitecloud/docsearch-action@f3c6771bfa8f770cd0ca621587a4bd8fe92e8049
+  uses: sqlitecloud/docsearch-action@v6
+  with:
+    # The SQLite Cloud project connection string.
+    project-string: 
+    # Your website's documentation base url.
+    base-url: 
+    # The name of the database to use on SQLite Cloud, just remeber to create first a database on your project!
+    database: 
+    # The path of the markdown files, by default it will parse every .md/.mdx file recursively starting from the working directory.
+    path: # optional, default is $(pwd)
+    # If you want to remove html elements from the search set this to true.
+    strip-html: # optional
+    # If you want to remove jsx elements from the search set this to true.
+    strip-jsx: # optional
+    # If you want to avoid redundancy of your markdown titles in the search set this to true.
+    strip-md-titles: # optional
+    # If you use a front matter and you want the action to convert it to json and send it to the cloud make this true.
+    use-front-matter: # optional
+    # Use the slug in the header as the path instead of the relative one.
+    path-using-slug: # optional
+    - name: Node CI Action
+  # You may pin to the exact commit or the version.
+  # uses: arensis/node-ci-action@f6a745e1f9c21356d06ee4c13599b1e6d209f85d
+  uses: arensis/node-ci-action@v1.0.3
+  with:
+    # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
+    node-version: # optional, default is 20.x
+    # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
+    cache: # optional, default is npm
+    - name: docker-node-yarn
+  # You may pin to the exact commit or the version.
+  # uses: nexys-system/gh-actions-docker-node@7a1320904dd536f786cb6d5fc0741b7a30440c73
+  uses: nexys-system/gh-actions-docker-node@v0.0.1
+  with:
+    # github token
+    githubtoken: # optional, default is ${{ github.token }}
+    # node version
+    nodeversion: # optional, default is 18
+    # name of the container
+    container-name: # optional, default is ${{ github.event.repository.name }}
+    # build command
+    build-command: # optional, default is yarn build
+    # The message to prepend the review suggestion
+    message: # optional
+    - name: Hello Setup Node
+  # You may pin to the exact commit or the version.
+  # uses: jamirandac/setup-node-2@a617c6f981aab5e49e36305b02b5032f6514ab19
+  uses: jamirandac/setup-node-2@v1.0.0
+  - name: check-node-version
+  # You may pin to the exact commit or the version.
+  # uses: matzkoh/check-node-version@6c1f514d361250610d2a595d5c0ef96f54c8e2e9
+  uses: matzkoh/check-node-version@v1.0.0
+  with:
+    # The version to check
+    node-version: # optional
+    # The path to the .node-version file
+    node-version-path: # optional, default is .node-version
+    - name: Get Node Version
+  # You may pin to the exact commit or the version.
+  # uses: svierk/get-node-version@b3fcd94b1b082e1979a85dbc2cb9c91f1168dd71
+  uses: svierk/get-node-version@v1.6.0
+  with:
+    # Explicit Node.js version spec that takes precedence over the package.json lookup. An empty value (e.g. an unset repository variable) falls back to package.json.
+    node-version: # optional, default is 
+    # Specify the path where the package.json file can be found.
+    path: # optional, default is ./
+    # Specify the package manager to be used for dependency caching. Supported values: auto, npm, yarn, pnpm. With auto, the package manager is detected from the packageManager field in package.json or the lock file, and the cache is skipped if neither is found.
+    package-manager: # optional, default is auto
+    # Write a result section to the GitHub Actions job summary. Set to false to avoid collisions with a custom workflow summary.
+    step-summary: # optional, default is true
+    - name: Cached node_modules
+  # You may pin to the exact commit or the version.
+  # uses: AnnAngela/cached_node-modules@8336d5acec06f1670b1097dc0b424527a8481659
+  uses: AnnAngela/cached_node-modules@v6.0.0
+  with:
+    # The package manager to use (npm, pnpm, or yarn). Affects default lockfilePath, command, and {PM} magic variable.
+    packageManager: # optional, default is npm
+    # The key of the cache
+    cacheKey: # optional, default is cached_node-modules:{OS_NAME}:node@{NODE_VERSION_MAJOR}_{NODE_ARCH}:{PM}@{PM_VERSION_MAJOR}:{LOCKFILE}@{LOCKFILE_GIT_COMMIT_SHORT}{CUSTOM_VARIABLE}
+    # The custom variable to insert to the cache key
+    customVariable: # optional, default is 
+    # The command to run for installing dependencies. If empty, defaults based on packageManager.
+    command: # optional, default is 
+    # The working directory
+    cwd: # optional, default is .
+    # The path to the lockfile. If empty, defaults based on packageManager.
+    lockfilePath: # optional, default is 
+    # The path to the package.json
+    packageJsonPath: # optional, default is package.json
+    # The retry time when network error occurs while running the command, `0` means no retry
+    networkErrorRetryTime: # optional, default is 3
+    # The GitHub token
+    githubToken: # optional, default is ${{ github.token }}
+    - name: Node Code Formatter
+  # You may pin to the exact commit or the version.
+  # uses: MarvinJWendt/run-node-formatter@4158ea1a9dadae41161f8e051f0312fd4305d72b
+  uses: MarvinJWendt/run-node-formatter@1.5.2
+  - name: Configure Node.js
+  # You may pin to the exact commit or the version.
+  # uses: pwrdrvr/configure-nodejs@d416c1c78119b25fe03ee3ef78b75af0d69b10a7
+  uses: pwrdrvr/configure-nodejs@v1
+  with:
+    # Node.js version to install
+    node-version: # optional, default is 22.x
+    # Optional override for npm, yarn, or pnpm; defaults to the package manager inferred from package.json and lockfiles
+    package-manager: # optional, default is 
+    # Repository-relative directory containing package.json and lockfile
+    working-directory: # optional, default is .
+    # Optional suffix appended to the dependency cache key for namespacing
+    cache-key-suffix: # optional, default is 
+    # Default manager cache, or opt-in completed pnpm node-modules tree
+    dependency-cache: # optional, default is default
+    # Completed-tree mode: populate (probe/install/save) or restore (exact restore, never install)
+    cache-mode: # optional, default is auto
+    # Additional installation input files, newline-separated paths relative to working-directory
+    cache-inputs: # optional, default is 
+    # Cache pinned pnpm/Yarn executables unless COREPACK_HOME is caller-managed
+    cache-corepack: # optional, default is true
+    # If true, cache workspace-local Electron runtime and native-addon downloads used by lifecycle scripts
+    cache-electron: # optional, default is false
+    # If true, only checks if the dependency cache exists and skips download. Does not change save cache behavior
+    lookup-only: # optional, default is false
+    # Absolute path outside the workspace that keeps the pnpm store, Corepack home, and Electron caches between jobs on a persistent self-hosted runner; empty disables
+    persistent-store-dir: # optional, default is 
+    # Days a seeded persistent store stays warm before it is dropped and re-seeded from the dependency cache
+    persistent-store-max-age-days: # optional, default is 14
+    - name: Keep Node Current
+  # You may pin to the exact commit or the version.
+  # uses: TimothyJones/github-action-keep-node-current@f8b1f7c33795cd02a25dd67db5564afcfc115eb8
+  uses: TimothyJones/github-action-keep-node-current@v1.0.1
+  with:
+    # Token used to push the branch and open the pull request. Defaults to the workflow token.
+    token: # optional, default is ${{ github.token }}
+    # URL (or local file path) of the Node.js release schedule JSON.
+    schedule-url: # optional, default is https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json
+    # Base branch the pull request targets. Defaults to the repository's default branch.
+    base: # optional, default is 
+    # Working branch the action commits to and opens the PR from.
+    branch: # optional, default is chore/node-version-sync
+    # Optional newline- or comma-separated glob overrides for the files to scan. Defaults to workflows, composite actions, .nvmrc and package.json.
+    paths: # optional, default is 
+    # When true, compute and log the changes but do not commit, push, or open a PR.
+    dry-run: # optional, default is false
+    # Override the current date (YYYY-MM-DD) used to evaluate the schedule. Intended for testing.
+    now: # optional, default is 
+    - name: NodeJS Prepare Asset
+  # You may pin to the exact commit or the version.
+  # uses: gregoranders/nodejs-prepare-asset@92adad6f48876512264c334071f08f6fd9aad39f
+  uses: gregoranders/nodejs-prepare-asset@v0.0.21
+  with:
+    # Path to directory containing asset
+    path: 
+    - name: nodejsscan-ng
+  # You may pin to the exact commit or the version.
+  # uses: Harvester57/njsscan-action@35833771119af7aca9a7e1418f6db046c4598d45
+  uses: Harvester57/njsscan-action@v1.0.0-beta16
+  with:
+    # positional arguments:
+  path                  Path can be file(s) or directories with source code
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --json                set output format as JSON
+  --sarif               set output format as SARIF 2.1.0
+  --sonarqube           set output format compatible with SonarQube
+  -o OUTPUT, --output OUTPUT
+                        output filename to save the result
+  --missing-controls    enable missing security controls check
+  -w, --exit-warning    non zero exit code on warning
+  -v, --version         show njsscan version
+
+    args: 
+    - name: Gatsby Publish Node16
+  # You may pin to the exact commit or the version.
+  # uses: Xstoudi/gatsby-gh-pages-action@4a34782f2cb378b38df2b2b4e3aa42adf24d777f
+  uses: Xstoudi/gatsby-gh-pages-action@v3.0.0
+  with:
+    # A personal access token needed to push your site after it has been built.
+    access-token: # optional
+    # The branch expected by GitHub to have the static files needed for your site.
+    deploy-branch: # optional, default is master
+    # The repo expected by GitHub to have the static files needed for your site.
+    deploy-repo: # optional, default is 
+    # Additional arguments that get passed to `gatsby build`.
+    gatsby-args: # optional, default is 
+    # Builds your Gatsby site but skips publishing by setting it to `true`. Helpful for testing/debugging Workflows.
+    skip-publish: # optional
+    # The directory where your Gatsby source files are at. `gatsby build` will run from this directory.
+    working-dir: # optional, default is .
+    # The commit message used for pushing changes to the deploy branch.
+    commit-message: # optional, default is 
+    # The name under which the deploy commit is pushed to the deploy branch.
+    git-config-name: # optional, default is 
+    # The email adress under which the deploy commit is pushed to the deploy branch.
+    git-config-email: # optional, default is 
+    - name: nodejsscan-ng
+  # You may pin to the exact commit or the version.
+  # uses: Harvester57/njsscan-action@35833771119af7aca9a7e1418f6db046c4598d45
+  uses: Harvester57/njsscan-action@v1.0.0-beta16
+  with:
+    # positional arguments:
+  path                  Path can be file(s) or directories with source code
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --json                set output format as JSON
+  --sarif               set output format as SARIF 2.1.0
+  --sonarqube           set output format compatible with SonarQube
+  -o OUTPUT, --output OUTPUT
+                        output filename to save the result
+  --missing-controls    enable missing security controls check
+  -w, --exit-warning    non zero exit code on warning
+  -v, --version         show njsscan version
+
+    args: 
+    - name: NodeProp Configuration Generator
+  # You may pin to the exact commit or the version.
+  # uses: Cdaprod/nodeprop-action@e8ac0e29f41a12b4e5aa96c740145f6d7e692cae
+  uses: Cdaprod/nodeprop-action@v1.0.0
+  with:
+    # Name of the configuration file to generate
+    config-file: # optional, default is .nodeprop.yml
+    # GitHub token for API access
+    github-token: 
+    # Path to store configurations (if using content-addressable storage)
+    storage-path: # optional, default is configs
+    - name: Setup Node.js environment
+  uses: actions/setup-node@v7.1.0
+  with:
+    # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
+    node-version: # optional
+    # File containing the version Spec of the version to use.  Examples: package.json, .nvmrc, .node-version, .tool-versions, mise.toml.
+    node-version-file: # optional
+    # Target architecture for Node to use. Examples: x86, x64. Will use system architecture by default.
+    architecture: # optional
+    # Set this option if you want the action to check for the latest available version that satisfies the version spec.
+    check-latest: # optional
+    # Optional registry to set up for auth. Will set the registry in a project level .npmrc and .yarnrc file, and set up auth to read in from env.NODE_AUTH_TOKEN.
+    registry-url: # optional
+    # Optional scope for authenticating against scoped registries. Will fall back to the repository owner when using the GitHub Packages registry (https://npm.pkg.github.com/).
+    scope: # optional
+    # Used to pull node distributions from node-versions. Since there's a default, this is typically not supplied by the user. When running this action on github.com, the default value is sufficient. When running on GHES, you can pass a personal access token for github.com if you are experiencing rate limiting.
+    token: # optional, default is ${{ github.server_url == 'https://github.com' && github.token || '' }}
+    # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
+    cache: # optional
+    # Set to false to disable automatic caching. By default, caching is enabled when either devEngines.packageManager or the top-level packageManager field in package.json specifies npm as the package manager.
+    package-manager-cache: # optional, default is true
+    # Used to specify the path to a dependency file: package-lock.json, yarn.lock, etc. Supports wildcards or a list of file names for caching multiple dependencies.
+    cache-dependency-path: # optional
+    # Used to specify an alternative mirror to download Node.js binaries from
+    mirror: # optional
+    # The token used as Authorization header when fetching from the mirror
+    mirror-token: # optional
+    - name: Node Publishr
+  # You may pin to the exact commit or the version.
+  # uses: PackagrIO/action-publishr-node@7a8755f77ce3aaf9bd1dd17e8aa76d74f63ae69c
+  uses: PackagrIO/action-publishr-node@v0.0.1
+  with:
+    # Path to file containing Version string
+    version_metadata_path: # default is package.json
+    # Commit Author
+    author_name: # default is packagrio-bot
+    # Commit Author Email
+    author_email: # default is packagr-io[bot]@users.noreply.github.com
+    # Assets to upload
+    upload_assets: # optional
+    # Working Directory
+    cwd: # optional, default is 
+    - name: Node Dependency
+  # You may pin to the exact commit or the version.
+  # uses: AlexRogalskiy/github-action-node-dependency@055bcf99d5ba9f779d34b0356f65fd5a210e2edb
+  uses: AlexRogalskiy/github-action-node-dependency@v2.0.1
+  with:
+    # Operation mode (package_versions / multi_package_versions)
+    mode: 
+    # Target report file name
+    reportFile: # optional
+    # Target report file path
+    reportPath: # optional
+    - name: Node.js Cleanup
+  # You may pin to the exact commit or the version.
+  # uses: ryohidaka/action-nodejs-cleanup@e0bbaed5a2fb3596173ff81e46c8ab8c8564d127
+  uses: ryohidaka/action-nodejs-cleanup@v1.1.3
+  with:
+    # The description of the project.
+    description: # optional
+    # The version of the project. If not provided, the default is '0.0.0'.
+    version: # optional, default is 0.0.0
+    # The email address to be used in the project.
+    email: # optional
+    # The URL where the project's bugs are tracked. If not provided, the default is the issues page of the repository (e.g., 'https://github.com/username/repo/issues').
+    bugs-url: # optional
+    # The URL of the project's homepage. If not provided, the default is the readme page of the repository (e.g., 'https://github.com/username/repo#readme').
+    homepage: # optional
+    # A boolean value that indicates whether to remove the license. The default is false.
+    remove-license: # optional
+    # Comma-separated list of file or directory paths to remove.
+    excluded: # optional
+    # The path to the project's template directory. If not provided, the default template directory will be used.
+    template-dir: # optional
+    # A boolean value indicating whether to remove the template directory. The default is false.
+    remove-template-dir: # optional
+    # 
+    placeholders: # optional, default is {"name": "%NAME%", "description": "%DESCRIPTION%", "author": "%AUTHOR%"}
+    # The username for the commit. If not provided, the default is 'GitHub Actions'.
+    commit-user-name: # optional, default is GitHub Actions
+    # The user email for the commit. If not provided, the default is 'actions@github.com'.
+    commit-user-email: # optional, default is actions@github.com
+    # The commit message. If not provided, the default is 'Template cleanup'.
+    commit-message: # optional, default is Template cleanup
+    # Execute the process, but do not push the commit at the end.
+    dryrun: # optional
+    - name: nodenv/setup-nodenv
+  # You may pin to the exact commit or the version.
+  # uses: nodenv/actions-setup-nodenv@6faff6196d33cbbcd308c6b4af7cda5f4fd834f5
+  uses: nodenv/actions-setup-nodenv@v2.0.4
+  with:
+    # The version of nodenv to install
+    nodenv-version: # optional, default is 1.3.1
+    - name: Node Package Release
+  # You may pin to the exact commit or the version.
+  # uses: CatChen/node-package-release-action@79c01748c79bbf2aa26173f2d017857fb3172dd2
+  uses: CatChen/node-package-release-action@v2.3.14
+  with:
+    # GitHub token.
+    github-token: # optional, default is ${{ github.token }}
+    # Directory to find package.json if it's not the project's root directory.
+    directory: # optional, default is ./
+    # One of the following: major, minor, patch, premajor, preminor, prepatch, prerelease.
+    release-type: # optional, default is prerelease
+    # Mark the GitHub Release as a pre-release.
+    prerelease: # optional
+    # Useful when releasing a GitHub Action, e.g. always updating v1 to the latest v1.*.* and always updating v1.2 to the latest v1.2.*.
+    update-shorthand-release: # optional
+    # When this is true, this Action does nothing if there is no change since last release of the same release type.
+    skip-if-no-diff: # optional
+    # Files, directories, and/or globs to run diff that determines whether to skip. No effect when skip-if-no-diff is false.
+    diff-targets: # optional, default is .
+    # Dry run without making changes.
+    dry-run: # optional
+    - name: Node Automatic Release
+  # You may pin to the exact commit or the version.
+  # uses: aynp/node-automatic-release@fb8e8da2d1f4cf094baab136fb2419c652b99a6a
+  uses: aynp/node-automatic-release@v1.2.0
+  with:
+    # Personal access token. Defaults to GITHUB_TOKEN.
+    token: # optional, default is ${{ github.token }}
+    # Whether to create a draft release or published one.
+    draft_release: # optional, default is true
+    # Whether to automatically generate the name and body for this release.
+    generate_release_notes: # optional, default is true
+    - name: Node CI Action
+  # You may pin to the exact commit or the version.
+  # uses: arensis/node-ci-action@f6a745e1f9c21356d06ee4c13599b1e6d209f85d
+  uses: arensis/node-ci-action@v1.0.3
+  with:
+    # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
+    node-version: # optional, default is 20.x
+    # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
+    cache: # optional, default is npm
+    - name: NODE INSTALL BUILD
+  # You may pin to the exact commit or the version.
+  # uses: Judahh/nodeBuild@e4d66d1cd2a1fa5d84e67389a08c84e93bb8efed
+  uses: Judahh/nodeBuild@0.0.1
+  with:
+    # Folder Name
+    node_version: # default is production
+    - name: install node modules
+  # You may pin to the exact commit or the version.
+  # uses: tecolicom/actions-install-node-modules@91b30a16887b3cbb6b9ff0f2db1b871e9394e4a5
+  uses: tecolicom/actions-install-node-modules@v1.2
+  with:
+    # 
+    root: # optional, default is .
+    # 
+    cache: # optional, default is true
+    # 
+    key: # optional
+    - name: NVM Setup Node
+  # You may pin to the exact commit or the version.
+  # uses: irby/setup-node-nvm@0f2fe973693e3657f208b039956df88e3000939d
+  uses: irby/setup-node-nvm@v1.0.0
+  with:
+    # Install specific version of Node using NVM. If omitted, it will use the .nvmrc value at your project root (if available) or fall back to the value in .nvmrc for this action.
+    node-version: # optional, default is 
+    # The node.js mirror to use
+    node-mirror: # optional, default is https://nodejs.org/dist/
+    - name: Setup Node + PNPM
+  # You may pin to the exact commit or the version.
+  # uses: N0tExisting/setup-pnpm@1fbd9e78196c79e9e7557e31cc5dca31aa15516b
+  uses: N0tExisting/setup-pnpm@v1.0.2
+  with:
+    # The version of node to use
+    node-version: 
+    # The version of pnpm to use
+    pnpm-version: 
+    # Whether or not to use `--prefer-offline` for instalation
+    prefer-offline: # default is true
+    - name: Update Node Dependencies
+  # You may pin to the exact commit or the version.
+  # uses: neverendingqs/gh-action-node-update-deps@b667408f659fda465c63bcdcfdb6c2d0201fad6d
+  uses: neverendingqs/gh-action-node-update-deps@v1.7.0
+  with:
+    # If set, bumps the package version based on value (e.g. patch).
+    bump-version: # optional, default is 
+    # Git user.email to use for the commit.
+    git-user-email: # optional, default is 41898282+github-actions[bot]@users.noreply.github.com
+    # Git user.name to use for the commit.
+    git-user-name: # optional, default is github-actions[bot]
+    # Set to 'yarn' to use yarn. Defaults to npm.
+    package-manager: # optional, default is npm
+    # A command to run before committing the dependency changes (e.g. npm run build).
+    pre-commit-script: # optional
+    # Comma-delimited labels to apply to the pull request.
+    pull-request-labels: # optional, default is dependencies
+    - name: Node Red Flow
+  # You may pin to the exact commit or the version.
+  # uses: Hacksore/node-red-flow@f78726ba5e10d016aea43991446a9f0e021cefe0
+  uses: Hacksore/node-red-flow@v2
+  with:
+    # Repo to update
+    repo: # default is node-red-contrib-discord
+    - name: gpt-review-node
+  # You may pin to the exact commit or the version.
+  # uses: Precise-Finance/gpt-review@8654c2820bc72614f49be7ca9b06d47d59ca55d6
+  uses: Precise-Finance/gpt-review@v1.3
+  with:
+    # Derivative token for using the GitHub REST API
+    GITHUB_TOKEN: 
+    # OpenAI API Key
+    OPENAI_API_KEY: 
+    # OpenAI Organization ID
+    OPENAI_ORG_KEY: 
+    # URL of custom Azure Open AI API
+    AZURE_OPENAI_API: # optional
+    # Key of custom Azure Open AI API
+    AZURE_OPENAI_API_KEY: # optional
+    - name: Node Code Formatter
+  # You may pin to the exact commit or the version.
+  # uses: MarvinJWendt/run-node-formatter@4158ea1a9dadae41161f8e051f0312fd4305d72b
+  uses: MarvinJWendt/run-node-formatter@1.5.2
+  - name: @actalog/node-ci
+  # You may pin to the exact commit or the version.
+  # uses: actalog/node-ci@416a8d3122ea5a4260221ef1741f04dd3f15d8ff
+  uses: actalog/node-ci@v3.0.2
+  with:
+    # 
+    except: # optional, default is 
+    # 
+    github-token: # optional
+    # 
+    node-version: # optional, default is 20
+    # 
+    sonar-token: # optional
+    - name: Run node tests
+  # You may pin to the exact commit or the version.
+  # uses: alleyinteractive/action-test-node@b1e9a92bddbbbbfae55cdaf98b7c9bc7cbdd8397
+  uses: alleyinteractive/action-test-node@v1.2.0
+  with:
+    # Node.js version to use
+    node-version: # optional, default is lts/*
+    # npm version to use if different from the default
+    npm-version: # optional, default is 
+    # Directory to run the commands in
+    working-directory: # optional, default is .
+    # Path to the dependency file to use for caching (relative to working-directory)
+    cache-dependency-path: # optional, default is package-lock.json
+    # Skip npm install
+    install-skip: # optional, default is false
+    # Skip npm install
+    skip-install: # optional, default is false
+    # Command to run npm ci/install
+    install-command: # optional, default is npm ci --prefer-offline --no-audit
+    # Skip npm audit
+    audit-skip: # optional, default is false
+    # Skip npm audit
+    skip-audit: # optional, default is false
+    # Command to run npm audit
+    audit-command: # optional, default is npm audit --audit-level=high --omit=dev --package-lock-only
+    # Skip tests
+    test-skip: # optional, default is false
+    # Skip tests
+    skip-test: # optional, default is false
+    # Command to run tests
+    test-command: # optional, default is npm test
+    # Skip build
+    build-skip: # optional, default is false
+    # Skip build
+    skip-build: # optional, default is false
+    # Command to run build
+    build-command: # optional, default is npm run build
+    # Cache node_modules (in addition to setup-node npm cache)
+    cache-node-modules: # optional, default is false
+    - name: Node VPS Deployment
+  # You may pin to the exact commit or the version.
+  # uses: Techie-Pi/node-vps-deployment@50ecdbc510049c79b73f6a548cd4d33b3e41b1ce
+  uses: Techie-Pi/node-vps-deployment@v1.1
+  with:
+    # Remote path where the files are going to be copied
+    remote-path: 
+    # Remote host
+    host: 
+    # Username to login
+    username: 
+    # SSH port
+    port: # default is 22
+    # SSH password
+    password: 
+    # Deploy automatically
+    automatic-pre-deploy: # default is true
+    # Do you want to use yarn?
+    yarn: 
+    # PM2 ID or Name of the process
+    pm2-id: 
+    - name: ssh-deploy-nodejs
+  # You may pin to the exact commit or the version.
+  # uses: lycpan233/ssh-deploy-nodejs@11e0ae6c596adc761112e76f62220a082190eb70
+  uses: lycpan233/ssh-deploy-nodejs@v1.0.0
+  with:
+    # IP address of the host
+    host: 
+    # Username of SSH user
+    username: 
+    # Port of SSH Protocol
+    port: # optional, default is 22
+    # Password of user, if not using private key
+    password: # optional
+    # Private Key of user, if not using password
+    privateKey: # optional
+    # Specify working directory
+    workdir: # optional
+    # Source path of the file to be uploadeds
+    source: # optional
+    # The destination path of the remote
+    destination: # optional
+    # Shell command to be executed
+    scripts: # optional
+    - name: "Configure AWS Credentials with node16" Action For GitHub Actions using node16
+  uses: MayurDuduka/configure-aws-credentials@main
+- name: Variable Substitution w/Node16
+  # You may pin to the exact commit or the version.
+  # uses: RobertLynJA/variable-substitution@f2c594b88b06cb439f2cc1b2e20a658fae4f7cb6
+  uses: RobertLynJA/variable-substitution@v1.02
+  with:
+    # comma separated list of XML/JSON/YAML files in which tokens are to be substituted. Files names must be specified relative to the folder-path.
+    files: 
+    - name: YAML Parser - Node20
+  # You may pin to the exact commit or the version.
+  # uses: RajatShukla09/ga-yaml-parser@57c0eaf4b85b5f185053e624835c4c1af66c437c
+  uses: RajatShukla09/ga-yaml-parser@v0.1.5
+  with:
+    # YAML file which should parsed
+    file: 
+    # YAML file which should parsed
+    key: # optional, default is 
+    # delimiter for flattened keys. "." is not allowed for "export_to_envs=true"
+    delimiter: # optional, default is _
+    # exports the flattened object to environment variables
+    export_to_envs: # optional
+    # exports the flattened object to outputs variables
+    return_to_outputs: # optional, default is true
+    - name: ci-nodejs-package
+  # You may pin to the exact commit or the version.
+  # uses: grandmasterdev/github-action-ci-nodejs-package@5f45556a11cd51e7c329d332ff7ab178ad676a5a
+  uses: grandmasterdev/github-action-ci-nodejs-package@v1.0.2
+  with:
+    # the project working directory
+    working-dir: 
+    # zip or tar package manager to use
+    packager: # optional, default is tar
+    # list of files or folders that you wanted to be included as the artifact. seperated by ","
+    assets: 
+    - name: Node.js License Checker
+  # You may pin to the exact commit or the version.
+  # uses: daynin/nodejs-license-checker@b40a4c3ee2275d7eeb76b300f9096536f325e364
+  uses: daynin/nodejs-license-checker@v0.2.0
+  with:
+    # List of allowed licences separated by line-break
+    allow-only: # default is MIT;BSD
+    # List of excluded packages with version (example: "resct@17.0.2") separated by line-break
+    exclude-packages: # optional, default is 
+    # Do not include any package marked as private
+    exclude-private-packages: # optional
+    # List of sub-packages in monorepo (including root) separated by line-break
+    paths: # optional, default is ./
+    - name: Github Actions Nodemailer
+  # You may pin to the exact commit or the version.
+  # uses: adelynx/github-actions-nodemailer@3896ac96d691a5cb29b01218ba7a1f20b011777f
+  uses: adelynx/github-actions-nodemailer@v1.0.3
+  with:
+    # SMTP server address
+    host: 
+    # SMTP server port
+    port: 
+    # Whether this connection use TLS (default is true if smtp server port is 465)
+    secure: # optional
+    # Authenticate as this user to SMTP server
+    username: 
+    # Authenticate with this password to SMTP server
+    password: 
+    # Subject of mail message
+    subject: 
+    # Recipients mail addresses (separated with comma)
+    to: 
+    # Full name of mail sender (might be with an email address specified in <>)
+    from: 
+    # Body of mail message (might be a plain text or html)
+    body: 
+    # Carbon copy recipients (separated with comma)
+    cc: # optional
+    # Blind carbon copy recipients (separated with comma)
+    bcc: # optional
+    # An email address that will appear on the Reply-To field
+    reply_to: # optional
+    - name: NodeJS Upload Asset
+  # You may pin to the exact commit or the version.
+  # uses: gregoranders/nodejs-upload-asset@bcfc522f774a0023e0528fc8dd464ed1d9fb70f0
+  uses: gregoranders/nodejs-upload-asset@v0.0.21
+  with:
+    # Release ID
+    id: 
+    # Release Asset Path
+    path: 
+    # Release Asset Label
+    label: # optional
+    # Release Asset File Name
+    name: # optional
+    - name: NodeJS Prepare Asset
+  # You may pin to the exact commit or the version.
+  # uses: gregoranders/nodejs-prepare-asset@92adad6f48876512264c334071f08f6fd9aad39f
+  uses: gregoranders/nodejs-prepare-asset@v0.0.21
+  with:
+    # Path to directory containing asset
+    path: 
+    - name: NodeJS Create Release
+  # You may pin to the exact commit or the version.
+  # uses: gregoranders/nodejs-create-release@3ce08ec274abaf7041a98ce16fbfbbdf0ab05065
+  uses: gregoranders/nodejs-create-release@v0.0.21
+  with:
+    # Tag name
+    tag: 
+    # Release name
+    name: # optional
+    # Release description
+    body: # optional
+    # `true` for a draft. `false` to publish. Default: `false`
+    draft: # optional, default is true
+    # `true` for a prerelease. `false` for a full release. Default: `false`
+    prerelease: # optional
+    # Release target (branch name or commit id)
+    target: # optional, default is master
+    - name: Node.js Package Information
+  # You may pin to the exact commit or the version.
+  # uses: GeekyEggo/npm-pkg@8e526a6d5770fc9e355a6a0efcff42d0dc949cd4
+  uses: GeekyEggo/npm-pkg@v1.0.0
+  with:
+    # Path to the package.json file
+    path: # optional, default is ./package.json
+    - name: github-actions-nodejs
+  # You may pin to the exact commit or the version.
+  # uses: thonatos/github-actions-nodejs@50c6667f26d2aaa41206e1d43c58682913ad6d71
+  uses: thonatos/github-actions-nodejs@v0.1.1
+  - name: NodeJS with cache
+  # You may pin to the exact commit or the version.
+  # uses: Drafteame/node-cache-action@b3bc645b4abb272b448083537ceae525ea3aafcb
+  uses: Drafteame/node-cache-action@v0.3.0
+  with:
+    # Desired NodeJS version.
+    node-version: # optional
+    # path where the npm install command is run.
+    working-directory: # optional
+    # Optional cache key suffix.
+    cache-key-suffix: # optional
+    - name: node9 Agent Security
+  # You may pin to the exact commit or the version.
+  # uses: node9-ai/node9-proxy@1e1e06451fe36912be7b9a434217e10b6aeac041
+  uses: node9-ai/node9-proxy@v2.8.1
+  with:
+    # Fail the check when the worst finding is at least this severity: never | medium | high | critical
+    fail-on: # optional, default is never
+    # Post a sticky comment on the PR with the findings
+    comment: # optional, default is true
+    # node9-ai version to run (pin for reproducibility; "latest" for newest)
+    node9-version: # optional, default is latest
+    # Token for posting the comment + check-run (defaults to the job token)
+    github-token: # optional, default is ${{ github.token }}
+    - name: Update Node.js versions
+  # You may pin to the exact commit or the version.
+  # uses: hongaar/update-node-versions@9fe180c8bcd7b577f5e625d82d361f8ee8bcc4e2
+  uses: hongaar/update-node-versions@v2.2.0
+  with:
+    # Node versions to select
+    versions: # default is latest
+lts
+lts/-1
+lts/-2
+
+    # Filter out Node versions which are end-of-life
+    versions.filter-eol: # optional, default is true
+    # Update GitHub workflows
+    updaters.workflows: # optional, default is true
+    # Update GitHub workflows
+    updaters.workflows.variable: # optional, default is node-version
+    # Update package.json `engines`
+    updaters.engines: # optional, default is true
+    # Update arbitrary files
+    updaters.files: # optional
+    # Glob pattern for files to update
+    updaters.files.glob: # optional
+    # Matches will be replaced with the template
+    updaters.files.regex: # optional
+    # Replace matches with this template
+    updaters.files.template: # optional
+    - name: Install Humanode Network node
+  # You may pin to the exact commit or the version.
+  # uses: humanode-network/distribution-action@b2c34fe1030bda84e3c18c3d1e5947b88cb6144f
+  uses: humanode-network/distribution-action@v1
+  with:
+    # The URL of the Humanode Distribution release to install
+    release-download-url: # optional, default is https://github.com/humanode-network/distribution/releases/latest/download
+    # The package display name to download
+    package-display-name: # optional, default is Humanode Mainnet
+    # The path to install the Humanode Network node at
+    install-dir: # optional, default is /opt/humanode
+    - name: Node.js Dependencies Cache Setup
+  # You may pin to the exact commit or the version.
+  # uses: Act-Aks/cached-setup@7d8e78a434e51dcc7b1938541090c879022a473d
+  uses: Act-Aks/cached-setup@v1.1.1
+  with:
+    # Path to the .nvmrc file
+    node-version-file: # optional, default is .nvmrc
+    # Custom prefix for cache keys
+    cache-prefix: # optional, default is 
+    # Custom registry URL
+    registry-url: # optional, default is https://registry.npmjs.org/
+    - name: cybergavin/setup-nodejs-project
+  # You may pin to the exact commit or the version.
+  # uses: cybergavin/setup-nodejs-project@ca4c272e47f8ce565b52b04a4831272bea20fe58
+  uses: cybergavin/setup-nodejs-project@v1.0.1
+  with:
+    # The Node.js version or version range to use (e.g., '18', '20.x', '>=16'). Uses the same syntax as actions/setup-node.
+
+    node-version: # optional, default is 22
+    # The path(s) to cache (usually node_modules). Relative to the working-directory. Multiple paths can be specified on separate lines.
+
+    cache-path: # optional, default is node_modules
+    # The name of the lock file (e.g., 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'). Relative to the working-directory. Used for cache key and command detection.
+
+    lock-file: 
+    # The directory containing the Node.js project (where package.json and the lock file are). Relative to the repository root. Defaults to the repository root.
+
+    working-directory: # optional, default is .
+    # An optional command to override the auto-detected install command (npm ci, yarn install --frozen-lockfile, pnpm install --frozen-lockfile). Runs in the specified working-directory.
+
+    install-command: # optional, default is 
+    - name: Cache/Install NodeJS Dependencies
+  # You may pin to the exact commit or the version.
+  # uses: luisfuentech/gha-cache-deps@df66f6c8dea2271e32c7da0ac7bc248611183a21
+  uses: luisfuentech/gha-cache-deps@v1.2.3
+  with:
+    # Whether to cache dependencies or not
+    caching: # optional, default is true
+    # The node manager to use (npm or yarn)
+    node-manager: # optional, default is npm
+    # The lock file to use
+    lock-file: # optional, default is package-lock.json
+    - name: is-my-node-ok
+  # You may pin to the exact commit or the version.
+  # uses: mirasayon/is-my-node-ok@e0f477b4c2ada9805dbf83cb7a9a097de2d4b355
+  uses: mirasayon/is-my-node-ok@v1.0.0
+  with:
+    # Node.js version to check
+    node-version: # default is v20.x
+    # Platform to check
+    platform: # optional
+    - name: Copy File with NodeJS
+  # You may pin to the exact commit or the version.
+  # uses: chpoit/js-copy-github-action@a3b4a6d523a1339fbd7130e743bbe26b0f93b356
+  uses: chpoit/js-copy-github-action@v1.0
+  with:
+    # Source File
+    source: # default is 
+    # Target File
+    target: # default is 
+    - name: Create a Release (node16)
+  # You may pin to the exact commit or the version.
+  # uses: chapmanjacobd/create-release-node16@bba18e3869f313613985e857c15b38fb94877a11
+  uses: chapmanjacobd/create-release-node16@v1.1
+  with:
+    # The name of the tag. This should come from the webhook payload, `github.GITHUB_REF` when a user pushes a new tag
+    tag_name: 
+    # The name of the release. For example, `Release v1.0.1`
+    release_name: 
+    # Text describing the contents of the tag.
+    body: # optional
+    # Path to file with information about the tag.
+    body_path: # optional
+    # `true` to create a draft (unpublished) release, `false` to create a published one. Default: `false`
+    draft: # optional
+    # `true` to identify the release as a prerelease. `false` to identify the release as a full release. Default: `false`
+    prerelease: # optional
+    # Any branch or commit SHA the Git tag is created from, unused if the Git tag already exists. Default: SHA of current commit
+    commitish: # optional
+    # Owner of the repository if it is not the current one
+    owner: # optional
+    # Repository on which to release.  Used only if you want to create the release on another repo
+    repo: # optional
+    - name: Electron Builder Action (node16)
+  # You may pin to the exact commit or the version.
+  # uses: gugiserman/action-electron-builder@bbdaaf6d8a8e232a9ced83198394e6b88fd3dc02
+  uses: gugiserman/action-electron-builder@v1.6.1-node16
+  with:
+    # GitHub authentication token
+    github_token: 
+    # Base64-encoded code signing certificate for macOS
+    mac_certs: # optional
+    # Password for decrypting `mac_certs`
+    mac_certs_password: # optional
+    # Whether the app should be released after a successful build
+    release: # optional
+    # Base64-encoded code signing certificate for Windows
+    windows_certs: # optional
+    # Password for decrypting `windows_certs`
+    windows_certs_password: # optional
+    # Directory where NPM/Yarn commands should be run
+    package_root: # optional, default is .
+    # Name of the optional NPM build script which is executed before `electron-builder`
+    build_script_name: # optional, default is build
+    # Whether the action should execute the NPM build script before running `electron-builder`
+    skip_build: # optional
+    # Whether to run `electron-builder` using the Vue CLI plugin instead of calling the command directly
+    use_vue_cli: # optional
+    # Other arguments to pass to the `electron-builder` command, e.g. configuration overrides
+    args: # optional, default is 
+    # Maximum number of attempts for completing the build and release step
+    max_attempts: # optional, default is 1
+    # Directory where `electron-builder` commands should be run
+    app_root: # optional
+    - name: GitHub Action Node Version
+  # You may pin to the exact commit or the version.
+  # uses: bendrucker/github-action-node-version@2b4cda19381b8015197f9a3eff1ec934716241da
+  uses: bendrucker/github-action-node-version@v1.0.0
+  with:
+    # Path to the action.yml file
+    path: # default is ./action.yml
+    - name: Detect nodejs package manager
+  # You may pin to the exact commit or the version.
+  # uses: g1eny0ung/detect-nodejs-package-manager-action@420d7d7d87c87ee147e49de705a1ce3a0678a544
+  uses: g1eny0ung/detect-nodejs-package-manager-action@v1.0.2
+  with:
+    # Working directory
+    working-directory: # optional, default is .
+    # Set package manager to environment variable
+    env-name: # optional
+    - name: Start Ethereum Test Node
+  # You may pin to the exact commit or the version.
+  # uses: AgustinSRG/eth-test-node-action@c8281af0b653122377931a972ea22e86677e96f8
+  uses: AgustinSRG/eth-test-node-action@v6
+  with:
+    # The RPC port
+    rpcPort: # optional, default is 8545
+    # The WebSockets port
+    websocketPort: # optional, default is 8546
+    - name: Azure WebApp Node20-fix
+  # You may pin to the exact commit or the version.
+  # uses: michealmueller/webapps-deploy@e2d827263fc89354619516337f25e242489a145d
+  uses: michealmueller/webapps-deploy@v3.0-node20
+  with:
+    # Name of the Azure Web App
+    app-name: 
+    # Applies to Web Apps(Windows and Linux) and Web App Containers(linux). Multi container scenario not supported. Publish profile (*.publishsettings) file contents with Web Deploy secrets
+    publish-profile: # optional
+    # Enter an existing Slot other than the Production slot
+    slot-name: # optional, default is production
+    # Applies to Web App only: Path to package or folder. *.zip, *.war, *.jar or a folder to deploy
+    package: # optional, default is .
+    # Applies to Web App Containers only: Specify the fully qualified container image(s) name. For example, 'myregistry.azurecr.io/nginx:latest' or 'python:3.7.2-alpine/'. For multi-container scenario multiple container image names can be provided (multi-line separated)
+    images: # optional
+    # Applies to Web App Containers only: Path of the Docker-Compose file. Should be a fully qualified path or relative to the default working directory. Required for multi-container scenario
+    configuration-file: # optional
+    # Enter the start up command. For ex. dotnet run or dotnet run
+    startup-command: # optional
+    # Enter the resource group name of the web app
+    resource-group-name: # optional
+    # Enter deployment type (JAR, WAR, EAR, ZIP, Static)
+    type: # optional
+    # Target path in the web app. For ex. '/home/site/wwwroot'
+    target-path: # optional
+    # Delete existing files target directory before deploying
+    clean: # optional
+    # Restart the app service after deployment
+    restart: # optional
+    - name: Azure Login - Node.js 20
+  # You may pin to the exact commit or the version.
+  # uses: manuelpagliuca/login@d0d5c41123d7210c15293edd46e3946f5cf0609f
+  uses: manuelpagliuca/login@v1.6.1
+  with:
+    # Paste output of `az ad sp create-for-rbac` as value of secret variable: AZURE_CREDENTIALS
+    creds: # optional
+    # ClientId of the Azure Service principal created.
+    client-id: # optional
+    # TenantId of the Azure Service principal created.
+    tenant-id: # optional
+    # Azure subscriptionId
+    subscription-id: # optional
+    # Set this value to true to enable Azure PowerShell Login in addition to Azure CLI login
+    enable-AzPSSession: # optional, default is false
+    # Name of the environment. Supported values are azurecloud, azurestack, azureusgovernment, azurechinacloud, azuregermancloud. Default being azurecloud
+    environment: # optional, default is azurecloud
+    # Set this value to true to enable support for accessing tenants without subscriptions
+    allow-no-subscriptions: # optional, default is false
+    # Provide audience field for access-token. Default value is api://AzureADTokenExchange
+    audience: # optional, default is api://AzureADTokenExchange
+    # The type of authentication. Supported values are SERVICE_PRINCIPAL, IDENTITY. Default value is SERVICE_PRINCIPAL
+    auth-type: # optional, default is SERVICE_PRINCIPAL
+    - name: Setup Node with Cache
+  # You may pin to the exact commit or the version.
+  # uses: usafder/setup-node-with-cache@60ba93452433f71b7e744ff650d3aae05ea0d1c2
+  uses: usafder/setup-node-with-cache@v.1.1.0
+  with:
+    # Node version to use (optional)
+    NODE_VERSION: # optional
+    - name: Yarn & Node install cache
+  # You may pin to the exact commit or the version.
+  # uses: egordm/gha-yarn-node-cache@5e3a518810b21a8e0e1d236a3db83a18cfc1be9e
+  uses: egordm/gha-yarn-node-cache@v1
+  - name: Auto Rebase Upstream Node
+  # You may pin to the exact commit or the version.
+  # uses: wlkrm/auto-rebase-upstream-node@7c020f9e85770f18299b0b56e4c1b442541779ec
+  uses: wlkrm/auto-rebase-upstream-node@v0.0.2
+  with:
+    # HTTP URL of upstream repo
+    upstream: # optional
+    # The upstream branch that is rebased on
+    branch: # optional, default is main
+    # e.g. github.repository
+    repo: # optional, default is placeholder
+    # e.g. secrets.GITHUB_TOKEN
+    repotoken: # optional, default is placeholder
+    # Greater than the number of commits the upstream made in a period
+    depth: # optional, default is 100
+    # Do the force push in this action
+    push: # optional, default is true
+    # Node auth token for private registry
+    nodetoken: # optional, default is none
+    # Node scope for private registry
+    nodescope: # optional, default is none
+    # Node url for private registry
+    nodeurl: # optional, default is none
+    # Node version
+    nodev: # optional, default is 16.x
+    - name: Hello World 2021 NodeJS
+  # You may pin to the exact commit or the version.
+  # uses: vijejain/hello-world-javascript-action@a152682cedb177e1ff37ce901833fe2cd1e22139
+  uses: vijejain/hello-world-javascript-action@v1.3
+  with:
+    # Who to greet
+    who-to-greet: # default is World
+    - name: Webhook Action for Node
+  # You may pin to the exact commit or the version.
+  # uses: denar90/webhook-action@8321066090f367e6be77dfd48dfda5cb8326a53f
+  uses: denar90/webhook-action@0.1.1
+  with:
+    # Url
+    webhookUrl: # optional
+    # Data
+    data: # optional
+    - name: Update Scope Node Dependencies
+  # You may pin to the exact commit or the version.
+  # uses: Bullrich/update-node-scoped-dependencies@95031acbc5595f46b3a982577b39f78e1e6ed77a
+  uses: Bullrich/update-node-scoped-dependencies@v1.8.1
+  with:
+    # Prefix to use for commit messages.
+    commit-message-prefix: # optional, default is chore
+    # Git user.email to use for the commit.
+    git-user-email: # optional, default is 41898282+github-actions[bot]@users.noreply.github.com
+    # Git user.name to use for the commit.
+    git-user-name: # optional, default is github-actions[bot]
+    # NPM registry scope
+    npm-registry-scope: 
+    # NPM registry to used for scope defined in `npm-registry-scope`. Must start with https://.
+    npm-registry-url: 
+    # A command to run before committing the dependency changes (e.g. npm run build).
+    pre-commit-script: # optional
+    # Comma-delimited labels to apply to the pull request.
+    pull-request-labels: # optional, default is dependencies
+    - name: Matrix outputs - write node24
+  # You may pin to the exact commit or the version.
+  # uses: mitchdz/github-action-matrix-outputs-write@58014c5485fc7bdcddeb00e682eefaf8532f4930
+  uses: mitchdz/github-action-matrix-outputs-write@v2-alpha
+  with:
+    # Matrix step name
+    matrix-step-name: # optional
+    # Matrix key
+    matrix-key: # optional
+    # YAML structured map of outputs
+    outputs: # optional
+    - name: Matrix outputs - read node24
+  # You may pin to the exact commit or the version.
+  # uses: mitchdz/github-action-matrix-outputs-read@237bec608944814c74f89b89f753bde5ae17b2de
+  uses: mitchdz/github-action-matrix-outputs-read@v2-alpha
+  with:
+    # Matrix step name
+    matrix-step-name: 
+    - name: Node Lint And Format
+  # You may pin to the exact commit or the version.
+  # uses: beauwilliams/run-node-formatter@e63ad780393e58e0469f1a1e0e8dc6ee889f2975
+  uses: beauwilliams/run-node-formatter@latest
+  - name: Send Email Action (Node)
+  # You may pin to the exact commit or the version.
+  # uses: wadeww/send-email-action@7dade21cd9ce00418e605246fa1372d8addd6005
+  uses: wadeww/send-email-action@v1
+  with:
+    # URL of SMTP server
+    server_address: 
+    # Server port
+    port: 
+    # Auth username: Use secret
+    username: 
+    # Auth password: Use secret
+    password: 
+    # Sender email address
+    from: 
+    # Comma-separated recipient list
+    to: 
+    # Email subject line
+    subject: 
+    # Email body text
+    body: 
+    - name: Get Node Package Version
+  # You may pin to the exact commit or the version.
+  # uses: KageKirin/get-node-package-version@9a21a8d15aec05b0c320633091ed8e5f3294c7af
+  uses: KageKirin/get-node-package-version@v1.0.0
+  with:
+    # 'The package.json from which to read the version. '
+'Defaults to package.json.'
+'Set if you need to read a different file / or different folder.'
+
+    file: # optional, default is package.json
+    # 'ECMAScript Regular Expression to parse the version string for verification.'
+'Defaults to being semver, i.e. "major.minor.patch"'
+'Set if you to be compatible with a different, non-semver format.'
+
+    regex: # optional, default is ^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)(\.(?<patch>0|[1-9]\d*))?(?:-(?<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+    - name: Node.js Frontend and Backend Build
+  # You may pin to the exact commit or the version.
+  # uses: melvinsamuel070/npm-action@64bff9010b613609fa56d060caf3b888c33b89bb
+  uses: melvinsamuel070/npm-action@v1.0.0
+  with:
+    # The directory for the frontend project
+    frontend_directory: # default is ./frontend
+    # The directory for the backend project
+    backend_directory: # default is ./backend
+    - name: File Changes Action Node16
+  # You may pin to the exact commit or the version.
+  # uses: markgilbert-git/file-changes-action@0957f2bd3d620c9868d65be5e25a14537759e47f
+  uses: markgilbert-git/file-changes-action@v1.2.5
+  with:
+    # The github repository you want to compare changes from, defaults to the github.repository.
+    githubRepo: # optional
+    # The github action token will be used by default, if you want to use something different than you can pass it in here.
+    githubToken: # default is ${{ github.token }}
+    # Pass in a specific sha to compare to as a before, required if using pushAfter. (push BASE payload after github.payload.before)
+    pushBefore: # optional
+    # Pass in a specific sha to compare to as an after, required if using pushBefore. (push HEAD payload after github.payload.after)
+    pushAfter: # optional
+    # Pass in a specific PR number to get file changes from.
+    prNumber: # optional
+    # Choose between json (default), or custom delimiter by passing a string, for example ',' for csv variable output
+    output: # default is json
+    # Choose between json (default), or custom delimiter by passing a string, for example ',' for csv file output.  If you set as json the file output will be suffixed with .json, if you select ',' then the output will be .csv, else .txt will be the output.
+    fileOutput: # default is json
+    - name: UUID Action-fork-node-16
+  # You may pin to the exact commit or the version.
+  # uses: gsnegovskiy/uuid-action@3422e7ab56af0cba7d7b4137728028da417f392f
+  uses: gsnegovskiy/uuid-action@init-test-1
+  with:
+    # create a UUID using a name.
+    name: # optional
+    # create a UUID using a namespace.
+    namespace: # optional
+    - name: Setup Node.js Express and MySQL
+  # You may pin to the exact commit or the version.
+  # uses: Sunwoo0110/IREM@68c45e879a46a0864ae9f15fd878f7f2a03fe991
+  uses: Sunwoo0110/IREM@v1.2.1
+  with:
+    # project github repository url which you want to setup
+    github-repo-url: # default is 
+    # user id
+    github-user-id: # default is 
+    # user email
+    github-user-email: # default is 
+    # user PAT
+    github-token: # default is 
+    - name: Setup Yarn and Node.js Action
+  # You may pin to the exact commit or the version.
+  # uses: digi-fry/setup-yarn-node-action@ce2f7815dfb9022ca64b7dedc1cf48327ec658aa
+  uses: digi-fry/setup-yarn-node-action@v1
+  with:
+    # Version of Node.js to setup
+    node-version: 
+    - name: JWT Generator with options (Node16)
+  # You may pin to the exact commit or the version.
+  # uses: herculesjr/github-actions-jwt-generator@8598200eeceea6a558a0ab16c4797f3303fcd93d
+  uses: herculesjr/github-actions-jwt-generator@v2.0.2
+  with:
+    # The shared secret used to sign the JWTs
+    secret: # optional
+    # The payload to encrypt
+    payload: # optional
+    # The jsonwebtoken options object
+    options: # optional
+    # Name of the environment variable to output
+    envVar: # optional
+    - name: Build Node single executable application
+  # You may pin to the exact commit or the version.
+  # uses: jasongwartz/node-single-executable-action@14a68293ba9aa1f7d277c7893edf79d9f61b05d8
+  uses: jasongwartz/node-single-executable-action@v0.0.1
+  with:
+    # Path to the already-bundled Node code.
+    bundle: 
+    - name: Setup PNPM and Node.js Action
+  # You may pin to the exact commit or the version.
+  # uses: digi-fry/setup-pnpm-node-action@f577ffe2f88c89b634736ba92e473ccd564ae528
+  uses: digi-fry/setup-pnpm-node-action@v1
+  with:
+    # Version of Node.js to setup
+    node-version: 
+    # Version of pnpm to setup
+    pnpm-version: 
+    - name: Autoupdater for dependencies (Node JS)
+  # You may pin to the exact commit or the version.
+  # uses: siarheidudko/autoupdater@c207b3037581fea0db9785c8dfaa0e9ffdab2e2c
+  uses: siarheidudko/autoupdater@v3
+  with:
+    # Personal access token (PAT) used to fetch the repository. The PAT is configured with the local git config, which enables your scripts to run authenticated git commands. The post-job step removes the PAT. We recommend using a service account with the least permissions necessary. Also when generating a new PAT, select the least scopes necessary. [Learn more about creating and using encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+
+    token: # optional, default is ${{ github.token }}
+    # Author's email of the commit.
+    author-email: # optional, default is actions@github.com
+    # Author's name of the commit.
+    author-name: # optional, default is GitHUB Actions
+    # Repository name with owner. For example, siarheidudko/autoupdater.
+    ref: # optional, default is ${{ github.repository }}
+    # Name of the branch.
+    branch: # optional, default is master
+    # Working directory.
+    working-directory: # optional, default is ${{ github.workspace }}
+    # Path to changelog file.
+    changelog-file: # optional, default is ./CHANGELOG.md
+    # Path to package.json file.
+    package-file: # optional, default is ./package.json
+    # Package manager (npm or yarn).
+    package-manager: # optional, default is npm
+    # Show debugging log.
+    debug: # optional, default is false
+    # Checks to be performed before the push.
+    builds-and-checks: # optional
+    # Package names that should not be updated.
+    ignore-packages: # optional
+    - name: DOCKER NODE BUILD AND PUBLISH
+  # You may pin to the exact commit or the version.
+  # uses: Judahh/dockerBuildAndPublish@f0dfe32214f4e3e99a2a4832fcf6d66719687724
+  uses: Judahh/dockerBuildAndPublish@0.0.1
+  with:
+    # Docker Hub Username
+    username: 
+    # Docker Hub Password
+    password: 
+    # Product Name
+    name: 
+    # Is this a production build?
+    production: # default is true
+    - name: Check Node Dependencies and Comment
+  # You may pin to the exact commit or the version.
+  # uses: hjfitz/depcheck-comment@0146b81dcea4a5a7f12f3f82b913d366cac2346e
+  uses: hjfitz/depcheck-comment@v1.1.3
+  with:
+    # Github token for the repo - this is automagicallt created by github
+    GITHUB_TOKEN: 
+    - name: Read node version from package.json
+  # You may pin to the exact commit or the version.
+  # uses: tibor19/node-version-from-package-json@6e039b0fccef6fb8b1c2f2c536fe4d527a19c45c
+  uses: tibor19/node-version-from-package-json@v3
+  with:
+    # Path to package.json, either folder, or full file name, default is package.json on the root folder
+    path: # optional, default is ./
+    # Which version should use if engines/node is not found in package.json
+    fallback-version: # optional
+    - name: Pull Request Node Version Cleanup
+  # You may pin to the exact commit or the version.
+  # uses: mitchellsimoens/gpr-pr-version-cleanup@a58545f99cd0926d7dfce23870edd5f31048e2b9
+  uses: mitchellsimoens/gpr-pr-version-cleanup@v1.1.0
+  with:
+    # Set to keep the git tags but still delete the release.
+    keep_git_tags: # optional
+    # Set to skip running the npm unpublish command.
+    skip_npm_unpublish: # optional
+    # Set to skip removing the GitHub repository release.
+    skip_release_remove: # optional
+    - name: Terraform Cloud Run with Node.js
+  # You may pin to the exact commit or the version.
+  # uses: aminubakori/node-tfe-run@49f0bd66552cc9197057d161796e8a47fee6b052
+  uses: aminubakori/node-tfe-run@v1.1
+  with:
+    # Token used to communicating with the Terraform Cloud API. Must be a user or team api token.
+
+    token: 
+    # Name of the organization on Terraform Cloud, defaults to the owner of the GitHub repository.
+
+    organization: # optional, default is ${{ github.repository_owner }}
+    # Name of the workspace on Terraform Cloud.
+
+    workspace: 
+    # Optional message to use as name of the run.
+
+    message: # optional, default is Queued by GitHub Actions (commit: ${{ github.sha }})
+    # The list of variables to create on Terraform Cloud.
+
+    variables: # optional
+    - name: install-and-cache node tools
+  # You may pin to the exact commit or the version.
+  # uses: tecolicom/actions-use-node-tools@ce851bdc1e0878bf98258a869308f8a6b37cb764
+  uses: tecolicom/actions-use-node-tools@v1.0
+  with:
+    # 
+    tools: 
+    # 
+    cache: # optional, default is true
+    # 
+    key: # optional
+    # 
+    verbose: # optional
+    - name: Issue Label Manager (Node 20)
+  # You may pin to the exact commit or the version.
+  # uses: DesarrolloORT/issue-label-manager-action@2a3c8dfb6427b77d1662a24d591a7cc177369c67
+  uses: DesarrolloORT/issue-label-manager-action@v5.0.0
+  with:
+    # Will not delete any existing labels and will only modify / create them
+    delete: # optional, default is false
+    - name: Publish to npm (using node)
+  # You may pin to the exact commit or the version.
+  # uses: houtianze/npm-publish-action@099e421472525f9dd8bc64afe3f50c8523da1f2a
+  uses: houtianze/npm-publish-action@v0.1.3
+  with:
+    # The pattern that matches version update commits.
+    commit_pattern: # optional
+    # The name of the tag that you want to create for the version.
+    tag_name: # optional
+    # The message of the tag that you want to create for the version.
+    tag_message: # optional
+    - name: Electron Builder Action(Using Node 20)
+  # You may pin to the exact commit or the version.
+  # uses: vingeraycn/action-electron-builder@667b15427d158987a32a09e104bb27d28de97345
+  uses: vingeraycn/action-electron-builder@v1.0.1
+  with:
+    # GitHub authentication token
+    github_token: 
+    # Base64-encoded code signing certificate for macOS
+    mac_certs: # optional
+    # Password for decrypting `mac_certs`
+    mac_certs_password: # optional
+    # Whether the app should be released after a successful build
+    release: # optional
+    # Base64-encoded code signing certificate for Windows
+    windows_certs: # optional
+    # Password for decrypting `windows_certs`
+    windows_certs_password: # optional
+    # Directory where NPM/Yarn commands should be run
+    package_root: # optional, default is .
+    # Name of the optional NPM build script which is executed before `electron-builder`
+    build_script_name: # optional, default is build
+    # Whether the action should execute the NPM build script before running `electron-builder`
+    skip_build: # optional
+    # Whether to run `electron-builder` using the Vue CLI plugin instead of calling the command directly
+    use_vue_cli: # optional
+    # Other arguments to pass to the `electron-builder` command, e.g. configuration overrides
+    args: # optional, default is 
+    # Maximum number of attempts for completing the build and release step
+    max_attempts: # optional, default is 1
+    # Directory where `electron-builder` commands should be run
+    app_root: # optional
+    - name: Pipery npm CI
+  # You may pin to the exact commit or the version.
+  # uses: pipery-dev/npm-ci@474b81570326ea5f02b47c994a91b7fa5b9f1eeb
+  uses: pipery-dev/npm-ci@v1
+  with:
+    # Path to the project source tree the action should operate on.
+    project_path: # optional, default is .
+    # Path to pipery config file.
+    config_file: # optional, default is .pipery/config.yaml
+    # Node.js version to use.
+    node_version: # optional, default is 20
+    # Package manager: auto, npm, yarn.
+    package_manager: # optional, default is auto
+    # Skip SAST scan.
+    skip_sast: # optional, default is false
+    # Skip SCA scan.
+    skip_sca: # optional, default is false
+    # Skip lint step.
+    skip_lint: # optional, default is false
+    # Fail the action when lint reports errors.
+    strict_lint: # optional, default is false
+    # Skip build step.
+    skip_build: # optional, default is false
+    # Path or glob passed to the test runner as an argument.
+    tests_path: # optional, default is 
+    # Skip test step.
+    skip_test: # optional, default is false
+    # Skip versioning step.
+    skip_versioning: # optional, default is false
+    # Skip packaging step.
+    skip_packaging: # optional, default is false
+    # Skip npm release step.
+    skip_release: # optional, default is false
+    # Build and push a Docker image for the application after npm packaging/release.
+    release_docker_image: # optional, default is false
+    # Docker registry host used for login and image prefix.
+    docker_registry: # optional, default is ghcr.io
+    # Docker image name without tag. Defaults to the GitHub repository when available.
+    docker_image: # optional, default is 
+    # Comma, space, or newline separated Docker tags. Defaults to package version and sha-<short sha> when available.
+    docker_tags: # optional, default is 
+    # Docker build context, relative to project_path unless absolute.
+    docker_context: # optional, default is .
+    # Dockerfile path, relative to project_path unless absolute.
+    dockerfile: # optional, default is Dockerfile
+    # Comma separated Docker target platforms for buildx, e.g. linux/amd64,linux/arm64. Empty uses a regular Docker build for the runner platform.
+    docker_platforms: # optional, default is 
+    # Docker registry username. For ghcr.io this is usually the GitHub actor.
+    docker_username: # optional, default is 
+    # Docker registry password or token.
+    docker_password: # optional, default is 
+    # Also tag and push latest.
+    docker_push_latest: # optional, default is false
+    # Skip reintegration step.
+    skip_reintegration: # optional, default is false
+    # Version bump kind: patch, minor, major.
+    version_bump: # optional, default is patch
+    # npm registry auth token for publishing.
+    npm_token: # optional, default is 
+    # GitHub token for reintegration.
+    github_token: # optional, default is 
+    # Path to the JSONL log file.
+    log_file: # optional, default is pipery.jsonl
+    # npm registry target for release.
+    registry: # optional, default is npmjs
+    - name: Set up node using nvm
+  # You may pin to the exact commit or the version.
+  # uses: dcodeIO/setup-node-nvm@b6d6ed786666dee7d42186617cbb1394070de579
+  uses: dcodeIO/setup-node-nvm@v5
+  with:
+    # The node.js version to use according to nvm. Uses the version specified in .nvmrc if omitted.
+    node-version: # optional, default is 
+    # The node.js mirror to use
+    node-mirror: # optional, default is https://nodejs.org/dist/
+    - name: Deploy PR Preview - GHES Node v16
+  # You may pin to the exact commit or the version.
+  # uses: simonwfarrow/pr-preview-action@2dd471b02a318811a36c693a079f9daaac09468e
+  uses: simonwfarrow/pr-preview-action@v1.1
+  with:
+    # The token to use for the deployment. Default is GITHUB_TOKEN in the current repository. If you need more permissions for things such as deploying to another repository, you can add a Personal Access Token (PAT).
+
+    token: # optional, default is ${{ github.token }}
+    # Branch on which the previews will be deployed.
+    preview-branch: # optional, default is gh-pages
+    # Name of the directory containing all previews.
+    umbrella-dir: # optional, default is pr-preview
+    # Directory containing files to deploy.
+    source-dir: # optional, default is .
+    # The GitHub repository to deploy the preview to. This should be formatted like `<org name>/<repo name>`, e.g. `rossjrw/pr-preview-action`. Defaults to the current repository.
+You will need to add a Personal Access Token (PAT) in the `token` input in order to allow the action running in one repository to make changes to another repository.
+
+    deploy-repository: # optional, default is ${{ github.repository }}
+    # Custom pages URL
+    custom-url: # optional, default is 
+    # Determines what this action will do when it is executed. Supported values: `deploy`, `remove`, `auto` (default).
+If set to `deploy`, will attempt to deploy the preview and overwrite any existing preview in that location.
+If set to `remove`, will attempt to remove the preview in that location.
+If set to `auto`, the action will try to determine whether to deploy or remove the preview. It will deploy the preview on `pull_request.types.synchronize` and `.opened` events, and remove it on `pull_request.types.closed` events. It will not do anything for all other events. `auto` is the default value.
+
+    action: # optional, default is auto
+    - name: Bump Node Package Multiple Repositories Action
+  # You may pin to the exact commit or the version.
+  # uses: ntsd/bump-node-package-multi-repo-action@16cff28207a9519ffe1c85c605e2714bec6a30dd
+  uses: ntsd/bump-node-package-multi-repo-action@v1.0.1
+  with:
+    # Package and version to bump. eg, `@zero-hub/client@latest` or `@zero-hub/client@1.0.0`
+    package: 
+    # Repositories to bump, separate by comma. use postfix `@` to specify the branch to bump. use `:` to specify the path of the package. eg, `hotcode-dev/zerohub-share@develop,hotcode-dev/zerohub-meet:.`
+    repositories: 
+    # Github token. Required when the destination repository is private.
+    gh_token: # optional
+    - name: Backend Doctor — Node.js/NestJS Static Analyzer
+  # You may pin to the exact commit or the version.
+  # uses: yamkin29/backend-doctor@c0dabb4116bb67129b070dcb027d93c551a04447
+  uses: yamkin29/backend-doctor@v1.0.0
+  with:
+    # Failure policy: none (advisory, never fails), error (fails on error-severity findings), warn (fails on any finding).
+    blocking: # optional, default is none
+    # Git ref the lines diff is computed against. Empty means origin/<PR base branch>.
+    base: # optional, default is 
+    # Directory to scan.
+    directory: # optional, default is .
+    # Post the sticky PR summary comment.
+    comment: # optional, default is true
+    # Post inline review comments on changed lines.
+    review-comments: # optional, default is true
+    # Report a commit status on the PR head SHA.
+    commit-status: # optional, default is true
+    # Maximum number of inline review comments.
+    review-comments-max: # optional, default is 50
+    # backend-doctor version to install from npm.
+    version: # optional, default is latest
+    - name: Setup NodeJS environment with a Cache
+  # You may pin to the exact commit or the version.
+  # uses: gacts/setup-node-with-cache@624bb72adfed6b190561a8544d80f789135e462d
+  uses: gacts/setup-node-with-cache@v1.2.2
+  with:
+    # The Node version to download (if necessary) and use. Supports semver spec and ranges
+    node-version: # optional
+    # File containing the version Spec of the version to use. Examples - `.nvmrc`, `.node-version`, `.tool-versions`
+    node-version-file: # optional
+    # Optional registry to set up for auth. Will set the registry in a project level `.npmrc` and `.yarnrc` file, and set up auth to read in from `env.NODE_AUTH_TOKEN`
+    registry-url: # optional
+    # Optional cache key suffix
+    cache-key-suffix: # optional, default is 
+    - name: Yarn/Node Cache w/ Working Dir
+  # You may pin to the exact commit or the version.
+  # uses: zach-hill/gha-yarn-node-cache@c2c86f572e62b4d55d8e4773eff7f00335e9ae07
+  uses: zach-hill/gha-yarn-node-cache@1.1
+  - name: GitHub Action for Firebase node version 16
+  # You may pin to the exact commit or the version.
+  # uses: vsuhanov/firebase-action@6a01f9f670066d75617f37ad1f09514bdb53c691
+  uses: vsuhanov/firebase-action@v3.0.0
+  - name: Deploy to Firebase Cloud Functions Node v12
+  # You may pin to the exact commit or the version.
+  # uses: austinmccalley/deploy-firebase-functions@31b511f9fe06ab2d1ae01ba182d73a3186f0834d
+  uses: austinmccalley/deploy-firebase-functions@v0.0.01d
+  - name: Set up node using nvm (use npmmirror.com)
+  # You may pin to the exact commit or the version.
+  # uses: FIPOCHINA/setup-node-nvm@d4088c67c2db16cb922e888bec68c516b3e7ff73
+  uses: FIPOCHINA/setup-node-nvm@v1
+  with:
+    # The node.js version to use according to nvm. Uses the version specified in .nvmrc if omitted.
+    node-version: # optional, default is 
+    # The node.js mirror to use
+    node-mirror: # optional, default is https://npmmirror.com/mirrors/node/
+    - name: React Deploy to S3 using latest node
+  # You may pin to the exact commit or the version.
+  # uses: keshav-bohr/react-deploy-to-s3-action@213ecebc54cc1ff1b8a164f5083b83b620e6981e
+  uses: keshav-bohr/react-deploy-to-s3-action@1.0.1
+  - name: Cloudsmith CLI Setup
+  # You may pin to the exact commit or the version.
+  # uses: cloudsmith-io/cloudsmith-cli-action@ad73fafb92e3e29a5166c529464c2df7658a608e
+  uses: cloudsmith-io/cloudsmith-cli-action@v3.1.0
+  with:
+    # Cloudsmith CLI version to install, for example '1.20.0', or 'latest'.
+    cli-version: # optional, default is latest
+    # Root directory for versioned CLI installations. Defaults to RUNNER_TEMP/cloudsmith-cli.
+    install-directory: # optional, default is 
+    # Cloudsmith API key. Prefer OIDC for CI/CD workloads.
+    api-key: # optional, default is 
+    # Cloudsmith organisation/namespace for OIDC authentication.
+    oidc-namespace: # optional, default is 
+    # Cloudsmith service account slug for OIDC authentication.
+    oidc-service-slug: # optional, default is 
+    # Audience to request for the GitHub OIDC token. Defaults to https://github.com/{repository-owner}.
+    oidc-audience: # optional, default is 
+    # API host override for Cloudsmith.
+    api-host: # optional, default is 
+    # API proxy for Cloudsmith.
+    api-proxy: # optional, default is 
+    # Verify SSL certificates for the Cloudsmith API: true, false, or empty for the CLI default.
+    api-ssl-verify: # optional, default is 
+    # User agent override for the Cloudsmith API.
+    api-user-agent: # optional, default is 
+    # Run 'cloudsmith whoami' after setup to verify authentication.
+    verify-auth: # optional, default is false
+    # Resolve credentials with 'cloudsmith credential-helper generic', then export its password as CLOUDSMITH_API_KEY and username as CLOUDSMITH_USERNAME. Requires Cloudsmith CLI 1.21.0 or later.
+    export-auth-token: # optional, default is false
+    # Deprecated alias for export-auth-token. When true, it enables the same CLI credential-helper flow.
+    oidc-auth-only: # optional, default is false
+    - name: All in one: setup node, pnpm, cache
+  # You may pin to the exact commit or the version.
+  # uses: wyvox/action-setup-pnpm@d84148cd87d55adb709e92120c709b88d15bceac
+  uses: wyvox/action-setup-pnpm@v4.0.0
+  with:
+    # Override the default node version, or override what is specified in your project's volta config
+    node-version: # optional
+    # Override where the default node version is read from. By default this reads from package.json, which includes support for volta.node. Specifying node-version will override this
+    node-version-file: # optional, default is package.json
+    # Optional registry to set up for auth. Will set the registry in a project level .npmrc and .yarnrc file, and set up auth to read in from env.NODE_AUTH_TOKEN.
+    node-registry-url: # optional, default is 
+    # Override the default pnpm version, which defaults to the latest 8.x
+    pnpm-version: # optional
+    # Directly pass args to pnpm
+    args: # optional
+    - name: Deploys a NodeJS service in a remote server
+  # You may pin to the exact commit or the version.
+  # uses: sergiogc9/github-action-deploy-ssh@a3896020689b91c7b134dfd052533a39d773b7a3
+  uses: sergiogc9/github-action-deploy-ssh@v0.0.1
+  with:
+    # The server host
+    host: 
+    # The server port.
+    port: 
+    # Username for authentication.
+    username: 
+    # Password for user authentication.
+    password: 
+    # The working directory where the commands are executed
+    cwd: 
+    - name: Read package.json node and npm engines version
+  # You may pin to the exact commit or the version.
+  # uses: skjnldsv/read-package-engines-version-actions@06d6baf7d8f41934ab630e97d9e6c0bc9c9ac5e4
+  uses: skjnldsv/read-package-engines-version-actions@v3
+  with:
+    # Path of package.json
+    path: # optional, default is ./
+    # Fallback if engines npm version is not defined
+    fallbackNode: # optional
+    # Fallback if engines npm version is not defined
+    fallbackNpm: # optional
+    - name: Deploy to Cloudflare Workers with Wrangler using Node
+  # You may pin to the exact commit or the version.
+  # uses: demosjarco/wrangler-action-node@c41ffb4732e2692a390231e0b4fa02443a3f04c8
+  uses: demosjarco/wrangler-action-node@v1.1.1
+  with:
+    # (Legacy) Your Cloudflare API Key
+    apiKey: # optional
+    # (Legacy) Your Cloudflare Email
+    email: # optional
+    # Your Cloudflare API Token
+    apiToken: # optional
+    # Your Cloudflare Account ID
+    accountId: # optional
+    # The environment you'd like to publish your Workers project to - must be defined in wrangler.toml
+    environment: # optional
+    # The relative path which Wrangler commands should be run from
+    workingDirectory: # optional
+    # The version of Wrangler you'd like to use to publish your Workers project
+    wranglerVersion: # optional
+    # A new line deliminated string of environment variable names that should be configured as Worker environment variables
+    vars: # optional
+    # A new line deliminated string of environment variable names that should be configured as Worker secrets
+    secrets: # optional
+    # Commands to execute before publishing the Workers project
+    preCommands: # optional
+    # Commands to execute after publishing the Workers project
+    postCommands: # optional
+    # The Wrangler command you wish to run. For example: "publish" - this will publish your Worker
+    command: # optional
+    - name: JSON to Environment Variable -- With Masking. Node 16 compatable
+  # You may pin to the exact commit or the version.
+  # uses: laingcc/json-to-variables@7b82f10ae1575cb2524ac80ca170597b951f3000
+  uses: laingcc/json-to-variables@release
+  with:
+    # The json file.
+    filename: 
+    # The prefix for variables.
+    prefix: # optional, default is json
+    # Mask variables as secrets.
+    masked: # optional, default is false
+    - name: Managed trusted sources of managed database (digital ocean) - node v20
+  # You may pin to the exact commit or the version.
+  # uses: newcadab/manage-digital-ocean-managed-database-trusted-sources-gh-action@f6336a5cd9e3755dc75e9debd5715bde7088f125
+  uses: newcadab/manage-digital-ocean-managed-database-trusted-sources-gh-action@v1.1.1
+  with:
+    # add or remove
+    action: 
+    # The uuid of the managed database
+    database_id: 
+    # Digital Access Token
+    digitalocean_token: 
+    - name: Deploy to Firebase Functions with latest node.js docker image
+  # You may pin to the exact commit or the version.
+  # uses: hbarve1/github-action-firebase-functions@e440ef33e713e266e04c0db3297ba1949d04ff93
+  uses: hbarve1/github-action-firebase-functions@v1.0.1
+  - name: Amazon App Mesh Virtual Node Action for GitHub Actions
+  # You may pin to the exact commit or the version.
+  # uses: scribd/amazon-appmesh-virtual-node-action@0949c6c301561693e0794c320afcbf8f7119eca4
+  uses: scribd/amazon-appmesh-virtual-node-action@v1.0.52
+  with:
+    # Whether to create or delete the resource. `create` is the default.
+    action: # optional
+    # The name of the Virtual Node
+    name: 
+    # The name of the App Mesh Mesh.
+    mesh-name: 
+    # The Virtual Node specification as a JSON string.
+    spec: 
+    # The account ID of the App Mesh Mesh.
+    mesh-owner: # optional
+    # An array of objects with the keywords "key" and "value", as a JSON string, ex: [{"key": "foo", "value": "bar"}]
+    tags: # optional
+    - name: Build, Push and Release a Docker container to Heroku with Node 20.
+  # You may pin to the exact commit or the version.
+  # uses: dennerkrans/heroku-docker-deploy@739cbfdb55206640c999b07f099d39cf7c4304a8
+  uses: dennerkrans/heroku-docker-deploy@v1.4.2
+  with:
+    # Name of the heroku application to which the build is to be sent.
+    heroku_app_name: 
+    # The email address associated with your Heroku account.
+    email: 
+    # Heroku API key associated with provided user's email.
+    heroku_api_key: 
+    # Dockerfile directory.
+    dockerfile_directory: # default is ./
+    # Dockerfile name. [default=Dockerfile]
+    dockerfile_name: # optional, default is Dockerfile
+    # Additional options of docker build command
+    docker_options: # optional, default is 
+    # Select process type for wich you want docker container to be uploaded. [default=web]
+    process_type: # optional, default is web
+    - name: Hello GitHub Action
+  # You may pin to the exact commit or the version.
+  # uses: hanafiah-enovade/hello-action@6aacfec04e0bc12911ecc7cb721bab5f324b034f
+  uses: hanafiah-enovade/hello-action@v1.0.2
+  - name: Github Actions Yarn
+  # You may pin to the exact commit or the version.
+  # uses: dreygur/github-actions-yarn@122cef2b28fd39d3a9e0da1659aadae0752e5a16
+  uses: dreygur/github-actions-yarn@1.0.1
+  - name: auto-ci
+  # You may pin to the exact commit or the version.
+  # uses: wangziling100/AutoCI@f16df156da18ee494ed4faf054bc3d30b13526f2
+  uses: wangziling100/AutoCI@v1.0.8
+  with:
+    # Path to config file.
+    configPath: 
+    # The general directory which stores all modules.
+    modulesDir: # optional, default is 
+    - name: Setup Anchor and Anza Solana CLI
+  # You may pin to the exact commit or the version.
+  # uses: jsonDoge/setup-anchor@dee3e956ee2ea3a03ebc1085702c614f62499625
+  uses: jsonDoge/setup-anchor@v4
+  with:
+    # Version of node.js to use
+    node-version: # optional, default is 22.11.0
+    # Version of Solana CLI to use
+    solana-cli-version: # optional, default is 2.0.15
+    # Version of Anchor to use
+    anchor-version: # optional, default is 0.30.1
+    - name: VSCode Version Matrix
+  # You may pin to the exact commit or the version.
+  # uses: EcksDy/vscode-version-matrix@dcb391f2e4003c0fd072d75b2492edefed2e73f4
+  uses: EcksDy/vscode-version-matrix@v1.0.2
+  with:
+    # GitHub token to access GitHub's API
+    token: 
+    # VSCode version to retrieve dependency versions for
+    version: # optional, default is latest
+    - name: setup firebase tools with credentials file
+  # You may pin to the exact commit or the version.
+  # uses: DonPok/github-actions-firebase-tools@31c5ada0854a63efda6ab283ae58aea608ce1329
+  uses: DonPok/github-actions-firebase-tools@v2
+  with:
+    # firebase tools version
+    firebaseToolsVersion: # optional, default is latest
+    # google application credential file.
+allowed base64 encoded or just plain text.
+if put base64 encoded contents, Please set encode option.
+
+    googleApplicationCredentialsContents: 
+    # define GOOGLE_APPLICATION_CREDENTIALS_CONTENT encode.
+you can use `utf8` or `base64`.
+default value is `utf8`.
+
+    encode: # optional, default is utf8
+    # default credential path is `\$\{\{runner.temp\}\}/googleApplocationCredentials.json`
+if you want to override, plz set.
+
+    credentialPath: # optional, default is default
+    - name: Setup Anchor
+  # You may pin to the exact commit or the version.
+  # uses: metaDAOproject/setup-anchor@aeeb5505f3fd3d52a1080d14863c6aa428c9fdf9
+  uses: metaDAOproject/setup-anchor@v3.4
+  with:
+    # Version of node.js to use
+    node-version: # optional, default is 20.11.0
+    # Version of Solana CLI to use
+    solana-cli-version: # optional, default is 2.2.21
+    # Version of Anchor to use
+    anchor-version: # optional, default is 0.31.1
+    - name: Setup CouchDB
+  # You may pin to the exact commit or the version.
+  # uses: cobot/couchdb-action@716f8ccff36d9ee08e27f094d842ff8955f83c66
+  uses: cobot/couchdb-action@v5.0.1
+  with:
+    # Version of CouchDB to use.
+    couchdb-version: # optional, default is latest
+    - name: Package Values
+  # You may pin to the exact commit or the version.
+  # uses: jarrettmeyer/github-action-package-values@4d98e372a87b0c0e1ad4ece44288b099461964f3
+  uses: jarrettmeyer/github-action-package-values@v1
+  with:
+    # The directory for your package.json file.
+    path: # optional, default is .
+    - name: Upload to GitHub
+  # You may pin to the exact commit or the version.
+  # uses: LasyIsLazy/github-upload-action@997e5c85d66375559f76e55008ab63cbee71542e
+  uses: LasyIsLazy/github-upload-action@v0.2.0
+  with:
+    # Token access to repository
+    access-token: 
+    # Local file path/directory
+    file-path: 
+    # Repository owner
+    owner: 
+    # Repository name
+    repo: 
+    # Branch name to upload the file to
+    branch-name: 
+    # Remote repository file path/directory, default: The root of repository
+    remote-dir: # optional, default is 
+    # Git commit message, default: "upload"
+    commit-message: # optional, default is upload
+    - name: Native Rust Play Store Upload
+  # You may pin to the exact commit or the version.
+  # uses: caffeine-soft/google-play-upload@fabd57dd409d7fbe6c8250cfe28befaf7c84920b
+  uses: caffeine-soft/google-play-upload@v0
+  with:
+    # Android package name
+    packageName: 
+    # Release track (e.g. production, internal)
+    track: 
+    # Release status (e.g. completed, draft, inProgress)
+    status: # optional, default is completed
+    # Path to .aab or .apk
+    releaseFile: # optional
+    # Path to .aab or .apk (alias for releaseFile)
+    releaseFiles: # optional
+    # If true, changes are not automatically sent for review (useful if your app has outstanding violations)
+    changesNotSentForReview: # optional, default is false
+    # GCP Service Account JSON
+    serviceAccountJsonPlainText: 
+    - name: Run MongoDB replica sets in GitHub Actions
+  # You may pin to the exact commit or the version.
+  # uses: cnwangjie/run-rs-action@dac97f06a7aaa173f2bfa694de5d37ed6c56fde1
+  uses: cnwangjie/run-rs-action@v1
+  with:
+    # Arguments pass to run-rs
+    args: # optional, default is 
+    - name: smithki/xvfb-action
+  # You may pin to the exact commit or the version.
+  # uses: smithki/xvfb-action@de101612a430447e97524a99a58ca69e994d374c
+  uses: smithki/xvfb-action@v1.1.2
+  with:
+    # Command to execute using xvfb
+    run: 
+    # Directory to execute command on, defaults to ./
+    working-directory: # optional
+    # XServer options
+    options: # optional
+    - name: CloneProof Check
+  # You may pin to the exact commit or the version.
+  # uses: psuvraneel-cyber/Clone-Proof@bebd09b28709ffde56800433f611323b233c96b5
+  uses: psuvraneel-cyber/Clone-Proof@v0.1.1
+  with:
+    # Execution mode: check or verify.
+    mode: # optional, default is check
+    # Path to the repository directory to inspect.
+    target-path: # optional, default is .
+    # Destination path for the generated JSON report.
+    report-path: # optional
+    # Allow network access from the Docker verification container.
+    allow-network: # optional, default is false
+    # Maximum Docker verification execution time in milliseconds.
+    timeout-ms: # optional, default is 300000
+    # Destination path for the reproducibility receipt JSON. Must resolve inside GITHUB_WORKSPACE or RUNNER_TEMP and differ from report-path. Defaults to RUNNER_TEMP/cloneproof/receipt.json.
+    receipt-path: # optional
+    - name: NPM Worker
+  # You may pin to the exact commit or the version.
+  # uses: mudlabs/npm-worker@6ceacf295586f87609a18f669031808d5eb80280
+  uses: mudlabs/npm-worker@v1.3.0
+  with:
+    # GITHUB_TOKEN or a PAT for the repository
+    token: # optional, default is ${{ github.token }}
+    # A path to the configuration file for the worker
+    config: # optional
+    - name: AI Workflow Runner
+  # You may pin to the exact commit or the version.
+  # uses: arch-playground/ai-workflow-runner@36c3b47ba8a9dacf803ba5651b91d229e5983417
+  uses: arch-playground/ai-workflow-runner@v1
+  with:
+    # Path to the workflow.md file (relative to workspace root). Required unless list_models is true.
+    workflow_path: # optional, default is 
+    # Input prompt to pass to the workflow (max 100KB)
+    prompt: # optional, default is 
+    # JSON object of environment variables (max 64KB, 100 entries)
+    env_vars: # optional, default is {}
+    # Maximum execution time in minutes (default: 30)
+    timeout_minutes: # optional, default is 30
+    # Optional validation script (file path like check.py or inline with prefix like python:print("ok")). Receives AI_LAST_MESSAGE env. Return empty/true for success, other string to continue workflow.
+    validation_script: # optional, default is 
+    # Script type for inline scripts: python or javascript. Auto-detected for file paths by extension (.py or .js). Only required when validation_script is set and type cannot be auto-detected.
+    validation_script_type: # optional, default is 
+    # Maximum validation retry attempts when script returns non-empty/non-true (default: 5, max: 20)
+    validation_max_retry: # optional, default is 5
+    # Path to OpenCode config.json file (relative to workspace, or absolute under runner.temp/tmp). Contains provider and model settings.
+    opencode_config: # optional, default is 
+    # Path to OpenCode auth.json file (relative to workspace, or absolute under runner.temp/tmp). Contains API keys and authentication. Store in GitHub Secrets, not Variables.
+    auth_config: # optional, default is 
+    # Model to use for AI execution (e.g., "anthropic/claude-3-opus"). Overrides config file default.
+    model: # optional, default is 
+    # If "true", print available models and exit without running workflow
+    list_models: # optional, default is false
+    # Enable verbose debug logging to file. Also activated by ACTIONS_STEP_DEBUG=true or RUNNER_DEBUG=1.
+    debug_log: # optional, default is false
+    # Path for debug log file. Defaults to $RUNNER_TEMP/opencode-debug.log. Accepts workspace-relative or absolute paths under RUNNER_TEMP/tmp.
+    debug_log_path: # optional, default is 
+    - name: Dependfix Security Auto Fix
+  # You may pin to the exact commit or the version.
+  # uses: dependfix/dependfix@efaa555fd31f2156821405ea3d5706aef79cfe06
+  uses: dependfix/dependfix@v0.6.0
+  with:
+    # 运行模式
+    mode: # optional, default is fix-and-pr
+    # 目标仓库（逗号分隔 owner/repo，留空使用当前仓库；与 owner 同时给出时合并去重，显式优先）
+    repos: # optional, default is 
+    # owner / org 自动发现（逗号分隔多个）。注意：GITHUB_TOKEN 仅能访问当前仓库，owner 发现其他仓库必须使用具备仓库读取权限的 PAT（github-token 输入）；如需按仓库隔离权限，建议为每个仓库单独配置 action，而不是跨仓库发现
+    owner: # optional, default is 
+    # 发现结果 topic 白名单（逗号分隔，AND 语义；仅影响 owner 发现结果）
+    repo-topics: # optional, default is 
+    # 仓库白名单 glob（逗号分隔多个，如 owner/*、owner/pkg-*；仅作用于发现结果）
+    repo-include: # optional, default is 
+    # 仓库黑名单 glob（逗号分隔多个；显式列表与发现结果均受约束，与 include 冲突时胜出）
+    repo-exclude: # optional, default is 
+    # 发现结果 topic 黑名单（逗号分隔，排除含任一指定 topic 的仓库）
+    repo-topics-exclude: # optional, default is 
+    # 多仓库并发窗口（1-16，默认 1 保守串行；>1 仅 report-only 模式允许——fix/fix-and-pr 共享单一 workDir，配置校验会拒绝并发）
+    max-concurrency: # optional, default is 1
+    # GitHub API 限流重试次数（0-10，默认 3；429/rate limit 指数退避重试）
+    max-retries: # optional, default is 3
+    # 严重级别阈值
+    severity-threshold: # optional, default is high
+    # 试运行模式（不修改文件）
+    dry-run: # optional, default is false
+    # 每仓库最多处理的告警数
+    max-alerts-per-repository: # optional, default is 20
+    # 发现规模上限：最多保留的仓库数（默认 100；0 表示不限制；大 org 场景下防止一次性全量发现）
+    max-repos: # optional, default is 100
+    # （fix-and-pr 模式）结束后将已合并的 dependfix 分支列入报告待清理清单（不自动删除）
+    cleanup-branches: # optional, default is false
+    # （fix-and-pr 模式）结束后自动删除已合并/已关闭的 dependfix 分支（非交互；不删有 open PR 的分支。配合 GitHub 仓库设置 "Automatically delete head branches" 可保持分支零残留）
+    cleanup-branches-auto: # optional, default is false
+    # GitHub Token（需 security-events 权限；fix-and-pr 模式需 contents + pull-requests 写权限；M19.3 起重复 PR 自动评论 + duplicate label 额外需 issues: write）
+    github-token: 
+    # Dependabot alerts 专用 token（可选，最小权限 fine-grained PAT，仅需 Dependabot alerts: read；缺省回退 github-token。GITHUB_TOKEN 无法读取 Dependabot alerts API，仅给 GITHUB_TOKEN 会拉取失败）
+    dependabot-alerts-token: # optional, default is 
+    # 同时拉取 Code Scanning alerts（与 Dependabot 并行源，默认关闭；需要 token 具备 security-events: read，GITHUB_TOKEN 默认具备）
+    code-scanning: # optional, default is false
+    # 开启 AI breaking change 研判（默认 false；需配置 ai-api-key；dry-run 不触发不产生费用）
+    ai: # optional, default is false
+    # AI API Key（在 workflow 中引用 secrets.DEEPSEEK_API_KEY 等 GitHub Secrets 传入；经环境变量传递自动打码）
+    ai-api-key: # optional, default is 
+    # AI 提供商：openai-compatible（默认，DeepSeek 等）/ anthropic
+    ai-provider: # optional, default is openai-compatible
+    # AI 模型名（默认 deepseek-v4-flash）
+    ai-model: # optional, default is deepseek-v4-flash
+    # OpenAI 兼容端点（默认 https://api.deepseek.com，与默认模型配套）
+    ai-base-url: # optional, default is https://api.deepseek.com
+    # Anthropic 兼容端点（默认 https://api.anthropic.com/v1/messages；自托管/网关可指定）
+    ai-api-url: # optional, default is 
+    # AI 触发范围：both（默认，验证失败或 major 升级）/ failure / major
+    ai-trigger: # optional, default is both
+    # 自定义验证命令（逗号分隔，整链替换默认 install + lint + build + typecheck + test——不做合并，默认链扩展不会自动跟随，默认链内的条目须显式保留）。例如 Nuxt 项目需要先 prepare：`pnpm install --frozen-lockfile, pnpm --filter @dependfix/platform exec nuxt prepare, pnpm lint, pnpm build, pnpm typecheck, pnpm test`
+    commands: # optional, default is 
+    # 把目标仓库 CI 独有的 pnpm/npm/yarn 脚本追加到验证链（默认 false；最多 3 条、首失败即停；docker / gh / 任意 shell 与非单一形态只披露不执行；只校验命令形态与脚本存在性，不审计脚本体；与 commands 不叠加。注意每仓多跑一条完整测试链会拉长 job 时长）
+    mirror-ci-scripts: # optional, default is false
+    # 忽略同告警尝试上限并强制再试（默认 false；仅 fix-and-pr 生效——同一告警 / 目标版本 / 修复策略连续两次关闭后第 3 次起默认跳过。用于人工确认要再试一次的场景）
+    retry-failed: # optional, default is false
+    # 创建 PR 后等待 check 终态（默认 false；仅 fix-and-pr。失败时默认评论失败摘要，受 per-PR 15 分钟 / per-run 20 分钟双预算约束，不改变 exit code；宽限期后仍无 check 记 no_ci_detected，绝不判通过）
+    wait-pr-checks: # optional, default is false
+    # check 失败且归因 self_caused 时关闭 PR 并删除分支（默认 false；需同时开启 wait-pr-checks。unknown / external_noise / pre_existing 只评论不关闭）
+    close-failed-pr: # optional, default is false
+    - name: Add cardano tools
+  # You may pin to the exact commit or the version.
+  # uses: Qafana/cardano-tools-action@dc3f6c6579e1d359976790416f9c2fcce99b0b64
+  uses: Qafana/cardano-tools-action@v1
+  - name: Puppeteer Container
+  # You may pin to the exact commit or the version.
+  # uses: ianwalter/puppeteer-container@acc52cd2334ad9eaf6e1974562d263e0a711b7e8
+  uses: ianwalter/puppeteer-container@v4.0.0
+  - name: Puppeteer-Container-test
+  # You may pin to the exact commit or the version.
+  # uses: AMO-brandon/puppeteer-container@38d0978bf43fdc93caea177f7eb1949edf3e7c3c
+  uses: AMO-brandon/puppeteer-container@v0.2.0
+  - name: Setup TypeScript
+  # You may pin to the exact commit or the version.
+  # uses: Tyler887/TypeScript-GitHub-Actions@53e31ff564a77d333d0b3e7aebfca502079ad0bc
+  uses: Tyler887/TypeScript-GitHub-Actions@1.0
+  - name: TypeScript Container Action Template
+  # You may pin to the exact commit or the version.
+  # uses: kevinpollet/typescript-container-action-template@6ca565579c295624a21b4898b950732a8e5d52ac
+  uses: kevinpollet/typescript-container-action-template@v1
+  with:
+    # Name to greet
+    name: 
+    - name: Serverless GithubAction
+  # You may pin to the exact commit or the version.
+  # uses: SuprGames/serverless-github-action@be200a36b5a0aac387e6102189add19380ff20fa
+  uses: SuprGames/serverless-github-action@v1.77
+  with:
+    # Serverless command including arguments
+    command: 
+    - name: S3 TO UNZIP
+  # You may pin to the exact commit or the version.
+  # uses: Judahh/s3ToUnzip@3d687d027f5b24e22bf530d06fc3d9238097b47a
+  uses: Judahh/s3ToUnzip@0.0.1
+  with:
+    # Folder Name
+    folder: # default is production
+    # AWS Key ID
+    aws_key_id: 
+    # AWS Key
+    aws_key: 
+    # AWS Bucket
+    aws_bucket: 
+    - name: Setup Kumo
+  # You may pin to the exact commit or the version.
+  # uses: jmaxdev/Kumo@1b44a849829cb0b64876bd44f51c4e8260b77cb8
+  uses: jmaxdev/Kumo@v1.0.4
+  with:
+    # Version of Kumo CLI to install (e.g. latest, v1.0.2)
+    version: # optional, default is latest
+    # Enable automatic caching of ~/.kumo/store
+    cache: # optional, default is true
+    - name: Set-Branch-Protection
+  # You may pin to the exact commit or the version.
+  # uses: venh/branch-protection@885726727385f24f8094fa42b9be3c69260efbd3
+  uses: venh/branch-protection@v1.1.0
+  with:
+    # This should have Admin privileges or should be an Org Level Owner
+    token: 
+    # The name of your GitHub organization
+    org: 
+    # The path of the rules json file for branch protection
+    rulesPath: # default is ./rules.json
+    # Path of the file with repos (newline) to be included for optionally applying branch protection. If not provided, all repos will be considered.
+    includedReposPath: # optional
+    # Path of the file with repos (newline separated) to be excluded for branch protection. This is optional.
+    excludedReposPath: # optional
+    # Set or Add or Delete Branch protection. Default is set.
+    action: # default is set
+    - name: oraclint
+  # You may pin to the exact commit or the version.
+  # uses: brennocm/oraclint@0da8845730cf8b895931ff2ef16032dfa8c5a5e3
+  uses: brennocm/oraclint@v0.1.0
+  with:
+    # File or directory to scan, relative to the workspace.
+    path: # optional, default is .
+    # Output format: text, json or sarif.
+    format: # optional, default is sarif
+    # File to write the report to (relative to the workspace). Empty prints to the log.
+    output: # optional, default is oraclint.sarif
+    # Fail the step on findings at or above this severity (info, low, medium, high, critical or none).
+    fail-on: # optional, default is low
+    # Hide findings below this severity.
+    min-severity: # optional, default is info
+    # Also run experimental rules (true/false).
+    experimental: # optional, default is false
+    # Ignore .oraclint.yaml and inline oraclint:ignore directives (true/false). Use "true" when scanning untrusted pull requests.
+    ignore-suppressions: # optional, default is false
+    - name: Setup Yarn
+  # You may pin to the exact commit or the version.
+  # uses: mskelton/setup-yarn@28f8f658e3991e4d2dd615e2370ec5da0bc64429
+  uses: mskelton/setup-yarn@v4.0.0
+  with:
+    # Additional flags to pass to the install command.
+    flags: # optional
+    # Node version to use, defaults to the current LTS version.
+    node-version: # optional, default is 20.x
+    # Git ref to checkout. Passed to `actions/checkout`.
+    ref: # optional
+    # Fetch depth of the checkout. Passed to `actions/checkout`.
+    fetch-depth: # optional
+    - name: oraclint
+  # You may pin to the exact commit or the version.
+  # uses: brennocm/oraclint@0da8845730cf8b895931ff2ef16032dfa8c5a5e3
+  uses: brennocm/oraclint@v0.1.0
+  with:
+    # File or directory to scan, relative to the workspace.
+    path: # optional, default is .
+    # Output format: text, json or sarif.
+    format: # optional, default is sarif
+    # File to write the report to (relative to the workspace). Empty prints to the log.
+    output: # optional, default is oraclint.sarif
+    # Fail the step on findings at or above this severity (info, low, medium, high, critical or none).
+    fail-on: # optional, default is low
+    # Hide findings below this severity.
+    min-severity: # optional, default is info
+    # Also run experimental rules (true/false).
+    experimental: # optional, default is false
+    # Ignore .oraclint.yaml and inline oraclint:ignore directives (true/false). Use "true" when scanning untrusted pull requests.
+    ignore-suppressions: # optional, default is false
+    - name: Setup KubeSolo
+  # You may pin to the exact commit or the version.
+  # uses: fenio/setup-kubesolo@7b966d02f5d22ffdb5f0dede95fcf8882473498e
+  uses: fenio/setup-kubesolo@v1
+  with:
+    # KubeSolo version to install (e.g., v0.1.7-beta, latest)
+    version: # optional, default is latest
+    # Wait for KubeSolo cluster to be ready before completing
+    wait-for-ready: # optional, default is true
+    # Timeout in seconds to wait for cluster readiness
+    timeout: # optional, default is 300
+    - name: build-npm-action
+  # You may pin to the exact commit or the version.
+  # uses: ankitasen-ubmainz/build-npm-action@933de398871bd9906e82336d74c730ae222d6fbe
+  uses: ankitasen-ubmainz/build-npm-action@v0.2
+  - name: Semantic Version Bump
+  # You may pin to the exact commit or the version.
+  # uses: mherman22/semantic-version-bump-action@b6130a4efc05f10203e503ffb4c3a44ab047963a
+  uses: mherman22/semantic-version-bump-action@v2
+  with:
+    # Type of version bump (major, minor, fix)
+    version-type: # default is fix
+    # Release stage (alpha, beta, final, snapshot)
+    release-stage: # default is alpha
+    # Path to Maven pom.xml file
+    backend-file: # optional, default is pom.xml
+    # Path to Node.js package.json file
+    frontend-file: # optional, default is frontend/package.json
+    - name: Bun Setup with Cache
+  # You may pin to the exact commit or the version.
+  # uses: WebNaresh/bun-setup-action@5e21226db1615b0f2314bd2438407788e3ac823e
+  uses: WebNaresh/bun-setup-action@v1.0.0
+  with:
+    # Bun version to install
+    bun-version: # optional, default is latest
+    # Working directory for bun install
+    working-directory: # optional, default is .
+    # Use --frozen-lockfile flag
+    frozen-lockfile: # optional, default is true
+    # Custom cache key prefix
+    cache-key-prefix: # optional, default is bun-deps
+    # Newline-separated list of node_modules paths to cache (auto-detected if empty)
+    node_modules-paths: # optional, default is 
+    - name: Pkg Action
+  # You may pin to the exact commit or the version.
+  # uses: lando/pkg-action@c1540a151296da1764c75996ea4f0e077f5be9ac
+  uses: lando/pkg-action@v6.0.0
+  with:
+    # The binary entrypoint path
+    entrypoint: 
+    # The architecture to build for x64|amd64|aarch64|arm64
+    arch: # optional, default is ${{ runner.arch }}
+    # The config file to use
+    config: # optional, default is package.json
+    # The filename of the resulting binary
+    filename: # optional, default is 
+    # The node version to package with
+    node-version: # optional, default is 20
+    # Additional options and flags to pass into pkg
+    options: # optional
+    # The operating system to build for win|linux|macos
+    os: # optional, default is ${{ runner.os }}
+    # The version of pkg to use
+    pkg: # optional, default is @yao-pkg/pkg@5.16.1
+    # Hidden flag for input testing
+    test: # optional
+    # Upload the artifact. Useful if you need to grab them for downstream things like code signing.
+    upload: # optional, default is true
+    # Upload key for the artifact. Useful if want to override outputs.artifact-key with a specific value.
+    upload-key: # optional, default is 
+    - name: Get Runner Public IP Address
+  # You may pin to the exact commit or the version.
+  # uses: candidob/get-runner-ip@2e5406f1492227920ba96df909e648be5e8b8cb2
+  uses: candidob/get-runner-ip@v1.0.0
+  - name: RobotActions Device Cloud
+  # You may pin to the exact commit or the version.
+  # uses: RobotActions/robotactions-action@cd465e307405ce44f77b2c6f5819b95d06b87e71
+  uses: RobotActions/robotactions-action@v0.2.0
+  with:
+    # RobotActions API token. Pass it from an encrypted repository secret, never inline.
+    api-token: 
+    # Grid host or full URL. Defaults to the hosted grid.
+    grid-url: # optional, default is grid.robotactions.com
+    # How the token reaches the grid: "header" sends Authorization: Bearer, "path" uses a /t/<token>/ URL prefix. Node-based clients such as WebdriverIO must use "header" — Node 18+ fetch rejects credentials embedded in a URL.
+    auth: # optional, default is header
+    # Suite label recorded against each session, for grouping runs in the dashboard.
+    test-suite: # optional, default is 
+    # Release identifier recorded against each session.
+    release-id: # optional, default is 
+    - name: Setup Minikube Kubernetes Cluster
+  # You may pin to the exact commit or the version.
+  # uses: manusa/actions-setup-minikube@001b9f30165b2a875b835ec5183ced75b94bc269
+  uses: manusa/actions-setup-minikube@v2.19.0
+  with:
+    # Version of Minikube to deploy
+    minikube version: 
+    # Version of Kubernetes to deploy
+    kubernetes version: 
+    # GITHUB_TOKEN to be able to perform requests to GH REST API (with no limit)
+    github token: # optional
+    # Minikube driver to use. This action supports `none` (default if not specified) or `docker`
+    driver: # optional
+    # The container runtime to be used (valid options: docker, cri-o, containerd; default: docker unless MINIKUBE_CONTAINER_RUNTIME is set)
+    container runtime: # optional
+    # Additional arguments to append to minikube start command (evaluated by the shell, see README)
+    start args: # optional
+    - name: Bun Monopub Action
+  # You may pin to the exact commit or the version.
+  # uses: alex2844/action-bun-monopub@46ca2f7c361c919d60c292ef03f1de301c02da85
+  uses: alex2844/action-bun-monopub@v1.0.0
+  with:
+    # Target version. Reads from root package.json if empty.
+    version: # optional, default is 
+    # NPM package access (public or restricted)
+    access: # optional, default is public
+    # Keep generated .tgz files after publish (true/false)
+    keep-tarballs: # optional, default is true
+    # NPM Registry URL
+    registry-url: # optional, default is https://registry.npmjs.org
+    - name: Setup Supabase
+  # You may pin to the exact commit or the version.
+  # uses: AlterraLink/setup-supabase-action@39307c743345d1e2467e9b075ca6d8bbcb28b8a4
+  uses: AlterraLink/setup-supabase-action@v1.0.4
+  with:
+    # Node.js version to use
+    node-version: # optional, default is 22
+    # Package manager to use (npm, yarn, pnpm, or bun)
+    package-manager: # optional, default is npm
+    # Package manager version to use (only applies to pnpm, yarn, and bun)
+    package-manager-version: # optional, default is 
+    # Supabase CLI version to use
+    supabase-version: # optional, default is latest
+    # Whether to install dependencies
+    install-dependencies: # optional, default is true
+    # Working directory for package manager commands
+    working-directory: # optional, default is .
+    - name: Angular Setup
+  # You may pin to the exact commit or the version.
+  # uses: mayurrawte/github-angular-actions@e4678e9a4e3720745a90de753757b05ae9f43595
+  uses: mayurrawte/github-angular-actions@v2.0.0
+  with:
+    # Angular CLI version to install (e.g. 17.3.8, 18.0.0, or latest)
+    version: # optional, default is latest
+    # Node.js version to use (e.g. 22, 20, 18)
+    node-version: # optional, default is 22
+    # Package manager to cache and use for the global CLI install: npm, yarn, or pnpm
+    package-manager: # optional, default is npm
+    # Path to the lock file for caching (e.g. packages/app/package-lock.json). Defaults to repo root.
+    cache-dependency-path: # optional, default is 
+    # Enable package manager caching. Set to false to disable (e.g. if no lock file exists).
+    cache: # optional, default is true
+    - name: Auto Deploy Action
+  # You may pin to the exact commit or the version.
+  # uses: lando/auto-deploy-action@9407c37f9b94482afe80afe18eb284481d4c5cfb
+  uses: lando/auto-deploy-action@v3.1.0
+  with:
+    # A GitHub repo slug for the deploy target
+    slug: 
+    # Additional args to pass into package manager install command
+    args: # optional
+    # The branch to auto deploy to.
+    branch: # optional
+    # Toggle to disable deploy. Mostly used for testing.
+    deploy: # optional, default is true
+    # The dirs containing a package.json to update.
+    dirs: # optional, default is ./
+    # The package manager to use.
+    manager: # optional, default is auto
+    # The name of the package.
+    package: # optional
+    # Open a PR instead of directly merging into the `branch` of `slug`.
+    pr: # optional, default is true
+    # The base branch to open the PR against.
+    pr-base: # optional, default is main
+    # Where the updated pacakge lives.
+    registry: # optional, default is npm
+    # The separator between package and version
+    separator: # optional, default is @
+    # A GitHub personal access token with the entire `repo` permission.
+    token: # optional, default is ${{ github.token }}
+    # Toggle to disable updating. Mostly used for testing.
+    update: # optional, default is true
+    # The version of the package.
+    version: # optional
+    - name: ExploitGrid Dependency Scanner
+  # You may pin to the exact commit or the version.
+  # uses: Nebulark-net/exploitgrid_dependency_action@5d6895f588923f2b029a4003609d1f49836d81fc
+  uses: Nebulark-net/exploitgrid_dependency_action@v1
+  with:
+    # ExploitGrid API Key (must belong to a non-Free tier group)
+    api_key: 
+    # GitHub token for Checks API authentication
+    github_token: # optional, default is ${{ github.token }}
+    # Directory path containing package.json and package-lock.json
+    manifest_path: # optional, default is ./
+    # Include devDependencies in the vulnerability scan
+    include_dev_dependencies: # optional, default is false
+    # Gating mode: kev_only, exploit_or_kev, critical_or_exploited, none
+    fail_threshold: # optional, default is exploit_or_kev
+    # Fail the workflow if the ExploitGrid API is unreachable (fail-closed)
+    fail_on_error: # optional, default is true
+    - name: Setup depjs
+  # You may pin to the exact commit or the version.
+  # uses: depjs/setup-depjs@8642f8cf05d3e45ffbf700b669b60b971832ba2a
+  uses: depjs/setup-depjs@v1.0.0
+  with:
+    # Version of dep to install (an exact version, a semver range, or a dist-tag such as "latest")
+    dep-version: # optional, default is latest
+    - name: Checkout Runner
+  # You may pin to the exact commit or the version.
+  # uses: wesjetpkg/checkout-runner@b82b6200c67ba99b1e77fab49f90450ffcce5a7a
+  uses: wesjetpkg/checkout-runner@v1
+  - name: Git Checkout Lite
+  # You may pin to the exact commit or the version.
+  # uses: lite-actions/git-checkout@90733d329cd6c632c7597660341002e1a1377c44
+  uses: lite-actions/git-checkout@v1
+  with:
+    # Repository name with owner, e.g. `lite-actions/git-checkout`.
+    repository: # optional, default is ${{ github.repository }}
+    # Branch, tag, full ref (`refs/heads/main`, `refs/pull/1/merge`) or a 40- character commit SHA. Defaults to the ref that triggered the workflow, or the remote's default branch when checking out another repository.
+    ref: # optional, default is 
+    # Token used to fetch. Stored as an `http.<server>/.extraheader` basic auth credential in the checkout's local git config.
+    token: # optional, default is ${{ github.token }}
+    # Directory to check out into, relative to `GITHUB_WORKSPACE`. Must stay inside the workspace.
+    path: # optional, default is 
+    # Run `git clean -ffdx && git reset --hard HEAD` when reusing an existing checkout of the same repository.
+    clean: # optional, default is true
+    # Number of commits to fetch. `0` fetches all history and (for an existing shallow checkout) unshallows it.
+    fetch-depth: # optional, default is 1
+    # Also fetch tags, even when `fetch-depth` is not 0.
+    fetch-tags: # optional, default is false
+    # Partial clone filter, e.g. `blob:none`. Applied to every fetch.
+    filter: # optional, default is 
+    # Newline-separated patterns to restrict the working tree to. Empty means a full checkout (and clears sparse-checkout on a reused directory).
+    sparse-checkout: # optional, default is 
+    # Use cone mode for `sparse-checkout` (directory prefixes only).
+    sparse-checkout-cone-mode: # optional, default is true
+    # Download Git LFS objects after checkout (needs `git-lfs`).
+    lfs: # optional, default is false
+    # `false`, `true`, or `recursive`.
+    submodules: # optional, default is false
+    # Add the checkout path to the global `safe.directory` list.
+    set-safe-directory: # optional, default is true
+    # Keep the auth header in the local git config so later steps can push. When false it is removed once the checkout completes.
+    persist-credentials: # optional, default is true
+    # Pass `--progress` to fetch and checkout.
+    show-progress: # optional, default is true
+    # Base URL of the git server.
+    github-server-url: # optional, default is ${{ github.server_url }}
+    - name: checkout-action
+  # You may pin to the exact commit or the version.
+  # uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b
+  uses: taiki-e/checkout-action@v1.4.2
+  - name: TLS Config Lint
+  # You may pin to the exact commit or the version.
+  # uses: sebrandon1/tls-config-lint@4015580027fc9baf219d8560cdfbab1426d311c0
+  uses: sebrandon1/tls-config-lint@v1.1.1
+  with:
+    # Minimum severity to cause failure: critical, high, medium, info
+    severity-threshold: # optional, default is high
+    # Comma-separated languages to scan: go,python,nodejs,cpp or auto to detect
+    languages: # optional, default is auto
+    # Additional directories to exclude (comma-separated)
+    exclude-dirs: # optional, default is 
+    # Pattern IDs to suppress (comma-separated)
+    exclude-patterns: # optional, default is 
+    # Path to optional repo config file
+    config-file: # optional, default is .tls-config-lint.yml
+    # Directory to scan
+    scan-path: # optional, default is .
+    # Whether to fail CI on findings above threshold
+    fail-on-findings: # optional, default is true
+    # Path to write SARIF file (empty = disabled)
+    sarif-output: # optional, default is 
+    - name: Package Changelog
+  # You may pin to the exact commit or the version.
+  # uses: cssnr/package-changelog-action@220008c52174d2f23b0c7a321bdc1460c8692ee9
+  uses: cssnr/package-changelog-action@v2.1.0
+  with:
+    # Location of Lock File
+    path: # optional, default is package-lock.json
+    # Update Release Notes
+    update: # optional, default is true
+    # Release Notes Heading
+    heading: # optional, default is ### Package Changes
+    # Toggle Text for Summary
+    toggle: # optional, default is Click Here to View Changes
+    # Summary Open by Default
+    open: # optional, default is false
+    # Add Summary on No Changes
+    empty: # optional, default is false
+    # Customize Table Columns
+    columns: # optional, default is n,i,t,b,a
+    # Customize Package Sections
+    sections: # optional, default is a,u,d,r,k
+    # Max Releases to Process
+    max: # optional, default is 30
+    # Add Workflow Job Summary
+    summary: # optional, default is true
+    # GitHub Token
+    token: # optional, default is ${{ github.token }}
+    - name: Setup JavaScript/TypeScript Environment
+  # You may pin to the exact commit or the version.
+  # uses: ske-ci/setup-js@dc4407d94d93037d09db7313891f215253848cd6
+  uses: ske-ci/setup-js@v1.3.1
+  with:
+    # The runtime to use (node, deno, bun or nub)
+    runtime: # optional, default is node
+    # The version of the runtime
+    version: # optional, default is latest
+    # Package manager to use (npm, yarn, pnpm)
+    pm: # optional
+    # A comma-separated list of scripts to run in order (e.g., lint, build, test)
+    scripts: # optional
+    # Current working directory for commands
+    cwd: # optional, default is .
+    - name: Find and replace in strings
+  # You may pin to the exact commit or the version.
+  # uses: LarsenLP/actions-find-and-replace-string@3d36424e15aec8b0641395fa6d27c75df535d91b
+  uses: LarsenLP/actions-find-and-replace-string@v3
+  with:
+    # The text you want to run this action on
+    source: 
+    # The text you are looking for
+    find: 
+    # The text you want to replace with
+    replace: 
+    - name: Pin Exact
+  # You may pin to the exact commit or the version.
+  # uses: SereneMatt/pin-exact-action@14ea9d200cb6f040ff382e738e95df4952bd5aad
+  uses: SereneMatt/pin-exact-action@v0.1.0
+  with:
+    # Directory containing package.json and the Node version file
+    working-directory: # optional, default is .
+    - name: SMTP Notify
+  # You may pin to the exact commit or the version.
+  # uses: hyperpolymath/smtp-notify-action@e384daf6167a7a7567642d6a62060106244d2413
+  uses: hyperpolymath/smtp-notify-action@v0.5.1
+  with:
+    # Server host name (SMTP or NNTP, per protocol: `protocol`)
+    server_address: 
+    # Server port. Empty = the port the protocol and transport imply, so an ordinary workflow never needs this. SMTP: 465 implicit TLS, 587 STARTTLS, 25 plaintext. NNTP: 563 implicit TLS (NNTPS), 119 for STARTTLS and plaintext.
+    server_port: # optional, default is 
+    # "smtp" (default) sends mail; "nntp" posts one article to the newsgroups named by `newsgroups`. Chosen explicitly and never inferred from which other inputs are set, so a workflow that mixes the two is told which mistake it made. NNTP always authenticates (AUTHINFO USER/PASS, the `username`/`password` inputs) and always posts exactly one article.
+    protocol: # optional, default is smtp
+    # Transport selection, fail-closed, for both protocols. "true" (default) or "implicit" = implicit TLS from the first byte: SMTPS (normally port 465), or NNTPS (normally port 563) with protocol: nntp. "false" or "starttls" = start in the clear and upgrade with STARTTLS — RFC 3207 on the submission port (normally 587), RFC 4642 on the news port (normally 119); the upgrade is MANDATORY, so a server that does not advertise STARTTLS fails the step rather than being talked to in the clear. "plaintext" = no TLS at all, which sends the password base64-encoded in the clear; use it only against a containerized test sink. Any other value is rejected outright. Note the difference from dawidd6/action-send-mail, where "false" means "STARTTLS when the server offers it": here a server that does not offer it is an error, not a downgrade.
+    secure: # optional, default is true
+    # Username (SMTP: AUTH PLAIN or AUTH LOGIN, chosen from what the server offers. NNTP: AUTHINFO USER, always used).
+    username: # optional, default is 
+    # Password. Reaches the binary via the environment, never argv, so it cannot leak into process listings.
+    password: # optional, default is 
+    # From: header value, e.g. "GitHub Push <bot@example.org>"
+    from: # optional, default is 
+    # Recipients, separated by commas and/or whitespace. SMTP only: a news article has no envelope, it is addressed by its Newsgroups header.
+    to: # optional, default is 
+    # One or more newsgroup names, comma-separated (e.g. "comp.lang.idris" or "alt.test, uk.rec.cycling"), for protocol: nntp. RFC 5536 §3.1.4 well-formedness is enforced: the names must exist on the server, `*` and `control`/`control.*` are refused, and anything malformed fails the step rather than being repaired.
+    newsgroups: # optional, default is 
+    # Subject: header value. Non-ASCII text is sent as RFC 2047 UTF-8 encoded-words; CR/LF or invalid UTF-8 is rejected, never sanitized.
+    subject: # optional, default is 
+    # Optional Content-Language header (RFC 3282): one or more RFC 5646 language tags, comma-separated, e.g. "en-GB" or "en, cy". Shape-checked (1-8 ASCII letters/digits per subtag, first alphabetic; no registry lookup); a value that fails fails the step rather than being repaired.
+    content_language: # optional, default is 
+    # Plain-text body (no HTML, images, or tracking content; dot-stuffed on the wire: RFC 5321 for SMTP, RFC 3977 for NNTP)
+    body: # optional, default is 
+    # "true" = non-delivery probe. SMTP only: reports DNS, TCP, TLS, EHLO and AUTH as separate stages, one line each, then MSG (whether the message inputs would pass local checks), and names the stage that failed. AUTH reports which mechanism this client would use; no credential is sent, so a wrong password is NOT detected. Nothing is delivered.
+    diagnose: # optional, default is false
+    # "true" = connect, TLS handshake, EHLO/CAPABILITIES, QUIT. No auth, nothing sent or posted. For canary/CI verification against a real server without delivering mail; the news equivalent of the probe.
+    handshake_only: # optional, default is false
+    # Whole-run deadline in seconds. A watchdog bounds the entire run — connection, TLS handshake, and every read and write — and fails the step with a diagnostic if it is exceeded. This is deliberately a whole-run deadline rather than a per-operation one: see BUSTFILE.adoc, BUST-2026-001 and BUST-2026-002.
+    timeout_seconds: # optional, default is 60
+    - name: Install mdbindery
+  # You may pin to the exact commit or the version.
+  # uses: sagol/mdbindery@7c866bb737ad96f0df165d94bebdfdcf7528dc1c
+  uses: sagol/mdbindery@v0.1.0
+  with:
+    # mdbindery to install: empty for the version of this action (the ref in `uses:`), a PyPI version such as 0.1.0, or a git ref of sagol/mdbindery such as main.
+
+    version: # optional, default is 
+    # Install Node.js, mermaid-cli, and Ace (charts, the accessibility check, preview). 'false' is faster.
+    node: # optional, default is true
+    # Java runtime for EPUBCheck: auto (download only if no Java 11+ is found), always, or never.
+    java: # optional, default is auto
+    # Cache the downloaded tools between workflow runs.
+    cache: # optional, default is true
+    - name: NPM Outdated Check
+  # You may pin to the exact commit or the version.
+  # uses: cssnr/npm-outdated-action@96115fcf310cc58e863f35f6d1ebbc3e7cbfed10
+  uses: cssnr/npm-outdated-action@v2.1.1
+  with:
+    # Customize Table Columns
+    columns: # optional, default is n,c,w,l
+    # Report if Latest > Wanted
+    latest: # optional, default is true
+    # Comment Heading
+    heading: # optional, default is ### NPM Outdated Check
+    # Details Open by Default
+    open: # optional, default is true
+    # Show npm-check-updates Output
+    ncu: # optional, default is true
+    # Show npm update --dry-run Output
+    update: # optional, default is true
+    # Use Link for Names
+    link: # optional, default is true
+    # CSV of Package Names to Exclude
+    exclude: # optional
+    # Fail Job if Updates are Found
+    fail: # optional, default is false
+    # Add Summary to Job
+    summary: # optional, default is true
+    # GitHub Token
+    token: # optional, default is ${{ github.token }}
+    - name: WordPress.org Plugin Validator
+  # You may pin to the exact commit or the version.
+  # uses: jazzsequence/action-wporg-validator@a4edf0d45da945b2601d71082ac73913b110b53a
+  uses: jazzsequence/action-wporg-validator@1.0.0
+  with:
+    # Plugin slug (directory name inside wp-content/plugins). Defaults to the repository name.
+    slug: # optional, default is 
+    # Directory containing the plugin to check, relative to the workspace.
+    build-dir: # optional, default is .
+    # PHP version used to run WordPress and the checker.
+    php-version: # optional, default is 8.2
+    # WordPress version to install (e.g. "latest", "nightly", "6.8").
+    wp-version: # optional, default is latest
+    # Space-separated plugin slugs to install and activate alongside Plugin Check (e.g. dependencies).
+    extra-plugins: # optional, default is 
+    # Comma-separated list of checks to run. Empty runs all default checks.
+    checks: # optional, default is 
+    # Comma-separated list of checks to skip.
+    exclude-checks: # optional, default is 
+    # Comma-separated check categories to run (e.g. "plugin_repo,security").
+    categories: # optional, default is 
+    # Comma-separated directories to exclude from checking.
+    exclude-directories: # optional, default is vendor,node_modules,tests,bin,.github
+    # Comma-separated files to exclude from checking.
+    exclude-files: # optional, default is .gitignore,.distignore
+    # Newline-separated rsync exclude patterns applied when copying the plugin into WordPress. Keeps the checked tree small and fast.
+    copy-excludes: # optional, default is .git
+node_modules
+
+    # Run experimental checks.
+    include-experimental: # optional, default is false
+    # Fail the step on "error", on "warning" (errors and warnings), or never ("none").
+    fail-on: # optional, default is warning
+    - name: Ping URL (JavaScript action)
+  # You may pin to the exact commit or the version.
+  # uses: soul-wish/ping-url-javascript-action@6b2b019373d08cb35b80f09c0d3e47ce48d92c68
+  uses: soul-wish/ping-url-javascript-action@v1.3
+  with:
+    # URL to ping
+    url: 
