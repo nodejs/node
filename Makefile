@@ -1247,7 +1247,7 @@ $(PKG): release-only
 		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" sh tools/osx-productsign.sh
-	sh tools/osx-notarize.sh $(FULLVERSION)
+	sh tools/osx-notarize.sh $(PKG)
 
 .PHONY: pkg
 pkg: $(PKG) ## Build the macOS installer for releases.
@@ -1433,6 +1433,7 @@ else
 endif
 ifeq ($(OSTYPE),darwin)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(BINARYNAME)" sh tools/osx-codesign.sh
+	sh tools/osx-notarize.sh $(BINARYNAME)/bin/node
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
