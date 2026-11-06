@@ -52,6 +52,15 @@ struct WalkEntry {
   int type = UV_DIRENT_UNKNOWN;
 };
 
+struct DirentPath {
+  std::string name;
+  std::string parent;
+};
+
+// Split before encoding: path operations must preserve filesystem bytes.
+// An empty cwd leaves path as given, for exclude callbacks' lstat inputs.
+DirentPath GetDirentPath(const std::string& cwd, const std::string& path);
+
 // One call a walk off the main thread needs made to the exclude callback,
 // which only that thread can do. A directory's questions are recorded in
 // the order the callback would see them, together with what decides

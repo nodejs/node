@@ -1461,6 +1461,9 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} Encoding for returned paths and paths passed to an
+    `exclude` function. Use `'buffer'` to preserve filename bytes.
+    **Default:** `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of [glob patterns][] to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -1477,6 +1480,11 @@ changes:
   that match the pattern.
 
 See [Glob patterns][] for the syntax `pattern` accepts.
+
+When `encoding` is `'buffer'`, paths are returned as {Buffer} objects.
+With `withFileTypes: true`, the `name` and `parentPath` properties of each
+{fs.Dirent} use the specified encoding, including those passed to `exclude`.
+The encoding does not change how patterns are matched.
 
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
@@ -3744,6 +3752,9 @@ changes:
 
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} Encoding for returned paths and paths passed to an
+    `exclude` function. Use `'buffer'` to preserve filename bytes.
+    **Default:** `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of [glob patterns][] to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3760,6 +3771,11 @@ changes:
 * Retrieves the files matching the specified pattern.
 
 See [Glob patterns][] for the syntax `pattern` accepts.
+
+When `encoding` is `'buffer'`, paths are returned as {Buffer} objects.
+With `withFileTypes: true`, the `name` and `parentPath` properties of each
+{fs.Dirent} use the specified encoding, including those passed to `exclude`.
+The encoding does not change how patterns are matched.
 
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
@@ -6460,6 +6476,9 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} Encoding for returned paths and paths passed to an
+    `exclude` function. Use `'buffer'` to preserve filename bytes.
+    **Default:** `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of [glob patterns][] to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -6469,9 +6488,15 @@ changes:
     The `cwd` directory has a depth of `0`. **Default:** `Infinity`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {string\[]} paths of files that match the pattern.
+* Returns: {string\[]|Buffer\[]|fs.Dirent\[]} paths or directory entries that
+  match the pattern.
 
 See [Glob patterns][] for the syntax `pattern` accepts.
+
+When `encoding` is `'buffer'`, paths are returned as {Buffer} objects.
+With `withFileTypes: true`, the `name` and `parentPath` properties of each
+{fs.Dirent} use the specified encoding, including those passed to `exclude`.
+The encoding does not change how patterns are matched.
 
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
@@ -7731,8 +7756,8 @@ added: v10.10.0
 * Type: {string|Buffer}
 
 The file name that this {fs.Dirent} object refers to. The type of this
-value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
-[`fs.readdirSync()`][].
+value is determined by the `options.encoding` passed to the directory-reading
+or glob function that created it.
 
 #### `dirent.parentPath`
 
@@ -7749,9 +7774,10 @@ changes:
     description: Marking the API stable.
 -->
 
-* Type: {string}
+* Type: {string|Buffer}
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
+For glob results, this value uses the specified `options.encoding`.
 
 ### Class: `fs.FSWatcher`
 

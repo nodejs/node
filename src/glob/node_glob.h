@@ -20,7 +20,10 @@ namespace node::glob {
 // Consults a JavaScript `exclude` callback.
 class JsExcludeFilter final : public ExcludeFilter {
  public:
-  JsExcludeFilter(Environment* env, v8::Local<v8::Function> callback);
+  JsExcludeFilter(Environment* env,
+                  v8::Local<v8::Function> callback,
+                  bool with_file_types,
+                  enum encoding encoding);
 
   bool ExcludesPath(std::string_view path) override;
   bool ExcludesEntry(std::string_view name,
@@ -37,6 +40,8 @@ class JsExcludeFilter final : public ExcludeFilter {
 
   Environment* env_;
   v8::Global<v8::Function> callback_;
+  const bool with_file_types_;
+  const enum encoding encoding_;
   bool failed_ = false;
 };
 
@@ -72,7 +77,8 @@ class BindingData : public SnapshotableObject {
                          WalkOptions* options,
                          std::vector<CompiledPatternPtr>* includes,
                          std::vector<CompiledPatternPtr>* excludes,
-                         std::unique_ptr<JsExcludeFilter>* filter);
+                         std::unique_ptr<JsExcludeFilter>* filter,
+                         enum encoding* encoding);
 
   // Compiles (or fetches) `pattern`; returns nullptr on a compile error,
   // with the reason written to *error.
@@ -103,7 +109,8 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
               const WalkOptions& options,
               const std::vector<CompiledPatternPtr>& includes,
               const std::vector<CompiledPatternPtr>& excludes,
-              std::unique_ptr<JsExcludeFilter> filter);
+              std::unique_ptr<JsExcludeFilter> filter,
+              enum encoding encoding);
 
   // How many results an iterator pull returns at a time.
   // See the explanation in this header's .cc file for
@@ -134,6 +141,9 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
   std::unique_ptr<JsExcludeFilter> filter_;
   Walk walk_;
   const bool with_file_types_;
+  // Output conversion only; the walker always owns raw filesystem paths.
+  const enum encoding encoding_;
+  const std::string cwd_;
   // Set by all(): the pull consumes the rest of the walk in one batch.
   bool drain_ = false;
   bool done_ = false;
