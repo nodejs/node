@@ -364,8 +364,9 @@ describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, ()
   });
 
   it('returns error when the current working directory is removed', {
-    // Windows and SunOS refuse to remove a directory that is in use as a cwd.
-    skip: common.isWindows || common.isSunOS,
+    // Windows, SunOS, AIX and IBM i refuse to remove a directory that is in
+    // use as a cwd.
+    skip: common.isWindows || common.isSunOS || common.isAIX || common.isIBMi,
   }, async () => {
     const removedDir = tmpdir.resolve('removed-cwd');
     fs.mkdirSync(removedDir);
