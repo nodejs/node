@@ -2,6 +2,19 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const os = require('os');
+const { Worker, isMainThread, parentPort } = require('worker_threads');
+
+if (!isMainThread) {
+  // A worker mounts the SEA VFS too, at the same mount point, so a worker
+  // script in it and the assets next to it can be loaded from there.
+  parentPort.postMessage({
+    dirname: __dirname,
+    greeting: fs.readFileSync(path.join(__dirname, 'data', 'greeting.txt'), 'utf8'),
+    sum: require('./modules/math.js').add(2, 3),
+  });
+  return;
+}
 
 // The SEA VFS never shadows the real file system: the assets are mounted at
 // a reserved mount point and the main script runs from inside the mount, so
@@ -13,6 +26,10 @@ assert.notStrictEqual(__filename, process.execPath);
 assert.strictEqual(path.basename(__filename), 'sea.js');
 assert.strictEqual(require.main, module);
 console.log('main script runs from', __filename);
+
+// The VFS is mounted at the mount point reserved for --vfs-load, which is the
+// same in every thread.
+assert.strictEqual(__dirname, path.join(os.devNull, 'vfs', '0'));
 
 // The main script itself is readable through fs.
 assert.strictEqual(fs.existsSync(__filename), true);
@@ -103,4 +120,13 @@ const exportsPkg = require('test-exports-pkg');
 assert.strictEqual(exportsPkg.fromExports, true, 'exports-only package should resolve');
 console.log('exports-only package lookup test passed');
 
-console.log('All SEA VFS tests passed!');
+// A worker can run a script from the VFS (nodejs/node#67223).
+const worker = new Worker(__filename);
+worker.once('message', (message) => {
+  assert.deepStrictEqual(message, {
+    dirname: __dirname,
+    greeting: 'Hello from SEA VFS!',
+    sum: 5,
+  });
+  console.log('All SEA VFS tests passed!');
+});

@@ -220,6 +220,27 @@ The VFS supports the `node:fs` operations for reading files and directories.
 Since the SEA VFS is read-only, write operations fail with `EROFS`. See the
 [VFS documentation][] for the full list of supported operations.
 
+The VFS is mounted at the mount point reserved for [`--vfs-load`][], which is
+the same in every thread, and worker threads mount it as well. A path into the
+VFS, such as the main script's `__filename` or a bundled worker script, can
+therefore be loaded in a worker:
+
+```cjs
+const { Worker, isMainThread } = require('node:worker_threads');
+
+if (isMainThread) {
+  new Worker(__filename);
+} else {
+  // The worker runs the same script, from the same virtual file system.
+  console.log(require('./modules/math.js').add(2, 3));
+}
+```
+
+Since that mount point is taken by the SEA VFS, `--vfs-load` cannot be used
+with `"useVfs"`: `--build-sea` rejects it in `"execArgv"`, and the executable
+rejects it at startup when it comes from `--node-options` or from the
+`execArgv` of a worker.
+
 #### Loading modules from the VFS in a SEA
 
 When `useVfs` is enabled, the main script is executed from inside the
@@ -295,27 +316,6 @@ at the mount point root, and access through `__dirname`-relative paths,
 executable only embeds the archive; read the files through the file system
 APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
 combined with `"assets"`.
-
-The archive is mounted at the mount point reserved for [`--vfs-load`][], which
-is the same in every thread, and worker threads mount it as well. A path into
-the archive, such as the main script's `__filename`, can therefore be loaded
-in a worker:
-
-```cjs
-const { Worker, isMainThread } = require('node:worker_threads');
-
-if (isMainThread) {
-  new Worker(__filename);
-} else {
-  // The worker runs the same script, from the same archive.
-  console.log(require('./lib/math.js').add(2, 3));
-}
-```
-
-Since that mount point is taken by the archive, `--vfs-load` cannot be used
-with `"vfsArchive"`: `--build-sea` rejects it in `"execArgv"`, and the
-executable rejects it at startup when it comes from `--node-options` or from
-the `execArgv` of a worker.
 
 #### Snapshot and code caching limitations
 
