@@ -18,9 +18,7 @@
     'torque_files_replaced': ['<!@pymod_do_main(ForEachReplace ".tq" "-tq" <@(torque_files_without_v8_root))'],
     'torque_outputs_csa_cc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-csa.cc" <@(torque_files_replaced))'],
     'torque_outputs_csa_h': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-csa.h" <@(torque_files_replaced))'],
-    'torque_outputs_inl_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-inl.inc" <@(torque_files_replaced))'],
     'torque_outputs_cc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.cc" <@(torque_files_replaced))'],
-    'torque_outputs_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.inc" <@(torque_files_replaced))'],
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'torque_files': [
@@ -128,7 +126,7 @@
             '<@(torque_files)',
           ],
           'outputs': [
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-fields.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-field-asserts.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
@@ -145,9 +143,7 @@
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
-            '<@(torque_outputs_inl_inc)',
             '<@(torque_outputs_cc)',
-            '<@(torque_outputs_inc)',
           ],
           'action': [
             '<@(emulator)',
@@ -201,6 +197,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
+          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-field-asserts.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc',
@@ -225,9 +222,7 @@
       'direct_dependent_settings': {
         'sources': [
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h',
-          '<@(torque_outputs_inl_inc)',
           '<@(torque_outputs_cc)',
-          '<@(torque_outputs_inc)',
         ],
         'include_dirs': [
           '<(SHARED_INTERMEDIATE_DIR)',
