@@ -473,7 +473,7 @@
                  'mksnapshot_flags': ['--no-native-code-counters'],
                },
              }],
-            ['build_type=="Debug"', {
+            ['build_type=="Debug" or dcheck_always_on==1', {
               'outputs': [
                 '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
               ],
