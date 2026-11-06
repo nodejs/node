@@ -613,7 +613,8 @@ See {File}.
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
 
 An implementation of {FileReader} from the [File API][]. `readAsArrayBuffer()`,
 `readAsBinaryString()`, `readAsText()`, and `readAsDataURL()` read a {Blob}
@@ -644,7 +645,8 @@ reader.readAsText(new Blob(['hello']));
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
 
 An implementation of {FileReaderSync} from the [File API][]. It is
 `[Exposed=(DedicatedWorker,SharedWorker)]`, so it exists only inside a
@@ -1002,7 +1004,8 @@ The process object. See the [`process` object][] section.
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-fileapi`][] CLI flag.
 
 An implementation of {ProgressEvent} from the [XMLHttpRequest Standard][].
 `FileReader`
@@ -1564,6 +1567,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Web Worker]: #class-worker
 [XMLHttpRequest Standard]: https://xhr.spec.whatwg.org/#interface-progressevent
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
+[`--experimental-fileapi`]: cli.md#--experimental-fileapi
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator

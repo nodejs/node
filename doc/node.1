@@ -858,6 +858,11 @@ dtls documentation for details.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
 .
+.It Fl -experimental-fileapi
+Enable exposition of the File API globals \fBFileReader\fR and \fBProgressEvent\fR
+on the global scope. \fBFileReaderSync\fR is exposed only inside a Web Worker
+started with \fB--experimental-web-worker\fR.
+.
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
 passing a second \fBparentURL\fR argument for contextual resolution.
@@ -2265,6 +2270,8 @@ one is included in the list below.
 \fB--experimental-dtls\fR
 .It
 \fB--experimental-eventsource\fR
+.It
+\fB--experimental-fileapi\fR
 .It
 \fB--experimental-import-meta-resolve\fR
 .It

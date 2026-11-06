@@ -1,4 +1,4 @@
-// Flags: --expose-internals --experimental-web-worker
+// Flags: --expose-internals --experimental-web-worker --experimental-fileapi
 'use strict';
 
 const common = require('../common');

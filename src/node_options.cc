@@ -776,6 +776,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             BOOL_FIELD(experimental_eventsource),
             kAllowedInEnvvar,
             false);
+  AddOption("--experimental-fileapi",
+            "experimental File API globals",
+            BOOL_FIELD(experimental_fileapi),
+            kAllowedInEnvvar,
+            false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
 #if HAVE_FFI
   AddOption("--experimental-ffi",

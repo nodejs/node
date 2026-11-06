@@ -1465,6 +1465,16 @@ added:
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-fileapi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable exposition of the [File API][] globals `FileReader` and `ProgressEvent`
+on the global scope. `FileReaderSync` is exposed only inside a Web Worker
+started with `--experimental-web-worker`.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -4305,6 +4315,7 @@ one is included in the list below.
 * `--experimental-detect-module`
 * `--experimental-dtls`
 * `--experimental-eventsource`
+* `--experimental-fileapi`
 * `--experimental-import-meta-resolve`
 * `--experimental-import-text`
 * `--experimental-json-modules`
@@ -4920,6 +4931,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [FIPS mode]: crypto.md#fips-mode
+[File API]: https://w3c.github.io/FileAPI/
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module resolution and loading]: packages.md#module-resolution-and-loading

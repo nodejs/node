@@ -11,6 +11,7 @@ const included = new Set([
 ]);
 
 const runner = new WPTRunner('FileAPI');
+runner.setFlags(['--experimental-fileapi']);
 for (const spec of runner.specs) {
   if (!included.has(spec.filename)) {
     runner.specs.delete(spec);
