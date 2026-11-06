@@ -20,6 +20,7 @@
 #include "src/common/message-template.h"
 #include "src/common/scoped-modification.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
@@ -3572,31 +3573,49 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // ----------------------------------------------------------------------------
 // Parser support
 
-template <typename IsolateT>
-void Parser::HandleDebugMagicComments(IsolateT* isolate,
+void Parser::HandleDebugMagicComments(Isolate* isolate,
                                       DirectHandle<Script> script) {
-  DirectHandle<String> source_url = scanner_.SourceUrl(isolate);
-  if (!source_url.is_null()) {
+  // On the main thread, the scanned source is the script source.
+  DirectHandle<String> source(Cast<String>(script->source()), isolate);
+  SetDebugMagicCommentFields(isolate, script, source,
+                             scanner_.debug_magic_comment_locations());
+}
+
+// static
+void Parser::SetDebugMagicCommentFields(
+    Isolate* isolate, DirectHandle<Script> script, DirectHandle<String> source,
+    const Scanner::DebugMagicCommentLocations& locations) {
+  source = String::Flatten(isolate, source);
+  auto is_valid = [&](Scanner::Location location) {
+    return location.IsValid() && location.length() != 0 &&
+           static_cast<uint32_t>(location.end_pos) <= source->length();
+  };
+  if (is_valid(locations.source_url)) {
+    // The source URL is used as the script name (e.g. in stack traces,
+    // profiles and heap snapshots), so it is a sequential copy rather than a
+    // substring of the source.
+    DirectHandle<String> source_url = isolate->factory()->NewCopiedSubstring(
+        source, locations.source_url.beg_pos, locations.source_url.length());
     script->set_source_url(*source_url);
   }
-  DirectHandle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
   // The API can provide a source map URL and the API should take precedence.
   // Let's make sure we do not override the API with the magic comment.
-  if (!source_mapping_url.is_null() &&
-      IsUndefined(script->source_mapping_url())) {
+  if (IsUndefined(script->source_mapping_url()) &&
+      is_valid(locations.source_mapping_url)) {
+    // The source map URL can be arbitrarily large (e.g. an inline source map),
+    // so it is a substring of the source rather than a copy.
+    DirectHandle<String> source_mapping_url = isolate->factory()->NewSubString(
+        source, locations.source_mapping_url.beg_pos,
+        locations.source_mapping_url.end_pos);
     script->set_source_mapping_url(*source_mapping_url);
   }
-
-  DirectHandle<String> debug_id = scanner_.DebugId(isolate);
-  if (!debug_id.is_null()) {
+  if (is_valid(locations.debug_id)) {
+    // Debug IDs are short, so they are copied like the source URL.
+    DirectHandle<String> debug_id = isolate->factory()->NewCopiedSubstring(
+        source, locations.debug_id.beg_pos, locations.debug_id.length());
     script->set_debug_id(*debug_id);
   }
 }
-
-template void Parser::HandleDebugMagicComments(Isolate* isolate,
-                                               DirectHandle<Script> script);
-template void Parser::HandleDebugMagicComments(LocalIsolate* isolate,
-                                               DirectHandle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, DirectHandle<Script> script) {
   CHECK_NOT_NULL(isolate);
@@ -3700,9 +3719,6 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
     MaybeProcessSourceRanges(info, result, stack_limit_);
   });
   // We need to unpark by now though, to be able to internalize.
-  if (flags().is_toplevel()) {
-    HandleDebugMagicComments(isolate, script);
-  }
   if (result == nullptr) return;
   PostProcessParseResult(isolate, info, result);
 }
