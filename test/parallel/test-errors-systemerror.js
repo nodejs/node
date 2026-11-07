@@ -7,6 +7,7 @@ const { E, SystemError, codes, kIsNodeError } = require('internal/errors');
 const { inspect } = require('internal/util/inspect');
 
 assert.throws(
+  // eslint-disable-next-line no-restricted-syntax
   () => { new SystemError(); },
   {
     name: 'TypeError',
