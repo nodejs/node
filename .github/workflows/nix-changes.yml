@@ -11,11 +11,13 @@ on:
       - v[0-9]+.x
     paths:
       - '**.nix'
+      - tools/certdata.txt
       - tools/nix/**
       - .github/workflows/nix-changes.yml
   pull_request:
     paths:
       - '**.nix'
+      - tools/certdata.txt
       - tools/nix/**
       - .github/workflows/nix-changes.yml
     types: [opened, synchronize, reopened, ready_for_review]
@@ -52,6 +54,7 @@ jobs:
           sparse-checkout: |
             shell.nix
             tools/nix/
+            tools/certdata.txt
           sparse-checkout-cone-mode: false
 
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
