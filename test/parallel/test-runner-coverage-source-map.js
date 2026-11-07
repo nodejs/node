@@ -123,6 +123,31 @@ describe('Coverage with source maps', async () => {
     t.assert.strictEqual(spawned.code, 0);
   });
 
+  await it('should work with index source maps', async (t) => {
+    const report = generateReport([
+      '# -----------------------------------------------------------------',
+      '# file             | line % | branch % | funcs % | uncovered lines',
+      '# -----------------------------------------------------------------',
+      '# test             |        |          |         | ',
+      '#  fixtures        |        |          |         | ',
+      '#   test-runner    |        |          |         | ',
+      '#    source-maps   |        |          |         | ',
+      '#     index-map    |        |          |         | ',
+      '#      index.ts    | 100.00 |   100.00 |  100.00 | ',
+      '# -----------------------------------------------------------------',
+      '# all files        | 100.00 |   100.00 |  100.00 | ',
+      '# -----------------------------------------------------------------',
+    ]);
+
+    const spawned = await common.spawnPromisified(process.execPath, [
+      ...flags,
+      fixtures.path('test-runner', 'source-maps', 'index-map', 'index.js'),
+    ]);
+    t.assert.strictEqual(spawned.stderr, '');
+    t.assert.ok(spawned.stdout.includes(report));
+    t.assert.strictEqual(spawned.code, 0);
+  });
+
   await it('should throw when a source map is missing a source file', async (t) => {
     const file = fixtures.path('test-runner', 'source-maps', 'missing-sources', 'index.js');
     const missing = fixtures.path('test-runner', 'source-maps', 'missing-sources', 'nonexistent.js');
