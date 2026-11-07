@@ -78,7 +78,8 @@ test('deepEqual', () => {
         '    121,\n' +
         '    122,\n' +
         '    10\n' +
-        '  ]\n'
+        '  ]\n' +
+        'Object prototypes differ: Uint8Array !== Buffer\n'
     }
   );
   assert.deepEqual(arr, buf);
@@ -138,7 +139,8 @@ test('date', () => {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
               '+ 2016-01-01T00:00:00.000Z\n- MyDate 2016-01-01T00:00:00.000Z' +
-              " {\n-   '0': '1'\n- }\n"
+              " {\n-   '0': '1'\n- }\n" +
+              'Object prototypes differ: Date !== MyDate\n'
     }
   );
   assert.throws(
@@ -147,7 +149,8 @@ test('date', () => {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
               '+ MyDate 2016-01-01T00:00:00.000Z {\n' +
-              "+   '0': '1'\n+ }\n- 2016-01-01T00:00:00.000Z\n"
+              "+   '0': '1'\n+ }\n- 2016-01-01T00:00:00.000Z\n" +
+              'Object prototypes differ: MyDate !== Date\n'
     }
   );
 });
@@ -162,7 +165,8 @@ test('regexp', () => {
     {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
-              "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }\n"
+              "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }\n" +
+              'Object prototypes differ: RegExp !== MyRegExp\n'
     }
   );
 });
