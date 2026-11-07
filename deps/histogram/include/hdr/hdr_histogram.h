@@ -265,8 +265,9 @@ int64_t hdr_add_while_correcting_for_coordinated_omission(
     struct hdr_histogram* h, struct hdr_histogram* from, int64_t expected_interval);
 
 /**
- * Get minimum value from the histogram.  Will return 2^63-1 if the histogram
- * is empty.
+ * Get minimum value from the histogram.  Will return 0 if the histogram is
+ * empty, like hdr_max; a recorded 0 also gives 0, so use hdr_total_count to
+ * tell the two apart.
  *
  * @param h "This" pointer
  */
@@ -292,7 +293,10 @@ int64_t hdr_total_count(const struct hdr_histogram* h);
  * Get the value at a specific percentile.
  *
  * @param h "This" pointer.
- * @param percentile The percentile to get the value for
+ * @param percentile The percentile to get the value for. Above 100 gives the value at
+ * 100; below 0 and -inf give the first recorded value. Exactly 0 returns the lowest
+ * equivalent value of that bucket.
+ * @return the value at the percentile, or 0 if no values have been recorded.
  */
 int64_t hdr_value_at_percentile(const struct hdr_histogram* h, double percentile);
 
@@ -300,11 +304,14 @@ int64_t hdr_value_at_percentile(const struct hdr_histogram* h, double percentile
  * Get the values at the given percentiles.
  *
  * @param h "This" pointer.
- * @param percentiles The ordered percentiles array to get the values for.
+ * @param percentiles The ordered percentiles array to get the values for, with the
+ * same out-of-range handling as hdr_value_at_percentile.
  * @param length Number of elements in the arrays.
  * @param values Destination array containing the values at the given percentiles.
  * The values array should be allocated by the caller.
- * @return 0 on success, ENOMEM if the provided destination array is null.
+ * Percentiles that cannot be resolved get the same value hdr_value_at_percentile
+ * returns for them, so all are 0 on an empty histogram.
+ * @return 0 on success, EINVAL if percentiles or values is null.
  */
 int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percentiles, int64_t *values, size_t length);
 
@@ -312,7 +319,7 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
  * Gets the standard deviation for the values in the histogram.
  *
  * @param h "This" pointer
- * @return The standard deviation
+ * @return The standard deviation, or 0.0 if the histogram is empty.
  */
 double hdr_stddev(const struct hdr_histogram* h);
 
@@ -320,7 +327,7 @@ double hdr_stddev(const struct hdr_histogram* h);
  * Gets the mean for the values in the histogram.
  *
  * @param h "This" pointer
- * @return The mean
+ * @return The mean, or 0.0 if the histogram is empty.
  */
 double hdr_mean(const struct hdr_histogram* h);
 
