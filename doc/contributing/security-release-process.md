@@ -119,10 +119,8 @@ The current security stewards are documented in the main Node.js
     Security release pre-alert:
 
     We will release new versions of <add versions> release lines on or shortly
-    after Day Month Date, Year in order to address:
-
-    * # high severity issues
-    * # moderate severity issues
+    after Day Month Date, Year in order to address security vulnerabilities.
+    The highest severity issue fixed in this release is <add max severity>.
 
     https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
     ```
@@ -147,20 +145,14 @@ security announcements for more information.
 
 ## Release day
 
-* [ ] 1\. **Lock down the CI:**
-  * Lock down the CI to prevent public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
-
-* [ ] 2\. **Release:**
+* [ ] 1\. **Release:**
   * Verify the CI is green on all release proposals (test-V8, CITGM, etc).
   * Follow the [release process](https://github.com/nodejs/node/blob/main/doc/contributing/releases.md).
 
-* [ ] 3\. **Unlock the CI:**
-  * Unlock the CI to allow public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
-
-* [ ] 4\. **Publish Post-Release Blog Post:**
+* [ ] 2\. **Publish Post-Release Blog Post:**
   * Publish the post-release blog post on the `nodejs/nodejs.org` repository.
 
-* [ ] 5\. **Notify the community:**
+* [ ] 3\. **Notify the community:**
   * Notify the community that the security release has gone out:
     * [ ] Slack: `#nodejs-social`
     * [ ] [docker-node](https://github.com/nodejs/docker-node/issues)

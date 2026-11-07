@@ -53,6 +53,7 @@
 </table>
 
 * Other Versions
+  * [27.x](CHANGELOG_V27.md)
   * [26.x](CHANGELOG_V26.md)
   * [25.x](CHANGELOG_V25.md)
   * [24.x](CHANGELOG_V24.md)
@@ -90,7 +91,7 @@ This is a security release.
 
 * (CVE-2026-105481) http: ensure agent data guard works without I/O (James M Snell)
 * (CVE-2026-105482) dns: validate resolve inputs for null bytes (James M Snell)
-* (CVE-2026-106069) tls: reject non-canonical IP addresses (Matteo Collina)
+* (CVE-2026-106069, CVE-2026-106072) tls: reject non-canonical IP addresses (Matteo Collina)
 * (CVE-2026-106073) permission: check permission model in realpathSync (RafaelGSS)
 * (CVE-2026-106074) crypto: reset random caches across snapshots (Filip Skokan)
 * (CVE-2026-111497) src: expose `BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` (Antoine du Hamel)

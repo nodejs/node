@@ -59,7 +59,7 @@ maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv6
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
-                     'amaro/dist/index': 'deps/amaro/dist/index.js'
+                     'amaro/dist/internal': 'deps/amaro/dist/internal.js'
 }
 
 # create option groups
@@ -2460,10 +2460,9 @@ def configure_quic(o):
 
 def configure_dtls(o):
   if options.experimental_dtls and options.without_ssl:
-    warn('--experimental-dtls is incompatible with --without-ssl')
+    error('--experimental-dtls is incompatible with --without-ssl')
 
-  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
-                                      not options.without_ssl)
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls)
 
 def configure_static(o):
   if options.fully_static or options.partly_static:
@@ -2504,7 +2503,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
             info(f'Using floating patch "{patchfile}" from "{dir_base}"')
         file_list.append(srcfile)
     break
-  return file_list
+  return sorted(file_list)
 
 def configure_intl(o):
   def icu_download(path):
@@ -3001,7 +3000,7 @@ configure_section_file(output)
 
 # remove builtins that have been disabled
 if options.without_amaro:
-    del shareable_builtins['amaro/dist/index']
+    del shareable_builtins['amaro/dist/internal']
 
 # configure shareable builtins
 output['variables']['node_builtin_shareable_builtins'] = []

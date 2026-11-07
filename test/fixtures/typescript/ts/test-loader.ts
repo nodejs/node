@@ -1,4 +1,9 @@
-import { register } from 'node:module';
-import * as fixtures from '../../../common/fixtures.mjs';
+import { registerHooks } from 'node:module';
+import type { ResolveHookSync } from 'node:module';
 
-register(fixtures.fileURL('typescript/ts/hook.ts'));
+// Pass through
+const resolve: ResolveHookSync = function resolve(specifier, context, nextResolve) {
+  return nextResolve(specifier, context);
+};
+
+registerHooks({ resolve });

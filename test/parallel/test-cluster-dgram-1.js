@@ -56,10 +56,12 @@ function primary() {
     doSend();
 
     function doSend() {
-      socket.send(buf, 0, buf.length, address.port, address.address, afterSend);
+      socket.send(buf, 0, buf.length, address.port, common.localhostIPv4, afterSend);
     }
 
-    function afterSend() {
+    function afterSend(error) {
+      assert.strictEqual(error, null);
+
       sent++;
       if (sent < NUM_WORKERS * PACKETS_PER_WORKER) {
         doSend();

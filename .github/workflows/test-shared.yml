@@ -191,7 +191,7 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
         with:
           extra_nix_config: sandbox = true
 
@@ -255,7 +255,7 @@ jobs:
     with:
       runner: ubuntu-24.04-arm
       v8-nar: ${{ needs.build-aarch64-linux-v8.outputs.local-cache && 'libv8-aarch64-linux.nar' }}
-      pkcs11-store-test: ${{ matrix.openssl.attr == 'openssl' }}
+      pkcs11-store-test: ${{ matrix.openssl.attr == 'openssl_3_5' }}
       # Override just the `openssl` attr of the default shared-lib set with
       # the matrix-selected nixpkgs attribute (e.g. `openssl_3_6`). All
       # other shared libs (brotli, cares, libuv, …) keep their defaults.

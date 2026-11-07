@@ -40,7 +40,7 @@ The following targets are not supported by bundled libffi:
 * `s390x`.
 * `mips`, `mipsel`, and `mips64el` on targets other than FreeBSD, Linux, and
   OpenBSD.
-* `ppc64` on Android, CloudABI, iOS, OpenHarmony, OS/400, Solaris, and Windows.
+* `ppc64` on Android, CloudABI, iOS, OpenHarmony, IBM i, Solaris, and Windows.
 
 When using the [Permission Model][], FFI APIs are
 restricted unless the [`--allow-ffi`][] flag is provided.
@@ -440,6 +440,64 @@ console.log(add(20, 22));
 console.log(add.pointer);
 ```
 
+### `library.toFunction(pointer, signature)`
+
+* `pointer` {bigint}
+* `signature` {Object}
+* Returns: {Function}
+
+Creates a callable JavaScript wrapper for a native function address. The pointer
+must be a nonzero, non-negative `bigint` that fits the platform's pointer width.
+It can come from a resolved symbol, a native function's return value, or a
+function pointer stored in native memory, such as a vtable slot.
+
+```cjs
+const { DynamicLibrary, suffix } = require('node:ffi');
+
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
+try {
+  const address = lib.getSymbol('add_i32');
+  const add = lib.toFunction(address, {
+    arguments: ['int32', 'int32'],
+    return: 'int32',
+  });
+  console.log(add(20, 22));
+  console.log(add.pointer === address);
+} finally {
+  lib.close();
+}
+```
+
+Argument and return conversions follow the same rules as `getFunction()`.
+This method supports fixed signatures using the platform's default calling
+convention. Explicit calling convention selection and structures passed or
+returned by value are not supported.
+
+Each call creates a distinct wrapper. Multiple signatures can be associated
+with the same address, but the caller is responsible for their correctness.
+These wrappers do not appear in `library.functions`, `library.getFunctions()`,
+`library.symbols`, or `library.getSymbols()` unless a symbol was separately
+resolved by name. They use the generic libffi call path rather than Fast API
+or SharedBuffer invokers.
+
+The wrapper keeps the associated library alive. Calling it after
+`library.close()` throws `ERR_FFI_LIBRARY_CLOSED`. FFI permission is required
+when creating the wrapper, including after permission has been revoked on an
+already-open library.
+
+**The associated library does not establish ownership or validity of the
+address.** Node.js cannot determine whether the pointer refers to executable
+code, matches the signature, or is still valid. Passing a data pointer, using
+an incorrect signature, or calling code that has been unloaded can crash the
+process or corrupt memory.
+
+The caller must keep the actual code and any native object used by the call
+alive. For example, associating a COM vtable method with `ole32.dll` does not
+retain the COM object or the module implementing that method. The caller must
+manage its native references and lifetime. A wrapper for a callback pointer
+also becomes unsafe if that callback is unregistered, even if the associated
+library remains open.
+
 ### `library.getFunctions([definitions])`
 
 * `definitions` {Object}
@@ -481,6 +539,12 @@ When `signature` is omitted, the callback uses a default `void ()` signature.
 
 The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
+
+While a library has registered callbacks, it is not garbage collected, even if
+no JavaScript references to it remain. This keeps callback pointers held by
+native code valid until `library.unregisterCallback(pointer)` or
+`library.close()` is called. Unregister callbacks or close the library when
+they are no longer needed to avoid leaking it.
 
 ```cjs
 const { DynamicLibrary, suffix } = require('node:ffi');

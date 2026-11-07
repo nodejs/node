@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   openssl-update:
@@ -26,6 +27,7 @@ jobs:
     env:
       TARGET_BRANCH: ${{ github.ref_name }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      PR_BRANCH: actions/${{ github.ref_name != github.event.repository.default_branch && format('{0}/', github.ref_name) || '' }}tools-update-openssl
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -37,6 +39,20 @@ jobs:
           if [ "$TARGET_BRANCH" != "$DEFAULT_BRANCH" ]; then
             echo "PR_TITLE_PREFIX=[${TARGET_BRANCH%-staging}] " >> "$GITHUB_ENV"
           fi
+      - name: Apply existing OpenSSL update
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          commit_list=$(gh pr list --repo "$GITHUB_REPOSITORY" \
+            --head "$PR_BRANCH" --base "$TARGET_BRANCH" --state open \
+            --json commits,isCrossRepository \
+            --jq 'first(.[] | select(.isCrossRepository | not)).commits[]?.oid')
+          if [ -n "$commit_list" ]; then
+            git fetch --depth=2 --no-tags origin $commit_list
+            git cherry-pick --empty=drop $commit_list
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Check and download new OpenSSL version
         run: |
           ./tools/dep_updaters/update-openssl.sh download \
@@ -72,6 +88,6 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           committer: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated update of OpenSSL to ${{ env.NEW_VERSION }} for ${{ github.ref_name }}.
-          branch: actions/${{ github.ref_name != github.event.repository.default_branch && format('{0}/', github.ref_name) || '' }}tools-update-openssl
+          branch: ${{ env.PR_BRANCH }}
           labels: dependencies, openssl
           title: '${{ env.PR_TITLE_PREFIX }}deps: update OpenSSL to ${{ env.NEW_VERSION }}'

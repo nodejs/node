@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>File's lastModified</title>
+<link rel=help href="https://w3c.github.io/FileAPI/#dfn-lastModified">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+
+promise_test(async t => {
+  const before = Date.now();
+  const file = new File([], "dummy");
+  const after = Date.now();
+  await t.step_wait(() => Date.now() > after, "The clock advances beyond construction");
+  assert_between_inclusive(file.lastModified, before, after);
+}, "lastModified defaults to the time of construction");
+</script>

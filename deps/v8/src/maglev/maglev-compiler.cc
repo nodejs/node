@@ -285,6 +285,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   // FunctionEntryStackCheck runs. A frame no larger than the smallest OS page
   // cannot step over a guard page, so bail out rather than emit an unchecked
   // stack pointer jump of arbitrary size.
+  // When replacing this bailout with a different strategy, consider doing the
+  // same in Turboshaft as well.
   if (graph->tagged_stack_slots() + graph->untagged_stack_slots() >
       kMaxStackSlots) {
     return false;

@@ -427,7 +427,7 @@ a `timeout` of 5 seconds.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: Using the `clientCertEngine` option now throws
                  `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`.

@@ -724,6 +724,32 @@ declare namespace InternalCryptoBinding {
     getIssuer(): Buffer | null;
   }
 
+  interface X509NameAttribute {
+    oid: string;
+    value?: string;
+  }
+
+  interface X509Name {
+    raw: Buffer;
+    rdns: X509NameAttribute[][];
+  }
+
+  interface X509RawExtension {
+    oid: string;
+    critical: boolean;
+    value: Buffer;
+  }
+
+  interface X509AlgorithmIdentifier {
+    oid: string;
+    parameters?: Buffer;
+  }
+
+  interface X509Signature {
+    algorithm: X509AlgorithmIdentifier;
+    value: Buffer;
+  }
+
   interface X509CertificateHandle {
     subject(): string;
     subjectAltName(): string | undefined;
@@ -741,6 +767,12 @@ declare namespace InternalCryptoBinding {
     serialNumber(): string;
     signatureAlgorithm(): string | undefined;
     signatureAlgorithmOid(): string | undefined;
+    version(): number | undefined;
+    subjectName(): X509Name | undefined;
+    issuerName(): X509Name | undefined;
+    extensions(): X509RawExtension[] | undefined;
+    tbs(): Buffer | undefined;
+    signature(): X509Signature | undefined;
     raw(): Buffer;
     publicKey(): KeyObjectHandle;
     pem(): string;
@@ -972,6 +1004,9 @@ export interface CryptoBinding {
   getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
   getMacs(): string[];
+  getX509CertificateSnapshot(
+    certificate: InternalCryptoBinding.X509CertificateHandle,
+  ): InternalCryptoBinding.Buffer[];
   isCryptoKey(key: unknown): boolean;
   isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
@@ -997,6 +1032,9 @@ export interface CryptoBinding {
     passphrase?: InternalCryptoBinding.ByteSource,
   ): InternalCryptoBinding.PKCS12ParseResult;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
+  parseX509Snapshot(
+    snapshot: ArrayBufferView[],
+  ): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;
   privateEncrypt: InternalCryptoBinding.PublicKeyCipher;
   publicDecrypt: InternalCryptoBinding.PublicKeyCipher;

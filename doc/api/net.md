@@ -625,7 +625,7 @@ server has closed.
 ### `server[Symbol.asyncIterator]()`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -2551,7 +2551,7 @@ net.isIPv6('fhqwhgads'); // returns false
 ## `net/promises` API
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -2567,7 +2567,7 @@ objects rather than relying on events. The API is accessible via
 ### `netPromises.connect(port[, host])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `options` {Object} Accepts the same arguments as [`net.connect()`][]. May
@@ -2596,7 +2596,7 @@ socket.end();
 ### `netPromises.listen([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `options` {Object} Accepts the same options as [`net.createServer()`][] and

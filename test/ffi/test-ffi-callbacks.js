@@ -63,6 +63,10 @@ test('ffi callback ref and unref APIs work', () => {
       return 0;
     },
   );
+  assert.throws(() => lib.registerCallback(() => {}, { arguments: ['i32'], return: 'i32' }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'Callback must be the last argument',
+  });
 
   try {
     lib.unrefCallback(voidCallback);

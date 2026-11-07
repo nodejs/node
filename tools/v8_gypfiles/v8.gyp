@@ -18,9 +18,7 @@
     'torque_files_replaced': ['<!@pymod_do_main(ForEachReplace ".tq" "-tq" <@(torque_files_without_v8_root))'],
     'torque_outputs_csa_cc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-csa.cc" <@(torque_files_replaced))'],
     'torque_outputs_csa_h': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-csa.h" <@(torque_files_replaced))'],
-    'torque_outputs_inl_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-inl.inc" <@(torque_files_replaced))'],
     'torque_outputs_cc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.cc" <@(torque_files_replaced))'],
-    'torque_outputs_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.inc" <@(torque_files_replaced))'],
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'torque_files': [
@@ -101,9 +99,11 @@
       ],
     },  # v8_pch
     {
+      # Shared generated sources have one producer for both toolsets. In cross
+      # builds, the executable used by this action still belongs to the host.
       'target_name': 'run_torque',
       'type': 'none',
-      'toolsets': ['host', 'target'],
+      'toolsets': ['target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['torque#host'],
@@ -126,7 +126,7 @@
             '<@(torque_files)',
           ],
           'outputs': [
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-fields.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-field-asserts.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
@@ -143,9 +143,7 @@
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
-            '<@(torque_outputs_inl_inc)',
             '<@(torque_outputs_cc)',
-            '<@(torque_outputs_inc)',
           ],
           'action': [
             '<@(emulator)',
@@ -191,14 +189,15 @@
       'toolsets': ['host', 'target'],
       'hard_dependency': 1,
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_base_without_compiler',
         'torque_runtime_support',
         'v8_maybe_icu',
       ],
       'direct_dependent_settings': {
         'sources': [
+          '<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-field-asserts.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc',
@@ -214,8 +213,8 @@
       'toolsets': ['host', 'target'],
       'hard_dependency': 1,
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_internal_headers',
         'v8_libbase',
         'v8_maybe_icu',
@@ -223,9 +222,7 @@
       'direct_dependent_settings': {
         'sources': [
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h',
-          '<@(torque_outputs_inl_inc)',
           '<@(torque_outputs_cc)',
-          '<@(torque_outputs_inc)',
         ],
         'include_dirs': [
           '<(SHARED_INTERMEDIATE_DIR)',
@@ -236,7 +233,7 @@
       'target_name': 'generate_bytecode_builtins_list',
       'type': 'none',
       'hard_dependency': 1,
-      'toolsets': ['host', 'target'],
+      'toolsets': ['target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['bytecode_builtins_list_generator#host'],
@@ -277,8 +274,8 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
@@ -497,8 +494,8 @@
         }],
         ['want_separate_host_toolset', {
           'dependencies': [
-            'generate_bytecode_builtins_list',
-            'run_torque',
+            'generate_bytecode_builtins_list#target',
+            'run_torque#target',
             'mksnapshot#host',
             'v8_maybe_icu',
             # [GYP] added explicitly, instead of inheriting from the other deps
@@ -509,8 +506,8 @@
           ]
         }, {
           'dependencies': [
-            'generate_bytecode_builtins_list',
-            'run_torque',
+            'generate_bytecode_builtins_list#target',
+            'run_torque#target',
             'mksnapshot',
             'v8_maybe_icu',
             # [GYP] added explicitly, instead of inheriting from the other deps
@@ -631,8 +628,8 @@
         'v8_maybe_icu',
         'v8_shared_internal_headers',
         'v8_heap_base_headers',
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_libbase',
         'fp16',
       ],
@@ -961,8 +958,8 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_maybe_icu',
         'v8_base_without_compiler',
         'v8_internal_headers',
@@ -983,8 +980,8 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_internal_headers',
         'v8_maybe_icu',
         'v8_base_without_compiler',
@@ -1019,8 +1016,8 @@
       'toolsets': ['host', 'target'],
       'hard_dependency': 1,
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_maybe_icu',
       ],
       'conditions': [
@@ -1044,7 +1041,7 @@
     {
       'target_name': 'v8_inspector_headers',
       'type': 'none',
-      'toolsets': ['host', 'target'],
+      'toolsets': ['target'],
       'hard_dependency': 1,
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -1102,13 +1099,13 @@
         'v8_bigint',
         'v8_headers',
         'v8_heap_base',
-        'v8_inspector_headers',
+        'v8_inspector_headers#target',
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_version',
         'cppgc_base',
-        'generate_bytecode_builtins_list',
-        'run_torque',
+        'generate_bytecode_builtins_list#target',
+        'run_torque#target',
         'v8_internal_headers',
         'v8_maybe_icu',
         'v8_zlib',
@@ -1155,7 +1152,7 @@
             }],
             ['v8_enable_i18n_support==0', {
               'dependencies': [
-                '../../deps/crates/crates.gyp:temporal_zoneinfo64_data',
+                '../../deps/crates/crates.gyp:temporal_zoneinfo64_data#target',
               ],
             }],
           ],
@@ -1369,7 +1366,7 @@
         }],
         ['v8_enable_i18n_support==1', {
           'dependencies': [
-            'run_gen-regexp-special-case',
+            'run_gen-regexp-special-case#target',
           ],
           'sources': [
             '<(SHARED_INTERMEDIATE_DIR)/src/regexp/special-case.cc',
@@ -2080,7 +2077,7 @@
     {
       'target_name': 'run_gen-regexp-special-case',
       'type': 'none',
-      'toolsets': ['host', 'target'],
+      'toolsets': ['target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['gen-regexp-special-case#host'],
@@ -2320,8 +2317,8 @@
     {
       'target_name': 'postmortem-metadata',
       'type': 'none',
-      'toolsets': ['host', 'target'],
-      'dependencies': ['run_torque'],
+      'toolsets': ['target'],
+      'dependencies': ['run_torque#target'],
       'variables': {
         'heapobject_files': [
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h',

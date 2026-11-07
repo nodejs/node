@@ -3,7 +3,7 @@
 <!-- YAML
 deprecated: v1.4.2
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/65074
     description: Loading the module now emits a runtime deprecation warning
                  (`DEP0032`).

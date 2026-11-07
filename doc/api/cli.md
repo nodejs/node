@@ -194,7 +194,7 @@ directly through the process arguments.
 ### `--allow-env`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -297,8 +297,10 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module and custom `--require` modules has a implicit
-read permission.
+The initializer module and custom `--require` modules have an implicit
+read permission. The entrypoint is granted as passed on the command line,
+without the module loader's resolution; see the [File System Permissions][]
+documentation for details.
 
 ```console
 $ node --permission -r custom-require.js -r custom-require-2.js index.js
@@ -718,6 +720,10 @@ runtime, using either [`v8.startupSnapshot.setDeserializeMainFunction()`][] or
 an additional module during the snapshot building process is needed,
 please file a request in the [Node.js issue tracker][] and link to it in the
 [tracking issue for user-land snapshots][].
+
+During snapshot building, a debugger cannot be attached to the process.
+`--build-snapshot` cannot be used together with `--inspect`, `--inspect-brk` or
+`--inspect-wait`.
 
 ### `--build-snapshot-config`
 
@@ -1649,7 +1655,7 @@ Enable the experimental [`node:stream/iter`][] module.
 ### `--experimental-strip-private-modules`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -2379,7 +2385,7 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v26.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/66318
     description: VFS is unflagged but still experimental.
 -->
@@ -3262,7 +3268,7 @@ the threshold specified, the process will exit with code `1`.
 ### `--test-forbid-only`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 Fails the test run if a test or suite is declared with `only: true`, including
@@ -4080,10 +4086,6 @@ and is incompatible with `--run`, as `--run` takes precedence and ignores watch 
 ```bash
 node --watch-path=./src --watch-path=./tests index.js
 ```
-
-This option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
 
 ### `--watch-preserve-output`
 

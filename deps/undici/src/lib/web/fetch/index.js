@@ -290,10 +290,7 @@ function fetch (input, init = undefined) {
       cleanupAbortListeners()
     },
     processResponse,
-    dispatcher: getRequestDispatcher(requestObject), // undici
-    // Keep requestObject alive to prevent its AbortController from being GC'd
-    // See https://github.com/nodejs/undici/issues/4627
-    requestObject
+    dispatcher: getRequestDispatcher(requestObject) // undici
   })
 
   // 14. Return p.
@@ -412,8 +409,7 @@ function fetching ({
   processResponseEndOfBody,
   processResponseConsumeBody,
   useParallelQueue = false,
-  dispatcher = getGlobalDispatcher(), // undici
-  requestObject = null // Keep alive to prevent AbortController GC, see #4627
+  dispatcher = getGlobalDispatcher() // undici
 }) {
   // Ensure that the dispatcher is set accordingly
   assert(dispatcher)
@@ -467,9 +463,7 @@ function fetching ({
     processResponseConsumeBody,
     processResponseEndOfBody,
     taskDestination,
-    crossOriginIsolatedCapability,
-    // Keep requestObject alive to prevent its AbortController from being GC'd
-    requestObject
+    crossOriginIsolatedCapability
   }
 
   // 7. If request’s body is a byte sequence, then set request’s body to

@@ -92,11 +92,16 @@ test('DynamicLibrary exposes functions and symbols', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
 
   try {
+    // An inherited non-writable `pointer` must not shadow the address.
+    Object.defineProperty(Function.prototype, 'pointer', {
+      value: 1, writable: false, configurable: true,
+    });
     const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
     const addU64 = lib.getFunction('add_u64', {
       return: 'u64',
       arguments: ['u64', 'u64'],
     });
+    delete Function.prototype.pointer;
     const addI32Ptr = lib.getSymbol('add_i32');
 
     assert.strictEqual(addI32(20, 22), 42);
@@ -215,6 +220,54 @@ test('getFunction caches signatures consistently', () => {
   }
 });
 
+test('getFunctions rejects a signature changed by a getter', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const conflicting = { arguments: ['f64', 'f64'], return: 'f64' };
+
+  try {
+    let fn;
+    assert.throws(() => {
+      lib.getFunctions({
+        add_i32: fixtureSymbols.add_i32,
+        get add_i64() {
+          fn = lib.getFunction('add_i32', conflicting);
+          return fixtureSymbols.add_i64;
+        },
+      });
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Function add_i32 was already requested with a different signature/,
+    });
+
+    // The rejected call must not cache any of its own entries.
+    assert.deepStrictEqual(Object.keys(lib.functions), ['add_i32']);
+    assert.strictEqual(lib.getFunction('add_i32', conflicting), fn);
+  } finally {
+    lib.close();
+  }
+});
+
+test('getFunctions accepts a matching signature requested by a getter', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    let fn;
+    const functions = lib.getFunctions({
+      add_i32: fixtureSymbols.add_i32,
+      get add_i64() {
+        fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+        return fixtureSymbols.add_i64;
+      },
+    });
+
+    assert.strictEqual(functions.add_i32, fn);
+    assert.strictEqual(functions.add_i32(20, 22), 42);
+    assert.strictEqual(functions.add_i64(20n, 22n), 42n);
+  } finally {
+    lib.close();
+  }
+});
+
 test('resolving the same symbol reuses one function', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const definitions = { add_i32: fixtureSymbols.add_i32 };
@@ -250,6 +303,56 @@ test('a dropped function wrapper is collectable', async () => {
 
     fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
     assert.strictEqual(fn(20, 22), 42);
+  } finally {
+    lib.close();
+  }
+});
+
+for (const symbol of [
+  'multiply_f64', // Fast API, no JS wrapper
+  'add_i32', // Fast API, JS wrapper
+  'get_counter', // Fast API, no arguments
+  'pointer_to_usize', // Fast API, JS wrapper and Buffer invoker
+]) {
+  test(`dropping ${symbol} releases the function and its library`, async () => {
+    let lib = new ffi.DynamicLibrary(libraryPath);
+    let fn = lib.getFunction(symbol, fixtureSymbols[symbol]);
+    const fnRef = new WeakRef(fn);
+    const libRef = new WeakRef(lib);
+    lib = null;
+    fn = null;
+
+    await gcUntil(`dropping ${symbol} releases the function and its library`, () => {
+      return fnRef.deref() === undefined && libRef.deref() === undefined;
+    });
+  });
+}
+
+test('an optimized Fast API call target can be collected', async () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    function callMultiply(fn) {
+      return fn(20, 22);
+    }
+    eval('%PrepareFunctionForOptimization(callMultiply)');
+
+    // Collect a function that optimized code has called, then make sure a new
+    // function for the same symbol works through a fresh trampoline.
+    let fn = lib.getFunction('multiply_f64', fixtureSymbols.multiply_f64);
+    assert.strictEqual(callMultiply(fn), 440);
+    assert.strictEqual(callMultiply(fn), 440);
+    eval('%OptimizeFunctionOnNextCall(callMultiply)');
+    assert.strictEqual(callMultiply(fn), 440);
+
+    const ref = new WeakRef(fn);
+    fn = null;
+    await gcUntil('an optimized Fast API call target can be collected', () => {
+      return ref.deref() === undefined;
+    });
+
+    fn = lib.getFunction('multiply_f64', fixtureSymbols.multiply_f64);
+    assert.strictEqual(callMultiply(fn), 440);
   } finally {
     lib.close();
   }

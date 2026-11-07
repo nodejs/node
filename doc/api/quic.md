@@ -1993,6 +1993,11 @@ Immediately and abruptly destroys the stream. If `error` is provided and
 [`stream.onerror`][] is set, the `onerror` callback is invoked before
 destruction. The `stream.closed` promise rejects with the error.
 
+Buffered incoming data remains readable after destruction, even if iteration
+has not started. If the readable side ended without a FIN, the iterator yields
+that data before reporting the truncation or error according to
+[`sessionOptions.truncatedReads`][].
+
 When the stream is destroyed with an `error` (or with an explicit
 `options.code`), the QUIC stack signals the abort to the peer:
 
@@ -4888,6 +4893,7 @@ throughput issues caused by flow control.
 [`sessionOptions.sessionTicket`]: #sessionoptionssessionticket
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`sessionOptions.token`]: #sessionoptionstoken-client-only
+[`sessionOptions.truncatedReads`]: #sessionoptionstruncatedreads
 [`stream.destroy()`]: #streamdestroyerror-options
 [`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror

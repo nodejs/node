@@ -1673,7 +1673,7 @@ decrease overall server throughput.
 ### `tlsSocket.socket`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * Type: {net.Socket|stream.Duplex|null}
@@ -1988,7 +1988,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: Using the `clientCertEngine`, `privateKeyEngine`, or
                  `privateKeyIdentifier` option now throws
@@ -2209,7 +2209,7 @@ permissible, use 2048 bits or larger for stronger security.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: Using the `clientCertEngine` option now throws
                  `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`.

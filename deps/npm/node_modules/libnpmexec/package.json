@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "11.0.3",
+  "version": "11.0.5",
   "files": [
     "bin/",
     "lib/"
@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "@gar/promise-retry": "^1.0.0",
-    "@npmcli/arborist": "^10.0.3",
+    "@npmcli/arborist": "^10.0.4",
     "@npmcli/package-json": "^8.0.0",
     "@npmcli/run-script": "^11.0.0",
     "ci-info": "^4.0.0",

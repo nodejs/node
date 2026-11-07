@@ -341,9 +341,6 @@ known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
 Make sure to sign and push to resulting commit to the private repository and not
 the public one.
 
-**Note**: Do not run CI on the PRs in `nodejs-private` until CI is locked down.
-You can integrate the PRs into the proposal without running full CI.
-
 </details>
 
 ### 2. Create a new branch for the release
@@ -713,15 +710,6 @@ ncu-ci citgm 10 11
 A number of the modules tested by CitGM are not completely
 reliable so differences shown by the comparison are not immediately cause
 for concern.
-
-<details>
-<summary>Security release</summary>
-
-If there are private security patches, do not run any CI jobs on the proposal
-until CI has been locked down. The security steward should be coordinating this
-with the Build Working Group.
-
-</details>
 
 #### 7.1 Updating the release _(optional)_
 
@@ -1420,6 +1408,17 @@ created as forks of the `main` branch. Alpha releases should be released picking
 up commits from `main`. Target the first alpha release to be released the same
 day as the previous release line is graduated to LTS status.
 
+Pushing the new branches is rejected by the [Require linear history][]
+repository rule, because creating a branch evaluates its whole history and
+`main` contains merge commits from 2015. A repository admin must disable the
+rule, push the branches, and enable it again:
+
+```bash
+gh api -X PUT repos/nodejs/node/rulesets/714811 -f enforcement=disabled
+git push upstream main:refs/heads/vN.x main:refs/heads/vN.x-staging
+gh api -X PUT repos/nodejs/node/rulesets/714811 -f enforcement=active
+```
+
 If a `SEMVER-MAJOR` pull request lands on the default branch within one month
 prior to the major release date, it must not be included on the new major
 staging branch, unless there is consensus from the Node.js releasers team to
@@ -1708,6 +1707,7 @@ Typical resolution: sign the release again.
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Release repository]: https://github.com/nodejs/Release
+[Require linear history]: https://github.com/nodejs/node/rules/714811
 [Semantic Versioning]: https://semver.org/
 [Snap]: https://snapcraft.io/node
 [`create-release-post.yml`]: https://github.com/nodejs/nodejs.org/actions/workflows/create-release-post.yml

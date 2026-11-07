@@ -54,6 +54,8 @@ class X509CertificateSnapshot final : public MemoryRetainer {
       ncrypto::X509View leaf,
       const STACK_OF(X509) * issuer_chain = nullptr,
       OPENSSL_SIZE_T issuers_start = 0);
+  static std::shared_ptr<const X509CertificateSnapshot> Create(
+      std::vector<DER> certificates);
 
   ncrypto::X509Pointer Parse(size_t index) const;
 
@@ -89,6 +91,8 @@ class X509Certificate final : public BaseObject {
   static void IsX509Certificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void NewFromHandle(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ParseSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
@@ -124,6 +128,9 @@ class X509Certificate final : public BaseObject {
 
   inline ncrypto::X509View view() const { return *cert_; }
   inline X509* get() { return cert_->get(); }
+  inline const X509CertificateSnapshot::DER& snapshot_der() const {
+    return snapshot_->at(snapshot_index_);
+  }
 
   v8::MaybeLocal<v8::Value> toObject(Environment* env);
   static v8::MaybeLocal<v8::Value> toObject(Environment* env,

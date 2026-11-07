@@ -1,5 +1,5 @@
 {
-  openssl ? (import ./openssl-matrix.nix { }).openssl,
+  openssl ? (import ./openssl-matrix.nix { }).openssl_3_5,
 }:
 
 openssl.overrideAttrs (oldAttrs: {

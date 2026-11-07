@@ -1120,6 +1120,16 @@ added: v15.0.0
 
 An invalid authentication tag length was provided.
 
+<a id="ERR_CRYPTO_INVALID_X509_CERTIFICATE"></a>
+
+### `ERR_CRYPTO_INVALID_X509_CERTIFICATE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An X.509 certificate field could not be inspected.
+
 <a id="ERR_CRYPTO_JOB_INIT_FAILED"></a>
 
 ### `ERR_CRYPTO_JOB_INIT_FAILED`
@@ -3942,7 +3952,7 @@ The native call from `process.cpuUsage` could not be processed.
 ### `ERR_CRYPTO_ENGINE_UNKNOWN`
 
 <!-- YAML
-removed: REPLACEME
+removed: v27.0.0-alpha.0.0.0
 -->
 
 An invalid crypto engine identifier was passed to

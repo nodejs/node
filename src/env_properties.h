@@ -112,6 +112,7 @@
   V(code_string, "code")                                                       \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
+  V(critical_string, "critical")                                               \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
   V(database_string, "database")                                               \
@@ -244,6 +245,7 @@
   V(node_string, "node")                                                       \
   V(object_string, "Object")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
+  V(oid_string, "oid")                                                         \
   V(ok_string, "ok")                                                           \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
@@ -276,6 +278,7 @@
   V(p256_string, "P-256")                                                      \
   V(p384_string, "P-384")                                                      \
   V(p521_string, "P-521")                                                      \
+  V(parameters_string, "parameters")                                           \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
@@ -301,6 +304,8 @@
   V(psk_string, "psk")                                                         \
   V(public_exponent_string, "publicExponent")                                  \
   V(rate_string, "rate")                                                       \
+  V(raw_string, "raw")                                                         \
+  V(rdns_string, "rdns")                                                       \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
   V(read_bigints_string, "readBigInts")                                        \
@@ -346,8 +351,6 @@
   V(stream_count_string, "streamCount")                                        \
   V(synthetic_string, "synthetic")                                             \
   V(syscall_string, "syscall")                                                 \
-  V(table_string, "table")                                                     \
-  V(target_string, "target")                                                   \
   V(then_string, "then")                                                       \
   V(thread_id_string, "threadId")                                              \
   V(thread_name_string, "threadName")                                          \
@@ -416,6 +419,7 @@
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
   V(ffi_function_constructor_template, v8::FunctionTemplate)                   \
+  V(ffi_uncacheable_placeholder_template, v8::ObjectTemplate)                  \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(fips_indicator_event_template, v8::DictionaryTemplate)                     \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \

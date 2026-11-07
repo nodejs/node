@@ -235,6 +235,8 @@ void SaveSupportedHashAlgorithms(const EVP_MD* md,
   Environment* env = static_cast<Environment*>(arg);
   env->supported_hash_algorithms.push_back(from);
 }
+#else
+#error "Unsupported crypto backend"
 #endif  // NCRYPTO_USE_OPENSSL_PROVIDER
 
 const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
@@ -255,6 +257,8 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
       EVP_MD_do_all_provided(nullptr, SaveSupportedProviderHashAlgorithms, env);
 #elif NCRYPTO_USE_BORINGSSL
       EVP_MD_do_all_sorted(SaveSupportedHashAlgorithms, env);
+#else
+#error "Unsupported crypto backend"
 #endif
 #if NCRYPTO_USE_BORINGSSL
       // SHA-3 descriptors are not included in BoringSSL's name registry.
@@ -354,7 +358,40 @@ const EVP_MD* GetDigestImplementation(
 #elif NCRYPTO_USE_BORINGSSL
   Utf8Value utf8(env->isolate(), algorithm);
   return ncrypto::getDigestByName(*utf8);
+#else
+#error "Unsupported crypto backend"
 #endif
+}
+
+const ncrypto::Digest GetDigest(Environment* env, const char* name) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  MaybeCachedMD result = FetchAndMaybeCacheMD(env, name);
+  if (result.cached_md != nullptr) {
+    return ncrypto::Digest::Ref(result.cached_md);
+  }
+  return result.digest;
+#elif NCRYPTO_USE_BORINGSSL
+  return ncrypto::Digest::FromName(name);
+#endif
+}
+
+const ncrypto::Digest GetDigestForJob(Environment* env,
+                                      CryptoJobMode mode,
+                                      const char* name) {
+  if (mode == kCryptoJobSync) return GetDigest(env, name);
+  return ncrypto::Digest::FromName(name);
+}
+
+ncrypto::HMACCtxPointer NewHmacContext(Environment* env,
+                                       const ncrypto::Digest& md) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  SynchronizeHashCache(env);
+  if (const auto* hmac_template = env->provider_digest_cache->getHmacTemplate(
+          md, env->hash_cache_generation)) {
+    if (auto ctx = hmac_template->clone()) return ctx;
+  }
+#endif
+  return ncrypto::HMACCtxPointer::New();
 }
 
 void MarkInvalidXofLength() {
@@ -362,6 +399,8 @@ void MarkInvalidXofLength() {
   ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
 #elif NCRYPTO_USE_BORINGSSL
   EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -379,6 +418,8 @@ bool IsShakeDigest(const EVP_MD* md) {
   const char* name = OBJ_nid2sn(EVP_MD_type(md));
   return name != nullptr &&
          (strcmp(name, "SHAKE128") == 0 || strcmp(name, "SHAKE256") == 0);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 #endif
@@ -550,6 +591,8 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
     Utf8Value utf8(env->isolate(), args[0]);
     return OneShotDigestWithMD(
         env, args, ncrypto::getDigestByName(*utf8), nullptr);
+#else
+#error "Unsupported crypto backend"
 #endif
   }
 

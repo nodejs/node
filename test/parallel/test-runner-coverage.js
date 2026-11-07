@@ -357,15 +357,14 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
 test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
-    '# ------------------------------------------------------------------',
-    '# file              | line % | branch % | funcs % | uncovered lines',
-    '# ------------------------------------------------------------------',
-    '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
-    '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
-    '# virtual.js        | 100.00 |   100.00 |  100.00 | ',
-    '# ------------------------------------------------------------------',
-    '# all files         | 100.00 |   100.00 |  100.00 | ',
-    '# ------------------------------------------------------------------',
+    '# -----------------------------------------------------------',
+    '# file       | line % | branch % | funcs % | uncovered lines',
+    '# -----------------------------------------------------------',
+    '# hooks.mjs  | 100.00 |   100.00 |  100.00 | ',
+    '# virtual.js | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
+    '# all files  | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
 
@@ -376,7 +375,7 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage-loader');
   const args = [
     '--import',
-    './register-hooks.js',
+    './hooks.mjs',
     '--test',
     '--experimental-test-coverage',
     '--test-coverage-exclude=!test/**',
@@ -394,16 +393,15 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
 test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
-    '# ------------------------------------------------------------------',
-    '# file              | line % | branch % | funcs % | uncovered lines',
-    '# ------------------------------------------------------------------',
-    '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
-    '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
-    '# sum.test.ts       | 100.00 |   100.00 |  100.00 | ',
-    '# sum.ts            | 100.00 |   100.00 |  100.00 | ',
-    '# ------------------------------------------------------------------',
-    '# all files         | 100.00 |   100.00 |  100.00 | ',
-    '# ------------------------------------------------------------------',
+    '# ------------------------------------------------------------',
+    '# file        | line % | branch % | funcs % | uncovered lines',
+    '# ------------------------------------------------------------',
+    '# hooks.mjs   | 100.00 |   100.00 |  100.00 | ',
+    '# sum.test.ts | 100.00 |   100.00 |  100.00 | ',
+    '# sum.ts      | 100.00 |   100.00 |  100.00 | ',
+    '# ------------------------------------------------------------',
+    '# all files   | 100.00 |   100.00 |  100.00 | ',
+    '# ------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
 
@@ -413,7 +411,7 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
 
   const fixture = fixtures.path('test-runner', 'coverage-loader');
   const args = [
-    '--import', './register-hooks.js',
+    '--import', './hooks.mjs',
     '--test',
     '--experimental-test-coverage',
     '--test-coverage-exclude=!test/**',

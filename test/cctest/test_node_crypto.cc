@@ -22,6 +22,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#include <openssl/rand.h>
 #endif
 
 using ncrypto::Ec;
@@ -70,6 +71,16 @@ std::string BioContents(const ncrypto::BIOPointer& bio) {
   return std::string(mem->data, mem->length);
 }
 
+void RaiseTestError() {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+#elif NCRYPTO_USE_BORINGSSL
+  ERR_put_error(ERR_LIB_USER, 0, ERR_R_INTERNAL_ERROR, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
+
 }  // namespace
 
 /*
@@ -101,6 +112,50 @@ TEST(NodeCrypto, TryGetIntCipherOutputLength) {
       0, static_cast<size_t>(INT_MAX) + 1, &output_len));
 }
 
+TEST(NodeCrypto, SpkacOperationsClearErrorQueue) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  constexpr std::string_view invalid = "garbage";
+
+  EXPECT_FALSE(ncrypto::VerifySpkac(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  EXPECT_FALSE(ncrypto::ExportPublicKey(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  const auto challenge =
+      ncrypto::ExportChallenge(invalid.data(), invalid.size());
+  EXPECT_EQ(challenge.data, nullptr);
+  EXPECT_EQ(challenge.len, 0UL);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
+TEST(NodeCrypto, PrivateKeyParsingIgnoresUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  const EVPKeyPointer::PrivateKeyEncodingConfig config(
+      false,
+      EVPKeyPointer::PKFormatType::PEM,
+      EVPKeyPointer::PKEncodingType::PKCS8);
+  auto encoded = key.writePrivateKey(config);
+  ASSERT_TRUE(encoded);
+  const BUF_MEM* mem = encoded.value;
+  ASSERT_NE(mem, nullptr);
+
+  RaiseTestError();
+  ASSERT_NE(ERR_peek_error(), 0UL);
+  auto parsed = EVPKeyPointer::TryParsePrivateKey(
+      config, {reinterpret_cast<const unsigned char*>(mem->data), mem->length});
+  EXPECT_TRUE(parsed);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
 TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_EQ(KeyAlgorithm::FromName("rsa-pss"), &KeyAlgorithm::RSA_PSS);
   EXPECT_EQ(KeyAlgorithm::FromName("ML-DSA-44"), &KeyAlgorithm::ML_DSA_44);
@@ -120,6 +175,55 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
 }
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
+TEST(NodeCrypto, DhNamedGroupCheckDoesNotRequireRandomness) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(
+      RAND_set_DRBG_type(
+          libctx.get(), "node-test-unavailable-rng", nullptr, nullptr, nullptr),
+      1);
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Primality checks need randomness. Known groups must skip those checks.
+  unsigned char random_byte;
+  ASSERT_NE(RAND_bytes_ex(libctx.get(), &random_byte, 1, 0), 1);
+  ERR_clear_error();
+
+  using DH = ncrypto::DHPointer;
+  for (const char* name :
+       {"modp5", "modp14", "modp15", "modp16", "modp17", "modp18"}) {
+    auto prime = DH::FindGroup(name);
+    auto generator = DH::GetStandardGenerator();
+    ASSERT_TRUE(prime);
+    ASSERT_TRUE(generator);
+    auto dh = DH::New(std::move(prime), std::move(generator));
+    ASSERT_TRUE(dh);
+    EXPECT_EQ(dh.check(), DH::CheckResult::NONE) << name;
+  }
+
+  auto prime = DH::FindGroup("modp14");
+  auto generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(prime.get(), 1), 1);
+  auto composite = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(composite);
+  EXPECT_EQ(composite.check(), DH::CheckResult::P_NOT_PRIME);
+
+  prime = DH::FindGroup("modp14");
+  generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(generator.get(), 1), 1);
+  auto other_generator = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(other_generator);
+  EXPECT_EQ(other_generator.check(), DH::CheckResult::CHECK_FAILED);
+}
+
 TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
@@ -455,6 +559,8 @@ TEST(NodeCrypto, EcKeyComponents) {
     EXPECT_EQ(memcmp(raw_public.get(), point.get(), point.size()), 0);
 #elif NCRYPTO_USE_BORINGSSL
     EXPECT_FALSE(raw_public);
+#else
+#error "Unsupported crypto backend"
 #endif
     EXPECT_FALSE(
         ncrypto::Ec::TryExportPublic(key, POINT_CONVERSION_COMPRESSED));
@@ -1015,12 +1121,22 @@ TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
   ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
   ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
   ASSERT_NE(expected, 0UL);
 
   const ncrypto::BIOPointer subject = cert.view().getSubject();
   ASSERT_TRUE(subject);
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().getVersion().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectSubjectName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectIssuerName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectExtensions().has_value());
   EXPECT_EQ(ERR_peek_error(), expected);
   ERR_clear_error();
 }
@@ -1147,6 +1263,8 @@ TEST(NodeCrypto, X509KeyVisitorsHandleMissingPublicKey) {
   ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
   ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
   ASSERT_NE(expected, 0UL);
@@ -1179,6 +1297,8 @@ TEST(NodeCrypto, X509UsageVisitorPreservesCallbackErrors) {
     ERR_raise(ERR_LIB_USER, 1);
 #elif NCRYPTO_USE_BORINGSSL
     ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
 #endif
   }));
   EXPECT_EQ(calls, 1);

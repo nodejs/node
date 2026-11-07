@@ -868,7 +868,7 @@ treated separately.
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64268
     description: Reverse lookups no longer consult hosts files.
 -->

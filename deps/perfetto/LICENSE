@@ -226,7 +226,7 @@ Files: src/trace_processor/perfetto_sql/stdlib/chromium/*, protos/third_party/ch
 
 ------------------
 
-Files: src/trace_processor/perfetto_sql/syntaqlite/syntaqlite_perfetto.{c, h}
+Files: src/perfetto_sql/syntaqlite/syntaqlite_perfetto.{c, h}
 
    Copyright 2025 The syntaqlite Authors. All rights reserved.
 

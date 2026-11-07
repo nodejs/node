@@ -28,7 +28,7 @@ test(() => {
 
 test(() => {
     var data = readerSync.readAsDataURL(empty_blob);
-    assert_equals(data.indexOf("data:"), 0);
+    assert_equals(data, "data:application/octet-stream;base64,");
 }, "readAsDataURL with empty blob");
 
 test(() => {
@@ -40,6 +40,12 @@ test(() => {
     var data = readerSync.readAsBinaryString(empty_blob);
     assert_equals(data, "");
 }, "readAsBinaryString with empty blob");
+
+test(() => {
+    var data = readerSync.readAsBinaryString(new Blob(["σ"]));
+    assert_equals(data.length, 2, "The result length is 2");
+    assert_equals(data, "\xcf\x83", "The result is \xcf\x83");
+}, "readAsBinaryString with multi-byte UTF-8 char");
 
 test(() => {
     var data = readerSync.readAsArrayBuffer(blob);

@@ -85,6 +85,21 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
 
   RUN_MAYBE_ABORT(DecideSpillingModePhase);
   RUN_MAYBE_ABORT(AssignSpillSlotsPhase);
+
+  // The prologue grows the frame with a single stack pointer decrement, before
+  // the function entry stack check runs. A frame no larger than the smallest OS
+  // page cannot step over a guard page, so bail out rather than emit an
+  // unchecked stack pointer jump of arbitrary size.
+  // When replacing this bailout with a different strategy, consider doing the
+  // same in Maglev as well.
+  constexpr int kMaxStackSlots = 4 * KB / kSystemPointerSize;
+  if (data_->info()->IsOptimizing() &&
+      data_->frame()->GetTotalFrameSlotCount() > kMaxStackSlots) {
+    data_->info()->AbortOptimization(BailoutReason::kFunctionTooBig);
+    data()->ClearRegisterComponent();
+    return false;
+  }
+
   RUN_MAYBE_ABORT(CommitAssignmentPhase);
 
   // TODO(chromium:725559): remove this check once
