@@ -6,7 +6,9 @@ const { zstdCompressSync, zstdDecompressSync } = require('node:zlib')
 
 let DatabaseSync
 
-const VERSION = 4
+// Bump when entries written by an older cache policy are unsafe to reuse.
+// Version 5 invalidates entries that may have been poisoned through redirects.
+const VERSION = 5
 
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
@@ -17,6 +19,20 @@ const COMPRESS_THRESHOLD = 1024 * 1024
 // zstd support landed in Node 22.19.0/23.4.0, so it may be missing even when
 // node:sqlite is available.
 const hasZstd = typeof zstdCompressSync === 'function' && typeof zstdDecompressSync === 'function'
+
+// SQLite reports a database that another connection is writing as SQLITE_BUSY
+// (5) or SQLITE_LOCKED (6).
+// https://www.sqlite.org/rescode.html#busy
+const SQLITE_BUSY = 5
+const SQLITE_LOCKED = 6
+
+/**
+ * @param {Error & { errcode?: number }} err
+ * @returns {boolean}
+ */
+function isLockedError (err) {
+  return err?.errcode === SQLITE_BUSY || err?.errcode === SQLITE_LOCKED
+}
 
 /**
  * @typedef {import('../../types/cache-interceptor.d.ts').default.CacheStore} CacheStore
@@ -259,7 +275,7 @@ module.exports = class SqliteCacheStore {
   get (key) {
     assertCacheKey(key)
 
-    const value = this.#findValue(key)
+    const value = this.#lockSafe(() => this.#findValue(key))
     return value
       ? {
           body: value.body
@@ -307,10 +323,10 @@ module.exports = class SqliteCacheStore {
       }
     }
 
-    const existingValue = this.#findValue(key, true)
+    const existingValue = this.#lockSafe(() => this.#findValue(key, true))
     if (existingValue) {
       // Updating an existing response, let's overwrite it
-      this.#updateValueQuery.run(
+      this.#lockSafe(() => this.#updateValueQuery.run(
         storedBody,
         compressed,
         value.deleteAt,
@@ -323,10 +339,10 @@ module.exports = class SqliteCacheStore {
         value.cachedAt,
         value.staleAt,
         existingValue.id
-      )
+      ))
     } else {
       // New response, let's insert it
-      this.#insertValueQuery.run(
+      this.#lockSafe(() => this.#insertValueQuery.run(
         url,
         key.method,
         storedBody,
@@ -340,7 +356,7 @@ module.exports = class SqliteCacheStore {
         value.vary ? JSON.stringify(value.vary) : null,
         value.cachedAt,
         value.staleAt
-      )
+      ))
       this.#prune()
     }
   }
@@ -389,23 +405,53 @@ module.exports = class SqliteCacheStore {
       throw new TypeError(`expected key to be object, got ${typeof key}`)
     }
 
-    this.#deleteByUrlQuery.run(this.#makeValueUrl(key))
+    this.#lockSafe(() => this.#deleteByUrlQuery.run(this.#makeValueUrl(key)))
+  }
+
+  /**
+   * Runs a database operation, skipping it when another connection holds the
+   * database lock.
+   *
+   * The cache store is meant to be shared between processes, and SQLite reports
+   * a concurrent writer as SQLITE_BUSY/SQLITE_LOCKED. Those errors are
+   * transient, and caching is best effort: the entry is skipped and the next
+   * request retries, rather than failing the request that triggered the write.
+   *
+   * @template T
+   * @param {() => T} fn
+   * @returns {T | undefined}
+   */
+  #lockSafe (fn) {
+    try {
+      return fn()
+    } catch (err) {
+      if (!isLockedError(err)) {
+        throw err
+      }
+
+      return undefined
+    }
   }
 
   #prune () {
-    if (Number.isFinite(this.#maxCount) && this.size <= this.#maxCount) {
-      return 0
+    if (Number.isFinite(this.#maxCount)) {
+      // A locked database cannot be measured, so skip pruning instead of
+      // failing the write that triggered it.
+      const size = this.#lockSafe(() => this.size)
+      if (size === undefined || size <= this.#maxCount) {
+        return 0
+      }
     }
 
     {
-      const removed = this.#deleteExpiredValuesQuery.run(Date.now()).changes
+      const removed = this.#lockSafe(() => this.#deleteExpiredValuesQuery.run(Date.now()).changes)
       if (removed) {
         return removed
       }
     }
 
     {
-      const removed = this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes
+      const removed = this.#lockSafe(() => this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes)
       if (removed) {
         return removed
       }

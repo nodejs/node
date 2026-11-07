@@ -52,7 +52,8 @@ const EVENT_HEADERS_SIZE = 19
 let miloPackage
 
 // We disable wasm SIMD on ppc64 as it seems to be broken on Power 9 architectures.
-let useWasmSIMD = process.arch !== 'ppc64'
+// We disable wasm SIMD on riscv64 as it seems to be broken on there as well.
+let useWasmSIMD = (process.arch !== 'riscv64' && process.arch !== 'ppc64')
 // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior.
 if (process.env.UNDICI_NO_WASM_SIMD === '1') {
   useWasmSIMD = false
