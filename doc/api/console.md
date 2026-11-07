@@ -614,10 +614,14 @@ added: v8.0.0
 
 * `label` {string}
 
-This method does not display anything unless used in the inspector. The
-`console.timeStamp()` method adds an event with the label `'label'` to the
-**Timeline** panel of the inspector.
+This method is provided by the V8 inspector. Chrome DevTools for Node.js does
+not currently display `console.timeStamp()` events in its **Performance** panel.
 
+To collect timestamps and durations from Node.js code, use
+[`performance.mark()`][] and [`performance.measure()`][] with a
+[`PerformanceObserver`][].
+
+[`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
 [`console.error()`]: #consoleerrordata-args
 [`console.group()`]: #consolegrouplabel
 [`console.log()`]: #consolelogdata-args
@@ -625,6 +629,8 @@ This method does not display anything unless used in the inspector. The
 [`console.profileEnd()`]: #consoleprofileendlabel
 [`console.time()`]: #consoletimelabel
 [`console.timeEnd()`]: #consoletimeendlabel
+[`performance.mark()`]: perf_hooks.md#performancemarkname-options
+[`performance.measure()`]: perf_hooks.md#performancemeasurename-startmarkoroptions-endmark
 [`process.stderr`]: process.md#processstderr
 [`process.stdout`]: process.md#processstdout
 [`util.format()`]: util.md#utilformatformat-args
