@@ -1557,6 +1557,11 @@ closed until the Node.js process exits, regardless of the specified options.
 
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: v26.0.0
+    pr-url: https://github.com/nodejs/node/pull/60441
+    description: When `size` is not specified, `read()` now returns one buffered
+                 chunk per call instead of all buffered data.
 -->
 
 * `size` {number} Optional argument to specify how much data to read.
@@ -1573,8 +1578,11 @@ The optional `size` argument specifies a specific number of bytes to read. If
 the stream has ended, in which case all of the data remaining in the internal
 buffer will be returned.
 
-If the `size` argument is not specified, all of the data contained in the
-internal buffer will be returned.
+If the `size` argument is not specified, `readable.read()` returns the next
+buffered chunk. In object mode, this is the next object, as before. To read all
+of the currently buffered data in a single call, use
+`readable.read(readable.readableLength)`. In some edge cases it might be
+necessary to call `readable.read(0)` first.
 
 The `size` argument must be less than or equal to 1 GiB.
 
