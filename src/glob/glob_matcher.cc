@@ -673,12 +673,9 @@ class PathMatcher {
     }
     const ptrdiff_t file_length = static_cast<ptrdiff_t>(file.size()) -
                                   static_cast<ptrdiff_t>(file_tail_match);
-    {
-      size_t i = sections.size() - 1;
-      for (Section& s : sections) {
-        s.after = file_length - (static_cast<ptrdiff_t>(sections[i--].non_gs) +
-                                 static_cast<ptrdiff_t>(s.end - s.begin));
-      }
+    // leave room for this section and every section after it
+    for (Section& s : sections) {
+      s.after = file_length - static_cast<ptrdiff_t>(non_gs - s.non_gs);
     }
     return MatchBodySections(
         file, pattern, sections, fi, 0, 0, file_tail_match != 0);
