@@ -121,6 +121,29 @@ describe('Mock Timers Date Test Suite', () => {
     clearTimeout(id);
   });
 
+  it('should run each timer at its scheduled time when ticking', (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+    const seen = [];
+    setTimeout(() => {
+      seen.push(`timeout@${Date.now()}`);
+      setTimeout(() => seen.push(`nested@${Date.now()}`), 50);
+    }, 100);
+    let count = 0;
+    const id = setInterval(() => {
+      seen.push(`interval@${Date.now()}`);
+      if (++count === 3) clearInterval(id);
+    }, 200);
+    t.mock.timers.tick(1000);
+    assert.deepStrictEqual(seen, [
+      'timeout@100',
+      'nested@150',
+      'interval@200',
+      'interval@400',
+      'interval@600',
+    ]);
+    assert.strictEqual(Date.now(), 1000);
+  });
+
   it((t) => {
     t.mock.timers.enable();
     t.test('should throw when a already-mocked Date is mocked', (t2) => {

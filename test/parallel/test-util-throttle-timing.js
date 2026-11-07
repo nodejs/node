@@ -132,7 +132,8 @@ process.on('unhandledRejection', common.mustNotCall());
     mock.timers.tick(39);
     assert.deepStrictEqual(times, [0, 40]);
     if (delayed) {
-      mock.timers.tick(41);
+      mock.timers.setTime(Date.now() + 41);
+      mock.timers.tick(0);
     } else {
       mock.timers.tick(1);
       assert.deepStrictEqual(times, [0, 40, 80]);
