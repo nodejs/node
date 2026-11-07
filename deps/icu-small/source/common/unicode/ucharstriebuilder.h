@@ -69,7 +69,9 @@ public:
      * @return *this
      * @stable ICU 4.8
      */
-    UCharsTrieBuilder &add(const UnicodeString &s, int32_t value, UErrorCode &errorCode);
+    UCharsTrieBuilder& add(const UnicodeString& s,
+                           int32_t value,
+                           UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Builds a UCharsTrie for the add()ed data.
@@ -116,8 +118,9 @@ public:
      * @return result
      * @stable ICU 4.8
      */
-    UnicodeString &buildUnicodeString(UStringTrieBuildOption buildOption, UnicodeString &result,
-                                      UErrorCode &errorCode);
+    UnicodeString& buildUnicodeString(UStringTrieBuildOption buildOption,
+                                      UnicodeString& result U_LIFETIME_BOUND,
+                                      UErrorCode& errorCode) U_LIFETIME_BOUND;
 
     /**
      * Removes all (string, value) pairs.
@@ -125,7 +128,7 @@ public:
      * @return *this
      * @stable ICU 4.8
      */
-    UCharsTrieBuilder &clear() {
+    UCharsTrieBuilder& clear() U_LIFETIME_BOUND {
         strings.remove();
         elementsLength=0;
         ucharsLength=0;

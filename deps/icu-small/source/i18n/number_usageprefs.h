@@ -52,7 +52,7 @@ class UsagePrefsHandler : public MicroPropsGenerator, public UMemory {
      * The returned pointer should be valid for the lifetime of the
      * UsagePrefsHandler instance.
      */
-    const MaybeStackVector<MeasureUnit> *getOutputUnits() const {
+    const MaybeStackVector<MeasureUnit>* getOutputUnits() const U_LIFETIME_BOUND {
         return fUnitsRouter.getOutputUnits();
     }
 

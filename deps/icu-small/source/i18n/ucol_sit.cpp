@@ -578,7 +578,10 @@ ucol_normalizeShortDefinitionString(const char *definition,
     if(U_FAILURE(*status)) {
         return 0;
     }
-
+    if(!destination && capacity != 0) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
     if(destination) {
         uprv_memset(destination, 0, capacity*sizeof(char));
     }

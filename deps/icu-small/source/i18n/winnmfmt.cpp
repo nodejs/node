@@ -267,7 +267,7 @@ Win32NumberFormat::~Win32NumberFormat()
     delete fWindowsLocaleName;
 }
 
-Win32NumberFormat &Win32NumberFormat::operator=(const Win32NumberFormat &other)
+Win32NumberFormat& Win32NumberFormat::operator=(const Win32NumberFormat& other) U_LIFETIME_BOUND
 {
     if (this == &other) { return *this; }  // self-assignment: no-op
     NumberFormat::operator=(other);
@@ -301,17 +301,23 @@ Win32NumberFormat *Win32NumberFormat::clone() const
     return new Win32NumberFormat(*this);
 }
 
-UnicodeString& Win32NumberFormat::format(double number, UnicodeString& appendTo, FieldPosition& /* pos */) const
+UnicodeString& Win32NumberFormat::format(double number,
+                                         UnicodeString& appendTo U_LIFETIME_BOUND,
+                                         FieldPosition& /* pos */) const
 {
     return format(getMaximumFractionDigits(), appendTo, L"%.16f", number);
 }
 
-UnicodeString& Win32NumberFormat::format(int32_t number, UnicodeString& appendTo, FieldPosition& /* pos */) const
+UnicodeString& Win32NumberFormat::format(int32_t number,
+                                         UnicodeString& appendTo U_LIFETIME_BOUND,
+                                         FieldPosition& /* pos */) const
 {
     return format(getMinimumFractionDigits(), appendTo, L"%I32d", number);
 }
 
-UnicodeString& Win32NumberFormat::format(int64_t number, UnicodeString& appendTo, FieldPosition& /* pos */) const
+UnicodeString& Win32NumberFormat::format(int64_t number,
+                                         UnicodeString& appendTo U_LIFETIME_BOUND,
+                                         FieldPosition& /* pos */) const
 {
     return format(getMinimumFractionDigits(), appendTo, L"%I64d", number);
 }
@@ -336,7 +342,9 @@ void Win32NumberFormat::setMinimumFractionDigits(int32_t newValue)
     NumberFormat::setMinimumFractionDigits(newValue);
 }
 
-UnicodeString &Win32NumberFormat::format(int32_t numDigits, UnicodeString &appendTo, const wchar_t *fmt, ...) const
+UnicodeString& Win32NumberFormat::format(int32_t numDigits,
+                                         UnicodeString& appendTo U_LIFETIME_BOUND,
+                                         const wchar_t* fmt, ...) const
 {
     wchar_t nStackBuffer[STACK_BUFFER_SIZE];
     wchar_t *nBuffer = nStackBuffer;

@@ -19,6 +19,7 @@
 #ifndef UBIDI_H
 #define UBIDI_H
 
+#include "unicode/unistr.h"
 #include "unicode/utypes.h"
 #include "unicode/uchar.h"
 
@@ -1348,8 +1349,8 @@ ubidi_getBaseDirection(const UChar *text,  int32_t length );
  * @see ubidi_setLine
  * @stable ICU 2.0
  */
-U_CAPI const UChar * U_EXPORT2
-ubidi_getText(const UBiDi *pBiDi);
+U_CAPI const UChar* U_EXPORT2
+ubidi_getText(const UBiDi* pBiDi);
 
 /**
  * Get the length of the text.
@@ -1498,8 +1499,8 @@ ubidi_getLevelAt(const UBiDi *pBiDi, int32_t charIndex);
  * @see ubidi_getProcessedLength
  * @stable ICU 2.0
  */
-U_CAPI const UBiDiLevel * U_EXPORT2
-ubidi_getLevels(UBiDi *pBiDi, UErrorCode *pErrorCode);
+U_CAPI const UBiDiLevel* U_EXPORT2
+ubidi_getLevels(UBiDi* pBiDi, UErrorCode* pErrorCode);
 
 /**
  * Get a logical run.
@@ -2207,5 +2208,180 @@ ubidi_writeReverse(const UChar *src, int32_t srcLength,
 
 /*#define BIDI_SAMPLE_CODE*/
 /*@}*/
+
+/* Utilities for MessageFormat ------------------------------------------------*/
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * Used to denote the directionality of the input to a function.
+ *
+ * See https://github.com/unicode-org/message-format-wg/blob/main/spec/u-namespace.md#udir
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+typedef enum UMFBidiOption {
+    /**
+     * Left-to-right directionality.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_OPTION_LTR = 0,
+    /**
+     * Right-to-left directionality.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_OPTION_RTL,
+    /**
+     * Directionality determined from expression contents.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_OPTION_AUTO,
+    /**
+     * Directionality inherited from the message without
+     * requiring isolation of the expression value.
+     * (Default when no u:dir option is present.)
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_OPTION_INHERIT
+} UMFBidiOption;
+
+/**
+ * Used to represent the directionality of a message, where
+ * the AUTO setting has been resolved based on locale.
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+typedef enum UMFDirectionality {
+    /**
+     * Denotes a left-to-right message.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_DIRECTIONALITY_LTR = 0,
+    /**
+     * Denotes a right-to-left message.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_DIRECTIONALITY_RTL,
+    /**
+     * Denotes a message with unknown directionality.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_DIRECTIONALITY_UNKNOWN,
+    U_MF_DIRECTIONALITY_DEFAULT = U_MF_DIRECTIONALITY_UNKNOWN
+} UMFDirectionality;
+
+/**
+ * Used in conjunction with the
+ * MessageFormatter::Builder::setBidiIsolationStrategy() method.
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+typedef enum UMFBidiIsolationStrategy {
+    /**
+     * Do not perform bidi isolation.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_OFF = 0,
+    /**
+     * Perform bidi isolation using the "default" strategy
+     * described in the MF2 specification (default).
+     * https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#handling-bidirectional-text
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_AUTO,
+    U_MF_BIDI_DEFAULT = U_MF_BIDI_AUTO
+} UMFBidiIsolationStrategy;
+
+/**
+ * Used in conjunction with the
+ * MessageFormatter::Builder::setBidiIsolationStyle() method.
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+typedef enum UMFBidiIsolationStyle {
+    /**
+     * Insert bidi control characters for isolation.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_STYLE_CONTROL = 0,
+    /**
+     * Insert HTML markup tags for isolation.
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    U_MF_BIDI_STYLE_HTML,
+    U_MF_BIDI_STYLE_DEFAULT = U_MF_BIDI_STYLE_CONTROL
+} UMFBidiIsolationStyle;
+
+/**
+ * Convert a string to a UMFBidiOption, representing text directionality.
+ *
+ * @param s A string.
+ *
+ * @return U_MF_BIDI_OPTION_LTR if s is "ltr", U_MF_BIDI_OPTION_RTL if s is "rtl",
+ *         U_MF_BIDI_OPTION_AUTO if s is "auto", or U_MF_BIDI_OPTION_INHERIT otherwise.
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+U_CAPI UMFBidiOption U_EXPORT2
+ubidi_getMFOption(const UnicodeString& s);
+
+/**
+ * Isolate a string according to the "Default Bidi Strategy" from the MessageFormat
+ * specification https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#handling-bidirectional-text
+ *
+ * @param bidiIsolationStrategy Isolation strategy to use.
+ * @param msgdir The directionality of the message.
+ * @param bidiIsolationStyle The isolation style to use for the output.
+ * @param uDirOption The directionality set with the u:dir option on the source
+ *        expression.
+ * @param dir The directionality of fmt -- each function can set the
+ *        directionality of the resolved value of its result.
+ * @param fmt String to isolate.
+ *
+ * @return A pointer to a string bidi-isolated according to bidiIsolationStrategy.
+ *
+ * @internal ICU 79 technology preview
+ * @deprecated This API is for technology preview only.
+ */
+U_CAPI UnicodeString* U_EXPORT2
+ubidi_isolate(UMFBidiIsolationStrategy bidiIsolationStrategy,
+              UMFDirectionality msgdir,
+              UMFBidiIsolationStyle bidiIsolationStyle,
+              UMFBidiOption uDirOption,
+              UMFDirectionality dir,
+              UnicodeString& fmt);
+
+U_NAMESPACE_END
+
+#endif
 
 #endif

@@ -722,6 +722,10 @@ TimeUnitFormat::copyHash(const Hashtable* source, Hashtable* target, UErrorCode&
             const UHashTok valueTok = element->value;
             const MessageFormat** value = static_cast<const MessageFormat**>(valueTok.pointer);
             MessageFormat** newVal = static_cast<MessageFormat**>(uprv_malloc(UTMUTFMT_FORMAT_STYLE_COUNT * sizeof(MessageFormat*)));
+            if (newVal == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
             newVal[0] = value[0]->clone();
             newVal[1] = value[1]->clone();
             target->put(UnicodeString(*key), newVal, status);

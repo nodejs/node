@@ -2243,7 +2243,7 @@ VTimeZone::writeZonePropsByDOM(VTZWriter& writer, UBool isDst, const UnicodeStri
     appendAsciiDigits(dayOfMonth, 0, dstr);
     writer.write(dstr);
     if (untilTime != MAX_MILLIS) {
-        appendUNTIL(writer, getDateTimeString(untilTime + fromOffset, dstr, status), status);
+        appendUNTIL(writer, getUTCDateTimeString(untilTime, dstr, status), status);
         if (U_FAILURE(status)) {
             return;
         }
@@ -2279,7 +2279,7 @@ VTimeZone::writeZonePropsByDOW(VTZWriter& writer, UBool isDst, const UnicodeStri
     writer.write(ICAL_DOW_NAMES[dayOfWeek - 1]);    // SU, MO, TU...
 
     if (untilTime != MAX_MILLIS) {
-        appendUNTIL(writer, getDateTimeString(untilTime + fromOffset, dstr, status), status);
+        appendUNTIL(writer, getUTCDateTimeString(untilTime, dstr, status), status);
         if (U_FAILURE(status)) {
             return;
         }

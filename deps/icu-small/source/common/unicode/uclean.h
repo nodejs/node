@@ -126,7 +126,6 @@ typedef void *U_CALLCONV UMemReallocFn(const void *context, void *mem, size_t si
   *  similar the standard C library free().
   *  @param context user supplied value, obtained from u_setMemoryFunctions().
   *  @param mem     Pointer to the memory block to be freed.
-  *  @return        Pointer to the resized memory block, or NULL if the resizing failed.
   *  @stable ICU 2.8
   *  @system
   */

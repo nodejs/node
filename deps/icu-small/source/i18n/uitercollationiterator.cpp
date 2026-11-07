@@ -215,7 +215,8 @@ FCDUIterCollationIterator::previousCodePoint(UErrorCode &errorCode) {
             if(CollationFCD::hasLccc(c)) {
                 UChar32 prev = U_SENTINEL;
                 if(CollationFCD::maybeTibetanCompositeVowel(c) ||
-                        CollationFCD::hasTccc(prev = iter.previous(&iter))) {
+                        U16_IS_TRAIL(prev = iter.previous(&iter)) ||
+                        CollationFCD::hasTccc(prev)) {
                     iter.next(&iter);
                     if(prev >= 0) {
                         iter.next(&iter);

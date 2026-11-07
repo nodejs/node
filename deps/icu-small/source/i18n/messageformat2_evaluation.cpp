@@ -9,6 +9,7 @@
 
 #if !UCONFIG_NO_MF2
 
+#include "unicode/ubidi.h"
 #include "messageformat2_allocation.h"
 #include "messageformat2_evaluation.h"
 #include "messageformat2_function_registry_internal.h"
@@ -23,16 +24,85 @@ namespace message2 {
 
 using namespace data_model;
 
+// BaseValue
+// ---------
+
+BaseValue::BaseValue(const Locale& loc, const UnicodeString& fb, const Formattable& source, bool wasCreatedFromLiteral)
+    : locale(loc), fromLiteral(wasCreatedFromLiteral) {
+    innerValue = source;
+    fallback += LEFT_CURLY_BRACE;
+    fallback += fb;
+    fallback += RIGHT_CURLY_BRACE;
+}
+
+/* static */ BaseValue* BaseValue::create(const Locale& locale,
+                                          const UnicodeString& fallback,
+                                          const Formattable& source,
+                                          bool wasCreatedFromLiteral,
+                                          UErrorCode& errorCode) {
+    return message2::create<BaseValue>(BaseValue(locale, fallback, source, wasCreatedFromLiteral), errorCode);
+}
+
+extern UnicodeString formattableToString(const Locale&, const Formattable&, UErrorCode&);
+
+UnicodeString BaseValue::formatToString(UErrorCode& errorCode) const {
+    return formattableToString(locale, innerValue, errorCode);
+}
+
+BaseValue& BaseValue::operator=(BaseValue&& other) noexcept {
+    innerValue = std::move(other.innerValue);
+    opts = std::move(other.opts);
+    dir = other.dir;
+    inputDir = other.inputDir;
+    locale = other.locale;
+    fallback = other.fallback;
+    fromLiteral = other.fromLiteral;
+
+    return *this;
+}
+
+BaseValue::BaseValue(BaseValue&& other) {
+    *this = std::move(other);
+}
+
+// VariableValue
+// -------------
+
+VariableValue::VariableValue(const FunctionValue* v) : underlyingValue(std::move(v)) {}
+
+/* static */ VariableValue* VariableValue::create(const FunctionValue* v,
+                                                  UErrorCode& errorCode) {
+    return message2::create<VariableValue>(VariableValue(std::move(v)), errorCode);
+}
+
+VariableValue& VariableValue::operator=(VariableValue&& other) noexcept {
+    underlyingValue = other.underlyingValue;
+
+    return *this;
+}
+
+VariableValue::VariableValue(VariableValue&& other) {
+    *this = std::move(other);
+}
+
+VariableValue::~VariableValue() {
+    underlyingValue = nullptr; // not owned
+}
+
 // Functions
 // -------------
 
 ResolvedFunctionOption::ResolvedFunctionOption(ResolvedFunctionOption&& other) {
-    name = std::move(other.name);
-    value = std::move(other.value);
-    sourceIsLiteral = other.sourceIsLiteral;
+    *this = std::move(other);
 }
 
-ResolvedFunctionOption::~ResolvedFunctionOption() {}
+ResolvedFunctionOption::ResolvedFunctionOption(const UnicodeString& n,
+                                               const FunctionValue& f,
+                                               bool b) : name(n), value(&f), thisWasMerged(b) {}
+
+ResolvedFunctionOption::~ResolvedFunctionOption() {
+    value = nullptr; // value is not owned
+}
 
 
 const ResolvedFunctionOption* FunctionOptions::getResolvedFunctionOptions(int32_t& len) const {
@@ -49,59 +119,77 @@ FunctionOptions::FunctionOptions(UVector&& optionsVector, UErrorCode& status) {
 }
 
 // Returns false if option doesn't exist
-UBool FunctionOptions::wasSetFromLiteral(const UnicodeString& key) const {
+UBool FunctionOptions::wasSetFromLiteral(const std::u16string_view key) const {
     if (options == nullptr) {
         U_ASSERT(functionOptionsLen == 0);
     }
     for (int32_t i = 0; i < functionOptionsLen; i++) {
         const ResolvedFunctionOption& opt = options[i];
         if (opt.getName() == key) {
-            return opt.isLiteral();
+            // Require both: - opt's value was created from a literal;
+            // - opt does not originate from merging a previous options map
+            // with this one
+            return opt.getValue().wasCreatedFromLiteral()
+                && (!opt.wasMerged());
         }
     }
     return false;
 }
 
-UBool FunctionOptions::getFunctionOption(std::u16string_view key, Formattable& option) const {
+const FunctionValue*
+FunctionOptions::getFunctionOption(std::u16string_view key,
+                                   UErrorCode& status) const {
     if (options == nullptr) {
         U_ASSERT(functionOptionsLen == 0);
     }
     for (int32_t i = 0; i < functionOptionsLen; i++) {
         const ResolvedFunctionOption& opt = options[i];
         if (opt.getName() == key) {
-            option = opt.getValue();
-            return true;
+            return &opt.getValue();
         }
     }
-    return false;
+    status = U_ILLEGAL_ARGUMENT_ERROR;
+    return nullptr;
 }
 
-UnicodeString FunctionOptions::getStringFunctionOption(std::u16string_view key) const {
-    Formattable option;
-    if (getFunctionOption(key, option)) {
-        if (option.getType() == UFMT_STRING) {
-            UErrorCode localErrorCode = U_ZERO_ERROR;
-            UnicodeString val = option.getString(localErrorCode);
-            U_ASSERT(U_SUCCESS(localErrorCode));
-            return val;
+UnicodeString
+FunctionOptions::getStringFunctionOption(std::u16string_view k, UErrorCode& errorCode) const {
+    const FunctionValue* option = getFunctionOption(k, errorCode);
+    if (U_SUCCESS(errorCode)) {
+        UnicodeString result = option->formatToString(errorCode);
+        if (U_SUCCESS(errorCode)) {
+            return result;
         }
     }
-    // For anything else, including non-string values, return "".
-    // Alternately, could try to stringify the non-string option.
-    // (Currently, no tests require that.)
     return {};
 }
 
-FunctionOptions& FunctionOptions::operator=(FunctionOptions&& other) noexcept {
-    functionOptionsLen = other.functionOptionsLen;
-    options = other.options;
-    other.functionOptionsLen = 0;
-    other.options = nullptr;
+UnicodeString FunctionOptions::getStringFunctionOption(std::u16string_view key) const {
+    UErrorCode localStatus = U_ZERO_ERROR;
+
+    UnicodeString result = getStringFunctionOption(key, localStatus);
+    if (U_FAILURE(localStatus)) {
+        return {};
+    }
+    return result;
+}
+
+FunctionOptions& FunctionOptions::operator=(FunctionOptions other) noexcept {
+    swap(*this, other);
     return *this;
 }
 
-FunctionOptions::FunctionOptions(FunctionOptions&& other) {
-    *this = std::move(other);
+FunctionOptions::FunctionOptions(const FunctionOptions& other) {
+    U_ASSERT(!other.bogus);
+    functionOptionsLen = other.functionOptionsLen;
+    options = nullptr;
+    if (functionOptionsLen != 0) {
+        UErrorCode localStatus = U_ZERO_ERROR;
+        options = copyArray<ResolvedFunctionOption>(other.options, functionOptionsLen, localStatus);
+        if (U_FAILURE(localStatus)) {
+            bogus = true;
+        }
+    }
 }
 
 FunctionOptions::~FunctionOptions() {
@@ -122,19 +210,22 @@ static bool containsOption(const UVector& opts, const ResolvedFunctionOption& op
 }
 
 // Options in `this` take precedence
-// `this` can't be used after mergeOptions is called
-FunctionOptions FunctionOptions::mergeOptions(FunctionOptions&& other,
-                                              UErrorCode& status) {
+FunctionOptions FunctionOptions::mergeOptions(const FunctionOptions& other,
+                                              UErrorCode& status) const {
     UVector mergedOptions(status);
     mergedOptions.setDeleter(uprv_deleteUObject);
 
     if (U_FAILURE(status)) {
         return {};
     }
+    if (bogus || other.bogus) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return {};
+    }
 
     // Create a new vector consisting of the options from this `FunctionOptions`
     for (int32_t i = 0; i < functionOptionsLen; i++) {
-        mergedOptions.adoptElement(create<ResolvedFunctionOption>(std::move(options[i]), status),
+        mergedOptions.adoptElement(create<ResolvedFunctionOption>(options[i], status),
                                  status);
     }
 
@@ -142,17 +233,149 @@ FunctionOptions FunctionOptions::mergeOptions(FunctionOptions&& other,
     for (int i = 0; i < other.functionOptionsLen; i++) {
         // Note: this is quadratic in the length of `options`
         if (!containsOption(mergedOptions, other.options[i])) {
-            mergedOptions.adoptElement(create<ResolvedFunctionOption>(std::move(other.options[i]),
-                                                                    status),
-                                     status);
+            const ResolvedFunctionOption& oldOpt = other.options[i];
+            ResolvedFunctionOption newOpt = ResolvedFunctionOption(oldOpt.name, *oldOpt.value, true);
+            mergedOptions.adoptElement(create<ResolvedFunctionOption>(newOpt, status),
+                                       status);
         }
     }
 
-    delete[] options;
-    options = nullptr;
-    functionOptionsLen = 0;
-
     return FunctionOptions(std::move(mergedOptions), status);
+}
+
+// InternalValue
+// -------------
+
+
+InternalValue::~InternalValue() {}
+
+InternalValue& InternalValue::operator=(InternalValue&& other) {
+    fallbackString = other.fallbackString;
+    val = std::move(other.val);
+    return *this;
+}
+
+InternalValue::InternalValue(InternalValue&& other) {
+    *this = std::move(other);
+}
+
+InternalValue::InternalValue(UErrorCode& errorCode) {
+    CHECK_ERROR(errorCode);
+
+    LocalPointer<FunctionValue> nv(new NullValue());
+    if (!nv.isValid()) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+    val = std::move(nv);
+}
+
+InternalValue::InternalValue(FunctionValue* v, const UnicodeString& fb)
+    : fallbackString(fb) {
+    U_ASSERT(v != nullptr);
+    val = LocalPointer<FunctionValue>(v);
+}
+
+const FunctionValue* InternalValue::getValue(UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    // If this is a closure or fallback, error out
+    if (!isEvaluated()) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
+    // Follow the indirection to get the value
+    if (isIndirection()) {
+        const InternalValue* other = *std::get_if<const InternalValue*>(&val);
+        U_ASSERT(other != nullptr);
+        return other->getValue(status);
+    }
+    // Otherwise, return the contained FunctionValue
+    const LocalPointer<FunctionValue>* result = std::get_if<LocalPointer<FunctionValue>>(&val);
+    U_ASSERT(result->isValid());
+    return (*result).getAlias();
+}
+
+FunctionValue* InternalValue::wrapInVariableValue(UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    const FunctionValue* inner = getValue(status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    return VariableValue::create(inner, status);
+}
+
+bool InternalValue::isSelectable() const {
+    UErrorCode localStatus = U_ZERO_ERROR;
+    const FunctionValue* val = getValue(localStatus);
+    if (U_FAILURE(localStatus)) {
+        return false;
+    }
+    return val->isSelectable();
+}
+
+/* static */ LocalPointer<InternalValue> InternalValue::null(UErrorCode& status) {
+    if (U_SUCCESS(status)) {
+        InternalValue* result = new InternalValue(status);
+        if (U_SUCCESS(status)) {
+            return LocalPointer<InternalValue>(result);
+        }
+    }
+    return LocalPointer<InternalValue>();
+}
+
+/* static */ LocalPointer<InternalValue> InternalValue::fallback(const UnicodeString& s,
+                                                                 UErrorCode& status) {
+    if (U_SUCCESS(status)) {
+        InternalValue* result = new InternalValue(s);
+        if (U_SUCCESS(status)) {
+            return LocalPointer<InternalValue>(result);
+        }
+    }
+    return LocalPointer<InternalValue>();
+}
+
+/* static */ InternalValue InternalValue::closure(Closure* c, const UnicodeString& fb) {
+    U_ASSERT(c != nullptr);
+    return InternalValue(c, fb);
+}
+
+bool InternalValue::isClosure() const {
+    return std::holds_alternative<LocalPointer<Closure>>(val);
+}
+
+bool InternalValue::isEvaluated() const {
+    return std::holds_alternative<LocalPointer<FunctionValue>>(val) || isIndirection();
+}
+
+bool InternalValue::isIndirection() const {
+    return std::holds_alternative<const InternalValue*>(val);
+}
+
+bool InternalValue::isNullOperand() const {
+    UErrorCode localStatus = U_ZERO_ERROR;
+    const FunctionValue* val = getValue(localStatus);
+    if (U_FAILURE(localStatus)) {
+        return false;
+    }
+    return val->isNullOperand();
+}
+
+void InternalValue::update(InternalValue& newVal) {
+    fallbackString = newVal.fallbackString;
+    val = &newVal;
+}
+
+void InternalValue::update(LocalPointer<FunctionValue> newVal) {
+    val = std::move(newVal);
+}
+
+void InternalValue::update(const UnicodeString& fb) {
+    fallbackString = fb;
+    val = fb;
 }
 
 // PrioritizedVariant
@@ -169,33 +392,34 @@ PrioritizedVariant::~PrioritizedVariant() {}
 
     // ---------------- Environments and closures
 
-    Environment* Environment::create(const VariableName& var, Closure&& c, Environment* parent, UErrorCode& errorCode) {
+    Environment* Environment::create(const VariableName& var, Closure* c,
+                                     const UnicodeString& fallbackStr,
+                                     Environment* parent, UErrorCode& errorCode) {
         NULL_ON_ERROR(errorCode);
-        Environment* result = new NonEmptyEnvironment(var, std::move(c), parent);
+        Environment* result = new NonEmptyEnvironment(var, InternalValue::closure(c, fallbackStr), parent);
         if (result == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
-            return nullptr;
+            return parent;
         }
         return result;
     }
 
     Environment* Environment::create(UErrorCode& errorCode) {
         NULL_ON_ERROR(errorCode);
-        Environment* result = new EmptyEnvironment();
-        if (result == nullptr) {
+        Environment* result = new EmptyEnvironment(errorCode);
+        if (U_SUCCESS(errorCode) && result == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return nullptr;
         }
         return result;
     }
 
-    const Closure& EmptyEnvironment::lookup(const VariableName& v) const {
-        (void) v;
+    InternalValue& EmptyEnvironment::lookup(const VariableName&) {
         U_ASSERT(false);
         UPRV_UNREACHABLE_EXIT;
     }
 
-    const Closure& NonEmptyEnvironment::lookup(const VariableName& v) const {
+    InternalValue& NonEmptyEnvironment::lookup(const VariableName& v) {
         if (v == var) {
             return rhs;
         }
@@ -214,9 +438,74 @@ PrioritizedVariant::~PrioritizedVariant() {}
         return parent->has(v);
     }
 
+    InternalValue& EmptyEnvironment::createNull(UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return bogus();
+        }
+        LocalPointer<InternalValue> val(InternalValue::null(status));
+        return addUnnamedValue(std::move(val), status);
+    }
+
+    InternalValue& EmptyEnvironment::createFallback(const UnicodeString& s, UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return bogus();
+        }
+        LocalPointer<InternalValue> val(InternalValue::fallback(s, status));
+        return addUnnamedValue(std::move(val), status);
+    }
+
+    InternalValue& EmptyEnvironment::createUnnamed(InternalValue&& v, UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return bogus();
+        }
+        LocalPointer<InternalValue> val(new InternalValue(std::move(v)));
+        if (!val.isValid()) {
+            return bogus();
+        }
+        return addUnnamedValue(std::move(val), status);
+    }
+
+    InternalValue& NonEmptyEnvironment::createNull(UErrorCode& status) {
+        return parent->createNull(status);
+    }
+
+    InternalValue& NonEmptyEnvironment::createFallback(const UnicodeString& s, UErrorCode& status) {
+        return parent->createFallback(s, status);
+    }
+
+    InternalValue& NonEmptyEnvironment::createUnnamed(InternalValue&& v, UErrorCode& status) {
+        return parent->createUnnamed(std::move(v), status);
+    }
+
+    InternalValue& EmptyEnvironment::addUnnamedValue(LocalPointer<InternalValue> val,
+                                             UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return bogus();
+        }
+        U_ASSERT(val.isValid());
+        InternalValue* v = val.orphan();
+        unnamedValues.adoptElement(v, status);
+        return *v;
+    }
+
+    EmptyEnvironment::EmptyEnvironment(UErrorCode& status) : unnamedValues(UVector(status)) {
+        unnamedValues.setDeleter(uprv_deleteUObject);
+    }
+
     Environment::~Environment() {}
     NonEmptyEnvironment::~NonEmptyEnvironment() {}
     EmptyEnvironment::~EmptyEnvironment() {}
+
+    /* static */ Closure* Closure::create(const Expression& expr, Environment& env,
+                                          UErrorCode& status) {
+        NULL_ON_ERROR(status);
+
+        Closure* result = new Closure(expr, env);
+        if (result == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        return result;
+    }
 
     Closure::~Closure() {}
 
@@ -237,266 +526,6 @@ PrioritizedVariant::~PrioritizedVariant() {}
                                    UErrorCode& status) : arguments(args), errors(e, status) {}
 
     MessageContext::~MessageContext() {}
-
-    // InternalValue
-    // -------------
-
-    bool InternalValue::isFallback() const {
-        return std::holds_alternative<FormattedPlaceholder>(argument)
-            && std::get_if<FormattedPlaceholder>(&argument)->isFallback();
-    }
-
-    bool InternalValue::hasNullOperand() const {
-        return std::holds_alternative<FormattedPlaceholder>(argument)
-            && std::get_if<FormattedPlaceholder>(&argument)->isNullOperand();
-    }
-
-    FormattedPlaceholder InternalValue::takeArgument(UErrorCode& errorCode) {
-        if (U_FAILURE(errorCode)) {
-            return {};
-        }
-
-        if (std::holds_alternative<FormattedPlaceholder>(argument)) {
-            return std::move(*std::get_if<FormattedPlaceholder>(&argument));
-        }
-        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        return {};
-    }
-
-    const UnicodeString& InternalValue::getFallback() const {
-        if (std::holds_alternative<FormattedPlaceholder>(argument)) {
-            return std::get_if<FormattedPlaceholder>(&argument)->getFallback();
-        }
-        return (*std::get_if<InternalValue*>(&argument))->getFallback();
-    }
-
-    const Selector* InternalValue::getSelector(UErrorCode& errorCode) const {
-        if (U_FAILURE(errorCode)) {
-            return nullptr;
-        }
-
-        if (selector == nullptr) {
-            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        }
-        return selector;
-    }
-
-    InternalValue::InternalValue(FormattedPlaceholder&& arg) {
-        argument = std::move(arg);
-        selector = nullptr;
-        formatter = nullptr;
-    }
-
-    InternalValue::InternalValue(InternalValue* operand,
-                                 FunctionOptions&& opts,
-                                 const FunctionName& functionName,
-                                 const Formatter* f,
-                                 const Selector* s) {
-        argument = operand;
-        options = std::move(opts);
-        name = functionName;
-        selector = s;
-        formatter = f;
-        U_ASSERT(selector != nullptr || formatter != nullptr);
-    }
-
-    // `this` cannot be used after calling this method
-    void InternalValue::forceSelection(DynamicErrors& errs,
-                                       const UnicodeString* keys,
-                                       int32_t keysLen,
-                                       UnicodeString* prefs,
-                                       int32_t& prefsLen,
-                                       UErrorCode& errorCode) {
-        if (U_FAILURE(errorCode)) {
-            return;
-        }
-
-        if (!canSelect()) {
-            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-            return;
-        }
-        // Find the argument and complete set of options by traversing `argument`
-        FunctionOptions opts;
-        InternalValue* p = this;
-        FunctionName selectorName = name;
-
-        bool operandSelect = false;
-        while (std::holds_alternative<InternalValue*>(p->argument)) {
-            if (p->name != selectorName) {
-                // Can only compose calls to the same selector
-                errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-                return;
-            }
-            // Very special case to detect something like:
-            // .local $sel = {1 :integer select=exact} .local $bad = {$sel :integer} .match $bad 1 {{ONE}} * {{operand select {$bad}}}
-            // This can be done better once function composition is fully implemented.
-            if (p != this &&
-                !p->options.getStringFunctionOption(options::SELECT).isEmpty()
-                && (selectorName == functions::NUMBER || selectorName == functions::INTEGER)) {
-                // In this case, we want to call the selector normally but emit a
-                // `bad-option` error, possibly with the outcome of normal-looking output (with relaxed
-                // error handling) and an error (with strict error handling).
-                operandSelect = true;
-            }
-            // First argument to mergeOptions takes precedence
-            opts = opts.mergeOptions(std::move(p->options), errorCode);
-            if (U_FAILURE(errorCode)) {
-                return;
-            }
-            InternalValue* next = *std::get_if<InternalValue*>(&p->argument);
-            p = next;
-        }
-        FormattedPlaceholder arg = std::move(*std::get_if<FormattedPlaceholder>(&p->argument));
-
-        // This condition can't be checked in the selector.
-        // Effectively, there are two different kinds of "bad option" errors:
-        // one that can be recovered from (used for select=$var) and one that
-        // can't (used for bad digit size options and other cases).
-        // The checking of the recoverable error has to be done here; otherwise,
-        // the "bad option" signaled by the selector implementation would cause
-        // fallback output to be used when formatting the `*` pattern.
-        bool badSelectOption = !checkSelectOption();
-
-        selector->selectKey(std::move(arg), std::move(opts),
-                            keys, keysLen,
-                            prefs, prefsLen, errorCode);
-        if (errorCode == U_MF_SELECTOR_ERROR) {
-            errorCode = U_ZERO_ERROR;
-            errs.setSelectorError(selectorName, errorCode);
-        } else if (errorCode == U_MF_BAD_OPTION) {
-            errorCode = U_ZERO_ERROR;
-            errs.setBadOption(selectorName, errorCode);
-        } else if (operandSelect || badSelectOption) {
-            errs.setRecoverableBadOption(selectorName, errorCode);
-            // In this case, only the `*` variant should match
-            prefsLen = 0;
-        }
-    }
-
-    bool InternalValue::checkSelectOption() const {
-        if (name != UnicodeString("number") && name != UnicodeString("integer")) {
-            return true;
-        }
-
-        // Per the spec, if the "select" option is present, it must have been
-        // set from a literal
-
-        Formattable opt;
-        // Returns false if the `select` option is present and it was not set from a literal
-
-        // OK if the option wasn't present
-        if (!options.getFunctionOption(UnicodeString("select"), opt)) {
-            return true;
-        }
-        // Otherwise, return true if the option was set from a literal
-        return options.wasSetFromLiteral(UnicodeString("select"));
-    }
-
-    FormattedPlaceholder InternalValue::forceFormatting(DynamicErrors& errs, UErrorCode& errorCode) {
-        if (U_FAILURE(errorCode)) {
-            return {};
-        }
-
-        if (formatter == nullptr && selector == nullptr) {
-            U_ASSERT(std::holds_alternative<FormattedPlaceholder>(argument));
-            return std::move(*std::get_if<FormattedPlaceholder>(&argument));
-        }
-        if (formatter == nullptr) {
-            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-            return {};
-        }
-
-        FormattedPlaceholder arg;
-
-        if (std::holds_alternative<FormattedPlaceholder>(argument)) {
-            arg = std::move(*std::get_if<FormattedPlaceholder>(&argument));
-        } else {
-            arg = (*std::get_if<InternalValue*>(&argument))->forceFormatting(errs,
-                                                                             errorCode);
-        }
-
-        if (U_FAILURE(errorCode)) {
-            return {};
-        }
-
-        if (arg.isFallback()) {
-            return arg;
-        }
-
-        // The fallback for a nullary function call is the function name
-        UnicodeString fallback;
-        if (arg.isNullOperand()) {
-            fallback = u":";
-            fallback += name;
-        } else {
-            fallback = arg.getFallback();
-        }
-
-        // Very special case for :number select=foo and :integer select=foo
-        // This check can't be done inside the function implementation because
-        // it doesn't have a way to both signal an error and return usable output,
-        // and the spec stipulates that fallback output shouldn't be used in the
-        // case of a bad `select` option to a formatting call.
-        bool badSelect = !checkSelectOption();
-
-        // Call the function with the argument
-        FormattedPlaceholder result = formatter->format(std::move(arg), std::move(options), errorCode);
-        if (U_SUCCESS(errorCode) && errorCode == U_USING_DEFAULT_WARNING) {
-            // Ignore this warning
-            errorCode = U_ZERO_ERROR;
-        }
-        if (U_FAILURE(errorCode)) {
-            if (errorCode == U_MF_OPERAND_MISMATCH_ERROR) {
-                errorCode = U_ZERO_ERROR;
-                errs.setOperandMismatchError(name, errorCode);
-            } else if (errorCode == U_MF_BAD_OPTION) {
-                errorCode = U_ZERO_ERROR;
-                errs.setBadOption(name, errorCode);
-            } else {
-                errorCode = U_ZERO_ERROR;
-                // Convey any other error generated by the formatter
-                // as a formatting error
-                errs.setFormattingError(name, errorCode);
-            }
-        }
-        // Ignore the output if any error occurred
-        // We don't ignore the output in the case of a Bad Option Error,
-        // because of the select=bad case where we want both an error
-        // and non-fallback output.
-        if (errs.hasFormattingError() || errs.hasBadOptionError()) {
-            return FormattedPlaceholder(fallback);
-        }
-        if (badSelect) {
-            // In this case, we want to set an error but not replace
-            // the output with a fallback
-            errs.setRecoverableBadOption(name, errorCode);
-        }
-        return result;
-    }
-
-    InternalValue& InternalValue::operator=(InternalValue&& other) noexcept {
-        argument = std::move(other.argument);
-        other.argument = nullptr;
-        options = std::move(other.options);
-        name = other.name;
-        selector = other.selector;
-        formatter = other.formatter;
-        other.selector = nullptr;
-        other.formatter = nullptr;
-
-        return *this;
-    }
-
-    InternalValue::~InternalValue() {
-        delete selector;
-        selector = nullptr;
-        delete formatter;
-        formatter = nullptr;
-        if (std::holds_alternative<InternalValue*>(argument)) {
-            delete *std::get_if<InternalValue*>(&argument);
-            argument = nullptr;
-        }
-    }
 
 } // namespace message2
 U_NAMESPACE_END

@@ -432,7 +432,7 @@ const Operator* Expression::getOperator(UErrorCode& status) const {
         status = U_INVALID_STATE_ERROR;
         return nullptr;
     }
-    U_ASSERT(rator);
+    U_ASSERT(rator.has_value());
     return &(*rator);
 }
 

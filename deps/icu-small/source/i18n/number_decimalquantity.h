@@ -8,7 +8,6 @@
 #define __NUMBER_DECIMALQUANTITY_H__
 
 #include <cstdint>
-#include "unicode/umachine.h"
 #include "standardplural.h"
 #include "plurrule_impl.h"
 #include "number_types.h"

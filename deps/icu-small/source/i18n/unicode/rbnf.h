@@ -985,8 +985,6 @@ public:
                                 Formattable& result,
                                 ParsePosition& parsePosition) const override;
 
-#if !UCONFIG_NO_COLLATION
-
   /**
    * Turns lenient parse mode on and off.
    *
@@ -1030,8 +1028,6 @@ public:
    * @stable ICU 2.0
    */
   U_I18N_API virtual inline UBool isLenient() const override;
-
-#endif
 
   /**
    * Override the default rule set to use.  If ruleSetName is null, reset
@@ -1135,6 +1131,7 @@ private:
     friend class FractionalPartSubstitution;
 
     inline NFRuleSet * getDefaultRuleSet() const;
+    void initializeCollator(UErrorCode &status);
     const RuleBasedCollator * getCollator() const;
     DecimalFormatSymbols * initializeDecimalFormatSymbols(UErrorCode &status);
     const DecimalFormatSymbols * getDecimalFormatSymbols() const;
@@ -1148,36 +1145,34 @@ private:
     void format(double number, NFRuleSet& rs, UnicodeString& toAppendTo, UErrorCode& status) const;
 
 private:
-    NFRuleSet **fRuleSets;
-    UnicodeString* ruleSetDescriptions;
-    int32_t numRuleSets;
-    NFRuleSet *defaultRuleSet;
+    NFRuleSet **fRuleSets {  };
+    UnicodeString* ruleSetDescriptions {  };
+    int32_t numRuleSets {  };
+    NFRuleSet *defaultRuleSet {  };
     Locale locale;
-    RuleBasedCollator* collator;
-    DecimalFormatSymbols* decimalFormatSymbols;
-    NFRule *defaultInfinityRule;
-    NFRule *defaultNaNRule;
-    ERoundingMode fRoundingMode;
-    UBool lenient;
-    UnicodeString* lenientParseRules;
-    LocalizationInfo* localizations;
+    RuleBasedCollator* collator {  };
+    DecimalFormatSymbols* decimalFormatSymbols {  };
+    NFRule *defaultInfinityRule {  };
+    NFRule *defaultNaNRule {  };
+    ERoundingMode fRoundingMode { ERoundingMode::kRoundUnnecessary };
+    UBool lenient {  };
+    UBool unparseable {  };
+    uint8_t caseFoldOption {  };
+    UnicodeString* lenientParseRules {  };
+    LocalizationInfo* localizations {  };
     UnicodeString originalDescription;
-    UBool capitalizationInfoSet;
-    UBool capitalizationForUIListMenu;
-    UBool capitalizationForStandAlone;
-    BreakIterator* capitalizationBrkIter;
+    UBool capitalizationInfoSet {  };
+    UBool capitalizationForUIListMenu {  };
+    UBool capitalizationForStandAlone {  };
+    BreakIterator* capitalizationBrkIter {  };
 };
 
 // ---------------
-
-#if !UCONFIG_NO_COLLATION
 
 inline UBool
 RuleBasedNumberFormat::isLenient() const {
     return lenient;
 }
-
-#endif
 
 inline NFRuleSet*
 RuleBasedNumberFormat::getDefaultRuleSet() const {

@@ -31,8 +31,8 @@ namespace prv {
 // This function, and the public wrappers,
 // want to be U_FORCE_INLINE but the gcc-debug-build-and-test CI check failed with
 // error: ‘always_inline’ function might not be inlinable [-Werror=attributes]
-template<typename StringClass, bool validate>
-inline StringClass &appendCodePoint(StringClass &s, uint32_t c) {
+template <typename StringClass, bool validate>
+inline StringClass& appendCodePoint(StringClass& s U_LIFETIME_BOUND, uint32_t c) {
     using Unit = typename StringClass::value_type;
     if constexpr (sizeof(Unit) == 1) {
         // UTF-8: Similar to U8_APPEND().
@@ -94,8 +94,8 @@ inline StringClass &appendCodePoint(StringClass &s, uint32_t c) {
  * @draft ICU 78
  * @see U_IS_SCALAR_VALUE
  */
-template<typename StringClass>
-inline StringClass &appendOrFFFD(StringClass &s, UChar32 c) {
+template <typename StringClass>
+inline StringClass& appendOrFFFD(StringClass& s U_LIFETIME_BOUND, UChar32 c) {
     return prv::appendCodePoint<StringClass, true>(s, c);
 }
 
@@ -111,8 +111,8 @@ inline StringClass &appendOrFFFD(StringClass &s, UChar32 c) {
  * @draft ICU 78
  * @see U_IS_SCALAR_VALUE
  */
-template<typename StringClass>
-inline StringClass &appendUnsafe(StringClass &s, UChar32 c) {
+template <typename StringClass>
+inline StringClass& appendUnsafe(StringClass& s U_LIFETIME_BOUND, UChar32 c) {
     return prv::appendCodePoint<StringClass, false>(s, c);
 }
 

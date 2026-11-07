@@ -50,9 +50,9 @@ public:
      * Appends the sub-message to the result string.
      * Omits SKIP_SYNTAX and appends whole arguments using appendReducedApostrophes().
      */
-    static UnicodeString &appendSubMessageWithoutSkipSyntax(const MessagePattern &msgPattern,
+    static UnicodeString& appendSubMessageWithoutSkipSyntax(const MessagePattern& msgPattern,
                                                             int32_t msgStart,
-                                                            UnicodeString &result);
+                                                            UnicodeString& result U_LIFETIME_BOUND);
 
 private:
     MessageImpl() = delete;  // no constructor: all static methods

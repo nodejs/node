@@ -279,7 +279,6 @@ ulocbld_setExtension(ULocaleBuilder* builder, char key, const char* value, int32
  *               terminated when the length is non-negative)
  * @param typeLength the length of the type; if negative, then the type need to
  *               be null terminated,
- * @return This builder.
  * @stable ICU 74
  */
 U_CAPI void U_EXPORT2

@@ -829,7 +829,8 @@ public:
         return availableLocaleListCount;
     }
 
-    virtual const char* next(int32_t* resultLength, UErrorCode& /*status*/) override {
+    virtual const char* next(int32_t* resultLength,
+                             UErrorCode& /*status*/) U_LIFETIME_BOUND override {
         const char* result;
         if(index < availableLocaleListCount) {
             result = availableLocaleList[index++].getName();
@@ -845,7 +846,7 @@ public:
         return result;
     }
 
-    virtual const UnicodeString* snext(UErrorCode& status) override {
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override {
         int32_t resultLength = 0;
         const char *s = next(&resultLength, status);
         return setChars(s, resultLength, status);

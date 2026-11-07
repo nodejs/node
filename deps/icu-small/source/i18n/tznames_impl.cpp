@@ -862,12 +862,12 @@ ZNames::ZNamesLoader::~ZNamesLoader() {}
 class MetaZoneIDsEnumeration : public StringEnumeration {
 public:
     MetaZoneIDsEnumeration();
-    MetaZoneIDsEnumeration(const UVector& mzIDs);
+    MetaZoneIDsEnumeration(const UVector& mzIDs U_LIFETIME_BOUND);
     MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs);
     virtual ~MetaZoneIDsEnumeration();
     static UClassID U_EXPORT2 getStaticClassID();
     virtual UClassID getDynamicClassID() const override;
-    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;
 private:
@@ -883,7 +883,7 @@ MetaZoneIDsEnumeration::MetaZoneIDsEnumeration()
 : fLen(0), fPos(0), fMetaZoneIDs(nullptr), fLocalVector(nullptr) {
 }
 
-MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(const UVector& mzIDs) 
+MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(const UVector& mzIDs U_LIFETIME_BOUND) 
 : fPos(0), fMetaZoneIDs(&mzIDs), fLocalVector(nullptr) {
     fLen = fMetaZoneIDs->size();
 }
@@ -897,7 +897,7 @@ MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs)
 }
 
 const UnicodeString*
-MetaZoneIDsEnumeration::snext(UErrorCode& status) {
+MetaZoneIDsEnumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
     if (U_SUCCESS(status) && fMetaZoneIDs != nullptr && fPos < fLen) {
         unistr.setTo(static_cast<const char16_t*>(fMetaZoneIDs->elementAt(fPos++)), -1);
         return &unistr;
@@ -1695,17 +1695,10 @@ void TimeZoneNamesImpl::internalLoadAllDisplayNames(UErrorCode& status) {
 
 
 
-static const char16_t gEtcPrefix[]         = { 0x45, 0x74, 0x63, 0x2F }; // "Etc/"
-static const int32_t gEtcPrefixLen      = 4;
-static const char16_t gSystemVPrefix[]     = { 0x53, 0x79, 0x73, 0x74, 0x65, 0x6D, 0x56, 0x2F }; // "SystemV/
-static const int32_t gSystemVPrefixLen  = 8;
-static const char16_t gRiyadh8[]           = { 0x52, 0x69, 0x79, 0x61, 0x64, 0x68, 0x38 }; // "Riyadh8"
-static const int32_t gRiyadh8Len       = 7;
-
 UnicodeString& U_EXPORT2
 TimeZoneNamesImpl::getDefaultExemplarLocationName(const UnicodeString& tzID, UnicodeString& name) {
-    if (tzID.isEmpty() || tzID.startsWith(gEtcPrefix, gEtcPrefixLen)
-        || tzID.startsWith(gSystemVPrefix, gSystemVPrefixLen) || tzID.indexOf(gRiyadh8, gRiyadh8Len, 0) > 0) {
+    UnicodeString country;
+    if (tzID.isEmpty() || ZoneMeta::getCanonicalCountry(tzID, country).isEmpty()) {
         name.setToBogus();
         return name;
     }

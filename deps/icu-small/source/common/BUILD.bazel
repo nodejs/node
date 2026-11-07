@@ -36,6 +36,9 @@ cc_library(
     # Bazel workspace:
     # https://stackoverflow.com/a/65635893/2077918
     includes = ["."],
+    defines = [
+        "U_DEBUG", # enable U_ASSERT()
+    ],
     local_defines = [
         "U_COMMON_IMPLEMENTATION",
     ],
