@@ -1,5 +1,5 @@
 {
-  openssl ? (import ./openssl-matrix.nix { }).openssl_3_5,
+  openssl ? (import ./openssl-matrix.nix { }).openssl,
 }:
 
 openssl.overrideAttrs (oldAttrs: {
@@ -48,7 +48,7 @@ openssl.overrideAttrs (oldAttrs: {
 
     openssl mac \
       -digest SHA256 -macopt key:key HMAC </dev/null >/dev/null
-    openssl md5 </dev/null >/dev/null 2>&1 \
+    openssl dgst -md5 </dev/null >/dev/null 2>&1 \
     && echo "MD5 unexpectedly available with FIPS properties enabled" >&2 \
     && exit 1
 
