@@ -829,6 +829,12 @@ const util = require('util');
   assert(blockList.check('fc00::1', 'ipv6'));
   assert(blockList.check('fd00::1', 'ipv6'));
 
+  // CGNAT (RFC 6598) and benchmarking (RFC 2544)
+  assert(blockList.check('100.64.0.1'));
+  assert(blockList.check('100.127.255.255'));
+  assert(blockList.check('198.18.0.1'));
+  assert(blockList.check('198.19.255.255'));
+
   // Public addresses should not match
   assert(!blockList.check('8.8.8.8'));
   assert(!blockList.check('1.1.1.1'));
