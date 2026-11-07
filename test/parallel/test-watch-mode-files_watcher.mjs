@@ -37,6 +37,9 @@ describe('watch mode file watcher', () => {
   afterEach(() => watcher.clear());
 
   let counter = 0;
+  // A newly created watcher might not report changes right away (e.g. on
+  // macOS the FSEvents stream is started asynchronously), so a single write
+  // can be missed. Keep writing until a change is reported.
   function writeAndWaitForChanges(watcher, file) {
     return new Promise((resolve) => {
       const interval = setInterval(() => writeFileSync(file, `write ${counter++}`), 100);
@@ -93,16 +96,23 @@ describe('watch mode file watcher', () => {
                         ['--watch', file1],
                         { stdio: ['ignore', 'pipe', 'ignore'] });
     let completeCount = 0;
+    let appendInterval;
     for await (const line of createInterface(child.stdout)) {
       if (!line.startsWith('Completed running')) {
         continue;
       }
       completeCount++;
       if (completeCount === 1) {
+        // The watcher of the child might not report changes yet, so keep
+        // changing the file until it is reloaded. The interval is longer than
+        // the default debounce of watch mode so the restart is not deferred.
         appendFileSync(file1, '\n // append 1');
+        appendInterval = setInterval(() => appendFileSync(file1, '\n // append'),
+                                     common.platformTimeout(1000));
       }
       // The file is reloaded due to file watching
       if (completeCount === 2) {
+        clearInterval(appendInterval);
         child.kill();
       }
     }
@@ -135,6 +145,7 @@ describe('watch mode file watcher', () => {
       watcher.filterFile(file);
       files.push(file);
     }
+    await writeAndWaitForChanges(watcher, files[0]);
 
     files.forEach((file) => writeFileSync(file, '1'));
     files.forEach((file) => writeFileSync(file, '2'));
@@ -203,10 +214,7 @@ describe('watch mode file watcher', () => {
        const file = tmpdir.resolve('file5');
        watcher.watchPath(tmpdir.path);
 
-       const changed = once(watcher, 'changed');
-       await setTimeout(common.platformTimeout(100)); // avoid throttling
-       writeFileSync(file, 'changed');
-       await changed;
+       await writeAndWaitForChanges(watcher, file);
        assert.strictEqual(changesCount, 1);
      });
 
