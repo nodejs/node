@@ -97,7 +97,7 @@ function assertReadOnly(snapshot) {
     const snapshot = histogram.snapshot();
     assertReadOnly(snapshot);
     assert.strictEqual(snapshot.count, 0);
-    assert.strictEqual(snapshot.minBigInt, 9223372036854775807n);
+    assert.strictEqual(snapshot.minBigInt, 0n);
     assert.strictEqual(snapshot.maxBigInt, 0n);
     assertSameState(snapshot, histogram);
   }
