@@ -2252,7 +2252,8 @@ changes:
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
-  * `ALPNCallback` {Function} If set, this will be called when a
+  * `ALPNCallback` {Function} If set, this will be called
+    (with `this` set to the `tls.TLSSocket` instance) when a
     client opens a connection using the ALPN extension. One argument will
     be passed to the callback: an object containing `servername` and
     `protocols` fields, respectively containing the server name from
@@ -2282,7 +2283,8 @@ changes:
     [Session Resumption][] for more information. **Default:** `300`.
   * `SNICallback(servername, callback)` {Function} A function that will be
     called if the client supports SNI TLS extension. Two arguments will be
-    passed when called: `servername` and `callback`. `callback` is an
+    passed when called: `servername` and `callback`, with `this` set to the
+    `tls.TLSSocket` instance associated with the connection. `callback` is an
     error-first callback that takes two optional arguments: `error` and `ctx`.
     `ctx`, if provided, is a `SecureContext` instance.
     [`tls.createSecureContext()`][] can be used to get a proper `SecureContext`.
