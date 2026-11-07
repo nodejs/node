@@ -3211,6 +3211,15 @@ void HistogramImpl::DoImport(const FunctionCallbackInfo<Value>& args) {
       static_cast<const uint8_t*>(backing->Data()) + input->ByteOffset();
   size_t len = input->ByteLength();
 
+  // Another thread can write to a SharedArrayBuffer while it is parsed, so
+  // parse a private copy instead.
+  std::unique_ptr<uint8_t[]> data_copy;
+  if (input->Buffer()->IsSharedArrayBuffer() && len > 0) {
+    data_copy = std::make_unique_for_overwrite<uint8_t[]>(len);
+    memcpy(data_copy.get(), data, len);
+    data = data_copy.get();
+  }
+
   auto histogram = Histogram::Import(data, len);
   if (!histogram) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Invalid histogram export data");
