@@ -1,7 +1,8 @@
+import type { AsyncWrap } from './async_wrap';
 import { owner_symbol } from './symbols';
 
 declare namespace InternalHeapUtilsBinding {
-  interface HeapSnapshotStreamHandle {
+  interface HeapSnapshotStreamHandle extends AsyncWrap {
     [owner_symbol]?: object;
     onread?: (arrayBuffer: ArrayBuffer | undefined) => void;
     readStart(): number;
