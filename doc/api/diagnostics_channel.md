@@ -2002,6 +2002,19 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+##### Event: `'worker_threads.main.registry'`
+
+* `threadIds` {number[]} A snapshot of the registered worker thread IDs.
+
+Emitted only on the main thread whenever a worker's messaging port is registered
+or unregistered, including workers created by other workers. The main thread's
+ID (`0`) is not included.
+
+Registration can occur before a worker is online. Unregistration occurs when the
+parent thread processes the worker's exit, so it can be delayed if the parent
+thread is blocked. The snapshot represents registered messaging ports, not a
+guarantee that the listed workers are ready or still running.
+
 #### SQLite
 
 <!-- YAML
