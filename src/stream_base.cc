@@ -725,6 +725,12 @@ void StreamResource::ClearError() {
 uv_buf_t EmitToJSStreamListener::OnStreamAlloc(size_t suggested_size) {
   CHECK_NOT_NULL(stream_);
   Environment* env = static_cast<StreamBase*>(stream_)->stream_env();
+  // Reads that ask for less than a slab (e.g. decrypted TLS records, which
+  // are allocated at their exact size) get their own buffer: as views over
+  // a shared slab, any one of them kept by JS would keep the whole slab
+  // alive, along with every other read that was carved out of it.
+  if (suggested_size < StreamReadSlab::kSlabSize)
+    return env->allocate_managed_buffer(suggested_size);
   return env->stream_read_slab().Allocate(env->isolate(), suggested_size);
 }
 
