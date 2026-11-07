@@ -28,8 +28,8 @@ export interface InspectorBinding {
   asyncTaskFinished(taskId: number): void;
   registerAsyncHook(enable: () => void, disable: () => void): void;
   isEnabled(): boolean;
+  isNetworkDomainEnabled(): boolean;
   emitProtocolEvent(eventName: string, params: object): void;
-  setupNetworkTracking(enable: () => void, disable: () => void): void;
   console: Console;
   Connection: InspectorConnectionConstructor;
   MainThreadConnection: InspectorConnectionConstructor;
