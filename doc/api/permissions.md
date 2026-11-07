@@ -68,7 +68,7 @@ restricted (the listener for SIGUSR1 won't be created).
 ```console
 $ node --permission index.js
 
-Error: Access to this API has been restricted
+Error: Access to this API has been restricted. Use --allow-fs-read to manage permissions.
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead',
