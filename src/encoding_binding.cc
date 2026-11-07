@@ -88,7 +88,7 @@ constexpr bool isSurrogatePair(uint16_t lead, uint16_t trail) {
 
 constexpr size_t simpleUtfEncodingLength(uint16_t c) {
   if (c < 0x80) return 1;
-  if (c < 0x400) return 2;
+  if (c < 0x800) return 2;
   return 3;
 }
 
