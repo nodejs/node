@@ -2755,6 +2755,8 @@ changes:
 
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
+If a variable is already set in `process.env`, its existing value takes
+precedence and is not overwritten by the value from the `.env` file.
 
 ```cjs
 const { loadEnvFile } = require('node:process');
