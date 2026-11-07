@@ -95,6 +95,22 @@ const url = require('url');
       code: 'ERR_INVALID_ARG_VALUE',
     });
 
+    // Missing server in extended UNC:
+    assert.throws(() => url.pathToFileURL('\\\\?\\UNC\\\\no-server'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+    assert.throws(() => url.pathToFileURL('\\\\?\\unc\\\\no-server'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+
+    // Missing share or resource in extended UNC:
+    assert.throws(() => url.pathToFileURL('\\\\?\\UNC\\host'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+    assert.throws(() => url.pathToFileURL('\\\\?\\unc\\host'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+
     // Regression test for direct String.prototype.startsWith call
     assert.throws(() => url.pathToFileURL([
       '\\\\',
@@ -173,6 +189,10 @@ const windowsTestCases = [
   { path: '\\\\nas\\My Docs\\File.doc', expected: 'file://nas/My%20Docs/File.doc' },
   // Extended UNC path
   { path: '\\\\?\\UNC\\server\\share\\folder\\file.txt', expected: 'file://server/share/folder/file.txt' },
+  // Lowercase extended UNC path
+  { path: '\\\\?\\unc\\server\\share\\folder\\file.txt', expected: 'file://server/share/folder/file.txt' },
+  // Mixed-case extended UNC path
+  { path: '\\\\?\\Unc\\server\\share\\folder\\file.txt', expected: 'file://server/share/folder/file.txt' },
 ];
 const alphabet = String.fromCharCode(...Array.from({ length: 26 }, (_, i) => 'a'.charCodeAt() + i));
 const posixTestCases = [
