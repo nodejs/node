@@ -458,6 +458,17 @@ describe('Mock Timers Test Suite', () => {
 
         assert.deepStrictEqual(order, ['f1', 'f2']);
       });
+
+      it('should run setTimeout once if it calls setImmediate', (t) => {
+        t.mock.timers.enable({ apis: ['setImmediate', 'setTimeout'] });
+        const fn = t.mock.fn(common.mustCall(1));
+
+        globalThis.setTimeout(common.mustCall(() => globalThis.setImmediate(fn), 1), 100);
+
+        t.mock.timers.tick(500);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
     });
 
     describe('clearImmediate Suite', () => {
