@@ -71,6 +71,7 @@
 * [Web Crypto API](webcrypto.md)
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
+* [YAML](yaml.md)
 * [Zlib](zlib.md)
 
 <hr class="line"/>
