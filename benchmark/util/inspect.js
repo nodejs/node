@@ -14,6 +14,7 @@ const bench = common.createBenchmark(main, {
     'Object',
     'Object_empty',
     'Object_deep_ln',
+    'Object_large',
     'String',
     'String_complex',
     'String_boxed',
@@ -60,6 +61,13 @@ function main({ method, n, option }) {
                     f: 'sixth',
                     g: 'seventh' } } } };
       benchmark(n, obj, options || { depth: Infinity });
+      break;
+    case 'Object_large':
+      obj = {};
+      for (let i = 0; i < 50; i++) {
+        obj[`key${i}`] = i;
+      }
+      benchmark(n, obj, options);
       break;
     case 'String':
       benchmark(n, 'Simple string', options);
