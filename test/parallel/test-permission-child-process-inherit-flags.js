@@ -101,5 +101,50 @@ const childProcess = require('child_process');
 }
 
 {
+  const tmpdir = require('../common/tmpdir');
+  const dir = tmpdir.resolve('inherit flags dir');
+  const file = `${dir}/file.txt`;
+
+  const grandchildSource = `
+    console.log(process.permission.has('fs.read'));
+    console.log(process.permission.has('fs.read', ${JSON.stringify(file)}));
+    console.log(process.permission.has('fs.read', ${JSON.stringify(__filename)}));
+  `;
+  const childSource = `
+    const { status, stdout, stderr } = require('child_process').spawnSync(
+      process.execPath, ['-e', ${JSON.stringify(grandchildSource)}]);
+    console.log(JSON.stringify({
+      status,
+      stderr: stderr.toString(),
+      permissions: stdout.toString().trim().split('\\n'),
+    }));
+  `;
+
+  function run(args) {
+    const { status, stdout, stderr } = childProcess.spawnSync(
+      process.execPath,
+      ['--permission', '--allow-child-process', ...args, '-e', childSource],
+    );
+    assert.strictEqual(status, 0, stderr.toString());
+    const grandchild = JSON.parse(stdout.toString());
+    assert.strictEqual(grandchild.status, 0, grandchild.stderr);
+    return grandchild.permissions;
+  }
+
+  assert.deepStrictEqual(run(['--allow-fs-read', '*']),
+                         ['true', 'true', 'true']);
+
+  assert.deepStrictEqual(run(['--allow-fs-read', `${dir}/*`]),
+                         ['false', 'true', 'false']);
+
+  assert.deepStrictEqual(run([`--allow-fs-read=${dir}/*`]),
+                         ['false', 'true', 'false']);
+
+  assert.deepStrictEqual(
+    run(['--allow-fs-read', `${dir}/*`, `--allow-fs-read=${__filename}`]),
+    ['false', 'true', 'true']);
+}
+
+{
   assert.strictEqual(process.env.NODE_OPTIONS, undefined);
 }
