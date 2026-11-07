@@ -320,14 +320,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  // "useVfs" is the --vfs-load of a SEA, whichever provider serves the VFS,
-  // and takes the mount point reserved for the --vfs-load source.
   sea_vfs = sea::IsSingleExecutable() &&
             sea::FindSingleExecutableResource().use_vfs();
-  // The entry point of a SEA is its "main", and resolving modules against its
-  // files is what "useVfs" does, so --vfs-load has nothing to do in any SEA.
-  // Accepting it from --node-options would also let whoever runs the binary
-  // change what it resolves, which is why it is disallowed in NODE_OPTIONS.
   if (!vfs_load_source.empty() && sea::IsSingleExecutable()) {
     errors->push_back(
         "--vfs-load cannot be used in a single executable application");

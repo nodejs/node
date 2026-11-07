@@ -223,6 +223,13 @@ The VFS supports the `node:fs` operations for reading files and directories.
 Since the SEA VFS is read-only, write operations fail with `EROFS`. See the
 [VFS documentation][] for the full list of supported operations.
 
+`useVfs` does for a single executable application what [`--vfs-load`][] does
+for `node`: the entry point is its `"main"`, and modules resolve against its
+own files. `--vfs-load` therefore cannot be used in a single executable
+application, whether or not it uses `useVfs`: `--build-sea` rejects it in
+`"execArgv"`, and the executable rejects it at startup when it comes from
+`--node-options` or from the `execArgv` of a worker.
+
 #### Loading modules from the VFS in a SEA
 
 When `useVfs` is enabled, the main script is executed from inside the
@@ -283,13 +290,6 @@ new Worker(path.join(__dirname, 'worker.js'));
 
 A virtual file system mounted with [`vfs.mount()`][] in one thread is not
 mounted in the others, so a worker cannot load a script from it.
-
-`useVfs` does for a single executable application what [`--vfs-load`][] does
-for `node`: the entry point is its `"main"`, and modules resolve against its
-own files. `--vfs-load` therefore cannot be used in a single executable
-application: `--build-sea` rejects it in `"execArgv"`, and the executable
-rejects it at startup when it comes from `--node-options` or from the
-`execArgv` of a worker.
 
 #### Serving the assets from a ZIP archive with `"vfsArchive"`
 
