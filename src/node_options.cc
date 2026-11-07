@@ -320,13 +320,17 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  sea_vfs_archive = sea::IsSingleExecutable() &&
-                    sea::FindSingleExecutableResource().use_vfs_archive();
-  // The archive takes the mount point reserved for the --vfs-load source.
-  if (!vfs_load_source.empty() && sea_vfs_archive) {
+  // "useVfs" is the --vfs-load of a SEA, whichever provider serves the VFS,
+  // and takes the mount point reserved for the --vfs-load source.
+  sea_vfs = sea::IsSingleExecutable() &&
+            sea::FindSingleExecutableResource().use_vfs();
+  // The entry point of a SEA is its "main", and resolving modules against its
+  // files is what "useVfs" does, so --vfs-load has nothing to do in any SEA.
+  // Accepting it from --node-options would also let whoever runs the binary
+  // change what it resolves, which is why it is disallowed in NODE_OPTIONS.
+  if (!vfs_load_source.empty() && sea::IsSingleExecutable()) {
     errors->push_back(
-        "--vfs-load cannot be used in a single executable application "
-        "built with \"vfsArchive\"");
+        "--vfs-load cannot be used in a single executable application");
   }
 #endif  // DISABLE_SINGLE_EXECUTABLE_APPLICATION
 
@@ -830,7 +834,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar);
   AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
   Implies("--vfs-load", "[vfs_load_set]");
-  AddOption("[sea_vfs_archive]", "", BOOL_FIELD(sea_vfs_archive));
+  AddOption("[sea_vfs]", "", BOOL_FIELD(sea_vfs));
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",

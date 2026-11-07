@@ -264,6 +264,33 @@ Module format detection works the same way as on the real file
 system: name bundled ES modules with the `.mjs` extension (or provide the
 relevant `package.json` files as assets) so they are interpreted as ESM.
 
+#### Worker threads
+
+The virtual file system is mounted at the mount point reserved for
+[`--vfs-load`][], which is the same in every thread, and worker threads mount
+it as well. A path into it, such as the main script's
+`__filename` or a worker script bundled as an asset, can therefore be loaded
+in a [`Worker`][], which reaches the other assets the same way the main
+script does:
+
+```cjs
+const { Worker } = require('node:worker_threads');
+const path = require('node:path');
+
+// worker.js is bundled as an asset, at the root of the mount.
+new Worker(path.join(__dirname, 'worker.js'));
+```
+
+A virtual file system mounted with [`vfs.mount()`][] in one thread is not
+mounted in the others, so a worker cannot load a script from it.
+
+`useVfs` does for a single executable application what [`--vfs-load`][] does
+for `node`: the entry point is its `"main"`, and modules resolve against its
+own files. `--vfs-load` therefore cannot be used in a single executable
+application: `--build-sea` rejects it in `"execArgv"`, and the executable
+rejects it at startup when it comes from `--node-options` or from the
+`execArgv` of a worker.
+
 #### Serving the assets from a ZIP archive with `"vfsArchive"`
 
 Instead of listing individual `"assets"`, the configuration can point
@@ -299,10 +326,9 @@ executable only embeds the archive; read the files through the file system
 APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
 combined with `"assets"`.
 
-The archive is mounted at the mount point reserved for [`--vfs-load`][], which
-is the same in every thread, and worker threads mount it as well. A path into
-the archive, such as the main script's `__filename`, can therefore be loaded
-in a worker:
+The archive is mounted at the same mount point as the assets would be, and
+in [worker threads](#worker-threads) as well. A path into the archive, such
+as the main script's `__filename`, can therefore be loaded in a worker:
 
 ```cjs
 const { Worker, isMainThread } = require('node:worker_threads');
@@ -314,11 +340,6 @@ if (isMainThread) {
   console.log(require('./lib/math.js').add(2, 3));
 }
 ```
-
-Since that mount point is taken by the archive, `--vfs-load` cannot be used
-with `"vfsArchive"`: `--build-sea` rejects it in `"execArgv"`, and the
-executable rejects it at startup when it comes from `--node-options` or from
-the `execArgv` of a worker.
 
 #### Code cache for the modules in the VFS
 
@@ -827,6 +848,7 @@ to help us document them.
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`--vfs-load`]: cli.md#--vfs-loadsource
+[`Worker`]: worker_threads.md#class-worker
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
@@ -837,6 +859,7 @@ to help us document them.
 [`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[`vfs.mount()`]: vfs.md#vfsmount
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [module loader integration]: vfs.md#module-loader-integration
