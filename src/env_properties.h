@@ -346,8 +346,6 @@
   V(stream_count_string, "streamCount")                                        \
   V(synthetic_string, "synthetic")                                             \
   V(syscall_string, "syscall")                                                 \
-  V(table_string, "table")                                                     \
-  V(target_string, "target")                                                   \
   V(then_string, "then")                                                       \
   V(thread_id_string, "threadId")                                              \
   V(thread_name_string, "threadName")                                          \
