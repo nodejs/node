@@ -233,7 +233,9 @@ FindPackageJson(const std::filesystem::path& cwd) {
        directory_path = directory_path.parent_path()) {
     // Append "path/node_modules/.bin" to the env var, if it is a directory.
     auto node_modules_bin = directory_path / "node_modules" / ".bin";
-    if (std::filesystem::is_directory(node_modules_bin)) {
+    // Skip directories that can't be inspected (e.g. permission denied).
+    std::error_code error_code;
+    if (std::filesystem::is_directory(node_modules_bin, error_code)) {
       path_env_var += ConvertPathToUTF8(node_modules_bin) + env_var_separator;
     }
 
@@ -279,7 +281,15 @@ static void PrintScripts(FILE* out,
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
-  auto cwd = std::filesystem::current_path();
+  std::error_code error_code;
+  auto cwd = std::filesystem::current_path(error_code);
+  if (error_code) {
+    fprintf(stderr,
+            "Can't determine the current working directory: %s\n",
+            error_code.message().c_str());
+    result->exit_code_ = ExitCode::kGenericUserError;
+    return;
+  }
   auto package_json = FindPackageJson(cwd);
 
   if (!package_json.has_value()) {
