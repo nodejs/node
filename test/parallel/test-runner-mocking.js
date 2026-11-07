@@ -1275,6 +1275,34 @@ test('throws if setting a non-writable property', (t) => {
   assert.throws(() => { obj.bar = 3; }, { code: 'ERR_INVALID_ARG_VALUE' });
 });
 
+test('restores an accessor property', (t) => {
+  const obj = {
+    get foo() { return 'real'; },
+  };
+  const original = Object.getOwnPropertyDescriptor(obj, 'foo');
+
+  const prop = t.mock.property(obj, 'foo', 'mocked');
+  assert.strictEqual(obj.foo, 'mocked');
+
+  prop.mock.restore();
+  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(obj, 'foo'), original);
+});
+
+test('accessor property mocks are auto restored after the test finishes', async (t) => {
+  const obj = {
+    get foo() { return 'real'; },
+  };
+  const original = Object.getOwnPropertyDescriptor(obj, 'foo');
+
+  await t.test('creates an accessor property mock that is auto restored', (t) => {
+    t.mock.property(obj, 'foo', 'mocked');
+    assert.strictEqual(obj.foo, 'mocked');
+  });
+
+  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(obj, 'foo'), original);
+  assert.strictEqual(obj.foo, 'real');
+});
+
 test('throws if property does not exist', (t) => {
   assert.throws(() => {
     t.mock.property({}, 'doesNotExist', 1);
